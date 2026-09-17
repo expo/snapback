@@ -103,7 +103,12 @@ impl Facts {
                     if top.contains(&lane.binding) { return None; }
                     self.locals.insert(lane.binding.clone());
                     self.stmts(&lane.setup, top)?;
-                    if let Some(source) = &lane.source { self.scan(source, top)?; }
+                    if let Some(source) = &lane.source {
+                        match source {
+                            snapback4_core::ir::LaneSource::Scan(scan) => self.scan(scan, top)?,
+                            other => { for value in other.expressions() { self.expr(value, top)?; } }
+                        }
+                    }
                     self.scan(&lane.scan, top)?;
                 }
             }

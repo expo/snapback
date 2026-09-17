@@ -59,7 +59,7 @@ class MockKernel {
   };
 }
 
-function harness(kernel) {
+function harness(kernel, { record } = {}) {
   let tick = 0;
   const custody = new ProcessCustody({
     uid: UID,
@@ -68,6 +68,7 @@ function harness(kernel) {
     signalGroup: kernel.signalGroup,
     sleep: async () => {},
     now: () => `2026-09-16T00:00:${String(tick++).padStart(2, '0')}.000Z`,
+    record,
     timings: {
       pollMs: 0, gracefulMs: 0, groupTermMs: 0, groupKillMs: 0,
       descendantTermMs: 0, descendantKillMs: 0, pidTermMs: 0, pidKillMs: 0,
@@ -330,6 +331,134 @@ test('fast double-fork gap is explicit and cold-cell evidence stays fail-closed'
   });
   assert.equal(receipt.adoptedIdentities.some(identity => identity.pid === 300), false);
   assert.equal(kernel.rows.has(300), true);
+});
+
+test('recorder failure on the first seed event is latched without escaping process custody', async () => {
+  const kernel = new MockKernel([
+    row(LEADER_PID, { ppid: LAUNCHER_PID, pgid: LEADER_PID }),
+  ]);
+  let calls = 0;
+  const custody = harness(kernel, {
+    record: () => {
+      calls++;
+      if (calls === 1) throw new Error('seed recorder unavailable');
+    },
+  });
+  const receipt = await custody.cleanup({ reason: 'leader-exited', intentional: false });
+  assert.equal(receipt.ok, false);
+  assert.equal(receipt.uncertainties.filter(
+    uncertainty => uncertainty.code === 'PILOT_CUSTODY_RECORD_FAILED',
+  ).length, 1);
+  assert.equal(receipt.uncertainties.find(
+    uncertainty => uncertainty.code === 'PILOT_CUSTODY_RECORD_FAILED',
+  ).event, 'identity-adopted');
+});
+
+test('persistent recorder failure beginning after seed does not interrupt cleanup', async () => {
+  const kernel = new MockKernel([
+    row(LEADER_PID, { ppid: LAUNCHER_PID, pgid: LEADER_PID }),
+    row(200, { ppid: LEADER_PID, pgid: 200 }),
+  ]);
+  let calls = 0;
+  const custody = harness(kernel, {
+    record: () => {
+      calls++;
+      if (calls > 1) throw new Error(`persistent recorder failure ${calls}`);
+    },
+  });
+  kernel.remove(LEADER_PID);
+  const receipt = await custody.cleanup({ reason: 'leader-exited', intentional: false });
+  assert.equal(receipt.ok, false);
+  assert.deepEqual(receipt.survivors, []);
+  assert.ok(kernel.signals.some(signal => signal.target === 'group' && signal.pgid === 200));
+  assert.ok(calls > 2);
+  assert.equal(receipt.uncertainties.filter(
+    uncertainty => uncertainty.code === 'PILOT_CUSTODY_RECORD_FAILED',
+  ).length, 1);
+});
+
+test('recorder failure while emitting custody uncertainty preserves both uncertainties', async () => {
+  const kernel = new MockKernel([
+    row(LEADER_PID, { ppid: LAUNCHER_PID, pgid: 777 }),
+  ]);
+  const custody = harness(kernel, {
+    record: entry => {
+      if (entry.event === 'custody-uncertainty') throw new Error('uncertainty recorder failed');
+    },
+  });
+  const receipt = await custody.cleanup({ reason: 'leader-exited', intentional: false });
+  assert.equal(receipt.ok, false);
+  assert.equal(receipt.uncertainties.filter(
+    uncertainty => uncertainty.code === 'PILOT_CODEX_GROUP_UNVERIFIED',
+  ).length, 1);
+  assert.equal(receipt.uncertainties.filter(
+    uncertainty => uncertainty.code === 'PILOT_CUSTODY_RECORD_FAILED',
+  ).length, 1);
+  assert.equal(receipt.uncertainties.find(
+    uncertainty => uncertainty.code === 'PILOT_CUSTODY_RECORD_FAILED',
+  ).event, 'custody-uncertainty');
+});
+
+test('failure only on cleanup-complete makes receipt and final event non-green', async () => {
+  const kernel = new MockKernel([
+    row(LEADER_PID, { ppid: LAUNCHER_PID, pgid: LEADER_PID }),
+  ]);
+  const recorded = [];
+  const custody = harness(kernel, {
+    record: entry => {
+      recorded.push(entry);
+      if (entry.event === 'custody-cleanup-complete') throw new Error('final recorder failed');
+    },
+  });
+  const receipt = await custody.cleanup({ reason: 'leader-exited', intentional: false });
+  const completion = receipt.events.find(event => event.event === 'custody-cleanup-complete');
+  assert.equal(receipt.ok, false);
+  assert.equal(receipt.uncertainties.length, 1);
+  assert.equal(receipt.uncertainties[0].code, 'PILOT_CUSTODY_RECORD_FAILED');
+  assert.equal(receipt.uncertainties[0].event, 'custody-cleanup-complete');
+  assert.equal(completion.ok, false);
+  assert.equal(completion.uncertaintyCount, 1);
+  assert.equal(recorded.at(-1), completion);
+  assert.equal(recorded.at(-1).ok, false);
+});
+
+test('TERM and KILL hooks and survivor evidence remain active through recorder failures', async () => {
+  const kernel = new MockKernel([
+    row(LEADER_PID, { ppid: LAUNCHER_PID, pgid: LEADER_PID }),
+    row(200, { ppid: LEADER_PID, pgid: 200 }),
+  ]);
+  kernel.setIgnore(200, 'SIGTERM', 'SIGKILL');
+  const custody = harness(kernel, {
+    record: () => { throw new Error('recorder offline'); },
+  });
+  kernel.remove(LEADER_PID);
+  const receipt = await custody.cleanup({ reason: 'leader-exited', intentional: false });
+  assert.equal(receipt.ok, false);
+  assert.deepEqual(
+    kernel.signals.filter(signal => signal.target === 'group' && signal.pgid === 200)
+      .map(signal => signal.signal),
+    ['SIGTERM', 'SIGKILL'],
+  );
+  assert.deepEqual(receipt.survivors.map(survivor => survivor.pid), [200]);
+});
+
+test('repeated recorder errors latch exactly one recorder-failure uncertainty', async () => {
+  const kernel = new MockKernel([
+    row(LEADER_PID, { ppid: LAUNCHER_PID, pgid: LEADER_PID }),
+    row(200, { ppid: LEADER_PID, pgid: 200 }),
+  ]);
+  let failures = 0;
+  const custody = harness(kernel, {
+    record: () => {
+      failures++;
+      throw new Error(`recorder failure ${failures}`);
+    },
+  });
+  const receipt = await custody.cleanup({ reason: 'lifecycle-error', intentional: false });
+  assert.ok(failures > 3);
+  assert.equal(receipt.uncertainties.filter(
+    uncertainty => uncertainty.code === 'PILOT_CUSTODY_RECORD_FAILED',
+  ).length, 1);
 });
 
 test('actual Codex ordinary exec-spawn custody', {

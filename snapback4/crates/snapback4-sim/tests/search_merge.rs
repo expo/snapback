@@ -118,7 +118,7 @@ fn matching_merge_refusals_name_the_admitted_rewrite_and_51_lanes_get_a_note() {
     let source = format!("{SCHEMA}\nquery all(q: text <=100, c: cursor ?):\n  return messages matching q after c last 50 by byWords\n");
     let compiled = bound(&source);
     let note = compiled.notes.iter().find(|note| note.code == "N_NEVER_COMPLETE").unwrap();
-    assert_eq!(note.rewrite, "merge messages matching q last 50 by byRoomWords: [m.roomId] for m in members[viewer] first 50 by byPrincipalRoom — one verdict per scope and a complete page; or read the page on the device");
+    assert_eq!(note.rewrite, "merge messages matching q last 50 by byRoomWords: [m.roomId] for m in members[viewer] by byPrincipalRoom — one verdict per scope; complete while every head opens and the page fits in one read; or read the page on the device");
     assert_eq!(note.guide, "search");
     println!("{note}");
 }

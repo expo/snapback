@@ -5,6 +5,7 @@ use super::Context;
 use crate::error::{MeterKind, RuntimeError};
 use crate::ir::*;
 use crate::meter::{Cut, Meter};
+#[cfg(feature = "sqlite")]
 use crate::partition::Event;
 use crate::schema::Schema;
 use crate::rows::Rows;
@@ -56,7 +57,8 @@ pub struct Runner<'a> {
     pub(crate) written_tables: BTreeSet<String>,
     pub(crate) rows_written: u64,
     pub(crate) next_expiry: Option<i64>,
-    /// Partition events, accumulated for the commit.
+    /// Partition events, accumulated for the commit; a logless host builds none.
+    #[cfg(feature = "sqlite")]
     pub(crate) events: Vec<Event>,
     /// Queued effects with their grace dependencies.
     pub(crate) outbox: Vec<super::presence::Emission>,
@@ -137,6 +139,7 @@ impl<'a> Runner<'a> {
             written_tables: BTreeSet::new(),
             rows_written: 0,
             next_expiry: None,
+            #[cfg(feature = "sqlite")]
             events: Vec::new(),
             outbox: Vec::new(),
             effect_presence: Default::default(),
@@ -228,7 +231,7 @@ impl<'a> Runner<'a> {
                     match self.env.get_mut(target) {
                         Some(Value::Array(values)) => values.push(value),
                         Some(other) => return Err(ValueError::Type { expected: "array", actual: other.kind() }.into()),
-                        None => return Err(RuntimeError::Input(format!("unknown variable {target}"))),
+                        None => return Err(missing_variable(target, &self.statement_site)),
                     }
                     Flow::Next
                 }
@@ -359,10 +362,11 @@ impl<'a> Runner<'a> {
         self.env.insert(name.to_owned(), value);
     }
 
-    fn domain(&mut self, domain: &LoopDomain) -> Result<Box<dyn Iterator<Item = Value>>, RuntimeError> {
+    pub(super) fn domain(&mut self, domain: &LoopDomain) -> Result<Box<dyn Iterator<Item = Value>>, RuntimeError> {
         let values = match domain {
             LoopDomain::Page(scan) => {
                 let values = self.scan(scan)?;
+                #[cfg(feature = "postgres")]
                 self.page_plan.prefetch.fill(&scan.site, &values, &self.context, self.schema, self.tx);
                 self.meter.heap(values.capacity() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Value::heap_bytes).sum::<u64>())?;
                 Ok(values)
@@ -386,11 +390,13 @@ impl<'a> Runner<'a> {
                 Ok(values)
             }
             LoopDomain::DerivedArray { value, max, .. } => {
+                #[cfg(feature = "postgres")]
                 let site = self.statement_site.clone();
                 let values = into_array(self.expr(value)?)?;
                 if values.len() > *max as usize {
                     return Err(RuntimeError::Fanout);
                 }
+                #[cfg(feature = "postgres")]
                 self.page_plan.prefetch.fill(&site, &values, &self.context, self.schema, self.tx);
                 Ok(values)
             }
@@ -442,13 +448,13 @@ impl<'a> Runner<'a> {
                 Ok(value.clone())
             }
             Expr::Variable(name) => {
-                let value = self.env.get(name).ok_or_else(|| RuntimeError::Input(format!("unknown variable {name}")))?;
+                let value = self.env.get(name).ok_or_else(|| missing_variable(name, &self.statement_site))?;
                 self.meter.heap(value.clone_heap_bytes())?;
                 Ok(value.clone())
             }
             Expr::Input(input) => self.input(*input),
             Expr::Field { base, name } => {
-                if let Some((base, steps)) = borrowed(&self.env, base)? {
+                if let Some((base, steps)) = borrowed(&self.env, base, &self.statement_site)? {
                     self.meter.step(steps)?;
                     if *base == Value::Null { return Ok(Value::Null); }
                     let value = base.field(name)?;
@@ -515,7 +521,7 @@ impl<'a> Runner<'a> {
                 // Inspect a held value without allocating a copy just to count
                 // it. Reads that need ownership still charge every actual clone.
                 if matches!(builtin, Builtin::Len | Builtin::Count | Builtin::CountCapped | Builtin::Sum) {
-                    if let Some((value, steps)) = borrowed(&self.env, &args[0])? {
+                    if let Some((value, steps)) = borrowed(&self.env, &args[0], &self.statement_site)? {
                         self.meter.step(steps)?;
                         return scalar_builtin(builtin, value);
                     }
@@ -821,11 +827,11 @@ fn into_array(value: Value) -> Result<Vec<Value>, RuntimeError> {
 
 /// Only side-effect-free leaves can be borrowed; storage/input evaluation
 /// remains in expr, and visiting a borrowed leaf costs the same steps.
-fn borrowed<'a>(env: &'a BTreeMap<String, Value>, expr: &'a Expr) -> Result<Option<(&'a Value, u64)>, RuntimeError> {
+fn borrowed<'a>(env: &'a BTreeMap<String, Value>, expr: &'a Expr, site: &str) -> Result<Option<(&'a Value, u64)>, RuntimeError> {
     match expr {
         Expr::Literal(value) => Ok(Some((value, 1))),
-        Expr::Variable(name) => env.get(name).map(|value| Some((value, 1))).ok_or_else(|| RuntimeError::Input(format!("unknown variable {name}"))),
-        Expr::Field { base, name } => match borrowed(env, base)? {
+        Expr::Variable(name) => env.get(name).map(|value| Some((value, 1))).ok_or_else(|| missing_variable(name, site)),
+        Expr::Field { base, name } => match borrowed(env, base, site)? {
             Some((value, steps)) => Ok(Some((if *value == Value::Null { value } else { value.field(name)? }, steps + 1))),
             None => Ok(None),
         },
@@ -846,4 +852,10 @@ fn scalar_builtin(builtin: &Builtin, value: &Value) -> Result<Value, RuntimeErro
         _ => unreachable!("only scalar inspectors borrow their argument"),
     };
     Value::int(count as i128).map_err(Into::into)
+}
+
+fn missing_variable(name: &str, site: &str) -> RuntimeError {
+    if name.starts_with('$') {
+        RuntimeError::Structural { code: "E_INTERNAL", message: format!("internal compiler error: an undefined temporary was evaluated in operation/site {site}; recompile and report this operation") }
+    } else { RuntimeError::Input(format!("unknown variable {name}")) }
 }

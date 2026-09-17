@@ -135,6 +135,11 @@ impl Store {
              CREATE TABLE IF NOT EXISTS _credentials (principal TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, hash TEXT NOT NULL);
              CREATE TABLE IF NOT EXISTS _generations (generation INTEGER PRIMARY KEY, schema TEXT NOT NULL, programs TEXT NOT NULL, at INTEGER NOT NULL);
              CREATE TABLE IF NOT EXISTS _outbox (id TEXT PRIMARY KEY, seq INTEGER NOT NULL, effect TEXT NOT NULL, payload TEXT NOT NULL, state TEXT NOT NULL, attempts INTEGER NOT NULL, at INTEGER NOT NULL);
+             CREATE TABLE IF NOT EXISTS _effect_steps (
+                 effect_id TEXT NOT NULL, name TEXT NOT NULL, input_digest TEXT NOT NULL,
+                 provider_key TEXT NOT NULL, state TEXT NOT NULL, claim_digest TEXT NOT NULL,
+                 result TEXT, at INTEGER NOT NULL, settled_at INTEGER, error TEXT,
+                 PRIMARY KEY(effect_id, name));
              CREATE TABLE IF NOT EXISTS _effect_presence (principal TEXT NOT NULL, id TEXT NOT NULL, deadline INTEGER NOT NULL, reconnected INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (principal, id)) WITHOUT ROWID;
              CREATE INDEX IF NOT EXISTS _effect_presence_id ON _effect_presence(id);
              CREATE TABLE IF NOT EXISTS _assets (id TEXT PRIMARY KEY, owner TEXT NOT NULL, kind TEXT NOT NULL, content_type TEXT NOT NULL, bytes INTEGER NOT NULL, width INTEGER, height INTEGER, duration INTEGER, created_at INTEGER NOT NULL, home_table TEXT, home_id TEXT, home_column TEXT, released_at INTEGER);
@@ -160,7 +165,7 @@ impl Store {
         // The outbox grew a worker protocol (leases, backoff, results); a
         // store from before it gains the columns in place, once.
         let outbox_columns: Vec<String> = conn.prepare("SELECT name FROM pragma_table_info('_outbox')")?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
-        for (column, kind) in [("lease_until", "INTEGER"), ("claimed_by", "TEXT"), ("next_at", "INTEGER"), ("result", "TEXT"), ("error", "TEXT"), ("settled_at", "INTEGER"), ("work_spec", "TEXT"), ("deadline", "INTEGER"), ("release", "TEXT"), ("error_code", "TEXT"), ("lease_digest", "TEXT"), ("cancelled", "INTEGER NOT NULL DEFAULT 0")] {
+        for (column, kind) in [("lease_until", "INTEGER"), ("claimed_by", "TEXT"), ("next_at", "INTEGER"), ("result", "TEXT"), ("error", "TEXT"), ("settled_at", "INTEGER"), ("work_spec", "TEXT"), ("deadline", "INTEGER"), ("release", "TEXT"), ("error_code", "TEXT"), ("lease_digest", "TEXT"), ("cancelled", "INTEGER NOT NULL DEFAULT 0"), ("contract", "TEXT")] {
             if !outbox_columns.iter().any(|name| name == column) {
                 conn.execute_batch(&format!("ALTER TABLE _outbox ADD COLUMN {column} {kind};"))?;
             }
@@ -449,6 +454,10 @@ impl<'a> Tx<'a> {
     pub fn set_meta(&self, key: &str, value: &str) -> Result<(), RuntimeError> {
         self.tx.execute("INSERT INTO _meta(key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value", params![key, value])?;
         Ok(())
+    }
+
+    pub(crate) fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
+        Ok(self.tx.prepare_cached("SELECT value FROM _meta WHERE key = ?1")?.query_row([key], |row| row.get(0)).optional()?)
     }
 
     pub fn record_commit(&self, seq: u64, at: i64, program: &str, principal: &str, kind: &str, touched: &[String], writes: u64) -> Result<(), RuntimeError> {

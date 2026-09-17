@@ -123,3 +123,35 @@ restated ladder ends near 300,000 B gzip, twice this ticket's target: the
 executor and device logic alone are about 130,000. The plan now says plainly
 that 150,000 needs a compact shared execution representation or a web device
 that does less. This ticket stays open.
+
+## 2026-09-17 reachability landed; `main` is 16,000 over where it was
+
+S5 keeps server-only engine code out of the web device: the prefetch planner
+(−6,931 B gzip), partition-log event construction (−1,243; the meter charges
+and fallible scans of deriving them stay) and the structural admission check
+(−13,480; the web device now trusts the compiler's and server's check, stated
+on the cards and in the README). 466,618 → 444,964 at its base.
+
+The tree it landed on is larger than that: in the eighty minutes between the
+two diet landings `main` grew from 466,618 to 505,030, and S5 lands at
+482,965. One attribute accounts for 33,460 of the growth —
+`#[serde(untagged)]` on `ir::LaneSource`, which makes serde buffer the input
+and instantiate every reachable IR reader a second time. `attribute-wasm.mjs
+--check-families` fails on it, so `measure-wasm.sh` is red on `main` and this
+landing records no measurement line. A repair lane is commissioned (decode
+the enum without buffering, same wire shape; refuse the content-reader
+representations in the suite's source census). The budget is 483,000,
+report-only. This ticket stays open.
+
+## 2026-09-17 the content reader is out again; the next rung is sized
+
+S1b landed: `ir::LaneSource` decodes by streaming with its wire bytes
+unchanged, and the web device is 451,283 B gzip (from 482,965).
+`attribute-wasm.mjs --check-families` and `measure-wasm.sh` are green on
+`main` again, and the suite's source census now refuses the serde
+representations that select the content reader, so this class of regression
+fails a landing. S4a (the backend image) was sized by two scratch probes —
+ceiling 377,414, with a stand-in compact decoder 402,463 — at about −45,000,
+and is commissioned. With S3 (host NFC, −58,832, awaiting the author's
+ruling) the ladder's measured rungs would put the device near 347,000; the
+target of 150,000 still needs the S6 decision. This ticket stays open.

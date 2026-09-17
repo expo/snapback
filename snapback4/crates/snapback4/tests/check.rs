@@ -12,7 +12,7 @@ const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
 #[test]
 fn w10c_check_hides_only_the_redundant_operation_cascade() {
     let p = Project::new();
-    p.source("query apiHistory():\n  return messages where .body = 'hello'\n");
+    p.source("query apiHistory():\n  return messages after null\n");
     let ordinary = p.run(&["check"]);
     let verbose = p.run(&["check", "--verbose"]);
     let full = p.run(&["check", "--json"]);
@@ -83,8 +83,8 @@ fn w10r1_correcting_equality_still_requires_a_job_chunk() {
 #[test]
 fn w10c_check_keeps_independent_errors_and_other_operations() {
     let p = Project::new();
-    p.source("query apiHistory():\n  return messages where .body = 'hello'\n  return exists 1\n  return 1\njob empty():\n  x = 1\n");
-    fs::write(p.0.join("snapback/other.q"), "query apiHistory():\n  return messages where .body = 'bye'\n").unwrap();
+    p.source("query apiHistory():\n  return messages after null\n  return exists 1\n  return 1\njob empty():\n  x = 1\n");
+    fs::write(p.0.join("snapback/other.q"), "query apiHistory():\n  return messages after null\n").unwrap();
     let output = p.run(&["check"]);
     assert_eq!(output.status.code(), Some(1));
     let text = String::from_utf8(output.stderr).unwrap();
@@ -1313,4 +1313,59 @@ fn w13b_near_ceiling_requires_more_than_half_and_reports_each_counter() {
     assert!(read_cost::near_ceiling(m, c).is_none());
     m.examined += 1; m.heap_bytes = c.heap_bytes / 2 + 1;
     assert_eq!(read_cost::near_ceiling(m, c).unwrap(), "examined 4,097 of 8,192; heap bytes 8,388,609 of 16,777,216");
+}
+
+#[test]
+fn w13c_cost_reports_meter_domains_and_prefix_existence_as_scans() {
+    let p = Project::new();
+    p.source(include_str!("../../snapback4-sim/tests/fixtures/prefix-reads.q"));
+    let output = p.run(&["check", "--cost"]);
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(text.contains("rows ≤ meter (8,192 examined)"), "{text}");
+    assert!(text.contains("lanes ≤ meter"), "{text}");
+    assert!(text.contains("scan messages.byRoomTime first 1"), "{text}");
+    assert!(text.contains("exists: first match, no page overflow or cursor"), "{text}");
+    assert!(!text.contains("N_WIDE_MERGE"));
+    println!("{text}");
+}
+
+#[test]
+fn w13c_check_fix_parenthesizes_an_inner_matching_read() {
+    let p = Project::new();
+    let source = include_str!("../../snapback4-sim/tests/fixtures/prefix-reads.q");
+    for spelling in ["messages[.roomId] matching q", "(messages[.roomId]) matching q"] {
+        p.source(&source.replace("(messages[.roomId] matching q)", spelling));
+        let refused = p.run(&["check", "--json"]);
+        assert_eq!(parsed(&refused)["problems"][0]["code"], "E_QUARRY_MODIFIER_SCOPE");
+        let repaired = p.run(&["check", "--fix"]);
+        assert!(repaired.status.success(), "{}", String::from_utf8_lossy(&repaired.stderr));
+        assert!(p.run(&["check"]).status.success());
+    }
+}
+
+#[test]
+fn w13c2_cost_folds_range_widths_and_keeps_unknown_lanes_meter_bounded() {
+    let p = Project::new();
+    p.source(include_str!("../../snapback4-sim/tests/fixtures/lane-domains.q"));
+    let output = p.run(&["check", "--cost"]);
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(text.contains("lanes ≤ meter"), "{text}");
+    assert!(text.contains("up to 25 lanes"), "{text}");
+    assert!(text.contains("up to 50 lanes"), "{text}");
+    assert!(!text.contains("N_WIDE_MERGE"), "{text}");
+    println!("{text}");
+}
+
+#[test]
+fn w13cr1_cost_keeps_differently_grouped_range_expressions_dynamic() {
+    let p = Project::new();
+    p.source("table posts:\n  hourKey: int\n  by byHour: hourKey, id\n  public 'posts'\nquery page(start: int, end: int, c: cursor ?):\n  return merge posts after c first 10 by byHour:\n    [h] for h in range((start + end) * 2, start + end * 2)\n");
+    let output = p.run(&["check", "--cost"]);
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    let text = String::from_utf8(output.stdout).unwrap();
+    println!("{text}");
+    assert!(text.contains("lanes ≤ meter"), "{text}");
+    assert!(!text.contains("up to 0 lanes"), "{text}");
 }

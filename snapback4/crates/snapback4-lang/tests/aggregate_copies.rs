@@ -103,7 +103,7 @@ fn unrestricted_rule_spellings_and_public_online_tables_are_covered() {
 
 #[test]
 fn installable_recipes_have_no_aggregate_copy_note() {
-    for (name, source) in [("feeds", recipe::following("feed", "social").unwrap()), ("search", recipe::search("search", "social").unwrap())] {
+    for (name, source) in [("feeds", recipe::following("feed", "social").unwrap())] {
         let bound = compile(&[("social.q".into(), source)]);
         assert!(bound.diagnostics.is_empty(), "{name}: {:?}", bound.diagnostics);
         assert!(bound.notes.is_empty(), "{name}: {:?}", bound.notes);
@@ -201,14 +201,13 @@ fn no_published_indexed_int_table_has_unrestricted_writes() {
     let mut hits = Vec::new();
     for (name, source) in published_blocks().into_iter().chain([
         ("feeds recipe".into(), recipe::following("feed", "").unwrap()),
-        ("search recipe".into(), recipe::search("search", "").unwrap()),
     ]) {
         let bound = bind(&source);
         blocks += 1;
         ranked += indexed_int_tables(&bound.schema).len();
         hits.extend(unrestricted_rankings(&bound.schema).into_iter().map(|hit| format!("{name}: {hit}")));
     }
-    println!("ranking authority survey: {} cards, 3 documents, 2 recipes, {blocks} blocks, {ranked} indexed-int table occurrences, {} unrestricted rules", guide::KEYWORDS.len(), hits.len());
+    println!("ranking authority survey: {} cards, 3 documents, 1 recipe, {blocks} blocks, {ranked} indexed-int table occurrences, {} unrestricted rules", guide::KEYWORDS.len(), hits.len());
     assert!(hits.is_empty(), "{}", hits.join("\n"));
 }
 

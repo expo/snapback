@@ -27,6 +27,15 @@ pub struct WorkSpec {
     pub policy: WorkPolicy,
 }
 
+impl WorkSpec {
+    /// Effects currently carry one generic `Value` payload surface. If a
+    /// typed payload declaration is added, its schema identity must replace
+    /// this validator tag rather than claiming same-name type safety here.
+    pub fn effect_contract(&self, effect: &str, payload: &crate::Value) -> String {
+        crate::value::digest(&("effect-payload:generic-value:v1", effect, payload, self))
+    }
+}
+
 // @ref LLP 3000.009#5.2 — policy is frozen at admission, not reread on each retry.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]

@@ -140,7 +140,7 @@ impl Binder<'_> {
                 Ok((Expr::Binary { op: BinaryOp::Gt, left: Box::new(count), right: Box::new(Expr::Literal(Value::Int(0))) }, Ty::Bool))
             }
             A::Exists { read, .. } => {
-                Ok((self.read_value(read, ReadMode::Exists, out)?, Ty::Bool))
+                self.exists_read(read, out)
             }
             A::Created { .. } => Err(unknown(site, "created is valid only in an insert table rule", "use exists here")),
             A::Assert { value, code, .. } => {

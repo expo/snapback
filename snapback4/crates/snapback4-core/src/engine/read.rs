@@ -15,6 +15,7 @@ use std::cmp::Ordering;
 use std::collections::{BTreeSet, BinaryHeap, VecDeque};
 
 // @ref LLP 3000.007#18.1 — search state belongs to the generated word merge's direct lanes, never to an expression nested inside one.
+#[derive(Clone)]
 struct WordRead {
     admitted: bool,
     fields: Vec<String>,
@@ -360,6 +361,18 @@ impl Runner<'_> {
     /// second index). No term matches nothing: an empty search is empty,
     /// not everything.
     fn scan_words(&mut self, scan: &Scan) -> Result<Vec<Value>, RuntimeError> {
+        let Some((merge, word)) = self.word_lanes(scan)? else {
+            if self.page_depth == 0 && scan.opaque_cursor {
+                self.record_page(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: scan.prefix.len(), prefix: None, merge: true, interrupted: false, next: None });
+            }
+            return Ok(Vec::new());
+        };
+        self.merge_with_words(&merge, Some(&word))
+    }
+
+    /// Admit one scope, then discover its words. Both a scoped page and a
+    /// uniform matching merge use exactly this validation and charge order.
+    fn word_lanes(&mut self, scan: &Scan) -> Result<Option<(Merge, WordRead)>, RuntimeError> {
         const MAX_WORD_LANES: usize = 32;
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
@@ -394,29 +407,21 @@ impl Runner<'_> {
         if self.device && table.sync.is_none() {
             self.unknown_fact(&scan.table, &scan.index, &scope, &scan.site);
         }
-        if self.device && table.sync.as_ref().is_some_and(|sync| sync.horizon.is_some()) {
-            let retained = self.retained_group(&scan.table, &scan.index, &scope)?;
-            self.horizon_coverage(scan, &scope, retained);
+        if self.device && !scan.existence && table.sync.as_ref().is_some_and(|sync| sync.horizon.is_some()) {
+            let retained = self.retained_group(&scan.table, &scan.index, &scope)?;            self.horizon_coverage(scan, &scope, retained);
         }
-        let empty_page = |this: &mut Self| {
-            if this.page_depth == 0 && scan.opaque_cursor {
-                this.record_page(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: position + 1, prefix: None, merge: true, interrupted: false, next: None });
-            }
-        };
-        // @ref LLP 3000.007#18.1 — one verdict per matching scope, before word discovery; the outer merge orders these scoped pages.
+        // @ref LLP 3000.007#18.1 — one verdict per matching scope, before word discovery and shared by its generated lanes.
         let visibility = rules::scan_visibility(self.schema, scan);
         let mut admitted = self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
         if !admitted && !visibility.uniform { self.non_uniform = true; self.components.note(|frame| frame.non_uniform = true); }
         if terms.is_empty() {
-            empty_page(self);
-            return Ok(Vec::new());
+            return Ok(None);
         }
         if !admitted && let Some(rule) = rules::prefix_decision(self.schema, scan) {
             let aborting = self.meter.cut == crate::meter::Cut::Abort;
-            if aborting && !self.read_charge(MeterKind::Examined, 1)? { empty_page(self); return Ok(Vec::new()); }
+            if aborting && !self.read_charge(MeterKind::Examined, 1)? { return Ok(None); }
             if !self.prefix_verdict(table, index, &scope, &rule, visibility.uniform)? {
-                empty_page(self);
-                return Ok(Vec::new());
+                return Ok(None);
             }
             admitted = visibility.uniform;
         }
@@ -444,8 +449,7 @@ impl Runner<'_> {
             words.push(word);
         }
         if words.is_empty() {
-            empty_page(self);
-            return Ok(Vec::new());
+            return Ok(None);
         }
         let lanes = words
             .iter()
@@ -457,12 +461,13 @@ impl Runner<'_> {
             .collect();
         let merge = Merge { site: scan.site.clone(), lanes };
         let word = WordRead { admitted, fields, terms: terms[1..].to_vec() };
-        self.merge_with_words(&merge, Some(&word))
+        Ok(Some((merge, word)))
     }
 
     fn take(&self, bound: &Bound) -> Result<usize, RuntimeError> {
         Ok(match bound {
             Bound::Literal(value) => *value as usize,
+            Bound::Meter => bound.maximum() as usize,
             Bound::Arg { name, max } => {
                 let value = self.context.args.get(name).ok_or_else(|| RuntimeError::Input(format!("missing take arg {name}")))?.as_int()?;
                 if value < 0 || value > *max as i64 {
@@ -477,7 +482,7 @@ impl Runner<'_> {
     /// cursor carries. Counted in components, so a words lane's cursor is
     /// the order columns after the word.
     fn cursor_suffix(table: &Table, index: &Index, prefix_len: usize) -> Vec<CursorColumn> {
-        index.suffix_after(prefix_len).iter().map(|name| CursorColumn { name: name.clone(), kind: table.columns[name].clone() }).collect()
+        index.components.iter().skip(prefix_len).filter_map(|component| Some(CursorColumn { name: component.key_name()?.clone(), kind: component.key_type(table)? })).collect()
     }
 
     // @ref LLP 3000.007.000#1 — only a merge appends the stored row id; direct descriptors and paved id-ending tokens keep their bytes.
@@ -534,7 +539,19 @@ impl Runner<'_> {
     }
 
     pub(super) fn scan_with_keys(&mut self, scan: &Scan) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
-        self.scan_with_words(scan, None)
+        if !scan.existence { return self.scan_with_words(scan, None); }
+        self.page_depth += 1;
+        let result = self.scan_with_words(scan, None);
+        self.page_depth -= 1;
+        // A held witness proves existence even beyond an acquired horizon.
+        // Only absence needs coverage; keep rule/aggregate uncertainty intact.
+        if result.as_ref().is_ok_and(|(rows, _)| rows.is_empty())
+            && self.device && self.schema.tables[&scan.table].sync.as_ref().is_some_and(|sync| sync.horizon.is_some()) {
+            let prefix = scan.prefix.iter().filter_map(IndexKeyExpr::scalar).map(|value| self.expr(value)).collect::<Result<Vec<_>, _>>()?;
+            let retained = self.tx.retained_group(&scan.table, &scan.index, &prefix)?;
+            self.horizon_coverage(scan, &prefix, retained);
+        }
+        result
     }
 
     fn scan_with_words(&mut self, scan: &Scan, word: Option<&WordRead>) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
@@ -664,6 +681,7 @@ impl Runner<'_> {
                     }
                     visible.push(row);
                     keys.push(key.clone());
+                    if scan.existence && visible.len() == take { break 'outer; }
                     if scan.filter.is_some() && visible.len() == take { has_more = true; break 'outer; }
                 } else {
                     self.next_expiry = row_expiry_mark;
@@ -675,7 +693,7 @@ impl Runner<'_> {
         }
         // Acquired horizons do not backfill. Missing rows and alternate
         // index orderings cannot establish a complete answer from counts.
-        if self.device
+        if self.device && !scan.existence
             && let Some(horizon) = table.sync.as_ref().and_then(|sync| sync.horizon.as_ref())
             && (horizon.by != scan.index || scan.order != crate::ir::Order::Desc || !has_more)
         {
@@ -745,6 +763,13 @@ impl Runner<'_> {
         let take = self.take(&first.scan.take)?;
         let prefix_len = first.scan.prefix.len();
         let suffix = Self::merge_suffix(table, index, prefix_len);
+        let suffix_len = suffix.len();
+        // @ref LLP 3000.007.000#1 — the merge position: every valued component after the prefix (a computed calendar key evaluates on the row), plus the stored row id when the suffix lacks it.
+        let merge_key = move |row: &Value| -> Vec<Value> {
+            let mut key: Vec<Value> = index.components.iter().skip(prefix_len).filter_map(|component| component.value(row)).collect();
+            if key.len() < suffix_len { key.push(row.field("id").cloned().unwrap_or(Value::Null)); }
+            key
+        };
         // A merge's cursor names the merge's own scope; it is checked before
         // lane discovery so an empty discovery cannot admit a foreign token.
         if first.scan.opaque_cursor
@@ -757,23 +782,17 @@ impl Runner<'_> {
         let mut seen = BTreeSet::new();
         let outer_depth = self.page_depth;
         for lane in &merge.lanes {
-            let sources = match &lane.source {
-                Some(source) => {
-                    self.page_depth += 1;
-                    let rows = self.scan(source)?;
-                    self.page_depth -= 1;
-                    rows
-                }
-                None => vec![Value::Null],
-            };
+            self.page_depth += 1;
+            let sources = self.lane_values(lane)?;
+            self.page_depth -= 1;
             for source_row in sources {
+                if !self.charge_lane(lane, &merge.site)? { break; }
                 if lane.source.is_some() {
                     self.env.insert(lane.binding.clone(), source_row);
                 }
                 self.statements(&lane.setup, &merge.site)?;
                 self.page_depth += 1;
-                // Each lane reads one row past the page, so a lane that alone
-                // fills the page still shows there is more to continue on.
+                // Pages look ahead; existence needs only its first witness.
                 let mut lane_scan = lane.scan.clone();
                 // @ref LLP 3000.007#20.3 — validate the common cursor above, then translate its descriptor for each same-shaped table.
                 if lane_scan.table != first.scan.table && lane_scan.opaque_cursor
@@ -785,15 +804,17 @@ impl Runner<'_> {
                     let token = crate::cursor::encode_cursor(self.schema, &position).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
                     lane_scan.after = Some(Box::new(Expr::Literal(Value::String(token))));
                 }
-                lane_scan.take = Bound::Literal(take as u32 + 1);
+                // @ref LLP 3000.007#20.22.4 — a matching existence scan stops at its first witness, without lookahead or later word lanes.
+                lane_scan.take = Bound::Literal(if lane_scan.existence { 1 } else { take as u32 + 1 });
                 let (rows, _) = self.scan_with_words(&lane_scan, word)?;
                 self.page_depth = outer_depth;
+                if lane_scan.existence && !rows.is_empty() { return Ok(rows); }
                 for row in rows {
                     let id = row.field("id")?.as_str()?.to_owned();
                     if !seen.insert(id) {
                         continue;
                     }
-                    let key: Vec<Value> = suffix.iter().map(|column| row.field(&column.name).cloned().unwrap_or(Value::Null)).collect();
+                    let key: Vec<Value> = merge_key(&row);
                     candidates.push((key, row));
                 }
             }
@@ -822,6 +843,24 @@ impl Runner<'_> {
         Ok(candidates.into_iter().map(|(_, row)| row).collect())
     }
 
+    fn lane_values(&mut self, lane: &MergeLane) -> Result<Box<dyn Iterator<Item = Value>>, RuntimeError> {
+        match &lane.source {
+            Some(LaneSource::Scan(scan)) => Ok(Box::new(self.scan(scan)?.into_iter())),
+            Some(source) => self.domain(&source.domain()),
+            None => Ok(Box::new(std::iter::once(Value::Null))),
+        }
+    }
+
+    fn charge_lane(&mut self, lane: &MergeLane, site: &str) -> Result<bool, RuntimeError> {
+        if matches!(lane.source, Some(LaneSource::Range { .. } | LaneSource::List { .. })) {
+            self.meter.at(site);
+            // Range/list iteration allocates no source rows. Its steps and
+            // retained lane descriptors are metered even for empty lanes.
+            if self.meter.capped_at.is_some() { return Ok(false); }
+            return self.meter.charge(MeterKind::Steps, 1);
+        }
+        Ok(true)
+    }
     /// One head per uniform lane, then advance only the winning lane. Each
     /// one-row scan retains the ordinary scan's lookahead and meter checks.
     /// Deduplicate before counting the page, including overlapping lanes.
@@ -833,6 +872,13 @@ impl Runner<'_> {
         let order = first.scan.order;
         let prefix_len = first.scan.prefix.len();
         let suffix = Self::merge_suffix(table, index, prefix_len);
+        let suffix_len = suffix.len();
+        // @ref LLP 3000.007.000#1 — the merge position: every valued component after the prefix (a computed calendar key evaluates on the row), plus the stored row id when the suffix lacks it.
+        let merge_key = move |row: &Value| -> Vec<Value> {
+            let mut key: Vec<Value> = index.components.iter().skip(prefix_len).filter_map(|component| component.value(row)).collect();
+            if key.len() < suffix_len { key.push(row.field("id").cloned().unwrap_or(Value::Null)); }
+            key
+        };
         if first.scan.opaque_cursor
             && let Some(after) = first.scan.after.as_deref()
             && let Value::String(token) = self.expr(after)?
@@ -840,27 +886,49 @@ impl Runner<'_> {
             decode_cursor_for(self.schema, &token, &first.scan.table, &first.scan.index, order, &suffix)
                 .map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
         }
-        let key_of = |row: &Value| suffix.iter().map(|column| row.field(&column.name).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>();
+        let key_of = |row: &Value| merge_key(row);
         let depth = self.page_depth;
         self.page_depth += 1;
         let mut lanes = Vec::new();
         let mut heap = BinaryHeap::new();
         for lane in &merge.lanes {
-            let sources = match &lane.source { Some(source) => self.scan(source)?, None => vec![Value::Null] };
+            let sources = self.lane_values(lane)?;
             for source_row in sources {
+                if !self.charge_lane(lane, &merge.site)? { break; }
                 if lane.source.is_some() { self.env.insert(lane.binding.clone(), source_row); }
-                let prefix = self.prefix_values(&lane.scan)?;
-                let definition = self.schema.table(&lane.scan.table).ok_or_else(|| RuntimeError::Schema("missing merge table".into()))?;
-                let index = definition.index(&lane.scan.index).ok_or_else(|| RuntimeError::Schema("missing merge index".into()))?;
-                let bounds = self.bounds(&lane.scan, definition, index, None)?;
-                lanes.push((&lane.scan, prefix, bounds, VecDeque::new(), false));
-            }
+                // @ref LLP 3000.007#20.22 — flatten admitted scope × word lanes into this heap, preserving the scoped search's verdict and word cut.
+                let (scans, lane_word) = if lane.scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_))) {
+                    let Some((words, word)) = self.word_lanes(&lane.scan)? else { continue };
+                    (words.lanes.into_iter().map(|lane| std::borrow::Cow::Owned(lane.scan)).collect::<Vec<_>>(), Some(word))
+                } else { (vec![std::borrow::Cow::Borrowed(&lane.scan)], word.cloned()) };
+                for scan in scans {
+                    let prefix = self.prefix_values(&scan)?;
+                    let definition = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema("missing merge table".into()))?;
+                    let index = definition.index(&scan.index).ok_or_else(|| RuntimeError::Schema("missing merge index".into()))?;
+                    let bounds = self.bounds(&scan, definition, index, None)?;
+                    // Discovery retains one bounded descriptor per lane, never a materialized range.
+                    if lane.source.as_ref().is_some_and(|source| source.scan().is_none()) {
+                        // Include the vector's geometric spare capacity and owned keys.
+                        let positions = [&bounds.after, &bounds.before].into_iter().flatten().map(|values| {
+                            values.capacity() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Value::heap_bytes).sum::<u64>()
+                        }).sum::<u64>();
+                        let seeks = [&bounds.gt, &bounds.gte, &bounds.lt, &bounds.lte].into_iter().flatten().map(Value::heap_bytes).sum::<u64>();
+                        self.meter.heap(2 * std::mem::size_of::<(std::borrow::Cow<'_, Scan>, Vec<Value>, Bounds, VecDeque<Value>, bool, Option<WordRead>)>() as u64
+                            + prefix.capacity() as u64 * std::mem::size_of::<Value>() as u64 + prefix.iter().map(Value::heap_bytes).sum::<u64>()
+                            + positions + seeks + bounds.word.as_ref().map_or(0, |word| word.capacity() as u64))?;
+                    }
+                    lanes.push((scan, prefix, bounds, VecDeque::new(), false, lane_word.clone()));
+                }            }
         }
         // A small merge benefits from a page per lane: repeated one-row SQL
         // seeks would cost more than reading those few pages in one call.
-        let batch = if lanes.len() <= 8 { take + 1 } else { 1 };
-        for (position, (scan, prefix, bounds, buffer, done)) in lanes.iter_mut().enumerate() {
-            let (rows, _) = self.scan_prepared(scan, prefix.clone(), bounds.clone(), batch, word)?;
+        let batch = if first.scan.existence { 1 } else if lanes.len() <= 8 { take + 1 } else { 1 };
+        for (position, (scan, prefix, bounds, buffer, done, lane_word)) in lanes.iter_mut().enumerate() {
+            let (rows, _) = self.scan_prepared(scan, prefix.clone(), bounds.clone(), batch, lane_word.as_ref())?;
+            if scan.existence && !rows.is_empty() {
+                self.page_depth = depth;
+                return Ok(rows);
+            }
             *done = rows.len() < batch && !self.read_capped();
             *buffer = rows.into();
             if let Some(row) = buffer.pop_front() {
@@ -882,11 +950,11 @@ impl Runner<'_> {
                 last = Some(head.key.clone());
                 page.push(head.row);
             }
-            let (scan, prefix, bounds, buffer, done) = &mut lanes[head.lane];
+            let (scan, prefix, bounds, buffer, done, lane_word) = &mut lanes[head.lane];
             bounds.after = Some(head.key);
             if opened_all && buffer.is_empty() && !*done {
                 if self.read_capped() { drain_cut = true; break; }
-                let (rows, _) = self.scan_prepared(scan, prefix.clone(), bounds.clone(), batch, word)?;
+                let (rows, _) = self.scan_prepared(scan, prefix.clone(), bounds.clone(), batch, lane_word.as_ref())?;
                 *done = rows.len() < batch && !self.read_capped();
                 *buffer = rows.into();
                 if self.read_capped() { drain_cut = true; break; }

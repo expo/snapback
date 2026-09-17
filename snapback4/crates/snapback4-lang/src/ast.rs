@@ -121,7 +121,7 @@ pub struct MergeLane {
     pub table: Option<String>,
     pub prefix: Vec<Expr>,
     pub columns: Option<Vec<Option<String>>>,
-    pub loop_: Option<(String, ReadExpr)>,
+    pub loop_: Option<(String, Expr)>,
     pub site: Site,
 }
 
@@ -224,13 +224,14 @@ pub struct IndexDecl {
     /// one serves `matching` reads whose keys are exactly those columns,
     /// and nothing else.
     pub words: Option<(usize, Vec<String>)>,
+    pub computed: std::collections::BTreeMap<String, Expr>,
     pub site: Site,
 }
 
 impl IndexDecl {
     /// Whether the index serves ordinary prefix reads and probes.
     pub fn is_plain(&self) -> bool {
-        self.words.is_none()
+        self.words.is_none() && self.computed.is_empty()
     }
 
     /// Whether a `matching` read with this many keys reads this index.

@@ -273,7 +273,7 @@ fn the_language_card_compiles_and_runs() {
     let source = language();
     let bound = clean("the language card", &source);
     let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).collect();
-    assert_eq!(names, ["daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "heldRoom", "room", "helperRows", "thread", "inbox", "following", "ancestors", "digest", "mentions", "tokenDigest", "search", "everywhere", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative", "summarizeRoom", "scheduledSummary"]);
+    assert_eq!(names, ["daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "heldRoom", "room", "helperRows", "thread", "inbox", "following", "ancestors", "digest", "mentions", "tokenDigest", "search", "everywhere", "wholeRoster", "memberTotal", "hasMessages", "groupedMessages", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative", "roomHour", "roomWindow", "checkin", "summarizeRoom", "scheduledSummary"]);
     assert_eq!(bound.schema.effects, ["notify", "sendDigest"]);
     assert_eq!(bound.schema.schedules.len(), 2);
     assert_eq!(bound.schema.routes.keys().map(String::as_str).collect::<Vec<_>>(), ["providerEvent", "roomExport"]);
@@ -283,6 +283,20 @@ fn the_language_card_compiles_and_runs() {
     assert_eq!(bound.personas, ["alice", "bob", "carol"]);
     let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
     let (alice, bob) = ("dev:alice", "dev:bob");
+
+    engine.seed((0..4).map(|h| ("roomEntries".into(), snapback4_core::value::object([
+        ("id", id(&format!("entry{h}"))), ("roomId", id("calendar-room")), ("at", Value::Int(h * 3_600_000)),
+    ])))).unwrap();
+    let calendar_context = || Context::new(alice, args(&[("roomId", id("calendar-room"))])).at(3 * 3_600_000);
+    let hour = engine.query("roomHour", calendar_context()).unwrap();
+    assert_eq!(hour.data.as_array().unwrap().len(), 1);
+    let window = engine.query("roomWindow", calendar_context()).unwrap();
+    assert_eq!(window.data.as_array().unwrap().len(), 4);
+    assert!(window.complete);
+    for (write, at, allowed) in [("checkin1", 86_399_999, true), ("checkin2", 86_399_999, false), ("checkin3", 86_400_000, true)] {
+        let outcome = engine.mutate("checkin", Some(write), Context::new(alice, args(&[])).at(at).with_ids([write.into()])).unwrap();
+        if allowed { sent(&outcome); } else { assert_eq!(failed(&outcome), "ALREADY_CHECKED_IN"); }
+    }
 
     let registered = engine.mutate("registerProfile", Some("profile1"), Context::new(alice, args(&[("handle", text("alice"))])).with_ids(["profile1".into()])).unwrap();
     assert_eq!(sent(&registered).field("handle").unwrap(), &text("alice"));
@@ -334,6 +348,14 @@ fn the_language_card_compiles_and_runs() {
     let helper = engine.query("helperRows", Context::new(bob, args(&[("messageId", id("msg2"))])).at(2_200)).unwrap();
     assert_eq!(helper.data.field("body"), helper.data.field("byId"));
     assert_eq!(helper.data.field("body").unwrap(), &text("keep"));
+    let roster = engine.query("wholeRoster", Context::new(bob, args(&[("roomId", id("r1"))])).at(2_200)).unwrap();
+    assert!(roster.complete && roster.next.is_none());
+    assert_eq!(roster.data.as_array().unwrap().len(), 2);
+    assert_eq!(engine.query("memberTotal", Context::new(bob, args(&[]))).unwrap().data, Value::Int(1));
+    assert_eq!(engine.query("hasMessages", Context::new(bob, args(&[("roomId", id("r1"))])).at(2_200)).unwrap().data, Value::Bool(true));
+    let grouped = engine.query("groupedMessages", Context::new(bob, args(&[("q", text("keep"))])).at(2_200)).unwrap();
+    assert!(grouped.complete);
+    assert_eq!(grouped.data.as_array().unwrap().len(), 1);
     // inbox and room: shapes over a page and over a row.
     let inbox = engine.query("inbox", Context::new(bob, args(&[])).at(2_200)).unwrap();
     assert_eq!(inbox.data.as_array().unwrap()[0].field("unread").unwrap(), &Value::Int(2));
@@ -476,11 +498,24 @@ fn every_card_compiles_clean() {
 }
 
 #[test]
-fn w7d_every_chat_search_is_on_the_card() {
+fn w13e_every_chat_search_has_two_single_cursor_forms_without_a_protocol() {
     let text = card("search").unwrap();
-    let section = text.split_once("## Search every chat I'm in").expect("the 100–1,000 membership recipe").1;
-    assert!(!quarry(section).is_empty(), "the recommendation includes compiled Quarry");
-    for form in ["searchHeld", "searchChats", "searchChatBatch"] { assert!(section.contains(form), "missing {form}"); }
+    let section = text.split_once("## Search every chat I'm in").expect("the search forms").1;
+    let blocks = quarry(section);
+    assert_eq!(blocks.len(), 1);
+    let block = &blocks[0];
+    let (document, errors) = snapback4_lang::parse_document("schema.q", block);
+    assert!(errors.is_empty(), "{errors:?}");
+    assert_eq!(document.programs.len(), 3);
+    for form in ["searchHeld", "searchGrouped", "searchNewest"] {
+        let declaration = document.programs.iter().find(|query| query.name == form).expect(form);
+        assert_eq!(declaration.args.iter().filter(|arg| arg.type_.kind == snapback4_lang::ast::TypeKind::Cursor).count(), 1, "{form}");
+    }
+    for sentence in ["do not exchange them", "change both", "never advance past it", "Server batches", "Install the bounded server walk"] {
+        assert!(!section.contains(sentence), "obsolete protocol: {sentence}");
+    }
+    let server = block.lines().map(|line| if line.trim_start().starts_with("sync to ") { "  online only" } else { line }).collect::<Vec<_>>().join("\n");
+    clean("both server search forms", &server);
 }
 
 /// The package README's Quarry binds clean, and no Quarry hides in an
@@ -910,7 +945,7 @@ fn language_following_uses_private_inbox_and_capped_pulls() {
     assert!(fact.sites.iter().any(|s| s.table == "feed"), "{:?}", fact.sites);
     assert!(!fact.sites.iter().any(|s| s.table == "follows"));
     assert_eq!(fact.runs.as_deref(), Some("device"));
-    assert!(source.contains("broadcast[p.authorId] for p in pulls[viewer] first 32 by byReaderAuthor"));
+    assert!(source.contains("broadcast[p.authorId] for p in pulls[viewer]"));
     assert!(LANGUAGE.contains("guide feeds"));
     assert!(source.lines().any(|line| line.trim_start().starts_with("online only") && line.contains("mutations reading this maintain never predict")));
 }
@@ -1035,6 +1070,20 @@ fn composition_card_matches_readme_and_the_routing_boundary() {
         for word in ["`check --residency` names", "at most one read", "no reading `require`", "found point read", "Composition is never entered while a predictable write is unobserved; the whole local answer stands until it settles.", "every locally kept component"] {
             assert!(text.contains(word), "missing {word}");
         }
+    }
+}
+
+#[test]
+fn structural_admission_cards_name_every_host_and_the_web_trust_boundary() {
+    let boundary = "and a native device checks again; the web device trusts that admission and does not repeat the check, so a hand-built or corrupted backend can still run there.";
+    for name in ["bounds", "programs"] {
+        assert!(card(name).unwrap().contains(boundary), "{name}: missing the web trust boundary");
+    }
+    for code in ["E_STRUCTURAL_FANOUT", "E_UNBOUND_SCAN"] {
+        assert!(explain_code(code).unwrap().contains(boundary), "{code}: missing the web trust boundary");
+    }
+    for text in [card("prediction").unwrap(), README] {
+        assert!(text.contains("the backend compiler's structural admission") && text.contains("hand-built or corrupted backend"));
     }
 }
 

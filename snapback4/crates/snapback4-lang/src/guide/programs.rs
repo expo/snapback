@@ -32,7 +32,10 @@ A mutation with `predicts: "never"` (a server site or `: server`) may pass
 over a bounded plain prefix page whose read rule is uniform over its prefix,
 without a complete schema-capped group. `matching`, merges and tables with
 expiry are refused for every mutation page, predicting or not, looped or bound (`E_STRUCTURAL_FANOUT`). A predicting mutation
-keeps the complete-group requirement for page loops. A bounded list loop whose
+keeps the complete-group requirement for page loops: `for row in t[prefix]:`
+uses the schema cap, without restating it. An explicit `first N` remains legal;
+an explicit bound below the cap still fails that proof. A job's inner loop may
+also read a capped group this way. A bounded list loop whose
 body only reads, computes and emits may use a list column, alias, helper result,
 or filtered/shaped list derived from a page; it need not preserve the whole group.
 A row write anywhere in that body, including an inlined helper or nested loop,
@@ -44,6 +47,7 @@ their values. Pinning `.readerId` decides visibility; it grants no read
 authority over another reader's inbox. See `guide feeds` for removal limits.
 The pass is atomic and still aborts above 1,024 rows written. `check --cost`
 prints "a pass over the first N rows of <prefix>; examined ceiling <n>".
+For structural fanout, compiling and serving refuse it, and a native device checks again; the web device trusts that admission and does not repeat the check, so a hand-built or corrupted backend can still run there.
 
 The table names are the language card's; a `job` is `chunk row in
 t[prefix] first N by index:` sweeps (guide jobs), or `native`: the app's
@@ -61,6 +65,11 @@ A helper return exits only the helper, and its locals cannot capture the caller'
 It never repositions or reclassifies an enclosing page.
 Queries cannot write or mint ids, including through a helper; the call site names
 the write that does not belong.
+
+E_INTERNAL means the interpreter reached an undefined compiler temporary.
+It names the operation and statement site, without exposing the generated
+variable name as an input error. Recompile with `snapback4 check`; if it
+recurs, report the operation and site as a compiler defect.
 
 ## Calling and naming operations
 

@@ -7,7 +7,7 @@
 //! mark pending, and the server judges the write when it arrives.
 
 use super::runner::Runner;
-use super::validate::validate_inputs;
+use super::validate::validate_device_inputs as validate_inputs;
 use super::{Context, QueryOutcome};
 use crate::error::{Refusal, RuntimeError};
 use crate::ir::Program;

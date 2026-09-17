@@ -1,0 +1,11 @@
+control page 1 (before any edit)   rows: m12 m11 m10 | next: true | {"complete":true,"cut":null,"fresh":true}
+control page 2 (before any edit)   rows: m09 m08 m07 | next: true | {"complete":true,"cut":null,"fresh":true}
+control page 3 (before any edit)   rows: m06 m05 m04 | next: true | {"complete":true,"cut":null,"fresh":true}
+device page 1 (after edits)        rows: m12 m11 m10 | next: true | {"complete":true,"cut":null,"fresh":true}
+device page 2                      rows: m09 m08 m04* | next: true | {"complete":true,"cut":null,"fresh":true}
+device page 3                      rows: m03 m02* m01 | next: false | {"complete":true,"cut":null,"fresh":true}
+server page 1                      m12 m11 m10
+server page 2                      m09 m08 m07
+server page 3                      m06 m05 m04
+page 2: device DIFFERS FROM server  ← and the device called it complete
+page 3: device DIFFERS FROM server  ← and the device called it complete

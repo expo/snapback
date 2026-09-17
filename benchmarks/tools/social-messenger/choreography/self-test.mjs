@@ -17,7 +17,7 @@ import {
   DEFAULT_ADDED_MEMBER_HANDLE,
   UNIMPLEMENTED_ASSERTIONS,
 } from "./choreography.mjs";
-import { parseObservationJsonLines } from "../metering/observations.mjs";
+import { parseObservationJsonLines } from "./metering/observations.mjs";
 
 const REQUIRE = createRequire(import.meta.url);
 const PLAYWRIGHT_VERSION = REQUIRE("playwright/package.json").version;

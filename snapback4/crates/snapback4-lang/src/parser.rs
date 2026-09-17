@@ -383,6 +383,7 @@ impl Parser {
         }
         let mut columns = Vec::new();
         let mut words = None;
+        let mut computed = std::collections::BTreeMap::new();
         loop {
             let component = self.word()?;
             if component.value == "words" && self.at("(") {
@@ -398,6 +399,16 @@ impl Parser {
                 }
                 self.take(")")?;
                 words = Some((columns.len(), fields));
+            } else if matches!(component.value.as_str(), "day" | "hour" | "bucket") && self.at("(") {
+                self.position -= 1;
+                let expression = self.expression(0, &[",", "else", "<newline>"]).map_err(|error| {
+                    if error.code == "E_QUARRY_MAINTAIN" { crate::diag::type_error(&error.site, error.message, "day(at), hour(at, 30m), or bucket(at, 2h, 30m); declare at: time on this table").guide("indexes") }
+                    else { error }
+                })?;
+                if computed.insert(component.value.clone(), expression).is_some() {
+                    return Err(syntax_with(&component.site, format!("index repeats {}(..); each time function occurs at most once per index", component.value), "keep one day, hour and bucket component per index; declare another index for another period").guide("indexes"));
+                }
+                columns.push(component.value);
             } else {
                 columns.push(component.value);
             }
@@ -423,7 +434,7 @@ impl Parser {
             Some((code, message))
         } else { None };
         self.newline()?;
-        Ok(IndexDecl { name, columns, unique, refusal, words, site })
+        Ok(IndexDecl { name, columns, unique, refusal, words, computed, site })
     }
 
     fn parse_maintain(&mut self) -> Fallible<MaintainDecl> {
@@ -475,7 +486,7 @@ impl Parser {
                     let mut columns = vec![self.word()?.value];
                     while self.maybe(",") { columns.push(self.word()?.value); }
                     self.newline()?;
-                    indexes.push(IndexDecl { name, columns, unique: false, refusal: None, words: None, site: effect.site });
+                    indexes.push(IndexDecl { name, columns, unique: false, refusal: None, words: None, computed: std::collections::BTreeMap::new(), site: effect.site });
                     return Ok(());
                 }
                 if effect.value == "readable" {

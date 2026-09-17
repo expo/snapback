@@ -153,7 +153,9 @@ impl Runner<'_> {
             if !upsert { return Err(self.no_write_target()); }
             let id = if target.index == "byId" { key[0].clone() } else { Value::Id(self.context.mint()?) };
             let mut fields = patch.as_object()?.clone();
-            for (column, value) in index.columns().iter().zip(&key) { fields.entry(column.clone()).or_insert_with(|| value.clone()); }
+            for (component, value) in index.components.iter().zip(&key) {
+                if let Some(column) = component.column() { fields.entry(column.clone()).or_insert_with(|| value.clone()); }
+            }
             fields.insert("id".into(), id.clone());
             let row = Value::Row(fields.into());
             self.meter.heap(row.heap_bytes())?;
@@ -242,7 +244,7 @@ fn pure_expr(expr: &Expr) -> bool {
     match expr {
         Expr::Literal(_) | Expr::Variable(_) => true,
         Expr::Input(input) => match input { Input::NewId => false, Input::Viewer | Input::Now | Input::ReadTime => true },
-        Expr::Merge(merge) => merge.lanes.iter().all(|lane| pure(&lane.setup) && pure_scan(&lane.scan) && lane.source.as_ref().is_none_or(pure_scan)),
+        Expr::Merge(merge) => merge.lanes.iter().all(|lane| pure(&lane.setup) && pure_scan(&lane.scan) && lane.source.as_ref().is_none_or(|source| source.scan().is_none_or(pure_scan) && source.expressions().into_iter().all(pure_expr))),
         Expr::Scan(scan) => pure_scan(scan),
         Expr::Block { body, value } => pure(body) && pure_expr(value),
         Expr::Shape { base, fields } => pure_expr(base) && fields.values().all(pure_expr),

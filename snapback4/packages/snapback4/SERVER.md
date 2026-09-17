@@ -419,6 +419,24 @@ retained stdout and source hashes do not create a retrospective raw-response
 audit. The digest-pinned CLI source is `1e91bc7fe`; see
 `../../reports/20260917-invitation-policy.md` for commands, digests and limits.
 
+### Optional invitation issuance source (B1d.3)
+
+The identity fixture's `invitation-issuance/` sibling stays outside active
+`snapback/`. When staged, root `issueInvitation` preserves the OIDC handlers
+and uses ordinary generated `organizations.*` operations. Preparation freezes
+a 32-byte token, digest, nonsecret config/template and hash-only config/key
+fingerprints before a stable record step confirms the same managed write and
+exact-ID query. Only then may one fixed-body, fixed-key Resend POST run;
+redirects are refused.
+
+Mail run/reconciliation requires a fresh complete point read, current admin,
+matching immutable identity, pending state, strict expiry, a ten-minute horizon
+and unchanged fingerprints. Historical unknown parks without another POST and
+never becomes `not-sent`. This is source/double evidence—not generated-
+registry, engine, auth, process-crash, actual Resend, inbox or full Identity/B
+qualification. `why --values` can reveal retained step plaintext, and
+cancellation cannot retract accepted provider work.
+
 ## Handler context
 
 `check` and `dev` generate `snapback/generated/server.ts` from declared
@@ -588,19 +606,44 @@ double, not evidence for a production provider adapter:
 This row is an application-level operator disposition. It does not turn the
 old action's result into `done`, resume it or create a general administration
 subsystem. An unknown or unqueryable outcome remains unresolved; never issue a
-blind replacement send. Recovery and compensation are application-specific.
-The core now evaluates these transitions in one work-kind-aware policy, while
-the only storage adapter remains the existing action `_action_steps` table.
-That extraction alone adds no effect step API, records or completeness claim.
+blind replacement send. Recovery and compensation are application-specific,
+The core evaluates action and effect step transitions in one work-kind-aware
+policy. Effects use `_effect_steps` and the provider-key domain
+`snapback4:effect-step:v1`; `_action_steps`, action keys and action behavior are
+unchanged. Effects retain their legacy `(payload, meta)` handler signature and
+do not gain the action context or `ctx.step` in this slice.
 
-Effects retain their legacy handler signature and at-least-once semantics,
-not the action context or `ctx.step`. Their declared retry/deadline/cancellation
-policy is frozen at emission. Current `runWorker` requests fenced effect
-claims; hand-written wire workers must request `fenced: true` and return the
-`leaseToken` as `x-snapback-effect-lease`. Legacy unfenced claims remain
-compatible and do not gain the same-worker successor fence. Only a service
-may call `POST /effects/<id>/cancel`; cancellation cannot stop provider I/O
-already in flight.
+Current `runWorker` requests fenced effect claims; hand-written wire workers
+request `fenced: true` and return the `leaseToken` as
+`x-snapback-effect-lease`. A fenced worker can call
+`POST /effects/<id>/steps/<name>/begin` with `{ input, reconcile? }`, `/done`
+with `{ result }`, and `/park` with `{ error? }`. These routes mirror action
+step JSON and require exactly one nonempty lease header. Completion replays;
+changed input refuses; an uncertain provider outcome reconciles under the
+same key or parks the effect. Oversized outcomes park with E_STEP_RESULT and
+unknown outcomes park with E_STEP_PARKED. Parked effects are excluded from
+lease expiry and reclaim. Policy-allowed cancellation may move parked work to
+failed/E_EFFECT_CANCELLED but never resumes it.
+
+New emits retain the current release as admission provenance and store a
+contract over the exact generic `Value` payload, effect name and full admitted
+work policy. Release is excluded from declaration and row-compatibility digests,
+so changing only the current release does not park older work. Effect payloads
+have no typed declaration yet, so this makes no same-name typed-change safety
+claim; a future typed surface must replace the generic validator tag with its
+schema identity. A persisted NULL contract is the explicit legacy bypass. A
+legacy effect represented only in `schema.effects` recomputes the implicit
+admission policy, including its 4s initial backoff, rather than becoming an
+absent declaration. Strict HTTP claim, step and settlement open an immediate
+transaction, sample time and supervisor revision once, authenticate the current
+service, and compare that contract. A mismatch returns E_EFFECT_GENERATION.
+Queued or running work parks before lease validity is considered, clearing
+claim, lease and scheduling fields; sent, satisfied, failed, cancelled and
+already parked evidence is not rewritten. Legacy unfenced claim/settle wire
+remains compatible. Existing direct core claim/settle methods retain their
+historical compatibility behavior and do not provide the strict HTTP authority boundary.
+Only a service may call `POST /effects/<id>/cancel`; cancellation cannot stop
+provider I/O already in flight.
 
 ## Routes and webhooks
 

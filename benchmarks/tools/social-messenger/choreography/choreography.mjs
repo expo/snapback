@@ -12,11 +12,12 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { existsSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { performance } from "node:perf_hooks";
 import { createRequire } from "node:module";
 
-import { ObservationWriter } from "../metering/observations.mjs";
+import { ObservationWriter } from "./metering/observations.mjs";
 import { loadSetupIdentity, verifySetupToolchain } from "./setup-identity.mjs";
 
 const VERSION = "0.3.8-m8";
@@ -29,9 +30,25 @@ const SIMULATOR_IDS = {
   m6: "ios-simulator-m6",
   m8: "ios-simulator-m8",
 };
+// A lane copies this directory out of the packet, so this default resolves
+// outside the lane once copied — the 0.2.28 builder hit exactly that
+// ("copied harness default fixture path escapes lane"). Keep the in-tree default,
+// but refuse loudly instead of silently pointing at a path that is not there:
+// a wrong directory that reads as empty is how a run reports a zero-row
+// measurement as a measurement (see the 0.2.26 residency finding).
 const DEFAULT_FIXTURES_DIR = fileURLToPath(
   new URL("../../../fixtures/social-messenger", import.meta.url),
 );
+
+export function resolveFixturesDir(directory) {
+  if (directory !== DEFAULT_FIXTURES_DIR) return directory;
+  if (existsSync(directory)) return directory;
+  throw new Error(
+    `the default fixtures directory is not present at ${directory}. ` +
+    `This harness was copied out of the packet, so its in-tree default no longer resolves. ` +
+    `Pass the fixtures directory explicitly (adapter "fixtures.directory", or --fixtures <dir>).`,
+  );
+}
 const DEFAULT_RECEIPTS_PATH = fileURLToPath(
   new URL("./receipts.jsonl", import.meta.url),
 );

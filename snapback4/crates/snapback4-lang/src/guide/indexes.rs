@@ -19,6 +19,9 @@ query indexForms(projectId: id, c: cursor ?):
   one = tasks[viewer, projectId]                    -- a point read is a full unique key
   open = tasks[viewer, false] after c first 50 by byOwnerDone   -- a range is a strict prefix; a cursor needs an index ending in id, or a unique one
   return { one, open }
+
+query wholeGroup():
+  return tasks[viewer] by byOwnerProject             -- ascending, first 500 from the schema cap
 ```
 
 A unique index may end with `else CODE` and an optional literal message:
@@ -48,14 +51,71 @@ Table and index names together are limited to 512 UTF-8 bytes, reserving
 their space alongside the encoded key in the Postgres layout.
 
 Every table has `byId`. A point read (`t[key]`, `update`, `delete`,
-`upsert`) needs a unique index over exactly the key's columns; `exists
-t[key]` needs any index over exactly them; a page needs an index whose
+`upsert`) needs a unique index over exactly the key's columns; a program's
+`exists t[key]` uses an exact-key probe when an index covers those columns,
+or a top-1 scan when they are a strict prefix. Rule probes keep exact keys.
+A page needs an index whose
 prefix is the key, and pages in the order of the remaining columns. When
 two indexes match, `by name` chooses. `expire at .col` needs an index
 leading with the column; a merge's lanes are equal-width prefixes of one
 index; a job's `chunk` sweeps an index whose columns are `id` or
 `immutable`. The diagnostic names the indexes that exist and the one to
 declare.
+
+`t[prefix]` without a page bound reads the whole schema-capped group in
+ascending order: changing `cap 500 by ownerId` changes every such read's bound.
+The cap must fit one read's examined ceiling. Without a fitting cap, only a
+query loop or merge lane source with a uniformly decided prefix may omit the
+bound; other pages need `first N` and a cursor. Full unique keys keep their
+point-read meaning, and `t[]` is the empty prefix over the whole table.
+
+## Time-bucketed listings and daily uniqueness
+
+```quarry
+table roomEntries:
+  roomId: id
+  at: time
+  by byRoomHour: roomId, hour(at), at, id
+  public 'Room entries are public.'
+
+table checkins:
+  principal: principal
+  at: time
+  unique byPrincipalDay: principal, day(at) else ALREADY_CHECKED_IN 'One check-in per day.'
+  read <- .principal = viewer
+  insert <- .principal = viewer
+
+query roomHour(roomId: id, c: cursor ?):
+  return roomEntries[roomId, hour(now) - 3] after c last 10 by byRoomHour
+
+query roomWindow(roomId: id, c: cursor ?):
+  return merge roomEntries after c last 10 by byRoomHour:
+    [roomId, h] for h in range(hour(now) - 3, hour(now) + 1)
+
+mutation checkin():
+  return insert checkins { principal: viewer, at: now }
+```
+
+A table's `by` and `unique` key lists admit `day(at[, offset])`,
+`hour(at[, offset])` and `bucket(at, period[, offset])` at any position,
+once per function per index. The input is a required `time` column of that
+same table. Periods and offsets follow maintain groups: floor ordinals from
+the Unix UTC epoch, with a nonnegative whole offset smaller than the period;
+`day(-1 ms)` is -1. Pin the ordinal positionally with an int expression,
+or seek on the function name: `roomEntries[roomId, hour >= start, hour < end]`
+with a page bound and `by byRoomHour`.
+
+The key is not a column: it is absent from `*`, generated `api.ts`, rules,
+`cap … by` and the sync audience, and cannot be written. An index containing
+one is not plain, so a mutation page cannot use it. A real column named
+`day`, `hour` or `bucket` colliding with that function's key must be renamed.
+Changing the underlying time reindexes the row; a job `chunk` can sweep the
+index only when that column and every other non-id key column are immutable.
+A cursor carries the ordinal. Adding a time key, or changing its period or
+offset, rebuilds the index at activation over existing rows.
+
+With a maintained count on the row (LLP 3000.007 §21.3 P2, in design), the
+same time key can serve Trending directly.
 
 ## Refused index declarations and reads
 

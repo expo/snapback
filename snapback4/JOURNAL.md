@@ -30850,6 +30850,2321 @@ the prefetch planner and partition-event derivation from the web artifact
 measures 466,171 → 439,856 (−26,315), which is the next rung. No package
 version changed and nothing was published.
 
+## 2026-09-17 — 0.2.28 / snapback4-expo 0.2.19 published
+
+Published from main `8281f4e218`. **This release is not wave 12 alone.** It carries
+wave 12 and its two review rounds, W13a's four merge-cursor fixes (a merge over a
+unique index not ending in `id` no longer skips a row on equal ordering keys; a
+merge's `next` no longer survives a later non-uniform read; a `where` predicate's
+inner read no longer marks a walked answer incomplete; a uniform lazy merge cut
+while draining returns `next`), and W14b's digest card. Attributing the next
+calibration's movement to wave 12 alone would be wrong.
+
+**The gate refused a first attempt and shipped nothing**, on a hard 60-second
+timeout under load 46 — `syspolicyd` at 31% CPU, `PerfPowerServices` at 105%, and
+two other sessions reporting every new executable stalling 3–7 minutes at
+`_dyld_start` on Gatekeeper provenance scans. The same tests passed in isolation.
+The second attempt at load 11 passed: suite 0 failures, binary signed, installed-
+consumer proof passed, xcframework and expo legs exit 0.
+
+The npm propagation fix landed earlier today did its job: `converge()` read
+`snapback4@0.2.28` back **one second** after upload instead of throwing on an
+accepted publish, which is what cost 0.2.27 its second attempt and 0.2.21 a
+hand-finished chain.
+
+## 2026-09-17 — W13f: uniform matching scopes share the lazy heap
+
+Built on base `6cad8916c8467f6f8415f93cdb399920a3e965da`, including W13a.
+`rules::lazy_merge` now admits a trailing matching term when every lane is
+uniform and otherwise meets the existing lazy predicate. The binder already
+uses that same predicate for N_WIDE_MERGE, so no binder edit was necessary.
+The scoped search preparation is shared: validate first, give one verdict
+per scope before discovering any word, cap each scope at 32 words, then put
+its admitted word lanes into the existing heap. Further terms remain scan
+filters; id deduplication, the v1 descriptor, and W13a's candidate and drain
+rules are unchanged. The eager merge body compares byte-for-byte equal to
+base. Plain lanes borrow their scans; generated word lanes own theirs.
+No ceiling, serialized form, parser, client or store interface changed.
+
+The card's dense 30-message / 24-hit fixture, q = `cof`, page size 20:
+
+| Memberships | Before examined / complete / next | After examined / complete / next | Ordered ids in one-cursor walk | After whole-walk examined |
+|---|---|---|---|---|
+| 100 | 2,400 / true / yes | 340 / true / yes | 2,400 | 39,600 |
+| 500 | 8,358 / false / no | 1,540 / true / yes | 12,000 | 898,000 |
+| 1,000 | 8,880 / false / no | 3,040 / true / yes | 24,000 | 3,546,000 |
+
+These counts and every expected id/order are asserted on the server and on
+both devices, acquired through snapshots and closed/reopened. The unreadable
+newer chat is absent. A second Clique-shaped fixture puts `coffee` in every
+one of 30,000 readable messages across 1,000 chats; its first page of 20 and
+full walk (pages of 200) pass on all three hosts. Duplicate-word and
+further-term walks pass too. A 33-word first scope still reports `cut: words`,
+withholds next, and includes the later scope's newer hit. Paired worlds differ
+by a hidden membership and 9,000 newer hidden hits over 9,000 distinct words;
+all serialized pages, complete, cut, next and every meter field are identical.
+An explicitly denied scope checks verdict-before-word-discovery as well.
+
+The new drain positive has nine scopes with one word each and every 100th
+row satisfying term two: nine membership rows + 9 × 200 opening examinations
++ 31 × 200 refills = 8,009. Refill 32 cuts in lookahead at 8,193, after 32
+emissions, and returns next. Following it returns all 90 expected ids once in
+order. The control opens 3,000 dense scope/word lanes: 3,000 + 2 × 3,000 is
+over 8,192. It returns 20 buffered rows at 8,596 recorded examinations, with
+`complete: false, cut: meter`, no next. Neither ceiling is raised.
+
+The existing 50-chat batch recipe remains intact for W13e. Its first-page
+count falls from 1,201 to 191; whole-walk counts including separate membership
+discovery fall from 79,181 / 396,149 / 792,359 to 22,261 / 111,549 / 223,159.
+The measured envelope and the unbatched comparison on the search card are
+updated; the two-cursor prose, recipe, helper and held form are untouched.
+The README records shared uniform word heads. No diagnostic code was added.
+
+Head-only work stopped at the requested store boundary. `Rows::scan` can only
+return `(Value, key)`; SQLite and Postgres join and decode the row, and both
+memory stores clone it. A real key-only head needs a new bounded index-head
+method on `Rows`, implementations in SQLite, Postgres, core MemoryRows and the
+device MemoryTx, forwarding through Reading/Predicting, then deferred row
+materialization in the heap. Estimate: seven production files, roughly
+200–350 lines plus store/engine/device tests. Expiry, filters, further terms
+and live aggregates that require source rows need the existing materializing
+path. No prototype or head-only speedup is claimed; that extension is for the
+lead's decision.
+
+Following measurements use optimized binaries built with
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo build --release -p snapback4`.
+The committed `following/measure.mjs` was copied to
+`/private/tmp/w13f-following.mjs`, with only `{ meter: true }` made conditional
+on `BARE`. Each cell is 60 loopback HTTP samples after three warm-ups. Both
+binaries seed the unchanged 1,000-author × 50-post fixture afresh. Requests
+omitting meter STILL RECEIVE meter: this base's loopback dev returns it by
+default (`serve.rs`). Thus these are the two requested request forms, not a
+measurement of a genuinely meter-free response path. The brief's distinction
+between those response paths does not hold on this base; no 3× bare-path
+Following gate is established here.
+
+Paired repeat after this lane's own tests stopped (shared host still loaded):
+
+| Request | Follows | Examined before / after | Before p50 / p95 ms | After p50 / p95 ms |
+|---|---|---|---|---|
+| meter: true | 5 | 115 / 115 | 1.90 / 2.32 | 1.88 / 2.23 |
+| meter: true | 500 | 1,540 / 1,540 | 4.32 / 5.25 | 4.22 / 4.66 |
+| meter: true | 1,000 | 3,040 / 3,040 | 7.10 / 7.96 | 6.76 / 8.05 |
+| meter omitted | 5 | 115 / 115 | 1.98 / 2.34 | 1.87 / 2.14 |
+| meter omitted | 500 | 1,540 / 1,540 | 4.11 / 4.76 | 4.11 / 4.59 |
+| meter omitted | 1,000 | 3,040 / 3,040 | 6.28 / 7.53 | 6.57 / 7.14 |
+
+The 500/5 p50 ratios are 2.27× → 2.25× with meter requested and
+2.07× → 2.20× with meter omitted. These show the unchanged plain merge,
+not a head-only implementation. The incremental 500-versus-5 cost per
+additional lane is 4.89 → 4.73 microseconds on the metered request and
+4.30 → 4.53 microseconds on the omitted-meter request (derived from these
+rounded p50s). No fourfold head-cost reduction was built or measured.
+Commands from the committed `following/` probe directory:
+`SB=/private/tmp/w13f-base-release node /private/tmp/w13f-following.mjs`,
+then `SB=/Users/ccheever/projects/snapback-w13f/snapback4/target/release/snapback4 node /private/tmp/w13f-following.mjs`,
+then both again with `BARE=1`. Raw outputs:
+`/private/tmp/w13f-paired-{before,after}-{meter,bare}.log`.
+
+The first release timing pass overlapped this lane's tests during the after
+measurements and was repeated for that reason, not hidden: before/after
+meter-requested p50/p95 were 1.89/2.33 → 2.57/3.56 ms (5),
+4.22/4.86 → 5.94/6.27 ms (500), 6.65/7.53 → 9.11/10.59 ms (1,000);
+omitted-meter were 2.00/2.35 → 2.72/3.76, 4.50/5.09 → 6.16/6.71,
+7.11/7.93 → 9.03/11.84 ms respectively. Both passes are loopback
+observations on a shared Mac, not a portable latency guarantee.
+
+Validation: the new suite was red against the exact base above before the
+engine edit: server `test result: FAILED. 4 passed; 5 failed; 0 ignored; 0 measured; 120 filtered out; finished in 1.31s`;
+devices `test result: FAILED. 8 passed; 10 failed; 0 ignored; 0 measured; 236 filtered out; finished in 4.28s`.
+After: server `test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 120 filtered out; finished in 32.16s`;
+devices `test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 236 filtered out; finished in 47.29s`.
+The commands (from snapback4/, with TMPDIR=/private/tmp) were
+`cargo test -p snapback4-sim --test clique w13f -- --nocapture` and
+`cargo test -p snapback4-device --test device w13f -- --nocapture`.
+Four server/eight device controls pass both before and after; dense cost,
+dense completeness, Clique and drain continuation supply the red positives.
+The broader `search` filters pass 15 server / 50 device tests; `--test search_merge`
+passes 11; the `merge_continuation` filters pass 19 server / 38 device tests;
+`cargo test -p snapback4-lang --test residency_notes --test guide` passes 39 / 45.
+
+The full command, at the repository root with Node 24.18.0 on PATH, was
+`TMPDIR=/private/tmp bash snapback4/scripts/test.sh`. It reported
+`== 2 failure(s) in 597 s`: Rust 1,422 passed / 5 failed / 5 ignored;
+fixture wrappers 9 passed / 0 failed; client `ℹ tests 584`, `ℹ pass 580`,
+`ℹ fail 1`, `ℹ skipped 3`. All build and typecheck stages passed.
+The five Rust failures were one stale recipe assertion expecting the newly
+complete 500-chat merge to cut, plus four witness-driver failures (including
+`E_WITNESS_TIMEOUT: xcrun simctl list devices booted --json timed out`).
+The one additional out-of-scope file, `crates/snapback4/tests/init.rs`, changes
+that assertion to complete/next and pins 1,540 examined; its existing real
+meter/word-cut controls stay unchanged. The isolated test passed 1/1, and the
+whole `cargo test -p snapback4 --test init -- --nocapture` target passed
+`test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.40s`.
+The witness retry, `cargo test -p snapback4 --test witness -- --test-threads=1`,
+passed `test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 48.99s`.
+No engine code changed after the full run began; the assertion-only correction
+was verified through its complete affected target.
+
+The sole client failure is the brief's Chromium sandbox artifact. Isolated
+`TMPDIR=/private/tmp node --test packages/snapback4/test/react.test.mjs`
+reports `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`, `ℹ skipped 0`:
+Chromium exits SIGABRT at launch, before navigation. The test, launch helper
+and lockfile are byte-identical to the base commit named above; this verifies
+the unchanged launch inputs, not a second complete base battery. No unresolved
+product failure is labelled pre-existing. The browser witness needs the lead's
+outside-sandbox rerun. Full output is `/private/tmp/w13f-suite.log`; targeted
+logs use `/private/tmp/w13f-*.log`.
+`./ref-check --verbose` reports 483 LLP docs, 9,066 refs, 0 errors, 0 unchecked.
+All changed code files are below 1,500 lines (maximum 931).
+
+Learned: flattening fixes the first page without inventing a continuation
+protocol. It does not make exhaustive wide walks cheaper than batching:
+reopening all 1,000 scopes for each 20-row page costs 3,546,000 examined over
+the full walk, despite the cheap 3,040-examined first page. The key-only-head
+hypothesis needs a real store capability and a true bare response measurement,
+not an inferred win from these metered dev ratios. All work is left uncommitted.
+
+Execution note: one initial regression-test command mistakenly ran from the
+repository root and exited 101 before running tests; it was rerun from the
+Snapback 4 workspace. All reported Cargo test/build results are from
+`snapback4/`. The first fixture compile also caught a moved `next` value in
+a test assertion; that assertion was corrected before the baseline red runs.
+
+## 2026-09-17 — maintained columns: two gates measured by proxy; the horizon gate fails and finds a P1
+
+LLP 3000.007.001 read READY from both families this morning; its §7 asks for three
+measurements before a lane is briefed. Nothing is built, so the lead measured with the form
+the column replaces — a hand-kept count column whose `update` puts the parent row on every
+like — which is byte-for-byte what §3.5's mirror would put. Published `snapback4@0.2.27`
+binary; record `benchmarks/runs/2026-09-17-snapback4-derived-probes/column-gates/` and
+`horizon-gap/`.
+
+**Gate 1** (100,000 likes over 2,000 posts, a bystander device following the log; on-disk
+store, checkpointed, against a zero-like baseline). Per like — wire / log / database
+growth, bytes: column 823 / 851 / 1,794 on a 500-byte parent and 4,323 / 4,351 / 5,667 on a
+4,000-byte one; synced maintain 329 / 334 / 1,170; `online only` 182 / 190 / 997. The like
+row is 182 bytes in every form, so the count's own cost is 641 B as a column against 147 B
+as a maintain row (4.4×), 4,141 B on the large parent (28×). The gate's letter ("no worse
+than the hand-kept score") is an equality the lane asserts; what the numbers change is how
+loud `N_MAINTAINED_COLUMN_STREAM` has to be.
+
+**Gate 2** (the workload pinned before measuring: the Clique scale fixture's recorded like
+stream, unmodified; a device acquiring `last 2000 by byTime` at the 50% checkpoint). The
+engine sent the device **1,165 distinct posts beyond its horizon** in the replay's
+remaining 7.7 hours — **58.3% against a 10% threshold**; an analysis of the fixture alone
+gives the same 1,165. By §3.6's rule, written before the measurement, a device-side repair
+is designed and reviewed before the first build ships on a horizoned table.
+
+**Then the real finding.** Asking what a device does with those rows: its coverage rule
+(`engine/read.rs`, after the scan loop — same index, descending, more rows held below)
+assumes the rows it holds on the horizon index are a contiguous newest suffix. They are
+not, once any old row has been updated. On the **published client** (wasm device in Node),
+`sync public last 5 by byTime`, twelve posts, `posts after c last 3 by byTime`: before any
+like the pages are `p12 p11 p10`, `p09 p08 p07`, `p06 p05 p04` (the page crossing the
+horizon goes to the server). After alice likes `p02` and `p04`: `p12 p11 p10`,
+`p09 p08 p04`, `p03 p02 p01` — **three posts skipped, every page `complete: true, fresh:
+true`.** Filed P1: `issues/20260917-snapback4-device-page-past-horizon-answers-from-
+scattered-rows.md`. It predates this program: the hand-kept `score` three Clique builders
+wrote causes it, and so does an edit to an old post. No fixture or calibration could have
+seen it, because each starts from a fresh device and a fresh snapshot repairs it.
+
+Decision L14 (LLP 3000.007 §21.8, the lead's, under the author's delegation): the horizon
+repair precedes maintained columns; gate 5 (activation) cannot be measured before the
+mechanism exists and becomes the build lane's milestone zero, with a stop. The repair's
+direction is in the ticket — a device knows a horizoned group exactly at and after the
+boundary key it acquired and nothing below it; `apply` declines an unheld row below that
+key — and it is handed to the wave 13 lead, who owns read completeness.
+
+Learned: a threshold stated before a measurement earned its keep twice — it failed
+honestly, and chasing *why the number mattered* found a wrong-answer defect that a growth
+metric alone would have filed under memory. Second: "measure by proxy" was legitimate here
+only because the proxy is the same log event, not a similar one; the record says so at the
+top of each table. Third: the first draft of the gate-1 probe measured the WAL, not the
+store (10 KB a like); checkpoint a copy and subtract a zero-like baseline.
+
+
+## 2026-09-17 — D1-R3: close the source-census and conversion-probe holes
+
+Base `614898e9a7eb6240fb2aef8cda3e08ae0f4acb0a`. Tests and instruments
+only; the dispatcher's only changes are `cfg(test)` observations. The census
+now walks both complete Rust source trees, deriving file/subtree exclusions
+from the positive sqlite/native/wasm-host/postgres module cfgs in their
+`lib.rs` files and the core's `engine/mod.rs`. Its 50 files comprise 39 core
+and 11 device files (including the deliberately exempt codec funnel). It
+masks comments, nested block comments, strings, raw/byte strings and character
+literals while preserving source offsets. Typed imports, grouped imports,
+crate aliases, globs, pretty writers, deserializer constructors and direct
+qualified calls are refused. Eleven SQLite exceptions name their file,
+enclosing function and exact line, must remain in a SQLite-gated item, and
+must each be consumed exactly once. Test-only items cannot ship and are
+excluded by their actual cfg, not text quoted in a doc attribute.
+
+The page route separately counts owned decodes and encodes. On memory and
+SQLite, direct apply/observe_store requests decode zero owned trees; the
+duplicate-key fallback decodes one. Apply encodes zero owned trees;
+observe_store encodes one reply, on either route. The static census confines
+new device owned-adapter calls to `parse` and `encoded`. There is one explicit
+scope exception: the base already has three refusal serializers outside
+`encoded`, in `call.rs::answer`, `call.rs::call` and `web.rs::refused`.
+Routing those through the wrapper would violate this lane's no-product-edit
+rule. They remain unchanged, with exact, function-bound, single-use entries;
+the literal wrapper-only requirement is not claimed. The lead was asked
+whether to authorize that product routing; no answer arrived during this run.
+
+The symbol classifier recognizes both public and module-qualified Value/Map
+spellings in either direction, retaining the existing owned map/deserializer
+spellings. Its CLI dispatch tail is untouched for S5. No LLP, ticket, budget,
+metrics record, published guide, README or durable format changed.
+
+Commands used Node 24 via
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`; Cargo and the
+scripts below ran in `snapback4/` except the explicitly root-scoped checks.
+One accidental initial `cargo test -p snapback4-device --lib --test codec`
+invocation from the repository root exited 101; it was immediately corrected,
+with no root-workspace edit.
+
+- From the repository root,
+  `node --test snapback4/packages/snapback4/test/wasm-budget.test.mjs snapback4/packages/snapback4/test/wasm-families.test.mjs snapback4/packages/snapback4/test/wasm-codec-census.test.mjs`:
+  `ℹ tests 21`, `ℹ pass 21`, `ℹ fail 0`. These are all three existing wasm
+  instrument test files, including the census. Before replacing the guards,
+  the census/families run with new regressions reported `ℹ tests 13`,
+  `ℹ pass 9`, `ℹ fail 4`.
+- `cargo test -p snapback4-device --lib --test codec`: the new encode assertion
+  before its observation reported `test result: FAILED. 2 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s`.
+  Final: `test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s`
+  and `test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.54s`.
+- `node --test /tmp/d1-r3-mutants.mjs`: eight independent in-memory source
+  mutations deliberately run against the production zero-errors assertion,
+  `ℹ tests 8`, `ℹ pass 0`, `ℹ fail 8`: imported from_value, crate alias,
+  to_string_pretty, Deserializer::from_str, typed calls in wire.rs and
+  engine/read.rs, the fast-route owned-decode bypass, and encoded reverting
+  to the aliased owned serializer. The permanent tests assert each rejection.
+- `node scripts/attribute-wasm.mjs --check-families`: `serde family check: ok`.
+- `bash scripts/build-wasm.sh`, on both the clean base and final source:
+  `wasm 1599360 B raw, 466618 B gzip (budget 467000: ok)`; delta 0 raw,
+  0 gzip. The clean rebuild differs from the earlier journal's landing
+  measurement; this comparison uses the measured base above. Initially,
+  adding test-only source lines changed gzip by one byte because production
+  source locations moved. Keeping those line locations fixed restored the
+  exact size; even non-shipping instrumentation can affect panic metadata.
+- `bash scripts/test.sh`: `-- ok: cargo test (538 s)` (72 Rust test binaries,
+  459 executions), fixture wrapper `ℹ pass 9`, `ℹ fail 0`, client
+  `ℹ tests 623`, `ℹ pass 617`, `ℹ fail 3`, `ℹ skipped 3`, then
+  `-- FAIL: client tests (621 s)` and `== 1 failure(s) in 634 s`.
+  The HTTP oversized-sync timeout also fails its parent test; Chromium
+  SIGABRT supplies the other failure. `node --test packages/snapback4/test/http-bounds.test.mjs`
+  alone passed `ℹ tests 10`, `ℹ pass 10`, `ℹ fail 0`.
+  `node --test packages/snapback4/test/react.test.mjs` alone repeated the
+  Chromium launch SIGABRT: `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`.
+  This matches the commissioned sandbox limitation; no failure is claimed
+  verified pre-existing, and the lead still owes the outside-sandbox browser run.
+- Repository-root `./ref-check --verbose`:
+  `ref-check: ok — 483 LLP docs, 9075 refs in 24212 files, 0 errors, 0 unchecked`.
+  `git diff --check`: exit 0, no output.
+
+One review premise was too broad: the old regex already caught direct
+`use serde_json::from_value` and `use serde_json::to_value as to_tree`
+imports. Crate renames and grouped imports really escaped it, as did the
+omitted files, pretty entry points and owned decode bypass. The expanded
+mutant checks cover both previously caught and newly caught forms. No commit,
+push, tag or publication was made.
+
+
+## 2026-09-17 — after the two landings: the exact landed commit, verified
+
+On `614898e9a7` — main with the retained-read composition and diet S0/S1 both
+in it — outside any lane sandbox, once the machine's load had fallen:
+`bash scripts/test.sh` reported `== 0 failure(s) in 350 s` (every Rust target,
+client tests 587 of 590 passing with none failing and 3 skipped, fixtures
+green); `node witness/idb.mjs` exit 0 with `composition: online [25,26],
+offline [25,25], reopened [25,25], reconnected [25,26], fresh false, complete
+false`; `react.test.mjs` 13/13. Every red seen during the day's loaded runs —
+the `clock` lease test, the `transport-http` deadlines, `W6R1 B` — was absent.
+The guard-hardening entry above (lane D1-R3) is the disposition of the third
+review round's findings on the diet's regression guards; it is test and
+instrument code only, changes the web artifact by 0 bytes, and lands without
+a further review round.
+
+
+## 2026-09-17 — diet S3 (host Unicode) is built on a branch and waits for a ruling
+
+Lane S3 built the candidate of LLP 3000.002 stage S3 on branch
+`sb4/diet-s3-host-unicode` (`a98aa62eb0`, pushed; not on main). Shipped
+pipeline, base 466,618 B gzip: host NFC only 407,786 (−58,832); plus the
+tokenizer's lowercase 407,839; plus `Builtin::Lower` 403,532. The lane's
+Node differential and the lead's Chromium 153 run of `node witness/idb.mjs
+unicode` both report zero differences over 57,848 folds of the pinned
+`NormalizationTest` 17.0.0 corpus, 1,488 lowercase mappings and 119
+`SpecialCasing` entries. The lane corrected the plan: Unicode's stability
+policy covers normalization of assigned characters and not case mappings, so
+the recommendation is NFC only. It reverses LLP 3000 §7's one-implementation
+ruling for the web tokenizer and therefore waits for the author; nothing of it
+is on main.
+
+## 2026-09-17 — W13c: stop restating bounds; prefix existence
+
+Implemented LLP 3000.007 rulings 23–25 and the lane-source expression repair.
+One binder recognition distinguishes full point keys from strict index prefixes.
+Capped prefixes lower to the existing literal scan; changing the one schema cap
+from **100 to 120** changes roster, nested-page and predicting-loop bounds.
+Uncapped or oversize query loop/lane domains use `Bound::Meter`, whose maximum
+comes from `Ceilings::default().examined`, and require uniform visibility.
+Helpers retain the caller's placement even inside a predicate. Jobs use their
+own examined ceiling for a capped inner loop (the **10,000**-cap compile control
+passes). No ceiling, value serialization, existing conformance case, rule-probe
+implementation, client or dev code changed.
+
+Program prefix/matching `exists` uses an additive, default-omitted scan flag:
+top one below page ownership, no overflow/lookahead/cursor. Positive held-row
+answers are exact beyond a device horizon; negative answers mark unknown
+coverage. Source keys, seek expressions and predicate needs are emitted before
+a merge, while per-row lane setup and lazy prefix freezing retain their places.
+An undefined compiler temporary now names the operation/site as E_INTERNAL.
+
+Measured on the server and both device stores: the **9,000**-membership loop
+returns **8,192**, has no continuation, and reports `complete: false`,
+`cut: 'meter'`. Its meter records **8,193 examined**, including the refused
+ceiling-crossing charge, and **0 rule probes**. The static bound is **8,192**.
+A positive plain existence scan costs **1 examined / 1 rule probe**; empty and
+uniformly hidden prefixes cost **0 examined / 1 rule probe**. An expired-only
+prefix returns false after **1 examined**. Hidden-present/hidden-absent answers,
+meters and completeness match, for plain and matching existence, on the server
+and both stores. Rule existence costs **1 probe** with **0 or 9,000 expired
+siblings**; the target scan examines **0** rows without a live permit and **1**
+with one, with identical observations across sibling counts. Its serialized
+rule bytes are pinned unchanged:
+
+```text
+{"Exists":{"table":"permits","index":"byRoom","key":[{"Field":"room"}],"provenance":"Shape"}}
+```
+
+The five lane-source controls return **10 / 10 / 25 / 10 / 10** rows (inline
+seeks, locals, direct page, key expression, source predicate), in both eager
+and lazy discovery, on the server and both stores. Inline and local merges
+both examine **50** rows. Positive existence answers are complete with both
+full holdings and a **last 1** horizon; negative answers beyond that horizon
+are incomplete. The capped roster has **2** rows, no cursor, and is complete;
+the device predicts bump and marks both changed rows pending.
+
+`check --cost` prints these exact forms:
+
+```text
+rows ≤ meter (8,192 examined)
+lanes ≤ meter
+exists: first match, no page overflow or cursor
+```
+
+The cards and README use boundless ascending whole groups, including the feed,
+effect, typing and maintained-count examples. Two descending cap-restatement
+sites remain in published examples: `posts[authorId] last 1000 by byActorTime`
+in the feeds card and its README copy. Newest-first backfill needs descending
+order, so it keeps `last`. Six ascending cap restatements remain in standalone
+regression fixtures: pending-metadata (1), membership (3), clique-relaxed (2);
+explicit `first <cap>` remains legal and those controls retain it. This census
+covers standalone `.q` sources, compiled cards and README blocks, excluding
+frozen corpora, generated output and embedded test-source strings. There are
+**0** ascending cap restatements in `apps/chat`: inbox pins principal, while
+its cap is by conversationId. Removing its first 50 would create an uncapped
+returned page, so the brief's anticipated app edit does not apply.
+
+### Published 0.2.27 probe table, rerun
+
+Before binary: `snapback4-darwin-arm64@0.2.27`, SHA-256
+`ae7838c7ed3a9a4b4be3fa454af69e9cacb792b5a23ad81d12386ec7e3fd2be7`.
+After: this lane's debug binary, based on
+`27c1096c894cbb59226cd9203bf06ee12e20b9be` plus the working changes.
+The variants are reconstructed from the bounds-probes record with nominal
+`roomId: rooms` keys and arguments. An untyped `roomId: id` can instead resolve
+to the existing byId point probe; that meaning intentionally remains unchanged.
+G1 here is `exists (messages[.roomId] matching q)`, without a page modifier.
+Q3 retains its explicit first 50000; the additional boundless cap-50000 control
+is refused as shown below. These are compile outcomes, not a claim that G7's
+count-of-page predicate defect (W13a) is repaired here.
+
+| Variant | Published 0.2.27 | W13c |
+| --- | --- | --- |
+| C1 capped group, explicit first 100 | ok; no note | ok; no note |
+| C2 capped group, no bound | E_QUARRY_TYPE | ok; no note |
+| C3 first 20 below cap | ok; N_NO_CURSOR | ok; N_NO_CURSOR |
+| C4 mutation loop, no bound | E_QUARRY_TYPE | ok; no note |
+| C5 mutation loop, first 100 | ok; no note | ok; no note |
+| G6 lane source, no bound, cap 1000 | E_QUARRY_SYNTAX | ok; N_WIDE_MERGE |
+| G7 count of inner matching top-1 | ok; no note | ok; no note |
+| G1 matching prefix exists | E_QUARRY_SYNTAX | ok; no note |
+| Q1 uncapped query loop, first 1000 | ok; no note | ok; no note |
+| Q2 uncapped query loop, no bound | E_QUARRY_TYPE | ok; no note |
+| Q3 cap 50000, explicit first 50000 | ok; N_NO_CURSOR | ok; N_NO_CURSOR |
+| X1 plain prefix exists | E_QUARRY_UNKNOWN | ok; no note |
+| X2 prefix exists, explicit index | E_QUARRY_TYPE | ok; no note |
+| X3 count of first 1 page | ok; no note | ok; no note |
+| BY1 inferred principal page index | ok; no note | ok; no note |
+| BY2 inferred lane index, first 1000 | ok; N_WIDE_MERGE | ok; N_WIDE_MERGE |
+| BY3 inferred room page index | ok; no note | ok; no note |
+
+G6 is capped at 1000, so its lane count is static and N_WIDE_MERGE correctly
+remains. The uncapped everywhere fixture has no static lane count and no note.
+The rerun also confirms BY2 already emitted N_WIDE_MERGE in 0.2.27; the older
+table only said “ok”. G1's exact unbounded matching spelling reaches the old
+range-bound refusal, whereas adding a page modifier reaches its old exists
+refusal. Both old boundaries are now covered explicitly.
+
+### Exact diagnostics
+
+The following messages and rewrites are verbatim from `check --json` on the
+published binary and this lane's binary; locations and parser cascade entries
+are omitted. “No diagnostic” means an accepted form, not a replacement message.
+
+Capped returned group (the mutation-loop C4 has the same old refusal):
+
+Before:
+
+```text
+E_QUARRY_TYPE: members.byRoomPrincipal takes (roomId: a rooms reference, principal: principal); supplied (roomId: a rooms reference) has the wrong number of keys
+rewrite: members[roomId, principal] by byRoomPrincipal — supply roomId: a rooms reference, principal: principal in index order
+```
+
+After: no diagnostic.
+
+Uncapped uniform query loop:
+
+Before:
+
+```text
+E_QUARRY_TYPE: members.byPrincipalRoom takes (principal: principal, roomId: a rooms reference, id: a members reference); supplied (viewer: principal) has the wrong number of keys
+rewrite: members[principal, roomId, id] by byPrincipalRoom — supply principal: principal, roomId: a rooms reference, id: a members reference in index order
+```
+
+After: no diagnostic.
+
+Merge source:
+
+Before:
+
+```text
+E_QUARRY_SYNTAX: a merge for lane requires a bounded range read
+rewrite: for row in table[prefix] first 50 by index
+```
+
+After: no diagnostic; N_WIDE_MERGE remains for this static cap of 1000.
+
+Prefix existence:
+
+Before:
+
+```text
+E_QUARRY_UNKNOWN: messages has no unique index over 1 column matching this key; its indexes are byId (id), byRoomTime (roomId, at, id), byRoomWords (roomId, at, id)
+rewrite: unique byColumn: <column>
+```
+
+After: no diagnostic.
+
+Unparenthesized matching inside where:
+
+Before:
+
+```text
+E_QUARRY_UNKNOWN: members.byPrincipalRoom has its words after 0 columns; matching takes exactly those as keys
+rewrite: members[] matching q first 50 by byPrincipalRoom
+```
+
+After:
+
+```text
+E_QUARRY_MODIFIER_SCOPE: matching could modify the inner or outer read; parenthesize the inner read, or move the modifier before `where`
+rewrite: (messages[.roomId] matching q)
+```
+
+Returned uncapped prefix:
+
+Before:
+
+```text
+E_QUARRY_TYPE: members.byPrincipalRoom takes (principal: principal, roomId: a rooms reference, id: a members reference); supplied (viewer: principal) has the wrong number of keys
+rewrite: members[principal, roomId, id] by byPrincipalRoom — supply principal: principal, roomId: a rooms reference, id: a members reference in index order
+```
+
+After:
+
+```text
+E_QUARRY_BOUND: members has no cap over this prefix; this position needs a bounded page
+rewrite: declare `cap N by principal` on members, or page with `first N` and a cursor: `members[viewer] after c first 50 by byPrincipalRoom` (declare `c: cursor ?`)
+```
+
+Returned oversized capped group:
+
+Before:
+
+```text
+E_QUARRY_TYPE: members.byRoomPrincipal takes (roomId: a rooms reference, principal: principal); supplied (roomId: a rooms reference) has the wrong number of keys
+rewrite: members[roomId, principal] by byRoomPrincipal — supply roomId: a rooms reference, principal: principal in index order
+```
+
+After:
+
+```text
+E_QUARRY_BOUND: members's whole group has cap 50000, above the 8192 examined ceiling; one read cannot examine the whole group
+rewrite: page with `first N` and a cursor: `members[roomId] after c first 50 by byRoomPrincipal` (declare `c: cursor ?`)
+```
+
+Non-uniform meter domain:
+
+Before:
+
+```text
+E_QUARRY_TYPE: members.byPrincipalRoom takes (principal: principal, roomId: a rooms reference, id: a members reference); supplied (viewer: principal) has the wrong number of keys
+rewrite: members[principal, roomId, id] by byPrincipalRoom — supply principal: principal, roomId: a rooms reference, id: a members reference in index order
+```
+
+After:
+
+```text
+E_QUARRY_BOUND: members by byPrincipalRoom: a meter-bounded prefix needs a read rule uniformly decided by its pinned columns
+rewrite: use `first N`: `members[viewer] first 50 by byPrincipalRoom`; for a complete read, scan by an index leading with unread, roomId, id and pin the deciding columns (N_NEVER_COMPLETE)
+```
+
+Page modifier inside exists:
+
+Before:
+
+```text
+E_QUARRY_SYNTAX: exists requires an indexed read t[key]
+rewrite: fix this Quarry line and rerun snapback4 check
+```
+
+After:
+
+```text
+E_QUARRY_SYNTAX: exists takes a plain indexed read or matching read; no where, first, last, after or seek
+rewrite: exists messages[roomId] by byRoomTime
+```
+
+Explicit smaller predicting page:
+
+Before:
+
+```text
+E_STRUCTURAL_FANOUT: loop over members[roomId] first 20 by byRoomPrincipal: members by byRoomPrincipal (page bound 20): the literal page bound must cover the schema cap 100
+rewrite: iterate the original group: `for row in members[roomId] first 100 by byRoomPrincipal:`; put the condition and work inside that loop
+```
+
+After:
+
+```text
+E_STRUCTURAL_FANOUT: loop over members[roomId] first 20 by byRoomPrincipal: members by byRoomPrincipal (page bound 20): the literal page bound must cover the schema cap 100
+rewrite: iterate the original group: `for row in members[roomId] by byRoomPrincipal:`; put the condition and work inside that loop
+```
+
+N_NO_CURSOR cap clause (Q3):
+
+Before:
+
+```text
+N_NO_CURSOR: query probe returns a page of 50000 inbox rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+rewrite: declare `c: cursor ?` and page with `after c` — probe(.., c: cursor ?): return inbox[..] after c last 50000 by <index>; a table `cap N by column` can replace a cursor for a single plain group page that pins column and covers N within the examined ceiling; this page still needs continuation
+```
+
+After:
+
+```text
+N_NO_CURSOR: query probe returns a page of 50000 inbox rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+rewrite: declare `c: cursor ?` and page with `after c` — probe(.., c: cursor ?): return inbox[..] after c last 50000 by <index>; read the whole group: `t[..]`, when its schema cap fits the examined ceiling; otherwise this page still needs continuation
+```
+
+The original source-seek call returned, verbatim:
+
+```text
+E_INPUT: unknown variable $value1
+```
+
+It now returns the rows reported above. A deliberately malformed IR control
+reaching an undefined compiler temporary instead reports, verbatim:
+
+```text
+E_INTERNAL: internal compiler error: an undefined temporary was evaluated in operation/site broken:1; recompile and report this operation
+```
+
+### Validation and limits
+
+The initial regression run on base
+`27c1096c894cbb59226cd9203bf06ee12e20b9be`, before the fix:
+
+```text
+cargo test -p snapback4-lang --test prefix_reads
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+cargo test -p snapback4-sim --test clique w13c_lane_source_inline_seek_matches_locals_and_direct_page
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 93 filtered out; finished in 0.01s
+```
+
+Final targeted runs (Cargo commands run from snapback4):
+
+```text
+cargo test -p snapback4-lang --test prefix_reads --test guide --test residency_notes --test ergonomics --test frontend_regressions --test maintains --test papercuts --no-fail-fast
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.37s
+test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.43s
+```
+
+```text
+cargo test -p snapback4-lang --test prefix_reads -- --nocapture
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+```text
+cargo test -p snapback4-lang --test guide
+test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+```
+
+```text
+cargo test -p snapback4-sim --test clique prefix_reads -- --nocapture
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 93 filtered out; finished in 0.67s
+```
+
+```text
+cargo test -p snapback4-device --test device prefix_reads -- --nocapture
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 189 filtered out; finished in 2.87s
+```
+
+```text
+cargo test -p snapback4-sim --test maintains_review
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.02s
+```
+
+```text
+cargo test -p snapback4 --test check
+test result: ok. 60 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.75s
+```
+
+The first whole-suite run exposed point-diagnostic/maintained-scalar regressions
+in the new prefix recognition and old rewrite expectations. Recognition now
+changes the form only when range resolution actually succeeds; maintained scalar
+lookups preserve their byGroup preference. The affected suites above pass.
+The first whole-suite summary was `== 2 failure(s) in 887 s` (cargo and client);
+client counts were 544 pass / 3 fail / 3 skipped. Its two transport timeouts pass
+when rerun alone. No such timeout remained in the final whole suite.
+
+The final full run, from the repository root, with Node 24:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+TMPDIR=/private/tmp bash snapback4/scripts/test.sh
+-- ok: cargo build (11 s)
+-- ok: wasm build (6 s)
+-- ok: package typecheck (3 s)
+-- ok: package build (2 s)
+-- ok: chat app check (4 s)
+-- rust inventory: 68 test binaries, 383 executions; at most 18 concurrent processes
+-- ok: cargo test (320 s)
+-- ok: chat app typecheck (2 s)
+-- ok: expo app typecheck (2 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ skipped 0
+-- ok: fixture wrapper tests (27 s)
+ℹ tests 550
+ℹ pass 546
+ℹ fail 1
+ℹ skipped 3
+-- FAIL: client tests (476 s)
+== 1 failure(s) in 506 s
+```
+
+Summing the final Rust summaries gives **1,328 passed, 0 failed, 4 ignored**.
+The only final failure is the brief's known sandbox Chromium SIGABRT in
+`react.test.mjs`; the browser exits before the React scenario can run. These
+standalone reruns used the same Node-24 export, from snapback4:
+
+```text
+TMPDIR=/private/tmp node --test packages/snapback4/test/transport-http.test.mjs
+ℹ tests 6
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+TMPDIR=/private/tmp node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+```
+
+No remaining failure is claimed verified pre-existing against a clean base.
+The React failure needs the lead's outside-sandbox rerun; no permission bypass
+or other-machine run was attempted. The two maintained-prefix prose corrections
+made after the full Rust run were rechecked by the final guide test above.
+
+Outside the brief's named production files, `core/src/ir.rs` carries the two
+additive IR markers; `core/src/engine/runner.rs` supplies the requested internal
+temporary guard. `engine/native.rs`, `engine/prefetch.rs`, core test scan builders
+and sim's `tests/common/write_observation.rs` only initialize the new scan flag
+to false. Tests live in the requested language/sim/device suites and CLI check
+suite. Existing serialized conformance files are untouched; all eight frozen
+lowering shards pass. `engine/read.rs` changes only take/existence/coverage
+handling; merge and filter paths and `engine/rules.rs` are untouched. The search
+two-cursor section, recipe and held guidance remain. No commit, push or publish.
+
+Learned: point recognition must preserve failed full-key diagnostics and a
+maintain's byGroup preference, not interpret every failed point lookup as a
+prefix. An id-typed argument can already mean a byId point read, so a prefix
+regression needs nominal key types. The source-seek failure was setup ownership,
+not a missing runtime value; moving that setup preserves eager/lazy behavior.
+A held positive witness needs no horizon completeness proof, while a negative
+does. All changed code files remain at or below 1,500 lines (largest touched
+files: device suite **1,489**, Clique suite **1,466**).
+
+```text
+./ref-check --verbose
+ref-check: ok — 482 LLP docs, 9058 refs in 24139 files, 0 errors, 0 unchecked
+```
+
+## 2026-09-17 — W13c-2: range/list merge lanes and time index keys (rulings 28–29)
+
+Continued from W13C at `4a1bbf4495e4ccff4e2744cc73c42e3b1c01df43`, preserving
+its prefix reads, cap-derived bounds, prefix existence and P2 setup hoisting.
+A query lane now takes the statement loop's domains except walk: a prefix
+page, an integer range, or a bounded list argument/expression. `LaneSource`
+is `Scan | Range | List`; range/list binding and evaluation reuse statement
+loops. Bounds evaluate once, lists retain their order, duplicate lanes still
+deduplicate rows, and empty domains are complete. Literal or common-expression
+widths and list bounds supply static counts; other widths print `lanes ≤ meter`
+and do not emit N_WIDE_MERGE. Jobs retain literal/table merge lanes inside
+chunks; the new domains are query-only. Mutation pages remain unchanged.
+
+The range itself is not materialized. Uniform merges retain lane descriptors
+under an upfront heap charge (including vector spare capacity, owned prefix
+keys and cursor/seek bounds), then use the existing head strategy. Non-uniform
+traversal is unchanged. A billion-lane empty range stops at the unchanged heap
+ceiling in under 100,000 steps; it cannot allocate a billion descriptors.
+
+Table `by` and `unique` lists now take `day`, `hour` and `bucket` of a required
+local time column, at any position, once per function per index. The compiler
+uses maintain argument validation and the stores share CalendarKey's evaluator
+with maintain groups. Integer key names support positional pins, function-name
+seeks and cursors, without adding row fields, writable values, rule fields,
+cap keys or sync audience keys. Computed indexes are not plain. Job cursors
+check immutability of the underlying time column. Updates and adoption rebuild
+through the ordinary index paths, including changes of period/offset. A real
+column colliding with a function name is refused with a rename rewrite.
+Malformed computed expressions and empty calls produce diagnostics, not panics.
+
+Published examples are a room/hour listing and a daily unique check-in; the
+language card compiles and runs them. The indexes, reads, language, maintains
+and code-explanation cards and package README move together. No new card word
+or diagnostic code was added, no ceiling or Value serialization was changed,
+and no existing conformance case was edited. The two ruling implementations
+are annotated once each with LLP 3000.007 §21.6.
+
+Measured on one 1,200-post, 25-lane maintained-count fixture, typed and range
+ranking both examine **35** rows on the server and each device store, return
+the same rows and cursor, and match the oracle. The base supports maintained
+`value, id` suffixes, so ties use the maintained id; the oracle uses that exact
+order rather than claiming a post-time tie order this base does not provide.
+A **5,000-lane / 20,000-post** range on all three native hosts returns **10**
+rows, `complete: false`, `cut: meter`, no `next`, **9,096 examined**,
+**0 index entries**, **19,112 steps**, and **3,363,950 charged heap bytes**.
+The examined count includes failed charges while the existing head-opening
+loop visits the remaining lanes after the cut; the ceiling stays **8,192**.
+A supplemental WASM/MemoryRows probe matched those rows/counts, with
+**1,763,950 heap bytes** on wasm32. Its four scenarios passed; it was a scratch
+harness, not a replacement for the native server/device suites.
+
+The paired tests compare serialized pages, completeness, cut, cursor and every
+meter field for worlds differing in hidden row contents, and for hidden/absent
+worlds after acquisition on both device stores. There is a brief conflict for
+server hidden/absent worlds: the unchanged non-uniform traversal's operator
+meter counts physical rows. The same **50 visible** rows with **0 versus 50
+hidden** rows produce byte-identical page/complete/cut/next but **50 versus
+100 examined**. An isolated harness over the exact base core/lang sources
+reproduced those numbers. The test records the limitation instead of changing
+or disguising the existing traversal. No claim of hidden/absent equality of
+the server's raw operator meter is made.
+
+Other differences from the adopted brief: this base's lane refusal says
+“prefix read”, not the published 0.2.27 “bounded range read”; Wave 12's
+25-literal-lane Trending example is absent, so the conditional feeds rewrite
+was not performed and existing feed prose was not reformatted. The checked-in
+§21.8 does not contain L5, but the lead's explicit any-position ruling in the
+brief was implemented. Ruling 30's count-on-row design remains unbuilt, as asked.
+
+Regression evidence uses the exact base commit above. The preserved pre-fix
+lane test failed; the time-key positive test also failed against separately
+materialized base core/lang sources. Native process startup initially stalled,
+then recovered; all final Rust tests executed normally. Commands below ran
+from `snapback4/` except the root suite and ref-check, with Node 24 selected:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+```text
+/private/tmp/w13c2-baseline-lane-domains --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+TMPDIR=/private/tmp cargo test --manifest-path /private/tmp/w13c2-base-check/Cargo.toml -p snapback4-lang --test before --target-dir target -- --nocapture
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+```
+
+The base harness's passing test verifies the inherited operator-meter behavior;
+its failing test is the new positive time-index compiler regression.
+
+```text
+TMPDIR=/private/tmp cargo test -p snapback4-lang --test lane_domains --test time_indexes --test guide --no-fail-fast -- --nocapture
+test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+```
+
+```text
+TMPDIR=/private/tmp cargo test -p snapback4-sim --test clique -p snapback4-device --test device --no-fail-fast w13c2 -- --nocapture
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 193 filtered out; finished in 3.08s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 100 filtered out; finished in 1.39s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+```
+
+```text
+TMPDIR=/private/tmp cargo test -p snapback4-device --test index_key_bound -p snapback4 --test check --no-fail-fast -- --nocapture
+test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.77s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+```
+
+```text
+TMPDIR=/private/tmp node --test --test-name-pattern='W5c process: pending writes recover' packages/snapback4/test/acquisition.test.mjs
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+```
+
+```text
+TMPDIR=/private/tmp node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+```
+
+The initial targeted guide run was `48 passed; 2 failed` (operation inventory
+and a misspelled code comparison), corrected above. The initial device time-key
+tests expected a display string without its code/detail and read before the
+new generation's acquisition completed; the tests now assert the refusal's
+message and observe the acquisition fence. The first full run reported
+`== 2 failure(s) in 708 s` (Rust and clients); clients were `550 tests`,
+`545 pass`, `2 fail`, `3 skipped`. Its acquisition failure passed alone above;
+Chromium still aborted at launch on the standalone retry. Neither client
+failure is claimed verified pre-existing against a clean base.
+
+The second complete blocking run finished as follows. Its Rust summaries sum
+to **1,350 passed, 0 failed, 4 ignored**. The only remaining failing scenario
+is the brief's sandbox Chromium SIGABRT at browser launch; the lead must rerun
+React outside the sandbox. The final malformed-index/job-rewrite guards were
+rechecked by the final 57-test language command above after the full Rust run.
+
+```text
+TMPDIR=/private/tmp bash snapback4/scripts/test.sh
+== cargo build
+-- ok: cargo build (33 s)
+== wasm build
+-- ok: wasm build (34 s)
+== package typecheck
+-- ok: package typecheck (4 s)
+== package build
+-- ok: package build (5 s)
+== chat app check
+-- ok: chat app check (0 s)
+== cargo test
+-- rust inventory: 70 test binaries, 398 executions; at most 18 concurrent processes
+-- ok: cargo test (276 s)
+== chat app typecheck
+-- ok: chat app typecheck (2 s)
+== expo app typecheck
+-- ok: expo app typecheck (2 s)
+== fixture wrapper tests
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ skipped 0
+-- ok: fixture wrapper tests (34 s)
+== client tests
+ℹ tests 550
+ℹ pass 544
+ℹ fail 3
+ℹ skipped 3
+-- FAIL: client tests (673 s)
+== 1 failure(s) in 753 s
+```
+
+Exact base refusals, and the accepted forms after the change:
+
+```text
+Before ruling 28:
+E_QUARRY_SYNTAX: a merge for lane requires a prefix read
+rewrite: for row in table[prefix] by index
+After ruling 28: range and bounded-list positive examples have no diagnostics or notes.
+Remaining walk refusal:
+E_QUARRY_SYNTAX: a merge for lane requires a prefix page, range(a, b), or a bounded list; walk is not a lane domain
+rewrite: for h in range(hour(now) - 24, hour(now) + 1), for a in authors (authors: [principal] <=50), or for row in table[prefix] by index
+Remaining unbounded/non-domain refusal:
+E_QUARRY_SYNTAX: a merge for lane requires a prefix page, range(a, b), or a bounded list
+rewrite: for h in range(hour(now) - 24, hour(now) + 1), for a in authors (authors: [principal] <=50), or for row in table[prefix] by index
+Before ruling 29:
+E_QUARRY_SYNTAX: expected the end of the line, got "("
+rewrite: end this statement here; put the next statement on its own line at the same indentation
+After ruling 29: the valid by/unique time-key examples have no diagnostics or notes.
+Name collision:
+E_QUARRY_TYPE: visits has a column named hour, which collides with the computed index key
+rewrite: rename column hour before declaring hour(at)
+```
+
+All changed code remains within 1,500 lines (device suite **1,491**, Clique
+suite **1,468**); Markdown was not compressed. No out-of-scope repository file
+was changed. Temporary base/WASM harnesses and execution logs are under
+`/private/tmp`. No commit, push, tag or publication was performed.
+
+Learned: the existing loop-domain binder/evaluator and calendar key encoder
+provided the common semantics without a second engine path. Index key names
+must be distinguished from actual row columns, especially for authorization
+pins and upsert insert images. A new index still obeys the device generation's
+acquisition fence. Operator metrology and the user-visible page contract are
+separate on non-uniform scans; the requested raw-meter assertion cannot erase
+that distinction while retaining the original traversal.
+
+```text
+./ref-check --verbose
+ref-check: ok — 482 LLP docs, 9060 refs in 24165 files, 0 errors, 0 unchecked
+```
+
+Final client enumeration and isolated retry: the second full run's **544 passed,
+3 failed, 3 skipped** includes two `transport-http.test.mjs` pending-id timeout
+cases (wasm and native), in addition to Chromium. Both timeout cases and the
+other four transport cases pass with that file running alone:
+
+```text
+TMPDIR=/private/tmp node --test packages/snapback4/test/transport-http.test.mjs
+ℹ tests 6
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+```
+
+Thus Chromium is the only unresolved failure after isolated reruns, not the
+only failing case in the full-run transcript. No clean-base claim is made for
+the timeout failures. The initial progress message that said 546 client passes
+was corrected after inspecting the final enumeration; the transcript above is
+the authoritative full-run count. `git diff --check` is clean and the complete
+pre-lane JOURNAL byte prefix remains unchanged.
+
+**2026-09-17 — W13cR1, the W13c review round.** Starting from
+`e86496d4738a40dbec7d5feb12e706db67b51b4a`, reproduced the matching-existence
+skip on the server and both device stores: the first witness at examination
+8,192 was followed by a failing 8,193rd charge, and the grouped page returned
+0 rows with its cursor already after `a`. Both eager and lazy word merges now
+return their first witness without lookahead, opening another word lane or
+refilling after success. Across 1, 2 and 9 word lanes, standalone existence
+now uses exactly 8,192 examinations and is complete; the grouped first page
+keeps 1 row, positions after `a`, and only the next outer candidate attempts
+8,193. Each walk returns 2 expected ids in 2 requests with 0 duplicates,
+covering 36 server/device/path/query/word-count combinations. The isolated
+server regressions changed from 0 passed / 4 failed to 4 passed / 0 failed;
+the device regressions from 0 / 8 to 8 / 0. Range width now compares stable
+expression structure without source locations, so differently grouped
+arithmetic reports `lanes ≤ meter` instead of `up to 0 lanes`, while the
+25-hour case still folds to 25. The `exists` modifier refusal keeps
+`matching q` in its rewrite, and the exact suggestion compiles; the width,
+cost and rewrite regressions each changed from 0 / 1 to 1 / 0. Both Trending
+card queries now use the 25-hour range, their compiled expectation follows,
+and the reads card and README distinguish an opening/word cut from a uniform
+lazy drain cut with continuation. The targeted language/card suites passed
+72 tests, simulator 23, device 16 and CLI 66. Moved the unchanged acquisition
+scenario into a module: `device.rs` and the largest changed code file are
+now 1,478 lines, correcting the earlier paragraph's 1,491 claim (the actual
+base was 1,502). The `engine/rules.rs` change stays unchanged: ruling 29
+requires `component.column()`/`key_type` because a calendar key is not a
+column; this is neither a rule probe nor a copy of uniformity analysis.
+Learned: an existence result has no ordering or continuation work left once
+its first witness is established, and printed expressions cannot establish
+structural identity. No meter ceiling, serialized value form or existing
+corpus case changed; no commit, push, tag or publication was performed.
+The complete blocking suite took 646 seconds: Rust 1,456 passed / 7 failed /
+5 ignored, fixtures 9 / 0, and clients 596 passed / 2 failed / 3 skipped.
+The clock assertion and six witness-driver failures passed isolated reruns
+(clock 1 / 0, witness 20 / 0); the transport timeout passed its file rerun
+6 / 0. The React rerun remains 0 / 1 with Chromium SIGABRT in this sandbox,
+the known environment artifact; the lead must qualify that outside it. No
+clean-base full-suite or pre-existing-code-failure claim is made. The final
+reference audit reports 483 LLP documents, 9,079 references, 0 errors and
+0 unchecked; `git diff --check` is clean, and the earlier JOURNAL bytes
+remain an unchanged prefix.
+## 2026-09-17 — B1c R3 deadline-sequence instrument repair
+
+The actual R3 final-95 command used the correct outer module and exited after
+9.803 seconds with `B1C_DEADLINE_TERMINAL_EVIDENCE` at
+`raw-cancelled-settled-deadline`. Before that failure, the command recorded the
+actual Keycloak, post-commit lost-reply, worker-crash, derived own-profile and
+two-stream default-`why` redaction labels. Its retained raw database showed the
+deadline invocation still `running` with a null error code. Outer custody
+finished with zero surviving owned processes. The earlier R2 wrong-module miss
+remains retained and is not rewritten.
+
+Native Sol HIGH source inspection found an instrument chronology mismatch, not
+a backend defect: public action replay/collection reads the request and does
+not run action expiry. The normal worker `POST /actions/<id>/status` path does
+run expiry transactionally and returns the retained claim fence. The raw
+deadline sequence now waits past the declared two seconds, invokes that status
+door with the exact standing service credential and held action lease, and
+requires the returned invocation id and attempt to match with state `failed`
+and `errorCode: E_ACTION_DEADLINE`. Only then does it require the original
+public collection to expose `E_ACTION_DEADLINE` and the bound mint to refuse
+`E_ACTION_LEASE`. It neither accepts pending, adds an arbitrary longer sleep,
+writes the database nor substitutes the read-only aggregate.
+
+The sequence lives in one injected helper shared by the actual harness and
+three deterministic labelled-response tests. The green case proves the order
+status → collect → mint; missing and mismatched status receipts refuse before
+either downstream assertion can false-green. Review of the complete remaining
+raw witness against current HTTP/core contracts found no additional concrete
+mismatch: the admitting-logout sweep is driven by its claim pulse, parked-step
+transition invalidates its lease, and issued/target/service revocation plus the
++25h family-expiry path use their intended authority doors. This is source
+inspection only, not execution of those later cases.
+
+Node 24.13.1 syntax checks passed for `qualify-b1c.mjs` and the new deadline
+helper. The exact serial affected command over deadline, proxy phase, loopback
+HTTP lifecycle and diagnostic-secrecy tests passed 21/21; `git diff --check`
+passed. No actual engine, provider, crash qualification, raw case, external
+network, Rust/Cargo, install, publication or full suite ran. R3 remains overall
+negative, later raw cases remain unexecuted in that run, and the repaired
+deadline sequence plus every provider-backed row remain pending an actual
+qualification rerun.
+
+## 2026-09-17 — B1d.3 optional invitation issuance source (authored through Codex gpt-5.6-sol HIGH)
+
+This bounded native Sol lane added optional issuance source outside the
+identity fixture's active `snapback/`, plus exactly one ordinary admin
+delivery-state point query. Root `issueInvitation` durably prepares a 32-byte
+token, repeats one stable managed write and exact-ID read in
+`invite.record/v1`, then uses one fixed-body `invite.mail/v1` provider key.
+The existing mutation remains directly callable with a digest; only this
+optional action proves its own random issuance.
+
+Prepare retains the raw token, frozen nonsecret config/template, config hash
+and SHA-256 credential-namespace fingerprint. Privileged `why --values` can
+reveal it, and Resend receives the fragment link. Mail guards current admin,
+exact immutable identity, pending state, strict expiry, a ten-minute horizon
+and unchanged config/key fingerprints inside run and reconciliation.
+Historical unknown parks without another POST. The fixed Resend endpoint
+refuses redirects; abort fences fetch and body consumption. API acceptance is
+not inbox delivery.
+
+The serial test imports authored recipe `.ts` source but resolves public error
+classes through the already-built package 0.2.26. That ignored build was not
+rebuilt or claimed to match a source commit. Exact artifacts: `dist/server.js`
+`40856abc8fb1be815a124875a9af100e27e24c107d3ec436b293fdd42b1cbd10`,
+`dist/worker.js`
+`8945b72c9d0cead289867543b55049475debc3551ca7b8f44ddb45dd1f072d38`,
+`dist/server.d.ts`
+`922e51ebc91b4a964cd850c8aaf926a4fda63f1306cbdb9aef6975c72de20d3e`,
+and `dist/worker.d.ts`
+`0f42fee3e455d268d95b278759a16fc461847f5e6fc337704e1c1554b843b085`.
+Strict no-emit compilation separately checked the helper/adapter declarations.
+
+The first source-mapped Node attempt failed before tests: 0 pass, 1 fail,
+215.449375 ms, `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX` on a transitive parameter
+property. Removing that test-only mapper produced 27 pass, 0 fail in
+352.025916 ms. After final corrections, Office load was 7.72, Node 24.18.0,
+syntax/no-emit/diff checks passed, and the focused serial test reported 32
+pass, 0 fail, 0 skip in 494.33175 ms. These protocol/context doubles cover
+prepare/mail completion cuts, write replay, before/after provider acceptance,
+stable keys/bodies, historical fences, definitive initial 400, uncertain
+5xx/unreadable/409, redirect refusal, redaction and entered-fetch/body aborts.
+They are not actual engine, HTTP crash, authentication or provider evidence.
+
+No engine/CLI check/dev/run, generation, listener, provider, network,
+credential, install, Rust/Cargo, root gate, bootstrap, fleet, fetch, push,
+publication or deployment ran. Generated registry/typecheck, default
+why/log secrecy, actual HTTP/process cuts, concurrency/restart/rollback,
+authentication and Resend/inbox evidence remain pending with the parent, as
+do independent reviews and any full Identity/B or delivery qualification.
+
+The final successful commands, from `snapback4/`, were:
+
+```text
+PATH=<Node-24.18.0> node --check packages/snapback4/test/identity-invitation-issuance.test.mjs
+pass
+
+PATH=<Node-24.18.0> ./node_modules/.bin/tsc --noEmit --strict --exactOptionalPropertyTypes --noUncheckedIndexedAccess --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext --allowImportingTsExtensions packages/snapback4/test/fixtures/identity-recipe/invitation-issuance/issue-invitation.ts packages/snapback4/test/fixtures/identity-recipe/invitation-issuance/resend.ts
+pass
+
+PATH=<Node-24.18.0> node --test --test-concurrency=1 packages/snapback4/test/identity-invitation-issuance.test.mjs
+32 pass, 0 fail, 0 skip; 494.33175 ms
+
+git diff --check
+pass
+```
+
+One preceding syntax command mistakenly prefixed the path with `snapback4/`
+while already in that directory; it failed with `MODULE_NOT_FOUND` before
+reading a source file. The immediately corrected command above passed. This
+instrument-path error is not a product or test failure.
+
+## 2026-09-17 — B1d.3 provider-contract documentation completion
+
+Native Sol added only the supplied Resend idempotency/retrieval/test-delivery,
+ten-minute versus 24-hour, key-namespace, seven-day managed-policy, Workroom
+renewal-reminder and terminal cancellation/unknown limitations to the optional
+variant README. Source and test bytes are unchanged. The prior 32 focused
+assertions remain the retained receipt and were not rerun. No external lookup,
+engine, provider, network, install or Rust command ran; the supervisor owns the
+final bundle and all pending qualification.
+
+## 2026-09-17 — B1d.3 bounded provider-response source repair
+
+Native Sol changed only the optional Resend adapter, its focused protocol
+doubles, the optional README and this append-only record. Successful provider
+JSON now streams under an exact 64 KiB byte ceiling before any chunk is kept;
+reader operations use the invocation abort lifetime. Overflow, read, UTF-8,
+parse and invalid-result failures remain retryable uncertainty. Failure-path
+reader/body cancellation observes rejections without awaiting cancellation,
+including a never-settling provider implementation. Status 409 remains
+unresolved, definitive initial 4xx remains rejected, and other failures never
+become false completion.
+
+The fresh Office load probes were 5.02 and 4.76, below the stop threshold;
+Node was 24.18.0. Syntax and strict helper/adapter no-emit checks passed. Two
+test-authoring runs retained real red receipts: each reported 34 pass and 4
+fail (570.200625 ms, then 376.908958 ms), first exposing a string-slicing typo
+and nondiscriminating stream cancellation, then confirming the remaining typo
+and duplicate cancellation observation. The repaired serial source/double run
+reported 38 pass, 0 fail, 0 skip in 296.511708 ms. It covers the exact byte
+boundary, multiple-chunk overflow with absent/lying length, entered-reader
+abort, 409 cancellation, rejecting and never-settling cancellation, and
+sanitized read/parse errors while retaining all prior cases.
+
+The tests still import authored recipe source while using the pre-existing
+ignored package 0.2.26 public error classes recorded earlier; they are local
+protocol/context-double evidence, not matched-source engine, provider or
+authentication qualification. No build, engine, provider, listener, network,
+install, Rust/Cargo, inventory, publication, push or qualification harness ran.
+
+## 2026-09-17 — B1d.3 response-bound instrument correction
+
+Native Sol changed only the focused test instrument and this journal entry;
+adapter and application source bytes from `adda7d22a` are unchanged. The
+overflow cases now use valid JSON with a valid provider ID plus a multibyte
+ignored field: fewer than 64 KiB JavaScript characters but more than 64 KiB
+of UTF-8. Without the adapter ceiling that response would parse and accept.
+The fake response now carries real absent or deliberately lying
+`Content-Length` headers and counts reads, proving the adapter stops on the
+second crossing chunk, never reads the following empty chunk or EOF, cancels
+once, and returns a sanitized `Retry`. The exact-boundary acceptance remains.
+
+The fresh Office load was 6.23 and Node was 24.18.0. `node --check`, strict
+helper/adapter no-emit compilation and the focused serial test passed; the
+test reported 38 pass, 0 fail, 0 skip in 370.188 ms. The prior two red runs
+and 38-pass receipt remain historical evidence. No engine, provider, listener,
+build, install, Rust/Cargo, root gate, network or qualification command ran.
+
+## 2026-09-17 — Bwork2 source checkpoint: effect steps and strict HTTP authority
+
+Effects now adapt the existing shared external-step transition kernel onto the
+additive SQLite `_effect_steps` table. Their provider keys use the reserved
+`snapback4:effect-step:v1` domain, while action storage, keys and public
+behavior remain unchanged. Begin, completion, reconciliation takeover,
+completed-result replay, changed-input refusal and parking therefore use one
+transition policy across the two durable work kinds. An uncertain provider
+outcome parks the parent effect with E_STEP_PARKED; an oversized outcome parks
+it with E_STEP_RESULT. Both transitions atomically record a nonnull error and
+settlement time and clear the effect claim, lease and schedule. Parked effects
+do not expire or return to claim. A policy-allowed cancellation can terminate
+one as failed/E_EFFECT_CANCELLED, never resume it.
+
+New SQLite emissions store no release and bind a contract over the exact
+generic `Value` payload, effect name and full admitted `WorkSpec`. There is no
+typed effect-payload declaration and no same-name typed-change claim. A future
+typed payload surface must replace the generic validator tag with its schema
+identity. A persisted NULL contract explicitly bypasses comparison for legacy
+rows; a legacy declaration present only in `schema.effects` recomputes the same
+implicit 4-second-backoff `WorkSpec` used at admission. Missing or changed
+nonnull contracts park with E_EFFECT_GENERATION and clear the live claim.
+
+The HTTP effect arms moved out of near-limit `serve.rs`. Claim, step and
+settlement parse their body, path and headers before taking the engine guard,
+and serialize their response after releasing it. Their strict core entry points
+begin one immediate transaction, take the supplied time and supervisor-revision
+sample exactly once, and authenticate the current live service through the
+same core identity policy used by the other host worker doors. Settlement and
+every step verb then load and compare the admitted contract before checking
+the effect lease, so a stale or expired lease cannot hide generation drift.
+Held-effect long polls use a narrow authority-only immediate transaction with
+the same after-BEGIN sample and claim no work. Manually provisioned service
+seats retain their legacy current-session meaning. Existing direct core
+claim/settle APIs and legacy unfenced HTTP wire remain compatibility paths.
+The new step routes require exactly one nonempty effect lease header. This
+slice adds no typed effect context, status route, provider adapter, Postgres
+work lifecycle or new Quarry form.
+
+Discriminating source tests cover contract drift with an already-expired lease
+across top-level settlement and all three step verbs, asserting durable parent
+parking and cleared claim fields. They also cover the legacy declaration
+fallback and the held-poll sample count. This checkpoint is source-only:
+qualification remains pending and no Cargo, test, build, listener, install,
+network, commit, bundle, provider or remote command ran.
+
+Native Sol authored this surviving Bwork2 source and documentation with no
+additional model/subagent delegation. An accidental wrong-model resume was
+fully inverse-patched before this correction pass and contributes no surviving
+source. The resumed Sol turn authors every surviving correction recorded here;
+this is not a claim that no model work occurred.
+
+## 2026-09-17 — Bwork2 focused qualification
+
+The bounded SQLite/HTTP slice compiled and passed its serial locked affected
+checks with `CARGO_BUILD_JOBS=6`: the SQLite core check passed;
+`effect_policy` passed 7/7; the unchanged action step surface passed its
+`action_context` regression 9/9; the host effect filter passed eight selected
+tests across its unit and integration targets, including the new HTTP parsing,
+lease-header and step round-trip witness; supervised adoption fencing passed
+1/1; and the language guide passed 50/50. The touched Snapback4 source maximum
+is 1,323 lines (`serve_tests.rs`), below the 1,500-line ceiling. Final diff
+whitespace validation and the canonical repository-root reference check pass;
+the latter reports 481 LLP documents, 9,057 references, zero errors and zero
+unchecked references.
+
+One preliminary host command included `--lib` and exited 101 because
+`snapback4` is a binary package with no library target; removing that selector
+ran the intended tests successfully. An attempted `ref-check --root snapback4`
+also exited 1 because the Snapback4 documents intentionally live in the
+repository-level `llp/` corpus, so the canonical root invocation replaced it
+and passed. Neither precondition miss compiled product source or motivated a
+product change. No root inventory, PostgreSQL, provider, external listener,
+network, remote, origin, push or publication command ran.
+
+Native Sol authored and qualified every surviving Bwork2 change with no
+additional model/subagent delegation. The accidental wrong-model edit attempt
+was fully inverse-restored and contributes no surviving source. This provenance
+does not claim that no model work occurred.
+
+## 2026-09-17 — Bwork2 review-repair source erratum
+
+The Bwork2 source checkpoint incorrectly said that new SQLite emissions store
+no release and implemented that statement by writing NULL into `_outbox.release`.
+That confused admission provenance with declaration compatibility. The repair
+restores the current `_meta.release` on every newly admitted effect row while
+keeping release wholly outside the effect declaration and row-compatibility
+digests. The focused A→B regression records A on an A-admitted row, changes the
+current release to B without generation-parking that row, and records B on a
+new admission.
+
+Declaration drift still returns E_EFFECT_GENERATION before stale-lease refusal
+for queued and running work, but only those live states are generation-parked.
+Sent, satisfied, failed, cancelled and already parked rows retain every stored
+evidence field unchanged. Focused source snapshots compare the full terminal
+outbox rows before and after the refusal. The effect HTTP boundary now rejects
+wrong-typed present `effect`, `fenced`, `limit`, `lease`, `wait`, `retry`,
+`reconcile` and `error` fields before taking the engine mutex; omission alone
+selects a default. The malformed-body regressions retain the outbox row,
+attempt count and effect-step count. Step execution returns a typed host outcome
+from the engine guard, and only after that guard drops does the host construct
+the unchanged JSON/HTTP response.
+
+Native Codex gpt-5.6-sol authored this bounded review-repair pass. This is a
+source-only correction record, not a claim that no model work occurred. Per
+the commissioned phase, no Cargo or Node test, build, listener, network,
+provider, origin, root-inventory or commit command ran; the added checks remain
+unexecuted here. Advisory lease equality and legacy maintenance expiry
+precedence are inherited compatibility paths and remain out of scope. Bwork3
+was not touched.
+
+## 2026-09-17 — Bwork2 review-repair focused qualification
+
+The seven-file repair compiled and its requested serial locked checks passed
+with `CARGO_BUILD_JOBS=6`: `effect_policy` passed 9/9, the exact modified host
+HTTP regression passed 1/1, the SQLite core check passed, and the language guide
+passed 50/50. A subsequent host `effect_` selector passed seven selected tests:
+four unit tests and three existing clock integration tests. The focused rows
+therefore cover strict wrong-type rejection without outbox/attempt/step
+mutation, full terminal-row stability under generation refusal, running drift
+before stale-lease refusal, release A surviving current release B with an
+unchanged compatibility contract, and the existing successful step wire after
+response materialization moved outside the engine guard. Source review confirms
+the guard returns only `StepOutcome` or `RuntimeError`; its block contains no
+`json!`, response construction or HTTP write.
+
+The first `effect_policy` invocation found no ambient `cargo` and exited 127
+before compilation; repeating it with `/home/ccheever/.cargo/bin/cargo` passed.
+The broader `effect_` selector unintentionally exceeded this qualification's
+no-listener boundary because its name also selected three existing `clock`
+tests. Those tests opened and closed temporary loopback dev/serve listeners and
+passed 3/3; no external network or provider ran. This selector mistake caused
+no source repair and is retained here rather than recast as authorized evidence.
+No root inventory, full suite, PostgreSQL, provider, external network, origin,
+push or publication command ran. Native Codex gpt-5.6-sol authored and
+qualified this repair without model or subagent delegation.
+
+## 2026-09-17 — Bwork2 review disposition and integration
+
+The Bwork2 source and its bounded review repair were integrated onto the
+registered `df9d1d83b` control base as `378f5baccd` and `407d4837d2`.
+Product and test blob identities match repaired source `f28e7b40e`; the first
+pick's only conflicts were this append-only record and overlapping SERVER
+prose. The record resolution is exact pre-pick bytes plus the source's exact
+5,111-byte append (SHA-256
+`92d9bddc75f3d957d1575ad263e02d47ae8b49d80445a92a23128c9a569987be`).
+The SERVER resolution keeps the combined action/effect policy text and removes
+the superseded Bwork1 statement that effect storage did not yet exist.
+
+Both fresh initial source-only reviews were NOT READY. Sol identified
+wrong-typed present fields defaulting instead of refusing and step response
+JSON materialized under the engine mutex. Grok identified declaration drift
+overwriting already-terminal effect evidence. A fresh native Codex
+gpt-5.6-sol repair author, thread
+`01a0ae22-e0d5-7ea2-84b4-fc96c4258ca5`, implemented and qualified only the
+bounded repairs; no additional model or subagent was delegated inside that
+authoring lane. Each original reviewer then received the exact `f637b3bf18` to
+`f28e7b40e` delta, relevant frozen context and only its own earlier findings.
+Both same-reviewer delta verdicts are READY. The four actual public review
+artifacts and their source-only limits are retained under `llp/reviews/`.
+
+The author-run evidence and boundary misses remain explicit in
+`reports/20260917-bwork2.md`: the ambient-Cargo exit 127, invalid binary-package
+`--lib` selector exit 101, and a broad name filter that unintentionally ran
+three existing local-listener tests are not hidden or promoted into requested
+evidence. This is partial LLP 3000.009 §10.2 B progress. It is not generated
+effect context, a status endpoint, PostgreSQL effect work, provider/process
+qualification, a broad-suite result, publication, or a full B milestone.
+
+## 2026-09-17 — identity evidence reconciliation and invitation compile gate
+
+The integration retains the raw-authority deadline repair and optional
+invitation issuance plus its response-bound repair. Both original independent
+Sol/Grok reviewers returned READY on their own blind repair deltas; the
+actual public answers are preserved under `llp/reviews/`. Root reviewed the
+source and full public answers. This entry does not convert synthetic tests
+into provider evidence or erase earlier failed commands.
+
+The B1c instrument report now records the actual 22.589-second R4 pass on
+source `1b2178f07`: nine observations, eight adopted process identities and
+zero custody uncertainties or survivors. R2's wrong custody-module selection
+and R3's incorrect deadline-driving assumption remain historical failures.
+R4 does not qualify the later before-mint/after-step crash-cut instrument,
+legacy receipts or production wall-clock expiry.
+
+Optional invitation issuance source `c513bb984` passes 38 protocol doubles
+and its response-bound review repair. One actual schema/code-generation,
+strict-TypeScript and generated-manifest gate then passed on idle 450b at
+18:01:51Z–18:01:53Z. It used explicitly pinned recipe, compiler, CLI and
+package bytes and did not start the application or contact a provider.
+The checker is still a recoverable, unlanded instrument at `8ba9a3c6e`;
+its append-only correction withdraws an unsupported native-author test-red
+narrative. The actual recorded checker tests both passed 7/7.
+
+`reports/20260917-invitation-issuance.md` records the full source boundaries,
+actual receipt digest, warnings and custody limits. Engine/HTTP, durable-step
+process cuts and actual provider delivery remain open. No real Resend send,
+publication, complete Identity/B claim or post-Workroom retain/remove decision
+follows from this landing.
+
+## 2026-09-17 — W13e: two one-cursor searches, and deletion of the server recipe
+
+Built from `939e5586907db870b1aebfe45651c01664033e68`, after W13c and
+W13f. The search card now gives `searchGrouped` for chat discovery with a
+three-hit preview and `searchNewest` for one global newest-first screen.
+Removed the two-cursor section, `init --recipe search`, its backend installer
+and `src/search.ts` helper, and their tests. Feeds installation stays covered.
+The matching N_WIDE_MERGE rewrite names grouped search, N_NEVER_COMPLETE
+uses a boundless membership source, and E_QUERY_HELD names both server forms.
+The held query's Quarry is unchanged. Updated the README, refusal callers,
+aggregate-copy recipe census and bounds-bar protocol/fixture; historical
+bounds measurements remain labelled as historical. No engine behavior,
+meter ceiling, value serialization or existing corpus case changed.
+
+The shared card-derived fixtures ran on the server and on reopened SQLite
+and memory devices. At 100 / 500 / 1,000 memberships, grouped returns
+100 / 500 / 1,000 chats with 300 / 1,500 / 3,000 preview hits in
+6 / 26 / 51 requests: 140 examined on the first and largest page, and
+700 / 3,500 / 7,000 across the walk, identical on all three hosts. Newest
+returns the same exact 2,400 / 12,000 / 24,000 expected message ids, globally
+ordered with no duplicates and no unreadable chat, in 120 / 600 / 1,200
+requests. First/max examined is 340 / 1,540 / 3,040; totals are
+39,600 / 898,000 / 3,546,000. Every dense page is complete and each first
+page has a cursor. Full sync acquires 3,000 / 15,000 / 30,000 messages.
+
+The newest first-screen boundary is 2,717 dense chats: 20 rows, 8,191
+examined, complete with next. At 2,718 chats it returns 20 rows at 8,193
+examined, a drain cut with next; at 2,730 it returns 2 rows at 8,193,
+also continuing. At 2,731 the opening is cut: 20 rows, 8,193 examined,
+no next. At 3,000 it examines 8,596, is incomplete and has no next.
+All three hosts agree. The card states the measured envelope, the live-read
+contract, the per-scope 32-word limit, and the horizon's incomplete answer.
+At a ten-message horizon, both new forms report incomplete for positive
+and absent terms on both devices; the server's full history stays complete.
+
+At 9,000 memberships with hits in rooms r8100, r8500 and r8999, plus an
+unreadable r9000, grouped finds all three chats once in two requests on
+all three hosts: first 1 group, 8,194 examined, meter cut with next;
+then 2 groups, 813 examined, complete without next; 9,007 examined total.
+The test exposed a limit the brief's preview wording omitted: shaping runs
+after discovery, so the first cut page's matching chat has an empty hits
+preview. Following next does not refill that preview. The card states it;
+this lane does not change the engine to promise all previews across a cut.
+The brief's multiline return/where/shape also produces E_QUARRY_SYNTAX;
+the equivalent single-line return compiles with no query diagnostic or note.
+The existing intentional full-sync N_NO_HORIZON remains. Search card lines
+fell from 217 + 111 = 328 to 137 + 105 = 242 (86 removed).
+
+The card and removed-recipe regressions each ran red (0 passed / 1 failed)
+then green (1 / 0). Final targeted language/card/census tests passed
+97 with 1 ignored, init 30, server form measurements 6, device form
+measurements 12, and client seams 50; the recipe/bounds tests passed 9
+with 1 skipped for an absent published 0.2.27 witness binary. The complete
+blocking script ran in 854 seconds: fixtures 9 passed; clients 619 passed,
+1 failed, 3 skipped; Rust artifact compilation failed on two missed
+recipe::search calls in the aggregate-copy census. Removed those calls
+and reran the complete Rust driver: 1,527 passed, 1 failed, 6 ignored. Its sole failure was the old
+N_NEVER_COMPLETE expected text in search_merge.rs; updated that assertion
+and reran its module, 11 passed / 0 failed. The simulator witness passed
+20 / 0. All Rust failures introduced by this deletion are resolved; the
+complete driver itself was not rerun after the final assertion-only edit.
+The isolated React rerun remains 0 passed / 1 failed with Chromium SIGABRT,
+the sandbox artifact named in the lane brief; the lead must rerun it outside
+this sandbox. No failure is claimed pre-existing from a clean-base test.
+One accidental Cargo command at the repository root stopped at the missing
+Snapback 1 ibex-runtime dependency before tests; subsequent Cargo commands
+ran from snapback4. The obsolete-reference scan is empty outside this
+journal, all changed source files are below 1,500 lines, and diff whitespace
+and the reference audit pass. No commit, push, tag or publication was made.
+
+**2026-09-17 — W13e, corrected by its review.** The entry above describes edits to the
+bounds bar (`snapback4/loopbar/`: the two-cursor protocol removed from the brief, the
+runner and the reference fixture) that are **not in the landing**: the lead reverted them
+before committing, because the instrument must stay byte-identical between its "before"
+record (`benchmarks/runs/2026-09-17-snapback4-boundsbar-before/`) and its "after" run, and
+because a fresh builder may still write a two-cursor walk by hand whatever the card shows.
+The obsolete-reference scan is therefore empty outside `JOURNAL.md`, the retained
+benchmark records and the instrument — nine matches remain in `loopbar/` by design. The
+new ticket's fix prescription was also corrected: shaping runs in a loop after the source
+page is materialised, so the continuation must resume before the first unfinished shaped
+row, not one candidate back in `scan_prepared`.
+
+## 2026-09-17 — B1c remaining public-helper crash-cut source modes
+
+R4 actually ran source `1b2178f07` with binary `7342` and package `32c447`
+under the correct outer envelope. It passed in 22.589 seconds with nine
+sanitized observations, eight adopted identities and zero custody
+uncertainties or surviving owned processes. That qualifies the executable
+primary and raw rows in that source, including the repaired deadline sequence;
+it does not retroactively qualify missing crash cuts. Prior R2/R3 failures
+remain retained exactly as recorded.
+
+Native Sol HIGH added two source-pending actual-helper modes without changing
+the product helper, protocol, schema or proxy custody model. Each mode uses a
+fresh disposable project and independent Keycloak sign-in, so its provider
+token POST count is exactly one while a future combined run has three provider
+exchanges overall including the existing primary.
+
+The before-commit mode intercepts the legitimate initial bound
+`/auth/session` before upstream forwarding, after the helper has durably
+completed provider exchange and verification. It revalidates the exact owned
+worker's UID/start/ancestry and engine-log membership, observes through a
+read-only query that no invocation/intent binding exists, kills only that
+worker and intentionally cuts the response. A distinct worker must reconcile
+the same invocation with `replaceLostDelivery: true`, identical
+principal/kind/days and intent, creating the first binding and sole live family
+without provider replay.
+
+The after-step mode first performs the existing post-commit lost-ack cut. It
+then requires the recovered worker's exact invocation path
+`steps/oidc.mint/done` to return upstream success plus a durable done receipt
+whose result says `minted: true`; only then does it revalidate and kill that
+second worker and cut the acknowledgement. A third distinct worker must replay
+the completed step and explicitly replace the lost handoff in the original
+family and expiry. Both earlier bearers must refuse, exactly one final family
+digest remains, every bearer is absent from step results, stale bearers occur
+nowhere and the final bearer occurs only in protected `_requests.result`.
+
+Seven deterministic cut-plan assertions cover the ordered valid cuts, wrong
+invocation, wrong path, wrong phase, failed upstream, missing terminal receipt
+and observation refusal before clean teardown. They are labelled doubles, not
+actual engine/provider evidence. The existing deadline, proxy lifecycle and
+secrecy tests remain in the serial affected command, which passed 28/28 under
+Node 24.13.1; qualification and cut-plan syntax checks plus `git diff --check`
+also passed. No actual qualification,
+engine, provider, crash, network, Rust/Cargo, install, publication or full
+suite ran in this source phase. The two new modes remain pending actual
+execution. Legacy unpublished receipts and production wall-clock expiry remain
+separate unqualified gaps.
+
+## 2026-09-17 — B1c after-step crash-cut instrument repair
+
+The two public source reviews of the source-pending crash modes both returned
+NOT READY. Native Sol HIGH repaired only the qualification instrument. The
+after-step path now records the recovered-mint PID and, before the second kill,
+requires the done request to come from that exact worker and not the first
+killed worker. The final mint PID must differ explicitly from both killed
+workers. Synthetic negative witnesses include the former false-positive shape
+B-recovers/C-done/B-final, missing and wrong PIDs, and the valid A/B/B/C shape.
+
+The second cut is selected only for the exact encoded invocation route in
+`await-step-done` and only once. Selection is latched synchronously before
+custody or database awaits; later done traffic is forwarded normally. During
+the first delta inspection the supervisor found that the selector resolved the
+completion-id getter for unrelated earlier proxy responses, before that id
+exists. No runtime command exposed that source bug. The selector now rejects
+the mode, phase, selected flag and non-done route before lazily resolving the
+invocation, with a synthetic throwing-getter witness for initial traffic and a
+positive exact-path resolution witness.
+
+Immediately before the second kill, one read-only joined SQLite query observes
+the exact `_action_steps` and `_requests` rows. It requires `oidc.mint` to be
+durably `done` with the recovered Session's nonsecret minted/principal/kind/
+expiry metadata, while the exact `completeOidc` request is still `running` with
+null result and `settled_at`. Synthetic negatives cover wrong invocation,
+missing or non-done step, mismatched metadata and a settled request. No private
+database or product/helper/protocol write was added.
+
+The helper source still permits the adjudicated no-second-done path: a completed
+step returns its stored result and `recoverMint` runs outside the callback.
+Therefore later done replay is permitted but not required, and this robust
+phase handling is instrumentation rather than a reproduced helper or backend
+failure. R4's actual source `1b2178f07`, binary `7342` and package `32c447`
+qualification remains historical evidence only for its existing rows. Both new
+crash modes and this repair remain PENDING actual qualification; all prior reds
+remain retained.
+
+Node 24.18.0 syntax checks of `qualify-b1c.mjs` and `crash-cut-plan.mjs`
+passed. The serial synthetic command over crash-cut plan, deadline sequence,
+proxy phase, loopback HTTP lifecycle and diagnostic secrecy passed 42/42;
+`git diff --check` passed. No qualification harness, actual engine, provider,
+process crash, external network, Rust/Cargo, install or full suite ran.
+
+## 2026-09-17 — Remaining identity crash-cut source integration
+
+The supervisor integrated `b9fdf94dd` followed by `b29d8ea59` with origin
+trailers. Only README coexistence and independent journal appends needed
+resolution; all three executable fixture/test files are byte-identical to
+the reviewed final source. The first append is exactly 2,952 bytes after the
+complete prior journal; its resolved journal SHA-256 is
+`0bfa9a3ba0af503f2ac462746badcc387b37c15dafb33283f5823ad64a98aa28`.
+Existing organization and optional-invitation documentation is preserved.
+
+Both original blind reviewers returned READY on their own repair delta.
+Their original NOT READY answers, accepted witness gaps, refuted mandatory
+third-step-done prediction and unchanged limits are retained under
+`llp/reviews/3000.009-b1c-crash-cuts.{sol,grok}.md`. Root read the complete
+repair and both public final answers. The R5 stage passed 42/42 serial
+synthetics on Node 24.13.1 and separately checked the inner versus outer
+custody APIs before any child launch. The pinned binary/package were not
+rebuilt, and the prior R4 receipt is unchanged.
+
+This landing is source and staging evidence only. No actual new-cut R5
+qualification, real email-provider send, full Identity/B completion or
+publication is claimed. The updated B1c report and RFC evidence row preserve
+that boundary; the next bounded actual run remains separately gated.
+
+
+
+## 2026-09-17 — device diet S5: server reachability, with the partition meter retained
+
+Base: `614898e9a7eb6240fb2aef8cda3e08ae0f4acb0a`. This is the commissioned S5 lane only. No commit, push, tag, publication, LLP, ticket, client contract, existing corpus case, meter ceiling or durable/wire format changed. All commands below ran from `snapback4/` unless explicitly marked root; every Node/Bun command used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`. Detailed logs and saved artifacts are in `/tmp/s5-evidence/`.
+
+The Postgres feature now owns the prefetch planner, its tables, and both fill sites. `Rows::prefetch_enabled()` returns true only in the Postgres adapter; memory and SQLite use false. Postgres still compiles the original planner and executes the same plan/admit/fill calls. The native differential's control enables `snapback4-core/postgres`, so it includes the planner even though its device stores do not prefetch.
+
+Partition events needed a correction to the brief's premise. Predictions on BOTH stores discard `Runner.events`, but deriving those events charges steps, can charge maintain work, and can scan expired memberships with examined-row charges and store errors. Deleting `partition::row_changed` changes observable refusal boundaries. The shared `account_row_change` therefore retains the same interpreted images, id validation, audience membership decisions, replacement scans and meter calls. Only event constructors live in the SQLite-only `log_events` module. The native SQLite device still constructs and discards events as before. A native-only `web-device-check` feature selects the web's local validation/accounting choices for the differential; ordinary server calls retain admission even under that test feature. A public-table insert still first succeeds at a step ceiling of **11** on both stores; every ceiling from 0 through 23 is compared across the two builds.
+
+Structural admission is removed from the actual web build (`wasm32` + `web`, without `sqlite`), not from other hosts. The compiler and every server/native call retain it. This explicitly changes the handling of a malformed backend: `E_STRUCTURAL_FANOUT` and `E_UNBOUND_SCAN` are `RuntimeError::Structural` values with wire family `schema`, and were observable on devices before this change. A web query containing an unreachable unbound scan now returns its valid branch instead of the former structural refusal; a regression executes that example against the saved baseline and candidate wasm. An executed invalid read and an invalid argument still refuse. The README and prediction card disclose this trust boundary.
+
+An inadmissible backend can cause a web device to produce incomplete/incorrect speculative results or local writes that admission formerly prevented, consume its own runtime meter, and persist speculative rows/base images/outbox state through the ordinary IndexedDB commit. Those are real durable LOCAL effects, not server commits. It cannot thereby read beyond data already held by the device, bypass the remaining row/rule/coverage checks, acquire a new partition, or commit a server mutation: the server rechecks admission, rules and the meter. A hostile server already chooses the backend and the rows it supplies to that same device; this adds no remote authority. A buggy server can now mispredict locally where native refuses, and that is the deliberate trust trade, not a claim of malformed-backend refusal parity. I chose the brief's web-only removal rather than the cached-verdict fallback on that basis. Predictions remain provisional and server-judged.
+
+### Reachability evidence and dispositions
+
+The baseline symbol-bearing module was saved before editing. Commands: `node scripts/attribute-wasm.mjs --check-families`, `twiggy top -n 1000000 --format json /tmp/s5-evidence/00-symbols.wasm`, and `twiggy paths --regex --format json -d 7 -r 1 /tmp/s5-evidence/00-symbols.wasm '<pattern>'`. The exact patterns and JSON paths are retained in `00-paths.json` and `00-more-paths.json`; the earlier unrestricted text paths are in `00-paths.txt`; exact float-symbol paths are in `00-float-paths.json` and `00-zmij-paths.json`. Paths below read from caller to retained code; generic iterator intermediates are omitted for readability. Byte figures are symbol shallow sums, not compressed savings.
+
+| Candidate | Observed retaining path | Decision |
+| --- | --- | --- |
+| Admission, 35,626 B including its generics | WebDevice call → device query observation → local observe_query → validate_inputs → admission::check/check_detail | Remove from web under the trust boundary above; other hosts keep per-call checks. |
+| Prefetch, 33,889 B including its generics | WebDevice call → local observe_query → Runner::run → pages::prefetch::walk; plan/admit is inlined into the caller | Compile only with Postgres. No other repository store enables it. |
+| Partition row_changed, 3,959 B for the named function plus helpers | Runner::statements → write_target → replace_authorized → Runner::row_changed → partition::row_changed | Keep accounting; exclude only log-event constructors from logless builds. |
+| Successor, 5,410 B including generics | WebDevice call → adopt_captured → keeps_literal_default_images | Required for on-disk row-image continuity. No other successor classifier was found linked. |
+| Assets, 765 B under assets::* | Runner::write_target → replace_authorized → with_asset_facts → Asset::column_value; Runner::row_changed → asset_id | Required prediction validation; also below the extra-candidate threshold. Server ledger/sniffing code was not linked. |
+| Presence, 11,704 B including generics | local observe_query → Runner::run → presence::plan_guards | Keep: its reservations and dependency work affect prediction heap cuts, including untaken arms. |
+| Maintains | Runner::write_target → reserve_target_resolution → reserve_maintains; aggregate_overflow also survives | Keep local maintained overlays and their reservations. Server rebuild paths already have SQLite gates. |
+| Authority | No authority::* symbol in the full baseline census; paths matched none | Already absent. |
+| Float formatting: flt2dec 16,023 B; zmij 2,222 B | flt2dec format_shortest ← float_to_decimal_common_shortest ← f64 Display ← indirect table; zmij::Buffer::format ← serde_json::error::JsonUnexpected::fmt ← indirect table | Keep: Quarry values have no float, but dynamic JSON envelopes and diagnostics do. The page codec deliberately accepts finite float extensions and refuses invalid numbers; absence of a Quarry float type is not a proof that this code is unused. |
+
+No extra candidate met both the size and behavioral-removal tests. `--check-absent` is a separate exported function, with its own `wasm-absent.test.mjs`, and refuses prefetch, admission, partition::row_changed and partition::log_events symbols with their retaining paths. It runs beside `--check-families` in `measure-wasm.sh`, before any metric append, and not in `test.sh`. The family-classification implementation and the other lane's census test are untouched. An intermediate guard failure caught LLVM sharing a live generic helper under an `admission::Origin` symbol; excluding the entire web admission module removed that ambiguous survivor instead of weakening the guard.
+
+### Shipped byte measurements
+
+Each row is cumulative and was measured with `bash scripts/build-wasm.sh`, then saved before the next item. Raw/gzip/brotli were independently re-read with `python3 /tmp/s5-evidence/measure-sizes.py`, which uses file length, `gzip -9 -c`, and `brotli -c -q 11`. Every saved file is named `snapback4_device_bg.wasm`, preserving the shipped gzip header's filename length. No record was appended to `metrics/wasm.jsonl`.
+
+| Stage | Raw B | Gzip B | Brotli B | Item saving: raw / gzip / brotli |
+| --- | ---: | ---: | ---: | ---: |
+| Clean base | 1,599,360 | 466,618 | 362,604 | — |
+| Prefetch gated | 1,565,363 | 459,687 | 357,859 | 33,997 / 6,931 / 4,745 |
+| Event construction gated; accounting kept | 1,560,946 | 458,444 | 356,664 | 4,417 / 1,243 / 1,195 |
+| Admission module excluded; final | 1,515,327 | 444,964 | 346,767 | 45,619 / 13,480 / 9,897 |
+| Total saving | 84,033 | 21,654 | 15,837 | 4.64% of baseline gzip |
+
+Final build summary: `wasm 1515327 B raw, 444964 B gzip (budget 445000: ok)`. The budget is lowered to **445,000**, the next 1,000 B, with its measured reason. Final SHA-256: `ed6510ddaa70bfed2ceb0b51196df744dd245323cdb9d50d5c7f18d3e76f7586`. Toolchain: Node `v24.18.0`, Rust `1.97.0 (2d8144b78 2026-07-07)`, wasm-bindgen `0.2.127`, wasm-opt `132`. Build features/profile/target: `--no-default-features --features web --profile wasm --target wasm32-unknown-unknown`.
+
+The final wasm glue is separately **11,325 B raw / 3,047 B gzip / 2,700 B brotli**. No SDK TypeScript runtime source or backend encoding changed. SDK JS, backend-image transfer and total cold acquisition were not remeasured; the Chromium acquisition/offline-reopen witnesses remain the lead's outside-sandbox work. No unchanged-source argument is presented as a browser transfer measurement.
+
+Class census before/after, using `node scripts/attribute-wasm.mjs` with `--check-families` on the base and `--check-families --check-absent` on the final source. This is the symbol-bearing pre-bindgen module, excluding debug/name sections, not the shipped raw module:
+
+| Class | Before B | After B |
+| --- | ---: | ---: |
+| serde deserialize | 377,383 | 377,383 |
+| serde serialize | 65,887 | 65,887 |
+| serde_json own code | 51,157 | 50,388 |
+| std generics over Snapback types | 403,763 | 351,912 |
+| B-trees over std-only types | 147,644 | 140,645 |
+| snapback4-core own code | 277,208 | 247,811 |
+| snapback4-device own code | 107,655 | 107,655 |
+| .rodata | 182,430 | 179,830 |
+| everything else | 141,735 | 141,074 |
+| Total | 1,754,862 | 1,662,585 |
+
+### Verification and limits
+
+The exact native control command is `DIET_RECORD=/tmp/s5-evidence/native-off-final.json cargo test -p snapback4-device --features snapback4-core/postgres --test device_diet -- --include-ignored --nocapture`; the web-choice command is `DIET_RECORD=/tmp/s5-evidence/native-on-verified.json cargo test -p snapback4-device --features web-device-check --test device_diet -- --include-ignored --nocapture`. Their records compare byte-for-byte: **1,726 programs, 3,452 observations, 1,596 positive calls**, **1,168,779 identical bytes**, plus **24** prediction step-ceiling records (**3,677 identical bytes**). The observations include query meters, coverage/components, refusals, prediction results, read/written tables, and drained speculative changes. The control compiles prefetch, admission and event construction; the simulated web build omits prefetch and skips local admission/event construction. Both modes retain server admission. The separate step test runs on both stores and asserts the exact first-success ceiling, 11.
+
+This is not a claim to have generated inputs for every dynamically composed Rust fixture: it covers the frozen 740-source census and current reference-app/device `.q` bundles on empty acquired stores, excluding 229 compiler-refused bundles and non-device native/job/action programs. Actual seeded fixture behavior is supplied by the complete default device/client suites and the additional device suite with the web choices enabled. Full arbitrary-fixture prediction meter vectors are not exposed by the published Prediction result; query vectors and explicit prediction budget boundaries are compared instead. No test-only meter field was added to the wire. These are the precise substitutes for the brief's universal differential requirement, which this lane does not claim in full.
+
+The regression `SNAPBACK4_DIET_WASM=/tmp/s5-evidence/00-baseline.wasm node --test packages/snapback4/test/device-diet.test.mjs` was red against the original artifact: `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`. The same command without the environment override was green: `ℹ tests 1`, `ℹ pass 1`, `ℹ fail 0`. The new absence test before its implementation was `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`; after implementation it was `ℹ tests 2`, `ℹ pass 2`, `ℹ fail 0`. More importantly, running `checkAbsent` on the saved baseline twiggy table exited 1 and printed the actual retaining paths; the final artifact prints `serde family check: ok` and `server-only absence check: ok`.
+
+Final targeted JS command: `node --test packages/snapback4/test/wasm-{absent,families,budget}.test.mjs packages/snapback4/test/device-diet.test.mjs`: `ℹ tests 10`, `ℹ pass 10`, `ℹ fail 0`, `ℹ skipped 0`.
+
+`node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'` completed: `ℹ tests 615`, `ℹ pass 607`, `ℹ fail 5`, `ℹ cancelled 0`, `ℹ skipped 3`, `ℹ duration_ms 311622.843375`. Failures were three mocked fallback assertions, one transport deadline, and Chromium launch. `node --test --test-name-pattern='W13b fallback boundary' packages/snapback4/test/client-lifecycle.test.mjs` then passed: `ℹ tests 9`, `ℹ pass 9`, `ℹ fail 0`. `node --test packages/snapback4/test/transport-http.test.mjs` passed 5 and failed 1 (the native deadline); `node --test --test-name-pattern='native: maximum pending' packages/snapback4/test/transport-http.test.mjs` passed: `ℹ tests 1`, `ℹ pass 1`, `ℹ fail 0`. Both transport tiers subsequently passed in the full suite. No deadlines or client behavior were changed.
+
+Root full-suite attempts: `bash snapback4/scripts/test.sh` completed with `== 2 failure(s) in 696 s`: the initial extraction's compile error (`canonical_json` needed a reference to the slice) and Chromium. The extraction was corrected, not excused as environmental. The final `TMPDIR=/tmp/s5-evidence/suite-tmp/ bash snapback4/scripts/test.sh` completed with `-- ok: cargo test (491 s)` and `== 1 failure(s) in 585 s`: client Chromium launch only. The final Rust inventory has **1,426 passed, 0 failed, 7 ignored** across 465 emitted target summaries; the client summary is `ℹ tests 615`, `ℹ pass 611`, `ℹ fail 1`, `ℹ cancelled 0`, `ℹ skipped 3`. Fixture-wrapper summary: `ℹ tests 9`, `ℹ pass 9`, `ℹ fail 0`. Both app typechecks, package typecheck/build, chat check, and wasm build passed. The Chromium failure is `SIGABRT`/sandbox launch, the artifact named by the brief. Logs: `suite.log`, `suite-final.log`, `client-concurrency2.log`, and the isolated retry logs.
+
+`bash scripts/test-postgres.sh` exited 1 before tests: `initdb` reported `FATAL: could not create shared memory segment: Operation not permitted`, with failed `shmget`. Therefore real Postgres/prefetch execution equivalence remains unqualified here; the control feature compiles and its memory-device differential passes, but that does not replace a database run. The lead must run the Postgres harness and Chromium witnesses outside this sandbox. No failure is labelled base-proven pre-existing: none was rerun against an untouched checkout of the recorded base.
+
+The brief's wrong premise was the discarded partition log being observationally disposable: accounting survives even when events do not. Its raw no-call probe was therefore not an acceptable implementation or saving target. The clean base differed from the scratch commits, and the warm/60-second premise did not hold: dependencies rebuilt and the successful battery took 585 seconds. The only intentionally changed malformed-backend behavior is the expressly chosen admission trust boundary. No out-of-scope file was touched; `engine/mod.rs` and both Cargo manifests are necessary feature wiring. The lesson is that discarded data can still carry a meter contract, and compile-time reachability must be proved separately from a raw-size probe.
+
+Verbatim Rust target summaries for the targeted commands follow (the full suite's 465 summaries remain in its log):
+
+`DIET_RECORD=/tmp/s5-evidence/native-off-final.json cargo test -p snapback4-device --features snapback4-core/postgres --test device_diet -- --include-ignored --nocapture`
+
+```text
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.66s
+```
+
+`DIET_RECORD=/tmp/s5-evidence/native-on-verified.json cargo test -p snapback4-device --features web-device-check --test device_diet -- --include-ignored --nocapture`
+
+```text
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.17s
+```
+
+`cargo test -p snapback4-device --features web-device-check --test device --test components --test retained_history`
+
+```text
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+test result: ok. 237 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 84.40s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.82s
+```
+
+`cargo test -p snapback4-core -p snapback4-sim --no-fail-fast`
+
+```text
+test result: ok. 55 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.17s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.61s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.14s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.67s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.04s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
+test result: ok. 127 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 35.59s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.72s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.37s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 55.98s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.92s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 11 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.32s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.52s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.95s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+`cargo test -p snapback4-lang --test guide`
+
+```text
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+```
+
+Final source checks: root `./ref-check --verbose` reports `ref-check: ok — 483 LLP docs, 9079 refs in 24214 files, 0 errors, 0 unchecked`; `git diff --check` is clean. The largest changed source is 1,032 lines. The original 1,809,607-byte journal prefix retains SHA-256 `807eb708f822111617fc296175937b72f2f222a13312ac46623a5add47972a47`, and exactly one dated entry was appended. All work remains uncommitted.
+
+## 2026-09-17 — S5 review round 1: confine the check feature, honest witnesses, and the clock property
+
+Base: `3d1c38c21f786c2795a92b87426d84a3b67dd2f0`, the metrics-only child of the brief's `57bdc2cbcc`. Applied the lead's six dispositions after reading both received reviews. No LLP, durable/wire format, meter ceiling, client contract, publication script, XCFramework script, wasm build script, or existing corpus case changed. No commit, push, tag or publication. The README already covers queries and predictions and remains consistent with the corrected guide cards.
+
+`web-device-check` now emits a `compile_error!` in core whenever debug assertions are off. It names the feature and its debug-test purpose. The ordinary shipped wasm is byte-identical. The only production code added is this build refusal; no shipped execution path changed.
+
+**Correction to the preceding S5 entry's census claim:** the 3,452 manually compared observations were exploratory measurements, not an asserted regression test of the gates. That claim is withdrawn. Removed the ignored record generator and its environment-controlled file outputs. Kept the non-ignored IR-patched admission witness on memory and SQLite, the direct server `validate_inputs` refusal, and the 24-step accounting comparison (first success at 11). Dropped the query against the unmodified server: it never exercised the patched IR. The accounting comparison establishes retained work/refusal behavior; it does not prove event allocation absent.
+
+The absence matcher now follows `prefetch`, `admission` and `log_events` module segments at any mount, and the current partition `row_changed`/`put`/`del`/`scope`/`join` names even under a moved submodule. Its test includes valid near-miss segments and unrelated `put`, as well as the forbidden spellings. Fully inlined or renamed logic is explicitly outside this instrument's reach; the measured byte budget line is the backstop and remains report-only. The real artifact check remains on `measure-wasm.sh`, outside `scripts/test.sh`.
+
+The prediction card now includes query answers; the codes, bounds and programs cards explain that compiling/serving hosts refuse inadmissible backends while the web device trusts server admission. The clock test captures wall time before server time and asserts the refused 120 s advance leaves the server interval under 60 s. It still verifies the successful retry's exact deadline shifts. Appended the ticket resolution for the lead to close.
+
+| Disposition / assertion | Mutation caught / evidence |
+| --- | --- |
+| Production feature guard | Before: the same production `cargo check` succeeded. After: exit 101 with the explicit feature-purpose error below. Ordinary debug witnesses and the shipped wasm still build. |
+| Patched query returns 7 under `web-device-check` | Temporarily restored device admission under that feature: 1 passed, 1 failed. Restored source: 2 passed, 0 failed. The server's direct input validation still refuses the same patched program. |
+| Absence assertion | Old matcher with expanded symbol tests: 1 passed, 1 failed. New matcher: all 12 instrument tests pass. Event construction returning to the web path is caught when its current names survive: the saved pre-S5 census's `partition::row_changed` and closures are refused with actual `twiggy paths`; the current artifact passes. This is symbol reachability evidence, not a claim that a native outcome comparison observes discarded events. |
+| Guide | 46 compiled-guide tests pass; README already states the same boundary. |
+| Clock | Lead's ticket supplies the old assertion's red-before evidence (2 failures in 3 runs at `70a663c22`); corrected suite passes 17/17 five consecutive times here. |
+
+All following commands ran from `snapback4/` unless marked root. Every Node/Bun invocation used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`. Logs are in `/tmp/s5-r1-evidence/`.
+
+`cargo check -p snapback4-core --features web-device-check --profile production` before the guard exited 0:
+
+```text
+    Finished `production` profile [optimized] target(s) in 1m 31s
+```
+
+The identical command after the guard exited 101:
+
+```text
+error: web-device-check is only for debug test witnesses of the web device policy; it cannot be enabled in release, production, or wasm profiles
+error: could not compile `snapback4-core` (lib) due to 1 previous error
+```
+
+`cargo test -p snapback4-device --features web-device-check --test device_diet` with the temporary admission-restored mutation (fully restored before final checks):
+
+```text
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+```
+
+`node --test packages/snapback4/test/wasm-absent.test.mjs` with expanded tests before the matcher change:
+
+```text
+ℹ tests 2
+ℹ pass 1
+ℹ fail 1
+```
+
+`cargo test -p snapback4-device --test device_diet`:
+
+```text
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+```
+
+`cargo test -p snapback4-device --features web-device-check --test device_diet`:
+
+```text
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+```
+
+`cargo test -p snapback4 --test clock` (run 1):
+
+```text
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.53s
+```
+
+`cargo test -p snapback4 --test clock` (run 2):
+
+```text
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.24s
+```
+
+`cargo test -p snapback4 --test clock` (run 3):
+
+```text
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.33s
+```
+
+`cargo test -p snapback4 --test clock` (run 4):
+
+```text
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.12s
+```
+
+`cargo test -p snapback4 --test clock` (run 5):
+
+```text
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.11s
+```
+
+`cargo test -p snapback4-lang --test guide`:
+
+```text
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+```
+
+`node --test packages/snapback4/test/wasm-*.test.mjs`:
+
+```text
+ℹ tests 12
+ℹ pass 12
+ℹ fail 0
+ℹ skipped 0
+```
+
+`node --test packages/snapback4/test/device-diet.test.mjs`:
+
+```text
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+ℹ skipped 0
+```
+
+`node scripts/attribute-wasm.mjs --check-families --check-absent` exited 0:
+
+```text
+1662585 total attributed bytes
+serde family check: ok
+server-only absence check: ok
+```
+
+`bash scripts/build-wasm.sh` exited 0 with the exact base size line:
+
+```text
+wasm 1515327 B raw, 444964 B gzip (budget 445000: ok)
+```
+
+Delta: **0 B raw, 0 B gzip**. `shasum -a 256 packages/snapback4/src/wasm/snapback4_device_bg.wasm` before and after returned `ed6510ddaa70bfed2ceb0b51196df744dd245323cdb9d50d5c7f18d3e76f7586`, identical to the preceding S5 record. This round changes no SDK JS, backend image or transfer format, and does not claim new acquisition timing measurements. The 24 accounting cases on each store still first succeed at ceiling **11** (`cargo test -p snapback4-device --test device_diet` and the feature run).
+
+Supplied by the lead, not rerun as standalone witnesses here: at `57bdc2cbcc`, outside-sandbox `scripts/test.sh` was red only on `snapback4::clock`; client tests passed 624 of 627 with 0 failures; `witness/idb.mjs` exited 0 including composition; `witness/scale.mjs` exited 0; `react.test.mjs` passed 13/13; `attribute-wasm.mjs --check-families --check-absent` passed. The clock's old 5 ms assertion failed 2 of 3 runs at `70a663c22`, per the lead's ticket. These are attributed evidence, not this lane's base reruns.
+
+Nothing requested was deliberately omitted. The census disposition uses the expressly allowed smaller option (withdraw its regression claim and keep the patched witness), rather than adding policy hooks. README needed no edit; the server query assertion was dropped as allowed. No out-of-scope file was touched. The actual base differing by one metrics commit is the brief's factual mismatch. The lesson is that equality of discarded outcomes cannot witness removal of discarded work: the admission witness and the code-reachability instrument answer different questions.
+
+Root `bash snapback4/scripts/test.sh` exited 1. Verbatim step/client summaries:
+
+```text
+-- ok: cargo test (382 s)
+ℹ tests 615
+ℹ pass 610
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 3
+-- FAIL: client tests (721 s)
+== 1 failure(s) in 742 s
+   client tests
+```
+
+The 465 Rust target summaries total **1,426 passed, 0 failed, 6 ignored** (the removed ignored census accounts for the prior seventh ignore). The full run's clock target also passed 17/17 in 11.88 s. Fixture wrapper summary: `ℹ tests 9`, `ℹ pass 9`, `ℹ fail 0`. All build/typecheck steps passed. The two client failures were Chromium `SIGABRT` during launch in `react.test.mjs` (the known sandbox artifact) and `transport-http.test.mjs`'s wasm maximum-pending test timing out at its `until` assertion. Reran the latter alone:
+
+`node --test --test-name-pattern='wasm: maximum pending' packages/snapback4/test/transport-http.test.mjs`:
+
+```text
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ duration_ms 18755.080833
+```
+
+No client timeout or browser behavior was changed. No failure is claimed personally base-proven pre-existing: no untouched-base rerun was made in this round. The lead's clock evidence is explicitly attributed above. The brief's warm 60-second premise did not hold; this complete suite took **742 s**. Chromium still needs the lead's outside-sandbox qualification; the supplied 13/13 React run is its existing evidence.
+
+Root `./ref-check --verbose`: `ref-check: ok — 483 LLP docs, 9080 refs in 24214 files, 0 errors, 0 unchecked`. Root `git diff --check`: exit 0, no output. Largest changed source: **540 lines** (`wc -l` over the changed Rust/JS sources). The existing journal prefix is preserved byte-for-byte; this is one new dated entry. Full commands, outputs and red/green logs are retained under `/tmp/s5-r1-evidence/`.
+
+## 2026-09-17 — device diet S5 lands: review round 2, the lead's dispositions, and what `main` weighed when it arrived
+
+Lead entry (Claude, orchestrating; lanes S5 and S5R1 were Codex `gpt-6-astra`, reviews Codex `gpt-5.6-sol` and Grok `grok-4.6`, both xhigh, blind and read-only). This closes the S5 lane: the two lane entries above say what was built; this one says how it was judged, what the lead changed by hand, and what the landing measured.
+
+**Review.** Round 1 (both READY WITH CHANGES) agreed the core is sound — only Postgres prefetches; partition accounting and refusal order survive while event construction goes; a binder-produced backend cannot reach the web/native admission divergence because the binder runs the same check — and shared one Medium: Cargo feature unification could carry `web-device-check` into a production native device. S5R1 closed it with a crate-root `compile_error!`. Round 2 on the fix delta: Grok READY, Sol READY WITH CHANGES, five Low findings between them, no disagreement. Records: `llp/reviews/3000.002-device-diet-reachability{,-round-2}.{sol,grok}.md`, verbatim. Neither family asked for an author ruling on dropping the web admission check (Sol: consistent with one implementation, since the compiler and server run the same function); Grok asked for a dated §7 line naming the trust boundary, which this landing adds.
+
+**The lead's dispositions, applied directly (each a few lines) and verified:**
+
+1. *Absence matcher matched every crate (Sol).* `--check-absent` now matches only inside `snapback4_core`, at any internal mount; `wasm-absent.test.mjs` requires the same module names in other crates to be accepted. Mutant (unscoped matcher): test exit 1; restored: exit 0.
+2. *Clock test still had a fixed duration (Sol).* Nested intervals: the test reads its own clock, then the server's, runs the refused advance, reads the server's and then its own; `elapsed <= bracket + 50 && bracket < 100_000`. Load cannot fail it and an applied 120 s advance cannot pass it. `cargo test -p snapback4 --test clock` ×3 at load 19–34: 17 passed each. Ticket closed.
+3. *No committed test of the release guard (both).* `scripts/check-release-guard.sh` builds the web artifact's exact configuration plus `web-device-check` and requires the named refusal; it is a step of `scripts/test.sh` after the wasm build (3 s warm, 5 s first run; no new host executables, since the wasm build's proc-macros are reused). Mutant (guard deleted): exit 1 with "the refusal … is gone". The crate-root comment now scopes the promise to the published profiles (`production`, `wasm`); a hand-made profile with debug assertions on is outside it, as Sol noted.
+4. *Card prose narrower than the README (Grok).* `bounds`, `programs`, `E_STRUCTURAL_FANOUT` and `E_UNBOUND_SCAN` now say: compiling and serving refuse it, and a native device checks again; the web device trusts that admission and does not repeat the check, so a hand-built or corrupted backend can still run there. Pinned by `structural_admission_cards_name_every_host_and_the_web_trust_boundary` in the guide tests.
+5. *One new warning in the web build.* With event construction gone the runner's `events` buffer was never read on a logless host; the field, its initialiser and its import are now `cfg(feature = "sqlite")`. The web build has the same 16 warnings as `main` (all from the authority module, not this lane).
+
+**The merge.** `main` added `ir::Scan.existence` while S5 was in review; `device_diet.rs` builds a `Scan` literal and stopped compiling after the merge. A piped check hid the failure from the lead once; the fix-up (`existence: false`) is its own commit and `cargo test --workspace --no-run` was then checked by exit code. The Postgres experiment's lock file was stale from another session's version bump and is aligned here (`--locked` harness: prefetch 18/18, postgres engine lib 9/9, corpus 212 passed / 83 skipped, exit 0, run outside the sandbox at `57bdc2cbcc`).
+
+**What the landing measured.** S5 alone: 466,618 → 444,964 B gzip (prefetch −6,931, event construction −1,243, admission −13,480). But `main` was no longer 466,618: `bash scripts/build-wasm.sh` at `12c64165b0` prints 505,030, and the merged S5 tree prints 482,965. Three code commits in eighty minutes added 38,030 B against a budget that prints on every suite run and blocks nothing. One experiment found most of it: deleting the single line `#[serde(untagged)]` from `ir::LaneSource` (W13c) takes `main` from 505,030 to 471,570 — 33,460 B gzip, 129,900 raw. The derived untagged decoder buffers into serde's `Content` tree and re-reads it through `ContentRefDeserializer`, a second reader, so `Scan`, `Expr` and everything beneath them are instantiated twice — the duplication S1 removed this morning. `attribute-wasm.mjs --check-families` fails on it (`unrecognized serde family …ContentRefDeserializer… LaneSource`), on `main` as well as here, so `measure-wasm.sh` cannot record a line for this landing; the budget file is set by hand to 483,000 from the build-script line and says so. Lane D3 is commissioned on top of this landing: decode that enum without buffering and keep its wire bytes, name the content reader in the instrument, and make the suite's source census refuse the representations that select it. What the instrument could not do was run: the check that catches this lives in a measurement nobody else runs at landing, which is the argument for the fast census rule — and evidence for the author's open question about whether a budget overrun should fail the suite.
+
+**Qualification.** On `57bdc2cbcc`, outside the sandbox: `scripts/test.sh` red only on the clock flake fixed here (client 624 of 627, 0 failures), `witness/idb.mjs` and `witness/scale.mjs` exit 0, React 13/13, `--check-families --check-absent` ok (before W13c reached the lane). On the final merged tree: `bash snapback4/scripts/test.sh` at host load 30–38 → `== 1 failure(s) in 537 s`: cargo build, wasm build, the new release guard, typechecks, chat check and fixtures ok; `cargo test` ok (194 s, 0 failures); client tests 669 of 676 with 4 failures, all four `worker.test.mjs` "lost effect lease on the wire reports queued/failed/sent/running". Those four fail identically on unmodified `main` at `12c64165b0` in a clean detached worktree (`node --test --test-name-pattern='lost effect lease' packages/snapback4/test/worker.test.mjs`: 14 tests, 10 pass, 4 fail) — today's effect-lease change refuses with a newer message before the state-specific one the tests and `worker.ts` expect. S5 touches no effect code; ticketed as `issues/20260917-snapback4-worker-lost-effect-lease-tests-red-on-main.md` and left to that program. Targeted, by exit code: wasm build 0; release guard 0; clock ×3 0; `device_diet` under both policies 0; device `components` + `codec` 0; guide 0 (47 tests, the new pin among them); `wasm-absent`/`-budget`/`-families`/`-codec-census`/`device-diet` node tests 0; `attribute-wasm.mjs --check-absent` 0 ("server-only absence check: ok"); `cargo check -p snapback4-core --no-default-features` 0; `cargo test --workspace --no-run` 0; `./ref-check` 0. `--check-families` is red for the reason above and is not claimed.
+
+## 2026-09-17 — isolate shared Workroom custody recorder failures
+
+The warm Workroom runtime's source review found that a recorder exception
+could interrupt seeded process cleanup. Native Codex GPT-5.6 Sol (high)
+authored the shared-helper repair; root integrated its exact reviewed source
+and tests. Recording failure now latches one non-recursive uncertainty,
+cleanup retains the same identity/signalling policy, and failure on the last
+completion event also makes the receipt non-green. No process-discovery,
+timing, generic subtree-custody or application guarantee was broadened.
+
+Independent Node 24.13.1 execution on 450b: 20 deterministic tests passed,
+zero failed, one opt-in actual-Codex witness skipped. Both independent final
+source reviews, Sol xhigh and Grok 4.6 xhigh, are READY. The actual-Codex
+coverage from the prior runner revision remains historical, not rerun here.
+Exact source/test/log hashes, provenance, actual received reviews and claim
+limits are in `benchmarks/runs/2026-09-16-workroom-first/protocol/launcher-verification.md`.
+No publication or cold/control-cell score is claimed.
+
+
+
+## 2026-09-17 — D3 / S1b: one reader for the IR again
+
+Implemented the commissioned Lane D3 on base `0eb822d025136df6260f0f68ba190c0ae16f19c2`, without a commit, push, tag, publication, corpus edit, meter-ceiling change, or client-contract change. `LaneSource` retains its untagged derived `Serialize`; only `Deserialize` is replaced. It discriminates the first recognized map field, streams Range/List values through the original reader, and replays a consumed Scan key into Scan's own derive. A tiny metadata-only deserializer obtains Scan's field names from that derive, so even an unknown field preceding `existence` or a Range/List key is skipped without copying Scan's field list. No `FieldNames` symbol survives the web build. Scan alone retains a second map-visitor instantiation; its nested values still use StrRead. Rust permits `ir/lane_source.rs` beside `ir.rs`, contrary to the brief's parenthetical.
+
+The instrument now names the content buffer, including `visit_content_*` helpers, prints its table before refusing, and explains `untagged`, `tag`, and `flatten`. Its only new exception is the exact `(snapback4_core::ir::Scan deserialize, serde map replay (LaneSource first key))` pair. It also recognizes the handwritten SourceVisitor as LaneSource, so removing the derive does not make that reader invisible. Synthetic tests reject a second type using the replay adapter. The fast source census handles decoder derives, type and field attributes, cfg_attr, whitespace, nested metadata, and multiple serde options. Serialize-only types are legal. Its exact SQLite decoder exceptions are consumed once and cannot be used by adding an unconditional Deserialize beside the conditional one. Even json_codec.rs's direct-call exemption does not exempt a content representation. The command sheet documents the content family.
+
+The base symbol-bearing artifact has **zero WriteState or MutationOutcome decoder symbols (0 B)**. Their Serialize derives remain shared and their Deserialize derives are now SQLite-only; the census's two exact cfg-bound exceptions record that distinction. `engine/mod.rs` changes only those two derives, as authorized by the brief. All other production Rust changes are the LaneSource derive/module declaration and its new private module.
+
+### Differential evidence and the brief's premises
+
+`cargo test -p snapback4-core --test lane_source -- --nocapture` reports:
+
+```
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+```
+
+The private old untagged enum exists only under cfg(test) in the integration target. The tests compare values and accept/refuse outcomes over **120 corpus sources (60 null, 60 Scan)**, **76 sources from 52 published Quarry blocks (20 null, 37 Scan, 19 Range, 0 List)**, a separate compiler-generated List source, nested source expressions, and **3,369 generated objects**. Small variants get every key permutation; Scan gets each field at every position with forward/reverse remaining orders. Missing fields, duplicate fields (including null max), max-first and integer bounds, unknown-field positions, new existence-first scans, mixed Range/List subsets, null, scalars and arrays are covered. Every published program also round-trips its exact serialized bytes.
+
+The brief's published List premise is false at this base: no card/README block emits one, so the test adds the compiler fixture instead of changing published prose. Its literal corpus byte premise also needs qualification: **113 original source texts round-trip exactly; seven are pretty-printed**. The test removes only insignificant whitespace for those seven, preserving all key order, number spelling, escapes and string bytes; old-serializer canonical source bytes round-trip exactly for every corpus and guide source. Nothing in a canonical writer's bytes or backend identity changes.
+
+The differential enumerates deliberate difference classes: field-level errors and text positions rather than a generic no-variant error; refusal of mixed Range/List keys that the old first-success fallback accepted; refusal of positional Scan arrays; first-recognized precedence on ambiguous mixed Scan/domain maps; and direct serde's IgnoredAny behavior for malformed/deep unknown subtrees. The latter can accept text that the old Content buffer validated first; tests pin both that difference and the existing web command's `json_codec::validate_text` refusal. No canonical writer emits these exceptional shapes. The new decoder does not claim accept/refuse identity for arbitrary malformed or mixed-schema JSON.
+
+### Measurements
+
+Commands ran in `snapback4/` with `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`: Node **24.18.0**, Rust **1.97.0**, wasm-bindgen **0.2.127**, wasm-opt **132**, the existing wasm profile with web/no-default-features. `bash scripts/build-wasm.sh`:
+
+```
+wasm 1659689 B raw, 482965 B gzip (budget 483000: ok)
+wasm 1530533 B raw, 450956 B gzip (budget 451000: ok)
+```
+
+Saving: **32,009 B gzip (6.63%) / 129,156 B raw**. The report-only budget is **451,000 B**, the measured gzip rounded up to 1,000 B. It remains report-only. The symbol-level census (`node scripts/attribute-wasm.mjs --families --check-families --check-absent`) has the following before/after rows (shallow pre-bindgen bytes, not compressed savings):
+
+Before, the new content-family assertion is red:
+
+```
+DUPLICATE snapback4_core::ir::Expr deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (11722 B), serde content buffer (untagged, internally tagged or flatten) (7167 B)
+DUPLICATE snapback4_core::ir::LaneSource deserialize: serde content buffer (untagged, internally tagged or flatten) (3725 B), serde_json::de::Deserializer<serde_json::read::StrRead> (374 B)
+DUPLICATE snapback4_core::ir::Scan deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (5845 B), serde content buffer (untagged, internally tagged or flatten) (6154 B)
+snapback4_core::ir::Scan deserialize: serde_json::de::Deserializer<serde_json::read::StrRead>, serde content buffer (untagged, internally tagged or flatten)
+snapback4_core::ir::Expr deserialize: serde_json::de::Deserializer<serde_json::read::StrRead>, serde content buffer (untagged, internally tagged or flatten)
+snapback4_core::ir::LaneSource deserialize: serde content buffer (untagged, internally tagged or flatten), serde_json::de::Deserializer<serde_json::read::StrRead>
+```
+
+After:
+
+```
+snapback4_core::ir::Expr deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (11744 B)
+snapback4_core::ir::LaneSource deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1002 B)
+DUPLICATE snapback4_core::ir::Scan deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (5845 B), serde map replay (LaneSource first key) (3951 B)
+serde family check: ok
+server-only absence check: ok
+```
+
+`twiggy top -n 1000000 --format json target/wasm-sym/wasm32-unknown-unknown/wasm/snapback4_device.wasm`, saved as `/tmp/d3-evidence/before.json` and `after.json`, contains **418 content-module symbols / 120,808 shallow B before, 0 / 0 after** (sum shallow_size after removing crate disambiguators from symbol names). The Scan replay visitor is **3,951 shallow B**. WriteState, MutationOutcome decoder, and FieldNames symbol counts and bytes are **0 / 0** in both artifacts.
+
+`bash scripts/measure-wasm.sh` succeeds again. To honor the dirty-tree rule without changing the script, this invocation exported a Bash `tee` function that maps only `tee -a metrics/wasm.jsonl` to `cat` and delegates every other invocation to `command tee`; the line was printed and never appended. The exact line is:
+
+```json
+{"at":"2026-09-17T19:24:07Z","sha":"0eb822d025","dirty":true,"wasm":{"raw":1530533,"gzip":450956,"brotli":351379},"glue":{"raw":11325,"gzip":3047,"brotli":2700},"wasmOpt":false,"budget":451000,"over":0}
+```
+
+Wasm/glue SHA-256 from `shasum -a 256 packages/snapback4/src/wasm/snapback4_device_bg.wasm packages/snapback4/src/wasm/snapback4_device.js`: `6c9bdb0baa0e752435c0df8122042a92dd7741f6d120bf032316d5760249a915` / `243c37b7b8f84a63c0bae1415c548c7b845624d27b90f98a97483cd0144645de`. SDK source and backend representations are unchanged; no payload moved into another bundle. Browser cold transfer, heap and acquisition remain unqualified because Chromium cannot launch in this sandbox.
+
+The existing quick native sanity test was available. `cargo test -p snapback4-device --test diet_timing --no-run --message-format=json` built and saved the exact-base and candidate executables. `python3 /tmp/d3-evidence/pair-native.py` runs each saved executable with `--ignored --nocapture`, base/after then after/base, seven samples per block (14 samples per candidate):
+
+```
+0 base median N=7 apply_4000_ms=29.461 cold_open_100000_ms=354.281
+0 after median N=7 apply_4000_ms=28.772 cold_open_100000_ms=353.991
+1 after median N=7 apply_4000_ms=31.058 cold_open_100000_ms=355.472
+1 base median N=7 apply_4000_ms=28.319 cold_open_100000_ms=345.109
+base median of two alternating blocks (each N=7) 28.89 349.695
+after median of two alternating blocks (each N=7) 29.915 354.7315
+```
+
+The medians of the two block medians are **28.890 → 29.915 ms apply (+3.55%)**, **349.695 → 354.7315 ms cold open (+1.44%)**. The first pair slightly favors the candidate and the reversed pair favors the base; these loaded-host sanity samples do not establish a repeatable regression or a speedup. Each of the four executions reports `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out` (full timed summaries remain in `native-*-*.log`).
+
+### Verification
+
+The census was red before the decoder/gating changes: `node --test packages/snapback4/test/wasm-codec-census.test.mjs` reported **13 tests, 11 pass, 2 fail**, naming LaneSource's untagged derive and the two ungated reply decoders. `node scripts/attribute-wasm.mjs --families --check-families` was also red on the base, naming the content buffer and representation attributes; the original instrument had refused it as unrecognized. Both are green after. Final `node --test packages/snapback4/test/wasm-*.test.mjs`:
+
+```
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+```
+
+`cargo test -p snapback4-core` (final run, **143 passed, 0 failed**, including the nine final differential tests):
+
+```
+test result: ok. 55 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.24s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.65s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+`cargo test -p snapback4-lang --test guide --test components --test lowering` (**65 passed, 0 failed**):
+
+```
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 80.75s
+```
+
+`cargo test -p snapback4-device --test codec --test device_diet --test components` (**16 passed, 0 failed**):
+
+```
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.21s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+```
+
+`bash scripts/check-release-guard.sh`: `release guard: ok (web-device-check refuses the wasm profile)`.
+
+From the repository root, `bash snapback4/scripts/test.sh` (Node 24 PATH) completed at host load **68.52 across 18 CPUs**:
+
+```
+-- ok: cargo test (678 s)
+ℹ tests 670
+ℹ pass 661
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 3
+-- FAIL: client tests (656 s)
+== 1 failure(s) in 707 s
+   client tests
+```
+
+Every other suite stage passed, including the nine fixture-wrapper tests. The suite's compiled differential target contained the initial six tests; the later three compatibility assertions and final census refinements were verified in the final affected core/Node commands above. The brief's roughly 60-second warm-suite premise did not hold on this host.
+
+One failure was the transport deadline: `node --test --test-name-pattern='wasm: maximum pending ids, cursor batches and every terminal acknowledgement' packages/snapback4/test/transport-http.test.mjs` passes alone:
+
+```
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+```
+
+The four effect-lease assertions expect state-specific wording while the server replies `E_EFFECT_LEASE: effect effect-0000000000000001-0000000000000000 is not held by this live claim; claim it first and use its current token`. To establish their provenance, `python3 /tmp/d3-evidence/verify-base-worker.py` temporarily restored only this lane's two changed production Rust files from `git show 0eb822d025136df6260f0f68ba190c0ae16f19c2:<path>`, asserted `git diff --exit-code -- snapback4/crates`, built `cargo build -p snapback4 --bin snapback4 --quiet`, and ran `node --test --test-name-pattern='lost effect lease on the wire' packages/snapback4/test/worker.test.mjs`. Exact-base result:
+
+```
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+```
+
+The script's finally block restored the candidate files and rebuilt the candidate server successfully. Those four failures are verified pre-existing at the full base hash above; no other failure is labeled pre-existing. The remaining React failure is Chromium `SIGABRT`. `node witness/idb.mjs` and `node witness/scale.mjs` each exit 1 at browser launch with the same SIGABRT; neither acquired a device. The scale command's single failure append was removed byte-for-byte and retained in `/tmp/d3-evidence/witness-failure.jsonl`, so neither metric history is changed. The lead must run browser qualification outside the sandbox.
+
+`./ref-check --verbose` and `git diff --check` are the final root checks. The former passed before this appended entry with `ref-check: ok — 483 LLP docs, 9096 refs in 24267 files, 0 errors, 0 unchecked` and is rerun afterward. All edited/new code files are below 1,500 lines. Two mistargeted early Cargo invocations used the repository root and exited 101 without running Snapback 4 tests; every reported successful Cargo command used `snapback4/`.
+
+No README or guide text changed, because canonical wire bytes and the authoring surface did not move. No out-of-scope source file remains changed. The useful lesson is that an untagged derive is a reader choice, not just a wire-shape annotation: a source-level guard at the landing path is needed alongside the slower artifact measurement, and a streaming replacement must explicitly document the malformed-input behavior it no longer obtains from serde's buffer.
+
+
+## 2026-09-17 — S1b D3-R1: refuse mixed lane maps and close review guard gaps (Codex)
+
+Base: `926e5f19812199da2ee2119a2d03b09bed10ef2e`. Read both received D3-r1 reviews (Sol NOT READY, Grok READY WITH CHANGES). No commit, push, tag, publication, remote execution or sub-agent. This is a dirty-tree review repair in the same lane. The shared interpreter, Serialize implementations, value JSON, wire/store formats, corpus cases and meter ceilings are unchanged.
+
+Mixed Scan/domain maps now refuse in either key order with `mixed scan and range/list lane source fields`: the small decoder recognizes Scan's discovered names, and Replay reads every subsequent key as text before passing it to the field seed. Values still delegate to the original map. Discovery explicitly handles unexpected success, an empty field list and any collision with start/end_exclusive/value/max as decode refusals. Unit tests pin disjointness against the actual Scan derive and show that serde's discovery includes renames **and aliases** (the Grok review's assertion that aliases are omitted was incorrect for the pinned derive).
+
+Differential comparisons now return both results; every deliberate MixedDomain, PositionalScan, MixedScan and SkippedUnknown case asserts its old/new pair, exact old/new variant and named refusal where applicable. Scan order generation asserts every possible first recognized key and samples forward/reverse remaining orders; it is not exhaustive Scan permutations. Error positions also agree with direct Scan decoding through Replay. The new mixed-map test was red before the production repair and green afterward. Restoring derived untagged Deserialize makes all four deliberate-difference tests fail (and the existing nullable-duplicate assertion fails too).
+
+LaneSource now follows the rest of the derived IR when skipping unknown values. Direct Scan, reached without a LaneSource, already accepts unknown `1e999`, an unpaired surrogate and 150 nested arrays at the base; the new test passed before the production change and still passes afterward. The old LaneSource buffer validated those subtrees as a side effect. `validate_text` still refuses each input when a caller uses that boundary. **Question for the lead:** should Engine::open validate every stored program's text, paying that CPU cost on every open? This lane adds no such validation pass and makes no broader corruption-validation claim.
+
+The text census resolves Deserialize imports (including grouped aliases), qualified derives and macro_rules bodies emitting content representations; unresolvable Deserialize aliases refuse. Serialize-only types, including known Serialize aliases, remain legal. The comment states that procedural-macro output is outside a text census and that the measurement's symbol-family check is the backstop. Synthetic aliased, qualified and macro-emitted decoder mutants are refused; __Field and __FieldVisitor survivors expose both content and replay readers. The generic refusal attributes possible reader duplication to the representation and cites **ir::LaneSource's** measured 33,460 B gzip example, not the refused type's cost.
+
+All commands below run from `snapback4/` unless identified as root commands. Every Node command uses `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`. Toolchain: `rustc --version` → `rustc 1.97.0 (2d8144b78 2026-07-07)`; `node --version` → `v24.18.0`; `wasm-bindgen --version` → `wasm-bindgen 0.2.127`; `wasm-opt --version` → `wasm-opt version 132`. The shipped script uses the wasm profile, wasm32-unknown-unknown, no default features, web, wasm-bindgen's web target, gzip -9 and the usual select-wasm-opt-only-if-gzip-improves rule.
+
+`bash scripts/build-wasm.sh` first reported the old budget overrun, then reported the updated rounded-thousand budget on rerun:
+
+```
+wasm 1531216 B raw, 451283 B gzip (budget 451000: OVER by 283 B — issues/20260913-snapback4-wasm-device-diet.md)
+wasm 1531216 B raw, 451283 B gzip (budget 452000: ok)
+```
+
+Against the lead's reviewed 1,530,533 raw / 450,956 gzip artifact, the review repair costs **683 raw / 327 gzip B**. The report-only budget changes from 451,000 to 452,000 only because the upward-rounded thousand changes. `gzip -9 -c packages/snapback4/src/wasm/snapback4_device.js | wc -c` gives **3,047 B**, unchanged. `shasum -a 256 packages/snapback4/src/wasm/snapback4_device_bg.wasm` gives `24e7a756ec5c383e5ca63a0a2ed65a44907f712729cf9995d4049a88bfaa9480`.
+
+`node scripts/attribute-wasm.mjs --families --check-families --check-absent`:
+
+```
+1679777 total attributed bytes
+snapback4_core::ir::LaneSource deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1102 B)
+DUPLICATE snapback4_core::ir::Scan deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (5845 B), serde map replay (LaneSource first key) (4306 B)
+serde family check: ok
+server-only absence check: ok
+```
+
+Scan/map replay remains the only second **decoder** instantiation; the separate allowed dynamic-envelope and counting-writer serializer families remain. The replay visitor grew **355 shallow B**, from 3,951 to 4,306, while the entire shipping artifact grew only 327 gzip B. No content reader survives. These are source/symbol/byte measurements, not a fresh browser acquisition claim.
+
+Red/green evidence (full logs and mutation restoration scripts are in `/tmp/d3-r1-evidence/`):
+
+- `cargo test -p snapback4-core --test lane_source` with the new tests over the unchanged base production decoder: `test result: FAILED. 9 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s`. The direct Scan unknown-subtree test passed here.
+- `cargo test -p snapback4-core --test lane_source --lib` after the decoder repair: `test result: ok. 58 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.19s` and `test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s`.
+- `python3 /tmp/d3-r1-evidence/mutants.py` temporarily restored the untagged derive (disabling only the manual impl), ran `cargo test -p snapback4-core --test lane_source`, and restored both production files in finally: `test result: FAILED. 5 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s`. MixedDomain, PositionalScan, MixedScan and SkippedUnknown each fail; current core run below restores green.
+- The same script temporarily added `#[serde(alias = "max")]` to Scan.site and ran `cargo test -p snapback4-core --lib scan_derive_fields_are_nonempty_and_disjoint`: `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 57 filtered out; finished in 0.00s`. The production file was restored in finally; the current core unit run below includes the passing guard.
+- From the repository root, `node --test snapback4/packages/snapback4/test/wasm-codec-census.test.mjs snapback4/packages/snapback4/test/wasm-families.test.mjs`: before the guard repair `ℹ tests 27`, `ℹ pass 25`, `ℹ fail 2`; afterward `ℹ tests 27`, `ℹ pass 27`, `ℹ fail 0`. The final wasm suite below includes one more positive Serialize-alias test.
+
+An early invocation of `cargo test -p snapback4-core --test lane_source --lib` accidentally used the repository root and exited 101 without running tests; it was immediately rerun from snapback4. A later local edit helper initially used the wrong relative path, failed before writing, then was rerun successfully. Neither is a product failure. No product test failed on the final candidate.
+
+`cargo test -p snapback4-core`:
+
+```
+test result: ok. 58 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.20s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.97s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+`cargo test -p snapback4-lang --test guide --test components --test lowering`:
+
+```
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 67.55s
+```
+
+`cargo test -p snapback4-device --test codec --test device_diet --test components`:
+
+```
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+```
+
+`node --test packages/snapback4/test/wasm-*.test.mjs`:
+
+```
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+```
+
+`bash scripts/check-release-guard.sh`:
+
+```
+release guard: ok (web-device-check refuses the wasm profile)
+```
+
+Root `./ref-check --verbose` before this journal append: `ref-check: ok — 483 LLP docs, 9096 refs in 24267 files, 0 errors, 0 unchecked`; rerun after appending. Root `git diff --check` passes and is rerun after appending. All changed source files remain below 1,500 lines. No README/guide change: published authoring forms and canonical writer bytes did not change. No out-of-scope file remains changed; the temporary ir.rs mutants were restored byte-for-byte.
+
+**Not rerun here:** `bash snapback4/scripts/test.sh`, explicitly waived for this review round; the lead runs it outside the sandbox before landing. Also not rerun: the lead's supplied outside-sandbox evidence on `926e5f19812199da2ee2119a2d03b09bed10ef2e`: cargo build --workspace; 450,956 B gzip wasm build and release guard; lane_source/corpus tests; both symbol checks; witness/idb and witness/scale exit 0; React 13/13; wasm Node tests. The lead's alternating maximum-pending-ids transport evidence is 3/3 passes on that commit versus 2/3 on its base under high load, not a reproduced candidate failure here. No failure is claimed pre-existing from this round. No erroneous premise in the R1 brief was found; the corrected alias assertion was in the Grok review. The useful result is a 327-byte refusal/guard repair that keeps the derive authoritative and the values on one reader, with tests now proving the semantic differences they claim.
+
+## 2026-09-17 — S1b D3-R2: lexical census policy after the second review
+
+Codex / GPT-6 Astra, on base `88c63250d8460a43a622b9f22716056273188d37`, read the received D3-r2 Sol and Grok reviews and implemented the commissioned tooling-only disposition. No Rust source, runtime decoder, durable or wire format, client contract, ceiling, or existing corpus case changed. The governing constraints are LLP 3000 §7 and LLP 3000.002 §“Proposed: device representation and codec redesign”; the latter and the root are in `llp/current/`. The scope is the package's source census and its tests, that LLP's census paragraph, and this append. No new design question or skill hand-off is needed.
+
+The census now refuses serde derive renames and re-exports at their imports in walked web-reachable sources, including nested use trees, restricted visibility, and `de`/`ser` trait paths. Its diagnostic states the source policy and asks for the visible `Deserialize`/`serde::Deserialize` or `Serialize`/`serde::Serialize` spelling. Plain imports remain legal, including `use serde::de::Deserialize;`. There is no global alias pool or cross-file resolver. Each item's derives are classified lexically; unknown names refuse only with a representation attribute. Macro bodies apply the same decoder/unknown classification, including metavariable derives. The fixed non-serde list comes from the current walked sources: Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Error. Serialize-only representations and unknown derives without representation attributes remain positive controls. Existing round-1 mutants still refuse, and the live tree passes.
+
+Both three-file review cases now fail at the serde alias/re-export itself, including the Serialize-only case, which is deliberately forbidden by this policy. The LLP and census comment now state the remaining limit: the symbol-family instrument sees surviving symbols; a procedural macro's fully inlined small content decoder can escape it and the text census, leaving only the report-only byte budget as the final, non-blocking fallback. The lesson is that a text guard can enforce visible spellings; pretending it resolves Rust namespaces creates both missed decoders and arbitrary refusals.
+
+All Node commands used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`. Complete local logs are in `/tmp/d3-r2-evidence/`.
+
+Red/green, run from the repository root with the new tests first against unchanged base production census, then against the repair: `node --test snapback4/packages/snapback4/test/wasm-codec-census.test.mjs`.
+
+```
+Before:
+ℹ tests 24
+ℹ pass 16
+ℹ fail 8
+After:
+ℹ tests 24
+ℹ pass 24
+ℹ fail 0
+```
+
+All seven new test cases were red before and green after: import policy, the two three-file cases, the qualified unknown macro, the metavariable macro, plain trait imports, and lexical classification (the newly recognized Error positive control). The eighth red was the existing alias-mutant test's updated diagnostic assertion; the existing mutants themselves already refused on the base. This distinction prevents counting a message change as a newly closed evasion.
+
+From `snapback4/`, `node --test packages/snapback4/test/wasm-*.test.mjs`:
+
+```
+ℹ tests 38
+ℹ suites 0
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+```
+
+From `snapback4/`, `bash scripts/build-wasm.sh` exited 0:
+
+```
+wasm 1531216 B raw, 451283 B gzip (budget 452000: ok)
+```
+
+That is exactly the supplied base's 451,283 B gzip: delta 0 B. No artifact change was expected from test tooling. From `snapback4/`, `node scripts/attribute-wasm.mjs --check-families --check-absent` exited 0:
+
+```
+1679777 total attributed bytes
+serde family check: ok
+server-only absence check: ok
+```
+
+The two changed source files are 257 and 278 lines (`wc -l snapback4/packages/snapback4/test/wasm-codec-census.mjs snapback4/packages/snapback4/test/wasm-codec-census.test.mjs`, repository root), below 1,500. Root `./ref-check --verbose` and `git diff --check` are checked after this append; their complete output is retained with the local logs. README and guide cards need no change because the published surface did not change. No out-of-scope file was touched, and no commit, push, tag or publication was made.
+
+**Supplied qualification, cited rather than rerun as directed in the round-specific brief:** on `88c63250d8460a43a622b9f22716056273188d37`, the lead's outside-sandbox `scripts/test.sh` completed all builds, release guard, cargo test (411 s, 0 failures), typechecks and fixtures successfully. The supplied client summary is 642 of 651 with 6 failures: four worker lost-effect-lease tests reported red on main and ticketed, and two load-sensitive transport-http maximum-pending-ids timeouts that passed alone in the same hour (`transport-http.test.mjs`, exit 0 in the verify run). The brief does not identify the other three test outcomes or provide verbatim suite summary lines; none are inferred here. The lead's `d3-verify` reports the 451,283 B gzip build, release guard, lane_source differential, corpus, family/absence checks, IndexedDB and scale witnesses, React 13/13, and wasm Node tests all exit 0. These are lead-supplied results on the named base, not locally reproduced claims of pre-existing failures. The explicit “cite (not re-run)” instruction is used for the full suite and witnesses; the round's listed tooling/build/ref-check reruns were performed here. No local final check failed and no erroneous technical premise in the brief was found.
+
+Final root checks: `./ref-check --verbose` exited 0 with `ref-check: ok — 483 LLP docs, 9097 refs in 24267 files, 0 errors, 0 unchecked`; `git diff --check` exited 0 with no output. The working tree contains exactly the four intended files listed above.
+
+## 2026-09-17 — device diet S1b lands: three review rounds, the lead's dispositions, S4a sized, and a correction to this program's own records
+
+Lead entry (Claude, orchestrating; lanes D3, D3-R1 and D3-R2 were Codex `gpt-6-astra` at high effort; reviews Codex `gpt-5.6-sol` and Grok `grok-4.6`, both xhigh, blind and read-only). The three lane entries above say what was built; this one says how it was judged, what the lead changed by hand, what was verified outside the sandbox, and what else the landing carries.
+
+**How it was found.** Landing S5 this morning, `measure-wasm.sh` failed on `main`: `attribute-wasm.mjs --check-families` refused an "unrecognized serde family … ContentRefDeserializer … ir::LaneSource". `main` had grown from 466,618 to 505,030 B gzip in the eighty minutes since S1. One scratch build — deleting the single line `#[serde(untagged)]` from `ir::LaneSource` — measured 471,570: 33,460 B gzip for one attribute, more than S5 saved. The instrument built for exactly this had caught it, but only a measurement runs the instrument, and no landing in between ran one.
+
+**Review.** Round 1 on `926e5f1981`: Grok READY WITH CHANGES (3 Medium, 2 Low), Sol NOT READY (2 Medium, 3 Low). Both judged the canonical path sound — `Serialize` untouched; corpus, guide and compiler bytes identical; one reader proven by symbols; the `WriteState`/`MutationOutcome` gating right on every build — and both found the same defect: a map carrying Scan fields AND range fields became `Range` when a small key came first and `Scan` when a Scan key did, where the old derive always answered `Scan`. No canonical writer emits such a map, so the disposition was a refusal in either order rather than a precedence rule. Both also found the deliberate-difference tests did not require their differences, and that nothing guarded a future `Scan` field colliding with the four discriminator keys. Sol alone showed the census could be evaded with `use serde::Deserialize as De`. Unknown-field values (Sol Low, Grok question): documented, not changed — every other derived IR struct already skips them through `IgnoredAny`, shown by a test that passes at the base; a `validate_text` pass at `Engine::open` costs CPU on every open and is a separate decision. Round 2 on `88c63250d8`: both judged the decoder fixed, deterministic and adequately tested; Grok READY (1 Low), Sol READY WITH CHANGES (2 Medium, 1 Low), all on how the text census resolved aliases — a global alias pool let one file's `Serialize` alias whitelist another file's `Deserialize` derive. The lead's direction for the round was to stop resolving: refuse renaming or re-exporting serde's derives in those sources at the import, and classify derives lexically. Round 3 on `a784610127`, test tooling only: Grok READY (3 Low), Sol READY WITH CHANGES (4 Low), overlapping on four points, which the lead applied directly in `09e3c9f109`: renaming the serde crate is refused (Sol hid `Deserialize` under the trusted word `Serialize` through `use serde as s`); a buffered representation must sit beside a visible, reviewed, decoder-free derive list on the same item or macro body, which closes both reviewers' split-macro evasions in both directions, because serde attributes do not compile without a serde derive; only serde's root derive paths are policed for re-export; `Hash` is back on the reviewed list and the messages say what was seen. Mutants: no hidden-derive rule, crate alias allowed, `Hash` unreviewed — each fails exactly its test; restored, 26 of 26 census tests and 40 of 40 wasm tooling tests pass. Records: `llp/reviews/3000.002-device-diet-content-reader{,-round-2,-round-3}.{sol,grok}.md`, verbatim.
+
+**Outside the sandbox.** On `926e5f1981` and again on `88c63250d8` (the last commit that changes Rust): `cargo build --workspace`, `scripts/build-wasm.sh` (451,283 B gzip, budget ok), `check-release-guard.sh`, `cargo test -p snapback4-core --test lane_source` and `--test corpus`, `attribute-wasm.mjs --check-families --check-absent` ("serde family check: ok", "server-only absence check: ok"), `witness/idb.mjs` and `witness/scale.mjs` exit 0, React 13 of 13, the wasm node tests — all exit 0. `scripts/test.sh` on `88c63250d8` at host load 40–90: every build step, the release guard, `cargo test` (411 s, 0 failures), typechecks and fixtures ok; client tests 642 of 651 with 6 failures — the four `worker.test.mjs` lost-effect-lease tests that are red on `main` (ticketed by the S5 landing) and the two `transport-http` "maximum pending ids" timeouts. Those two were chased rather than waved off: they failed twice alone on this lane at load 70–88 and passed twice on the base at load 47–56, which proves nothing, so the two builds were alternated at load 39–51 — this lane 3 of 3, the base 2 of 3 — and the test passed alone in the verify run. Load, not this change.
+
+**S4a, sized before commissioning.** Two scratch builds on `0eb822d025` (482,965), both restored: every typed JSON use of `Backend` in the device crate replaced by opaque host imports measures 377,414 (−105,551; raw −462,318), about 33,000 of which S1b has now taken; with a stand-in positional decoder (`postcard`) in place of the opaque decode, 402,463. So a derived compact decoder costs back about 25,000 and the rung is worth about 45,000 from here, above the plan's stop rule. Auditing the IR for the format corrected the lead's first brief before any lane saw it: two skip predicates have non-empty defaults (`Residency::is_default`, `Auth::is_default`), one field has `default = "path"`, and most of the 37 skipped `Option` fields carry no `#[serde(default)]`, so an absent field must yield the derive's declared default — a struct's sequence access answers `None` for it and derived `visit_seq` applies the default and carries on — not a guessed empty value. A third probe: `opt-level = "z"` (482,965) already beats `"s"` (539,375) and `2` (721,396). Patches and the brief are in the program record (`measure/s4a-*`, `S4A.md`).
+
+**A correction to this program's own records.** Building this lane's round-1 Grok record, the lead noticed the record began at "## Obligations" while the received text began with a title and an assessment. The Grok CLI prints its last narration sentence and the review's first heading on one line (`…write the complete review.# Blind review: …`); the lead's record builder started at the first heading that begins a line and so dropped the title and every paragraph under it. An audit of all eighteen landed records against the received texts found five Grok records landed that way today — S5 rounds 1 and 2, S0/S1 rounds 1, 2 and 3 — missing 2 to 8 opening lines each, under a header that said "nothing else changed". They are restored from the received texts with a `Corrected:` line in each header; the other thirteen (every Sol record, and Grok's composition rounds 1–3 and small-maps round 1) compare equal. The builder now finds a heading at line start or glued after text and refuses any non-narration text before it (`reviews/build_grok_body.py` in the program record), which is how round 2's record was caught starting with an assessment paragraph and no heading at all.
+
+
 
 ## 2026-09-17 — S3 host Unicode candidate and the evidence for a ruling (not landed)
 

@@ -124,6 +124,11 @@ query invitationMetadata(invitation: invitations):
   invite = invitations[invitation] ! else ORGANIZATION_INVITATION_NOT_FOUND
   return { id: invite.id, organization: invite.organization, recipientEmail: invite.recipientEmail, issuer: invite.issuer, issuedAt: invite.issuedAt, expiresAt: invite.expiresAt, status: invite.status, acceptedBy: invite.acceptedBy, acceptedAt: invite.acceptedAt, reservation: invitationReservations[invitation = invite.id] }
 
+query invitationDeliveryState(invitation: invitations):
+  invite = invitations[invitation] ! else ORGANIZATION_INVITATION_NOT_FOUND
+  require exists organizationMemberships[invite.organization, viewer, 'admin'] else ORGANIZATION_ADMIN_REQUIRED
+  return { id: invite.id, organization: invite.organization, recipientEmail: invite.recipientEmail, issuer: invite.issuer, issuedAt: invite.issuedAt, expiresAt: invite.expiresAt, status: invite.status, serverNow: now }
+
 query invitePreview(invitation: invitations, rawToken: text 1..1024):
   invite = invitations[invitation] ! else ORGANIZATION_INVITATION_NOT_FOUND
   require invite.status = 'pending' else ORGANIZATION_INVITATION_NOT_PENDING

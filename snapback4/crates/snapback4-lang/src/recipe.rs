@@ -54,13 +54,6 @@ impl FollowingCaps {
     }
 }
 
-// @ref LLP 3000.007#18.1 — install the card's bounded two-cursor server form verbatim.
-pub fn search(prefix: &str, module: &str) -> Result<String, String> {
-    let source = crate::guide::quarry(crate::guide::card("search").unwrap()).into_iter()
-        .find(|block| block.contains("query searchChats") && !block.contains("query searchHeld")).expect("server search recipe on the card");
-    prefix_module(&source, prefix, module)
-}
-
 pub fn following(prefix: &str, module: &str) -> Result<String, String> {
     following_sized(prefix, module, FollowingCaps::parse(None, None)?)
 }
@@ -246,7 +239,7 @@ impl Rename {
                 for lane in &merge.lanes {
                     if let Some(table) = &lane.table { self.name(&lane.site, table, 0); }
                     for value in &lane.prefix { self.expr(value); }
-                    if let Some((_, read)) = &lane.loop_ { self.read(read); }
+                    if let Some((_, domain)) = &lane.loop_ { self.expr(domain); }
                 }
             }
             Expr::ShapeUse { base, name, site } => { self.expr(base); self.name(site, name, 0); }

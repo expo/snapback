@@ -1,6 +1,6 @@
 # Derived-data probes on published Snapback 4 0.2.27
 
-**Status: complete; a probe record, not a calibration.** Twelve small projects run against
+**Status: complete; a probe record, not a calibration.** Fourteen small projects, and two blind runs of shipped recipes on 0.2.28, run against
 the **published `snapback4-darwin-arm64@0.2.27` binary** (`npm pack`, `snapback4 --version`
 → `snapback4 0.2.27`) on 2026-09-17, to test whether three shapes the 0.2.27 Clique record
 called expressiveness holes — a rolling-window ranking, a derived table any principal can
@@ -205,9 +205,125 @@ The page ends before alice's commit and does not acknowledge it, yet its image a
 includes it, so her device replays the pending `bump` over it and shows 3 until the next
 page. Filed as `issues/20260917-snapback4-stream-page-serves-images-newer-than-its-watermark.md`.
 
+## `column-gates/` — LLP 3000.007.001 §7's gates 1 and 2, measured by proxy
+
+Maintained columns are not built, so the gates were measured on the published binary with
+the form the column replaces: a hand-kept count column whose `update` puts the parent row
+on every like. That is byte-for-byte what the design's mirror would put (LLP 3000.007.001
+§3.5), so the hand-kept form **is** the column's stream and log cost; the two alternatives
+beside it are a declared maintain that inherits public sync, and the same maintain `online
+only`.
+
+**Gate 1 — what one like costs** (`gate1.mjs`; 2,000 posts, `sync public last 2000 by
+byTime`, likes public and synced; 100,000 likes by one principal round-robin over the
+posts; a bystander device acquires first and follows the log afterwards; on-disk dev store,
+checkpointed, against a zero-like baseline of the same store):
+
+| Form | Parent body | Wire bytes per like (bystander) | Stream events per like | Log rows per like | Log bytes per like | Database growth per like |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| hand-kept column (the mirror's proxy) | 500 B | 823 | 2 | 2 | 851 | 1,794 |
+| synced maintain | 500 B | 329 | 2 | 2 | 334 | 1,170 |
+| `online only` maintain | 500 B | 182 | 1 | 1 | 190 | 997 |
+| hand-kept column | 4,000 B | 4,323 | 2 | 2 | 4,351 | 5,667 |
+| synced maintain | 4,000 B | 329 | 2 | 2 | 334 | 1,152 |
+| `online only` maintain | 4,000 B | 182 | 1 | 1 | 190 | 979 |
+
+The like row itself is 182 bytes on the wire in every form. The **count's own cost** is the
+rest: 641 B a like as a column on a 500-byte parent against 147 B as a synced maintain row
+(4.4×), and 4,141 B against 147 B on a 4,000-byte parent (28×); over 100,000 likes the
+store grows 567 MB, 115 MB and 98 MB for the three forms at 4,000 bytes. The partition log
+stores the whole image of every `put`. Throughput on this loaded host was 700–2,300 likes a
+second and is not a claim. Raw rows: `gate1.result.txt`.
+
+**Gate 2 — rows a device gains beyond its horizon** (`gate2.mjs` on the engine,
+`gate2-analysis.mjs` on the fixture alone; the workload LLP 3000.007.001 §7 pinned before
+measuring: the Clique scale fixture's recorded like stream, unmodified; posts and replies as
+one table; a bystander acquires at the `# checkpoint 50%` marker):
+
+```
+seeded 25100 rows at or before the checkpoint; the device acquired 2000; horizon 2026-01-01T11:54:17.000Z
+likes replayed after the checkpoint: 2500 (failed 0); stream: 17 pages, 5045105 bytes
+distinct posts rows sent to the device: 26321 = created after acquisition 25100 + already held 56 + BEYOND ITS HORIZON 1165 (of which not older than the horizon: 0)
+rows gained beyond the horizon: 1165 = 58.3% of the 2000 held at acquisition — gate: 10% a day; this replay's remaining span is 7.67 h
+```
+
+The engine and the fixture analysis agree to the row (1,165; 1,125 for top-level posts
+alone, 56.3%). **The gate fails by a factor of six in a third of a day.** The recorded
+stream is block-structured (all of a half's likes follow all of its posts, one a second,
+half of them on posts older than 7.5 hours), so it is a harsh workload, and it is the one
+that was pinned. The growth is not introduced by a maintained column: the hand-kept score
+it replaces does exactly this today, and so does an edit to an old post.
+
+## `horizon-gap/` — the same growth is a wrong answer: a device pages past its horizon from scattered rows
+
+Measuring gate 2 raised the question of what a device *does* with rows beyond its horizon.
+`posts` with `sync public last 5 by byTime`, twelve posts, `timeline(c)` = `posts after c
+last 3 by byTime`; the **published client** (`snapback4@0.2.27`, wasm device, in Node)
+against the published binary:
+
+```
+control page 1 (before any like)   p12 p11 p10   {"complete":true,"cut":null,"fresh":true}
+control page 2 (before any like)   p09 p08 p07   {"complete":true,"cut":null,"fresh":true}
+control page 3 (before any like)   p06 p05 p04   {"complete":true,"cut":null,"fresh":true}
+  — alice likes p02 and p04 (a hand-kept score: the parent row is put) —
+device page 1 (after likes)        p12 p11 p10   {"complete":true,"cut":null,"fresh":true}
+device page 2                      p09 p08 p04   {"complete":true,"cut":null,"fresh":true}
+device page 3                      p03 p02 p01   {"complete":true,"cut":null,"fresh":true}
+server page 2                      p09 p08 p07
+server page 3                      p06 p05 p04
+```
+
+Before the likes the page that crosses the device's horizon is handed to the server. After
+them the device answers it from `p04` — a row it holds only because it was liked — and
+**`p07`, `p06` and `p05` never appear, on pages marked complete and fresh**. The device's
+coverage rule (`engine/read.rs`: same index, descending, more rows held below) assumes its
+rows are a contiguous newest suffix; the stream applies no horizon and `Device::apply`
+stores every `put`, so any update to an old row breaks the assumption. Filed as
+`issues/20260917-snapback4-device-page-past-horizon-answers-from-scattered-rows.md` (P1).
+Run: `SB=<binary> PKG=<unpacked snapback4 npm package> node measure.mjs`. Re-run the same day against the
+just-published `0.2.28` binary and client: identical (`RESULT-0.2.28.txt`).
+
+**`horizon-gap-group/` — the same in a chat thread.** `messages` synced to a conversation's
+members with `sync last 5 by byConversationOrdinal`, twelve messages, `thread(c)` three at
+a time; alice **edits** `m02` and `m04` (an ordinary `update`), published 0.2.28:
+
+```
+control page 2 (before any edit)   m09 m08 m07    {"complete":true,"cut":null,"fresh":true}
+device page 2 (after the edits)    m09 m08 m04*   {"complete":true,"cut":null,"fresh":true}
+device page 3                      m03 m02* m01   {"complete":true,"cut":null,"fresh":true}
+```
+
+`m07`, `m06` and `m05` are skipped. So the exposure is not only a hand-kept score on a
+public feed: any chat longer than its horizon in which an old message is edited,
+tombstoned or otherwise updated shows a gapped thread on every device that was connected
+at the time.
+
+## `published-0.2.28/` — the two recipes this program shipped, pasted blind from the published binary
+
+0.2.28 carries the hour-lanes Trending (wave 12's lane W12R1c, from §21.1 item 1) and the
+period-seeking digest (lane W14b, item 2). Each block was extracted from the **published
+0.2.28 binary's own card** (`snapback4 guide feeds`, the block containing
+`trendingWithZeros`; `snapback4 guide jobs`, the block containing `job digest(`), written
+to `snapback/schema.q` unedited, and run.
+
+- **Digest:** `check: ok — 4 tables (3 synced), 2 operations, no problems`. `inbox(period)`
+  as each viewer: alice `{c1: 1, c2: 2}`, bob `{c1: 0, c2: 4, c3: 2}` (the message older
+  than the period is out), carol zeros. `snapback4 run digest` → done, 3 chunks, 0 rows
+  written; `doctor`: `effects 2 queued` — alice and bob; carol, with nothing unread, is
+  silent. The shipped card carries both review corrections (missed schedule boundaries
+  coalesce; what the example's `members` insert rule admits).
+- **Trending:** 3,000 posts over 30 hours, 20,393 likes. Page 1's scores equal an
+  independent oracle's (`196,186,182,181,174,159,144,143,141,140`), `complete: true`,
+  `next`, **286 examined** for 2,207 liked posts in the window; pages 1 and 2 together: no
+  duplicate post and twenty scores equal to the oracle's, across a tie at 140;
+  `trendingWithZeros` returns ten rows, complete. A like through `setLike` as another
+  principal is `sent`.
+
+Run: `SB=<published binary> node measure.mjs` in a project holding the extracted block.
+
 ## What this record does not show
 
-No device store was run (the residency facts are the compiler's); no wall-clock claim is
+A device store was run only in `horizon-gap/` (elsewhere the residency facts are the compiler's); no wall-clock claim is
 made; the ranking probe's likes are seeded rows, not mutations (`invariant/` exercises the
 maintain under `setLike`); presence (grader
 finding d-05 of the 0.2.27 record) was reasoned from the effects card and LLP 3000.007

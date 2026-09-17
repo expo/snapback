@@ -279,3 +279,41 @@ then non-green. A cap/disk/driver stop preserves its original process exit
 code even when cleanup is non-green. Consumers must inspect `end.json`'s
 `custody.ok`, not treat the preserved 124/125/130/143 exit alone as successful
 cleanup. Those limits are retained, not described as stronger containment.
+
+## Recorder-failure isolation — 2026-09-17
+
+A later source review of the warm Workroom runtime found that a throwing
+custody recorder could interrupt seeded cleanup. This shared-helper repair
+keeps recording failure from interrupting identity-checked cleanup and
+latches one in-memory `PILOT_CUSTODY_RECORD_FAILED` uncertainty. Even a
+failure on the final completion record makes the receipt non-green.
+It changes neither process discovery nor signalling authority nor timing.
+
+Native Codex GPT-5.6 Sol (high) authored the change at
+19:58:39.355Z–20:01:29.208Z. Root audited the complete source/test delta and
+mechanically integrated the exact reviewed bytes:
+
+- runner SHA-256: `32234d430e1235248e19e87795d0bb0d74cd42f1c5da41abe1d0cfdb32bc2a2c`
+- tests SHA-256: `75109fc0d769d59846f830f531e5dd76dfa0878a434b39f207a71396102e1f7d`
+
+An independent Node 24.13.1 run on 450b passed 20 deterministic tests, failed
+zero and skipped the one opt-in actual-Codex test (77.4 ms). Its retained
+log is `/tmp/workroom-custody-recorder-isolation-20260917/independent-node24-tests.tap`,
+SHA-256 `6c9533221ff61a0dac2a0fbede97ba6169757acdf563fd3878d7c681613a9643`.
+The author also ran fake tests despite the source-only phase instruction;
+that fact is retained rather than presented as independent verification.
+Six new cases cover first-seed, persistent post-seed, uncertainty-record,
+completion-record, repeated-record and TERM/KILL-with-survivor failures.
+These are injected recorder failures, not actual disk-fault or OS coverage.
+
+Both independent source reviews are READY:
+[Sol](../reviews/custody-recorder-sol.md) and
+[Grok](../reviews/custody-recorder-grok.md).
+Sol rechecked its own original caller finding with current pinned source;
+Grok freshly read the current helper and full warm runtime packet.
+Neither verdict qualifies an unreviewed provider-wrapper composition.
+
+The earlier actual-Codex receipts above remain bound to their earlier
+runner revisions. That opt-in witness was not rerun for this repair, and
+no new cold/scored-cell, application acceptance, generic subtree custody
+or whole-wrapper hard-deadline claim follows.

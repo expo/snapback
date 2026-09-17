@@ -244,7 +244,7 @@ query inbox(c: cursor ?):
 query following(c: cursor ?):        -- syntax example: private inbox plus capped pulled authors; `snapback4 init --recipe feeds` writes the removal recipe (`snapback4 guide feeds`)
   page = merge feed after c last 20 by byReaderTime where .body != '':
     [viewer]
-    broadcast[p.authorId] for p in pulls[viewer] first 32 by byReaderAuthor
+    broadcast[p.authorId] for p in pulls[viewer]
   return page { *, mine: reactions[.eventId, viewer] }
 
 query ancestors(roomId: rooms):
@@ -289,7 +289,22 @@ query search(roomId: rooms, q: text <=100, c: cursor ?):
 
 query everywhere(q: text <=100, c: cursor ?):
   return merge messages matching q after c last 50 by byRoomWords:
-    [m.roomId] for m in members[viewer] first 50 by byPrincipalRoom
+    [m.roomId] for m in members[viewer]
+
+query wholeRoster(roomId: rooms):
+  return members[roomId] by byRoomPrincipal                         -- the schema cap is the ascending whole-group bound
+
+query memberTotal():
+  n = 0
+  for m in members[viewer]:                                        -- a uniform prefix under the query meter
+    n = n + 1
+  return n
+
+query hasMessages(roomId: rooms):
+  return exists messages[roomId]                                  -- a prefix existence scan: first visible match, no page or cursor
+
+query groupedMessages(q: text <=100, c: cursor ?):
+  return members[viewer] after c first 20 by byPrincipalRoom where exists (messages[.roomId] matching q) { roomId, hits: messages[.roomId] matching q last 3 by byRoomWords }
 
 query online(p: principal):
   return connected[p]                 -- how many connections the principal holds open on the server; `exists connected[p]` tests (guide presence)
@@ -313,7 +328,7 @@ mutation sendBrief(roomId: rooms, body: text <=4000 ?, ttl: int ?):
   require exists members[roomId, viewer] else NOT_MEMBER
   row = insert messages { roomId, authorId: viewer, body, at: now, expiresAt: now + ttl if ttl != null else null }   -- a conditional value: the arm not taken never runs, and `ttl` is present in the taken one
   recipients = []
-  for m in members[roomId] first 100 by byRoomPrincipal:
+  for m in members[roomId] by byRoomPrincipal:
     if m.principal != viewer:
       recipients = recipients + [m.principal]
   for p in recipients:                                              -- bounded derived lists may read and emit; row writes still need the complete-group proof
@@ -367,6 +382,29 @@ schedule summariesEveryDay every 1d at 08:00 as service:reporter: scheduledSumma
 effect sendDigest secrets [MAIL_API_KEY] retry 4 backoff 1m deadline 1d cancellation deny
 route roomExport: post "/room-export" wait 5s -- signed-in caller; no Quarry body or client operation
 route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM_SIGNING_KEY] retry 8 backoff 2s deadline 1h cancellation allow wait 5s
+table roomEntries:
+  roomId: id
+  at: time
+  by byRoomHour: roomId, hour(at), at, id
+  public 'Room entries are public.'
+
+table checkins:
+  principal: principal
+  at: time
+  unique byPrincipalDay: principal, day(at) else ALREADY_CHECKED_IN 'One check-in per day.'
+  read <- .principal = viewer
+  insert <- .principal = viewer
+
+query roomHour(roomId: id, c: cursor ?):
+  return roomEntries[roomId, hour(now) - 3] after c last 10 by byRoomHour
+
+query roomWindow(roomId: id, c: cursor ?):
+  return merge roomEntries after c last 10 by byRoomHour:
+    [roomId, h] for h in range(hour(now) - 3, hour(now) + 1)
+
+mutation checkin():
+  return insert checkins { principal: viewer, at: now }
+
 ```
 
 Helpers expand at each call: a table-typed parameter keeps a row argument as a row (fields need no lookup), while a reference argument stays a reference.
@@ -378,6 +416,12 @@ After a scalar `where` predicate, a declared shape name shapes the page:
 `where not .hidden card` and `where not .hidden { ...card }` agree. A valid
 row/object shape inside a predicate keeps its meaning; parenthesize it to
 make that scope explicit, or use `{ ...card }` explicitly for the page.
+
+Reads: `t[full unique key]` is a point; `t[prefix] [by index] [where predicate]`
+reads the ascending capped group, or a meter-bounded query loop/lane source;
+`t[prefix] [matching q] [after c] first|last N [by index] [where predicate]`
+is an explicit page. `exists t[keys]` and `exists (t[prefix] matching q)` test
+for a visible row without owning a page; rules keep exact-key probes.
 
 Values: `viewer` (a principal), `now` (a time; in a mutation it is the commit's
 instant), `new` (an id, mutations only), `true`, `false`, `null`, integers,
@@ -399,6 +443,13 @@ with `return [value]`, or with its last expression, or with its final write.
 the exact UTF-8 bytes without normalization and returns lowercase hexadecimal.
 It is not password hashing, low-entropy email anonymization, a signature, a
 MAC, or entropy generation; a digest is not automatically safe to publish.
+
+Table indexes also take `day(at)`, `hour(at)` or `bucket(at, 2h, 30m)`
+beside column names and `words(..)`: computed keys, not row columns (guide indexes).
+A query merge's `for` takes a prefix page, `range(a, b)` or a bounded list
+argument/expression, with one lane per value; `walk` is not admitted.
+
+
 
 ## Fixing a refused line
 

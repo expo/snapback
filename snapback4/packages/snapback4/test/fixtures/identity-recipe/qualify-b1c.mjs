@@ -13,6 +13,11 @@ import { setTimeout as delay } from "node:timers/promises";
 import { DatabaseSync } from "node:sqlite";
 import { authorizeWithKeycloak } from "./keycloak-browser.mjs";
 import { diagnosticStreamsAreSecretFree } from "./diagnostic-secrecy.mjs";
+import {
+  appendCrashCutObservation, requireCrashCutWorkers, requireInitialMintCut,
+  requireMintStepDoneCut, requireMintStepDurableObservation, selectMintStepDoneCut,
+} from "./crash-cut-plan.mjs";
+import { proveDeadlineSequence } from "./deadline-sequence.mjs";
 import { captureEngineCustody, registerWorkerCustody, verifyWorkerCustody } from "./process-custody.mjs";
 import { abortProxyServer, closeExpectedProxy, createProxyPhase, stopOwnedChild, trackProxyExchange } from "./proxy-phase.mjs";
 
@@ -236,8 +241,10 @@ function boundedBody(request, limit = 2 * 1024 * 1024) {
   });
 }
 
-async function startFaultProxy(engine) {
-  const state = { phase: "initial", providerClosed: false, provider: [], mints: [], cuts: [], workers: new Map() };
+async function startFaultProxy(engine, mode, project, invocation) {
+  const state = { phase: "initial", providerClosed: false, provider: [], mints: [], cuts: [], workers: new Map(),
+    bindingAbsentAtCut: false, exchangeDoneAtCut: false, initialMintRequest: null, stepDone: null,
+    stepDoneCutSelected: false, recoveredMintPid: null, stepDonePid: null, durableMintAtCut: null };
   const lifecycle = createProxyPhase(code => { instrumentFailureCode ??= code; });
   const exchanges = new Set();
   const register = async pid => {
@@ -248,6 +255,15 @@ async function startFaultProxy(engine) {
     state.workers.set(pid, registered);
     custodyReceipts.push(registered.receipt);
     return registered;
+  };
+  const cutWorker = async (pid, registered, cut) => {
+    await until(() => engine.workerPids().has(pid), 5_000, "worker-pid-registration");
+    try { await verifyWorkerCustody(registered, engine.identity(), runtimeUid); }
+    catch { throw Object.assign(new Error("custody"), { proxyCategory: "custody-revalidation" }); }
+    try { process.kill(pid, "SIGKILL"); }
+    catch { throw Object.assign(new Error("custody"), { proxyCategory: "custody-signal" }); }
+    state.cuts.push({ cut, pid });
+    state.providerClosed = true;
   };
   const server = createServer(async (request, response) => {
     let exchange;
@@ -280,31 +296,75 @@ async function startFaultProxy(engine) {
         if (["host", "content-length", "connection", "x-snapback4-qualification-worker-pid"].includes(name) || value === undefined) continue;
         for (const item of Array.isArray(value) ? value : [value]) headers.append(name, item);
       }
+      const sent = request.url === "/auth/session" ? JSON.parse(body.toString("utf8")) : null;
+      if (sent && state.phase === "initial" && sent.binding?.replaceLostDelivery !== true) state.initialMintRequest = sent;
+      if (mode === "before-mint" && state.phase === "initial" && request.url === "/auth/session") {
+        requireInitialMintCut({ invocation: invocation(), phase: state.phase, path: request.url, binding: sent.binding }, assert);
+        const db = database(project);
+        try {
+          state.bindingAbsentAtCut = db.prepare("SELECT 1 FROM _session_mint_bindings WHERE invocation = ? AND intent = 'identity-session/v1'").get(invocation()) === undefined;
+          state.exchangeDoneAtCut = db.prepare("SELECT state FROM _action_steps WHERE invocation = ? AND name = 'oidc.exchange'").get(invocation())?.state === "done";
+        } finally { db.close(); }
+        assert(state.bindingAbsentAtCut && state.exchangeDoneAtCut, "before-commit-cut-state");
+        await cutWorker(pid, registered, "before-core-mint-commit");
+        state.phase = "recovery";
+        exchange.intentionalCut(); response.destroy(); return;
+      }
       const upstream = await fetch(`${engineUrl}${request.url}`, {
         method: request.method, headers, body: request.method === "GET" ? undefined : body, signal: exchange.signal,
       });
       const bytes = Buffer.from(await upstream.arrayBuffer());
       if (request.url === "/auth/session" && upstream.ok) {
-        const sent = JSON.parse(body.toString("utf8"));
         const received = JSON.parse(bytes.toString("utf8"));
         if (received.session?.token) {
-          state.mints.push({ session: received.session, binding: sent.binding, pid });
+          state.mints.push({ session: received.session, binding: sent.binding, request: sent, pid });
           secrets.add(received.session.token);
-          if (state.phase === "initial" && sent.binding?.replaceLostDelivery !== true) {
-            await until(() => engine.workerPids().has(pid), 5_000, "worker-pid-registration");
-            try { await verifyWorkerCustody(registered, engine.identity(), runtimeUid); }
-            catch { throw Object.assign(new Error("custody"), { proxyCategory: "custody-revalidation" }); }
-            try { process.kill(pid, "SIGKILL"); }
-            catch { throw Object.assign(new Error("custody"), { proxyCategory: "custody-signal" }); }
-            state.cuts.push({ cut: "after-core-mint-commit-before-worker-ack", pid });
-            state.providerClosed = true;
+          if (mode !== "before-mint" && state.phase === "initial" && sent.binding?.replaceLostDelivery !== true) {
+            await cutWorker(pid, registered, "after-core-mint-commit-before-worker-ack");
             state.phase = "recovery";
             exchange.intentionalCut();
             response.destroy();
             return;
           }
-          if (state.phase === "recovery" && sent.binding?.replaceLostDelivery === true) state.phase = "done";
+          if (state.phase === "recovery" && sent.binding?.replaceLostDelivery === true) {
+            state.recoveredMintPid = pid;
+            state.phase = mode === "after-step" ? "await-step-done" : "done";
+          } else if (state.phase === "final-recovery" && sent.binding?.replaceLostDelivery === true) state.phase = "done";
         }
+      }
+      const selectedInvocation = selectMintStepDoneCut({ getInvocation: invocation, mode, phase: state.phase,
+        path: request.url, selected: state.stepDoneCutSelected });
+      if (selectedInvocation !== null) {
+        const selectedPhase = state.phase;
+        state.stepDoneCutSelected = true;
+        state.phase = "cutting-step-done";
+        const reply = JSON.parse(bytes.toString("utf8"));
+        requireMintStepDoneCut({ invocation: selectedInvocation, phase: selectedPhase, path: request.url, upstreamOk: upstream.ok, reply }, assert);
+        assert(Number.isInteger(state.recoveredMintPid) && pid === state.recoveredMintPid
+          && pid !== state.cuts[0]?.pid, "cut-recovered-worker-binding");
+        const recoveredMint = state.mints.at(-1)?.session;
+        assert(recoveredMint, "cut-recovered-mint-missing");
+        const db = database(project);
+        try {
+          const row = db.prepare(`SELECT r.id request_id, r.name request_name, r.state request_state,
+            r.result request_result, r.settled_at request_settled_at, s.invocation step_invocation,
+            s.name step_name, s.state step_state, s.result step_result
+            FROM _requests r LEFT JOIN _action_steps s
+              ON s.invocation = r.id AND s.name = 'oidc.mint' WHERE r.id = ?`).get(selectedInvocation);
+          state.durableMintAtCut = row && {
+            requestId: row.request_id, requestName: row.request_name, requestState: row.request_state,
+            requestResult: row.request_result, requestSettledAt: row.request_settled_at,
+            stepInvocation: row.step_invocation, stepName: row.step_name, stepState: row.step_state,
+            stepResult: row.step_result === null ? null : JSON.parse(row.step_result),
+          };
+        } finally { db.close(); }
+        requireMintStepDurableObservation({ invocation: selectedInvocation, observation: state.durableMintAtCut,
+          expected: recoveredMint }, assert);
+        state.stepDone = reply.step;
+        state.stepDonePid = pid;
+        await cutWorker(pid, registered, "after-mint-step-done-before-action-settlement");
+        state.phase = "final-recovery";
+        exchange.intentionalCut(); response.destroy(); return;
       }
       const replyHeaders = {};
       upstream.headers.forEach((value, name) => { if (!["connection", "content-length", "transfer-encoding"].includes(name)) replyHeaders[name] = value; });
@@ -359,16 +419,16 @@ function tokenLocations(db, token) {
   return hits.sort();
 }
 
-async function keycloakWitness(paths, scratch, config) {
-  stage = "keycloak-project";
-  const project = await prepareProject(scratch, "keycloak", paths, "keycloak");
+async function keycloakWitness(paths, scratch, config, mode = "primary") {
+  stage = `keycloak-${mode}-project`;
+  const project = await prepareProject(scratch, `keycloak-${mode}`, paths, "keycloak");
   await assertScratch(scratch);
   safeCommand(paths.binary, project, ["check", "--json"]);
   const completion = { id: null };
   let engine; const proxy = await startFaultProxy({
     workerPids: () => engine?.workerPids() ?? new Set(),
     identity: () => engine?.identity ?? fail("engine-custody-unavailable"),
-  });
+  }, mode, project, () => completion.id ?? fail("completion-id-unavailable"));
   let witnessError = null;
   try {
     engine = await startEngine(paths.binary, project, { OIDC_CLIENT_SECRET: config.clientSecret });
@@ -376,12 +436,12 @@ async function keycloakWitness(paths, scratch, config) {
     const binding = randomBytes(32).toString("base64url"); secrets.add(binding);
     const bindingHash = createHash("sha256").update(binding).digest("base64url"); secrets.add(bindingHash);
     const beginId = `b1c-begin-${randomUUID()}`;
-    stage = "keycloak-begin";
+    stage = `keycloak-${mode}-begin`;
     const begun = await collect("beginOidc", beginId, { bindingHash }, admitting.token);
     assert(begun.state === "done" && typeof begun.result?.authorizationUrl === "string", "begin-result");
     const state = new URL(begun.result.authorizationUrl).searchParams.get("state");
     assert(state, "provider-state"); secrets.add(state);
-    stage = "keycloak-browser-code";
+    stage = `keycloak-${mode}-browser-code`;
     const callback = await authorizeWithKeycloak(config, begun.result.authorizationUrl, () => fail("browser-flow"));
     const code = callback.searchParams.get("code");
     const returnedState = callback.searchParams.get("state");
@@ -390,27 +450,44 @@ async function keycloakWitness(paths, scratch, config) {
     secrets.add(code);
     completion.id = `b1c-complete-${randomUUID()}`;
     const args = { code, state, binding, error: null, iss: issuer };
-    stage = "keycloak-lost-mint-recovery";
+    stage = `keycloak-${mode}-lost-mint-recovery`;
     const done = await collect("completeOidc", completion.id, args, admitting.token);
     assert(done.state === "done" && done.result?.token && done.result.kind === "oidc", "complete-result");
     secrets.add(done.result.token);
-    assert(proxy.state.phase === "done" && proxy.state.cuts.length === 1 && proxy.state.mints.length === 2, "fault-cuts");
-    const [oldMint, recoveredMint] = proxy.state.mints;
-    assert(oldMint.pid !== recoveredMint.pid && engine.workerPids().has(recoveredMint.pid), "worker-process-restart");
-    assert(oldMint.binding?.invocationId === completion.id && oldMint.binding?.intent === "identity-session/v1"
-      && !Object.hasOwn(oldMint.binding, "replaceLostDelivery"), "initial-wire");
-    assert(recoveredMint.binding?.invocationId === completion.id && recoveredMint.binding?.intent === "identity-session/v1"
-      && recoveredMint.binding?.replaceLostDelivery === true, "recovery-wire");
-    assert(oldMint.session.principal === done.result.principal && recoveredMint.session.principal === done.result.principal
-      && oldMint.session.kind === done.result.kind && recoveredMint.session.kind === done.result.kind, "immutable-mint-inputs");
-    assert(oldMint.session.expiresAt === recoveredMint.session.expiresAt && recoveredMint.session.expiresAt === done.result.expiresAt, "same-expiry");
-    assert(oldMint.session.token !== recoveredMint.session.token && recoveredMint.session.token === done.result.token, "replacement-token");
+    const expectedMints = mode === "before-mint" ? 1 : mode === "after-step" ? 3 : 2;
+    const expectedCuts = mode === "after-step" ? 2 : 1;
+    assert(proxy.state.phase === "done" && proxy.state.cuts.length === expectedCuts
+      && proxy.state.mints.length === expectedMints, "fault-cuts");
+    const finalMint = proxy.state.mints.at(-1);
+    assert(finalMint && engine.workerPids().has(finalMint.pid)
+      && new Set([...proxy.state.cuts.map(cut => cut.pid), ...proxy.state.mints.map(mint => mint.pid)]).size === expectedCuts + 1,
+    "worker-process-restart");
+    if (mode === "after-step") requireCrashCutWorkers({
+      firstKilledPid: proxy.state.cuts[0]?.pid, recoveredMintPid: proxy.state.recoveredMintPid,
+      donePid: proxy.state.stepDonePid, finalMintPid: finalMint?.pid,
+    }, assert);
+    assert(finalMint.binding?.invocationId === completion.id && finalMint.binding?.intent === "identity-session/v1"
+      && finalMint.binding?.replaceLostDelivery === true, "recovery-wire");
+    if (mode !== "before-mint") {
+      const initialMint = proxy.state.mints[0];
+      assert(initialMint.binding?.invocationId === completion.id && initialMint.binding?.intent === "identity-session/v1"
+        && !Object.hasOwn(initialMint.binding, "replaceLostDelivery"), "initial-wire");
+    } else assert(proxy.state.bindingAbsentAtCut && proxy.state.exchangeDoneAtCut, "binding-absence-observed");
+    assert(proxy.state.mints.every(mint => mint.session.principal === done.result.principal && mint.session.kind === done.result.kind
+      && mint.session.expiresAt === done.result.expiresAt), "immutable-mint-inputs");
+    assert(new Set(proxy.state.mints.map(mint => mint.session.token)).size === expectedMints
+      && finalMint.session.token === done.result.token, "replacement-token");
+    const initialRequest = proxy.state.initialMintRequest;
+    assert(initialRequest && proxy.state.mints.every(mint => mint.request.principal === initialRequest.principal
+      && mint.request.kind === initialRequest.kind && mint.request.days === initialRequest.days), "immutable-mint-request");
+    if (mode === "after-step") assert(proxy.state.stepDone?.result?.minted === true, "mint-step-done-receipt");
     assert(proxy.state.provider.filter(event => event.method === "POST" && event.path.endsWith("/token")).length === 1, "provider-code-once");
     assert(proxy.state.provider.filter(event => event.blocked).length === 0, "provider-independent-replay");
     const live = await whoami(done.result);
-    const stale = await whoami(oldMint.session);
     assert(live.data === done.result.principal, "new-token-public-query");
-    assert(stale.denied?.code === "E_AUTH", "old-token-public-query");
+    for (const staleMint of proxy.state.mints.slice(0, -1)) {
+      assert((await whoami(staleMint.session)).denied?.code === "E_AUTH", "old-token-public-query");
+    }
 
     stage = "keycloak-own-profile";
     const queriedBefore = Date.now();
@@ -431,18 +508,19 @@ async function keycloakWitness(paths, scratch, config) {
     const unrelatedProfile = (await http("/q/identityOwnProfile", { args: {} }, unrelated.token)).value;
     assert(unrelatedProfile.data === null, "unrelated-own-profile");
 
-    stage = "keycloak-read-only-family-inspection";
+    stage = `keycloak-${mode}-read-only-family-inspection`;
     const db = database(project);
     try {
       const bindingRow = db.prepare("SELECT family, expires_at FROM _session_mint_bindings WHERE invocation = ? AND intent = 'identity-session/v1'").get(completion.id);
-      assert(bindingRow && bindingRow.family === sha256(oldMint.session.token)
-        && bindingRow.expires_at === oldMint.session.expiresAt && bindingRow.expires_at === done.result.expiresAt, "binding-row-original-family");
+      const originalMint = proxy.state.mints[0];
+      assert(bindingRow && bindingRow.family === sha256(originalMint.session.token)
+        && bindingRow.expires_at === originalMint.session.expiresAt && bindingRow.expires_at === done.result.expiresAt, "binding-row-original-family");
       const familyRows = db.prepare("SELECT token_digest, expires_at FROM _sessions WHERE family = ?").all(bindingRow.family);
       assert(familyRows.length === 1 && familyRows[0].token_digest === sha256(done.result.token)
         && familyRows[0].expires_at === done.result.expiresAt, "same-family");
       const mintStep = db.prepare("SELECT result FROM _action_steps WHERE invocation = ? AND name = 'oidc.mint'").get(completion.id);
-      assert(mintStep && !String(mintStep.result).includes(oldMint.session.token) && !String(mintStep.result).includes(done.result.token), "step-token-absence");
-      assert(tokenLocations(db, oldMint.session.token).length === 0, "old-token-persisted");
+      assert(mintStep && proxy.state.mints.every(mint => !String(mintStep.result).includes(mint.session.token)), "step-token-absence");
+      for (const staleMint of proxy.state.mints.slice(0, -1)) assert(tokenLocations(db, staleMint.session.token).length === 0, "old-token-persisted");
       assert(JSON.stringify(tokenLocations(db, done.result.token)) === JSON.stringify(["_requests.result"]), "final-token-result-only");
     } finally { db.close(); }
     const diagnostic = safeCommand(paths.binary, project, ["why", completion.id]);
@@ -461,10 +539,12 @@ async function keycloakWitness(paths, scratch, config) {
       catch (error) { witnessError ??= error; }
     }
   }
+  const cleanupComplete = witnessError === null;
   if (witnessError) throw witnessError;
   if (instrumentFailureCode) fail(instrumentFailureCode);
-  observations.push("actual-keycloak-generated-helper", "post-commit-lost-reply-process-crash", "same-family-same-expiry-old-token-invalid",
-    "actual-keycloak-derived-own-profile", "default-diagnostic-redaction");
+  if (mode === "primary") observations.push("actual-keycloak-generated-helper", "post-commit-lost-reply-process-crash",
+    "same-family-same-expiry-old-token-invalid", "actual-keycloak-derived-own-profile", "default-diagnostic-redaction");
+  else appendCrashCutObservation(observations, mode, cleanupComplete, assert);
 }
 
 async function rawAuthorityWitness(paths, scratch) {
@@ -527,10 +607,13 @@ async function rawAuthorityWitness(paths, scratch) {
     assert((await mint(cancelled, `oidc:raw-cancel-${randomUUID()}`)).denied?.code === "E_ACTION_LEASE", "cancel-refusal");
     const settled = await admit(); await finish(settled);
     assert((await mint(settled, `oidc:raw-settled-${randomUUID()}`)).denied?.code === "E_ACTION_LEASE", "settled-refusal");
-    const deadline = await admit("qualificationDeadline"); await delay(2_200);
-    const deadlineOutcome = await action(deadline.actionName, deadline.id, {}, deadline.owner.token, 0);
-    assert(deadlineOutcome.state === "failed" && deadlineOutcome.why?.code === "E_ACTION_DEADLINE", "deadline-terminal-evidence");
-    assert((await mint(deadline, `oidc:raw-deadline-${randomUUID()}`)).denied?.code === "E_ACTION_LEASE", "deadline-refusal");
+    const deadline = await admit("qualificationDeadline");
+    await proveDeadlineSequence({ run: deadline, waitPastDeadline: () => delay(2_200), require: assert,
+      status: async () => (await http(`/actions/${encodeURIComponent(deadline.id)}/status`, {}, service,
+        { "x-snapback-action-lease": deadline.held.session.token })).value,
+      collect: () => action(deadline.actionName, deadline.id, {}, deadline.owner.token, 0),
+      mint: () => mint(deadline, `oidc:raw-deadline-${randomUUID()}`),
+    });
 
     stage = "raw-parked";
     const parked = await admit();
@@ -615,8 +698,11 @@ async function main() {
   const scratch = await makeScratch(privateParent);
   retainedScratch = scratch;
   try {
-    await keycloakWitness(paths, scratch, config);
-    await portMustBeFree(enginePort).catch(() => fail("engine-port-not-released"));
+    for (const mode of ["primary", "before-mint", "after-step"]) {
+      await keycloakWitness(paths, scratch, config, mode);
+      await portMustBeFree(enginePort).catch(() => fail("engine-port-not-released"));
+      await portMustBeFree(proxyPort).catch(() => fail("proxy-port-not-released"));
+    }
     await rawAuthorityWitness(paths, scratch);
   } finally {
     for (const child of [...children]) await stopChild(child).catch(() => {});

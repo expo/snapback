@@ -21,6 +21,9 @@ use tiny_http::{Header, Method, Request, Response, Server};
 #[path = "actions.rs"]
 mod actions;
 
+#[path = "effects.rs"]
+mod effects;
+
 #[path = "serve_routes.rs"]
 mod routes;
 
@@ -410,16 +413,9 @@ fn service_of_locked(request: &Request, shared: &Shared, engine: &Engine) -> Res
     let refused = || Refusal::new("E_AUTH", "auth", "this is a worker's door: send a live service token (`snapback4 token --service <name>`)").guide("effects");
     if !matches!(single_header(request, "x-snapback-persona"), Ok(None)) { return Err(refused()); }
     let token = crate::auth::bearer_token(request).map_err(|e| e.refusal())?;
-    let Some((principal, kind)) = snapback4_core::identity::resolve(engine.store(), &token, shared.now()).map_err(|e| e.refusal())? else { return Err(refused()); };
-    if !snapback4_core::identity::is_service(&principal) || kind != "service"
-        || !crate::dev_worker::current_session(engine.store(), &token, shared.worker_revision.load(Ordering::Acquire)).map_err(|e| e.refusal())? {
-        return Err(refused());
-    }
-    Ok(principal)
-}
-
-fn effect_json(run: &snapback4_core::EffectRun) -> Json {
-    json!({ "id": run.id, "effect": run.effect, "payload": wire::to_json(&run.payload), "state": run.state, "attempt": run.attempts, "seq": run.seq, "at": run.at, "nextAt": run.next_at, "leaseUntil": run.lease_until, "leaseToken": run.lease_token, "deadline": run.deadline, "cancelled": run.cancelled, "result": run.result.as_ref().map(wire::to_json), "error": run.error, "errorCode": run.error_code })
+    snapback4_core::identity::current_service(engine.store(), &token, snapback4_core::identity::ServiceSample {
+        now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire),
+    }).map_err(|e| e.refusal())?.ok_or_else(refused)
 }
 
 /// A commit outside a request: let every long poll see it.
@@ -812,7 +808,7 @@ fn handle(mut request: Request, shared: &Shared) {
             return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
         }
     }
-    if method == Method::Post && (path == "/auth/revoke" || path.starts_with("/effects/") || path.starts_with("/routes/verify/") || (path.starts_with("/actions/") && !path.ends_with("/cancel"))) {
+    if method == Method::Post && (path == "/auth/revoke" || path.starts_with("/routes/verify/") || (path.starts_with("/actions/") && !path.ends_with("/cancel"))) {
         if let Err(refusal) = service_of(&request, shared) {
             return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
         }
@@ -875,6 +871,9 @@ fn handle(mut request: Request, shared: &Shared) {
         (Method::Post, "/routes/verify/claim") => routes::claim(request, shared, &body),
         (Method::Post, path) if path.starts_with("/routes/verify/") => routes::settle(request, shared, path, &body),
         (Method::Post, path) if path.starts_with("/actions/") => actions::settle(request, shared, path, &body),
+        (Method::Post, "/effects/claim") => effects::claim(request, shared, &body),
+        (Method::Post, path) if path.starts_with("/effects/") => effects::post(request, shared, path, &body),
+        (Method::Get, "/effects") => effects::list(request, shared, &url),
         (Method::Get, "/probe") => match principal_of(&request, shared) {
             Ok(_) => {
                 let identity = { let engine = lock(&shared.engine); engine.store().meta("store_id").and_then(|id| engine.store().seq().map(|seq| (id, seq))) };
@@ -1180,90 +1179,6 @@ fn handle(mut request: Request, shared: &Shared) {
             match outcome {
                 Ok(revoked) => respond(request, 200, json!({ "revoked": revoked, "principal": principal })),
                 Err(error) => respond(request, if error.is_refusal() { 200 } else { 503 }, json!({ "denied": refusal_json(&error.refusal()) })),
-            }
-        }
-        (Method::Post, "/effects/claim") => {
-            let payload: Json = serde_json::from_str(if body.is_empty() { "{}" } else { &body }).unwrap_or(Json::Null);
-            let effect = payload.get("effect").and_then(Json::as_str).map(str::to_owned);
-            let limit = payload.get("limit").and_then(Json::as_u64).unwrap_or(1).clamp(1, 100) as usize;
-            let lease_ms = payload.get("lease").and_then(Json::as_i64).unwrap_or(60).clamp(1, 900) * 1_000;
-            let wait = payload.get("wait").and_then(Json::as_u64).unwrap_or(0).min(25);
-            let deadline = Instant::now() + Duration::from_secs(wait);
-            loop {
-                // @ref LLP 3000#7-decisions-during-execution — long effect claims reauthenticate after every wait.
-                // A wait is a new authorization boundary: a token revoked or
-                // expired while no work was available cannot claim work that
-                // appeared afterward.
-                let claimed = {
-                    let mut engine = lock(&shared.engine);
-                    let worker = match service_of_locked(&request, shared, &engine) {
-                        Ok(worker) => worker,
-                        Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
-                    };
-                    if shared.hold_effects { Ok(Vec::new()) }
-                    else if payload.get("fenced").and_then(Json::as_bool).unwrap_or(false) { engine.claim_effects_fenced(&worker, effect.as_deref(), limit, lease_ms, shared.now()) }
-                    else { engine.claim_effects(&worker, effect.as_deref(), limit, lease_ms, shared.now()) }
-                };
-                match claimed {
-                    Ok(runs) if runs.is_empty() && Instant::now() < deadline => {
-                        // Nothing due: wait for a commit (an emit), or for a
-                        // backoff to pass, then look again.
-                        let seq = lock(&shared.seq);
-                        let remaining = deadline.saturating_duration_since(Instant::now()).min(Duration::from_secs(2));
-                let _ = shared.committed.wait_timeout(seq, remaining).unwrap_or_else(|poisoned| poisoned.into_inner());
-                        #[cfg(test)]
-                        test_work(&shared.effect_wait);
-                    }
-                    Ok(runs) => return respond(request, 200, json!({ "effects": runs.iter().map(effect_json).collect::<Vec<_>>() })),
-                    Err(error) => { let refusal = error.refusal(); return respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
-                }
-            }
-        }
-        (Method::Post, path) if path.starts_with("/effects/") && path.ends_with("/cancel") => {
-            if let Err(why) = service_of(&request, shared) { return respond(request, 401, json!({ "denied": why })); }
-            let id = path.trim_start_matches("/effects/").trim_end_matches("/cancel");
-            match lock(&shared.engine).cancel_effect(id, shared.now()) {
-                Ok(run) => respond(request, 200, json!({ "ok": true, "effect": effect_json(&run) })),
-                Err(error) => respond(request, if error.refusal().retryable { 503 } else { 200 }, json!({ "denied": error.refusal() })),
-            }
-        }
-        (Method::Post, path) if path.starts_with("/effects/") && (path.ends_with("/done") || path.ends_with("/failed")) => {
-            let worker = match service_of(&request, shared) {
-                Ok(worker) => worker,
-                Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
-            };
-            let id = path.trim_start_matches("/effects/").trim_end_matches("/done").trim_end_matches("/failed").to_owned();
-            let payload: Json = serde_json::from_str(if body.is_empty() { "{}" } else { &body }).unwrap_or(Json::Null);
-            let settled = if path.ends_with("/done") {
-                let result = match payload.get("result") {
-                    None | Some(Json::Null) => None,
-                    Some(json) => match wire::untyped(json) {
-                        Ok(value) => Some(value),
-                        Err(why) => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", format!("result: {why}"))) })),
-                    },
-                };
-                snapback4_core::Settled::Done { result }
-            } else {
-                snapback4_core::Settled::Failed { error: payload.get("error").and_then(Json::as_str).unwrap_or("the worker failed").to_owned(), retry: payload.get("retry").and_then(Json::as_bool).unwrap_or(true) }
-            };
-            let token = match single_header(&request, "x-snapback-effect-lease") { Ok(token) => token, Err(()) => return respond(request, 200, json!({ "denied": Refusal::new("E_EFFECT_LEASE", "schema", "send one effect claim token") })) };
-            let outcome = lock(&shared.engine).settle_effect_claim(&id, &worker, token, settled, shared.now());
-            match outcome {
-                Ok(run) => respond(request, 200, json!({ "ok": true, "effect": effect_json(&run) })),
-                Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else if refusal.code == "E_EFFECT_UNKNOWN" { 404 } else { 200 }, json!({ "denied": refusal_json(&refusal) })) }
-            }
-        }
-        (Method::Get, "/effects") => {
-            if let Err(refusal) = service_of(&request, shared) {
-                return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
-            }
-            let params = query_params(&url);
-            let state = params.get("state").cloned();
-            let limit: usize = params.get("limit").and_then(|s| s.parse().ok()).unwrap_or(100);
-            let outcome = lock(&shared.engine).effects(state.as_deref(), limit);
-            match outcome {
-                Ok(runs) => respond(request, 200, json!({ "effects": runs.iter().map(effect_json).collect::<Vec<_>>() })),
-                Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
             }
         }
         (Method::Post, "/auth/guest") | (Method::Post, "/auth/signup") | (Method::Post, "/auth/login")

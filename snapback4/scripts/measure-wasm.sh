@@ -11,7 +11,7 @@ if [ -n "$source_status" ]; then
   dirty=true
   echo 'WARNING: measuring a dirty source tree; sha identifies the base, not the measured artifact (dirty=true).' >&2
 fi
-node scripts/attribute-wasm.mjs --check-families >&2
+node scripts/attribute-wasm.mjs --check-families --check-absent >&2
 cargo build -p snapback4-device --no-default-features --features web --profile wasm --target wasm32-unknown-unknown --quiet
 out=$(mktemp -d)
 wasm-bindgen --target web --out-dir "$out" target/wasm32-unknown-unknown/wasm/snapback4_device.wasm

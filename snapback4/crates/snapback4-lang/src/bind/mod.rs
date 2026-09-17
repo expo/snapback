@@ -11,6 +11,7 @@ mod actions;
 mod routes;
 mod key_bound;
 mod aggregate_copies;
+mod time_indexes;
 
 use crate::ast::Document;
 use crate::diag::Diagnostic;
@@ -56,7 +57,7 @@ pub fn bind(documents: Vec<Document>) -> Bound {
                 }
                 api_roots.entry(root.clone()).or_insert((nested, decl.site.clone()));
             }
-            if let Some(bound) = program::Binder::bind(&catalog, &module, decl, &mut diagnostics) {
+            if let Some(bound) = program::Binder::bind(&catalog, &schema, &module, decl, &mut diagnostics) {
                 programs.push(bound);
             }
         }
@@ -242,9 +243,9 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                 let cap = if !pinned.is_empty() && schema.group_bound(table, &pinned).is_none() && page.merge_site.is_none() && schema.maintain_for(table).is_none() && schema.tables[table].indexes[&page.index].is_plain() {
                     let limit = take.min(snapback4_core::Ceilings::default().examined);
                     let by = format!(" by {}", pinned.join(", "));
-                    format!("or declare `cap {limit}{by}` on table {table} if that is the intended group limit; other metered work can still cut the read")
+                    format!("or declare `cap {limit}{by}` on table {table} if that is the intended group limit, then read the whole group: `{table}[..]`; other metered work can still cut the read")
                 } else {
-                    "a table `cap N by column` can replace a cursor for a single plain group page that pins column and covers N within the examined ceiling; this page still needs continuation".into()
+                    "read the whole group: `t[..]`, when its schema cap fits the examined ceiling; otherwise this page still needs continuation".into()
                 };
                 notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on", bound.program.kind.word(), bound.program.name), format!("declare `c: cursor ?` and page with `after c` — {}(.., c: cursor ?): return {}[..] after c last {take} by <index>; {cap}", bound.program.name, table)).guide("reads"));
             }
@@ -253,7 +254,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         // when ordered heads avoid reading a full page from every lane.
         for merge in merges(&bound.program.body) {
             let take = merge.take() + 1;
-            let lanes: u64 = merge.lanes.iter().map(|lane| lane.source.as_ref().map_or(1, |source| source.take.maximum())).sum();
+            let Some(lanes) = merge.static_lanes() else { continue };
             if lanes <= 50 {
                 continue;
             }
@@ -268,7 +269,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             // @ref LLP 3000.007#20.3 — principal-to-principal discovery grows with the relationship count; Following is one example.
             let related_principals = merge.lanes.iter().any(|lane| {
                 use snapback4_core::ir::{Expr, Stmt};
-                let Some(source) = &lane.source else { return false };
+                let Some(source) = lane.source.as_ref().and_then(snapback4_core::ir::LaneSource::scan) else { return false };
                 let table = &schema.tables[&source.table];
                 let index = &table.indexes[&source.index];
                 let pinned = index.columns().into_iter().take(source.prefix.len()).collect::<Vec<_>>();
@@ -282,9 +283,9 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             });
             let matching = merge.lanes.iter().any(|lane| lane.scan.prefix.iter().any(|key| matches!(key, snapback4_core::ir::IndexKeyExpr::WordPrefix(_))));
             let (message, rewrite) = if matching {
-                // @ref LLP 3000.007#18.1 — page scope discovery separately; a matching merge cursor cannot recover an opening cut.
+                // @ref LLP 3000.007#20.22.4 — a grouped filtered page continues membership discovery through a meter cut.
                 (format!("{} {}: the merge over {} reads {work}; a read past the {ceiling} examined ceiling returns `complete: false`", bound.program.kind.word(), bound.program.name, merge.table()),
-                    "`snapback4 guide search`, section \"Search every chat I'm in\": search held messages with one unscoped words index, or page memberships 50 at a time and exhaust each matching merge with its own result cursor before advancing the membership cursor; a result cursor alone does not continue undiscovered chats, an opening cut or a word-limit cut; a uniform lazy drain cut carries `next` after its last emitted row. Measure with `snapback4 check --cost`; if a held query answers this read, delete the merge")
+                    "use the grouped one-cursor form in `snapback4 guide search`, section \"Search every chat I'm in\", to search every membership through a meter cut; measure with `snapback4 check --cost`")
             } else if related_principals {
                 (format!("{} {}: read cost grows with the number of related principals (up to {lanes} lanes); a read past the {ceiling} examined ceiling returns `complete: false`", bound.program.kind.word(), bound.program.name),
                     "keep read-time merges for a bounded small number of related principals; for Following, `snapback4 init --recipe feeds --prefix feed`; measure with `snapback4 check --cost`; if a held query answers this read, delete the merge")
@@ -361,7 +362,7 @@ fn matching_merge_rewrite(schema: &Schema, scan: &snapback4_core::ir::Scan, tabl
         let (words_index, _) = table.indexes.iter().find(|(_, index)| index.word_component().is_some_and(|(position, text)| index.columns()[..position] == scope && text == fields))?;
         let (source_index, _) = membership.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().first() == columns.get(principal) && index.columns().last().is_some_and(|column| column == "id"))?;
         let prefix = key.iter().zip(&columns).filter_map(|(term, column)| matches!(term, RuleTerm::Field(_)).then(|| format!("m.{column}"))).collect::<Vec<_>>().join(", ");
-        Some(format!("merge {} matching q last {} by {words_index}: [{prefix}] for m in {members}[viewer] first 50 by {source_index} — one verdict per scope and a complete page; or read the page on the device", scan.table, scan.take.maximum()))
+        Some(format!("merge {} matching q last {} by {words_index}: [{prefix}] for m in {members}[viewer] by {source_index} — one verdict per scope; complete while every head opens and the page fits in one read; or read the page on the device", scan.table, scan.take.maximum()))
     })
 }
 

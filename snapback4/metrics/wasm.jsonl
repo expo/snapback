@@ -3,3 +3,4 @@
 {"at":"2026-09-13T08:08:36Z","sha":"6918cccbc","wasm":{"raw":1212605,"gzip":312924,"brotli":237870},"glue":{"raw":10730,"gzip":2879,"brotli":2544},"wasmOpt":false}
 {"at":"2026-09-13T15:25:11Z","sha":"42437496d","wasm":{"raw":2500589,"gzip":647583,"brotli":482114},"glue":{"raw":10730,"gzip":2879,"brotli":2544},"wasmOpt":false}
 {"at":"2026-09-17T16:58:43Z","sha":"1f287504b1","dirty":false,"wasm":{"raw":1597622,"gzip":466171,"brotli":362400},"glue":{"raw":11325,"gzip":3047,"brotli":2700},"wasmOpt":false,"budget":467000,"over":0}
+{"at":"2026-09-17T20:57:47Z","sha":"af6ab51b7d","dirty":false,"wasm":{"raw":1531216,"gzip":451283,"brotli":351475},"glue":{"raw":11325,"gzip":3047,"brotli":2700},"wasmOpt":false,"budget":452000,"over":0}

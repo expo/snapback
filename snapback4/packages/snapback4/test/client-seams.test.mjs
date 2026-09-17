@@ -789,7 +789,7 @@ query onlineValue():
   assert.equal(read.denied?.code, "E_QUERY_HELD", JSON.stringify(read));
   assert.equal(read.denied.guide, "search");
   assert.equal(read.denied.message, "query heldValue is held: it runs only on the device");
-  assert.match(read.denied.rewrite, /scoped server walk/);
+  assert.match(read.denied.rewrite, /grouped or newest form/);
   const ordinary = await client.query({ kind: "query", name: "onlineValue" }, {});
   assert.deepEqual(ordinary.data, [1, 2]); assert.equal(ordinary.cut, null); assert.equal(ordinary.complete, true);
 });

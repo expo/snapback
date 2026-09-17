@@ -36,7 +36,7 @@ incomplete below every limit. A `first 1` page without a cursor is incomplete
 when its range contains two held rows. Read `complete` on each answer; a held query with an
 online-only source or no read sites gets no source-coverage line.
 Sources include reads nested in expressions such as the search text after `matching`.
-For full server history beyond holdings, use the scoped server walk on the search card.
+For full server history beyond holdings, use the grouped or newest form on the search card.
 
 To inspect a real account's server work under loopback `dev`, use the online
 client `createClient({ url, session })` (or a bearer `token`); meters are available by default.
@@ -68,6 +68,8 @@ unique index covering the whole key wins; otherwise name `by index`
 query readForms(roomId: rooms, messageId: messages, c: cursor ?):
   one = messages[messageId]                                  -- one row by a unique key: null if absent or hidden
   must = messages[messageId] ! else NOT_FOUND                 -- the row, or refuse with the code
+  roster = members[roomId] by byRoomPrincipal                 -- ascending whole group, bounded by cap 100
+  anyMessage = exists messages[roomId]                        -- first visible match; false on absence
   member = exists members[roomId, viewer]                    -- true or false; positional keys match the index columns
   admin = exists members[roomId = roomId, principal = viewer, role = 'admin']   -- named keys; `by` names the index when two match
   oldest = messages[roomId, at < must.at] last 20 by byRoomTime           -- the nearest earlier rows
@@ -142,7 +144,7 @@ mutation setTyping(roomId: rooms):
   upsert typing[roomId, viewer] { roomId, principal: viewer, expiresAt: now + 4500 }
 
 query typingNow(roomId: rooms):
-  return typing[roomId] first 50 by byRoomPrincipal { principal, expiresAt }
+  return typing[roomId] by byRoomPrincipal { principal, expiresAt }
 ```
 
 The first read examples use the language card's tables. A page's read rule is checked
@@ -163,10 +165,11 @@ A table page accepts its modifiers in any order, once each. The printed order
 is `[matching q]`, `after c`, `first N` or `last N`, `by index`, `where predicate`.
 At the predicate's level, a non-index modifier ends `where` and belongs to that outer
 read: `posts[viewer] where exists follows[viewer, .authorId] last 20 by byAuthorTime`.
-An immediate `by` after an unparenthesized inner read is ambiguous
+An immediate `by` or `matching` after an unparenthesized inner read is ambiguous
 (`E_QUARRY_MODIFIER_SCOPE`): parenthesize the inner read, or move the modifier
 before `where`. `check --fix` preserves the inner index by adding parentheses:
 `where exists (follows[viewer, .authorId] by byPair)`.
+For an inner search use `where exists (messages[.roomId] matching q)`.
 
 ## Pages without a cursor
 
@@ -174,7 +177,7 @@ A page a query returns without
 a cursor cannot be continued: an unfiltered page with more rows reads
 `complete: false` with no `next` (N_NO_CURSOR); declare `c: cursor ?` and
 page with `after c`, or declare `cap 50 by conversationId` on the table
-for a page of 50 pinned by `conversationId`, if 50 is the intended group limit
+then read the whole group: `t[prefix]`, pinned by `conversationId`, if 50 is the intended group limit
 and no existing cap already bounds that group. Unscoped pages and pages
 whose existing cap exceeds their bound or the meter still need continuation.
 A cap refuses writes beyond its limit: it is a data constraint, not a hint.
@@ -189,12 +192,44 @@ includes `Read.meter` by default: examine `examined`, `indexEntries`, `probes`
 and `cut` on the returned answer. Local device reads have no meter; `serve`
 never returns these development counters.
 
+A boundless whole-group read uses the schema cap in ascending order, even in
+nested shapes and mutation loops. A cap above the examined ceiling requires
+explicit pagination for a returned page. `first N` remains an ordinary page;
+`last N` remains the descending spelling.
+
+In a program, `exists t[prefix]` or `exists (t[prefix] matching q)` stops at its
+first visible match below the page: it owns no cursor and never causes page
+overflow. It charges examined rows, including expired siblings, and matching
+word discovery. A meter cut before a match returns false on an already capped
+answer. On a device, a positive held witness is exact regardless of the horizon;
+a negative answer beyond a horizon needs coverage and is incomplete. Exact-key
+program probes and all rule probes keep their existing meaning. A mutation's
+prefix existence scan needs the same uniform, plain, non-expiring prefix as
+its other page reads. `exists` accepts no `where`, bound, cursor or seek.
+
 ## Merges, seeks and continuation
 
-A merge reads plain lanes, or matching lanes over a
-words index (guide search). Uniform plain merge lanes with a unique index or one ending
+A query merge lane's `for` accepts the domains a query statement `for`
+accepts: a prefix page, `range(a, b)` over int expressions, a bounded list
+argument or a bounded list expression, except `walk`. Range bounds evaluate
+once before discovery, without materializing the range; lists yield their
+elements in order. Empty domains give an empty complete page, and duplicate
+lanes still return each row once. Lane descriptors are heap-charged and
+iteration and scans remain metered. A non-uniform answer, an opening cut or a
+word-limit cut withholds `next`. A uniform lazy merge cut while draining
+established heads carries `next` after its last emitted row, with
+`complete: false, cut: 'meter'`.
+`check --cost` prints `lanes ≤ meter` for an unknown width. Literal bounds,
+the same expression plus literal offsets, and a list's `<=N` bound supply a
+static count; only a static count above 50 emits N_WIDE_MERGE.
+Lanes computed from `now` move between pages: at an hour boundary the newest
+lane appears and the oldest drops; the order-column cursor stays valid, and
+new-lane rows sorting before it are skipped, as with scores moving between pages.
+
+A merge reads ordered lanes, including time-key indexes, or matching lanes over a
+words index (guide search). Uniform ordered merge lanes with a unique index or one ending
 in `id` read one head each, then advance the winning lanes; `check` notes
-a merge past 50 lanes (N_WIDE_MERGE). The meter counts examined rows and
+an explicitly bounded merge past 50 lanes (N_WIDE_MERGE). The meter counts examined rows and
 probes; a query it cuts returns what it found and `complete: false`.
 A merge position uses the ordering suffix and appends the row id when that
 suffix does not already end in `id`, so equal ordering values never skip rows.

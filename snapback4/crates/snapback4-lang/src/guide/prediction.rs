@@ -9,6 +9,12 @@ that write after reload. See `guide writes` for terminal receipts and acquisitio
 `client.acquired` and `useAcquired()` say whether snapshot and catch-up finished;
 unacquired writes without a row report `queued without a row: not acquired yet`.
 
+The web device trusts the backend compiler's structural admission; it does not
+repeat that analysis locally. It still validates arguments, rows, rules, coverage
+and runtime budgets. A hand-built or corrupted backend can therefore produce
+local query answers or predictions where a native device reports a structural refusal. The server
+rechecks every submitted mutation before committing it.
+
 Run `snapback4 check --residency --verbose` and `snapback4 why <op>` to see read sites:
 - `held`: the viewer's whole synced partition, or an inherited maintain.
 - `horizon`: a synced `last N` window; a held row can be read, but a miss

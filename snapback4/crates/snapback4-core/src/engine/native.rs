@@ -641,6 +641,7 @@ fn dispatch(runner: &mut Runner<'_>, job: &str, op: &str, request: &Json) -> Res
                 prefix: prefix.into_iter().map(|value| IndexKeyExpr::Scalar(Expr::Literal(value))).collect(),
                 order,
                 take: Bound::Literal(first as u32),
+                existence: false,
                 after,
                 before: None,
                 range: None, filter: None,

@@ -17,7 +17,7 @@ site, counters and `snapback4 why <op>`. Repeats are suppressed per operation
 and site (at most two lines per minute); the next emitted line includes the
 suppressed count. `serve` neither logs these costs nor returns read meters.
 A loop is bounded
-by a page's `first N`, a list's `<=N`, `range`'s int expressions, `walk`'s depth,
+by a page's `first N`, a schema-capped prefix, a query's meter-bounded prefix, a list's `<=N`, `range`'s int expressions, `walk`'s depth,
 or `tokens`' 64. An accumulated list is bounded by the heap meter and its
 iterations by the step meter. `while` stays refused.
 `range(a, b)` evaluates int expressions once and iterates under the step meter,
@@ -29,6 +29,23 @@ hashing, then 64 heap bytes for its fixed lowercase hexadecimal result. A step
 cut refuses a scalar query with E_BOUND; a cut on that result allocation returns
 `data: null`, `complete: false`, as other query heap cuts do. A mutation rolls
 back on either cut.
+
+A query's `for row in t[prefix]:` and a merge lane's source may omit `first N`
+when the read rule is uniformly decided by that prefix; they read ascending
+until the prefix ends or the meter cuts, and `check --cost` prints `rows ≤ meter`
+and `lanes ≤ meter` when no fitting schema cap supplies a static bound.
+A loop the meter cuts has no continuation; a total over a group that can outgrow one read is a `maintain`.
+A returned or bound page instead needs a schema cap or an explicit page bound.
+Mutations and jobs may omit the bound only for a schema-capped group that fits
+the examined ceiling; they cannot use a query's meter-bounded prefix domain.
+
+E_QUARRY_BOUND means a boundless prefix is not valid in this position: no
+schema cap covers the group, its cap exceeds the examined ceiling, or a
+meter-bounded query prefix has a non-uniform read rule. Declare `cap N by cols`
+on the table if that is the intended group limit, then read `t[prefix]`, or
+page with `first N` and a cursor. For a non-uniform prefix, the rewrite also
+names the index columns to pin, as N_NEVER_COMPLETE does. A seek still writes
+its explicit page bound. Descending reads keep `last N`.
 
 
 ## Refused loops and scans
@@ -45,6 +62,7 @@ schema. For example, keeping a compiled read of `byOwner` after renaming
 that index leaves the scan unbound. Update the read's `by` clause and run
 `snapback4 check`, then use the regenerated backend together with its
 programs. Do not reuse old compiled programs against a new schema.
+Compiling and serving refuse it, and a native device checks again; the web device trusts that admission and does not repeat the check, so a hand-built or corrupted backend can still run there.
 
 E_FANOUT means a loop received more items than its declared bound.
 For example, a raw program declaring a ten-item loop cannot consume an

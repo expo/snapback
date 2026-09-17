@@ -701,90 +701,12 @@ fn w10r1b_backfill_leaves_room_for_delete_and_replace_before_purge() {
 }
 
 #[test]
-fn w11c_search_recipe_installs_the_card_and_generated_client() {
-    for (extra, prefix) in [(&[][..], ""), (&["--expo", "--prefix", "history"][..], "history"), (&["--online"][..], "")] {
-        let dir = Dir::new();
-        let output = Command::new(BIN).args(["init", "--recipe", "search"]).args(extra).current_dir(&dir.0).output().unwrap();
-        assert!(output.status.success(), "{output:?}");
-        let source = fs::read_to_string(dir.0.join("snapback/search.q")).unwrap();
-        let card = snapback4_lang::guide::quarry(snapback4_lang::guide::card("search").unwrap()).into_iter()
-            .find(|block| block.contains("query searchChats") && !block.contains("query searchHeld")).expect("installable server block");
-        assert_eq!(source, snapback4_lang::recipe::prefix_module(&card, prefix, "search").unwrap());
-        let bound = snapback4_lang::compile(&[("search.q".into(), source)]);
-        assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?} {:?}", bound.diagnostics, bound.notes);
-        assert_eq!(bound.programs.len(), 2);
-        assert_eq!(bound.schema.synced().count(), 0);
-        let checked = Command::new(BIN).args(["check", "--json"]).current_dir(&dir.0).output().unwrap();
-        assert!(checked.status.success(), "{checked:?}");
-        assert!(fs::read_to_string(dir.0.join("snapback/generated/api.ts")).unwrap().contains(&format!("search.{}", snapback4_lang::recipe::prefixed_name(prefix, "searchChatBatch"))));
-        assert!(fs::read_to_string(dir.0.join("src/search.ts")).unwrap().contains("!read.complete"));
-    }
-}
-
-#[path = "../../snapback4-sim/tests/search_global/fixture.rs"]
-mod search_fixture;
-
-#[test]
-fn w11c_installed_search_walks_past_wide_merge_and_reports_real_cuts() {
-    use snapback4_core::{Context, Engine, Value, value::object};
+fn w13e_removed_search_recipe_is_an_ordinary_unknown_recipe() {
     let dir = Dir::new();
-    let installed = Command::new(BIN).args(["init", "--recipe", "search"]).current_dir(&dir.0).output().unwrap();
-    assert!(installed.status.success(), "{installed:?}");
-    let source = fs::read_to_string(dir.0.join("snapback/search.q")).unwrap();
-    let wide = "\nquery wide(q: text <=100, c: cursor ?):\n  return merge messages matching q after c last 20 by byRoomWords:\n    [m.roomId] for m in members[viewer] first 1000 by byPrincipalRoom\n";
-    let bound = snapback4_lang::compile(&[("schema.q".into(), format!("{source}{wide}"))]);
-    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-    let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
-    engine.seed(search_fixture::seed(500)).unwrap();
-    let query = |engine: &mut Engine, name: &str, batch: Option<String>, c: Option<String>, term: &str| {
-        let mut args = std::collections::BTreeMap::from([("c".into(), c.map_or(Value::Null, Value::String))]);
-        if name != "searchChats" { args.insert("q".into(), Value::String(term.into())); }
-        if name == "searchChatBatch" { args.insert("batch".into(), batch.map_or(Value::Null, Value::String)); }
-        engine.query(name, Context::new("dev:alice", args).at(2000)).unwrap()
-    };
-    let wide = query(&mut engine, "wide", None, None, "cof");
-    assert!(!wide.complete && wide.next.is_none() && wide.capped_at.is_some());
-    let mut batch = None;
-    let mut walk = search_fixture::Walk::new();
-    let mut batches = 0;
-    let mut discovery = 0;
-    loop {
-        let chats = query(&mut engine, "searchChats", None, batch.clone(), "cof");
-        assert!(chats.complete);
-        assert!(chats.data.as_array().unwrap().len() <= 50);
-        discovery += chats.metered.examined;
-        batches += 1;
-        let mut c = None;
-        walk.start_batch();
-        loop {
-            let page = query(&mut engine, "searchChatBatch", batch.clone(), c, "cof");
-            assert!(page.complete);
-            c = page.next.clone();
-            walk.add(&page);
-            if c.is_none() { break; }
-        }
-        batch = chats.next;
-        if batch.is_none() { break; }
-    }
-    walk.assert_matches(500, 24, 50);
-    assert_eq!(batches, 10);
-    println!("W11c installed search: memberships=500 hits={} batches={batches} pages={} max_examined={} total_examined={} wide_examined={} wide_complete={}",
-        walk.ids.len(), walk.pages, walk.max_examined, walk.examined + discovery, wide.metered.examined, wide.complete);
-    // No lower/raised meter: enough misses in the ordinary 50 lanes cut the default ceiling.
-    for words in [false, true] {
-        let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
-        let mut rows = search_fixture::seed(50).into_iter().filter(|(table, _)| table == "members").collect::<Vec<_>>();
-        for room in 0..50 {
-            for n in 0..if words { 33 } else { 200 } {
-                rows.push(("messages".into(), object([("id", Value::Id(format!("r{room:04}-{n:03}"))),
-                    ("roomId", Value::Id(format!("r{room:04}"))), ("at", Value::Int(n)),
-                    ("body", Value::String(if words { format!("coffee{n:03}") } else { "coffee".into() }))])));
-            }
-        }
-        engine.seed(rows).unwrap();
-        let page = query(&mut engine, "searchChatBatch", None, None, if words { "cof" } else { "cof missing" });
-        assert!(!page.complete && page.next.is_none());
-        if words { assert!(page.word_cut_at.is_some()); } else { assert!(page.capped_at.is_some()); }
-        println!("W11c batch cut: kind={} examined={} complete={} next={}", if words { "words" } else { "meter" }, page.metered.examined, page.complete, page.next.is_some());
-    }
+    let unknown = Command::new(BIN).args(["init", "--recipe", "unknown"]).current_dir(&dir.0).output().unwrap();
+    let removed = Command::new(BIN).args(["init", "--recipe", "search"]).current_dir(&dir.0).output().unwrap();
+    assert_eq!(unknown.status.code(), Some(2));
+    assert_eq!(removed.status.code(), unknown.status.code());
+    assert_eq!(removed.stderr, unknown.stderr);
+    assert!(!dir.0.join("snapback").exists(), "unknown recipe writes nothing");
 }

@@ -6,6 +6,8 @@
 #[cfg(feature = "sqlite")]
 pub mod effects;
 #[cfg(feature = "sqlite")]
+mod effect_steps;
+#[cfg(feature = "sqlite")]
 pub mod actions;
 #[cfg(feature = "sqlite")]
 pub(crate) mod steps;
@@ -18,6 +20,7 @@ pub mod native;
 pub mod local;
 pub mod components;
 pub mod prediction;
+#[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
 pub mod admission;
 mod pages;
 pub use pages::returned_page_sites;
@@ -153,12 +156,12 @@ impl Context {
 #[serde(rename_all = "lowercase")]
 pub enum ReadCut { Meter, Words }
 
-// @ref LLP 3000.007#18.1 — held search stays on the device; a server walk needs scoped lanes.
+// @ref LLP 3000.007#20.22.7 — held search stays on the device; server search uses the grouped or newest form.
 #[cfg(any(feature = "sqlite", feature = "postgres"))]
 pub(crate) fn server_query_allowed(schema: &crate::schema::Schema, name: &str) -> Result<(), Refusal> {
     if schema.operations.get(name).is_some_and(|fact| fact.held) {
         return Err(Refusal::new("E_QUERY_HELD", "residency", format!("query {name} is held: it runs only on the device"))
-            .rewrite("call this query with the local client; for server search, use the scoped server walk in `snapback4 guide search`, section \"Search every chat I'm in\"")
+            .rewrite("call this query with the local client; for server search, use the grouped or newest form in `snapback4 guide search`, section \"Search every chat I'm in\"")
             .guide("search"));
     }
     Ok(())
@@ -185,14 +188,16 @@ pub struct QueryOutcome {
     pub next_expiry: Option<i64>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "sqlite", derive(Deserialize))]
 #[serde(tag = "state", rename_all = "lowercase")]
 pub enum WriteState {
     Sent { seq: u64, result: Value },
     Failed { why: Refusal, #[serde(default, skip_serializing_if = "Option::is_none")] current: Option<Value> },
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "sqlite", derive(Deserialize))]
 pub struct MutationOutcome {
     #[serde(flatten)]
     pub state: WriteState,
