@@ -27978,3 +27978,23 @@ requires a parent-owned external ProcessCustody envelope with a hard five-
 minute whole-run deadline, owned-process/descendant registration and cleanup
 on timeout; the harness itself has no whole-run cap, and this repository does
 not invent envelope CLI syntax.
+
+## 2026-09-17 — optional B1c instrument landed after narrow review repair
+
+The bounded instrument at source `d54756c32` is now READY in both original,
+mutually blind Sol/Grok review threads. The two-stream secrecy repair and
+mandatory external five-minute custody requirement are source-approved;
+the three synthetic tests and main-script syntax pass on the integrated
+copy under Node 24.13.1. No provider rerun occurred. Historical `682a834d5`
+primary assertions remain positive, its overall command remains nonzero,
+the raw authority matrix remains unrun, and corrected two-stream secrecy
+has no new actual-provider witness. The source matrix is labelled pending
+for the corrected revision, not substituted for runtime evidence.
+
+Cherry-pick integration kept the fixture source unchanged except truthful
+README status and the previously reviewed mint-input compatibility paragraph.
+The first JOURNAL conflict resolution omitted one separator newline; the
+following local documentation commit restored the exact main prefix plus
+each source append before landing. No historical entry was rewritten.
+Final delta answers, the read-only aggregate receipt and all limitations are
+linked from `reports/20260916-identity-c32.md`.

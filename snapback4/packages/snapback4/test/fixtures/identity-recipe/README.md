@@ -43,9 +43,11 @@ the legacy unbound mint path. Unpublished prototype `oidc.mint` receipts do not
 migrate: the current helper binds `protocol: "oidc-mint-bound/v1"` in the step
 input, so either a started or completed old-input receipt refuses before any
 mint request. It leaves an existing legacy unbound token untouched; use a fresh
-login and fresh action invocation to enter the bound protocol. B1c actual
-repaired-engine HTTP, lost-response and crash qualification is pending in the
-parent integration lane. Google
+login and fresh action invocation to enter the bound protocol. B1c's actual
+repaired-engine primary lost-response/process-crash path completed, but the
+historical command then failed before its raw authority matrix. The complete
+outcome and limitations are in the [integration record](../../../../../reports/20260916-identity-c32.md).
+Google
 credentials remain absent, so Google, production HTTPS and a real browser are
 also unqualified. Verification/recovery and the organizations-and-invitations
 recipe remain later identity work; this fixture is not full Identity/B.
@@ -60,8 +62,10 @@ engine evidence to this fixture.
 
 ## Prepared B1c real-engine qualification
 
-`qualify-b1c.mjs` is a source-only, not-yet-executed harness for the final
-parent-supplied B1c package and repaired Linux binary. It is deliberately not
+`qualify-b1c.mjs` is a diagnostic harness for the final parent-supplied B1c
+package and repaired Linux binary. Its current two-stream secrecy revision
+has not been executed against a provider; the historical partial result is
+recorded below. It is deliberately not
 compatible with the published 0.2.26 binary. In addition to requiring the
 executor's expected SHA-256 digest, it exercises the bound wire itself; an
 unbound legacy engine cannot satisfy the fixed-expiry/family and stale-claim
@@ -140,9 +144,11 @@ bodies are never printed. Before scratch creation, the path is null.
 
 ### Fault and observation matrix — source checkpoint
 
-All rows are **PENDING** until the parent executes the command above against
-the final combined Linux artifact. Syntax checking this harness is not
-qualification evidence.
+The table describes source coverage. All rows remain **PENDING for this
+corrected revision** until the parent executes it against the combined Linux
+artifact. The earlier `682a834d5` primary assertions completed, but its command
+exited 1 before any raw authority case. Syntax checking this harness is not
+qualification evidence; consult the integration record for historical results.
 
 This source correction does not change the historical evidence. The prior
 actual run remains partial positive / overall negative, and its default-

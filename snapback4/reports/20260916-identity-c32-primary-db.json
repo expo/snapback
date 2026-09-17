@@ -1,0 +1,50 @@
+{
+  "kind": "b1c-primary-db-read-only-aggregate",
+  "inspectedAt": "2026-09-17T04:13:44.663Z",
+  "source": {
+    "scratch": "/home/ccheever/sb4-b1c-qualification.ZDPu8s/sb4-b1c-yZ0BVU",
+    "dbPath": "/home/ccheever/sb4-b1c-qualification.ZDPu8s/sb4-b1c-yZ0BVU/keycloak/.snapback4/store.sqlite",
+    "openMode": "node:sqlite DatabaseSync readOnly=true",
+    "binaryPath": "/home/ccheever/targets/sb4-identity-qualification-20260917/debug/snapback4",
+    "binarySha256": "475d329aa515601dec6f122e72946efa38d918c097d24faa054a46b760669dec",
+    "sourceHead": "3a95cfcd3ce5443d61f59a01ff7d8c8171f35512"
+  },
+  "facts": {
+    "request": {
+      "total": 1,
+      "done": 1,
+      "settled": 1,
+      "noError": 1,
+      "jsonResult": 1,
+      "oidcResult": 1
+    },
+    "binding": {
+      "total": 1,
+      "intentV1": 1,
+      "oidcKind": 1,
+      "principalMatch": 1,
+      "expiryMatch": 1,
+      "minDays": 7,
+      "maxDays": 7
+    },
+    "family": {
+      "liveRows": 1,
+      "replacementDigest": 1,
+      "expiryMatch": 1
+    },
+    "step": {
+      "total": 1,
+      "done": 1,
+      "settled": 1,
+      "noError": 1,
+      "resultPresent": 1
+    },
+    "rawAuthorityDatabasePresent": false
+  },
+  "redaction": "Counts, equality predicates, protocol literals, and time-duration metadata only; no token, digest, family, principal, invocation, args, result, provider key, or credential values emitted.",
+  "nonClaims": [
+    "Raw authority matrix did not run.",
+    "This receipt does not diagnose B1C_PROXY_REQUEST.",
+    "Primary behavioral assertions remain those completed by the harness before its four observations were appended."
+  ]
+}
