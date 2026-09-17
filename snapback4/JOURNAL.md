@@ -31030,3 +31030,55 @@ repository root and exited 101 before running tests; it was rerun from the
 Snapback 4 workspace. All reported Cargo test/build results are from
 `snapback4/`. The first fixture compile also caught a moved `next` value in
 a test assertion; that assertion was corrected before the baseline red runs.
+
+## 2026-09-17 — maintained columns: two gates measured by proxy; the horizon gate fails and finds a P1
+
+LLP 3000.007.001 read READY from both families this morning; its §7 asks for three
+measurements before a lane is briefed. Nothing is built, so the lead measured with the form
+the column replaces — a hand-kept count column whose `update` puts the parent row on every
+like — which is byte-for-byte what §3.5's mirror would put. Published `snapback4@0.2.27`
+binary; record `benchmarks/runs/2026-09-17-snapback4-derived-probes/column-gates/` and
+`horizon-gap/`.
+
+**Gate 1** (100,000 likes over 2,000 posts, a bystander device following the log; on-disk
+store, checkpointed, against a zero-like baseline). Per like — wire / log / database
+growth, bytes: column 823 / 851 / 1,794 on a 500-byte parent and 4,323 / 4,351 / 5,667 on a
+4,000-byte one; synced maintain 329 / 334 / 1,170; `online only` 182 / 190 / 997. The like
+row is 182 bytes in every form, so the count's own cost is 641 B as a column against 147 B
+as a maintain row (4.4×), 4,141 B on the large parent (28×). The gate's letter ("no worse
+than the hand-kept score") is an equality the lane asserts; what the numbers change is how
+loud `N_MAINTAINED_COLUMN_STREAM` has to be.
+
+**Gate 2** (the workload pinned before measuring: the Clique scale fixture's recorded like
+stream, unmodified; a device acquiring `last 2000 by byTime` at the 50% checkpoint). The
+engine sent the device **1,165 distinct posts beyond its horizon** in the replay's
+remaining 7.7 hours — **58.3% against a 10% threshold**; an analysis of the fixture alone
+gives the same 1,165. By §3.6's rule, written before the measurement, a device-side repair
+is designed and reviewed before the first build ships on a horizoned table.
+
+**Then the real finding.** Asking what a device does with those rows: its coverage rule
+(`engine/read.rs`, after the scan loop — same index, descending, more rows held below)
+assumes the rows it holds on the horizon index are a contiguous newest suffix. They are
+not, once any old row has been updated. On the **published client** (wasm device in Node),
+`sync public last 5 by byTime`, twelve posts, `posts after c last 3 by byTime`: before any
+like the pages are `p12 p11 p10`, `p09 p08 p07`, `p06 p05 p04` (the page crossing the
+horizon goes to the server). After alice likes `p02` and `p04`: `p12 p11 p10`,
+`p09 p08 p04`, `p03 p02 p01` — **three posts skipped, every page `complete: true, fresh:
+true`.** Filed P1: `issues/20260917-snapback4-device-page-past-horizon-answers-from-
+scattered-rows.md`. It predates this program: the hand-kept `score` three Clique builders
+wrote causes it, and so does an edit to an old post. No fixture or calibration could have
+seen it, because each starts from a fresh device and a fresh snapshot repairs it.
+
+Decision L14 (LLP 3000.007 §21.8, the lead's, under the author's delegation): the horizon
+repair precedes maintained columns; gate 5 (activation) cannot be measured before the
+mechanism exists and becomes the build lane's milestone zero, with a stop. The repair's
+direction is in the ticket — a device knows a horizoned group exactly at and after the
+boundary key it acquired and nothing below it; `apply` declines an unheld row below that
+key — and it is handed to the wave 13 lead, who owns read completeness.
+
+Learned: a threshold stated before a measurement earned its keep twice — it failed
+honestly, and chasing *why the number mattered* found a wrong-answer defect that a growth
+metric alone would have filed under memory. Second: "measure by proxy" was legitimate here
+only because the proxy is the same log event, not a similar one; the record says so at the
+top of each table. Third: the first draft of the gate-1 probe measured the WAL, not the
+store (10 KB a like); checkpoint a copy and subtract a zero-like baseline.
