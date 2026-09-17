@@ -39,11 +39,11 @@ const byteStream = (chunks, cancel) => new ReadableStream({
   },
   cancel,
 });
-const readerResponse = (chunks, { status = 200, cancel } = {}) => {
+const readerResponse = (chunks, { status = 200, headers = {}, cancel, onRead } = {}) => {
   const values = chunks.map(chunk => typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk);
   let index = 0;
-  return { status, ok: status >= 200 && status < 300, body: { getReader: () => ({
-    async read() { return index < values.length ? { done: false, value: values[index++] } : { done: true, value: undefined }; },
+  return { status, ok: status >= 200 && status < 300, headers: new Headers(headers), body: { getReader: () => ({
+    async read() { onRead?.(index); return index < values.length ? { done: false, value: values[index++] } : { done: true, value: undefined }; },
     async cancel() { return cancel?.(); },
     releaseLock() {},
   }), cancel: async () => cancel?.() } };
@@ -401,14 +401,23 @@ test("successful provider JSON is byte-bounded before accumulation and remains u
   });
   for (const [name, headers] of [["absent content length", {}], ["lying content length", { "content-length": "12" }]]) {
     await t.test(name, async () => {
-      let cancelled = 0;
+      const valid = new TextEncoder().encode(JSON.stringify({ id: "would-accept-without-cap", extra: "é".repeat(33_000) }));
+      assert.ok(JSON.stringify({ id: "would-accept-without-cap", extra: "é".repeat(33_000) }).length < 64 * 1024);
+      assert.ok(valid.byteLength > 64 * 1024);
+      let cancelled = 0, reads = 0, observedLength;
       const error = await sendResendEmail({ apiKey: "key", idempotencyKey: name, body: "{}",
-        signal: AbortSignal.timeout(1000), fetch: async () => readerResponse([
-          new Uint8Array(64 * 1024), new Uint8Array([0xc3, 0xa9]),
-        ], { cancel: () => { cancelled++; } })
+        signal: AbortSignal.timeout(1000), fetch: async () => {
+          const response = readerResponse([valid.subarray(0, 65_000), valid.subarray(65_000), new Uint8Array(0)],
+            { headers, cancel: () => { cancelled++; }, onRead: () => { reads++; } });
+          observedLength = response.headers.get("content-length");
+          return response;
+        }
       }).then(() => assert.fail("overflow became accepted"), value => value);
       assert.ok(error instanceof Retry);
+      assert.doesNotMatch(error.message, /would-accept|extra|content-length/);
+      assert.equal(reads, 2, "the reader continued after the crossing chunk");
       assert.equal(cancelled, 1);
+      assert.equal(observedLength, name === "lying content length" ? "12" : null);
     });
   }
   await t.test("read and parse details are sanitized", async () => {

@@ -32050,3 +32050,21 @@ ignored package 0.2.26 public error classes recorded earlier; they are local
 protocol/context-double evidence, not matched-source engine, provider or
 authentication qualification. No build, engine, provider, listener, network,
 install, Rust/Cargo, inventory, publication, push or qualification harness ran.
+
+## 2026-09-17 — B1d.3 response-bound instrument correction
+
+Native Sol changed only the focused test instrument and this journal entry;
+adapter and application source bytes from `adda7d22a` are unchanged. The
+overflow cases now use valid JSON with a valid provider ID plus a multibyte
+ignored field: fewer than 64 KiB JavaScript characters but more than 64 KiB
+of UTF-8. Without the adapter ceiling that response would parse and accept.
+The fake response now carries real absent or deliberately lying
+`Content-Length` headers and counts reads, proving the adapter stops on the
+second crossing chunk, never reads the following empty chunk or EOF, cancels
+once, and returns a sanitized `Retry`. The exact-boundary acceptance remains.
+
+The fresh Office load was 6.23 and Node was 24.18.0. `node --check`, strict
+helper/adapter no-emit compilation and the focused serial test passed; the
+test reported 38 pass, 0 fail, 0 skip in 370.188 ms. The prior two red runs
+and 38-pass receipt remain historical evidence. No engine, provider, listener,
+build, install, Rust/Cargo, root gate, network or qualification command ran.
