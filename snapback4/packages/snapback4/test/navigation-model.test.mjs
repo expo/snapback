@@ -38,7 +38,7 @@ async function fixture(t, { exclusive = true } = {}) {
     Object.defineProperty(globalThis, key, { configurable: true, value });
     t.after(() => previous ? Object.defineProperty(globalThis, key, previous) : delete globalThis[key]);
   }
-  const server = await devServer({ seed, port: 47000 + process.pid % 1000, extraSource: `
+  const server = await devServer({ seed, extraSource: `
 table audit:
   total: int
   ordering: int
@@ -78,7 +78,10 @@ query audit():
 ` });
   const clients = [], cleanup = [], persist = memoryPersistence();
   if (exclusive) persist.claim = indexedDbPersistence().claim;
-  t.after(async () => { for (const run of cleanup) await run(); for (const client of clients) await client.close(); await server.close(); });
+  t.after(async () => {
+    try { for (const run of cleanup) await run(); for (const client of clients) await client.close(); }
+    finally { await server.close(); }
+  });
   const cores = [];
   const open = async (transport = fetch) => {
     const opener = webDevice({ wasm, persist });

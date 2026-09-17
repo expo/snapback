@@ -338,6 +338,87 @@ arguments/results (including callback values and a successful final Session),
 and `data`/`sql` can inspect private transaction rows. Restrict that access and
 do not paste its output into logs or bug reports.
 
+### Managed organizations and invitation policy (B1d.2a)
+
+The identity fixture's sibling `snapback/organizations.q` demonstrates the
+managed organization and invitation policy layered on trusted profiles. It
+keeps the owner principal immutable, bootstraps the owner's admin membership in
+the organization-creation transaction, reserves pending invitation seats with
+an expiring unique `(organization, recipientEmail)` row, retains accepted and
+revoked invitation history, and appends audit rows in the same transaction as
+every membership or invitation transition. Capacity changes and the recipe's
+nonsecret lifetime/default-seat policy are service-written; owner/admin status
+does not stand in for billing entitlement.
+
+`organizationRecordInvitation` accepts an exact recipient email and a digest.
+It is the ordinary managed transaction a later action will call, and an admin
+may call it directly. It therefore proves neither entropy nor server-random
+issuance. B1d.2b owns the action that generates 32 random bytes, returns or
+delivers the raw token, and calls this seam with only its digest. No action or
+handler is added in B1d.2a. The accepted staging shape is any 64-character
+value already equal to its lowercase form; this does not validate that every
+character is hexadecimal. Directly staged non-hex garbage cannot redeem
+against the hex result of `sha256(rawToken)`, though it may reserve
+admin-owned capacity until revocation or expiry. The later issuance action
+always supplies a crypto-derived digest.
+
+`organizationAcceptInvitation` takes the exact raw-token text, computes
+`sha256(rawToken)` in the managed interpreter, compares the lowercase hex
+digest, and checks pending status, strict invitation expiry, exact verified
+profile email and strict proof freshness. A new recipient tentatively consumes
+the invitation and reservation and inserts their own member row, then reads
+the live member count through that new membership and enforces the current
+seat limit. Any refusal rolls the whole transaction back. An existing member
+consumes a valid pending invitation without duplicating or changing their
+membership and without needing a free seat. A new intent against any consumed
+invitation refuses. Record, successful acceptance (new or existing member),
+and revoke (first or idempotent repeat) return only the identical public field
+set `id`, `organization`, `recipientEmail`, `issuer`, `issuedAt`, `expiresAt`,
+`status`, `acceptedBy`, `acceptedAt`, with the current accepted/revoked values;
+neither `tokenHash`, raw-token text nor future table fields are exposed.
+
+Email comparison is exact, case-sensitive UTF-8 equality with surrounding
+whitespace rejected at recording. There is no normalization, global email
+uniqueness or identity linking. Invitation/reservation rules admit admins or an
+exact currently verified profile, without time comparisons; consequently a
+stale-but-still-verified profile may read the bounded metadata. Preview and
+accept separately require fresh proof. Audit is admin-only and has no token or
+digest field. Trusted profiles remain own/service, while their five-minute
+proof policy, OIDC tables and counters are unchanged.
+
+`adminInvitations` is a bounded, intentionally non-uniform page because the
+underlying read rule is the union of admin membership and exact recipient
+profile access. Its `complete: false` describes that rule class; callers must
+not treat the returned page length as a complete inventory or count.
+`invitationMetadata` provides exact-ID point reads, while
+`adminOrganizationSummary` gives an authorized owner/admin a uniform point
+read of the seat limit and maintained member/live-reservation counts.
+
+This managed recipe has focused operator-driven interpreter qualification,
+not complete Identity qualification. The exact hash
+primitive contract is UTF-8 text to lowercase hex64 from the shared metered
+RustCrypto interpreter. The published 0.2.26 engine predates it; the focused
+CLI test refuses an implicit binary, requires an executable plus expected
+SHA-256 pin and reports a named skip without the parent lane's hash-capable
+binary. It also rejects a canonical scratch parent beneath either a repository
+`.git` directory or linked-worktree `.git` file before creating the child.
+Frozen base `06171ed` passed 3/3 (two synthetic, one actual), with 49
+source-bound refusal probes and 15 recorded invitation IDs; all three earlier
+failed runs remain retained. The explicit mutation-output correction
+`e1536df94` then passed 4/4 (three synthetic, one actual), retaining those
+refusals and IDs and checking all affected success-result projections. Both
+independent own-thread delta reviews are READY. No issuance/send, action-result
+plaintext boundary, email-provider,
+HTTP write-ID/lost-ack, concurrent admission, restart, crash-cut, Google,
+full Identity/B or billing-plan claim follows. Hash-only invitation storage
+also does not imply that a later action result, step or delivery payload lacks
+the raw token, and is not a global erasure claim. The test's `--as` and `--now`
+values are operator inputs, not authentication, provider, HTTP or restart
+evidence. Its successful frozen helper removed the raw-response journal;
+retained stdout and source hashes do not create a retrospective raw-response
+audit. The digest-pinned CLI source is `1e91bc7fe`; see
+`../../reports/20260917-invitation-policy.md` for commands, digests and limits.
+
 ## Handler context
 
 `check` and `dev` generate `snapback/generated/server.ts` from declared
@@ -507,8 +588,10 @@ double, not evidence for a production provider adapter:
 This row is an application-level operator disposition. It does not turn the
 old action's result into `done`, resume it or create a general administration
 subsystem. An unknown or unqueryable outcome remains unresolved; never issue a
-blind replacement send. Recovery and compensation are application-specific,
-and this slice does not require actions and effects to share one mechanism.
+blind replacement send. Recovery and compensation are application-specific.
+The core now evaluates these transitions in one work-kind-aware policy, while
+the only storage adapter remains the existing action `_action_steps` table.
+That extraction alone adds no effect step API, records or completeness claim.
 
 Effects retain their legacy handler signature and at-least-once semantics,
 not the action context or `ctx.step`. Their declared retry/deadline/cancellation

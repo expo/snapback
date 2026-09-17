@@ -67,6 +67,11 @@ For dispatch-time presence or any other presence-dependent decision, emit uncond
 
 An effect accepts the same `secrets`, `retry`, `backoff`, `deadline` and `cancellation` clauses as an action (guide actions). A bare `effect notify` retains the defaults: eight total attempts, 4s initial backoff, no deadline, cancellation allowed. Generated `server({ actions, effects })` accepts optional legacy effect handlers; these still receive `(payload, meta)`.
 
+The core reserves an effect-specific identity domain in its shared external-step
+transition policy, but no effect storage adapter or effect step surface exists
+yet. Effects keep the handler, claim, retry and settlement behavior described
+on this card; they do not use `_action_steps`, `ServerContext` or `ctx.step`.
+
 The data plane never calls out. `emit name { payload }` in a mutation or
 a job writes the payload durably in the same commit as the rows (a
 refused mutation emits nothing), and a worker with a service token

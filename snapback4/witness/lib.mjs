@@ -2,7 +2,6 @@
 // page, a seeded `snapback4 dev`, and a browser with a CDP session for the
 // heap. Each witness seeds its own rows and measures its own thing.
 import { spawn } from "node:child_process";
-import { once } from "node:events";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { mkdtempSync, cpSync, rmSync, readFileSync, writeFileSync, globSync, existsSync } from "node:fs";
@@ -52,19 +51,47 @@ export function scaleSeed({ groups, messages, members }) {
 }
 
 /** A `snapback4 dev` on the chat backend in a temporary project, seeded. */
-export async function devServer({ seed, extraSource = "", port = 4460 + (process.pid % 20) }) {
+export async function devServer({ seed, extraSource = "", port = 0 }) {
   const app = mkdtempSync(join(tmpdir(), "sb4-witness-app-"));
   cpSync(join(root, "apps/chat/snapback"), join(app, "snapback"), { recursive: true, filter: (path) => !/\/worker\.(ts|mjs)$/.test(path) });
   rmSync(join(app, "snapback/generated"), { recursive: true, force: true });
   if (extraSource) writeFileSync(join(app, "snapback/media.q"), extraSource);
-  const api = `http://127.0.0.1:${port}`;
-  const server = spawn(binary(), ["dev", "--port", String(port), "--no-watch"], { cwd: app, stdio: ["ignore", "ignore", "inherit"] });
-  const exited = once(server, "exit");
-  for (let i = 0; i < 100; i++) { try { await fetch(api); break; } catch { await new Promise((r) => setTimeout(r, 50)); } }
-  const t0 = performance.now();
-  const seeded = await fetch(`${api}/seed`, { method: "POST", body: JSON.stringify(seed) }).then((r) => r.json());
-  const seedMs = +(performance.now() - t0).toFixed(1);
-  return { api, app, seeded: seeded.seeded, seedMs, async close() { server.kill(); await exited; rmSync(app, { recursive: true, force: true }); } };
+  const server = spawn(binary(), ["dev", "--port", String(port), "--no-watch"], { cwd: app, stdio: ["ignore", "pipe", "pipe"] });
+  let output = "", log = "", spawnError;
+  server.stdout.on("data", data => { output += data; });
+  server.stderr.on("data", data => { log += data; });
+  server.on("error", error => { spawnError = error; });
+  const closed = new Promise(resolve => server.once("close", resolve));
+  let closing;
+  const close = () => closing ??= (async () => {
+    const timer = setTimeout(() => { if (server.exitCode == null && server.signalCode == null) server.kill("SIGKILL"); }, 5000);
+    try {
+      if (server.exitCode == null && server.signalCode == null) server.kill();
+      await closed;
+    } finally {
+      clearTimeout(timer);
+      rmSync(app, { recursive: true, force: true });
+    }
+  })();
+  try {
+    let api;
+    const deadline = performance.now() + 5000;
+    while (!api) {
+      if (spawnError) throw spawnError;
+      if (server.exitCode != null || server.signalCode != null) throw new Error(`dev exited before readiness: ${log}`);
+      api = output.match(/^http:\/\/127\.0\.0\.1:\d+\r?\n/m)?.[0].trim();
+      if (api) break;
+      if (performance.now() >= deadline) throw new Error(`dev readiness timed out: ${log}`);
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    const t0 = performance.now();
+    const seeded = await fetch(`${api}/seed`, { method: "POST", body: JSON.stringify(seed) }).then(r => r.json());
+    const seedMs = +(performance.now() - t0).toFixed(1);
+    return { api, app, seeded: seeded.seeded, seedMs, close };
+  } catch (error) {
+    await close();
+    throw error;
+  }
 }
 
 /** Bundle the client into a page, start a seeded dev server, open Chromium. */

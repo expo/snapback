@@ -9,6 +9,7 @@ use crate::partition::Event;
 use crate::schema::Schema;
 use crate::rows::Rows;
 use crate::value::{Value, ValueError, canonical_json, object};
+use sha2::{Digest, Sha256};
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -556,6 +557,17 @@ impl<'a> Runner<'a> {
                 let text = args[0].as_str()?;
                 let value = Value::String(if matches!(builtin, Builtin::Lower) { text.to_lowercase() } else { text.trim().to_owned() });
                 // @ref LLP 3000.007#5.3 — the small text library charges every new result to the heap meter.
+                self.meter.heap(value.heap_bytes())?;
+                Ok(value)
+            }
+            Builtin::Sha256 => {
+                let text = args[0].as_str()?;
+                let work = u64::try_from(text.len()).ok().and_then(|bytes| bytes.checked_add(1)).unwrap_or(u64::MAX);
+                self.meter.step(work)?;
+                let value = Value::String(format!("{:x}", Sha256::digest(text.as_bytes())));
+                // @ref LLP 3000.007#5.0 — runtime work and each new result allocation stay inside the meter.
+                // The digest Value owns one fixed 64-byte lowercase ASCII string;
+                // charge its String capacity as Value::heap_bytes does elsewhere.
                 self.meter.heap(value.heap_bytes())?;
                 Ok(value)
             }

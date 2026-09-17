@@ -434,7 +434,7 @@ fn the_language_card_compiles_and_runs() {
     let source = language();
     let bound = clean("the language card", &source);
     let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).collect();
-    assert_eq!(names, ["daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "heldRoom", "room", "helperRows", "thread", "inbox", "following", "ancestors", "digest", "mentions", "search", "everywhere", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative", "summarizeRoom", "scheduledSummary"]);
+    assert_eq!(names, ["daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "heldRoom", "room", "helperRows", "thread", "inbox", "following", "ancestors", "digest", "mentions", "tokenDigest", "search", "everywhere", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative", "summarizeRoom", "scheduledSummary"]);
     assert_eq!(bound.schema.effects, ["notify", "sendDigest"]);
     assert_eq!(bound.schema.schedules.len(), 2);
     assert_eq!(bound.schema.routes.keys().map(String::as_str).collect::<Vec<_>>(), ["providerEvent", "roomExport"]);
@@ -521,6 +521,8 @@ fn the_language_card_compiles_and_runs() {
     assert_eq!(oldest.iter().map(|m| m.field("at").unwrap().as_int().unwrap()).collect::<Vec<_>>(), [2_000, 2_100], "sorted ascending by at");
     // mentions: tokens.
     assert_eq!(engine.query("mentions", Context::new(alice, args(&[("body", text("hey @bob and @carol"))])).at(2_200)).unwrap().data, Value::Array(vec![text("bob"), text("carol")]));
+    assert_eq!(engine.query("tokenDigest", Context::new(alice, args(&[("token", text("abc"))])).at(2_200)).unwrap().data,
+        text("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"));
     // search: a word prefix over the room's messages, newest first; online: nobody is connected here.
     let found = engine.query("search", Context::new(alice, args(&[("roomId", id("r1")), ("q", text("KEE"))])).at(2_200)).unwrap();
     assert_eq!(found.data.as_array().unwrap().iter().map(|m| m.field("body").unwrap().clone()).collect::<Vec<_>>(), vec![text("keep")]);

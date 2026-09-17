@@ -18,6 +18,11 @@ iterations by the step meter. `while` stays refused.
 without materializing the range. `check --cost` prints `steps ≤ meter`, a
 filtered scan as `filter over ≤ examined ceiling`, its reads as `probe × examined`,
 and a seek as a prefix. Sorting or grouping a page only processes that page.
+`sha256(text)` charges the input's UTF-8 byte length plus one to steps before
+hashing, then 64 heap bytes for its fixed lowercase hexadecimal result. A step
+cut refuses a scalar query with E_BOUND; a cut on that result allocation returns
+`data: null`, `complete: false`, as other query heap cuts do. A mutation rolls
+back on either cut.
 
 
 ## Refused loops and scans

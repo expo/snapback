@@ -103,6 +103,22 @@ the old bearer fail `identityWhoami`, and make the returned bearer pass it.
 The proxy is a fault instrument, not an application backend or provider
 double.
 
+The proxy has an explicit fail-closed lifecycle. Requests accepted during the
+proof retain that classification through late socket and upstream outcomes,
+including outcomes observed after teardown starts. After the Keycloak
+assertions and two-stream diagnostic check, the harness checks the retained
+failure latch, changes new traffic to teardown traffic while keeping the
+listener open, answers it with a fixed empty 503, and allows already-active
+proof requests up to 30 seconds to finish while the engine remains live. A
+proof request remains active until both its forwarding handler and response
+finish; premature close, abort or error stays fatal after the transition. The
+single registered committed-mint reply cut is the only exception. Controlled
+abort cancels pending upstream fetches. The harness then closes owned proxy
+connections before stopping the owned engine, including after every drain or
+close failure. A drain or close timeout is fatal. Proxy failures expose only a
+fixed phase/category code; exception text, paths, URLs, headers and bodies are
+not included.
+
 The authority portion uses a separate disposable app without a generated
 handler. It drives the actual engine's service-authenticated action, step,
 session, cancellation, revocation and development-clock HTTP doors directly.
@@ -122,6 +138,14 @@ is deliberately retained after both success and failure for root-controlled
 evidence extraction and cleanup. Its engine databases contain protected action
 arguments and the legitimate final protected Session result: the directory is
 a private diagnostic workspace, never a public artifact.
+
+The private credential JSON must also contain nonempty `expectedSubject`.
+Before an actual run, root independently reads the existing synthetic user's
+stable Keycloak subject through the provider-side admin surface and writes it
+to that private file. The harness does not perform that lookup and does not
+derive the expected value from product output. It compares the returned
+trusted profile to this independently pinned subject in memory and treats the
+value as a known secret for default-diagnostic scanning.
 
 The command below is only the harness payload. Do not run it bare. The parent
 must place it inside an external ProcessCustody envelope with a hard five-minute
@@ -158,6 +182,9 @@ JSON object: status, stable code, known stage, validated retained-scratch path,
 and non-secret digest/observation/custody fields. Unexpected exceptions map to
 one generic stable code; arbitrary error messages, stacks and HTTP/provider
 bodies are never printed. Before scratch creation, the path is null.
+Owned-child cleanup treats either an exit code or signal code as terminal,
+subscribes before signalling to avoid missing exit ordering, and bounds both
+the exact owned child's TERM and KILL waits.
 
 ### Fault and observation matrix — source checkpoint
 
@@ -180,6 +207,7 @@ to exercise the corrected two-stream assertion.
 | Explicit committed-mint recovery | Generated helper's actual recovery request | Same invocation, `identity-session/v1`, fixed principal/kind/days, `replaceLostDelivery: true`; no unbound/new-family fallback | PENDING; executable; instrument is field-agnostic to the helper's durable `protocol` input |
 | Replacement authority | Public query plus read-only store | New bearer passes `identityWhoami`; old bearer returns `E_AUTH`; binding family equals the initial bearer's SHA-256 digest; one final live digest remains in that original family; original `expiresAt` unchanged | PENDING; executable |
 | Provider-independent exchange replay | Provider gate closes after the committed-mint cut | No provider fetch is attempted after the cut; token endpoint POST count remains one | PENDING; executable |
+| Derived own trusted profile | Recovered legitimate Session through actual `identityOwnProfileEligibility`, plus a fresh unrelated guest through `identityOwnProfile`; subject independently pinned in the private config before the run | Profile principal matches the Session and exact shared fixed-issuer/expected-subject derivation; proof expiry is five minutes from proof start; returned eligibility matches present-email, verified-true and strict current freshness; unrelated guest sees null | PENDING; executable selected integration assertions only after private `expectedSubject` setup; no provider revocation, email-change chronology, past/future boundary, invitation or recovery claim |
 | Explicit first binding with recovery flag | Direct actual-engine bound request with `replaceLostDelivery: true` and no prior binding | First binding is created and its bearer passes the public query | PENDING; executable authority-contract row; not a transport/crash witness |
 | Before-mint-commit HTTP fault | Actual generated helper request cut before core commit, followed by a new-process recovery | Recovery creates the first binding without provider replay | PENDING; not implemented in this bounded source checkpoint |
 | Stale claim | Explicit retry settlement followed by its declared backoff and a fresh actual claim | Old lease refuses `E_ACTION_LEASE`; no target mint | PENDING; executable; retry settlement, not timer expiry, makes the old lease stale |
@@ -199,3 +227,86 @@ The before-commit HTTP cut, after-step cut and legacy-receipt row are explicit
 gaps, not inferred from the direct first-binding row or other cases. The parent
 may add them in the integration tree if it can do so through the same public
 engine/worker mechanics without private writes.
+
+## B1d.2a managed organizations and invitations
+
+`snapback/organizations.q` is a separate managed-policy module layered on the
+trusted profiles in `schema.q`. It adds organizations, memberships, hash-only
+invitation records, expiring one-per-email seat reservations, append-only
+audit rows, live member/reservation counts and a small service-written policy
+singleton. Organization creation requires a fresh verified-email profile and
+atomically creates the immutable owner's admin membership and audit row.
+Owners and admins can stage a digest with `organizationRecordInvitation`;
+that is an ordinary managed mutation seam, not proof that the digest came from
+random token issuance. There is no invitation action or delivery handler in
+this slice, and `snapback/server.ts` remains exactly the two OIDC actions.
+The record, accept and revoke mutations return the same exact public invitation
+metadata fields: `id`, `organization`, `recipientEmail`, `issuer`, `issuedAt`,
+`expiresAt`, `status`, `acceptedBy` and `acceptedAt`. They never return the
+stored `tokenHash`, the raw token or future table fields.
+
+Recipient matching is exact, case-sensitive UTF-8 equality. The recipe rejects
+surrounding whitespace when recording an address and does no case, Unicode,
+dot or plus normalization. It does not make email globally unique or link
+principals. Two issuer/subject-derived principals with the same verified email
+remain different membership identities; the principal that presents the token
+is the member recorded on acceptance.
+
+The invitation table accepts exactly 64 characters whose lowercase form is
+unchanged. That check does not prove every character is hexadecimal. A
+directly staged non-hex value cannot equal the lowercase hex result of
+`sha256(rawToken)` and therefore cannot redeem, but it can reserve
+admin-owned capacity until revocation or expiry. The later issuance action
+always supplies a crypto-derived digest. Acceptance hashes the exact raw-token
+text inside the same managed mutation with the shared-interpreter
+`sha256(text)` primitive, whose contract is UTF-8 input to lowercase
+64-character hex. Workroom's frozen published 0.2.26 binary does not have that
+primitive and must not be run against this module. The source test requires an
+explicit binary path and SHA-256 pin from the parent core lane. Frozen base
+`06171ed` passed its pinned run 3/3 (two synthetic tests and one actual test),
+including 49 source-bound refusal probes and 15 recorded invitation IDs; the
+three earlier failed runs remain retained. The explicit-output correction
+`e1536df94` then passed 4/4 (three synthetic, one actual), with exact field/value
+assertions on all affected success responses and both blind delta reviews READY.
+The CLI source is `1e91bc7fe`, with Node 24.13.1. Operator-supplied principals
+and times are not authentication, provider, concurrent HTTP or crash proof.
+The three failed scratch directories and journals remain private.
+
+Hash-only table storage is a narrow claim. It does not say that a later
+issuance action result, durable step, email-provider payload or privileged
+operator inspection contains no plaintext token, and it is not a global token-
+erasure claim. B1d.2b owns generation from 32 random bytes, delivery, write-ID
+and lost-ack HTTP behavior, concurrent/restart witnesses and issuance-crash
+cuts. This slice makes no issuance, send, full Identity/B, Google, billing-plan
+or real-provider claim.
+
+Invitation and reservation read rules admit an owner/admin or a principal
+whose current trusted profile has exact matching `email` and
+`emailVerified = true`. Rules deliberately contain no time inequality, so a
+stale-but-still-verified profile can read bounded invitation metadata. Both
+`invitePreview` and `organizationAcceptInvitation` separately require strict
+`proofExpiresAt > now`, pending status, strict `expiresAt > now` and the raw
+token hash. The trusted-profile five-minute policy is unchanged.
+
+Because the invitation read rule also admits an exact recipient profile, an
+admin's `adminInvitations` scan is a deliberately non-uniform bounded page:
+its `complete: false` is a rule-completeness classification, not evidence that
+more rows exist or a count. Use `invitationMetadata` for an exact invitation
+point read. Owners and admins use `adminOrganizationSummary` for uniform
+point-read seat, member and live-reservation counts; capacity assertions must
+not infer totals from the bounded invitation page.
+
+The actual-CLI source is `test/identity-organizations.test.mjs`. It uses only
+service calls to `identityBegin`, `identityClaim` and `identityVerified` for
+profile setup, then operator-supplied `--as` and `--now` calls through the
+shared interpreter. Its three prerequisites are
+`SNAPBACK4_B1D_MANAGED_BIN`, `SNAPBACK4_B1D_MANAGED_BIN_SHA256` and
+`SNAPBACK4_B1D_MANAGED_SCRATCH_PARENT`; without all three it reports a named
+skip. The scratch parent must already be canonical, owner-only and outside the
+repository: before scratch creation the test walks its canonical ancestors and
+rejects either a `.git` directory or linked-worktree `.git` file. A supplied
+digest mismatch fails before scratch creation. The test does not print
+raw-token arguments on failure; it preserves unexpected CLI output in the
+private scratch child and leaves that child in place. On success the frozen
+helper removes that raw-response journal; retained stdout and source hashes
+are qualification evidence, not a retrospective raw-response audit.

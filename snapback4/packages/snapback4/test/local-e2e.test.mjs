@@ -6,7 +6,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { once } from "node:events";
 import { mkdtempSync, cpSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
@@ -22,8 +21,6 @@ const binary = join(root, "target/debug/snapback4");
 const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm"));
 /** One store per test: what its devices keep between opens. */
 const device = (persist = memoryPersistence()) => webDevice({ wasm, persist });
-const port = 4470 + (process.pid % 20);
-const url = `http://127.0.0.1:${port}`;
 const api = { thread: { kind: "query", name: "thread" }, inbox: { kind: "query", name: "inbox" }, send: { kind: "mutation", name: "send" }, addMember: { kind: "mutation", name: "addMember" } };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -37,18 +34,31 @@ async function until(check, ms = 8000) {
   }
 }
 
+// Readiness comes from this child, never another listener on a guessed port.
+const ready = (server, output, log) => until(() => {
+  if (server.exitCode != null || server.signalCode != null) throw new Error(`dev exited before readiness: ${log()}`);
+  return output().match(/^http:\/\/127\.0\.0\.1:\d+\r?\n/m)?.[0].trim();
+});
+async function stop(server, closed) {
+  const timer = setTimeout(() => { if (server.exitCode == null && server.signalCode == null) server.kill("SIGKILL"); }, 5000);
+  try {
+    if (server.exitCode == null && server.signalCode == null) server.kill();
+    await closed;
+  } finally { clearTimeout(timer); }
+}
+
 test("two devices converge through the partition stream", { timeout: 60_000 }, async () => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-chat-"));
   cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true, filter: (path) => !/\/worker\.(ts|mjs)$/.test(path) });
   rmSync(join(dir, "snapback/generated"), { recursive: true, force: true });
-  const server = spawn(binary, ["dev", "--port", String(port), "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
-  const exited = once(server, "exit");
-  let log = "";
-  server.stdout.on("data", (d) => (log += d));
+  const server = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const closed = new Promise(resolve => server.once("close", resolve));
+  let output = "", log = "";
+  server.stdout.on("data", (d) => { output += d; log += d; });
   server.stderr.on("data", (d) => (log += d));
   const kept = device();
   try {
-    await until(async () => { try { await fetch(url); return true; } catch { return false; } });
+    const url = await ready(server, () => output, () => log);
     const seeded = await fetch(`${url}/seed`, { method: "POST", body: JSON.stringify([
       { table: "conversations", row: { id: "c1", title: "General", creatorId: "dev:alice" } },
       { table: "memberships", row: { id: "m1", conversationId: "c1", principal: "dev:alice", role: "admin", joinedAt: 1 } },
@@ -111,8 +121,7 @@ test("two devices converge through the partition stream", { timeout: 60_000 }, a
     console.error(log);
     throw error;
   } finally {
-    server.kill();
-    await exited;
+    await stop(server, closed);
     rmSync(dir, { recursive: true, force: true });
   }
 });
@@ -121,16 +130,14 @@ test("queued writes flush in the order they were submitted", { timeout: 60_000 }
   const dir = mkdtempSync(join(tmpdir(), "sb4-fifo-"));
   cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true, filter: (path) => !/\/worker\.(ts|mjs)$/.test(path) });
   rmSync(join(dir, "snapback/generated"), { recursive: true, force: true });
-  const fifoPort = port + 40;
-  const fifoUrl = `http://127.0.0.1:${fifoPort}`;
-  const server = spawn(binary, ["dev", "--port", String(fifoPort), "--no-watch", "--fresh"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
-  const exited = once(server, "exit");
-  let log = "";
-  server.stdout.on("data", (d) => (log += d));
+  const server = spawn(binary, ["dev", "--port", "0", "--no-watch", "--fresh"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const closed = new Promise(resolve => server.once("close", resolve));
+  let output = "", log = "";
+  server.stdout.on("data", (d) => { output += d; log += d; });
   server.stderr.on("data", (d) => (log += d));
   const kept = device();
   try {
-    await until(async () => { try { await fetch(fifoUrl); return true; } catch { return false; } });
+    const fifoUrl = await ready(server, () => output, () => log);
     await fetch(`${fifoUrl}/seed`, { method: "POST", body: JSON.stringify([
       { table: "conversations", row: { id: "c1", title: "General", creatorId: "dev:alice" } },
       { table: "memberships", row: { id: "m1", conversationId: "c1", principal: "dev:alice", role: "admin", joinedAt: 1 } },
@@ -157,8 +164,7 @@ test("queued writes flush in the order they were submitted", { timeout: 60_000 }
     error.message += `\n--- server log ---\n${log}`;
     throw error;
   } finally {
-    server.kill();
-    await exited;
+    await stop(server, closed);
     rmSync(dir, { recursive: true, force: true });
   }
 });
@@ -167,16 +173,14 @@ test("a device restores its session on its own", { timeout: 60_000 }, async () =
   const dir = mkdtempSync(join(tmpdir(), "sb4-chat-"));
   cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true, filter: (path) => !/\/worker\.(ts|mjs)$/.test(path) });
   rmSync(join(dir, "snapback/generated"), { recursive: true, force: true });
-  const port2 = port + 20;
-  const url2 = `http://127.0.0.1:${port2}`;
-  const server = spawn(binary, ["dev", "--port", String(port2), "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
-  const exited = once(server, "exit");
-  let log = "";
-  server.stdout.on("data", (d) => (log += d));
+  const server = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const closed = new Promise(resolve => server.once("close", resolve));
+  let output = "", log = "";
+  server.stdout.on("data", (d) => { output += d; log += d; });
   server.stderr.on("data", (d) => (log += d));
   const kept = device();
   try {
-    await until(async () => { try { await fetch(url2); return true; } catch { return false; } });
+    const url2 = await ready(server, () => output, () => log);
     const sessions = memorySessionStore();
     // A cold start with no session: the client mints a guest and keeps it.
     const first = await createLocalClient({ url: url2, guest: true, device: kept, sessionStore: sessions, waitSeconds: 1 });
@@ -219,8 +223,7 @@ test("a device restores its session on its own", { timeout: 60_000 }, async () =
     await offline.close();
     await assert.rejects(createLocalClient({ url: url2, guest: true, device: kept, sessionStore: memorySessionStore(), fetch: noNetwork, waitSeconds: 1 }), /cannot reach|E_OFFLINE/);
   } finally {
-    server.kill();
-    await exited;
+    await stop(server, closed);
     rmSync(dir, { recursive: true, force: true });
   }
 });
@@ -229,16 +232,14 @@ test("an upload is placed once and served by the home row's read rule", { timeou
   const dir = mkdtempSync(join(tmpdir(), "sb4-assets-"));
   cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true, filter: (path) => !/\/worker\.(ts|mjs)$/.test(path) });
   rmSync(join(dir, "snapback/generated"), { recursive: true, force: true });
-  const assetPort = port + 20;
-  const assetUrl = `http://127.0.0.1:${assetPort}`;
-  const server = spawn(binary, ["dev", "--port", String(assetPort), "--no-watch", "--fresh"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
-  const exited = once(server, "exit");
-  let log = "";
-  server.stdout.on("data", (d) => (log += d));
+  const server = spawn(binary, ["dev", "--port", "0", "--no-watch", "--fresh"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const closed = new Promise(resolve => server.once("close", resolve));
+  let output = "", log = "";
+  server.stdout.on("data", (d) => { output += d; log += d; });
   server.stderr.on("data", (d) => (log += d));
   const kept = device();
   try {
-    await until(async () => { try { await fetch(assetUrl); return true; } catch { return false; } });
+    const assetUrl = await ready(server, () => output, () => log);
     await fetch(`${assetUrl}/seed`, { method: "POST", body: JSON.stringify([
       { table: "conversations", row: { id: "c1", title: "General", creatorId: "dev:alice" } },
       { table: "memberships", row: { id: "m1", conversationId: "c1", principal: "dev:alice", role: "admin", joinedAt: 1 } },
@@ -284,8 +285,7 @@ test("an upload is placed once and served by the home row's read rule", { timeou
     error.message += `\n--- server log ---\n${log}`;
     throw error;
   } finally {
-    server.kill();
-    await exited;
+    await stop(server, closed);
     rmSync(dir, { recursive: true, force: true });
   }
 });

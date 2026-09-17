@@ -28437,3 +28437,626 @@ are `/tmp/w12b-suite.log`, `/tmp/w12b-green.log`, `/tmp/w12b-survey.log`,
 zero errors and zero unchecked references; `git diff --check` passed. The new
 source module is 107 lines. No out-of-scope product file, corpus case, meter,
 value serialization, commit, push, tag or publication was touched.
+
+## 2026-09-17 — B1d prerequisite: transaction-local token hashing
+
+Quarry now has exactly one `sha256(text)` spelling. It accepts one required
+present text value (including empty text), infers `text <=64`, and returns the
+lowercase hexadecimal RustCrypto SHA-256 of the exact UTF-8 bytes without
+normalization, case folding, quoting, salt, key, entropy or a host callback.
+The new IR variant runs only in the shared Rust interpreter used by the server
+and devices; existing serialized builtin spellings and the conformance corpus
+are unchanged.
+
+Before hashing, the interpreter charges the step meter by the input UTF-8 byte
+length plus one with checked `usize` conversion and addition. It then charges
+the fixed 64-byte owned `Value::String` through the existing heap convention.
+The builtin is absent from prediction's total-expression allowlist and is
+conservatively refused by conditional write-target purity. Existing residency,
+presence, hidden-row metering and rule authorization remain controlling; the
+presence regression proves a presence-selected hash keeps `predicts: never`.
+
+Tests pin empty, ASCII, non-ASCII, composed and decomposed UTF-8 vectors,
+non-normalization, unary arity, wrong and optional type refusal, and the inferred
+output bound. Meter cuts distinguish the pre-hash variable step refusal from
+the fixed result allocation: a scalar query step cut refuses E_BOUND, a heap
+cut returns null and incomplete, and a mutation cut rolls back an earlier
+insert. The focused device witness produced the same output through the shared
+interpreter on the SQLite and memory-backed device stores and the SQLite server.
+
+Focused serial evidence used `CARGO_BUILD_JOBS=6`, the existing repository
+Cargo, `--locked`, and one test thread:
+
+- `snapback4-core --test meter`: 8/8;
+- `snapback4-core --test corpus`: 18/18 harness tests, 211 Rust-server cases
+  passed and 83 named skips; its Postgres arm reported 294 skips because the
+  feature was disabled;
+- the focused language SHA-256 regression: 1/1;
+- the language guide suite: 50/50;
+- the language presence suite: 9/9; and
+- the focused device witness: 1/1, run once over each of SQLite and memory.
+
+One broader `frontend_regressions` attempt ran all affected tests successfully
+but ended 37/38 because the existing Bun workspace dependencies were absent for
+its emitted-TypeScript test. The diagnostic requested `bun install
+--frozen-lockfile`; no install was performed under this slice's prohibition,
+and the directly affected filtered test then passed. No real PostgreSQL harness
+was run: its focused tests require an explicitly supplied isolated local server,
+and compilation alone is not claimed as host evidence.
+
+This primitive is only for high-entropy capability tokens and content
+checksums. It is not password hashing, low-entropy email anonymization, a
+signature, a MAC, entropy generation or permission to publish digests
+indiscriminately. No invitation schema, issuance or acceptance recipe, auth
+endpoint, raw-token persistence, client-contract field, JavaScript transaction,
+static admission ceiling, dependency, version, publication or deployment is
+included. No root inventory, full suite, benchmark, network, remote, origin,
+push or model/subagent work ran.
+
+## 2026-09-17 — B1c proxy lifecycle instrument repair
+
+Source inspection found a lifecycle ambiguity in the B1c qualification-only
+fault proxy. The historical actual run `682a834d5` completed its primary
+Keycloak, committed-lost-reply and process-crash assertions, then failed with
+`B1C_PROXY_REQUEST` at `raw-authority-project` before any raw case. Because the
+instrument retained no raw error cause, this repair does not claim that
+intentional engine teardown caused that failure.
+
+The proxy now retains the phase in which each request began. Unexpected
+failures from proof-origin requests remain fatal even when observed after the
+teardown transition. Once all primary assertions and the two-stream secrecy
+check finish, the harness checks the existing first-failure latch, explicitly
+enters expected teardown, refuses newly arriving polling/background traffic
+with an empty 503, and gives existing proof requests a bounded 30-second drain
+while the engine remains live. It then closes proxy connections before
+stopping the engine. Drain, close, server, protocol, request and three custody
+failure categories produce fixed phase/category codes only; no exception
+message, path, URL, header or body enters output. The intentional committed-
+reply cut is the single narrow proof exception. A preexisting material failure
+is never cleared or replaced, and observations are appended only after clean
+proxy and engine teardown.
+
+The inseparable owned-child cleanup now recognizes signal termination as
+terminal, subscribes before signalling, bounds both TERM and KILL waits, and
+never selects a process except through the existing exact owned-child object.
+The private scratch retention, actual mint cut, UID/start/ancestry custody
+checks, external mandatory five-minute ProcessCustody envelope, provider-count
+assertion and unknown-failure fail-closed output are unchanged.
+
+Node 24.13.1 syntax checking of `qualify-b1c.mjs` passed. The focused serial
+Node test command over `proxy-phase.test.mjs` and the existing
+`diagnostic-secrecy.test.mjs` passed 10/10. Synthetic cases cover active proof
+failure, explicit teardown traffic, preservation of a preexisting failure, a
+proof request failing after transition, sanitized unknown error text, an
+already signal-exited owned child, synchronous exit-event ordering, and
+stdout/stderr secret scanning. These
+are instrument/double tests only. The actual qualification harness did not
+run; no provider, engine, raw-authority, process-crash, mint, Cargo, install,
+full-suite, root-gate, network, remote or publication claim was added. The
+source matrix remains pending actual qualification and the historical command
+remains overall negative.
+
+## 2026-09-17 — B1c bounded profile and cleanup follow-on
+
+The prepared actual-engine Keycloak primary path now makes selected trusted-
+profile assertions before diagnostic inspection and teardown. Using only the
+recovered legitimate Session, it queries `identityOwnProfileEligibility` and
+requires a profile whose principal matches the returned Session, whose issuer
+matches the fixed configured issuer, whose subject is present, and whose
+principal matches the exact shared `oidcPrincipal` v1 SHA-256 derivation. It
+requires `proofExpiresAt = proofStartedAt + 300000` and checks the returned
+eligibility against the in-memory profile's present-email, verified-true and
+strictly-current proof conditions. It does not require an email to exist or
+claim that Keycloak verified one. A fresh unrelated actual guest must receive
+null from `identityOwnProfile`. Subject, optional email, principal and complete
+profile responses remain memory-only; sensitive comparison strings join the
+existing default-diagnostic secrecy set. The observation label
+`actual-keycloak-derived-own-profile` is appended only after clean proof and
+teardown.
+
+Two additional synthetic lifecycle checks cover a proof request that never
+drains and a nonresponsive exact owned child. The former returns its bounded
+drain refusal; the latter receives TERM then KILL, returns the bounded cleanup
+error and remains registered for outer custody. Node 24.13.1 syntax checks and
+the same focused serial proxy/secrecy command passed 12/12; `git diff --check`
+passed. No qualification harness, provider, engine, raw-authority path,
+network, Cargo, install or full suite ran. These are source-pending selected
+integration assertions, not actual-provider evidence and not provider-
+revocation, email-change/freshness-boundary, invitation or recovery proof. The
+historical command remains overall negative.
+
+## 2026-09-17 — B1d hashing meter test review correction
+
+Correction to the preceding entry's final sentence: commit
+`1e91bc7fe6b9be532efd5da98b94127151c0c289` was authored through the native
+Codex Sol xhigh thread `01a0ada7-4f34-7f02-8f5a-2decc5843b5a`; the original
+sentence is preserved above as historical text. This test-only follow-up is
+being authored through native Codex Sol HIGH. At the time of this entry, no
+tests or builds have been executed for the follow-up. It changes no production
+runtime code.
+
+## 2026-09-17 — B1d hashing review and integrated meter qualification
+
+The two independent initial hashing reviews found no runtime defect but did
+expose incomplete exact-meter coverage and a rollback assertion whose lookup
+did not name the inserted row. Native Sol high authored test-only `81da438fe`:
+the raw-empty baseline pins the fixed +1 work, the four-byte single character
+pins UTF-8 bytes, and a successful-write positive control proves the matching
+rollback probe observes its row. Both original reviewers then returned READY
+in their own mutually blind threads. Their actual answers and initial verdicts
+are retained under `llp/reviews/3000.009-b1d-hash.*.md`.
+
+The serial 450b qualifier ran the affected meter suite on exact integrated
+`b54f5543e`: 8 passed, none failed or skipped. The log digest and source/binary
+bindings are in `reports/20260917-transaction-token-hash.md`. The source tree
+remained clean. Runtime code is unchanged by the test correction; the binary
+remains the already built `1e91bc7fe` artifact, not a falsely claimed rebuild.
+The broader original frontend setup failure and absent real-PG/browser-WASM
+hash execution remain explicit. This is a prerequisite, not completed
+invitations, Identity/B, Workroom, publication or promotion qualification.
+
+## 2026-09-17 — Bwork1: one typed external-step transition policy
+
+The current action external-step state machine now lives once in a small typed
+engine kernel. It distinguishes action and effect owners, claim identity,
+persisted step records and state, and operates through a transaction-scoped
+mutation trait. Name and JSON bounds, action v1 provider-key bytes, same-input
+and completed-result replay, changed-input and result-mismatch refusal,
+same-claim busy handling, reconciliation takeover, oversized-result parking
+and explicit parking remain policy in that kernel.
+
+The SQLite action adapter is constructed only after the existing held-claim
+authority check succeeds inside the already-open immediate writer transaction.
+It preserves `_action_steps` exactly and delegates owner parking to the current
+action `finish` helper in that same transaction. Public Engine methods, HTTP
+wire behavior and action key domain `snapback4:step:v1` are unchanged. The
+typed key calculation reserves a distinct `snapback4:effect-step:v1` domain,
+but this checkpoint adds no effect table, adapter, method, route, context or
+behavior; effects retain their existing handler and claim lifecycle.
+
+Focused source tests now pin the action table columns and row fields, exact v1
+key derivation, rollback on busy/input/result refusals, identical completion
+and cross-claim replay, atomic oversized-result owner parking, and action/effect
+key non-equality. This was a source-only host-slot checkpoint: no Cargo, Rust,
+Node/Bun, test, build, listener, database process, install, network, remote,
+model, subagent, commit or push command ran. Qualification remains pending.
+
+## 2026-09-17 — Bwork1 focused qualification
+
+The exact source-only Bwork1 checkpoint was qualified serially after the 450b
+slot was released. With `CARGO_BUILD_JOBS=6`, `--locked` and one test thread,
+the core check passed; the exact cross-kind provider-key unit passed 1/1;
+`action_context` passed 9/9; `routes` passed 14/14; `bound_session` passed 8/8;
+and the language guide passed 50/50. Across the selected tests that is 82/82,
+with no failure or ignored test. The intentionally reserved, unwired `Effect`
+work-kind variant produced the expected dead-code warning; no warning
+suppression or product change was added.
+
+The first core-check invocation found no ambient `cargo` and exited 127 before
+compilation. Repeating the identical command with the existing repository
+toolchain at `/home/ccheever/.cargo/bin/cargo` passed. No source repair was
+needed. No root inventory, broad suite, PostgreSQL/provider/listener work,
+install, network, remote, model delegation, origin contact, push or publication
+ran.
+
+## 2026-09-17 — B1c consolidated proxy response-lifetime repair
+
+Root's initial Sol review found that the prior source removed a proof request
+from the active set when its async handler returned, immediately after
+`response.end`, rather than after the response's actual terminal event. It
+also began `server.close()` before the promised teardown-503 interval and
+could throw on drain timeout before bounded abort cleanup. This follow-on was
+authored through native Sol HIGH. A separate fresh Grok review reached its
+15-minute cap without an answer; that is no Grok verdict or approval.
+
+The qualification-only proxy now holds each request until both the forwarding
+handler and response are terminal. Successful `finish` completes the response;
+premature close, request abort or either-side error on a proof-origin request
+latches the fixed proof/request failure even after teardown begins. Only the
+registered post-commit mint reply cut marks its own close intentional.
+Controlled abort cancels each pending upstream fetch. The listener remains
+open during the bounded proof drain so new background/poll requests are
+classified as teardown and receive the fixed empty 503. Only after the proof
+drains does close begin. Every preexisting-failure, drain-timeout and close-
+timeout path runs bounded owned-server/socket/exchange abort cleanup before
+engine cleanup; the first failure remains authoritative. `clientError` records
+only a fixed category and destroys only the socket supplied by that server.
+
+The private qualification config now requires nonempty `expectedSubject`,
+adds it to the known-secret set and compares the actual trusted profile subject
+to it. Root must independently obtain the existing synthetic user's stable
+subject via a provider-side Keycloak admin read and put it in the private file
+before an actual run. The harness neither performs that lookup nor derives the
+expected subject from product output. The fixed issuer and independently
+pinned subject feed the unchanged shared principal derivation. No provider
+operation ran here.
+
+Raw-authority observation labels now append only after all raw assertions and
+clean owned-engine cleanup. The historical primary-positive/overall-negative
+record and zero historical raw cases are unchanged.
+
+Node 24.13.1 syntax checks passed for `qualify-b1c.mjs` and
+`proxy-phase.mjs`. The serial focused command over proxy phase, loopback HTTP
+lifecycle and diagnostic-secrecy tests passed 18/18. Its six actual Node HTTP
+doubles cover buffered response finish, premature close without an error,
+the one intentional cut, live teardown 503 during proof drain, drain-timeout
+abort/close, and preexisting-failure preservation. The earlier phase/child and
+two-stream secrecy doubles remain green. `git diff --check` passed. No actual
+provider, engine, process crash, raw authority case, external network, Cargo,
+install or full suite ran. The corrected source and independently pinned-
+subject assertion remain pending actual qualification; provider revocation,
+email chronology/boundaries, invitation, recovery and the other documented
+cuts remain unproved.
+
+## 2026-09-17 — Bwork1 review, provenance correction and integration
+
+Correction to the Bwork1 source-only entry above: native Codex Sol authored
+that checkpoint in thread `01a0adba-edec-7fb2-880b-e5208e463db2`; the same
+author then ran the focused qualification. Its sentence saying no model work
+ran was false as a blanket statement and is preserved only as historical
+text. The retained raw qualification manifest's excluded-model wording likewise
+does not mean no model authored the change. No additional model delegation
+occurred inside that authoring lane; independent reviews occurred separately.
+
+Fresh mutually blind Sol xhigh and Grok 4.6 requested-xhigh reviews both returned
+READY for `ea77ee6ad15ca526053d27827296e40820511a5a`, which is copied as
+`d3360d209` in integration. Product and test bytes match; the only cherry-pick
+conflict was independent JOURNAL appends, preserved byte-for-byte. Root fixed
+the reviewers' SERVER.md punctuation advisory and queued the adapter failure-
+injection suggestion with the forthcoming effect adapter. Public review answers
+are retained under `llp/reviews/3000.009-bwork1.*.md`.
+
+The 82 focused passes and initial ambient-Cargo exit127 are recorded with exact
+commands and log digests in `reports/20260917-bwork1-manifest.txt`; the qualified
+scope and limits are in `reports/20260917-bwork1.md`. This extraction is not
+effect storage, HTTP, generated context or fault qualification, and is not a
+full-suite, PostgreSQL, publication or promotion claim. The next effect adapter
+will use the existing generic Value payload contract explicitly; no typed
+effect payload declaration exists today, so no such type binding is claimed.
+
+## 2026-09-17 — B1d.2a managed organization policy source checkpoint
+
+The identity recipe now has a separate `organizations.q` module over the
+existing trusted OIDC profiles. It adds immutable-owner organizations,
+admin/member memberships, pending/accepted/revoked invitations, expiring
+one-per-organization/email reservations, append-only audit rows, live member
+and reservation maintains, and a small nonsecret service-written policy.
+Organization creation requires a fresh verified profile and atomically creates
+the owner's admin membership and audit row. Capacity entitlement remains
+service-only; there is no billing or plan integration claim.
+
+`organizationRecordInvitation` is deliberately an owner/admin-authorized
+digest-staging mutation, not server-random issuance proof. Acceptance hashes
+the exact raw-token text with the forthcoming shared-interpreter `sha256`
+primitive and performs pending, strict invitation-expiry, exact verified-email
+and strict profile-freshness checks in the same transaction. A new member is
+inserted tentatively before the live count enforces the current seat limit, so
+a late capacity reduction rolls invitation, reservation, membership and audit
+state back together. An existing member consumes a fresh pending invitation
+without duplicating a seat or changing role. Owner identity stays immutable;
+admins cannot remove admin peers, while the owner may remove a non-owner admin.
+
+Recipient email matching is exact, case-sensitive UTF-8 equality; surrounding
+whitespace is refused and no case/Unicode/dot/plus normalization, global email
+uniqueness or identity linking is claimed. Invitation/reservation read rules
+intentionally omit time inequalities. A stale but still verified exact profile
+can therefore see bounded metadata, while preview and acceptance separately
+require fresh proof. Audit rows and ordinary invitation projections expose no
+token or digest. Hash-only table storage is not a claim about plaintext in a
+later action result, step or delivery payload, and is not global erasure.
+
+The focused sequential CLI test source sets profiles only through
+`identityBegin`, `identityClaim` and `identityVerified`, then covers owner,
+admin, member, recipient, outsider and other-tenant reads and writes; wrong raw
+tokens and digest-as-token acceptance; revoked, consumed and expiry states;
+false, missing, stale and exact-case profile evidence; exact proof and invite
+boundaries; same-email distinct principals; reservation expiry/duplicates;
+capacity denial and rollback; and role/removal/owner invariants. It requires an
+explicit executable, expected SHA-256 and existing canonical owner-private
+scratch parent, fails a digest mismatch before scratch creation, never defaults
+to the published engine, and preserves unexpected output privately without
+printing raw-token arguments. Source inspection of `verbs.rs` confirmed CLI
+queries serialize under `data` and mutations under `result`; the test uses the
+two shapes separately.
+
+This checkpoint is source-only. The parent has reserved the actual-policy slot
+for a hash-capable Linux binary from source `1e91bc7fe`, expected SHA-256
+`7342e869fe475e0a4629c36b87f91beac262d4551b769773574903a4cb32f187`,
+but no engine was run here and no actual-interpreter result is counted before
+the parent's receipt. The local bounded checks used Node 24.18.0:
+
+```text
+node --check snapback4/packages/snapback4/test/identity-organizations.test.mjs
+pass
+
+node --test --test-concurrency=1 snapback4/packages/snapback4/test/identity-organizations.test.mjs
+0 pass, 0 fail, 1 named prerequisite skip
+
+git diff --check
+pass
+```
+
+No action declaration or handler, `schema.q`, `server.ts`, identity helper,
+generic context, Session, `contract.ts`, core, Rust/Cargo, install, listener,
+provider, credential/account/email operation, remote command, fetch, push,
+generation, inventory, guide/generated-artifact, bootstrap, ref-check, pilot,
+benchmark, HTTP concurrency/lost-ack/restart or issuance-crash command ran.
+B1d.2b still owns generation, delivery and those HTTP/recovery cuts; Google,
+full Identity/B, publication and provider qualification remain unclaimed.
+
+## 2026-09-17 — B1d.2a first actual-policy compile refusal
+
+The supervisor ran the exact three frozen policy inputs on the reserved private
+450b slot with Node 24.13.1 and the hash-capable engine from source
+`1e91bc7fe`, SHA-256
+`7342e869fe475e0a4629c36b87f91beac262d4551b769773574903a4cb32f187`.
+The first command stopped at `check` before any policy assertion: 0 pass,
+1 fail, 0 skip in 298.580635 ms. This is a real compiler refusal, not actual-
+policy green evidence.
+
+The sole diagnostic was `E_QUARRY_UNKNOWN` at `organizations.q:104:19`:
+the explicit alias `{ membership: id, ... }` resolved `id` as a local name,
+where a row field on the shape RHS requires `.id`. The repair changes only
+that expression to `membership: .id`. A bounded inspection of every other
+query projection found either valid shorthand row fields (`{ id, role, ... }`)
+or already-qualified explicit RHS expressions; no assertion, refusal or policy
+was weakened.
+
+The retained supervisor artifacts are under the private 450b directory
+`/home/ccheever/sb4-b1d2-policy.nvOWiR`. The frozen input hashes were
+`72db264e8d560c1020eada63e8a35e987aeb14cc2f61e44a26546429d99211df`
+(test), `d4a7bb335b713341390a582b65bb9e97211e7e513ebaf9e16cad983f56322d28`
+(schema) and
+`262e75289f54d976f7f45118328205ea137ead66f785ec4fc9e5555198bf6172`
+(organizations). Full stdout was
+`8904a641fcc035066236a488ca327866f937bad14d99ade7ca76637d3dc847ed`,
+empty stderr was
+`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`,
+and the failure JSON was
+`8695d73dd263e3c56a92703a3d3d0f944a424872caabd902bd5ee599351c6a64`.
+The supervisor's rerun against this repaired source remains pending; no engine,
+remote, provider, listener, Rust/Cargo or installation command ran here.
+
+## 2026-09-17 — B1d.2a actual-policy instrument repair after the second red
+
+The supervisor reran commit `60b561094cba08733e6bd8b43480cb9b926c9f82`
+on the same private 450b slot, Node 24.13.1 and hash-capable engine source
+`1e91bc7fe`, SHA-256
+`7342e869fe475e0a4629c36b87f91beac262d4551b769773574903a4cb32f187`.
+The schema compiled and the interpreter completed profile setup and initial
+organization creation, then the test itself failed at its line 104 while
+expecting a mutation `state` field on a `memberRoster` query refusal. The run
+was 0 pass, 1 fail, 0 skip in 3211.971939 ms. Full stdout SHA-256 was
+`7674f015648eb0d666fdb04a584adfd510817920e665aa62bf7868c307e610ca`;
+empty stderr was
+`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+Both this run and the preceding compile refusal remain retained below the
+private root `/home/ccheever/sb4-b1d2-policy.nvOWiR`. No invitation-acceptance
+policy pass, authentication/provider evidence or HTTP evidence follows.
+
+The repaired test now has a closed inventory of seven queries, nine
+organization mutations and the three trusted-profile setup mutations. Unknown
+operations, actions and jobs refuse before spawn. Query success requires
+`data`, complete uncapped coverage, null continuation and a meter; query
+refusal reads only `denied.code`. Mutation success requires the exact sent
+family including `seq`, `result` (which may be null), `events` and a meter;
+mutation refusal reads only the failed `why.code` family with `current`.
+Exit 2, timeout/signal, malformed or non-JSON output, compile/input/storage
+errors and unexpected success stop immediately rather than being counted as
+policy refusals or permitting dependent writes.
+
+Before any status, parse or envelope assertion, every actual CLI response is
+appended with sequence, operation/kind, operator-supplied principal/time,
+status/signal and raw stdout/stderr to an exclusively created, verified
+owner-private JSONL journal inside the canonical 0700 scratch child. Arguments
+are never dumped. Failure diagnostics print only a stable instrument code and
+the private journal path; the scratch and journal remain on failure. Recognized
+exit-1 query/mutation refusal-envelope or expected-code mismatches batch until
+the final assertion so later invariants still run, while uncertain or possibly
+committed outcomes stop immediately. A nonempty mismatch batch cannot mark the
+run complete or delete its evidence.
+
+Node 24.18.0 local checks, with all actual-policy prerequisite variables
+explicitly unset, produced two synthetic passes and the one named actual-test
+skip:
+
+```text
+node --check snapback4/packages/snapback4/test/identity-organizations.test.mjs
+pass
+
+env -u SNAPBACK4_B1D_MANAGED_BIN -u SNAPBACK4_B1D_MANAGED_BIN_SHA256 \
+  -u SNAPBACK4_B1D_MANAGED_SCRATCH_PARENT \
+  node --test --test-concurrency=1 snapback4/packages/snapback4/test/identity-organizations.test.mjs
+2 pass, 0 fail, 1 skip; 156.429959 ms
+```
+
+The synthetic cases cover valid query/mutation success and refusal envelopes,
+a null mutation result, a capped query, wrong-kind refusals, malformed/non-JSON
+output, exit 2, a signal and unsupported action/job names. No Quarry policy,
+expected policy code, core, generic identity surface or provider/HTTP surface
+changed. The supervisor's next actual-policy run remains pending; no engine,
+remote, listener, provider, Rust/Cargo or installation command ran here.
+
+## 2026-09-17 — B1d.2a non-uniform invitation-page verification design
+
+The supervisor's third pinned run used frozen commit
+`3aef350081109ff7b4b1b7f16ce5e83a7acd0330`, Node 24.13.1 and the same
+hash-capable engine source `1e91bc7fe`, SHA-256
+`7342e869fe475e0a4629c36b87f91beac262d4551b769773574903a4cb32f187`.
+It produced 2 synthetic passes, 1 actual-test failure and 0 skips in
+3459.837467 ms. Compile, profile setup, organization creation and the earlier
+refusal probes completed before the test stopped at its line 320 on a
+successful `adminInvitations` response whose envelope had status 0,
+`complete: false`, `cut: null`, a string `next`, one data row, three examined
+rows and four rule probes. This remains a third actual red, not acceptance-
+policy green evidence.
+
+The private 0600 response journal retained all 59 responses at
+`/home/ccheever/sb4-b1d2-policy.nvOWiR/scratch/b1d2a-organizations-QAa1th/managed-policy-responses.jsonl`;
+its SHA-256 is
+`b06228610ec10b1e1a0249a69d5d930427888c5a2684364de4c2658b0d3e9992`.
+Full stdout SHA-256 is
+`c19c6725b7d0d826998f2ec1ed27a22bb69c8fa3ec05d0a421fda7048ce3f42b`;
+empty stderr SHA-256 is
+`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+This receipt and both older reds remain preserved beneath the same private
+450b root.
+
+The response is legitimate non-uniform completeness, not truncation to repair
+by pagination: the invitation rule unions organization-admin membership with
+an unpinned recipient-email profile branch, while the query scan pins only the
+organization. In the interpreter, `complete` classifies whether the rule is
+uniform over the scan; it is not an inventory-count assertion. This native Sol
+authoring pass therefore keeps the generic query classifier strict and adds a
+single operation-named bounded-page validator for the positive
+`adminInvitations` observation. That validator accepts only the known
+`complete: false`, null-cut, nullable/string-continuation shape, caps the page
+at 100 and verifies every returned row's organization and public projection.
+Synthetic cases prove that only this named path accepts the partial page and
+that it rejects a cut, a uniform envelope, the wrong organization and an
+unpublished field.
+
+All invitation state assertions now use exact-ID `invitationMetadata` point
+reads. Successful created IDs are captured only after a sent mutation and the
+final no-token/digest check targets those 15 IDs rather than claiming a
+complete listing. The new ordinary `adminOrganizationSummary` query uses only
+existing organization, member-count and reservation-count point reads. It
+supplies owner/admin capacity assertions and the late-admission rollback
+witness, including equality of both maintained counts before and after the
+refusal. Three member/outsider/other-tenant-admin denials extend the runtime
+matrix to 22 query plus 27 mutation refusal probes without changing any
+expected policy code.
+
+With the actual-policy environment variables explicitly unset, Node 24.18.0
+reported 2 pass, 0 fail and 1 named prerequisite skip in 131.674209 ms. The
+same file passed `node --check`, and `git diff --check` passed. No actual
+engine, listener, provider, remote, Rust/Cargo, install or root-gate command ran
+on Office in this phase. Qualification remains pending a supervisor rerun of
+the frozen committed sources; issuance, delivery, HTTP concurrency/lost-ack,
+restart, provider and full Identity/B claims remain outside B1d.2a.
+
+## 2026-09-17 — frozen invitation-policy qualification receipt
+
+The root retained the actual `06171edca` policy receipt in
+`reports/20260917-invitation-policy.md` and reconciled the service baseline,
+SERVER guide and fixture README against it. The digest-pinned `1e91bc7fe`
+engine on 450b passed two synthetic checks and one actual interpreter journey,
+including 49 source-bound refusal probes and 15 recorded invitation IDs.
+Three earlier failures remain failures. Successful scratch cleanup was
+approved before the frozen run; source and stdout digests are not a retained
+raw-response audit. Operator principal/time inputs do not establish provider,
+authentication, HTTP concurrency, delivery or restart qualification.
+
+Independent review then motivated explicit mutation-result projections. The
+separate `e1536df94` correction has three synthetic passes and one named
+actual-test skip; its queued actual run and own-thread blind delta reviews
+remain pending at this documentation checkpoint. No overall Identity/B,
+Workroom, publication or full-suite claim is made.
+
+## 2026-09-16 — B1d.2a identity-policy output and scratch-boundary repair
+
+This bounded correction was authored by native Sol HIGH. Independent Sol
+review marked the full-row mutation outputs NOT READY; Grok marked the same
+policy READY with the lowercase-hash-shape advisory below. The root chose
+explicit projections. No final review is fabricated here.
+
+`organizationRecordInvitation`, `organizationAcceptInvitation` and both the
+first and idempotent branches of `organizationRevokeInvitation` now return the
+same explicit public invitation metadata fields: `id`, `organization`,
+`recipientEmail`, `issuer`, `issuedAt`, `expiresAt`, `status`, `acceptedBy` and
+`acceptedAt`. Neither `tokenHash`, raw-token text nor future table fields can
+ride a successful mutation result. Acceptance and first revocation project
+their current post-update status and acceptance values rather than the stale
+pre-update row. Actual-result assertions pin the exact field set and values for
+record, new-member acceptance, existing-member acceptance, first revoke and
+repeated revoke. Query outputs, rules, tables, atomicity, the 49 source-bound
+refusal probes and the 15 recorded invitation IDs are unchanged.
+
+The accepted directly staged hash shape remains exactly 64 characters equal to
+their lowercase form; `lower(tokenHash) = tokenHash` does not prove that every
+character is hexadecimal. A staged non-hex value cannot equal the lowercase
+hex output of `sha256(rawToken)` and cannot redeem, but it can reserve
+admin-owned capacity until revocation or expiry. No regex, builtin, framework
+or broader policy was added. The later issuance action always supplies a
+crypto-derived digest.
+
+Before scratch creation, the actual-CLI test now walks every canonical parent
+ancestor and rejects a `.git` directory or linked-worktree `.git` file. A
+filesystem-only synthetic case proves an outside-repository nested parent is
+accepted and nested parents beneath each marker form are rejected. It creates
+and removes only its own `mkdtemp` root. Existing canonical-path, non-root,
+directory, owner, mode and child-containment guards remain.
+
+Frozen base `06171ed` previously passed 3/3: two synthetic tests and one actual
+test, with all 49 source-bound refusals and 15 recorded invitation IDs. The
+three earlier failed runs remain retained. The successful frozen helper
+removed its raw-response journal; retained stdout and source hashes are
+evidence for that run, not a retrospective raw-response audit. This correction
+changes the Quarry output source, so actual qualification is PENDING on the
+root's queued 450b run. `--as` and `--now` remain operator inputs, not
+authentication, provider, HTTP or restart proof.
+
+The correction input SHA-256 values are
+`a37d049485bd52cc02feba645d40bf0ae9602a52944f4737fcc7c8213b113fc0`
+for `test/identity-organizations.test.mjs`,
+`d4a7bb335b713341390a582b65bb9e97211e7e513ebaf9e16cad983f56322d28`
+for `snapback/schema.q`, and
+`6cb70304a8d2b07a5324ce2164d0ae8adc087af61d8233143f14d549c4f5eb4b`
+for `snapback/organizations.q`.
+
+With the actual-policy inputs explicitly unset, the required Node 24.13.1
+syntax check passed and the focused test reported 3 synthetic passes, 0
+failures and 1 named actual-test skip in 44.486125 ms. `git diff --check`
+passed before this append. No actual engine, provider, listener, HTTP,
+restart, Rust/Cargo, install, remote, root-gate or push command ran. Issuance,
+delivery, concurrency/lost-ack, restart, crash-cut, authentication/provider,
+full Identity/B and publication claims remain outside this correction.
+
+## 2026-09-17 — invitation output qualification and B1c instrument reviews
+
+The exact `e1536df94` mutation-output correction passed its one authorized
+450b run: four tests, zero failures or skips, 10517.262862 ms total, with
+10453.317516 ms in the actual interpreter journey. The 49 source-bound refusal
+probes and 15 recorded invitation IDs remain, and exact output assertions now
+cover record, both acceptance paths and first/repeated revoke. The root read
+the remote actual log and reconfirmed its SHA-256
+`2ac012a57a94d1b3072f7ad36df60fc08f4394a203caf9753db32bd1a1c7840c`.
+Both same-reviewer blind delta reviews are READY; their actual received public
+answers, original differing verdicts and dispositions are under `llp/reviews/`.
+The source and test bytes survived cherry-pick unchanged; only independent
+documentation blocks needed conflict resolution. The prior JOURNAL prefix
+and the source's full 3561-byte append were preserved exactly.
+
+The final B1c proxy source `95c326e65` also has both actual source-review
+verdicts READY and 18/18 synthetic checks. Its next external qualification
+attempt failed because the outer wrapper selected the inner worker-identity
+module instead of the full process monitor. The initial claim that no child
+was spawned was corrected from exact source order and retained scratch: the
+child ran beyond the primary into part of the raw matrix, but no final harness
+or outer custody receipt exists. This remains an instrument-red attempt, not
+an overall pass. The inner/outer API mismatch is diagnosed; recovery uses the
+existing byte-identical full monitor with an import-only preflight, not a new
+monitoring framework. `reports/20260917-b1c-instrument.md` preserves these facts.
+
+These landed-source qualifications do not close issuance/delivery, actual
+OIDC matrix/cuts, full Identity/B, Workroom, Postgres or publication. The W8
+warm diagnostic runs independently on Durand; service development continues
+without treating its eventual result as a prerequisite to adding services.
+
+
+## 2026-09-17 — fixture endpoints belong to their spawned server
+
+The local device and navigation fixtures and shared witness helper now use
+OS-assigned ports and read readiness from their own child's stdout. A failed
+bind can no longer make a fixture probe or seed an unrelated listener. The
+helper rejects startup exit and cleans failed startup; shutdown awaits child
+closure before removing the temporary app, with bounded escalation if needed.
+Navigation teardown closes its server through `finally` even if earlier
+cleanup fails. Main's newer claim, lock and recovery tests remain intact.
+
+On current 0.2.27 source, the CLI, wasm and client builds passed, followed by
+80/80 affected tests with zero failures or skips (34.494 s). The occupied-port
+probe passed with zero requests to the other listener; two simultaneous
+fixtures then used distinct ports, seeded and completed awaited cleanup.
+These are fixture checks; product behavior, assertions and existing test
+deadlines are unchanged. No package version or publication change is included.

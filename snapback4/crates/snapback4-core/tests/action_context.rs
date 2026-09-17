@@ -1,9 +1,10 @@
 #![cfg(feature = "sqlite")]
-use snapback4_core::{Context, Engine, Schema, Value, identity};
+use snapback4_core::{Ceilings, Context, Engine, Schema, Value, identity};
 use snapback4_core::engine::actions::ActionSettled;
 use snapback4_core::ir::{ArgType, Expr, Program, ProgramKind, Stmt};
 use snapback4_core::schema::{ActionSpec, Schedule, WorkPolicy, WorkSpec};
 use serde_json::json;
+use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
 fn program() -> Program {
@@ -75,15 +76,56 @@ fn media_results_validate_nested_facts_and_authoritative_byte_bounds() {
 #[test]
 fn a_completed_step_replays_across_claims_and_changed_input_refuses() {
     let mut engine = engine(); admit(&mut engine, "x", 0); let first = claim(&mut engine, 0);
+    let columns: Vec<String> = engine.store().conn().prepare("SELECT name FROM pragma_table_info('_action_steps')").unwrap()
+        .query_map([], |row| row.get(0)).unwrap().collect::<Result<_, _>>().unwrap();
+    assert_eq!(columns, ["invocation", "name", "input_digest", "provider_key", "state", "claim_digest", "result", "at", "settled_at", "error"]);
     let started = engine.begin_action_step("x", "service:worker", &first, "mail", &json!({"to":"alice"}), false, 1).unwrap();
     assert_eq!(started.state, "run");
+    assert_eq!(started.key, "99f7bb8290f67bce6b9446558c6762e4975539a2a5f63540d07234ea986119f4");
+    let started_row: (String, String, String, String, Option<String>, i64, Option<i64>, Option<String>) = engine.store().conn().query_row(
+        "SELECT input_digest, provider_key, state, claim_digest, result, at, settled_at, error FROM _action_steps WHERE invocation = 'x' AND name = 'mail'",
+        [], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?, row.get(7)?))).unwrap();
+    assert_eq!(started_row, (snapback4_core::store::payload_digest(&json!({"to":"alice"})), started.key.clone(), "started".into(), format!("{:x}", Sha256::digest(first.as_bytes())), None, 1, None, None));
     assert_eq!(engine.begin_action_step("x", "service:worker", &first, "mail", &json!({"to":"alice"}), false, 2).unwrap_err().code(), "E_STEP_BUSY");
+    let after_busy: (String, String, String, String, Option<String>, i64, Option<i64>, Option<String>) = engine.store().conn().query_row(
+        "SELECT input_digest, provider_key, state, claim_digest, result, at, settled_at, error FROM _action_steps WHERE invocation = 'x' AND name = 'mail'",
+        [], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?, row.get(7)?))).unwrap();
+    assert_eq!(after_busy, started_row, "a refusal rolls its writer transaction back");
     engine.complete_action_step("x", "service:worker", &first, "mail", &json!({"provider":"receipt"}), 3).unwrap();
+    assert_eq!(engine.complete_action_step("x", "service:worker", &first, "mail", &json!({"provider":"receipt"}), 4).unwrap().result, Some(json!({"provider":"receipt"})));
+    let completed_row: (String, String, String, String, Option<String>, i64, Option<i64>, Option<String>) = engine.store().conn().query_row(
+        "SELECT input_digest, provider_key, state, claim_digest, result, at, settled_at, error FROM _action_steps WHERE invocation = 'x' AND name = 'mail'",
+        [], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?, row.get(7)?))).unwrap();
+    assert_eq!(engine.complete_action_step("x", "service:worker", &first, "mail", &json!({"provider":"other"}), 5).unwrap_err().code(), "E_STEP_RESULT");
+    let after_mismatch: (String, String, String, String, Option<String>, i64, Option<i64>, Option<String>) = engine.store().conn().query_row(
+        "SELECT input_digest, provider_key, state, claim_digest, result, at, settled_at, error FROM _action_steps WHERE invocation = 'x' AND name = 'mail'",
+        [], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?, row.get(7)?))).unwrap();
+    assert_eq!(after_mismatch, completed_row, "a mismatched repeat cannot rewrite the receipt");
     let second = claim(&mut engine, 1_001);
     let replay = engine.begin_action_step("x", "service:worker", &second, "mail", &json!({"to":"alice"}), false, 1_002).unwrap();
     assert_eq!(replay.state, "done"); assert_eq!(replay.key, started.key); assert_eq!(replay.result, Some(json!({"provider":"receipt"})));
     assert_eq!(engine.begin_action_step("x", "service:worker", &second, "mail", &json!({"to":"bob"}), false, 1_003).unwrap_err().code(), "E_STEP_INPUT");
+    let after_changed_input: (String, String, String, String, Option<String>, i64, Option<i64>, Option<String>) = engine.store().conn().query_row(
+        "SELECT input_digest, provider_key, state, claim_digest, result, at, settled_at, error FROM _action_steps WHERE invocation = 'x' AND name = 'mail'",
+        [], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?, row.get(7)?))).unwrap();
+    assert_eq!(after_changed_input, completed_row);
     assert_eq!(engine.complete_action_step("x", "service:worker", &first, "mail", &json!(null), 1_003).unwrap_err().code(), "E_ACTION_LEASE");
+}
+
+#[test]
+fn an_oversized_step_result_parks_the_row_and_owner_atomically() {
+    let mut engine = engine();
+    engine.set_ceilings(Ceilings { output_bytes: 4, ..Ceilings::default() });
+    admit(&mut engine, "large", 0); let lease = claim(&mut engine, 0);
+    engine.begin_action_step("large", "service:worker", &lease, "provider", &json!(null), false, 1).unwrap();
+    assert_eq!(engine.complete_action_step("large", "service:worker", &lease, "provider", &json!("large"), 2).unwrap_err().code(), "E_STEP_RESULT");
+    let (state, result, error): (String, Option<String>, Option<String>) = engine.store().conn().query_row(
+        "SELECT state, result, error FROM _action_steps WHERE invocation = 'large' AND name = 'provider'",
+        [], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?))).unwrap();
+    assert_eq!((state.as_str(), result, error.as_deref()), ("parked", None, Some("result exceeds output byte ceiling")));
+    let owner = engine.action_request_at("large", "dev:alice", 2).unwrap();
+    assert_eq!((owner.state.as_str(), owner.error_code.as_deref()), ("parked", Some("E_STEP_RESULT")));
+    assert!(identity::resolve(engine.store(), &lease, 2).unwrap().is_none());
 }
 
 #[test]

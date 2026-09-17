@@ -157,6 +157,7 @@ fn r1p_fallible_and_variable_size_presence_evaluation_never_predicts() {
         "  emit notify { n: slice('abc', 0, connected[p]) }",
         "  if not exists connected[p]:\n    emit notify { key: new }",
         "  if not exists connected[p]:\n    emit notify { n: 1 / 0 }",
+        "  emit notify { digest: sha256('high-entropy-token') if exists connected[p] else 'not-sent' }",
         "  emit notify { text: 'a long value' if exists connected[p] else '' }",
         "  emit notify { values: [1, 2] if exists connected[p] else [1] }",
         "  if exists connected[p]:\n    emit notify { row: notes[1] ! else MISSING }",

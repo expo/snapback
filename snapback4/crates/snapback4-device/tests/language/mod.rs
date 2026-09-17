@@ -62,3 +62,22 @@ fn shapes_preserve_pending_through_spreads_and_projection_on_both_stores() {
         device.close();
     });
 }
+
+#[test]
+fn sha256_uses_the_shared_interpreter_on_both_device_stores() {
+    on_both(|host| {
+        let (mut server, backend) = compile("query digest(value: text <=100):\n  return sha256(value)\n");
+        let label = host.label();
+        let mut device = host.open("sha256", Some(backend)).unwrap();
+        for (value, expected) in [
+            ("", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
+            ("你好", "670d9743542cae3ea7ebe36af56bd53648b0a1126162e78d81a32934a711302e"),
+        ] {
+            let local = query(&mut *device, "digest", "dev:alice", serde_json::json!({"value": value}), 1);
+            let online = server.query("digest", context("dev:alice", &[("value", Value::String(value.into()))])).unwrap();
+            assert_eq!(local["data"], expected, "{label}");
+            assert_eq!(local["data"], snapback4_core::wire::to_json(&online.data), "{label}: device and SQLite server must share the result");
+        }
+        device.close();
+    });
+}
