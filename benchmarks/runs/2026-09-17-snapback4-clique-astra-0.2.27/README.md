@@ -63,10 +63,31 @@ expiring rows needing a non-expiring staging table plus revalidation is real add
 design work, and a builder being gracious about it is not evidence that it is free.
 It is the strongest new candidate for the next wave.
 
-**Not used:** the `maintain`-as-fresh-ranking form ruled in §20.20 shipped in this
-version's card, and this builder still chose "a dedicated expiring rank table" for
-trending — while using server maintains for the Insights totals. Whether the card
-now reaches a builder at the moment they need it is an open question this run does
-not settle.
+**The maintain form was not used, and that was correct — corrected claim.** This
+record first said the builder "still chose" a hand-rolled table despite the §20.20
+ruling shipping in this version's card, and implied the card had failed to reach
+them. Checked: `snapback/trending.q` declares `expire at .expiresAt` with
+`expiresAt: p.at + 86400000` — a **rolling** trailing-day window — and the card
+says plainly that the maintain suits a *calendar-bucket* ranking and that the
+handwritten table is for a window that must roll. **The builder read the card and
+followed it correctly.** They used server maintains where maintains fit (the six
+Insights totals and UTC buckets) and the handwritten table where they do not. There
+is no discoverability failure here.
+
+**Which leaves the real gap, now demonstrated three times:** a *rolling-window*
+ranking cannot be maintained, so a trending feed — the ordinary case — must be
+hand-materialised. Three consecutive builders have written the same expiring rank
+table. That is the honest successor to the §20.20 ruling: §20.20 closed the
+authority question, and this is a *expressiveness* question that no amount of
+documentation will close.
+
+**And a three-time pattern that the card now warns about and builders still write:**
+this table carries `insert <- allow` **and** `update <- allow` while being
+`public` and `sync public`, so any principal can set any post's score. Both
+wave-11 reviewers flagged exactly this shape, wave 11's card now states the
+exposure, and the third builder in a row wrote it anyway. The wave-10 review
+called a diagnostic for it speculative on one occurrence; at three it is evidence.
+A note when a public table with `update <- allow` carries a column that mirrors a
+`count`/`sum` of another table would have caught all three.
 
 **Chain:** `calibration-0.2.27.sh`. Packet: `~/clique-sb4-20260916-astra-cal11`.
