@@ -16,11 +16,18 @@ const MODEL = 'gpt-5.6-sol';
 const EFFORT = 'xhigh';
 const MAX_MS = 4 * 60 * 60 * 1000;
 const HEARTBEAT_MS = 60 * 1000;
+export const CUSTODY_SAMPLE_MS = 5_000;
+const GRACEFUL_CANCEL_MS = 5_000;
 const MIN_FREE_BYTES = 2n * 1024n * 1024n * 1024n;
+export const CUSTODY_LIMITATION =
+  'Sampled ancestry cannot see a process that double-forks and reparents between snapshots; this is not generic subtree custody.';
 
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 const iso = () => new Date().toISOString();
 function fail(code, detail = '') { throw new Error(detail ? `${code}: ${detail}` : code); }
+function intentionalStop(reason) {
+  return ['four-hour-operational-ceiling', 'disk-floor', 'driver-SIGINT', 'driver-SIGTERM'].includes(reason);
+}
 function writePrivate(path, value) {
   writeFileSync(path, typeof value === 'string' ? value : JSON.stringify(value, null, 2) + '\n',
     { flag: 'wx', mode: 0o600 });
@@ -111,6 +118,458 @@ function findExactRollout(home, threadId) {
 }
 const delay = ms => new Promise(resolveDelay => setTimeout(resolveDelay, ms));
 
+export function parseProcessSnapshot(output) {
+  const rows = [];
+  for (const line of output.split('\n')) {
+    if (!line.trim()) continue;
+    const match = line.match(/^\s*(\d+)\s+(-?\d+)\s+(\d+)\s+(\d+)\s+(\S+\s+\S+\s+\d+\s+\d\d:\d\d:\d\d\s+\d{4})\s+(.*)$/);
+    if (!match) fail('PILOT_PROCESS_SNAPSHOT_PARSE', line);
+    const [, pid, uid, ppid, pgid, startTime, command] = match;
+    rows.push({
+      pid: Number(pid), uid: Number(uid), ppid: Number(ppid), pgid: Number(pgid),
+      startTime, startToken: `${pid}:${startTime}`, commandSha256: sha256(command),
+    });
+  }
+  return rows;
+}
+
+export function processSnapshot(env = process.env) {
+  const observed = spawnSync('ps', ['-axo', 'pid=,uid=,ppid=,pgid=,lstart=,command='], {
+    env: { ...env, LC_ALL: 'C' }, encoding: 'utf8', timeout: 2_000, maxBuffer: 16 * 1024 * 1024,
+  });
+  if (observed.error) fail('PILOT_PROCESS_SNAPSHOT_FAILED', observed.error.message);
+  if (observed.status !== 0) fail('PILOT_PROCESS_SNAPSHOT_FAILED', observed.stderr?.trim() || `status ${observed.status}`);
+  return parseProcessSnapshot(observed.stdout);
+}
+
+function stableIdentityMatches(identity, observed) {
+  return Boolean(observed)
+    && identity.pid === observed.pid
+    && identity.uid === observed.uid
+    && identity.startToken === observed.startToken;
+}
+
+function identityReference(identity) {
+  return {
+    pid: identity.pid, uid: identity.uid, startTime: identity.startTime,
+    startToken: identity.startToken, commandSha256: identity.commandSha256,
+  };
+}
+
+function snapshotIdentity(observed, detail = {}) {
+  return {
+    pid: observed.pid, startTime: observed.startTime, startToken: observed.startToken,
+    uid: observed.uid, ppid: observed.ppid, pgid: observed.pgid,
+    commandSha256: observed.commandSha256, ...detail,
+  };
+}
+
+export class ProcessCustody {
+  constructor({ uid, snapshot, signalPid, signalGroup, sleep = delay, now = iso, record = () => {}, timings = {} }) {
+    this.uid = uid;
+    this.snapshot = snapshot;
+    this.signalPid = signalPid;
+    this.signalGroup = signalGroup;
+    this.sleep = sleep;
+    this.now = now;
+    this.record = record;
+    this.timings = {
+      pollMs: timings.pollMs ?? 100,
+      gracefulMs: timings.gracefulMs ?? GRACEFUL_CANCEL_MS,
+      groupTermMs: timings.groupTermMs ?? 30_000,
+      groupKillMs: timings.groupKillMs ?? 10_000,
+      descendantTermMs: timings.descendantTermMs ?? 5_000,
+      descendantKillMs: timings.descendantKillMs ?? 5_000,
+      pidTermMs: timings.pidTermMs ?? 5_000,
+      pidKillMs: timings.pidKillMs ?? 5_000,
+    };
+    this.ledger = [];
+    this.byPid = new Map();
+    this.groupLedger = new Map();
+    this.events = [];
+    this.uncertainties = [];
+    this._uncertaintyKeys = new Set();
+    this.cleanupPromise = null;
+    this.leader = null;
+    this.leaderGroupVerified = false;
+    this.lastSnapshotAt = null;
+    this.lastRows = [];
+  }
+
+  emit(event, detail = {}) {
+    const entry = { at: this.now(), event, ...detail };
+    this.events.push(entry);
+    this.record(entry);
+    return entry;
+  }
+
+  uncertain(code, detail = {}, key = `${code}:${JSON.stringify(detail)}`) {
+    if (this._uncertaintyKeys.has(key)) return;
+    this._uncertaintyKeys.add(key);
+    const entry = { at: this.now(), code, ...detail };
+    this.uncertainties.push(entry);
+    this.emit('custody-uncertainty', entry);
+  }
+
+  seedLeader(observed, { expectedPid, expectedPgid, launcherPid }) {
+    if (!observed || observed.pid !== expectedPid || observed.uid !== this.uid
+        || observed.ppid !== launcherPid) {
+      fail('PILOT_CODEX_IDENTITY_UNVERIFIED', JSON.stringify(observed ?? null));
+    }
+    const at = this.now();
+    const leader = snapshotIdentity(observed, {
+      role: 'codex-leader', parentIdentity: null, depth: 0,
+      firstSeenAt: at, lastSeenAt: at, lastObserved: snapshotIdentity(observed),
+    });
+    this.leader = leader;
+    this.ledger.push(leader);
+    this.byPid.set(leader.pid, leader);
+    this.leaderGroupVerified = observed.pgid === expectedPgid;
+    this.emit('identity-adopted', { identity: identityReference(leader), role: leader.role, pgid: leader.pgid });
+    if (!this.leaderGroupVerified) {
+      this.uncertain('PILOT_CODEX_GROUP_UNVERIFIED', { expectedPgid, observedPgid: observed.pgid });
+    }
+    return leader;
+  }
+
+  noteDescendantGroup(identity, observed, at) {
+    if (!this.leader || identity === this.leader || observed.pgid === this.leader.pgid) return;
+    const group = this.groupLedger.get(observed.pgid) ?? {
+      pgid: observed.pgid, firstSeenAt: at, lastSeenAt: at, members: new Map(),
+    };
+    group.lastSeenAt = at;
+    group.members.set(`${identity.pid}:${identity.startToken}`, identityReference(observed));
+    this.groupLedger.set(observed.pgid, group);
+  }
+
+  observeRows(rows, { adopt = false } = {}) {
+    const at = this.now();
+    this.lastSnapshotAt = at;
+    this.lastRows = rows;
+    const byPid = new Map(rows.map(row => [row.pid, row]));
+    const verified = new Map();
+    for (const identity of this.ledger) {
+      const observed = byPid.get(identity.pid);
+      if (stableIdentityMatches(identity, observed)) {
+        identity.lastSeenAt = at;
+        const changed = identity.lastObserved.ppid !== observed.ppid
+          || identity.lastObserved.pgid !== observed.pgid
+          || identity.lastObserved.commandSha256 !== observed.commandSha256;
+        if (changed) {
+          this.emit('identity-coordinates-changed', {
+            identity: identityReference(identity),
+            from: {
+              ppid: identity.lastObserved.ppid, pgid: identity.lastObserved.pgid,
+              commandSha256: identity.lastObserved.commandSha256,
+            },
+            to: {
+              ppid: observed.ppid, pgid: observed.pgid,
+              commandSha256: observed.commandSha256,
+            },
+          });
+        }
+        this.noteDescendantGroup(identity, observed, at);
+        identity.lastObserved = snapshotIdentity(observed);
+        verified.set(identity.pid, identity);
+      } else if (observed) {
+        this.uncertain('PILOT_PID_IDENTITY_CHANGED', {
+          recorded: identityReference(identity),
+          observed: identityReference(observed),
+        }, `pid-reuse:${identity.pid}:${observed.startToken}:${observed.uid}`);
+      }
+    }
+
+    if (!adopt || !this.leader || !verified.has(this.leader.pid)) return { rows, byPid, verified };
+    let added = true;
+    while (added) {
+      added = false;
+      for (const observed of rows) {
+        if (verified.has(observed.pid)) continue;
+        const parent = verified.get(observed.ppid);
+        if (!parent) continue;
+        if (observed.uid !== this.uid) {
+          this.uncertain('PILOT_FOREIGN_DESCENDANT_REFUSED', {
+            pid: observed.pid, uid: observed.uid, ppid: observed.ppid,
+            parentIdentity: identityReference(parent),
+          }, `foreign-child:${observed.pid}:${observed.startToken}`);
+          continue;
+        }
+        if (this.byPid.has(observed.pid)) {
+          const prior = this.byPid.get(observed.pid);
+          this.uncertain('PILOT_REUSED_DESCENDANT_PID_REFUSED', {
+            recorded: identityReference(prior), observed: identityReference(observed),
+          }, `reused-child:${observed.pid}:${observed.startToken}`);
+          continue;
+        }
+        const identity = snapshotIdentity(observed, {
+          role: 'adopted-descendant', parentIdentity: identityReference(parent),
+          depth: parent.depth + 1, firstSeenAt: at, lastSeenAt: at,
+          lastObserved: snapshotIdentity(observed),
+        });
+        this.ledger.push(identity);
+        this.byPid.set(identity.pid, identity);
+        verified.set(identity.pid, identity);
+        this.noteDescendantGroup(identity, observed, at);
+        this.emit('identity-adopted', {
+          identity: identityReference(identity), role: identity.role,
+          parentIdentity: identity.parentIdentity, ppid: identity.ppid, pgid: identity.pgid,
+        });
+        added = true;
+      }
+    }
+    return { rows, byPid, verified };
+  }
+
+  async sample({ adopt = false } = {}) {
+    return this.observeRows(await this.snapshot(), { adopt });
+  }
+
+  async signalExact(identity, signal, reason) {
+    const state = await this.sample({ adopt: false });
+    const observed = state.byPid.get(identity.pid);
+    if (!observed) {
+      this.emit('exact-pid-disappeared', { reason, signal, identity: identityReference(identity), after: 'no-signal' });
+      return { signalled: false, gone: true };
+    }
+    if (!stableIdentityMatches(identity, observed)) {
+      this.uncertain('PILOT_EXACT_PID_SIGNAL_REFUSED', {
+        reason, signal, recorded: identityReference(identity), observed: identityReference(observed),
+      }, `exact-refusal:${identity.pid}:${observed.startToken}:${signal}`);
+      this.emit('exact-pid-signal-refused', { reason, signal, pid: identity.pid, cause: 'identity-changed' });
+      return { signalled: false, gone: false, refused: true };
+    }
+    this.emit('exact-pid-signal', { reason, signal, identity: identityReference(identity) });
+    try { await this.signalPid(identity.pid, signal); }
+    catch (error) { if (error.code !== 'ESRCH') throw error; }
+    return { signalled: true, gone: false };
+  }
+
+  async gracefulCancel(reason) {
+    if (!this.leader) return { attempted: false, outcome: 'leader-unverified' };
+    const sent = await this.signalExact(this.leader, 'SIGINT', reason);
+    if (!sent.signalled) return {
+      attempted: false, outcome: sent.gone ? 'leader-already-gone' : 'identity-refused',
+    };
+    const until = Date.now() + this.timings.gracefulMs;
+    while (Date.now() < until) {
+      await this.sleep(Math.min(this.timings.pollMs, Math.max(0, until - Date.now())));
+      const state = await this.sample({ adopt: true });
+      const observed = state.byPid.get(this.leader.pid);
+      if (!stableIdentityMatches(this.leader, observed)) {
+        this.emit('graceful-cancel-complete', { reason, signal: 'SIGINT', outcome: 'leader-exited' });
+        return { attempted: true, signal: 'SIGINT', outcome: 'leader-exited' };
+      }
+    }
+    this.emit('graceful-cancel-complete', { reason, signal: 'SIGINT', outcome: 'grace-expired' });
+    return { attempted: true, signal: 'SIGINT', outcome: 'grace-expired' };
+  }
+
+  groupMembers(rows, pgid) {
+    return rows.filter(row => row.pgid === pgid);
+  }
+
+  validateGroup(rows, pgid, reason) {
+    const members = this.groupMembers(rows, pgid);
+    const unknown = members.filter(observed => {
+      const identity = this.byPid.get(observed.pid);
+      return !identity || !stableIdentityMatches(identity, observed);
+    });
+    if (unknown.length) {
+      const detail = {
+        reason, pgid,
+        members: members.map(identityReference),
+        unknown: unknown.map(identityReference),
+      };
+      this.uncertain('PILOT_GROUP_HAS_UNKNOWN_MEMBER', detail,
+        `unsafe-group:${pgid}:${unknown.map(row => `${row.pid}:${row.startToken}:${row.uid}`).join(',')}`);
+      this.emit('group-signal-refused', { ...detail, cause: 'unknown-or-nondescended-member' });
+      return { safe: false, members, unknown };
+    }
+    return { safe: true, members, unknown: [] };
+  }
+
+  async groupState(pgid, reason) {
+    const state = await this.sample({ adopt: false });
+    return { ...this.validateGroup(state.rows, pgid, reason), rows: state.rows };
+  }
+
+  async waitForGroup(pgid, milliseconds, reason) {
+    const until = Date.now() + milliseconds;
+    for (;;) {
+      const state = await this.groupState(pgid, reason);
+      if (state.members.length === 0) return { gone: true };
+      if (!state.safe) return { gone: false, refused: true };
+      if (Date.now() >= until) return { gone: false };
+      await this.sleep(Math.min(this.timings.pollMs, Math.max(0, until - Date.now())));
+    }
+  }
+
+  async cleanupGroup(pgid, reason, { descendant = false } = {}) {
+    let state = await this.groupState(pgid, reason);
+    if (state.members.length === 0) {
+      this.emit('group-disappeared', { reason, pgid, after: 'no-signal', descendant });
+      return { pgid, disappeared: true, after: 'no-signal', descendant };
+    }
+    if (!state.safe) return { pgid, disappeared: false, refused: true, descendant };
+    this.emit('group-signal', { reason, pgid, signal: 'SIGTERM', descendant, members: state.members.map(identityReference) });
+    try { await this.signalGroup(pgid, 'SIGTERM'); }
+    catch (error) { if (error.code !== 'ESRCH') throw error; }
+    const term = await this.waitForGroup(pgid,
+      descendant ? this.timings.descendantTermMs : this.timings.groupTermMs, reason);
+    if (term.gone) {
+      this.emit('group-disappeared', { reason, pgid, after: 'SIGTERM', descendant });
+      return { pgid, disappeared: true, after: 'SIGTERM', descendant };
+    }
+    if (term.refused) return { pgid, disappeared: false, refused: true, after: 'SIGTERM', descendant };
+    state = await this.groupState(pgid, reason);
+    if (!state.safe) return { pgid, disappeared: false, refused: true, after: 'SIGTERM', descendant };
+    this.emit('group-signal', { reason, pgid, signal: 'SIGKILL', descendant, members: state.members.map(identityReference) });
+    try { await this.signalGroup(pgid, 'SIGKILL'); }
+    catch (error) { if (error.code !== 'ESRCH') throw error; }
+    const killed = await this.waitForGroup(pgid,
+      descendant ? this.timings.descendantKillMs : this.timings.groupKillMs, reason);
+    this.emit(killed.gone ? 'group-disappeared' : 'group-still-present', {
+      reason, pgid, after: 'SIGKILL', descendant, refused: Boolean(killed.refused),
+    });
+    return { pgid, disappeared: killed.gone, refused: Boolean(killed.refused), after: 'SIGKILL', descendant };
+  }
+
+  descendantGroups() {
+    return [...this.groupLedger.values()]
+      .map(group => ({ ...group, members: [...group.members.values()] }))
+      .sort((a, b) => a.pgid - b.pgid);
+  }
+
+  currentDescendantGroupIds() {
+    const current = new Set();
+    const byPid = new Map(this.lastRows.map(row => [row.pid, row]));
+    for (const identity of this.ledger) {
+      if (identity === this.leader) continue;
+      const observed = byPid.get(identity.pid);
+      if (stableIdentityMatches(identity, observed) && observed.pgid !== this.leader?.pgid) {
+        current.add(observed.pgid);
+      }
+    }
+    return [...current].sort((a, b) => a - b);
+  }
+
+  async waitForExactGone(identities, milliseconds) {
+    const until = Date.now() + milliseconds;
+    for (;;) {
+      const state = await this.sample({ adopt: false });
+      const remaining = identities.filter(identity => stableIdentityMatches(identity, state.byPid.get(identity.pid)));
+      if (remaining.length === 0) return [];
+      if (Date.now() >= until) return remaining;
+      await this.sleep(Math.min(this.timings.pollMs, Math.max(0, until - Date.now())));
+    }
+  }
+
+  async cleanupExactPids(reason) {
+    const state = await this.sample({ adopt: false });
+    const live = this.ledger
+      .filter(identity => stableIdentityMatches(identity, state.byPid.get(identity.pid)))
+      .sort((a, b) => b.depth - a.depth || b.pid - a.pid);
+    for (const identity of live) await this.signalExact(identity, 'SIGTERM', reason);
+    let remaining = await this.waitForExactGone(live, this.timings.pidTermMs);
+    for (const identity of remaining) await this.signalExact(identity, 'SIGKILL', reason);
+    remaining = await this.waitForExactGone(remaining, this.timings.pidKillMs);
+    for (const identity of remaining) {
+      this.emit('exact-pid-still-present', { reason, after: 'SIGKILL', identity: identityReference(identity) });
+    }
+    return remaining;
+  }
+
+  async cleanup({ reason, intentional = false } = {}) {
+    return this.cleanupPromise ??= this._cleanup({ reason, intentional });
+  }
+
+  async _cleanup({ reason, intentional }) {
+    let gracefulCancellation = { attempted: false, outcome: 'not-an-intentional-stop' };
+    if (intentional) {
+      try { gracefulCancellation = await this.gracefulCancel(reason); }
+      catch (error) {
+        gracefulCancellation = { attempted: false, outcome: 'graceful-cancel-error', error: error.message };
+        this.uncertain('PILOT_GRACEFUL_CANCEL_FAILED', { reason, message: error.message });
+      }
+    }
+
+    try { await this.sample({ adopt: Boolean(this.leader) }); }
+    catch (error) { this.uncertain('PILOT_TERMINAL_SNAPSHOT_FAILED', { reason, message: error.message }); }
+
+    const adoptedGroups = this.descendantGroups();
+    const groupCleanups = [];
+    for (const targetPgid of this.currentDescendantGroupIds()) {
+      try { groupCleanups.push(await this.cleanupGroup(targetPgid, reason, { descendant: true })); }
+      catch (error) {
+        groupCleanups.push({ pgid: targetPgid, disappeared: false, descendant: true, error: error.message });
+        this.uncertain('PILOT_DESCENDANT_GROUP_CLEANUP_FAILED', {
+          reason, pgid: targetPgid, message: error.message,
+        });
+      }
+    }
+    if (this.leader && this.leaderGroupVerified) {
+      try { groupCleanups.push(await this.cleanupGroup(this.leader.pgid, reason, { descendant: false })); }
+      catch (error) {
+        groupCleanups.push({ pgid: this.leader.pgid, disappeared: false, descendant: false, error: error.message });
+        this.uncertain('PILOT_CODEX_GROUP_CLEANUP_FAILED', {
+          reason, pgid: this.leader.pgid, message: error.message,
+        });
+      }
+    } else if (this.leader) {
+      this.emit('group-signal-refused', {
+        reason, pgid: this.leader.pgid, cause: 'codex-group-was-not-verified-at-spawn',
+      });
+    }
+
+    let exactSurvivors = [];
+    try { exactSurvivors = await this.cleanupExactPids(reason); }
+    catch (error) {
+      this.uncertain('PILOT_EXACT_PID_CLEANUP_FAILED', { reason, message: error.message });
+    }
+    let finalRows = [];
+    try { finalRows = await this.snapshot(); }
+    catch (error) { this.uncertain('PILOT_FINAL_SNAPSHOT_FAILED', { reason, message: error.message }); }
+    const finalByPid = new Map(finalRows.map(row => [row.pid, row]));
+    const survivors = this.ledger
+      .filter(identity => stableIdentityMatches(identity, finalByPid.get(identity.pid)))
+      .map(identity => ({ ...identityReference(identity), pgid: finalByPid.get(identity.pid).pgid }));
+    for (const identity of exactSurvivors) {
+      if (!survivors.some(survivor => survivor.pid === identity.pid && survivor.startToken === identity.startToken)) {
+        survivors.push(identityReference(identity));
+      }
+    }
+    const receipt = {
+      ok: this.uncertainties.length === 0 && survivors.length === 0,
+      gracefulCancellation,
+      leaderIdentity: this.leader ? snapshotIdentity(this.leader) : null,
+      adoptedIdentities: this.ledger.map(identity => ({
+        ...snapshotIdentity(identity), parentIdentity: identity.parentIdentity,
+        role: identity.role, depth: identity.depth,
+        firstSeenAt: identity.firstSeenAt, lastSeenAt: identity.lastSeenAt,
+        lastObserved: snapshotIdentity(identity.lastObserved),
+      })),
+      adoptedGroups, groupCleanups, uncertainties: this.uncertainties,
+      survivors, events: this.events,
+      limitation: CUSTODY_LIMITATION,
+      custodyClaim: 'same-UID ancestry observed in bounded process snapshots only',
+      coldCellCoverage: {
+        status: 'external-actual-codex-receipt-required', eligibleFromThisReceipt: false,
+        reason: 'Actual-Codex ordinary exec-spawn/session coverage must pass before a cold cell.',
+      },
+    };
+    this.emit('custody-cleanup-complete', {
+      reason, ok: receipt.ok, uncertaintyCount: receipt.uncertainties.length,
+      survivorCount: receipt.survivors.length,
+    });
+    return receipt;
+  }
+}
+
+export async function cleanupAfterActiveSample(activeSample, cleanup) {
+  if (activeSample) await activeSample;
+  return cleanup();
+}
+
 export async function runPilot(rootArgument, { telemetry = false } = {}) {
   if (process.platform === 'win32') fail('PILOT_POSIX_REQUIRED');
   if (process.version !== REQUIRED_NODE) fail('PILOT_NODE_VERSION', `need ${REQUIRED_NODE}, got ${process.version}`);
@@ -182,63 +641,38 @@ export async function runPilot(rootArgument, { telemetry = false } = {}) {
     child.once('error', error => resolveClose({ code: null, signal: null, spawnError: error.message }));
     child.once('close', (code, signal) => resolveClose({ code, signal, spawnError: null }));
   });
-  const groupEvents = [];
-  const recordGroup = (event, detail = {}) => {
-    const record = { at: iso(), event, pid: child.pid, pgid, ...detail };
-    groupEvents.push(record);
+  const recordCustody = record => {
     try { writeSync(cleanupFd, JSON.stringify(record) + '\n'); } catch { /* end.json retains the in-memory record */ }
   };
-  let groupValidated = false;
-  const groupExists = () => {
-    if (!groupValidated) return false;
-    try { process.kill(-pgid, 0); return true; }
-    catch (error) { if (error.code === 'ESRCH') return false; throw error; }
-  };
-  const waitForGroupGone = async milliseconds => {
-    const until = Date.now() + milliseconds;
-    while (groupExists() && Date.now() < until) await delay(100);
-    return !groupExists();
-  };
-  let cleanupPromise = null;
-  const cleanupGroup = reason => cleanupPromise ??= (async () => {
-    if (!groupValidated) {
-      recordGroup('group-not-targeted', { reason: 'group identity was not validated' });
-      return { disappeared: false, unverified: true };
-    }
-    if (!groupExists()) {
-      recordGroup('group-disappeared', { reason, after: 'no-signal' });
-      return { disappeared: true, after: 'no-signal' };
-    }
-    recordGroup('signal', { reason, signal: 'SIGTERM' });
-    try { process.kill(-pgid, 'SIGTERM'); } catch (error) { if (error.code !== 'ESRCH') throw error; }
-    if (await waitForGroupGone(30_000)) {
-      recordGroup('group-disappeared', { reason, after: 'SIGTERM' });
-      return { disappeared: true, after: 'SIGTERM' };
-    }
-    recordGroup('signal', { reason, signal: 'SIGKILL' });
-    try { process.kill(-pgid, 'SIGKILL'); } catch (error) { if (error.code !== 'ESRCH') throw error; }
-    const disappeared = await waitForGroupGone(10_000);
-    recordGroup(disappeared ? 'group-disappeared' : 'group-still-present', { reason, after: 'SIGKILL' });
-    return { disappeared, after: 'SIGKILL' };
-  })();
+  const custody = new ProcessCustody({
+    uid: process.getuid(),
+    snapshot: async () => processSnapshot(env),
+    signalPid: async (pid, signal) => process.kill(pid, signal),
+    signalGroup: async (targetPgid, signal) => process.kill(-targetPgid, signal),
+    record: recordCustody,
+  });
+  let identitySeeded = false;
   const cleanupExactChild = async reason => {
     const alive = () => child.exitCode === null && child.signalCode === null;
     if (!alive()) {
-      recordGroup('exact-child-disappeared', { reason, after: 'no-signal' });
+      recordCustody({ at: iso(), event: 'exact-child-disappeared', reason, pid: child.pid, after: 'no-signal' });
       return { disappeared: true, exactChildOnly: true, after: 'no-signal' };
     }
-    recordGroup('exact-child-signal', { reason, signal: 'SIGTERM' });
+    recordCustody({ at: iso(), event: 'exact-child-signal', reason, pid: child.pid, signal: 'SIGTERM' });
     try { child.kill('SIGTERM'); } catch (error) { if (error.code !== 'ESRCH') throw error; }
     await Promise.race([exitPromise, delay(5_000)]);
     if (!alive()) {
-      recordGroup('exact-child-disappeared', { reason, after: 'SIGTERM' });
+      recordCustody({ at: iso(), event: 'exact-child-disappeared', reason, pid: child.pid, after: 'SIGTERM' });
       return { disappeared: true, exactChildOnly: true, after: 'SIGTERM' };
     }
-    recordGroup('exact-child-signal', { reason, signal: 'SIGKILL' });
+    recordCustody({ at: iso(), event: 'exact-child-signal', reason, pid: child.pid, signal: 'SIGKILL' });
     try { child.kill('SIGKILL'); } catch (error) { if (error.code !== 'ESRCH') throw error; }
     await Promise.race([exitPromise, delay(5_000)]);
     const disappeared = !alive();
-    recordGroup(disappeared ? 'exact-child-disappeared' : 'exact-child-still-present', { reason, after: 'SIGKILL' });
+    recordCustody({
+      at: iso(), event: disappeared ? 'exact-child-disappeared' : 'exact-child-still-present',
+      reason, pid: child.pid, after: 'SIGKILL',
+    });
     return { disappeared, exactChildOnly: true, after: 'SIGKILL' };
   };
   let threadId = null;
@@ -267,31 +701,59 @@ export async function runPilot(rootArgument, { telemetry = false } = {}) {
   child.stderr.on('data', onStderr);
   child.stdin.on('error', () => {});
   let stop = null;
+  let resolveStopRequested;
+  const stopRequestedPromise = new Promise(resolveRequested => { resolveStopRequested = resolveRequested; });
+  let custodyStopPromise = null;
+  function startCustodyCleanup(reason) {
+    if (!identitySeeded) return null;
+    return custodyStopPromise ??= cleanupAfterActiveSample(custodySamplePromise, () => custody.cleanup({
+      reason, intentional: intentionalStop(reason),
+    }));
+  }
   function requestStop(reason) {
     if (stop) return;
     stop = { reason, requestedAt: iso(), pid: child.pid, pgid };
+    resolveStopRequested(stop);
     try { writePrivate(join(privateDir, 'termination.json'), stop); } catch (error) { stop.recordError = error.message; }
-    cleanupGroup(reason).catch(error => { streamError ??= `group cleanup: ${error.message}`; });
+    if (custodySampleTimer) {
+      clearInterval(custodySampleTimer);
+      custodySampleTimer = null;
+    }
+    startCustodyCleanup(reason)
+      ?.catch(error => { streamError ??= `custody cleanup: ${error.message}`; });
   }
   const onSigint = () => requestStop('driver-SIGINT');
   const onSigterm = () => requestStop('driver-SIGTERM');
   let heartbeatTimer = null;
   let ceilingTimer = null;
+  let custodySampleTimer = null;
+  let custodySamplePromise = null;
   let result = { code: null, signal: null, spawnError: null };
   let lifecycleError = null;
-  let groupCleanup = null;
+  let custodyCleanup = null;
+  process.on('SIGINT', onSigint);
+  process.on('SIGTERM', onSigterm);
   try {
-    writePrivate(join(privateDir, 'pid.json'), { pid: child.pid, expectedPgid: pgid, detachedChild: true, recordedAt: iso() });
-    const observed = spawnSync('ps', ['-o', 'pgid=', '-p', String(child.pid)], { env, encoding: 'utf8' });
-    if (observed.status !== 0 || Number(observed.stdout.trim()) !== pgid) {
-      fail('PILOT_PROCESS_GROUP_UNVERIFIED', observed.stdout.trim());
-    }
-    groupValidated = true;
-    writePrivate(join(privateDir, 'process-group.json'), { pid: child.pid, pgid, verifiedAt: iso(), source: 'ps' });
+    const initialProcesses = await custody.snapshot();
+    const observed = initialProcesses.find(row => row.pid === child.pid);
+    const leaderIdentity = custody.seedLeader(observed, {
+      expectedPid: child.pid, expectedPgid: pgid, launcherPid: process.pid,
+    });
+    identitySeeded = true;
+    writePrivate(join(privateDir, 'pid.json'), {
+      ...snapshotIdentity(leaderIdentity), expectedPgid: pgid, detachedChild: true, recordedAt: iso(),
+    });
+    if (!custody.leaderGroupVerified) fail('PILOT_PROCESS_GROUP_UNVERIFIED', `observed ${leaderIdentity.pgid}`);
+    writePrivate(join(privateDir, 'process-group.json'), {
+      ...snapshotIdentity(leaderIdentity), verifiedAt: iso(), source: 'bounded ps snapshot',
+    });
+    custody.observeRows(initialProcesses, { adopt: true });
     const deadlineAt = new Date(Date.now() + MAX_MS).toISOString();
     writePrivate(join(privateDir, 'start.json'), {
       kind: 'workroom-diagnostic-pilot', spawnedAt, promptDeliveredAt: iso(), deadlineAt,
       pid: child.pid, pgid, cwd: app, model: MODEL, effort: EFFORT,
+      processIdentity: snapshotIdentity(leaderIdentity), custodySampleMilliseconds: CUSTODY_SAMPLE_MS,
+      custodyLimitation: CUSTODY_LIMITATION,
       command, commandSha256: commandHash, ephemeral: false,
       codexVersion: version.stdout.trim(), node: process.version, childNode: childNodeVersion,
       prompt: { path: promptPath, bytes: prompt.length, sha256: sha256(prompt) },
@@ -299,8 +761,6 @@ export async function runPilot(rootArgument, { telemetry = false } = {}) {
       environmentKeys: Object.keys(env).sort(), initialFreeBytes: initialFree.toString(),
       stdout: stdoutPath, stderr: stderrPath, lastMessage: lastMessagePath,
     });
-    process.on('SIGINT', onSigint);
-    process.on('SIGTERM', onSigterm);
     const heartbeat = () => {
       try {
         const free = diskFree(root);
@@ -319,27 +779,72 @@ export async function runPilot(rootArgument, { telemetry = false } = {}) {
     };
     heartbeat();
     heartbeatTimer = setInterval(heartbeat, HEARTBEAT_MS);
+    custodySampleTimer = setInterval(() => {
+      if (custodySamplePromise) return;
+      custodySamplePromise = custody.sample({ adopt: true }).catch(error => {
+        streamError ??= `custody snapshot: ${error.message}`;
+        custody.uncertain('PILOT_LIVE_SNAPSHOT_FAILED', { message: error.message });
+        requestStop('custody-snapshot-failure');
+      }).finally(() => { custodySamplePromise = null; });
+    }, CUSTODY_SAMPLE_MS);
     ceilingTimer = setTimeout(() => requestStop('four-hour-operational-ceiling'), MAX_MS);
     child.stdin.end(prompt);
-    result = await exitPromise;
+    const terminal = await Promise.race([
+      exitPromise.then(exit => ({ kind: 'exit', exit })),
+      stopRequestedPromise.then(() => ({ kind: 'stop-requested' })),
+    ]);
+    if (terminal.kind === 'exit') {
+      result = terminal.exit;
+    } else {
+      await startCustodyCleanup(stop.reason);
+      result = await Promise.race([exitPromise, delay(250).then(() => result)]);
+    }
   } catch (error) {
     lifecycleError = error.message;
   } finally {
     if (heartbeatTimer) clearInterval(heartbeatTimer);
     if (ceilingTimer) clearTimeout(ceilingTimer);
+    if (custodySampleTimer) clearInterval(custodySampleTimer);
+    if (custodySamplePromise) await custodySamplePromise;
     process.off('SIGINT', onSigint);
     process.off('SIGTERM', onSigterm);
-    if (groupValidated) {
-      try { groupCleanup = await cleanupGroup(stop?.reason ?? (lifecycleError ? 'lifecycle-error' : 'leader-exited')); }
-      catch (error) { groupCleanup = { disappeared: false, error: error.message }; lifecycleError ??= `group cleanup: ${error.message}`; }
+    if (identitySeeded) {
+      try {
+        custodyCleanup = await startCustodyCleanup(
+          stop?.reason ?? (lifecycleError ? 'lifecycle-error' : 'leader-exited'),
+        );
+      } catch (error) {
+        custodyCleanup = {
+          ok: false, error: error.message, uncertainties: [{ code: 'PILOT_CUSTODY_CLEANUP_FAILED', message: error.message }],
+          survivors: [], limitation: CUSTODY_LIMITATION,
+        };
+        lifecycleError ??= `custody cleanup: ${error.message}`;
+      }
     } else {
-      recordGroup('group-not-targeted', { reason: 'group identity was not validated' });
-      try { groupCleanup = await cleanupExactChild(lifecycleError ? 'lifecycle-error' : 'group-unverified'); }
-      catch (error) { groupCleanup = { disappeared: false, exactChildOnly: true, error: error.message }; lifecycleError ??= `exact child cleanup: ${error.message}`; }
+      recordCustody({ at: iso(), event: 'group-not-targeted', reason: 'Codex identity was not validated' });
+      try {
+        const fallback = await cleanupExactChild(lifecycleError ? 'lifecycle-error' : 'identity-unverified');
+        custodyCleanup = {
+          ok: false, exactChildFallback: fallback,
+          uncertainties: [{ code: 'PILOT_CODEX_IDENTITY_UNVERIFIED' }], survivors: [],
+          limitation: CUSTODY_LIMITATION,
+          coldCellCoverage: {
+            status: 'external-actual-codex-receipt-required', eligibleFromThisReceipt: false,
+          },
+        };
+      } catch (error) {
+        custodyCleanup = {
+          ok: false, exactChildFallback: { disappeared: false, error: error.message },
+          uncertainties: [{ code: 'PILOT_EXACT_CHILD_CLEANUP_FAILED', message: error.message }], survivors: [],
+          limitation: CUSTODY_LIMITATION,
+        };
+        lifecycleError ??= `exact child cleanup: ${error.message}`;
+      }
     }
     await Promise.race([closePromise, delay(2_000)]);
     child.stdout.off('data', onStdout); child.stderr.off('data', onStderr);
     child.stdout.destroy(); child.stderr.destroy();
+    if (child.exitCode === null && child.signalCode === null) child.unref();
     for (const fd of [stdoutFd, stderrFd, heartbeatFd, cleanupFd]) {
       try { closeSync(fd); } catch { /* end record carries lifecycle errors already observed */ }
     }
@@ -363,7 +868,8 @@ export async function runPilot(rootArgument, { telemetry = false } = {}) {
     wallSeconds: Math.round((performance.now() - monotonicStart) / 1000),
     pid: child.pid, pgid, model: MODEL, effort: EFFORT,
     exitCode: result.code, exitSignal: result.signal, spawnError: result.spawnError,
-    lifecycleError, streamError, termination: stop, groupCleanup, groupEvents,
+    lifecycleError, streamError, termination: stop,
+    custody: custodyCleanup, groupCleanup: custodyCleanup, groupEvents: custody.events,
     threadId, nativeRollout: nativeReceipt, packetIntegrity: finalIntegrity,
     stdout: fileReceipt(stdoutPath), stderr: fileReceipt(stderrPath),
     builderFinal: fileReceipt(builderFinalPath), lastMessage: fileReceipt(lastMessagePath),
@@ -375,7 +881,7 @@ export async function runPilot(rootArgument, { telemetry = false } = {}) {
   if (stop?.reason === 'driver-SIGINT') return 130;
   if (stop?.reason === 'driver-SIGTERM') return 143;
   if (!finalIntegrity.ok) return 126;
-  if (lifecycleError || streamError || groupCleanup?.disappeared === false) return 1;
+  if (lifecycleError || streamError || custodyCleanup?.ok !== true) return 1;
   return result.code ?? 1;
 }
 
