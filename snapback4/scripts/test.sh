@@ -72,7 +72,7 @@ run_host_tests() {
 }
 
 run_rust_tests() {
-  local rust_test_status=0 key package pid status
+  local rust_test_status=0 key package path pid status target
   local rust_pids=()
   local rust_keys=()
 
@@ -110,8 +110,18 @@ run_rust_tests() {
   # These crates and the host target have disjoint test processes. Cargo
   # otherwise waits for every test binary in one crate before starting the
   # next crate, leaving most cores idle during the large lowering census.
-  for package in snapback4-core snapback4-device snapback4-native snapback4-sim; do
+  for package in snapback4-core snapback4-native snapback4-sim; do
     run_rust_lane "$package" cargo test -p "$package" --no-fail-fast --quiet
+  done
+  # Cargo otherwise runs a package's integration binaries one after another.
+  # Keep every device target, but let the independent binaries overlap. The
+  # optimized production-scale fixtures need more than Rust's 2 MiB default
+  # test-thread stack; eight 32 MiB stacks are a bounded 256 MiB ceiling.
+  run_rust_lane snapback4-device-lib env RUST_MIN_STACK=33554432 cargo test -p snapback4-device --lib --quiet
+  run_rust_lane snapback4-device-doc env RUST_MIN_STACK=33554432 cargo test -p snapback4-device --doc --quiet
+  for path in crates/snapback4-device/tests/*.rs; do
+    target=$(basename "$path" .rs)
+    run_rust_lane "snapback4-device-$target" env RUST_MIN_STACK=33554432 cargo test -p snapback4-device --test "$target" --quiet -- --test-threads=8
   done
   # The baseline census is independently reproducible. Run it beside the
   # rest of the language crate while keeping every other lowering assertion.
