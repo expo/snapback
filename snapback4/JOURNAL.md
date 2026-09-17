@@ -24919,3 +24919,38 @@ performance claim, publication or push was made.
 
 `./ref-check --verbose` reports 481 LLP documents, 9,033 references in
 23,999 files, zero errors and zero unchecked references.
+
+## 2026-09-17 — C3.1 integrated, locked qualification
+
+The isolated landing candidate `1801ff4b8cd3c45261abe23538494bf55aa83913`
+combines the unchanged independently reviewed C3.1 product delta with the
+three-path-package lock repair and current main `e96d0fe1d`. On expo-build-450b,
+its clean worktree `/home/ccheever/lanes/sb4-c31-landing-20260917` passed the
+following serial checks, all with `CARGO_BUILD_JOBS=6` and `--locked`:
+
+- `cargo test -p snapback4-core --test work_records -- --test-threads=1`: 6/6.
+- The six previously named real-Postgres conformance tests, each selected with
+  `--test conformance <exact-name> -- --ignored --exact --test-threads=1`,
+  under `experiments/postgres/Cargo.toml --offline`: 6/6.
+- `cargo test -p snapback4-core --features postgres --lib
+  engine::postgres::tests -- --ignored --test-threads=1`: 5/5.
+
+The fresh PostgreSQL 16.15 instance listened only on its private Unix socket,
+port 55447, under
+`/tmp/sb4-c3-20260916-supervision/postgres-1801ff4b8-qual`. Its exact postmaster
+PID/PGID 3722695 was stopped with the matching data directory's `pg_ctl`.
+Tracked source stayed clean at the exact candidate. Retained qualification
+logs in `/tmp/sb4-c3-20260916-supervision/` have SHA-256:
+
+- `c31-landing-sqlite-work-records.log`:
+  `d334103992c092142fa631897eb952ceedf4e226b0ac993aa25088f2661c8504`
+- `c31-landing-postgres-receipt-focused6.log`:
+  `5a67ba0f3f82715789a9d103983738b2667c28c2ea0648363b9863bed96534c9`
+- `c31-landing-postgres-core5.log`:
+  `b1d10a6dc5a2b45a4bb925a1b64df680deb18d65c3a591ca7506ada8dfec7f70`
+
+The initial noninteractive shell lacked Cargo on PATH and refused before
+compilation; the retry used its absolute path. Two selector attempts selected
+zero tests and are retained separately, not counted as passes. These focused
+checks and the retained Sol/Grok reviews qualify only receipt binding, not
+production Postgres, the whole suite, performance, or publication.
