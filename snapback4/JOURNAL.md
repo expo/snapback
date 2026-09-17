@@ -32237,3 +32237,34 @@ three existing local-listener tests are not hidden or promoted into requested
 evidence. This is partial LLP 3000.009 §10.2 B progress. It is not generated
 effect context, a status endpoint, PostgreSQL effect work, provider/process
 qualification, a broad-suite result, publication, or a full B milestone.
+
+## 2026-09-17 — identity evidence reconciliation and invitation compile gate
+
+The integration retains the raw-authority deadline repair and optional
+invitation issuance plus its response-bound repair. Both original independent
+Sol/Grok reviewers returned READY on their own blind repair deltas; the
+actual public answers are preserved under `llp/reviews/`. Root reviewed the
+source and full public answers. This entry does not convert synthetic tests
+into provider evidence or erase earlier failed commands.
+
+The B1c instrument report now records the actual 22.589-second R4 pass on
+source `1b2178f07`: nine observations, eight adopted process identities and
+zero custody uncertainties or survivors. R2's wrong custody-module selection
+and R3's incorrect deadline-driving assumption remain historical failures.
+R4 does not qualify the later before-mint/after-step crash-cut instrument,
+legacy receipts or production wall-clock expiry.
+
+Optional invitation issuance source `c513bb984` passes 38 protocol doubles
+and its response-bound review repair. One actual schema/code-generation,
+strict-TypeScript and generated-manifest gate then passed on idle 450b at
+18:01:51Z–18:01:53Z. It used explicitly pinned recipe, compiler, CLI and
+package bytes and did not start the application or contact a provider.
+The checker is still a recoverable, unlanded instrument at `8ba9a3c6e`;
+its append-only correction withdraws an unsupported native-author test-red
+narrative. The actual recorded checker tests both passed 7/7.
+
+`reports/20260917-invitation-issuance.md` records the full source boundaries,
+actual receipt digest, warnings and custody limits. Engine/HTTP, durable-step
+process cuts and actual provider delivery remain open. No real Resend send,
+publication, complete Identity/B claim or post-Workroom retain/remove decision
+follows from this landing.

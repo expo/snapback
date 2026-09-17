@@ -1,7 +1,8 @@
 # B1c qualification instrument — 2026-09-17
 
-Final instrument source: `95c326e65b9897880b454b29fd1caaa3c008ad04`.
-This record is not an overall actual-provider qualification. The historical
+Initial repaired instrument: `95c326e65b9897880b454b29fd1caaa3c008ad04`.
+Later source `1b2178f073ea34f948b42f280c06df3cad840a3d` passed the bounded
+actual R4 qualification below. That pass is not full Identity qualification. The historical
 attempt in [the identity/C3.2 record](20260916-identity-c32.md) remains an
 overall failed command with completed primary assertions and zero completed
 raw-authority cases.
@@ -61,6 +62,66 @@ Recovery stages it under a distinct outer-monitor filename and checks the
 imported API before any child launch. Inner and outer helper roles must be
 separately named in the next manifest. New outputs use a fresh private root;
 all failed attempt artifacts remain untouched.
+
+## R3: failed deadline instrument order
+
+The corrected outer envelope ran the 95-source harness for 9.803 seconds,
+then exited nonzero at `B1C_DEADLINE_TERMINAL_EVIDENCE`. The primary
+Keycloak, lost-reply, profile and diagnostic assertions completed; the raw
+matrix did not. Public result collection is intentionally read-only, and the
+raw fixture has no worker to drive expiry. The instrument incorrectly expected
+collection itself to expire the invocation. This was not a proved backend
+failure. R3's receipt SHA-256 is
+`23097cf6ee47b7ed04b015b688056a030292090582095153fe493115abed6470`.
+
+Source `1b2178f07` uses the normal service/held-lease status endpoint after the
+unchanged deadline wait, requires the exact invocation, attempt and terminal
+deadline refusal, then performs public collection and the original mint-refusal
+assertion. No database write, longer wait or permissive assertion was added.
+All 21 affected synthetic checks passed; both original reviewers returned READY
+on their own blind delta. Earlier failed attempts remain preserved.
+
+## R4: actual source-bound pass
+
+R4 ran on idle 450b from 06:52:29.915Z to 06:52:52.504Z on 2026-09-17:
+22.589 seconds, exit zero, with both `B1C_OUTER_QUALIFICATION_PASSED` and
+`B1C_QUALIFICATION_PASSED`. It used Node 24.13.1, the existing isolated
+Keycloak provider on 450a, the unchanged qualified binary and package, and
+the separately checked full outer custody module. No production provider
+account or publication was involved.
+
+Exact evidence:
+
+- Harness source: `1b2178f073ea34f948b42f280c06df3cad840a3d`;
+  staged archive SHA-256
+  `6c83ac7d354fb9a7556bd4b11020b9c94944a4c5a29ef2a0629680bbb383379f`.
+- Binary SHA-256:
+  `7342e869fe475e0a4629c36b87f91beac262d4551b769773574903a4cb32f187`.
+- Package 0.2.27 dist inventory (60 regular files, GNU digest lines over
+  UTF-8-byte-sorted bare relative paths):
+  `32c44791e8972306a6ff27f4df84145da4b55a8fc41e30902a44b993e77c79d1`.
+  This is an aggregate, not the identity.js file hash.
+- Final outer receipt:
+  `dd45c97b42c8cc9808fd939a788923aa1d5121fb9ee2c8ccc1e5325c85f23656`.
+- Sanitized stdout:
+  `5c8b7a5aa370b68b9723d0862910023191b9c0de474f351216559ad3180d30b1`;
+  stderr (SQLite experimental warning only):
+  `a2c722ca2eec86395a086d401f8ee61e796ba118848c69bba7280f4e98a0d47c`.
+
+The nine observations cover the actual generated Keycloak helper,
+post-commit lost reply and worker crash, same-family/same-expiry replacement
+with stale-token refusal, provider-derived own profile, default-diagnostic
+redaction, explicit first binding with the recovery flag, the executable
+stale/parked/cancelled/settled/deadline refusals, admitting/issued-target/service
+refusals, and supported-development-clock family expiry. The outer receipt
+records eight adopted process identities, zero custody uncertainties and zero
+survivors. The private scratch and all failed-run artifacts remain retained.
+The provider and tunnel later ended at their own caps without extension.
+
+This pass covers only the executable cases in source 1b. The new before-mint
+and after-mint-step crash modes in source `b9fdf94dd` have only synthetic
+evidence so far; their independent review and actual execution are separate.
+Legacy unpublished receipts and production wall-clock expiry are still gaps.
 
 ## Limits
 

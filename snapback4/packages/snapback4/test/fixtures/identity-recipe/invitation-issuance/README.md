@@ -2,9 +2,10 @@
 
 This directory is an optional source variant, not part of the baseline active
 `snapback/` tree. It adds root `issueInvitation` while reusing baseline
-`schema.q` and `organizations.q`. It is source and protocol-double evidence
-only: no generated registry, engine, authentication, crash process or Resend
-qualification has run.
+`schema.q` and `organizations.q`. Source, protocol doubles and one actual
+schema/code-generation/strict-TypeScript/generated-manifest gate pass; no
+engine action, authentication, crash-process or Resend qualification has run.
+See the [source-bound evidence and remaining gates](../../../../../../reports/20260917-invitation-issuance.md).
 
 ## Exact future staging layout
 
@@ -17,8 +18,9 @@ incorrectly name the action `actions.issueInvitation`. The staged server
 preserves `beginOidc` and `completeOidc`, adds root `issueInvitation`, and uses
 `api.organizations.adminOrganizationSummary`, `invitationDeliveryState`, and
 `organizationRecordInvitation`. Do not duplicate managed policy or commit
-generated artifacts. The static test checks intended layout, not generation;
-generated registry adoption and handler typecheck remain pending.
+generated artifacts. The static test checks intended layout, not generation.
+The separate 2026-09-17 actual compile gate passes generated-manifest imports
+and handler typecheck; runtime registry adoption remains pending.
 
 Preparation preflights current admin inside the durable callback before
 generating 32 random bytes. Its retained outcome has the raw token, frozen
