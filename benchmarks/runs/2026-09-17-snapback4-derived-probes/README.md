@@ -1,6 +1,6 @@
 # Derived-data probes on published Snapback 4 0.2.27
 
-**Status: complete; a probe record, not a calibration.** Fourteen small projects run against
+**Status: complete; a probe record, not a calibration.** Fourteen small projects, and two blind runs of shipped recipes on 0.2.28, run against
 the **published `snapback4-darwin-arm64@0.2.27` binary** (`npm pack`, `snapback4 --version`
 → `snapback4 0.2.27`) on 2026-09-17, to test whether three shapes the 0.2.27 Clique record
 called expressiveness holes — a rolling-window ranking, a derived table any principal can
@@ -282,6 +282,29 @@ stores every `put`, so any update to an old row breaks the assumption. Filed as
 `issues/20260917-snapback4-device-page-past-horizon-answers-from-scattered-rows.md` (P1).
 Run: `SB=<binary> PKG=<unpacked snapback4 npm package> node measure.mjs`. Re-run the same day against the
 just-published `0.2.28` binary and client: identical (`RESULT-0.2.28.txt`).
+
+## `published-0.2.28/` — the two recipes this program shipped, pasted blind from the published binary
+
+0.2.28 carries the hour-lanes Trending (wave 12's lane W12R1c, from §21.1 item 1) and the
+period-seeking digest (lane W14b, item 2). Each block was extracted from the **published
+0.2.28 binary's own card** (`snapback4 guide feeds`, the block containing
+`trendingWithZeros`; `snapback4 guide jobs`, the block containing `job digest(`), written
+to `snapback/schema.q` unedited, and run.
+
+- **Digest:** `check: ok — 4 tables (3 synced), 2 operations, no problems`. `inbox(period)`
+  as each viewer: alice `{c1: 1, c2: 2}`, bob `{c1: 0, c2: 4, c3: 2}` (the message older
+  than the period is out), carol zeros. `snapback4 run digest` → done, 3 chunks, 0 rows
+  written; `doctor`: `effects 2 queued` — alice and bob; carol, with nothing unread, is
+  silent. The shipped card carries both review corrections (missed schedule boundaries
+  coalesce; what the example's `members` insert rule admits).
+- **Trending:** 3,000 posts over 30 hours, 20,393 likes. Page 1's scores equal an
+  independent oracle's (`196,186,182,181,174,159,144,143,141,140`), `complete: true`,
+  `next`, **286 examined** for 2,207 liked posts in the window; pages 1 and 2 together: no
+  duplicate post and twenty scores equal to the oracle's, across a tie at 140;
+  `trendingWithZeros` returns ten rows, complete. A like through `setLike` as another
+  principal is `sent`.
+
+Run: `SB=<published binary> node measure.mjs` in a project holding the extracted block.
 
 ## What this record does not show
 
