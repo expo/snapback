@@ -10,6 +10,7 @@ mod trending;
 mod grace_effects;
 mod search_global;
 mod read_cut;
+mod digest;
 mod search_directory;
 
 use snapback4_core::engine::{Context, Engine, WriteState};

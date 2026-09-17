@@ -315,3 +315,15 @@ fn w4_live_maintain_probe_equalities_ignore_expired_contributions() {
         observations[0].assert_same(&observations[1]);
     }
 }
+
+#[test]
+fn w14b_expiry_rewrite_names_query_and_job_doors() {
+    let expires = SOURCE.split("query page(").next().unwrap().replace("  read <-", "  expire at .expiresAt\n  read <-");
+    let bound = compile(&format!("{expires}\nmutation pass(): server\n  rows = items['alice'] first 10 by byOwner\n  return count(rows)\n"));
+    let diagnostic = bound.diagnostics.iter().find(|d| d.code == "E_STRUCTURAL_FANOUT").unwrap();
+    assert!(diagnostic.message.contains("a mutation page cannot scan a table with expiry"));
+    assert_eq!(diagnostic.rewrite, "read this page in a query, then pass the selected ids to the mutation; or use a job chunk, which may read a table with expiry");
+    let allowed = compile(&format!("{expires}\njob pass():\n  chunk r in items first 10 by byId:\n    update items[r.id] {{amount: 1}}\n"));
+    assert!(allowed.diagnostics.is_empty(), "{:?}", allowed.diagnostics);
+    assert!(allowed.notes.is_empty(), "{:?}", allowed.notes);
+}

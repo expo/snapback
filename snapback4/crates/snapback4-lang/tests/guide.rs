@@ -1037,3 +1037,21 @@ fn composition_card_matches_readme_and_the_routing_boundary() {
         }
     }
 }
+
+#[test]
+fn w14b_digest_recipes_are_complete_and_share_the_period_helper() {
+    let jobs = card("jobs").unwrap();
+    let digest = quarry(jobs).into_iter().find(|b| b.contains("job digest(")).expect("a complete digest recipe");
+    let readme = quarry(README).into_iter().find(|b| b.contains("job digest(")).expect("README digest recipe");
+    assert_eq!(digest, readme);
+    clean("digest", &digest);
+    let large = quarry(jobs).into_iter().find(|b| b.contains("job digestLarge(")).expect("past-the-envelope recipe");
+    clean("large digest", &large);
+    for source in [&digest, &large] {
+        assert!(source.contains("at >= periodStart, at < periodEnd"));
+        assert!(source.contains(".ordinal > readOrdinal"));
+    }
+    let remind = quarry(jobs).into_iter().find(|b| b.contains("job remind(")).unwrap();
+    assert!(remind.contains("immutable sentAt"));
+    assert!(remind.contains("invites[sentAt >= periodStart, sentAt < periodEnd] first 100 by bySentAt"));
+}

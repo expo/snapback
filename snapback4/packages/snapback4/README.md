@@ -679,15 +679,15 @@ table invites:
   sentAt: time
   reminded: bool
   by byInvitee: inviteeId, id
+  by bySentAt: sentAt, id
+  immutable sentAt
   read <- .inviteeId = viewer
   insert <- deny
   update <- deny
   delete <- deny
 
 job remind(periodStart: time, periodEnd: time):
-  chunk i in invites first 100 by byId:
-    if i.sentAt >= periodEnd:
-      break
+  chunk i in invites[sentAt >= periodStart, sentAt < periodEnd] first 100 by bySentAt:
     if not i.reminded:
       update invites[i.id] { reminded: true }
 schedule remindDaily every 1d at 08:00: remind          -- or: every 2m
@@ -1023,8 +1023,91 @@ refused mutation emits nothing), and a worker — a process the
 application runs with a service token, §4 — performs it and settles it.
 A failure follows its declared policy (eight attempts by default); a worker that dies
 loses its lease and the effect is claimed again; two workers never hold
-one effect. `snapback4 doctor` counts them. A scheduled job that emits
-once per period is the digest recipe.
+one effect. `snapback4 doctor` counts them.
+
+For a digest, **seek the period, filter the ordinal**. The complete recipe
+below shares `unreadIn` with the viewer's inbox for the same period and walks
+each recipient's own memberships; the job may read expiring messages directly.
+`snapback4 guide jobs` explains the 16,384-examined chunk envelope, the measured
+hub, the single totals-table fallback past it, and restart/re-run behavior.
+Emits commit with the chunk cursor, but queueing a parked run again or manually
+running the same period creates another run and can emit again. Use
+`(targetUserId, periodEnd)` as the worker's idempotency key, or an emission marker.
+
+```quarry
+use personas alice, bob, carol
+effect push
+
+table profiles:
+  principal: principal
+  unique byPrincipal: principal
+  public 'profiles are public'
+  insert <- .principal = viewer
+
+table conversations:
+  title: text <=80
+  read <- exists members[.id, viewer]
+  insert <- allow
+  after insert <- exists members[.id, viewer]
+  sync to members[.id]
+
+table members:
+  conversationId: conversations
+  principal: principal
+  readOrdinal: int default 0
+  unique byConversationPrincipal: conversationId, principal
+  by byPrincipalConversation: principal, conversationId, id
+  cap 50 by conversationId
+  cap 1000 by principal
+  immutable conversationId, principal
+  read <- exists members[.conversationId, viewer]
+  insert <- exists members[.conversationId, viewer] or created conversations[.conversationId]
+  update <- .principal = viewer
+  delete <- .principal = viewer
+  sync to members[.conversationId]
+
+table messages:
+  conversationId: conversations
+  senderId: principal
+  ordinal: int
+  body: text <=4000
+  tombstone: bool default false
+  at: time
+  expiresAt: time ?
+  unique byConversationOrdinal: conversationId, ordinal
+  by byTime: at, id
+  by byConversationTime: conversationId, at, id
+  by byExpiresAt: expiresAt
+  immutable conversationId, senderId, ordinal, at
+  read <- exists members[.conversationId, viewer]
+  insert <- .senderId = viewer and exists members[.conversationId, viewer]
+  update <- .senderId = viewer
+  expire at .expiresAt
+  sync last 500 by byConversationOrdinal
+
+fn unreadIn(conversationId: conversations, reader: principal, readOrdinal: int, periodStart: time, periodEnd: time):
+  return count(messages[conversationId, at >= periodStart, at < periodEnd] first 100 by byConversationTime where not .tombstone and .senderId != reader and .ordinal > readOrdinal)
+
+query inbox(periodStart: time, periodEnd: time):
+  rows = []
+  for m in members[viewer] first 1000 by byPrincipalConversation:
+    rows = rows + [{ conversationId: m.conversationId, unread: unreadIn(m.conversationId, viewer, m.readOrdinal, periodStart, periodEnd) }]
+  return rows
+
+job digest(periodStart: time, periodEnd: time):
+  chunk p in profiles first 1 by byId:
+    unread = 0
+    chats = 0
+    for m in members[p.principal] first 1000 by byPrincipalConversation:
+      n = unreadIn(m.conversationId, p.principal, m.readOrdinal, periodStart, periodEnd)
+      if n > 0:
+        chats = chats + 1
+        unread = unread + n
+    if unread > 0:
+      emit push { targetUserId: p.principal, kind: 'digest', periodStart, periodEnd, unread, chats }
+schedule daily every 1d at 08:00: digest
+```
+
 When presence decides only effects, no live poll but an unexpired grace
 queues the push for the grace deadline: up to 35 seconds. `doctor` reports the
 deferred count and next deadline; `GET /effects` shows each deadline as `nextAt`.

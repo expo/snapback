@@ -81,7 +81,10 @@ pub fn check_detail(schema: &Schema, program: &Program) -> Result<(), Problem> {
         if has_merge { return Err(fanout(scans.first().copied(), &program.name, "a merge is not a plain prefix scan", "read this merge in a query, then pass the selected ids to the mutation")); }
         for scan in &scans {
             if let Some(reason) = plain_prefix_problem(schema, scan) {
-                return Err(fanout(Some(scan), &scan.site, &reason, "read this page in a query, then pass the selected ids to the mutation"));
+                let rewrite = if reason.starts_with("a mutation page cannot scan a table with expiry") {
+                    "read this page in a query, then pass the selected ids to the mutation; or use a job chunk, which may read a table with expiry"
+                } else { "read this page in a query, then pass the selected ids to the mutation" };
+                return Err(fanout(Some(scan), &scan.site, &reason, rewrite));
             }
         }
         let nonuniform = scans.iter().find(|s| schema.table(&s.table).and_then(|t| t.index(&s.index)).is_some() && !scan_visibility(schema, s).uniform).map(|s| (*s).clone());

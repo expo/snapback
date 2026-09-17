@@ -30400,3 +30400,123 @@ diff) and worth running to the letter of the bar; "one family's Mediums do not c
 the lead grading its own design. And a review harness detail worth keeping: both families
 were pointed at `git diff <previous reviewed commit> HEAD -- <design>` so a confirmation
 round reviews the delta, not the document again.
+
+## 2026-09-17 — W14b: a digest reads the period through its recipient's memberships
+
+At base `ab061be9309db1703f0a3a3aff0228b4a5c522bd`, built the jobs card's
+complete period-seeking digest and its shared, period-parameterized inbox
+helper, copied that complete block into the README, and changed both worked
+`remind` examples to seek an immutable `sentAt` index. The larger alternative
+sweeps memberships in chunks of 25, accumulates one job-only totals table
+keyed by `(principal, periodEnd)`, then emits and deletes that period's totals.
+It skips principals without a profile, matching the direct digest's recipients.
+The card distinguishes resumed chunks from replacement runs, external delivery
+from durable emission, and worker idempotency from a disposable totals row.
+Only the expiry branch of `E_STRUCTURAL_FANOUT`'s rewrite changed in admission;
+no admission decision, parser, binder, meter ceiling, client, corpus case, init
+recipe, feed card or maintains card changed. One reference points at LLP
+3000.007 §21.1. All changed source files remain under 1,500 lines.
+
+Measured the retained probes on this build's debug binary in disposable copies
+under `/tmp/w14b-probes`, with Node 24.18.0. The published 0.2.27 record's
+three-profile inbox results reproduce exactly: alice `[1,2]`, bob `[0,4,3]`,
+carol `[0,0]`, examined 11/15/9; the job finishes in 3 chunks, 0 row writes,
+2 queued effects. `check` on both probe projects reports no problems and no
+notes. The 1,000-chat × 99-message hub seeds 102,001 rows in 23,311 ms;
+ordinal seek parks with `E_BOUND: examined rows reached the ceiling 16384`
+in 459 ms, and period seek finishes in 258 ms, one chunk, zero row writes,
+one effect. The published production-binary figures were about 4,400 ms for
+seed and 125/57 ms for the two jobs. Debug versus production and a shared
+host (the suite observed load 48.37 across 18 CPUs) preclude a speed comparison.
+The unchanged `parked.mjs` also reproduces a new run ID and effects 1 → 2
+when the same parked period is queued again.
+
+The simulator's 1,000 × 20 fixture measures 7,003 examined for the period seek,
+not approximately 6,000: 1,000 memberships, 5,000 period messages, 1,002 scan
+attempts, and the profile row. The ordinal seek attempts examination 16,385
+and parks at the unchanged 16,384 ceiling. The final targeted run timed them
+at 218/58 ms. `JobRun` does not expose its meter, so the test runs the same
+compiled single-profile program with the system context and `Cut::Abort` in
+a rolled-back transaction, proving the exact count by lowering the examined
+ceiling to the count and then one below it; the real job's state, effect and
+chunk count are tested separately. At 1,000 memberships and no lookahead or
+expired candidates, 14,381 period messages fit exactly at 16,384 examined;
+14,382 park with no new effect. The larger form equals the single-chunk
+form on the shared fixture, including a cross-chunk accumulation: 3 chunks,
+36 writes, 2 effects, 0 totals remaining. Restart between chunks preserves
+one effect per positive profile; a manual repeat of the completed period
+adds another two effects; requeue after a small profile succeeds and a hub
+parks adds the small profile's effect again (1 → 2).
+
+Two premises of the brief needed correction. The retained probe's `inbox()`
+uses time zero, while its job uses the period: bob has 3 in c3 in that inbox
+but 2 in the digest. On an equal period the published helper's inbox and job
+agree: alice `[1,2]`, bob `[0,4,2]`, carol `[0,0]`, examined 11/14/8, effects
+carrying unread 3 and 6. The tests pin both the original and equal-period
+answers. Also, memberships plus period messages describe scaling, not the
+exact examined envelope: scan attempts and lookahead count too. The card
+states the `first 100` per-chat limit, the other meters, and that a replacement
+run must clear/rebuild unfinished totals before accumulating again; merely
+using the effect's idempotency key does not repair double-counted totals.
+
+Regression checks were red before the edits:
+
+- `cargo test -p snapback4-sim --test page_admission w14b -- --nocapture`:
+  `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s`
+  (the rewrite omitted the job door).
+- `cargo test -p snapback4-lang --test guide w14b -- --nocapture`:
+  `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 51 filtered out; finished in 0.00s`
+  (the complete digest block was absent).
+
+Final affected checks, run from `snapback4/`:
+
+- `cargo test -p snapback4-lang --test guide -p snapback4-sim --test page_admission`:
+  `test result: ok. 52 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s`
+  and `test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.87s`.
+- `cargo test -p snapback4-sim --test clique digest:: -- --nocapture`:
+  `test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 93 filtered out; finished in 4.35s`.
+
+The whole `bash snapback4/scripts/test.sh` ran from the repository root after
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`. Verbatim summary:
+`-- ok: cargo test (536 s)`, fixture `ℹ tests 9`, `ℹ pass 9`, `ℹ fail 0`;
+client `ℹ tests 584`, `ℹ pass 578`, `ℹ fail 3`, `ℹ cancelled 0`,
+`ℹ skipped 3`, `ℹ duration_ms 611030.69775`;
+`-- FAIL: client tests (611 s)`; `== 1 failure(s) in 742 s`.
+All builds and typechecks pass. Rust's 69 test binaries/382 executions and
+doctests sum to 1,328 passed, 0 failed, 4 ignored. Lifecycle passes 20/20.
+The three client failures and their isolated commands (same Node PATH):
+
+- `node --test packages/snapback4/test/react.test.mjs`: `ℹ tests 1`,
+  `ℹ pass 0`, `ℹ fail 1`, `ℹ skipped 0`, `ℹ duration_ms 910.9905`.
+  Chromium exits `signal=SIGABRT` before a page exists, the sandbox artifact
+  named in the brief.
+- `node --test --test-name-pattern='sync store identity survives a server restart' packages/snapback4/test/store-reset.test.mjs`:
+  `ℹ tests 1`, `ℹ pass 1`, `ℹ fail 0`, `ℹ skipped 0`,
+  `ℹ duration_ms 4174.222458`. The full-run failure was the assertion that
+  the replacement store ID differs; it did not reproduce alone.
+- `node --test --test-name-pattern='maximum pending ids' packages/snapback4/test/transport-http.test.mjs`:
+  `ℹ tests 2`, `ℹ pass 1`, `ℹ fail 1`, `ℹ skipped 0`,
+  `ℹ duration_ms 34340.782`. Native passes; WASM times out at line 172.
+  A second, WASM-only command,
+  `node --test --test-name-pattern='^wasm: maximum pending ids' packages/snapback4/test/transport-http.test.mjs`,
+  reports `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`, `ℹ skipped 0`,
+  `ℹ duration_ms 22484.479167`, with the same timeout.
+
+No client failure was rerun against the base, so none is claimed as a verified
+pre-existing failure. The remaining suite qualification belongs to the lead's
+outside-sandbox rerun. Logs and every intermediate command/summary are in
+`/tmp/w14b-verification.txt` and `/tmp/w14b-suite.log`. During test authoring,
+two fixture mistakes were corrected: changing an immutable message time was
+replaced with inserting another message, and an unrelated cursor-less query
+was removed from the admission test's clean positive schema. An initial
+Cargo invocation mistakenly used the repository root and exited 101; the
+corrected builds and tests all used `snapback4/`. No out-of-scope repository
+file was changed, and nothing was committed, pushed, tagged or published.
+
+The diagnostic's message remains exactly:
+`items by byOwner (page bound 10): a mutation page cannot scan a table with expiry`.
+The rewrite before was `read this page in a query, then pass the selected ids to the mutation`.
+After: `read this page in a query, then pass the selected ids to the mutation; or use a job chunk, which may read a table with expiry`.
+
+Final repository checks: `git diff --check` exits 0 with no output;
+`./ref-check --verbose` reports `ref-check: ok — 482 LLP docs, 9060 refs in 24165 files, 0 errors, 0 unchecked`.

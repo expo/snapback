@@ -1,4 +1,5 @@
 //! The jobs card. Quarry examples are compiled by tests/guide.rs.
+// @ref LLP 3000.007#21.1 — digest work seeks the period through each recipient's memberships.
 pub(super) const CARD: &str = r##"# Jobs and schedules: the server's own work, on its own clock
 
 For a replay mode that must not emit notifications, run `snapback4 dev --replay`.
@@ -34,20 +35,22 @@ table invites:
   sentAt: time
   reminded: bool
   by byInvitee: inviteeId, id
+  by bySentAt: sentAt, id
+  immutable sentAt
   read <- .inviteeId = viewer
   insert <- deny
   update <- deny
   delete <- deny
 
 job remind(periodStart: time, periodEnd: time):
-  end = periodEnd                                    -- a read-only prelude, repeated before every chunk
-  chunk i in invites first 100 by byId:                -- one page per commit, as the system principal; byId's columns cannot move
-    if i.sentAt >= end:
-      break                                            -- ends this sweep; `return` ends the job
+  chunk i in invites[sentAt >= periodStart, sentAt < periodEnd] first 100 by bySentAt:
     if not i.reminded:
       update invites[i.id] { reminded: true }
 schedule remindDaily every 1d at 08:00: remind          -- or `every 2m`, `every 1h`; the shortest period is 1m
 ```
+
+A sweep by id visits every row ever written; a sweep by the period visits
+the period.
 
 A job is a sequence of sweeps, optionally preceded by statements. Those
 statements run at the start of every chunk under its meter; their bindings
@@ -99,6 +102,235 @@ a startup offset may also be negative. Backward/zero advances and invalid
 values refuse E_CLOCK_INPUT. `serve` refuses clock flags and the control
 endpoint with E_CLOCK_DEV_ONLY. The endpoint is dev-only loopback
 `POST /dev/clock/advance` with `{"duration":"+2m"}`.
+
+## A digest is a job that reads
+
+Seek the period, filter the ordinal. The helper below serves both the UI's
+`inbox(periodStart, periodEnd)` as the viewer and the scheduled job as the
+system. Compare them for the same period and row state: an all-history inbox
+can quite properly show more unread than this period's digest. A job may
+read a table with expiry; an expired row is absent from its expiry instant,
+even before the sweep deletes it. Tombstoned, own, already-read and
+out-of-period messages do not contribute.
+
+Authorization is structural here: the loop walks each principal's own
+memberships. A job passes every rule, so a digest reading messages by any
+other path must re-prove membership by hand before emitting to a principal.
+A period-bucketed public activity counter does not establish that authority.
+
+```quarry
+use personas alice, bob, carol
+effect push
+
+table profiles:
+  principal: principal
+  unique byPrincipal: principal
+  public 'profiles are public'
+  insert <- .principal = viewer
+
+table conversations:
+  title: text <=80
+  read <- exists members[.id, viewer]
+  insert <- allow
+  after insert <- exists members[.id, viewer]
+  sync to members[.id]
+
+table members:
+  conversationId: conversations
+  principal: principal
+  readOrdinal: int default 0
+  unique byConversationPrincipal: conversationId, principal
+  by byPrincipalConversation: principal, conversationId, id
+  cap 50 by conversationId
+  cap 1000 by principal
+  immutable conversationId, principal
+  read <- exists members[.conversationId, viewer]
+  insert <- exists members[.conversationId, viewer] or created conversations[.conversationId]
+  update <- .principal = viewer
+  delete <- .principal = viewer
+  sync to members[.conversationId]
+
+table messages:
+  conversationId: conversations
+  senderId: principal
+  ordinal: int
+  body: text <=4000
+  tombstone: bool default false
+  at: time
+  expiresAt: time ?
+  unique byConversationOrdinal: conversationId, ordinal
+  by byTime: at, id
+  by byConversationTime: conversationId, at, id
+  by byExpiresAt: expiresAt
+  immutable conversationId, senderId, ordinal, at
+  read <- exists members[.conversationId, viewer]
+  insert <- .senderId = viewer and exists members[.conversationId, viewer]
+  update <- .senderId = viewer
+  expire at .expiresAt
+  sync last 500 by byConversationOrdinal
+
+fn unreadIn(conversationId: conversations, reader: principal, readOrdinal: int, periodStart: time, periodEnd: time):
+  return count(messages[conversationId, at >= periodStart, at < periodEnd] first 100 by byConversationTime where not .tombstone and .senderId != reader and .ordinal > readOrdinal)
+
+query inbox(periodStart: time, periodEnd: time):
+  rows = []
+  for m in members[viewer] first 1000 by byPrincipalConversation:
+    rows = rows + [{ conversationId: m.conversationId, unread: unreadIn(m.conversationId, viewer, m.readOrdinal, periodStart, periodEnd) }]
+  return rows
+
+job digest(periodStart: time, periodEnd: time):
+  chunk p in profiles first 1 by byId:
+    unread = 0
+    chats = 0
+    for m in members[p.principal] first 1000 by byPrincipalConversation:
+      n = unreadIn(m.conversationId, p.principal, m.readOrdinal, periodStart, periodEnd)
+      if n > 0:
+        chats = chats + 1
+        unread = unread + n
+    if unread > 0:
+      emit push { targetUserId: p.principal, kind: 'digest', periodStart, periodEnd, unread, chats }
+schedule daily every 1d at 08:00: digest
+```
+
+On published 0.2.27, a hub in 1,000 chats of 99 messages, newest 5 in the
+period and nothing read, parked at E_BOUND when the helper sought
+`ordinal > readOrdinal` and filtered time (125 ms). Seeking the period and
+filtering the ordinal finished in one chunk, 57 ms, zero row writes and one
+effect. These shared-host times describe that run, not a latency promise.
+The suite uses 1,000 chats of 20 messages with the same 5 in the period:
+the time seek examines 7,003, while the ordinal seek attempts examination
+16,385 and parks at the 16,384 ceiling. Work scales with memberships plus
+period messages in those chats, including expired-but-unswept candidates,
+not the unread history. The exact meter also includes one attempt per scan,
+the profile row and any page lookahead; 1,000 memberships plus 5,000 messages
+is not a 6,000-examination chunk.
+
+Keep that total examined work at or below 16,384 per profile chunk, with
+the other job meters also fitting (guide bounds). With one profile, 1,000
+memberships and no lookahead or expired candidates, 14,381 period messages
+fit exactly at 16,384 examined; one more parks the chunk. This example covers at
+most 1,000 memberships and at most 100 qualifying messages per chat; those
+`first` bounds are not promises of an unbounded count. A busier single chat
+needs its own message paging too. Past the chunk ceiling, `snapback4 doctor`
+shows a parked run with `E_BOUND: examined rows reached the ceiling 16384`;
+that profile emits nothing, and earlier profiles' committed effects remain.
+
+A schedule fires once per period boundary across restarts, and a chunk's
+emits commit with its cursor. A digest that finishes therefore emits once
+per profile with positive unread in that run; zero-unread profiles are silent.
+This is durable emission, not exactly-once external delivery. A run that parks
+midway and is queued again is a new run: profiles already done emit again.
+The regression's small profile emits, the hub parks, and queueing the same
+period again moves queued effects from 1 to 2. Manually running a period
+already completed also creates another run. For both cases, have the worker
+treat `(targetUserId, periodEnd)` as its idempotency key, or check and write
+an `emitted` marker row in the same chunk as the emit. A worker must still
+make external delivery idempotent when an effect lease is retried.
+
+## Past one profile's chunk envelope
+
+Only when a profile exceeds that envelope does this digest need a totals
+table. Sweep memberships by id in smaller chunks, accumulate into one table
+keyed by `(principal, periodEnd)`, then sweep that period's totals to emit
+and delete in the same chunk. The table is job-written only: `insert <- deny`
+and `update <- deny` keep principals out. This complete alternative uses
+25 memberships per chunk; it retains the helper's per-chat bound and reads
+membership and message state at each chunk, not one snapshot of the whole
+run. Resume the same run after a restart. Before starting a replacement run
+for the same period, clear/rebuild any unfinished totals; otherwise earlier
+contributions accumulate twice. Deleting a total is not a permanent emission
+marker, so the worker's idempotency key still protects re-runs.
+
+```quarry
+use personas alice, bob, carol
+effect push
+
+table profiles:
+  principal: principal
+  unique byPrincipal: principal
+  public 'profiles are public'
+  insert <- .principal = viewer
+
+table conversations:
+  title: text <=80
+  read <- exists members[.id, viewer]
+  insert <- allow
+  after insert <- exists members[.id, viewer]
+  sync to members[.id]
+
+table members:
+  conversationId: conversations
+  principal: principal
+  readOrdinal: int default 0
+  unique byConversationPrincipal: conversationId, principal
+  by byPrincipalConversation: principal, conversationId, id
+  cap 50 by conversationId
+  cap 1000 by principal
+  immutable conversationId, principal
+  read <- exists members[.conversationId, viewer]
+  insert <- exists members[.conversationId, viewer] or created conversations[.conversationId]
+  update <- .principal = viewer
+  delete <- .principal = viewer
+  sync to members[.conversationId]
+
+table messages:
+  conversationId: conversations
+  senderId: principal
+  ordinal: int
+  body: text <=4000
+  tombstone: bool default false
+  at: time
+  expiresAt: time ?
+  unique byConversationOrdinal: conversationId, ordinal
+  by byTime: at, id
+  by byConversationTime: conversationId, at, id
+  by byExpiresAt: expiresAt
+  immutable conversationId, senderId, ordinal, at
+  read <- exists members[.conversationId, viewer]
+  insert <- .senderId = viewer and exists members[.conversationId, viewer]
+  update <- .senderId = viewer
+  expire at .expiresAt
+  sync last 500 by byConversationOrdinal
+
+fn unreadIn(conversationId: conversations, reader: principal, readOrdinal: int, periodStart: time, periodEnd: time):
+  return count(messages[conversationId, at >= periodStart, at < periodEnd] first 100 by byConversationTime where not .tombstone and .senderId != reader and .ordinal > readOrdinal)
+
+query inbox(periodStart: time, periodEnd: time):
+  rows = []
+  for m in members[viewer] first 1000 by byPrincipalConversation:
+    rows = rows + [{ conversationId: m.conversationId, unread: unreadIn(m.conversationId, viewer, m.readOrdinal, periodStart, periodEnd) }]
+  return rows
+
+
+table digestTotals:
+  principal: principal
+  periodEnd: time
+  unread: int
+  chats: int
+  unique byPrincipalPeriod: principal, periodEnd
+  by byPeriod: periodEnd, id
+  immutable principal, periodEnd
+  read <- deny
+  insert <- deny
+  update <- deny
+  delete <- deny
+
+job digestLarge(periodStart: time, periodEnd: time):
+  chunk m in members first 25 by byId:
+    if not exists profiles[m.principal]:
+      continue
+    n = unreadIn(m.conversationId, m.principal, m.readOrdinal, periodStart, periodEnd)
+    if n > 0:
+      t = digestTotals[m.principal, periodEnd]
+      if t != null:
+        update digestTotals[t.id] { unread: t.unread + n, chats: t.chats + 1 }
+      else:
+        insert digestTotals { principal: m.principal, periodEnd, unread: n, chats: 1 }
+  chunk t in digestTotals[periodEnd] first 100 by byPeriod:
+    emit push { targetUserId: t.principal, kind: 'digest', periodStart, periodEnd, unread: t.unread, chats: t.chats }
+    delete digestTotals[t.id]
+schedule dailyLarge every 1d at 08:00: digestLarge
+```
 
 ## Refused jobs and schedules
 
