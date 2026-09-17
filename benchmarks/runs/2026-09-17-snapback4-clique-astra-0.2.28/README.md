@@ -70,6 +70,26 @@ which is a plausible independent cause. **What would separate them is one re-run
 the cold-start probe on an unloaded host.** Until that exists, 65 is a number
 produced by a compromised instrument and is not evidence of a 0.2.28 regression.
 
+**Sharpening what the 55 s actually is, from the same evidence file.**
+`evidence/scale-final-ui.json` reports, in the same 62-second window that produced
+`coldFirstFeedMs: 54982`:
+
+    insights   p95 3.41 ms   max 4.09 ms   (k=20, 3 warmups)
+    trending   p95 20.32 ms  max 31.01 ms  (k=20, 3 warmups)
+
+**The engine's reads are milliseconds. The 55 seconds is a fresh *browser*
+login-to-first-feed at full corpus** — the check is named
+`fresh-browser-feed-insights-and-chat-list-render-at-full-corpus` — i.e. cold
+partition *acquisition* and render, not query latency. The app's own report states
+the residency shape that drives it: social feeds bounded to 5,000/1,000 rows while
+*"other public rows still fully sync"*, against a 167,157-action corpus.
+
+So `scale_and_limits` 65 is not a statement about query performance, and reading it
+as one would send the next wave to the wrong place. It is about **acquisition volume
+under an app residency choice**, measured through Chromium on a host running at load
+56–70. Both of those are outside the engine's read path, and the read path in this
+very run is excellent.
+
 **What did move, and is not in doubt:** `background_work` **+5** to 91, its best in
 the programme, on a release carrying wave 12's rolling ranking and W14b's digest
 card. And wave 12's work reached the builder — the essay records that *"Trending
