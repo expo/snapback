@@ -29071,3 +29071,39 @@ W13c (one function, the merge lane-source binding, is shared with ruling 23 and 
 ruling 30's design is a section of LLP 3000.007, reviewed blind before any lane; no
 cargo-building lane is launched from this session above a load average of 15, and
 publishing stays with the wave 12 lead.
+
+## 2026-09-17 — ruling 32 measured, ruling 33 under blind review, ruling 30's design drafted (LLP 3000.007 §21.8, LLP 3000.007.001)
+
+Work taken under the author's twelve-hour delegation; each decision is recorded as the
+lead's in LLP 3000.007 §21.8 (L1–L6). Nothing is built and nothing is published.
+
+- **Ruling 32's measurement** (`presence-cost/` in the derived-probes record; published
+  0.2.27; a 50-member room; host load 30+, so shape not magnitude): 49 durable effect rows
+  cost about 0.9 ms a send, about 18 µs a row. With 49 held polls a send's p50 rises from
+  2.9 ms to 15–19 ms whether or not it emits — every commit wakes every held poll — and
+  6,724 of about 7,800 connected-recipient decisions were already recorded as deferred
+  effects, because under rapid sends most recipients are in grace between a poll's answer
+  and its re-poll. Decision L4: build ruling 32 on the existing effect row, one per
+  recipient. What a busy room pays for is the wake storm, which ruling 32 does not touch
+  and which deserves its own look (a poll waits on the store's sequence, not on its
+  partitions).
+- **Rulings 28 and 29** go to wave 13: its lead absorbs both as a serial continuation of
+  W13c, which already owns the merge lane-source binding (ruling 23 and the lane-source
+  seek ticket). The brief section is `~/projects/snapback-next-20260914/W13c-rulings-28-29.md`.
+  Decision L5 reads ruling 29 as a key component at any position, as maintain groups allow.
+- **Ruling 33's blind review is running** (`~/projects/snapback-r33-review/`, baseline
+  `0e3cf8959`; gpt-6-astra xhigh read-only, grok-4.6 xhigh plan mode; the Grok CLI was
+  probed first and answered). The proposal's centre is one claim for the reviewers to
+  break: for a uniformly decided prefix, a mutation's abort-versus-commit shows a viewer
+  nothing that an already-admitted query over the same expiring prefix does not.
+- **Ruling 30's design is LLP 3000.007.001** (Draft; `llp/current/` is now 60 links).
+  Facts checked on the way: a reference does not enforce existence (`dangling-reference/`:
+  a like of `no-such-post` is `sent`), so a maintained column counts at its parent's birth;
+  the change stream applies no horizon (`partition.rs` uses it for acquisition only), so
+  engine-written counts would make devices acquire old parents — the design's §3.6, left
+  open for the reviewers with a measurement owed; engine-maintained writes do not fan out
+  to maintains (`row_changed`, `Origin::Maintained`), so the first build has no cascade.
+- Corrected in §21.3 P1 from the bounds bar's numbers (the wave 13 lead's correction): a
+  merge-on-read Following measured 2.5–3.1× on metered requests and 7.3–9.0× on bare
+  clients at 500 over 5 follows; the feeds recipe stays the paved Following until
+  keys-only heads are measured.
