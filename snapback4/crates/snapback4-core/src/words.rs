@@ -3,10 +3,11 @@
 //! folded tokens, one index entry each; a query becomes folded terms, the
 //! first of which selects the index lanes (every word the term is a prefix
 //! of) and the rest of which every row must also carry. The contract is
-//! fixed and named, so two hosts never disagree about what "cof" matches:
+//! fixed and named; the pending web candidate delegates folding to its host:
 //! NFC normalization, Unicode lowercase, a boundary at every character
 //! that is neither a letter nor a digit (whitespace and punctuation alike).
 
+#[cfg(not(all(target_arch = "wasm32", feature = "web")))]
 use unicode_normalization::UnicodeNormalization;
 
 /// The contract a `words` component records in the schema, so a store built
@@ -23,10 +24,22 @@ pub const MAX_TOKENS_PER_ROW: usize = 512;
 /// A query has at most this many terms; more is an input error, not a scan.
 pub const MAX_TERMS: usize = 8;
 
+// @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — web host folding candidate; landing awaits the author's ruling.
+/// NFC followed by locale-independent lowercase, before token boundaries.
+pub fn fold(text: &str) -> String {
+    #[cfg(all(target_arch = "wasm32", feature = "web"))]
+    {
+        if text.is_ascii() { return text.to_ascii_lowercase(); }
+        String::from(js_sys::JsString::from(text).normalize("NFC").to_lower_case())
+    }
+    #[cfg(not(all(target_arch = "wasm32", feature = "web")))]
+    { text.nfc().collect::<String>().to_lowercase() }
+}
+
 /// Fold text into its tokens: NFC, lowercase, split on anything that is not
 /// a letter or a digit, distinct, in order of first appearance.
 pub fn tokens(text: &str) -> Vec<String> {
-    let folded: String = text.nfc().collect::<String>().to_lowercase();
+    let folded = fold(text);
     let mut out: Vec<String> = Vec::new();
     for word in folded.split(|c: char| !c.is_alphanumeric()) {
         if word.is_empty() {

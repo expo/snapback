@@ -38,6 +38,12 @@ impl WebDevice {
         Ok(WebDevice { device })
     }
 
+    /// S3 differential witness: the exact fold used by word index keys.
+    /// Kept on the candidate so the witness tests the shipped wasm path.
+    pub fn word_fold(text: &str) -> String {
+        snapback4_core::words::fold(text)
+    }
+
     /// One call: JSON text in, JSON text out.
     pub fn call(&mut self, request: &str) -> String {
         crate::call::call_text(&mut self.device, request).to_string()
