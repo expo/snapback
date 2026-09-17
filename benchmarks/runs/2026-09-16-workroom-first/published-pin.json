@@ -1,0 +1,19 @@
+{
+  "observedOn": "2026-09-16",
+  "registry": "https://registry.npmjs.org",
+  "package": "snapback4",
+  "version": "0.2.26",
+  "integrity": "sha512-GAeO2YeEYL0VokEn3yvCW8K+ws2hSspHiSnelsMo76EPBovO8GtMLnzt3kL1pJjpXcAVgeMiV68qmxrVPEwrmg==",
+  "platformPackage": "snapback4-darwin-arm64",
+  "platformIntegrity": "sha512-6k6i0GdVdJAdwPgEjFDww8+s0PAK30b2byURa1hm2vZSrqsdN86zfZH3CRiicciIWtjjeT3H1K3RxbemMcs1Mg==",
+  "binarySha256": "fa4834f3fd128f4c37f02c9c3954da95306bbf208b2c0c94eb34cda419e7d7be",
+  "binaryVersionOutput": "snapback4 0.2.26",
+  "signatureVerification": "codesign --verify --strict: exit 0",
+  "serverModuleImport": {"node":"v24.13.1","exports":["ParkStep","ServerError","startServer"],"note":"The app-facing server() is generated; startServer is the package runtime entrypoint."},
+  "installedConsumerDirectory": "/tmp/workroom-pin-proof.Xn4519",
+  "publicationBy": "concurrent session, not this Workroom run",
+  "publicationSource": "fbefe0358",
+  "publicationRecordCommit": "7df94ea36",
+  "publicationReceipt": "snapback4/metrics/publish.jsonl: version 0.2.26 at 2026-09-16T18:42:04.950Z",
+  "scope": "Registry identity, executable version/signature and module-load proof only; application W3/W5 and Workroom qualification pending."
+}

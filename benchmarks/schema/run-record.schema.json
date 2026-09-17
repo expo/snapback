@@ -3,6 +3,53 @@
   "$id": "https://snapback.dev/benchmarks/run-record.schema.json",
   "title": "Snapback competitive benchmark — single lane-run record",
   "description": "One lane's run of one brief under the LLP 0186 W1 instrument (see benchmarks/protocol.md). Correction-loop attribution values are a DRAFT until the first instrumented run ratifies the rule; the ratchet reading these records is measurement-only until LLP 0186 OQ1/OQ2 are resolved.",
+  "$defs": {
+    "scoreEvidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Paths or stable evidence pointers supporting this score or its unavailability."
+    },
+    "workroomOutcomeDimensions": {
+      "type": "object",
+      "required": [
+        "o1FunctionalCompleteness",
+        "o2CorrectnessUnderGrading",
+        "o3TrustBoundaries",
+        "o4IntegrationCorrectness",
+        "o5PerformanceAtScaleEnvelope"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "o1FunctionalCompleteness": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+        "o2CorrectnessUnderGrading": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+        "o3TrustBoundaries": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+        "o4IntegrationCorrectness": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+        "o5PerformanceAtScaleEnvelope": { "type": ["number", "null"], "minimum": 0, "maximum": 100 }
+      }
+    },
+    "workroomOutcome": {
+      "type": "object",
+      "required": ["grader", "status", "evidence", "dimensions", "combinedTotal"],
+      "additionalProperties": false,
+      "properties": {
+        "grader": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Exact identity of the grader for this lane record; scorer families and effort are preregistered outside this schema."
+        },
+        "status": { "enum": ["scored", "unavailable"] },
+        "evidence": { "$ref": "#/$defs/scoreEvidence" },
+        "dimensions": { "$ref": "#/$defs/workroomOutcomeDimensions" },
+        "combinedTotal": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 100,
+          "description": "This scorer's outcome contribution plus the shared builder-experience contribution; null when either layer is incomplete."
+        }
+      }
+    }
+  },
   "type": "object",
   "required": [
     "schemaVersion",
@@ -39,13 +86,32 @@
         },
         "then": {},
         "else": {
-          "properties": {
-            "outcomeRubric": true,
-            "invariantPlatformScore": true
+          "if": {
+            "properties": { "brief": { "const": "team-workspace" } },
+            "required": ["brief"]
           },
-          "required": ["outcomeRubric", "invariantPlatformScore"]
+          "then": {
+            "properties": {
+              "workroomScore": true,
+              "rubric": false,
+              "outcomeRubric": false,
+              "invariantPlatformScore": false
+            },
+            "required": ["workroomScore"]
+          },
+          "else": {
+            "properties": {
+              "outcomeRubric": true,
+              "invariantPlatformScore": true
+            },
+            "required": ["outcomeRubric", "invariantPlatformScore"]
+          }
         }
       }
+    },
+    {
+      "if": { "required": ["workroomScore"] },
+      "then": { "properties": { "brief": { "const": "team-workspace" } } }
     }
   ],
   "properties": {
@@ -67,7 +133,7 @@
     },
     "brief": {
       "description": "Which fixed brief was run, verbatim, from benchmarks/briefs/.",
-      "enum": ["messaging", "messaging-equal-proof-bar", "crud", "media", "social-messenger"]
+      "enum": ["messaging", "messaging-equal-proof-bar", "crud", "media", "social-messenger", "team-workspace"]
     },
     "harness": {
       "type": "object",
@@ -268,6 +334,58 @@
         "dx": { "type": "number", "minimum": 0, "maximum": 100 },
         "diagnostics": { "type": "number", "minimum": 0, "maximum": 100 },
         "operations": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "workroomScore": {
+      "type": "object",
+      "description": "Workroom's declared two-layer score for one independently built lane: this builder's experience plus this lane's independently graded outcome.",
+      "required": ["source", "builder", "outcome"],
+      "additionalProperties": false,
+      "properties": {
+        "source": { "const": "benchmarks/briefs/team-workspace.md#scoring" },
+        "builder": {
+          "type": "object",
+          "required": ["evidence", "dimensions", "holisticBeforeTotal"],
+          "additionalProperties": false,
+          "properties": {
+            "evidence": { "$ref": "#/$defs/scoreEvidence" },
+            "dimensions": {
+              "type": "object",
+              "required": [
+                "b1SchemaAndDataModel",
+                "b2AuthAndTenancyErgonomics",
+                "b3ServerFunctionsAndIntegrations",
+                "b4BackgroundAndScheduledWork",
+                "b5Files",
+                "b6Search",
+                "b7Reporting",
+                "b8Day2Evolution",
+                "b9DxDocsSetup",
+                "b10Diagnostics"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "b1SchemaAndDataModel": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+                "b2AuthAndTenancyErgonomics": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+                "b3ServerFunctionsAndIntegrations": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+                "b4BackgroundAndScheduledWork": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+                "b5Files": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+                "b6Search": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+                "b7Reporting": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+                "b8Day2Evolution": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+                "b9DxDocsSetup": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+                "b10Diagnostics": { "type": ["number", "null"], "minimum": 0, "maximum": 100 }
+              }
+            },
+            "holisticBeforeTotal": {
+              "type": ["number", "null"],
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Builder's separate holistic score, recorded before computed totals and never included in them."
+            }
+          }
+        },
+        "outcome": { "$ref": "#/$defs/workroomOutcome" }
       }
     },
     "authParity": {

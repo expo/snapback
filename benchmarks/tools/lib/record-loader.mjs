@@ -92,6 +92,94 @@ function validateRubric(record, file) {
   }
 }
 
+// @ref LLP 0197#the-standard — rule 4 keeps unavailable Workroom scores as explicit nulls and admits derived totals only from complete machine evidence.
+const WORKROOM_BUILDER_WEIGHTS = Object.freeze({
+  b1SchemaAndDataModel: 6,
+  b2AuthAndTenancyErgonomics: 6,
+  b3ServerFunctionsAndIntegrations: 8,
+  b4BackgroundAndScheduledWork: 5,
+  b5Files: 5,
+  b6Search: 4,
+  b7Reporting: 5,
+  b8Day2Evolution: 6,
+  b9DxDocsSetup: 6,
+  b10Diagnostics: 4,
+});
+
+const WORKROOM_OUTCOME_WEIGHTS = Object.freeze({
+  o1FunctionalCompleteness: 13,
+  o2CorrectnessUnderGrading: 8,
+  o3TrustBoundaries: 10,
+  o4IntegrationCorrectness: 8,
+  o5PerformanceAtScaleEnvelope: 6,
+});
+
+function rejectUnknownWorkroomFields(value, allowed, label, file) {
+  const unknown = Object.keys(value).filter((field) => !allowed.includes(field));
+  if (unknown.length > 0) {
+    fail('WORKROOM_SCORE_SHAPE', `${file}: ${label} has undeclared field(s): ${unknown.join(', ')}`);
+  }
+}
+
+function workroomContribution(dimensions, weights) {
+  const values = Object.keys(weights).map((field) => dimensions[field]);
+  if (values.some((value) => value === null)) return null;
+  return Object.entries(weights)
+    .reduce((sum, [field, weight]) => sum + dimensions[field] * weight / 100, 0);
+}
+
+function validateWorkroomScore(record, file) {
+  if (!record.workroomScore) return;
+  rejectUnknownWorkroomFields(record.workroomScore, ['source', 'builder', 'outcome'], 'workroomScore', file);
+  rejectUnknownWorkroomFields(
+    record.workroomScore.builder,
+    ['evidence', 'dimensions', 'holisticBeforeTotal'],
+    'workroomScore.builder',
+    file,
+  );
+  rejectUnknownWorkroomFields(
+    record.workroomScore.builder.dimensions,
+    Object.keys(WORKROOM_BUILDER_WEIGHTS),
+    'workroomScore.builder.dimensions',
+    file,
+  );
+  const builderContribution = workroomContribution(
+    record.workroomScore.builder.dimensions,
+    WORKROOM_BUILDER_WEIGHTS,
+  );
+  const outcome = record.workroomScore.outcome;
+  const label = 'workroomScore.outcome';
+  rejectUnknownWorkroomFields(
+    outcome,
+    ['grader', 'status', 'evidence', 'dimensions', 'combinedTotal'],
+    label,
+    file,
+  );
+  rejectUnknownWorkroomFields(outcome.dimensions, Object.keys(WORKROOM_OUTCOME_WEIGHTS), `${label}.dimensions`, file);
+  const outcomeValues = Object.values(outcome.dimensions);
+  if (outcome.status === 'unavailable'
+      && (outcomeValues.some((value) => value !== null) || outcome.combinedTotal !== null)) {
+    fail('WORKROOM_SCORE_STATUS_MISMATCH', `${file}: ${label} is unavailable but contains a score or total`);
+  }
+  const outcomeContribution = workroomContribution(outcome.dimensions, WORKROOM_OUTCOME_WEIGHTS);
+  if (builderContribution === null || outcomeContribution === null) {
+    if (outcome.combinedTotal !== null) {
+      fail(
+        'WORKROOM_SCORE_NULL_AGGREGATE',
+        `${file}: ${label}.combinedTotal must be null when either scoring layer is incomplete`,
+      );
+    }
+    return;
+  }
+  const recomputed = builderContribution + outcomeContribution;
+  if (outcome.combinedTotal === null || Math.abs(outcome.combinedTotal - recomputed) > 1e-9) {
+    fail(
+      'WORKROOM_SCORE_AGGREGATION_MISMATCH',
+      `${file}: ${label}.combinedTotal=${outcome.combinedTotal} but the declared weights recompute to ${recomputed}`,
+    );
+  }
+}
+
 function validatePublicationOverlay(record, file) {
   if (record.publication === undefined) return;
   if (!record.publication || typeof record.publication !== 'object' || Array.isArray(record.publication)) {
@@ -200,6 +288,7 @@ export function validateMachineRecord({ root, schema, file, record }) {
     fail('LANE_VARIANT_INVALID', `${file}: competitor records must omit laneVariant`);
   }
   validateRubric(record, file);
+  validateWorkroomScore(record, file);
   validatePublicationOverlay(record, file);
   if (record.recordDigest !== undefined && record.recordDigest !== recordDigest(record)) {
     fail(
@@ -265,7 +354,9 @@ export function loadCommittedRecordInventory({ root }) {
             'PHASE_AGGREGATION_MISMATCH', 'WALL_CLOCK_MISMATCH',
             'INVALID_FIRST_GREEN_PROOF', 'INVALID_TIMESTAMPS',
             'RUBRIC_AGGREGATION_MISMATCH', 'LANE_VARIANT_MISSING',
-            'LANE_VARIANT_INVALID'].includes(error.reason)) {
+            'LANE_VARIANT_INVALID', 'WORKROOM_SCORE_NULL_AGGREGATE',
+            'WORKROOM_SCORE_AGGREGATION_MISMATCH', 'WORKROOM_SCORE_SHAPE',
+            'WORKROOM_SCORE_STATUS_MISMATCH'].includes(error.reason)) {
         throw error;
       }
       const missing = [...error.message.matchAll(/\$\/([^:\n]+): required field is missing/g)]

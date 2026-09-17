@@ -70,9 +70,9 @@ fn real_quarry_queries_mutations_cursors_rules_defaults_maintains_and_receipts_m
             pg.mutate(program, Some(&op), ctx.clone()).unwrap(),
             sqlite.mutate(program, Some(&op), ctx).unwrap()
         );
-        // A1 binds SQLite ids. Postgres's mismatching replay remains the
-        // explicitly tracked C3 gap, not part of this equivalence claim.
+        // Both stores compare the binding before looking up the current program.
         assert_eq!(sqlite.mutate("unknown", Some(&op), context(viewer, &[])).unwrap_err().code(), "E_ID_REUSED");
+        assert_eq!(pg.mutate("unknown", Some(&op), context(viewer, &[])).unwrap_err().code(), "E_ID_REUSED");
         assert_eq!(pg.query("inbox", context("alice", &[])), sqlite.query("inbox", context("alice", &[])));
     }
     pg.set_ceilings(Ceilings { examined: 2, ..Ceilings::default() });
@@ -83,12 +83,73 @@ fn real_quarry_queries_mutations_cursors_rules_defaults_maintains_and_receipts_m
     assert!(!capped.complete);
     drop(pg);
     let mut reopened = PostgresEngine::open(connect(), &name).unwrap();
-    // Characterize the known Postgres-only C3 binding gap after reopen.
-    let replay = reopened.mutate("removedProgram", Some("op-0"), context("alice", &[])).unwrap();
+    let replay = reopened.mutate("add", Some("op-0"), context("alice", &[
+        ("room", id("r000")), ("title", string("new")), ("amount", Value::Int(71)), ("fail", Value::Bool(false)),
+    ])).unwrap();
     assert!(replay.replayed);
     assert!(matches!(replay.state, WriteState::Sent { result: Value::Null, .. }));
+    assert_eq!(reopened.mutate("removedProgram", Some("op-0"), context("alice", &[])).unwrap_err().code(), "E_ID_REUSED");
     sqlite.set_ceilings(Ceilings::default());
     assert_eq!(reopened.query("inbox", context("alice", &[])).unwrap().data, sqlite.query("inbox", context("alice", &[])).unwrap().data);
+}
+
+#[test]
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn receipt_bindings_match_sqlite_before_lookup_and_validation() {
+    let (name, mut pg, mut sqlite) = pair("receipt_binding", 0, 0);
+    let original: serde_json::Value = serde_json::from_str(r#"{"nested":{"a":1,"b":2},"ordered":[1,2]}"#).unwrap();
+    let reordered: serde_json::Value = serde_json::from_str(r#"{"ordered":[1,2],"nested":{"b":2,"a":1}}"#).unwrap();
+    let changed_array: serde_json::Value = serde_json::from_str(r#"{"nested":{"a":1,"b":2},"ordered":[2,1]}"#).unwrap();
+    let first_context = context("alice", &[("slot", id("c0"))]).with_wire_args(original.clone());
+    let pg_first = pg.mutate("increment", Some("bound-op"), first_context.clone()).unwrap();
+    let sqlite_first = sqlite.mutate("increment", Some("bound-op"), first_context).unwrap();
+    assert_eq!(pg_first, sqlite_first);
+    assert!(!pg_first.replayed);
+
+    let mut admin = connect();
+    let stored_before: (String, String, String, i64) = admin.query_one(
+        &format!("SELECT outcome,name,args_digest,at FROM {name}._ops WHERE principal = 'alice' AND id = 'bound-op'"), &[],
+    ).map(|row| (row.get(0), row.get(1), row.get(2), row.get(3))).unwrap();
+    assert_eq!(stored_before.1, "increment");
+    assert_eq!(stored_before.2, snapback4_core::store::payload_digest(&original));
+    assert_eq!(stored_before.3, 1_000);
+    let receipt: serde_json::Value = serde_json::from_str(&stored_before.0).unwrap();
+    assert_eq!(receipt.get("replayed"), Some(&serde_json::Value::Bool(true)));
+    for hidden in ["result", "current"] { assert!(receipt.get(hidden).is_none(), "stored receipt exposed {hidden}"); }
+    assert!(receipt.get("why").and_then(|why| why.get("detail")).is_none());
+
+    // The decoded arguments are now invalid, but identical raw input must
+    // replay before validation. Recursive object order is immaterial.
+    let invalid_but_identical = context("alice", &[]).with_wire_args(reordered.clone());
+    for outcome in [
+        pg.mutate("increment", Some("bound-op"), invalid_but_identical.clone()).unwrap(),
+        sqlite.mutate("increment", Some("bound-op"), invalid_but_identical).unwrap(),
+    ] {
+        assert!(outcome.replayed);
+        assert!(matches!(outcome.state, WriteState::Sent { result: Value::Null, .. }));
+    }
+
+    for raw in [changed_array, serde_json::json!({"different": true})] {
+        let changed = context("alice", &[]).with_wire_args(raw);
+        let pg_error = pg.mutate("increment", Some("bound-op"), changed.clone()).unwrap_err().refusal();
+        let sqlite_error = sqlite.mutate("increment", Some("bound-op"), changed).unwrap_err().refusal();
+        for error in [pg_error, sqlite_error] {
+            assert_eq!((error.code.as_str(), error.family.as_str()), ("E_ID_REUSED", "input"));
+        }
+    }
+    let same_raw = context("alice", &[]).with_wire_args(reordered);
+    for other in ["add", "unknown"] {
+        let pg_error = pg.mutate(other, Some("bound-op"), same_raw.clone()).unwrap_err().refusal();
+        let sqlite_error = sqlite.mutate(other, Some("bound-op"), same_raw.clone()).unwrap_err().refusal();
+        for error in [pg_error, sqlite_error] {
+            assert_eq!((error.code.as_str(), error.family.as_str()), ("E_ID_REUSED", "input"));
+        }
+    }
+
+    let stored_after: (String, String, String, i64) = admin.query_one(
+        &format!("SELECT outcome,name,args_digest,at FROM {name}._ops WHERE principal = 'alice' AND id = 'bound-op'"), &[],
+    ).map(|row| (row.get(0), row.get(1), row.get(2), row.get(3))).unwrap();
+    assert_eq!(stored_after, stored_before, "a mismatching retry replaced the authoritative receipt");
 }
 
 #[test]
@@ -208,6 +269,65 @@ fn concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes() {
         assert_eq!(counts[6], 66);
         println!("{mode:?}: 65 increments, no lost updates, {retries} transaction retries");
     }
+}
+
+#[test]
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn concurrent_mismatching_receipts_admit_one_binding_and_replay_only_its_arguments() {
+    let (name, _, _) = pair("receipt_race", 0, 0);
+    let barrier = Arc::new(Barrier::new(2));
+    let handles: Vec<_> = (0..2).map(|writer| {
+        let name = name.clone();
+        let barrier = barrier.clone();
+        std::thread::spawn(move || {
+            let slot = format!("c{writer}");
+            let raw = serde_json::json!({"slot": slot});
+            let mut pg = PostgresEngine::open(connect(), &name).unwrap();
+            pg.set_write_mode(WriteMode::Serializable);
+            barrier.wait();
+            let result = match pg.mutate("increment", Some("raced-binding"),
+                context("alice", &[("slot", id(&slot))]).with_wire_args(raw.clone())) {
+                Ok(outcome) => Ok((outcome.replayed, sent(&outcome))),
+                Err(error) => Err(error.code().to_owned()),
+            };
+            (slot, raw, result)
+        })
+    }).collect();
+    let results: Vec<_> = handles.into_iter().map(|handle| handle.join().unwrap()).collect();
+    let winners: Vec<_> = results.iter().filter(|(_, _, result)| result.is_ok()).collect();
+    let losers: Vec<_> = results.iter().filter(|(_, _, result)| result.is_err()).collect();
+    assert_eq!((winners.len(), losers.len()), (1, 1));
+    assert_eq!(winners[0].2, Ok((false, 2)), "the authoritative admission is fresh");
+    assert_eq!(losers[0].2, Err("E_ID_REUSED".into()));
+
+    let mut reopened = PostgresEngine::open(connect(), &name).unwrap();
+    let winner = winners[0];
+    let winner_replay = reopened.mutate("increment", Some("raced-binding"),
+        context("alice", &[("slot", id(&winner.0))]).with_wire_args(winner.1.clone())).unwrap();
+    assert!(winner_replay.replayed);
+    let loser = losers[0];
+    assert_eq!(reopened.mutate("increment", Some("raced-binding"),
+        context("alice", &[("slot", id(&loser.0))]).with_wire_args(loser.1.clone())).unwrap_err().code(), "E_ID_REUSED");
+    for (slot, expected) in [(&winner.0, 1), (&loser.0, 0)] {
+        let row = reopened.query("counter", context("alice", &[("slot", id(slot))])).unwrap();
+        assert_eq!(row.data.field("value").unwrap(), &Value::Int(expected));
+    }
+    assert_eq!(counts(&name)[5], 1, "the losing binding cannot replace the receipt");
+}
+
+#[test]
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn version_one_evaluation_stores_are_refused_instead_of_replaying_unbound_receipts() {
+    let (schema, programs) = compiled();
+    let name = namespace("receipt_version");
+    drop(PostgresEngine::create(connect(), &name, schema, programs).unwrap());
+    let mut admin = connect();
+    admin.execute(&format!("UPDATE {name}._backend SET version = 'snapback4-postgres-evaluation-1' WHERE singleton"), &[]).unwrap();
+    let error = match PostgresEngine::open(connect(), &name) {
+        Ok(_) => panic!("an unbound evaluation store opened"),
+        Err(error) => error,
+    };
+    assert!(error.to_string().contains("not this Postgres evaluation store version"));
 }
 
 #[test]

@@ -167,15 +167,27 @@ impl PostgresEngine {
         receipt.as_deref().map(MutationOutcome::from_receipt).transpose()
     }
 
+    /// Compare wire identity before decoding against the installed program.
+    // @ref LLP 3000.009#5.1 — an id binds the admitted operation and arguments.
+    fn replay_mutation(&mut self, viewer: &str, id: &str, name: &str, args_digest: &str) -> Result<Option<MutationOutcome>, RuntimeError> {
+        let tx = self.store.transaction(None)?;
+        let receipt = tx.applied_bound(viewer, id, name, args_digest)?;
+        tx.rollback()?;
+        receipt.as_deref().map(MutationOutcome::from_receipt).transpose()
+    }
+
     pub fn mutate(&mut self, name: &str, op: Option<&str>, mut context: Context) -> Result<MutationOutcome, RuntimeError> {
-        // Preserve the replay-before-validation contract, including unknown or
-        // renamed programs. Never return a historical result row on resend.
+        context.generation = self.generation();
+        let wire_args = if op.is_some() { context.wire_args.take().unwrap_or_else(|| serde_json::Value::Object(crate::wire::map_to_json(&context.args))) }
+            else { serde_json::Value::Null };
+        let args_digest = crate::store::payload_digest(&wire_args);
+        // Preserve the bound replay-before-validation contract, including
+        // unknown or renamed programs. Never return a historical result row.
         if let Some(op) = op
-            && let Some(outcome) = self.replay(&context.viewer, op)?
+            && let Some(outcome) = self.replay_mutation(&context.viewer, op, name, &args_digest)?
         {
             return Ok(outcome);
         }
-        context.generation = self.generation();
         let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.into()))?.clone();
         if program.kind != ProgramKind::Mutation {
             return Err(RuntimeError::UnknownOp(format!("{name} is not a mutation")));
@@ -189,7 +201,7 @@ impl PostgresEngine {
         }
         // @ref LLP 3000#7-decisions-during-execution — retries rerun Quarry, rules, maintains, and bookkeeping together
         for attempt in 0..=32 {
-            match self.mutate_once(&program, op, context.clone()) {
+            match self.mutate_once(&program, op, context.clone(), &args_digest) {
                 Err(error) if retry_transaction(&error) && attempt < 32 => {
                     self.retries += 1;
                     let delay = (100_u64 << attempt.min(6)) + crate::ids::seed() % 250;
@@ -201,10 +213,10 @@ impl PostgresEngine {
         unreachable!()
     }
 
-    fn mutate_once(&mut self, program: &Program, op: Option<&str>, context: Context) -> Result<MutationOutcome, RuntimeError> {
+    fn mutate_once(&mut self, program: &Program, op: Option<&str>, context: Context, args_digest: &str) -> Result<MutationOutcome, RuntimeError> {
         let tx = self.store.transaction(Some(self.mode))?;
         if let Some(op) = op
-            && let Some(receipt) = tx.applied(&context.viewer, op)?
+            && let Some(receipt) = tx.applied_bound(&context.viewer, op, &program.name, args_digest)?
         {
             let outcome = MutationOutcome::from_receipt(&receipt)?;
             tx.rollback()?;
@@ -258,7 +270,7 @@ impl PostgresEngine {
                 WriteState::Sent { seq, .. } => seq,
                 WriteState::Failed { .. } => seq - 1,
             };
-            tx.record_applied(&viewer, op, recorded_seq, &canonical_json(&outcome.receipt(Some(op))))?;
+            tx.record_applied(&viewer, op, recorded_seq, &canonical_json(&outcome.receipt(Some(op))), &program.name, args_digest, now)?;
         }
         tx.commit()?;
         Ok(outcome)

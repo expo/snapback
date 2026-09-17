@@ -1,6 +1,6 @@
 # Snapback 4 Postgres replay skips the id binding
 
-Status: Open
+Status: Closed
 Date: 2026-09-15
 Scope: Postgres evaluation executor; increment C3 (LLP 3000.009 §10.2).
 
@@ -9,7 +9,7 @@ checks `self.replay(&context.viewer, op)` before validating the operation or
 arguments. `replay` queries `_ops` by `(principal, id)` and returns that receipt
 without comparing the operation name or canonical argument binding.
 
-[LLP 3000.009 §5.1](../llp/3000.009-general-purpose-backend.rfc.md#51-declared-actions-and-routes-typed-handlers)
+[LLP 3000.009 §5.1](../../llp/3000.009-general-purpose-backend.rfc.md#51-declared-actions-and-routes-typed-handlers)
 requires an operation id to be bound to its operation and arguments. Reusing an
 id for different input currently replays the old Postgres receipt instead of
 refusing the mismatch. SQLite's bound path is being implemented in another
@@ -27,3 +27,17 @@ through the shared bound path once available; persist its binding atomically
 with the receipt. Preserve sanitized replay (no historical result rows).
 Verify same-id/same-input replay, changed arguments, changed operation, and
 concurrent mismatching submissions against both stores.
+
+Resolved 2026-09-17 in the bounded C3.1 receipt-binding change. Postgres now
+digests the raw wire arguments with SQLite's recursively key-sorted JSON
+SHA-256 helper, compares the operation and digest before current lookup or
+validation and again inside the writer transaction, and inserts that binding
+atomically with the sanitized receipt. Evaluation store version 2 refuses
+version-1 stores rather than replaying their unbound receipts.
+
+Focused evidence: the six SQLite work-record regressions pass; real PostgreSQL
+16.15 passes the cross-store binding/redaction differential, the concurrent
+same-id/two-argument race, version-1 refusal, reopen/equivalence, late rollback,
+and refused-receipt race, plus all five focused Postgres core tests. No full
+suite, production-Postgres target, migration, service/runtime source, or
+publication is claimed.

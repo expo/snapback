@@ -26887,3 +26887,208 @@ recorded processes were absent, the newline-terminated durable journal had
 `28326213c56db40a932a21dc3cde755e42aabc6a522e1e5a5072581a550835cd`.
 The last-poll/end receipt remains unchanged; neither count establishes
 acceptance completion or recovers the original child's exit status.
+
+## 2026-09-16 — remaining general-purpose program commissioned
+
+Charlie directed completion of the remaining LLP 3000.009 program using the
+fleet, with services built now and removed after Workroom where the evidence
+warrants, rather than waiting to select them first. Section 14.7 and the
+NOT-DOING Moves line record this sequencing change. The lead retains the
+shared core/durable-state contract; independent fleet slices and Sol/Grok
+reviews will feed incremental landings. Heavy suites serialize per host;
+expo-build-1000 remains excluded. Publication and promotion are not inferred
+from this instruction.
+
+The first Workroom builder hit its four-hour operational cap, exiting 124
+after SIGTERM. Post-cap inspection observed 478,710 of 598,224 full-profile
+actions receipted and found the builder's separately grouped acceptance child
+still running: the launcher did not contain that descendant. Its original
+application, stores, receipts and capped attempt are preserved.
+This is incomplete diagnostic evidence, not an acceptance pass, calibrated
+ceiling or scored cell. Recovery proceeds as an explicitly separate diagnostic
+continuation adopting only the verified, recorded acceptance process tree,
+with a new two-hour operational limit and the same 2 GiB disk floor. The
+descendant-custody defect must be corrected before any cold scored cell.
+The completed baseline still needs independent W3/W5 qualification and W8.
+
+## 2026-09-17 — repair the experiment's inherited lockfile version drift
+
+On unchanged integration source, `cargo metadata --offline --locked` for
+`experiments/postgres/Cargo.toml` refused before compilation: the separate
+experiment lockfile still named `snapback4-core`, `snapback4-device` and
+`snapback4-lang` 0.2.25, while their workspace manifests are 0.2.26. The repair
+changes only those three local-package versions. A trial offline Cargo update
+also selected unrelated cached dependency downgrades; that generated delta was
+discarded before committing, and no third-party lock entry changed.
+
+`cargo metadata --locked --manifest-path
+snapback4/experiments/postgres/Cargo.toml --format-version 1` now exits zero
+without changing the lockfile. This is dependency-resolution evidence, not a
+test-suite or benchmark pass. The original C3.1 focused tests' non-locked
+invocation remains recorded; this repair does not relabel it.
+
+## 2026-09-17 — C3.1: Postgres receipts bind operation and raw arguments
+
+The Postgres evaluation executor now matches SQLite's A1 receipt identity:
+before current program lookup or input validation it binds `(principal, id)`
+to the exact operation name and SHA-256 of raw wire JSON with recursively
+sorted object keys. It repeats that comparison inside the writer transaction
+before execution, and inserts the sanitized receipt, name, digest and admission
+time atomically. Whole-operation retry and commit-tail order are unchanged.
+Evaluation layout version 2 refuses version-1 stores; there is deliberately no
+migration that could bless their unbound receipts. SQLite's legacy nullable
+binding behavior is unchanged.
+
+Focused evidence on the private socket-only PostgreSQL 16.15 cluster:
+
+- `snapback4-core --test work_records`: 6 passed, including digest ordering,
+  pre-validation replay, redaction and legacy SQLite receipts.
+- Real-Postgres conformance: the binding/redaction differential, concurrent
+  same-id/two-argument race, version-1 refusal, reopen/equivalence, late
+  rollback and refused-receipt race each passed. The race admitted exactly one
+  fresh binding, refused the loser with `E_ID_REUSED`/`input`, and replayed only
+  the winner.
+- `snapback4-core --features postgres --lib engine::postgres::tests`: 5 passed.
+
+The cluster was verified as postmaster PID/PGID 3608271/3608271 and stopped
+with its own `pg_ctl`. Data and logs remain under
+`/tmp/sb4-c3-20260916-supervision/postgres-abe8883-c31/`; focused command logs
+and the launch ledger remain beside it. The experiment lockfile on the clean
+base still pins three path packages at 0.2.25 while their manifests are 0.2.26,
+so its `--locked` command refused before compilation; the real-PG tests ran
+offline and the incidental lock rewrite was excluded. No full suite, full
+build, production-Postgres target, migration, service/runtime change,
+performance claim, publication or push was made.
+
+`./ref-check --verbose` reports 481 LLP documents, 9,033 references in
+23,999 files, zero errors and zero unchecked references.
+
+## 2026-09-17 — C3.1 integrated, locked qualification
+
+The isolated landing candidate `1801ff4b8cd3c45261abe23538494bf55aa83913`
+combines the unchanged independently reviewed C3.1 product delta with the
+three-path-package lock repair and current main `e96d0fe1d`. On expo-build-450b,
+its clean worktree `/home/ccheever/lanes/sb4-c31-landing-20260917` passed the
+following serial checks, all with `CARGO_BUILD_JOBS=6` and `--locked`:
+
+- `cargo test -p snapback4-core --test work_records -- --test-threads=1`: 6/6.
+- The six previously named real-Postgres conformance tests, each selected with
+  `--test conformance <exact-name> -- --ignored --exact --test-threads=1`,
+  under `experiments/postgres/Cargo.toml --offline`: 6/6.
+- `cargo test -p snapback4-core --features postgres --lib
+  engine::postgres::tests -- --ignored --test-threads=1`: 5/5.
+
+The fresh PostgreSQL 16.15 instance listened only on its private Unix socket,
+port 55447, under
+`/tmp/sb4-c3-20260916-supervision/postgres-1801ff4b8-qual`. Its exact postmaster
+PID/PGID 3722695 was stopped with the matching data directory's `pg_ctl`.
+Tracked source stayed clean at the exact candidate. Retained qualification
+logs in `/tmp/sb4-c3-20260916-supervision/` have SHA-256:
+
+- `c31-landing-sqlite-work-records.log`:
+  `d334103992c092142fa631897eb952ceedf4e226b0ac993aa25088f2661c8504`
+- `c31-landing-postgres-receipt-focused6.log`:
+  `5a67ba0f3f82715789a9d103983738b2667c28c2ea0648363b9863bed96534c9`
+- `c31-landing-postgres-core5.log`:
+  `b1d10a6dc5a2b45a4bb925a1b64df680deb18d65c3a591ca7506ada8dfec7f70`
+
+The initial noninteractive shell lacked Cargo on PATH and refused before
+compilation; the retry used its absolute path. Two selector attempts selected
+zero tests and are retained separately, not counted as passes. These focused
+checks and the retained Sol/Grok reviews qualify only receipt binding, not
+production Postgres, the whole suite, performance, or publication.
+
+## 2026-09-16 — Workroom first-cell commission and publication preflight
+
+Charlie requested the first Workroom cell and explicitly approved qualifying
+and publishing the prerequisite release. Before this run published anything,
+the concurrent wave-10 session landed its 0.2.26 publication receipt on main
+`7df94ea36`. A fresh npm installation verifies the recorded binary SHA-256
+`fa4834f3fd128f4c37f02c9c3954da95306bbf208b2c0c94eb34cda419e7d7be`,
+Developer ID signature and version; `snapback4/server` loads on Node 24.13.1.
+That is an observed publication by another session, not a second publication
+by this run. Its green publication-suite record remains the earlier entry.
+
+The [run record](../benchmarks/runs/2026-09-16-workroom-first/README.md)
+registers a separate diagnostic application pilot before calibration/freeze
+and the cold no-SQL cell. The real W3/W5 application journeys remain to be
+qualified; A3's route slice is not substituted for them. The existing fixture
+suite passes 18/18 with no skips on Node 24.13.1 at this preflight. The public
+pilot packet omits the grader-only holdout section and contains no product
+source. No cell, score, threshold, general-purpose claim or promotion follows
+from this entry. Charlie also authorized safe disk cleanup; an unused-cache
+audit on Durand precedes pilot launch. Heavy work stays serialized and
+expo-build-1000 is untouched.
+
+The W9 handoff ticket is finally dispositioned: A1/C1, A2, A3 and the fixture
+pack all landed; C1 targets remain missed, and Postgres receipt binding stays
+open for C3. Its old pending-A2/A3 list was bookkeeping drift, not unlanded code.
+
+## 2026-09-16 — Workroom diagnostic launched; scoring-shape correction
+
+The published-0.2.26 Sol diagnostic started on Durand at 19:37:27 UTC with a
+four-hour operational safety limit and a 2 GiB free-disk floor. Its immutable
+neutral packet and private lifecycle records are bound in the
+[run record](../benchmarks/runs/2026-09-16-workroom-first/README.md). Authorized
+cache cleanup recovered 6.14 GiB; source, application data and evidence were
+preserved. Background indexing makes contended timings unsuitable for setting
+performance ceilings. No W3/W5 qualification or cell result is claimed here.
+
+During pre-freeze protocol audit, the supervisor corrected its own mistaken
+one-builder/three-outcome-judges interpretation. LLP 3000's inherited September
+5 commission and subsequent three-model cells use separate Astra, Grok and Muse
+builds and family-specific experiences, with independent outcome grading. The
+unpublished Workroom record-schema addition is being corrected to one builder
+and one separately identified outcome grade per lane record. Prior tests and
+reviews remain attached to their actual revision; they do not establish the
+experimental design. The running Sol pilot is unchanged and remains diagnostic.
+
+## 2026-09-17 — Workroom adoption capped; bounded custody qualified
+
+The diagnostic replay adoption reached its independent two-hour limit at
+02:13:26.965 UTC, with 587,290 of 598,224 actions receipted and 14,725,472,256
+bytes free. The recorded acceptance group 98850 received TERM after exact
+identity verification and disappeared at 02:13:27.328; the monitor recorded
+no survivors or cleanup errors. A separate read-only check found all nine
+recorded identities and monitor 53865 absent. This is not acceptance success:
+the acceptance exit remains unknown, and both the original pilot and this
+adoption remain failed/capped. No score or performance ceiling follows.
+
+A proposed successor supervisor failed its six-minute preparation checkpoint
+without producing executable source or a test. It was stopped on the control
+host; no Durand handoff, monitor pause, or deadline extension occurred.
+Retained adoption-end SHA-256 is
+`8997e6c348b82e9494d1854d4b4629f6c07f11f58a52c2d5a7c7c48328ddfbd9`;
+cleanup receipt SHA-256 is
+`72c436e11c6914498923d5d2aaa120ec7fbce85d87aa08076cc30311fee91199`.
+
+The launcher repair tracks sampled, identity-verified descendants across
+process groups and keeps adopting from live verified parents during cleanup.
+The exact r3 source at `19cc2656f7` passed its retained actual-Codex fixture
+(seven adopted identities, none surviving) and deterministic tests. It is not
+generic subtree containment: a complete double-fork/reparent between samples
+can escape observation. Sol's independent r3 review correctly rejected a
+hard 30-second overall timing claim. Instead of a fourth product-code repair,
+the supervisor narrowed the documented claim to the 30-second signalling/drain
+budget plus separately bounded snapshot overhead; exhaustion stays non-green.
+Both independent reviewers cleared that documentation-only contract at
+`197aa9c6b`. Original findings and delta verdicts remain separately retained
+under the run's `reviews/`; no failed review is relabelled.
+
+The integrated runner/test/document bytes equal the reviewed candidate.
+Node 24.13.1's record, fixture and custody tests pass 45/45 with one explicit
+actual-Codex opt-in skip (46 selected); that integration run does not replace
+the separately retained real-process witness. No application qualification,
+cold cell, publication, or general-purpose-backend completion is claimed.
+The main journal's already-landed program commission is preserved once;
+the duplicate introduced while rebasing the unlanded append was removed.
+
+## 2026-09-17 — adoption final durable-count reconciliation
+
+The 587,290 count above is the monitor's last sample, not the post-drain
+journal count. One further receipt was fsynced during TERM/drain. After all
+recorded processes were absent, the newline-terminated durable journal had
+587,291 records, leaving 10,933 of 598,224. Its SHA-256 is
+`28326213c56db40a932a21dc3cde755e42aabc6a522e1e5a5072581a550835cd`.
+The last-poll/end receipt remains unchanged; neither count establishes
+acceptance completion or recovers the original child's exit status.
