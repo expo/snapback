@@ -28,6 +28,13 @@ pub struct WorkSpec {
 }
 
 impl WorkSpec {
+    /// Identity of one current effect declaration for generated workers.
+    /// Payload and release provenance deliberately do not participate.
+    // @ref LLP 3000.009#9 — generated workers bind the current declaration, while rows retain admission provenance.
+    pub fn effect_declaration_contract(&self, effect: &str) -> String {
+        crate::value::digest(&("effect-payload:generic-value:v1", effect, self))
+    }
+
     /// Effects currently carry one generic `Value` payload surface. If a
     /// typed payload declaration is added, its schema identity must replace
     /// this validator tag rather than claiming same-name type safety here.

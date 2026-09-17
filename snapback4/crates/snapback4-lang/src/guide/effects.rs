@@ -92,8 +92,9 @@ curl -X POST http://127.0.0.1:4400/dev/clock/advance -H 'Content-Type: applicati
 
 `clock advance` extends held effect leases by the advanced duration, preserving their remaining real-time lifetime; retry `nextAt` still follows the dev clock.
 
-The loop is `POST /effects/claim { effect?, limit?, lease?, wait?, fenced? }` (a
-lease in seconds; `wait` long-polls until something is due), then `POST
+The loop is `POST /effects/claim { effect?, limit?, lease?, wait?, fenced?,
+declarationContract? }` (a lease in seconds; `wait` long-polls until something
+is due), then `POST
 /effects/<id>/done { result? }` or `POST /effects/<id>/failed { error,
 retry }`; `GET /effects?state=` lists them (queued, running, sent,
 satisfied, parked, failed) and `doctor` counts them, including pending grace deferrals. A thrown handler retries with backoff
@@ -113,6 +114,15 @@ Two workers never hold one effect. `meta.id` is the
 idempotency key a provider should see. A scheduled job that `emit`s once
 per period is the digest recipe.
 
+The optional `declarationContract` is only legal with one nonempty `effect`
+and `fenced: true`. It identifies that current named declaration without a
+payload or release. The server authenticates and compares it before queue
+expiry, selection or claim mutation; a missing current declaration or mismatch
+returns E_EFFECT_GENERATION without changing rows, attempts or steps. Successful
+claim JSON carries the server-derived `declarationContract`. Omitting the field
+retains the low-level and legacy worker behavior; this is declaration-fence
+substrate for a later generated effect context, not that context itself.
+
 A fenced claim may call `POST /effects/<id>/steps/<name>/begin` with
 `{ input, reconcile? }`, `/done` with `{ result }`, or `/park` with
 `{ error? }`. Every step request requires exactly one nonempty
@@ -122,6 +132,15 @@ the parent effect. Oversized results park it with E_STEP_RESULT, while unknown
 provider outcome parks it with E_STEP_PARKED. Parked effects are not reclaimed
 or expired. Explicit policy-allowed cancellation may move one to failed with
 E_EFFECT_CANCELLED; it never resumes the effect.
+
+`POST /effects/<percent-encoded-id>/status` requires exactly one nonempty
+`x-snapback-effect-lease` and a current deployment-trusted service. A running
+row additionally requires that service and exact current lease; an expired or
+lost lease returns E_EFFECT_LEASE without requeueing or reclaiming anything.
+Terminal safe metadata is readable by any current service. Status enforces the
+admitted row contract, preserves terminal drift evidence, and may finalize only
+the named row's deadline or recorded cancellation. It returns exactly `id`,
+`attempt`, `state`, `deadline`, `cancelled` and `errorCode`.
 
 New emits retain the current release as admission provenance and bind the exact
 generic `Value` payload and full admitted work policy to the effect name. Release
@@ -139,6 +158,11 @@ running work is parked before a stale lease can mask the drift, while sent,
 satisfied, failed, cancelled and already parked evidence is not rewritten.
 Direct core claim/settle methods remain compatibility APIs without this strict
 HTTP authority and generation boundary.
+
+This surface is only the claim declaration fence and strict status substrate.
+It does not add generated `EffectContext`, a TypeScript emitter or runtime
+handler, query/mutate/data/admin authority, a PostgreSQL adapter, provider
+qualification, crash proof, or a completed B milestone.
 
 ## Effect lifecycle refusals
 

@@ -1,5 +1,5 @@
 #![cfg(feature = "sqlite")]
-use snapback4_core::{Context, Engine, Settled, identity::{self, ServiceSample}};
+use snapback4_core::{Context, Engine, Settled, Value, identity::{self, ServiceSample}, schema::{WorkPolicy, WorkSpec}};
 use snapback4_lang::compile;
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -80,7 +80,7 @@ fn generation_drift_parks_before_stale_lease_for_settle_and_every_step_verb() {
     let mut engine = engine("retry 2");
     let ids = [emit(&mut engine, "settle", 0), emit(&mut engine, "begin", 1), emit(&mut engine, "done", 2), emit(&mut engine, "park", 3)];
     let service = service(&engine);
-    let claims = engine.claim_effects_strict(&service.token, None, 4, 1_000, true, || sample(10)).unwrap();
+    let claims = engine.claim_effects_strict(&service.token, None, 4, 1_000, true, None, || sample(10)).unwrap();
     let leases: BTreeMap<_, _> = claims.into_iter().map(|run| (run.id, run.lease_token.unwrap())).collect();
     adopt(&mut engine, "retry 3", false);
 
@@ -141,10 +141,11 @@ fn release_is_admission_provenance_not_effect_contract_generation() {
 
     engine.store().set_meta("release", "B").unwrap();
     let service = service(&engine);
-    let claimed = engine.claim_effects_strict(&service.token, None, 1, 1_000, true, || sample(1)).unwrap();
+    let claimed = engine.claim_effects_strict(&service.token, None, 1, 1_000, true, None, || sample(1)).unwrap();
     assert_eq!(claimed.len(), 1);
     assert_eq!(claimed[0].id, admitted_under_a);
     assert_eq!(claimed[0].release.as_deref(), Some("A"));
+    let declaration_a = claimed[0].declaration_contract.clone();
 
     let admitted_under_b = emit(&mut engine, "release-b", 2);
     let (release_b, contract_b): (Option<String>, String) = engine.store().conn().query_row(
@@ -152,6 +153,9 @@ fn release_is_admission_provenance_not_effect_contract_generation() {
     ).unwrap();
     assert_eq!(release_b.as_deref(), Some("B"));
     assert_eq!(contract_b, contract_a, "release must not enter the effect compatibility contract");
+    let claimed = engine.claim_effects_strict(&service.token, Some("mail"), 1, 1_000, true, None, || sample(3)).unwrap();
+    assert_eq!(claimed[0].id, admitted_under_b);
+    assert_eq!(claimed[0].declaration_contract, declaration_a, "release must not enter the declaration contract");
 }
 
 #[test]
@@ -160,7 +164,7 @@ fn legacy_declared_effect_recomputes_the_implicit_work_contract() {
     let id = emit(&mut engine, "legacy", 0);
     let service = service(&engine);
     adopt(&mut engine, "", true);
-    let claimed = engine.claim_effects_strict(&service.token, None, 1, 1_000, true, || sample(1)).unwrap();
+    let claimed = engine.claim_effects_strict(&service.token, None, 1, 1_000, true, None, || sample(1)).unwrap();
     assert_eq!(claimed.len(), 1); assert_eq!(claimed[0].id, id);
     assert_eq!(claimed[0].work.policy.backoff_ms, 4_000);
 }
@@ -171,7 +175,7 @@ fn strict_claim_parks_generation_drift_before_deadline_expiry() {
     let id = emit(&mut engine, "deadline", 0);
     let service = service(&engine);
     adopt(&mut engine, "retry 3 deadline 1s", false);
-    assert!(engine.claim_effects_strict(&service.token, None, 1, 1_000, true, || sample(2_000)).unwrap().is_empty());
+    assert!(engine.claim_effects_strict(&service.token, None, 1, 1_000, true, None, || sample(2_000)).unwrap().is_empty());
     let run = engine.effects(Some("parked"), 1).unwrap().remove(0);
     assert_eq!(run.id, id); assert_eq!(run.error_code.as_deref(), Some("E_EFFECT_GENERATION"));
 }
@@ -181,6 +185,95 @@ fn held_effect_poll_samples_authority_once_inside_its_writer_boundary() {
     let mut engine = engine("");
     let service = service(&engine);
     let samples = std::cell::Cell::new(0);
-    engine.authorize_effect_poll_strict(&service.token, || { samples.set(samples.get() + 1); sample(1) }).unwrap();
+    engine.authorize_effect_poll_strict(&service.token, None, None, false, || { samples.set(samples.get() + 1); sample(1) }).unwrap();
     assert_eq!(samples.get(), 1);
+}
+
+#[test]
+fn declaration_contract_is_deterministic_and_keeps_the_row_contract_compatible() {
+    let work = WorkSpec { secrets: vec!["MAIL_KEY".into()], policy: WorkPolicy::default() };
+    let other_payload = Value::String("other".into());
+    let declaration = work.effect_declaration_contract("mail");
+    assert_eq!(declaration, work.effect_declaration_contract("mail"));
+    assert_eq!(declaration, snapback4_core::value::digest(&("effect-payload:generic-value:v1", "mail", &work)), "payload and release are not declaration inputs");
+    assert_ne!(declaration, work.effect_declaration_contract("push"));
+    assert_ne!(declaration, WorkSpec { secrets: vec!["OTHER_KEY".into()], ..work.clone() }.effect_declaration_contract("mail"));
+    assert_ne!(declaration, WorkSpec { policy: WorkPolicy { max_attempts: 7, ..work.policy.clone() }, ..work.clone() }.effect_declaration_contract("mail"));
+    assert_ne!(work.effect_contract("mail", &Value::Int(1)), work.effect_contract("mail", &other_payload));
+    assert_eq!(work.effect_contract("mail", &Value::Int(1)), "2eee4a9cd6c745f8ba0fa08643a8cdcc6e1d34b8efd16bc751fdbecea68fb057");
+}
+
+#[test]
+fn declaration_fence_precedes_all_queue_mutation_and_absence_stays_compatible() {
+    let mut subject = engine("retry 2");
+    let id = emit(&mut subject, "generated", 0);
+    let service = service(&subject);
+    let current = subject.schema().effect_specs["mail"].effect_declaration_contract("mail");
+    let before = outbox_snapshot(&subject, &id);
+    let counts_before: (i64, i64) = subject.store().conn().query_row(
+        "SELECT COALESCE(SUM(attempts), 0), (SELECT COUNT(*) FROM _effect_steps)
+         FROM _outbox", [], |row| Ok((row.get(0)?, row.get(1)?)),
+    ).unwrap();
+    let error = subject.claim_effects_strict(&service.token, Some("mail"), 1, 1_000, true, Some("stale-generated-contract"), || sample(1)).unwrap_err();
+    assert_eq!(error.code(), "E_EFFECT_GENERATION");
+    assert_eq!(outbox_snapshot(&subject, &id), before);
+    let counts_after: (i64, i64) = subject.store().conn().query_row(
+        "SELECT COALESCE(SUM(attempts), 0), (SELECT COUNT(*) FROM _effect_steps)
+         FROM _outbox", [], |row| Ok((row.get(0)?, row.get(1)?)),
+    ).unwrap();
+    assert_eq!(counts_after, counts_before);
+
+    let claim = subject.claim_effects_strict(&service.token, Some("mail"), 1, 1_000, true, Some(&current), || sample(1)).unwrap().remove(0);
+    assert_eq!(claim.id, id);
+    assert_eq!(claim.declaration_contract.as_deref(), Some(current.as_str()));
+    let claimed = outbox_snapshot(&subject, &id);
+    assert_eq!(subject.claim_effects_strict(&service.token, Some("missing"), 1, 1_000, true, Some(&current), || sample(2)).unwrap_err().code(), "E_EFFECT_GENERATION");
+    assert_eq!(outbox_snapshot(&subject, &id), claimed, "a missing current named declaration must not maintain another row");
+
+    let mut legacy = engine("retry 2");
+    let legacy_id = emit(&mut legacy, "legacy-filter", 0);
+    let service = service(&legacy);
+    let claim = legacy.claim_effects_strict(&service.token, Some("mail"), 1, 1_000, true, None, || sample(1)).unwrap().remove(0);
+    assert_eq!(claim.id, legacy_id);
+    assert!(claim.declaration_contract.is_some());
+}
+
+#[test]
+fn strict_status_samples_once_fences_running_authority_and_preserves_terminal_evidence() {
+    let mut subject = engine("retry 2 deadline 1s");
+    let target = emit(&mut subject, "target", 0);
+    let untouched = emit(&mut subject, "untouched", 1);
+    let service = service(&subject);
+    let claims = subject.claim_effects_strict(&service.token, Some("mail"), 2, 10_000, true, None, || sample(2)).unwrap();
+    let leases: BTreeMap<_, _> = claims.into_iter().map(|run| (run.id, run.lease_token.unwrap())).collect();
+    let samples = std::cell::Cell::new(0);
+    let running = subject.effect_status_strict(&service.token, &target, &leases[&target], || { samples.set(samples.get() + 1); sample(3) }).unwrap();
+    assert_eq!(samples.get(), 1); assert_eq!(running.state, "running");
+    let before_wrong = outbox_snapshot(&subject, &target);
+    assert_eq!(subject.effect_status_strict(&service.token, &target, "wrong", || sample(4)).unwrap_err().code(), "E_EFFECT_LEASE");
+    assert_eq!(outbox_snapshot(&subject, &target), before_wrong);
+
+    let deadline = subject.effect_status_strict(&service.token, &target, &leases[&target], || sample(2_000)).unwrap();
+    assert_eq!((deadline.state.as_str(), deadline.error_code.as_deref()), ("failed", Some("E_EFFECT_DEADLINE")));
+    assert_eq!(subject.effects(None, 10).unwrap().into_iter().find(|run| run.id == untouched).unwrap().state, "running", "status must not expire unrelated rows");
+    let reader = identity::service_session(subject.store(), "reader", 0, 1).unwrap();
+    assert_eq!(subject.effect_status_strict(&reader.token, &target, "not-the-lease", || sample(2_001)).unwrap().state, "failed");
+    adopt(&mut subject, "retry 3 deadline 1s", false);
+    let terminal = outbox_snapshot(&subject, &target);
+    assert_eq!(subject.effect_status_strict(&reader.token, &target, "irrelevant", || sample(2_002)).unwrap_err().code(), "E_EFFECT_GENERATION");
+    assert_eq!(outbox_snapshot(&subject, &target), terminal);
+    identity::close_session(subject.store(), &reader.token).unwrap();
+    assert_eq!(subject.effect_status_strict(&reader.token, &target, "irrelevant", || sample(2_003)).unwrap_err().code(), "E_AUTH");
+    assert_eq!(outbox_snapshot(&subject, &target), terminal);
+
+    let mut expiry = engine("retry 2");
+    let id = emit(&mut expiry, "expiry", 0);
+    let service = service(&expiry);
+    let claim = expiry.claim_effects_strict(&service.token, Some("mail"), 1, 1_000, true, None, || sample(0)).unwrap().remove(0);
+    let before = outbox_snapshot(&expiry, &id);
+    assert_eq!(expiry.effect_status_strict(&service.token, &id, claim.lease_token.as_deref().unwrap(), || sample(1_000)).unwrap_err().code(), "E_EFFECT_LEASE");
+    assert_eq!(outbox_snapshot(&expiry, &id), before, "status must not requeue or grant a successor after lease loss");
+    let cancelled = expiry.cancel_effect(&id, 1_001).unwrap();
+    assert!(cancelled.cancelled);
+    assert!(expiry.effect_status_strict(&service.token, &id, "terminal", || sample(1_002)).unwrap().cancelled);
 }

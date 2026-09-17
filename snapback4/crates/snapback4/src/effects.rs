@@ -6,6 +6,12 @@ fn effect_json(run: &snapback4_core::EffectRun) -> Json {
     json!({ "id": run.id, "effect": run.effect, "payload": wire::to_json(&run.payload), "state": run.state, "attempt": run.attempts, "seq": run.seq, "at": run.at, "nextAt": run.next_at, "leaseUntil": run.lease_until, "leaseToken": run.lease_token, "deadline": run.deadline, "cancelled": run.cancelled, "result": run.result.as_ref().map(wire::to_json), "error": run.error, "errorCode": run.error_code })
 }
 
+fn claim_json(run: &snapback4_core::EffectRun) -> Json {
+    let mut answer = effect_json(run);
+    answer["declarationContract"] = json!(run.declaration_contract);
+    answer
+}
+
 fn decode_id(encoded: &str) -> Option<String> {
     let mut bytes = Vec::with_capacity(encoded.len());
     let mut chars = encoded.bytes();
@@ -81,10 +87,15 @@ pub(super) fn claim(request: Request, shared: &Shared, body: &str) {
         _ => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "claim takes an object")) })),
     };
     let effect = match string_field(&payload, "effect") { Ok(value) => value.map(str::to_owned), Err(refusal) => return respond(request, 400, json!({ "denied": refusal_json(&refusal) })) };
+    let declaration_contract = match string_field(&payload, "declarationContract") { Ok(value) => value.map(str::to_owned), Err(refusal) => return respond(request, 400, json!({ "denied": refusal_json(&refusal) })) };
     let limit = match unsigned_field(&payload, "limit") { Ok(value) => value.unwrap_or(1).clamp(1, 100) as usize, Err(refusal) => return respond(request, 400, json!({ "denied": refusal_json(&refusal) })) };
     let lease_ms = match integer_field(&payload, "lease") { Ok(value) => value.unwrap_or(60).clamp(1, 900) * 1_000, Err(refusal) => return respond(request, 400, json!({ "denied": refusal_json(&refusal) })) };
     let fenced = match bool_field(&payload, "fenced") { Ok(value) => value.unwrap_or(false), Err(refusal) => return respond(request, 400, json!({ "denied": refusal_json(&refusal) })) };
     let wait = match unsigned_field(&payload, "wait") { Ok(value) => value.unwrap_or(0).min(25), Err(refusal) => return respond(request, 400, json!({ "denied": refusal_json(&refusal) })) };
+    if declaration_contract.is_some() && (!fenced || effect.as_deref().is_none_or(str::is_empty)) {
+        let refusal = Refusal::new("E_INPUT", "input", "declarationContract requires one nonempty effect and fenced true");
+        return respond(request, 400, json!({ "denied": refusal_json(&refusal) }));
+    }
     let token = match worker_token(&request) { Ok(token) => token, Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })) };
     let deadline = Instant::now() + Duration::from_secs(wait);
     loop {
@@ -93,9 +104,9 @@ pub(super) fn claim(request: Request, shared: &Shared, body: &str) {
         let claimed = {
             let mut engine = lock(&shared.engine);
             if shared.hold_effects {
-                engine.authorize_effect_poll_strict(&token, || sample(shared)).map(|()| Vec::new())
+                engine.authorize_effect_poll_strict(&token, effect.as_deref(), declaration_contract.as_deref(), fenced, || sample(shared)).map(|()| Vec::new())
             } else {
-                engine.claim_effects_strict(&token, effect.as_deref(), limit, lease_ms, fenced, || sample(shared))
+                engine.claim_effects_strict(&token, effect.as_deref(), limit, lease_ms, fenced, declaration_contract.as_deref(), || sample(shared))
             }
         };
         match claimed {
@@ -106,7 +117,7 @@ pub(super) fn claim(request: Request, shared: &Shared, body: &str) {
                 #[cfg(test)]
                 test_work(&shared.effect_wait);
             }
-            Ok(runs) => return respond(request, 200, json!({ "effects": runs.iter().map(effect_json).collect::<Vec<_>>() })),
+            Ok(runs) => return respond(request, 200, json!({ "effects": runs.iter().map(claim_json).collect::<Vec<_>>() })),
             Err(error) => return answer_error(request, error),
         }
     }
@@ -118,6 +129,22 @@ pub(super) fn post(request: Request, shared: &Shared, path: &str, body: &str) {
         let outcome = { lock(&shared.engine).cancel_effect(id, shared.now()) };
         return match outcome {
             Ok(run) => respond(request, 200, json!({ "ok": true, "effect": effect_json(&run) })),
+            Err(error) => answer_error(request, error),
+        };
+    }
+
+    if let Some(encoded_id) = path.strip_prefix("/effects/").and_then(|tail| tail.strip_suffix("/status")) {
+        let Some(id) = decode_id(encoded_id).filter(|id| !id.is_empty()) else {
+            return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "the effect id must be percent-encoded UTF-8")) }));
+        };
+        let lease = match single_header(&request, "x-snapback-effect-lease") {
+            Ok(Some(token)) if !token.trim().is_empty() => token.trim().to_owned(),
+            _ => return respond(request, 200, json!({ "denied": refusal_json(&Refusal::new("E_EFFECT_LEASE", "schema", "send exactly one nonempty effect claim token")) })),
+        };
+        let service_token = match worker_token(&request) { Ok(token) => token, Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })) };
+        let outcome = { lock(&shared.engine).effect_status_strict(&service_token, &id, &lease, || sample(shared)) };
+        return match outcome {
+            Ok(run) => respond(request, 200, json!({ "id": run.id, "attempt": run.attempts, "state": run.state, "deadline": run.deadline, "cancelled": run.cancelled, "errorCode": run.error_code })),
             Err(error) => answer_error(request, error),
         };
     }

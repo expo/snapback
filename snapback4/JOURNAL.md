@@ -33163,3 +33163,43 @@ Lead entry (Claude, orchestrating; lanes D3, D3-R1 and D3-R2 were Codex `gpt-6-a
 **S4a, sized before commissioning.** Two scratch builds on `0eb822d025` (482,965), both restored: every typed JSON use of `Backend` in the device crate replaced by opaque host imports measures 377,414 (−105,551; raw −462,318), about 33,000 of which S1b has now taken; with a stand-in positional decoder (`postcard`) in place of the opaque decode, 402,463. So a derived compact decoder costs back about 25,000 and the rung is worth about 45,000 from here, above the plan's stop rule. Auditing the IR for the format corrected the lead's first brief before any lane saw it: two skip predicates have non-empty defaults (`Residency::is_default`, `Auth::is_default`), one field has `default = "path"`, and most of the 37 skipped `Option` fields carry no `#[serde(default)]`, so an absent field must yield the derive's declared default — a struct's sequence access answers `None` for it and derived `visit_seq` applies the default and carries on — not a guessed empty value. A third probe: `opt-level = "z"` (482,965) already beats `"s"` (539,375) and `2` (721,396). Patches and the brief are in the program record (`measure/s4a-*`, `S4A.md`).
 
 **A correction to this program's own records.** Building this lane's round-1 Grok record, the lead noticed the record began at "## Obligations" while the received text began with a title and an assessment. The Grok CLI prints its last narration sentence and the review's first heading on one line (`…write the complete review.# Blind review: …`); the lead's record builder started at the first heading that begins a line and so dropped the title and every paragraph under it. An audit of all eighteen landed records against the received texts found five Grok records landed that way today — S5 rounds 1 and 2, S0/S1 rounds 1, 2 and 3 — missing 2 to 8 opening lines each, under a header that said "nothing else changed". They are restored from the received texts with a `Corrected:` line in each header; the other thirteen (every Sol record, and Grok's composition rounds 1–3 and small-maps round 1) compare equal. The builder now finds a heading at line start or glued after text and refuses any non-narration text before it (`reviews/build_grok_body.py` in the program record), which is how round 2's record was caught starting with an assessment paragraph and no heading at all.
+
+## 2026-09-17 — B3a effect declaration fence and strict status source checkpoint
+
+B3a adds only the declaration/status substrate for a later generated effect
+context. `WorkSpec::effect_declaration_contract` binds the literal
+`effect-payload:generic-value:v1` validator identity, exact effect name and
+full work specification, while the existing per-row contract bytes remain
+payload-sensitive and unchanged. A strict named fenced claim may supply this
+declaration digest. The engine authenticates and checks it in the same writer
+transaction, after one post-BEGIN service/time sample and before queue expiry,
+selection, leasing or mutation. Missing current declarations and mismatches
+return E_EFFECT_GENERATION with rows, attempts and steps unchanged; matching
+claims return the server-derived digest. Claims that omit it retain the prior
+low-level and legacy wire behavior.
+
+The new `POST /effects/<percent-encoded-id>/status` door validates one nonempty
+effect lease before the engine mutex. Its strict core transaction authenticates
+the current service, enforces the admitted row contract and observes only the
+target row. Running status requires the exact current service and lease;
+expired or lost leases do not requeue, reclaim, unpark or grant successor
+authority. Current deployment-trusted services can read the six safe terminal
+metadata fields. Deadline/cancellation finalization is target-only, and
+generation drift preserves terminal evidence.
+
+Focused Rust source tests were authored for digest determinism and its
+name/policy/secrets/payload/release matrix, unchanged legacy row-contract bytes,
+pre-mutation stale generated polls, returned server digests, absent-contract
+compatibility, strict HTTP type/combination rejection, lease-header parsing,
+single status sampling, running lease authority, lease loss without reclaim,
+targeted deadline/cancellation, terminal reads and drift preservation. Per the
+commissioned source-only phase, no Cargo command, test, build, formatter,
+generator, listener, package install, ref-check, root gate, provider, network,
+origin or remote command ran; these tests remain intentionally unexecuted.
+
+This is not generated `EffectContext`, a TypeScript emitter or runtime handler,
+query/mutate/data/admin authority, a PostgreSQL adapter, provider qualification,
+crash proof or a completed B milestone. It adds no store column, payload-
+contract migration, release-equality fence, broader credential model or generic
+identity framework. The separately noted Draft/unaccepted scoped-credentials
+direction is absent from this base and was neither implemented nor anticipated.

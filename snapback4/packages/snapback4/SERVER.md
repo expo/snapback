@@ -625,6 +625,28 @@ unknown outcomes park with E_STEP_PARKED. Parked effects are excluded from
 lease expiry and reclaim. Policy-allowed cancellation may move parked work to
 failed/E_EFFECT_CANCELLED but never resumes it.
 
+`POST /effects/claim` also accepts optional `declarationContract`, but only
+with one nonempty `effect` and `fenced: true`. The digest uses the literal
+generic-payload validator identity, exact effect name and full current
+`WorkSpec`; payload and release do not enter it. After BEGIN the strict claim
+samples time and supervisor revision once, authenticates the current service,
+and compares this digest before expiry, selection, leasing or other work
+mutation. A missing current declaration or mismatch returns
+E_EFFECT_GENERATION with rows, attempts and steps unchanged. Claim JSON carries
+the server-derived `declarationContract`; omission preserves existing
+low-level and legacy worker behavior.
+
+`POST /effects/<percent-encoded-id>/status` requires exactly one nonempty
+`x-snapback-effect-lease` before entering the engine. Its immediate writer
+transaction takes one post-BEGIN authority/time sample, authenticates the
+current service, loads that exact row and enforces its admitted contract.
+Running status requires the claiming service and exact current lease; an
+expired or lost lease reports E_EFFECT_LEASE without requeue, reclaim, unpark
+or successor authority. A current deployment-trusted service may read terminal
+safe metadata. Only the target row's deadline or recorded cancellation may be
+finalized. The response contains only `id`, `attempt`, `state`, `deadline`,
+`cancelled` and `errorCode`.
+
 New emits retain the current release as admission provenance and store a
 contract over the exact generic `Value` payload, effect name and full admitted
 work policy. Release is excluded from declaration and row-compatibility digests,
@@ -644,6 +666,11 @@ remains compatible. Existing direct core claim/settle methods retain their
 historical compatibility behavior and do not provide the strict HTTP authority boundary.
 Only a service may call `POST /effects/<id>/cancel`; cancellation cannot stop
 provider I/O already in flight.
+
+This checkpoint is only the claim declaration fence and strict status
+substrate. It adds no generated `EffectContext`, TypeScript emitter or runtime
+handler, query/mutate/data/admin authority, PostgreSQL adapter, provider
+qualification, crash proof or completed B milestone.
 
 ## Routes and webhooks
 

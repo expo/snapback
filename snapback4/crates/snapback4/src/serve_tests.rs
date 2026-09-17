@@ -639,15 +639,24 @@ fn effect_http_strictly_validates_present_fields_without_mutating_work() {
         r#"{"limit":"1"}"#,
         r#"{"lease":"60"}"#,
         r#"{"wait":"0"}"#,
+        r#"{"effect":"mail","fenced":true,"declarationContract":17}"#,
+        r#"{"declarationContract":"stale"}"#,
+        r#"{"effect":"mail","declarationContract":"stale"}"#,
+        r#"{"effect":"","fenced":true,"declarationContract":"stale"}"#,
+        r#"{"effect":"mail","fenced":false,"declarationContract":"stale"}"#,
     ] {
         let response = host.request("POST", "/effects/claim", &bearer, malformed);
         assert_eq!(status(&response), 400, "{response}");
         assert_eq!(body(&response)["denied"]["code"], "E_INPUT");
         assert_eq!(effect_snapshot(&host, &id), queued, "malformed claim mutated the row: {malformed}");
     }
-    let claimed = body(&host.request("POST", "/effects/claim", &bearer, r#"{"fenced":true}"#));
+    let declaration = { let engine = lock(&host.shared.engine);
+        engine.schema().effect_specs["mail"].effect_declaration_contract("mail") };
+    let claim_body = json!({"effect":"mail", "fenced":true, "declarationContract":declaration.clone()}).to_string();
+    let claimed = body(&host.request("POST", "/effects/claim", &bearer, &claim_body));
     let effect = &claimed["effects"][0];
     assert_eq!(effect["id"], id);
+    assert_eq!(effect["declarationContract"], declaration);
     let lease = effect["leaseToken"].as_str().unwrap();
     let begin_path = format!("/effects/{id}/steps/provider/begin");
     let missing = body(&host.request("POST", &begin_path, &bearer, r#"{"input":{"n":1}}"#));
@@ -656,6 +665,20 @@ fn effect_http_strictly_validates_present_fields_without_mutating_work() {
     assert_eq!(body(&host.request("POST", &begin_path, &duplicate, r#"{"input":{"n":1}}"#))["denied"]["code"], "E_EFFECT_LEASE");
     let held = format!("{bearer}x-snapback-effect-lease: {lease}\r\n");
     let running = effect_snapshot(&host, &id);
+    let status_path = format!("/effects/{id}/status");
+    for headers in [bearer.clone(), format!("{bearer}x-snapback-effect-lease: \r\n"), format!("{held}x-snapback-effect-lease: {lease}\r\n")] {
+        let answer = body(&host.request("POST", &status_path, &headers, "{}"));
+        assert_eq!(answer["denied"]["code"], "E_EFFECT_LEASE");
+        assert_eq!(effect_snapshot(&host, &id), running);
+    }
+    let wrong = format!("{bearer}x-snapback-effect-lease: wrong\r\n");
+    assert_eq!(body(&host.request("POST", &status_path, &wrong, "{}"))["denied"]["code"], "E_EFFECT_LEASE");
+    assert_eq!(effect_snapshot(&host, &id), running);
+    let status_body = body(&host.request("POST", &status_path, &held, "ignored"));
+    assert_eq!(status_body, json!({ "id": id, "attempt": 1, "state": "running", "deadline": null, "cancelled": false, "errorCode": null }));
+    let malformed_status = host.request("POST", "/effects/bad%FF/status", &held, "{}");
+    assert_eq!(status(&malformed_status), 400); assert_eq!(body(&malformed_status)["denied"]["code"], "E_INPUT");
+    assert_eq!(effect_snapshot(&host, &id), running);
     let park_path = format!("/effects/{id}/steps/provider/park");
     let failed_path = format!("/effects/{id}/failed");
     for (path, malformed) in [
