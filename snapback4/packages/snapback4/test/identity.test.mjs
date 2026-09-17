@@ -145,7 +145,10 @@ class FakeCore {
   constructor() {
     this.now = Date.now();
     this.transactions = new Map();
+    this.nextLoginOrder = 0;
     this.steps = new Map();
+    this.mutationReceipts = new Map();
+    this.verifiedCommits = 0;
     this.mints = 0;
     this.mintSequence = 0;
     this.mintBindings = new Map();
@@ -224,7 +227,7 @@ class FakeCore {
     if (path === "/q/identity.byInvocation") return { data: this.byInvocation(body.args.invocation), complete: true };
     if (path === "/q/identity.byState") return { data: this.byState(body.args.state), complete: true };
     if (path === "/m/identity.begin") {
-      const row = body.args;
+      const row = { ...body.args, loginOrder: ++this.nextLoginOrder, proofStartedAt: this.now, verifiedPrincipal: null };
       if (!Number.isInteger(row.createdAt) || !Number.isInteger(row.expiresAt)) {
         return { state: "failed", why: { code: "E_INPUT", family: "input", message: "time must be integer milliseconds" } };
       }
@@ -240,12 +243,22 @@ class FakeCore {
       return { state: "sent", id: body.id, seq: 2, result: null };
     }
     if (path === "/m/identity.verified") {
+      const receipt = this.mutationReceipts.get(body.id);
+      if (receipt) {
+        if (receipt.input !== canonicalJson(body.args)) {
+          return { state: "failed", why: { code: "E_ID_REUSED", family: "input", message: "changed mutation input" } };
+        }
+        return { state: "sent", id: body.id, seq: receipt.seq, result: null, replayed: true };
+      }
       const row = this.transactions.get(body.args.id);
       if (!row || row.expiresAt <= this.now || row.completionInvocation !== body.args.completionInvocation) {
         return { state: "failed", why: { code: "OIDC_CLAIMED", family: "rule", message: "not owned" } };
       }
+      row.verifiedPrincipal = body.args.principal;
       row.verifiedIssuer = body.args.issuer; row.verifiedSubject = body.args.subject;
       row.email = body.args.email; row.emailVerified = body.args.emailVerified;
+      this.verifiedCommits++;
+      this.mutationReceipts.set(body.id, { input: canonicalJson(body.args), seq: 3 });
       if (this.failAfterVerified-- > 0) throw Error("lost verified mutation response");
       return { state: "sent", id: body.id, seq: 3, result: null };
     }
@@ -381,7 +394,12 @@ test("OIDC helper runs a signed Authorization Code + S256 flow and persists no p
   assert.match(result.settled.body.result.principal, /^oidc:[A-Za-z0-9_-]{43}$/);
   const transaction = s.core.byState(flow.state);
   assert.equal(transaction.verifiedIssuer, provider.issuer); assert.equal(transaction.verifiedSubject, "subject-42");
+  assert.equal(transaction.verifiedPrincipal, result.settled.body.result.principal);
+  assert.notEqual(transaction.verifiedPrincipal, "guest:original");
   assert.equal(transaction.email, "person@example.test"); assert.equal(transaction.emailVerified, true);
+  const verified = s.core.allBodies.find(entry => entry.path === "/m/identity.verified");
+  assert.equal(verified.body.args.principal, result.settled.body.result.principal);
+  assert.notEqual(verified.body.args.principal, "guest:original");
   const durable = JSON.stringify({ transactions: [...s.core.transactions.values()], steps: [...s.core.steps.values()] });
   for (const secret of [ACCESS_TOKEN, REFRESH_TOKEN, SESSION_TOKEN, CLIENT_SECRET]) assert.equal(durable.includes(secret), false, secret);
   const stepResults = JSON.stringify([...s.core.steps.values()].map(step => step.result));
@@ -479,12 +497,19 @@ test("persisted verification replays through provider outage without repeating e
   const provider = await localProvider(t), s = suite(provider);
   const resumed = await s.begin("resume"); provider.register("resume-code", resumed.authorizationUrl);
   s.core.failAfterVerified = 1;
+  const proofStartedAt = s.core.byState(resumed.state).proofStartedAt;
   const first = await s.invoke("completeOidc", s.callback(resumed, "resume-code"), { id: "complete-resume", attempt: 1 });
   assert.equal(first.settled.body.retry, true); assert.equal(provider.tokenCalls("resume-code"), 1); assert.equal(s.core.mints, 0);
   const providerCalls = { discovery: provider.discoveryCalls(), token: provider.tokenCalls("resume-code"), jwks: provider.jwksCalls() };
   provider.setUnavailable(true);
   const second = await s.invoke("completeOidc", s.callback(resumed, "resume-code"), { id: "complete-resume", attempt: 2 });
   assert.ok(second.settled.path.endsWith("/done")); assert.equal(provider.tokenCalls("resume-code"), 1); assert.equal(s.core.mints, 1);
+  assert.equal(s.core.verifiedCommits, 1, "the helper double replays one stable verified write after a lost acknowledgement");
+  assert.equal(s.core.byState(resumed.state).proofStartedAt, proofStartedAt, "verified replay does not refresh the begin proof stamp");
+  const verifiedWrites = s.core.allBodies.filter(entry => entry.path === "/m/identity.verified");
+  assert.equal(verifiedWrites.length, 2);
+  assert.equal(verifiedWrites[0].body.id, verifiedWrites[1].body.id);
+  assert.deepEqual(verifiedWrites[0].body.args, verifiedWrites[1].body.args);
   assert.deepEqual({ discovery: provider.discoveryCalls(), token: provider.tokenCalls("resume-code"), jwks: provider.jwksCalls() }, providerCalls,
     "a completed exchange replays its claims without discovery, token or JWKS reachability");
   assert.equal(s.core.allBodies.filter(entry => entry.path === "/auth/session").length, 1);

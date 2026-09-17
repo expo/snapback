@@ -20,6 +20,7 @@ import {
   type ServerMetadata,
 } from "openid-client";
 import type { Mutation, Principal, Query, Session } from "./contract.ts";
+import { oidcPrincipal } from "./identity-principal.ts";
 import { ServerError } from "./server-json.ts";
 import { identityHandler, type IdentityRuntime } from "./server-private.ts";
 import { ParkStep } from "./server-json.ts";
@@ -58,6 +59,7 @@ export interface OidcTransactionOperations {
   readonly verified: Mutation<{
     readonly id: string;
     readonly completionInvocation: string;
+    readonly principal: string;
     readonly issuer: string;
     readonly subject: string;
     readonly email?: string | null | undefined;
@@ -495,8 +497,9 @@ export function oidcHandlers<Secret extends string>(configuration: OidcConfigura
     }
     if (!exchange.ok) throw new ServerError("E_OIDC_EXCHANGE", "the authorization code exchange or ID token verification failed");
     const claims = exchange.claims;
+    const principal = oidcPrincipal(claims.issuer, claims.subject);
     await runtime.mutate(fixed.transactions.verified, {
-      id: stored.id, completionInvocation: ctx.invocation.id, issuer: claims.issuer, subject: claims.subject,
+      id: stored.id, completionInvocation: ctx.invocation.id, principal, issuer: claims.issuer, subject: claims.subject,
       email: claims.email, emailVerified: claims.emailVerified,
     }, ctx.writeIdFor("oidc.verified"));
     stored = validateTransaction(await runtime.query(fixed.transactions.byState, { state: args.state }));

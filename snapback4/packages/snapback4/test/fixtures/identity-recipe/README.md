@@ -49,8 +49,25 @@ historical command then failed before its raw authority matrix. The complete
 outcome and limitations are in the [integration record](../../../../../reports/20260916-identity-c32.md).
 Google
 credentials remain absent, so Google, production HTTPS and a real browser are
-also unqualified. Verification/recovery and the organizations-and-invitations
-recipe remain later identity work; this fixture is not full Identity/B.
+also unqualified.
+
+The B1d.1 recipe now binds the helper's issuer/subject-derived principal to a
+service-written trusted profile in the same mutation that settles the matching
+transaction. Its service-only counter assigns login-start order, and managed
+`now` stamps the proof start; callers supply neither. A fixed five-minute
+window makes only a present email with `email_verified: true` eligible. Newer
+false, missing or unverified evidence clears eligibility, while an older
+delayed completion cannot replace newer evidence. Profile reads are own-only
+apart from the recipe service. The mutation grants no membership, performs no
+email uniqueness/linking and provides no editable verification field.
+
+Login-start order is not provider email-change chronology, and another login
+is required to observe provider revocation or email changes. A pre-B1d
+`identityVerified` write receipt has different input because it lacks the
+required derived principal; it fails closed and is not migrated or backfilled.
+Use a fresh login/action invocation. Provider recovery and the organizations-
+and-invitations recipe remain later identity work; this fixture is not full
+Identity/B.
 
 The in-package signed-provider protocol double additionally exercises the v2
 marker, public-metadata discovery reconciliation, conservative refusal of an

@@ -27998,3 +27998,99 @@ following local documentation commit restored the exact main prefix plus
 each source append before landing. No historical entry was rewritten.
 Final delta answers, the read-only aggregate receipt and all limitations are
 linked from `reports/20260916-identity-c32.md`.
+
+## 2026-09-17 — B1d.1 trusted OIDC profile binding checkpoint
+
+The existing private OIDC handoff now supplies one additional required
+`principal` argument to the configured `transactions.verified` mutation. The
+helper derives it from the already-validated issuer and subject with the same
+internal `oidcPrincipal` function used by session minting. It does not use the
+admitting guest, callback/client claims, email or application provider input,
+and it adds no public context or session capability. The generic exported
+transaction row and begin payload remain unchanged: profile order, proof time
+and stored principal are recipe-private fields.
+
+The managed recipe assigns a monotone login-start order through a private
+service counter and stamps proof start with managed `now` inside
+`identityBegin`. `identityVerified` checks the claimed completion, refuses a
+changed issuer/subject/principal on repeat, records the transaction settlement
+and conditionally upserts one trusted profile keyed by the derived principal in
+the same interpreter transaction. Existing profiles must retain the same
+issuer/subject. A delayed lower-order completion settles its own transaction
+but cannot replace newer profile evidence; an equal-order replay must match the
+same login, timestamps and email evidence. The fixed recipe policy expires
+email evidence five minutes after the original begin stamp, at a strict
+`proofExpiresAt > now` query boundary, so replay cannot refresh proof age.
+
+Only a present bounded provider email with `email_verified: true` is eligible.
+A newer false, missing or unverified value replaces older evidence and clears
+eligibility; a later valid login can change it again. Equal email across two
+issuer/subject principals creates two profiles and never links them. Profile
+rows are service-written, readable only by their own principal or the recipe
+service, and grant no membership. There is no editable verification field,
+email uniqueness, identity auto-link or provider-revocation synchronizer.
+Login-start order is explicitly not provider email-change chronology.
+
+A pre-B1d verified-write receipt lacks the new required principal and therefore
+has different mutation input. Existing input binding must refuse its old write
+id; there is no migration, backfill or new receipt marker, and the documented
+recovery is a fresh login/action invocation. The existing mint step name and
+input, bound-session protocol, discovery phases, cancellation behavior and
+recovery fence are unchanged.
+
+Verification used Node 24.18.0. The source base was
+`906ed04ec22f90cffc0bfed95af46deebad5ee9e`. The supplied published CLI was
+`snapback4 0.2.26`, SHA-256
+`fa4834f3fd128f4c37f02c9c3954da95306bbf208b2c0c94eb34cda419e7d7be`.
+The ignored source WASM inputs remained unchanged at
+`243c37b7b8f84a63c0bae1415c548c7b845624d27b90f98a97483cd0144645de`
+(`snapback4_device.js`),
+`a8a2121a30d82e5ba3fb886503cd411d6bbc10874d06512e59524afdec11ac3a`
+(`snapback4_device.d.ts`),
+`00aaece70523dd7b6932d04932a31fbce2cebe64838ec81c8f2d346b96d1874a`
+(`snapback4_device_bg.wasm`) and
+`106851e130519176f76b81bf51a50994118639634da43ec4cd337d69dc65be1c`
+(`snapback4_device_bg.wasm.d.ts`). The final bounded commands were:
+
+```text
+PATH=<Node-24.18.0> npm run typecheck
+pass
+
+PATH=<Node-24.18.0> npm run build
+pass; existing ignored WASM inputs copied only to ignored dist output
+
+SNAPBACK_NODE=<Node-24.18.0> SNAPBACK4_BIN=<supplied-0.2.26> snapback4 check --json
+pass; 3 tables, 11 operations, 0 synced, 2822 ms
+
+SNAPBACK4_BIN=<supplied-0.2.26> SNAPBACK4_IDENTITY_PROFILE_SCRATCH_PARENT=<private-parent> node --test --test-concurrency=1 test/identity.test.mjs test/identity-profile.test.mjs
+19/19 pass, 0 skipped, 11.95 s
+```
+
+The new profile case is actual shared server-interpreter execution through
+bounded serial CLI `run --as --now` calls over a private scratch store. Its
+principals and times are operator-supplied test inputs, not authentication,
+provider, revocation or mint evidence. It proves managed recipe rules,
+ordering, exact freshness, denial and atomic rollback. CLI `run` supplies no
+stable write id, so its repeated semantic invocation is not receipt or
+lost-ack proof. The signed-provider/FakeCore suite separately verifies that
+the helper submits the derived principal matching eventual mint (not the
+guest), reuses the same `oidc.verified` write id and exact arguments after a
+lost acknowledgement, commits the double once and does not refresh its
+begin-stamped proof time. That remains explicitly protocol-double evidence
+until the parent's final 0.2.27 engine HTTP witness.
+
+Two warm compilation attempts failed before the green record. The first found
+`E_QUARRY_AMBIGUOUS` on a positional counter key; named unique-key syntax fixed
+it. The second compiled the schema but reported `E_SERVER_TYPECHECK` because
+the local ignored package `dist` did not yet exist; the approved package build
+created it, after which the same warm check passed. Initial Office load was
+27.53, so no moderate test started; the final preflights were 6.25 and 5.87
+with 87% memory free. Syntax and `git diff --check` also passed.
+
+No Rust/Cargo, core, `contract.ts`, provider harness, provider account,
+listener, dev server, actual mint, pilot, benchmark, install, root inventory,
+guide/generated-artifact check, bootstrap, remote, fetch, push, publication or
+deployment ran. Google, production HTTPS, real-browser, actual provider,
+repaired-engine receipt/revocation and full Identity/B qualification remain
+with the parent. The successful scratch child was removed; prior worktrees,
+bundles and supplied artifacts were preserved.

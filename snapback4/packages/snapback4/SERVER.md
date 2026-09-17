@@ -49,7 +49,7 @@ supervised `service:worker` intentionally serves handlers for different declared
 seats. Provision these tokens only to fully trusted application workers;
 provider secrets and service names do not create a per-worker allowlist.
 
-## OIDC identity actions (B1c private handoff; qualification pending)
+## OIDC identity actions and trusted profile recipe (B1d.1; qualification pending)
 
 `snapback4/identity` supplies `oidcHandlers(config)`, two ordinary generated
 action handlers for Authorization Code + S256 PKCE. Provider protocol remains
@@ -121,7 +121,10 @@ table oidcTransactions:
   pkceVerifier: text <=128
   createdAt: time
   expiresAt: time
+  loginOrder: int
+  proofStartedAt: time
   completionInvocation: text <=128 ?
+  verifiedPrincipal: principal ?
   verifiedIssuer: text <=2048 format url ?
   verifiedSubject: text <=1024 ?
   email: text <=320 ?
@@ -135,15 +138,56 @@ table oidcTransactions:
   update <- viewer = 'service:worker'
   delete <- viewer = 'service:worker'
 
+table identityCounters:
+  name: text <=64
+  value: int
+  unique byName: name
+  read <- viewer = 'service:worker'
+  insert <- viewer = 'service:worker'
+  update <- viewer = 'service:worker'
+  delete <- deny
+
+table oidcTrustedProfiles:
+  principal: principal
+  issuer: text <=2048 format url
+  subject: text <=1024
+  email: text <=320 ?
+  emailVerified: bool ?
+  evidenceSource: enum('login')
+  sourceLogin: oidcTransactions
+  proofStartedAt: time
+  proofExpiresAt: time
+  loginOrder: int
+  unique byPrincipal: principal
+  read <- .principal = viewer or viewer = 'service:worker'
+  insert <- viewer = 'service:worker'
+  update <- viewer = 'service:worker'
+  delete <- viewer = 'service:worker'
+
 query identityByInvocation(invocation: text <=128):
   return oidcTransactions[beginInvocation = invocation]
 
 query identityByState(state: text <=256):
   return oidcTransactions[state = state]
 
+query identityOwnProfile():
+  return oidcTrustedProfiles[viewer]
+
+query identityOwnProfileEligibility():
+  profile = oidcTrustedProfiles[viewer]
+  eligible = profile != null and profile.email != null and profile.emailVerified = true and profile.proofExpiresAt > now
+  return { profile, eligible }
+
+query identityProfileFor(principal: principal):
+  require viewer = 'service:worker' else OIDC_SERVICE_REQUIRED
+  return oidcTrustedProfiles[principal]
+
 mutation identityBegin(id: id, beginInvocation: text <=128, admittingPrincipal: principal, configFingerprint: text <=64, bindingHash: text <=64, state: text <=256, nonce: text <=256, pkceVerifier: text <=128, createdAt: time, expiresAt: time, completionInvocation: text <=128 ?, verifiedIssuer: text <=2048 format url ?, verifiedSubject: text <=1024 ?, email: text <=320 ?, emailVerified: bool ?):
   require viewer = 'service:worker' else OIDC_SERVICE_REQUIRED
-  insert oidcTransactions { id, beginInvocation, admittingPrincipal, configFingerprint, bindingHash, state, nonce, pkceVerifier, createdAt, expiresAt, completionInvocation, verifiedIssuer, verifiedSubject, email, emailVerified }
+  counter = identityCounters[name = 'oidc-login']
+  loginOrder = counter.value + 1 if counter != null else 1
+  upsert identityCounters[name = 'oidc-login'] { value: loginOrder }
+  insert oidcTransactions { id, beginInvocation, admittingPrincipal, configFingerprint, bindingHash, state, nonce, pkceVerifier, createdAt, expiresAt, loginOrder, proofStartedAt: now, completionInvocation, verifiedPrincipal: null, verifiedIssuer, verifiedSubject, email, emailVerified }
   return null
 
 mutation identityClaim(id: oidcTransactions, completionInvocation: text <=128):
@@ -155,11 +199,21 @@ mutation identityClaim(id: oidcTransactions, completionInvocation: text <=128):
     update oidcTransactions[tx.id] { completionInvocation }
   return null
 
-mutation identityVerified(id: oidcTransactions, completionInvocation: text <=128, issuer: text <=2048 format url, subject: text <=1024, email: text <=320 ?, emailVerified: bool ?):
+mutation identityVerified(id: oidcTransactions, completionInvocation: text <=128, principal: principal, issuer: text <=2048 format url, subject: text <=1024, email: text <=320 ?, emailVerified: bool ?):
   require viewer = 'service:worker' else OIDC_SERVICE_REQUIRED
   tx = oidcTransactions[id] ! else OIDC_TRANSACTION_EXPIRED
   require tx.completionInvocation = completionInvocation else OIDC_TRANSACTION_CLAIMED
-  update oidcTransactions[tx.id] { verifiedIssuer: issuer, verifiedSubject: subject, email, emailVerified }
+  if tx.verifiedPrincipal != null:
+    require tx.verifiedPrincipal = principal and tx.verifiedIssuer = issuer and tx.verifiedSubject = subject else OIDC_VERIFIED_MISMATCH
+  update oidcTransactions[tx.id] { verifiedPrincipal: principal, verifiedIssuer: issuer, verifiedSubject: subject, email, emailVerified }
+  profile = oidcTrustedProfiles[principal]
+  if profile != null:
+    require profile.issuer = issuer and profile.subject = subject else OIDC_PROFILE_BINDING
+  if profile = null or tx.loginOrder > profile.loginOrder:
+    -- Five minutes from the managed begin stamp is the fixed recipe policy.
+    upsert oidcTrustedProfiles[principal] { issuer, subject, email, emailVerified, evidenceSource: 'login', sourceLogin: tx.id, proofStartedAt: tx.proofStartedAt, proofExpiresAt: tx.proofStartedAt + 300000, loginOrder: tx.loginOrder }
+  else if tx.loginOrder = profile.loginOrder:
+    require profile.sourceLogin = tx.id and profile.proofStartedAt = tx.proofStartedAt and profile.proofExpiresAt = tx.proofStartedAt + 300000 and profile.email = email and profile.emailVerified = emailVerified else OIDC_PROFILE_REPLAY_MISMATCH
   return null
 
 action beginOidc(bindingHash: text <=64) returns { authorizationUrl: text <=4096 format url } secrets [OIDC_CLIENT_SECRET] retry 3 deadline 10m
@@ -219,11 +273,31 @@ even when signed with the configured client secret; this adapter requires the
 provider's asymmetric signature and does not duplicate the library's JWS
 verification. The principal is a fixed
 `oidc:` namespace derived from issuer plus `sub`; email is never an automatic
-linking key. `email` and `email_verified` are optional metadata only. Profile
-binding, verification/recovery, organization membership and invitations, and
-account linking remain application work. The organizations-and-invitations
-recipe and provider-specific verification/recovery path still follow this
-private handoff; B1c alone is not full Identity/B.
+linking key. The helper derives that principal once from the validated exchange
+claims and supplies it to the private `identityVerified` mutation; it never
+uses the admitting guest, callback claims, email or application-supplied
+provider values as the profile key.
+
+The recipe above atomically settles the matching transaction and writes a
+trusted provider-evidence profile. `identityBegin` assigns a service-only
+logical login order and stamps `proofStartedAt` with managed `now`; callers do
+not supply either value. The fixed recipe policy admits verified-email evidence
+for five minutes from that stamp. `identityOwnProfileEligibility` evaluates the
+strict `proofExpiresAt > now` boundary at query time, not in a read rule. Only a
+present bounded email paired with `email_verified: true` is eligible. A newer
+login with false or absent verification replaces the former evidence and makes
+it ineligible; a delayed older completion cannot replace a newer profile.
+Equal email across principals never links them. Profile rows are readable only
+by their principal and `service:worker`, and writable only by that service;
+the verified mutation grants no membership and exposes no display/email edit.
+
+This order is the managed login-start order, not the provider's email-change
+chronology. The recipe does not synchronize provider revocation or email
+changes until another login. It is evidence, not account linking, recovery,
+organization membership or invitations. Those remain application work, so
+this slice is not full Identity/B. A pre-B1d `identityVerified` receipt lacks
+the now-required derived `principal`; reusing its write id fails input binding.
+There is no receipt migration or backfill: start a fresh login and invocation.
 
 The outer `oidc.exchange` input and validated-claims result remain the replay
 boundary, including for completed receipts written by the earlier helper. New
