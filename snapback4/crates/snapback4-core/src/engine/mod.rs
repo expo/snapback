@@ -8,6 +8,8 @@ pub mod effects;
 #[cfg(feature = "sqlite")]
 pub mod actions;
 #[cfg(feature = "sqlite")]
+pub(crate) mod steps;
+#[cfg(feature = "sqlite")]
 pub mod routes;
 #[cfg(feature = "sqlite")]
 pub mod job;

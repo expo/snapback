@@ -508,7 +508,9 @@ This row is an application-level operator disposition. It does not turn the
 old action's result into `done`, resume it or create a general administration
 subsystem. An unknown or unqueryable outcome remains unresolved; never issue a
 blind replacement send. Recovery and compensation are application-specific,
-and this slice does not require actions and effects to share one mechanism.
+The core now evaluates these transitions in one work-kind-aware policy, while
+the only storage adapter remains the existing action `_action_steps` table.
+That extraction alone adds no effect step API, records or completeness claim.
 
 Effects retain their legacy handler signature and at-least-once semantics,
 not the action context or `ctx.step`. Their declared retry/deadline/cancellation

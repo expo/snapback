@@ -28352,3 +28352,47 @@ remains the already built `1e91bc7fe` artifact, not a falsely claimed rebuild.
 The broader original frontend setup failure and absent real-PG/browser-WASM
 hash execution remain explicit. This is a prerequisite, not completed
 invitations, Identity/B, Workroom, publication or promotion qualification.
+
+## 2026-09-17 — Bwork1: one typed external-step transition policy
+
+The current action external-step state machine now lives once in a small typed
+engine kernel. It distinguishes action and effect owners, claim identity,
+persisted step records and state, and operates through a transaction-scoped
+mutation trait. Name and JSON bounds, action v1 provider-key bytes, same-input
+and completed-result replay, changed-input and result-mismatch refusal,
+same-claim busy handling, reconciliation takeover, oversized-result parking
+and explicit parking remain policy in that kernel.
+
+The SQLite action adapter is constructed only after the existing held-claim
+authority check succeeds inside the already-open immediate writer transaction.
+It preserves `_action_steps` exactly and delegates owner parking to the current
+action `finish` helper in that same transaction. Public Engine methods, HTTP
+wire behavior and action key domain `snapback4:step:v1` are unchanged. The
+typed key calculation reserves a distinct `snapback4:effect-step:v1` domain,
+but this checkpoint adds no effect table, adapter, method, route, context or
+behavior; effects retain their existing handler and claim lifecycle.
+
+Focused source tests now pin the action table columns and row fields, exact v1
+key derivation, rollback on busy/input/result refusals, identical completion
+and cross-claim replay, atomic oversized-result owner parking, and action/effect
+key non-equality. This was a source-only host-slot checkpoint: no Cargo, Rust,
+Node/Bun, test, build, listener, database process, install, network, remote,
+model, subagent, commit or push command ran. Qualification remains pending.
+
+## 2026-09-17 — Bwork1 focused qualification
+
+The exact source-only Bwork1 checkpoint was qualified serially after the 450b
+slot was released. With `CARGO_BUILD_JOBS=6`, `--locked` and one test thread,
+the core check passed; the exact cross-kind provider-key unit passed 1/1;
+`action_context` passed 9/9; `routes` passed 14/14; `bound_session` passed 8/8;
+and the language guide passed 50/50. Across the selected tests that is 82/82,
+with no failure or ignored test. The intentionally reserved, unwired `Effect`
+work-kind variant produced the expected dead-code warning; no warning
+suppression or product change was added.
+
+The first core-check invocation found no ambient `cargo` and exited 127 before
+compilation. Repeating the identical command with the existing repository
+toolchain at `/home/ccheever/.cargo/bin/cargo` passed. No source repair was
+needed. No root inventory, broad suite, PostgreSQL/provider/listener work,
+install, network, remote, model delegation, origin contact, push or publication
+ran.

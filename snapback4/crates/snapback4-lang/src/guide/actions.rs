@@ -52,6 +52,10 @@ the ordinary `Read` and `Write` states; no transaction spans two calls.
 persists an external step's result and reuses it on a rerun; changing the input
 for the same name refuses. Send the step's stable key to the provider, and
 reconcile an uncertain provider outcome through that key. There is no `ctx.sql`.
+The engine keeps one typed transition policy for durable external steps, but
+this release wires only actions to it through the existing `_action_steps`
+records. Effects do not gain `ctx.step` or action authority from that internal
+extraction (guide effects).
 
 `secrets [ENV_NAME, ...]` exposes only the declared names on `ctx.secrets`.
 Use uppercase environment names; runtime names (`SNAPBACK_*`, `SNAPBACK4_*`,
