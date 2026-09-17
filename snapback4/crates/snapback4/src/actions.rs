@@ -22,7 +22,14 @@ fn decode_id(encoded: &str) -> Option<String> {
 fn outcome(run: &ActionRequest, replayed: bool) -> Json {
     let mut body = match run.state.as_str() {
         "done" => json!({ "state": "done", "id": run.id, "result": run.result }),
-        "failed" | "parked" => json!({ "state": "failed", "id": run.id, "why": Refusal::new(run.error_code.as_deref().unwrap_or("E_ACTION_FAILED"), "action", run.error.as_deref().unwrap_or("the handler failed")).guide("actions") }),
+        "failed" | "parked" => {
+            let code = run.error_code.as_deref().unwrap_or("E_ACTION_FAILED");
+            let mapped = snapback4_lang::diag::guide_for(code);
+            // Only the closed OIDC settlement set maps to services here.
+            // E_AUTH and every non-services mapping retain the legacy action guide.
+            let guide = if mapped == "services" && code != "E_AUTH" { mapped } else { "actions" };
+            json!({ "state": "failed", "id": run.id, "why": Refusal::new(code, "action", run.error.as_deref().unwrap_or("the handler failed")).guide(guide) })
+        }
         _ => {
             let mut why = Refusal::new("E_ACTION_PENDING", "action", "the action is still pending; retry with the same id to collect its result").guide("actions");
             why.retryable = true;

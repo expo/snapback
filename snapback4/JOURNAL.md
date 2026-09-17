@@ -27613,3 +27613,49 @@ and fresh blind combined reviews. Verification/recovery and the
 organizations-and-invitations recipe still follow; Google credentials remain
 absent, and full Identity/B, Google, production HTTPS, real-browser and
 repaired-engine qualification are not claimed.
+
+## 2026-09-17 — B1b final review repair: authority time and public guides
+
+The two public authority-sensitive identity operations now choose time at the
+same boundary as authority. `bound_custom_session` and public
+`logout_session` accept a one-shot clock, acquire the store's immediate writer
+transaction, and sample that clock exactly once before reading any service,
+claim, admitting-session, target-family or presented-token lifetime. Their
+HTTP callers supply the shared server clock. A real two-connection witness
+holds writer A and uses SQLite's first busy callback as an explicit barrier
+proving B has reached `BEGIN IMMEDIATE`; only then does it advance the atomic
+test clock and release A. Service expiry, claim lease expiry, claim deadline
+expiry, admitting-family expiry and presented logout-token expiry all refuse
+without a stale-time mint or logout success. The earlier sequential
+logout/replacement witness is now named as committed-order evidence, distinct
+from this genuine blocked-writer witness.
+
+Public action recollection now obtains the guide for the already closed set of
+ten terminal `E_OIDC_*` codes from `snapback4_lang::diag::guide_for`, so each
+keeps its exact code and returns `services`. It adds no third runtime code
+table. Every other failed action retains the legacy `actions` guide;
+`E_OIDC_UNKNOWN` is still settled and recollected as generic
+`E_ACTION_FAILED`. The real HTTP witness checks the guide on all ten supported
+codes and on the unknown/arbitrary fallbacks.
+
+A second real HTTP journey mints a bound session, logs out its live bearer
+through `/auth/logout`, and then proves `replaceLostDelivery` refuses with
+`E_ACTION_AUTHORITY`; the retained binding tombstone has no live family to
+resurrect.
+
+Focused serial evidence used `CARGO_BUILD_JOBS=6`, `--locked` and one test
+thread:
+
+- `snapback4-core --test bound_session`: 7/7;
+- core identity unit tests: 5/5; identity, action-context and work-record
+  integration groups: 2/2, 8/8 and 6/6;
+- all `serve::tests::`: 47/47; and
+- the language guide suite: 37/37.
+
+No selected test failed, retried or was ignored. No root gate, inventory,
+heavy suite, provider protocol, Postgres path, C3.2 work,
+publication, push or origin contact was attempted. No guide source change was
+needed because the ten-code diagnostic mapping and `CODES` entries already
+existed. Unrelated `rotate_session` and unbound legacy `custom_session` retain
+their prior clock/serialization limitations and lifecycle semantics; this
+repair deliberately does not redesign them or add a store-wide clock.

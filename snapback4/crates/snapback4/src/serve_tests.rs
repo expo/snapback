@@ -178,6 +178,7 @@ fn oidc_terminal_codes_survive_http_settlement_and_public_recollection() {
         ("E_OIDC_HANDOFF", "E_OIDC_HANDOFF"), ("E_OIDC_MINT", "E_OIDC_MINT"),
         ("E_OIDC_PROVIDER", "E_OIDC_PROVIDER"), ("E_OIDC_RECIPE", "E_OIDC_RECIPE"),
         ("E_OIDC_REPLAY", "E_OIDC_REPLAY"), ("E_OIDC_TRANSACTION", "E_OIDC_TRANSACTION"),
+        ("E_ACTION_RESULT", "E_ACTION_RESULT"), ("E_ROUTE_RESULT", "E_ROUTE_RESULT"),
         ("E_OIDC_UNKNOWN", "E_ACTION_FAILED"), ("E_ARBITRARY_PROVIDER", "E_ACTION_FAILED"),
     ];
     for (index, (submitted_code, recollected_code)) in cases.into_iter().enumerate() {
@@ -200,6 +201,9 @@ fn oidc_terminal_codes_survive_http_settlement_and_public_recollection() {
         assert_eq!(recollected["replayed"], true, "{submitted_code}: {recollected}");
         assert_eq!(recollected["why"]["code"], recollected_code, "{submitted_code}: {recollected}");
         assert_eq!(recollected["why"]["message"], error, "{submitted_code}: {recollected}");
+        let mapped = snapback4_lang::diag::guide_for(recollected_code);
+        let expected_guide = if mapped == "services" && recollected_code != "E_AUTH" { "services" } else { "actions" };
+        assert_eq!(recollected["why"]["guide"], expected_guide, "{submitted_code}: {recollected}");
     }
 }
 
@@ -292,6 +296,35 @@ fn bound_session_http_requires_exact_shape_and_current_action_lease() {
     let after = host.request("POST", "/auth/session", &headers, &recovery);
     assert_eq!(body(&after)["denied"]["code"], "E_ACTION_LEASE");
     assert!(!after.contains(&service.token) && !after.contains(&lease) && !after.contains(&recovered_token));
+}
+
+#[test]
+fn public_live_logout_keeps_the_bound_family_tombstone_authoritative() {
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), "use personas alice\naction signIn()\n");
+    let service = { let engine = lock(&host.shared.engine);
+        snapback4_core::identity::service_session(engine.store(), "worker", host.shared.now(), 1).unwrap() };
+    let service_header = format!("Authorization: Bearer {}\r\n", service.token);
+    let admitted = body(&host.request("POST", "/a/signIn?wait=0", "x-snapback-persona: alice\r\n", r#"{"id":"logout-live-http","args":{}}"#));
+    assert_eq!(admitted["state"], "pending", "{admitted}");
+    let claimed = body(&host.request("POST", "/actions/claim", &service_header, r#"{"action":"signIn"}"#));
+    let lease = claimed["requests"][0]["session"]["token"].as_str().unwrap().to_owned();
+    let action_headers = format!("{service_header}x-snapback-action-lease: {lease}\r\n");
+    let mint = json!({"principal":"member:logout-live","kind":"member","days":30,"binding":{
+        "invocationId":"logout-live-http","intent":"identity-session/v1"}}).to_string();
+    let minted = body(&host.request("POST", "/auth/session", &action_headers, &mint));
+    let token = minted["session"]["token"].as_str().unwrap().to_owned();
+    let logout = host.request("POST", "/auth/logout", &format!("Authorization: Bearer {token}\r\n"), "{}");
+    assert_eq!(status(&logout), 200, "{logout}");
+    assert_eq!(body(&logout)["ok"], true, "{logout}");
+
+    let recovery = json!({"principal":"member:logout-live","kind":"member","days":30,"binding":{
+        "invocationId":"logout-live-http","intent":"identity-session/v1","replaceLostDelivery":true}}).to_string();
+    let refused = body(&host.request("POST", "/auth/session", &action_headers, &recovery));
+    assert_eq!(refused["denied"]["code"], "E_ACTION_AUTHORITY", "{refused}");
+    let engine = lock(&host.shared.engine);
+    let family: String = engine.store().conn().query_row("SELECT family FROM _session_mint_bindings WHERE invocation = 'logout-live-http'", [], |row| row.get(0)).unwrap();
+    assert_eq!(engine.store().conn().query_row("SELECT COUNT(*) FROM _sessions WHERE family = ?1", [&family], |row| row.get::<_, i64>(0)).unwrap(), 0);
+    assert_eq!(engine.store().conn().query_row("SELECT COUNT(*) FROM _session_mint_bindings WHERE invocation = 'logout-live-http'", [], |row| row.get::<_, i64>(0)).unwrap(), 1);
 }
 
 #[test]

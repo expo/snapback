@@ -6,6 +6,8 @@ use snapback4_core::engine::actions::ActionSettled;
 use snapback4_core::ir::{Expr, Program, ProgramKind, Stmt};
 use snapback4_core::{Context, Engine, RuntimeError, Schema, Store, Value, identity};
 use std::collections::BTreeMap;
+use std::sync::{Arc, Barrier, OnceLock};
+use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
 
 fn program() -> Program {
     Program { name: "work".into(), kind: ProgramKind::Action, args: BTreeMap::new(), read_time_granularity_ms: None, native: false,
@@ -23,12 +25,21 @@ fn binding(id: &str, replace: bool) -> identity::SessionMintBinding {
 }
 #[allow(clippy::too_many_arguments)]
 fn mint(engine: &mut Engine, service: &identity::Session, lease: &str, id: &str, principal: &str, kind: &str, days: i64, now: i64, replace: bool) -> Result<identity::Session, RuntimeError> {
-    identity::bound_custom_session(engine.store_mut(), &service.token, &service.principal, lease, principal, kind, now, days, &binding(id, replace))
+    identity::bound_custom_session(engine.store_mut(), &service.token, &service.principal, lease, principal, kind, || now, days, &binding(id, replace))
 }
 fn binding_count(engine: &Engine, id: &str) -> i64 {
     engine.store().conn().query_row("SELECT COUNT(*) FROM _session_mint_bindings WHERE invocation = ?1", [id], |row| row.get(0)).unwrap()
 }
 fn digest(token: &str) -> String { format!("{:x}", Sha256::digest(token.as_bytes())) }
+
+static WRITER_BLOCKED: OnceLock<Barrier> = OnceLock::new();
+
+fn witness_writer_blocked(attempt: i32) -> bool {
+    if attempt == 0 {
+        WRITER_BLOCKED.get_or_init(|| Barrier::new(2)).wait();
+    }
+    true
+}
 
 #[test]
 fn initial_mint_replay_input_binding_and_family_recovery_are_exact() {
@@ -209,7 +220,7 @@ fn two_connections_recheck_service_revocation_and_serialize_replacements() {
         std::thread::spawn(move || {
             let mut store = Store::open(&path).unwrap();
             gate.wait();
-            identity::bound_custom_session(&mut store, &service.token, &service.principal, &lease, "member:race", "member", 3, 1, &binding("race", true)).unwrap()
+            identity::bound_custom_session(&mut store, &service.token, &service.principal, &lease, "member:race", "member", || 3, 1, &binding("race", true)).unwrap()
         })
     }).collect();
     gate.wait();
@@ -227,7 +238,7 @@ fn two_connections_recheck_service_revocation_and_serialize_replacements() {
     }) };
     let recover = { let (path, service, lease, gate) = (path.clone(), service.clone(), lease.clone(), gate.clone()); std::thread::spawn(move || {
         let mut store = Store::open(&path).unwrap(); gate.wait();
-        identity::bound_custom_session(&mut store, &service.token, &service.principal, &lease, "member:race", "member", 5, 1, &binding("race", true))
+        identity::bound_custom_session(&mut store, &service.token, &service.principal, &lease, "member:race", "member", || 5, 1, &binding("race", true))
     }) };
     gate.wait();
     revoke.join().unwrap();
@@ -240,7 +251,7 @@ fn two_connections_recheck_service_revocation_and_serialize_replacements() {
 }
 
 #[test]
-fn two_connections_serialize_logout_and_lost_delivery_replacement_in_both_orders() {
+fn committed_order_logout_and_lost_delivery_replacement_are_serialized() {
     let root = std::env::temp_dir().join(format!("sb4-bound-logout-{}-{}", std::process::id(), snapback4_core::ids::mint(snapback4_core::now_ms(), &mut 0).unwrap()));
     std::fs::create_dir_all(&root).unwrap();
     let path = root.join("store.sqlite");
@@ -253,7 +264,7 @@ fn two_connections_serialize_logout_and_lost_delivery_replacement_in_both_orders
     let first = mint(&mut engine, &service, &first_lease, "logout-first", "member:logout-first", "member", 1, 1, false).unwrap();
     let first_family: String = engine.store().conn().query_row(
         "SELECT family FROM _session_mint_bindings WHERE invocation = 'logout-first'", [], |row| row.get(0)).unwrap();
-    identity::logout_session(&mut logout_store, &first.token, 2).unwrap();
+    identity::logout_session(&mut logout_store, &first.token, || 2).unwrap();
     assert_eq!(mint(&mut engine, &service, &first_lease, "logout-first", "member:logout-first", "member", 1, 3, true).unwrap_err().code(), "E_ACTION_AUTHORITY");
     assert_eq!(engine.store().conn().query_row("SELECT COUNT(*) FROM _sessions WHERE family = ?1", [&first_family], |row| row.get::<_, i64>(0)).unwrap(), 0);
     assert_eq!(binding_count(&engine, "logout-first"), 1, "logout keeps the binding tombstone that prevents resurrection");
@@ -264,10 +275,97 @@ fn two_connections_serialize_logout_and_lost_delivery_replacement_in_both_orders
     let second_family: String = engine.store().conn().query_row(
         "SELECT family FROM _session_mint_bindings WHERE invocation = 'replace-first'", [], |row| row.get(0)).unwrap();
     let replacement = mint(&mut engine, &service, &second_lease, "replace-first", "member:replace-first", "member", 1, 6, true).unwrap();
-    assert_eq!(identity::logout_session(&mut logout_store, &second.token, 7).unwrap_err().code(), "E_AUTH", "a stale delivered token cannot report logout success");
+    assert_eq!(identity::logout_session(&mut logout_store, &second.token, || 7).unwrap_err().code(), "E_AUTH", "a stale delivered token cannot report logout success");
     assert!(identity::resolve(&logout_store, &replacement.token, 8).unwrap().is_some(), "stale-token logout must not close the replacement");
     assert_eq!(logout_store.conn().query_row("SELECT COUNT(*) FROM _sessions WHERE family = ?1", [&second_family], |row| row.get::<_, i64>(0)).unwrap(), 1);
 
     drop(logout_store); drop(engine);
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn two_connection_writer_block_samples_authority_time_after_the_lock() {
+    for mode in ["service-expiry", "claim-lease-expiry", "claim-deadline-expiry", "admitting-expiry"] {
+        let root = std::env::temp_dir().join(format!("sb4-bound-clock-{mode}-{}-{}", std::process::id(), snapback4_core::ids::mint(snapback4_core::now_ms(), &mut 0).unwrap()));
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("store.sqlite");
+        let mut engine = Engine::new(Store::open(&path).unwrap(), Schema::default(), [program()]).unwrap();
+        let service = identity::service_session(engine.store(), "worker", 0, 1).unwrap();
+        let admitting_token = if mode == "admitting-expiry" {
+            let owner = identity::custom_session(engine.store(), "member:owner", "member", 0, 1).unwrap();
+            engine.request_action("work", mode, Context::new(&owner.principal, BTreeMap::new()).with_session(&owner.token).at(0)).unwrap();
+            Some(owner.token)
+        } else {
+            admit(&mut engine, mode, 0);
+            None
+        };
+        let lease = claim(&mut engine, 0);
+        match mode {
+            "service-expiry" => { engine.store().conn().execute("UPDATE _sessions SET expires_at = 10 WHERE token_digest = ?1", [digest(&service.token)]).unwrap(); }
+            "claim-lease-expiry" => { engine.store().conn().execute("UPDATE _requests SET lease_until = 10 WHERE id = ?1", [mode]).unwrap(); }
+            "claim-deadline-expiry" => { engine.store().conn().execute("UPDATE _requests SET deadline = 10 WHERE id = ?1", [mode]).unwrap(); }
+            "admitting-expiry" => { engine.store().conn().execute("UPDATE _sessions SET expires_at = 10 WHERE token_digest = ?1", [digest(admitting_token.as_deref().unwrap())]).unwrap(); }
+            _ => unreachable!(),
+        }
+
+        let mut blocked = Store::open(&path).unwrap();
+        blocked.conn().busy_handler(Some(witness_writer_blocked)).unwrap();
+        let mut blocker = Store::open(&path).unwrap();
+        let held_writer = blocker.transaction().unwrap();
+        let clock = Arc::new(AtomicI64::new(9));
+        let samples = Arc::new(AtomicUsize::new(0));
+        let thread_clock = clock.clone();
+        let thread_samples = samples.clone();
+        let principal = format!("member:{mode}");
+        let worker = service.principal.clone();
+        let service_token = service.token.clone();
+        let invocation = mode.to_owned();
+        let handle = std::thread::spawn(move || identity::bound_custom_session(
+            &mut blocked, &service_token, &worker, &lease, &principal, "member",
+            || { thread_samples.fetch_add(1, Ordering::SeqCst); thread_clock.load(Ordering::SeqCst) },
+            1, &binding(&invocation, false),
+        ));
+
+        WRITER_BLOCKED.get_or_init(|| Barrier::new(2)).wait();
+        assert_eq!(samples.load(Ordering::SeqCst), 0, "{mode}: the clock must not be sampled while BEGIN IMMEDIATE is blocked");
+        clock.store(11, Ordering::SeqCst);
+        drop(held_writer);
+        let error = handle.join().unwrap().unwrap_err();
+        assert_eq!(samples.load(Ordering::SeqCst), 1, "{mode}: authority time is sampled exactly once");
+        assert_eq!(error.code(), if mode == "service-expiry" { "E_AUTH" } else { "E_ACTION_LEASE" }, "{mode}: {error}");
+        assert_eq!(engine.store().conn().query_row("SELECT COUNT(*) FROM _session_mint_bindings WHERE invocation = ?1", [mode], |row| row.get::<_, i64>(0)).unwrap(), 0, "{mode}: no stale-time binding");
+        assert_eq!(engine.store().conn().query_row("SELECT COUNT(*) FROM _sessions WHERE principal = ?1", [&format!("member:{mode}")], |row| row.get::<_, i64>(0)).unwrap(), 0, "{mode}: no stale-time mint");
+        drop(blocker); drop(engine);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    let root = std::env::temp_dir().join(format!("sb4-logout-clock-{}-{}", std::process::id(), snapback4_core::ids::mint(snapback4_core::now_ms(), &mut 0).unwrap()));
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("store.sqlite");
+    let store = Store::open(&path).unwrap();
+    let session = identity::custom_session(&store, "member:logout-clock", "member", 0, 1).unwrap();
+    store.conn().execute("UPDATE _sessions SET expires_at = 10 WHERE token_digest = ?1", [digest(&session.token)]).unwrap();
+    let mut blocked = Store::open(&path).unwrap();
+    blocked.conn().busy_handler(Some(witness_writer_blocked)).unwrap();
+    let mut blocker = Store::open(&path).unwrap();
+    let held_writer = blocker.transaction().unwrap();
+    let clock = Arc::new(AtomicI64::new(9));
+    let samples = Arc::new(AtomicUsize::new(0));
+    let thread_clock = clock.clone();
+    let thread_samples = samples.clone();
+    let token = session.token.clone();
+    let handle = std::thread::spawn(move || identity::logout_session(&mut blocked, &token, || {
+        thread_samples.fetch_add(1, Ordering::SeqCst);
+        thread_clock.load(Ordering::SeqCst)
+    }));
+
+    WRITER_BLOCKED.get_or_init(|| Barrier::new(2)).wait();
+    assert_eq!(samples.load(Ordering::SeqCst), 0, "logout clock must not be sampled while BEGIN IMMEDIATE is blocked");
+    clock.store(11, Ordering::SeqCst);
+    drop(held_writer);
+    assert_eq!(handle.join().unwrap().unwrap_err().code(), "E_AUTH", "an expired presented token cannot report logout success from stale pre-lock time");
+    assert_eq!(samples.load(Ordering::SeqCst), 1, "logout authority time is sampled exactly once");
+    assert_eq!(store.conn().query_row("SELECT COUNT(*) FROM _sessions WHERE token_digest = ?1", [digest(&session.token)], |row| row.get::<_, i64>(0)).unwrap(), 1, "the expired token was refused, not successfully logged out");
+    drop(blocker); drop(store);
     std::fs::remove_dir_all(root).unwrap();
 }

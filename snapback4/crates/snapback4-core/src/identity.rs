@@ -203,9 +203,12 @@ pub fn close_session(store: &Store, token: &str) -> Result<(), RuntimeError> {
 /// transaction. This is the HTTP logout boundary; callers that already own a
 /// different authority boundary may continue to use `close_session`.
 // @ref LLP 3000.009#5.1 — logout and lost-delivery replacement serialize on the session family.
-pub fn logout_session(store: &mut Store, token: &str, now: i64) -> Result<(), RuntimeError> {
+pub fn logout_session(store: &mut Store, token: &str, now: impl FnOnce() -> i64) -> Result<(), RuntimeError> {
     let token_digest = digest(token);
     let tx = store.transaction()?;
+    // The successful immediate transaction is the authority linearization
+    // point: time spent waiting for its writer lock cannot keep a token live.
+    let now = now();
     let live: Option<(String, String, String)> = tx.conn().query_row(
         "SELECT principal, kind, COALESCE(family, token_digest) FROM _sessions WHERE token_digest = ?1 AND expires_at > ?2",
         params![token_digest, now],
@@ -606,7 +609,7 @@ pub fn bound_custom_session(
     action_lease: &str,
     principal: &str,
     kind: &str,
-    now: i64,
+    now: impl FnOnce() -> i64,
     days: i64,
     binding: &SessionMintBinding,
 ) -> Result<Session, RuntimeError> {
@@ -620,6 +623,9 @@ pub fn bound_custom_session(
     let input_digest = crate::store::payload_digest(&input);
     let service_digest = digest(service_token);
     let tx = store.transaction()?;
+    // Sample only after the immediate writer transaction is ours, beside
+    // every service, claim, admitting and target-family authority check.
+    let now = now();
     let service_is_live: bool = tx.conn().query_row(
         "SELECT EXISTS(SELECT 1 FROM _sessions WHERE token_digest = ?1 AND principal = ?2 AND kind = 'service' AND expires_at > ?3)",
         params![service_digest, worker, now], |row| row.get(0),

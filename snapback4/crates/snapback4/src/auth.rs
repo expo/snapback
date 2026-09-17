@@ -253,7 +253,7 @@ fn perform(
         _ => {
             let token = bearer_token(request)?;
             let mut engine = shared.engine.lock().unwrap();
-            identity::logout_session(engine.store_mut(), token, shared.now())?;
+            identity::logout_session(engine.store_mut(), token, || shared.now())?;
             Ok(Outcome::Logout)
         }
     }
