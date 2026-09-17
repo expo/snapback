@@ -216,7 +216,6 @@ test('serde derive import policy refuses renames and re-exports at the import', 
     'use serde::ser::Serialize as S;',
     'pub use serde::Deserialize;',
     'pub use serde::{Serialize};',
-    'pub(crate) use serde::de::Deserialize;',
     'pub(super) use serde::{ser::{Serialize as S}};',
   ]) {
     const errors = census(new Map([[file, line]]), []);
@@ -256,7 +255,8 @@ for (const derive of ['crate::prelude::Deserialize', '$derive']) {
 }
 
 test('plain serde imports including trait paths stay accepted', () => {
-  for (const line of ['use serde::{Deserialize, Serialize};', 'use serde::Deserialize;', 'use serde::de::Deserialize;', 'use serde::{de::Deserialize, ser::Serialize};']) {
+  // The derives live at serde's root: re-exporting the TRAIT path cannot re-export a derive.
+  for (const line of ['use serde::{Deserialize, Serialize};', 'use serde::Deserialize;', 'use serde::de::Deserialize;', 'use serde::{de::Deserialize, ser::Serialize};', 'pub(crate) use serde::de::Deserialize;']) {
     assert.deepEqual(census(new Map([[core + 'fixture.rs', line]]), []), [], line);
   }
 });
@@ -275,4 +275,33 @@ test('derive classification is lexical per item and only restricts unknowns with
   }
   assert.deepEqual(check('#[derive(NewDerive)] struct Plain; #[derive(Serialize)] #[serde(untagged)] enum Written { X }'), []);
   assert.deepEqual(check('#[cfg(test)] mod oracle { use serde::Deserialize as D; #[derive(D)] #[serde(untagged)] enum Old { X } }'), []);
+});
+
+test('renaming the serde crate is refused, so a decoder cannot hide under a trusted name', () => {
+  const file = core + 'fixture.rs';
+  for (const line of ['use serde as s;', 'use serde::{self as s};', 'use ::serde as s;', 'extern crate serde as x;']) {
+    const errors = census(new Map([[file, line]]), []);
+    assert.equal(errors.length, 1, line);
+    assert.match(errors[0], /fixture.rs:1:.*serde derive import policy refuses renaming the serde crate/);
+  }
+  // Sol, round 3: Deserialize renamed to the lexically trusted word Serialize through a crate alias.
+  const hidden = 'use serde as s;\nuse s::Deserialize as Serialize;\n#[derive(Serialize)]\n#[serde(untagged)]\nenum E { A }';
+  assert.ok(census(new Map([[file, hidden]]), []).some(e => /fixture.rs:1:.*renaming the serde crate/.test(e)));
+  assert.deepEqual(census(new Map([[file, '#[cfg(test)]\nmod t { extern crate serde as x; use serde as s; }']]), []), []);
+});
+
+test('a representation needs a visible, reviewed, decoder-free derive list on the same item or macro body', () => {
+  const file = core + 'fixture.rs', check = text => census(new Map([[file, text]]), []);
+  // Both reviewers, round 3: the attribute and the derive split between a macro and its invocation.
+  const attributeInMacro = 'macro_rules! untagged { ($($t:tt)*) => { #[serde(untagged)] $($t)* }; }\nuntagged! { #[derive(Deserialize)] enum Added { X } }';
+  const deriveInMacro = 'macro_rules! decoded { ($item:item) => { #[derive(Deserialize)] $item }; }\ndecoded! { #[serde(untagged)] enum Added { X } }';
+  for (const source of [attributeInMacro, deriveInMacro]) {
+    assert.ok(check(source).some(e => /no visible derive.*content buffering/.test(e)), source);
+  }
+  assert.deepEqual(check('#[derive(Hash, Serialize)] #[serde(untagged)] enum Written { X }'), []);
+  const unknown = check('#[derive(NewDerive, Serialize)] #[serde(untagged)] enum Written { X }');
+  assert.equal(unknown.length, 1);
+  assert.match(unknown[0], /unresolvable derive NewDerive: not on the census's reviewed list.*if that derive decodes/);
+  assert.doesNotMatch(unknown[0], /Deserialize content buffering/);
+  assert.match(check('#[derive(Deserialize)] #[serde(untagged)] enum Read { X }')[0], /Deserialize content buffering/);
 });

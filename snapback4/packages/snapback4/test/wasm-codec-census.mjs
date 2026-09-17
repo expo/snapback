@@ -86,8 +86,12 @@ function decodeGated(item) {
   return false;
 }
 // @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — visible derives make the source census enforceable.
-// Web-source policy: serde derives cannot be renamed or re-exported; spell
-// Deserialize/serde::Deserialize (likewise Serialize) so the census can see it.
+// Web-source policy: serde's derives cannot be renamed or re-exported, and the
+// serde crate cannot be renamed; spell Deserialize/serde::Deserialize (likewise
+// Serialize) so the census can see it. A buffered representation must sit beside
+// a visible derive list that is fully reviewed and decoder-free, on the same item
+// or macro body: a macro that supplies only the attribute or only the derive is
+// refused too, because a text census cannot join a macro to its invocation.
 // Procedural-macro output is outside this text census; the family check sees
 // only surviving symbols, so a fully inlined content decoder escapes both and
 // only the report-only byte budget remains as the final, non-blocking fallback.
@@ -114,18 +118,27 @@ function deriveImports(source, scopes) {
   for (const match of mask(source).matchAll(/\b(pub(?:\s*\([^)]*\))?\s+)?use\s+([^;]+);/g)) {
     if (scopes.some(item => item.attributeStart <= match.index && item.end > match.index && testOnly(item))) continue;
     for (const entry of imports(match[2])) {
-      if (!/^serde::(?:(?:de|ser)::)?(?:Deserialize|Serialize)$/.test(entry.target.replace(/^::/, ''))) continue;
-      if (entry.renamed || match[1]) refused.push({ index: match.index, name: entry.target.split('::').at(-1) });
+      const target = entry.target.replace(/^::/, '');
+      // A renamed crate hides every derive behind a name this census cannot read.
+      if (entry.renamed && /^serde(?:::self)?$/.test(target)) { refused.push({ index: match.index, name: 'serde', crate: true }); continue; }
+      // The derives live at serde's root; serde::de::Deserialize is the trait, which may be re-exported.
+      const root = /^serde::(?:Deserialize|Serialize)$/.test(target), trait = /^serde::(?:de|ser)::(?:Deserialize|Serialize)$/.test(target);
+      if ((root && (entry.renamed || match[1])) || (trait && entry.renamed)) refused.push({ index: match.index, name: target.split('::').at(-1) });
     }
+  }
+  for (const match of mask(source).matchAll(/\bextern\s+crate\s+serde\s+as\s+\w+\s*;/g)) {
+    if (!scopes.some(item => item.attributeStart <= match.index && item.end > match.index && testOnly(item))) refused.push({ index: match.index, name: 'serde', crate: true });
   }
   return refused;
 }
 // The non-serde derives used by today's walked sources; a new name on a
 // representation-bearing item requires review, never global alias inference.
-const nonSerdeDerives = new Set(['Clone', 'Copy', 'Debug', 'Default', 'PartialEq', 'Eq', 'PartialOrd', 'Ord', 'Error']);
+const nonSerdeDerives = new Set(['Clone', 'Copy', 'Debug', 'Default', 'Hash', 'PartialEq', 'Eq', 'PartialOrd', 'Ord', 'Error']);
 function classifyDerives(attrs) {
   const names = derives(attrs);
-  return { decoder: names.some(name => ['Deserialize', 'serde::Deserialize'].includes(name)),
+  // `hidden`: serde attributes do not compile without a serde derive, so a representation with no
+  // visible derive gets one from a macro (or gives one to a macro's argument) this census cannot join.
+  return { decoder: names.some(name => ['Deserialize', 'serde::Deserialize'].includes(name)), hidden: names.length === 0,
     unknown: names.filter(name => !['Deserialize', 'serde::Deserialize', 'Serialize', 'serde::Serialize'].includes(name) && !nonSerdeDerives.has(name)) };
 }
 function derives(attrs) {
@@ -150,16 +163,16 @@ function representations(source, scopes) {
     const end = endOf(code, open, match[2], { '{': '}', '(': ')', '[': ']' }[match[2]]);
     const item = { name: match[1], kind: 'macro', attributeStart: match.index, start: match.index, end, attrs: '' };
     macros.push(item);
-    const { decoder, unknown } = classifyDerives(code.slice(open, end));
-    if (decoder || unknown.length) {
-      for (const index of bufferedAttrs(code, open, end)) found.push({ index, item, unknown });
+    const { decoder, unknown, hidden } = classifyDerives(code.slice(open, end));
+    if (decoder || unknown.length || hidden) {
+      for (const index of bufferedAttrs(code, open, end)) found.push({ index, item, unknown, decoder, hidden });
     }
   }
   for (const item of scopes.filter(item => ['enum', 'struct'].includes(item.kind))) {
     if (macros.some(m => m.start <= item.start && m.end >= item.end)) continue;
-    const { decoder, unknown } = classifyDerives(item.attrs), buffered = bufferedAttrs(code, item.attributeStart, item.end);
-    if (decoder || unknown.length) {
-      for (const index of buffered) found.push({ index, item, unknown });
+    const { decoder, unknown, hidden } = classifyDerives(item.attrs), buffered = bufferedAttrs(code, item.attributeStart, item.end);
+    if (decoder || unknown.length || hidden) {
+      for (const index of buffered) found.push({ index, item, unknown, decoder, hidden });
     }
   }
   return found;
@@ -217,7 +230,7 @@ export function census(sources, exceptions = [...allow, ...refusalAllow, ...repr
   const used = new Map(exceptions.map(entry => [entry, 0])), errors = [];
   for (const [file, source] of sources) {
     const code = mask(source), scopes = items(source), hits = new Set();
-    for (const { index, name } of deriveImports(source, scopes)) errors.push(`${file}:${source.slice(0, index).split('\n').length}: serde derive import policy refuses renaming or re-exporting ${name} in web-reachable sources; spell the derive ${name} (or serde::${name}) so the census can see it`);
+    for (const { index, name, crate } of deriveImports(source, scopes)) errors.push(`${file}:${source.slice(0, index).split('\n').length}: serde derive import policy refuses ${crate ? 'renaming the serde crate' : `renaming or re-exporting ${name}`} in web-reachable sources; spell the derive ${crate ? 'Deserialize or Serialize' : name} (or serde::${crate ? 'Deserialize' : name}) so the census can see it`);
     const reps = representations(source, scopes);
     for (const { index } of reps) hits.add(index);
     if (file !== core + 'json_codec.rs') {
@@ -249,7 +262,7 @@ export function census(sources, exceptions = [...allow, ...refusalAllow, ...repr
       const line = source.slice(start, end < 0 ? undefined : end).trim();
       const exception = exceptions.find(entry => entry.file === file && entry.item === (representation?.item.name ?? fn?.name) && entry.line === line && (enclosing.some(item => gated(item, 'sqlite')) || refusalAllow.includes(entry) || (representation && decodeGated(representation.item))));
       if (exception) used.set(exception, used.get(exception) + 1);
-      else errors.push(`${file}:${source.slice(0, index).split('\n').length}: ${line}${representation?.unknown?.length ? ` — unresolvable derive ${representation.unknown.join(', ')}` : ''}${representation ? ' — Deserialize content buffering can duplicate nested readers (ir::LaneSource incurred 33,460 B gzip from this cause); see LLP 3000.002#proposed-device-representation-and-codec-redesign' : ''}`);
+      else errors.push(`${file}:${source.slice(0, index).split('\n').length}: ${line}${representation?.unknown?.length ? ` — unresolvable derive ${representation.unknown.join(', ')}: not on the census's reviewed list; if it is not a decoder add it to nonSerdeDerives in wasm-codec-census.mjs` : ''}${representation?.hidden ? ' — a serde representation with no visible derive: the derive comes from, or goes to, a macro this census cannot join; put the derive and the attribute on the same item' : ''}${representation && (representation.decoder || representation.hidden || representation.unknown?.length) ? ` — ${representation.decoder ? 'Deserialize content buffering' : 'if that derive decodes, content buffering follows'}: on a decoded type this representation selects serde's content buffer, which instantiates every reachable reader again (ir::LaneSource cost 33,460 B gzip this way); see LLP 3000.002#proposed-device-representation-and-codec-redesign` : ''}`);
     }
   }
   for (const [entry, count] of used) if (count !== 1) errors.push(`${entry.file}: exception ${entry.item} consumed ${count} times (expected 1): ${entry.line}`);
