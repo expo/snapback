@@ -28933,3 +28933,11 @@ the newer bound identity-session issuance and separates credential scope from
 process isolation. These are proposals, not new author acceptance, executed
 runtime tests, storage measurements, migrations or ticket closures. Existing
 commissioned diet/composition work remains intact.
+
+The fresh same-family document review found one material gap: a delegated-token
+query/mutation allowlist did not explicitly deny sync and child-action routes.
+The draft now makes delegated credentials default-deny elsewhere, separates
+worker control credentials from service-data credentials, and adds direct-HTTP
+negative cases. It also preserves rule-probe expiry/invalidation observations,
+not merely the boolean. The received review and disposition are retained in
+[the review record](../llp/reviews/3000-review-proposals-20260917.md).
