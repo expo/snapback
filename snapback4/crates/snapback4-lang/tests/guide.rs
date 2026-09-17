@@ -1054,4 +1054,11 @@ fn w14b_digest_recipes_are_complete_and_share_the_period_helper() {
     let remind = quarry(jobs).into_iter().find(|b| b.contains("job remind(")).unwrap();
     assert!(remind.contains("immutable sentAt"));
     assert!(remind.contains("invites[sentAt >= periodStart, sentAt < periodEnd] first 100 by bySentAt"));
+    // `why` names the job door too, and neither text promises a backfill:
+    // missed boundaries coalesce into one run for the latest period.
+    assert!(explain_code("E_STRUCTURAL_FANOUT").unwrap().contains("or use a job chunk, which may read a table with expiry"));
+    for text in [jobs, README] {
+        assert!(text.contains("never twice for the\nsame boundary") || text.contains("never twice for the same boundary"));
+        assert!(!text.contains("exactly once across restarts") && !text.contains("exactly once per\nboundary"));
+    }
 }

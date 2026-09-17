@@ -233,6 +233,22 @@ fn membership_chunks_total_the_same_digest_and_delete_the_totals() {
 }
 
 #[test]
+fn a_principal_cannot_write_the_job_written_totals() {
+    // The published block with one principal mutation appended: only the job,
+    // as the system, passes the totals table's `deny` rules.
+    let forged = format!("{}\nmutation forge(periodEnd: time):\n  insert digestTotals {{ principal: viewer, periodEnd, unread: 9, chats: 9 }}\n", source(true));
+    let b = snapback4_lang::compile(&[("schema.q".into(), forged)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    small(&mut e);
+    let args: BTreeMap<String, Value> = [("periodEnd".into(), Value::Int(20_000))].into();
+    let outcome = e.mutate("forge", None, Context::new("alice", args).at(20_000)).unwrap();
+    let snapback4_core::WriteState::Failed { why, .. } = &outcome.state else { panic!("a principal wrote the job-written totals table: {:?}", outcome.state) };
+    assert_eq!(why.code, "E_RULE", "{why:?}");
+    assert!(e.store().rows("digestTotals").unwrap().is_empty());
+}
+
+#[test]
 fn single_profile_stops_at_the_exact_examined_envelope() {
     let mut e = engine(&source(false));
     hub(&mut e, 20, 14, false);

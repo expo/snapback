@@ -30520,3 +30520,61 @@ After: `read this page in a query, then pass the selected ids to the mutation; o
 
 Final repository checks: `git diff --check` exits 0 with no output;
 `./ref-check --verbose` reports `ref-check: ok — 482 LLP docs, 9060 refs in 24165 files, 0 errors, 0 unchecked`.
+
+## 2026-09-17 — W14b: the two-family implementation review, and what the lead changed
+
+The lane's commit `0dac31c8aa` (base `ab061be930`) went to both families blind, read-only,
+one brief of six questions: is every published block safe to copy; is every claim on the
+card true of this engine; is the range-seek `remind` a complete replacement; do the tests
+discriminate; does the one string change only text; coherence. Records:
+`llp/reviews/3000.007-w14b-digest-card.{gpt,grok}.md`.
+
+**GPT: READY WITH CHANGES — one Medium, wording.** The new digest paragraph said a schedule
+"fires once per period boundary across restarts". `fire_schedules` (`engine/job.rs`) queues
+only the *latest* boundary's period and then persists that boundary, so after three days
+down a builder relying on that sentence would expect three digests and get one. The card
+already said so eighty lines earlier ("Missed periods fire once, not once per skipped
+boundary"); the new paragraph and the older general sentence both promised more. Applied in
+all three places (jobs card ×2, README): a schedule never fires twice for the same
+boundary across restarts; boundaries missed while the server was down coalesce into one run
+for the latest period — and, in the digest paragraph, the consequence in the builder's
+terms: a digest for a day the server was down is never queued. `tests/guide.rs` pins both
+the new sentence and the absence of "exactly once".
+
+**Grok: READY — three Low.** (1) Nothing pinned the job door in `why E_STRUCTURAL_FANOUT`
+(the card sentence, as opposed to the diagnostic's rewrite): pinned in `tests/guide.rs`.
+(2) The example's `members` insert rule lets any member add any principal, who then
+receives that chat's digest. That is a membership policy, not a job leak — `inbox` and
+`digest` still walk only the recipient's own rows — but it is published Quarry, so the card
+now says what the rule admits and points at the admin-gated form on the language card. The
+reviewer's smaller alternative, `.principal = viewer or created …`, was **not** taken: a
+bare `.principal = viewer` lets anyone join any chat and then read it, which is worse than
+the policy it replaces. The rule itself stays, so the measured envelope (14,381 period
+messages at 1,000 memberships) still describes the published schema. (3) No test had a
+principal write `digestTotals`: `a_principal_cannot_write_the_job_written_totals` appends
+one mutation to the published block and expects `E_RULE` with no row written.
+
+The lead's first draft of that test was wrong in an instructive way: it expected
+`Engine::mutate` to return `Err` for a rule refusal, and it returned `Ok` — a refusal is a
+`WriteState::Failed { why }` inside the outcome, as the wire shows it. The test failed with
+"a principal wrote the job-written totals table", which for one compile looked like the
+deny rule not holding. It holds. The corrected test was then checked the other way: with
+the block's `insert <- deny` swapped for `allow` it fails with the inserted row in the
+message, so it discriminates.
+
+Verification after the edits, from `snapback4/`: `cargo test -p snapback4-lang --test guide
+w14b` 1 passed; `cargo test -p snapback4-sim --test clique digest::` 8 passed (the lane's
+seven and the new one); `cargo test -p snapback4-sim --test page_admission w14b` 1 passed;
+`cargo test --workspace` 74 result lines, 1,329 passed, 0 failed, 4 ignored; `node --test
+packages/snapback4/test/readme-examples.test.mjs packages/snapback4/test/online-session.test.mjs`
+(the two JavaScript tests that read the README) 17 passed, 0 failed. The three client
+failures the lane reported (`React hooks and reference-app lifetimes` — Chromium SIGABRT
+under the lane's sandbox; `sync store identity survives a server restart` — passed alone;
+`wasm: maximum pending ids …` — a 20 s timeout at host load 30–60) are in tests this lane
+cannot reach: it changes two guide cards, the README, tests, and one diagnostic rewrite
+string that no JavaScript test reads (`grep -r "selected ids to the mutation"` finds only
+the Rust sources, the journal and the ignored wasm build outputs). They are not claimed as
+verified pre-existing either; LLP 0232's rule for an optimistic landing is that the
+affected checks passed, and they did.
+
+Nothing was published. Wave 12's lead owns 0.2.28 and was told this landed.

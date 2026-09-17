@@ -64,10 +64,11 @@ one; the index's columns are `id` or `immutable`, so nothing moves under
 the cursor, and rows inserted past the key captured when the sweep began
 are not visited, so a sweep over its own table ends. A refused chunk parks
 the job with its refusal (`snapback4 doctor` lists runs). No client calls
-a job: a schedule fires it once per period boundary of the server's clock,
-exactly once across restarts, passing `periodStart` and `periodEnd` when
-the job declares them (and nothing else); a schedule first seen fires from
-its next boundary. `snapback4 run <job> '{..}'` runs one here and now.
+a job: a schedule fires it at a period boundary of the server's clock,
+never twice for the same boundary across restarts, passing `periodStart`
+and `periodEnd` when the job declares them (and nothing else). Boundaries
+missed while the server was down coalesce into one run for the latest
+period; a schedule first seen fires from its next boundary. `snapback4 run <job> '{..}'` runs one here and now.
 
 A schedule may also target an action: `schedule renewal every 1m as service:billing: remind`. The action must declare only `periodStart: time` and `periodEnd: time`, or no arguments. It runs under that service seat and its action rule, never as the system. Jobs cannot declare `as` (guide actions).
 
@@ -117,6 +118,9 @@ Authorization is structural here: the loop walks each principal's own
 memberships. A job passes every rule, so a digest reading messages by any
 other path must re-prove membership by hand before emitting to a principal.
 A period-bucketed public activity counter does not establish that authority.
+The example's `members` insert rule lets any member add a principal, who
+then receives that chat's digest; where joining is by invitation, gate the
+insert on an admin role instead (guide language).
 
 ```quarry
 use personas alice, bob, carol
@@ -215,8 +219,10 @@ needs its own message paging too. Past the chunk ceiling, `snapback4 doctor`
 shows a parked run with `E_BOUND: examined rows reached the ceiling 16384`;
 that profile emits nothing, and earlier profiles' committed effects remain.
 
-A schedule fires once per period boundary across restarts, and a chunk's
-emits commit with its cursor. A digest that finishes therefore emits once
+A schedule never fires twice for the same boundary across restarts; missed
+boundaries coalesce into one run for the latest period, so a digest for a
+day the server was down is never queued. A chunk's emits commit with its
+cursor. A digest that finishes therefore emits once
 per profile with positive unread in that run; zero-unread profiles are silent.
 This is durable emission, not exactly-once external delivery. A run that parks
 midway and is queued again is a new run: profiles already done emit again.

@@ -703,11 +703,12 @@ restart resumes at the next one; the index's columns are `id` or
 the key captured when the sweep began are not visited. `break` ends the
 sweep, `return` the job; a refused chunk parks the job with its refusal
 (`snapback4 doctor` lists runs). No client calls a job. A schedule fires
-it once per period boundary of the server's clock (`every 2m`, `every
-1h`, `every 1d at 08:00`; the shortest period is 1m), exactly once per
-boundary across restarts, passing `periodStart` and `periodEnd` when the
-job declares them (and nothing else); a schedule first seen fires from
-its next boundary. A job in `snapback/jobs.q` is named `jobs.<name>` in
+it at a period boundary of the server's clock (`every 2m`, `every
+1h`, `every 1d at 08:00`; the shortest period is 1m), never twice for the
+same boundary across restarts, passing `periodStart` and `periodEnd` when
+the job declares them (and nothing else). Boundaries missed while the
+server was down coalesce into one run for the latest period; a schedule
+first seen fires from its next boundary. A job in `snapback/jobs.q` is named `jobs.<name>` in
 every schedule; `schema.q` jobs use bare names. `check --fix` qualifies an
 unambiguous bare module job. `snapback4 run <job> '{..}'` runs one here and now.
 Jobs are not on `api.ts`.
