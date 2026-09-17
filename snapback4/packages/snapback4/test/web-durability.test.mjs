@@ -174,6 +174,36 @@ function replaceGlobal(t, key, value) {
   t.after(() => previous ? Object.defineProperty(globalThis, key, previous) : delete globalThis[key]);
 }
 
+for (const unrelatedLocks of [false, true]) test(`W11INT: custom claims recover on sync without borrowing unrelated Web Locks (${unrelatedLocks})`, async t => {
+  const name = "custom-claims", orphan = `${name}:tab-old`, memory = memoryPersistence();
+  let waits = 0, timers = 0, foreignClaims = 0;
+  replaceGlobal(t, "navigator", unrelatedLocks ? { locks: { request(name, options, body) {
+    waits++;
+    return new Promise((_, reject) => options.signal?.addEventListener("abort", () => reject(new DOMException("closed", "AbortError")), { once: true }));
+  } } } : {});
+  t.mock.method(globalThis, "setTimeout", () => { timers++; return { unref() {} }; });
+  await memory.save(orphan, [{ s: "m", k: "client:write-history", v: JSON.stringify([{ state: "sent", id: "custom-receipt", seq: 3 }]) }]);
+  await memory.save("unrelated", [{ s: "m", k: "present", v: "1" }]);
+  const held = await memory.claim(orphan, false);
+  const persist = { ...memory,
+    async others(prefix) { return [...await memory.others(prefix), "unrelated"]; },
+    async claim(requested, alternate) { if (requested === "unrelated") foreignClaims++; return memory.claim(requested, alternate); },
+  };
+  const core = await webDevice({ wasm, persist }).open(name, backend);
+  try {
+    assert.equal(await memory.has(orphan), true, "a busy provider claim keeps its source");
+    assert.equal(waits, 0, "a free unrelated Web Lock cannot signal this provider's release");
+    await held.release();
+    ok(await core.call(snapshot()));
+    assert.equal(await memory.has(orphan), false, "sync retries the provider claim after release");
+    assert.deepEqual(JSON.parse(ok(await core.call({ op: "meta", key: "write-history" }))), [{ state: "sent", id: "custom-receipt", seq: 3, replayed: true }]);
+    assert.equal(await memory.has("unrelated"), true);
+    assert.equal(foreignClaims, 0, "enumeration cannot claim a store outside the orphan namespace");
+    assert.equal(timers, 0);
+    t.diagnostic(`custom_claim_recoveries=1 unrelated_lock_waits=${waits} foreign_claims=${foreignClaims} retry_timers=${timers}`);
+  } finally { await held.release(); await core.close(); }
+});
+
 test("W11R2: a live sibling queues one cancellable lock wait without a timer", async t => {
   const name = "quiet-live", orphan = `${name}:tab-live`, memory = memoryPersistence();
   let waits = 0, aborts = 0, timers = 0;
@@ -184,6 +214,7 @@ test("W11R2: a live sibling queues one cancellable lock wait without a timer", a
     waits++;
     return new Promise((_, reject) => options.signal.addEventListener("abort", () => { aborts++; reject(new DOMException("closed", "AbortError")); }, { once: true }));
   } } });
+  memory.claim = indexedDbPersistence().claim;
   t.mock.method(globalThis, "setTimeout", () => { timers++; return { unref() {} }; });
   const core = await webDevice({ wasm, persist: memory }).open(name, backend);
   try {

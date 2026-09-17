@@ -45,18 +45,44 @@ interface Watch {
 
 const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
-let lastMinted = 0;
+let lastMintedAt = -1;
+let lastMintedEntropy: Uint8Array | undefined;
+
+function freshEntropy(): Uint8Array {
+  const bytes = new Uint8Array(10);
+  if (globalThis.crypto?.getRandomValues) globalThis.crypto.getRandomValues(bytes);
+  // Not every supported host provides Web Crypto. Keep the existing fallback
+  // until clients have an injectable synchronous RNG. This fallback does not
+  // meet the secure-entropy requirement; ids must never be capabilities.
+  else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+  return bytes;
+}
+
+function incrementEntropy(bytes: Uint8Array): void {
+  for (let i = bytes.length - 1; i >= 0; i--) {
+    if (bytes[i] === 255) continue;
+    bytes[i] = bytes[i]! + 1;
+    bytes.fill(0, i + 1);
+    return;
+  }
+  throw new Error("mintId: exhausted 80-bit entropy within one millisecond");
+}
 
 /** A time-ordered 128-bit id: 48 bits of milliseconds, 80 bits of entropy,
- * 26 base32 digits. Ids minted by one process strictly increase: two in one
- * millisecond take successive milliseconds, so their order is the order
- * they were minted in, not the order of their entropy. */
+ * 26 base32 digits. Ids minted by one process strictly increase. A burst in
+ * one millisecond increments the entropy field, preserving the real time
+ * encoded in the id; a clock rollback continues that logical millisecond. */
 export function mintId(now = Date.now()): string {
-  now = Math.max(now, lastMinted + 1);
-  lastMinted = now;
-  const bytes = new Uint8Array(10);
-  if (typeof crypto !== "undefined" && crypto.getRandomValues) crypto.getRandomValues(bytes);
-  else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+  if (!Number.isSafeInteger(now) || now < 0 || now > 0xffff_ffff_ffff) throw new RangeError("mintId: time must be an integer from 0 through 2^48-1 milliseconds");
+  if (now > lastMintedAt) {
+    const entropy = freshEntropy();
+    lastMintedAt = now;
+    lastMintedEntropy = entropy;
+  } else {
+    incrementEntropy(lastMintedEntropy!);
+    now = lastMintedAt;
+  }
+  const bytes = lastMintedEntropy!;
   // 48 bits of milliseconds above 80 bits of entropy: the time leads, so
   // ids sort by the moment they were minted.
   let value = BigInt(now);
@@ -515,6 +541,16 @@ export function createClient(options: ClientOptions): Client {
       if (!credentials) return { denied: auth() };
       const revision = credentialRevision;
       const read = await fetchAsset(base, { ...headers }, doFetch, id);
+      if (closed || !credentials) {
+        if ("url" in read) read.revoke();
+        return { denied: closed ? ended() : auth() };
+      }
+      // A successful reply is just as credential-bound as a refusal. Do not
+      // publish bytes fetched under a bearer that rotated while it was away.
+      if (revision !== credentialRevision) {
+        if ("url" in read) read.revoke();
+        return client.asset(id);
+      }
       if ("denied" in read && await obsoleteRefusal(read.denied, revision)) return client.asset(id);
       return read;
     },

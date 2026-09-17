@@ -96,6 +96,7 @@ async function fixture(t, tier, empty = false) {
       fetch: async (input, init) => {
         const path = new URL(input).pathname;
         if (mode === "offline") throw new TypeError("offline reopen");
+        if (mode === "before-catchup" && (path === "/probe" || path === "/changes" || path.startsWith("/q/"))) throw new TypeError("offline before catch-up");
         if (restore && path === "/probe") {
           const response = await fetch(input, init), json = await response.json();
           return Response.json({ ...json, seq: 0 });

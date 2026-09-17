@@ -5,7 +5,7 @@ use snapback4_core::{identity, value::encode_bytes_hex};
 
 fn host(wait: &str) -> Host {
     Host::with_store(true, snapback4_core::Store::memory().unwrap(), &format!(
-        "use personas alice\nroute billing: post \"/hooks/billing\" as service:billing wait {wait}\nroute report: post \"/report\" wait 1ms\nquery who():\n  return viewer\n"))
+        "use personas alice\nroute billing: post \"/hooks/billing\" as service:billing wait {wait}\nroute report: post \"/report\" wait {wait}\nquery who():\n  return viewer\n"))
 }
 fn worker(host: &Host) -> String {
     let engine = lock(&host.shared.engine);
@@ -165,7 +165,9 @@ fn route_adoption_fences_old_supervised_verifier_before_child_shutdown() {
 
 #[test]
 fn route_development_exception_does_not_expose_core_doors_or_personas() {
-    let host = host("50ms");
+    // Keep the fixture deadline above loaded-suite scheduling jitter while
+    // preserving the declared route timeout and the unavailable response.
+    let host = host("250ms");
     let session = identity::open_session(lock(&host.shared.engine).store(), "member:alice", "account", host.shared.now()).unwrap();
     let foreign = |method: &str, path: &str, headers: &str, bytes: &str| exchange(host.address,
         &format!("{method} {path} HTTP/1.1\r\nHost: provider.example\r\nOrigin: https://provider.example\r\nConnection: close\r\nContent-Length: {}\r\n{headers}\r\n{bytes}", bytes.len()));

@@ -82,7 +82,8 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
         for issue in core::validate(&schema) {
             let site = catalog.site_for(&issue.path);
             if issue.path.ends_with(".sync") {
-                diagnostics.push(Diagnostic::new(&site, "E_SYNC", issue.message, "make the sync audience exactly match the table's read rule").guide("sync"));
+                let rewrite = if issue.message.contains("needs required group keys") { "remove `?` from every content and audience group column named by this sync" } else { "make the sync audience exactly match the table's read rule" };
+                diagnostics.push(Diagnostic::new(&site, "E_SYNC", issue.message, rewrite).guide("sync"));
             } else {
                 diagnostics.push(Diagnostic::new(&site, "E_SCHEMA_CONSTRAINT", issue.message, "fix the declaration named by this message").guide("indexes"));
             }
@@ -590,4 +591,29 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
         expire: None,
         site,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn quarry_refuses_nullable_target_sync_group_keys() {
+        let source = r#"
+table memberships:
+  room: id ?
+  principal: principal
+  unique byRoomPrincipal: room, principal
+  by byPrincipalRoom: principal, room, id
+  read <- .principal = viewer
+table messages:
+  room: id ?
+  body: text <=100
+  by byRoom: room, id
+  read <- exists memberships[.room, viewer]
+  sync to memberships[.room]
+"#;
+        let refused = crate::compile(&[("schema.q".into(), source.into())]);
+        assert!(refused.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_SYNC" && diagnostic.guide == "sync" && diagnostic.message.contains("needs required group keys") && diagnostic.rewrite.contains("remove `?`")), "{:?}", refused.diagnostics);
+        let accepted = crate::compile(&[("schema.q".into(), source.replace("room: id ?", "room: id"))]);
+        assert!(accepted.diagnostics.is_empty(), "{:?}", accepted.diagnostics);
+    }
 }

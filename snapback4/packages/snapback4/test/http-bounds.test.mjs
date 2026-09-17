@@ -5,14 +5,18 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { connect } from "node:net";
+import { createLocalClient } from "../dist/local.js";
+import { processDevice } from "../dist/native.js";
+import { memoryPersistence, webDevice } from "../dist/web.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
+const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm"));
 const MiB = 1 << 20;
 const source = `use personas alice
 table items:
@@ -36,7 +40,7 @@ query count():
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-test("HTTP admission, encoding, slow readers and idle changes polls", { timeout: 20_000 }, async (t) => {
+test("HTTP admission, encoding, slow readers and idle changes polls", { timeout: 60_000 }, async (t) => {
   const directory = mkdtempSync(join(tmpdir(), "sb4-http-bounds-"));
   mkdirSync(join(directory, "snapback"));
   writeFileSync(join(directory, "snapback/schema.q"), source);
@@ -209,6 +213,28 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
       const smaller = await (await post("/sync", JSON.stringify({ limit: 1 }))).json();
       assert.equal(smaller.events.length, 1);
       assert.equal(smaller.more, true);
+    });
+    await t.test("Wasm and process clients acquire wide snapshots by shrinking the same cursor", async () => {
+      for (const tier of ["wasm", "process"]) {
+        const limits = [], requests = [];
+        const device = tier === "wasm"
+          ? webDevice({ wasm, persist: memoryPersistence() })
+          : processDevice({ binary, dir: join(directory, `device-${tier}`) });
+        const client = await createLocalClient({ url, persona: "alice", device, waitSeconds: 1, fetch: async (input, init) => {
+          if (new URL(input).pathname === "/sync") {
+            const body = JSON.parse(init.body); limits.push(body.limit); requests.push(body);
+          }
+          return fetch(input, init);
+        } });
+        try {
+          assert.equal(client.acquired, true, `${tier} must publish only the complete snapshot and catch-up`);
+          assert.deepEqual(limits.slice(0, 8), [4000, 2000, 1000, 500, 250, 125, 62, 31]);
+          assert.ok(requests.slice(0, 8).every(request => request.from === 0 && request.after === null && request.stream === false), `${tier} retries one cursor and watermark`);
+          assert.ok(requests.some(request => request.after !== null), `${tier} continues the reduced snapshot pages`);
+          assert.ok(requests.some(request => request.stream === true), `${tier} completes catch-up before acquisition`);
+          assert.equal((await client.query({ kind: "query", name: "count" }, {})).data, 2);
+        } finally { await client.close(); }
+      }
     });
     await t.test("a paused large response releases the engine before network progress", async () => {
       const socket = connect({ host: "127.0.0.1", port: Number(new URL(url).port), readableHighWaterMark: 1024 });

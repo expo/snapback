@@ -40,6 +40,15 @@ revokes the previous child's family at startup, including after SIGKILL.
 `dev` prefers `snapback/server.ts`, `.mts` or `.mjs`, then legacy `worker.*`;
 `dev --worker` is refused. `serve --worker` needs an explicitly deployed entry.
 
+Service tokens are trusted application-worker credentials for the whole deployment.
+A named `service:<seat>` is the principal used by direct queries and mutations;
+it is not an isolation boundary for the worker and identity-administration
+endpoints. Any service token can claim named actions/effects, verify declared
+provider routes, cancel effects, and mint or revoke account sessions. The
+supervised `service:worker` intentionally serves handlers for different declared
+seats. Provision these tokens only to fully trusted application workers;
+provider secrets and service names do not create a per-worker allowlist.
+
 ## Handler context
 
 `check` and `dev` generate `snapback/generated/server.ts` from declared

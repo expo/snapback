@@ -107,6 +107,13 @@ interface StoreCapture {
 const PAGE = 4000;
 const REFRESH_BEFORE_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
+function responsePageTooLarge(denied: Refusal): boolean {
+  return denied.code === "E_BOUND"
+    && denied.family === "bound"
+    && denied.message.startsWith("the HTTP JSON response exceeds 16 MiB;")
+    && denied.message.includes("smaller page");
+}
+
 class BackendAuthError extends Error {
   constructor(readonly denied: Refusal) {
     super(`${denied.code}: ${denied.message}`);
@@ -535,6 +542,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     let adoptedGeneration = false;
     let after: string | undefined;
     let catchingUp = false;
+    let pageLimit = PAGE;
     try {
       for (let pages = 0; pages < 100_000; pages++) {
         let page: Record<string, unknown>;
@@ -550,7 +558,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           backendRequired = !!backend_required;
           requestedStore = store_id;
           const request = requestCredentials();
-          const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify({ from: watermark, limit: PAGE, after: after ?? null, stream: catchingUp, pending, ...(store_id ? { store_id } : {}) }), signal: aborter.signal });
+          const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify({ from: watermark, limit: pageLimit, after: after ?? null, stream: catchingUp, pending, ...(store_id ? { store_id } : {}) }), signal: aborter.signal });
           if (response.status >= 500) { setLink("offline"); return false; }
           page = (await response.json()) as Record<string, unknown>;
           if (!response.ok && !page.denied) { setLink("offline"); return false; }
@@ -564,10 +572,18 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
         if (closed) return false;
         if (page.denied) {
+          const denied = page.denied as Refusal;
+          if (pageIncarnation !== incarnation || pageRevision !== credentialRevision) return false;
+          if (responsePageTooLarge(denied) && pageLimit > 1) {
+            // Retry this exact stream position with a smaller page. Keep the
+            // reduced limit for the round so every following wide page fits.
+            pageLimit = Math.max(1, Math.floor(pageLimit / 2));
+            continue;
+          }
           await refusedSession(page.denied, pageRevision);
-          if (!(page.denied as Refusal).retryable) {
-            if (!partitionDenied) console.error(`snapback4: the server refused the partition: ${(page.denied as Refusal).code}: ${(page.denied as Refusal).message}`);
-            partitionDenied = page.denied as Refusal;
+          if (!denied.retryable) {
+            if (!partitionDenied) console.error(`snapback4: the server refused the partition: ${denied.code}: ${denied.message}`);
+            partitionDenied = denied;
             for (const watch of watches.values()) void rerun(watch);
           }
           return false;

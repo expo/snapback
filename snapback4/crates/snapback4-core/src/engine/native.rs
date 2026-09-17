@@ -9,12 +9,16 @@
 use super::runner::Runner;
 use crate::error::{MeterKind, Refusal, RuntimeError};
 use crate::ir::{Bound, Expr, IndexKeyExpr, KeyProvenance, Order, Read, Scan};
+use crate::meter::Ceilings;
 use crate::partition::Event;
 use crate::schema::{Index, Schema, Table};
 use crate::value::Value;
 use crate::wire;
 use serde_json::{Value as Json, json};
+use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
+use std::io::Write;
+use std::ops::Range;
 
 /// A chunk's instruction budget: the native job's step ceiling. Measured
 /// on the fixture: one host call costs about 90,000 units (the JSON each
@@ -28,12 +32,50 @@ pub const FUEL_PER_READ: u64 = 200_000_000;
 /// The most rows one `scan` may ask for: the job's examined ceiling.
 const SCAN_MAX: u64 = 16_384;
 
+/// A wasm table slot is at least one machine word and wasmi carries tag and
+/// handle state beside it. Charging sixteen bytes per slot keeps the single
+/// table admitted by this ABI inside the ordinary heap ceiling.
+const TABLE_SLOT_BYTES: usize = 16;
+
 /// A compiled module, held by the engine and instantiated per chunk.
 pub struct Module {
     engine: wasmi::Engine,
     module: wasmi::Module,
+    digest: String,
     jobs: Vec<String>,
     reads: Vec<String>,
+}
+
+/// Log lines retained by an Engine between host drains. The same output-byte
+/// ceiling that bounds one invocation bounds this queue, including each
+/// String's inline bookkeeping, so an unattended host cannot grow forever.
+#[derive(Default)]
+pub(crate) struct Logs {
+    lines: Vec<String>,
+    bytes: usize,
+}
+
+impl Logs {
+    pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+        let ceiling = native_output_ceiling();
+        for line in lines {
+            let line = format!("{job}: {line}");
+            let bytes = line.len().saturating_add(std::mem::size_of::<String>());
+            if self.bytes.saturating_add(bytes) > ceiling {
+                // The invocation already succeeded under its own bound. This
+                // queue is diagnostic custody only, so excess later chunks
+                // are dropped rather than retroactively parking committed work.
+                break;
+            }
+            self.bytes += bytes;
+            self.lines.push(line);
+        }
+    }
+
+    pub(crate) fn take(&mut self) -> Vec<String> {
+        self.bytes = 0;
+        std::mem::take(&mut self.lines)
+    }
 }
 
 fn structural(message: String) -> RuntimeError {
@@ -68,26 +110,146 @@ pub(crate) struct Host<'a> {
     /// A store failure: the chunk is rolled back and the error returned.
     failed: Option<RuntimeError>,
     logs: Vec<String>,
+    log_bytes: usize,
     memory: Option<wasmi::Memory>,
     alloc: Option<wasmi::TypedFunc<i32, i32>>,
     /// A native read: writes are refused, the meter caps.
     read_only: bool,
+    limits: wasmi::StoreLimits,
+    heap_limit: usize,
+    output_limit: usize,
+    fuel_limit: u64,
 }
 
 impl<'a> Host<'a> {
     fn idle() -> Self {
-        Self { runner: None, job: String::new(), refused: None, failed: None, logs: Vec::new(), memory: None, alloc: None, read_only: false }
+        Self::new(None, String::new(), false, Ceilings::default(), FUEL_PER_CHUNK)
     }
+
+    fn new(runner: Option<Runner<'a>>, job: String, read_only: bool, ceilings: Ceilings, fuel_limit: u64) -> Self {
+        let heap_limit = usize::try_from(ceilings.heap_bytes).unwrap_or(usize::MAX);
+        let output_limit = usize::try_from(ceilings.output_bytes).unwrap_or(usize::MAX);
+        Self {
+            runner,
+            job,
+            refused: None,
+            failed: None,
+            logs: Vec::new(),
+            log_bytes: 0,
+            memory: None,
+            alloc: None,
+            read_only,
+            limits: native_limits(heap_limit, output_limit),
+            heap_limit,
+            output_limit,
+            fuel_limit,
+        }
+    }
+}
+
+// @ref LLP 3000.005#4 — native wasm memory/table and host bridge bytes stay inside the existing heap/output ceilings.
+fn native_limits(heap_limit: usize, table_bytes: usize) -> wasmi::StoreLimits {
+    let table_bytes = table_bytes.min(heap_limit);
+    wasmi::StoreLimitsBuilder::new()
+        .memory_size(heap_limit - table_bytes)
+        .table_elements(table_bytes / TABLE_SLOT_BYTES)
+        .instances(1)
+        .memories(1)
+        .tables(1)
+        .trap_on_grow_failure(true)
+        .build()
+}
+
+fn native_heap_ceiling() -> usize {
+    usize::try_from(Ceilings::default().heap_bytes).unwrap_or(usize::MAX)
+}
+
+fn native_output_ceiling() -> usize {
+    usize::try_from(Ceilings::default().output_bytes).unwrap_or(usize::MAX)
+}
+
+fn bound(kind: MeterKind, actual: usize, ceiling: usize, site: impl Into<String>) -> RuntimeError {
+    RuntimeError::Bound { kind, actual: actual as u64, ceiling: ceiling as u64, site: site.into() }
+}
+
+fn resource_bound(host: &Host<'_>, error: &impl std::fmt::Display) -> Option<RuntimeError> {
+    let error = error.to_string();
+    (error.contains("resource limiter denied allocation") || error.contains("growth operation limited")).then(|| {
+        bound(MeterKind::HeapBytes, host.heap_limit.saturating_add(1), host.heap_limit, format!("native.{}", if host.job.is_empty() { "catalog" } else { &host.job }))
+    })
+}
+
+fn set_sticky(host: &mut Host<'_>, error: RuntimeError) {
+    if host.refused.is_none() && host.failed.is_none() {
+        host.refused = Some(error.refusal());
+    }
+}
+
+fn call_error(host: &Host<'_>, error: &wasmi::Error, site: &str) -> RuntimeError {
+    if let Some(error) = resource_bound(host, error) {
+        return error;
+    }
+    if error.as_trap_code() == Some(wasmi::TrapCode::OutOfFuel) {
+        return bound(MeterKind::Steps, host.fuel_limit as usize, host.fuel_limit as usize, format!("native.{}", if host.job.is_empty() { "catalog" } else { &host.job }));
+    }
+    RuntimeError::Native { code: "E_NATIVE_TRAP".into(), message: format!("{site} trapped: {error}") }
+}
+
+fn checked_range(ptr: u32, len: u32, memory_size: usize, ceiling: usize, kind: MeterKind, site: &str) -> Result<Range<usize>, RuntimeError> {
+    let ptr = ptr as usize;
+    let len = len as usize;
+    if len > ceiling {
+        return Err(bound(kind, len, ceiling, site));
+    }
+    let end = ptr.checked_add(len).ok_or_else(|| RuntimeError::Native { code: "E_NATIVE_TRAP".into(), message: format!("{site} points outside the module's memory") })?;
+    if end > memory_size {
+        return Err(RuntimeError::Native { code: "E_NATIVE_TRAP".into(), message: format!("{site} points outside the module's memory") });
+    }
+    Ok(ptr..end)
+}
+
+struct LimitedBytes {
+    bytes: Vec<u8>,
+    ceiling: usize,
+    overflowed: bool,
+}
+
+impl Write for LimitedBytes {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        if self.bytes.len().saturating_add(bytes.len()) > self.ceiling {
+            self.overflowed = true;
+            return Err(std::io::Error::other("native JSON exceeds its byte ceiling"));
+        }
+        self.bytes.extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
+}
+
+fn json_bytes(value: &Json, ceiling: usize, kind: MeterKind, site: &str) -> Result<Vec<u8>, RuntimeError> {
+    let mut out = LimitedBytes { bytes: Vec::new(), ceiling, overflowed: false };
+    if let Err(error) = serde_json::to_writer(&mut out, value) {
+        if out.overflowed {
+            return Err(bound(kind, ceiling.saturating_add(1), ceiling, site));
+        }
+        return Err(structural(format!("cannot encode {site}: {error}")));
+    }
+    Ok(out.bytes)
 }
 
 impl Module {
     /// Compile the module and read the jobs it implements (`sb4_jobs`).
     pub fn compile(bytes: &[u8]) -> Result<Self, RuntimeError> {
+        let heap_ceiling = native_heap_ceiling();
+        if bytes.len() > heap_ceiling {
+            return Err(bound(MeterKind::HeapBytes, bytes.len(), heap_ceiling, "native.module"));
+        }
         let mut config = wasmi::Config::default();
         config.consume_fuel(true);
         let engine = wasmi::Engine::new(&config);
         let module = wasmi::Module::new(&engine, bytes).map_err(|e| structural(format!("the native module does not load: {e}")))?;
-        let mut module = Self { engine, module, jobs: Vec::new(), reads: Vec::new() };
+        let mut module = Self { engine, module, digest: format!("{:x}", Sha256::digest(bytes)), jobs: Vec::new(), reads: Vec::new() };
         module.jobs = module.list("sb4_jobs")?;
         module.reads = module.list("sb4_reads")?;
         if module.jobs.is_empty() && module.reads.is_empty() {
@@ -106,13 +268,32 @@ impl Module {
         &self.reads
     }
 
+    pub(crate) fn digest(&self) -> &str {
+        &self.digest
+    }
+
+    fn store<'a>(&self, host: Host<'a>) -> wasmi::Store<Host<'a>> {
+        let mut store = wasmi::Store::new(&self.engine, host);
+        store.limiter(|host| &mut host.limits);
+        store
+    }
+
     /// The names an export lists; none when the module has no such export.
     fn list(&self, export: &str) -> Result<Vec<String>, RuntimeError> {
-        let mut store = wasmi::Store::new(&self.engine, Host::idle());
+        let mut store = self.store(Host::idle());
         store.set_fuel(FUEL_PER_CHUNK).map_err(|e| structural(e.to_string()))?;
         let instance = self.instantiate(&mut store)?;
         let Ok(names) = instance.get_typed_func::<(), i64>(&store, export) else { return Ok(Vec::new()) };
-        let packed = names.call(&mut store, ()).map_err(|e| structural(format!("{export} trapped: {e}")))?;
+        let packed = match names.call(&mut store, ()) {
+            Ok(packed) => packed,
+            Err(error) => return Err(resource_bound(store.data(), &error).unwrap_or_else(|| structural(format!("{export} trapped: {error}")))),
+        };
+        if let Some(failed) = store.data_mut().failed.take() {
+            return Err(failed);
+        }
+        if let Some(refusal) = store.data().refused.clone() {
+            return Err(RuntimeError::Native { code: refusal.code, message: refusal.message });
+        }
         let text = read_packed(&mut store, packed)?;
         serde_json::from_str(&text).map_err(|e| structural(format!("{export} answered something other than a list of names: {e}")))
     }
@@ -120,7 +301,10 @@ impl Module {
     fn instantiate<'a>(&self, store: &mut wasmi::Store<Host<'a>>) -> Result<wasmi::Instance, RuntimeError> {
         let mut linker = wasmi::Linker::<Host<'a>>::new(&self.engine);
         linker.func_wrap("env", "sb4_call", host_call).map_err(|e| structural(e.to_string()))?;
-        let instance = linker.instantiate_and_start(&mut *store, &self.module).map_err(|e| structural(format!("the native module does not instantiate: {e}")))?;
+        let instance = match linker.instantiate_and_start(&mut *store, &self.module) {
+            Ok(instance) => instance,
+            Err(error) => return Err(resource_bound(store.data(), &error).unwrap_or_else(|| structural(format!("the native module does not instantiate: {error}")))),
+        };
         let memory = instance.get_memory(&*store, "memory").ok_or_else(|| structural("the native module exports no memory".into()))?;
         let alloc = instance.get_typed_func::<i32, i32>(&*store, "sb4_alloc").map_err(|_| structural("the native module exports no sb4_alloc; declare its jobs with snapback4_native::jobs! { .. }".into()))?;
         store.data_mut().memory = Some(memory);
@@ -134,8 +318,13 @@ impl Module {
 /// returned as `(ptr << 32) | len`; 0 when the host could not answer.
 fn host_call<'a>(mut caller: wasmi::Caller<'_, Host<'a>>, ptr: i32, len: i32) -> i64 {
     let Some(memory) = caller.data().memory else { return 0 };
-    let mut bytes = vec![0u8; len.max(0) as usize];
-    if memory.read(&caller, ptr as u32 as usize, &mut bytes).is_err() {
+    let range = match checked_range(ptr as u32, len as u32, memory.data_size(&caller), caller.data().heap_limit, MeterKind::HeapBytes, "native host request") {
+        Ok(range) => range,
+        Err(error) => { set_sticky(caller.data_mut(), error); return 0; }
+    };
+    let mut bytes = vec![0u8; range.len()];
+    if let Err(error) = memory.read(&caller, range.start, &mut bytes) {
+        set_sticky(caller.data_mut(), RuntimeError::Native { code: "E_NATIVE_TRAP".into(), message: format!("native host request cannot be read: {error}") });
         return 0;
     }
     let request: Json = match serde_json::from_slice(&bytes) {
@@ -143,10 +332,30 @@ fn host_call<'a>(mut caller: wasmi::Caller<'_, Host<'a>>, ptr: i32, len: i32) ->
         Err(error) => json!({ "op": "?", "malformed": error.to_string() }),
     };
     let answer = handle(caller.data_mut(), &request);
-    let text = serde_json::to_vec(&answer).unwrap_or_default();
+    let text = match json_bytes(&answer, caller.data().output_limit, MeterKind::OutputBytes, "native host answer") {
+        Ok(text) => text,
+        Err(error) => { set_sticky(caller.data_mut(), error); return 0; }
+    };
     let (Some(memory), Some(alloc)) = (caller.data().memory, caller.data().alloc.clone()) else { return 0 };
-    let Ok(out) = alloc.call(&mut caller, text.len() as i32) else { return 0 };
-    if memory.write(&mut caller, out as u32 as usize, &text).is_err() {
+    let Ok(text_len) = i32::try_from(text.len()) else {
+        let limit = caller.data().output_limit;
+        set_sticky(caller.data_mut(), bound(MeterKind::OutputBytes, text.len(), limit, "native host answer"));
+        return 0;
+    };
+    let out = match alloc.call(&mut caller, text_len) {
+        Ok(out) => out,
+        Err(error) => {
+            let error = call_error(caller.data(), &error, "sb4_alloc");
+            set_sticky(caller.data_mut(), error);
+            return 0;
+        }
+    };
+    let range = match checked_range(out as u32, text_len as u32, memory.data_size(&caller), caller.data().output_limit, MeterKind::OutputBytes, "native host answer") {
+        Ok(range) => range,
+        Err(error) => { set_sticky(caller.data_mut(), error); return 0; }
+    };
+    if let Err(error) = memory.write(&mut caller, range.start, &text) {
+        set_sticky(caller.data_mut(), RuntimeError::Native { code: "E_NATIVE_TRAP".into(), message: format!("native host answer cannot be written: {error}") });
         return 0;
     }
     ((out as u32 as i64) << 32) | (text.len() as i64)
@@ -154,29 +363,37 @@ fn host_call<'a>(mut caller: wasmi::Caller<'_, Host<'a>>, ptr: i32, len: i32) ->
 
 fn read_packed<'a>(store: &mut wasmi::Store<Host<'a>>, packed: i64) -> Result<String, RuntimeError> {
     let Some(memory) = store.data().memory else { return Err(structural("no memory".into())) };
-    let ptr = (packed >> 32) as u32 as usize;
-    let len = packed as u32 as usize;
-    let mut bytes = vec![0u8; len];
-    memory.read(&*store, ptr, &mut bytes).map_err(|e| structural(format!("the module's answer is out of bounds: {e}")))?;
+    let range = checked_range((packed >> 32) as u32, packed as u32, memory.data_size(&*store), store.data().output_limit, MeterKind::OutputBytes, "native module answer")?;
+    let mut bytes = vec![0u8; range.len()];
+    memory.read(&*store, range.start, &mut bytes).map_err(|e| structural(format!("the module's answer is out of bounds: {e}")))?;
     String::from_utf8(bytes).map_err(|_| structural("the module's answer is not UTF-8".into()))
 }
 
 fn write_bytes<'a>(store: &mut wasmi::Store<Host<'a>>, bytes: &[u8]) -> Result<(i32, i32), RuntimeError> {
     let (Some(memory), Some(alloc)) = (store.data().memory, store.data().alloc.clone()) else { return Err(structural("the module is not instantiated".into())) };
-    let ptr = alloc.call(&mut *store, bytes.len() as i32).map_err(|e| structural(format!("sb4_alloc trapped: {e}")))?;
-    memory.write(&mut *store, ptr as u32 as usize, bytes).map_err(|e| structural(format!("cannot write the request into the module: {e}")))?;
-    Ok((ptr, bytes.len() as i32))
+    if bytes.len() > store.data().heap_limit {
+        return Err(bound(MeterKind::HeapBytes, bytes.len(), store.data().heap_limit, "native module request"));
+    }
+    let len = i32::try_from(bytes.len()).map_err(|_| bound(MeterKind::HeapBytes, bytes.len(), store.data().heap_limit, "native module request"))?;
+    let ptr = match alloc.call(&mut *store, len) {
+        Ok(ptr) => ptr,
+        Err(error) => return Err(resource_bound(store.data(), &error).unwrap_or_else(|| structural(format!("sb4_alloc trapped: {error}")))),
+    };
+    let range = checked_range(ptr as u32, len as u32, memory.data_size(&*store), store.data().heap_limit, MeterKind::HeapBytes, "native module request")?;
+    memory.write(&mut *store, range.start, bytes).map_err(|e| structural(format!("cannot write the request into the module: {e}")))?;
+    Ok((ptr, len))
 }
 
 /// Run one chunk: instantiate the module, hand it the job's arguments and
 /// the state it returned last time, and collect what the chunk wrote.
 pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i64) -> ChunkOutcome {
-    let mut store = wasmi::Store::new(&module.engine, Host { runner: Some(runner), job: job.to_owned(), refused: None, failed: None, logs: Vec::new(), memory: None, alloc: None, read_only: false });
+    let ceilings = runner.meter.ceilings;
+    let mut store = module.store(Host::new(Some(runner), job.to_owned(), false, ceilings, FUEL_PER_CHUNK));
     let step = (|| -> Result<Step, RuntimeError> {
         store.set_fuel(FUEL_PER_CHUNK).map_err(|e| structural(e.to_string()))?;
         let instance = module.instantiate(&mut store)?;
         let run = instance.get_typed_func::<(i32, i32), i64>(&store, "sb4_run").map_err(|_| structural("the native module exports no sb4_run; declare its jobs with snapback4_native::jobs! { .. }".into()))?;
-        let input = serde_json::to_vec(&json!({ "job": job, "args": wire::map_to_json(args), "state": state, "now": now })).unwrap_or_default();
+        let input = json_bytes(&json!({ "job": job, "args": wire::map_to_json(args), "state": state, "now": now }), store.data().heap_limit, MeterKind::HeapBytes, "native job input")?;
         let (ptr, len) = write_bytes(&mut store, &input)?;
         let started = std::time::Instant::now();
         let called = run.call(&mut store, (ptr, len));
@@ -193,6 +410,9 @@ pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &B
         let packed = match called {
             Ok(packed) => packed,
             Err(error) => {
+                if let Some(error) = resource_bound(store.data(), &error) {
+                    return Err(error);
+                }
                 if error.as_trap_code() == Some(wasmi::TrapCode::OutOfFuel) {
                     return Err(RuntimeError::Bound { kind: MeterKind::Steps, actual: FUEL_PER_CHUNK, ceiling: FUEL_PER_CHUNK, site: format!("native.{job}") });
                 }
@@ -232,12 +452,13 @@ pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &B
 /// device — under the read meter, writes refused. Returns the value and the
 /// runner, whose flags say whether the read was complete.
 pub fn run_read<'a>(module: &Module, runner: Runner<'a>, name: &str, args: &BTreeMap<String, Value>, now: i64) -> (Result<Value, RuntimeError>, Runner<'a>) {
-    let mut store = wasmi::Store::new(&module.engine, Host { runner: Some(runner), job: name.to_owned(), refused: None, failed: None, logs: Vec::new(), memory: None, alloc: None, read_only: true });
+    let ceilings = runner.meter.ceilings;
+    let mut store = module.store(Host::new(Some(runner), name.to_owned(), true, ceilings, FUEL_PER_READ));
     let value = (|| -> Result<Value, RuntimeError> {
         store.set_fuel(FUEL_PER_READ).map_err(|e| structural(e.to_string()))?;
         let instance = module.instantiate(&mut store)?;
         let read = instance.get_typed_func::<(i32, i32), i64>(&store, "sb4_read").map_err(|_| structural("the native module exports no sb4_read; declare its reads with snapback4_native::module! { reads: [..] }".into()))?;
-        let input = serde_json::to_vec(&json!({ "read": name, "args": wire::map_to_json(args), "now": now })).unwrap_or_default();
+        let input = json_bytes(&json!({ "read": name, "args": wire::map_to_json(args), "now": now }), store.data().heap_limit, MeterKind::HeapBytes, "native read input")?;
         let (ptr, len) = write_bytes(&mut store, &input)?;
         let called = read.call(&mut store, (ptr, len));
         if let Some(failed) = store.data_mut().failed.take() {
@@ -249,6 +470,9 @@ pub fn run_read<'a>(module: &Module, runner: Runner<'a>, name: &str, args: &BTre
         let packed = match called {
             Ok(packed) => packed,
             Err(error) => {
+                if let Some(error) = resource_bound(store.data(), &error) {
+                    return Err(error);
+                }
                 if error.as_trap_code() == Some(wasmi::TrapCode::OutOfFuel) {
                     return Err(RuntimeError::Bound { kind: MeterKind::Steps, actual: FUEL_PER_READ, ceiling: FUEL_PER_READ, site: format!("native.{name}") });
                 }
@@ -281,15 +505,24 @@ pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
 /// One request from the module, answered as `{ ok }` or `{ error }`.
 fn handle(host: &mut Host<'_>, request: &Json) -> Json {
     let op = request.get("op").and_then(Json::as_str).unwrap_or("");
-    if op == "log" {
-        host.logs.push(request.get("message").and_then(Json::as_str).unwrap_or("").to_owned());
-        return json!({ "ok": null });
-    }
     if let Some(refusal) = &host.refused {
         return json!({ "error": refusal });
     }
     if host.failed.is_some() {
         return json!({ "error": Refusal::new("E_STORE", "store", "the store failed earlier in this chunk") });
+    }
+    if op == "log" {
+        let message = request.get("message").and_then(Json::as_str).unwrap_or("");
+        let bytes = message.len().saturating_add(std::mem::size_of::<String>());
+        if host.log_bytes.saturating_add(bytes) > host.output_limit {
+            let error = bound(MeterKind::OutputBytes, host.log_bytes.saturating_add(bytes), host.output_limit, format!("native.{}.log", host.job));
+            let refusal = error.refusal();
+            host.refused = Some(refusal.clone());
+            return json!({ "error": refusal });
+        }
+        host.log_bytes += bytes;
+        host.logs.push(message.to_owned());
+        return json!({ "ok": null });
     }
     let Some(runner) = host.runner.as_mut() else {
         return json!({ "error": Refusal::new("E_NATIVE", "schema", "no transaction: only sb4_jobs and sb4_reads run outside a chunk") });
@@ -473,5 +706,107 @@ fn dispatch(runner: &mut Runner<'_>, job: &str, op: &str, request: &Json) -> Res
             Ok(Json::Null)
         }
         other => Err(RuntimeError::Input(format!("unknown native op {other}; the ops are get, lookup, scan, mint, insert, insert_if_absent, update, upsert, delete, log, now, viewer"))),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Exports `sb4_jobs() -> (ptr=0,len=u32::MAX)`. The host must reject the
+    /// advertised length before allocating it; the whole malicious module is
+    /// only 100 bytes.
+    const HUGE_PACKED_LENGTH: &[u8] = &[
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x02, 0x60,
+        0x00, 0x01, 0x7e, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x03, 0x04, 0x03, 0x01,
+        0x00, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07, 0x2d, 0x04, 0x06, 0x6d,
+        0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x09, 0x73, 0x62, 0x34, 0x5f,
+        0x61, 0x6c, 0x6c, 0x6f, 0x63, 0x00, 0x00, 0x08, 0x73, 0x62, 0x34, 0x5f,
+        0x6a, 0x6f, 0x62, 0x73, 0x00, 0x01, 0x09, 0x73, 0x62, 0x34, 0x5f, 0x72,
+        0x65, 0x61, 0x64, 0x73, 0x00, 0x02, 0x0a, 0x14, 0x03, 0x04, 0x00, 0x41,
+        0x00, 0x0b, 0x08, 0x00, 0x42, 0xff, 0xff, 0xff, 0xff, 0x0f, 0x0b, 0x04,
+        0x00, 0x42, 0x00, 0x0b,
+    ];
+
+    /// Grows memory by 1,000 pages from `sb4_jobs`; the 122-byte module is
+    /// rejected by the catalog path under the same 16 MiB store limit used by
+    /// jobs and reads.
+    const CATALOG_GROWS_MEMORY: &[u8] = &[
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x02, 0x60,
+        0x00, 0x01, 0x7e, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x03, 0x04, 0x03, 0x01,
+        0x00, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07, 0x2d, 0x04, 0x06, 0x6d,
+        0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x09, 0x73, 0x62, 0x34, 0x5f,
+        0x61, 0x6c, 0x6c, 0x6f, 0x63, 0x00, 0x00, 0x08, 0x73, 0x62, 0x34, 0x5f,
+        0x6a, 0x6f, 0x62, 0x73, 0x00, 0x01, 0x09, 0x73, 0x62, 0x34, 0x5f, 0x72,
+        0x65, 0x61, 0x64, 0x73, 0x00, 0x02, 0x0a, 0x1b, 0x03, 0x04, 0x00, 0x41,
+        0x10, 0x0b, 0x0a, 0x00, 0x41, 0xe8, 0x07, 0x40, 0x00, 0x1a, 0x42, 0x05,
+        0x0b, 0x09, 0x00, 0x42, 0x82, 0x80, 0x80, 0x80, 0xd0, 0x00, 0x0b, 0x0b,
+        0x0d, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x07, 0x5b, 0x22, 0x78, 0x22, 0x5d,
+        0x5b, 0x5d,
+    ];
+
+    /// Calls the host from `sb4_jobs`, ignores its zero result, and returns a
+    /// valid catalog after `sb4_alloc` traps. The host must retain that first
+    /// allocator failure instead of accepting the apparently valid list.
+    const CATALOG_ALLOCATOR_TRAPS: &[u8] = &[
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x10, 0x03, 0x60,
+        0x00, 0x01, 0x7e, 0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7e, 0x60, 0x01, 0x7f,
+        0x01, 0x7f, 0x02, 0x10, 0x01, 0x03, 0x65, 0x6e, 0x76, 0x08, 0x73, 0x62,
+        0x34, 0x5f, 0x63, 0x61, 0x6c, 0x6c, 0x00, 0x01, 0x03, 0x04, 0x03, 0x02,
+        0x00, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07, 0x2d, 0x04, 0x06, 0x6d,
+        0x65, 0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x09, 0x73, 0x62, 0x34, 0x5f,
+        0x61, 0x6c, 0x6c, 0x6f, 0x63, 0x00, 0x01, 0x08, 0x73, 0x62, 0x34, 0x5f,
+        0x6a, 0x6f, 0x62, 0x73, 0x00, 0x02, 0x09, 0x73, 0x62, 0x34, 0x5f, 0x72,
+        0x65, 0x61, 0x64, 0x73, 0x00, 0x03, 0x0a, 0x1f, 0x03, 0x03, 0x00, 0x00,
+        0x0b, 0x0f, 0x00, 0x41, 0x00, 0x41, 0x02, 0x10, 0x00, 0x1a, 0x42, 0x85,
+        0x80, 0x80, 0x80, 0x20, 0x0b, 0x09, 0x00, 0x42, 0x82, 0x80, 0x80, 0x80,
+        0xf0, 0x00, 0x0b, 0x0b, 0x0f, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x09, 0x7b,
+        0x7d, 0x5b, 0x22, 0x78, 0x22, 0x5d, 0x5b, 0x5d,
+    ];
+
+    #[test]
+    fn packed_lengths_and_catalog_growth_are_bounded_before_large_allocations() {
+        for bytes in [HUGE_PACKED_LENGTH, CATALOG_GROWS_MEMORY] {
+            let error = Module::compile(bytes).err().expect("malicious module refused");
+            assert_eq!(error.code(), "E_BOUND", "{error}");
+        }
+        let error = Module::compile(CATALOG_ALLOCATOR_TRAPS).err().expect("allocator trap retained");
+        assert_eq!(error.code(), "E_NATIVE_TRAP", "{error}");
+    }
+
+    #[test]
+    fn module_bytes_and_the_single_table_share_the_heap_budget() {
+        let oversized = vec![0; native_heap_ceiling() + 1];
+        let error = Module::compile(&oversized).err().expect("oversized module refused");
+        assert_eq!(error.code(), "E_BOUND");
+        let table_bytes = native_output_ceiling();
+        let memory_bytes = native_heap_ceiling() - table_bytes;
+        assert_eq!(memory_bytes + table_bytes, native_heap_ceiling());
+        let mut limits = native_limits(native_heap_ceiling(), table_bytes);
+        assert!(wasmi::ResourceLimiter::memory_growing(&mut limits, 0, memory_bytes, None).unwrap());
+        assert!(wasmi::ResourceLimiter::memory_growing(&mut limits, memory_bytes, memory_bytes + 65_536, None).is_err());
+        assert!(wasmi::ResourceLimiter::table_growing(&mut limits, 0, table_bytes / TABLE_SLOT_BYTES, None).unwrap());
+        assert!(wasmi::ResourceLimiter::table_growing(&mut limits, table_bytes / TABLE_SLOT_BYTES, table_bytes / TABLE_SLOT_BYTES + 1, None).is_err());
+    }
+
+    #[test]
+    fn log_bounds_are_sticky_per_invocation_and_drop_excess_retained_lines() {
+        let mut host = Host::idle();
+        host.job = "chatty".into();
+        host.output_limit = 64;
+        assert_eq!(handle(&mut host, &json!({ "op": "log", "message": "kept" })), json!({ "ok": null }));
+        let overflow = handle(&mut host, &json!({ "op": "log", "message": "x".repeat(64) }));
+        assert_eq!(overflow["error"]["code"], "E_BOUND");
+        let sticky = handle(&mut host, &json!({ "op": "log", "message": "ignored" }));
+        assert_eq!(sticky, overflow);
+        assert_eq!(host.logs, ["kept"]);
+
+        let mut retained = Logs::default();
+        retained.extend("chatty", vec![String::new(); 50_000]);
+        assert!(retained.bytes <= native_output_ceiling());
+        assert!(retained.lines.len() < native_output_ceiling());
+        let taken = retained.take();
+        assert!(!taken.is_empty());
+        assert_eq!(retained.bytes, 0);
     }
 }

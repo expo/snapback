@@ -56,6 +56,9 @@ rule branch must also prove the caller already has that audience grant, for
 example `exists participants[.threadId, viewer]`, or that this mutation
 created the group. `.personId = viewer` alone is refused because it would
 let anyone join. Audience keys are immutable or guarded on update. These
+target audiences require every content prefix and corresponding target
+group column to be non-optional: `null` cannot name a device partition, so
+`sync to participants[.threadId]` requires both copies of `threadId`.
 checks also cover insert-if-absent and upsert. The horizon
 `last N by index` bounds what a device acquires per group: the newest N stay
 on the device, older rows are online-only, and a local read past them is

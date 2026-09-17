@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createLocalClient } from "../dist/local.js";
 import { mintId } from "../dist/client.js";
-import { memoryPersistence, webDevice } from "../dist/web.js";
+import { indexedDbPersistence, memoryPersistence, webDevice } from "../dist/web.js";
 import { devServer } from "../../../witness/lib.mjs";
 
 const wasm = readFileSync(new URL("../src/wasm/snapback4_device_bg.wasm", import.meta.url));
@@ -77,6 +77,7 @@ query audit():
   return audit['audit']
 ` });
   const clients = [], cleanup = [], persist = memoryPersistence();
+  if (exclusive) persist.claim = indexedDbPersistence().claim;
   t.after(async () => { for (const run of cleanup) await run(); for (const client of clients) await client.close(); await server.close(); });
   const cores = [];
   const open = async (transport = fetch) => {
@@ -303,6 +304,9 @@ test("pre-admission journal: the next device adopts a closed tab's writes in ord
   assert.equal((await f.audit()).ordering, 123);
   assert.ok(!f.persist.stores.has(source));
   assert.equal(journalEntries(f).length, 0);
+  await client.close();
+  const again = await f.open(); await again.sync();
+  assert.equal((await f.audit()).total, 3, "a valid custom alternate is adopted exactly once");
 });
 
 test("pre-admission journal: a live tab's journal is never adopted", async t => {
@@ -508,6 +512,8 @@ test("W4R1 A: deferred recovery allocates before an offline successor, then appl
   };
   const client = await f.open(transport);
   assert.equal((await f.cores.at(-1).call({ op: "sync_state" })).ok.backend_required, false);
+  assert.deepEqual(f.durable().map(e => e.seq), [1, 2], "reopen transfers journal custody before a successor");
+  assert.ok((await Promise.all(records.map(record => client.write(record.entry.id)))).every(write => write?.state === "pending"));
   unavailable = true; await client.sync();
   const successor = await client.mutate(mark, { digit: 3 });
   assert.equal(successor.state, "pending");
@@ -586,16 +592,11 @@ for (const available of ["localStorage", "IDB", "neither"]) test(`W4R1 C: known 
   assert.equal(failed.why.code, "LOCKED", "bookkeeping must not replace a known authored refusal with E_STORE");
   assert.equal(failed.state, "failed");
   console.log(`W4R1 C: cancellation=${available}; refusal=${JSON.stringify(failed.why)}`);
-  await client.close();
-  // Change the authored condition after the refusal without opening its journal.
+  // Change the authored condition. Recovery may still see the device's stale
+  // rows; the stranded intent must queue for the server's current decision.
   await fetch(f.server.api + "/m/media.mark", { method: "POST", headers: { "x-snapback-persona": "alice", "content-type": "application/json" }, body: JSON.stringify({ id: "unlock", args: { digit: 1 }, newIds: ["unlock-row"] }) }).then(r => r.json());
-  // A host without journal ownership can acquire the changed condition, but
-  // cannot recover the outstanding record. The next exclusive owner can.
-  const navigator = globalThis.navigator;
-  Object.defineProperty(globalThis, "navigator", { configurable: true, value: {} });
-  try {
-    const acquisition = await f.open(); await acquisition.sync(); await acquisition.close();
-  } finally { Object.defineProperty(globalThis, "navigator", { configurable: true, value: navigator }); }
+  await client.sync();
+  await client.close();
   const reopened = await f.open(); await reopened.sync();
   const guarded = (await f.rows()).filter(r => r.body === "guarded");
   assert.equal(guarded.length, available === "neither" ? 1 : 0, "only total cancellation failure leaves an indeterminate record");
@@ -607,7 +608,31 @@ for (const available of ["localStorage", "IDB", "neither"]) test(`W4R1 C: known 
   assert.equal(f.storage.size, 0, "successful removal also collects non-executable cancellations");
 });
 
-test("W4R1 D: without Web Locks a live admission is not captured or recovered by another owner", async t => {
+test("W4R1 C: an orphan journal does not settle against its stale authored condition", async t => {
+  const f = await fixture(t), primary = await f.open(), orphan = await f.open();
+  const save = f.persist.save.bind(f.persist), setItem = f.localStorage.setItem;
+  f.localStorage.removeItem = () => { throw new Error("removal unavailable"); };
+  const gate = deferred(), entered = deferred();
+  f.persist.save = async (name, changes) => { entered.resolve(); await gate.promise; await save(name, changes); };
+  const barrier = f.cores.at(-1).call({ op: "set_meta", key: "orphan-refusal-test", value: "1" });
+  await entered.promise;
+  const write = orphan.mutate({ kind: "mutation", name: "media.guarded" }, {});
+  f.localStorage.setItem = () => { throw new Error("replacement unavailable"); };
+  f.persist.save = async () => { throw new Error("IDB unavailable"); };
+  gate.resolve(); await barrier;
+  const failed = await write;
+  f.persist.save = save; f.localStorage.setItem = setItem;
+  assert.equal(failed.state, "failed"); assert.equal(failed.why.code, "LOCKED");
+  await fetch(f.server.api + "/m/media.mark", { method: "POST", headers: { "x-snapback-persona": "alice", "content-type": "application/json" }, body: JSON.stringify({ id: "orphan-unlock", args: { digit: 1 }, newIds: ["orphan-unlock-row"] }) }).then(r => r.json());
+  await primary.sync();
+  await orphan.close(); await primary.close();
+  const reopened = await f.open(); await reopened.sync();
+  assert.equal((await f.rows()).filter(row => row.body === "guarded").length, 1,
+    "the acquired destination cannot let stale orphan rows cancel journal custody");
+  f.localStorage.removeItem = key => f.storage.delete(key);
+});
+
+test("W4R1 D: single-context persistence supplies exclusive ownership without Web Locks", async t => {
   const f = await fixture(t, { exclusive: false });
   const previous = Object.getOwnPropertyDescriptor(globalThis, "navigator");
   Object.defineProperty(globalThis, "navigator", { configurable: true, value: {} });
@@ -624,10 +649,55 @@ test("W4R1 D: without Web Locks a live admission is not captured or recovered by
   await entered.promise;
   const other = await f.open(); await other.sync();
   assert.equal(await f.audit(), null, "the second owner must not execute the live admission");
-  assert.equal(captured, 0);
+  assert.equal(captured, 1);
   gate.resolve();
   assert.equal((await write).state, "sent");
   assert.equal((await f.audit()).total, 1);
+});
+
+test("durable IndexedDB and custom persistence cannot silently open without ownership", async t => {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: {} });
+  t.after(() => previous ? Object.defineProperty(globalThis, "navigator", previous) : delete globalThis.navigator);
+  await assert.rejects(indexedDbPersistence().claim("durable", true), /requires the Web Locks API/);
+  assert.throws(() => webDevice({ persist: {
+    async load() { return []; },
+    async save() {},
+  } }), /must provide an exclusive claim\(name, alternate\) ownership contract/);
+});
+
+for (const fault of ["arbitrary alternate", "unrecoverable alternate"]) test(`custom persistence rejects ${fault} before opening`, async () => {
+  const base = memoryPersistence();
+  let rejectedReleased = 0;
+  const persist = {
+    load: base.load,
+    save: base.save,
+    ...(fault === "unrecoverable alternate" ? {} : { others: base.others, remove: base.remove }),
+    async claim(name, alternate) {
+      return {
+        name: fault === "arbitrary alternate" ? "unrelated" : `${name}:tab-custom`,
+        async release() { rejectedReleased++; },
+      };
+    },
+  };
+  await assert.rejects(webDevice({ wasm, persist }).open("owned", null),
+    fault === "arbitrary alternate" ? /must use the owned:tab-\* namespace/
+      : /must implement others\(prefix\) and remove\(name\)/);
+  assert.equal(rejectedReleased, 1, "the rejected claim is released");
+});
+
+test("custom persistence rejects an inexact orphan claim before opening", async t => {
+  const f = await fixture(t), primary = await f.open(), name = storeName(f);
+  await primary.close();
+  const orphan = `${name}:tab-orphan`;
+  await f.persist.save(orphan, [{ s: "m", k: "present", v: "1" }]);
+  const claim = f.persist.claim.bind(f.persist);
+  let rejectedReleased = 0;
+  f.persist.claim = async (requested, alternate) => !alternate
+    ? { name: `${requested}:wrong`, async release() { rejectedReleased++; } }
+    : claim(requested, alternate);
+  await assert.rejects(f.open(), new RegExp(`non-alternate claim for ${orphan} must return that exact name`));
+  assert.equal(rejectedReleased, 1, "the rejected orphan claim is released");
 });
 
 test("W4R1 E: one malformed journal key does not hide a real closed tab journal", async t => {
@@ -876,7 +946,9 @@ for (const offlineReopen of [false, true]) test(`W6R1 journal: caller ID stays f
   assert.equal(record.entry.id, id);
   if (offlineReopen) {
     const offline = await f.open(() => Promise.reject(new TypeError("offline")));
-    assert.equal(f.durable().length, 1); assert.equal(f.durable()[0].id, id); await offline.close();
+    assert.equal(f.durable().length, 1); assert.equal(f.durable()[0].id, id);
+    assert.equal((await offline.write(id))?.state, "pending", "offline reopen retains visible caller-ID custody");
+    await offline.close();
   }
   const sends = [];
   const reopened = await f.open(async (url, init) => {

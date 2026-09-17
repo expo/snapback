@@ -26527,3 +26527,363 @@ append; no earlier journal entry is changed except the requested D2 sentence.
 The brief requests no specific verbatim before/after diagnostic measurement;
 compiler diagnostic texts are unchanged. Recipe runtime messages retain
 `the program refused with CODE`, with the six codes above now prefixed FEED_.
+
+## 2026-09-16 — complete code review, independent Grok/Muse reviews, and repairs
+
+Charlie requested a complete project review, independent Grok and Muse passes,
+tickets and architecture write-ups, then feasible repairs delivered to main.
+The reviewed baseline is `a0d48a4e6` (0.2.26). The
+[review index](../llp/reviews/3000-complete-code-review-20260916.md) preserves
+the received Grok, Muse (two passes), Sol and lead findings, coverage limits,
+executable probes and adjudications. Sixteen new tickets were recorded; eleven
+are repaired and closed, together with the existing acquisition fixture ticket.
+Five remain open for staged indivisible sync, physical work/privacy bounds,
+secure client entropy, worker capability separation and durable-record retention.
+The already-owned Postgres C3 repair is not duplicated.
+
+The architecture work extends LLPs 3000.000, 3000.001, 3000.002 and 3000.009
+instead of creating competing proposals. Focused component/protocol changes are
+supported by the evidence; a wholesale backend rewrite is not. LLPs 3000.005
+and 3000.007 now state the implemented native and browser recovery contracts.
+
+Repairs in `f6b514c35` and `7e0fc21da` bound native memory/table/bridge/log
+allocations, bind queued native continuations to exact wasm, select the current
+Cargo artifact, disambiguate generated Rust names, refuse nullable target sync
+groups, fence late asset completion, adapt wide snapshot pages, preserve client
+ID time, require exclusive recoverable browser ownership, and make publication
+resume converge exact qualified tarballs. Journal recovery uses the existing
+replay-candidate path so stale local refusals cannot permanently cancel a stranded
+intent. No new device protocol or higher server ceiling was introduced. Native
+legacy/changed-code runs park conservatively; custom persistence needs the
+documented claim/recovery contract. Secure entropy without Web Crypto remains
+explicitly unresolved.
+
+The clean first candidate's complete suite took 681 s: all 1,230 Rust tests
+passed (4 existing ignored), builds/typechecks/fixtures passed, and 507/508 client
+tests passed. The journal failure was repaired. The rebuilt follow-up passed
+512/513; its sole red was a new fixture missing initial backend setup. That
+test-only correction is `ebc9f1462`, followed by **513/513 client tests passing**.
+The affected guide suite is **37/37**. The actual native crate rename/build
+probe now selects new bytes over a stale lexicographically later artifact.
+Publisher mocks are **24/24**; no npm publication or version bump was performed.
+The existing 60-second suite-budget ticket remains open; neither the 681-second
+complete run nor its baseline qualifies that budget.
+
+A fresh Sol review found two repair gaps (resume gated by unrelated current
+source, undiscoverable custom alternates); both were fixed. Sol and Grok each
+returned no-material-finding verdicts on the final production repair. Their
+received reports and exact revision bindings are in the index. This verification
+uses the full Rust run plus affected-scope follow-ups; there was no new live
+Chromium/iOS or physical power-loss qualification.
+
+
+## 2026-09-16 — W11INT: reconcile wave 11 and concurrent ownership fixes
+
+Base: `9b288fc08ba581a5ad16d3b1a41a279c7c900729` (0.2.27).
+Merged `origin/main` at `04df69bde74e0b17a60d468aa9f500b9b4104e26`, with
+merge base `a0d48a4e6b660e2bfca3de3ef3470ef7787f3d15`. The four conflict
+contents are resolved; no commit, push, tag or publication was made.
+
+The two ownership mechanisms are complementary. `claimStore` validates the
+provider's exact/non-alternate or discoverable `:tab-*` alternate name. The
+built-in IndexedDB claim already takes `hold(locks, name)`, so taking a second
+Web Lock around it would contend with our own claim. Orphan adoption takes
+one validated, nonwaiting provider claim, retains main's namespace guard, and
+uses wave 11's cancellable queued Web Lock request as the built-in provider's
+release signal. The 20 ms × 10 polling loop is absent. Custom providers with
+independent claims retry at open/sync; a free, unrelated browser lock must not
+create an immediate recovery loop. The shared receipt window uses that same
+validated provider authority, including for memory persistence without Web
+Locks. `shareReceipts` still commits before source removal, and every receipt
+lookup still reads through the shared window. No receipt returns to exclusive
+custody. No value model, meter ceiling or existing corpus case changed.
+
+Main edited exactly the `sync` and `native` cards. Its required audience-column
+text and its native memory/fuel/module-binding text now live in the extracted
+`guide/sync.rs` and `guide/native.rs`. Inspection also found that wave 11 had
+corrected the native boundary sentence in addition to extracting it: its
+mutation/prediction/server-replay sentence is retained, matching the README.
+The first guide run caught losing that correction (49 passed / 1 failed);
+the corrected guide run is 50/50. Both prepended `Revised` histories were
+checked against their parents. This journal's earlier content is exactly
+ours followed by main's 3,146-byte addition, extracted against the merge base;
+that equality was verified before appending this one block. No union merge.
+
+The browser-lock Node fixtures now explicitly use the IndexedDB provider's
+claim implementation over memory storage; main's new memory claim has its own
+single-realm authority and cannot stand in for a Web Lock release. The added
+custom-provider regression runs both with no browser locks and with unrelated
+browser locks, preserves a busy source, recovers its receipt after release and
+sync, and refuses to claim an out-of-namespace enumeration result. Both cases
+pass with zero unrelated waits, foreign claims and timers. The extra manual
+file outside the four conflict paths and requested extracted cards is
+`packages/snapback4/test/web-durability.test.mjs`; the auto-merged navigation
+suite also has the one-line fixture adaptation. Other main changes are imported
+without further edits. No new published form or diagnostic was introduced.
+
+Verification used Node 24.18.0 via
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+Commands below run from `snapback4/`, except the named repository-root commands.
+
+- `node --test --test-concurrency=2 packages/snapback4/test/web-durability.test.mjs packages/snapback4/test/navigation-model.test.mjs packages/snapback4/test/store-reset-review.test.mjs`: 89 tests, 89 pass, 0 fail, 0 cancelled.
+- `node --test --test-concurrency=2 --test-name-pattern='W11INT:|W11R1a:|W11R2:|custom persistence|next device adopts' packages/snapback4/test/navigation-model.test.mjs packages/snapback4/test/web-durability.test.mjs`: 20 tests, 20 pass, 0 fail, 0 cancelled.
+- `cargo test -p snapback4-lang --test guide -- --nocapture`: `test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s`.
+- Repository root, `bash snapback4/scripts/test.sh`: `-- FAIL: cargo test (627 s)`; `-- FAIL: client tests (67 s)`; `== 2 failure(s) in 631 s`. Rust target summaries sum to 1259 passed / 17 failed / 4 ignored. Fixtures: 9/9. Client: 516/517. Every build/typecheck stage passed.
+- `node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'`: 517 tests, 516 pass, 1 fail, 0 cancelled. Its sole failure is React's Chromium launch (SIGABRT), also reproduced by `node --test packages/snapback4/test/react.test.mjs`: 1 test, 0 pass, 1 fail, 0 cancelled.
+- `node witness/navigation-immediate.mjs`: exit 1 during Chromium launch, `browserType.launch: Target page, context or browser has been closed`, SIGABRT; 0 of 10 cases executed. No 10/10 claim is made.
+
+The 17 Rust failures were all attempts to write the global Cargo cache's
+`unicode-ident-1.0.25.crate`, refused with `Operation not permitted (os error 1)`.
+After `CARGO_HOME=/private/tmp/w11r2-cargo-cache cargo fetch --locked --manifest-path native-fixtures/rescore/Cargo.toml`,
+`cargo test -p snapback4-device --test native_reads --no-run` and
+`cargo test -p snapback4-sim --test native --no-run` selected the current binaries.
+Their writable-cache reruns passed:
+
+```sh
+CARGO_HOME=/private/tmp/w11r2-cargo-cache target/debug/deps/native_reads-d0dc919ddd0f0017 --nocapture
+CARGO_HOME=/private/tmp/w11r2-cargo-cache target/debug/deps/native-4af81835b785917e --nocapture
+```
+
+```text
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.62s
+test result: ok. 11 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.72s
+```
+
+Fix dependence was measured by temporary mutations of generated `dist/web.js`,
+restored in a `finally` block before the green runs and full suite. Bypassing
+orphan claim validation makes main's inexact-claim regression 0 pass / 1 fail;
+disabling receipt sharing makes wave 11's forced A-before-C sent/failed cases
+0 pass / 2 fail. Removing the custom-provider signal guard gives 1 pass / 1
+fail; removing the namespace guard gives 0 pass / 2 fail. The exact commands:
+
+```sh
+node --test '--test-name-pattern=custom persistence rejects an inexact orphan claim' packages/snapback4/test/navigation-model.test.mjs
+node --test '--test-name-pattern=W11R1a: A adopts B before C opens' packages/snapback4/test/navigation-model.test.mjs
+node --test --test-name-pattern=W11INT: packages/snapback4/test/web-durability.test.mjs
+```
+
+The last command was run separately for each guard mutation. The restored
+20/20 selection includes those cases and valid custom alternate adoption.
+These are sensitivity checks, not claims that the already-fixed wave-11
+base lacks its own fix. Measured diagnostics, verbatim:
+
+```text
+failed_attempts=4 retry_delays_ms=1000,2000,4000 remaining_timers=0 signal_recoveries=1
+live_sibling_waits=1 retry_timers=0 cancelled_waits=1
+forced_adoption_before_reopen=1 recovered_sent=1 applications=1
+forced_adoption_before_reopen=1 recovered_failed=1 applications=0
+live_owner_adoptions=0 adopted_outbox_owners=1 posts=1 applications=1
+shared_receipts=256 inserted_receipts=257 shared_records=1 evicted=1
+```
+
+Early verification attempts were invocation/setup errors: one package typecheck
+was launched from the repository root and failed ENOENT; a first targeted run
+was attempted before two provider conflict hunks were removed (3 file failures);
+and the next typecheck preceded wasm generation. These were corrected before
+the reported green runs. The final package typecheck/build passed. No observed
+failure is called pre-existing: no clean-base battery was run. The lead must
+rerun the browser checks outside this sandbox; a zero-failure complete suite
+has not been established here. Git refused staging with
+`Unable to create '/Users/ccheever/projects/snapback/.git/worktrees/snapback-w11int/index.lock': Operation not permitted`,
+so the lead must also stage the resolved contents before committing.
+`git diff --check` passed. Repository-root `./ref-check --verbose` was green
+before this append; its final run verifies this block too. No diagnostic text
+was changed by the reconciliation.
+
+## 2026-09-16 — remaining general-purpose program commissioned
+
+Charlie directed completion of the remaining LLP 3000.009 program using the
+fleet, with services built now and removed after Workroom where the evidence
+warrants, rather than waiting to select them first. Section 14.7 and the
+NOT-DOING Moves line record this sequencing change. The lead retains the
+shared core/durable-state contract; independent fleet slices and Sol/Grok
+reviews will feed incremental landings. Heavy suites serialize per host;
+expo-build-1000 remains excluded. Publication and promotion are not inferred
+from this instruction.
+
+The first Workroom builder hit its four-hour operational cap, exiting 124
+after SIGTERM. Post-cap inspection observed 478,710 of 598,224 full-profile
+actions receipted and found the builder's separately grouped acceptance child
+still running: the launcher did not contain that descendant. Its original
+application, stores, receipts and capped attempt are preserved.
+This is incomplete diagnostic evidence, not an acceptance pass, calibrated
+ceiling or scored cell. Recovery proceeds as an explicitly separate diagnostic
+continuation adopting only the verified, recorded acceptance process tree,
+with a new two-hour operational limit and the same 2 GiB disk floor. The
+descendant-custody defect must be corrected before any cold scored cell.
+The completed baseline still needs independent W3/W5 qualification and W8.
+## 2026-09-17 — repair the experiment's inherited lockfile version drift
+
+On unchanged integration source, `cargo metadata --offline --locked` for
+`experiments/postgres/Cargo.toml` refused before compilation: the separate
+experiment lockfile still named `snapback4-core`, `snapback4-device` and
+`snapback4-lang` 0.2.25, while their workspace manifests are 0.2.26. The repair
+changes only those three local-package versions. A trial offline Cargo update
+also selected unrelated cached dependency downgrades; that generated delta was
+discarded before committing, and no third-party lock entry changed.
+
+`cargo metadata --locked --manifest-path
+snapback4/experiments/postgres/Cargo.toml --format-version 1` now exits zero
+without changing the lockfile. This is dependency-resolution evidence, not a
+test-suite or benchmark pass. The original C3.1 focused tests' non-locked
+invocation remains recorded; this repair does not relabel it.
+## 2026-09-17 — C3.1: Postgres receipts bind operation and raw arguments
+
+The Postgres evaluation executor now matches SQLite's A1 receipt identity:
+before current program lookup or input validation it binds `(principal, id)`
+to the exact operation name and SHA-256 of raw wire JSON with recursively
+sorted object keys. It repeats that comparison inside the writer transaction
+before execution, and inserts the sanitized receipt, name, digest and admission
+time atomically. Whole-operation retry and commit-tail order are unchanged.
+Evaluation layout version 2 refuses version-1 stores; there is deliberately no
+migration that could bless their unbound receipts. SQLite's legacy nullable
+binding behavior is unchanged.
+
+Focused evidence on the private socket-only PostgreSQL 16.15 cluster:
+
+- `snapback4-core --test work_records`: 6 passed, including digest ordering,
+  pre-validation replay, redaction and legacy SQLite receipts.
+- Real-Postgres conformance: the binding/redaction differential, concurrent
+  same-id/two-argument race, version-1 refusal, reopen/equivalence, late
+  rollback and refused-receipt race each passed. The race admitted exactly one
+  fresh binding, refused the loser with `E_ID_REUSED`/`input`, and replayed only
+  the winner.
+- `snapback4-core --features postgres --lib engine::postgres::tests`: 5 passed.
+
+The cluster was verified as postmaster PID/PGID 3608271/3608271 and stopped
+with its own `pg_ctl`. Data and logs remain under
+`/tmp/sb4-c3-20260916-supervision/postgres-abe8883-c31/`; focused command logs
+and the launch ledger remain beside it. The experiment lockfile on the clean
+base still pins three path packages at 0.2.25 while their manifests are 0.2.26,
+so its `--locked` command refused before compilation; the real-PG tests ran
+offline and the incidental lock rewrite was excluded. No full suite, full
+build, production-Postgres target, migration, service/runtime change,
+performance claim, publication or push was made.
+
+`./ref-check --verbose` reports 481 LLP documents, 9,033 references in
+23,999 files, zero errors and zero unchecked references.
+## 2026-09-17 — C3.1 integrated, locked qualification
+
+The isolated landing candidate `1801ff4b8cd3c45261abe23538494bf55aa83913`
+combines the unchanged independently reviewed C3.1 product delta with the
+three-path-package lock repair and current main `e96d0fe1d`. On expo-build-450b,
+its clean worktree `/home/ccheever/lanes/sb4-c31-landing-20260917` passed the
+following serial checks, all with `CARGO_BUILD_JOBS=6` and `--locked`:
+
+- `cargo test -p snapback4-core --test work_records -- --test-threads=1`: 6/6.
+- The six previously named real-Postgres conformance tests, each selected with
+  `--test conformance <exact-name> -- --ignored --exact --test-threads=1`,
+  under `experiments/postgres/Cargo.toml --offline`: 6/6.
+- `cargo test -p snapback4-core --features postgres --lib
+  engine::postgres::tests -- --ignored --test-threads=1`: 5/5.
+
+The fresh PostgreSQL 16.15 instance listened only on its private Unix socket,
+port 55447, under
+`/tmp/sb4-c3-20260916-supervision/postgres-1801ff4b8-qual`. Its exact postmaster
+PID/PGID 3722695 was stopped with the matching data directory's `pg_ctl`.
+Tracked source stayed clean at the exact candidate. Retained qualification
+logs in `/tmp/sb4-c3-20260916-supervision/` have SHA-256:
+
+- `c31-landing-sqlite-work-records.log`:
+  `d334103992c092142fa631897eb952ceedf4e226b0ac993aa25088f2661c8504`
+- `c31-landing-postgres-receipt-focused6.log`:
+  `5a67ba0f3f82715789a9d103983738b2667c28c2ea0648363b9863bed96534c9`
+- `c31-landing-postgres-core5.log`:
+  `b1d10a6dc5a2b45a4bb925a1b64df680deb18d65c3a591ca7506ada8dfec7f70`
+
+The initial noninteractive shell lacked Cargo on PATH and refused before
+compilation; the retry used its absolute path. Two selector attempts selected
+zero tests and are retained separately, not counted as passes. These focused
+checks and the retained Sol/Grok reviews qualify only receipt binding, not
+production Postgres, the whole suite, performance, or publication.
+## 2026-09-16 — Workroom first-cell commission and publication preflight
+
+Charlie requested the first Workroom cell and explicitly approved qualifying
+and publishing the prerequisite release. Before this run published anything,
+the concurrent wave-10 session landed its 0.2.26 publication receipt on main
+`7df94ea36`. A fresh npm installation verifies the recorded binary SHA-256
+`fa4834f3fd128f4c37f02c9c3954da95306bbf208b2c0c94eb34cda419e7d7be`,
+Developer ID signature and version; `snapback4/server` loads on Node 24.13.1.
+That is an observed publication by another session, not a second publication
+by this run. Its green publication-suite record remains the earlier entry.
+
+The [run record](../benchmarks/runs/2026-09-16-workroom-first/README.md)
+registers a separate diagnostic application pilot before calibration/freeze
+and the cold no-SQL cell. The real W3/W5 application journeys remain to be
+qualified; A3's route slice is not substituted for them. The existing fixture
+suite passes 18/18 with no skips on Node 24.13.1 at this preflight. The public
+pilot packet omits the grader-only holdout section and contains no product
+source. No cell, score, threshold, general-purpose claim or promotion follows
+from this entry. Charlie also authorized safe disk cleanup; an unused-cache
+audit on Durand precedes pilot launch. Heavy work stays serialized and
+expo-build-1000 is untouched.
+
+The W9 handoff ticket is finally dispositioned: A1/C1, A2, A3 and the fixture
+pack all landed; C1 targets remain missed, and Postgres receipt binding stays
+open for C3. Its old pending-A2/A3 list was bookkeeping drift, not unlanded code.
+## 2026-09-16 — Workroom diagnostic launched; scoring-shape correction
+
+The published-0.2.26 Sol diagnostic started on Durand at 19:37:27 UTC with a
+four-hour operational safety limit and a 2 GiB free-disk floor. Its immutable
+neutral packet and private lifecycle records are bound in the
+[run record](../benchmarks/runs/2026-09-16-workroom-first/README.md). Authorized
+cache cleanup recovered 6.14 GiB; source, application data and evidence were
+preserved. Background indexing makes contended timings unsuitable for setting
+performance ceilings. No W3/W5 qualification or cell result is claimed here.
+
+During pre-freeze protocol audit, the supervisor corrected its own mistaken
+one-builder/three-outcome-judges interpretation. LLP 3000's inherited September
+5 commission and subsequent three-model cells use separate Astra, Grok and Muse
+builds and family-specific experiences, with independent outcome grading. The
+unpublished Workroom record-schema addition is being corrected to one builder
+and one separately identified outcome grade per lane record. Prior tests and
+reviews remain attached to their actual revision; they do not establish the
+experimental design. The running Sol pilot is unchanged and remains diagnostic.
+## 2026-09-17 — Workroom adoption capped; bounded custody qualified
+
+The diagnostic replay adoption reached its independent two-hour limit at
+02:13:26.965 UTC, with 587,290 of 598,224 actions receipted and 14,725,472,256
+bytes free. The recorded acceptance group 98850 received TERM after exact
+identity verification and disappeared at 02:13:27.328; the monitor recorded
+no survivors or cleanup errors. A separate read-only check found all nine
+recorded identities and monitor 53865 absent. This is not acceptance success:
+the acceptance exit remains unknown, and both the original pilot and this
+adoption remain failed/capped. No score or performance ceiling follows.
+
+A proposed successor supervisor failed its six-minute preparation checkpoint
+without producing executable source or a test. It was stopped on the control
+host; no Durand handoff, monitor pause, or deadline extension occurred.
+Retained adoption-end SHA-256 is
+`8997e6c348b82e9494d1854d4b4629f6c07f11f58a52c2d5a7c7c48328ddfbd9`;
+cleanup receipt SHA-256 is
+`72c436e11c6914498923d5d2aaa120ec7fbce85d87aa08076cc30311fee91199`.
+
+The launcher repair tracks sampled, identity-verified descendants across
+process groups and keeps adopting from live verified parents during cleanup.
+The exact r3 source at `19cc2656f7` passed its retained actual-Codex fixture
+(seven adopted identities, none surviving) and deterministic tests. It is not
+generic subtree containment: a complete double-fork/reparent between samples
+can escape observation. Sol's independent r3 review correctly rejected a
+hard 30-second overall timing claim. Instead of a fourth product-code repair,
+the supervisor narrowed the documented claim to the 30-second signalling/drain
+budget plus separately bounded snapshot overhead; exhaustion stays non-green.
+Both independent reviewers cleared that documentation-only contract at
+`197aa9c6b`. Original findings and delta verdicts remain separately retained
+under the run's `reviews/`; no failed review is relabelled.
+
+The integrated runner/test/document bytes equal the reviewed candidate.
+Node 24.13.1's record, fixture and custody tests pass 45/45 with one explicit
+actual-Codex opt-in skip (46 selected); that integration run does not replace
+the separately retained real-process witness. No application qualification,
+cold cell, publication, or general-purpose-backend completion is claimed.
+The main journal's already-landed program commission is preserved once;
+the duplicate introduced while rebasing the unlanded append was removed.
+## 2026-09-17 — adoption final durable-count reconciliation
+
+The 587,290 count above is the monitor's last sample, not the post-drain
+journal count. One further receipt was fsynced during TERM/drain. After all
+recorded processes were absent, the newline-terminated durable journal had
+587,291 records, leaving 10,933 of 598,224. Its SHA-256 is
+`28326213c56db40a932a21dc3cde755e42aabc6a522e1e5a5072581a550835cd`.
+The last-poll/end receipt remains unchanged; neither count establishes
+acceptance completion or recovers the original child's exit status.

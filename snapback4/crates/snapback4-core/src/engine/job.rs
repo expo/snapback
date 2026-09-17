@@ -102,6 +102,20 @@ fn insert_job(conn: &Connection, id: &str, name: &str, args: &BTreeMap<String, V
     Ok(())
 }
 
+/// Durable admission identity for a queued run. Quarry jobs retain their
+/// original Program digest. A native continuation also binds the exact wasm
+/// bytes that define its private state format. The explicit no-module value
+/// lets an initially missing module reach the useful E_NATIVE refusal, while
+/// every legacy declaration-only native hash fails closed at chunk admission.
+// @ref LLP 3000.005#4 — queued native continuations bind Program plus exact wasm bytes; changed and legacy-unbound runs park.
+fn job_admission_hash(program: &crate::ir::Program, native_digest: Option<&str>) -> String {
+    let program_hash = digest(program);
+    if !program.native {
+        return program_hash;
+    }
+    format!("native-v1:{program_hash}:{}", native_digest.unwrap_or("no-module"))
+}
+
 /// What one chunk did.
 struct Chunk {
     last_key: Option<Vec<u8>>,
@@ -162,8 +176,12 @@ impl Engine {
         }
         validate_inputs(&self.schema, &program, &mut args)?;
         let id = crate::ids::mint(now, &mut self.entropy)?;
+        #[cfg(feature = "native")]
+        let program_hash = job_admission_hash(&program, self.native.as_deref().map(super::native::Module::digest));
+        #[cfg(not(feature = "native"))]
+        let program_hash = job_admission_hash(&program, None);
         let tx = self.store.transaction()?;
-        insert_job(tx.conn(), &id, name, &args, &digest(&program), now)?;
+        insert_job(tx.conn(), &id, name, &args, &program_hash, now)?;
         tx.commit()?;
         Ok(id)
     }
@@ -202,8 +220,12 @@ impl Engine {
         let head = tx.conn().query_row(&format!("SELECT {COLUMNS} FROM _jobs WHERE state IN ('queued', 'running') ORDER BY created_at, id LIMIT 1"), [], read_head).optional()?;
         let Some(head) = head else { return Ok(None) };
         let program = self.programs.get(&head.run.name).cloned();
-        let Some(program) = program.filter(|program| digest(program) == head.program_hash) else {
-            tx.conn().execute("UPDATE _jobs SET state = 'parked', error = ?2, updated_at = ?3 WHERE id = ?1", params![head.run.id, format!("E_JOB_GENERATION: job {} changed (or went away) since this run was queued; queue it again", head.run.name), now])?;
+        #[cfg(feature = "native")]
+        let current_hash = program.as_ref().map(|program| job_admission_hash(program, self.native.as_deref().map(super::native::Module::digest)));
+        #[cfg(not(feature = "native"))]
+        let current_hash = program.as_ref().map(|program| job_admission_hash(program, None));
+        let Some(program) = program.filter(|_| current_hash.as_deref() == Some(&head.program_hash)) else {
+            tx.conn().execute("UPDATE _jobs SET state = 'parked', error = ?2, updated_at = ?3 WHERE id = ?1", params![head.run.id, format!("E_JOB_GENERATION: job {} or its native module changed (or the run predates module binding) since this run was queued; queue it again", head.run.name), now])?;
             tx.commit()?;
             return self.job(&head.run.id);
         };
@@ -349,7 +371,11 @@ impl Engine {
                 // @ref LLP 3000.009#5.2 — the boundary and service-seat admission are one commit.
                 super::actions::insert_request(tx.conn(), &self.schema, &program, &id, &context, &raw, true, now)?;
             } else {
-                insert_job(tx.conn(), &id, &schedule.target, &args, &digest(&program), now)?;
+                #[cfg(feature = "native")]
+                let program_hash = job_admission_hash(&program, self.native.as_deref().map(super::native::Module::digest));
+                #[cfg(not(feature = "native"))]
+                let program_hash = job_admission_hash(&program, None);
+                insert_job(tx.conn(), &id, &schedule.target, &args, &program_hash, now)?;
             }
             tx.conn().execute("INSERT INTO _meta(key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value", params![key, boundary.to_string()])?;
             tx.commit()?;
@@ -365,7 +391,7 @@ impl Engine {
 /// it, a trap parks it with the reason. Over the engine's fields, not the
 /// engine, because the transaction borrows its store.
 #[cfg(feature = "native")]
-fn native_chunk(tx: crate::store::Tx<'_>, schema: &crate::schema::Schema, module: Option<&super::native::Module>, logs: &mut Vec<String>, head: Head, program: &crate::ir::Program, now: i64, dev: bool) -> Result<(), RuntimeError> {
+fn native_chunk(tx: crate::store::Tx<'_>, schema: &crate::schema::Schema, module: Option<&super::native::Module>, logs: &mut super::native::Logs, head: Head, program: &crate::ir::Program, now: i64, dev: bool) -> Result<(), RuntimeError> {
     use super::native::{self, Step};
     tx.savepoint("job_chunk")?;
     let seq = tx.next_seq()?;
@@ -377,7 +403,7 @@ fn native_chunk(tx: crate::store::Tx<'_>, schema: &crate::schema::Schema, module
         Some(module) => native::run_chunk(module, runner, &program.name, &head.args, state, now),
         None => native::missing(runner, &program.name),
     };
-    logs.extend(outcome.logs.iter().map(|line| format!("{}: {line}", program.name)));
+    logs.extend(&program.name, outcome.logs);
     match outcome.step {
         Ok(step) => {
             if outcome.rows_written > 0 || !outcome.events.is_empty() {

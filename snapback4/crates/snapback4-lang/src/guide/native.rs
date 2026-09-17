@@ -76,9 +76,15 @@ and partition events apply, the meter counts, and so the ordinary query and
 a bad value — parks the job with it (`snapback4 doctor` lists runs); a panic
 parks it as E_NATIVE_TRAP with the panic's text; 2,000,000,000 units of
 fuel per chunk (about 90,000 per host call) is the step ceiling, so the row
-ceilings bind first. The module imports one host function and nothing
-else: no clock, no randomness, no network — `chunk.now` is the host's — so
-a native job runs under the simulator like any job. Quarry still declares
+ceilings bind first. Native reads get 200,000,000 fuel units. Each instance
+bounds its memory and table within the existing heap allowance; bridge buffers,
+answers and logs also have byte bounds. A queued native job binds the exact wasm
+bytes: changing or removing the module parks it with E_JOB_GENERATION before
+another chunk can use its saved state. Legacy native runs without that binding
+also park; already committed chunks remain committed. Identical bytes resume.
+The module imports one host function and nothing else: no clock, no randomness,
+no network — `chunk.now` is the host's — so a native job runs under the simulator
+like any job. Quarry still declares
 the table, its rules and its `sync`; a mutation cannot be native,
 because a device predicts Quarry and the server replays it. Anything
 that needs the network stays outside and writes into a table the job

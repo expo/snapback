@@ -14,6 +14,7 @@ interface Entry {
   now: number;
   predictable: boolean;
   predicted: string[];
+  replay_candidate?: boolean;
 }
 
 export interface AdmissionRecord { key: string; storeId: string; entry: Entry }
@@ -177,7 +178,11 @@ export class AdmissionJournal {
         await settle([this.transfer(record, false)]);
         continue;
       }
-      const reply = this.admit(device, record.entry);
+      // @ref LLP 3000.007#20.4 — a journal record exists because ordinary
+      // admission did not durably finish. Its retained rows may be stale, so a
+      // local authored refusal cannot settle the intent. Replay admission keeps
+      // a successful prediction, or rolls refusal back and lets the server decide.
+      const reply = this.admit(device, { ...record.entry, replay_candidate: true });
       if (reply.denied && !writeRefusal(reply)) throw new Error(JSON.stringify(reply));
       await settle(reply.denied ? this.refused(record) : [this.transfer(record, true)]);
     }

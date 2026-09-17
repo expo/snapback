@@ -25,6 +25,11 @@ export interface Change {
 
 /** Where a host keeps what the device changed, by store name. */
 export interface Persistence {
+  /** Acquire one exclusive device-store name. When `alternate` is true, an
+   * alternate must be named `${name}:tab-*` and the provider must implement
+   * `others` and `remove` so a later owner can adopt it. With `alternate`
+   * false, return the exact requested name or null rather than waiting. */
+  claim(name: string, alternate: boolean): Promise<PersistenceClaim | null>;
   load(name: string): Promise<Change[]>;
   /** Test existence without creating a missing store. */
   has?(name: string): Promise<boolean>;
@@ -34,6 +39,11 @@ export interface Persistence {
   /** The stores held whose names begin with `prefix`. */
   others?(prefix: string): Promise<string[]>;
   remove?(name: string): Promise<void>;
+}
+
+export interface PersistenceClaim {
+  readonly name: string;
+  release(): Promise<void>;
 }
 
 type WasmSource = URL | string | Response | BufferSource | WebAssembly.Module;
@@ -52,13 +62,15 @@ let runtime: { identity: string | WebAssembly.Module; initialized: unknown } | u
 /** The opener `createLocalClient` takes on the web. */
 export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
   const persist = options.persist ?? indexedDbPersistence();
+  if (typeof persist.claim !== "function") throw new Error("webDevice: custom persistence must provide an exclusive claim(name, alternate) ownership contract");
   return {
     async open(name, backend) {
       ready ??= cachedWasm(options.wasm ?? new URL("./wasm/snapback4_device_bg.wasm", import.meta.url), persist)
         .catch((error) => { ready = null; throw error; });
       await ready;
-      const store = await claim(name);
-      const journal = new AdmissionJournal(store.name, store.exclusive);
+      const store = await claimStore(persist, name, true);
+      if (!store) throw new Error("webDevice: persistence could not claim an exclusive device store");
+      const journal = new AdmissionJournal(store.name, true);
       const admissions = new Set<string>();
       let device: WebDevice | undefined;
       // A lock can release during opening; recovery must wait for restore/adoption.
@@ -88,6 +100,9 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       };
       // @ref LLP 3000.007#20.4 — wait for ownership without polling or holding up foreground calls.
       const waitForLock = (name: string) => {
+        // This known claim implementation uses these Web Locks. Other providers
+        // retry on open/sync; an unrelated free lock is not a release signal.
+        if (persist.claim !== claimWithWebLocks) return;
         const locks = lockManager();
         if (!locks || closing || waiting.has(name)) return;
         const controller = new AbortController();
@@ -320,26 +335,41 @@ function refusalText(error: unknown): string {
 
 // ----- one device per tab -----
 
-interface Claim {
-  name: string;
-  exclusive: boolean;
-  release(): Promise<void>;
-}
-
 function lockManager(): LockManager | undefined {
   return (globalThis.navigator as { locks?: LockManager } | undefined)?.locks;
 }
 
 /** Hold the store's lock for this tab; when another tab holds it, take a
- * tab-scoped store instead. Without the Web Locks API the name is shared. */
-async function claim(name: string): Promise<Claim> {
+ * tab-scoped store instead. Durable IndexedDB refuses when Web Locks cannot
+ * establish exclusive ownership. */
+async function claimWithWebLocks(name: string, alternate: boolean): Promise<PersistenceClaim | null> {
   const locks = lockManager();
-  if (!locks) return { name, exclusive: false, async release() {} };
+  if (!locks) throw new Error("webDevice: durable IndexedDB requires the Web Locks API for exclusive store ownership");
   const held = await hold(locks, name);
-  if (held) return { name, exclusive: true, release: held };
+  if (held) return { name, release: held };
+  if (!alternate) return null;
   const own = `${name}:tab-${Math.random().toString(36).slice(2, 10)}`;
   const release = await hold(locks, own);
-  return { name: own, exclusive: !!release, release: release ?? (async () => {}) };
+  if (!release) throw new Error("webDevice: could not claim an exclusive tab-scoped device store");
+  return { name: own, release };
+}
+
+async function claimStore(persist: Persistence, name: string, alternate: boolean): Promise<PersistenceClaim | null> {
+  const claim = await persist.claim(name, alternate);
+  if (!claim) return null;
+  let problem: string | undefined;
+  if (typeof claim.name !== "string" || typeof claim.release !== "function") {
+    problem = "persistence returned an invalid exclusive claim";
+  } else if (!alternate && claim.name !== name) {
+    problem = `a non-alternate claim for ${name} must return that exact name`;
+  } else if (claim.name !== name && (!claim.name.startsWith(`${name}:tab-`) || claim.name.length === `${name}:tab-`.length)) {
+    problem = `an alternate claim for ${name} must use the ${name}:tab-* namespace`;
+  } else if (claim.name !== name && (typeof persist.others !== "function" || typeof persist.remove !== "function")) {
+    problem = "a persistence provider returning an alternate must implement others(prefix) and remove(name) for orphan adoption";
+  }
+  if (!problem) return claim;
+  if (typeof claim.release === "function") await claim.release();
+  throw new Error(`webDevice: ${problem}`);
 }
 
 /** Hold a lock until released; null when another holder has it. */
@@ -365,15 +395,16 @@ function hold(locks: LockManager, name: string): Promise<(() => Promise<void>) |
 /** Writes an orphaned tab left queued are queued here, in their order,
  * and the orphan's store goes; its rows are the stream's to bring back. */
 async function adoptOrphans(device: WebDevice, name: string, own: string, persist: Persistence, settle: (extra?: Change[]) => Promise<void>, adopted: () => void, waitForLock: (name: string) => void): Promise<boolean> {
-  const locks = lockManager();
-  if (!locks || !persist.others || !persist.remove) return false;
+  if (!persist.others || !persist.remove) return false;
   let retry = false;
-  const stores = new Set(await persist.others(`${name}:tab-`));
-  for (const orphan of new Set([...stores, ...journalStores(`${name}:tab-`)])) {
+  const orphanPrefix = `${name}:tab-`;
+  const stores = new Set(await persist.others(orphanPrefix));
+  for (const orphan of new Set([...stores, ...journalStores(orphanPrefix)])) {
+    if (!orphan.startsWith(orphanPrefix)) continue;
     if (orphan === own) continue;
-    // The lock is the ownership authority, even for a suspended/live tab.
+    // The validated provider claim owns the store; IndexedDB takes its Web Lock.
     // A queued background request signals release; no timer polls live tabs.
-    const held = await hold(locks, orphan);
+    const held = await claimStore(persist, orphan, false);
     if (!held) { waitForLock(orphan); continue; }
     let destinationDirty = false;
     let enqueued = false;
@@ -414,7 +445,7 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
       // Commit the shared receipt window BEFORE any source can be removed.
       // A busy receipt writer leaves this whole source intact for the retry.
       const history = saved.find(c => c.s === "m" && c.k === "client:write-history")?.v;
-      if (history && !await shareReceipts(persist, locks, name, history)) { waitForLock(`${name}:receipts`); continue; }
+      if (history && !await shareReceipts(persist, name, history)) { waitForLock(`${name}:receipts`); continue; }
       let source: string | null | undefined;
       for (const change of saved) if (change.s === "m" && change.k === "device:store_id") source = change.v;
       const latest = new Map<string, string | null>();
@@ -452,7 +483,7 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
       if (destinationDirty) throw error;
       retry = true;
     } finally {
-      await held();
+      await held.release();
     }
   }
   return retry;
@@ -479,8 +510,8 @@ async function receiptHistory(persist: Persistence, name: string): Promise<Termi
   return terminalReceipts(text);
 }
 
-async function shareReceipts(persist: Persistence, locks: LockManager, name: string, text: string): Promise<boolean> {
-  const held = await hold(locks, `${name}:receipts`);
+async function shareReceipts(persist: Persistence, name: string, text: string): Promise<boolean> {
+  const held = await claimStore(persist, `${name}:receipts`, false);
   if (!held) return false;
   try {
     const kept = await receiptHistory(persist, name);
@@ -489,7 +520,7 @@ async function shareReceipts(persist: Persistence, locks: LockManager, name: str
     // Existing ids are immutable and do not become newer on repeated adoption.
     await persist.save(`${name}:receipts`, [{ s: "m", k: "client:write-history", v: JSON.stringify(kept.slice(-WRITE_HISTORY_LIMIT)) }]);
     return true;
-  } finally { await held(); }
+  } finally { await held.release(); }
 }
 
 // ----- persistence -----
@@ -519,6 +550,7 @@ export function indexedDbPersistence(): Persistence {
       db?.close();
       return db !== null;
     },
+    claim: claimWithWebLocks,
     async read(name, store, key) {
       const db = await open(name, false);
       if (!db) return null;
@@ -573,9 +605,19 @@ export function indexedDbPersistence(): Persistence {
 /** Memory: what a test keeps between opens. */
 export function memoryPersistence(): Persistence & { readonly stores: Map<string, Map<string, Change>> } {
   const stores = new Map<string, Map<string, Change>>();
+  const held = new Set<string>();
+  let alternate = 0;
   return {
     stores,
     async has(name) { return stores.has(name); },
+    async claim(name, allowAlternate) {
+      let own = name;
+      if (held.has(own) && !allowAlternate) return null;
+      while (held.has(own)) own = `${name}:tab-memory-${++alternate}`;
+      held.add(own);
+      let released = false;
+      return { name: own, async release() { if (!released) { released = true; held.delete(own); } } };
+    },
     async read(name, store, key) { return stores.get(name)?.get(`${store} ${key}`)?.v ?? null; },
     async load(name) {
       return [...(stores.get(name)?.values() ?? [])];
