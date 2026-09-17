@@ -940,8 +940,13 @@ query inChat(conversationId: conversations, q: text <=100, c: cursor ?):
   require exists memberships[conversationId, viewer] else NOT_MEMBER
   return messages[conversationId] matching q after c last 50 by byConvWords
 
-query everywhere(q: text <=100, c: cursor ?):
-  return merge messages matching q after c last 50 by byConvWords:
+-- everything, grouped by chat
+query searchGrouped(q: text <=100, c: cursor ?):
+  return memberships[viewer] after c first 20 by byPrincipalConversation where exists (messages[.conversationId] matching q) { conversationId, hits: messages[.conversationId] matching q last 3 by byConvWords }
+
+-- a globally newest-first screen while every chat opens in one read
+query searchNewest(q: text <=100, c: cursor ?):
+  return merge messages matching q after c last 20 by byConvWords:
     [m.conversationId] for m in memberships[viewer]
 
 query people(q: text <=100, c: cursor ?):
@@ -975,13 +980,15 @@ text never matches; an empty search matches nothing; an expired row is
 gone at once; an edit re-tokenizes. A scope the rule decides costs one
 verdict per scope. An unscoped words index (`by byWords: words(body), at,
 id`) under a per-chat rule checks the rule per row and is never
-`complete` (`N_NEVER_COMPLETE`): use `everywhere` to search the viewer's
+`complete` (`N_NEVER_COMPLETE`): use `searchGrouped` or `searchNewest` to search the viewer's
 chats, or read on the device (§4).
 
-`everywhere` merges matching pages from the viewer's chats, ordered by
+`searchNewest` merges matching pages from the viewer's chats, ordered by
 `at` and `id`: each lane is one verdict when its scope decides the rule,
-and the page is complete when all lanes are complete; past 50 lanes
-`check` emits N_WIDE_MERGE, and the device runs the same query over held rows.
+and the page is complete when all lanes are complete and the page fits the
+meter. The lane source needs no restated bound; `check --cost` prints
+`lanes ≤ meter`. An explicit `first N` above 50 still emits N_WIDE_MERGE.
+The device runs the same query over held rows.
 A pinned conjunct such as `exists members[.roomId, viewer]` denies a scope
 before word discovery even when another conjunct needs each row; an
 admitted non-uniform scope keeps its per-row costs and stays incomplete;
@@ -997,44 +1004,28 @@ Reads inside `where` use their own rules and search terms. An empty
 matching result past a device horizon is incomplete too, so a held group
 can fall back to the server.
 
-For the optional bounded server walk, run `snapback4 init --recipe search`
-and `snapback4 check`. This installs the search card's two queries in
-`snapback/search.q` and a typed `searchServer(client, text)` async generator
-in `src/search.ts`. It pages memberships 50 at a time and results 20 at a time,
-continuing both cursors for you. Held search remains the UI path for acquired
-history. The helper stops on incomplete, stale, denied or loading reads;
-a meter- or word-cut batch never advances, and only the final successful
-page says `finished: true`. Render each step's original `read` and its cut.
-Results are ordered within each batch; group by room and deduplicate by id,
-or finish and sort for one global order. Restart on membership changes.
-Use `--prefix history` for conflicting names. The online-only recipe tables
-are a compiling read backend; wire their references to your app's authorized
-membership/message tables and indexes before searching existing app data.
-The installer adds no write API or copied message corpus. `guide search`
-shows the exact installed code, both bounds to change together, and the
-live-read and word-limit caveats.
+**Search every chat I'm in.** Use `searchGrouped` for everything, grouped by
+chat: a filtered membership page with each chat's newest three hits. Follow
+its one `next` through any number of memberships; a meter-cut page positions
+after its last rule-visible examined membership and continues. Its nested
+hit preview can be empty or partial on a cut page; following `next` does not
+refill that earlier preview. Use the
+single-scope `inChat` query for more hits in a chat. Use `searchNewest`
+for a first screen in one globally ordered stream while every chat's head
+opens in one read. An opening cut answers `complete: false, cut: 'meter'`
+without continuation; use the grouped form.
 
-**Search every chat I'm in (100–1,000 memberships).** `snapback4 guide
-search`, section "Search every chat I'm in", carries the complete Quarry
-and the two-cursor walk. Search fully synced messages with one unscoped
-words index on the device, or page memberships 50 at a time on the server
-and exhaust each batch's matching result cursor before advancing the
-membership cursor. Group the accumulated results by chat in the client.
-The `everywhere` example above discovers chats under the examined meter; its result cursor
-does not advance to the next 50 memberships. Batches are each newest first;
-one globally ordered stream needs a merge of all batch heads.
-
-Measured at 100 / 500 / 1,000 chats with 30 messages per chat, 24 matching
-one word prefix, and 20 results per page: both device stores examine 22
-rows on the first page; the bounded server merge examines 1,201. Full walks
-find 2,400 / 12,000 / 24,000 hits across every chat, with complete pages.
-Full sync acquires 3,000 / 15,000 / 30,000 messages. A sync horizon keeps
-search over held messages working but reports `complete: false`, including
-empty searches; online, use the scoped server walk for full history.
-The card records whole-walk costs, horizon measurements, the 32-word
-limit (global on the device, per chat on the server), and the per-reader
-copy cost. This eager matching batch's opening cut cannot be continued with a result
-cursor alone. The card intentionally documents N_NO_HORIZON for full sync.
+The search card measures both forms on the server and both device stores at
+100 / 500 / 1,000 dense chats and the grouped walk at 9,000 memberships.
+Each dense chat has 30 messages, 24 matching one word prefix; the page size
+is 20. Full sync acquires 3,000 / 15,000 / 30,000 messages. The card records
+first-page and whole-walk examined counts and the newest form's opening
+limit. These are live reads, not a snapshot: restart after membership changes
+and refresh after message changes. Reset the cursor when the search text changes.
+The 32-word limit applies per scope. A device read past its horizon answers
+`complete: false`, including empty matches; the server searches full history.
+The card also keeps the held unscoped search and its acquisition cost, with
+an intentional N_NO_HORIZON for full sync.
 With horizon-free sources, `check` reports horizon-free source coverage for
 `searchHeld`. Answer completeness still depends on runtime authorization,
 limits and continuation; `fresh` separately describes sync freshness.
@@ -1045,7 +1036,7 @@ source or zero read sites gets no source-coverage line.
 Sources include reads nested in the `matching` expression, not just the searched table.
 Its `query searchHeld(q: text <=100, c: cursor ?) held:` declaration is
 device-only: `check` explains it, and `dev`, `serve` and `run` refuse
-E_QUERY_HELD with a rewrite pointing to the scoped server walk on `guide search`.
+E_QUERY_HELD with a rewrite pointing to the grouped and newest forms on `guide search`.
 The local clients answer it online or offline without server fallback, even
 at a horizon or cut. `held` does not acquire data or promise completeness.
 For ordinary device reads, online fallback asks the server only for a missing

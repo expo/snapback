@@ -66,7 +66,7 @@ fn w7d_global_word_scope_can_cut_when_each_chat_scope_fits() {
         for (n, page) in snapshot_pages(&mut engine, "dev:alice", 4000).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
         let global = device.query("searchHeld", "dev:alice", &serde_json::json!({"q":"cof"}), 2000).unwrap();
         assert!(!global.complete && global.word_cut_at.is_some() && global.next.is_none());
-        let scoped = device.query("searchChatBatch", "dev:alice", &serde_json::json!({"q":"cof"}), 2000).unwrap();
+        let scoped = device.query("searchNewest", "dev:alice", &serde_json::json!({"q":"cof"}), 2000).unwrap();
         assert!(scoped.complete && scoped.word_cut_at.is_none() && scoped.next.is_some());
         assert_eq!(scoped.data.as_array().unwrap().len(), 20);
         host.close("word-cut", device);
@@ -83,7 +83,7 @@ fn crafted_cursors<H: Host>(mut host: H) {
     for (n, page) in snapshot_pages(&mut engine, "dev:alice", 40).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
     host.close("cursors", device);
     let mut device = host.open("cursors", None).unwrap();
-    for op in ["searchHeld", "searchLane", "searchPair", "searchChatBatch"] {
+    for op in ["searchHeld", "searchLane", "searchPair", "searchNewest"] {
         let next = device.query(op, "dev:alice", &serde_json::json!({"q":"cof"}), 2000).unwrap().next.unwrap();
         for (name, token, mut expected) in cursors::positions(&schema, &next) {
             if op == "searchLane" { expected.retain(|id| id.starts_with("r0000")); }
@@ -116,3 +116,5 @@ fn w7r1b_search_cursor_memory() { crafted_cursors(Memory::new()); }
 fn w7r1b_search_cursor_sqlite() { crafted_cursors(Sqlite::new("w7r1b-cursors")); }
 
 mod lazy;
+
+mod forms;

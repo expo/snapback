@@ -155,12 +155,12 @@ impl Context {
 #[serde(rename_all = "lowercase")]
 pub enum ReadCut { Meter, Words }
 
-// @ref LLP 3000.007#18.1 — held search stays on the device; a server walk needs scoped lanes.
+// @ref LLP 3000.007#20.22.7 — held search stays on the device; server search uses the grouped or newest form.
 #[cfg(any(feature = "sqlite", feature = "postgres"))]
 pub(crate) fn server_query_allowed(schema: &crate::schema::Schema, name: &str) -> Result<(), Refusal> {
     if schema.operations.get(name).is_some_and(|fact| fact.held) {
         return Err(Refusal::new("E_QUERY_HELD", "residency", format!("query {name} is held: it runs only on the device"))
-            .rewrite("call this query with the local client; for server search, use the scoped server walk in `snapback4 guide search`, section \"Search every chat I'm in\"")
+            .rewrite("call this query with the local client; for server search, use the grouped or newest form in `snapback4 guide search`, section \"Search every chat I'm in\"")
             .guide("search"));
     }
     Ok(())

@@ -34,10 +34,6 @@ query inRoom(roomId: id, q: text <=100, c: cursor ?):
   require exists members[roomId, viewer] else NOT_MEMBER
   return messages[roomId] matching q after c last 50 by byRoomWords
 
-query everywhere(q: text <=100, c: cursor ?):
-  return merge messages matching q after c last 50 by byRoomWords:
-    [m.roomId] for m in members[viewer]
-
 query people(q: text <=100, c: cursor ?):
   return profiles matching q after c first 20 by byNameWords
 
@@ -79,14 +75,12 @@ on t, `.principal = viewer or exists t[.chatKey, viewer]` is decided by the
 chat alone because the row is its own witness, so a roster page pinned by
 the chat is complete and no second table is needed. The unscoped `byWords` under a per-room rule
 checks the rule per row and is never `complete` (`N_NEVER_COMPLETE` names
-it); use `everywhere` to search the viewer's rooms, or read on the device.
+it); use the grouped or newest form below, or read on the device.
 
-`everywhere` merges matching pages from the viewer's rooms, ordered by
-`at` and `id`: each lane is one verdict when its scope decides the rule,
-and the page is complete when all lanes are complete. The lane source needs no
-restated bound: its uniform prefix runs under the examined meter. `check --cost`
-prints `lanes ≤ meter`; an explicit `first N` above 50 still emits N_WIDE_MERGE.
-The device runs the same query over held rows.
+The newest form below merges the viewer's rooms by `at` and `id`, with
+one verdict per scope when its prefix decides the rule. Its uniform lane
+source runs under the examined meter: `check --cost` prints `lanes ≤ meter`;
+an explicit `first N` above 50 still emits N_WIDE_MERGE.
 A pinned conjunct such as `exists members[.roomId, viewer]` can deny a scope
 before word discovery even when another conjunct needs each row. Admitted
 non-uniform scopes keep per-row costs and remain incomplete; hidden rows

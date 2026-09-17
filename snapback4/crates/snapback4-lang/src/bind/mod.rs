@@ -283,9 +283,9 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             });
             let matching = merge.lanes.iter().any(|lane| lane.scan.prefix.iter().any(|key| matches!(key, snapback4_core::ir::IndexKeyExpr::WordPrefix(_))));
             let (message, rewrite) = if matching {
-                // @ref LLP 3000.007#18.1 — page scope discovery separately; a matching merge cursor cannot recover an opening cut.
+                // @ref LLP 3000.007#20.22.4 — a grouped filtered page continues membership discovery through a meter cut.
                 (format!("{} {}: the merge over {} reads {work}; a read past the {ceiling} examined ceiling returns `complete: false`", bound.program.kind.word(), bound.program.name, merge.table()),
-                    "`snapback4 guide search`, section \"Search every chat I'm in\": search held messages with one unscoped words index, or page memberships 50 at a time and exhaust each matching merge with its own result cursor before advancing the membership cursor; a result cursor alone does not continue undiscovered chats, an opening cut or a word-limit cut; a uniform lazy drain cut carries `next` after its last emitted row. Measure with `snapback4 check --cost`; if a held query answers this read, delete the merge")
+                    "use the grouped one-cursor form in `snapback4 guide search`, section \"Search every chat I'm in\", to search every membership through a meter cut; measure with `snapback4 check --cost`")
             } else if related_principals {
                 (format!("{} {}: read cost grows with the number of related principals (up to {lanes} lanes); a read past the {ceiling} examined ceiling returns `complete: false`", bound.program.kind.word(), bound.program.name),
                     "keep read-time merges for a bounded small number of related principals; for Following, `snapback4 init --recipe feeds --prefix feed`; measure with `snapback4 check --cost`; if a held query answers this read, delete the merge")
@@ -362,7 +362,7 @@ fn matching_merge_rewrite(schema: &Schema, scan: &snapback4_core::ir::Scan, tabl
         let (words_index, _) = table.indexes.iter().find(|(_, index)| index.word_component().is_some_and(|(position, text)| index.columns()[..position] == scope && text == fields))?;
         let (source_index, _) = membership.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().first() == columns.get(principal) && index.columns().last().is_some_and(|column| column == "id"))?;
         let prefix = key.iter().zip(&columns).filter_map(|(term, column)| matches!(term, RuleTerm::Field(_)).then(|| format!("m.{column}"))).collect::<Vec<_>>().join(", ");
-        Some(format!("merge {} matching q last {} by {words_index}: [{prefix}] for m in {members}[viewer] first 50 by {source_index} — one verdict per scope and a complete page; or read the page on the device", scan.table, scan.take.maximum()))
+        Some(format!("merge {} matching q last {} by {words_index}: [{prefix}] for m in {members}[viewer] by {source_index} — one verdict per scope; complete while every head opens and the page fits in one read; or read the page on the device", scan.table, scan.take.maximum()))
     })
 }
 

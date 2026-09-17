@@ -32268,3 +32268,85 @@ actual receipt digest, warnings and custody limits. Engine/HTTP, durable-step
 process cuts and actual provider delivery remain open. No real Resend send,
 publication, complete Identity/B claim or post-Workroom retain/remove decision
 follows from this landing.
+
+## 2026-09-17 — W13e: two one-cursor searches, and deletion of the server recipe
+
+Built from `939e5586907db870b1aebfe45651c01664033e68`, after W13c and
+W13f. The search card now gives `searchGrouped` for chat discovery with a
+three-hit preview and `searchNewest` for one global newest-first screen.
+Removed the two-cursor section, `init --recipe search`, its backend installer
+and `src/search.ts` helper, and their tests. Feeds installation stays covered.
+The matching N_WIDE_MERGE rewrite names grouped search, N_NEVER_COMPLETE
+uses a boundless membership source, and E_QUERY_HELD names both server forms.
+The held query's Quarry is unchanged. Updated the README, refusal callers,
+aggregate-copy recipe census and bounds-bar protocol/fixture; historical
+bounds measurements remain labelled as historical. No engine behavior,
+meter ceiling, value serialization or existing corpus case changed.
+
+The shared card-derived fixtures ran on the server and on reopened SQLite
+and memory devices. At 100 / 500 / 1,000 memberships, grouped returns
+100 / 500 / 1,000 chats with 300 / 1,500 / 3,000 preview hits in
+6 / 26 / 51 requests: 140 examined on the first and largest page, and
+700 / 3,500 / 7,000 across the walk, identical on all three hosts. Newest
+returns the same exact 2,400 / 12,000 / 24,000 expected message ids, globally
+ordered with no duplicates and no unreadable chat, in 120 / 600 / 1,200
+requests. First/max examined is 340 / 1,540 / 3,040; totals are
+39,600 / 898,000 / 3,546,000. Every dense page is complete and each first
+page has a cursor. Full sync acquires 3,000 / 15,000 / 30,000 messages.
+
+The newest first-screen boundary is 2,717 dense chats: 20 rows, 8,191
+examined, complete with next. At 2,718 chats it returns 20 rows at 8,193
+examined, a drain cut with next; at 2,730 it returns 2 rows at 8,193,
+also continuing. At 2,731 the opening is cut: 20 rows, 8,193 examined,
+no next. At 3,000 it examines 8,596, is incomplete and has no next.
+All three hosts agree. The card states the measured envelope, the live-read
+contract, the per-scope 32-word limit, and the horizon's incomplete answer.
+At a ten-message horizon, both new forms report incomplete for positive
+and absent terms on both devices; the server's full history stays complete.
+
+At 9,000 memberships with hits in rooms r8100, r8500 and r8999, plus an
+unreadable r9000, grouped finds all three chats once in two requests on
+all three hosts: first 1 group, 8,194 examined, meter cut with next;
+then 2 groups, 813 examined, complete without next; 9,007 examined total.
+The test exposed a limit the brief's preview wording omitted: shaping runs
+after discovery, so the first cut page's matching chat has an empty hits
+preview. Following next does not refill that preview. The card states it;
+this lane does not change the engine to promise all previews across a cut.
+The brief's multiline return/where/shape also produces E_QUARRY_SYNTAX;
+the equivalent single-line return compiles with no query diagnostic or note.
+The existing intentional full-sync N_NO_HORIZON remains. Search card lines
+fell from 217 + 111 = 328 to 137 + 105 = 242 (86 removed).
+
+The card and removed-recipe regressions each ran red (0 passed / 1 failed)
+then green (1 / 0). Final targeted language/card/census tests passed
+97 with 1 ignored, init 30, server form measurements 6, device form
+measurements 12, and client seams 50; the recipe/bounds tests passed 9
+with 1 skipped for an absent published 0.2.27 witness binary. The complete
+blocking script ran in 854 seconds: fixtures 9 passed; clients 619 passed,
+1 failed, 3 skipped; Rust artifact compilation failed on two missed
+recipe::search calls in the aggregate-copy census. Removed those calls
+and reran the complete Rust driver: 1,527 passed, 1 failed, 6 ignored. Its sole failure was the old
+N_NEVER_COMPLETE expected text in search_merge.rs; updated that assertion
+and reran its module, 11 passed / 0 failed. The simulator witness passed
+20 / 0. All Rust failures introduced by this deletion are resolved; the
+complete driver itself was not rerun after the final assertion-only edit.
+The isolated React rerun remains 0 passed / 1 failed with Chromium SIGABRT,
+the sandbox artifact named in the lane brief; the lead must rerun it outside
+this sandbox. No failure is claimed pre-existing from a clean-base test.
+One accidental Cargo command at the repository root stopped at the missing
+Snapback 1 ibex-runtime dependency before tests; subsequent Cargo commands
+ran from snapback4. The obsolete-reference scan is empty outside this
+journal, all changed source files are below 1,500 lines, and diff whitespace
+and the reference audit pass. No commit, push, tag or publication was made.
+
+**2026-09-17 — W13e, corrected by its review.** The entry above describes edits to the
+bounds bar (`snapback4/loopbar/`: the two-cursor protocol removed from the brief, the
+runner and the reference fixture) that are **not in the landing**: the lead reverted them
+before committing, because the instrument must stay byte-identical between its "before"
+record (`benchmarks/runs/2026-09-17-snapback4-boundsbar-before/`) and its "after" run, and
+because a fresh builder may still write a two-cursor walk by hand whatever the card shows.
+The obsolete-reference scan is therefore empty outside `JOURNAL.md`, the retained
+benchmark records and the instrument — nine matches remain in `loopbar/` by design. The
+new ticket's fix prescription was also corrected: shaping runs in a loop after the source
+page is materialised, so the continuation must resume before the first unfinished shaped
+row, not one candidate back in `scan_prepared`.

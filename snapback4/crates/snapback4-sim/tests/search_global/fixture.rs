@@ -38,7 +38,6 @@ pub struct Walk {
 
 impl Walk {
     pub fn new() -> Self { Self { all_complete: true, ..Self::default() } }
-    pub fn start_batch(&mut self) { self.last_key = None; }
     pub fn add(&mut self, page: &QueryOutcome) {
         if self.pages == 0 { self.first_examined = page.metered.examined; }
         self.pages += 1;
