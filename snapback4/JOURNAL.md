@@ -28984,3 +28984,51 @@ asks the author six rulings (28–33). Wave 12's drafted §20.21 is right about 
 *arriving* in the last day and wrong that posts *younger* than a day need a read-time
 sort. Lanes W14a and W14b are briefed in `~/projects/snapback-next-20260914/`, not
 launched: the host's load average was 37 with 18 GiB free.
+
+## 2026-09-17 — W13d: a bounds bar that walks the hub, before wave 13
+
+Built `loopbar/bounds-brief.md`, `bounds.mjs`, the deterministic seed, metric
+extractor and wire probes, reusing the ceremony process/copy/schema machinery.
+The packet gives a fresh builder only the published pin and logical inputs;
+check, builder acceptance and independent probes each get a fresh copy. Every
+attempt gets a JSONL record, including missing `green=`. The bar records chosen
+integer tokens, saved-check codes, guide lines read, bound vocabulary, per-task
+Quarry lines, table/job/permissive-derived-rule counts, and native per-request
+complete/cut/continuation/meter observations. N is at least three; no nested
+builder was launched and no fresh-builder trial was fabricated in this lane.
+
+Qualified the reference app on published **0.2.27**, binary SHA-256
+`ae7838c7ed3a9a4b4be3fa454af69e9cacb792b5a23ad81d12386ec7e3fd2be7`, with both
+one- and two-cursor search. The seed has 1,300 chats, 1,349 memberships, 99,390
+messages (99,090 hub matches), 1,000 authors, 1,411 follows, 50,000 posts and
+98 likes. Its five source tables receive 152,248 rows through mutations;
+seeding took **12.049 s / 12.788 s**. Hub search returns all matches in
+**50 / 5,005 requests**, examining **100,139 / 2,131,075** rows and
+**2,000 / 198,200** index entries. Sparse search finds exactly five chats in
+5 / 10 requests. All pages complete, no runtime cut; hidden newer matches
+absent. Both protocols give the exact 50-member roster and 50,000 unread total
+(4 requests, 2,052 examined together), and exact changing top tens (12 examined
+per read). The reference has 5 tables plus 2 maintains, 0 jobs, 1 permissive
+derived read rule, and 63 chosen integer literal occurrences.
+
+Following first pages examine **115 / 1,540 / 115** rows for 5 follows / 500
+follows / celebrity, identically in both copies. Sixty samples after three
+warm-ups: 500/5 p50 ratios **2.317× / 2.945×**, p95 **0.995× / 5.285×**;
+celebrity/small post-acknowledgement p50 **0.955× / 1.081×**, p95
+**0.874× / 1.220×**. Ratios are observations, not gates, on this loaded host.
+`loopbar/BOUNDS.md` keeps the full task/counter/latency table and reproduction;
+raw local evidence is `target/w13d-measurements.json` (not seeded data).
+
+Learned: the first two-cursor fixture used `group(page, 'roomId')` and lost the
+merge continuation. The multi-page regression was red (**11 pass, 1 fail**),
+then green (**12 pass, 0 fail**) after returning shaped group fragments that
+preserve it. The final suite, adding terminal-incomplete/cut coverage, is
+**13 pass, 0 fail, 0 skipped** with Node 24:
+`TMPDIR=/private/tmp node --test packages/snapback4/test/loopbar*.test.mjs`.
+`./ref-check --verbose`: 481 LLP docs, 9,055 refs, 0 errors, 0 unchecked.
+No cargo, wasm build, install, full Rust suite, commit or publication. Outside
+`loopbar/`, only the two-line package test entry point and this append changed.
+The brief's description of empty September 13 ceremony records was wrong: the
+retained before and after each report three successful runs. Its concrete task
+is roster/unread, while §21.5 calls it a digest; the bar implements the concrete
+brief and makes no digest or device-acquisition claim.
