@@ -21,7 +21,10 @@ pub fn baseline(catalog: &Catalog, module: &str, decl: &ast::ProgramDecl, diagno
 }
 
 pub fn snapshot(inputs: BTreeMap<String, Sources>, binder: Bind, measure: bool) -> BTreeMap<String, Record> {
-    let worker_limit = if std::env::var_os("SNAPBACK4_LOWERING_SHARD").is_some() { 2 } else { 8 };
+    // The golden census has eight ordinary test shards. Two workers per shard
+    // keep its nested concurrency bounded while still using sixteen workers
+    // when all shards are scheduled together.
+    let worker_limit = 2;
     let workers = std::thread::available_parallelism().map_or(1, usize::from).min(worker_limit).min(inputs.len());
     if workers <= 1 {
         return snapshot_shard(inputs, binder, measure);

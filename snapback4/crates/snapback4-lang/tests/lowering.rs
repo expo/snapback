@@ -13,17 +13,12 @@ fn without_ownership(catalog: &Catalog, module: &str, decl: &ast::ProgramDecl, d
     Binder::bind_with_ownership(catalog, module, decl, diagnostics, false)
 }
 
-#[test]
-fn baseline_golden_and_ownership_switch_agree_byte_for_byte() {
+fn baseline_golden_and_ownership_switch_agree_byte_for_byte(part: usize, count: usize) {
     let mut inputs = cases::generated();
     let generated_keys: std::collections::BTreeSet<_> = inputs.keys().cloned().collect();
     inputs.extend(cases::census());
-    if let Ok(spec) = std::env::var("SNAPBACK4_LOWERING_SHARD") {
-        let (part, count) = spec.split_once('/').expect("SNAPBACK4_LOWERING_SHARD must be part/count");
-        let (part, count): (usize, usize) = (part.parse().unwrap(), count.parse().unwrap());
-        assert!(count > 0 && part < count, "SNAPBACK4_LOWERING_SHARD must be a zero-based part/count pair");
-        inputs = inputs.into_iter().enumerate().filter(|(index, _)| index % count == part).map(|(_, input)| input).collect();
-    }
+    assert!(count > 0 && part < count);
+    inputs = inputs.into_iter().enumerate().filter(|(index, _)| index % count == part).map(|(_, input)| input).collect();
     let generated = inputs.keys().filter(|key| generated_keys.contains(*key)).count();
     let selected: Vec<_> = inputs.keys().map(|key| format!("{key}:")).collect();
     let enabled = snapshot::snapshot(inputs.clone(), snapshot::baseline, true);
@@ -52,3 +47,26 @@ fn baseline_golden_and_ownership_switch_agree_byte_for_byte() {
     println!("differential: {generated} generated bundles; 740 R1p bundles; {} programs; {} IR comparisons; {admissions} admission comparisons; {executions} execution comparisons; {} differences", enabled.len(), enabled.len() * 2, differences.len());
     assert!(differences.is_empty(), "{}", differences.join("\n"));
 }
+
+// Keep the complete lowering census in the ordinary test inventory while
+// exposing independent deterministic shards to the Rust harness. Their union
+// is exactly the prior single test's ordered input map, so every golden digest,
+// compiler-arm comparison, admission record, and execution observation remains
+// asserted without one monolithic test owning the blocking-suite critical path.
+macro_rules! lowering_shard {
+    ($name:ident, $part:expr) => {
+        #[test]
+        fn $name() {
+            baseline_golden_and_ownership_switch_agree_byte_for_byte($part, 8);
+        }
+    };
+}
+
+lowering_shard!(baseline_golden_and_ownership_switch_shard_0, 0);
+lowering_shard!(baseline_golden_and_ownership_switch_shard_1, 1);
+lowering_shard!(baseline_golden_and_ownership_switch_shard_2, 2);
+lowering_shard!(baseline_golden_and_ownership_switch_shard_3, 3);
+lowering_shard!(baseline_golden_and_ownership_switch_shard_4, 4);
+lowering_shard!(baseline_golden_and_ownership_switch_shard_5, 5);
+lowering_shard!(baseline_golden_and_ownership_switch_shard_6, 6);
+lowering_shard!(baseline_golden_and_ownership_switch_shard_7, 7);
