@@ -33455,3 +33455,1383 @@ Lead entry (Claude, orchestrating; lane S4A was Codex `gpt-6-astra` at xhigh). N
 **What the lane taught the brief.** serde's struct field-name list includes aliases (`Table.leave` also names `retain`), so it is not a positional count and struct visitors must consume their own fields; an empty struct must occupy one byte or a sequence of them is not bounded by its input; seven legacy held-search programs in the corpus have no typed JSON representation in this core and are pinned as refusals; `Auth` and `Residency` skip predicates test derived empty defaults here, while `RouteSpec.wait_ms` has a non-empty default and no skip predicate. `measure-wasm.sh --no-record`, a small option the lane added so a dirty tree can be measured without appending a line, stays on the branch with the rest.
 
 **Where the diet stands.** Landed today: S0/S1 (520,557 → 466,618 on the landed tree), S5 (−21,654), S1b (the content-reader repair; `main` had regressed to 505,030 and is now 451,283). Measured and kept on branches: S2 small maps (−19,897, shelved), S3 host NFC (392,551 on today's tree; needs the author's ruling), S4a (−34,781, stopped). Every rung that needs no ruling has been built and measured; the rest is S6, and the questions are gathered in LLP 3000 §7.
+
+## 2026-09-17 — W15a baseline: held polls lose effects; exact server-meter preservation needs clarification
+
+Lane W15a stopped before changing runtime behavior, at base
+`a1afab4e3625a64ffb80d19bf6cd83fc1f3a0b38`. The requested new deferred emit
+and the brief's requirement that every server meter field stay identical to
+that base conflict under the existing interpreter's charges. The smallest
+measured program is `effect notify`, then `mutation push(p: principal):`
+with `if not exists connected[p]: emit notify {recipient: p}`. With a held
+poll the base charges 6 steps and 311 heap bytes and records zero effects;
+with no poll it charges 9 steps and 513 heap bytes and records one effect.
+Both charge 6 output bytes and zero examined rows, index entries, rule
+probes and rows written. The same program remains `predicts: eligible`.
+The actual prediction entry point, measured by each meter field's minimum
+accepting ceiling, charges 9 steps, 513 heap bytes, 6 output bytes and zero
+for all four remaining fields on both SQLite and memory device stores.
+No ceiling was raised. An ordinary execution of the newly taken emit adds
+3 steps and 202 heap bytes on the server; prediction already reserves them.
+The clarification requested is whether the server may charge that new work
+while device charges remain exactly unchanged. No answer or changed ruling
+is assumed.
+
+Added engine regression reproductions for the held-poll omission and for
+claim-time satisfaction without a reconnect record, plus the 50-member
+row-count guard. These are deliberately red pending implementation; they
+are not a completed fix or qualification for landing. The device test pins
+all seven measured prediction counters. No arm-selection rule, new deadline,
+payload change, wire field, table or per-principal wake was implemented.
+The healthy-client obligation remains the mutation success path in
+`crates/snapback4/src/serve.rs` updating `Shared.seq` and calling
+`committed.notify_all()`, with `serve_changes.rs` waiting on that condition
+variable and the store head. A later wake filter must retain the presence
+principals, as the existing wake ticket already requires.
+
+Learned: the design's unchanged prediction reservation is consistent with
+recording the missing effect; literal equality to the server's old skipped
+branch is a different requirement. Do not hide the new branch's work to
+make that equality pass. The README, cards and accepted presence semantics
+remain unchanged until the implementation proceeds.
+
+The 50-member Clique fixture confirms the storage contrast on that base:
+49 held recipients produce **0 effect rows and 0 dependency rows per send**;
+49 graced recipients produce **49 effect rows and 49 dependency rows**, all
+49 satisfied by recorded re-polls with zero attempts. The grace send charges
+1,356 steps and 69,400 heap bytes; the held send charges 817 steps and
+43,297 heap bytes. Both charge 52 examined, 2 index entries, 3 rule probes,
+27 output bytes and 1 row written. The held-path after-fix measurement is
+not available because no runtime fix was made.
+
+Verification (all Cargo commands from `snapback4/`; Node 24.18.0 on PATH):
+`cargo test -p snapback4-sim --test clique w15a_ -- --nocapture` ended
+`test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 137 filtered out; finished in 0.06s`.
+There is no after-fix green result. The meter baseline command,
+`cargo test -p snapback4-device --test device w15a_guarded_send_meter_baseline_on_both_stores -- --nocapture`, ended
+`test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 255 filtered out; finished in 0.04s`.
+`bash snapback4/scripts/test.sh` (from the repository root) ended
+`== 2 failure(s) in 759 s`: the Rust artifact build found a test-only
+SQLite `u64` decoding error in the new cost probe, corrected to `i64`,
+and the client run had 608 passes, 1 failure and 3 skips out of 612 tests.
+The client failure was Chromium SIGABRT in `react.test.mjs`; its isolated
+`node --test packages/snapback4/test/react.test.mjs` rerun also had
+`ℹ pass 0` / `ℹ fail 1`, the named sandbox artifact.
+
+After the decoding correction, `node scripts/run-rust-tests.mjs` built and
+ran all 490 Rust executions and workspace doctests. Its failures were the
+three intentional W15a regressions and
+`clock_advance_preserves_a_live_action_claim_session_and_settlement`
+(the unchanged clock assertion at `tests/clock.rs:326`). The latter passed
+alone: `cargo test -p snapback4 --test clock clock_advance_preserves_a_live_action_claim_session_and_settlement -- --exact --nocapture` ended
+`test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 1.39s`.
+All 20 lifecycle tests passed. No unrelated product failure is labelled
+pre-existing. `./ref-check --verbose` ended
+`ref-check: ok — 483 LLP docs, 9076 refs in 24221 files, 0 errors, 0 unchecked`;
+`git diff --check` passed. Logs are `/private/tmp/w15a-red-final.log`,
+`/private/tmp/w15a-meter-final.log`, `/private/tmp/w15a-suite.log`,
+`/private/tmp/w15a-rust-final.log`, `/private/tmp/w15a-react-rerun.log`,
+`/private/tmp/w15a-clock-rerun.log` and `/private/tmp/w15a-ref-check-final.log`.
+No commit, push, tag or publication was made.
+
+
+## 2026-09-17 — W15a-2 continuation: the clarified bound exposes a base prediction under-reservation
+
+Kept the first session's tests and journal entry. The lead's clarification
+allows a held recipient to pay for the emit it now must take, pinned to
+the base graced charge; all existing absent/graced server charges and all
+device reservations must stay unchanged. It also explicitly requires a
+stop if any server execution costs more than prediction reserves. This
+continuation hit that stop before changing runtime code, on the same base
+`a1afab4e3625a64ffb80d19bf6cd83fc1f3a0b38` (the production source directories
+are byte-for-byte unchanged from HEAD).
+
+The smallest reproduction found has two distinct principals, a conjunction
+of necessary absence tests and one empty effect payload:
+
+```quarry
+effect notify
+mutation push(p: principal, q: principal):
+  if not exists connected[p] and not exists connected[q]:
+    emit notify {}
+```
+
+With `p = 'bob'`, `q = 'carol'`, viewer `alice`, and time 11,000 ms,
+the mutation is `predicts: eligible`. With both recipients absent, or
+both graced to 36,000 ms, the server charges 18 steps, 1,967 heap bytes,
+6 output bytes and zero examined rows, index entries, rule probes and
+rows written. The actual prediction entry point on **both SQLite and
+memory device stores** reserves 18 steps, **1,961 heap bytes**, 6 output
+bytes and zero for the other four fields. Each counter was measured by
+binary-searching that ceiling alone, with a fresh rolled-back transaction
+for every prediction. At heap ceiling 1,961 the device accepts and the
+server refuses `E_BOUND: heap bytes reached the ceiling 1961`, at
+`push:3:then:1`. At 1,967 both accept; the default-ceiling server records
+one effect. This is a six-byte under-reservation in the unchanged base,
+not a charge introduced by a held-poll implementation. The original
+payload `{recipient: p}` showed the same six-byte gap (2,062 server,
+2,056 prediction); a second emit enlarged it to 75 bytes (2,376 versus
+2,301). Reduced the retained regression to the single empty emit.
+
+Updated the first session's meter test name and expectation: held must
+match the measured base graced meter in every field and record one
+deferred effect. The original minimal one-principal program still measures
+9 steps / 513 heap / 6 output on both device stores and on the absent
+and graced server; held still measures 6 / 311 / 6 and loses the effect.
+All four other fields remain zero. That test is now red until the held
+fix lands. The new reservation test is also red, includes the positive
+server/device boundary, and exercises both absent and graced cases on
+both stores. The first session's three simulator regressions are retained.
+
+The 50-member measurement is unchanged: held = **817 steps, 43,297 heap
+bytes, 0 effect rows, 0 dependency rows**; graced = **1,356 steps, 69,400
+heap bytes, 49 effect rows, 49 dependency rows**. Both charge 52 examined,
+2 index entries, 3 rule probes, 27 output bytes and 1 row written. The
+existing graced test satisfies 49 effects with zero attempts via recorded
+re-polls; that is not the requested commit-wake witness. No held-path
+post-fix numbers or healthy-client wake evidence are claimed.
+
+Learned: "prediction evaluates both safe arms" is not by itself a proof
+that downstream dependency-copy reservations cover the server. The
+short-circuit assignment can carry a second principal on the server while
+prediction restores the untaken arm's locals. The unchanged absent/graced
+server and unchanged device charges cannot simultaneously satisfy the new
+server ≤ prediction requirement. Per the explicit stop clause, no arm
+selection, delta constant, claim behavior, payload, prediction eligibility,
+ceiling, README or guide card was changed. The dated paragraph in LLP
+3000.007 §19.1 records this blocker without claiming ruling 32 implemented.
+
+Targeted verification in this continuation (Cargo from `snapback4/`):
+`cargo test -p snapback4-device --test device w15a_ -- --nocapture`
+first reproduced the larger-payload counterexample with
+`test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 255 filtered out; finished in 0.06s`.
+After reducing that payload and updating the held-equals-graced expectation,
+the same command ended
+`test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 255 filtered out; finished in 0.11s`.
+`cargo test -p snapback4-sim --test clique w15a_ -- --nocapture`
+ended
+`test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 137 filtered out; finished in 0.04s`.
+There is no after-fix green result: implementation stopped on the measured
+contract conflict. No taken arm differs from the base, including mixed
+held/absent/graced conditions. The required healthy-client wake still comes
+from `serve.rs:1057` (`shared.committed.notify_all()` after a sent mutation)
+and `serve_changes.rs:49` (the held poll's wait); no new wake behavior or
+wake-driven test was built. No commit, push, tag or publication was made.
+
+Full verification used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`
+and, from the repository root, `bash snapback4/scripts/test.sh`. It ended:
+
+```text
+== 2 failure(s) in 757 s
+   cargo test
+   client tests
+```
+
+Summing the Rust summaries gives **1,452 passed, 8 failed, 6 ignored**.
+Five failures are the retained/new W15a regressions above; the other three
+are `clock_advance_preserves_a_live_action_claim_session_and_settlement`
+and two witness driver timeouts. All 20 lifecycle tests passed. Clients:
+
+```text
+ℹ tests 612
+ℹ pass 608
+ℹ fail 1
+ℹ skipped 3
+```
+
+The client failure is the named sandbox Chromium SIGABRT. Its isolated
+rerun, from `snapback4/` with the same Node 24 PATH,
+`node --test packages/snapback4/test/react.test.mjs`, again ended
+`ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`, `ℹ skipped 0`.
+The three Rust failures were rerun individually, from `snapback4/`:
+
+```text
+cargo test -p snapback4 --test clock clock_advance_preserves_a_live_action_claim_session_and_settlement -- --exact --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 16 filtered out; finished in 3.59s
+
+cargo test -p snapback4 --test witness driver::cli_invalid_receipts_missing_video_and_step_timeout_fail_and_stop_backend -- --exact --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 16.80s
+
+cargo test -p snapback4 --test witness driver::cli_missing_app_and_ambiguous_simulator_never_start_a_backend -- --exact --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 1.74s
+```
+
+The clock failure remains the assertion at `tests/clock.rs:326`,
+`a refused lease transaction must not advance the clock`; it failed on
+this base in the full run and alone. Unlike the first session's passing
+rerun, this continuation does not claim it green. Both witness timeouts
+passed alone. The production source and these unrelated test files were
+verified unchanged against **`a1afab4e3625a64ffb80d19bf6cd83fc1f3a0b38`**;
+no later commit or hypothetical pre-existing state is invoked.
+
+At the repository root, `./ref-check --verbose` ended
+`ref-check: ok — 483 LLP docs, 9076 refs in 24222 files, 0 errors, 0 unchecked`.
+`git diff --check` passed. Logs: `/private/tmp/w15a2-meter-before.log`,
+`/private/tmp/w15a2-meter-final.log`, `/private/tmp/w15a2-sim-final.log`,
+`/private/tmp/w15a2-suite.log`, `/private/tmp/w15a2-react-rerun.log`,
+`/private/tmp/w15a2-clock-rerun.log`,
+`/private/tmp/w15a2-witness-invalid-rerun.log`,
+`/private/tmp/w15a2-witness-missing-rerun.log` and
+`/private/tmp/w15a2-ref-check.log`. No diagnostic text or code changed.
+
+## 2026-09-17 — W15a-3: unconfirmed held polls record effects; the commit's wake confirms healthy clients
+
+Continued from `a1afab4e3625a64ffb80d19bf6cd83fc1f3a0b38` under the
+lead's replacement R1–R4 contract. Kept both earlier entries and their
+regressions. The named two-principal reservation test is unchanged apart
+from the required ignore attribute naming
+`issues/20260917-snapback4-presence-conjunction-server-charges-more-heap-than-prediction-reserves.md`;
+that ticket already exists on main and was not created here.
+
+Built the guard decision separately from the value of a presence read.
+The ordinary interpreter still produces the open-poll count and its
+ordinary aliases. Beside it, fixed-size scalar metadata projects a held
+count to zero. A guard takes that projected outcome only when its existing
+necessary-absence proof authorizes the arm and that arm contains an emit.
+The planner follows aliases and the lowered short-circuit accumulators,
+marks only setup feeding a qualifying guard, and restores each ordinary
+accumulator when projected control took its previously untaken setup arm.
+The planner borrows existing IR and marks existing slots: no second
+execution of application expressions, no extra heap plan, no hidden emit
+work and no prediction meter changes. Positive-only guards and unproven
+forms keep their ordinary decisions. Independent conditions are still
+necessary: `force and not online` cannot emit when `force` is false.
+
+For mixed held/absent/graced necessary absences, held and graced reads
+supply their deadlines, absent reads supply none, and the existing guard
+machinery accumulates dependencies. The queue waits for the latest deadline;
+a post-commit arrival within any one principal's own window satisfies it.
+Only the durable reconnect record now satisfies at first claim. An already
+open poll cannot do so. Payload dependencies do not extend or satisfy the
+guard, and payloads retain the original count/boolean. Queries, presence
+that decides rows/results, eligibility and both device stores retain their
+base behavior and metering.
+
+`PRESENCE_CONFIRMATION` is five seconds beside `PRESENCE_GRACE` (35 seconds)
+in the core; `Live` imports both so abstract presence providers and the
+HTTP host share one constant. The added `Presence::effect_presence_at`
+observation pins a held deadline to the mutation's actual `Context.now`.
+The existing grace computation is unchanged. The serve test drives `Live`
+directly for a vanished client, invokes the implementation of
+`snapback4 clock advance 6s` against the host, and claims exactly once
+while that old poll is still open. Simulator regressions retain queued
+deadlines/reconnect records across restart and verify idempotent replay.
+
+Measured counters, in order **examined / index entries / rule probes /
+steps / heap bytes / output bytes / rows written**:
+
+| Program and world | Before | After | Effect / dependency rows after |
+| --- | --- | --- | --- |
+| minimal held | 0 / 0 / 0 / 6 / 311 / 6 / 0 | 0 / 0 / 0 / 9 / 513 / 6 / 0 | 1 / 1 |
+| minimal absent | 0 / 0 / 0 / 9 / 513 / 6 / 0 | identical | 1 / 0 |
+| minimal graced | 0 / 0 / 0 / 9 / 513 / 6 / 0 | identical | 1 / 1 |
+| minimal prediction, either store | 0 / 0 / 0 / 9 / 513 / 6 / 0 | identical | discarded |
+| 50 members, 49 held | 52 / 2 / 3 / 817 / 43,297 / 27 / 1 | 52 / 2 / 3 / 1,356 / 69,400 / 27 / 1 | 49 / 49 |
+| 50 members, 49 graced | 52 / 2 / 3 / 1,356 / 69,400 / 27 / 1 | identical | 49 / 49 |
+| 50-member prediction, either store | 52 / 2 / 1 / 1,367 / 69,843 / 27 / 1 | identical | discarded |
+
+The held send's price is **+539 steps and +26,103 heap bytes**, plus the
+49 effect and 49 dependency rows it previously lost. The minimal send adds
+3 steps and 202 heap bytes. Held equals graced in every measured field,
+including the alias fixtures with independent false/true conditions; no
+R3 difference is required for these programs. Device rule probes differ
+from server rule probes already at the base; this lane preserves both,
+as the final R4 requires rather than the earlier universal reservation
+comparison. These are interpreter/storage counts, not a latency claim.
+
+The 50-member cost fixture was moved verbatim out of `tests/clique.rs` to
+`tests/grace_effects/presence_cost.q`, shared by the simulator, device meter
+and host wake tests. The host witness reaches the actual
+`serve_changes.rs` Condvar wait, commits through HTTP, and issues each
+client's next authenticated poll only after that client's held handler
+returns. The wake is `serve.rs`'s `shared.committed.notify_all()` in the
+successful mutation reply path (line 1065 in this tree), consumed by
+`serve_changes.rs`'s `wait_timeout` (line 51). Both a message commit and a
+row-less effect commit produce **49 effect rows, 49 dependency rows,
+49 post-commit re-polls, 49 satisfied effects and zero attempts**. The
+row-less variant protects the dependency wake when the future partition
+filter lands. No per-principal wake was added.
+
+Learned: 49 simultaneous network polls do not fit this host's current
+32-waiter admission cap (and socket admission has its own limits). The
+first socket fixture exposed those limits; the final test directly invokes
+the real poll handler with authenticated test requests and keeps the real
+wait/notify and mutation HTTP paths. Also, some compound presence alias
+spellings are already `predicts: never` because of assignment/value-shape
+classification; this lane preserves that classification and exercises the
+admitted alias/guard forms. Neither observation was used as a stop reason.
+
+The effects card, presence card and README now describe recording a push
+for an unconfirmed poll, five-second confirmation, post-commit-only
+cancellation, and the unchanged dispatch-time pattern for other decisions.
+The previous blocker paragraph in LLP 3000.007 §19.1 was replaced by the
+implementation and measured price. No new card word, diagnostic code,
+wire field, table, ceiling or serialized value/IR form was introduced.
+Nothing was committed, pushed, tagged or published; no other machine or
+sub-agent was used.
+
+Before/after qualification uses Cargo from `snapback4/`. The finalized
+before tests ran with all five affected production files restored from
+base `a1afab4e3625a64ffb80d19bf6cd83fc1f3a0b38`, retaining only the
+behavior-free test hook in `serve.rs`/`serve_changes.rs`. A `finally` block
+restored the saved implementation. Full before logs are
+`/private/tmp/w15a3-{sim,device,serve}-base-final.log`:
+
+```text
+cargo test -p snapback4-sim --test clique w15a_ -- --nocapture
+test result: FAILED. 2 passed; 6 failed; 0 ignored; 0 measured; 137 filtered out; finished in 0.30s
+
+cargo test -p snapback4-device --test device w15a_ -- --nocapture
+test result: FAILED. 1 passed; 1 failed; 1 ignored; 0 measured; 255 filtered out; finished in 0.30s
+
+cargo test -p snapback4 --bin snapback4 w15a_ -- --nocapture
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 65 filtered out; finished in 0.04s
+```
+
+The passing base tests are the unchanged value/meter controls and the
+50-member prediction baseline; the ignored test is the lead's named
+reservation defect. Early draft fixture errors (a store opened directly
+under the shared temp directory, already-ineligible compound forms, and
+a missing `Options.json` field) were corrected before this final base
+run. One targeted Cargo command was accidentally issued at the repository
+root; it refused package selection, and was immediately rerun from
+`snapback4/`. It performed no root build.
+
+After implementation, the affected suites (including the original grace
+coverage and updated expectations for now-durable held effects) passed:
+
+```text
+cargo test -p snapback4-sim --test clique grace_effects:: -- --nocapture
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 127 filtered out; finished in 1.18s
+
+cargo test -p snapback4-device --test device presence:: -- --nocapture
+test result: ok. 12 passed; 0 failed; 1 ignored; 0 measured; 245 filtered out; finished in 1.16s
+
+cargo test -p snapback4 --bin snapback4 w15a_ -- --nocapture
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 65 filtered out; finished in 0.10s
+```
+
+The final host run includes both message and row-less commit wakes. Logs:
+`/private/tmp/w15a3-grace-final.log`,
+`/private/tmp/w15a3-presence-final.log`,
+`/private/tmp/w15a3-serve-final-rowless.log`.
+
+The first complete W15a-3 suite ran from the repository root with Node 24:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+== 2 failure(s) in 608 s
+   cargo test
+   client tests
+```
+
+Rust summaries totaled **1,466 passed, 1 failed, 7 ignored**. The failure
+was this lane's presence-card wording: the guide test requires the existing
+`In tests: clock advance 36s` lead-in. Restored that lead-in and kept the
+new `clock advance 6s` sentence. The affected guide suite, from `snapback4/`,
+then passed:
+
+```text
+cargo test -p snapback4-lang --test guide -- --nocapture
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+```
+
+All runtime suites passed in that complete run, including the previously
+load-sensitive clock, witness and lifecycle tests. Client summary:
+
+```text
+ℹ tests 612
+ℹ pass 608
+ℹ fail 1
+ℹ skipped 3
+```
+
+The sole client failure was the named sandbox Chromium `SIGABRT`.
+An isolated rerun from `snapback4/`, with the same Node 24 PATH,
+reproduced it:
+
+```text
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ skipped 0
+```
+
+This artifact also occurred against unchanged production sources at base
+`a1afab4e3625a64ffb80d19bf6cd83fc1f3a0b38` in W15a-2's full-suite and
+isolated logs; the React test remains identical to that commit. It is not
+a claim that the guide failure was pre-existing. Logs for this run:
+`/private/tmp/w15a3-suite.log`, `/private/tmp/w15a3-guide-final.log`,
+`/private/tmp/w15a3-react-alone.log`.
+
+The wasm build passed with a size warning: **1,608,819 bytes raw,
+470,404 bytes gzip**, versus the base run's 1,601,389 / 467,605. This adds
+**7,430 raw / 2,799 gzip bytes**; gzip is now 3,404 bytes above the existing
+467,000-byte budget (the base was 605 above). The existing diet ticket is
+`issues/20260913-snapback4-wasm-device-diet.md`; no size budget was raised.
+
+The final regression-only commands match the before filters exactly:
+
+```text
+cargo test -p snapback4-sim --test clique w15a_ -- --nocapture
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 137 filtered out; finished in 0.65s
+
+cargo test -p snapback4-device --test device w15a_ -- --nocapture
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 255 filtered out; finished in 0.08s
+```
+
+Logs: `/private/tmp/w15a3-sim-after-final.log` and
+`/private/tmp/w15a3-device-after-final.log`. The host before/after filter
+is already identical above. A line-count check of every changed code
+file passed; the largest is `tests/clique.rs` at 1,418 lines.
+
+After the wording correction, the complete suite ran again from the
+repository root with the prescribed Node 24 PATH:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+== 1 failure(s) in 462 s
+   client tests
+```
+
+The 502 Rust summary lines total **1,467 passed, 0 failed, 7 ignored**.
+The seven ignored tests include the one this lane was explicitly told to
+ignore. Package/wasm builds, package and application typechecks, the app
+check and all nine fixture wrapper tests passed. The client result was:
+
+```text
+ℹ tests 612
+ℹ pass 608
+ℹ fail 1
+ℹ skipped 3
+```
+
+Only the same isolated Chromium `SIGABRT` remained. The complete log is
+`/private/tmp/w15a3-suite-final.log`; no runtime, guide, clock, lifecycle
+or witness failure remained in this final run. Root `git diff --check`
+passed. Root `./ref-check --verbose` reported:
+
+```text
+ref-check: ok — 483 LLP docs, 9078 refs in 24225 files, 0 errors, 0 unchecked
+```
+
+No diagnostic text changed and no new `E_` or `N_` code was added.
+Outside the original four production files, `engine/mod.rs` owns the
+shared constants and commit-clock presence observation; `serve_changes.rs`
+contains only the test wait hook. The remaining touched files are the
+authorized tests/shared fixture, cards, README, LLP record and this journal.
+
+## 2026-09-17 — W15a-4: blind-review fixes, bounded setup discovery and the truthful meter contract
+
+Continued from `fb63287a11e83ac0cebb14bcb443c3f07146d162`, a clean tree,
+after reading both supplied blind reviews in full. This is the fourth
+W15a entry; the earlier three entries remain unchanged. No commit, push,
+tag, publication, sub-agent or remote machine was used.
+
+GPT found two substantive problems: exponential unmetered setup discovery,
+and the impossibility of universal held ≤ graced charges while an ordinary
+payload or a separate positive-presence emit retains its value and arm.
+The lead withdrew R4, restricted R3 to R3′ and supplied I1. The latter is
+satisfied by both review compositions below; neither required a runtime
+semantic change. The two families also requested wasm exclusion and more
+precise admission/cancellation wording.
+
+### Setup discovery (F1)
+
+Replaced recursive backward alias expansion with a forward graph of
+reaching statement definitions, using each statement's address as identity.
+The existing independence proof prunes independent definitions before their
+inputs enter that graph. A worklist marks each definition once, shared
+across all qualifying guards in one preparation. Assignment to the same
+variable introduces a different definition; the reassignment test exercises
+two presence-dependent boolean setups followed by an independent `false`.
+The graph walk is unmetered, as required: no device prediction charge or
+server meter allowance changed. Conditional and loop-carried values retain
+the conservative proof boundary.
+
+Two positive simulator regressions use the review's alias DAG, both as an
+independent top-level guard and as the independent operand of a necessary
+absence guard. The operand is `aN and not exists connected[p]`. An initial
+probe with the reverse order hit the existing binder's variable-size
+conditional-value classification; changing the operand order keeps the
+requested admitted shape without changing the binder. Every mutation
+records the expected effect and still reads `online: true` in its payload.
+Default depth is 200 with a 5,000 ms wall-clock bound. The bounded baseline
+measurement used depth 24 and a 100 ms bound; no depth-30 or depth-200
+exponential baseline was run.
+
+| Shape | Depth 24 before | Depth 24 after | Depth 200 after F1 | Depth 200 after F3 |
+| --- | ---: | ---: | ---: | ---: |
+| Independent guard | 208.905 ms | 0.231 ms | 1.990 ms | 2.717 ms |
+| Independent operand | 208.078 ms | 0.233 ms | 3.441 ms | 3.256 ms |
+
+These are mutation elapsed times on this loaded host, not compiler or
+build times. Dedicated before/after logs are
+`/private/tmp/w15a4-alias-before-final.log` and
+`/private/tmp/w15a4-alias-after.log`. The complete new-test baseline rerun
+also measured 183.494 / 183.007 ms before and 1.071 / 0.501 ms after at
+depth 24; the improvement does not depend on a single timing sample.
+
+### Meter compositions (F2)
+
+The shared Quarry fixture adds an unconditional `notes {n: 7}` insert and
+returns `7`, so row/result parity is a positive observation, not an empty
+write-set assertion. Both mutations remain `predicts: eligible`.
+
+- Complementary guards: held records **two** effects, one deferred with
+  exactly one `bob` dependency and one immediate. Graced records one
+  deferred effect. A timely reconnect satisfies only the deferred effect;
+  the held positive-presence effect still claims normally.
+- Shared payload: `online and true` remains **true for held**, false for
+  graced. Held evaluates the ordinary boolean setup in the payload; grace
+  skips it. Both record one deferred effect with one dependency.
+
+The device tests measure every field through `engine::local::predict`,
+using the exact minimum accepting ceiling, on both SQLite and MemoryStore.
+They also execute prediction to inspect the actual row and result. Simulator
+I1 assertions use those pinned prediction vectors. The native device tests
+pin R1 and the graced R2 vector as well as asserting I1 field by field.
+
+Vectors are `[examined, index_entries, rule_probes, steps, heap_bytes,
+output_bytes, rows_written]`:
+
+| Composition | Held | Graced | Prediction (both stores) |
+| --- | --- | --- | --- |
+| Complementary guards | `[0, 1, 0, 25, 2737, 9, 1]` | `[0, 1, 0, 23, 2630, 9, 1]` | `[0, 1, 0, 25, 2737, 9, 1]` |
+| Shared boolean payload | `[0, 1, 0, 28, 3793, 9, 1]` | `[0, 1, 0, 26, 3656, 9, 1]` | `[0, 1, 0, 28, 3857, 9, 1]` |
+
+Held exceeds graced by 2 steps / 107 heap bytes for complementary guards
+and 2 steps / 137 heap bytes for the shared payload. I1 holds: complementary
+held equals prediction, and shared-payload prediction reserves 64 more heap
+bytes than held. All other fields match. These are behavior-preservation
+controls, already green at `fb63287a11`; they are not claimed as failing
+runtime regressions before this repair. For the baseline rerun, only the
+two modified engine sources were temporarily read from that exact commit
+and written into place; a `finally` block restored the fixed bytes. No git
+checkout/reset/stash or extra worktree was used.
+
+R3′ retains equality where presence values feed only proven necessary
+absence guards, with neither positive-presence emitting arms nor boolean
+operations over presence in payloads. All existing isolated equality and
+unchanged-form tests remain intact. The known two-principal conjunction
+heap defect remains ignored with its original ticket annotation and test
+body unchanged; no new I1 exception was found. Its earlier verified base
+is `a1afab4e3625a64ffb80d19bf6cd83fc1f3a0b38` (W15a-2/3 above), not a
+new execution of that ignored test in this continuation.
+
+### Device size and published wording (F3–F4)
+
+`cfg(not(target_arch = "wasm32"))` excludes the setup graph and walkers,
+extra Guard fields, scalar projection, Tracked/EffectPresence projection
+fields, connected-count substitution and boolean accumulator restore.
+Wasm's `presence_arm` returns `actual`; the old proof, dependency and
+prediction charging machinery remains compiled. Native behavior is unchanged.
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash scripts/build-wasm.sh
+Before, at fb63287a11:
+wasm 1608819 B raw, 470404 B gzip (budget 467000: OVER by 3404 B — issues/20260913-snapback4-wasm-device-diet.md)
+After F3:
+wasm 1601277 B raw, 467632 B gzip (budget 467000: OVER by 632 B — issues/20260913-snapback4-wasm-device-diet.md)
+```
+
+Reduction: **7,542 raw bytes / 2,772 gzip bytes**. For comparison, the
+preceding entry measured the older `a1afab4e36` base at 467,605 gzip bytes;
+the repaired artifact is 27 bytes above that earlier artifact. This lane
+rebuilt the `fb63287a11` and repaired artifacts, not `a1afab4e36`.
+The 467,000-byte report-only budget is unchanged.
+
+The effects/presence cards and README now promise durable admission,
+within-window cancellation, ordinary effect delivery policies and charging
+of safe untaken presence arms. A mutation's successful row/result values
+are independent of connection state; selected effect arms and charges can
+vary, and an ordinary meter refusal can still roll back a mutation. The
+successful-commit qualification avoids repeating the review's false
+universal outcome claim. The paved absence form retains held/graced/absent
+charge equality. The dispatch-time pattern remains. LLP 3000.007 §19.1
+appends the lead's R3′/I1 ruling, withdraws R4, and explicitly supersedes
+W7b's live-at-claim cancellation text without editing W7b. The older
+round-1 absolute reservation sentence is corrected to the safe-arm charge.
+No `E_`/`N_` code or diagnostic text changed.
+
+### Review dispositions (all nine findings)
+
+| Finding | Disposition |
+| --- | --- |
+| GPT High 1, universal R3/R4 counterexamples | Preserved correct hedging and ordinary payload values; added both simulator/device compositions, measured I1 and recorded the lead's corrected contract. |
+| GPT High 2, exponential setup traversal | Forward definition graph, independence pruning and one visited set per preparation; positive depth-200 tests and red/green depth-24 measurements. |
+| GPT Medium 3, wasm projection | Compile-gated all requested machinery, measured −2,772 gzip bytes. |
+| GPT Medium 4, delivery/reservation promises | Durable admission, within-window cancellation, ordinary policy/worker/lease/replay semantics; prediction charges safe untaken arms. |
+| Grok Medium 1, wasm projection | Same F3 repair; wasm retains ordinary values and prediction proof/dependency charging. |
+| Grok Medium 2, presence-card lead-in | Replaced send-time connected-client exclusion with unconfirmed deferral in card and README. |
+| Grok Low 1, historical W7b text | Appended an explicit supersession in §19.1; W7b text retained. |
+| Grok Low 2, simulator does not drive commit wake | Left the split intact: simulator pins cost/row counts; host witness drives the real commit wake and subsequent authenticated poll. |
+| Grok's separate pre-existing conjunction heap finding | Left the exact ignored test and ticket reference intact; no meter fix, ceiling increase or expanded exception. |
+
+The healthy witness still goes from `serve.rs`'s
+`shared.committed.notify_all()` through `serve_changes.rs`'s actual
+`committed.wait_timeout`, then issues each client's next authenticated poll.
+Both row-writing and rowless cases reported **49 held, 49 effects,
+49 dependencies, 49 re-polls, 49 satisfied, zero attempts**.
+No per-principal wake was added.
+
+### Targeted validation
+
+Cargo commands below ran from `snapback4/`; output redirection is omitted.
+One earlier mistyped invocation of the simulator command from the repository
+root exited 101 before running any tests and was immediately rerun from the
+correct workspace. No root-workspace file changed.
+
+```text
+W15A_ALIAS_DEPTH=24 cargo test -p snapback4-sim --test clique w15a4_alias_dag -- --nocapture
+Initial probe (reverse-order operand not eligible; corrected as described above):
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 145 filtered out; finished in 0.44s
+
+W15A_ALIAS_DEPTH=24 W15A_ALIAS_BUDGET_MS=100 cargo test -p snapback4-sim --test clique w15a4_alias_dag -- --nocapture
+Before:
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 145 filtered out; finished in 0.23s
+After:
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 145 filtered out; finished in 0.01s
+
+W15A_ALIAS_DEPTH=24 W15A_ALIAS_BUDGET_MS=100 cargo test -p snapback4-sim --test clique w15a4_ -- --nocapture
+Base fb63287a11 engine:
+test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 145 filtered out; finished in 0.24s
+Fixed engine:
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 145 filtered out; finished in 0.11s
+
+cargo test -p snapback4-sim --test clique grace_effects:: -- --nocapture
+After F1:
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 127 filtered out; finished in 0.87s
+After F3 and the composition/reassignment additions:
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 127 filtered out; finished in 1.56s
+
+cargo test -p snapback4-device --test device w15a4_ -- --nocapture
+Initial composition measurement:
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 258 filtered out; finished in 0.09s
+Base fb63287a11 engine:
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 258 filtered out; finished in 0.10s
+Fixed engine:
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 258 filtered out; finished in 0.11s
+
+cargo test -p snapback4-device --test device presence:: -- --nocapture
+test result: ok. 14 passed; 0 failed; 1 ignored; 0 measured; 245 filtered out; finished in 1.22s
+
+cargo test -p snapback4-lang --test guide -- --nocapture
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+cargo test -p snapback4 --bin snapback4 w15a_ -- --nocapture
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 65 filtered out; finished in 0.20s
+```
+
+Logs are `/private/tmp/w15a4-*.log`. All changed source files fit the
+1,500-line cap (largest 882); no Markdown was compressed to meet it.
+
+The required complete suite ran **once**, after the final code and card
+changes, from the repository root:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+== 1 failure(s) in 723 s
+   client tests
+```
+
+All 509 Rust summary lines total **1,474 passed, 0 failed, 7 ignored**;
+the workspace doctests also passed. Workspace and wasm builds, package
+build/typecheck, chat check, both app typechecks and all nine fixture
+wrapper tests passed. The wasm build repeated 1,601,277 raw / 467,632 gzip
+bytes. Client summary, verbatim:
+
+```text
+ℹ tests 612
+ℹ pass 608
+ℹ fail 1
+ℹ skipped 3
+```
+
+The sole failure was Chromium `SIGABRT` at `chromium.launch` in
+`packages/snapback4/test/react.test.mjs:74`, before any page is loaded.
+The required isolated rerun, from `snapback4/` with Node 24, reproduced it:
+
+```text
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ skipped 0
+```
+
+This harness launches no backend or wasm device. Its source, all referenced
+React/reference-app sources, browser helper, package manifest and Bun lock
+were checked unchanged against the exact base
+`fb63287a11e83ac0cebb14bcb443c3f07146d162` with `git diff --exit-code`.
+The isolated failure therefore reproduces the base's browser-launch inputs,
+not a changed presence interpreter path. The earlier W15a-2/3 entry also
+records it at `a1afab4e3625a64ffb80d19bf6cd83fc1f3a0b38`. No clock,
+lifecycle, witness or client timeout failure occurred in this complete run.
+Logs: `/private/tmp/w15a4-suite.log` and
+`/private/tmp/w15a4-react-alone.log`.
+
+Final root checks (Node 24 on PATH), verbatim reference summary:
+
+```text
+./ref-check --verbose
+ref-check: ok — 483 LLP docs, 9079 refs in 24227 files, 0 errors, 0 unchecked
+
+git diff --check
+```
+
+The diff check exited zero with no output. The old journal bytes are an
+exact prefix of this file; W7b's historical paragraph and the existing
+ignored conjunction test were byte-compared with the base and are unchanged.
+Outside `engine/presence.rs` and `engine/runner.rs`, the changes are only
+requested tests/fixture wiring, guide cards, package README, LLP record and
+this fourth journal entry. The existing simulator meter helper gains only
+`pub(super)` for reuse by the new simulator composition tests. No out-of-scope
+production file was touched. No diagnostic before/after text applies:
+there is no new or changed diagnostic or note.
+
+### Final audit correction: I1 has another baseline exception
+
+The earlier sentence in this fourth entry saying "no new I1 exception was
+found" is superseded by this final cross-check. Both requested review
+compositions satisfy I1, but the existing 50-member measurements already
+contradict its universal **every-field** wording: server held and graced
+both use **3 rule probes**, while device prediction reserves **1**.
+That is separate from the ticketed conjunction heap gap.
+
+Reverified against the exact engine sources at
+`fb63287a11e83ac0cebb14bcb443c3f07146d162`, using the same temporary source
+replacement and guaranteed restoration described above:
+
+```text
+cargo test -p snapback4-sim --test clique w15a_fifty -- --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 149 filtered out; finished in 0.04s
+
+cargo test -p snapback4-device --test device w15a_fifty -- --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 259 filtered out; finished in 0.10s
+```
+
+The tests pass because they explicitly pin the unequal baseline vectors:
+
+```text
+Held/graced server:       [52, 2, 3, 1356, 69400, 27, 1]
+Prediction, both stores:  [52, 2, 1, 1367, 69843, 27, 1]
+```
+
+Order: examined, index entries, rule probes, steps, heap bytes, output
+bytes, rows written. The device trusts synced reads where the server
+performs read-rule checks (`engine/read.rs`, `trust_synced_read` and
+`scan_prepared`); this difference is independent of the new projection.
+R3′ still holds in this fixture. Preserving R1/R2 means this lane cannot
+turn universal I1 into an implemented guarantee by changing these charges.
+LLP §19.1 now carries I1 as the lead's intended invariant, explicitly names
+both baseline exceptions and distinguishes the two passing composition
+checks from a universal claim. The cards already make only the narrower,
+true claim that prediction charges safe untaken arms.
+
+No new ignored test, altered meter or new ticket was introduced for this
+contract qualification. Logs:
+`/private/tmp/w15a4-fifty-sim-base.log` and
+`/private/tmp/w15a4-fifty-device-base.log`. The fixed engine bytes were
+restored exactly; the complete suite was not rerun. Only the LLP and this
+journal gained the finding after the complete run.
+
+
+## 2026-09-17 — W15a-5: round-2 review fixes (fifth lane entry)
+
+Continued `sb4/w15a` at exact base
+`7a8a5b37441812582e38f4d9f6860b6cfad6216a`. This is the response to
+GPT's two round-2 findings; no commits, pushes, tags or publications.
+Earlier journal entries remain unchanged. The following I1 replaces the
+earlier I1 and its final-audit qualification in this lane's fourth entry:
+
+> **I1 (final).** For the same program and arguments, in every meter field,
+> the server's charge for a **held** recipient is at most the **larger** of
+> (a) what device prediction reserves and (b) what the server charges for a
+> **graced** recipient. — *The projection never gives the server a way to
+> exceed prediction that a graced recipient did not already have.*
+
+### F5 — assert the final invariant, retain the existing defect
+
+One shared `assert_i1` names the field on failure and compares held against
+`max(prediction, graced)`. The simulator and device suites use it for the
+minimal send, fifty-member send, complementary guards, shared boolean
+payload and two-principal conjunction. Both SQLite and memory predictions
+are measured by the existing real `local::predict` boundary search, moved
+unchanged into the shared test helper. The conjunction I1 test is active;
+the older ignored server ≤ prediction reproduction is byte-identical to
+the base. These assertions are preservation controls, not claims that the
+new, truthful invariant failed on the base engine. No I1 (final)
+counterexample was found in the exercised programs.
+
+All vectors below are `[examined, index entries, rule probes, steps, heap
+bytes, output bytes, rows written]`. The simulator agrees with both stores:
+
+| Program | Held | Graced | Prediction, both stores |
+| --- | --- | --- | --- |
+| Minimal send | `[0,0,0,9,513,6,0]` | `[0,0,0,9,513,6,0]` | `[0,0,0,9,513,6,0]` |
+| Fifty-member send | `[52,2,3,1356,69400,27,1]` | `[52,2,3,1356,69400,27,1]` | `[52,2,1,1367,69843,27,1]` |
+| Complementary guards | `[0,1,0,25,2737,9,1]` | `[0,1,0,23,2630,9,1]` | `[0,1,0,25,2737,9,1]` |
+| Shared boolean payload | `[0,1,0,28,3793,9,1]` | `[0,1,0,26,3656,9,1]` | `[0,1,0,28,3857,9,1]` |
+| Two-principal conjunction | `[0,0,0,18,1967,6,0]` | `[0,0,0,18,1967,6,0]` | `[0,0,0,18,1961,6,0]` |
+
+The new both-store rule-probe reproduction is ignored with exactly
+`pre-existing: issues/20260917-snapback4-presence-conjunction-server-charges-more-heap-than-prediction-reserves.md`.
+Explicitly run on the exact base engine before F6 and again after F6, it
+reproduces GPT's finding: prediction accepts at `rule_probes = 1`, held and
+graced servers refuse, and the refusal rolls back all effects. At a ceiling
+of **3**, both prediction and server accept. The full-cost send retains
+**49 effect rows and 49 dependency rows**. Before and after refusal text:
+
+```text
+E_BOUND
+rule probes reached the ceiling 1
+site: send:4
+rewrite: read a smaller page, or add an index whose prefix pins the rows this site needs
+guide: bounds
+```
+
+No diagnostic or note changed, and no `guide::CODES` addition is needed.
+The package README and effects/presence cards do not state I1 and are
+untouched. LLP 3000.007 §19.1 now states the final invariant verbatim.
+
+### F6 — scoped definitions and shared assignment summaries
+
+The server-only walk keeps one reaching-definition map and an undo log.
+Each arm pushes its changed definitions and restores them on exit, so the
+other arm starts with the incoming definitions. Assignment summaries are
+computed once: each assignment occupies one slot in a flat name list, and
+each statement holds a slice of that list. Branch joins and loop boundaries
+invalidate only the summarized names; they no longer scan every live
+binding against a subtree. Short-circuit setup edges still use statement
+identity, not variable spelling. All new machinery remains excluded from
+wasm, unmetered and bypassed by native prediction. The old metered proof
+planner, meter ceilings, guard projection, payload values and absent/graced
+charges are unchanged.
+
+The three performance regressions retain N live aliases, then N independent
+guards, then the qualifying absence guard; the second wraps the family in
+one `for`, and the third nests the guards N/10 levels deep. They positively
+assert the final guard's complete chain of reaching definitions, and have
+a default **5,000 ms** wall-clock bound. Smaller Quarry programs run through
+real simulator commits and assert a deferred notification with the ordinary
+`online: true` payload. The old alias-DAG, reassignment, compositions and
+unchanged-charge controls remain green.
+
+Timing isolates `needed_setups` plus `mark_bindings`, including assignment
+summary construction. This is deliberately not a whole-mutation latency
+claim: the older metered `plan_guards` exceeds the unchanged ordinary heap
+ceiling before the N=4,000 family reaches setup discovery. No ceiling was
+raised to manufacture a successful large mutation. The benchmark constructs
+the equivalent IR and guard metadata directly, outside the timer.
+
+Doubled from 250; all values are milliseconds on this shared host:
+
+| N | Siblings before / after | In a for before / after | Nested before / after |
+| ---: | ---: | ---: | ---: |
+| 250 | 0.413 / 0.084 | 0.621 / 0.130 | 8.198 / 0.152 |
+| 500 | 1.730 / 0.199 | 1.947 / 0.238 | 72.400 / 0.213 |
+| 1,000 | 7.447 / 0.343 | 7.807 / 0.416 | 873.341 / 0.369 |
+| 2,000 | 33.713 / 0.788 | 33.476 / 0.889 | 6,092.941 / 0.831 |
+| 4,000 | 99.643 / 8.422 | 128.615 / 4.211 | 83,155.552 / 3.688 |
+
+The N=2,000 nested baseline already fails the generous default bound. The
+N=4,000 before/after comparison uses the same **50 ms** bound to make all
+three regressions red before and green after; the ordinary suite retains
+the generous five-second bound for host load. These are wall times, not
+meter charges, and host scheduling contributes noise.
+
+### Commands and exact targeted summaries
+
+Cargo commands below ran from `snapback4/`; output redirection is omitted.
+Two initial fixture compile attempts used an invalid IR input constructor
+(no tests ran); it was corrected before any timing measurement. The first
+simulator run used Rust's range spelling inside Quarry; changing the fixture
+to `range(0, 1)` resolved that fixture-only failure.
+
+Before F6 (base engine for before):
+
+```text
+W15A_SETUP_N=250 cargo test -p snapback4-core --lib w15a5_setup -- --nocapture --test-threads=1
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 59 filtered out; finished in 0.01s
+W15A_SETUP_N=500 cargo test -p snapback4-core --lib w15a5_setup -- --nocapture --test-threads=1
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 59 filtered out; finished in 0.08s
+W15A_SETUP_N=1000 cargo test -p snapback4-core --lib w15a5_setup -- --nocapture --test-threads=1
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 59 filtered out; finished in 0.89s
+W15A_SETUP_N=2000 cargo test -p snapback4-core --lib w15a5_setup -- --nocapture --test-threads=1
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 59 filtered out; finished in 6.17s
+W15A_SETUP_N=4000 W15A_SETUP_BUDGET_MS=50 cargo test -p snapback4-core --lib w15a5_setup -- --nocapture --test-threads=1
+test result: FAILED. 0 passed; 3 failed; 0 ignored; 0 measured; 59 filtered out; finished in 83.40s
+```
+
+After F6 (base engine for before):
+
+```text
+W15A_SETUP_N=250 cargo test -p snapback4-core --lib w15a5_setup -- --nocapture --test-threads=1
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 59 filtered out; finished in 0.00s
+W15A_SETUP_N=500 cargo test -p snapback4-core --lib w15a5_setup -- --nocapture --test-threads=1
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 59 filtered out; finished in 0.00s
+W15A_SETUP_N=1000 cargo test -p snapback4-core --lib w15a5_setup -- --nocapture --test-threads=1
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 59 filtered out; finished in 0.00s
+W15A_SETUP_N=2000 cargo test -p snapback4-core --lib w15a5_setup -- --nocapture --test-threads=1
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 59 filtered out; finished in 0.01s
+W15A_SETUP_N=4000 W15A_SETUP_BUDGET_MS=50 cargo test -p snapback4-core --lib w15a5_setup -- --nocapture --test-threads=1
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 59 filtered out; finished in 0.03s
+```
+
+Rule-probe reproduction, base:
+
+```text
+cargo test -p snapback4-device --test device w15a5_fifty_member_server -- --ignored --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 261 filtered out; finished in 0.33s
+```
+
+Rule-probe reproduction, after:
+
+```text
+cargo test -p snapback4-device --test device w15a5_fifty_member_server -- --ignored --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 261 filtered out; finished in 0.20s
+```
+
+Simulator, initial fixture:
+
+```text
+cargo test -p snapback4-sim --test clique grace_effects:: -- --nocapture
+test result: FAILED. 24 passed; 1 failed; 0 ignored; 0 measured; 127 filtered out; finished in 1.38s
+```
+
+Simulator, final:
+
+```text
+cargo test -p snapback4-sim --test clique grace_effects:: -- --nocapture
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 127 filtered out; finished in 1.40s
+```
+
+Both device stores, final:
+
+```text
+cargo test -p snapback4-device --test device presence:: -- --nocapture
+test result: ok. 15 passed; 0 failed; 2 ignored; 0 measured; 245 filtered out; finished in 1.59s
+```
+
+### Full suite once and final scope
+
+From the repository root, exactly once:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+== 1 failure(s) in 520 s
+   client tests
+```
+
+All **513 Rust summary lines total 1,480 passed, 0 failed, 8 ignored**;
+workspace doctests passed. Cargo build/test, wasm build, package build and
+typecheck, chat check, both app typechecks and the nine fixture-wrapper
+tests passed. Client summary, verbatim:
+
+```text
+ℹ tests 612
+ℹ pass 608
+ℹ fail 1
+ℹ skipped 3
+```
+
+The only failure is Chromium `SIGABRT` at `chromium.launch`, before page
+loading, in `packages/snapback4/test/react.test.mjs:74`. The isolated rerun
+from `snapback4/`, also with Node 24, reproduced it:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ skipped 0
+```
+
+The harness starts no backend or simulator, and no browser page loaded.
+`git diff --exit-code` verified its harness, package sources, reference
+apps, manifests, Bun lock and `witness/lib.mjs` unchanged against exact
+base `7a8a5b37441812582e38f4d9f6860b6cfad6216a`; the isolated command
+therefore runs the base's browser-launch inputs. No lifecycle, clock or
+client-timeout failure occurred. The lead can rerun Chromium outside the
+sandbox. Logs: `/private/tmp/w15a5-suite.log` and
+`/private/tmp/w15a5-react-alone.log`.
+
+Wasm remains **1,601,277 bytes raw / 467,632 bytes gzip**, identical to
+round 1 and still 632 bytes above the unchanged report-only budget:
+
+```text
+wasm 1601277 B raw, 467632 B gzip (budget 467000: OVER by 632 B — issues/20260913-snapback4-wasm-device-diet.md)
+```
+
+Root checks, with Node 24 on PATH:
+
+```text
+./ref-check --verbose
+ref-check: ok — 483 LLP docs, 9079 refs in 24230 files, 0 errors, 0 unchecked
+
+git diff --check
+```
+
+The diff check passed silently. The journal's prior bytes remain an exact
+prefix, the old ignored conjunction test is byte-identical to base, and
+no source file crosses 1,500 lines. The only production file changed is
+`crates/snapback4-core/src/engine/presence.rs`; other changes are requested
+Rust tests, their shared helper, LLP §19.1 and this fifth entry. Nothing
+out of scope was touched. No meter ceiling, serialized value, corpus case,
+prediction charge, payload value, wake path or effect arm was changed.
+F5 and F6 are complete; the ticketed metering defect and the sandbox's
+Chromium launch remain explicitly outside these fixes.
+
+
+## 2026-09-17 — W15a-6: round-3 review fixes (sixth lane entry)
+
+Continued `sb4/w15a` at exact review head
+`e0c6f4308b5b76ae662ae0c6d2d7f470513cc917`; lane base is
+`a1afab4e3625a64ffb80d19bf6cd83fc1f3a0b38`. F7, F8 and F9 are the
+entire scope. No commits, pushes, tags or publications. Earlier journal
+bytes are unchanged. The lead's round-3 ruling replaces the fifth entry's
+“I1 (final)” with the following words:
+
+> **I1.** The projection reserves nothing new. Every arm a held recipient newly
+> executes is a safe presence arm that device prediction already charges, and
+> everything else it runs is what the base engine already runs for a connected
+> recipient. A held execution can therefore exceed prediction's reservation
+> **only by the base engine's own ticketed under-reservations on the statements
+> it executes** — six heap bytes on a multi-principal absence guard; rule probes
+> on synced reads a device trusts — and by nothing in a program that has neither.
+> `held ≤ max(prediction, graced)` remains true, and asserted, for programs that
+> do not compose a ticketed statement with a hedged arm.
+
+### F7 — measure the inherited excess under composition
+
+The shared `inherited_excess_witness` runs as
+`w15a6_composition_inherits_only_conjunction_excess` in the simulator and
+`w15a6_composition_inherits_only_conjunction_excess_on_both_stores` in the
+device suite. Each invocation measures the isolated conjunction and the
+composition together. Prediction uses the unchanged helper's real
+`local::predict` entry point and minimum-accepting-ceiling search with
+rollback; the device test invokes SQLite and MemoryStore. No ceiling is
+raised. All three invocations produced these six vectors, ordered as
+`[examined, index entries, rule probes, steps, heap bytes, output bytes,
+rows written]`:
+
+| Program | Held | Graced | Prediction |
+| --- | --- | --- | --- |
+| Isolated conjunction | `[0,0,0,18,1967,6,0]` | `[0,0,0,18,1967,6,0]` | `[0,0,0,18,1961,6,0]` |
+| Conjunction plus positive-presence emit | `[0,0,0,25,2510,6,0]` | `[0,0,0,23,2403,6,0]` | `[0,0,0,25,2504,6,0]` |
+
+The measured heap numbers are exactly the reviewers' **2,510 / 2,403 /
+2,504**. In every field the test requires the signed difference
+`held_comp − prediction_comp` to equal `held_conj − prediction_conj`.
+Both differences are **`[0,0,0,0,6,0,0]`** today. Where the isolated
+conjunction has no excess, the composition must also have no excess.
+The witness does not hard-code six as a required defect: when the ticket
+is fixed both differences may become zero and the test stays green.
+It also checks successful commits, one deferred conjunction effect in
+both server states, and the composition's additional immediate effect
+only for held. This is a witness of a correct engine and an incorrect
+universal contract, so no engine change makes this witness green.
+
+The existing `assert_i1` helper and all five programs remain, with its
+comment naming the scope of the numerical bound. The old ignored heap
+and rule-probe reproductions are unchanged. LLP 3000.007 §19.1 states the
+new I1 verbatim and names the witness. Cards and README contain no I1
+claim and remain untouched.
+
+### F8 — invalidate within the scope that can observe it
+
+Assignment summaries no longer hold descendant slices consumed at every
+ancestor. A backward pass records a join's invalidations only for names
+read before the current arm is undone; its enclosing join owns reads
+after that arm. Read and write sets merge smaller into larger, so nested
+summaries move rather than repeatedly copying all descendant names.
+Intersections inspect the smaller set of subtree writes and subsequent
+scope reads. Repeated assignments share one name. The original push/undo
+semantics still restore the incoming definitions before the other arm.
+
+Loop entry is lazy rather than another full name-list scan. A definition
+records the loop scope where it arose. At a variable use, only the
+outermost loop entered since that definition can invalidate it, because
+that loop contains every subsequently entered loop's assignments. A
+binary search of that name's sorted assignment positions tests membership
+in the loop's range. Definitions from an exited loop are unavailable.
+Short-circuit arms include the implicit read of their accumulator, so
+scoped invalidation does not lose a `$bool` setup edge. Work follows
+statements and input uses, with small-to-large set merging and logarithmic
+loop-membership searches, rather than depth times descendant assignments.
+
+The only production edit is the unmetered, native-only setup walk in
+`engine/presence.rs`. The metered proof planner, scalar projection,
+arm selection, payload values, effect admission/claims, all host meter
+charges and every ceiling are unchanged. The existing annotations still
+resolve; the setup annotation now names scoped invalidation.
+
+The two new performance regressions construct **D=400 nested independent
+arms with N=4,000 assignments at the bottom**, followed by a qualifying
+absence guard. One assigns distinct independent variables; the other
+reassigns one independent variable. Both positively assert the retained
+presence definition and final guard chain. Timing covers setup discovery
+and marking, not IR construction or the older metered proof planner;
+that planner cannot admit these large synthetic programs at the unchanged
+heap ceiling. The ordinary test budget remains **5,000 ms** for host load;
+the explicit before/after command uses a tight **25 ms** budget.
+
+| Family, D=400 / N=4,000 | Before, ms | Final after, ms |
+| --- | ---: | ---: |
+| Distinct assignments | 36.604 | 1.678 |
+| Repeated independent assignment | 25.220 | 0.417 |
+
+A test-only copy of the exact `e0c6f4308b` walk compares all roots,
+reaching-definition edges and setup marks across **128 deterministic
+programs**, including both arms, repeated names, nested loops, pushes,
+independent definitions and `$bool` setups. All agree. The three retained
+N=4,000 families also pass: sibling guards **4.238 ms**, inside a loop
+**4.621 ms**, nested guards **4.419 ms**. The simulator and both-store
+preservation suites retain the original arm, payload and charge controls.
+
+### F9 — check the entire lane range
+
+Confirmed the review's command exits **2**:
+
+```text
+git diff --check 7a8a5b3744 e0c6f4308b
+snapback4/crates/snapback4-sim/tests/common/presence_meter.rs:50: new blank line at EOF.
+```
+
+The shared helper now ends at its last function's closing brace and a
+single newline. `git diff --check a1afab4e36` passes silently, covering
+all committed lane changes plus this working tree, rather than only the
+unstaged diff.
+
+### Targeted commands and verbatim summaries
+
+Cargo commands ran from `snapback4/`; log redirections are omitted.
+Before F8, with the engine at exact review head:
+
+```text
+W15A_SETUP_D=400 W15A_SETUP_N=4000 W15A_SETUP_BUDGET_MS=25 cargo test -p snapback4-core --lib w15a6_setup -- --nocapture --test-threads=1
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 62 filtered out; finished in 0.07s
+```
+
+An intermediate scoped-join implementation passed the same command
+before lazy loop entry and the equivalence oracle were added:
+
+```text
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 62 filtered out; finished in 0.00s
+```
+
+The initial oracle fixture had a Rust mutable-borrow compile error in its
+program generator; no tests ran on that attempt. The fixture was fixed.
+The final implementation, with the oracle included, passed the same
+before/after command:
+
+```text
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 62 filtered out; finished in 0.22s
+```
+
+All setup regressions together:
+
+```text
+cargo test -p snapback4-core --lib setup_tests -- --nocapture --test-threads=1
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 59 filtered out; finished in 0.22s
+```
+
+Simulator and both device stores:
+
+```text
+cargo test -p snapback4-sim --test clique grace_effects:: -- --nocapture
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 127 filtered out; finished in 1.38s
+
+cargo test -p snapback4-device --test device presence:: -- --nocapture
+test result: ok. 16 passed; 0 failed; 2 ignored; 0 measured; 245 filtered out; finished in 1.72s
+```
+
+
+### Full suite once, isolated reruns and final scope
+
+From the repository root, exactly once, with the pinned Node runtime:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh
+== 2 failure(s) in 551 s
+   cargo test
+   client tests
+```
+
+The **515 Rust summary lines total 1,481 passed, 4 failed, 8 ignored**.
+The four failures are one clock test and three witness driver tests;
+all W15a tests passed. The two failing Rust targets reported:
+
+```text
+test result: FAILED. 16 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.41s
+test result: FAILED. 17 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 65.82s
+```
+
+`offset_cli_advance_and_rejected_inputs_keep_time_monotone` exceeded its
+five-millisecond timing allowance (`an invalid advance changed the clock`).
+The witness failures were
+`cli_refuses_an_existing_app_and_never_terminates_a_replacement`,
+`cli_rejects_failure_appended_after_done` and
+`cli_rejects_failure_in_the_milestone_batch`; the latter two printed
+`E_WITNESS_TIMEOUT: xcrun simctl list devices booted --json timed out`.
+All cleared in isolated, serial reruns from `snapback4/`:
+
+```text
+cargo test -p snapback4 --test clock offset_cli_advance_and_rejected_inputs_keep_time_monotone -- --nocapture --test-threads=1
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.96s
+
+cargo test -p snapback4 --test witness driver::cli_ -- --nocapture --test-threads=1
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 68.81s
+```
+
+These are transient full-suite failures, not claimed as product defects
+verified on the base. Their test sources and clock/witness implementation
+files are unchanged against review head
+`e0c6f4308b5b76ae662ae0c6d2d7f470513cc917`. No lifecycle test failed.
+
+The client summary was:
+
+```text
+ℹ tests 612
+ℹ pass 608
+ℹ fail 1
+ℹ skipped 3
+```
+
+Its sole failure was Chromium `SIGABRT` at `chromium.launch`, before a
+page loaded, in `packages/snapback4/test/react.test.mjs:74`. The known
+sandbox artifact reproduced in isolation, from `snapback4/`:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ skipped 0
+```
+
+The browser harness, package sources, apps, manifests, Bun lock and
+`witness/lib.mjs` were verified byte-identical to exact review head
+`e0c6f4308b5b76ae662ae0c6d2d7f470513cc917`. The isolated reproduction
+therefore uses that base's browser-launch inputs; the harness starts no
+backend or simulator. The lead can rerun it outside the sandbox. The
+complete suite was not restarted, and its original failures remain in
+`/private/tmp/w15a6-suite.log`. Isolated logs are
+`/private/tmp/w15a6-clock-alone.log`, `/private/tmp/w15a6-witness-alone.log`
+and `/private/tmp/w15a6-react-alone.log`.
+
+Cargo build, wasm build, package build/typecheck, chat check, both app
+typechecks and the **9/9 fixture-wrapper tests** passed. Wasm is unchanged:
+
+```text
+wasm 1601277 B raw, 467632 B gzip (budget 467000: OVER by 632 B — issues/20260913-snapback4-wasm-device-diet.md)
+```
+
+Root checks (Node 24 on PATH):
+
+```text
+./ref-check --verbose
+ref-check: ok — 483 LLP docs, 9079 refs in 24231 files, 0 errors, 0 unchecked
+
+git diff --check a1afab4e36
+```
+
+The range check is silent with exit 0. All changed source files are under
+1,500 lines (the largest is `presence.rs`, **555 lines**), and the original
+journal remains an exact byte prefix. No file outside F7–F9's scope was
+touched. No diagnostic or note was added or changed. F7, F8 and F9 are
+complete; all changes remain uncommitted on `sb4/w15a` at the same HEAD.
+
+## 2026-09-17 — W15a round 4: GPT's last Medium is a bound the lead accepts, pinned by a test
+
+Round 4 of the blind review read `c334b086b1`: **Grok READY, no findings. GPT: no High
+remains; I1 and its both-store witness are sound (`2510 − 2504 = 1967 − 1961 = 6`, zero
+elsewhere); the two Θ(D·N) families are fixed and the oracle compares roots, edges and
+marks; nothing disturbed; `git diff --check a1afab4e36 HEAD` exits 0** — and one Medium:
+setup discovery is not linear for every admitted shape. Small-to-large merging of
+assignment summaries re-inserts N/2 names at each level of a balanced tree of independent
+arms with N = 2^h distinct leaf assignments: Θ(S log S). GPT's smallest resolution was to
+accept that bound explicitly.
+
+The lead (not a lane session) did: LLP 3000.007 §21.8 L21 and a dated paragraph in §19.1.
+The lane's briefs said "linear" where they meant "not superlinear in a way a program's
+author can trigger"; S log S over a compiler-bounded program, once per execution, on the
+server only, is that. The shape is now a regression,
+`w15a7_setup_balanced_independent_tree_is_s_log_s` (`crates/snapback4-core/tests/presence/
+setups.rs`), with the 5 s bound the other setup regressions use. Measured on the loaded
+host (`W15A_SETUP_LEVELS=10|12|14|16 cargo test -p snapback4-core --lib w15a7_setup --
+--nocapture --test-threads=1`, each `test result: ok. 1 passed; 0 failed`):
+
+| Leaves | Discovery + marking |
+| ---: | ---: |
+| 1,024 | 1.259 ms |
+| 4,096 | 4.970 ms |
+| 16,384 | 31.420 ms |
+| 65,536 | 120.233 ms |
+
+No production code changed in this step; no charge, arm or payload value changed. Two
+paragraph labels in §19.1 that a lane session had written as "(lead's ruling)" now say
+what they are — the lead's decisions under the author's delegation, L17, L18 and L20.
+`node --test packages/snapback4/test/react.test.mjs` outside the sandbox at this head:
+13 tests, 13 pass (the lane's sandbox cannot launch Chromium).
+
+Learned: four rounds, and every numeric invariant the lead wrote was broken by composing
+the change with something the base engine already did. The statement that survived is not
+numeric at all — *the projection reserves nothing new* — with a witness that compares two
+measured differences instead of asserting a bound. When a contract keeps failing on the
+base rather than on the change, stop writing inequalities about totals and write an
+equality about the change.
+
+## 2026-09-17 — W15a round 5: the bound, stated with its string keys; a test comment that claimed too much
+
+Round 5 read `31b3f95ae7`: **Grok READY, nothing at any severity. GPT: no High; production
+behaviour and every earlier record preserved byte for byte; one Medium and one Low, both
+about the lead's words.**
+
+- *Medium.* "O(S log S)" counted map and set operations and forgot what the keys are:
+  discovery looks guards up in a `BTreeMap<String, Guard>` keyed by generated site strings
+  (operation name plus enclosing path), so an N-character operation name with N sibling
+  guards compares Ω(N²) bytes. True — and already bounded: `plan_guards`, the **metered**
+  proof planner, runs first in `prepare_effect_presence` and charges every site's bytes to
+  the heap meter (`prefix.len() + 32` a statement, `site.len() + 64` and `2·site.len() +
+  10` a guard), so the total site bytes P are under the heap ceiling before discovery
+  begins, and a program whose sites are too large is refused `E_BOUND` first. The bound is
+  restated as O((S + P) log S) with P bounded by an existing meter (§19.1).
+- *Low.* The new test's comment and §19.1 said a regression to quadratic "is caught"; at
+  4,096 leaves a quadratic merge still fits 5 s (the reviewer modelled it at 0.36 s). Both
+  now call it what it is: a shape-and-timeout regression, not a complexity proof.
+
+No production code changed. Learned: state a bound in the units the code spends — a map
+keyed by strings spends bytes, not "operations".
+
+## 2026-09-17 — W15a lands: READY from both families after six blind rounds
+
+Round 6 read `d9ecebee10`: **GPT READY, no findings at any severity; Grok READY, nothing
+above Low, no finding about behaviour.** The lane lands as one commit over main with its
+twelve review records; LLP 3000.007 §21.8 L16–L23 carry the lead's decisions, §19.1 the
+engineering record. Nothing is published by this session.
+
+On the merged tree (main at `b532afdcff` plus the lane; one real conflict, in `engine/
+runner.rs`, where main had changed a missing variable's error and the lane had added the
+projection read beside it — both kept): `cargo test -p snapback4-core --lib` 65 passed;
+`-p snapback4-sim --test clique` 176 passed, 1 ignored; `-p snapback4-device --test device`
+289 passed, 2 ignored (the two ticketed reproductions); `-p snapback4-lang --test guide` 47
+passed; `-p snapback4 --bin snapback4` 68 passed (the host's presence witnesses live there);
+0 failed throughout. `react.test.mjs` 13/13 outside the sandbox at the lane's head.
+
+What ruling 32 costs, for the record: a 50-member send with all 49 recipients connected
+moves from 817 steps / 43,297 heap bytes / 0 effect rows to 1,356 / 69,400 / 49 effect rows
++ 49 dependency rows — exactly what it already cost when they were inside the grace — and
+every one of those effects ends `satisfied` with zero worker attempts when the clients
+re-poll through the commit's own wake. A recipient whose client has vanished is pushed five
+seconds after the commit instead of never.

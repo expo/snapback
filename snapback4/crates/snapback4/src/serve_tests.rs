@@ -10,6 +10,9 @@ mod adoption_tests;
 #[path = "../tests/serve_routes/mod.rs"]
 mod route_tests;
 
+#[path = "../tests/serve_presence/mod.rs"]
+mod presence_tests;
+
 const SCHEMA: &str = "use identity\ntable items:\n  n: int\n  photo: image <=1024 ?\n  read <- allow\n  insert <- deny\n  sync public\nquery who():\n  return viewer\n";
 
 struct Host {
@@ -61,6 +64,7 @@ impl Host {
             auth_work: Mutex::new(None),
             upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),
+            poll_wait: Mutex::new(None),
         });
         let server = Arc::new(
             Server::http_with_limits(("127.0.0.1", 0), tiny_http::ConnectionLimits::default())

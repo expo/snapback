@@ -1,4 +1,58 @@
 use super::*;
+mod unconfirmed;
+mod review;
+
+#[path = "../../../snapback4-sim/tests/common/presence_meter.rs"]
+mod presence_meter;
+use presence_meter::{assert_i1, prediction_meter as w15a_prediction_meter};
+
+#[test]
+fn w15a_guarded_send_held_matches_grace_and_prediction_is_unchanged_on_both_stores() {
+    use snapback4_device::store::DeviceStore;
+    use snapback4_core::{Context, Presence};
+    #[derive(Debug)]
+    struct Poll(u64, Option<i64>);
+    impl Presence for Poll {
+        fn connections(&self, _: &str) -> u64 { self.0 }
+        fn effect_presence(&self, _: &str) -> (u64, Option<i64>) { (self.0, self.1) }
+    }
+    fn scenario<S: DeviceStore>(mut store: S, label: &str, failures: &mut Vec<String>) {
+        let source = "effect notify\nmutation push(p: principal):\n  if not exists connected[p]:\n    emit notify {recipient: p}\n";
+        let (_, backend) = compile(source);
+        assert_eq!(backend.schema.operations["push"].predicts.as_deref(), Some("eligible"));
+        let ctx = || Context::new("alice", [("p".into(), id("bob"))].into()).at(11_000);
+        store.install(&backend.schema, &Default::default(), false).unwrap();
+        let program = backend.programs.iter().find(|p| p.name == "push").unwrap();
+        let measured = w15a_prediction_meter(&mut store, &backend.schema, program, ctx());
+        println!("w15a {label} device: {measured:?}");
+        assert_eq!(measured.iter().map(|(_, count)| *count).collect::<Vec<_>>(), [0, 0, 0, 9, 513, 6, 0]);
+        let mut meters = Vec::new();
+        for (state, live, deadline) in [("held", 1, Some(16_000)), ("absent", 0, None), ("graced", 0, Some(36_000))] {
+            let (mut engine, _) = compile(source);
+            engine.set_presence(Some(std::sync::Arc::new(Poll(live, deadline))));
+            let sent = engine.mutate("push", None, ctx()).unwrap();
+            assert!(matches!(sent.state, WriteState::Sent { .. }));
+            let effects = engine.effects(None, 10).unwrap();
+            println!("w15a {label} server {state}: {:?}; effects={}", sent.metered, effects.len());
+            let counters = w15a_meter_fields(sent.metered);
+            // The base absent AND graced meters are [0, 0, 0, 9, 513, 6, 0].
+            // Held must now take that same arm, without changing prediction.
+            if counters != [0, 0, 0, 9, 513, 6, 0] { failures.push(format!("{label}/{state}: {counters:?}")); }
+            meters.push(counters);
+            if effects.len() != 1 { failures.push(format!("{label}/{state}: {} effects, expected 1", effects.len())); }
+            else { assert_eq!(effects[0].next_at, deadline); }
+        }
+        assert_i1(&format!("minimal/{label}"), meters[0], meters[2], std::array::from_fn(|i| measured[i].1));
+    }
+    let mut failures = Vec::new();
+    scenario(snapback4_core::Store::memory().unwrap(), "sqlite", &mut failures);
+    scenario(snapback4_device::memory::MemoryStore::new(), "memory", &mut failures);
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+fn w15a_meter_fields(m: snapback4_core::meter::Metered) -> [u64; 7] {
+    [m.examined, m.index_entries, m.rule_probes, m.steps, m.heap_bytes, m.output_bytes, m.rows_written]
+}
 
 const NOTES: &str = "effect notify\ntable notes:\n  n: int\n  unique byN: n\n  public 'notes'\n  sync public\n  insert <- allow\nquery notes():\n  return notes first 10 by byN\n";
 
@@ -33,10 +87,14 @@ fn presence_effects_send_predicts_identical_rows_on_both_stores() {
             expected.as_object_mut().unwrap().remove("pending");
             assert_eq!(expected, snapback4_core::wire::to_json(&engine.store().rows("messages").unwrap()[0]), "{label}, connected={connected:?}");
             let effects = engine.effects(Some("queued"), 10).unwrap();
-            assert_eq!(effects.len(), 2 - connected.len());
+            assert_eq!(effects.len(), 2);
+            for effect in &effects {
+                let target = effect.payload.field("targetUserId").unwrap().as_str().unwrap();
+                assert_eq!(effect.next_at, connected.contains(&target).then_some(6_234));
+            }
             let mut actual: Vec<_> = effects.iter().map(|e| { assert_eq!(e.effect, "notify"); e.payload.field("targetUserId").unwrap().as_str().unwrap() }).collect();
             actual.sort();
-            assert_eq!(actual, ["dev:bob", "dev:carol"].into_iter().filter(|p| !connected.contains(p)).collect::<Vec<_>>());
+            assert_eq!(actual, ["dev:bob", "dev:carol"]);
             ok(device.call(serde_json::json!({"op":"settle", "id":"send-write", "seq":seq})));
             ok(apply(&mut *device, &stream_page(&mut engine, "dev:alice", 0), false));
             let confirmed = query(&mut *device, "message", "dev:alice", serde_json::json!({"id":"msg"}), 2000);
@@ -87,8 +145,11 @@ fn r1p_effect_ids_do_not_displace_rows_or_replay_ids_on_both_stores() {
             assert_eq!(ids.len(), effects.len());
             if !ids.iter().all(|id| id.starts_with("effect-")) { mismatches.borrow_mut().push(format!("{label}/{count}: shared effect id supply {ids:?}")); }
             let claimed = engine.claim_effects("worker", None, 10, 1000, 2).unwrap();
-            assert_eq!(claimed.len(), effects.len());
+            assert_eq!(claimed.len(), effects.iter().filter(|e| e.next_at.is_none()).count());
+            engine.presence_reconnected("bob", 2).unwrap();
             for effect in &claimed { engine.settle_effect(&effect.id, "worker", snapback4_core::engine::effects::Settled::Done { result: None }, 3).unwrap(); }
+            assert!(engine.claim_effects("worker", None, 10, 1000, 6_000).unwrap().is_empty());
+            assert_eq!(engine.effects(Some("satisfied"), 10).unwrap().len(), usize::from(count > 0));
             device.close();
         }
     });
@@ -154,7 +215,7 @@ fn a_meter_cut_after_an_untaken_presence_arm_queues_instead_of_refusing_on_both_
     use snapback4_device::store::{DeviceStore, DeviceTx};
     use snapback4_core::{Ceilings, RuntimeError, engine::local};
     fn scenario<S: DeviceStore>(mut store: S, label: &str) {
-        let source = format!("{NOTES}\nmutation probe(p: principal):\n  insert notes {{ n: 1 }}\n  if not exists connected[p]:\n    emit notify {{ count: connected[p] }}\n");
+        let source = format!("{NOTES}\nmutation probe(p: principal):\n  insert notes {{ n: 1 }}\n  if connected[p] > 1:\n    emit notify {{ count: connected[p] }}\n");
         let (_, backend) = compile(&source);
         let program = backend.programs.iter().find(|p| p.name == "probe").unwrap();
         store.install(&backend.schema, &Default::default(), false).unwrap();
@@ -320,4 +381,61 @@ fn w13b_unknown_presence_crosses_both_device_wires() {
         let known = query(&mut *device, "known", "alice", serde_json::json!({}), 1);
         assert_eq!(known["data"], 42); assert_eq!(known["complete"], true); assert_eq!(known["unknown"], false);
     });
+}
+
+#[test]
+#[ignore = "pre-existing: issues/20260917-snapback4-presence-conjunction-server-charges-more-heap-than-prediction-reserves.md"]
+fn w15a_necessary_absence_server_fits_prediction_reservation_on_both_stores() {
+    use snapback4_device::store::{DeviceStore, DeviceTx};
+    use snapback4_core::{Ceilings, engine::local};
+    #[derive(Debug)]
+    struct Grace;
+    impl snapback4_core::Presence for Grace {
+        fn connections(&self, _: &str) -> u64 { 1 }
+        fn effect_presence(&self, _: &str) -> (u64, Option<i64>) { (0, Some(36_000)) }
+    }
+    fn scenario<S: DeviceStore>(mut store: S, label: &str, failures: &mut Vec<String>) {
+        let source = "effect notify\nmutation push(p: principal, q: principal):\n  if not exists connected[p] and not exists connected[q]:\n    emit notify {}\n";
+        let (_, backend) = compile(source);
+        assert_eq!(backend.schema.operations["push"].predicts.as_deref(), Some("eligible"));
+        store.install(&backend.schema, &Default::default(), false).unwrap();
+        let program = backend.programs.iter().find(|p| p.name == "push").unwrap();
+        let ctx = context("alice", &[("p", id("bob")), ("q", id("carol"))]).at(11_000);
+        let predicted = w15a_prediction_meter(&mut store, &backend.schema, program, ctx.clone());
+        let reserved_heap = predicted.iter().find(|(field, _)| *field == "heap_bytes").unwrap().1;
+        for graced in [false, true] {
+            let (mut engine, _) = compile(source);
+            if graced { engine.set_presence(Some(std::sync::Arc::new(Grace))); }
+            let sent = engine.mutate("push", None, ctx.clone()).unwrap();
+            assert!(matches!(sent.state, WriteState::Sent { .. }), "{sent:?}");
+            assert_eq!(engine.effects(None, 10).unwrap().len(), 1);
+            let server = w15a_meter_fields(sent.metered);
+            println!("w15a reservation {label} graced={graced}: device={predicted:?}; server={server:?}");
+            // Positive boundary: both hosts admit at the server's measured heap.
+            let limits = Ceilings { heap_bytes: sent.metered.heap_bytes, ..Default::default() };
+            let tx = store.transaction().unwrap();
+            let prediction = local::predict(&tx, &backend.schema, program, ctx.clone(), limits);
+            tx.rollback().unwrap();
+            assert!(prediction.is_ok(), "{prediction:?}");
+            engine.set_ceilings(limits);
+            assert!(matches!(engine.mutate("push", None, ctx.clone()).unwrap().state, WriteState::Sent { .. }));
+            // The actual prediction entry point admits at its smaller boundary.
+            let limits = Ceilings { heap_bytes: reserved_heap, ..Default::default() };
+            let tx = store.transaction().unwrap();
+            let prediction = local::predict(&tx, &backend.schema, program, ctx.clone(), limits);
+            tx.rollback().unwrap();
+            assert!(prediction.is_ok(), "{prediction:?}");
+            engine.set_ceilings(limits);
+            let boundary = engine.mutate("push", None, ctx.clone()).unwrap();
+            println!("w15a boundary {label} graced={graced} heap={reserved_heap}: prediction=accepted server={:?}", boundary.state);
+            if !matches!(boundary.state, WriteState::Sent { .. }) { failures.push(format!("{label} graced={graced}: prediction accepted but server {:?}", boundary.state)); }
+            for ((field, reserved), used) in predicted.iter().zip(server) {
+                if used > *reserved { failures.push(format!("{label} graced={graced}: {field} server={used} > prediction={reserved}")); }
+            }
+        }
+    }
+    let mut failures = Vec::new();
+    scenario(snapback4_core::Store::memory().unwrap(), "sqlite", &mut failures);
+    scenario(snapback4_device::memory::MemoryStore::new(), "memory", &mut failures);
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

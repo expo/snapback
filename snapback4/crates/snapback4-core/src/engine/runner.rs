@@ -236,12 +236,22 @@ impl<'a> Runner<'a> {
                     Flow::Next
                 }
                 Stmt::If { condition, then_body, else_body } => {
-                    let take_then = self.expr(condition)?.as_bool()?;
+                    let actual = self.expr(condition)?.as_bool()?;
+                    let take_then = self.presence_arm(&site, actual);
+                    #[cfg(not(target_arch = "wasm32"))]
+                    let restore = (take_then != actual).then(|| super::presence::short_target(condition, then_body, else_body)).flatten();
                     let (branch, arm, untaken, other) = if take_then { (then_body, "then", else_body, "else") } else { (else_body, "else", then_body, "then") };
                     let guard = self.enter_presence_guard(&site, take_then)?;
                     if self.prediction_guards.contains(&site) { self.charge_untaken(untaken, &format!("{site}:{other}"))?; }
                     let result = self.statements(branch, &format!("{site}:{arm}"));
                     self.effect_presence.guard = guard;
+                    #[cfg(not(target_arch = "wasm32"))]
+                    if let Some(name) = restore {
+                        if let Some(value) = self.effect_presence.variables.get_mut(name) {
+                            value.absent = value.absent.or_else(|| self.env.get(name).and_then(super::presence::Scalar::of));
+                        }
+                        *self.env.get_mut(name).unwrap() = Value::Bool(actual);
+                    }
                     result?
                 }
                 Stmt::For { binding, domain, body } => {
@@ -440,6 +450,17 @@ impl<'a> Runner<'a> {
     }
 
     pub(super) fn expr(&mut self, expression: &Expr) -> Result<Value, RuntimeError> {
+        #[cfg(not(target_arch = "wasm32"))]
+        { self.effect_presence.absent = None; }
+        let result = self.presence_expr(expression);
+        #[cfg(not(target_arch = "wasm32"))]
+        if !matches!(expression, Expr::Variable(_) | Expr::Binary { .. } | Expr::Unary { op: UnaryOp::Not, .. } | Expr::Builtin { builtin: Builtin::Connected, .. }) {
+            self.effect_presence.absent = None;
+        }
+        result
+    }
+
+    fn presence_expr(&mut self, expression: &Expr) -> Result<Value, RuntimeError> {
         self.meter.step(1)?;
         self.read_presence_value(expression)?;
         match expression {
@@ -448,6 +469,8 @@ impl<'a> Runner<'a> {
                 Ok(value.clone())
             }
             Expr::Variable(name) => {
+                #[cfg(not(target_arch = "wasm32"))]
+                { self.effect_presence.absent = self.effect_presence.variables.get(name).and_then(|v| v.absent); }
                 let value = self.env.get(name).ok_or_else(|| missing_variable(name, &self.statement_site))?;
                 self.meter.heap(value.clone_heap_bytes())?;
                 Ok(value.clone())
@@ -498,6 +521,8 @@ impl<'a> Runner<'a> {
             }
             Expr::Binary { op, left, right } => {
                 let left = self.expr(left)?;
+                #[cfg(not(target_arch = "wasm32"))]
+                let projected = self.effect_presence.absent;
                 if *op == BinaryOp::And && !left.as_bool()? {
                     return Ok(Value::Bool(false));
                 }
@@ -505,12 +530,18 @@ impl<'a> Runner<'a> {
                     return Ok(Value::Bool(true));
                 }
                 let right = self.expr(right)?;
+                #[cfg(not(target_arch = "wasm32"))]
+                self.presence_binary(*op, &left, projected, &right);
                 binary(*op, left, right)
             }
             Expr::Unary { op, value } => {
                 let value = self.expr(value)?;
                 match op {
-                    UnaryOp::Not => Ok(Value::Bool(!value.as_bool()?)),
+                    UnaryOp::Not => {
+                        #[cfg(not(target_arch = "wasm32"))]
+                        { self.effect_presence.absent = match self.effect_presence.absent { Some(super::presence::Scalar::Bool(b)) => Some(super::presence::Scalar::Bool(!b)), _ => None }; }
+                        Ok(Value::Bool(!value.as_bool()?))
+                    },
                     UnaryOp::Neg => Value::int(-(value.as_int()? as i128)).map_err(Into::into),
                 }
             }
@@ -735,8 +766,10 @@ impl<'a> Runner<'a> {
                 match &self.context.presence {
                     Some(presence) => {
                         if self.effect_presence.enabled {
-                            let (live, deadline) = presence.effect_presence(principal);
-                            self.grace_read(principal, deadline.filter(|_| live == 0))?;
+                            let (live, deadline) = presence.effect_presence_at(principal, self.context.now.unwrap_or_default());
+                            self.grace_read(principal, deadline)?;
+                            #[cfg(not(target_arch = "wasm32"))]
+                            if !self.device && live > 0 && deadline.is_some() { self.effect_presence.absent = Some(super::presence::Scalar::Count(0)); }
                             Value::int(live as i128).map_err(Into::into)
                         } else { Value::int(presence.connections(principal) as i128).map_err(Into::into) }
                     },

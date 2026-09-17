@@ -46,6 +46,8 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
                 continue;
             }
             let wake = if heartbeat { deadline.min(beat) } else { deadline };
+            #[cfg(test)]
+            super::test_work(&shared.poll_wait);
             let (_seq, timeout) = shared.committed.wait_timeout(seq, wake.saturating_duration_since(Instant::now())).unwrap_or_else(|poisoned| poisoned.into_inner());
             if !timeout.timed_out() { break; }
         }

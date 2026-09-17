@@ -80,6 +80,8 @@ pub struct Shared {
     pub upload_work: WorkHook,
     #[cfg(test)]
     pub effect_wait: WorkHook,
+    #[cfg(test)]
+    pub poll_wait: WorkHook,
 }
 
 impl Shared {
@@ -164,7 +166,7 @@ impl Drop for AssetTransfer<'_> {
 
 /// A connection lasts as long as its poll and a grace after it: a client
 /// re-polls within milliseconds of an answer, a dropped one never does.
-const PRESENCE_GRACE: Duration = Duration::from_secs(35);
+use snapback4_core::engine::{PRESENCE_GRACE, PRESENCE_CONFIRMATION};
 
 /// The registry of open long polls, per principal: how many are open now,
 /// and when the last one ended. A device that holds `/changes?wait` open
@@ -197,10 +199,15 @@ impl Live {
 
 impl Presence for Live {
     fn effect_presence(&self, principal: &str) -> (u64, Option<i64>) {
+        let now = lock(&self.clock).now();
+        self.effect_presence_at(principal, now)
+    }
+
+    fn effect_presence_at(&self, principal: &str, now: i64) -> (u64, Option<i64>) {
         let map = lock(&self.polls);
         let clock = lock(&self.clock);
         match map.get(principal) {
-            Some((open, _)) if *open > 0 => (u64::from(*open), None),
+            Some((open, _)) if *open > 0 => (u64::from(*open), Some(now.saturating_add(PRESENCE_CONFIRMATION.as_millis() as i64))),
             Some((_, Some(last))) => {
                 let remaining = (PRESENCE_GRACE.as_millis() as i64).saturating_sub(clock.presence_now().saturating_sub(*last));
                 (0, (remaining > 0).then(|| clock.now().saturating_add(remaining)))
@@ -294,6 +301,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
         #[cfg(test)] auth_work: Mutex::new(None),
         #[cfg(test)] upload_work: Mutex::new(None),
         #[cfg(test)] effect_wait: Mutex::new(None),
+        #[cfg(test)] poll_wait: Mutex::new(None),
     });
     let server = Arc::new(server);
     let address = server.server_addr();
@@ -1266,6 +1274,7 @@ mod poison_tests {
             auth_work: Mutex::new(None),
             upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),
+            poll_wait: Mutex::new(None),
         });
         let poisoned = shared.clone();
         assert!(std::thread::spawn(move || {

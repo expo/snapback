@@ -58,6 +58,10 @@ use runner::Runner;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, VecDeque};
 
+// @ref LLP 3000.007#21.3 — the host and abstract presence providers share one confirmation window on the commit clock.
+pub const PRESENCE_GRACE: std::time::Duration = std::time::Duration::from_secs(35);
+pub const PRESENCE_CONFIRMATION: std::time::Duration = std::time::Duration::from_secs(5);
+
 /// Who is connected right now: what a server knows from the long polls it
 /// holds open, answered to a program's `connected[p]`. Only a server has
 /// one; a device treats every principal as connected and lets the server
@@ -67,6 +71,11 @@ pub trait Presence: std::fmt::Debug + Send + Sync {
     fn connections(&self, principal: &str) -> u64;
     /// A single observation: (live connections, grace deadline in engine time).
     fn effect_presence(&self, principal: &str) -> (u64, Option<i64>) { (self.connections(principal), None) }
+    /// Pin an unconfirmed poll's deadline to the mutation's commit clock.
+    fn effect_presence_at(&self, principal: &str, now: i64) -> (u64, Option<i64>) {
+        let (live, deadline) = self.effect_presence(principal);
+        (live, if live > 0 { Some(now.saturating_add(PRESENCE_CONFIRMATION.as_millis() as i64)) } else { deadline })
+    }
 }
 
 /// Who runs the program, with what, and when.

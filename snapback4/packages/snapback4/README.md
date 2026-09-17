@@ -1087,13 +1087,15 @@ mutation send(conversationId: id, body: text <=4000):
 ```
 
 This send stays eligible to predict because presence decides only effects;
-the server commits the effects and defers grace-only decisions until their
-deadline. For dispatch-time presence
-or any other presence-dependent decision, emit unconditionally and have
-the worker call a service mutation that reads `connected`.
-Prediction evaluates the safe untaken presence arms too and discards their
-effects, so it pays at least their server cost. Effect ids never consume
-`new` or an insert's ids.
+a push guarded by absence is recorded durably at commit even when the
+recipient looks connected, deferred a few seconds, and cancelled by a new
+poll only if it arrives within its window. This guarantees durable admission;
+delivery keeps the effect's ordinary policy deadlines, worker failures, lease
+retries and `--replay` suppression. For any other presence-dependent decision,
+emit unconditionally and have the worker call a service mutation that reads
+`connected`.
+Prediction charges the safe untaken presence arms too and discards their
+effects. Effect ids never consume `new` or an insert's ids.
 
 The data plane never calls out. `emit name { payload }` in a mutation or
 a job keeps the payload durably in the same commit as the rows (a
@@ -1186,21 +1188,24 @@ job digest(periodStart: time, periodEnd: time):
 schedule daily every 1d at 08:00: digest
 ```
 
-When presence decides only effects, no live poll but an unexpired grace
-queues the push for the grace deadline: up to 35 seconds. `doctor` reports the
+When presence decides only effects, a held poll is unconfirmed: a push
+guarded by absence is recorded and waits five seconds from the commit for
+a new poll. No live poll but an unexpired grace queues the push for the
+grace deadline: up to 35 seconds. `doctor` reports the
 deferred count and next deadline; `GET /effects` shows each deadline as `nextAt`.
-In tests, close the window with `snapback4 clock advance 36s` or
+In tests, expire the held-poll deadline with `snapback4 clock advance 6s`;
+close the grace window with `snapback4 clock advance 36s` or
 `POST /dev/clock/advance` with `{ "duration": "36s" }`; a real-time poll
-budget must exceed 35 seconds. A reconnect during
-that window cancels it, even if the new poll ends before claim or the server
-restarts. A live poll at claim also cancels it. The recorded effect has state
+budget must exceed 35 seconds. Only a poll arriving after the commit
+within its window cancels it, even if the new poll ends before claim or the server
+restarts. A poll already open at claim does not satisfy it. The recorded effect has state
 `satisfied`, `result: { outcome: 'presence_reconnected' }` and zero attempts;
 it never reaches a worker. Otherwise it becomes claimable once through the
-existing lease protocol. No grace means immediate admission; an already live
-poll still suppresses the push. Cancellation requires a proven necessary
+existing lease protocol. No live poll and no grace means immediate admission.
+Cancellation requires a proven necessary
 absence guard, such as `if not exists connected[p]`, an alias of that test,
 or a conjunction of absence tests. With several necessary absences, the
-queue waits for their latest grace deadline; reconnecting any one within
+queue waits for their latest deadline; reconnecting any one within
 its own window satisfies the guard. An unconditional payload read such as
 `emit audit { online: exists connected[p] }`, `not exists connected[p] or force`,
 and boolean forms without that proof remain immediate and are never
@@ -1218,7 +1223,8 @@ with the original error and stack.
 
 ### Presence
 
-In tests: `snapback4 clock advance 36s` or `POST /dev/clock/advance` with
+In tests: `snapback4 clock advance 6s` expires a held-poll effect deadline;
+`snapback4 clock advance 36s` or `POST /dev/clock/advance` with
 `{ "duration": "36s" }` expires grace after a poll ends;
 open polls stay connected. Online client queries read the updated server
 answer; presence is still not replicated to a device.
@@ -1227,15 +1233,24 @@ answer; presence is still not replicated to a device.
 server now — a device following the stream keeps a long poll open, and
 one that answered a moment ago still counts for 35 seconds — and `exists
 connected[p]` is the test. It is not a table: nothing syncs, nothing is
-written. A mutation reads it to notify only those with no connected
-client (Effects, above); a query reads it for an online mark. On a
-device the word is unknown: a query that reads it is `complete: false`,
+written. A mutation uses it to defer an absence-guarded notification while
+a connected-looking client is unconfirmed (Effects, above); a query reads it
+for an online mark. On a device the word is unknown: a query that reads it is `complete: false`,
 and the server answers it online. A mutation stays eligible to predict
-when presence decides only effects, so its rows are independent of
-presence and the server commits the effects. In those effects-only mutations,
-grace alone defers the push for up to 35 seconds instead of losing it. A
-reconnect in the window, or a live poll at claim, cancels it with the recorded
-`satisfied` outcome `presence_reconnected` (Effects, above). Grace deadlines
+when presence decides only effects: connection state never changes its
+rows or result on a successful commit, but can change which effect arms run
+and therefore its charges, as live versus absent presence already could. The paved
+`if not exists connected[p]: emit …` form charges the same whether the
+recipient is held, graced or absent. Shared boolean payloads and separate
+positive-presence emits can cost more for held than graced recipients; a
+held recipient may get both a deferred absence effect and an immediate
+positive-presence effect. A push guarded by absence is recorded durably at
+commit and deferred a few seconds when the recipient looks connected, and
+cancelled by a new poll only within its window. A held poll is unconfirmed
+for that guard, while `connected[p]` in a payload keeps its ordinary value.
+Grace alone retains its deadline, up to 35 seconds. Only a new poll arriving
+after the commit within its window cancels the push, with the recorded
+`satisfied` outcome `presence_reconnected` (Effects, above). Deadlines
 and recorded reconnects survive restart; `clock advance` makes a waiting
 effect due along with its grace.
 Presence-derived values use comparisons, `exists`, boolean logic and field

@@ -220,10 +220,7 @@ impl Engine {
         };
         let mut claimed = Vec::with_capacity(ids.len());
         for id in ids {
-            let dependencies = tx.conn().prepare("SELECT principal, reconnected FROM _effect_presence WHERE id = ?1")?
-                .query_map([&id], |row| Ok((row.get::<_, String>(0)?, row.get::<_, bool>(1)?)))?.collect::<Result<Vec<_>, _>>()?;
-            let satisfied = dependencies.iter().any(|(principal, reconnected)| *reconnected
-                || self.presence.as_ref().is_some_and(|presence| presence.effect_presence(principal).0 > 0));
+            let satisfied: bool = tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _effect_presence WHERE id = ?1 AND reconnected = 1)", [&id], |row| row.get(0))?;
             tx.conn().execute("DELETE FROM _effect_presence WHERE id = ?1", [&id])?;
             if satisfied {
                 let outcome = crate::value::object([("outcome", Value::String("presence_reconnected".into()))]);
