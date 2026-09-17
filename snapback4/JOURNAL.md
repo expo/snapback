@@ -29107,3 +29107,17 @@ lead's in LLP 3000.007 §21.8 (L1–L6). Nothing is built and nothing is publish
   merge-on-read Following measured 2.5–3.1× on metered requests and 7.3–9.0× on bare
   clients at 500 over 5 follows; the feeds recipe stays the paved Following until
   keys-only heads are measured.
+
+## 2026-09-17 — every commit wakes every held poll: measured and ticketed
+
+Following ruling 32's measurement: the rise of a send's p50 with 49 held polls is not the
+room's own fan-out. With 49 connected personas who belong to **nothing**, 160 commits into
+one principal's private room produced 6,439 bystander `/changes` answers and doubled the
+writer's p50 (2.07 → 4.00 ms, `dev --memory`, published 0.2.27); a bystander's answer names
+the table the other principal wrote (`"tables":["messages"]`). The poll waits on the store's
+one commit counter and `check` reports every table committed after `since`, unfiltered. LLP
+3000.009 §7.1 already owns narrower observation and asks for this fan-out to be measured
+first; the ticket (`issues/20260917-snapback4-every-commit-wakes-every-held-poll.md`) adds
+that replica devices are woken too and that the wake is an activity side channel, and
+suggests the smaller first step: wake a poll only for a commit that touched a partition its
+principal holds or a table its watches read. Probes are in the derived-probes record.

@@ -170,6 +170,13 @@ recorded as *deferred* effects — under rapid sends most recipients are between
 answer and its re-poll, in grace, so today's path already writes a durable row for most
 connected recipients in a busy room.
 
+`wake.mjs` and `wake-one.mjs` isolate the wake: p00 writes a room only p00 belongs to while
+49 personas who belong to nothing hold polls. 160 commits produce **6,439 bystander poll
+answers** and the writer's p50 goes 2.07 → 4.00 ms (`dev --memory`); one bystander's
+answer, about 5 ms after the other principal's commit, is
+`{"generation":1,"seq":2,"store_id":"…","tables":["messages"]}`. Filed as
+`issues/20260917-snapback4-every-commit-wakes-every-held-poll.md`.
+
 ## `lane-list/` — a bounded list argument is refused as a merge lane source
 
 `[a] for a in authors` with `authors: [principal] <=50` →
