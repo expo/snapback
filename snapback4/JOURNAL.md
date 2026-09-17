@@ -25634,7 +25634,7 @@ that resolved their `JOURNAL.md` conflicts: fences were left unterminated, one
 lane's heading landed inside another's code block, and measurements were filed
 under the wrong lane — while each entry asserted it had been checked byte-for-byte
 against HEAD. A blind reviewer found it. The region has been rebuilt from each
-lane branch's own single appended block, in landing order, so every entry is again
+lane branch's own single appended block, preserving the existing order, so every entry is again
 exactly what its lane wrote. No entry text was edited.
 
 The union merge is append-only and cannot see that two appends interleave. Compare
@@ -26253,3 +26253,277 @@ After:
 ```text
 check could not start Node 24 or load the application's local TypeScript compiler. Read the accompanying cause: fix Node or SNAPBACK_NODE for a launch failure; install or repair the application's TypeScript dependency for a compiler-load failure. Then run check again; check does not fetch a compiler dynamically. guide actions.
 ```
+
+
+## 2026-09-16 — W11R2: quiet orphan recovery, reserved recipe refusals, and accurate records
+
+Implemented the four round-2 items against base
+`31fdebcc0fcd63f437fc8815a01ea9a22a3741af`, without committing, pushing,
+tagging or publishing.
+
+A: busy source and receipt locks now have one cancellable queued Web Lock
+request per lock. It wakes recovery after release, on the serialized device
+chain; foreground opening does not wait for a live tab to close. An opening
+barrier also keeps a release signal from racing initial restoration/adoption.
+Evicted and unidentified journal candidates have no retry timer and are left
+for a later open or identity/sync signal. Recovery failures exhaust three
+backoffs (1, 2, 4 seconds) per open; later sync/open signals may try again.
+The persistence adapter has a noncreating existence check. IndexedDB uses
+its database list when available and aborts a missing database's creation
+transaction in the fallback; journal-only discovery still works without
+`indexedDB.databases()`. Receipt reads check existence before reading the
+shared window. Round 1's commit-before-delete, shared value-free custody,
+immutable duplicate outcomes and 256-receipt window are unchanged.
+
+B: all nine authored refusals in the installable Following recipe now use
+`FEED_`. The six renamed codes are CANNOT_FOLLOW_SELF, AUTHOR_NOT_FOUND,
+POST_NOT_FOUND, EVENT_REMOVED, ORIGINAL_REQUIRED and NOT_AUTHOR; the three
+previously missing explanations are now registered with their own paragraphs.
+The recipe, README, published app bridge and affected simulator expectation
+use the new names. Other applications retain their own generic codes. The
+census lexes `else CODE` in the actual installable recipe, independent of the
+prefix census, and checks every code's registration, card, dedicated section
+and reserved name. This keeps generic names from claiming global explanations.
+
+C: the README now agrees with the native card and parser: a mutation cannot
+be native because a device predicts Quarry and the server replays it. The
+regression extracts and compares this sentence in both published copies,
+normalizing only whitespace.
+
+D: the toolchain test asserts the summary and the actual actions-card
+paragraph separately. Independently reverting either documentation correction
+fails it; both restored pass. The generated explanation includes its summary,
+so treating that whole returned string as the paragraph would still mask the
+second regression. Per the brief's explicit exception to append-only records,
+exactly one earlier journal sentence now says the repair preserved the existing
+order. No entries moved and every other prior byte matches the base. The RFC's
+missing Revised-line parenthesis is closed, and its orphan-recovery paragraph
+now describes the implemented policy.
+
+Measurements: evicted journal loads 0, unidentified journal loads 1, pending
+retry timers 0 in both idle cases; one living sibling queues 1 wait, schedules
+0 timers and cancels 1 wait on close. Ten receipt lookups before shared custody
+open the shared database 0 times in the instrumented persistence model; a
+later shared receipt is visible in the same open client. Persistent failure
+makes 4 attempts total, with retry delays 1000/2000/4000 ms, then leaves
+0 timers; a subsequent sync recovers 1 receipt. The IndexedDB fallback test
+aborts 2 missing-store probes and preserves the existing database. All 9
+recipe refusals have dedicated registered explanations. No meter ceiling,
+value serialization or existing corpus case changed. Largest changed source:
+`crates/snapback4-sim/tests/clique.rs`, 1465 lines.
+
+The six web regressions were also run against a transpilation of the exact
+base web.ts, temporarily replacing only ignored dist/web.js, then restoring
+it byte-for-byte: 0/6 before, 6/6 after. The first three were initially run
+before implementation (0/3). The guide/CLI regressions were red before their
+fixes. Toolchain sensitivity used independent temporary documentation
+reversions, not a claim that the correct base documents were already wrong.
+One intermediate web run was 77/79: it exposed the missing-enumeration fallback
+and a test barrier installed after immediate release-triggered adoption.
+Those were repaired; the final targeted run is 82/82. The lock model now honors
+FIFO waiting, abort and release-before-request-completion.
+
+Commands below run from `snapback4/` unless stated otherwise. Every Node/Bun
+command used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+The first package build needed `bash scripts/build-wasm.sh` to create the
+ignored wasm outputs; the subsequent package build passed. No install ran.
+
+Base web implementation:
+
+```sh
+node --test --test-name-pattern='W11R2' packages/snapback4/test/web-durability.test.mjs
+```
+
+```text
+ℹ tests 6
+ℹ pass 0
+ℹ fail 6
+ℹ cancelled 0
+```
+
+Fixed web implementation:
+
+```sh
+node --test --test-name-pattern='W11R2' packages/snapback4/test/web-durability.test.mjs
+```
+
+```text
+ℹ tests 6
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+```
+
+Before B/C:
+
+```sh
+cargo test -p snapback4-lang --test guide w11r2 -- --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 48 filtered out; finished in 0.01s
+```
+
+Before B:
+
+```sh
+cargo test -p snapback4 --test check w11r2 -- --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 57 filtered out; finished in 1.25s
+```
+
+Only summary temporarily reverted:
+
+```sh
+cargo test -p snapback4 --test check w11r1c_toolchain_why_explains_node_start_failure_too -- --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 57 filtered out; finished in 1.37s
+```
+
+Only dedicated paragraph temporarily reverted:
+
+```sh
+cargo test -p snapback4 --test check w11r1c_toolchain_why_explains_node_start_failure_too -- --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 57 filtered out; finished in 1.25s
+```
+
+Restored/fixed CLI checks:
+
+```sh
+cargo test -p snapback4 --test check w11r -- --nocapture
+```
+
+```text
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 55 filtered out; finished in 1.56s
+```
+
+Complete guide suite:
+
+```sh
+cargo test -p snapback4-lang --test guide -- --nocapture
+```
+
+```text
+test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+```
+
+Clique programs:
+
+```sh
+cargo test -p snapback4-sim --test clique -- --nocapture
+```
+
+```text
+test result: ok. 92 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 49.83s
+```
+
+Targeted web suites:
+
+```sh
+node --test packages/snapback4/test/web-durability.test.mjs packages/snapback4/test/navigation-model.test.mjs packages/snapback4/test/store-reset-review.test.mjs
+```
+
+```text
+ℹ tests 82
+ℹ pass 82
+ℹ fail 0
+ℹ cancelled 0
+```
+
+Blocking suite, from repository root:
+
+```sh
+bash snapback4/scripts/test.sh
+```
+
+```text
+-- FAIL: cargo test (624 s)
+-- FAIL: client tests (65 s)
+== 2 failure(s) in 631 s
+```
+
+Required client rerun:
+
+```sh
+node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'
+```
+
+```text
+ℹ tests 498
+ℹ pass 497
+ℹ fail 1
+ℹ cancelled 0
+```
+
+Isolated route rerun:
+
+```sh
+cargo test -p snapback4 --bin snapback4 route_development_exception_does_not_expose_core_doors_or_personas -- --nocapture
+```
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 58 filtered out; finished in 0.01s
+```
+
+Writable-cache native reads rerun:
+
+```sh
+CARGO_HOME=/private/tmp/w11r2-cargo-cache target/debug/deps/native_reads-b3b06dc295738225 --nocapture
+```
+
+```text
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.42s
+```
+
+Writable-cache native jobs rerun:
+
+```sh
+CARGO_HOME=/private/tmp/w11r2-cargo-cache target/debug/deps/native-3d25140fa7501473 --nocapture
+```
+
+```text
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.83s
+```
+
+The full suite reported Rust 1250 passed / 14 failed / 4 ignored (sum of the
+verbatim target summaries), fixtures 9/9, and client 497/498. One Rust route
+test failed its timing-dependent admitted-work count and passed alone. Eight
+native-read tests and five native-job tests could not populate the global
+Cargo cache (`unicode-ident-1.0.25.crate`: `Operation not permitted`). Their
+standalone reruns passed with the writable temporary cache. Both full client
+runs have exactly one failure: React's Chromium launch exits with SIGABRT,
+the sandbox artifact named in the brief. The lead must run that browser test
+outside this sandbox; no complete green blocking-suite claim is made here.
+No failure is labelled pre-existing: a separate clean-base complete suite was
+not run. The exact base above was used to establish the web regression reds.
+
+Native retry preparation:
+
+```sh
+CARGO_HOME=/private/tmp/w11r2-cargo-cache cargo fetch --locked --manifest-path native-fixtures/rescore/Cargo.toml
+cargo test -p snapback4-device --test native_reads --no-run
+cargo test -p snapback4-sim --test native --no-run
+```
+
+One mistargeted `cargo test -p snapback4 --test check w11r -- --nocapture`
+invocation ran from the repository root. It failed during dependency resolution
+on the absent root vendor/ibex/Cargo.toml before any test ran; this was an
+invocation error, and the command was rerun correctly from snapback4/ above.
+
+Supporting edits beyond the brief's named production paths are the writes
+card and CLIENT-AND-OPERATIONS.md (recovery policy), and one Clique assertion
+for the renamed recipe refusal. The actions card was temporarily reverted for
+test sensitivity and restored unchanged. Tests stayed in existing suites.
+No sub-agent, clone, other machine, commit, push, tag or publication was used.
+`git diff --check` passed. Reference validation follows this single-block
+append; no earlier journal entry is changed except the requested D2 sentence.
+The brief requests no specific verbatim before/after diagnostic measurement;
+compiler diagnostic texts are unchanged. Recipe runtime messages retain
+`the program refused with CODE`, with the six codes above now prefixed FEED_.

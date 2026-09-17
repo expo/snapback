@@ -26,6 +26,8 @@ export interface Change {
 /** Where a host keeps what the device changed, by store name. */
 export interface Persistence {
   load(name: string): Promise<Change[]>;
+  /** Test existence without creating a missing store. */
+  has?(name: string): Promise<boolean>;
   read?(name: string, store: string, key: string): Promise<string | null>;
   /** One batch, all or nothing, in order. */
   save(name: string, changes: Change[]): Promise<void>;
@@ -59,26 +61,53 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       const journal = new AdmissionJournal(store.name, store.exclusive);
       const admissions = new Set<string>();
       let device: WebDevice | undefined;
-      let chain: Promise<unknown> = Promise.resolve();
+      // A lock can release during opening; recovery must wait for restore/adoption.
+      let opened!: () => void;
+      let chain: Promise<unknown> = new Promise<void>(resolve => { opened = resolve; });
       let closing: Promise<void> | undefined;
       let orphanRetry: ReturnType<typeof setTimeout> | undefined;
+      let retryCount = 0;
+      const waiting = new Map<string, AbortController>();
       const outboxListeners = new Set<() => void>();
+      const recoverInBackground = () => {
+        chain = chain.then(async () => {
+          if (closing) return;
+          try { if (!device) await restore(); await recoverOrphans(); }
+          catch { discard(); retryOrphans(); }
+        });
+      };
+      // Persistence failures get three backed-off attempts. Structurally
+      // unresolved journals wait for the next open/identity/sync signal.
       const retryOrphans = () => {
-        if (closing || orphanRetry) return;
+        if (closing || orphanRetry || retryCount === 3) return;
         orphanRetry = setTimeout(() => {
           orphanRetry = undefined;
-          chain = chain.then(async () => {
-            if (closing) return;
-            try { if (!device) await restore(); await recoverOrphans(); }
-            catch { discard(); retryOrphans(); }
-          });
-        }, 1000);
+          recoverInBackground();
+        }, 1000 * 2 ** retryCount++);
         (orphanRetry as { unref?: () => void }).unref?.();
+      };
+      // @ref LLP 3000.007#20.4 — wait for ownership without polling or holding up foreground calls.
+      const waitForLock = (name: string) => {
+        const locks = lockManager();
+        if (!locks || closing || waiting.has(name)) return;
+        const controller = new AbortController();
+        waiting.set(name, controller);
+        // The request is only a release signal. Recovery runs after it releases
+        // the lock, on the device chain, and rechecks the stores still present.
+        void locks.request(name, { signal: controller.signal }, () => {}).then(() => {
+          waiting.delete(name);
+          if (!controller.signal.aborted && !closing) recoverInBackground();
+        }, () => { waiting.delete(name); });
+      };
+      const stopRecovery = () => {
+        clearTimeout(orphanRetry);
+        for (const controller of waiting.values()) controller.abort();
+        waiting.clear();
       };
       const recoverOrphans = async () => {
         const retry = await adoptOrphans(device!, name, store.name, persist, settle, () => {
           for (const notify of outboxListeners) notify();
-        });
+        }, waitForLock);
         if (retry) retryOrphans();
       };
       // Committed outbox entries, mirrored from persisted changes, so a page
@@ -121,10 +150,11 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         await restore(backend);
         await recoverOrphans();
       } catch (error) {
-        clearTimeout(orphanRetry);
+        closing = Promise.resolve();
+        stopRecovery();
         try { discard(); } finally { await store.release(); }
         throw new Error(refusalText(error));
-      }
+      } finally { opened(); }
       const suspendListeners = new Set<() => void>();
       const core: DeviceCore = {
         onOutbox(listener) { outboxListeners.add(listener); return () => { outboxListeners.delete(listener); }; },
@@ -211,7 +241,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           return answer;
         },
         close() {
-          clearTimeout(orphanRetry);
+          stopRecovery();
           outboxListeners.clear();
           for (const stop of suspendListeners) stop();
           return closing ??= chain.then(async () => {
@@ -334,28 +364,31 @@ function hold(locks: LockManager, name: string): Promise<(() => Promise<void>) |
 
 /** Writes an orphaned tab left queued are queued here, in their order,
  * and the orphan's store goes; its rows are the stream's to bring back. */
-async function adoptOrphans(device: WebDevice, name: string, own: string, persist: Persistence, settle: (extra?: Change[]) => Promise<void>, adopted: () => void): Promise<boolean> {
+async function adoptOrphans(device: WebDevice, name: string, own: string, persist: Persistence, settle: (extra?: Change[]) => Promise<void>, adopted: () => void, waitForLock: (name: string) => void): Promise<boolean> {
   const locks = lockManager();
   if (!locks || !persist.others || !persist.remove) return false;
   let retry = false;
-  for (const orphan of new Set([...await persist.others(`${name}:tab-`), ...journalStores(`${name}:tab-`)])) {
+  const stores = new Set(await persist.others(`${name}:tab-`));
+  for (const orphan of new Set([...stores, ...journalStores(`${name}:tab-`)])) {
     if (orphan === own) continue;
     // The lock is the ownership authority, even for a suspended/live tab.
-    // Never wait across its close in a foreground call. One background timer
-    // re-enumerates busy candidates until they can be claimed, or we close.
+    // A queued background request signals release; no timer polls live tabs.
     const held = await hold(locks, orphan);
-    if (!held) { retry = true; continue; }
+    if (!held) { waitForLock(orphan); continue; }
     let destinationDirty = false;
     let enqueued = false;
     try {
       // @ref LLP 3000.007#18.2 — orphan receipts retain their source store until ownership can be resolved.
+      // A journal can outlive its database. Loading a missing IDB store would
+      // create it, without recovering the identity needed to admit its journal.
+      if (!stores.has(orphan) && !await persist.has?.(orphan)) continue;
       let saved = await persist.load(orphan);
       const state = JSON.parse(device.call(JSON.stringify({ op: "sync_state" }))).ok;
       const destination = state?.store_id;
       if (journalStores(`${name}:tab-`).includes(orphan)) {
         // An evicted/unidentified store cannot establish the journal's owner.
         // Leave it intact for a later matching open; never guess from the key.
-        if (!saved.some(c => c.s === "m" && c.k === "device:store_id" && c.v) || !saved.some(c => c.s === "m" && c.k === "device:backend" && c.v)) { retry = true; continue; }
+        if (!saved.some(c => c.s === "m" && c.k === "device:store_id" && c.v) || !saved.some(c => c.s === "m" && c.k === "device:backend" && c.v)) continue;
         const sourceJournal = new AdmissionJournal(orphan, true);
         sourceJournal.load(saved);
         const sourceDevice = new WebDevice(null, JSON.stringify(saved.filter(c => c.s !== "j")));
@@ -381,7 +414,7 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
       // Commit the shared receipt window BEFORE any source can be removed.
       // A busy receipt writer leaves this whole source intact for the retry.
       const history = saved.find(c => c.s === "m" && c.k === "client:write-history")?.v;
-      if (history && !await shareReceipts(persist, locks, name, history)) { retry = true; continue; }
+      if (history && !await shareReceipts(persist, locks, name, history)) { waitForLock(`${name}:receipts`); continue; }
       let source: string | null | undefined;
       for (const change of saved) if (change.s === "m" && change.k === "device:store_id") source = change.v;
       const latest = new Map<string, string | null>();
@@ -411,7 +444,7 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
       await settle(saved.filter(c => c.s === "j" && !entries.some(e => e.id === c.k && !removed.some(r => r.k === e.id))));
       destinationDirty = false;
       if (enqueued) adopted();
-      if (unresolved || journalStores(`${name}:tab-`).includes(orphan)) { retry = true; await persist.save(orphan, removed); }
+      if (unresolved || journalStores(`${name}:tab-`).includes(orphan)) { if (removed.length) await persist.save(orphan, removed); }
       else await persist.remove(orphan);
     } catch (error) {
       // A broken orphan stays intact and must not prevent opening healthy stores.
@@ -437,6 +470,10 @@ function terminalReceipts(text: string | null | undefined): TerminalReceipt[] {
 
 async function receiptHistory(persist: Persistence, name: string): Promise<TerminalReceipt[]> {
   const shared = `${name}:receipts`;
+  // Adoption requires enumeration too. Recheck existence on each lookup so a
+  // sibling's later adoption is visible, but a read never creates the window.
+  const exists = persist.has ? await persist.has(shared) : (await persist.others?.(shared))?.includes(shared);
+  if (!exists) return [];
   const text = persist.read ? await persist.read(shared, "m", "client:write-history")
     : (await persist.load(shared)).find(c => c.s === "m" && c.k === "client:write-history")?.v;
   return terminalReceipts(text);
@@ -460,11 +497,15 @@ async function shareReceipts(persist: Persistence, locks: LockManager, name: str
 /** IndexedDB: one database per store, one object store of changes keyed by
  * store and key, written in one transaction per call. */
 export function indexedDbPersistence(): Persistence {
-  const open = (name: string): Promise<IDBDatabase> => new Promise((resolve, reject) => {
+  const open = (name: string, create = true): Promise<IDBDatabase | null> => new Promise((resolve, reject) => {
+    let absent = false;
     const request = indexedDB.open(name, 1);
-    request.onupgradeneeded = () => request.result.createObjectStore("changes", { keyPath: ["s", "k"] });
+    request.onupgradeneeded = () => {
+      if (create) request.result.createObjectStore("changes", { keyPath: ["s", "k"] });
+      else { absent = true; request.transaction!.abort(); }
+    };
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onerror = () => absent ? resolve(null) : reject(request.error);
   });
   const done = (tx: IDBTransaction): Promise<void> => new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
@@ -472,8 +513,15 @@ export function indexedDbPersistence(): Persistence {
     tx.onabort = () => reject(tx.error);
   });
   return {
+    async has(name) {
+      if (indexedDB.databases) return (await indexedDB.databases()).some(db => db.name === name);
+      const db = await open(name, false);
+      db?.close();
+      return db !== null;
+    },
     async read(name, store, key) {
-      const db = await open(name);
+      const db = await open(name, false);
+      if (!db) return null;
       try {
         const tx = db.transaction("changes", "readonly");
         const request = tx.objectStore("changes").get([store, key]);
@@ -482,7 +530,7 @@ export function indexedDbPersistence(): Persistence {
       } finally { db.close(); }
     },
     async load(name) {
-      const db = await open(name);
+      const db = (await open(name))!;
       try {
         const tx = db.transaction("changes", "readonly");
         const request = tx.objectStore("changes").getAll();
@@ -493,7 +541,7 @@ export function indexedDbPersistence(): Persistence {
       }
     },
     async save(name, changes) {
-      const db = await open(name);
+      const db = (await open(name))!;
       try {
         const tx = db.transaction("changes", "readwrite", { durability: "strict" });
         const store = tx.objectStore("changes");
@@ -527,6 +575,7 @@ export function memoryPersistence(): Persistence & { readonly stores: Map<string
   const stores = new Map<string, Map<string, Change>>();
   return {
     stores,
+    async has(name) { return stores.has(name); },
     async read(name, store, key) { return stores.get(name)?.get(`${store} ${key}`)?.v ?? null; },
     async load(name) {
       return [...(stores.get(name)?.values() ?? [])];

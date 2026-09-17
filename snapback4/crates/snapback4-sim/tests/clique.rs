@@ -1385,7 +1385,7 @@ fn w7a_saturated_author_keeps_own_posts_and_ghost_reposts_refuse() {
     assert_eq!(following_app::query(&mut engine, "author").data.as_array().unwrap().len(), 1);
     let ghost = engine.mutate("social.repost", None, following_app::context("author", &[("postId", id("ghost"))])).unwrap();
     let WriteState::Failed { why, .. } = ghost.state else { panic!("a ghost repost must refuse"); };
-    assert_eq!(why.code, "POST_NOT_FOUND");
+    assert_eq!(why.code, "FEED_POST_NOT_FOUND");
     assert_eq!(engine.store().rows("feedPosts").unwrap().len(), 1);
     following_app::mutate(&mut engine, "deletePost", "author", &[("postId", id("real"))], 4);
     assert!(following_app::query(&mut engine, "author").data.as_array().unwrap().is_empty());

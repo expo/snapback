@@ -67,8 +67,11 @@ recovery order. Existing shared ids keep their outcome and position. Openers
 and `client.write(id)` read it alongside the device's own 256 receipts;
 reads neither copy nor refresh it, so another tab's adoption cannot hide a
 receipt from a reload. Outbox ownership stays exclusive: a held Web Lock is
-never taken, and busy candidates retry in the background until available or
-the adopter closes, without another backend write. Storage clearing or eviction
+never taken; a queued background lock request wakes recovery when its owner
+releases it, and closing cancels the wait. Unidentified journals wait for a
+matching open or sync signal. Persistence failures get at most three retries,
+after 1, 2 and 4 seconds; later opens or sync signals can try again. Receipt
+lookups do not create the shared window before adoption. Storage clearing or eviction
 from both windows can make an id unknown. Recovered success carries `replayed: true`
 and no result; recovered failure keeps code/family and `write refused: CODE`.
 Refusals before durable admission, the online tier and mock remember outcomes

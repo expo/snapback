@@ -3,7 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { memoryPersistence, webDevice } from "../dist/web.js";
+import { indexedDbPersistence, memoryPersistence, webDevice } from "../dist/web.js";
 import { WebDevice } from "../dist/wasm/snapback4_device.js";
 
 const wasm = readFileSync(new URL("../dist/wasm/snapback4_device_bg.wasm", import.meta.url));
@@ -122,4 +122,125 @@ test("close drains accepted calls once and refuses later calls", async () => {
     assert.equal(ok(await reopened.call({ op: "meta", key: "first" })), "saved");
     assert.equal(ok(await reopened.call({ op: "meta", key: "second" })), "saved");
   } finally { await reopened.close(); }
+});
+
+
+for (const state of ["evicted", "unidentified"]) test(`W11R2: ${state} journal has no retry timer or missing-store read`, async t => {
+  const name = `quiet-${state}`, orphan = `${name}:tab-old`, key = `snapback4-admission:${encodeURIComponent(orphan)}:store:write`;
+  const memory = memoryPersistence(), timers = new Set();
+  let loads = 0;
+  for (const [globalKey, value] of Object.entries({ window: new EventTarget(), localStorage: { length: 1, key: () => key, getItem: () => "{}" }, navigator: { locks: { async request(name, options, body) { return body({ name }); } } } })) {
+    const previous = Object.getOwnPropertyDescriptor(globalThis, globalKey);
+    Object.defineProperty(globalThis, globalKey, { configurable: true, value });
+    t.after(() => previous ? Object.defineProperty(globalThis, globalKey, previous) : delete globalThis[globalKey]);
+  }
+  t.mock.method(globalThis, "setTimeout", callback => { const timer = { callback, unref() {} }; timers.add(timer); return timer; });
+  t.mock.method(globalThis, "clearTimeout", timer => timers.delete(timer));
+  if (state === "unidentified") await memory.save(orphan, [{ s: "m", k: "client:marker", v: "unidentified" }]);
+  const persist = { ...memory, async load(store) { if (store === orphan) loads++; return memory.load(store); } };
+  const core = await webDevice({ wasm, persist }).open(name, backend);
+  try {
+    assert.equal(timers.size, 0, "an unresolved journal must wait for a signal, not poll for its lifetime");
+    assert.equal(loads, state === "evicted" ? 0 : 1, "a read must not create an evicted journal's database");
+    ok(await core.call({ op: "state" }));
+    assert.equal(timers.size, 0);
+    assert.equal((await memory.others(`${name}:tab-`)).length, state === "evicted" ? 0 : 1);
+    t.diagnostic(`state=${state} retry_timers=${timers.size} orphan_loads=${loads}`);
+  } finally { await core.close(); }
+});
+
+test("W11R2: receipt lookup never opens an absent shared database and sees later adoption", async t => {
+  const name = "lazy-receipts", memory = memoryPersistence();
+  let opens = 0;
+  const persist = { ...memory,
+    async load(store) { if (store === `${name}:receipts`) opens++; return memory.load(store); },
+    async read(store, s, k) { if (store === `${name}:receipts`) opens++; return memory.read(store, s, k); },
+  };
+  const core = await webDevice({ wasm, persist }).open(name, backend);
+  try {
+    for (let i = 0; i < 10; i++) assert.deepEqual(JSON.parse(ok(await core.call({ op: "meta", key: "write-history" }))), []);
+    assert.equal(opens, 0, "ordinary receipt lookups must not open/create the shared database");
+    await memory.save(`${name}:receipts`, [{ s: "m", k: "client:write-history", v: JSON.stringify([{ state: "sent", id: "recovered", seq: 7 }]) }]);
+    assert.deepEqual(JSON.parse(ok(await core.call({ op: "meta", key: "write-history" }))), [{ state: "sent", id: "recovered", seq: 7, replayed: true }]);
+    assert.equal(opens, 1, "a later sibling adoption is visible without reopening this client");
+    t.diagnostic("empty_receipt_lookups=10 absent_database_opens=0 later_receipts=1");
+  } finally { await core.close(); }
+});
+
+
+function replaceGlobal(t, key, value) {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, key);
+  Object.defineProperty(globalThis, key, { configurable: true, value });
+  t.after(() => previous ? Object.defineProperty(globalThis, key, previous) : delete globalThis[key]);
+}
+
+test("W11R2: a live sibling queues one cancellable lock wait without a timer", async t => {
+  const name = "quiet-live", orphan = `${name}:tab-live`, memory = memoryPersistence();
+  let waits = 0, aborts = 0, timers = 0;
+  await memory.save(orphan, [{ s: "m", k: "client:marker", v: "held" }]);
+  replaceGlobal(t, "navigator", { locks: { request(name, options, body) {
+    if (name !== orphan) return Promise.resolve(body({ name }));
+    if (options.ifAvailable) return Promise.resolve(body(null));
+    waits++;
+    return new Promise((_, reject) => options.signal.addEventListener("abort", () => { aborts++; reject(new DOMException("closed", "AbortError")); }, { once: true }));
+  } } });
+  t.mock.method(globalThis, "setTimeout", () => { timers++; return { unref() {} }; });
+  const core = await webDevice({ wasm, persist: memory }).open(name, backend);
+  try {
+    for (let n = 0; n < 3; n++) ok(await core.call(snapshot()));
+    assert.equal(waits, 1, "repeated syncs share one queued wait per lock");
+    assert.equal(timers, 0, "a living sibling costs no retry ticks");
+  } finally { await core.close(); }
+  assert.equal(aborts, 1, "close cancels the pending lock request");
+  t.diagnostic(`live_sibling_waits=${waits} retry_timers=${timers} cancelled_waits=${aborts}`);
+});
+
+test("W11R2: persistent recovery failure exhausts three backoffs then a sync can recover", async t => {
+  const name = "bounded-failure", orphan = `${name}:tab-old`, memory = memoryPersistence(), timers = new Set(), delays = [];
+  let failed = true, attempts = 0;
+  await memory.save(orphan, [{ s: "m", k: "client:write-history", v: JSON.stringify([{ state: "sent", id: "kept", seq: 1 }]) }]);
+  replaceGlobal(t, "navigator", { locks: { async request(name, options, body) { return body({ name }); } } });
+  t.mock.method(globalThis, "setTimeout", (callback, delay) => { const timer = { callback, unref() {} }; timers.add(timer); delays.push(delay); return timer; });
+  t.mock.method(globalThis, "clearTimeout", timer => timers.delete(timer));
+  const persist = { ...memory, async save(store, changes) {
+    if (store === `${name}:receipts`) { attempts++; if (failed) throw new Error("persistent outage"); }
+    return memory.save(store, changes);
+  } };
+  const core = await webDevice({ wasm, persist }).open(name, backend);
+  try {
+    for (let n = 0; n < 8 && timers.size; n++) {
+      const timer = [...timers][0]; timers.delete(timer); timer.callback();
+      ok(await core.call({ op: "state" }));
+    }
+    assert.equal(timers.size, 0, "the timer budget must terminate during a persistent outage");
+    assert.equal(attempts, 4, "one initial attempt and three retries");
+    assert.deepEqual(delays, [1000, 2000, 4000]);
+    assert.equal(await memory.has(orphan), true);
+    failed = false; ok(await core.call(snapshot()));
+    assert.equal(await memory.has(orphan), false);
+    assert.equal(JSON.parse(ok(await core.call({ op: "meta", key: "write-history" })))[0].id, "kept");
+    t.diagnostic("failed_attempts=4 retry_delays_ms=1000,2000,4000 remaining_timers=0 signal_recoveries=1");
+  } finally { await core.close(); }
+});
+
+test("W11R2: IndexedDB existence fallback aborts creation of missing stores", async t => {
+  const names = new Set(["present"]);
+  let aborted = 0, closed = 0;
+  replaceGlobal(t, "indexedDB", { open(name) {
+    const request = { result: { close() { closed++; }, transaction() { throw new Error("absence must not start a read transaction"); } } };
+    queueMicrotask(() => {
+      if (names.has(name)) request.onsuccess();
+      else {
+        request.transaction = { abort() { aborted++; queueMicrotask(() => request.onerror()); } };
+        request.onupgradeneeded();
+      }
+    });
+    return request;
+  } });
+  const persist = indexedDbPersistence();
+  assert.equal(await persist.has("missing"), false);
+  assert.equal(await persist.read("missing", "m", "client:write-history"), null);
+  assert.equal(await persist.has("present"), true);
+  assert.deepEqual([...names], ["present"]);
+  assert.equal(aborted, 2); assert.equal(closed, 1);
 });

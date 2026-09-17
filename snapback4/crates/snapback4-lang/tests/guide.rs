@@ -80,21 +80,42 @@ fn w11r1c_first_screen_generates_types_and_starts_the_backend() {
     }
 }
 
+// Inspect authored `else CODE` tokens, independently of the reserved-prefix census.
+fn recipe_refusals(source: &str) -> Vec<String> {
+    let (tokens, diagnostics) = snapback4_lang::lexer::lex("recipe.q", source);
+    assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    tokens.windows(2).filter(|pair| pair[0].value == "else" && pair[1].kind == snapback4_lang::lexer::Kind::Word)
+        .map(|pair| pair[1].value.clone()).collect()
+}
+
 #[test]
-fn w11r1c_new_recipe_refusals_must_be_registered_with_sections() {
-    assert!(sources().iter().any(|file| file.ends_with("src/guide/feeds.md")), "the census must scan the extracted recipe");
-    let unknown = "FEED_NEW_RECIPE_REFUSAL";
+fn w11r2_recipe_refusals_have_reserved_names_and_dedicated_sections() {
+    let unknown = "UNREGISTERED_RECIPE_REFUSAL";
     let source = format!("mutation probe():\n  require false else {unknown}\n");
-    let b = compile(&source);
-    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
-    assert_eq!(code_words(&source), [unknown]);
-    let missing: Vec<_> = code_words(&source).into_iter().filter(|code| explain_code(code).is_none()).collect();
-    assert_eq!(missing, [unknown], "the emitted-code census must reject a newly authored recipe refusal");
-    for code in ["FEED_PULL_COUNT_MISSING", "CANNOT_FOLLOW_SELF", "AUTHOR_NOT_FOUND", "POST_NOT_FOUND", "FEED_PULL_CAP"] {
+    assert!(compile(&source).diagnostics.is_empty());
+    assert_eq!(recipe_refusals(&source), [unknown]);
+    assert!(explain_code(unknown).is_none(), "the census detects an unprefixed new refusal too");
+    let source = snapback4_lang::recipe::following("feed", "social").unwrap();
+    let mut refusals = recipe_refusals(&source);
+    refusals.sort(); refusals.dedup();
+    assert_eq!(refusals.len(), 9);
+    for code in &refusals {
         assert!(explain_code(code).is_some(), "unregistered recipe code: {code}");
         assert_eq!(snapback4_lang::diag::guide_for(code), "feeds");
         assert!(snapback4_lang::Diagnostic::new(&Default::default(), code, "", "").explanation_section().is_some(), "no dedicated section: {code}");
+        assert!(code.starts_with("FEED_"), "recipe claims a generic name: {code}");
     }
+}
+
+#[test]
+fn w11r2_native_boundary_sentence_matches_both_published_copies() {
+    fn sentence(text: &str) -> String {
+        let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        normalized.split_once("Quarry still declares ").unwrap().1.split_once(". Anything").unwrap().0.to_owned()
+    }
+    let expected = "the table, its rules and its `sync`; a mutation cannot be native, because a device predicts Quarry and the server replays it";
+    assert_eq!(sentence(card("native").unwrap()), expected);
+    assert_eq!(sentence(README), expected);
 }
 
 #[test]

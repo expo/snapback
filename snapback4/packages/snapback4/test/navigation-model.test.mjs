@@ -264,11 +264,26 @@ for (const bound of ["record bytes", "journal bytes", "record count"]) test(`pre
 });
 
 function locks(t) {
-  const held = new Set(), previous = Object.getOwnPropertyDescriptor(globalThis, "navigator");
-  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { locks: { async request(name, _options, body) {
-    if (held.has(name)) return body(null);
-    held.add(name);
-    try { return await body({ name }); } finally { held.delete(name); }
+  const held = new Set(), queues = new Map(), previous = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  const pump = name => {
+    if (held.has(name)) return;
+    const next = queues.get(name)?.shift();
+    if (next) next(); else queues.delete(name);
+  };
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { locks: { request(name, options, body) {
+    if (options.ifAvailable && (held.has(name) || queues.get(name)?.length)) return Promise.resolve(body(null));
+    return new Promise((resolve, reject) => {
+      const abort = () => { queues.set(name, (queues.get(name) ?? []).filter(run => run !== start)); reject(new DOMException("closed", "AbortError")); };
+      const start = () => {
+        options.signal?.removeEventListener("abort", abort);
+        held.add(name);
+        Promise.resolve().then(() => body({ name })).finally(() => { held.delete(name); pump(name); }).then(resolve, reject);
+      };
+      if (options.signal?.aborted) { abort(); return; }
+      options.signal?.addEventListener("abort", abort, { once: true });
+      if (!queues.has(name)) queues.set(name, []);
+      queues.get(name).push(start); pump(name);
+    });
   } } } });
   t.after(() => previous ? Object.defineProperty(globalThis, "navigator", previous) : delete globalThis.navigator);
 }
@@ -813,7 +828,7 @@ test("W11R1a: competing adopters serialize shared receipts without holding up an
   const f = await fixture(t), primary = await f.open(quietChanges), second = await f.open(quietChanges), third = await f.open(quietChanges);
   const a = await second.mutate(mark, { digit: 1 }), b = await third.mutate(mark, { digit: 2 });
   assert.equal(a.state, "sent"); assert.equal(b.state, "sent");
-  await second.sync(); await third.sync(); await second.close(); await third.close();
+  await second.sync(); await third.sync();
   const entered = deferred(), release = deferred(), save = f.persist.save.bind(f.persist);
   let blocked = false;
   f.cleanup.push(() => release.resolve());
@@ -821,6 +836,7 @@ test("W11R1a: competing adopters serialize shared receipts without holding up an
     if (name.endsWith(":receipts") && !blocked) { blocked = true; entered.resolve(); await release.promise; }
     await save(name, changes);
   };
+  await Promise.all([second.close(), third.close()]);
   const adopting = primary.sync();
   await entered.promise;
   const replacement = await f.open(quietChanges);

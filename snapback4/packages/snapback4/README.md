@@ -778,10 +778,10 @@ units of fuel per chunk (about 90,000 per host call) is the step ceiling,
 so the row ceilings bind first. The module imports one host function and
 nothing else: no clock, no randomness, no network — `chunk.now` is the
 host's — and a native job therefore runs under the simulator like any
-job. Quarry still declares the table, its rules and its `sync`; a query
-or mutation cannot be native, because a device predicts Quarry and the
-certificate reads it. Anything that needs the network stays outside and
-writes into a table the job reads.
+job. Quarry still declares the table, its rules and its `sync`; a mutation
+cannot be native, because a device predicts Quarry and the server replays it.
+Anything that needs the network stays outside and writes into a table the job
+reads.
 
 ### Search
 
@@ -1468,8 +1468,8 @@ fn tryPull(readerId: principal, authorId: principal):
   return true
 
 fn addFollow(authorId: principal):
-  require authorId != viewer else CANNOT_FOLLOW_SELF
-  a = authors[authorId] ! else AUTHOR_NOT_FOUND
+  require authorId != viewer else FEED_CANNOT_FOLLOW_SELF
+  a = authors[authorId] ! else FEED_AUTHOR_NOT_FOUND
   if exists follows[followerId = viewer, followedId = authorId]:
     return null
   if a.shared:
@@ -1528,24 +1528,24 @@ fn deliver(p: posts):
   return null
 
 mutation createPost(postId: id):
-  require not exists removedEvents[eventId = postId] else EVENT_REMOVED
-  a = authors[viewer] ! else AUTHOR_NOT_FOUND
+  require not exists removedEvents[eventId = postId] else FEED_EVENT_REMOVED
+  a = authors[viewer] ! else FEED_AUTHOR_NOT_FOUND
   p = insert posts { id: postId, postId, actorId: viewer, authorId: viewer, repost: false, at: now, shared: a.shared }
   deliver(p)
   return { id: p.id }
 
 mutation repost(eventId: posts):
-  original = posts[eventId] ! else POST_NOT_FOUND
-  require not original.repost else ORIGINAL_REQUIRED
+  original = posts[eventId] ! else FEED_POST_NOT_FOUND
+  require not original.repost else FEED_ORIGINAL_REQUIRED
   if exists posts[viewer, original.postId, true]:
     return null
-  a = authors[viewer] ! else AUTHOR_NOT_FOUND
+  a = authors[viewer] ! else FEED_AUTHOR_NOT_FOUND
   p = insert posts { postId: original.postId, actorId: viewer, authorId: original.authorId, repost: true, at: now, shared: a.shared }
   deliver(p)
   return { id: p.id }
 
 fn removeEvent(p: posts):
-  require p.actorId = viewer else NOT_AUTHOR
+  require p.actorId = viewer else FEED_NOT_AUTHOR
   insert removedEvents { id: p.id, eventId: p.id, actorId: viewer }
   if p.shared:
     delete broadcast[viewer, p.id]
@@ -1555,7 +1555,7 @@ fn removeEvent(p: posts):
 mutation deletePost(postId: posts):
   p = posts[postId]
   if p != null:
-    require not p.repost else ORIGINAL_REQUIRED
+    require not p.repost else FEED_ORIGINAL_REQUIRED
     removeEvent(p)
   return null
 
@@ -1577,6 +1577,9 @@ job purgeRemoved():
     delete removedEvents[p.id]
 schedule purgeRemovedEvery every 1m: purgeRemoved
 ```
+
+All authored Following refusals use the reserved `FEED_` prefix; `why` explains
+each on the feeds card without claiming generic application names.
 
 The caps are explicit: 1,000 follows and source events per account,
 50,000 private entries per reader, 32 pulled authors per reader and

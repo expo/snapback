@@ -399,10 +399,12 @@ recovery order. Existing shared ids keep their outcome and position. Every
 opener and `client.write(id)` reads that window alongside its own device's
 256 receipts; reads never copy or refresh it. A different tab winning adoption
 cannot hide the receipt from a reload. Outboxes remain exclusively owned:
-a held Web Lock is never taken, and a busy candidate is retried in the background
-until it becomes available or the adopter closes, without waiting for another
-backend write. Browser storage clearing or eviction from both receipt windows
-can still make an id unknown. Rebuild the Expo native binary with this client
+a held Web Lock is never taken; a queued background lock request wakes recovery
+when its owner releases it, and closing cancels the wait. Unidentified journals
+wait for a matching open or sync signal. Persistence failures get at most three
+retries, after 1, 2 and 4 seconds; later opens or sync signals can try again.
+Receipt lookups do not create the shared window before adoption. Browser storage
+clearing or eviction from both receipt windows can still make an id unknown. Rebuild the Expo native binary with this client
 version: acquisition is a device protocol field, and an older module refuses
 startup with `E_DEVICE_VERSION`.
 

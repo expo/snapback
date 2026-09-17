@@ -243,8 +243,8 @@ fn tryPull(readerId: principal, authorId: principal):
   return true
 
 fn addFollow(authorId: principal):
-  require authorId != viewer else CANNOT_FOLLOW_SELF
-  a = authors[authorId] ! else AUTHOR_NOT_FOUND
+  require authorId != viewer else FEED_CANNOT_FOLLOW_SELF
+  a = authors[authorId] ! else FEED_AUTHOR_NOT_FOUND
   if exists follows[followerId = viewer, followedId = authorId]:
     return null
   if a.shared:
@@ -303,24 +303,24 @@ fn deliver(p: posts):
   return null
 
 mutation createPost(postId: id):
-  require not exists removedEvents[eventId = postId] else EVENT_REMOVED
-  a = authors[viewer] ! else AUTHOR_NOT_FOUND
+  require not exists removedEvents[eventId = postId] else FEED_EVENT_REMOVED
+  a = authors[viewer] ! else FEED_AUTHOR_NOT_FOUND
   p = insert posts { id: postId, postId, actorId: viewer, authorId: viewer, repost: false, at: now, shared: a.shared }
   deliver(p)
   return { id: p.id }
 
 mutation repost(eventId: posts):
-  original = posts[eventId] ! else POST_NOT_FOUND
-  require not original.repost else ORIGINAL_REQUIRED
+  original = posts[eventId] ! else FEED_POST_NOT_FOUND
+  require not original.repost else FEED_ORIGINAL_REQUIRED
   if exists posts[viewer, original.postId, true]:
     return null
-  a = authors[viewer] ! else AUTHOR_NOT_FOUND
+  a = authors[viewer] ! else FEED_AUTHOR_NOT_FOUND
   p = insert posts { postId: original.postId, actorId: viewer, authorId: original.authorId, repost: true, at: now, shared: a.shared }
   deliver(p)
   return { id: p.id }
 
 fn removeEvent(p: posts):
-  require p.actorId = viewer else NOT_AUTHOR
+  require p.actorId = viewer else FEED_NOT_AUTHOR
   insert removedEvents { id: p.id, eventId: p.id, actorId: viewer }
   if p.shared:
     delete broadcast[viewer, p.id]
@@ -330,7 +330,7 @@ fn removeEvent(p: posts):
 mutation deletePost(postId: posts):
   p = posts[postId]
   if p != null:
-    require not p.repost else ORIGINAL_REQUIRED
+    require not p.repost else FEED_ORIGINAL_REQUIRED
     removeEvent(p)
   return null
 
@@ -353,20 +353,35 @@ job purgeRemoved():
 schedule purgeRemovedEvery every 1m: purgeRemoved
 ```
 
+The installable Following recipe reserves `FEED_` for all its authored refusals.
+Generic application codes such as `POST_NOT_FOUND` have no global recipe meaning.
+
+FEED_EVENT_REMOVED means an event with this post ID was already removed.
+For example, republishing a deleted post while its removal marker is retained
+refuses. Mint a new post ID for a new event; do not resurrect the removed one.
+
+FEED_ORIGINAL_REQUIRED means the requested event is itself a repost.
+For example, reposting a repost refuses. Pass the original event instead;
+only an original event can be reposted or removed through the original path.
+
+FEED_NOT_AUTHOR means the caller does not own the event being removed.
+For example, removing another actor's repost refuses. Remove the caller's
+own event; the original author can remove the original through its own path.
+
 FEED_PULL_COUNT_MISSING means an installed pull route has no matching count row.
 For example, importing a route without its `pullCounts` row makes `unfollow`
 refuse atomically. Repair the imported count to match that reader's installed
 routes before retrying with a new write ID; normal helpers update both together.
 
-CANNOT_FOLLOW_SELF means the recipe was asked to follow the caller's own account.
+FEED_CANNOT_FOLLOW_SELF means the recipe was asked to follow the caller's own account.
 Keep the caller's own posts through the recipe's own delivery lane; follow a
 different author instead.
 
-AUTHOR_NOT_FOUND means the target author has not registered in the recipe.
+FEED_AUTHOR_NOT_FOUND means the target author has not registered in the recipe.
 Call `register` during that author's profile creation, then retry the follow
 with a new write ID after registration succeeds.
 
-POST_NOT_FOUND means the recipe could not find the requested source post/event.
+FEED_POST_NOT_FOUND means the recipe could not find the requested source post/event.
 For example, a repost of a deleted event refuses. Refresh the source lookup and
 pass an existing event reference; a prefixed app bridge validates its own post
 before calling the recipe helper.
@@ -693,18 +708,18 @@ mutation unfollow(authorId: principal):
   return feedDropFollow(authorId)
 
 mutation createPost(postId: id, body: text <=4000, media: image <=1000000 ?):
-  require not exists feedRemovedEvents[eventId = postId] else EVENT_REMOVED
-  a = feedAuthors[viewer] ! else AUTHOR_NOT_FOUND
+  require not exists feedRemovedEvents[eventId = postId] else FEED_EVENT_REMOVED
+  a = feedAuthors[viewer] ! else FEED_AUTHOR_NOT_FOUND
   p = insert posts { id: postId, authorId: viewer, body, media, at: now }
   event = insert feedPosts { id: postId, postId, actorId: viewer, authorId: p.authorId, repost: false, at: p.at, shared: a.shared }
   feedDeliver(event)
   return p postCard
 
 mutation repost(postId: posts):
-  original = posts[postId] ! else POST_NOT_FOUND
+  original = posts[postId] ! else FEED_POST_NOT_FOUND
   if exists reposts[viewer, postId]:
     return null
-  event = feedPosts[original.authorId, postId, false] ! else POST_NOT_FOUND
+  event = feedPosts[original.authorId, postId, false] ! else FEED_POST_NOT_FOUND
   r = insert reposts { actorId: viewer, postId, at: now }
   feedRepost(event.id)
   return { id: r.id }

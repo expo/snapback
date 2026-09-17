@@ -1207,7 +1207,30 @@ fn w11r1c_toolchain_why_explains_node_start_failure_too() {
     assert!(String::from_utf8_lossy(&output.stderr).contains("E_SERVER_TOOLCHAIN: cannot start Node 24 to check server handlers:"));
     let why = p.run(&["why", "E_SERVER_TOOLCHAIN"]);
     let text = String::from_utf8(why.stdout).unwrap();
-    assert!(text.contains("Node 24") && text.contains("SNAPBACK_NODE") && text.contains("TypeScript"), "{text}");
+    let summary = text.lines().next().unwrap();
+    let paragraph = snapback4_lang::guide::card("actions").unwrap().split("\n\n").find(|p| p.starts_with("E_SERVER_TOOLCHAIN means ")).unwrap();
+    for (part, content) in [("summary", summary), ("dedicated paragraph", paragraph)] {
+        for fact in ["Node 24", "SNAPBACK_NODE", "TypeScript"] {
+            assert!(content.contains(fact), "{part} omits {fact}: {content}");
+        }
+    }
+    assert!(text.contains(paragraph), "why must include the dedicated paragraph: {text}");
     let repaired = p.run(&["check"]);
     assert!(repaired.status.success(), "{repaired:?}");
+}
+
+
+#[test]
+fn w11r2_generic_application_refusals_do_not_claim_the_feed_recipe() {
+    let p = Project::new();
+    p.source("mutation missing():\n  require false else POST_NOT_FOUND\nmutation author():\n  require false else AUTHOR_NOT_FOUND\nquery answer():\n  return 42\n");
+    assert!(p.run(&["check"]).status.success());
+    for code in ["POST_NOT_FOUND", "AUTHOR_NOT_FOUND", "CANNOT_FOLLOW_SELF"] {
+        let output = p.run(&["why", code]);
+        let text = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+        assert!(!text.contains("guide feeds") && !text.contains("Following"), "{code}: {text}");
+    }
+    let output = p.run(&["why", "FEED_POST_NOT_FOUND"]);
+    assert!(output.status.success());
+    assert!(String::from_utf8_lossy(&output.stdout).contains("Full card: snapback4 guide feeds"));
 }
