@@ -116,6 +116,7 @@ process.once("SIGTERM", () => stop.abort());
 process.once("SIGINT", () => stop.abort());
 `;
 const imports = `import { server } from "./generated/server.ts";
+import { ParkStep } from "snapback4/server";
 import { api } from "./generated/api.ts";
 import { appendFileSync, writeFileSync } from "node:fs";
 import { setTimeout as delay } from "node:timers/promises";
@@ -395,7 +396,18 @@ async function provider(t, directory) {
       const payload = body.length ? JSON.parse(Buffer.concat(body).toString()) : {};
       const key = request.method === "GET" ? url.searchParams.get("key") : payload.key;
       assert.equal(typeof key, "string");
-      appendFileSync(requests, JSON.stringify({ method: request.method, key }) + "\n", { flush: true });
+      appendFileSync(requests, JSON.stringify({ method: request.method, key, path: url.pathname }) + "\n", { flush: true });
+      if (request.method === "GET" && url.pathname === "/lookup-timeout") return;
+      if (request.method === "GET" && url.pathname === "/lookup-5xx") {
+        response.writeHead(503, { "content-type": "application/json" });
+        response.end(JSON.stringify({ unavailable: true }));
+        return;
+      }
+      if (request.method === "GET" && url.pathname === "/lookup-unreadable") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end("{not-json");
+        return;
+      }
       let receipt = lines(journal).find(value => value.key === key);
       if (!receipt && request.method === "POST") {
         receipt = { key, value: `accepted-${lines(journal).length + 1}` };
@@ -407,51 +419,117 @@ async function provider(t, directory) {
   });
   await new Promise((resolve, reject) => { host.once("error", reject); host.listen(0, "127.0.0.1", resolve); });
   t.after(async () => { host.closeAllConnections(); await new Promise(resolve => host.close(resolve)); });
-  return { url: `http://127.0.0.1:${host.address().port}`, receipts: () => lines(journal), requests: () => lines(requests) };
+  const url = `http://127.0.0.1:${host.address().port}`;
+  return {
+    url,
+    receipts: () => lines(journal),
+    requests: () => lines(requests),
+    async lookup(key) {
+      const response = await fetch(url + "/lookup?key=" + encodeURIComponent(key));
+      return { status: response.status, body: await response.json() };
+    },
+    async accept(key) {
+      const response = await fetch(url + "/accept", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ key }) });
+      return { status: response.status, body: await response.json() };
+    },
+  };
 }
 
-test("actual worker crashes replay completed steps, reconcile uncertainty, park unknown outcomes and reject changed input", { timeout: 45_000 }, async t => {
+// @ref LLP 3000.009#11-verification-obligations — distinguish both external-work crash cuts and never infer provider absence from an uncertain lookup.
+test("actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes", { timeout: 60_000 }, async t => {
   const p = project(t, `${notes}
-action work(mode: enum('done', 'reconcile', 'park', 'changed')) returns { value: text <=80, attempt: int, writeId: text <=26 } secrets [TEST_PROVIDER_URL] retry 4 backoff 1s
+action work(mode: enum('done', 'reconcile', 'park', 'changed', 'before', 'lookup-timeout', 'lookup-5xx', 'lookup-unreadable')) returns { value: text <=80, attempt: int, writeId: text <=26 } secrets [TEST_PROVIDER_URL] retry 4 backoff 1s
 `, `${imports}
 appendFileSync(new URL("../worker-starts.jsonl", import.meta.url), JSON.stringify({pid:process.pid}) + "\\n", {flush:true});
 const worker = server({actions:{async work({mode}, ctx) {
   const writeId = ctx.writeIdFor("save");
   const write = await ctx.mutate(api.save, {body:mode}, {id:writeId});
   appendFileSync(new URL("../attempts.jsonl", import.meta.url), JSON.stringify({mode, id:ctx.invocation.id, attempt:ctx.invocation.attempt, writeId, write, pid:process.pid}) + "\\n", {flush:true});
-  async function contact(key:string, lookup=false):Promise<{value:string}> {
-    const response = await fetch(ctx.secrets.TEST_PROVIDER_URL + (lookup ? "/lookup?key=" + encodeURIComponent(key) : "/accept"), lookup ? {} : {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({key})});
+  async function contact(key:string):Promise<{value:string}> {
+    const response = await fetch(ctx.secrets.TEST_PROVIDER_URL + "/accept", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({key})});
     if (!response.ok) throw Error("provider did not establish an outcome");
     return response.json() as Promise<{value:string}>;
   }
-  async function crash(stage:string):Promise<never> {
-    appendFileSync(new URL("../crashes.jsonl", import.meta.url), JSON.stringify({stage, mode, id:ctx.invocation.id, pid:process.pid}) + "\\n", {flush:true});
+  async function reconcile(key:string):Promise<{value:string}> {
+    const suffix = mode === "lookup-timeout" ? "-timeout" : mode === "lookup-5xx" ? "-5xx" : mode === "lookup-unreadable" ? "-unreadable" : "";
+    try {
+      const response = await fetch(ctx.secrets.TEST_PROVIDER_URL + "/lookup" + suffix + "?key=" + encodeURIComponent(key), {signal:AbortSignal.timeout(150)});
+      let body:unknown;
+      try { body = await response.json(); } catch { throw new ParkStep("provider lookup response was unreadable"); }
+      if (response.ok && body !== null && typeof body === "object" && typeof (body as {value?:unknown}).value === "string") return body as {value:string};
+      if (response.status === 404 && body !== null && typeof body === "object" && (body as {missing?:unknown}).missing === true && Object.keys(body).length === 1) return contact(key);
+      throw new ParkStep("provider lookup did not authoritatively establish an outcome");
+    } catch (error) {
+      if (error instanceof ParkStep) throw error;
+      throw new ParkStep("provider lookup timed out or failed before an authoritative answer");
+    }
+  }
+  async function crash(stage:string, key:string):Promise<never> {
+    appendFileSync(new URL("../crashes.jsonl", import.meta.url), JSON.stringify({stage, mode, id:ctx.invocation.id, key, pid:process.pid}) + "\\n", {flush:true});
     process.kill(process.pid, "SIGKILL");
     return new Promise<never>(() => {});
   }
   const input = {mode, revision:mode === "changed" && ctx.invocation.attempt > 1 ? 2 : 1};
+  let providerKey = "";
   const result = await ctx.step("provider/__proto__", input, async key => {
+    providerKey = key;
+    appendFileSync(new URL("../step-callbacks.jsonl", import.meta.url), JSON.stringify({mode, id:ctx.invocation.id, attempt:ctx.invocation.attempt, key, pid:process.pid}) + "\\n", {flush:true});
+    if (["before", "lookup-timeout", "lookup-5xx", "lookup-unreadable"].includes(mode)) {
+      const stage = "after durable begin, before provider request/acceptance";
+      if (mode === "before") writeFileSync(new URL("../before-provider-cut.json", import.meta.url), JSON.stringify({stage, mode, id:ctx.invocation.id, attempt:ctx.invocation.attempt, key, pid:process.pid}), {flush:true});
+      return crash(stage, key);
+    }
     const result = await contact(key);
-    if (ctx.invocation.attempt === 1 && mode !== "done") return crash("accepted-before-recording");
+    if (ctx.invocation.attempt === 1 && mode !== "done") return crash("accepted-before-recording", key);
     return result;
-  }, mode === "reconcile" ? {reconcile:key => contact(key,true)} : undefined);
-  if (ctx.invocation.attempt === 1 && mode === "done") return crash("recorded-before-action-settlement");
+  }, ["reconcile", "before", "lookup-timeout", "lookup-5xx", "lookup-unreadable"].includes(mode) ? {reconcile} : undefined);
+  if (mode === "before") {
+    const replay = await ctx.step("provider/__proto__", input, async key => {
+      appendFileSync(new URL("../unexpected-replay-callbacks.jsonl", import.meta.url), JSON.stringify({id:ctx.invocation.id, key, pid:process.pid}) + "\\n", {flush:true});
+      return contact(key);
+    }, {reconcile});
+    appendFileSync(new URL("../completed-step-replays.jsonl", import.meta.url), JSON.stringify({id:ctx.invocation.id, attempt:ctx.invocation.attempt, value:replay.value, pid:process.pid}) + "\\n", {flush:true});
+  }
+  if (ctx.invocation.attempt === 1 && mode === "done") return crash("recorded-before-action-settlement", providerKey);
   return {value:result.value, attempt:ctx.invocation.attempt, writeId};
 }}}, ${options});
 export default worker; await worker.done;
 `);
   const remote = await provider(t, p.directory);
   const f = await p.start({ env: { TEST_PROVIDER_URL: remote.url } });
-  for (const mode of ["done", "reconcile", "park", "changed"]) {
+  const beforeId = "crash-before";
+  assert.equal((await f.call("work", beforeId, { mode: "before" })).state, "pending");
+  const cut = await until(() => jsonFile(join(p.directory, "before-provider-cut.json")), "durable pre-provider cut marker", 10_000, f.log);
+  assert.equal(cut.stage, "after durable begin, before provider request/acceptance");
+  assert.equal(cut.id, beforeId); assert.equal(cut.attempt, 1);
+  assert.ok(f.workerPids().includes(cut.pid), "the cut marker belongs to this fixture's supervised worker");
+  assert.deepEqual(remote.receipts().filter(receipt => receipt.key === cut.key), [], "no provider receipt exists at the cut");
+  assert.deepEqual(remote.requests().filter(request => request.key === cut.key), [], "no provider request happened before the cut");
+  await until(() => { try { process.kill(cut.pid, 0); return false; } catch (error) { if (error.code === "ESRCH") return true; throw error; } }, "pre-provider worker PID dies", 10_000, f.log);
+
+  const settled = new Map([["before", await f.collect("work", beforeId, { mode: "before" })]]);
+  for (const mode of ["done", "reconcile", "park", "changed", "lookup-timeout", "lookup-5xx", "lookup-unreadable"]) {
     const id = `crash-${mode}`;
-    const result = await f.collect("work", id, { mode });
-    if (mode === "done" || mode === "reconcile") {
+    settled.set(mode, await f.collect("work", id, { mode }));
+  }
+  const modes = ["done", "reconcile", "park", "changed", "before", "lookup-timeout", "lookup-5xx", "lookup-unreadable"];
+  const expectedMethods = {
+    done: ["POST"], reconcile: ["POST", "GET"], park: ["POST"], changed: ["POST"], before: ["GET", "POST"],
+    "lookup-timeout": ["GET"], "lookup-5xx": ["GET"], "lookup-unreadable": ["GET"],
+  };
+  const expectedPaths = {
+    done: ["/accept"], reconcile: ["/accept", "/lookup"], park: ["/accept"], changed: ["/accept"], before: ["/lookup", "/accept"],
+    "lookup-timeout": ["/lookup-timeout"], "lookup-5xx": ["/lookup-5xx"], "lookup-unreadable": ["/lookup-unreadable"],
+  };
+  for (const mode of modes) {
+    const id = `crash-${mode}`, result = settled.get(mode);
+    if (mode === "done" || mode === "reconcile" || mode === "before") {
       assert.equal(result.state, "done", JSON.stringify(result));
       assert.equal(result.result.attempt, 2);
       assert.match(result.result.writeId, /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/);
     } else {
       assert.equal(result.state, "failed", JSON.stringify(result));
-      assert.equal(result.why.code, mode === "park" ? "E_STEP_PARKED" : "E_STEP_INPUT");
+      assert.equal(result.why.code, mode === "changed" ? "E_STEP_INPUT" : "E_STEP_PARKED");
     }
     const attempts = lines(join(p.directory, "attempts.jsonl")).filter(record => record.id === id);
     assert.deepEqual(attempts.map(record => record.attempt), [1, 2]);
@@ -463,14 +541,120 @@ export default worker; await worker.done;
     const crash = lines(join(p.directory, "crashes.jsonl")).find(record => record.id === id);
     assert.equal(crash.pid, attempts[0].pid);
     assert.ok(f.workerPids().includes(crash.pid), "the crashed PID was this fixture's supervised child");
-    const key = remote.receipts()[["done", "reconcile", "park", "changed"].indexOf(mode)].key;
+    const callbacks = lines(join(p.directory, "step-callbacks.jsonl")).filter(record => record.id === id);
+    assert.equal(callbacks.length, 1, "an uncertain step never automatically runs its initial callback again");
+    const key = callbacks[0].key;
+    assert.equal(crash.key, key, "reconciliation retains the original durable provider key");
     const calls = remote.requests().filter(request => request.key === key);
-    assert.deepEqual(calls.map(call => call.method), mode === "reconcile" ? ["POST", "GET"] : ["POST"]);
+    assert.deepEqual(calls.map(call => call.method), expectedMethods[mode]);
+    assert.deepEqual(calls.map(call => call.path), expectedPaths[mode]);
+    assert.equal(remote.receipts().filter(receipt => receipt.key === key).length, ["lookup-timeout", "lookup-5xx", "lookup-unreadable"].includes(mode) ? 0 : 1);
+    const trafficBeforeCollectionReplay = remote.requests().filter(request => request.key === key);
     assert.equal((await f.call("work", id, { mode })).state, result.state);
+    assert.deepEqual(remote.requests().filter(request => request.key === key), trafficBeforeCollectionReplay, "repeating action collection creates no provider traffic");
   }
-  assert.equal(remote.receipts().length, 4);
-  assert.equal(lines(join(p.directory, "crashes.jsonl")).length, 4);
-  assert.equal((await f.post("/q/mine", { args: {} })).data.length, 4, "one database write per invocation across worker crashes");
+  assert.equal(lines(join(p.directory, "completed-step-replays.jsonl")).filter(record => record.id === beforeId).length, 1);
+  assert.deepEqual(lines(join(p.directory, "unexpected-replay-callbacks.jsonl")), []);
+  const originalReceipt = remote.receipts().find(receipt => receipt.key === cut.key);
+  const duplicate = await remote.accept(cut.key);
+  assert.deepEqual(duplicate, { status: 200, body: { value: originalReceipt.value } });
+  assert.equal(remote.receipts().filter(receipt => receipt.key === cut.key).length, 1, "the provider double deduplicates a repeated POST under the original key");
+  assert.equal(remote.receipts().length, 5);
+  assert.equal(new Set(remote.receipts().map(receipt => receipt.key)).size, remote.receipts().length, "the durable provider journal has one acceptance per key");
+  assert.equal(lines(join(p.directory, "crashes.jsonl")).length, 8);
+  assert.equal((await f.post("/q/mine", { args: {} })).data.length, 8, "one database write per invocation across worker crashes");
+});
+
+test("parked action operator disposition records known provider acceptance without resuming original work", { timeout: 30_000 }, async t => {
+  const p = project(t, `use personas alice
+use identity
+table operatorDispositions:
+  originalActionId: text <=128
+  providerKey: text <=128
+  providerReceipt: text <=128
+  disposition: enum('known-accepted')
+  by byAction: originalActionId, id
+  read <- viewer = 'service:operator'
+  insert <- viewer = 'service:operator'
+mutation recordDisposition(id: id, originalActionId: text <=128, providerKey: text <=128, providerReceipt: text <=128, disposition: enum('known-accepted')):
+  require viewer = 'service:operator' else OPERATOR_SERVICE_REQUIRED
+  insert operatorDispositions { id, originalActionId, providerKey, providerReceipt, disposition }
+  return null
+query dispositionsFor(originalActionId: text <=128):
+  return operatorDispositions[originalActionId] first 20 by byAction
+action send() returns { value: text <=80 } secrets [TEST_PROVIDER_URL] retry 4 backoff 1s
+`, `${imports}
+appendFileSync(new URL("../operator-worker-starts.jsonl", import.meta.url), JSON.stringify({pid:process.pid}) + "\\n", {flush:true});
+const worker = server({actions:{async send(_, ctx) {
+  appendFileSync(new URL("../operator-attempts.jsonl", import.meta.url), JSON.stringify({id:ctx.invocation.id, attempt:ctx.invocation.attempt, pid:process.pid}) + "\\n", {flush:true});
+  const result = await ctx.step("provider", {intent:"send-once"}, async (key):Promise<{value:string}> => {
+    appendFileSync(new URL("../operator-step-callbacks.jsonl", import.meta.url), JSON.stringify({id:ctx.invocation.id, attempt:ctx.invocation.attempt, key, pid:process.pid}) + "\\n", {flush:true});
+    const response = await fetch(ctx.secrets.TEST_PROVIDER_URL + "/accept", {method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({key})});
+    if (!response.ok) throw Error("provider did not accept");
+    const accepted = await response.json() as {value:string};
+    writeFileSync(new URL("../operator-accepted-crash.json", import.meta.url), JSON.stringify({id:ctx.invocation.id, key, receipt:accepted.value, pid:process.pid}), {flush:true});
+    process.kill(process.pid, "SIGKILL");
+    return new Promise<never>(() => {});
+  });
+  return {value:result.value};
+}}}, ${options});
+export default worker; await worker.done;
+`);
+  const remote = await provider(t, p.directory);
+  const f = await p.start({ env: { TEST_PROVIDER_URL: remote.url } });
+  const actionId = "operator-parked-action";
+  const parked = await f.collect("send", actionId);
+  assert.equal(parked.state, "failed", JSON.stringify(parked));
+  assert.equal(parked.why.code, "E_STEP_PARKED");
+  const attempts = lines(join(p.directory, "operator-attempts.jsonl"));
+  assert.deepEqual(attempts.map(record => record.attempt), [1, 2]);
+  assert.notEqual(attempts[0].pid, attempts[1].pid);
+  assert.equal(lines(join(p.directory, "operator-step-callbacks.jsonl")).length, 1, "parking never reruns the original provider callback");
+
+  const why = p.command(["why", actionId]);
+  assert.equal(why.status, 0, safe(why.stdout + why.stderr));
+  assert.match(why.stdout, /state: "parked"/); assert.match(why.stdout, /attempts: 2/);
+  assert.match(why.stdout, /step "provider": "parked"/);
+  assert.doesNotMatch(why.stdout, /arguments value:|step result value:/, "operator inspection omits --values");
+  const key = why.stdout.match(/provider key: "([^"]+)"/)?.[1];
+  assert.equal(typeof key, "string", why.stdout);
+  const crash = jsonFile(join(p.directory, "operator-accepted-crash.json"));
+  assert.equal(key, crash.key);
+
+  const evidence = await remote.lookup(key);
+  assert.equal(evidence.status, 200); assert.equal(typeof evidence.body.value, "string");
+  assert.equal(crash.pid, attempts[0].pid); assert.equal(crash.receipt, evidence.body.value);
+  assert.deepEqual(remote.receipts().filter(receipt => receipt.key === key), [{ key, value: evidence.body.value }], "the provider-double journal is the durable acceptance evidence");
+  const providerTraffic = remote.requests().filter(request => request.key === key);
+  assert.deepEqual(providerTraffic.map(request => request.method), ["POST", "GET"]);
+
+  const args = { id: "00000000000000000000000001", originalActionId: actionId, providerKey: key, providerReceipt: evidence.body.value, disposition: "known-accepted" };
+  const viewer = await f.post("/m/recordDisposition", { id: "viewer-disposition-attempt", args });
+  assert.equal(viewer.state, "failed", JSON.stringify(viewer));
+  assert.equal(viewer.why.code, "OPERATOR_SERVICE_REQUIRED");
+  const minted = p.command(["token", "--service", "operator"]);
+  assert.equal(minted.status, 0, safe(minted.stdout + minted.stderr));
+  const operatorToken = minted.stdout.trim();
+  const writeId = "operator-disposition-v1";
+  const first = await f.post("/m/recordDisposition", { id: writeId, args }, operatorToken);
+  assert.equal(first.state, "sent", JSON.stringify(first)); assert.equal(first.result, null);
+  // Model a caller that discarded the first acknowledgement and retries the exact intent.
+  const replay = await f.post("/m/recordDisposition", { id: writeId, args }, operatorToken);
+  assert.equal(replay.state, "sent", JSON.stringify(replay)); assert.equal(replay.replayed, true);
+  assert.equal(Object.hasOwn(replay, "result"), false);
+  const recorded = await f.post("/q/dispositionsFor", { args: { originalActionId: actionId } }, operatorToken);
+  assert.equal(recorded.data.length, 1, JSON.stringify(recorded));
+  assert.deepEqual(recorded.data[0], { id: args.id, originalActionId: actionId, providerKey: key, providerReceipt: evidence.body.value, disposition: "known-accepted" });
+
+  const whyAfter = p.command(["why", actionId]);
+  assert.equal(whyAfter.status, 0, safe(whyAfter.stdout + whyAfter.stderr));
+  assert.match(whyAfter.stdout, /state: "parked"/); assert.match(whyAfter.stdout, /attempts: 2/);
+  assert.match(whyAfter.stdout, /step "provider": "parked"/);
+  assert.match(whyAfter.stdout, new RegExp(`provider key: "${key}"`));
+  const collectedAgain = await f.call("send", actionId);
+  assert.equal(collectedAgain.state, "failed"); assert.equal(collectedAgain.why.code, "E_STEP_PARKED");
+  assert.deepEqual(remote.requests().filter(request => request.key === key), providerTraffic, "disposition and later collection never resend or re-key provider intent");
+  assert.equal(remote.receipts().filter(receipt => receipt.key === key).length, 1);
 });
 
 test("serve uses the same generated contract and declared environment across a supervised restart", { timeout: 25_000 }, async t => {

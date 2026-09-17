@@ -326,6 +326,49 @@ input/outcome digests and the provider key, not values unless `--values` is set.
 Parked work is not retried automatically; this increment has no operator
 resume command. Reconcile externally before deliberately issuing new intent.
 
+### Recording a supported parked-work disposition
+
+The executable fixture in `test/server-e2e.test.mjs` demonstrates one safe,
+application-owned workflow. Its provider is a labelled durable local test
+double, not evidence for a production provider adapter:
+
+1. Run `snapback4 why operator-parked-action` without `--values`. Confirm the
+   action and step are `parked`, record the unchanged attempt count, and take
+   the original step's `provider key` from this privileged local inspection.
+2. Query authoritative provider-owned evidence with that exact key. The
+   fixture uses `GET <provider-double>/lookup?key=<provider-key>` and proceeds
+   only on its persisted `200 {"value":"accepted-1"}` receipt. A timeout,
+   5xx response or unreadable body is still unknown, not “missing,” and must
+   not cause a new provider POST. Even a structured missing response permits a
+   deduplicating POST only when that provider's contract makes the same key
+   safe. A real adapter needs its own qualified evidence path.
+3. Define an ordinary managed application table plus a mutation such as
+   `recordDisposition`, guarded by `viewer = 'service:operator'`. Mint that
+   seat with `snapback4 token --service operator`, then use normal authenticated
+   writes—never `sql`, `data` or direct store edits—to call:
+
+   ```text
+   POST /m/recordDisposition
+   Authorization: Bearer <operator-token>
+   Content-Type: application/json
+
+   {"id":"operator-disposition-v1","args":{"id":"00000000000000000000000001","originalActionId":"operator-parked-action","providerKey":"<provider-key>","providerReceipt":"accepted-1","disposition":"known-accepted"}}
+   ```
+
+   The fixture proves an ordinary viewer is refused this mutation.
+4. If the first acknowledgement is lost or ignored, repeat the identical
+   mutation id and arguments. The managed write returns `replayed: true` and
+   the application table contains one row linking the original action, exact
+   provider key, receipt and disposition. A second `why` still reports the
+   original action and step as parked with the same attempts; no provider
+   resend, new key, changed action arguments or core repair occurred.
+
+This row is an application-level operator disposition. It does not turn the
+old action's result into `done`, resume it or create a general administration
+subsystem. An unknown or unqueryable outcome remains unresolved; never issue a
+blind replacement send. Recovery and compensation are application-specific,
+and this slice does not require actions and effects to share one mechanism.
+
 Effects retain their legacy handler signature and at-least-once semantics,
 not the action context or `ctx.step`. Their declared retry/deadline/cancellation
 policy is frozen at emission. Current `runWorker` requests fenced effect

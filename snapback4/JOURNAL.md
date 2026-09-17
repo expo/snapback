@@ -27275,3 +27275,54 @@ parks; a recorded mint whose plaintext Session was lost fails closed with
 and warn that privileged `why --values`, `data` and `sql` intentionally expose
 stored sensitive values even though default logs/errors/`why` do not.
 Future B1b recovery does not retroactively resume these B1a parks.
+
+## 2026-09-16 — general-services crash and parked-disposition witnesses
+
+The server end-to-end application fixture now separates the fault cut **after
+durable step begin, before provider request/acceptance** from the existing
+accepted-before-recording cut. A real generated Node worker fsyncs its action
+id, original provider key and PID, then SIGKILLs itself before contacting the
+durable local provider double. Attempt 2 uses only `reconcile` with that key:
+an exact structured missing response permits a same-key deduplicating POST,
+while timeout, 503 and unreadable lookup responses park without any POST. The
+witness also retains the completed-step, accepted-before-recording, no-
+reconcile park and changed-input cases; managed write ids survive the process
+loss and their later attempts replay. The provider double journals one receipt
+per key and returns the original receipt to an explicit duplicate-key probe.
+
+A separate executable application fixture covers the supported operator
+disposition rather than inventing resume. The original provider-accepted
+action crashes and parks on attempt 2. Actual `why <id>` without `--values`
+supplies the parked metadata and original key; an authoritative GET of the
+labelled provider-double journal establishes acceptance. An ordinary viewer
+is refused the fixture's managed `recordDisposition` mutation. A
+`service:operator` seat writes the action id, key, provider receipt and
+`known-accepted` disposition under a stable write id; repeating the identical
+request returns `replayed: true` and leaves one managed row. The original
+action remains parked at two attempts and no provider send, re-key, action
+argument change or settlement repair occurs. `SERVER.md` gives the concrete
+numbered workflow and warns that unknown evidence stays unresolved.
+
+Serial local verification used only the supplied already-qualified 0.2.26 binary and
+Node 24.18.0. The final commands were:
+
+```text
+PATH=/Users/ccheever/.volta/tools/image/node/24.18.0/bin:$PATH SNAPBACK4_BIN=/Users/ccheever/.codex/sb4-oidc-qualification.eAfU4c/snapback4-0.2.26 /usr/bin/time -p /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node --test --test-name-pattern='actual worker crashes distinguish' packages/snapback4/test/server-e2e.test.mjs
+1/1 pass, 0 skipped, 30.52 s wall
+
+PATH=/Users/ccheever/.volta/tools/image/node/24.18.0/bin:$PATH SNAPBACK4_BIN=/Users/ccheever/.codex/sb4-oidc-qualification.eAfU4c/snapback4-0.2.26 /usr/bin/time -p /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node --test --test-name-pattern='parked action operator disposition' packages/snapback4/test/server-e2e.test.mjs
+1/1 pass, 0 skipped, 4.08 s wall
+
+PATH=/Users/ccheever/.volta/tools/image/node/24.18.0/bin:$PATH SNAPBACK4_BIN=/Users/ccheever/.codex/sb4-oidc-qualification.eAfU4c/snapback4-0.2.26 /usr/bin/time -p /Users/ccheever/.volta/tools/image/node/24.18.0/bin/node --test --test-concurrency=1 packages/snapback4/test/server-e2e.test.mjs
+9/9 pass, 0 skipped, 86.86 s wall
+```
+
+Two focused operator runs failed during construction and were corrected before
+the green runs: one generated-handler typecheck inferred an intentionally
+SIGKILL-only callback as `never` (2.35 s), and one assertion expected the
+action API's `failed` spelling from `why`, whose durable work state correctly
+prints `parked` (5.16 s). An earlier pre-deduplication focused crash run also
+passed 1/1 in 30.35 s. No full suite, Cargo, identity test, provider job,
+remote command or publication ran. This is a small application fixture over a
+provider double, not production-provider qualification, B completion,
+identity/B1b completion or a claim that parked core work became done.
