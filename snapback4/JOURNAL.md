@@ -29072,6 +29072,95 @@ ruling 30's design is a section of LLP 3000.007, reviewed blind before any lane;
 cargo-building lane is launched from this session above a load average of 15, and
 publishing stays with the wave 12 lead.
 
+## 2026-09-17 — ruling 32 measured, ruling 33 under blind review, ruling 30's design drafted (LLP 3000.007 §21.8, LLP 3000.007.001)
+
+Work taken under the author's twelve-hour delegation; each decision is recorded as the
+lead's in LLP 3000.007 §21.8 (L1–L6). Nothing is built and nothing is published.
+
+- **Ruling 32's measurement** (`presence-cost/` in the derived-probes record; published
+  0.2.27; a 50-member room; host load 30+, so shape not magnitude): 49 durable effect rows
+  cost about 0.9 ms a send, about 18 µs a row. With 49 held polls a send's p50 rises from
+  2.9 ms to 15–19 ms whether or not it emits — every commit wakes every held poll — and
+  6,724 of about 7,800 connected-recipient decisions were already recorded as deferred
+  effects, because under rapid sends most recipients are in grace between a poll's answer
+  and its re-poll. Decision L4: build ruling 32 on the existing effect row, one per
+  recipient. What a busy room pays for is the wake storm, which ruling 32 does not touch
+  and which deserves its own look (a poll waits on the store's sequence, not on its
+  partitions).
+- **Rulings 28 and 29** go to wave 13: its lead absorbs both as a serial continuation of
+  W13c, which already owns the merge lane-source binding (ruling 23 and the lane-source
+  seek ticket). The brief section is `~/projects/snapback-next-20260914/W13c-rulings-28-29.md`.
+  Decision L5 reads ruling 29 as a key component at any position, as maintain groups allow.
+- **Ruling 33's blind review is running** (`~/projects/snapback-r33-review/`, baseline
+  `0e3cf8959`; gpt-6-astra xhigh read-only, grok-4.6 xhigh plan mode; the Grok CLI was
+  probed first and answered). The proposal's centre is one claim for the reviewers to
+  break: for a uniformly decided prefix, a mutation's abort-versus-commit shows a viewer
+  nothing that an already-admitted query over the same expiring prefix does not.
+- **Ruling 30's design is LLP 3000.007.001** (Draft; `llp/current/` is now 60 links).
+  Facts checked on the way: a reference does not enforce existence (`dangling-reference/`:
+  a like of `no-such-post` is `sent`), so a maintained column counts at its parent's birth;
+  the change stream applies no horizon (`partition.rs` uses it for acquisition only), so
+  engine-written counts would make devices acquire old parents — the design's §3.6, left
+  open for the reviewers with a measurement owed; engine-maintained writes do not fan out
+  to maintains (`row_changed`, `Origin::Maintained`), so the first build has no cascade.
+- Corrected in §21.3 P1 from the bounds bar's numbers (the wave 13 lead's correction): a
+  merge-on-read Following measured 2.5–3.1× on metered requests and 7.3–9.0× on bare
+  clients at 500 over 5 follows; the feeds recipe stays the paved Following until
+  keys-only heads are measured.
+
+## 2026-09-17 — every commit wakes every held poll: measured and ticketed
+
+Following ruling 32's measurement: the rise of a send's p50 with 49 held polls is not the
+room's own fan-out. With 49 connected personas who belong to **nothing**, 160 commits into
+one principal's private room produced 6,439 bystander `/changes` answers and doubled the
+writer's p50 (2.07 → 4.00 ms, `dev --memory`, published 0.2.27); a bystander's answer names
+the table the other principal wrote (`"tables":["messages"]`). The poll waits on the store's
+one commit counter and `check` reports every table committed after `since`, unfiltered. LLP
+3000.009 §7.1 already owns narrower observation and asks for this fan-out to be measured
+first; the ticket (`issues/20260917-snapback4-every-commit-wakes-every-held-poll.md`) adds
+that replica devices are woken too and that the wake is an activity side channel, and
+suggests the smaller first step: wake a poll only for a commit that touched a partition its
+principal holds or a table its watches read. Probes are in the derived-probes record.
+
+## 2026-09-17 — rulings 28–33, and the Trending lane folded into wave 12 (LLP 3000.007 §14, §21.6, §21.8)
+
+The author ruled §21.6's six questions, each put with its alternatives and a before/after,
+taking the recommended option on all six: a merge lane source may be `range(a, b)` or a
+bounded list (28); a table index may lead with `day`/`hour`/`bucket` of a required time
+column, as index keys only (29); maintained columns yes in direction, with the design and
+a two-family blind review before anything is built (30); `N_PUBLIC_AGGREGATE_COPY`
+generalised to "derived in fact, admitted to everyone" after a false-positive census, a
+note and never an error (31); presence defers an effect and never drops one, after the
+effect-row cost is measured on the chat fixture (32); the blind review of mutation pages
+over an expiring table with a uniformly decided prefix is commissioned (33). Nothing is
+built by this entry.
+
+Two facts checked while the rulings were put. A bounded list argument is refused as a
+merge lane source with the same message as `range` (`a merge for lane requires a bounded
+range read`), so ruling 28 covers both. And ruling 32's mechanism is smaller than §21
+first said: every commit already wakes every held poll (the wait is on the store's
+sequence), a live client re-polls within milliseconds and each arrival already records
+`presence_reconnected`; the d-05 window is the 2-second heartbeat that notices a vanished
+client.
+
+The wave 12 lead was told of §21.1 item 1 before 0.2.28 and did not take it on trust: it
+compiled `trending-validated/` on its own build, reproduced the ranking and the `E_RULE`
+refusal, and ran W14a's brief unmodified inside wave 12 (lane W12R1c). Its blind reviews
+had already found that the read-time-sort `trending()` fabricated a ranking past the
+examined cut — an unfinished maintained point read coerced to 0 — which the lanes form
+dissolves. It also corrected a claim §21 had repeated: for a `count`, a stale value index
+is unbuilt rather than unsound, because expiry only lowers the live value below the stored
+one and a threshold scan terminates exactly. §21.3 P3 now says so. W14b (the digest) stays
+with this session.
+
+The author then delegated ruling-sized decisions for about twelve hours. The first three
+taken under it are §21.8's: rulings 28 and 29 go in one lane after or inside wave 13's
+W13c (one function, the merge lane-source binding, is shared with ruling 23 and with
+`issues/20260917-snapback4-merge-lane-source-seek-expression-is-an-unknown-variable-at-runtime.md`);
+ruling 30's design is a section of LLP 3000.007, reviewed blind before any lane; no
+cargo-building lane is launched from this session above a load average of 15, and
+publishing stays with the wave 12 lead.
+
 
 ## 2026-09-17 — lane MQ: independent retained and authoritative record fields
 

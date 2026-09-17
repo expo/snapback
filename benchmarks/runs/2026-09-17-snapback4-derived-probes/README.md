@@ -1,6 +1,6 @@
 # Derived-data probes on published Snapback 4 0.2.27
 
-**Status: complete; a probe record, not a calibration.** Eight small projects run against
+**Status: complete; a probe record, not a calibration.** Eleven small projects run against
 the **published `snapback4-darwin-arm64@0.2.27` binary** (`npm pack`, `snapback4 --version`
 → `snapback4 0.2.27`) on 2026-09-17, to test whether three shapes the 0.2.27 Clique record
 called expressiveness holes — a rolling-window ranking, a derived table any principal can
@@ -146,6 +146,48 @@ schema.q:5:23 — E_QUARRY_SYNTAX: expected the end of the line, got "("      --
 ```
 
 Only maintain groups take `day`, `hour` and `bucket` today.
+
+## `presence-cost/` — ruling 32's required measurement: an effect row per connected recipient
+
+On-disk dev store, `--hold-effects`; one room of 50 members; N = 150 sends a line after 10
+warm-ups; "connected" = 49 Node fetch loops holding `GET
+/changes?since=…&wait=25&heartbeat=1` and re-polling on every answer. Host load average
+30+: read the latencies as shape.
+
+```
+sendQuiet   (no effects; nobody connected)          p50=2.88ms  p95=8.05ms
+send        (49 offline -> 49 effects/msg)          p50=3.77ms  p95=7.26ms
+sendQuiet   (49 connected; polls wake+re-poll)      p50=17.67ms p95=112.59ms
+send        (49 connected -> 0 effects/msg)         p50=18.80ms p95=98.32ms
+sendAlways  (49 connected -> 49 effects/msg)        p50=14.88ms p95=67.91ms
+doctor: effects 22244 queued, 6724 deferred         storage: rows 143.6 KB · log 180.3 KB · ops 140.4 KB · file 9.7 MB
+```
+
+49 durable effect rows cost about 0.9 ms a send (about 18 µs a row). With 49 held polls a
+send's p50 rises 2.9 → 15–19 ms whether or not it emits: every commit wakes every held
+poll. 6,724 of the guarded `send`'s roughly 7,800 connected-recipient decisions were
+recorded as *deferred* effects — under rapid sends most recipients are between a poll's
+answer and its re-poll, in grace, so today's path already writes a durable row for most
+connected recipients in a busy room.
+
+`wake.mjs` and `wake-one.mjs` isolate the wake: p00 writes a room only p00 belongs to while
+49 personas who belong to nothing hold polls. 160 commits produce **6,439 bystander poll
+answers** and the writer's p50 goes 2.07 → 4.00 ms (`dev --memory`); one bystander's
+answer, about 5 ms after the other principal's commit, is
+`{"generation":1,"seq":2,"store_id":"…","tables":["messages"]}`. Filed as
+`issues/20260917-snapback4-every-commit-wakes-every-held-poll.md`.
+
+## `lane-list/` — a bounded list argument is refused as a merge lane source
+
+`[a] for a in authors` with `authors: [principal] <=50` →
+`E_QUARRY_SYNTAX: a merge for lane requires a bounded range read` — the same message
+`range(..)` gets (ruling 28 admits both).
+
+## `dangling-reference/` — a reference does not enforce that its target exists
+
+`insert likes { postId, principal: viewer }` with `postId = 'no-such-post'` → `state: sent`.
+LLP 3000.007.001 §3.3 (a maintained column counts pre-existing contributions at its
+parent's birth) rests on this.
 
 ## What this record does not show
 
