@@ -85,10 +85,12 @@ function decodeGated(item) {
   }
   return false;
 }
-// Resolve the common Rust use-tree forms rather than requiring a literal
-// Deserialize token in derive. Unknown aliases refuse; this is a text census,
-// not Rust name resolution. Procedural-macro output is outside its reach: the
-// symbol-level family check in measurements is the backstop.
+// @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — visible derives make the source census enforceable.
+// Web-source policy: serde derives cannot be renamed or re-exported; spell
+// Deserialize/serde::Deserialize (likewise Serialize) so the census can see it.
+// Procedural-macro output is outside this text census; the family check sees
+// only surviving symbols, so a fully inlined content decoder escapes both and
+// only the report-only byte budget remains as the final, non-blocking fallback.
 function imports(tree, prefix = '') {
   const found = [];
   let start = 0, depth = 0;
@@ -102,26 +104,29 @@ function imports(tree, prefix = '') {
     if (open >= 0) found.push(...imports(part.slice(open + 1, part.lastIndexOf('}')), prefix + part.slice(0, open)));
     else {
       const [target, alias] = (prefix + part).replace(/\s*::\s*/g, '::').split(/\s+as\s+/);
-      found.push({ target: target.trim(), name: alias?.trim() ?? target.trim().split('::').at(-1) });
+      found.push({ target: target.trim(), renamed: alias !== undefined });
     }
   }
   return found;
 }
-function decoderAliases(sources) {
-  const names = new Set(['Deserialize', 'serde::Deserialize']), serializers = new Set(['Serialize', 'serde::Serialize']), unresolved = [];
-  for (const [file, source] of sources) {
-    const code = mask(source), scopes = items(source);
-    for (const match of code.matchAll(/\buse\s+([^;]+);/g)) {
-      if (scopes.some(item => item.attributeStart <= match.index && item.end > match.index && testOnly(item))) continue;
-      for (const entry of imports(match[1])) {
-        if (entry.target.replace(/^::/, '') === 'serde::Serialize') serializers.add(entry.name);
-        if (entry.target.split('::').at(-1) !== 'Deserialize') continue;
-        if (entry.target.replace(/^::/, '') === 'serde::Deserialize') names.add(entry.name);
-        else unresolved.push({ file, index: match.index, name: entry.name });
-      }
+function deriveImports(source, scopes) {
+  const refused = [];
+  for (const match of mask(source).matchAll(/\b(pub(?:\s*\([^)]*\))?\s+)?use\s+([^;]+);/g)) {
+    if (scopes.some(item => item.attributeStart <= match.index && item.end > match.index && testOnly(item))) continue;
+    for (const entry of imports(match[2])) {
+      if (!/^serde::(?:(?:de|ser)::)?(?:Deserialize|Serialize)$/.test(entry.target.replace(/^::/, ''))) continue;
+      if (entry.renamed || match[1]) refused.push({ index: match.index, name: entry.target.split('::').at(-1) });
     }
   }
-  return { names, serializers, unresolved };
+  return refused;
+}
+// The non-serde derives used by today's walked sources; a new name on a
+// representation-bearing item requires review, never global alias inference.
+const nonSerdeDerives = new Set(['Clone', 'Copy', 'Debug', 'Default', 'PartialEq', 'Eq', 'PartialOrd', 'Ord', 'Error']);
+function classifyDerives(attrs) {
+  const names = derives(attrs);
+  return { decoder: names.some(name => ['Deserialize', 'serde::Deserialize'].includes(name)),
+    unknown: names.filter(name => !['Deserialize', 'serde::Deserialize', 'Serialize', 'serde::Serialize'].includes(name) && !nonSerdeDerives.has(name)) };
 }
 function derives(attrs) {
   return [...mask(attrs).matchAll(/\bderive\s*\(([^)]*)\)/g)].flatMap(m => m[1].split(',').map(s => s.trim().replace(/\s*::\s*/g, '::').replace(/^::/, '')).filter(Boolean));
@@ -138,23 +143,22 @@ function bufferedAttrs(code, begin, finish) {
   }
   return found;
 }
-function representations(source, scopes, { names: aliases, serializers }) {
+function representations(source, scopes) {
   const code = mask(source), found = [], macros = [];
   for (const match of code.matchAll(/\bmacro_rules!\s*(\w+)\s*([{([])/g)) {
     const open = match.index + match[0].length - 1;
     const end = endOf(code, open, match[2], { '{': '}', '(': ')', '[': ']' }[match[2]]);
     const item = { name: match[1], kind: 'macro', attributeStart: match.index, start: match.index, end, attrs: '' };
     macros.push(item);
-    if (derives(code.slice(open, end)).some(name => aliases.has(name))) {
-      for (const index of bufferedAttrs(code, open, end)) found.push({ index, item });
+    const { decoder, unknown } = classifyDerives(code.slice(open, end));
+    if (decoder || unknown.length) {
+      for (const index of bufferedAttrs(code, open, end)) found.push({ index, item, unknown });
     }
   }
   for (const item of scopes.filter(item => ['enum', 'struct'].includes(item.kind))) {
     if (macros.some(m => m.start <= item.start && m.end >= item.end)) continue;
-    const names = derives(item.attrs), buffered = bufferedAttrs(code, item.attributeStart, item.end);
-    if (!buffered.length) continue;
-    const unknown = names.filter(name => !aliases.has(name) && !serializers.has(name) && !['Clone', 'Copy', 'Debug', 'Default', 'PartialEq', 'Eq', 'PartialOrd', 'Ord', 'Hash'].includes(name));
-    if (names.some(name => aliases.has(name)) || unknown.length) {
+    const { decoder, unknown } = classifyDerives(item.attrs), buffered = bufferedAttrs(code, item.attributeStart, item.end);
+    if (decoder || unknown.length) {
       for (const index of buffered) found.push({ index, item, unknown });
     }
   }
@@ -211,11 +215,10 @@ export const refusalAllow = [
 ];
 export function census(sources, exceptions = [...allow, ...refusalAllow, ...representationAllow]) {
   const used = new Map(exceptions.map(entry => [entry, 0])), errors = [];
-  const aliases = decoderAliases(sources);
-  for (const { file, index, name } of aliases.unresolved) errors.push(`${file}:${sources.get(file).slice(0, index).split('\n').length}: unresolved Deserialize alias ${name}`);
   for (const [file, source] of sources) {
     const code = mask(source), scopes = items(source), hits = new Set();
-    const reps = representations(source, scopes, aliases);
+    for (const { index, name } of deriveImports(source, scopes)) errors.push(`${file}:${source.slice(0, index).split('\n').length}: serde derive import policy refuses renaming or re-exporting ${name} in web-reachable sources; spell the derive ${name} (or serde::${name}) so the census can see it`);
+    const reps = representations(source, scopes);
     for (const { index } of reps) hits.add(index);
     if (file !== core + 'json_codec.rs') {
       for (const match of code.matchAll(new RegExp(`\\bserde_json\\s*::\\s*(?:(?:value|de|ser)\\s*::\\s*)?(?:r#)?(?:${typed})\\b`, 'g'))) hits.add(match.index);
@@ -246,7 +249,7 @@ export function census(sources, exceptions = [...allow, ...refusalAllow, ...repr
       const line = source.slice(start, end < 0 ? undefined : end).trim();
       const exception = exceptions.find(entry => entry.file === file && entry.item === (representation?.item.name ?? fn?.name) && entry.line === line && (enclosing.some(item => gated(item, 'sqlite')) || refusalAllow.includes(entry) || (representation && decodeGated(representation.item))));
       if (exception) used.set(exception, used.get(exception) + 1);
-      else errors.push(`${file}:${source.slice(0, index).split('\n').length}: ${line}${representation?.unknown?.length ? ` — unresolved Deserialize alias/derive ${representation.unknown.join(', ')}` : ''}${representation ? ' — Deserialize content buffering can duplicate nested readers (ir::LaneSource incurred 33,460 B gzip from this cause); see LLP 3000.002#proposed-device-representation-and-codec-redesign' : ''}`);
+      else errors.push(`${file}:${source.slice(0, index).split('\n').length}: ${line}${representation?.unknown?.length ? ` — unresolvable derive ${representation.unknown.join(', ')}` : ''}${representation ? ' — Deserialize content buffering can duplicate nested readers (ir::LaneSource incurred 33,460 B gzip from this cause); see LLP 3000.002#proposed-device-representation-and-codec-redesign' : ''}`);
     }
   }
   for (const [entry, count] of used) if (count !== 1) errors.push(`${entry.file}: exception ${entry.item} consumed ${count} times (expected 1): ${entry.line}`);

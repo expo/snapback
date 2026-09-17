@@ -199,17 +199,80 @@ test('content decoder aliases, qualified derives and macro output cannot evade t
       const source = imports + (body.includes('$') ? `macro_rules! added { ($name:ident) => { ${item} }; }` : item);
       assert.ok(census(new Map([[file, source]]), []).some(e => /content buffering.*ir::LaneSource.*33,460.*LLP 3000.002/.test(e)), source);
     }
-    assert.deepEqual(census(new Map([[file, `${imports} #[derive(${derive})] struct Plain { value: String }`]]), []), []);
+    if (!imports) assert.deepEqual(census(new Map([[file, `#[derive(${derive})] struct Plain { value: String }`]]), []), []);
   }
   for (const source of [
     'use elsewhere::Deserialize as De; #[derive(De)] #[serde(untagged)] enum Added { X }',
     'use serde::{de::Deserialize as De}; #[derive(De)] #[serde(untagged)] enum Added { X }',
-  ]) assert.ok(census(new Map([[file, source]]), []).some(e => /unresolved Deserialize alias/.test(e)), source);
+  ]) assert.ok(census(new Map([[file, source]]), []).some(e => /unresolvable derive|serde derive import policy/.test(e)), source);
 });
 
-test('known Serialize aliases keep serialize-only content representations legal', () => {
-  for (const imports of ['use serde::Serialize as Ser;', 'use serde::{Serialize as Ser};']) {
-    const source = `${imports} #[derive(Ser)] #[serde(untagged)] enum Written { X }`;
-    assert.deepEqual(census(new Map([[core + 'fixture.rs', source]]), []), []);
+test('serde derive import policy refuses renames and re-exports at the import', () => {
+  const file = core + 'fixture.rs';
+  for (const line of [
+    'use serde::Deserialize as De;',
+    'use serde::{self, Serialize as S, Deserialize};',
+    'use ::serde::{de::{Deserialize as De}, ser::{Serialize}};',
+    'use serde::ser::Serialize as S;',
+    'pub use serde::Deserialize;',
+    'pub use serde::{Serialize};',
+    'pub(crate) use serde::de::Deserialize;',
+    'pub(super) use serde::{ser::{Serialize as S}};',
+  ]) {
+    const errors = census(new Map([[file, line]]), []);
+    assert.equal(errors.length, 1, line);
+    assert.match(errors[0], /fixture.rs:1:.*serde derive import policy.*spell the derive (?:Deserialize|Serialize).*serde::/);
   }
+});
+
+test('three-file Deserialize collision is refused at its serde aliases', () => {
+  const fixture = new Map([
+    [core + 'serializer.rs', 'use serde::Serialize as D;'],
+    [core + 'prelude.rs', 'pub use serde::Deserialize as De;'],
+    [core + 'consumer.rs', 'use crate::prelude::De as D; #[derive(D)] #[serde(untagged)] enum Added { X }'],
+  ]);
+  const errors = census(fixture, []);
+  for (const file of ['serializer', 'prelude']) assert.ok(errors.some(e => e.includes(`${file}.rs:1:`) && e.includes('serde derive import policy')), errors.join('\n'));
+});
+
+test('three-file indirect Serialize alias is refused at its serde re-export', () => {
+  const fixture = new Map([
+    [core + 'prelude.rs', 'pub use serde::Serialize as S0;'],
+    [core + 'bridge.rs', 'pub use crate::prelude::S0 as S;'],
+    [core + 'consumer.rs', 'use crate::bridge::S; #[derive(S)] #[serde(untagged)] enum Written { X }'],
+  ]);
+  assert.ok(census(fixture, []).some(e => /prelude.rs:1:.*serde derive import policy/.test(e)));
+});
+
+for (const derive of ['crate::prelude::Deserialize', '$derive']) {
+  test(`macro representation refuses unresolvable derive ${derive}`, () => {
+    for (const attr of ['#[serde(untagged)]', '#[serde(tag = "kind")]', '#[serde(flatten)]']) {
+      const source = `macro_rules! added { ($derive:path, $name:ident) => { #[derive(${derive})] ${attr} enum $name { X } }; }`;
+      const errors = census(new Map([[core + 'fixture.rs', source]]), []);
+      assert.equal(errors.length, 1, source);
+      assert.match(errors[0], /unresolvable derive.*content buffering/);
+    }
+  });
+}
+
+test('plain serde imports including trait paths stay accepted', () => {
+  for (const line of ['use serde::{Deserialize, Serialize};', 'use serde::Deserialize;', 'use serde::de::Deserialize;', 'use serde::{de::Deserialize, ser::Serialize};']) {
+    assert.deepEqual(census(new Map([[core + 'fixture.rs', line]]), []), [], line);
+  }
+});
+
+test('derive classification is lexical per item and only restricts unknowns with representations', () => {
+  const file = core + 'fixture.rs', check = text => census(new Map([[file, text]]), []);
+  for (const derive of ['Serialize', 'serde::Serialize', '::serde::Serialize', 'Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Error, Serialize']) {
+    const item = `#[derive(${derive})] #[serde(untagged)] enum Written { X }`;
+    assert.deepEqual(check(item), []);
+    assert.deepEqual(check(`macro_rules! written { () => { ${item} }; }`), []);
+  }
+  for (const derive of ['Deserialize', 'serde::Deserialize', '::serde::Deserialize', 'NewDerive', 'crate::prelude::Deserialize']) {
+    const item = `#[derive(${derive})] #[serde(untagged)] enum Read { X }`;
+    assert.ok(check(item).some(e => /content buffering/.test(e)), item);
+    assert.deepEqual(check(`#[derive(${derive})] struct Plain { value: String }`), []);
+  }
+  assert.deepEqual(check('#[derive(NewDerive)] struct Plain; #[derive(Serialize)] #[serde(untagged)] enum Written { X }'), []);
+  assert.deepEqual(check('#[cfg(test)] mod oracle { use serde::Deserialize as D; #[derive(D)] #[serde(untagged)] enum Old { X } }'), []);
 });

@@ -33073,3 +33073,60 @@ release guard: ok (web-device-check refuses the wasm profile)
 Root `./ref-check --verbose` before this journal append: `ref-check: ok — 483 LLP docs, 9096 refs in 24267 files, 0 errors, 0 unchecked`; rerun after appending. Root `git diff --check` passes and is rerun after appending. All changed source files remain below 1,500 lines. No README/guide change: published authoring forms and canonical writer bytes did not change. No out-of-scope file remains changed; the temporary ir.rs mutants were restored byte-for-byte.
 
 **Not rerun here:** `bash snapback4/scripts/test.sh`, explicitly waived for this review round; the lead runs it outside the sandbox before landing. Also not rerun: the lead's supplied outside-sandbox evidence on `926e5f19812199da2ee2119a2d03b09bed10ef2e`: cargo build --workspace; 450,956 B gzip wasm build and release guard; lane_source/corpus tests; both symbol checks; witness/idb and witness/scale exit 0; React 13/13; wasm Node tests. The lead's alternating maximum-pending-ids transport evidence is 3/3 passes on that commit versus 2/3 on its base under high load, not a reproduced candidate failure here. No failure is claimed pre-existing from this round. No erroneous premise in the R1 brief was found; the corrected alias assertion was in the Grok review. The useful result is a 327-byte refusal/guard repair that keeps the derive authoritative and the values on one reader, with tests now proving the semantic differences they claim.
+
+## 2026-09-17 — S1b D3-R2: lexical census policy after the second review
+
+Codex / GPT-6 Astra, on base `88c63250d8460a43a622b9f22716056273188d37`, read the received D3-r2 Sol and Grok reviews and implemented the commissioned tooling-only disposition. No Rust source, runtime decoder, durable or wire format, client contract, ceiling, or existing corpus case changed. The governing constraints are LLP 3000 §7 and LLP 3000.002 §“Proposed: device representation and codec redesign”; the latter and the root are in `llp/current/`. The scope is the package's source census and its tests, that LLP's census paragraph, and this append. No new design question or skill hand-off is needed.
+
+The census now refuses serde derive renames and re-exports at their imports in walked web-reachable sources, including nested use trees, restricted visibility, and `de`/`ser` trait paths. Its diagnostic states the source policy and asks for the visible `Deserialize`/`serde::Deserialize` or `Serialize`/`serde::Serialize` spelling. Plain imports remain legal, including `use serde::de::Deserialize;`. There is no global alias pool or cross-file resolver. Each item's derives are classified lexically; unknown names refuse only with a representation attribute. Macro bodies apply the same decoder/unknown classification, including metavariable derives. The fixed non-serde list comes from the current walked sources: Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Error. Serialize-only representations and unknown derives without representation attributes remain positive controls. Existing round-1 mutants still refuse, and the live tree passes.
+
+Both three-file review cases now fail at the serde alias/re-export itself, including the Serialize-only case, which is deliberately forbidden by this policy. The LLP and census comment now state the remaining limit: the symbol-family instrument sees surviving symbols; a procedural macro's fully inlined small content decoder can escape it and the text census, leaving only the report-only byte budget as the final, non-blocking fallback. The lesson is that a text guard can enforce visible spellings; pretending it resolves Rust namespaces creates both missed decoders and arbitrary refusals.
+
+All Node commands used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`. Complete local logs are in `/tmp/d3-r2-evidence/`.
+
+Red/green, run from the repository root with the new tests first against unchanged base production census, then against the repair: `node --test snapback4/packages/snapback4/test/wasm-codec-census.test.mjs`.
+
+```
+Before:
+ℹ tests 24
+ℹ pass 16
+ℹ fail 8
+After:
+ℹ tests 24
+ℹ pass 24
+ℹ fail 0
+```
+
+All seven new test cases were red before and green after: import policy, the two three-file cases, the qualified unknown macro, the metavariable macro, plain trait imports, and lexical classification (the newly recognized Error positive control). The eighth red was the existing alias-mutant test's updated diagnostic assertion; the existing mutants themselves already refused on the base. This distinction prevents counting a message change as a newly closed evasion.
+
+From `snapback4/`, `node --test packages/snapback4/test/wasm-*.test.mjs`:
+
+```
+ℹ tests 38
+ℹ suites 0
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+```
+
+From `snapback4/`, `bash scripts/build-wasm.sh` exited 0:
+
+```
+wasm 1531216 B raw, 451283 B gzip (budget 452000: ok)
+```
+
+That is exactly the supplied base's 451,283 B gzip: delta 0 B. No artifact change was expected from test tooling. From `snapback4/`, `node scripts/attribute-wasm.mjs --check-families --check-absent` exited 0:
+
+```
+1679777 total attributed bytes
+serde family check: ok
+server-only absence check: ok
+```
+
+The two changed source files are 257 and 278 lines (`wc -l snapback4/packages/snapback4/test/wasm-codec-census.mjs snapback4/packages/snapback4/test/wasm-codec-census.test.mjs`, repository root), below 1,500. Root `./ref-check --verbose` and `git diff --check` are checked after this append; their complete output is retained with the local logs. README and guide cards need no change because the published surface did not change. No out-of-scope file was touched, and no commit, push, tag or publication was made.
+
+**Supplied qualification, cited rather than rerun as directed in the round-specific brief:** on `88c63250d8460a43a622b9f22716056273188d37`, the lead's outside-sandbox `scripts/test.sh` completed all builds, release guard, cargo test (411 s, 0 failures), typechecks and fixtures successfully. The supplied client summary is 642 of 651 with 6 failures: four worker lost-effect-lease tests reported red on main and ticketed, and two load-sensitive transport-http maximum-pending-ids timeouts that passed alone in the same hour (`transport-http.test.mjs`, exit 0 in the verify run). The brief does not identify the other three test outcomes or provide verbatim suite summary lines; none are inferred here. The lead's `d3-verify` reports the 451,283 B gzip build, release guard, lane_source differential, corpus, family/absence checks, IndexedDB and scale witnesses, React 13/13, and wasm Node tests all exit 0. These are lead-supplied results on the named base, not locally reproduced claims of pre-existing failures. The explicit “cite (not re-run)” instruction is used for the full suite and witnesses; the round's listed tooling/build/ref-check reruns were performed here. No local final check failed and no erroneous technical premise in the brief was found.
+
+Final root checks: `./ref-check --verbose` exited 0 with `ref-check: ok — 483 LLP docs, 9097 refs in 24267 files, 0 errors, 0 unchecked`; `git diff --check` exited 0 with no output. The working tree contains exactly the four intended files listed above.
