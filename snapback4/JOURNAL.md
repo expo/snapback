@@ -28332,3 +28332,23 @@ sentence is preserved above as historical text. This test-only follow-up is
 being authored through native Codex Sol HIGH. At the time of this entry, no
 tests or builds have been executed for the follow-up. It changes no production
 runtime code.
+
+## 2026-09-17 — B1d hashing review and integrated meter qualification
+
+The two independent initial hashing reviews found no runtime defect but did
+expose incomplete exact-meter coverage and a rollback assertion whose lookup
+did not name the inserted row. Native Sol high authored test-only `81da438fe`:
+the raw-empty baseline pins the fixed +1 work, the four-byte single character
+pins UTF-8 bytes, and a successful-write positive control proves the matching
+rollback probe observes its row. Both original reviewers then returned READY
+in their own mutually blind threads. Their actual answers and initial verdicts
+are retained under `llp/reviews/3000.009-b1d-hash.*.md`.
+
+The serial 450b qualifier ran the affected meter suite on exact integrated
+`b54f5543e`: 8 passed, none failed or skipped. The log digest and source/binary
+bindings are in `reports/20260917-transaction-token-hash.md`. The source tree
+remained clean. Runtime code is unchanged by the test correction; the binary
+remains the already built `1e91bc7fe` artifact, not a falsely claimed rebuild.
+The broader original frontend setup failure and absent real-PG/browser-WASM
+hash execution remain explicit. This is a prerequisite, not completed
+invitations, Identity/B, Workroom, publication or promotion qualification.
