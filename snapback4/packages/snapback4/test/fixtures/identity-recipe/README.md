@@ -39,8 +39,13 @@ credentials-pending. The deterministic signed provider in
 The prior actual-provider record used the published 0.2.26 engine and qualifies
 only the B1a healthy path described above. That engine predates the bound
 session-mint wire and must not be used to run a B1c flow: it may silently take
-the legacy unbound mint path. B1c actual repaired-engine HTTP, lost-response
-and crash qualification is pending in the parent integration lane. Google
+the legacy unbound mint path. Unpublished prototype `oidc.mint` receipts do not
+migrate: the current helper binds `protocol: "oidc-mint-bound/v1"` in the step
+input, so either a started or completed old-input receipt refuses before any
+mint request. It leaves an existing legacy unbound token untouched; use a fresh
+login and fresh action invocation to enter the bound protocol. B1c actual
+repaired-engine HTTP, lost-response and crash qualification is pending in the
+parent integration lane. Google
 credentials remain absent, so Google, production HTTPS and a real browser are
 also unqualified. Verification/recovery and the organizations-and-invitations
 recipe remain later identity work; this fixture is not full Identity/B.

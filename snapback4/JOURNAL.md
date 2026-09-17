@@ -27731,3 +27731,51 @@ Focused serial evidence used `CARGO_BUILD_JOBS=6`, the repository Cargo,
 No selected test failed, retried or was ignored. No product or identity code,
 unrelated test, issue, root inventory or gate, heavy/full suite, publication,
 push, remote or origin contact was attempted.
+
+## 2026-09-16 — unpublished unbound mint receipt compatibility withdrawal
+
+The bound identity helper now includes fixed protocol
+`oidc-mint-bound/v1` in the durable `oidc.mint` input. The step name is
+unchanged. Existing step input-digest enforcement therefore refuses both
+started and completed receipts written by the unpublished unbound B1a/B1c
+prototype before either the initial mint or recovery callback can run. This is
+an explicit compatibility boundary: there is no migration, marker, reset,
+receipt rewrite, broad revocation or new core policy. An already-issued legacy
+unbound token remains untouched; the supported recovery is a fresh login under
+a fresh action invocation.
+
+The labelled signed-provider/FakeCore protocol double seeds canonical old
+inputs for both receipt states beside an existing unbound target token. It
+asserts terminal `E_STEP_INPUT`, zero mint HTTP calls, no new bound family, an
+unchanged old receipt and a still-live old token. The fresh healthy flow also
+asserts the new protocol in the actual submitted step input. Existing bound
+loss-before-commit, loss-after-commit, completed-metadata/final-ack recovery,
+fixed expiry, stale-token invalidation and exchange-v2 cases remain in the
+focused suite. These are protocol-double assertions, not actual-provider or
+repaired-core qualification; the parent retains that work.
+
+Serial verification used Node 24.18.0 with
+`/Users/ccheever/.volta/tools/image/node/24.18.0/bin` first on `PATH`:
+
+```text
+git diff --check
+pass
+
+node --check snapback4/packages/snapback4/test/identity.test.mjs
+pass
+
+uptime; memory_pressure -Q
+load averages 7.36 8.17 10.60; 87% system memory free
+
+npm run build
+pass; existing ignored WASM inputs copied only to ignored dist output
+
+node --test --test-concurrency=1 test/identity.test.mjs
+18/18 pass, 0 skipped, 9.15 s
+```
+
+No Cargo, root/Snapback 1–3 inventory, guide, generated-artifact, bootstrap,
+ref-check, full package/runtime/routes/docs suite, install, provider/engine
+launch, remote, push or publication command ran. No actual-provider or actual-
+core evidence was produced; repaired-engine and actual-provider qualification
+remain pending with the parent.

@@ -33,6 +33,15 @@ const manifest = {
 const b64 = value => Buffer.from(value).toString("base64url");
 const bindingHash = value => createHash("sha256").update(value).digest("base64url");
 const pkce = value => createHash("sha256").update(value).digest("base64url");
+const canonicalJson = value => {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value !== null && typeof value === "object") {
+    return `{${Object.keys(value).sort().map(name => `${JSON.stringify(name)}:${canonicalJson(value[name])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+};
+const oidcPrincipal = (issuer, subject) => `oidc:${createHash("sha256")
+  .update("snapback4:oidc-principal:v1\0").update(issuer).update("\0").update(subject).digest("base64url")}`;
 const key = kid => {
   const pair = generateKeyPairSync("rsa", { modulusLength: 2048 });
   return { kid, ...pair, jwk: { ...pair.publicKey.export({ format: "jwk" }), kid, use: "sig", alg: "RS256" } };
@@ -179,7 +188,7 @@ class FakeCore {
       const name = decodeURIComponent(step[1]), verb = step[2], id = `${claim.id}:${name}`;
       const found = this.steps.get(id);
       if (verb === "begin") {
-        const input = JSON.stringify(body.input);
+        const input = canonicalJson(body.input);
         if (found && found.input !== input) return { denied: { code: "E_STEP_INPUT", family: "action", message: "changed step input" } };
         if (found?.state === "done") return { step: { state: "done", key: found.key, result: found.result } };
         if (found?.state === "parked" || (found && !body.reconcile)) {
@@ -351,7 +360,7 @@ function exchangeInput(core, flow, code, responseIssuer) {
 
 function seedStep(core, invocation, name, input, state, result) {
   core.steps.set(`${invocation}:${name}`, {
-    input: JSON.stringify(input), key: `step:${invocation}:${name}`, state, attempt: 1,
+    input: canonicalJson(input), key: `step:${invocation}:${name}`, state, attempt: 1,
     ...(state === "done" ? { result: structuredClone(result) } : {}),
   });
 }
@@ -386,6 +395,11 @@ test("OIDC helper runs a signed Authorization Code + S256 flow and persists no p
   });
   assert.equal(mint.headers["x-snapback-action-lease"], "action-lease-complete-healthy-1");
   assert.equal(mint.headers.authorization, "Bearer service-token");
+  const mintStep = s.core.allBodies.find(entry => entry.path === "/actions/complete-healthy/steps/oidc.mint/begin");
+  assert.deepEqual(mintStep.body.input, {
+    days: 7, issuer: provider.issuer, kind: "oidc", protocol: "oidc-mint-bound/v1",
+    subject: "subject-42", transaction: transaction.id,
+  }, "a fresh invocation durably binds the mint protocol in the step input");
   assert.equal(s.core.allBodies.filter(entry => JSON.stringify(entry.body).includes(SESSION_TOKEN)).every(entry => entry.path.endsWith("/done")), true,
     "the raw session appears only in the protected final action result");
   assert.equal(provider.tokenCalls("healthy-code"), 1); assert.equal(s.core.mints, 1);
@@ -599,6 +613,44 @@ test("protocol double: JWKS outage after code consumption parks without a second
   const restart = await s.invoke("completeOidc", s.callback(flow, code), { id, attempt: 2 });
   assert.equal(restart.settled.body.code, "E_STEP_PARKED");
   assert.equal(provider.tokenCalls(code), 1); assert.equal(s.core.mints, 0);
+});
+
+test("protocol double: unpublished unbound mint receipts refuse by input digest before initial or recovery mint", async t => {
+  const provider = await localProvider(t);
+  for (const state of ["started", "done"]) {
+    const core = new FakeCore(), s = suite(provider, core);
+    const flow = await s.begin(`legacy-unbound-mint-${state}`);
+    const code = `legacy-unbound-mint-${state}-code`, id = `complete-legacy-unbound-mint-${state}`;
+    const claims = { issuer: provider.issuer, subject: "legacy-subject", email: null, emailVerified: null };
+    seedStep(core, id, "oidc.exchange", exchangeInput(core, flow, code, provider.issuer), "done", { ok: true, claims });
+
+    const transaction = core.byState(flow.state);
+    const principal = oidcPrincipal(claims.issuer, claims.subject);
+    const expiresAt = core.now + 7 * 86_400_000;
+    const legacyToken = `legacy-unbound-token-${state}`;
+    const legacySession = { principal, kind: "oidc", token: legacyToken, expiresAt, family: `legacy-unbound-family-${state}` };
+    core.sessions.set(legacyToken, legacySession);
+    const legacyInput = {
+      transaction: transaction.id, issuer: claims.issuer, subject: claims.subject, kind: "oidc", days: 7,
+    };
+    seedStep(core, id, "oidc.mint", legacyInput, state,
+      { minted: true, principal, kind: "oidc", expiresAt });
+
+    const result = await s.invoke("completeOidc", s.callback(flow, code), { id, attempt: 2 });
+    assert.equal(result.settled.body.code, "E_STEP_INPUT", state);
+    assert.equal(result.settled.body.retry, false, `${state}: changed durable input is terminal`);
+    assert.equal(core.mints, 0, `${state}: no initial or recovery mint HTTP call`);
+    assert.equal(core.allBodies.some(entry => entry.path === "/auth/session"), false, state);
+    assert.equal(core.mintBindings.size, 0, `${state}: no bound family was created`);
+    assert.equal(core.sessions.size, 1, `${state}: no replacement family was created`);
+    assert.deepEqual(core.resolve(legacyToken), legacySession, `${state}: the legacy unbound token remains untouched`);
+
+    const attempted = core.allBodies.find(entry => entry.path === `/actions/${id}/steps/oidc.mint/begin`).body.input;
+    const { protocol, ...withoutProtocol } = attempted;
+    assert.equal(protocol, "oidc-mint-bound/v1", state);
+    assert.deepEqual(withoutProtocol, legacyInput, `${state}: the discriminator is the only input change`);
+    assert.equal(core.steps.get(`${id}:oidc.mint`).state, state, `${state}: refusal does not rewrite the old receipt`);
+  }
 });
 
 test("bound mint recovers losses before commit, after commit, and after completed metadata without extending expiry", async t => {

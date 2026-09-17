@@ -507,6 +507,7 @@ export function oidcHandlers<Secret extends string>(configuration: OidcConfigura
     let minted: OidcSession | undefined;
     const mintInput = {
       transaction: stored.id, issuer: claims.issuer, subject: claims.subject, kind: fixed.kind, days: fixed.days,
+      protocol: "oidc-mint-bound/v1" as const,
     };
     const deliver = async (recover: boolean) => {
       minted = await (recover ? runtime.recoverMint : runtime.mint)(claims.issuer, claims.subject, fixed.kind, fixed.days) as OidcSession;

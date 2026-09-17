@@ -82,8 +82,13 @@ not evidence that the TypeScript double qualified an actual engine.
 The published 0.2.26 engine predates this bound wire and must not be used for a
 B1c identity run: it can take the legacy unbound path instead. Actual repaired-
 engine HTTP, lost-response/crash and Keycloak qualification remains pending in
-the parent integration lane. B1a work already parked under the old contract is
-not retroactively resumed; old parks stay parked.
+the parent integration lane. The unpublished B1a/B1c prototype's unbound
+`oidc.mint` receipts are deliberately unsupported: the durable mint input now
+includes protocol `oidc-mint-bound/v1`, so both started and completed old-input
+receipts refuse with the step input mismatch before any initial or recovery
+mint. The helper does not migrate or clear those receipts and does not revoke
+an existing legacy token. Start a fresh login under a fresh action invocation
+to use the bound protocol; already-parked old work stays parked.
 The published 0.2.26 engine also does not preserve `E_OIDC_*` codes through
 real core settlement: its action-failure allowlist turns them into the public
 `E_ACTION_FAILED` collection result. Protocol-double assertions of helper
