@@ -264,8 +264,11 @@ on guide feeds. It sorts live counts with no schedule lag or writable score tabl
 if candidates or their contributions exceed the meter, the ranking is incomplete.
 The optional scheduled ranked-table recipe trades fresh scores for stored paging.
 The sweep already updates aggregates and indexes transactionally, but stored order
-cannot rank live values between expiry and the physical sweep or after a partial
-sweep. Rechecking only stored winners can miss the new winner.
+is stale between expiry and the physical sweep or after a partial sweep. Taking
+stored top-N and rechecking only those winners can miss the live winner. A server
+count index could bound a live threshold scan, but that read form is not built;
+it would have to refuse on devices, whose snapshots deliver live values rather
+than physical upper bounds. Signed sums have no such upper bound.
 A partial device counts only held live
 sources and says `complete: false`. A meter cut returns the contribution
 examined so far, also incomplete. A zero sum keeps its group while sources

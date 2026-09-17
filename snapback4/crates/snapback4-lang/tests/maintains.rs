@@ -128,7 +128,7 @@ fn expiring_rank_rewrite_names_the_fresh_bounded_trending_recipe() {
     let bound = snapback4_lang::compile(&[("expiry.q".into(), format!("{source}\nmaintain totals: count posts by author\n  read <- allow\n  by byCount: value, id\n"))]);
     let diagnostic = bound.diagnostics.iter().find(|d| d.code == "E_QUARRY_MAINTAIN_EXPIRE").unwrap();
     println!("{diagnostic}");
-    assert_eq!(diagnostic.message, "maintain totals cannot order by value because source posts expires: live values change before the physical sweep, so stored top-N can miss a winner");
+    assert_eq!(diagnostic.message, "maintain totals cannot order by value because source posts expires: stored order is stale before the physical sweep, so taking stored top-N can miss a live winner; a count upper-bound threshold scan is not built");
     assert_eq!(diagnostic.guide, "feeds");
     assert_eq!(diagnostic.rewrite, "use guide feeds' fresh bounded Trending recipe: sort live counts at read time, with no schedule lag or writable score table; if the candidate or contribution scan hits the meter, the ranking is incomplete");
 }

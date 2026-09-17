@@ -29060,3 +29060,65 @@ probe passed with zero requests to the other listener; two simultaneous
 fixtures then used distinct ports, seeded and completed awaited cleanup.
 These are fixture checks; product behavior, assertions and existing test
 deadlines are unchanged. No package version or publication change is included.
+
+
+## 2026-09-17 — W12R1b: insert authority and the lead's three wrong records
+
+The aggregate-copy detector now checks both unrestricted insert and update
+rules and names the arms it proves unrestricted. In particular, restricting
+update alone no longer silences an upsert whose first write uses unrestricted
+insert authority. Its text says “through any mutation that writes it”, including
+when the only current writer is a job; this is latent permission, not evidence
+of an existing principal-callable score setter. Six equivalent unrestricted
+rule spellings are exercised independently on both arms, with restricted,
+private, immutable and unrelated-counter controls retained.
+
+Three corrections are the lead's own errors. The lead removed the withdrawn
+fresh-ranking claim from the card but left the README promising a recipe that
+cannot compile against the now-expiring source. The README now carries the
+card's actual aggregate-copy section, with a test comparing the complete
+sections verbatim as well as the existing pinned card text. The lead's claim
+that the replacement grep proved a stronger security property “by construction”
+was false. The replacement binds every Quarry block in all 28 cards, three
+published documents and both installable recipes, then checks both rules on
+any table whose index includes an integer column. Its 49 blocks contain 99
+such table occurrences and zero provably unrestricted write rules. It is this
+indexed-integer invariant, not a proof about every possible ranking design;
+the brief's leaderboard counterexample gains a score index in the regression.
+The guard found the writes card's unrestricted ordinal insert, which now
+requires the conversation's current ordinal. Its existing runtime journey
+still sends 51 messages, retries them and pages their arrival order correctly.
+
+The third error was the lead's assertion in §20.21 that sound indexed live
+top-N requires sweeping every expired contribution first. Counts have a server
+physical upper bound: stored count is at least live count. A descending
+threshold scan could recompute candidates and terminate exactly once no
+unseen bound beats the live heap, handling ties according to the promised
+order and reporting incomplete on a meter cut. That read form is unbuilt,
+not impossible. Signed sums do not have that bound, and live-valued device
+snapshots do not preserve the server bound; such a read would refuse on
+devices. The RFC, feeds and expiry cards, code explanation and binder diagnostic
+now state that distinction. No index or new read form was implemented.
+
+Before the fix at a4bb414c3d359b19117f18fba09bcca9679b7dba, the regression
+suites reported 4 passed / 6 failed / 1 ignored for aggregate copies and
+8 passed / 1 failed for maintains. Afterward, aggregate copies reported
+10 passed / 0 failed / 1 ignored, guide 50 passed / 0 failed and maintains
+9 passed / 0 failed. The documentation survey also compiled 47 card/document
+blocks with 408 bound table occurrences and zero aggregate-copy notes; the
+installed feed and search recipes have 8 and 2 tables respectively and zero
+notes. The retained-calibration survey remains explicitly ignored without
+its external packets. No ceiling, serialization, existing corpus case or
+publication changed. The lesson is that a prose pin must cover every published
+copy, and a security assertion must inspect the bound schema rather than
+recognize names and one spelling.
+
+The blocking suite completed in 2,931 s: Rust 1,310 passed, 0 failed,
+5 ignored; fixture wrappers 9 passed; clients 539 passed, 1 failed, 2 skipped.
+All build, typecheck and chat checks passed. The sole failure was Chromium
+SIGABRT at launch in react.test.mjs, reproduced alone (0 passed / 1 failed)
+with its React test, client, app, witness and toolchain inputs unchanged from
+the base commit above. The isolated core routes target also passed 14/14.
+Several test processes paused before printing their harness output; no cause
+or baseline timing comparison is claimed. The full command reported
+“== 1 failure(s) in 2931 s”; it is not recorded as a green blocking suite.

@@ -1156,20 +1156,26 @@ explicitly delayed materialisation when the full live set does not fit.
 `E_QUARRY_MAINTAIN_EXPIRE` remains a correctness refusal, not a reindex cost
 refusal. The sweep already subtracts physical contributions and updates target
 indexes transactionally. But live values change before that sweep; a partial
-sweep can leave its stored order wrong, and a negative sum can gain a winner
-when a negative contribution expires. Rechecking only the stored winners misses
-that group. One value index would add at most two entry writes per removed
-contribution, not another aggregate scan; paying that cost does not repair the
-between-sweeps or offline ordering gap. This recipe pays for live reads instead.
+sweep leaves stored order stale. Taking stored top-N and rechecking only those
+winners can miss a live winner. For `count`, the server's stored count is an
+upper bound on its live count: a descending scan that recomputes candidates
+until no remaining bound can beat the live top-N would be sound, with ties
+resolved by the promised order. That threshold read is not built and would
+have to refuse on devices, whose snapshots deliver live values rather than
+physical upper bounds. Signed sums have no such bound: a negative contribution
+expiring can increase the live sum. One value index would add at most two entry
+writes per removed contribution, not another aggregate scan; paying that cost
+alone does not make stored top-N fresh. This recipe pays for live reads instead.
 
 ## N_PUBLIC_AGGREGATE_COPY: a public copy keeps ordinary write authority
 
 N_PUBLIC_AGGREGATE_COPY is a note, not an error. A public column is assigned
-directly from a declared `maintain`, but `update <- allow` (or a provably
-unrestricted equivalent) lets any principal set it through a mutation that
-writes it. The column duplicates an aggregate the engine already keeps.
-Read the maintain directly, or restrict the update rule; check the insert
-rule too if a caller can supply the initial value.
+directly from a declared `maintain`, but `insert <- allow` or `update <- allow`
+(or a provably unrestricted equivalent) lets any principal set it through any
+mutation that writes it. The column duplicates an aggregate the engine already
+keeps. Read the maintain directly, or restrict both insert and update authority
+so callers cannot choose the copied value. The fresh bounded Trending recipe
+in `guide feeds` reads live counts and has no writable ranking table or copied score.
 
 The client calls declared operations, not arbitrary table writes. This note
 identifies latent table permission, not proof that a current mutation accepts

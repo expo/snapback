@@ -1666,14 +1666,23 @@ does not certify score freshness.
 The card's `vote` predicts its first offline upsert when the post is held;
 the viewer's votes have no horizon and are capped at 1,000 per viewer.
 
-`N_PUBLIC_AGGREGATE_COPY` notes a public column assigned directly from a
-maintain while its update rule allows any principal to set it through a
-mutation. Read the maintain directly or restrict the update rule; check
-insert authority too. `guide feeds` has the full section and a fresh-ranking
-recipe whose insert and update rules check the copied score against the
-non-expiring maintained count, including zero when no group exists. The note
-does not infer copies through aliases, arithmetic or counter increments, and
-does not claim that an existing operation accepts arbitrary scores. Sync and
+## N_PUBLIC_AGGREGATE_COPY: a public copy keeps ordinary write authority
+
+N_PUBLIC_AGGREGATE_COPY is a note, not an error. A public column is assigned
+directly from a declared `maintain`, but `insert <- allow` or `update <- allow`
+(or a provably unrestricted equivalent) lets any principal set it through any
+mutation that writes it. The column duplicates an aggregate the engine already
+keeps. Read the maintain directly, or restrict both insert and update authority
+so callers cannot choose the copied value. The fresh bounded Trending recipe
+in `guide feeds` reads live counts and has no writable ranking table or copied score.
+
+The client calls declared operations, not arbitrary table writes. This note
+identifies latent table permission, not proof that a current mutation accepts
+an arbitrary score. It covers direct scalar maintain-to-column assignments in
+programs and helpers, including jobs, once per column and maintain. It does not
+infer copies from names, matching group keys, increments, aliases or arithmetic.
+Restricted rules, private targets and immutable columns do not receive it;
+absence of the note is not a proof that a ranking cannot be forged. Sync and
 `online only` do not change write authority.
 
 ## Client and operations reference

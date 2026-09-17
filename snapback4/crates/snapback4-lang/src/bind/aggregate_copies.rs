@@ -24,24 +24,26 @@ pub(super) fn notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
     copies.into_iter().filter_map(|(table, column, aggregate)| {
         let target = schema.table(&table)?;
         let maintain = schema.maintain_for(&aggregate)?;
+        let rules: Vec<_> = [("insert", &target.rules.insert), ("update", &target.rules.update)].into_iter()
+            .filter(|(_, rule)| truth(rule) == Some(true)).map(|(name, rule)| format!("`{name} <- {}`", rule.quarry())).collect();
         if maintain.source == table || schema.maintain_for(&table).is_some()
             || !(target.rules.read.is_uniformly_readable() || target.sync.as_ref().is_some_and(|sync| sync.audience == Audience::Public))
-            || truth(&target.rules.update) != Some(true)
+            || rules.is_empty()
             || target.constraints.iter().any(|constraint| matches!(constraint, Constraint::AppendOnly) || matches!(constraint, Constraint::Immutable { fields } if fields.contains(&column))) {
             return None;
         }
         let site = catalog.site_for(&format!("tables.{table}.columns.{column}"));
-        let rule = target.rules.update.quarry();
+        let permission = format!("{} {}", rules.join(" and "), if rules.len() == 1 { "lets" } else { "let" });
         Some(Diagnostic::new(&site, "N_PUBLIC_AGGREGATE_COPY",
-            format!("column {table}.{column} copies maintain {aggregate}, an aggregate of {} the engine already keeps; `update <- {rule}` lets any principal set this public column through a mutation that writes it", maintain.source),
-            format!("read maintain {aggregate} directly, or restrict the update rule on {table} so callers cannot choose {column}; restrict its insert rule too if callers can supply the initial value"))
+            format!("column {table}.{column} copies maintain {aggregate}, an aggregate of {} the engine already keeps; {permission} any principal set this public column through any mutation that writes it", maintain.source),
+            format!("read maintain {aggregate} directly, or restrict insert and update authority on {table} so callers cannot choose {column}"))
             .guide("feeds"))
     }).collect()
 }
 
 /// Only prove simple unconditional rules; a row/probe-dependent rule is
 /// unknown, never assumed unrestricted. This is not an authorization checker.
-fn truth(rule: &RuleExpr) -> Option<bool> {
+pub fn truth(rule: &RuleExpr) -> Option<bool> {
     match rule {
         RuleExpr::Allow | RuleExpr::Public { .. } => Some(true),
         RuleExpr::Deny => Some(false),

@@ -16,6 +16,7 @@ use crate::ast::Document;
 use crate::diag::Diagnostic;
 use catalog::Catalog;
 pub use program::BoundProgram;
+pub use aggregate_copies::truth as rule_truth;
 use snapback4_core::schema::Schema;
 
 pub struct Bound {

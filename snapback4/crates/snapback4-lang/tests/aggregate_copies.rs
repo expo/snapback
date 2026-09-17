@@ -1,6 +1,8 @@
-use snapback4_lang::{Bound, compile, guide, recipe};
+use snapback4_core::schema::{ColumnType, Schema};
+use snapback4_lang::{Bound, bind::rule_truth, compile, guide, recipe};
 
 const CODE: &str = "N_PUBLIC_AGGREGATE_COPY";
+const README: &str = include_str!("../../../packages/snapback4/README.md");
 const SOURCE: &str = r#"table posts:
   author: principal
   public 'posts'
@@ -43,7 +45,7 @@ fn copies(bound: &Bound) -> Vec<&snapback4_lang::Diagnostic> {
 
 #[test]
 fn three_calibration_write_shapes_report_the_copied_column_once() {
-    // 0.2.25: helper; 0.2.26: backfill job (the mutation increments);
+    // 0.2.25: helper; 0.2.26: backfill job (no principal-callable writer);
     // 0.2.27: direct mutation. All three contain an actual maintain copy.
     let job = SOURCE.split("fn refreshRank").next().unwrap().to_owned() +
         "job backfill():\n  chunk p in posts first 50 by byId:\n    upsert ranked[p.id] { postId: p.id, score: likeCounts[p.id], at: now, expiresAt: now + 86400000 }\n";
@@ -57,6 +59,7 @@ fn three_calibration_write_shapes_report_the_copied_column_once() {
         assert_eq!(notes[0].guide, "feeds");
         assert!(!notes[0].mechanical);
         assert!(notes[0].message.contains("likeCounts"));
+        assert!(notes[0].message.ends_with("through any mutation that writes it"));
         println!("{version}: {}", notes[0]);
     }
 }
@@ -67,9 +70,9 @@ fn aggregate_only_restricted_private_immutable_and_unrelated_counters_stay_silen
         "mutation bump(postId: posts):\n  row = ranked[postId] ! else ROW_MISSING\n  update ranked[row.id] { score: row.score + 1 }\n";
     for source in [
         SOURCE.split("table ranked:").next().unwrap().to_owned(),
-        SOURCE.replace("update <- allow", "update <- deny"),
-        SOURCE.replace("update <- allow", "update <- viewer = 'service:ranker'"),
-        SOURCE.replace("update <- allow", "update <- exists posts[id = .postId, author = viewer]"),
+        SOURCE.replace("insert <- allow", "insert <- deny").replace("update <- allow", "update <- deny"),
+        SOURCE.replace("insert <- allow", "insert <- viewer = 'service:ranker'").replace("update <- allow", "update <- viewer = 'service:ranker'"),
+        SOURCE.replace("insert <- allow", "insert <- exists posts[id = .postId, author = viewer]").replace("update <- allow", "update <- exists posts[id = .postId, author = viewer]"),
         SOURCE.replace("  public 'ranking'", "  read <- exists posts[id = .postId, author = viewer]").replace("  sync public last 100 by byScore\n", ""),
         SOURCE.replace("  score: int", "  score: int\n  immutable score"),
         SOURCE.replace("score: likeCounts[postId]", "score: 1"),
@@ -84,8 +87,16 @@ fn aggregate_only_restricted_private_immutable_and_unrelated_counters_stay_silen
 #[test]
 fn unrestricted_rule_spellings_and_public_online_tables_are_covered() {
     for rule in ["allow", "true", "not deny", "allow and true", "viewer = viewer", "viewer = 'service:ranker' or allow"] {
-        let source = SOURCE.replace("update <- allow", &format!("update <- {rule}")).replace("  sync public last 100 by byScore", "  online only");
-        assert_eq!(copies(&bind(&source)).len(), 1, "{rule}");
+        for (insert, update, named) in [(rule, "deny", "insert"), ("deny", rule, "update")] {
+            let source = SOURCE.replace("insert <- allow", &format!("insert <- {insert}"))
+                .replace("update <- allow", &format!("update <- {update}")).replace("  sync public last 100 by byScore", "  online only");
+            let bound = bind(&source);
+            let notes = copies(&bound);
+            assert_eq!(notes.len(), 1, "insert {insert}, update {update}");
+            assert!(notes[0].message.contains(&format!("`{named} <-")), "{}", notes[0]);
+            assert!(!notes[0].message.contains("<- deny"), "{}", notes[0]);
+            println!("{named} {rule}: {}", notes[0].message);
+        }
     }
     assert_eq!(copies(&bind(&SOURCE.replace("public 'ranking'", "read <- allow"))).len(), 1, "sync public with an allow read rule");
 }
@@ -105,22 +116,11 @@ fn every_card_and_published_quarry_block_has_no_aggregate_copy_note() {
     let mut blocks = 0;
     let mut tables = 0;
     let mut hits = Vec::new();
-    let readme = include_str!("../../../packages/snapback4/README.md");
-    let client = include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md");
-    let server = include_str!("../../../packages/snapback4/SERVER.md");
-    let docs: Vec<_> = guide::KEYWORDS.iter().map(|name| (*name, guide::card(name).unwrap()))
-        .chain([("README", readme), ("CLIENT-AND-OPERATIONS", client), ("SERVER", server)]).collect();
-    for (name, doc) in docs {
-        for (index, block) in guide::quarry(doc).into_iter().enumerate() {
-            let source = if block.starts_with("-- After: snapback4 init --recipe feeds --prefix feed\n") {
-                format!("{}\n{block}", recipe::following("feed", "").unwrap())
-            } else if block.lines().any(|line| line.starts_with("table ")) { block }
-            else { format!("{}\n{block}", guide::language()) };
-            let bound = bind(&source);
-            blocks += 1;
-            tables += bound.schema.tables.len();
-            for note in copies(&bound) { hits.push(format!("{name} block {}: {note}", index + 1)); }
-        }
+    for (name, source) in published_blocks() {
+        let bound = bind(&source);
+        blocks += 1;
+        tables += bound.schema.tables.len();
+        for note in copies(&bound) { hits.push(format!("{name}: {note}")); }
     }
     println!("card/README survey: {} cards, 3 documents, {blocks} blocks, {tables} bound table occurrences, {} aggregate-copy notes", guide::KEYWORDS.len(), hits.len());
     assert!(hits.is_empty(), "{}", hits.join("\n"));
@@ -130,11 +130,12 @@ fn every_card_and_published_quarry_block_has_no_aggregate_copy_note() {
 fn aggregate_copy_card_section_is_verbatim_and_discoverable() {
     let section = "## N_PUBLIC_AGGREGATE_COPY: a public copy keeps ordinary write authority\n\n\
 N_PUBLIC_AGGREGATE_COPY is a note, not an error. A public column is assigned\n\
-directly from a declared `maintain`, but `update <- allow` (or a provably\n\
-unrestricted equivalent) lets any principal set it through a mutation that\n\
-writes it. The column duplicates an aggregate the engine already keeps.\n\
-Read the maintain directly, or restrict the update rule; check the insert\n\
-rule too if a caller can supply the initial value.\n\n\
+directly from a declared `maintain`, but `insert <- allow` or `update <- allow`\n\
+(or a provably unrestricted equivalent) lets any principal set it through any\n\
+mutation that writes it. The column duplicates an aggregate the engine already\n\
+keeps. Read the maintain directly, or restrict both insert and update authority\n\
+so callers cannot choose the copied value. The fresh bounded Trending recipe\n\
+in `guide feeds` reads live counts and has no writable ranking table or copied score.\n\n\
 The client calls declared operations, not arbitrary table writes. This note\n\
 identifies latent table permission, not proof that a current mutation accepts\n\
 an arbitrary score. It covers direct scalar maintain-to-column assignments in\n\
@@ -151,6 +152,16 @@ absence of the note is not a proof that a ranking cannot be forged. Sync and\n\
 }
 
 #[test]
+fn aggregate_copy_claim_matches_in_both_published_documents() {
+    fn section(doc: &str) -> &str {
+        doc.split_once("## N_PUBLIC_AGGREGATE_COPY:").expect("published aggregate-copy section").1
+            .split("\n## ").next().unwrap().trim_end()
+    }
+    assert_eq!(section(README), section(guide::card("feeds").unwrap()),
+        "the README and feeds card share the entire claim, not independent summaries");
+}
+
+#[test]
 fn copies_of_sums_and_repeated_cross_file_writes_are_not_name_heuristics() {
     let source = SOURCE.replace("  principal: principal", "  principal: principal\n  weight: int")
         .replace("count likes by postId", "sum likes of weight by postId")
@@ -161,7 +172,7 @@ fn copies_of_sums_and_repeated_cross_file_writes_are_not_name_heuristics() {
     let notes = copies(&bound);
     assert_eq!(notes.len(), 1);
     assert_eq!(notes[0].site.file, "schema.q");
-    assert_eq!(notes[0].message, "column catalog.amount copies maintain totals, an aggregate of likes the engine already keeps; `update <- allow` lets any principal set this public column through a mutation that writes it");
+    assert_eq!(notes[0].message, "column catalog.amount copies maintain totals, an aggregate of likes the engine already keeps; `insert <- allow` and `update <- allow` let any principal set this public column through any mutation that writes it");
 }
 
 #[test]
@@ -184,20 +195,70 @@ fn survey_retained_calibration_schemas() {
 }
 
 #[test]
-fn no_card_ships_a_principal_writable_ranking() {
-    // This replaces a test that asserted the handwritten fresh-ranking recipe
-    // *rejected* a forged score. W12a withdrew that recipe for a server-scored
-    // one, so the stronger property now holds by construction: no card ships a
-    // ranking a principal can write, and there is no `refreshRank` to copy.
-    // Asserting the absence is what keeps it true.
-    for name in guide::KEYWORDS {
-        let card = guide::card(name).unwrap();
-        assert!(!card.contains("fn refreshRank("), "{name} still ships the withdrawn writable ranking helper");
-        for block in guide::quarry(card) {
-            if block.contains("table ranked:") || (block.contains("score: int") && block.contains("expiresAt")) {
-                assert!(!block.contains("update <- allow"),
-                    "{name} ships a ranking table with update <- allow:\n{block}");
-            }
+fn no_published_indexed_int_table_has_unrestricted_writes() {
+    let mut blocks = 0;
+    let mut ranked = 0;
+    let mut hits = Vec::new();
+    for (name, source) in published_blocks().into_iter().chain([
+        ("feeds recipe".into(), recipe::following("feed", "").unwrap()),
+        ("search recipe".into(), recipe::search("search", "").unwrap()),
+    ]) {
+        let bound = bind(&source);
+        blocks += 1;
+        ranked += indexed_int_tables(&bound.schema).len();
+        hits.extend(unrestricted_rankings(&bound.schema).into_iter().map(|hit| format!("{name}: {hit}")));
+    }
+    println!("ranking authority survey: {} cards, 3 documents, 2 recipes, {blocks} blocks, {ranked} indexed-int table occurrences, {} unrestricted rules", guide::KEYWORDS.len(), hits.len());
+    assert!(hits.is_empty(), "{}", hits.join("\n"));
+}
+
+fn published_blocks() -> Vec<(String, String)> {
+    let client = include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md");
+    let server = include_str!("../../../packages/snapback4/SERVER.md");
+    guide::KEYWORDS.iter().map(|name| (*name, guide::card(name).unwrap()))
+        .chain([("README", README), ("CLIENT-AND-OPERATIONS", client), ("SERVER", server)])
+        .flat_map(|(name, doc)| guide::quarry(doc).into_iter().enumerate().map(move |(index, block)| {
+            let source = if block.starts_with("-- After: snapback4 init --recipe feeds --prefix feed\n") {
+                format!("{}\n{block}", recipe::following("feed", "").unwrap())
+            } else if block.lines().any(|line| line.starts_with("table ")) { block }
+            else { format!("{}\n{block}", guide::language()) };
+            (format!("{name} block {}", index + 1), source)
+        })).collect()
+}
+
+fn indexed_int_tables(schema: &Schema) -> Vec<(&String, &snapback4_core::schema::Table)> {
+    schema.tables.iter().filter(|(_, table)| table.indexes.values().any(|index|
+        index.columns().iter().any(|column| table.columns.get(column).is_some_and(|ty| *ty.required() == ColumnType::Int)))).collect()
+}
+
+fn unrestricted_rankings(schema: &Schema) -> Vec<String> {
+    indexed_int_tables(schema).into_iter().flat_map(|(name, table)| {
+        [("insert", &table.rules.insert), ("update", &table.rules.update)].into_iter()
+            .filter(|(_, rule)| rule_truth(rule) == Some(true)).map(move |(arm, rule)| format!("{name}: {arm} <- {}", rule.quarry()))
+    }).collect()
+}
+
+#[test]
+fn ranking_guard_checks_bound_rules_for_both_upsert_arms() {
+    // The review's caller-supplied score, indexed so the ranking invariant applies.
+    let source = "table leaderboard:\n  postId: id\n  score: int\n  unique byPost: postId\n  by byScore: score, id\n  public 'the ranking is public'\n  insert <- allow\n  update <- allow\nmutation setScore(postId: id, score: int):\n  upsert leaderboard[postId] { postId, score }\n";
+    assert!(copies(&bind(source)).is_empty(), "this is not a maintain-copy heuristic");
+    assert_eq!(unrestricted_rankings(&bind(source).schema).len(), 2);
+    for rule in ["allow", "true", "not deny", "allow and true", "viewer = viewer", "viewer = 'service:ranker' or allow"] {
+        for (insert, update, named) in [(rule, "deny", "insert"), ("deny", rule, "update")] {
+            let source = source.replace("insert <- allow", &format!("insert <- {insert}"))
+                .replace("update <- allow", &format!("update <- {update}"));
+            let hits = unrestricted_rankings(&bind(&source).schema);
+            assert_eq!(hits.len(), 1, "{source}");
+            assert!(hits[0].contains(named), "{hits:?}");
         }
     }
+    for rule in ["deny", "viewer = 'service:ranker'", ".postId = viewer"] {
+        assert!(unrestricted_rankings(&bind(&source.replace("<- allow", &format!("<- {rule}"))).schema).is_empty());
+    }
+    // Neither column nor table names, expiry, public residency or int nullability
+    // decide whether an index orders an integer column.
+    let renamed = source.replace("leaderboard", "catalog").replace("score", "amount").replace("amount: int\n", "amount: int ?\n")
+        .replace("public 'the ranking is public'", "read <- deny");
+    assert_eq!(unrestricted_rankings(&bind(&renamed).schema).len(), 2);
 }
