@@ -5,7 +5,7 @@ use snapback4_core::{identity, value::encode_bytes_hex};
 
 fn host(wait: &str) -> Host {
     Host::with_store(true, snapback4_core::Store::memory().unwrap(), &format!(
-        "use personas alice\nroute billing: post \"/hooks/billing\" as service:billing wait {wait}\nroute report: post \"/report\" wait {wait}\nquery who():\n  return viewer\n"))
+        "use personas alice\nroute billing: post \"/hooks/billing\" as service:billing wait {wait}\nroute report: post \"/report\" wait 2s\nquery who():\n  return viewer\n"))
 }
 fn worker(host: &Host) -> String {
     let engine = lock(&host.shared.engine);
@@ -165,8 +165,8 @@ fn route_adoption_fences_old_supervised_verifier_before_child_shutdown() {
 
 #[test]
 fn route_development_exception_does_not_expose_core_doors_or_personas() {
-    // Keep the fixture deadline above loaded-suite scheduling jitter while
-    // preserving the declared route timeout and the unavailable response.
+    // The report route has its own bounded wait; its admission and settlement
+    // below are witnessed directly, rather than inferred from a timeout.
     let host = host("250ms");
     let session = identity::open_session(lock(&host.shared.engine).store(), "member:alice", "account", host.shared.now()).unwrap();
     let foreign = |method: &str, path: &str, headers: &str, bytes: &str| exchange(host.address,
@@ -178,7 +178,26 @@ fn route_development_exception_does_not_expose_core_doors_or_personas() {
     assert_eq!(status(&foreign("POST", "/report", "x-snapback-persona: alice\r\n", "{}")), 401);
     assert_eq!(status(&foreign("POST", "/report", "", "{}")), 401);
     assert_eq!(records(&host), 0);
-    assert_eq!(status(&foreign("POST", "/report", &format!("Authorization: Bearer {}\r\n", session.token), "{}")), 503);
+    let address = host.address;
+    let admitted = thread::spawn(move || {
+        let body = "{}";
+        exchange(address, &format!("POST /report HTTP/1.1\r\nHost: provider.example\r\nOrigin: https://provider.example\r\nConnection: close\r\nContent-Length: {}\r\nAuthorization: Bearer {}\r\n\r\n{body}", body.len(), session.token))
+    });
+    wait_until(|| records(&host) == 1);
+    let worker = worker(&host);
+    let claimed = host.request("POST", "/actions/claim-set", &worker, r#"{"actions":["@route/report"],"limit":1}"#);
+    assert_eq!(status(&claimed), 200, "{claimed}");
+    let claimed = body(&claimed);
+    assert_eq!(claimed["requests"].as_array().unwrap().len(), 1, "{claimed}");
+    let claim = &claimed["requests"][0];
+    assert_eq!(claim["action"], "@route/report");
+    let id = claim["id"].as_str().unwrap();
+    let settled = host.request("POST", &format!("/actions/{id}/done"),
+        &format!("{worker}x-snapback-action-lease: {}\r\n", claim["session"]["token"].as_str().unwrap()),
+        r#"{"result":{"status":204,"headers":[],"bodyHex":""}}"#);
+    assert_eq!(body(&settled)["ok"], true, "{settled}");
+    let delivered = admitted.join().unwrap();
+    assert_eq!(status(&delivered), 204, "{delivered}");
     assert_eq!(records(&host), 1, "a real bearer, unlike a persona, may admit a declared public route in dev");
 }
 

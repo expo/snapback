@@ -27703,3 +27703,31 @@ not contain it; subsequent commands used the existing
 formatter churn had been removed before this verification; this checkpoint
 contains only the intended paths. `git diff --check` is clean. No full suite,
 root gate, inventory, install, fetch, push or remote contact ran.
+
+## 2026-09-17 — Route development bearer witness synchronization repair
+
+The development-exception route witness no longer treats a 503 from its 1 ms
+route as evidence that the request passed bearer authorization and reached
+durable admission. Route ingress starts that deadline before authorization and
+body consumption, so host load could exhaust it before admission and leave the
+subsequent one-record assertion without the handoff it claimed.
+
+The repaired test retains every core-door and persona denial, keeps a real
+foreign-origin socket request live under the fixture's established two-second
+route bound, and waits on the durable `_requests` row. A service worker then
+claims exactly `@route/report` through the generated registry route and settles
+it with the valid empty 204 route-response envelope. The original HTTP request
+must observe 204, and the durable route record count must remain exactly one.
+The registry-length witness and its synchronization correction from
+`f81678086` are unchanged.
+
+Focused serial evidence used `CARGO_BUILD_JOBS=6`, the repository Cargo,
+`--locked`, and one test thread:
+
+- `serve::tests::route_tests::route_development_exception_does_not_expose_core_doors_or_personas`:
+  1 passed;
+- `serve::tests::route_tests::`: 12 passed, including the registry witness.
+
+No selected test failed, retried or was ignored. No product or identity code,
+unrelated test, issue, root inventory or gate, heavy/full suite, publication,
+push, remote or origin contact was attempted.
