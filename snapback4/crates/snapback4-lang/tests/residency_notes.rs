@@ -214,7 +214,7 @@ fn w7d_wide_membership_search_points_to_the_complete_walk() {
     let b = clean(&source);
     let note = b.notes.iter().find(|n| n.code == "N_WIDE_MERGE").unwrap();
     println!("{note}");
-    assert_eq!(note.to_string(), "schema.q:32:1 — N_WIDE_MERGE: query searchAll: the merge over messages reads up to 1000 lanes, reading one head per lane and advancing the winning lanes; discovery, lookahead, duplicates and expired rows also consume the meter; a read past the 8,192 examined ceiling returns `complete: false`\n  rewrite: `snapback4 guide search`, section \"Search every chat I'm in\": search held messages with one unscoped words index, or page memberships 50 at a time and exhaust each matching merge with its own result cursor before advancing the membership cursor; a result cursor alone does not continue undiscovered chats, an opening cut or a word-limit cut; a uniform lazy drain cut carries `next` after its last emitted row. Measure with `snapback4 check --cost`; if a held query answers this read, delete the merge\n  guide: search");
+    assert_eq!(note.to_string(), "schema.q:32:1 — N_WIDE_MERGE: query searchAll: the merge over messages reads up to 1000 lanes, reading one head per lane and advancing the winning lanes; discovery, lookahead, duplicates and expired rows also consume the meter; a read past the 8,192 examined ceiling returns `complete: false`\n  rewrite: use the grouped one-cursor form in `snapback4 guide search`, section \"Search every chat I'm in\", to search every membership through a meter cut; measure with `snapback4 check --cost`\n  guide: search");
 }
 
 #[test]

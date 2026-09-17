@@ -498,11 +498,24 @@ fn every_card_compiles_clean() {
 }
 
 #[test]
-fn w7d_every_chat_search_is_on_the_card() {
+fn w13e_every_chat_search_has_two_single_cursor_forms_without_a_protocol() {
     let text = card("search").unwrap();
-    let section = text.split_once("## Search every chat I'm in").expect("the 100–1,000 membership recipe").1;
-    assert!(!quarry(section).is_empty(), "the recommendation includes compiled Quarry");
-    for form in ["searchHeld", "searchChats", "searchChatBatch"] { assert!(section.contains(form), "missing {form}"); }
+    let section = text.split_once("## Search every chat I'm in").expect("the search forms").1;
+    let blocks = quarry(section);
+    assert_eq!(blocks.len(), 1);
+    let block = &blocks[0];
+    let (document, errors) = snapback4_lang::parse_document("schema.q", block);
+    assert!(errors.is_empty(), "{errors:?}");
+    assert_eq!(document.programs.len(), 3);
+    for form in ["searchHeld", "searchGrouped", "searchNewest"] {
+        let declaration = document.programs.iter().find(|query| query.name == form).expect(form);
+        assert_eq!(declaration.args.iter().filter(|arg| arg.type_.kind == snapback4_lang::ast::TypeKind::Cursor).count(), 1, "{form}");
+    }
+    for sentence in ["do not exchange them", "change both", "never advance past it", "Server batches", "Install the bounded server walk"] {
+        assert!(!section.contains(sentence), "obsolete protocol: {sentence}");
+    }
+    let server = block.lines().map(|line| if line.trim_start().starts_with("sync to ") { "  online only" } else { line }).collect::<Vec<_>>().join("\n");
+    clean("both server search forms", &server);
 }
 
 /// The package README's Quarry binds clean, and no Quarry hides in an

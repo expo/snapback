@@ -32269,6 +32269,204 @@ process cuts and actual provider delivery remain open. No real Resend send,
 publication, complete Identity/B claim or post-Workroom retain/remove decision
 follows from this landing.
 
+## 2026-09-17 — W13e: two one-cursor searches, and deletion of the server recipe
+
+Built from `939e5586907db870b1aebfe45651c01664033e68`, after W13c and
+W13f. The search card now gives `searchGrouped` for chat discovery with a
+three-hit preview and `searchNewest` for one global newest-first screen.
+Removed the two-cursor section, `init --recipe search`, its backend installer
+and `src/search.ts` helper, and their tests. Feeds installation stays covered.
+The matching N_WIDE_MERGE rewrite names grouped search, N_NEVER_COMPLETE
+uses a boundless membership source, and E_QUERY_HELD names both server forms.
+The held query's Quarry is unchanged. Updated the README, refusal callers,
+aggregate-copy recipe census and bounds-bar protocol/fixture; historical
+bounds measurements remain labelled as historical. No engine behavior,
+meter ceiling, value serialization or existing corpus case changed.
+
+The shared card-derived fixtures ran on the server and on reopened SQLite
+and memory devices. At 100 / 500 / 1,000 memberships, grouped returns
+100 / 500 / 1,000 chats with 300 / 1,500 / 3,000 preview hits in
+6 / 26 / 51 requests: 140 examined on the first and largest page, and
+700 / 3,500 / 7,000 across the walk, identical on all three hosts. Newest
+returns the same exact 2,400 / 12,000 / 24,000 expected message ids, globally
+ordered with no duplicates and no unreadable chat, in 120 / 600 / 1,200
+requests. First/max examined is 340 / 1,540 / 3,040; totals are
+39,600 / 898,000 / 3,546,000. Every dense page is complete and each first
+page has a cursor. Full sync acquires 3,000 / 15,000 / 30,000 messages.
+
+The newest first-screen boundary is 2,717 dense chats: 20 rows, 8,191
+examined, complete with next. At 2,718 chats it returns 20 rows at 8,193
+examined, a drain cut with next; at 2,730 it returns 2 rows at 8,193,
+also continuing. At 2,731 the opening is cut: 20 rows, 8,193 examined,
+no next. At 3,000 it examines 8,596, is incomplete and has no next.
+All three hosts agree. The card states the measured envelope, the live-read
+contract, the per-scope 32-word limit, and the horizon's incomplete answer.
+At a ten-message horizon, both new forms report incomplete for positive
+and absent terms on both devices; the server's full history stays complete.
+
+At 9,000 memberships with hits in rooms r8100, r8500 and r8999, plus an
+unreadable r9000, grouped finds all three chats once in two requests on
+all three hosts: first 1 group, 8,194 examined, meter cut with next;
+then 2 groups, 813 examined, complete without next; 9,007 examined total.
+The test exposed a limit the brief's preview wording omitted: shaping runs
+after discovery, so the first cut page's matching chat has an empty hits
+preview. Following next does not refill that preview. The card states it;
+this lane does not change the engine to promise all previews across a cut.
+The brief's multiline return/where/shape also produces E_QUARRY_SYNTAX;
+the equivalent single-line return compiles with no query diagnostic or note.
+The existing intentional full-sync N_NO_HORIZON remains. Search card lines
+fell from 217 + 111 = 328 to 137 + 105 = 242 (86 removed).
+
+The card and removed-recipe regressions each ran red (0 passed / 1 failed)
+then green (1 / 0). Final targeted language/card/census tests passed
+97 with 1 ignored, init 30, server form measurements 6, device form
+measurements 12, and client seams 50; the recipe/bounds tests passed 9
+with 1 skipped for an absent published 0.2.27 witness binary. The complete
+blocking script ran in 854 seconds: fixtures 9 passed; clients 619 passed,
+1 failed, 3 skipped; Rust artifact compilation failed on two missed
+recipe::search calls in the aggregate-copy census. Removed those calls
+and reran the complete Rust driver: 1,527 passed, 1 failed, 6 ignored. Its sole failure was the old
+N_NEVER_COMPLETE expected text in search_merge.rs; updated that assertion
+and reran its module, 11 passed / 0 failed. The simulator witness passed
+20 / 0. All Rust failures introduced by this deletion are resolved; the
+complete driver itself was not rerun after the final assertion-only edit.
+The isolated React rerun remains 0 passed / 1 failed with Chromium SIGABRT,
+the sandbox artifact named in the lane brief; the lead must rerun it outside
+this sandbox. No failure is claimed pre-existing from a clean-base test.
+One accidental Cargo command at the repository root stopped at the missing
+Snapback 1 ibex-runtime dependency before tests; subsequent Cargo commands
+ran from snapback4. The obsolete-reference scan is empty outside this
+journal, all changed source files are below 1,500 lines, and diff whitespace
+and the reference audit pass. No commit, push, tag or publication was made.
+
+**2026-09-17 — W13e, corrected by its review.** The entry above describes edits to the
+bounds bar (`snapback4/loopbar/`: the two-cursor protocol removed from the brief, the
+runner and the reference fixture) that are **not in the landing**: the lead reverted them
+before committing, because the instrument must stay byte-identical between its "before"
+record (`benchmarks/runs/2026-09-17-snapback4-boundsbar-before/`) and its "after" run, and
+because a fresh builder may still write a two-cursor walk by hand whatever the card shows.
+The obsolete-reference scan is therefore empty outside `JOURNAL.md`, the retained
+benchmark records and the instrument — nine matches remain in `loopbar/` by design. The
+new ticket's fix prescription was also corrected: shaping runs in a loop after the source
+page is materialised, so the continuation must resume before the first unfinished shaped
+row, not one candidate back in `scan_prepared`.
+
+## 2026-09-17 — B1c remaining public-helper crash-cut source modes
+
+R4 actually ran source `1b2178f07` with binary `7342` and package `32c447`
+under the correct outer envelope. It passed in 22.589 seconds with nine
+sanitized observations, eight adopted identities and zero custody
+uncertainties or surviving owned processes. That qualifies the executable
+primary and raw rows in that source, including the repaired deadline sequence;
+it does not retroactively qualify missing crash cuts. Prior R2/R3 failures
+remain retained exactly as recorded.
+
+Native Sol HIGH added two source-pending actual-helper modes without changing
+the product helper, protocol, schema or proxy custody model. Each mode uses a
+fresh disposable project and independent Keycloak sign-in, so its provider
+token POST count is exactly one while a future combined run has three provider
+exchanges overall including the existing primary.
+
+The before-commit mode intercepts the legitimate initial bound
+`/auth/session` before upstream forwarding, after the helper has durably
+completed provider exchange and verification. It revalidates the exact owned
+worker's UID/start/ancestry and engine-log membership, observes through a
+read-only query that no invocation/intent binding exists, kills only that
+worker and intentionally cuts the response. A distinct worker must reconcile
+the same invocation with `replaceLostDelivery: true`, identical
+principal/kind/days and intent, creating the first binding and sole live family
+without provider replay.
+
+The after-step mode first performs the existing post-commit lost-ack cut. It
+then requires the recovered worker's exact invocation path
+`steps/oidc.mint/done` to return upstream success plus a durable done receipt
+whose result says `minted: true`; only then does it revalidate and kill that
+second worker and cut the acknowledgement. A third distinct worker must replay
+the completed step and explicitly replace the lost handoff in the original
+family and expiry. Both earlier bearers must refuse, exactly one final family
+digest remains, every bearer is absent from step results, stale bearers occur
+nowhere and the final bearer occurs only in protected `_requests.result`.
+
+Seven deterministic cut-plan assertions cover the ordered valid cuts, wrong
+invocation, wrong path, wrong phase, failed upstream, missing terminal receipt
+and observation refusal before clean teardown. They are labelled doubles, not
+actual engine/provider evidence. The existing deadline, proxy lifecycle and
+secrecy tests remain in the serial affected command, which passed 28/28 under
+Node 24.13.1; qualification and cut-plan syntax checks plus `git diff --check`
+also passed. No actual qualification,
+engine, provider, crash, network, Rust/Cargo, install, publication or full
+suite ran in this source phase. The two new modes remain pending actual
+execution. Legacy unpublished receipts and production wall-clock expiry remain
+separate unqualified gaps.
+
+## 2026-09-17 — B1c after-step crash-cut instrument repair
+
+The two public source reviews of the source-pending crash modes both returned
+NOT READY. Native Sol HIGH repaired only the qualification instrument. The
+after-step path now records the recovered-mint PID and, before the second kill,
+requires the done request to come from that exact worker and not the first
+killed worker. The final mint PID must differ explicitly from both killed
+workers. Synthetic negative witnesses include the former false-positive shape
+B-recovers/C-done/B-final, missing and wrong PIDs, and the valid A/B/B/C shape.
+
+The second cut is selected only for the exact encoded invocation route in
+`await-step-done` and only once. Selection is latched synchronously before
+custody or database awaits; later done traffic is forwarded normally. During
+the first delta inspection the supervisor found that the selector resolved the
+completion-id getter for unrelated earlier proxy responses, before that id
+exists. No runtime command exposed that source bug. The selector now rejects
+the mode, phase, selected flag and non-done route before lazily resolving the
+invocation, with a synthetic throwing-getter witness for initial traffic and a
+positive exact-path resolution witness.
+
+Immediately before the second kill, one read-only joined SQLite query observes
+the exact `_action_steps` and `_requests` rows. It requires `oidc.mint` to be
+durably `done` with the recovered Session's nonsecret minted/principal/kind/
+expiry metadata, while the exact `completeOidc` request is still `running` with
+null result and `settled_at`. Synthetic negatives cover wrong invocation,
+missing or non-done step, mismatched metadata and a settled request. No private
+database or product/helper/protocol write was added.
+
+The helper source still permits the adjudicated no-second-done path: a completed
+step returns its stored result and `recoverMint` runs outside the callback.
+Therefore later done replay is permitted but not required, and this robust
+phase handling is instrumentation rather than a reproduced helper or backend
+failure. R4's actual source `1b2178f07`, binary `7342` and package `32c447`
+qualification remains historical evidence only for its existing rows. Both new
+crash modes and this repair remain PENDING actual qualification; all prior reds
+remain retained.
+
+Node 24.18.0 syntax checks of `qualify-b1c.mjs` and `crash-cut-plan.mjs`
+passed. The serial synthetic command over crash-cut plan, deadline sequence,
+proxy phase, loopback HTTP lifecycle and diagnostic secrecy passed 42/42;
+`git diff --check` passed. No qualification harness, actual engine, provider,
+process crash, external network, Rust/Cargo, install or full suite ran.
+
+## 2026-09-17 — Remaining identity crash-cut source integration
+
+The supervisor integrated `b9fdf94dd` followed by `b29d8ea59` with origin
+trailers. Only README coexistence and independent journal appends needed
+resolution; all three executable fixture/test files are byte-identical to
+the reviewed final source. The first append is exactly 2,952 bytes after the
+complete prior journal; its resolved journal SHA-256 is
+`0bfa9a3ba0af503f2ac462746badcc387b37c15dafb33283f5823ad64a98aa28`.
+Existing organization and optional-invitation documentation is preserved.
+
+Both original blind reviewers returned READY on their own repair delta.
+Their original NOT READY answers, accepted witness gaps, refuted mandatory
+third-step-done prediction and unchanged limits are retained under
+`llp/reviews/3000.009-b1c-crash-cuts.{sol,grok}.md`. Root read the complete
+repair and both public final answers. The R5 stage passed 42/42 serial
+synthetics on Node 24.13.1 and separately checked the inner versus outer
+custody APIs before any child launch. The pinned binary/package were not
+rebuilt, and the prior R4 receipt is unchanged.
+
+This landing is source and staging evidence only. No actual new-cut R5
+qualification, real email-provider send, full Identity/B completion or
+publication is claimed. The updated B1c report and RFC evidence row preserve
+that boundary; the next bounded actual run remains separately gated.
+
+
 
 ## 2026-09-17 — device diet S5: server reachability, with the partition meter retained
 

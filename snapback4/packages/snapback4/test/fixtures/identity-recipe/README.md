@@ -211,6 +211,15 @@ failure, not evidence of a backend defect. R3 stopped there: no later parked,
 revocation, service or +25h raw case is claimed. The earlier R2 wrong-outer-
 module miss remains a separate retained failed attempt.
 
+R4 then ran source `1b2178f07` with binary `7342` and package `32c447` under
+the correct outer envelope. It passed in 22.589 seconds with nine sanitized
+observations, eight adopted identities and zero custody uncertainties or
+surviving owned processes. That actual record qualifies only the executable
+rows present in that source, including the repaired raw deadline sequence. It
+does not qualify the two crash-cut gaps added below, the legacy unpublished-
+receipt row or production long-window expiry. All earlier red commands remain
+part of the record.
+
 | Row | Scope / injected cut | Required actual observable | Source status |
 | --- | --- | --- | --- |
 | Keycloak authorization code + S256 | Actual provider and generated helper | Begin completes, browser-form login returns the fixed callback, complete settles | PENDING; executable |
@@ -220,7 +229,7 @@ module miss remains a separate retained failed attempt.
 | Provider-independent exchange replay | Provider gate closes after the committed-mint cut | No provider fetch is attempted after the cut; token endpoint POST count remains one | PENDING; executable |
 | Derived own trusted profile | Recovered legitimate Session through actual `identityOwnProfileEligibility`, plus a fresh unrelated guest through `identityOwnProfile`; subject independently pinned in the private config before the run | Profile principal matches the Session and exact shared fixed-issuer/expected-subject derivation; proof expiry is five minutes from proof start; returned eligibility matches present-email, verified-true and strict current freshness; unrelated guest sees null | PENDING; executable selected integration assertions only after private `expectedSubject` setup; no provider revocation, email-change chronology, past/future boundary, invitation or recovery claim |
 | Explicit first binding with recovery flag | Direct actual-engine bound request with `replaceLostDelivery: true` and no prior binding | First binding is created and its bearer passes the public query | PENDING; executable authority-contract row; not a transport/crash witness |
-| Before-mint-commit HTTP fault | Actual generated helper request cut before core commit, followed by a new-process recovery | Recovery creates the first binding without provider replay | PENDING; not implemented in this bounded source checkpoint |
+| Before-mint-commit HTTP fault | Actual generated helper's initial bound `/auth/session` cut before upstream forwarding, after durable provider exchange; exact worker custody revalidated and binding absence observed read-only | A distinct worker reconciles the same invocation with explicit replacement, creates the first binding with identical principal/kind/days, one live family/expiry and no provider replay | PENDING actual; source executable in a separate sign-in mode |
 | Stale claim | Explicit retry settlement followed by its declared backoff and a fresh actual claim | Old lease refuses `E_ACTION_LEASE`; no target mint | PENDING; executable; retry settlement, not timer expiry, makes the old lease stale |
 | Parked work | Real step begin, retry/reclaim, unreconciled second begin | Step returns `E_STEP_PARKED`; mint under that claim refuses `E_ACTION_LEASE` | PENDING; executable |
 | Cancelled / settled / deadline | Public cancel, real done settlement, and a 2-second declared deadline under a 10-second lease; after the wait, exact service/lease-authenticated `/status` drives normal expiry | Status receipt matches invocation id and attempt with failed/`E_ACTION_DEADLINE`; public collection then records the same refusal before bound mint refuses `E_ACTION_LEASE` | PENDING after R3 instrument-order failure; repaired source executable, not rerun |
@@ -230,14 +239,30 @@ module miss remains a separate retained failed attempt.
 | Service revocation | Separate operator service revokes `service:worker` | Mint/recovery using the revoked worker credential refuses `E_AUTH` | PENDING; executable |
 | Expired issued family | Requeue, supported dev `clock advance +25h`, then fresh current claim; target lifetime one day, invocation 30 days, authorities still live | Recovery refuses `E_ACTION_AUTHORITY`; expired bearer returns `E_AUTH` | PENDING; executable; development-clock evidence only |
 | Receipt/default-diagnostic secrecy | Read-only `_action_steps`, binding/session tables and default `why` | Mint step has delivery metadata but no bearer; old bearer occurs nowhere; final bearer occurs only in protected `_requests.result`; default `why` contains none of the known secrets | PENDING; executable; `why --values` is intentionally sensitive and is not run |
-| After mint-step done / before action settlement | Actual second process cut after durable `oidc.mint` step completion | A third claim explicitly replaces the lost final handoff with the same family/expiry | PENDING; not implemented in this bounded source checkpoint |
+| After mint-step done / before action settlement | After the existing committed-mint cut, the recovered mint PID is recorded; only the exact encoded `/actions/<invocation>/steps/oidc.mint/done` in `await-step-done` can select the single cut. One joined read-only snapshot requires that exact `oidc.mint` row to be `done` with matching nonsecret mint metadata while the exact `completeOidc` request remains `running`, resultless and unsettled. The done request PID must equal the recovered mint PID and differ from the first killed worker before its acknowledgement is cut | A final mint worker must differ explicitly from both killed workers, replaces the lost handoff in the original family/expiry, both earlier bearers fail, one final digest remains, and token-storage/provider-count assertions hold. Any later done replay is forwarded normally; the helper source shows that completed-step replay can instead return the stored result and recover the mint outside the step callback, so another done request is not required | PENDING actual; repaired instrumentation is executable in a separate sign-in mode, not evidence of a reproduced helper/backend failure |
 | Legacy unpublished mint receipt | Old done `oidc.mint` receipt plus an existing real unbound Session, followed by the repaired helper whose step input includes `protocol: 'oidc-mint-bound/v1'` | `E_STEP_INPUT` before initial/recovery mint; zero new binding/family; old bearer remains live | PENDING root-engine witness; not seeded here because doing so through the public helper also requires a complete compatible private transaction/exchange record |
 | Production/release expiry | Wall clock only | Long-window issued-family expiry refusal | UNAVAILABLE in this bounded run; no fake clock or database edit is substituted |
 
-The before-commit HTTP cut, after-step cut and legacy-receipt row are explicit
-gaps, not inferred from the direct first-binding row or other cases. The parent
-may add them in the integration tree if it can do so through the same public
-engine/worker mechanics without private writes.
+The two new crash-cut modes each use one independent Keycloak sign-in and
+require exactly one token-endpoint POST within that mode; a future combined
+run therefore has multiple provider exchanges overall. Their deterministic
+cut-plan tests are doubles, not actual evidence. The after-step selector first
+rejects unrelated modes, phases, routes and an already-selected cut before it
+resolves the completion invocation; the exact candidate latches selection
+before asynchronous custody checks. Synthetic negative observations cover a
+wrong invocation, missing/non-done step, mismatched metadata, a settled action,
+missing/wrong worker PIDs and the B-recovers/C-done/B-final false-positive
+sequence; A/B/B/C is the valid worker sequence. This robustness is
+qualification instrumentation, not a reproduced helper defect. The
+legacy-receipt row remains
+an explicit separate gap, not inferred from the direct first-binding or crash
+cases. Production long-window expiry likewise remains unavailable here.
+
+On Node 24.18.0, syntax checks of `qualify-b1c.mjs` and
+`crash-cut-plan.mjs` passed. The serial synthetic command over crash-cut plan,
+deadline sequence, proxy phase, loopback HTTP lifecycle and diagnostic secrecy
+passed 42/42; `git diff --check` passed. No qualification harness, actual
+engine/provider/process cut, external network, Cargo, install or full suite ran.
 
 ## B1d.2a managed organizations and invitations
 

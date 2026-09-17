@@ -54,13 +54,6 @@ impl FollowingCaps {
     }
 }
 
-// @ref LLP 3000.007#18.1 — install the card's bounded two-cursor server form verbatim.
-pub fn search(prefix: &str, module: &str) -> Result<String, String> {
-    let source = crate::guide::quarry(crate::guide::card("search").unwrap()).into_iter()
-        .find(|block| block.contains("query searchChats") && !block.contains("query searchHeld")).expect("server search recipe on the card");
-    prefix_module(&source, prefix, module)
-}
-
 pub fn following(prefix: &str, module: &str) -> Result<String, String> {
     following_sized(prefix, module, FollowingCaps::parse(None, None)?)
 }

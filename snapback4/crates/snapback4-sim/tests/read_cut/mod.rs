@@ -85,5 +85,5 @@ fn held_query_compiles_with_device_dispatch_and_a_server_refusal() {
     let refusal = engine.query("all", Context::new("dev:alice", args(&[("q", "coffee")]))).unwrap_err();
     assert_eq!(refusal.code, "E_QUERY_HELD");
     assert_eq!(refusal.guide.as_deref(), Some("search"));
-    assert!(refusal.rewrite.unwrap().contains("scoped server walk"));
+    assert!(refusal.rewrite.unwrap().contains("grouped or newest form"));
 }
