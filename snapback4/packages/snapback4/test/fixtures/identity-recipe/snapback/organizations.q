@@ -169,7 +169,7 @@ mutation organizationRecordInvitation(id: id, organization: organizations, recip
   invite = insert invitations { id, organization, recipientEmail, tokenHash, issuer: viewer, issuedAt: now, expiresAt: now + lifetime, status: 'pending', acceptedBy: null, acceptedAt: null }
   insert invitationReservations { invitation: invite.id, organization, recipientEmail, expiresAt: invite.expiresAt }
   insert organizationAudit { organization, actor: viewer, event: 'invitation.recorded', invitation: invite.id, member: null, at: now }
-  return invite
+  return { id: invite.id, organization: invite.organization, recipientEmail: invite.recipientEmail, issuer: invite.issuer, issuedAt: invite.issuedAt, expiresAt: invite.expiresAt, status: invite.status, acceptedBy: invite.acceptedBy, acceptedAt: invite.acceptedAt }
 
 mutation organizationAcceptInvitation(invitation: invitations, rawToken: text 1..1024):
   invite = invitations[invitation] ! else ORGANIZATION_INVITATION_NOT_FOUND
@@ -189,20 +189,20 @@ mutation organizationAcceptInvitation(invitation: invitations, rawToken: text 1.
     org = organizations[invite.organization] ! else ORGANIZATION_NOT_FOUND
     require organizationMemberCounts[invite.organization] <= org.seatLimit else ORGANIZATION_CAPACITY
   insert organizationAudit { organization: invite.organization, actor: viewer, event: 'invitation.accepted', invitation: invite.id, member: viewer, at: now }
-  return invitations[invite.id]
+  return { id: invite.id, organization: invite.organization, recipientEmail: invite.recipientEmail, issuer: invite.issuer, issuedAt: invite.issuedAt, expiresAt: invite.expiresAt, status: 'accepted', acceptedBy: viewer, acceptedAt: now }
 
 mutation organizationRevokeInvitation(invitation: invitations):
   invite = invitations[invitation] ! else ORGANIZATION_INVITATION_NOT_FOUND
   require exists organizationMemberships[invite.organization, viewer, 'admin'] else ORGANIZATION_ADMIN_REQUIRED
   if invite.status = 'revoked':
-    return invite
+    return { id: invite.id, organization: invite.organization, recipientEmail: invite.recipientEmail, issuer: invite.issuer, issuedAt: invite.issuedAt, expiresAt: invite.expiresAt, status: invite.status, acceptedBy: invite.acceptedBy, acceptedAt: invite.acceptedAt }
   require invite.status = 'pending' else ORGANIZATION_INVITATION_NOT_PENDING
   update invitations[invite.id] { status: 'revoked' }
   reservation = invitationReservations[invitation = invite.id]
   if reservation != null:
     delete invitationReservations[reservation]
   insert organizationAudit { organization: invite.organization, actor: viewer, event: 'invitation.revoked', invitation: invite.id, member: null, at: now }
-  return invitations[invite.id]
+  return { id: invite.id, organization: invite.organization, recipientEmail: invite.recipientEmail, issuer: invite.issuer, issuedAt: invite.issuedAt, expiresAt: invite.expiresAt, status: 'revoked', acceptedBy: invite.acceptedBy, acceptedAt: invite.acceptedAt }
 
 mutation organizationSetMemberRole(organization: organizations, principal: principal, role: enum('admin', 'member')):
   org = organizations[organization] ! else ORGANIZATION_NOT_FOUND

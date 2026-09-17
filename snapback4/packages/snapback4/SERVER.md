@@ -355,7 +355,12 @@ It is the ordinary managed transaction a later action will call, and an admin
 may call it directly. It therefore proves neither entropy nor server-random
 issuance. B1d.2b owns the action that generates 32 random bytes, returns or
 delivers the raw token, and calls this seam with only its digest. No action or
-handler is added in B1d.2a.
+handler is added in B1d.2a. The accepted staging shape is any 64-character
+value already equal to its lowercase form; this does not validate that every
+character is hexadecimal. Directly staged non-hex garbage cannot redeem
+against the hex result of `sha256(rawToken)`, though it may reserve
+admin-owned capacity until revocation or expiry. The later issuance action
+always supplies a crypto-derived digest.
 
 `organizationAcceptInvitation` takes the exact raw-token text, computes
 `sha256(rawToken)` in the managed interpreter, compares the lowercase hex
@@ -366,7 +371,11 @@ the live member count through that new membership and enforces the current
 seat limit. Any refusal rolls the whole transaction back. An existing member
 consumes a valid pending invitation without duplicating or changing their
 membership and without needing a free seat. A new intent against any consumed
-invitation refuses.
+invitation refuses. Record, successful acceptance (new or existing member),
+and revoke (first or idempotent repeat) return only the identical public field
+set `id`, `organization`, `recipientEmail`, `issuer`, `issuedAt`, `expiresAt`,
+`status`, `acceptedBy`, `acceptedAt`, with the current accepted/revoked values;
+neither `tokenHash`, raw-token text nor future table fields are exposed.
 
 Email comparison is exact, case-sensitive UTF-8 equality with surrounding
 whitespace rejected at recording. There is no normalization, global email
@@ -391,15 +400,21 @@ primitive contract is UTF-8 text to lowercase hex64 from the shared metered
 RustCrypto interpreter. The published 0.2.26 engine predates it; the focused
 CLI test refuses an implicit binary, requires an executable plus expected
 SHA-256 pin and reports a named skip without the parent lane's hash-capable
-binary. No issuance/send, action-result plaintext boundary, email-provider,
+binary. It also rejects a canonical scratch parent beneath either a repository
+`.git` directory or linked-worktree `.git` file before creating the child.
+Frozen base `06171ed` passed 3/3 (two synthetic, one actual), with 49
+source-bound refusal probes and 15 recorded invitation IDs; all three earlier
+failed runs remain retained. Because this correction changes the mutation
+outputs, its actual qualification is pending. No issuance/send, action-result
+plaintext boundary, email-provider,
 HTTP write-ID/lost-ack, concurrent admission, restart, crash-cut, Google,
 full Identity/B or billing-plan claim follows. Hash-only invitation storage
 also does not imply that a later action result, step or delivery payload lacks
-the raw token, and is not a global erasure claim. Three pinned parent runs are
-preserved as failures. The frozen `06171edca` revision then passed two synthetic
-checks and one actual interpreter journey, including all 49 source-bound
-refusal probes, using the digest-pinned `1e91bc7fe` binary. Principals and time
-were operator inputs, not authentication or provider evidence. See
+the raw token, and is not a global erasure claim. The test's `--as` and `--now`
+values are operator inputs, not authentication, provider, HTTP or restart
+evidence. Its successful frozen helper removed the raw-response journal;
+retained stdout and source hashes do not create a retrospective raw-response
+audit. The digest-pinned CLI source is `1e91bc7fe`; see
 `../../reports/20260917-invitation-policy.md` for commands, digests and limits.
 
 ## Handler context

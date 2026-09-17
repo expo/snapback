@@ -28710,3 +28710,62 @@ separate `e1536df94` correction has three synthetic passes and one named
 actual-test skip; its queued actual run and own-thread blind delta reviews
 remain pending at this documentation checkpoint. No overall Identity/B,
 Workroom, publication or full-suite claim is made.
+
+## 2026-09-16 — B1d.2a identity-policy output and scratch-boundary repair
+
+This bounded correction was authored by native Sol HIGH. Independent Sol
+review marked the full-row mutation outputs NOT READY; Grok marked the same
+policy READY with the lowercase-hash-shape advisory below. The root chose
+explicit projections. No final review is fabricated here.
+
+`organizationRecordInvitation`, `organizationAcceptInvitation` and both the
+first and idempotent branches of `organizationRevokeInvitation` now return the
+same explicit public invitation metadata fields: `id`, `organization`,
+`recipientEmail`, `issuer`, `issuedAt`, `expiresAt`, `status`, `acceptedBy` and
+`acceptedAt`. Neither `tokenHash`, raw-token text nor future table fields can
+ride a successful mutation result. Acceptance and first revocation project
+their current post-update status and acceptance values rather than the stale
+pre-update row. Actual-result assertions pin the exact field set and values for
+record, new-member acceptance, existing-member acceptance, first revoke and
+repeated revoke. Query outputs, rules, tables, atomicity, the 49 source-bound
+refusal probes and the 15 recorded invitation IDs are unchanged.
+
+The accepted directly staged hash shape remains exactly 64 characters equal to
+their lowercase form; `lower(tokenHash) = tokenHash` does not prove that every
+character is hexadecimal. A staged non-hex value cannot equal the lowercase
+hex output of `sha256(rawToken)` and cannot redeem, but it can reserve
+admin-owned capacity until revocation or expiry. No regex, builtin, framework
+or broader policy was added. The later issuance action always supplies a
+crypto-derived digest.
+
+Before scratch creation, the actual-CLI test now walks every canonical parent
+ancestor and rejects a `.git` directory or linked-worktree `.git` file. A
+filesystem-only synthetic case proves an outside-repository nested parent is
+accepted and nested parents beneath each marker form are rejected. It creates
+and removes only its own `mkdtemp` root. Existing canonical-path, non-root,
+directory, owner, mode and child-containment guards remain.
+
+Frozen base `06171ed` previously passed 3/3: two synthetic tests and one actual
+test, with all 49 source-bound refusals and 15 recorded invitation IDs. The
+three earlier failed runs remain retained. The successful frozen helper
+removed its raw-response journal; retained stdout and source hashes are
+evidence for that run, not a retrospective raw-response audit. This correction
+changes the Quarry output source, so actual qualification is PENDING on the
+root's queued 450b run. `--as` and `--now` remain operator inputs, not
+authentication, provider, HTTP or restart proof.
+
+The correction input SHA-256 values are
+`a37d049485bd52cc02feba645d40bf0ae9602a52944f4737fcc7c8213b113fc0`
+for `test/identity-organizations.test.mjs`,
+`d4a7bb335b713341390a582b65bb9e97211e7e513ebaf9e16cad983f56322d28`
+for `snapback/schema.q`, and
+`6cb70304a8d2b07a5324ce2164d0ae8adc087af61d8233143f14d549c4f5eb4b`
+for `snapback/organizations.q`.
+
+With the actual-policy inputs explicitly unset, the required Node 24.13.1
+syntax check passed and the focused test reported 3 synthetic passes, 0
+failures and 1 named actual-test skip in 44.486125 ms. `git diff --check`
+passed before this append. No actual engine, provider, listener, HTTP,
+restart, Rust/Cargo, install, remote, root-gate or push command ran. Issuance,
+delivery, concurrency/lost-ack, restart, crash-cut, authentication/provider,
+full Identity/B and publication claims remain outside this correction.

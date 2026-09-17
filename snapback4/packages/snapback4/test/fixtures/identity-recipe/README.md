@@ -240,6 +240,10 @@ Owners and admins can stage a digest with `organizationRecordInvitation`;
 that is an ordinary managed mutation seam, not proof that the digest came from
 random token issuance. There is no invitation action or delivery handler in
 this slice, and `snapback/server.ts` remains exactly the two OIDC actions.
+The record, accept and revoke mutations return the same exact public invitation
+metadata fields: `id`, `organization`, `recipientEmail`, `issuer`, `issuedAt`,
+`expiresAt`, `status`, `acceptedBy` and `acceptedAt`. They never return the
+stored `tokenHash`, the raw token or future table fields.
 
 Recipient matching is exact, case-sensitive UTF-8 equality. The recipe rejects
 surrounding whitespace when recording an address and does no case, Unicode,
@@ -248,20 +252,24 @@ principals. Two issuer/subject-derived principals with the same verified email
 remain different membership identities; the principal that presents the token
 is the member recorded on acceptance.
 
-The invitation table stores only a 64-character lowercase digest. Acceptance
-hashes the exact raw-token text inside the same managed mutation with the
-shared-interpreter `sha256(text)` primitive, whose contract is
-UTF-8 input to lowercase 64-character hex. Workroom's frozen published 0.2.26 binary
-does not have that primitive and must not be run against this module. The
-source test requires an explicit binary path and SHA-256 pin from the parent
-core lane. Three parent failures remain preserved. Frozen `06171edca` then
-passed two synthetic checks and the actual interpreter journey with all 49
-source-authored refusal probes (22 query, 27 mutation), using the hash-pinned
-`1e91bc7fe` CLI and Node 24.13.1. This is operator-supplied principal/time
-qualification, not authentication, provider, concurrent HTTP or crash proof.
-The successful scratch/raw response journal was removed by the frozen helper;
-stdout and exact source/CLI digests remain, not a retrospective raw-response
-audit. The three failed scratch directories and journals remain private.
+The invitation table accepts exactly 64 characters whose lowercase form is
+unchanged. That check does not prove every character is hexadecimal. A
+directly staged non-hex value cannot equal the lowercase hex result of
+`sha256(rawToken)` and therefore cannot redeem, but it can reserve
+admin-owned capacity until revocation or expiry. The later issuance action
+always supplies a crypto-derived digest. Acceptance hashes the exact raw-token
+text inside the same managed mutation with the shared-interpreter
+`sha256(text)` primitive, whose contract is UTF-8 input to lowercase
+64-character hex. Workroom's frozen published 0.2.26 binary does not have that
+primitive and must not be run against this module. The source test requires an
+explicit binary path and SHA-256 pin from the parent core lane. Frozen base
+`06171ed` passed its pinned run 3/3 (two synthetic tests and one actual test),
+including 49 source-bound refusal probes and 15 recorded invitation IDs; the
+three earlier failed runs remain retained. This explicit-output correction
+changes the Quarry source, so its actual-interpreter qualification is pending.
+The CLI source is `1e91bc7fe`, with Node 24.13.1. Operator-supplied principals
+and times are not authentication, provider, concurrent HTTP or crash proof.
+The three failed scratch directories and journals remain private.
 
 Hash-only table storage is a narrow claim. It does not say that a later
 issuance action result, durable step, email-provider payload or privileged
@@ -294,6 +302,10 @@ shared interpreter. Its three prerequisites are
 `SNAPBACK4_B1D_MANAGED_BIN`, `SNAPBACK4_B1D_MANAGED_BIN_SHA256` and
 `SNAPBACK4_B1D_MANAGED_SCRATCH_PARENT`; without all three it reports a named
 skip. The scratch parent must already be canonical, owner-only and outside the
-repository. A supplied digest mismatch fails before scratch creation. The test
-does not print raw-token arguments on failure; it preserves unexpected CLI
-output in the private scratch child and leaves that child in place.
+repository: before scratch creation the test walks its canonical ancestors and
+rejects either a `.git` directory or linked-worktree `.git` file. A supplied
+digest mismatch fails before scratch creation. The test does not print
+raw-token arguments on failure; it preserves unexpected CLI output in the
+private scratch child and leaves that child in place. On success the frozen
+helper removes that raw-response journal; retained stdout and source hashes
+are qualification evidence, not a retrospective raw-response audit.

@@ -6,11 +6,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import {
-  appendFileSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync,
+  appendFileSync, copyFileSync, lstatSync, mkdirSync, mkdtempSync, readFileSync,
   realpathSync, rmSync, statSync, writeFileSync,
 } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -111,6 +112,26 @@ const ADMIN_INVITATION_FIELDS = new Set([
   "id", "organization", "recipientEmail", "issuer", "issuedAt", "expiresAt",
   "status", "acceptedBy", "acceptedAt", "reservation",
 ]);
+const PUBLIC_INVITATION_FIELDS = [
+  "id", "organization", "recipientEmail", "issuer", "issuedAt", "expiresAt",
+  "status", "acceptedBy", "acceptedAt",
+];
+
+function assertPublicInvitation(actual, expected, message) {
+  assert.deepEqual(Object.keys(actual).sort(), [...PUBLIC_INVITATION_FIELDS].sort(), `${message}: exact public field set`);
+  assert.deepEqual(actual, expected, `${message}: public values`);
+}
+
+function assertScratchParentOutsideGitRepository(parent) {
+  let current = parent;
+  while (true) {
+    const marker = lstatSync(join(current, ".git"), { throwIfNoEntry: false });
+    assert.equal(marker, undefined, "scratch parent must be outside any Git repository");
+    const ancestor = dirname(current);
+    if (ancestor === current) return;
+    current = ancestor;
+  }
+}
 
 function classifyAdminInvitationPageResponse(response, expectedOrganization) {
   if (response.error) return { type: "unsafe", code: "SPAWN_ERROR" };
@@ -198,6 +219,31 @@ test("managed-policy CLI envelopes are kind-specific and fail closed", () => {
   }), "org-1").code, "ADMIN_INVITATIONS_PAGE_ROW");
 });
 
+test("managed-policy scratch parent rejects Git directory and linked-worktree ancestors", () => {
+  const syntheticRoot = mkdtempSync(join(tmpdir(), "snapback4-managed-scratch-"));
+  try {
+    const outsideParent = join(syntheticRoot, "outside", "nested", "parent");
+    mkdirSync(outsideParent, { recursive: true });
+    assert.doesNotThrow(() => assertScratchParentOutsideGitRepository(outsideParent));
+
+    const worktreeRoot = join(syntheticRoot, "linked-worktree");
+    const nestedWorktreeParent = join(worktreeRoot, "deep", "scratch-parent");
+    mkdirSync(nestedWorktreeParent, { recursive: true });
+    writeFileSync(join(worktreeRoot, ".git"), "gitdir: /synthetic/owned/worktree\n");
+    assert.throws(() => assertScratchParentOutsideGitRepository(nestedWorktreeParent),
+      /scratch parent must be outside any Git repository/);
+
+    const repositoryRoot = join(syntheticRoot, "repository");
+    const nestedRepositoryParent = join(repositoryRoot, "deeper", "scratch-parent");
+    mkdirSync(join(repositoryRoot, ".git"), { recursive: true });
+    mkdirSync(nestedRepositoryParent, { recursive: true });
+    assert.throws(() => assertScratchParentOutsideGitRepository(nestedRepositoryParent),
+      /scratch parent must be outside any Git repository/);
+  } finally {
+    rmSync(syntheticRoot, { recursive: true, force: true });
+  }
+});
+
 test("managed organization and invitation policy runs in the shared interpreter", {
   skip: missing.length === 0 ? false : `set ${missing.join(", ")} to the pinned parent binary and a private scratch parent`,
 }, () => {
@@ -217,6 +263,7 @@ test("managed organization and invitation policy runs in the shared interpreter"
   assert.ok(parentStat.isDirectory(), "scratch parent must be an existing directory");
   assert.equal(parentStat.mode & 0o077, 0, "scratch parent must not grant group or other permissions");
   if (typeof process.getuid === "function") assert.equal(parentStat.uid, process.getuid(), "scratch parent must be owned by this user");
+  assertScratchParentOutsideGitRepository(parent);
 
   const directory = mkdtempSync(join(parent, "b1d2a-organizations-"));
   const canonical = realpathSync(directory);
@@ -389,13 +436,24 @@ test("managed organization and invitation policy runs in the shared interpreter"
     assert.equal(written(orgRun("organizationSetCapacity", { organization: organization.id, seatLimit: 20 }, SERVICE, T + 2)).seatLimit, 20);
 
     const defaultToken = "default-lifetime-token";
-    recordInvitation(id(2), organization.id, "recipient@example.test", defaultToken, OWNER, T + 10);
+    const recordedInvitation = recordInvitation(id(2), organization.id, "recipient@example.test", defaultToken, OWNER, T + 10);
+    assertPublicInvitation(recordedInvitation, {
+      id: id(2), organization: organization.id, recipientEmail: "recipient@example.test",
+      issuer: OWNER, issuedAt: T + 10, expiresAt: T + 10 + 604_800_000,
+      status: "pending", acceptedBy: null, acceptedAt: null,
+    }, "record invitation result");
     const defaultInvite = invitationMetadata(organization.id, id(2), OWNER, T + 10);
     assert.equal(defaultInvite.expiresAt, T + 10 + 604_800_000, "default invitation lifetime is seven days");
     assert.ok(defaultInvite.reservation, "a pending invitation reserves one seat");
-    written(orgRun("organizationRevokeInvitation", { invitation: id(2) }, OWNER, T + 11));
+    const firstRevoke = written(orgRun("organizationRevokeInvitation", { invitation: id(2) }, OWNER, T + 11));
+    assertPublicInvitation(firstRevoke, {
+      id: id(2), organization: organization.id, recipientEmail: "recipient@example.test",
+      issuer: OWNER, issuedAt: T + 10, expiresAt: T + 10 + 604_800_000,
+      status: "revoked", acceptedBy: null, acceptedAt: null,
+    }, "first revoke result");
     const auditAfterFirstRevoke = audit(organization.id, OWNER, T + 11).filter(row => row.event === "invitation.revoked").length;
-    written(orgRun("organizationRevokeInvitation", { invitation: id(2) }, OWNER, T + 12));
+    const repeatedRevoke = written(orgRun("organizationRevokeInvitation", { invitation: id(2) }, OWNER, T + 12));
+    assertPublicInvitation(repeatedRevoke, firstRevoke, "repeated revoke result");
     assert.equal(audit(organization.id, OWNER, T + 12).filter(row => row.event === "invitation.revoked").length, auditAfterFirstRevoke, "re-revoke is a no-op");
     assert.equal(invitationMetadata(organization.id, id(2), OWNER, T + 12).reservation, null);
     const auditBeforeRevokedAccept = audit(organization.id, OWNER, T + 13).length;
@@ -424,7 +482,12 @@ test("managed organization and invitation policy runs in the shared interpreter"
     written(orgRun("organizationSetMemberRole", { organization: organization.id, principal: ADMIN, role: "admin" }, OWNER, T + 32));
     const memberToken = "ordinary-membership-token";
     recordInvitation(id(6), organization.id, "member@example.test", memberToken, ADMIN, T + 40);
-    written(orgRun("organizationAcceptInvitation", { invitation: id(6), rawToken: memberToken }, MEMBER, T + 41));
+    const newMemberAcceptance = written(orgRun("organizationAcceptInvitation", { invitation: id(6), rawToken: memberToken }, MEMBER, T + 41));
+    assertPublicInvitation(newMemberAcceptance, {
+      id: id(6), organization: organization.id, recipientEmail: "member@example.test",
+      issuer: ADMIN, issuedAt: T + 40, expiresAt: T + 10_040,
+      status: "accepted", acceptedBy: MEMBER, acceptedAt: T + 41,
+    }, "new-member acceptance result");
     assert.equal(roster(organization.id, OWNER, T + 41).length, 3);
     assert.equal(roster(organization.id, ADMIN, T + 41).length, 3);
     assert.equal(roster(organization.id, MEMBER, T + 41).length, 3);
@@ -442,7 +505,12 @@ test("managed organization and invitation policy runs in the shared interpreter"
     const alreadyToken = "already-admin-token";
     recordInvitation(id(8), organization.id, "admin@example.test", alreadyToken, OWNER, T + 50);
     const beforeAlready = roster(organization.id, OWNER, T + 50);
-    written(orgRun("organizationAcceptInvitation", { invitation: id(8), rawToken: alreadyToken }, ADMIN, T + 51));
+    const existingMemberAcceptance = written(orgRun("organizationAcceptInvitation", { invitation: id(8), rawToken: alreadyToken }, ADMIN, T + 51));
+    assertPublicInvitation(existingMemberAcceptance, {
+      id: id(8), organization: organization.id, recipientEmail: "admin@example.test",
+      issuer: OWNER, issuedAt: T + 50, expiresAt: T + 10_050,
+      status: "accepted", acceptedBy: ADMIN, acceptedAt: T + 51,
+    }, "existing-member acceptance result");
     const afterAlready = roster(organization.id, OWNER, T + 51);
     assert.equal(afterAlready.length, beforeAlready.length, "an existing member consumes an invitation without a duplicate seat");
     assert.equal(afterAlready.find(row => row.principal === ADMIN).role, "admin", "existing-member acceptance preserves role");
