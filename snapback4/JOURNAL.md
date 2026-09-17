@@ -28250,3 +28250,46 @@ endpoint, raw-token persistence, client-contract field, JavaScript transaction,
 static admission ceiling, dependency, version, publication or deployment is
 included. No root inventory, full suite, benchmark, network, remote, origin,
 push or model/subagent work ran.
+
+## 2026-09-17 — B1c proxy lifecycle instrument repair
+
+Source inspection found a lifecycle ambiguity in the B1c qualification-only
+fault proxy. The historical actual run `682a834d5` completed its primary
+Keycloak, committed-lost-reply and process-crash assertions, then failed with
+`B1C_PROXY_REQUEST` at `raw-authority-project` before any raw case. Because the
+instrument retained no raw error cause, this repair does not claim that
+intentional engine teardown caused that failure.
+
+The proxy now retains the phase in which each request began. Unexpected
+failures from proof-origin requests remain fatal even when observed after the
+teardown transition. Once all primary assertions and the two-stream secrecy
+check finish, the harness checks the existing first-failure latch, explicitly
+enters expected teardown, refuses newly arriving polling/background traffic
+with an empty 503, and gives existing proof requests a bounded 30-second drain
+while the engine remains live. It then closes proxy connections before
+stopping the engine. Drain, close, server, protocol, request and three custody
+failure categories produce fixed phase/category codes only; no exception
+message, path, URL, header or body enters output. The intentional committed-
+reply cut is the single narrow proof exception. A preexisting material failure
+is never cleared or replaced, and observations are appended only after clean
+proxy and engine teardown.
+
+The inseparable owned-child cleanup now recognizes signal termination as
+terminal, subscribes before signalling, bounds both TERM and KILL waits, and
+never selects a process except through the existing exact owned-child object.
+The private scratch retention, actual mint cut, UID/start/ancestry custody
+checks, external mandatory five-minute ProcessCustody envelope, provider-count
+assertion and unknown-failure fail-closed output are unchanged.
+
+Node 24.13.1 syntax checking of `qualify-b1c.mjs` passed. The focused serial
+Node test command over `proxy-phase.test.mjs` and the existing
+`diagnostic-secrecy.test.mjs` passed 10/10. Synthetic cases cover active proof
+failure, explicit teardown traffic, preservation of a preexisting failure, a
+proof request failing after transition, sanitized unknown error text, an
+already signal-exited owned child, synchronous exit-event ordering, and
+stdout/stderr secret scanning. These
+are instrument/double tests only. The actual qualification harness did not
+run; no provider, engine, raw-authority, process-crash, mint, Cargo, install,
+full-suite, root-gate, network, remote or publication claim was added. The
+source matrix remains pending actual qualification and the historical command
+remains overall negative.

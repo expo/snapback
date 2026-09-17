@@ -14,6 +14,7 @@ import { DatabaseSync } from "node:sqlite";
 import { authorizeWithKeycloak } from "./keycloak-browser.mjs";
 import { diagnosticStreamsAreSecretFree } from "./diagnostic-secrecy.mjs";
 import { captureEngineCustody, registerWorkerCustody, verifyWorkerCustody } from "./process-custody.mjs";
+import { createProxyPhase, settlesWithin, stopOwnedChild } from "./proxy-phase.mjs";
 
 const fixture = dirname(fileURLToPath(import.meta.url));
 const enginePort = 38973;
@@ -170,13 +171,8 @@ async function startEngine(binary, project, env = {}) {
 }
 
 async function stopChild(child) {
-  if (!children.has(child)) return;
-  children.delete(child);
-  if (child.exitCode !== null) return;
-  child.kill("SIGTERM");
-  const exited = new Promise(resolvePromise => child.once("exit", resolvePromise));
-  await Promise.race([exited, delay(4_000)]);
-  if (child.exitCode === null) { child.kill("SIGKILL"); await exited; }
+  try { await stopOwnedChild(child, children); }
+  catch { fail("child-stop-timeout"); }
 }
 
 async function until(check, milliseconds, code) {
@@ -240,16 +236,27 @@ function boundedBody(request, limit = 2 * 1024 * 1024) {
 
 async function startFaultProxy(engine) {
   const state = { phase: "initial", providerClosed: false, provider: [], mints: [], cuts: [], workers: new Map() };
+  const lifecycle = createProxyPhase(code => { instrumentFailureCode ??= code; });
   const register = async pid => {
     if (state.workers.has(pid)) return state.workers.get(pid);
     let registered;
     try { registered = await registerWorkerCustody(pid, engine.identity(), runtimeUid); }
-    catch { instrumentFailureCode ??= "custody-registration"; throw new Error("custody"); }
+    catch { throw Object.assign(new Error("custody"), { proxyCategory: "custody-registration" }); }
     state.workers.set(pid, registered);
     custodyReceipts.push(registered.receipt);
     return registered;
   };
   const server = createServer(async (request, response) => {
+    const requestPhase = lifecycle.beginRequest();
+    let intentionalCut = false;
+    const lateFailure = () => { if (!intentionalCut) lifecycle.failRequest(requestPhase, "request"); };
+    request.once("error", lateFailure);
+    response.once("error", lateFailure);
+    if (requestPhase.phase !== "proof") {
+      response.writeHead(503, { connection: "close", "content-length": "0" }).end();
+      lifecycle.finishRequest(requestPhase);
+      return;
+    }
     try {
       const body = await boundedBody(request);
       if (request.url === "/__qualification/provider-attempt") {
@@ -283,12 +290,13 @@ async function startFaultProxy(engine) {
           if (state.phase === "initial" && sent.binding?.replaceLostDelivery !== true) {
             await until(() => engine.workerPids().has(pid), 5_000, "worker-pid-registration");
             try { await verifyWorkerCustody(registered, engine.identity(), runtimeUid); }
-            catch { instrumentFailureCode ??= "custody-revalidation"; throw new Error("custody"); }
+            catch { throw Object.assign(new Error("custody"), { proxyCategory: "custody-revalidation" }); }
             try { process.kill(pid, "SIGKILL"); }
-            catch { instrumentFailureCode ??= "custody-signal"; throw new Error("custody"); }
+            catch { throw Object.assign(new Error("custody"), { proxyCategory: "custody-signal" }); }
             state.cuts.push({ cut: "after-core-mint-commit-before-worker-ack", pid });
             state.providerClosed = true;
             state.phase = "recovery";
+            intentionalCut = true;
             response.destroy();
             return;
           }
@@ -300,14 +308,46 @@ async function startFaultProxy(engine) {
       response.writeHead(upstream.status, { ...replyHeaders, "content-length": bytes.length });
       response.end(bytes);
     } catch (error) {
-      instrumentFailureCode ??= error instanceof InstrumentFailure ? error.label : "proxy-request";
+      const category = error?.proxyCategory ?? (error instanceof InstrumentFailure ? "protocol" : "request");
+      lifecycle.failRequest(requestPhase, category);
       if (!response.destroyed) response.destroy();
+    } finally {
+      lifecycle.finishRequest(requestPhase);
     }
   });
   try { await new Promise((resolvePromise, reject) => { server.once("error", reject); server.listen(proxyPort, "127.0.0.1", resolvePromise); }); }
   catch { fail("proxy-listen"); }
-  server.on("error", () => { instrumentFailureCode ??= "proxy-server"; });
-  return { state, close: () => new Promise(resolvePromise => server.close(resolvePromise)) };
+  server.on("error", () => lifecycle.failServer());
+  const closeServer = () => new Promise(resolvePromise => server.close(resolvePromise));
+  return {
+    state,
+    async closeExpected() {
+      if (instrumentFailureCode) fail(instrumentFailureCode);
+      lifecycle.beginExpectedTeardown();
+      const closed = closeServer();
+      server.closeIdleConnections();
+      if (!await lifecycle.waitForProofDrain(30_000)) {
+        lifecycle.failProof("drain-timeout");
+        fail(instrumentFailureCode);
+      }
+      if (instrumentFailureCode) fail(instrumentFailureCode);
+      server.closeAllConnections();
+      const didClose = await settlesWithin(closed, 2_000);
+      if (!didClose) {
+        lifecycle.failServer("close-timeout");
+        fail(instrumentFailureCode);
+      }
+      lifecycle.close();
+      if (instrumentFailureCode) fail(instrumentFailureCode);
+    },
+    async closeAbort() {
+      lifecycle.beginExpectedTeardown();
+      const closed = closeServer();
+      server.closeAllConnections();
+      await settlesWithin(closed, 2_000);
+      lifecycle.close();
+    },
+  };
 }
 
 function database(project) {
@@ -339,6 +379,7 @@ async function keycloakWitness(paths, scratch, config) {
     workerPids: () => engine?.workerPids() ?? new Set(),
     identity: () => engine?.identity ?? fail("engine-custody-unavailable"),
   });
+  let witnessError = null;
   try {
     engine = await startEngine(paths.binary, project, { OIDC_CLIENT_SECRET: config.clientSecret });
     const admitting = await guest();
@@ -397,11 +438,23 @@ async function keycloakWitness(paths, scratch, config) {
     } finally { db.close(); }
     const diagnostic = safeCommand(paths.binary, project, ["why", completion.id]);
     assert(diagnosticStreamsAreSecretFree(diagnostic, secrets), "default-diagnostic-secret");
-    observations.push("actual-keycloak-generated-helper", "post-commit-lost-reply-process-crash", "same-family-same-expiry-old-token-invalid", "default-diagnostic-redaction");
+    if (instrumentFailureCode) fail(instrumentFailureCode);
+  } catch (error) {
+    witnessError = error;
   } finally {
-    if (engine) await engine.stop().catch(() => {});
-    await proxy.close().catch(() => {});
+    if (witnessError) {
+      await proxy.closeAbort().catch(() => {});
+      if (engine) await engine.stop().catch(() => {});
+    } else {
+      try { await proxy.closeExpected(); }
+      catch (error) { witnessError = error; }
+      try { if (engine) await engine.stop(); }
+      catch (error) { witnessError ??= error; }
+    }
   }
+  if (witnessError) throw witnessError;
+  if (instrumentFailureCode) fail(instrumentFailureCode);
+  observations.push("actual-keycloak-generated-helper", "post-commit-lost-reply-process-crash", "same-family-same-expiry-old-token-invalid", "default-diagnostic-redaction");
 }
 
 async function rawAuthorityWitness(paths, scratch) {
@@ -445,6 +498,7 @@ async function rawAuthorityWitness(paths, scratch) {
     const value = (await http(`/actions/${encodeURIComponent(run.id)}/cancel`, {}, run.owner.token)).value;
     assert(value.ok === true && value.request?.state === "failed" && value.request?.why?.code === "E_ACTION_CANCELLED", "cancel-settlement");
   };
+  let witnessError = null;
   try {
     stage = "raw-before-commit-recovery";
     const before = await admit();
@@ -519,7 +573,13 @@ async function rawAuthorityWitness(paths, scratch) {
 
     observations.push("explicit-first-binding-with-recovery-flag", "stale-parked-cancelled-settled-deadline-refusals",
       "admitting-issued-target-service-refusals", "issued-family-expiry-supported-dev-clock");
-  } finally { await engine.stop().catch(() => {}); }
+  } catch (error) {
+    witnessError = error;
+  } finally {
+    try { await engine.stop(); }
+    catch (error) { witnessError ??= error; }
+  }
+  if (witnessError) throw witnessError;
 }
 
 async function main() {

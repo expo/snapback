@@ -103,6 +103,19 @@ the old bearer fail `identityWhoami`, and make the returned bearer pass it.
 The proxy is a fault instrument, not an application backend or provider
 double.
 
+The proxy has an explicit fail-closed lifecycle. Requests accepted during the
+proof retain that classification through late socket and upstream outcomes,
+including outcomes observed after teardown starts. After the Keycloak
+assertions and two-stream diagnostic check, the harness checks the retained
+failure latch, stops admitting proof traffic, answers newly arriving
+background or polling traffic with a fixed empty 503, and allows already
+active proof requests up to 30 seconds to finish while the engine remains
+live. It then closes proxy connections before stopping the owned engine. A
+drain or close timeout is fatal. Proxy failures expose only a fixed
+phase/category code; exception text, paths, URLs, headers and bodies are not
+included. The response deliberately destroyed by the registered post-commit
+fault is the sole narrow expected proof cut.
+
 The authority portion uses a separate disposable app without a generated
 handler. It drives the actual engine's service-authenticated action, step,
 session, cancellation, revocation and development-clock HTTP doors directly.
@@ -158,6 +171,9 @@ JSON object: status, stable code, known stage, validated retained-scratch path,
 and non-secret digest/observation/custody fields. Unexpected exceptions map to
 one generic stable code; arbitrary error messages, stacks and HTTP/provider
 bodies are never printed. Before scratch creation, the path is null.
+Owned-child cleanup treats either an exit code or signal code as terminal,
+subscribes before signalling to avoid missing exit ordering, and bounds both
+the exact owned child's TERM and KILL waits.
 
 ### Fault and observation matrix — source checkpoint
 
