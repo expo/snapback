@@ -6,8 +6,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import {
-  copyFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
-  statSync, writeFileSync,
+  appendFileSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync,
+  realpathSync, rmSync, statSync, writeFileSync,
 } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -41,6 +41,110 @@ const OTHER_OWNER = "oidc:other-tenant-owner";
 const OUTSIDER = "guest:organization-outsider";
 const T = 1_000_000;
 
+const QUERY_OPERATIONS = new Set([
+  "organizations.organizationPolicy",
+  "organizations.ownOrganizations",
+  "organizations.memberRoster",
+  "organizations.adminInvitations",
+  "organizations.invitationMetadata",
+  "organizations.invitePreview",
+  "organizations.adminAudit",
+]);
+const MUTATION_OPERATIONS = new Set([
+  "organizations.organizationSetPolicy",
+  "organizations.organizationCreate",
+  "organizations.organizationRecordInvitation",
+  "organizations.organizationAcceptInvitation",
+  "organizations.organizationRevokeInvitation",
+  "organizations.organizationSetMemberRole",
+  "organizations.organizationRemoveMember",
+  "organizations.organizationLeave",
+  "organizations.organizationSetCapacity",
+  "identityBegin",
+  "identityClaim",
+  "identityVerified",
+]);
+const operationKind = operation => QUERY_OPERATIONS.has(operation) ? "query"
+  : MUTATION_OPERATIONS.has(operation) ? "mutation" : null;
+const own = (value, key) => Object.hasOwn(value, key);
+const object = value => value !== null && typeof value === "object" && !Array.isArray(value);
+const queryRefusal = body => object(body) && object(body.denied)
+  && typeof body.denied.code === "string" && !own(body, "state") && !own(body, "why");
+const mutationRefusal = body => object(body) && body.state === "failed"
+  && object(body.why) && typeof body.why.code === "string" && own(body, "current")
+  && !own(body, "denied");
+
+function classifyRunResponse(kind, response) {
+  if (response.error) return { type: "unsafe", code: "SPAWN_ERROR" };
+  if (response.signal !== null && response.signal !== undefined) return { type: "unsafe", code: "SIGNAL" };
+  if (response.status !== 0 && response.status !== 1) return { type: "unsafe", code: "EXIT_STATUS" };
+  let body;
+  try {
+    body = JSON.parse(response.stdout);
+  } catch {
+    return { type: "unsafe", code: "NON_JSON" };
+  }
+  if (response.status === 0) {
+    if (kind === "query") {
+      if (!object(body) || !own(body, "data") || body.complete !== true || body.cut !== null
+        || body.next !== null || !own(body, "metered")) {
+        return { type: "unsafe", code: "QUERY_SUCCESS_ENVELOPE" };
+      }
+    } else if (!object(body) || body.state !== "sent" || !own(body, "seq")
+      || !own(body, "result") || !own(body, "events") || !own(body, "metered")) {
+      return { type: "unsafe", code: "MUTATION_SUCCESS_ENVELOPE" };
+    }
+    return { type: "success", body };
+  }
+  const expected = kind === "query" ? queryRefusal(body) : mutationRefusal(body);
+  if (expected) return {
+    type: "refusal", body,
+    code: kind === "query" ? body.denied.code : body.why.code,
+  };
+  const recognizedOtherKind = kind === "query" ? mutationRefusal(body) : queryRefusal(body);
+  if (recognizedOtherKind) return { type: "refusal-kind-mismatch", body };
+  return { type: "unsafe", code: `${kind.toUpperCase()}_REFUSAL_ENVELOPE` };
+}
+
+const response = (status, body, overrides = {}) => ({
+  status, signal: null, error: undefined,
+  stdout: typeof body === "string" ? body : JSON.stringify(body), stderr: "", ...overrides,
+});
+
+test("managed-policy CLI operation inventory excludes actions and jobs", () => {
+  assert.equal(QUERY_OPERATIONS.size, 7);
+  assert.equal(MUTATION_OPERATIONS.size, 12);
+  assert.equal(operationKind("organizations.invitePreview"), "query");
+  assert.equal(operationKind("identityVerified"), "mutation");
+  assert.equal(operationKind("beginOidc"), null, "generated actions are rejected before spawn");
+  assert.equal(operationKind("nightly"), null, "jobs are rejected before spawn");
+});
+
+test("managed-policy CLI envelopes are kind-specific and fail closed", () => {
+  const querySuccess = { data: [], complete: true, cut: null, next: null, metered: {} };
+  const queryDenied = { denied: { code: "QUERY_DENIED" } };
+  const mutationSuccess = { state: "sent", seq: 1, result: { id: "1" }, events: [], metered: {} };
+  const mutationNull = { ...mutationSuccess, result: null };
+  const mutationDenied = { state: "failed", why: { code: "MUTATION_DENIED" }, current: null };
+  assert.equal(classifyRunResponse("query", response(0, querySuccess)).type, "success");
+  assert.deepEqual(classifyRunResponse("query", response(1, queryDenied)), {
+    type: "refusal", body: queryDenied, code: "QUERY_DENIED",
+  });
+  assert.equal(classifyRunResponse("mutation", response(0, mutationSuccess)).type, "success");
+  assert.equal(classifyRunResponse("mutation", response(0, mutationNull)).type, "success");
+  assert.deepEqual(classifyRunResponse("mutation", response(1, mutationDenied)), {
+    type: "refusal", body: mutationDenied, code: "MUTATION_DENIED",
+  });
+  assert.equal(classifyRunResponse("query", response(0, { ...querySuccess, complete: false, cut: {} })).code, "QUERY_SUCCESS_ENVELOPE");
+  assert.equal(classifyRunResponse("query", response(0, mutationSuccess)).code, "QUERY_SUCCESS_ENVELOPE");
+  assert.equal(classifyRunResponse("query", response(1, mutationDenied)).type, "refusal-kind-mismatch");
+  assert.equal(classifyRunResponse("mutation", response(1, queryDenied)).type, "refusal-kind-mismatch");
+  assert.equal(classifyRunResponse("query", response(0, "{" )).code, "NON_JSON");
+  assert.equal(classifyRunResponse("query", response(2, {})).code, "EXIT_STATUS");
+  assert.equal(classifyRunResponse("query", response(null, {}, { signal: "SIGTERM" })).code, "SIGNAL");
+  assert.equal(classifyRunResponse("mutation", response(1, { error: "input" })).code, "MUTATION_REFUSAL_ENVELOPE");
+});
+
 test("managed organization and invitation policy runs in the shared interpreter", {
   skip: missing.length === 0 ? false : `set ${missing.join(", ")} to the pinned parent binary and a private scratch parent`,
 }, () => {
@@ -72,38 +176,60 @@ test("managed organization and invitation policy runs in the shared interpreter"
     mkdirSync(join(canonical, "snapback"));
     copyFileSync(join(packageRoot, "test/fixtures/identity-recipe/snapback/schema.q"), join(canonical, "snapback/schema.q"));
     copyFileSync(join(packageRoot, "test/fixtures/identity-recipe/snapback/organizations.q"), join(canonical, "snapback/organizations.q"));
+    const canonicalStat = statSync(canonical);
+    assert.equal(canonicalStat.mode & 0o077, 0, "scratch child must remain owner-private");
+    const responseJournal = join(canonical, "managed-policy-responses.jsonl");
+    writeFileSync(responseJournal, "", { flag: "wx", mode: 0o600 });
+    const responseJournalStat = statSync(responseJournal);
+    assert.ok(responseJournalStat.isFile(), "response journal must be a regular file");
+    assert.equal(responseJournalStat.mode & 0o077, 0, "response journal must remain owner-private");
+    if (typeof process.getuid === "function") assert.equal(responseJournalStat.uid, process.getuid(), "response journal must be owned by this user");
 
-    const preserveUnexpected = (label, result, detail) => {
-      const artifact = join(canonical, "managed-policy-failure.json");
-      writeFileSync(artifact, `${JSON.stringify({
-        label, status: result.status, signal: result.signal, error: result.error?.message,
-        stdout: result.stdout, stderr: result.stderr, detail,
-      }, null, 2)}\n`, { mode: 0o600 });
-      assert.fail(`${label} failed; private output preserved at ${artifact}`);
+    let responseSequence = 0;
+    const refusalProblems = [];
+    const stop = (code, label) => {
+      throw new Error(`${code}: ${label}; private responses preserved at ${responseJournal}`);
     };
-    const invoke = (args, label, expectedStatus = 0) => {
+    const spawnRecorded = (args, label, kind, operatorPrincipal = null, operatorNow = null) => {
       const result = spawnSync(binary, args, {
         cwd: canonical, encoding: "utf8", timeout: 20_000,
       });
-      if (result.error || result.status !== expectedStatus) preserveUnexpected(label, result, `expected exit ${expectedStatus}`);
-      if (!result.stdout.trim()) return null;
-      try {
-        return JSON.parse(result.stdout);
-      } catch (error) {
-        preserveUnexpected(label, result, `invalid JSON: ${error.message}`);
-      }
+      appendFileSync(responseJournal, `${JSON.stringify({
+        sequence: ++responseSequence, operation: label, kind,
+        operatorPrincipal, operatorNow,
+        status: result.status, signal: result.signal,
+        rawstdout: result.stdout ?? "", stderr: result.stderr ?? "",
+      })}\n`, { encoding: "utf8", mode: 0o600 });
+      return result;
     };
-    const run = (operation, args, principal, now, expectedStatus = 0) => invoke([
-      "run", operation, JSON.stringify(args), "--as", principal, "--now", String(now), "--json",
-    ], operation, expectedStatus);
-    const orgRun = (name, args, principal, now, expectedStatus = 0) => run(`organizations.${name}`, args, principal, now, expectedStatus);
+    const invokeRun = (operation, args, principal, now) => {
+      const kind = operationKind(operation);
+      if (kind === null) stop("UNSUPPORTED_OPERATION_KIND", operation);
+      const result = spawnRecorded([
+        "run", operation, JSON.stringify(args), "--as", principal, "--now", String(now), "--json",
+      ], operation, kind, principal, now);
+      const outcome = classifyRunResponse(kind, result);
+      if (outcome.type === "unsafe") stop(outcome.code, operation);
+      return outcome;
+    };
+    const run = (operation, args, principal, now) => {
+      const outcome = invokeRun(operation, args, principal, now);
+      if (outcome.type !== "success") stop("EXPECTED_SUCCESS", operation);
+      return outcome.body;
+    };
+    const orgRun = (name, args, principal, now) => run(`organizations.${name}`, args, principal, now);
     const data = result => result.data;
     const written = result => result.result;
     const denied = (name, args, principal, now, code) => {
-      const result = orgRun(name, args, principal, now, 1);
-      assert.equal(result.state, "failed", `${name} must fail closed`);
-      assert.equal(result.why.code, code, `${name} refusal code`);
-      return result;
+      const operation = `organizations.${name}`;
+      const outcome = invokeRun(operation, args, principal, now);
+      if (outcome.type === "success") stop("UNEXPECTED_SUCCESS_FOR_REFUSAL", operation);
+      if (outcome.type === "refusal-kind-mismatch") {
+        refusalProblems.push(`${operation}: expected ${operationKind(operation)} refusal envelope`);
+        return outcome.body;
+      }
+      if (outcome.code !== code) refusalProblems.push(`${operation}: expected ${code}, received ${outcome.code}`);
+      return outcome.body;
     };
     const id = n => String(n).padStart(26, "0");
     const digest = raw => createHash("sha256").update(raw, "utf8").digest("hex");
@@ -136,8 +262,16 @@ test("managed organization and invitation policy runs in the shared interpreter"
       id: invitation, organization, recipientEmail: email, tokenHash: digest(rawToken),
     }, principal, now));
 
-    const checked = invoke(["check", "--json"], "check");
-    assert.equal(checked.ok, true, "the sha256-capable interpreter must compile both recipe modules");
+    const checkResult = spawnRecorded(["check", "--json"], "check", "check");
+    if (checkResult.error) stop("CHECK_SPAWN_ERROR", "check");
+    if (checkResult.signal !== null && checkResult.signal !== undefined) stop("CHECK_SIGNAL", "check");
+    let checked;
+    try {
+      checked = JSON.parse(checkResult.stdout);
+    } catch {
+      stop("CHECK_NON_JSON", "check");
+    }
+    if (checkResult.status !== 0 || !object(checked) || checked.ok !== true) stop("CHECK_REFUSED", "check");
 
     for (const [principal, email, verified, started] of [
       [OWNER, "owner@example.test", true, T - 10_000],
@@ -398,6 +532,7 @@ test("managed organization and invitation policy runs in the shared interpreter"
     }
     assert.equal(roster(otherOrganization.id, OTHER_OWNER, T + 6004).length, 1, "other-tenant membership remains isolated");
 
+    assert.deepEqual(refusalProblems, [], `policy refusal envelope/code mismatches; private responses preserved at ${responseJournal}`);
     complete = true;
   } finally {
     const cleanupRelative = relative(parent, canonical);

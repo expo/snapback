@@ -28574,3 +28574,63 @@ and the failure JSON was
 `8695d73dd263e3c56a92703a3d3d0f944a424872caabd902bd5ee599351c6a64`.
 The supervisor's rerun against this repaired source remains pending; no engine,
 remote, provider, listener, Rust/Cargo or installation command ran here.
+
+## 2026-09-17 — B1d.2a actual-policy instrument repair after the second red
+
+The supervisor reran commit `60b561094cba08733e6bd8b43480cb9b926c9f82`
+on the same private 450b slot, Node 24.13.1 and hash-capable engine source
+`1e91bc7fe`, SHA-256
+`7342e869fe475e0a4629c36b87f91beac262d4551b769773574903a4cb32f187`.
+The schema compiled and the interpreter completed profile setup and initial
+organization creation, then the test itself failed at its line 104 while
+expecting a mutation `state` field on a `memberRoster` query refusal. The run
+was 0 pass, 1 fail, 0 skip in 3211.971939 ms. Full stdout SHA-256 was
+`7674f015648eb0d666fdb04a584adfd510817920e665aa62bf7868c307e610ca`;
+empty stderr was
+`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+Both this run and the preceding compile refusal remain retained below the
+private root `/home/ccheever/sb4-b1d2-policy.nvOWiR`. No invitation-acceptance
+policy pass, authentication/provider evidence or HTTP evidence follows.
+
+The repaired test now has a closed inventory of seven queries, nine
+organization mutations and the three trusted-profile setup mutations. Unknown
+operations, actions and jobs refuse before spawn. Query success requires
+`data`, complete uncapped coverage, null continuation and a meter; query
+refusal reads only `denied.code`. Mutation success requires the exact sent
+family including `seq`, `result` (which may be null), `events` and a meter;
+mutation refusal reads only the failed `why.code` family with `current`.
+Exit 2, timeout/signal, malformed or non-JSON output, compile/input/storage
+errors and unexpected success stop immediately rather than being counted as
+policy refusals or permitting dependent writes.
+
+Before any status, parse or envelope assertion, every actual CLI response is
+appended with sequence, operation/kind, operator-supplied principal/time,
+status/signal and raw stdout/stderr to an exclusively created, verified
+owner-private JSONL journal inside the canonical 0700 scratch child. Arguments
+are never dumped. Failure diagnostics print only a stable instrument code and
+the private journal path; the scratch and journal remain on failure. Recognized
+exit-1 query/mutation refusal-envelope or expected-code mismatches batch until
+the final assertion so later invariants still run, while uncertain or possibly
+committed outcomes stop immediately. A nonempty mismatch batch cannot mark the
+run complete or delete its evidence.
+
+Node 24.18.0 local checks, with all actual-policy prerequisite variables
+explicitly unset, produced two synthetic passes and the one named actual-test
+skip:
+
+```text
+node --check snapback4/packages/snapback4/test/identity-organizations.test.mjs
+pass
+
+env -u SNAPBACK4_B1D_MANAGED_BIN -u SNAPBACK4_B1D_MANAGED_BIN_SHA256 \
+  -u SNAPBACK4_B1D_MANAGED_SCRATCH_PARENT \
+  node --test --test-concurrency=1 snapback4/packages/snapback4/test/identity-organizations.test.mjs
+2 pass, 0 fail, 1 skip; 156.429959 ms
+```
+
+The synthetic cases cover valid query/mutation success and refusal envelopes,
+a null mutation result, a capped query, wrong-kind refusals, malformed/non-JSON
+output, exit 2, a signal and unsupported action/job names. No Quarry policy,
+expected policy code, core, generic identity surface or provider/HTTP surface
+changed. The supervisor's next actual-policy run remains pending; no engine,
+remote, listener, provider, Rust/Cargo or installation command ran here.
