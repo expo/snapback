@@ -650,19 +650,14 @@ test("durable IndexedDB and custom persistence cannot silently open without owne
   } }), /must provide an exclusive claim\(name, alternate\) ownership contract/);
 });
 
-for (const fault of ["arbitrary alternate", "unrecoverable alternate", "inexact orphan claim"]) test(`custom persistence rejects ${fault} before opening`, async () => {
+for (const fault of ["arbitrary alternate", "unrecoverable alternate"]) test(`custom persistence rejects ${fault} before opening`, async () => {
   const base = memoryPersistence();
   let rejectedReleased = 0;
-  if (fault === "inexact orphan claim") await base.save("owned:tab-orphan", [{ s: "m", k: "present", v: "1" }]);
   const persist = {
     load: base.load,
     save: base.save,
     ...(fault === "unrecoverable alternate" ? {} : { others: base.others, remove: base.remove }),
     async claim(name, alternate) {
-      if (fault === "inexact orphan claim" && !alternate) {
-        return { name: `${name}:wrong`, async release() { rejectedReleased++; } };
-      }
-      if (fault === "inexact orphan claim") return base.claim(name, alternate);
       return {
         name: fault === "arbitrary alternate" ? "unrelated" : `${name}:tab-custom`,
         async release() { rejectedReleased++; },
@@ -671,9 +666,22 @@ for (const fault of ["arbitrary alternate", "unrecoverable alternate", "inexact 
   };
   await assert.rejects(webDevice({ wasm, persist }).open("owned", null),
     fault === "arbitrary alternate" ? /must use the owned:tab-\* namespace/
-      : fault === "unrecoverable alternate" ? /must implement others\(prefix\) and remove\(name\)/
-        : /non-alternate claim for owned:tab-orphan must return that exact name/);
+      : /must implement others\(prefix\) and remove\(name\)/);
   assert.equal(rejectedReleased, 1, "the rejected claim is released");
+});
+
+test("custom persistence rejects an inexact orphan claim before opening", async t => {
+  const f = await fixture(t), primary = await f.open(), name = storeName(f);
+  await primary.close();
+  const orphan = `${name}:tab-orphan`;
+  await f.persist.save(orphan, [{ s: "m", k: "present", v: "1" }]);
+  const claim = f.persist.claim.bind(f.persist);
+  let rejectedReleased = 0;
+  f.persist.claim = async (requested, alternate) => !alternate
+    ? { name: `${requested}:wrong`, async release() { rejectedReleased++; } }
+    : claim(requested, alternate);
+  await assert.rejects(f.open(), new RegExp(`non-alternate claim for ${orphan} must return that exact name`));
+  assert.equal(rejectedReleased, 1, "the rejected orphan claim is released");
 });
 
 test("W4R1 E: one malformed journal key does not hide a real closed tab journal", async t => {
