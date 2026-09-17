@@ -155,3 +155,18 @@ ceiling 377,414, with a stand-in compact decoder 402,463 — at about −45,000,
 and is commissioned. With S3 (host NFC, −58,832, awaiting the author's
 ruling) the ladder's measured rungs would put the device near 347,000; the
 target of 150,000 still needs the S6 decision. This ticket stays open.
+
+## 2026-09-17 the backend image measured and stopped; the ladder is walked
+
+S4a's own probe — the web device opening from a compact backend image, JSON
+path compiled out — measured 451,283 → 416,502 B gzip: 34,781, under the
+plan's 36,000 stop rule, so the lane stopped before host integration and the
+lead let the rule stand. The tested codec and the probe are on branch
+`sb4/diet-s4a`. Every rung that needs no ruling has now been built and
+measured: `main` is 451,283 (from 520,557, and from 505,030 this morning).
+S3 (host NFC) is rebuilt on today's tree at 392,551 and waits for the
+author. With S3 ruled in, and S4a and S2 revived, the device would be near
+338,000. The
+ticket's 150,000 needs the S6 decision: a compact shared execution
+representation, or a web device that does less. This ticket stays open for
+that decision.
