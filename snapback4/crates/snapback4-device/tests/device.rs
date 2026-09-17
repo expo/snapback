@@ -52,7 +52,9 @@ struct Held<'a, H: Host> {
 
 impl<H: Host> AnyDevice for Held<'_, H> {
     fn call(&mut self, request: serde_json::Value) -> serde_json::Value {
-        call(self.device.as_mut().expect("open"), request)
+        if matches!(request["op"].as_str(), Some("apply" | "observe_store")) {
+            snapback4_device::call::call_text(self.device.as_mut().expect("open"), &request.to_string())
+        } else { call(self.device.as_mut().expect("open"), request) }
     }
     fn close(mut self: Box<Self>) {
         let device = self.device.take().expect("open");

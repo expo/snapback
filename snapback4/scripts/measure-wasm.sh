@@ -5,6 +5,12 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 budget=$(node scripts/wasm-budget.mjs)
+dirty=false
+source_status=$(git -C .. status --porcelain -- snapback4/crates snapback4/scripts snapback4/Cargo.toml snapback4/Cargo.lock)
+if [ -n "$source_status" ]; then
+  dirty=true
+  echo 'WARNING: measuring a dirty source tree; sha identifies the base, not the measured artifact (dirty=true).' >&2
+fi
 cargo build -p snapback4-device --no-default-features --features web --profile wasm --target wasm32-unknown-unknown --quiet
 out=$(mktemp -d)
 wasm-bindgen --target web --out-dir "$out" target/wasm32-unknown-unknown/wasm/snapback4_device.wasm
@@ -18,6 +24,6 @@ fi
 sizes() { printf '{"raw":%d,"gzip":%d,"brotli":%d}' "$(wc -c < "$1")" "$(gzip -9 -c "$1" | wc -c)" "$(brotli -c -q 11 "$1" | wc -c)"; }
 over=$(( $(gzip -9 -c "$wasm" | wc -c) - budget ))
 if [ "$over" -lt 0 ]; then over=0; fi
-line=$(printf '{"at":"%s","sha":"%s","wasm":%s,"glue":%s,"wasmOpt":%s,"budget":%d,"over":%d}' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(git rev-parse --short HEAD)" "$(sizes "$wasm")" "$(sizes "$glue")" "$( [ "$wasm" != "$out/snapback4_device_bg.wasm" ] && echo true || echo false )" "$budget" "$over")
+line=$(printf '{"at":"%s","sha":"%s","dirty":%s,"wasm":%s,"glue":%s,"wasmOpt":%s,"budget":%d,"over":%d}' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(git rev-parse --short HEAD)" "$dirty" "$(sizes "$wasm")" "$(sizes "$glue")" "$( [ "$wasm" != "$out/snapback4_device_bg.wasm" ] && echo true || echo false )" "$budget" "$over")
 echo "$line" | tee -a metrics/wasm.jsonl
 rm -rf "$out"

@@ -59,7 +59,6 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 json!({ "jobs": jobs, "reads": reads })
             }
             "sync_state" => encoded(&device.sync_state()?)?,
-            "observe_store" => encoded(&device.observe_store(&parse::<StreamPage>(take(&mut request, "page")?)?)?)?,
             "begin_send" => json!({ "send_revision": device.begin_send()? }),
             "adopt" => {
                 let mut expected = std::collections::BTreeMap::new();
@@ -77,12 +76,9 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 device.adopt_captured(parse::<Backend>(take(&mut request, "backend")?)?, expected)?;
                 Json::Null
             }
-            "apply" => {
-                let page: StreamPage = parse(take(&mut request, "page")?)?;
-                // A missing marker is a continuation. Starting a snapshot is
-                // destructive to its private staging area and must be explicit.
-                let first = request.get("first").and_then(Json::as_bool).unwrap_or(false);
-                json!({ "touched": device.apply(&page, first)? })
+            "apply" | "observe_store" => {
+                arg(&request, "page")?; // Preserve the missing-argument diagnostic.
+                page_call(device, parse(request)?)?
             }
             "query" => {
                 let args = request.get("args").cloned().unwrap_or(json!({}));
@@ -162,21 +158,39 @@ pub fn call_text<S: DeviceStore>(device: &mut Device<S>, request: &str) -> Json 
 
 pub fn try_call_text<S: DeviceStore>(device: &mut Device<S>, request: &str) -> Result<Json, serde_json::Error> {
     use snapback4_core::json_codec;
-    #[derive(serde::Deserialize)]
-    struct PageArgument {
-        op: String,
-        page: Option<StreamPage>,
-        #[serde(default)]
-        first: Json,
-    }
-    if let Ok(PageArgument { op, page: Some(page), first }) = json_codec::from_text(request) {
-        if matches!(op.as_str(), "apply" | "observe_store") {
+    #[cfg(test)]
+    ROUTE.set(Route::Owned);
+    if let Ok(command) = json_codec::from_text::<PageArgument>(request) {
+        if matches!(command.op.as_str(), "apply" | "observe_store") {
             json_codec::validate_text(request)?;
-            return Ok(answer((|| {
-                if op == "observe_store" { return encoded(&device.observe_store(&page)?); }
-                Ok(json!({ "touched": device.apply(&page, first.as_bool().unwrap_or(false))? }))
-            })()));
+            #[cfg(test)]
+            ROUTE.set(Route::Page);
+            return Ok(answer(page_call(device, command)));
         }
     }
     Ok(call(device, json_codec::from_text(request)?))
 }
+
+// @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — one page envelope for text and owned dispatch.
+#[derive(serde::Deserialize)]
+struct PageArgument {
+    op: String,
+    page: StreamPage,
+    #[serde(default)]
+    first: Json,
+}
+
+fn page_call<S: DeviceStore>(device: &mut Device<S>, command: PageArgument) -> Result<Json, RuntimeError> {
+    if command.op == "observe_store" { return encoded(&device.observe_store(&command.page)?); }
+    // A missing marker is a continuation; starting a snapshot must be explicit.
+    Ok(json!({ "touched": device.apply(&command.page, command.first.as_bool().unwrap_or(false))? }))
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Route { Owned, Page }
+#[cfg(test)]
+std::thread_local! { static ROUTE: std::cell::Cell<Route> = const { std::cell::Cell::new(Route::Owned) }; }
+#[cfg(test)]
+#[path = "../tests/codec/route.rs"]
+mod route_tests;

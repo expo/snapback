@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync, mkdirSync, copyFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -20,6 +20,45 @@ test('wasm budget accepts a recorded limit and refuses missing, malformed or non
     for (const [bytes, message] of [['999', '(budget 1000: ok)'], ['1001', '(budget 1000: OVER by 1 B — issues/20260913-snapback4-wasm-device-diet.md)']]) {
       const report = spawnSync(process.execPath, [script, file, bytes], { encoding: 'utf8' });
       assert.equal(report.status, 0, report.stderr); assert.equal(report.stdout.trim(), message);
+    }
+  } finally { rmSync(dir, { recursive: true }); }
+});
+
+test('both shipped scripts use the budget helper; dirty measurements are explicit', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'wasm-scripts-'));
+  const root = path.join(dir, 'snapback4');
+  const bin = path.join(dir, 'bin');
+  const source = fileURLToPath(new URL('../../../scripts/', import.meta.url));
+  const stub = (name, body) => writeFileSync(path.join(bin, name), `#!/bin/bash\nset -eu\n${body}\n`, { mode: 0o755 });
+  try {
+    for (const sub of [bin, path.join(root, 'scripts'), path.join(root, 'metrics')]) mkdirSync(sub, { recursive: true });
+    for (const name of ['build-wasm.sh', 'measure-wasm.sh', 'wasm-budget.mjs']) copyFileSync(path.join(source, name), path.join(root, 'scripts', name));
+    stub('cargo', 'echo cargo >> "$TOOLS_LOG"');
+    stub('wasm-bindgen', 'while [ "$1" != --out-dir ]; do shift; done\nshift\nmkdir -p "$1"\nprintf wasm > "$1/snapback4_device_bg.wasm"\nprintf glue > "$1/snapback4_device.js"');
+    stub('wasm-opt', 'while [ "$1" != -o ]; do shift; done\ncp "$3" "$2"');
+    stub('brotli', 'cat "${@: -1}"');
+    stub('git', 'if [ "$1" = -C ]; then\n  printf "%s\\n" "$*" >> "$TOOLS_LOG"\n  if [ "$TEST_DIRTY" = true ]; then echo " M snapback4/crates/fixture.rs"; fi\nelse echo 123456789; fi');
+    const budget = path.join(root, 'metrics/wasm-budget.json');
+    const log = path.join(dir, 'tools.log');
+    for (const name of ['build-wasm.sh', 'measure-wasm.sh']) {
+      const run = (dirty = false) => spawnSync('bash', [path.join(root, 'scripts', name)], {
+        encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${path.dirname(process.execPath)}:${process.env.PATH}`, TOOLS_LOG: log, TEST_DIRTY: String(dirty) },
+      });
+      rmSync(budget, { force: true }); writeFileSync(log, '');
+      const missing = run(); assert.notEqual(missing.status, 0); assert.match(missing.stderr, /wasm-budget.json/); assert.equal(readFileSync(log, 'utf8'), '');
+      writeFileSync(budget, '{');
+      const malformed = run(); assert.notEqual(malformed.status, 0); assert.match(malformed.stderr, /wasm-budget.json/); assert.equal(readFileSync(log, 'utf8'), '');
+      writeFileSync(budget, JSON.stringify({ gzip: 1, set: '2026-09-17', why: 'force overrun' }));
+      for (const dirty of [false, true]) {
+        const result = run(dirty); assert.equal(result.status, 0, result.stderr);
+        assert.match(readFileSync(log, 'utf8'), /cargo/);
+        if (name === 'build-wasm.sh') assert.match(result.stdout, /OVER by \d+ B/);
+        else {
+          const measured = JSON.parse(result.stdout); assert.equal(measured.dirty, dirty); assert.ok(measured.over > 0); assert.equal(measured.sha, '123456789');
+          assert.equal(result.stderr.includes('WARNING: measuring a dirty source tree'), dirty);
+          assert.match(readFileSync(log, 'utf8'), /status --porcelain -- snapback4\/crates snapback4\/scripts snapback4\/Cargo.toml snapback4\/Cargo.lock/);
+        }
+      }
     }
   } finally { rmSync(dir, { recursive: true }); }
 });

@@ -6,14 +6,38 @@ use snapback4_core::{json_codec as codec, Schema, Program, Value};
 use snapback4_device::{device::{Backend, Device, Queued, StreamPage}, memory::{Change, MemoryStore}};
 use std::path::Path;
 
-fn differential<T: Serialize + DeserializeOwned>(text: &str) {
-    let old: T = serde_json::from_str(text).unwrap();
-    let new: T = codec::from_text(text).unwrap();
-    assert_eq!(serde_json::to_value(&old).unwrap(), serde_json::to_value(&new).unwrap());
-    assert_eq!(codec::to_text(&new).unwrap(), serde_json::to_string(&new).unwrap());
-    let tree = serde_json::from_str(text).unwrap();
-    let from_tree: T = codec::from_value(tree).unwrap();
-    assert_eq!(serde_json::to_value(old).unwrap(), serde_json::to_value(from_tree).unwrap());
+// Each adapter is compared with the entry point it replaced, not another funnel.
+fn same_decode<T: std::fmt::Debug>(old: Result<T, serde_json::Error>, new: Result<T, serde_json::Error>, positions: bool) {
+    match (old, new) {
+        (Ok(old), Ok(new)) => assert_eq!(format!("{old:?}"), format!("{new:?}")),
+        (Err(old), Err(new)) => {
+            assert_eq!(old.to_string(), new.to_string());
+            if positions { assert_eq!((old.line(), old.column()), (new.line(), new.column())); }
+        }
+        (old, new) => panic!("baseline/funnel disagree: {old:?} / {new:?}"),
+    }
+}
+
+fn decode<T: DeserializeOwned + std::fmt::Debug>(text: &str) {
+    same_decode(serde_json::from_str::<T>(text), codec::from_text::<T>(text), true);
+    same_decode(serde_json::from_slice::<T>(text.as_bytes()), codec::from_slice::<T>(text.as_bytes()), true);
+    if let Ok(tree) = serde_json::from_str::<Json>(text) {
+        same_decode(serde_json::from_value::<T>(tree.clone()), codec::from_value::<T>(tree), true);
+    }
+}
+
+fn encode<T: Serialize>(value: &T) {
+    same_decode(serde_json::to_string(value), codec::to_text(value), true);
+    same_decode(serde_json::to_value(value), codec::to_value(value), true);
+    same_decode(serde_json::to_vec(value), codec::to_vec(value), true);
+}
+
+fn differential<T: Serialize + DeserializeOwned + std::fmt::Debug>(text: &str) {
+    decode::<T>(text);
+    if let Ok(value) = serde_json::from_str::<T>(text) { encode(&value); }
+    if let Ok(tree) = serde_json::from_str::<Json>(text) {
+        if let Ok(value) = serde_json::from_value::<T>(tree) { encode(&value); }
+    }
 }
 
 fn backend(source: &str) -> Backend {
@@ -73,61 +97,30 @@ fn defaults_custom_formats_variants_and_tagged_values() {
     differential::<Queued>(r#"{"id":"q","seq":1,"op":"add","args":{}}"#);
     differential::<Change>(r#"{"s":"m","k":"meta","v":null}"#);
     differential::<Change>(r#"{"s":"m","k":"meta","v":"{\"a\":1}"}"#);
-    for text in [r#"{"snapshot":true,"events":[],"watermark":1,"more":false}"#, r#"{"snapshot":false,"events":[{"table":"t","kind":"delete","id":"a"}],"watermark":2,"more":false,"next":null,"generation":1}"#] {
-        let old: StreamPage = serde_json::from_str(text).unwrap();
-        let new: StreamPage = codec::from_text(text).unwrap();
-        let tree: StreamPage = codec::from_value(serde_json::from_str(text).unwrap()).unwrap();
-        assert_eq!(format!("{old:?}"), format!("{new:?}"));
-        assert_eq!(format!("{old:?}"), format!("{tree:?}"));
+    for text in [r#"{"snapshot":true,"events":[],"watermark":1,"more":false}"#, r#"{"snapshot":false,"events":[{"table":"t","kind":"delete","id":"a"}],"watermark":2,"more":false,"next":null,"generation":1}"#,
+        r#"{"snapshot":true,"events":[{"table":"t","kind":"put","id":"a","data":{"x":1,"x":2,"u":18446744073709551615,"float":1.25,"exp":1e2}}],"watermark":9223372036854775808,"more":false}"#,
+        r#"{"snapshot":true,"events":[],"watermark":0,"watermark":1,"more":false}"#,
+        r#"{"snapshot":true,"events":[],"watermark":"wrong","more":false}"#] { decode::<StreamPage>(text); }
+    for text in [r#"{"Bytes":"FF"}"#, r#"{"Bytes":"ff"}"#, r#"{"Int":1,"Int":2}"#, r#"{"Int":"oops"}"#, r#"{"Int":9223372036854775808}"#,
+        r#"{"Int":9007199254740992}"#, r#"{"Int":-9007199254740992}"#] { differential::<Value>(text); }
+    differential::<Backend>("{\n\"generation\":1,\"generation\":2,\"schema\":{\"tables\":{}},\"programs\":[]}");
+    differential::<Queued>(r#"{"id":"q","seq":9223372036854775808,"op":"add","args":{"x":1,"x":2,"nested":{"a":1,"a":2},"float":1.25,"exp":1e2,"edge":9007199254740991,"over":9007199254740992,"u":18446744073709551615}}"#);
+    for depth in [120, 127, 128, 130] {
+        let nested = format!("{}0{}", "[".repeat(depth), "]".repeat(depth));
+        differential::<Queued>(&format!(r#"{{"id":"q","seq":1,"op":"add","args":{{"deep":{nested}}}}}"#));
     }
-    for text in [r#"{"Bytes":"FF"}"#, r#"{"Int":1,"Int":2}"#, r#"{"Int": "oops"}"#] {
-        assert!(serde_json::from_str::<Value>(text).is_err()); assert!(codec::from_text::<Value>(text).is_err());
+    // Non-UTF-8 is refused by both slice APIs; the funnel reports the UTF-8
+    // decoder's error, not serde_json's positioned string error.
+    for bytes in [b"\"\xff\"".as_slice(), b"\xff".as_slice()] {
+        assert!(serde_json::from_slice::<Json>(bytes).is_err());
+        assert!(codec::from_slice::<Json>(bytes).is_err());
     }
-    let duplicate = "{\n\"generation\":1,\"generation\":2,\"schema\":{\"tables\":{}},\"programs\":[]}";
-    let old = serde_json::from_str::<Backend>(duplicate).unwrap_err();
-    let new = codec::from_text::<Backend>(duplicate).unwrap_err();
-    assert_eq!(old.to_string(), new.to_string());
-    assert_eq!((old.line(), old.column()), (new.line(), new.column()));
+    encode(&std::collections::BTreeMap::from([(vec![1u8, 2], true)]));
+
 }
 
-#[test]
-fn old_store_opens_without_rewriting_rows_or_schema_identity() {
-    let backend = backend("table notes:\n  body: text <=100\n  public 'fixture'\n  sync public\nquery all():\n  return notes first 10 by byId\n");
-    let fresh = Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap();
-    let mut changes = fresh.store().export();
-    // Explicitly reconstruct old declaration-ordered schema/backend identities.
-    use sha2::{Digest, Sha256};
-    let old_hash = format!("{:x}", Sha256::digest(serde_json::to_string(&backend.schema).unwrap().as_bytes()));
-    assert_eq!(backend.schema.hash(), old_hash);
-    let mut programs: Vec<_> = backend.programs.iter().collect(); programs.sort_by(|a, b| a.name.cmp(&b.name));
-    let identity = serde_json::to_string(&(&backend.schema, programs, backend.generation)).unwrap();
-    let old_identity = format!("{:x}", Sha256::digest(identity.as_bytes()));
-    for change in &mut changes {
-        if change.k == "memory:schema" { change.v = Some(old_hash.clone()); }
-        if change.k == "device:backend-identity" { change.v = Some(old_identity.clone()); }
-        if change.k == "device:backend" { change.v = Some(serde_json::to_string(&backend).unwrap()); }
-    }
-    let row = snapback4_core::value::object([("id", Value::Id("n1".into())), ("body", Value::String("kept".into()))]);
-    changes.push(Change { s: 'r', k: serde_json::to_string(&("notes", "n1")).unwrap(), v: Some(serde_json::to_string(&row).unwrap()) });
-    changes.push(Change { s: 'm', k: "device:acquired-generation".into(), v: Some("1".into()) });
-    let entry: Queued = serde_json::from_str(r#"{"id":"q1","seq":1,"op":"add","args":{}}"#).unwrap();
-    let entry_text = serde_json::to_string(&entry).unwrap();
-    changes.push(Change { s: 'o', k: entry.id.clone(), v: Some(entry_text.clone()) });
-    let row_text = serde_json::to_string(&row).unwrap();
-    let key = serde_json::to_string(&("notes", "n1")).unwrap();
-    changes.push(Change { s: 'b', k: key.clone(), v: Some(serde_json::to_string(&Some(&row_text)).unwrap()) });
-    let staged = format!("{{\"row\":{row_text},\"acquired\":true}}");
-    changes.push(Change { s: 's', k: key, v: Some(serde_json::to_string(&("notes", staged)).unwrap()) });
-    let old_text = serde_json::to_string(&changes).unwrap();
-    let mut store = MemoryStore::new(); store.load(codec::from_text::<Vec<Change>>(&old_text).unwrap()).unwrap();
-    let mut device = Device::open_store(store, None).unwrap();
-    let answer = device.query("all", "alice", &json!({}), 0).unwrap();
-    assert_eq!(snapback4_core::wire::to_json(&answer.data), json!([{"id":"n1","body":"kept"}]));
-    assert_eq!(device.queued().unwrap(), vec![entry]);
-    let exported = device.store().export();
-    for old in changes.iter().filter(|c| ['r', 'o', 'b', 's'].contains(&c.s)) { assert!(exported.contains(old), "old record lost or rewritten: {old:?}"); }
-    assert!(!device.store().drain().iter().any(|c| c.s == 'r' || c.k == "memory:schema"));
-}
+#[path = "codec/old_store.rs"]
+mod old_store;
 
 #[test]
 fn cursor_tokens_keep_the_old_bytes_in_both_directions() {
@@ -161,7 +154,7 @@ fn counting_writer_keeps_exact_meter_bytes() {
 }
 
 #[test]
-fn text_page_and_owned_dispatch_agree_including_duplicate_keys_and_refusals() {
+fn text_page_and_baseline_dispatch_agree_including_duplicate_keys_and_refusals() {
     let backend = backend("table notes:\n  body: text <=100\n  public 'fixture'\n  sync public\nquery all():\n  return notes first 10 by byId\n");
     for text in [
         r#"{"op":"apply","first":true,"page":{"snapshot":true,"events":[{"table":"notes","kind":"put","id":"n1","data":{"id":"n1","body":"kept"}}],"watermark":1,"more":false,"generation":1}}"#,
@@ -172,9 +165,11 @@ fn text_page_and_owned_dispatch_agree_including_duplicate_keys_and_refusals() {
     ] {
         let mut direct = Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap();
         let mut owned = Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap();
-        let expected = snapback4_device::call::call(&mut owned, serde_json::from_str(text).unwrap());
+        let mut owned_current = Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap();
+        let expected = baseline_page_call(&mut owned, serde_json::from_str(text).unwrap());
         let actual = snapback4_device::call::call_text(&mut direct, text);
         assert_eq!(actual, expected, "{text}");
+        assert_eq!(snapback4_device::call::call(&mut owned_current, serde_json::from_str(text).unwrap()), expected, "owned: {text}");
         assert_eq!(direct.state().unwrap(), owned.state().unwrap());
         let rows = |device: &Device<MemoryStore>| device.store().export().into_iter().filter(|c| c.s == 'r').collect::<Vec<_>>();
         assert_eq!(rows(&direct), rows(&owned));
@@ -184,10 +179,16 @@ fn text_page_and_owned_dispatch_agree_including_duplicate_keys_and_refusals() {
 
 #[test]
 fn owned_argument_errors_do_not_claim_positions_in_synthetic_text() {
-    for value in [json!({"generation":"wrong", "schema":{"tables":{}}, "programs":[]}), json!({"generation":1, "schema":{"tables":{}}, "programs":[{"name":"x","kind":"wrong","body":[]}]})] {
+    for (value, expected) in [
+        (json!({"generation":"wrong", "schema":{"tables":{}}, "programs":[]}), "invalid type: string \"wrong\", expected u64"),
+        (json!({"generation":1, "schema":{"tables":{}}, "programs":[{"name":"x","kind":"wrong","body":[]}]}), "unknown variant `wrong`, expected one of `Query`, `Mutation`, `job`, `action`"),
+    ] {
         let old = serde_json::from_value::<Backend>(value.clone()).unwrap_err();
-        let new = codec::from_value::<Backend>(value).unwrap_err();
-        assert_eq!(new.to_string(), old.to_string());
+        let new = codec::from_value::<Backend>(value.clone()).unwrap_err();
+        assert_eq!(old.to_string(), expected);
+        assert_eq!(new.to_string(), expected);
+        let text_error = serde_json::from_str::<Backend>(&value.to_string()).unwrap_err();
+        assert_eq!(text_error.to_string(), format!("{expected} at line {} column {}", text_error.line(), text_error.column()));
         assert_eq!((new.line(), new.column()), (old.line(), old.column()));
     }
 }
@@ -211,4 +212,17 @@ fn page_fast_path_keeps_json_validation_inside_unknown_fields() {
     let mut device = Device::open_store(MemoryStore::new(), Some(backend)).unwrap();
     assert_eq!(snapback4_device::call::call_text(&mut device, &text)["ok"]["touched"], json!(["notes"]));
     assert_eq!(device.state().unwrap().0, 1);
+}
+
+fn baseline_page_call<S: snapback4_device::store::DeviceStore>(device: &mut Device<S>, request: Json) -> Json {
+    use snapback4_core::error::RuntimeError;
+    let result = (|| {
+        let op = request.get("op").and_then(Json::as_str).ok_or_else(|| RuntimeError::Input("the call needs op".into()))?;
+        if !matches!(op, "apply" | "observe_store") { return Err(RuntimeError::UnknownOp(op.into())); }
+        let value = request.get("page").ok_or_else(|| RuntimeError::Input("the call needs page".into()))?;
+        let page: StreamPage = serde_json::from_value(value.clone()).map_err(|e| RuntimeError::Input(e.to_string()))?;
+        if op == "observe_store" { return Ok(serde_json::to_value(device.observe_store(&page)?).unwrap()); }
+        Ok(json!({ "touched": device.apply(&page, request.get("first").and_then(Json::as_bool).unwrap_or(false))? }))
+    })();
+    match result { Ok(value) => json!({"ok":value}), Err(error) => json!({"denied": serde_json::to_value(error.refusal()).unwrap()}) }
 }
