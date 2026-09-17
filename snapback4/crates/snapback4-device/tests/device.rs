@@ -14,6 +14,7 @@ mod upsert;
 mod following;
 mod maintains;
 mod merge_cursor;
+mod merge_continuation;
 mod store_reset;
 mod trending;
 mod receipt_history;

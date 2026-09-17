@@ -232,7 +232,7 @@ table messages:
   by byConversationOrdinal: conversationId, ordinal, id
   immutable conversationId, ordinal
   public 'shared message history'
-  insert <- allow
+  insert <- exists conversations[id = .conversationId, lastOrdinal = .ordinal]
   online only
 
 mutation createConversation():

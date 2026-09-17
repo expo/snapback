@@ -715,7 +715,7 @@ impl Engine {
         let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(self.ceilings, Cut::Cap), seq);
         let data = runner.run(&program)?;
         runner.charge_output(&data)?;
-        let next = runner.next_cursor()?;
+        let next = runner.outcome_next_cursor()?;
         // `complete` is a class, not a count: a query with a scan the prefix
         // does not decide is capped whatever the meter found (LLP 1001 §3).
         let outcome = QueryOutcome {

@@ -84,11 +84,15 @@ Entries carry the app post ID and attribution, without copying a text body.
 Join the app's card at read time as shown below; its residency decides whether
 that card can answer on the device.
 
-A merge with non-uniform lanes or a meter or word-limit cut returns no
-`next`: its single cursor cannot safely advance every lane.
+A merge with a non-uniform answer, an opening cut or a word-limit cut returns no
+`next`: its single cursor cannot safely advance every lane. A uniform lazy
+merge cut while draining established heads carries `next` after its last
+emitted row, with `complete: false, cut: 'meter'`. Following it keeps the
+aggregate incomplete in `usePage`.
 Non-uniform merges withhold the cursor even within budget, so its presence
 cannot reveal hidden rows; pin the columns that decide each lane's rule to
-get a pageable feed. IDs break equal ordering keys and identify copies
+get a pageable feed. The engine appends the row id to a merge position unless
+its ordering suffix already ends in `id`. IDs break equal ordering keys and identify copies
 across projections, which must keep the same ordering fields.
 A merge cursor from generation N is accepted on N+1 when its table, index,
 direction and typed ordering suffix still match; it is a position in the
@@ -841,7 +845,267 @@ cadence: the order refreshes when the job runs. A native job (guide native)
 can score with floats and a real loop; the tables and the sync are the
 same.
 
-## Trending: predictable likes, scheduled rank
+## Trending: posts younger than a day, ranked in the like's own transaction
+
+Use a value-indexed maintain over non-expiring likes, grouped by the post's
+immutable time, and merge the last 25 hour lanes. Each committed like or
+unlike updates the count and its order in that same transaction: no schedule
+and no principal-writable score table. `trending(c)` pages liked posts on one
+cursor; `trendingWithZeros(null)` is a complete first-page query that appends
+zero-like posts only when the liked page is short.
+
+```quarry
+table posts:
+  authorId: principal
+  body: text <=500
+  at: time
+  by byTime: at, id
+  immutable authorId, at
+  public 'posts are public'
+  insert <- .authorId = viewer
+
+table likes:
+  postId: posts
+  principal: principal
+  postAt: time                                   -- the one copied fact; the insert rule checks it against the post
+  unique byPair: postId, principal
+  immutable postId, principal, postAt
+  public 'likes are public'
+  insert <- .principal = viewer and exists posts[id = .postId, at = .postAt]
+  delete <- .principal = viewer
+
+maintain trend: count likes by hour(.postAt), postAt, postId
+  read <- allow
+  by byScore: hour, value, id
+
+mutation create(body: text <=500):
+  return insert posts { authorId: viewer, body, at: now }
+
+mutation setLike(postId: posts, liked: bool):
+  p = posts[postId] ! else POST_NOT_FOUND
+  if liked:
+    insert likes { postId: p.id, principal: viewer, postAt: p.at } if absent
+  else if exists likes[postId, viewer]:
+    delete likes[postId, viewer]
+
+query trending(c: cursor ?):
+  return merge trend after c last 10 by byScore where .postAt > now - 86400000 and .postAt <= now:
+    [hour(now) - 0]
+    [hour(now) - 1]
+    [hour(now) - 2]
+    [hour(now) - 3]
+    [hour(now) - 4]
+    [hour(now) - 5]
+    [hour(now) - 6]
+    [hour(now) - 7]
+    [hour(now) - 8]
+    [hour(now) - 9]
+    [hour(now) - 10]
+    [hour(now) - 11]
+    [hour(now) - 12]
+    [hour(now) - 13]
+    [hour(now) - 14]
+    [hour(now) - 15]
+    [hour(now) - 16]
+    [hour(now) - 17]
+    [hour(now) - 18]
+    [hour(now) - 19]
+    [hour(now) - 20]
+    [hour(now) - 21]
+    [hour(now) - 22]
+    [hour(now) - 23]
+    [hour(now) - 24]
+
+query trendingWithZeros(c: cursor ?):
+  since = now - 86400000
+  liked = merge trend after c last 10 by byScore where .postAt > since and .postAt <= now:
+    [hour(now) - 0]
+    [hour(now) - 1]
+    [hour(now) - 2]
+    [hour(now) - 3]
+    [hour(now) - 4]
+    [hour(now) - 5]
+    [hour(now) - 6]
+    [hour(now) - 7]
+    [hour(now) - 8]
+    [hour(now) - 9]
+    [hour(now) - 10]
+    [hour(now) - 11]
+    [hour(now) - 12]
+    [hour(now) - 13]
+    [hour(now) - 14]
+    [hour(now) - 15]
+    [hour(now) - 16]
+    [hour(now) - 17]
+    [hour(now) - 18]
+    [hour(now) - 19]
+    [hour(now) - 20]
+    [hour(now) - 21]
+    [hour(now) - 22]
+    [hour(now) - 23]
+    [hour(now) - 24]
+  out = []
+  if count(liked) = 10:
+    return liked { postId, score: .value, at: .postAt }
+  for l in liked:
+    out = out + [{ postId: l.postId, score: l.value, at: l.postAt }]
+  if count(out) < 10:
+    unliked = posts[at > since, at <= now] last 10 by byTime where trend[hour(.at), .at, .id] = 0
+    for p in unliked:
+      if count(out) < 10:
+        out = out + [{ postId: p.id, score: 0, at: p.at }]
+  return out
+```
+
+The insert rule pins `principal` to `viewer` and checks `postAt` against the
+post with `exists posts[id = .postId, at = .postAt]`; `postId`, `principal`
+and `postAt` are immutable, and `unique byPair` allows one like per principal
+per post. `setLike` derives the copied time from that post; no declared
+mutation accepts a score, a time or an hour from a caller. Unlike needs its
+own delete rule or the score only rises; the rule above removes only the
+viewer's like, and repeated set/clear is idempotent. A declared
+`forgeLike(postId, postAt)` that tries a false time is refused `E_RULE`;
+the true time passes. A maintain's target cannot be written by a principal,
+but its score is only as trustworthy as the source rows' insert rule.
+
+- Ties break by descending maintained id, not post time; the validated
+  fixture's equal counts return `fresh:2 mid:2 edge:2`.
+- A group with no like has no row, hence the fill; a full group-key lookup
+  returns zero for absence, so the fill never repeats a liked post.
+- Groups never age out: one row per liked post stays as long as any like
+  remains, because a maintain target can neither expire nor be capped;
+  a 48,200-liked-post Clique-envelope fixture retained all 48,200 target rows
+  after 48 hours, totaling 6,073,200 serialized row-JSON bytes (not SQLite
+  file or index bytes), and the last unlike removed one group.
+- `hour` is UTC, and the trailing edge is exact only because of `where`;
+  the upper check also excludes future-dated imports in the current hour.
+- The 25 lanes are typed out because `range(..)` as a lane source is refused
+  today (`E_QUARRY_SYNTAX`), and 25 is below `N_WIDE_MERGE`'s 50 lanes.
+
+For whole old buckets, dead data is a contiguous key range the lanes never
+enter. Nothing stale is ordered, charged or swept under a reader in those
+buckets. The oldest included hour is different: `where` rejects its old
+portion, and those rejected candidates are charged, so a crowded boundary
+hour can still hit the meter. The validated
+48,200-post fixture returned ten, complete with `next`, at 264 examinations;
+8,300 rejected groups in the oldest included hour instead reached 8,193
+examinations and returned incomplete. This is an exact indexed page when
+complete, not a population-independent worst-case bound.
+
+The fill is also bounded: it seeks the post window and checks counts until
+it finds ten unliked posts or hits the meter, and `complete: false` must
+remain visible if that scan or the liked merge is cut. It is a first-page
+list; the full liked branch returns its page directly to preserve its
+continuation and completeness. Use `trending(c)` to walk liked posts, and
+pass null to `trendingWithZeros` for the first-page fill.
+A cursor continues the evaluated lanes and generation, not a snapshot:
+scores can move across its position between pages and cause omissions or
+repeats. Restart at the first page after a clock change changes the lanes;
+requery as the clock advances to drop a post at the exact trailing edge.
+
+A current-calendar-bucket ranking of positively-liked originals is the
+one-lane special case: use a validated original-post fact, group by the
+post's day and read that day alone; it does not span the trailing 24 hours.
+
+### Where the ranking runs
+
+The standalone block has no source sync and is server-run. An offline watch
+can retain its previous server answer with `fresh: false`, or refuse
+`E_OFFLINE` without one. For public local ranking, add `sync public` to
+both `posts` and `likes`; the maintain inherits it with no horizon.
+`setLike` remains eligible to predict once the post, source and aggregate
+proof are held. Remote likes still need sync, and offline results describe
+held data. This choice delivers all public posts, likes and count groups to
+every device, not only the ten winners.
+
+`check --residency --verbose` prints these operation and table lines for the
+server variant (bare `check --residency` summarizes rather than listing sites):
+
+```text
+residency (facts)
+  likes: online only (no sync line)
+  posts: online only (no sync line)
+  trend: online only (no sync line)
+operations (facts)
+  create: predicts: never; queued without a row
+  setLike: predicts: never; queued without a row
+  trending: runs: server
+    Server: scan trend by byScore: online only (site schema.q:36:5 (trend[hour(now) - 0]))
+    Server: scan trend by byScore: online only (site schema.q:37:5 (trend[hour(now) - 1]))
+    Server: scan trend by byScore: online only (site schema.q:38:5 (trend[hour(now) - 2]))
+    Server: scan trend by byScore: online only (site schema.q:39:5 (trend[hour(now) - 3]))
+    Server: scan trend by byScore: online only (site schema.q:40:5 (trend[hour(now) - 4]))
+    Server: scan trend by byScore: online only (site schema.q:41:5 (trend[hour(now) - 5]))
+    Server: scan trend by byScore: online only (site schema.q:42:5 (trend[hour(now) - 6]))
+    Server: scan trend by byScore: online only (site schema.q:43:5 (trend[hour(now) - 7]))
+    Server: scan trend by byScore: online only (site schema.q:44:5 (trend[hour(now) - 8]))
+    Server: scan trend by byScore: online only (site schema.q:45:5 (trend[hour(now) - 9]))
+    Server: scan trend by byScore: online only (site schema.q:46:5 (trend[hour(now) - 10]))
+    Server: scan trend by byScore: online only (site schema.q:47:5 (trend[hour(now) - 11]))
+    Server: scan trend by byScore: online only (site schema.q:48:5 (trend[hour(now) - 12]))
+    Server: scan trend by byScore: online only (site schema.q:49:5 (trend[hour(now) - 13]))
+    Server: scan trend by byScore: online only (site schema.q:50:5 (trend[hour(now) - 14]))
+    Server: scan trend by byScore: online only (site schema.q:51:5 (trend[hour(now) - 15]))
+    Server: scan trend by byScore: online only (site schema.q:52:5 (trend[hour(now) - 16]))
+    Server: scan trend by byScore: online only (site schema.q:53:5 (trend[hour(now) - 17]))
+    Server: scan trend by byScore: online only (site schema.q:54:5 (trend[hour(now) - 18]))
+    Server: scan trend by byScore: online only (site schema.q:55:5 (trend[hour(now) - 19]))
+    Server: scan trend by byScore: online only (site schema.q:56:5 (trend[hour(now) - 20]))
+    Server: scan trend by byScore: online only (site schema.q:57:5 (trend[hour(now) - 21]))
+    Server: scan trend by byScore: online only (site schema.q:58:5 (trend[hour(now) - 22]))
+    Server: scan trend by byScore: online only (site schema.q:59:5 (trend[hour(now) - 23]))
+    Server: scan trend by byScore: online only (site schema.q:60:5 (trend[hour(now) - 24]))
+  trendingWithZeros: runs: server
+```
+
+With the two `sync public` lines, the same command prints:
+
+```text
+residency (facts)
+  likes: sync public
+  posts: sync public
+  trend: sync public (inherited from likes)
+operations (facts)
+  create: predicts: eligible
+  setLike: predicts: eligible
+  trending: runs: device
+    Held: scan trend by byScore: held, no horizon (site schema.q:38:5 (trend[hour(now) - 0]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:39:5 (trend[hour(now) - 1]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:40:5 (trend[hour(now) - 2]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:41:5 (trend[hour(now) - 3]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:42:5 (trend[hour(now) - 4]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:43:5 (trend[hour(now) - 5]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:44:5 (trend[hour(now) - 6]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:45:5 (trend[hour(now) - 7]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:46:5 (trend[hour(now) - 8]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:47:5 (trend[hour(now) - 9]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:48:5 (trend[hour(now) - 10]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:49:5 (trend[hour(now) - 11]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:50:5 (trend[hour(now) - 12]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:51:5 (trend[hour(now) - 13]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:52:5 (trend[hour(now) - 14]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:53:5 (trend[hour(now) - 15]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:54:5 (trend[hour(now) - 16]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:55:5 (trend[hour(now) - 17]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:56:5 (trend[hour(now) - 18]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:57:5 (trend[hour(now) - 19]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:58:5 (trend[hour(now) - 20]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:59:5 (trend[hour(now) - 21]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:60:5 (trend[hour(now) - 22]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:61:5 (trend[hour(now) - 23]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:62:5 (trend[hour(now) - 24]))
+  trendingWithZeros: runs: device
+```
+
+The public-sync variant emits `N_MAINTAIN_SYNCED`: `one value row per hour,
+postAt, postId reaches every device`. Choose it when full public acquisition
+is acceptable; reading ten winners does not reduce that cost.
+
+## Trending: optional scheduled ranked-table recipe
+
+A scheduled ranked-table recipe buys a score computed by a job, such as a
+native scorer, or a stored page for a device that cannot hold the maintain;
+it is neither fresh nor exact.
 
 This scheduled ranked-table recipe ranks posts younger than 24 hours by
 their non-expiring like count, then post time, then id. Zero-like posts are
@@ -915,7 +1179,7 @@ query trending(c: cursor ?):
   return ranked after c last 10 by byScore { *, post: posts[.postId] }
 
 query trendingNow():
-  day = posts[at > now - 86400000, at <= now] first 8192 by byTime { id, at, likes: likeCounts[.id] }
+  day = posts[at > now - 86400000, at <= now] first 4095 by byTime { id, at, likes: likeCounts[.id] }
   return slice(sort(day, '-likes', '-at', '-id'), 0, 10)
 ```
 
@@ -942,141 +1206,37 @@ score/time/postId/id order, including ties; a rescore can move rows between page
 The post id breaks score/time ties just as it does in `trendingNow()`;
 the ranked row's separately minted id comes last.
 
-For an immediate answer, the live bounded query `trendingNow()` ranks the
-trailing post day up to the 8,192-row examined ceiling. A day or its nested
-reads past the meter is `complete: false`, so its top ten is of an incomplete
-set. A maintain over expiring likes cannot replace that with an exact value
+For the fresh indexed like-count ranking, use the hour lanes above. The
+live bounded query `trendingNow()` illustrates a read-time sort with at
+most 4,095 candidates under the shared 8,192-row examined ceiling.
+Each post costs a scan examination and a count lookup. A larger day
+returns the selected prefix's winners with `complete: false`; a cut
+count lookup or heap allocation returns `data: null, complete: false`.
+A maintain over expiring likes cannot replace that with an exact value
 index (`E_QUARRY_MAINTAIN_EXPIRE`): stored contributions survive until the
 sweep, while live values change at expiry. Rechecking only stored winners
 can miss another group's new rank. Use this scheduled recipe when score lag
 is acceptable; it does not promise exact rolling-like-window ranking.
 
-## Trending: fresh ranking in the source transaction
+### Fresh bounded ranking: likes arriving in the last day
 
-For a ranking that must be fresh at load time, the current answer is an
-explicit ranked table refreshed in every source-write transaction. This
-standalone recipe ranks posts younger than 24 hours by their non-expiring
-like count, then post time and post id, including zero-like posts. It is a
-window over post time, not over the time each like arrived. Unlike the
-scheduled recipe, a newly created post and a changed like count appear in
-the very next server read; no schedule has to run. Unlike `trendingNow()`,
-the read pages a score index instead of sorting a bounded candidate scan.
+For posts younger than a day by like count, use the hour-lanes `trending(c)`
+above. A read-time sort is still useful for a score that is not a `count` or
+`sum`, under a few thousand candidates. `rollingLikes()` ranks
+posts of any age by their likes in the trailing 24 hours; zero-like groups
+are absent and ties break by post id. A like lives for 24 hours from the
+server's `now`. These are different windows; choose the query your feed means.
 
-### Calendar-bucket alternative: positively-liked originals
-
-A maintain fits a current-calendar-bucket ranking of positively-liked
-originals with id ties. A Trending feed usually wants a rolling window over
-post time and zero-like candidates; use the handwritten recipe below for
-that contract. This narrower alternative indexes the maintained `value`
-within the post's calendar day:
-
-```quarry
-table posts:
-  authorId: principal
-  parentId: posts ?
-  at: time
-  immutable authorId, parentId, at
-  public 'posts'
-  insert <- .authorId = viewer
-
-table likes:
-  postId: posts
-  principal: principal
-  isOriginal: bool          -- setLike derives this from the authoritative post
-  postDay: int              -- setLike derives day(post.at), with UTC offset 0
-  at: time
-  unique byPair: postId, principal
-  by byPrincipal: principal, id
-  cap 1000 by principal
-  public 'likes'
-  insert <- .principal = viewer
-  delete <- .principal = viewer
-
-maintain trendScore: count likes where .isOriginal = true by postDay, postId
-  read <- allow
-  by byScore: postDay, value, id
-
-mutation create(parentId: posts ?):
-  if parentId != null:
-    require exists posts[parentId] else POST_NOT_FOUND
-  return insert posts { authorId: viewer, parentId, at: now }
-
-mutation setLike(postId: posts, liked: bool):
-  p = posts[postId] ! else POST_NOT_FOUND
-  if liked:
-    insert likes { postId: p.id, principal: viewer, isOriginal: p.parentId = null, postDay: day(p.at), at: now } if absent
-  else if exists likes[postId, viewer]:
-    delete likes[postId, viewer]
-
-query trending(c: cursor ?):
-  return trendScore[day(now)] after c last 10 by byScore { postId, score: .value }
-```
-
-The engine updates `trendScore` inside the source transaction, with no
-`refreshRank`. A maintain's target cannot be written by a principal, but
-its score is only as trustworthy as the source rows' insert rule and the
-mutations that construct those rows. The insert rule pins `principal` to
-`viewer`; the unique pair permits one like per viewer per post. `setLike`
-derives `isOriginal` and `postDay` from the authoritative post row, never
-from caller arguments. The maintain cannot validate these denormalised
-facts: its predicate compares row-local scalar columns and literals only,
-and the owner rule does not prove the copied facts. `create` sets post time
-on the server; post time and parent are immutable in this example.
-
-The costs and limits of this calendar ranking are:
-
-- **Zero-like posts are absent.** Launching with 40 posts and no likes
-  returns `[]`. The first like creates a group; the last unlike deletes it.
-  `complete: true` does not mean all posts have a candidate row.
-- **Old buckets have no age-based retention bound.** A maintain target
-  cannot expire or be capped. Each `(postDay, postId)` group stays as long
-  as any contributing like remains, even when the query can no longer reach
-  its day. The per-principal cap bounds one viewer's likes, not total
-  historical groups across all viewers. The handwritten `ranked` table
-  below instead expires at `post.at + 24h`.
-- **The window is the post's calendar day, and the query reads only today's
-  bucket.** `day()` here uses UTC, not a rolling 24 hours. At 00:00:01 UTC,
-  Trending is empty unless a post created since midnight already has a
-  like. A post made at 23:50 that collects 400 likes at 00:10 stays in
-  yesterday's bucket and is unreachable by this query from then on.
-- **Unlike needs its own permission.** Without the `delete` rule, unlike
-  is denied and this insert-only score can only rise. The rule and
-  `setLike(false)` above remove only the viewer's own like; repeated set
-  and clear calls do not double-count. Each viewer may hold at most 1,000
-  likes, and unliking frees a slot.
-- **Ties break by descending maintained id, not post time.** The index
-  orders `value, id` within a day; the handwritten recipe uses score,
-  post time and post id. Score changes can move rows between cursor pages;
-  neither pagination is a snapshot across writes.
-- **Nothing enforces that the writer's bucket offset matches the query's.**
-  This block pairs `day(p.at)` with `day(now)`. For an offset, change both
-  to `day(p.at, 8h)` and `day(now, 8h)` and rebuild the stored `postDay`
-  facts. A UTC writer and an `8h` query can choose different day ordinals
-  and silently return an empty ranking; there is no diagnostic for this
-  mismatch. Changing only the query does not migrate existing likes.
-
-With no source sync, `trending` is server-run and a load reads the committed
-ranking as of that server read. An offline watch can retain its previous
-server answer with `fresh: false`, or refuse `E_OFFLINE` without one.
-`complete` describes page coverage under the meter, not freshness, rolling
-eligibility or validation of the copied facts. An offline answer cannot
-promise a fresh ranking.
-
-### Fresh ranking over posts younger than 24 hours
-
-Use this handwritten table for posts younger than 24 hours, including
-zero-like posts, or for a score beyond the `count`/`sum` a maintain can
-keep. Every source write must call `refreshRank`. The helper uses the
-caller's ordinary write rules, grants no privilege and does not reserve
-`ranked` writes to itself; its target is writable under those rules.
-
-The client surface is declared queries, mutations and actions, not direct
-table writes. Neither recipe exposes a caller-supplied score. Both have
-latent permissions to review when adding mutations: accepting untrusted
-denormalised facts could corrupt the maintain's source, and accepting an
-untrusted score could corrupt the handwritten target. The maintain's
-target has the additional compiler-enforced prohibition on direct writes;
-that does not make arbitrary source inserts trustworthy.
+This standalone recipe keeps likes private and runs the ranking on the server.
+A disconnected device can retain that answer with `fresh: false`, not compute
+a complete ranking from only its own likes. For a locally computed public-like
+variant, change the likes read rule to `read <- allow`, its sync to `sync public`,
+remove `online only` from `likeCounts`, and replace the posts sync line with
+`sync public` (removing its `last 2000 by byTime` horizon). The resulting `N_MAINTAIN_SYNCED`
+note discloses that every count group reaches every device. This variant
+replicates all posts and live like sources without a horizon too: make that
+privacy and acquisition choice explicitly. Both device stores run that variant
+under their own clock, including offline expiry before the server sweep.
 
 ```quarry
 table posts:
@@ -1092,82 +1252,111 @@ table posts:
 table likes:
   postId: posts
   principal: principal
+  at: time
+  expiresAt: time
   unique byPostPrincipal: postId, principal
   by byPrincipal: principal, id
+  by byExpiresAt: expiresAt
   cap 1000 by principal
+  immutable postId, principal, at, expiresAt
   read <- .principal = viewer
   insert <- .principal = viewer
   delete <- .principal = viewer
+  expire at .expiresAt
   sync to .principal
 
 maintain likeCounts: count likes by postId
   read <- allow
   online only
 
-table ranked:
-  postId: posts
-  score: int
-  at: time
-  expiresAt: time
-  unique byPost: postId
-  by byScore: score, at, postId, id
-  by byExpiresAt: expiresAt
-  immutable postId, at, expiresAt
-  public 'the fresh ranking is public'
-  insert <- allow
-  update <- allow
-  delete <- deny
-  expire at .expiresAt
-  online only
-
-fn refreshRank(postId: posts):
-  p = posts[postId] ! else POST_NOT_FOUND
-  if p.at > now - 86400000 and p.at <= now:
-    upsert ranked[p.id] { postId: p.id, score: likeCounts[p.id], at: p.at, expiresAt: p.at + 86400000 }
-  return null
-
 mutation create(body: text <=6000):
-  p = insert posts { authorId: viewer, body, at: now }
-  refreshRank(p.id)
-  return p
+  return insert posts { authorId: viewer, body, at: now }
 
 mutation setLike(postId: posts, liked: bool):
   require exists posts[postId] else POST_NOT_FOUND
   if liked:
-    insert likes { postId, principal: viewer } if absent
+    insert likes { postId, principal: viewer, at: now, expiresAt: now + 86400000 } if absent
   else if exists likes[postId, viewer]:
     delete likes[postId, viewer]
-  refreshRank(postId)
 
-job rebuildRank():
-  chunk p in posts first 100 by byId:
-    refreshRank(p.id)
-
-query trending(c: cursor ?):
-  return ranked after c last 10 by byScore { *, post: posts[.postId] }
+query rollingLikes():
+  candidates = likeCounts first 4095 by byGroup { postId, score: .value }
+  return slice(sort(candidates, '-score', '-postId'), 0, 10)
 ```
 
-`likeCounts` changes inside the source transaction before `refreshRank`
-reads it; the ranking update commits with the source write or both roll
-back. Repeated `setLike(true)` and `setLike(false)` recompute from the
-count, so they cannot increment or decrement the score twice. This recipe
-reads the online-only count in each mutation and therefore does not predict
-those writes; show their pending outcome until the server settles them.
+The target is engine-owned: no principal can insert or update its score.
+`setLike` accepts only a post id and a desired boolean, derives the principal
+and both times on the executing host, and permits one live like per viewer
+per post. Repeated `true` does not extend a live like's lifetime; after expiry
+it may create a new like. Repeated `false` is harmless. Source update is denied.
+The per-principal cap bounds live likes to 1,000. Seed/import uses the same
+aggregate maintenance; there is no ranking backfill or refresh helper to forget.
 
-Keeping `ranked` online only makes `trending` server-run. Read it on
-screen load for the committed ranking as of that server read. An offline
-watch can retain a previous server answer with
-`fresh: false`, or refuse `E_OFFLINE` without one; it cannot promise a fresh
-ranking offline. `complete` is still page coverage under the meter, not a
-promise that handwritten maintenance was installed on every source path.
-Expiry hides a candidate at `post.at + 24h` before the physical sweep.
-Score changes can move rows between cursor pages; pagination is not a
-snapshot across writes.
+**Freshness:** the next server read sees each committed source write, with
+zero scheduled delay. Expiry changes live counts at the read's pinned clock,
+before any physical sweep, after a partial sweep and on an offline device.
+On a device, new remote writes still require sync; an offline ranking describes
+held data, not unseen writes. Eligible local source writes can predict only
+with their source and aggregate proof held. Expiring count reads need full
+source coverage; adding a source horizon makes a local ranking incomplete.
+`rollingLikes` reports its next contribution expiry to the host.
 
-After seeding or importing existing posts and likes, run
-`snapback4 run rebuildRank` before exposing this ranking. In a file named
-`feed.q`, use `snapback4 run feed.rebuildRank`. The job uses the same helper
-in 100-post chunks; it is an idempotent backfill, not a scheduled freshness
-mechanism or an atomic snapshot of the whole table. This example has no
-post deletion or expiring likes. If those enter the app, their removal and
-expiry paths need their own ranking maintenance too.
+**Read cost:** sort the whole bounded candidate set, then slice. The
+like-window query pays one examination per count group plus its source rows;
+unswept expired sources also cost examinations. Its `first 4095` can fit
+4,095 groups with one live like each under the 8,192 examined ceiling.
+One lookahead candidate costs another examination, and exceeding the candidate
+bound makes the ranking incomplete even when scoring fits. More contributions
+can exhaust the query before the candidate bound.
+
+For a bounded post scan such as `trendingNow()` above, each post costs two
+examined units (the scan and its count lookup), plus any live source reads.
+With short bodies and one live contribution, the expiring-source regression
+fits 4,095 posts at 8,191 examinations. This is the bounded-sort cost, not the
+cost of the indexed hour-lanes `trending(c)` recipe.
+
+When only the candidate bound is exceeded, the result is the top ten of the
+selected prefix with accurately read scores and `complete: false`, not the
+global top ten. If a count lookup or live count computation exhausts the meter,
+the whole query returns `data: null, complete: false`; it never substitutes zero
+or a partially counted score. The separate 16 MiB heap ceiling includes any
+materialised post bodies before projection in a bounded post scan: 6,000-byte bodies can exhaust it
+below 4,095 candidates (the fixture fits 1,000 and cuts at 2,700), also returning
+`data: null, complete: false`. The candidate bound is not a capacity guarantee
+for arbitrary bodies or like populations. The query has no ranking cursor:
+continuing an unsorted source page cannot continue its sorted winners. Narrow
+the candidate scope or accept an explicitly delayed materialisation when the
+full live set does not fit.
+
+`E_QUARRY_MAINTAIN_EXPIRE` remains a correctness refusal, not a reindex cost
+refusal. The sweep already subtracts physical contributions and updates target
+indexes transactionally. But live values change before that sweep; a partial
+sweep leaves stored order stale. Taking stored top-N and rechecking only those
+winners can miss a live winner. For `count`, the server's stored count is an
+upper bound on its live count: a descending scan that recomputes candidates
+until no remaining bound can beat the live top-N would be sound, with ties
+resolved by the promised order. That threshold read is not built and would
+have to refuse on devices, whose snapshots deliver live values rather than
+physical upper bounds. Signed sums have no such bound: a negative contribution
+expiring can increase the live sum. One value index would add at most two entry
+writes per removed contribution, not another aggregate scan; paying that cost
+alone does not make stored top-N fresh. This recipe pays for live reads instead.
+
+## N_PUBLIC_AGGREGATE_COPY: a public copy keeps ordinary write authority
+
+N_PUBLIC_AGGREGATE_COPY is a note, not an error. A public column is assigned
+directly from a declared `maintain`, but `insert <- allow` or `update <- allow`
+(or a provably unrestricted equivalent) lets any principal set it through any
+mutation that writes it. The column duplicates an aggregate the engine already
+keeps. Read the maintain directly, or restrict both insert and update authority
+so callers cannot choose the copied value. The fresh bounded Trending recipe
+in `guide feeds` reads live counts and has no writable ranking table or copied score.
+
+The client calls declared operations, not arbitrary table writes. This note
+identifies latent table permission, not proof that a current mutation accepts
+an arbitrary score. It covers direct scalar maintain-to-column assignments in
+programs and helpers, including jobs, once per column and maintain. It does not
+infer copies from names, matching group keys, increments, aliases or arithmetic.
+Restricted rules, private targets and immutable columns do not receive it;
+absence of the note is not a proof that a ranking cannot be forged. Sync and
+`online only` do not change write authority.

@@ -812,3 +812,75 @@ for (const tier of ["native", "web"]) test(`W8a ${tier} held horizon stays local
   assert.equal(watch.getSnapshot().complete, false); assert.equal(watch.getSnapshot().cut, null);
   assert.deepEqual(requests, [], "held must not turn incomplete local coverage into a server call");
 });
+
+for (const tier of ["native", "web"]) {
+  for (const kind of ["cursorless", "meter"]) test(`W13b ${tier} ${kind} incomplete read stays local online`, { timeout: 60000 }, async t => {
+    const f = await fixture(t, false, cutSource + "\nquery top():\n  return entries['normal'] last 1 by byRoomTime\n");
+    const count = kind === "meter" ? 8200 : 2;
+    for (let start = 0; start < count; start += 1000) {
+      const seeds = Array.from({ length: Math.min(1000, count - start) }, (_, i) => ({ table: "entries", row: { id: `r${start + i}`, room: "normal", body: "coffee", at: start + i } }));
+      assert.equal((await f.post("/seed", seeds)).seeded, seeds.length);
+    }
+    const requests = [];
+    const client = await createLocalClient({ url: f.url, persona: "alice", device: tier === "native" ? f.device : f.web, waitSeconds: 1,
+      fetch: (url, init) => { if (String(url).includes("/q/")) requests.push(String(url)); return fetch(url, init); } });
+    f.clients.push(client); await client.sync();
+    const read = await client.query({ kind: "query", name: kind === "meter" ? "filtered" : "top" }, {});
+    assert.equal(read.complete, false); assert.equal(read.cut, kind === "meter" ? "meter" : null);
+    assert.equal(read.data.length, kind === "meter" ? 0 : 1);
+    assert.deepEqual(requests, [], "an incomplete answer with known coverage needs zero /q/ requests");
+    t.diagnostic(`${tier} ${kind}: rows=${read.data.length} complete=${read.complete} /q/=${requests.length}`);
+  });
+
+  test(`W13b ${tier} horizon and presence use server knowledge only online`, async t => {
+    const schema = cutSource.replace("  sync public", "  sync public last 1 by byId") + "\nquery online():\n  return connected[viewer]\n";
+    const f = await fixture(t, false, schema);
+    await f.post("/seed", [1, 2].map(n => ({ table: "entries", row: { id: `r${n}`, room: "normal", body: "coffee", at: n } })));
+    const requests = []; let offline = false;
+    const client = await createLocalClient({ url: f.url, persona: "alice", device: tier === "native" ? f.device : f.web, waitSeconds: 1,
+      fetch: (url, init) => { if (String(url).includes("/q/")) requests.push(String(url)); return offline ? Promise.reject(new Error("offline")) : fetch(url, init); } });
+    f.clients.push(client); await client.sync();
+    const op = { kind: "query", name: "search" }, args = { room: "normal", q: "coffee" };
+    assert.equal((await client.query(op, args)).data.length, 2);
+    assert.equal(requests.filter(url => url.endsWith("/q/search")).length, 1);
+    assert.equal((await client.query({ kind: "query", name: "online" }, {})).complete, true);
+    assert.equal(requests.filter(url => url.endsWith("/q/online")).length, 1);
+    offline = true; await client.sync(); requests.length = 0;
+    const local = await client.query(op, args);
+    assert.equal(local.data.length, 1); assert.equal(local.complete, false); assert.equal(local.fresh, false);
+    assert.deepEqual(requests, []);
+  });
+}
+
+for (const release of [false, true]) test(`W13b ${release ? "serve hides" : "dev logs"} a measured cut`, { timeout: 60000 }, async t => {
+  const schema = cutSource.replace("  sync public", "  insert <- allow\n  sync public") + `
+mutation fill(start: int, count: int):
+  for i in range(start, start + count):
+    insert entries { room: 'normal', body: 'coffee', at: i }
+`;
+  const f = await fixture(t, release, schema);
+  const signed = await guest(f.url); assert.equal(signed.ok, true);
+  const headers = { authorization: `Bearer ${signed.session.token}` };
+  const post = async (path, args) => (await fetch(f.url + path, { method: "POST", headers, body: JSON.stringify({ args }) })).json();
+  for (let start = 0; start < 8200; start += 1000) assert.equal((await post("/m/fill", { start, count: Math.min(1000, 8200 - start) })).state, "sent");
+  for (let n = 0; n < 6; n++) {
+    const read = await post("/q/filtered", {});
+    assert.equal(read.cut, "meter"); assert.equal(read.complete, false);
+    assert.equal(Object.hasOwn(read, "meter"), !release);
+  }
+  // Reading the pipes is asynchronous; give the first emitted line a chance to arrive.
+  if (!release) await until(() => f.log().includes("snapback4 dev: read filtered"));
+  const lines = f.log().split("\n").filter(line => line.startsWith("snapback4 dev: read "));
+  assert.equal(lines.length, release ? 0 : 1, f.log());
+  if (!release) {
+    assert.match(lines[0], /read filtered \(.+\) cut by examined rows at .+; examined=\d+ index_entries=\d+ rule_probes=\d+ steps=\d+ heap_bytes=\d+ output_bytes=\d+ rows_written=0; snapback4 why filtered/);
+    t.diagnostic(lines[0]);
+    const read = await f.post("/q/filtered", { args: {} });
+    assert.equal(read.cut, "meter");
+    await until(() => f.log().includes("suppressed 5 repeated read cuts"));
+    const changed = f.log().split("\n").filter(line => line.startsWith("snapback4 dev: read "));
+    assert.equal(changed.length, 2);
+    assert.match(changed[1], /filtered \(dev:alice\).*; suppressed 5 repeated read cuts$/);
+    t.diagnostic(changed[1]);
+  }
+});

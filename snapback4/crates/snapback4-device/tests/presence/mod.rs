@@ -305,3 +305,19 @@ fn w7r1_grace_bookkeeping_reservation_matches_both_device_stores() {
     scenario(snapback4_device::memory::MemoryStore::new(), "memory", &mut failures);
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
+
+#[test]
+fn w13b_unknown_presence_crosses_both_device_wires() {
+    on_both(|host| {
+        let (mut engine, backend) = compile("query online():\n  return connected[viewer]\nquery known():\n  return 42\n");
+        let label = host.label();
+        let mut device = host.open("presence-coverage", Some(backend)).unwrap();
+        for (n, page) in snapshot_pages(&mut engine, "alice", 10).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
+        let read = query(&mut *device, "online", "alice", serde_json::json!({}), 1);
+        assert_eq!(read["complete"], false, "{label}: {read}");
+        assert_eq!(read["unknown"], true, "{label}: presence is a fact only the server knows");
+        assert_eq!(read["retained"], false);
+        let known = query(&mut *device, "known", "alice", serde_json::json!({}), 1);
+        assert_eq!(known["data"], 42); assert_eq!(known["complete"], true); assert_eq!(known["unknown"], false);
+    });
+}

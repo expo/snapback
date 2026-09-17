@@ -1,0 +1,1283 @@
+{
+ "at": "2026-09-17T15:08:02.142Z",
+ "run": 2,
+ "version": "0.2.27",
+ "model": "gpt-6-astra",
+ "effort": "medium",
+ "lane": "/Users/ccheever/projects/snapback-boundsbar-before/runs-b/run-2",
+ "packet": {
+  "bounds-brief.md": "2946a03a321511aedd7640e2c4298694d99f2b6ffcca44b61d16a96edf7269ba",
+  "bounds.mjs": "43404e0a4787a4d592a04560cb93302c86cf5a7ca6961e59d1328b87ddd236b6",
+  "bounds-seed.mjs": "c86c923e8bbbaf37d18d542c59f7fa704fe9c298238d764796a087fb32989606",
+  "bounds-metrics.mjs": "1929aa8face38d5875940d9752ae7436733d7140c2b7205bcd4707dbee876589",
+  "bounds-probes.mjs": "bbe1e646107dece3bfd8e8baac4bfaf616119854571c586ce2de433ee7ff7a74",
+  "ceremony-metrics.mjs": "b28f07761b4ad821d3ce16e466034c7bcc41547acac662aacccf02ab35ce2828",
+  "ceremony-process.mjs": "59b725fe8317c6a5124dd9b04a4dda9c955727ffc5e00df5df85ac4ee5948f1d",
+  "run.mjs": "45347dc802b62e8ccf9d9c5cb8f1b28d4fe3a283c7c24d3d085517ed44bf1e00"
+ },
+ "node": "v24.18.0",
+ "limitSeconds": 3600,
+ "host": {
+  "name": "Charlies-MacBook-Pro-M5Max-Black.local",
+  "platform": "darwin",
+  "arch": "arm64",
+  "cpus": 18,
+  "cpu": "Apple M5 Max",
+  "sharedAndLoaded": true
+ },
+ "loadAverages": [
+  {
+   "phase": "start",
+   "at": "2026-09-17T15:08:02.142Z",
+   "values": [
+    14.68505859375,
+    22.5341796875,
+    40.54296875
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:08:32.143Z",
+   "values": [
+    12.990234375,
+    21.35546875,
+    39.48974609375
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:09:02.145Z",
+   "values": [
+    10.1416015625,
+    19.86962890625,
+    38.322265625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:09:32.146Z",
+   "values": [
+    9.81884765625,
+    18.861328125,
+    37.31689453125
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:10:02.148Z",
+   "values": [
+    10.20166015625,
+    18.091796875,
+    36.3974609375
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:10:32.149Z",
+   "values": [
+    8.8828125,
+    17.01513671875,
+    35.3720703125
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:11:02.150Z",
+   "values": [
+    8.42236328125,
+    16.12158203125,
+    34.4111328125
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:11:32.152Z",
+   "values": [
+    8.33984375,
+    15.36083984375,
+    33.50048828125
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:12:02.153Z",
+   "values": [
+    9.642578125,
+    15.03173828125,
+    32.75341796875
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:12:32.154Z",
+   "values": [
+    8.919921875,
+    14.3291015625,
+    31.88330078125
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:13:02.154Z",
+   "values": [
+    8.47314453125,
+    13.71923828125,
+    31.0537109375
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:13:32.154Z",
+   "values": [
+    8.62109375,
+    13.251953125,
+    30.28271484375
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:14:02.154Z",
+   "values": [
+    9.54736328125,
+    13.0087890625,
+    29.60205078125
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:14:32.153Z",
+   "values": [
+    8.74853515625,
+    12.46826171875,
+    28.82958984375
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:15:02.154Z",
+   "values": [
+    8.111328125,
+    11.94775390625,
+    28.072265625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:15:32.156Z",
+   "values": [
+    8.53662109375,
+    11.6806640625,
+    27.416015625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:16:02.157Z",
+   "values": [
+    12.166015625,
+    12.22900390625,
+    27.06689453125
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:16:32.159Z",
+   "values": [
+    9.87890625,
+    11.6650390625,
+    26.34765625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:17:02.160Z",
+   "values": [
+    9.03076171875,
+    11.283203125,
+    25.69921875
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:17:32.162Z",
+   "values": [
+    9.97119140625,
+    11.31298828125,
+    25.2109375
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:18:02.163Z",
+   "values": [
+    8.5400390625,
+    10.82275390625,
+    24.55029296875
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:18:32.390Z",
+   "values": [
+    8.69921875,
+    10.63427734375,
+    24.00390625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:19:02.391Z",
+   "values": [
+    8.5361328125,
+    10.4375,
+    23.47021484375
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:19:32.394Z",
+   "values": [
+    8.19677734375,
+    10.1591796875,
+    22.916015625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:20:02.397Z",
+   "values": [
+    8.86474609375,
+    10.10205078125,
+    22.451171875
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:20:32.399Z",
+   "values": [
+    8.5595703125,
+    9.9013671875,
+    21.94873046875
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:21:02.402Z",
+   "values": [
+    9.04296875,
+    9.91796875,
+    21.5380859375
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:21:32.405Z",
+   "values": [
+    9.0751953125,
+    9.8310546875,
+    21.1025390625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:22:02.408Z",
+   "values": [
+    10.02001953125,
+    10.00146484375,
+    20.7734375
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:22:32.410Z",
+   "values": [
+    9.35546875,
+    9.8408203125,
+    20.3408203125
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:23:02.413Z",
+   "values": [
+    8.6103515625,
+    9.62744140625,
+    19.89990234375
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:23:32.416Z",
+   "values": [
+    8.962890625,
+    9.626953125,
+    19.54345703125
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:24:02.419Z",
+   "values": [
+    8.96484375,
+    9.55224609375,
+    19.17138671875
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:24:32.421Z",
+   "values": [
+    8.94775390625,
+    9.4970703125,
+    18.8173828125
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:25:02.424Z",
+   "values": [
+    9.25,
+    9.5634765625,
+    18.5205078125
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:25:32.427Z",
+   "values": [
+    11.32958984375,
+    10.0478515625,
+    18.38525390625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:26:02.428Z",
+   "values": [
+    13.44677734375,
+    10.66845703125,
+    18.31884765625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:26:32.431Z",
+   "values": [
+    10.86669921875,
+    10.2890625,
+    17.9150390625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:27:02.434Z",
+   "values": [
+    10.0146484375,
+    10.1337890625,
+    17.59375
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:27:32.437Z",
+   "values": [
+    9.38525390625,
+    9.94921875,
+    17.2666015625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:28:02.440Z",
+   "values": [
+    8.5107421875,
+    9.65673828125,
+    16.904296875
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:28:32.443Z",
+   "values": [
+    7.85400390625,
+    9.3857421875,
+    16.5537109375
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:29:02.446Z",
+   "values": [
+    8.30810546875,
+    9.34814453125,
+    16.29052734375
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:29:32.449Z",
+   "values": [
+    8.11962890625,
+    9.21533203125,
+    16.00146484375
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:30:02.452Z",
+   "values": [
+    8.7060546875,
+    9.26904296875,
+    15.78564453125
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:30:32.454Z",
+   "values": [
+    8.21875,
+    9.072265625,
+    15.486328125
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:31:02.458Z",
+   "values": [
+    7.43896484375,
+    8.794921875,
+    15.162109375
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:31:32.458Z",
+   "values": [
+    8.552734375,
+    8.9521484375,
+    14.99853515625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:32:02.462Z",
+   "values": [
+    8.64111328125,
+    8.91259765625,
+    14.77294921875
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:32:32.463Z",
+   "values": [
+    8.09326171875,
+    8.78369140625,
+    14.5244140625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-17T15:33:02.466Z",
+   "values": [
+    9.9140625,
+    9.2060546875,
+    14.48046875
+   ]
+  },
+  {
+   "phase": "finish",
+   "at": "2026-09-17T15:33:16.255Z",
+   "values": [
+    8.8935546875,
+    9.01513671875,
+    14.31982421875
+   ]
+  }
+ ],
+ "green": false,
+ "measurementComplete": true,
+ "installSeconds": 1.207,
+ "installedBefore": {
+  "version": "0.2.27",
+  "platformVersion": "0.2.27",
+  "binarySha256": "ae7838c7ed3a9a4b4be3fa454af69e9cacb792b5a23ad81d12386ec7e3fd2be7",
+  "readmeSha256": "c28117bfb644eaff53b56e8db14ed7edd60927b6305daccf9d6c20db0153a076",
+  "files": {
+   "snapback4/CLIENT-AND-OPERATIONS.md": "e503f45275c9e1732e51abee8b95fc245a0e4a4f246f61f3a4799984dfef3b4a",
+   "snapback4/README.md": "c28117bfb644eaff53b56e8db14ed7edd60927b6305daccf9d6c20db0153a076",
+   "snapback4/SERVER.md": "8b4132668738584f169772dd3c8da89d1e3b238a234ef3dde1395f1e49426b54",
+   "snapback4/bin/snapback4.js": "ab3143f12e619767a15f84f3d2c5be28f334ff8e74661154f110146dcc8cb28e",
+   "snapback4/dist/actions.d.ts": "ce305ccf3689b611e0600ce876ffee64869c3f82619d16c794c6ba90b4467107",
+   "snapback4/dist/actions.js": "6c956c2f35f0284919f72b912855efc36660a310143c1aaadc41e6e63ee77851",
+   "snapback4/dist/assets.d.ts": "f84ce3015b7c47f3dd87afd5bac0e3f7be619d0cc1b2ae449c0b1ed9bea20db1",
+   "snapback4/dist/assets.js": "a10aace0f780ec74566edae5af6376064a72fd4b0a00145709f4783c67cc2305",
+   "snapback4/dist/auth.d.ts": "0d3dd55be6ac341fa3049f09b9675835ea86b760694f9031795750eaec076e39",
+   "snapback4/dist/auth.js": "f6241d44c661801ac4eb777f054e32559531792de84706ad0282ddc514cc4b89",
+   "snapback4/dist/backend.d.ts": "d4dc5d213915fbb2d4e4f25109175035be7aa77d2916c568afe86c44ec8d0a7b",
+   "snapback4/dist/backend.js": "8299ad97953f8961afa8f6c26ef6d702901c24700ff635da6cc20995fc4e16c5",
+   "snapback4/dist/changes.d.ts": "4cab767f3840003572ca46f66a5258b7d3503a8b225c9739cea67592fd66f616",
+   "snapback4/dist/changes.js": "38fc0963871207ec9559340c432d035e244a422ca74a225e50bbe62946a70193",
+   "snapback4/dist/client.d.ts": "96f37c6164dd317da5cf0186ec785039ea2e83d2546d5f72096f9bf514ad0e0d",
+   "snapback4/dist/client.js": "186fd2bf1f554e66c8cb158f2d3e9ed7182da106a10f43371c3182b05f49120d",
+   "snapback4/dist/contract.d.ts": "f99b0b94ebe781fd2e3c294a578a515d3f6352ddeaaabbb449e2cde230e6bc0a",
+   "snapback4/dist/contract.js": "f6cf12bf9fb92092db3e1da11839efa019592fbc0f71a9c0e4b54920be58432e",
+   "snapback4/dist/local-assets.d.ts": "f5222340dc8d735039259884a374163e0a24a958357d41ba7d4b0ea6151c3e99",
+   "snapback4/dist/local-assets.js": "eedc7b4830b021ba3f10eb641c90c122e8a2b176fbff4a52a24b64599e8a69a4",
+   "snapback4/dist/local-exit.d.ts": "0e1ceb6f03b174137fb04529f90c1e3a88da26c5be41a588723d493245408944",
+   "snapback4/dist/local-exit.js": "90bbbe7eedd320379cd43d4a9958734817aba2ba7a10d6c7df361f07236c8f8e",
+   "snapback4/dist/local.d.ts": "7a2804c9a1629381c4bb707a655a331b69408f027a0ecd01786f363476535b79",
+   "snapback4/dist/local.js": "5d5e10186785e2f7f8df90235c06d671e327ad5dd2da4c5899916f0f59bc1c53",
+   "snapback4/dist/mock.d.ts": "de0143199a5d2f0ca5c3a54fb82429a124dee9bc43240224b57763acb0718283",
+   "snapback4/dist/mock.js": "d261283da91dbf377c7eb78cd17dc04421a4a759c467b21c1ea9e8ac06545843",
+   "snapback4/dist/native.d.ts": "145c523a9dc33a289ae0a8b166e73a9e30ccb1173df1ab651ae49601e8955fe5",
+   "snapback4/dist/native.js": "6ebf24ff26e0d3799b8a06eef5f4997497da6312a7478af7afea3ded2ffa746d",
+   "snapback4/dist/react.d.ts": "c7cc3cf7a1ae8636fba37dcd4f61a86931e096f4844e9b05c8d3bc5c1d9d3eb6",
+   "snapback4/dist/react.js": "66c25ffdb083eaa11908d29422f0be00944d598f161b6a024d566cfc08f889be",
+   "snapback4/dist/resolve-binary.d.ts": "59826e051e70ec698baa25150b475ae41c34e9f40aba5314ee0f0ee242558662",
+   "snapback4/dist/resolve-binary.js": "670be36d22fc4eb9576b4930d9984327a83ec2152cd22e3e82a1a64bdbc08d32",
+   "snapback4/dist/server-context.d.ts": "b9895e08d15311c6b78cdac0baaa683760aec5e6006dccd43e1fc806e380c945",
+   "snapback4/dist/server-context.js": "ce6473b104269c700c1f95d2ca3024285ccd288a051e6b83f230fc6f0f40bba9",
+   "snapback4/dist/server-json.d.ts": "bd03145d453c385c8f7e856d49f1441975485d56102cab348a28bb2d0cc18040",
+   "snapback4/dist/server-json.js": "1e4acc80035d8704411ee0540548be36ffdd7220f009ae39890f5004c4fd8c6d",
+   "snapback4/dist/server-routes.d.ts": "25139e1db2ab9d306d7bc0426e7736c0b81faa06a58188d97df20aeca0990ec5",
+   "snapback4/dist/server-routes.js": "da1c584ba69689dc051aca95dbe5bab449f0bb3ea470dc9b1fd0dfa54d2b5d6f",
+   "snapback4/dist/server-steps.d.ts": "e6db4bc63900f730a61f6d6d0c1baee2a8eb09a0d4b03fc05dd078afd0ead22a",
+   "snapback4/dist/server-steps.js": "a6afd5cf18580e3c101d8c6d5ee56e97b8f9f7069f14f7293f864a2ca7e8d2bc",
+   "snapback4/dist/server-verify.d.ts": "0ed6ea09fae341c3fac4014144b391949b0655eca9df8e8398e447684bc2b49b",
+   "snapback4/dist/server-verify.js": "e00ba3aecb9d6b5a8fcec618a429cb60f50ba8beda664b254fe68a72ecaf26ea",
+   "snapback4/dist/server.d.ts": "922e51ebc91b4a964cd850c8aaf926a4fda63f1306cbdb9aef6975c72de20d3e",
+   "snapback4/dist/server.js": "c1a7ee336bf929e036f6ad26a8ae40c247a5bca861b52b514fe8daa470aa8924",
+   "snapback4/dist/wasm/snapback4_device.d.ts": "a8a2121a30d82e5ba3fb886503cd411d6bbc10874d06512e59524afdec11ac3a",
+   "snapback4/dist/wasm/snapback4_device.js": "243c37b7b8f84a63c0bae1415c548c7b845624d27b90f98a97483cd0144645de",
+   "snapback4/dist/wasm/snapback4_device_bg.wasm": "8432c3a836e41ee6e46e4c9236f69afe8831dc33caf2f13bd43f4fade667b434",
+   "snapback4/dist/wasm/snapback4_device_bg.wasm.d.ts": "106851e130519176f76b81bf51a50994118639634da43ec4cd337d69dc65be1c",
+   "snapback4/dist/web-journal.d.ts": "8e633d7667219dabf65d68bea101112a66323518ace5d924ca8e7d96f98bac8a",
+   "snapback4/dist/web-journal.js": "ad70145d020ddc365af39d03392d6366a354696496844fc36fae7dd229e20eb5",
+   "snapback4/dist/web.d.ts": "09b8d60e56bedd4ec03468bacd780a926c84c3281a420fd652b98152bd1931a7",
+   "snapback4/dist/web.js": "0fbcd4a63cca6e5ffa1546185398106a983f00c46b0cec06795850fe221c0388",
+   "snapback4/dist/worker.d.ts": "0f42fee3e455d268d95b278759a16fc461847f5e6fc337704e1c1554b843b085",
+   "snapback4/dist/worker.js": "8945b72c9d0cead289867543b55049475debc3551ca7b8f44ddb45dd1f072d38",
+   "snapback4/dist/writes.d.ts": "c9fa0e262328d502ac3a0aa4c1e6fa2d3825f72ab5e27f0e98c3e3e0b2e678ff",
+   "snapback4/dist/writes.js": "a193bde3dab85450a63a82a1668f04c3d66bb72205d475c4bebe1ca95e7949eb",
+   "snapback4/package.json": "173d9860a4240d0cebac33b121c56f3548b585fc4d194b8b3f3079ecf9eedb41",
+   "snapback4-darwin-arm64/THIRD-PARTY-NOTICES": "d84e3606f01a2c5ccd214cb3459fb1d0f798a9a6e1f2f50f49097f834209ff10",
+   "snapback4-darwin-arm64/package.json": "e0ac314500f71f36a34e4a766095da2612cca6951370e28af30fdbe9755df932",
+   "snapback4-darwin-arm64/snapback4": "ae7838c7ed3a9a4b4be3fa454af69e9cacb792b5a23ad81d12386ec7e3fd2be7"
+  },
+  "packageLockSha256": "529ee765d8574d1b7d309305291a94a475363a865415f25ed05add087756f3e7"
+ },
+ "invocation": {
+  "command": "/Users/ccheever/.volta/bin/codex",
+  "args": [
+   "exec",
+   "--dangerously-bypass-approvals-and-sandbox",
+   "--skip-git-repo-check",
+   "--json",
+   "--color",
+   "never",
+   "-m",
+   "gpt-6-astra",
+   "-c",
+   "model_reasoning_effort=medium",
+   "-C",
+   "/Users/ccheever/projects/snapback-boundsbar-before/runs-b/run-2",
+   "-o",
+   "/Users/ccheever/projects/snapback-boundsbar-before/runs-b/run-2/FINAL.md",
+   "-"
+  ]
+ },
+ "agentPid": 57980,
+ "agentWallSeconds": 909.24,
+ "wallSeconds": 910.458,
+ "exitCode": 0,
+ "exitSignal": null,
+ "timedOut": false,
+ "agentError": null,
+ "installedAfter": {
+  "version": "0.2.27",
+  "platformVersion": "0.2.27",
+  "binarySha256": "ae7838c7ed3a9a4b4be3fa454af69e9cacb792b5a23ad81d12386ec7e3fd2be7",
+  "readmeSha256": "c28117bfb644eaff53b56e8db14ed7edd60927b6305daccf9d6c20db0153a076",
+  "files": {
+   "snapback4/CLIENT-AND-OPERATIONS.md": "e503f45275c9e1732e51abee8b95fc245a0e4a4f246f61f3a4799984dfef3b4a",
+   "snapback4/README.md": "c28117bfb644eaff53b56e8db14ed7edd60927b6305daccf9d6c20db0153a076",
+   "snapback4/SERVER.md": "8b4132668738584f169772dd3c8da89d1e3b238a234ef3dde1395f1e49426b54",
+   "snapback4/bin/snapback4.js": "ab3143f12e619767a15f84f3d2c5be28f334ff8e74661154f110146dcc8cb28e",
+   "snapback4/dist/actions.d.ts": "ce305ccf3689b611e0600ce876ffee64869c3f82619d16c794c6ba90b4467107",
+   "snapback4/dist/actions.js": "6c956c2f35f0284919f72b912855efc36660a310143c1aaadc41e6e63ee77851",
+   "snapback4/dist/assets.d.ts": "f84ce3015b7c47f3dd87afd5bac0e3f7be619d0cc1b2ae449c0b1ed9bea20db1",
+   "snapback4/dist/assets.js": "a10aace0f780ec74566edae5af6376064a72fd4b0a00145709f4783c67cc2305",
+   "snapback4/dist/auth.d.ts": "0d3dd55be6ac341fa3049f09b9675835ea86b760694f9031795750eaec076e39",
+   "snapback4/dist/auth.js": "f6241d44c661801ac4eb777f054e32559531792de84706ad0282ddc514cc4b89",
+   "snapback4/dist/backend.d.ts": "d4dc5d213915fbb2d4e4f25109175035be7aa77d2916c568afe86c44ec8d0a7b",
+   "snapback4/dist/backend.js": "8299ad97953f8961afa8f6c26ef6d702901c24700ff635da6cc20995fc4e16c5",
+   "snapback4/dist/changes.d.ts": "4cab767f3840003572ca46f66a5258b7d3503a8b225c9739cea67592fd66f616",
+   "snapback4/dist/changes.js": "38fc0963871207ec9559340c432d035e244a422ca74a225e50bbe62946a70193",
+   "snapback4/dist/client.d.ts": "96f37c6164dd317da5cf0186ec785039ea2e83d2546d5f72096f9bf514ad0e0d",
+   "snapback4/dist/client.js": "186fd2bf1f554e66c8cb158f2d3e9ed7182da106a10f43371c3182b05f49120d",
+   "snapback4/dist/contract.d.ts": "f99b0b94ebe781fd2e3c294a578a515d3f6352ddeaaabbb449e2cde230e6bc0a",
+   "snapback4/dist/contract.js": "f6cf12bf9fb92092db3e1da11839efa019592fbc0f71a9c0e4b54920be58432e",
+   "snapback4/dist/local-assets.d.ts": "f5222340dc8d735039259884a374163e0a24a958357d41ba7d4b0ea6151c3e99",
+   "snapback4/dist/local-assets.js": "eedc7b4830b021ba3f10eb641c90c122e8a2b176fbff4a52a24b64599e8a69a4",
+   "snapback4/dist/local-exit.d.ts": "0e1ceb6f03b174137fb04529f90c1e3a88da26c5be41a588723d493245408944",
+   "snapback4/dist/local-exit.js": "90bbbe7eedd320379cd43d4a9958734817aba2ba7a10d6c7df361f07236c8f8e",
+   "snapback4/dist/local.d.ts": "7a2804c9a1629381c4bb707a655a331b69408f027a0ecd01786f363476535b79",
+   "snapback4/dist/local.js": "5d5e10186785e2f7f8df90235c06d671e327ad5dd2da4c5899916f0f59bc1c53",
+   "snapback4/dist/mock.d.ts": "de0143199a5d2f0ca5c3a54fb82429a124dee9bc43240224b57763acb0718283",
+   "snapback4/dist/mock.js": "d261283da91dbf377c7eb78cd17dc04421a4a759c467b21c1ea9e8ac06545843",
+   "snapback4/dist/native.d.ts": "145c523a9dc33a289ae0a8b166e73a9e30ccb1173df1ab651ae49601e8955fe5",
+   "snapback4/dist/native.js": "6ebf24ff26e0d3799b8a06eef5f4997497da6312a7478af7afea3ded2ffa746d",
+   "snapback4/dist/react.d.ts": "c7cc3cf7a1ae8636fba37dcd4f61a86931e096f4844e9b05c8d3bc5c1d9d3eb6",
+   "snapback4/dist/react.js": "66c25ffdb083eaa11908d29422f0be00944d598f161b6a024d566cfc08f889be",
+   "snapback4/dist/resolve-binary.d.ts": "59826e051e70ec698baa25150b475ae41c34e9f40aba5314ee0f0ee242558662",
+   "snapback4/dist/resolve-binary.js": "670be36d22fc4eb9576b4930d9984327a83ec2152cd22e3e82a1a64bdbc08d32",
+   "snapback4/dist/server-context.d.ts": "b9895e08d15311c6b78cdac0baaa683760aec5e6006dccd43e1fc806e380c945",
+   "snapback4/dist/server-context.js": "ce6473b104269c700c1f95d2ca3024285ccd288a051e6b83f230fc6f0f40bba9",
+   "snapback4/dist/server-json.d.ts": "bd03145d453c385c8f7e856d49f1441975485d56102cab348a28bb2d0cc18040",
+   "snapback4/dist/server-json.js": "1e4acc80035d8704411ee0540548be36ffdd7220f009ae39890f5004c4fd8c6d",
+   "snapback4/dist/server-routes.d.ts": "25139e1db2ab9d306d7bc0426e7736c0b81faa06a58188d97df20aeca0990ec5",
+   "snapback4/dist/server-routes.js": "da1c584ba69689dc051aca95dbe5bab449f0bb3ea470dc9b1fd0dfa54d2b5d6f",
+   "snapback4/dist/server-steps.d.ts": "e6db4bc63900f730a61f6d6d0c1baee2a8eb09a0d4b03fc05dd078afd0ead22a",
+   "snapback4/dist/server-steps.js": "a6afd5cf18580e3c101d8c6d5ee56e97b8f9f7069f14f7293f864a2ca7e8d2bc",
+   "snapback4/dist/server-verify.d.ts": "0ed6ea09fae341c3fac4014144b391949b0655eca9df8e8398e447684bc2b49b",
+   "snapback4/dist/server-verify.js": "e00ba3aecb9d6b5a8fcec618a429cb60f50ba8beda664b254fe68a72ecaf26ea",
+   "snapback4/dist/server.d.ts": "922e51ebc91b4a964cd850c8aaf926a4fda63f1306cbdb9aef6975c72de20d3e",
+   "snapback4/dist/server.js": "c1a7ee336bf929e036f6ad26a8ae40c247a5bca861b52b514fe8daa470aa8924",
+   "snapback4/dist/wasm/snapback4_device.d.ts": "a8a2121a30d82e5ba3fb886503cd411d6bbc10874d06512e59524afdec11ac3a",
+   "snapback4/dist/wasm/snapback4_device.js": "243c37b7b8f84a63c0bae1415c548c7b845624d27b90f98a97483cd0144645de",
+   "snapback4/dist/wasm/snapback4_device_bg.wasm": "8432c3a836e41ee6e46e4c9236f69afe8831dc33caf2f13bd43f4fade667b434",
+   "snapback4/dist/wasm/snapback4_device_bg.wasm.d.ts": "106851e130519176f76b81bf51a50994118639634da43ec4cd337d69dc65be1c",
+   "snapback4/dist/web-journal.d.ts": "8e633d7667219dabf65d68bea101112a66323518ace5d924ca8e7d96f98bac8a",
+   "snapback4/dist/web-journal.js": "ad70145d020ddc365af39d03392d6366a354696496844fc36fae7dd229e20eb5",
+   "snapback4/dist/web.d.ts": "09b8d60e56bedd4ec03468bacd780a926c84c3281a420fd652b98152bd1931a7",
+   "snapback4/dist/web.js": "0fbcd4a63cca6e5ffa1546185398106a983f00c46b0cec06795850fe221c0388",
+   "snapback4/dist/worker.d.ts": "0f42fee3e455d268d95b278759a16fc461847f5e6fc337704e1c1554b843b085",
+   "snapback4/dist/worker.js": "8945b72c9d0cead289867543b55049475debc3551ca7b8f44ddb45dd1f072d38",
+   "snapback4/dist/writes.d.ts": "c9fa0e262328d502ac3a0aa4c1e6fa2d3825f72ab5e27f0e98c3e3e0b2e678ff",
+   "snapback4/dist/writes.js": "a193bde3dab85450a63a82a1668f04c3d66bb72205d475c4bebe1ca95e7949eb",
+   "snapback4/package.json": "173d9860a4240d0cebac33b121c56f3548b585fc4d194b8b3f3079ecf9eedb41",
+   "snapback4-darwin-arm64/THIRD-PARTY-NOTICES": "d84e3606f01a2c5ccd214cb3459fb1d0f798a9a6e1f2f50f49097f834209ff10",
+   "snapback4-darwin-arm64/package.json": "e0ac314500f71f36a34e4a766095da2612cca6951370e28af30fdbe9755df932",
+   "snapback4-darwin-arm64/snapback4": "ae7838c7ed3a9a4b4be3fa454af69e9cacb792b5a23ad81d12386ec7e3fd2be7"
+  },
+  "packageLockSha256": "529ee765d8574d1b7d309305291a94a475363a865415f25ed05add087756f3e7"
+ },
+ "pinUnchanged": true,
+ "reportedGreen": false,
+ "agentSeconds": null,
+ "builderSeedSeconds": null,
+ "milestones": [
+  {
+   "name": "first-check",
+   "at": 1789657999,
+   "seconds": 308
+  }
+ ],
+ "correctionLoops": {
+  "byAttribution": {
+   "snapback4-defect": 0,
+   "docs": 0,
+   "agent-error": 1,
+   "environment": 1,
+   "ambiguous": 0
+  },
+  "snapbackAttributed": 0,
+  "total": 2,
+  "loops": [
+   {
+    "id": 1,
+    "attribution": "environment",
+    "line": "loop=1 attribution=environment command=\"npx snapback4 guide\" failure=\"CLI processes remain before dyld startup with zero application output\" resolution=\"Tried direct published executable, exact-byte copy, explicit Node PATH, foreground TTY, signature verification; unresolved\""
+   },
+   {
+    "id": 2,
+    "attribution": "agent-error",
+    "line": "loop=2 attribution=agent-error command=\"import createClient from snapback4\" failure=\"ERR_PACKAGE_PATH_NOT_EXPORTED\" resolution=\"Use the public snapback4/client subpath; transport wire observed with a mock fetch\""
+   }
+  ],
+  "malformed": []
+ },
+ "schemaShape": {
+  "tables": 5,
+  "tableNames": [
+   "members",
+   "messages",
+   "follows",
+   "posts",
+   "likes"
+  ],
+  "maintains": 1,
+  "maintainNames": [
+   "roomCounts"
+  ],
+  "tablesIncludingMaintains": 6,
+  "workTablesHeuristic": {
+   "count": 0,
+   "names": []
+  },
+  "workTablesReported": {
+   "count": 0,
+   "names": []
+  },
+  "perPrincipalCountersHeuristic": [],
+  "perPrincipalCountersReported": [],
+  "publicPerPrincipalCounterLines": {
+   "count": 0,
+   "lines": []
+  },
+  "quarryLines": 147,
+  "quarryCodeLines": 128,
+  "operations": 12,
+  "operationsByKind": {
+   "query": 5,
+   "mutation": 7,
+   "job": 0
+  },
+  "operationNames": [
+   {
+    "kind": "query",
+    "name": "roster",
+    "path": "snapback/schema.q",
+    "line": 64
+   },
+   {
+    "kind": "query",
+    "name": "unread",
+    "path": "snapback/schema.q",
+    "line": 68
+   },
+   {
+    "kind": "query",
+    "name": "following",
+    "path": "snapback/schema.q",
+    "line": 72
+   },
+   {
+    "kind": "query",
+    "name": "trending",
+    "path": "snapback/schema.q",
+    "line": 77
+   },
+   {
+    "kind": "mutation",
+    "name": "post",
+    "path": "snapback/schema.q",
+    "line": 80
+   },
+   {
+    "kind": "mutation",
+    "name": "like",
+    "path": "snapback/schema.q",
+    "line": 95
+   },
+   {
+    "kind": "mutation",
+    "name": "seedMembers",
+    "path": "snapback/schema.q",
+    "line": 98
+   },
+   {
+    "kind": "mutation",
+    "name": "seedMessages",
+    "path": "snapback/schema.q",
+    "line": 107
+   },
+   {
+    "kind": "mutation",
+    "name": "seedFollows",
+    "path": "snapback/schema.q",
+    "line": 119
+   },
+   {
+    "kind": "mutation",
+    "name": "seedPosts",
+    "path": "snapback/schema.q",
+    "line": 127
+   },
+   {
+    "kind": "mutation",
+    "name": "seedLikes",
+    "path": "snapback/schema.q",
+    "line": 137
+   },
+   {
+    "kind": "query",
+    "name": "search",
+    "path": "snapback/schema.q",
+    "line": 145
+   }
+  ],
+  "auxiliaryOperationsReported": [
+   "seedMembers",
+   "seedMessages",
+   "seedFollows",
+   "seedPosts",
+   "seedLikes"
+  ],
+  "reportingError": null
+ },
+ "quarryLines": {
+  "search": 47,
+  "following": 49,
+  "rosterUnread": 55,
+  "trending": 62
+ },
+ "numericLiterals": [
+  {
+   "file": "snapback/schema.q",
+   "line": 4,
+   "token": "64"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 14,
+   "token": "64"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 15,
+   "token": "64"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 16,
+   "token": "4000"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 40,
+   "token": "64"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 42,
+   "token": "4000"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 44,
+   "token": "0"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 45,
+   "token": "0"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 56,
+   "token": "64"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 64,
+   "token": "64"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 69,
+   "token": "4096"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 69,
+   "token": "0"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 74,
+   "token": "4096"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 80,
+   "token": "64"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 80,
+   "token": "4000"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 81,
+   "token": "0"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 81,
+   "token": "1"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 84,
+   "token": "64"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 89,
+   "token": "1"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 89,
+   "token": "0"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 89,
+   "token": "1"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 92,
+   "token": "1"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 92,
+   "token": "0"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 92,
+   "token": "1"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 95,
+   "token": "64"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 98,
+   "token": "64"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 98,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 98,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 98,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 100,
+   "token": "0"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 107,
+   "token": "64"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 107,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 107,
+   "token": "64"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 107,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 107,
+   "token": "4000"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 107,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 107,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 107,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 109,
+   "token": "0"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 115,
+   "token": "1"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 119,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 119,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 121,
+   "token": "0"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 127,
+   "token": "64"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 127,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 127,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 127,
+   "token": "4000"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 127,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 127,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 129,
+   "token": "0"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 134,
+   "token": "0"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 134,
+   "token": "1"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 137,
+   "token": "64"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 137,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 137,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 139,
+   "token": "0"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 145,
+   "token": "100"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 147,
+   "token": "256"
+  }
+ ],
+ "notes": {},
+ "checkFiles": [
+  "evidence/checks/001.log"
+ ],
+ "cardsRead": {
+  "README": {
+   "lookups": 5,
+   "lines": 2623
+  },
+  "language": {
+   "lookups": 9,
+   "lines": 0
+  },
+  "search": {
+   "lookups": 1,
+   "lines": 0
+  }
+ },
+ "boundVocabulary": {
+  "runLog": {
+   "bound": 1,
+   "cap": 0,
+   "ceiling": 0,
+   "meter": 0,
+   "complete": 0,
+   "incomplete": 0,
+   "cursor": 2,
+   "cut": 0,
+   "batch": 0,
+   "horizon": 0,
+   "lanes": 0,
+   "N_WIDE_MERGE": 0,
+   "N_NO_CURSOR": 0,
+   "N_NEVER_COMPLETE": 0,
+   "N_SPARSE_FILTER": 0,
+   "E_STRUCTURAL_FANOUT": 0,
+   "E_BOUND": 0
+  },
+  "finalReport": {
+   "bound": 3,
+   "cap": 0,
+   "ceiling": 1,
+   "meter": 1,
+   "complete": 2,
+   "incomplete": 1,
+   "cursor": 0,
+   "cut": 1,
+   "batch": 0,
+   "horizon": 0,
+   "lanes": 1,
+   "N_WIDE_MERGE": 0,
+   "N_NO_CURSOR": 0,
+   "N_NEVER_COMPLETE": 0,
+   "N_SPARSE_FILTER": 0,
+   "E_STRUCTURAL_FANOUT": 0,
+   "E_BOUND": 0
+  },
+  "total": {
+   "bound": 4,
+   "cap": 0,
+   "ceiling": 1,
+   "meter": 1,
+   "complete": 2,
+   "incomplete": 1,
+   "cursor": 2,
+   "cut": 1,
+   "batch": 0,
+   "horizon": 0,
+   "lanes": 1,
+   "N_WIDE_MERGE": 0,
+   "N_NO_CURSOR": 0,
+   "N_NEVER_COMPLETE": 0,
+   "N_SPARSE_FILTER": 0,
+   "E_STRUCTURAL_FANOUT": 0,
+   "E_BOUND": 0
+  }
+ },
+ "searchProtocol": "one-cursor",
+ "protocol": {
+  "kind": "one-cursor",
+  "operations": [
+   "search"
+  ],
+  "cursorArgs": [
+   "c"
+  ]
+ },
+ "followingShape": "merge-on-read",
+ "tables": 5,
+ "tablesIncludingMaintains": 6,
+ "jobs": 0,
+ "publicDerivedRules": {
+  "count": 2,
+  "lines": [
+   {
+    "table": "posts",
+    "file": "snapback/schema.q",
+    "line": 50,
+    "text": "public 'posts and their live like totals are public'"
+   },
+   {
+    "table": "posts",
+    "file": "snapback/schema.q",
+    "line": 52,
+    "text": "update <- allow"
+   }
+  ],
+  "declaredColumns": [
+   {
+    "table": "roomCounts",
+    "column": "value"
+   },
+   {
+    "table": "posts",
+    "column": "likes"
+   },
+   {
+    "table": "posts",
+    "column": "negativeLikes"
+   },
+   {
+    "table": "posts",
+    "column": "negativeAt"
+   }
+  ]
+ },
+ "measurementErrors": [],
+ "verify": {
+  "directory": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-GLALI6",
+  "acceptanceDirectory": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-dqe0jJ",
+  "probeDirectory": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-BMrCJY",
+  "check": {
+   "ok": false,
+   "status": 0,
+   "timedOut": true,
+   "error": null,
+   "tail": ""
+  },
+  "acceptance": {
+   "ok": false,
+   "status": 1,
+   "timedOut": false,
+   "error": null,
+   "tail": "\n> acceptance\n> node scripts/acceptance.mjs\n\nfile:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-dqe0jJ/scripts/acceptance.mjs:41\n    if(Date.now()>deadline)throw new Error(`dev startup timeout: ${text}`);\n                                 ^\n\nError: dev startup timeout: \n    at file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-dqe0jJ/scripts/acceptance.mjs:41:34\n\nNode.js v24.18.0\n"
+  },
+  "probes": {
+   "ok": false,
+   "checks": [
+    {
+     "name": "setup",
+     "ok": false,
+     "error": "Error: dev startup timeout: \n    at startServer (file:///Users/ccheever/projects/snapback-w13-record/snapback4/loopbar/bounds-probes.mjs:32:11)\n    at async probeBounds (file:///Users/ccheever/projects/snapback-w13-record/snapback4/loopbar/bounds-probes.mjs:186:14)\n    at async verifyBounds (file:///Users/ccheever/projects/snapback-w13-record/snapback4/loopbar/bounds.mjs:41:66)\n    at async main (file:///Users/ccheever/projects/snapback-w13-record/snapback4/loopbar/bounds.mjs:111:54)\n    at async file:///Users/ccheever/projects/snapback-w13-record/snapback4/loopbar/bounds.mjs:126:85"
+    }
+   ],
+   "runtimeBounds": "see top-level runtimeBounds"
+  },
+  "ok": false
+ },
+ "verificationSeconds": 603.635,
+ "runtimeBounds": {},
+ "loopBarComparison": {
+  "wallAtMost1200": true,
+  "snapbackAttributedAtMost1": true
+ },
+ "totalSeconds": 1514.113
+}

@@ -1,6 +1,6 @@
 # Snapback 4: a merge over a unique index that does not end in `id` silently skips a row when two lanes share an ordering key
 
-Status: Open
+Status: Closed (2026-09-17, wave 13 lane W13a)
 Priority: P1 (rows silently missing from an answer certified `complete: true`; no diagnostic; reachable with an ordinary non-unique index that merely omits `id`; the paved `…, at, id` indexes are not affected)
 Date: 2026-09-17
 Systems: `merge` pagination (eager and lazy paths), merge cursors, `E_CURSOR_INDEX`, `rules::lazy_merge`
@@ -84,5 +84,15 @@ silent loss for a merge.
 
 Either way, add the regression above on the server and both device stores, for
 the eager path and the lazy path at ≤ 8 and > 8 lanes (the batch size differs).
-The ruling-26 design (LLP 3000.007 §20.22.5, drafted 2026-09-17) depends on this: its drain-cut
-continuation is only correct when the merged suffix identifies a row.
+The ruling-26 design depends on this: its drain-cut continuation is only correct
+when the merged position identifies a row.
+
+**Fix specified (2026-09-17):** [LLP 3000.007.000](../llp/3000.007.000-merge-position-and-drain-cut-continuation.spec.md)
+§1 item 1 (D0.1) — option 1 above, as *append-if-missing* and confined to the
+**merge** position (a direct page's token does not change) — with its acceptance in
+§6 (D5.6). Two blind review families verified the premise on all three stores.
+Built by wave 13's first engine lane (LLP 3000.007 §20.22.1).
+
+## Resolution (2026-09-17)
+
+Fixed by wave 13's lane W13a: the merge position carries the stored row id when the suffix lacks it (LLP 3000.007.000 §1 item 1, D0.1); probes return 4 of 4 and 3 of 3 on the server and both device stores. Regressions in `crates/snapback4-sim/tests/common/merge_continuation.rs`, registered for the server and both device stores.

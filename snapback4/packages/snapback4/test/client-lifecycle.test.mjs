@@ -1289,3 +1289,37 @@ for (const tier of ["wasm", "native"]) {
     assert.equal(aborted, true, "closing a client cancels every sync request");
   });
 }
+
+for (const scenario of [
+  { name: "cursorless", cut: null, unknown: false, requests: 0 },
+  { name: "meter", cut: "meter", unknown: false, requests: 0 },
+  { name: "words", cut: "words", unknown: false, requests: 0 },
+  { name: "missing fact", cut: null, unknown: true, requests: 1 },
+  { name: "presence", cut: null, unknown: true, requests: 1 },
+  { name: "offline missing fact", cut: null, unknown: true, offline: true, requests: 0 },
+  { name: "held", cut: null, unknown: true, held: true, requests: 0 },
+  { name: "retained", cut: null, unknown: true, retained: true, requests: 0 },
+  { name: "pending predictable write", cut: null, unknown: true, pending: true, requests: 0 },
+]) test(`W13b fallback boundary: ${scenario.name}`, async t => {
+  const backend = { ...emptyBackend, schema: { tables: {}, operations: { read: { runs: "device", held: !!scenario.held } } } };
+  const device = emptyDevice({ call: async request => {
+    if (request.op === "backend") return { ok: backend };
+    if (request.op === "query") return { ok: { data: ["device"], complete: false, cut: scenario.cut, unknown: scenario.unknown, retained: !!scenario.retained, tables: [] } };
+    if (request.op === "queued" && scenario.pending) return { ok: [{ id: "pending", observed_seq: null, predictable: true, predicted: [] }] };
+  } });
+  const requests = []; let offline = false;
+  const client = await createLocalClient({ url: "http://fallback.invalid", persona: "alice", device: device.opener, fetch: async input => {
+    const path = new URL(input).pathname;
+    if (offline) throw new Error("offline");
+    if (path === "/schema") return Response.json(backend);
+    if (path === "/sync") return Response.json({ snapshot: true, events: [], watermark: 0, more: false, generation: 1 });
+    if (path === "/q/read") { requests.push(path); return Response.json({ data: ["server"], complete: true, cut: null }); }
+    throw new Error(`unexpected request ${path}`);
+  } });
+  t.after(() => client.close());
+  if (scenario.offline) { offline = true; await client.sync(); }
+  const read = await client.query(query("read"), {});
+  assert.equal(requests.length, scenario.requests, `the ${scenario.name} /q/ request log is ${JSON.stringify(requests)}`);
+  assert.deepEqual(read.data, [scenario.requests ? "server" : "device"]);
+  assert.equal(read.complete, !!scenario.requests);
+});

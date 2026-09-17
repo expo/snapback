@@ -5,10 +5,12 @@
 mod papercuts;
 mod following;
 mod merge_cursor;
+mod merge_continuation;
 mod trending;
 mod grace_effects;
 mod search_global;
 mod read_cut;
+mod digest;
 mod search_directory;
 
 use snapback4_core::engine::{Context, Engine, WriteState};
@@ -1266,7 +1268,7 @@ fn clique_trending_ranks_the_whole_day_and_marks_a_day_past_the_ceiling_incomple
     let cut = large.query("trending", Context::new("dev:alice", args(&[])).at(now)).unwrap();
     assert!(!cut.complete, "an incomplete population cannot claim the true top ten");
     assert_eq!(cut.capped_at.as_ref().map(|(kind, _)| *kind), Some(snapback4_core::error::MeterKind::Examined));
-    assert_eq!(cut.data.as_array().unwrap().len(), 10);
+    assert_eq!(cut.data, Value::Null, "the oversized scan leaves no budget for trustworthy count projections");
 }
 
 const PROBE_EQUALITIES: &str = include_str!("fixtures/probe-equalities.q");

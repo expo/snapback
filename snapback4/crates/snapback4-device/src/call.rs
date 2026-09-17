@@ -85,6 +85,7 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
             "query" => {
                 let args = request.get("args").cloned().unwrap_or(json!({}));
                 let now = request.get("now").and_then(Json::as_i64).unwrap_or(0);
+                // `unknown` names server-only knowledge (missing facts or presence), not every incomplete answer.
                 let (result, unknown, retained, components) = device.query_with_components(text(&request, "name")?, text(&request, "viewer")?, &args, now);
                 match result {
                     Ok(outcome) => {

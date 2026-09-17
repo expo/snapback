@@ -1,6 +1,6 @@
 # Snapback 4: a merge's `next` survives when a non-uniform read runs later in the same query
 
-Status: Open
+Status: Closed (2026-09-17, wave 13 lane W13a)
 Priority: P3 (an invariant LLP 3000.007 §20.3 states is enforced only in one statement order; no cross-world leak demonstrated)
 Date: 2026-09-17
 Systems: `merge_can_continue`, `record_page`, `Runner::next_cursor`, `Engine::query` outcome
@@ -41,3 +41,12 @@ when the page is recorded: for the non-uniform class on the server, a merge's
 (§5.6: a non-uniform direct page does carry `next` after its last rule-visible
 row). Regression: both statement orders, paired worlds, server and both device
 stores (a device does not set `non_uniform` for synced tables).
+
+**Fix specified (2026-09-17):** [LLP 3000.007.000](../llp/3000.007.000-merge-position-and-drain-cut-continuation.spec.md)
+§3 item 4 (D2.4): the traversal records a continuation *candidate*; the outcome
+publishes it for a merge owner unless the whole answer is the server's
+non-uniform class. Acceptance: §6 (D5.7). Built by wave 13's first engine lane.
+
+## Resolution (2026-09-17)
+
+Fixed by wave 13's lane W13a: a merge owner's continuation is published when the outcome is built, withheld for the server's non-uniform class in both statement orders (LLP 3000.007.000 §3 item 4, D2.4). Regressions in `crates/snapback4-sim/tests/common/merge_continuation.rs`, registered for the server and both device stores.

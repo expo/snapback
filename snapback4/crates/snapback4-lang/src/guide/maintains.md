@@ -99,16 +99,24 @@ valid across ordinary writes in that generation; scores can move between pages. 
 appear: an unliked post does not acquire a zero-like candidate. Author
 attribution remains a validated source field, with no automatic join.
 
-A UTC day is not a rolling 24-hour window. The scheduled Trending recipe
-on guide feeds includes zero-like posts and keeps likes predictable: only
-the schedule writes ranked rows, from non-expiring counts and post time.
-Its window is over posts, not recent likes on older posts; scores lag by
-one schedule period plus execution/sync delay. The live bounded query on
-that card gives an immediate answer, incomplete when the meter cuts it.
-A value-order index over an expiring source is refused: use a live bounded
-query or the scheduled ranked-table recipe. Unranked expiring aggregates
-recompute live contributions before the sweep; every expiring maintain uses
-an internal selected-group/source-id index. Zero-sum occupancy uses one entry. Large live groups can still be incomplete at the meter.
+A UTC day is not a rolling 24-hour window. For posts younger than a day,
+group non-expiring likes by hour(.postAt), postAt, postId, index hour, value,
+id, and merge the last 25 hours with `where .postAt > now - 86400000`:
+guide feeds gives the validated source rule, full query and zero-like fill.
+Whole old buckets are never visited; rejected rows in the oldest included
+hour still cost examinations. For contributions arriving in the last day on
+posts of any age, its `rollingLikes()` sorts live counts at read time;
+a meter cut makes that bounded ranking incomplete. The optional scheduled
+ranked-table recipe buys a job-computed score or stored device page, with
+delayed scores. A value-order index over an expiring source remains refused:
+the sweep updates physical aggregates and indexes transactionally, but live
+values change before the sweep, so stored top-N can miss a winner.
+Unranked expiring aggregates recompute live contributions before the sweep;
+every expiring maintain uses an internal selected-group/source-id index.
+Zero-sum occupancy uses one entry. If the meter interrupts a live group or a
+maintained point lookup, the Quarry query returns `data: null, complete: false`
+without a continuation; an unfinished count is neither zero nor a partial total.
+A missing group still reads as zero when its lookup completes.
 
 An inherited aggregate has no horizon and remains until-revoked even when its
 source retains delivered-history. After leave, retained source rows are

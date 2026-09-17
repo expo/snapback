@@ -174,12 +174,16 @@ fn trending_card_ranks_the_day_and_reports_a_cut_set() {
     let cut = engine.query("trendingNow", context()).unwrap();
     assert!(!cut.complete);
     assert_eq!(cut.data.as_array().unwrap().len(), 10);
+    assert_eq!(cut.data.as_array().unwrap()[0].field("id").unwrap(), &Value::Id("popular".into()));
+    for row in cut.data.as_array().unwrap() {
+        assert_eq!(row.field("likes").unwrap(), &Value::Int(i64::from(row.field("id").unwrap() == &Value::Id("popular".into()))));
+    }
     println!("trending: complete-day rows={}, examined={}; cut-day population=8202, returned={}, examined={}, complete={}", rows.len(), result.metered.examined, cut.data.as_array().unwrap().len(), cut.metered.examined, cut.complete);
 }
 
 #[test]
 fn trending_card_finds_winners_after_200_and_1000_candidates_without_hiding_its_ceiling() {
-    use snapback4_core::{Context, Engine, Value, error::MeterKind, value::object};
+    use snapback4_core::{Context, Engine, Value, value::object};
     use snapback4_lang::guide::{card, quarry};
     use std::collections::BTreeMap;
     let block = quarry(card("feeds").unwrap()).into_iter().find(|block| block.contains("query trendingNow()")).unwrap();
@@ -206,8 +210,11 @@ fn trending_card_finds_winners_after_200_and_1000_candidates_without_hiding_its_
     engine.seed(likes(8192, 5)).unwrap();
     let cut = engine.query("trendingNow", context()).unwrap();
     assert!(!cut.complete, "sorting and slicing a capped population cannot claim exact ranking");
-    assert_eq!(cut.capped_at.as_ref().map(|(kind, _)| *kind), Some(MeterKind::Examined));
+    assert_eq!(cut.capped_at, None, "the candidate bound leaves enough meter for exact prefix scores");
+    assert_eq!(cut.metered.examined, 8191);
     assert_eq!(ids(&cut.data).len(), 10);
-    assert!(!ids(&cut.data).contains(&Value::Id("p08192".into())), "the true winner is outside this recipe's examined ceiling");
+    assert_eq!(ids(&cut.data)[..2], expected[..2]);
+    assert_eq!(cut.data.as_array().unwrap().iter().map(|row| row.field("likes").unwrap().as_int().unwrap()).collect::<Vec<_>>(), [4, 3, 0, 0, 0, 0, 0, 0, 0, 0]);
+    assert!(!ids(&cut.data).contains(&Value::Id("p08192".into())), "the true winner is outside this recipe's candidate bound");
     println!("adversarial trending: exact population=1500 ids={:?} examined={}; capped population=8193 missing winner=p08192 examined={} complete={}", ids(&page.data), page.metered.examined, cut.metered.examined, cut.complete);
 }

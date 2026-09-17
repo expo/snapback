@@ -22,7 +22,8 @@ pub(super) struct Frame {
 impl Frame {
     fn coverage(&self) -> Coverage {
         let other = self.unknown || self.non_uniform || self.overflow || self.words || self.presence || self.capped;
-        Coverage { complete: !other && !self.beyond, unknown: self.unknown, retained: self.retained && !other }
+        // @ref LLP 3000.007#20.22.1 — presence is server knowledge: a component that waited on it is unknown, not merely incomplete.
+        Coverage { complete: !other && !self.beyond, unknown: self.unknown || self.presence, retained: self.retained && !other }
     }
 }
 

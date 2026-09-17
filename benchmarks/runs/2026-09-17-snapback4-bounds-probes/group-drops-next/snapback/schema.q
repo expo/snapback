@@ -37,3 +37,15 @@ query both(c: cursor ?):
   page = merge messages after c last 4 by byRoomTime:
     [m.roomId] for m in members[viewer] first 50 by byPrincipalRoom
   return { page, groups: group(page, 'roomId') { roomId: .key, n: count(.items) } }
+
+-- another row-preserving helper
+query sorted(c: cursor ?):
+  page = merge messages after c last 4 by byRoomTime:
+    [m.roomId] for m in members[viewer] first 50 by byPrincipalRoom
+  return sort(page, 'at') { id, at }
+
+-- a shape alone (no helper) over the bound page
+query shaped(c: cursor ?):
+  page = merge messages after c last 4 by byRoomTime:
+    [m.roomId] for m in members[viewer] first 50 by byPrincipalRoom
+  return page { id, at }

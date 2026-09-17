@@ -274,10 +274,15 @@ mutation edit(messageId: messages, body: text <=4000):
   are one field on insert, `expiresAt: now + ttl if ttl != null else
   null` with `ttl: int ?`; nothing else to write. A `maintain` over an
   expiring table recomputes its live source group at read time, before the
-  sweep; a partial device or a meter cut reports `complete: false`.
+  sweep; a partial device reports `complete: false`. If the meter interrupts
+  a maintained lookup or live group, the query returns `data: null,
+  complete: false`, without substituting zero or a partial total.
   Value-order indexes over expiring sources are refused
-  (`E_QUARRY_MAINTAIN_EXPIRE`); `guide feeds` gives the scheduled Trending
-  recipe with predictable likes and an explicit score lag.
+  (`E_QUARRY_MAINTAIN_EXPIRE`): live values change before the physical sweep,
+  so stored top-N can miss a winner. For a window over the entity's own
+  immutable time, `guide feeds` gives hour lanes over a non-expiring source;
+  for contributions arriving in the window, its live bounded `rollingLikes()`
+  read remains necessary, and a candidate or contribution scan cut makes it incomplete.
 
 ### Write authority
 
@@ -438,12 +443,18 @@ it. Ordinary writes keep it valid; rows can move between pages. Only existing no
 appear. Author attribution stays a source field. A value-order page pins
 every group field before value in its index;
 value, id alone gives a global ranking. A UTC day is not a rolling
-24-hour window: the scheduled Trending recipe on `guide feeds` includes
-zero-like candidates and keeps likes predictable, with scores lagging one
-schedule period plus execution/sync delay. It ranks likes on posts younger
-than 24 hours, not recent likes on older posts. Value ordering over an
-expiring source is refused; live unranked reads still recompute selected,
-unexpired contributions.
+24-hour window: for posts younger than a day, `guide feeds` groups
+non-expiring likes by `hour(.postAt), postAt, postId` and merges the last
+25 hour lanes ordered by `hour, value, id`, filtering the exact time edge.
+It includes the validated copied-time insert rule and a zero-like fill;
+ties use maintained id, and groups persist as long as any like remains.
+Whole old buckets are skipped, but rejected candidates in the oldest
+included hour still consume the meter. For likes arriving in the last day
+on posts of any age, `rollingLikes()` still sorts live counts at read time;
+a cut makes that bounded ranking incomplete. Value ordering over an
+expiring source remains refused because stored order is stale between
+expiry and the sweep. The optional scheduled recipe buys a job-computed
+score or stored device page, with delayed scores.
 
 A maintain inherits source sync only when every audience column survives as
 a bare key, with no target horizon. It stays until-revoked even when its source
@@ -565,16 +576,24 @@ charged to that chunk's meter. Writes belong inside a chunk.
   `by` after an unparenthesized inner read refuses `E_QUARRY_MODIFIER_SCOPE`:
   parenthesize the inner read, or move the modifier before `where`.
   `check --fix` adds parentheses to preserve the inner index. A lone next-column comparison
-  lowers to a seek with N_SEEK. A full page's cursor is after its last result;
-  a cut page continues after the last rule-visible examined row, including a
+  lowers to a seek with N_SEEK. A full direct page's cursor is after its last result;
+  a cut direct page continues after the last rule-visible examined row, including a
   filter rejection, never a hidden row. Non-uniform ranges stay incomplete.
-  Merged pages return no `next` for a non-uniform read or a meter or word-limit
-  cut, because a shared cursor cannot advance past an unfinished lane.
+  Merged pages return no `next` for a non-uniform answer, an opening cut or a
+  word-limit cut. A uniform lazy merge cut while draining established heads
+  carries `next` after its last emitted row, with `complete: false, cut: 'meter'`.
+  Its position appends the row id unless the ordering suffix already ends in
+  `id`, so equal ordering values never skip rows. Following a cut page keeps
+  the aggregate incomplete in `usePage`.
+  An older merge token missing that id is refused; restart the walk. Existing
+  id-ending merge tokens and direct-page tokens keep their encoding.
   A uniform filtered scan is complete at N matches or the range's end, even
   without a cursor; a meter cut is incomplete. A merge header's `where`
   applies the predicate in every lane before emission; a cut predicate never
   emits its unchecked row. Filtered merges retain the merge's cursor rules:
   use `after c` for a complete page when more matches exist.
+  Reads inside a predicate are below its page: an inner top-N does not make
+  the outer answer incomplete or take its cursor; an inner meter cut still does.
 - **List operations:** pages, lists, and shaped collections share `sort`,
   `slice`, `count`, `sum`, `group`, `first`, `last`, `at`, `join`, and `for`,
   subject to their element types. Aggregating a page aggregates that page;
@@ -660,15 +679,15 @@ table invites:
   sentAt: time
   reminded: bool
   by byInvitee: inviteeId, id
+  by bySentAt: sentAt, id
+  immutable sentAt
   read <- .inviteeId = viewer
   insert <- deny
   update <- deny
   delete <- deny
 
 job remind(periodStart: time, periodEnd: time):
-  chunk i in invites first 100 by byId:
-    if i.sentAt >= periodEnd:
-      break
+  chunk i in invites[sentAt >= periodStart, sentAt < periodEnd] first 100 by bySentAt:
     if not i.reminded:
       update invites[i.id] { reminded: true }
 schedule remindDaily every 1d at 08:00: remind          -- or: every 2m
@@ -684,11 +703,12 @@ restart resumes at the next one; the index's columns are `id` or
 the key captured when the sweep began are not visited. `break` ends the
 sweep, `return` the job; a refused chunk parks the job with its refusal
 (`snapback4 doctor` lists runs). No client calls a job. A schedule fires
-it once per period boundary of the server's clock (`every 2m`, `every
-1h`, `every 1d at 08:00`; the shortest period is 1m), exactly once per
-boundary across restarts, passing `periodStart` and `periodEnd` when the
-job declares them (and nothing else); a schedule first seen fires from
-its next boundary. A job in `snapback/jobs.q` is named `jobs.<name>` in
+it at a period boundary of the server's clock (`every 2m`, `every
+1h`, `every 1d at 08:00`; the shortest period is 1m), never twice for the
+same boundary across restarts, passing `periodStart` and `periodEnd` when
+the job declares them (and nothing else). Boundaries missed while the
+server was down coalesce into one run for the latest period; a schedule
+first seen fires from its next boundary. A job in `snapback/jobs.q` is named `jobs.<name>` in
 every schedule; `schema.q` jobs use bare names. `check --fix` qualifies an
 unambiguous bare module job. `snapback4 run <job> '{..}'` runs one here and now.
 Jobs are not on `api.ts`.
@@ -886,9 +906,11 @@ admitted non-uniform scope keeps its per-row costs and stays incomplete;
 hidden rows there still spend the query-wide examined/index-entry budget.
 The 32-word bound makes that lane incomplete without cutting later lanes;
 operator results name it in `word_cut_at`, separately from a meter cut in `capped_at`.
-Merged pages withhold `next` for a non-uniform read or a meter or word-limit
-cut, including a non-uniform read within budget, so cursor presence cannot
-reveal hidden-row costs.
+Merged pages withhold `next` for a non-uniform answer, an opening cut or a
+word-limit cut, including a non-uniform read within budget or after the merge,
+so cursor presence cannot reveal hidden-row costs. A uniform lazy merge cut
+while draining established heads carries `next` after its last emitted row;
+the page stays `complete: false, cut: 'meter'`.
 Reads inside `where` use their own rules and search terms. An empty
 matching result past a device horizon is incomplete too, so a held group
 can fall back to the server.
@@ -929,7 +951,7 @@ search over held messages working but reports `complete: false`, including
 empty searches; online, use the scoped server walk for full history.
 The card records whole-walk costs, horizon measurements, the 32-word
 limit (global on the device, per chat on the server), and the per-reader
-copy cost. A meter-cut matching merge cannot be continued with a result
+copy cost. This eager matching batch's opening cut cannot be continued with a result
 cursor alone. The card intentionally documents N_NO_HORIZON for full sync.
 With horizon-free sources, `check` reports horizon-free source coverage for
 `searchHeld`. Answer completeness still depends on runtime authorization,
@@ -944,6 +966,10 @@ device-only: `check` explains it, and `dev`, `serve` and `run` refuse
 E_QUERY_HELD with a rewrite pointing to the scoped server walk on `guide search`.
 The local clients answer it online or offline without server fallback, even
 at a horizon or cut. `held` does not acquire data or promise completeness.
+For ordinary device reads, online fallback asks the server only for a missing
+fact or unknown presence; a meter or word cut and a cursorless page stay local,
+as do held queries and retained left groups, and pending predictable writes
+still prevent fallback.
 
 ### Effects
 
@@ -998,8 +1024,91 @@ refused mutation emits nothing), and a worker — a process the
 application runs with a service token, §4 — performs it and settles it.
 A failure follows its declared policy (eight attempts by default); a worker that dies
 loses its lease and the effect is claimed again; two workers never hold
-one effect. `snapback4 doctor` counts them. A scheduled job that emits
-once per period is the digest recipe.
+one effect. `snapback4 doctor` counts them.
+
+For a digest, **seek the period, filter the ordinal**. The complete recipe
+below shares `unreadIn` with the viewer's inbox for the same period and walks
+each recipient's own memberships; the job may read expiring messages directly.
+`snapback4 guide jobs` explains the 16,384-examined chunk envelope, the measured
+hub, the single totals-table fallback past it, and restart/re-run behavior.
+Emits commit with the chunk cursor, but queueing a parked run again or manually
+running the same period creates another run and can emit again. Use
+`(targetUserId, periodEnd)` as the worker's idempotency key, or an emission marker.
+
+```quarry
+use personas alice, bob, carol
+effect push
+
+table profiles:
+  principal: principal
+  unique byPrincipal: principal
+  public 'profiles are public'
+  insert <- .principal = viewer
+
+table conversations:
+  title: text <=80
+  read <- exists members[.id, viewer]
+  insert <- allow
+  after insert <- exists members[.id, viewer]
+  sync to members[.id]
+
+table members:
+  conversationId: conversations
+  principal: principal
+  readOrdinal: int default 0
+  unique byConversationPrincipal: conversationId, principal
+  by byPrincipalConversation: principal, conversationId, id
+  cap 50 by conversationId
+  cap 1000 by principal
+  immutable conversationId, principal
+  read <- exists members[.conversationId, viewer]
+  insert <- exists members[.conversationId, viewer] or created conversations[.conversationId]
+  update <- .principal = viewer
+  delete <- .principal = viewer
+  sync to members[.conversationId]
+
+table messages:
+  conversationId: conversations
+  senderId: principal
+  ordinal: int
+  body: text <=4000
+  tombstone: bool default false
+  at: time
+  expiresAt: time ?
+  unique byConversationOrdinal: conversationId, ordinal
+  by byTime: at, id
+  by byConversationTime: conversationId, at, id
+  by byExpiresAt: expiresAt
+  immutable conversationId, senderId, ordinal, at
+  read <- exists members[.conversationId, viewer]
+  insert <- .senderId = viewer and exists members[.conversationId, viewer]
+  update <- .senderId = viewer
+  expire at .expiresAt
+  sync last 500 by byConversationOrdinal
+
+fn unreadIn(conversationId: conversations, reader: principal, readOrdinal: int, periodStart: time, periodEnd: time):
+  return count(messages[conversationId, at >= periodStart, at < periodEnd] first 100 by byConversationTime where not .tombstone and .senderId != reader and .ordinal > readOrdinal)
+
+query inbox(periodStart: time, periodEnd: time):
+  rows = []
+  for m in members[viewer] first 1000 by byPrincipalConversation:
+    rows = rows + [{ conversationId: m.conversationId, unread: unreadIn(m.conversationId, viewer, m.readOrdinal, periodStart, periodEnd) }]
+  return rows
+
+job digest(periodStart: time, periodEnd: time):
+  chunk p in profiles first 1 by byId:
+    unread = 0
+    chats = 0
+    for m in members[p.principal] first 1000 by byPrincipalConversation:
+      n = unreadIn(m.conversationId, p.principal, m.readOrdinal, periodStart, periodEnd)
+      if n > 0:
+        chats = chats + 1
+        unread = unread + n
+    if unread > 0:
+      emit push { targetUserId: p.principal, kind: 'digest', periodStart, periodEnd, unread, chats }
+schedule daily every 1d at 08:00: digest
+```
+
 When presence decides only effects, no live poll but an unexpired grace
 queues the push for the grace deadline: up to 35 seconds. `doctor` reports the
 deferred count and next deadline; `GET /effects` shows each deadline as `nextAt`.
@@ -1072,6 +1181,12 @@ and write 8,192). A query past a ceiling returns what it found with
 `complete: false`; a mutation aborts with `E_BOUND` naming the ceiling
 and the site. `snapback4 check --cost` prints each site's structural
 class; `snapback4 test` prints the numbers, including heap bytes, on your data.
+It also names query/persona reads past half any ceiling without a cut, showing
+at most ten and a count of the rest. Loopback `dev` logs actual meter and word
+cuts with the operation, principal, site, counters and `snapback4 why <op>`;
+repeats are suppressed per operation and site (at most two lines per minute),
+with the suppressed count on the next emitted line. `serve` neither logs these
+costs nor returns read meters.
 
 Heap is a cumulative allocation and binding budget: constructed values,
 concatenation and other allocating builtins, local bindings, and owned
@@ -1080,6 +1195,8 @@ map clones share their immutable image. A heap cut stops a query immediately
 with `data: null`, `complete: false`, and no continuation, since an interrupted
 scalar or shape has no valid partial answer. Its cut site remains internal;
 the meter is available only through dev's default read inspection (§4).
+An unfinished maintained lookup or live aggregate uses the same unavailable
+query result, preserving zero only for a completed missing-group lookup.
 A mutation rolls back with `E_BOUND` as above.
 `sha256(text)` charges the step meter by the input's UTF-8 byte length plus
 one before hashing and charges its fixed 64-byte text result to the heap meter.
@@ -1658,22 +1775,58 @@ arrive. Its five-follow and celebrity-plus-four readers acquire 52,915 and
 52,866 rows, with 0 and 1 own pulls respectively. The feeds card records
 the exact prediction boundary and acquisition tradeoff.
 
-The feeds card also retains the ranked-feed and Trending recipes: a job
-scores the shared pool into `ranked`, and the device composes it with the
-reader's own signals. Trending's `create` and `like` write only their source
-rows and predict when their required data is held; no mutation updates
-another author's post or ranking row. The schedule alone writes `ranked`
-from non-expiring like counts and post time every minute. Both the scheduled
-and immediate queries break equal-score, equal-time ties by post id; the
-ranked row's separately minted id is the final stored ordering key. Scores and new
-candidates lag by one period plus queue, execution and sync delay; chunks
-commit independently. Candidates expire at post time plus 24 hours before
-any sweep. This is a post-time window, not recent likes on older posts.
-The immediate `trendingNow` alternative is incomplete when the day's posts
-or nested reads exceed the meter; a complete ranked page does not certify
-score freshness.
+The feeds card's first Trending answer ranks posts younger than a day in
+the like's own transaction: a value-indexed maintain merges 25 hour lanes,
+with the exact trailing edge in `where`. It has one cursor for liked posts
+and a separate bounded zero-like fill when the first page is short; score
+changes can move rows between pages, so the cursor is not a snapshot.
+The source rule pins principal to viewer, validates the copied post time,
+keeps the pair unique and immutable, and admits the viewer's unlike.
+No declared mutation accepts a score, time or hour. Ties use maintained id;
+the maintain cannot expire or be capped, so historical liked groups stay.
+With no source sync it is server-run; adding `sync public` on posts and
+likes gives device reads and eligible likes after acquisition, with the
+`N_MAINTAIN_SYNCED` disclosure that every group reaches every device.
+`check --residency --verbose` shows the exact sites on the card.
+
+For likes arriving in the trailing day on posts of any age, `rollingLikes()`
+keeps the bounded live sort and sees expiry before a sweep on both device
+stores. It selects at most 4,095 groups, paying one examination per group plus
+its source rows under the shared 8,192 examined ceiling. Exceeding the candidate
+bound returns accurately scored prefix winners with `complete: false`; an
+unfinished count or the separate 16 MiB heap cut returns `data: null,
+complete: false`. The default keeps these expiring likes private, reads on the
+server and syncs only the last 2,000 posts on acquisition. Its public-like
+variant explicitly removes that horizon and replicates full sources and count
+groups, so both device stores can recompute expiry offline. A bounded post
+sort such as `trendingNow()` pays two examinations per post plus any live
+contributions; large post bodies can hit heap before its 4,095 candidate bound
+(the 6,000-byte-body fixture fits 1,000 and cuts at 2,700). These bounds do not
+apply to the indexed hour-lanes recipe. Remote writes still require sync.
+The optional scheduled ranked-table recipe buys a score
+computed by a job, such as a native scorer, or a stored page for a device
+that cannot hold the maintain; it is neither fresh nor exact.
 The card's `vote` predicts its first offline upsert when the post is held;
 the viewer's votes have no horizon and are capped at 1,000 per viewer.
+
+## N_PUBLIC_AGGREGATE_COPY: a public copy keeps ordinary write authority
+
+N_PUBLIC_AGGREGATE_COPY is a note, not an error. A public column is assigned
+directly from a declared `maintain`, but `insert <- allow` or `update <- allow`
+(or a provably unrestricted equivalent) lets any principal set it through any
+mutation that writes it. The column duplicates an aggregate the engine already
+keeps. Read the maintain directly, or restrict both insert and update authority
+so callers cannot choose the copied value. The fresh bounded Trending recipe
+in `guide feeds` reads live counts and has no writable ranking table or copied score.
+
+The client calls declared operations, not arbitrary table writes. This note
+identifies latent table permission, not proof that a current mutation accepts
+an arbitrary score. It covers direct scalar maintain-to-column assignments in
+programs and helpers, including jobs, once per column and maintain. It does not
+infer copies from names, matching group keys, increments, aliases or arithmetic.
+Restricted rules, private targets and immutable columns do not receive it;
+absence of the note is not a proof that a ranking cannot be forged. Sync and
+`online only` do not change write authority.
 
 ## Client and operations reference
 

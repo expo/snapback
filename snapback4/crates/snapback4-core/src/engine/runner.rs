@@ -30,10 +30,11 @@ pub(crate) struct PagePosition {
     pub order: Order,
     pub prefix_len: usize,
     pub prefix: Option<Vec<Value>>,
+    pub merge: bool,
     /// A collector exited with rows still unconsumed, even on a short page.
     pub interrupted: bool,
-    /// The suffix values of the last returned row, if another visible row
-    /// followed it (else the page is the last one).
+    /// Raw continuation candidate. Merge candidates include the row id and
+    /// survive later cuts; outcome publication applies the final read class.
     pub next: Option<Vec<Value>>,
 }
 
@@ -173,9 +174,9 @@ impl<'a> Runner<'a> {
             .filter(|fact| self.device && fact.connected_effects_only && fact.predicts.as_deref() == Some("eligible"))
             .map(|fact| fact.prediction_guards.iter().cloned().collect()).unwrap_or_default();
         // @ref LLP 3000.007#5.0 — charge allocations before admitting the relaxed forms.
-        // A heap cut cannot invent a partial scalar/shape or a continuation.
-        // Unwind immediately; both query hosts publish null, incomplete, with
-        // the private capped_at recorded by Meter::heap (LLP 3000 §7).
+        // A heap or maintained-value cut cannot invent a scalar/shape or a
+        // continuation. Both Quarry query hosts publish null, incomplete,
+        // with the private capped_at recorded by the meter (LLP 3000 §7).
         let result = (|| {
             self.prepare_effect_presence(program)?;
             for value in self.context.args.values() { self.meter.heap(value.clone_heap_bytes())?; }
@@ -184,7 +185,8 @@ impl<'a> Runner<'a> {
         match result {
             Ok(Flow::Return(value)) => Ok(value),
             Ok(_) => Ok(Value::Null),
-            Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, .. }) if self.meter.cut == Cut::Cap => {
+            Err(RuntimeError::Bound { kind, .. }) if self.meter.cut == Cut::Cap
+                && (kind == MeterKind::HeapBytes || self.meter.capped_at.as_ref().is_some_and(|cut| cut.0 == kind)) => {
                 self.page = None;
                 Ok(Value::Null)
             }

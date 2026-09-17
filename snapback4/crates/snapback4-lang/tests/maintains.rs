@@ -123,12 +123,67 @@ fn maintain_identity_literals_and_scoped_rank_prefix() {
 }
 
 #[test]
-fn expiring_rank_rewrite_names_the_predictable_scheduled_trending_recipe() {
+fn expiring_rank_rewrite_routes_by_window_intent() {
     let source = SOURCE.replace("  at: time", "  until: time\n  by byUntil: until\n  expire at .until\n  at: time");
     let bound = snapback4_lang::compile(&[("expiry.q".into(), format!("{source}\nmaintain totals: count posts by author\n  read <- allow\n  by byCount: value, id\n"))]);
     let diagnostic = bound.diagnostics.iter().find(|d| d.code == "E_QUARRY_MAINTAIN_EXPIRE").unwrap();
     println!("{diagnostic}");
-    assert_eq!(diagnostic.message, "maintain totals cannot order by value because source posts expires");
+    assert_eq!(diagnostic.message, "maintain totals cannot order by value because source posts expires: stored order is stale before the physical sweep, so taking stored top-N can miss a live winner; a count upper-bound threshold scan is not built");
     assert_eq!(diagnostic.guide, "feeds");
-    assert_eq!(diagnostic.rewrite, "use a live bounded query, or guide feeds' scheduled Trending recipe: like writes only likes; the schedule scores ranked from non-expiring likeCounts and post time, with one-period score lag");
+    assert_eq!(diagnostic.rewrite, "for a window over the entity's own immutable time, use guide feeds' hour-lanes Trending over a non-expiring source; for contributions arriving in the window, use its live bounded rollingLikes read: a candidate or contribution scan cut makes the ranking incomplete");
+}
+
+#[test]
+fn fresh_trending_has_no_writable_score_and_an_explicit_public_device_variant() {
+    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).into_iter()
+        .find(|s| s.contains("query rollingLikes():")).unwrap();
+    let private = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+    assert!(private.diagnostics.is_empty() && private.notes.is_empty());
+    assert!(!private.schema.tables.contains_key("ranked"));
+    assert!(private.schema.schedules.is_empty());
+    for name in ["rollingLikes"] { assert_eq!(private.schema.operations[name].runs.as_deref(), Some("server")); }
+    let forged = snapback4_lang::compile(&[("schema.q".into(), format!("{source}\nmutation forge(postId: posts):\n  update likeCounts[postId] {{ value: 999 }}\n"))]);
+    assert!(forged.diagnostics.iter().any(|d| d.message == "likeCounts is a maintained aggregate; write its source rows instead"), "{:?}", forged.diagnostics);
+    let horizon = private.schema.tables["posts"].sync.as_ref().unwrap().horizon.as_ref().unwrap();
+    assert_eq!((horizon.last, horizon.by.as_str()), (2000, "byTime"));
+    let public = source.replace("  read <- .principal = viewer", "  read <- allow")
+        .replace("  sync to .principal", "  sync public").replace("  online only\n", "")
+        .replace("  sync public last 2000 by byTime", "  sync public");
+    let public = snapback4_lang::compile(&[("schema.q".into(), public)]);
+    assert!(public.diagnostics.is_empty(), "{:?}", public.diagnostics);
+    assert_eq!(public.notes.iter().map(|d| d.code.as_str()).collect::<Vec<_>>(), ["N_MAINTAIN_SYNCED"]);
+    assert!(public.schema.tables["posts"].sync.as_ref().unwrap().horizon.is_none());
+    assert!(public.schema.tables["likes"].sync.as_ref().unwrap().horizon.is_none());
+    assert!(public.schema.tables["likeCounts"].sync.is_some());
+}
+
+#[test]
+fn w14a_hour_lanes_are_the_first_trending_answer() {
+    let feeds = snapback4_lang::guide::card("feeds").unwrap();
+    let first = feeds.split("## Trending:").nth(1).unwrap();
+    assert!(first.starts_with(" posts younger than a day, ranked in the like's own transaction"));
+    let source = snapback4_lang::guide::quarry(first).into_iter().next().unwrap();
+    assert!(source.contains("maintain trend: count likes by hour(.postAt), postAt, postId"));
+    assert!(source.contains("insert <- .principal = viewer and exists posts[id = .postId, at = .postAt]"));
+    assert!(source.contains("immutable postId, principal, postAt"));
+    assert!(source.contains("unique byPair: postId, principal"));
+    assert!(source.contains("delete <- .principal = viewer"));
+    assert_eq!(source.lines().filter(|line| line.starts_with("mutation ")).collect::<Vec<_>>(),
+        ["mutation create(body: text <=500):", "mutation setLike(postId: posts, liked: bool):"]);
+    for n in 0..25 { assert!(source.contains(&format!("[hour(now) - {n}]"))); }
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+    assert!(bound.schema.schedules.is_empty());
+    assert_eq!(bound.schema.operations["trending"].runs.as_deref(), Some("server"));
+    let forged = snapback4_lang::compile(&[("schema.q".into(), format!("{source}\nmutation forge():\n  update trend[0, 0, 'p'] {{ value: 999 }}\n"))]);
+    assert!(forged.diagnostics.iter().any(|d| d.message == "trend is a maintained aggregate; write its source rows instead"), "{:?}", forged.diagnostics);
+    let public = source.replace("  insert <- .authorId = viewer", "  insert <- .authorId = viewer\n  sync public")
+        .replace("  delete <- .principal = viewer", "  delete <- .principal = viewer\n  sync public");
+    let bound = snapback4_lang::compile(&[("schema.q".into(), public)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert_eq!(bound.notes.iter().map(|d| d.code.as_str()).collect::<Vec<_>>(), ["N_MAINTAIN_SYNCED"]);
+    assert_eq!(bound.schema.operations["trending"].runs.as_deref(), Some("device"));
+    assert_eq!(bound.schema.operations["setLike"].predicts.as_deref(), Some("eligible"));
+    for name in ["posts", "likes", "trend"] { assert!(bound.schema.tables[name].sync.as_ref().unwrap().horizon.is_none()); }
 }
