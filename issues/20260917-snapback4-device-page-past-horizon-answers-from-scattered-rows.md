@@ -54,6 +54,13 @@ Page 2 is answered by the device from `p04`, a row it holds only because it was 
 Page 3 continues after `p04`. **`p07`, `p06` and `p05` never appear**, and every page says
 `complete: true, fresh: true`.
 
+**The group form** (`…/horizon-gap-group`, published 0.2.28): `messages` synced to a
+conversation's members with `sync last 5 by byConversationOrdinal`; alice edits `m02` and
+`m04`; bob's device then pages `m12 m11 m10`, `m09 m08 m04`, `m03 m02 m01` — `m07`, `m06`,
+`m05` skipped, every page complete and fresh. Any chat longer than its horizon in which an
+old message is edited or tombstoned is exposed; the regression must cover a per-group
+boundary as well as the public one.
+
 ## Why it matters
 
 - It is silent. Nothing is refused, cut or marked stale; the UI has no signal to refetch.

@@ -283,6 +283,21 @@ stores every `put`, so any update to an old row breaks the assumption. Filed as
 Run: `SB=<binary> PKG=<unpacked snapback4 npm package> node measure.mjs`. Re-run the same day against the
 just-published `0.2.28` binary and client: identical (`RESULT-0.2.28.txt`).
 
+**`horizon-gap-group/` — the same in a chat thread.** `messages` synced to a conversation's
+members with `sync last 5 by byConversationOrdinal`, twelve messages, `thread(c)` three at
+a time; alice **edits** `m02` and `m04` (an ordinary `update`), published 0.2.28:
+
+```
+control page 2 (before any edit)   m09 m08 m07    {"complete":true,"cut":null,"fresh":true}
+device page 2 (after the edits)    m09 m08 m04*   {"complete":true,"cut":null,"fresh":true}
+device page 3                      m03 m02* m01   {"complete":true,"cut":null,"fresh":true}
+```
+
+`m07`, `m06` and `m05` are skipped. So the exposure is not only a hand-kept score on a
+public feed: any chat longer than its horizon in which an old message is edited,
+tombstoned or otherwise updated shows a gapped thread on every device that was connected
+at the time.
+
 ## `published-0.2.28/` — the two recipes this program shipped, pasted blind from the published binary
 
 0.2.28 carries the hour-lanes Trending (wave 12's lane W12R1c, from §21.1 item 1) and the
