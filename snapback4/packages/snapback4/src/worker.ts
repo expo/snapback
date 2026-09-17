@@ -159,7 +159,10 @@ export function runWorker(options: WorkerOptions): Worker {
     if (reply.denied?.code === "E_EFFECT_LEASE") {
       // @ref LLP 3000.007#20.12 — a lost claim says nothing about current
       // state; only a separate claim or maintenance path may observe requeue.
-      report(new Error(`effect ${effect.id} settlement lost authority: ${reply.denied.code}: ${reply.denied.message}`));
+      const denial = reply.denied.message.startsWith(`${reply.denied.code}:`)
+        ? reply.denied.message
+        : `${reply.denied.code}: ${reply.denied.message}`;
+      report(new Error(`effect ${effect.id} settlement lost authority: ${denial}`));
     } else if (reply.denied) report(new Error(`${reply.denied.code}: ${reply.denied.message}`));
     return !reply.denied;
   };

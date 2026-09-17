@@ -197,6 +197,7 @@ export function startServer(manifest: ServerManifest, handlers: ServerHandlers, 
             lifetime.context.invocation.signal.throwIfAborted();
             const result = await handler(effect.payload as never, lifetime.context as never);
             await lifetime.confirm();
+            lifetime.context.invocation.signal.throwIfAborted();
             return { kind: "settle", result };
           } catch (error) {
             const lost = lifetime.authorityLost();

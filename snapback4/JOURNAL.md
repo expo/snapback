@@ -33339,3 +33339,27 @@ This was a source-only repair. No Cargo, Bun, Node, test, build, formatter,
 generator, listener, provider, PostgreSQL, install, network, remote, fetch or
 push command ran in this pass. The failed qualification and original commits
 remain preserved for the subsequent focused rerun.
+
+## 2026-09-17 — B3b consolidated qualification repair
+
+The original native Codex GPT-5.6 Sol xhigh B3b author thread consolidated the
+remaining source-bound qualification repairs without delegation. The effects
+guide now gives E_EFFECT_CLOSED a dedicated context-lifetime paragraph, states
+that low-level lease refusals are opaque rather than row-state evidence, and
+identifies the generated worker label as metadata that may retain the generic
+legacy `service` value. Stale route-emitter expectations now pin the generated
+`Effects` and per-effect `EffectContext` types.
+
+Low-level settlement reporting preserves both already-prefixed real HTTP
+E_EFFECT_LEASE messages and unprefixed compatibility doubles while displaying
+the code exactly once and inventing no state or requeue result. The generated
+context witness now uses a valid printable-ASCII slash/percent step label and
+bounds unexpected repolls or settlements. A synchronous post-confirm signal
+check closes the overlapping-status race; a controlled older status transport
+loss now witnesses that no top-level settlement follows lost authority.
+
+This was source-only work. No Cargo, Bun, Node, test, build, formatter,
+generator, listener, provider, PostgreSQL, install, network, remote, fetch,
+push or other qualification command ran. Focused qualification of this batched
+repair remains pending; earlier commits, refs, failed evidence and ignored WASM
+inputs remain preserved.

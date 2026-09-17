@@ -462,8 +462,8 @@ for (const state of ["queued", "failed", "sent", "running"]) test(`lost effect l
   } });
   await worker.done;
   assert.equal(refused?.code, "E_EFFECT_LEASE");
-  const message = `effect ${claim.id} is not held by this live claim; claim it first and use its current token`;
-  const refusal = `effect ${claim.id} settlement lost authority: E_EFFECT_LEASE: ${message}`;
+  const message = `E_EFFECT_LEASE: effect ${claim.id} is not held by this live claim; claim it first and use its current token`;
+  const refusal = `effect ${claim.id} settlement lost authority: ${message}`;
   assert.equal(refused.message, message);
   const recorded = (await listEffects(f.url, f.token))[0];
   assert.equal(recorded.state, state);
@@ -471,6 +471,7 @@ for (const state of ["queued", "failed", "sent", "running"]) test(`lost effect l
   assert.deepEqual(errors.map(error => error.message), [refusal, ...(state === "queued" ? [handlerError.message] : [])]);
   if (state === "queued") assert.equal(errors[1], handlerError, "the handler's original error and stack survive a refused settlement");
   assert.equal(info.mock.calls.length, 0);
+  assert.equal(errors[0].message.match(/E_EFFECT_LEASE:/g)?.length, 1, "the real prefixed refusal must display its code once");
   assert.doesNotMatch(errors[0].message, /\b(?:queued|failed|sent|running|requeued)\b/);
   if (state === "queued") assert.equal(recorded.error, "the lease expired", "the refused handler error must not rewrite the row");
 });
@@ -479,8 +480,9 @@ for (const state of ["queued", "failed", "sent", "running", "unknown"]) for (con
   const stop = new AbortController(), errors = [], requests = [];
   const info = t.mock.method(console, "info", () => {});
   const handlerError = new Error("provider unavailable");
-  const message = "effect effect-test is not held by this live claim; claim it first and use its current token";
-  const refusal = `effect effect-test settlement lost authority: E_EFFECT_LEASE: ${message}`;
+  const opaque = "effect effect-test is not held by this live claim; claim it first and use its current token";
+  const message = state === "failed" || state === "running" ? `E_EFFECT_LEASE: ${opaque}` : opaque;
+  const refusal = `effect effect-test settlement lost authority: E_EFFECT_LEASE: ${opaque}`;
   const worker = runWorker({ url: "http://worker.test", token: "service-token", signal: stop.signal, onError: error => errors.push(error),
     effects: { notify: () => { if (failed) throw handlerError; return "sent"; } },
     fetch: async (url, options) => {
@@ -494,6 +496,7 @@ for (const state of ["queued", "failed", "sent", "running", "unknown"]) for (con
   assert.deepEqual(errors.map(error => error.message), [refusal, ...(failed ? [handlerError.message] : [])]);
   if (failed) assert.equal(errors.at(-1), handlerError, "the handler's original error and stack survive a refused settlement");
   assert.deepEqual(info.mock.calls.map(call => call.arguments), []);
+  assert.equal(errors[0].message.match(/E_EFFECT_LEASE:/g)?.length, 1, `${message.startsWith("E_EFFECT_LEASE:") ? "prefixed" : "unprefixed"} synthetic refusal must display its code once`);
   assert.doesNotMatch(errors[0].message, /\b(?:queued|failed|sent|running|requeued)\b/);
   assert.equal(requests.length, 2, "a lost claim must not provoke a second settlement");
   assert.equal(requests[1].path, `/effects/effect-test/${failed ? "failed" : "done"}`);

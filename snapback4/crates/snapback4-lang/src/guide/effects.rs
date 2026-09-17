@@ -74,6 +74,8 @@ handler receives frozen `ctx.effect` metadata (`id`, `effect`, `attempt`, `seq`,
 `at`, `worker`), live `ctx.invocation` (`id`, `attempt`, `deadline`,
 `cancelled`, `signal`), its declared `ctx.secrets`, and `ctx.step`. It receives no principal, query,
 mutation, write-id, raw lease, service token or administrative surface.
+When a claim reply has no richer principal, `ctx.effect.worker` can carry the
+generic legacy label `service`; this is descriptive metadata, not authority.
 
 The data plane never calls out. `emit name { payload }` in a mutation or
 a job writes the payload durably in the same commit as the rows (a
@@ -103,10 +105,10 @@ satisfied, parked, failed) and `doctor` counts them, including pending grace def
 (by default 4 s, 8 s, ... up to 5 min) until the declared final attempt, then rests as
 `failed`; throw `GiveUp` to fail at once. A worker that dies loses its
 lease and the effect is claimed again (E_EFFECT_LEASE for the one that
-settles late). `runWorker` includes the server's code and message; only a
-recorded `queued` state is informational and says requeued. Other states
-and unknown outcomes go to `onError` (or stderr). A handler error whose
-settlement cannot be recorded is reported separately with its original stack.
+settles late). `runWorker` reports the server's exact opaque refusal code and
+message as lost authority without inferring the row's state or claiming that
+settlement requeued it. Operators inspect effects separately. A handler error
+whose settlement cannot be recorded is reported separately with its original stack.
 Current `runWorker` sets `fenced: true` and returns each claim's `leaseToken`
 in `x-snapback-effect-lease`; old same-service attempts cannot settle successors.
 Legacy unfenced claims retain their compatibility protocol. A service can
@@ -177,6 +179,10 @@ admin authority, a PostgreSQL adapter, provider qualification, process-crash
 proof, or a completed B milestone.
 
 ## Effect lifecycle refusals
+
+E_EFFECT_CLOSED means a private generated effect context closed with its
+handler lifetime or an authority loss. Do not retain or reuse that context;
+start work only while its invocation signal remains live.
 
 E_EFFECT_GENERATION means the effect's declaration disappeared or changed
 after admission. Queued or running work is durably parked and its claim fields
