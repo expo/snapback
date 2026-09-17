@@ -33,6 +33,7 @@ Nothing here changes the product. Raw output for every probe is in [`RESULTS.md`
 | `cap-restated/` | Compile-only: a capped group cannot be read, looped or used as a lane source without restating its cap as `first N`; `exists` over a prefix is refused with the rewrite "`unique byColumn: <column>`"; a page read already infers its index when unambiguous. |
 | `merge-equal-suffix-skip/`, `merge-cursor-bypasses-cursor-index/` | **Defect, P1.** A merge cursor never reaches `E_CURSOR_INDEX`; the merged position is the index suffix alone. Over `unique byRoomAt: roomId, at` a walk returns 3 of 4 rows; over the non-unique `by byRoomAt: roomId, at` (refused for a direct page) it returns 2 of 3 **inside one lane**. Every page says `complete: true`. |
 | `merge-next-after-non-uniform/` | **Defect, P3.** A merge's `next` is withheld for the non-uniform class only when the non-uniform read runs *before* the merge (§20.3's rule is order-dependent). No cross-world difference was observed. |
+| `group-drops-next/` | **A dead end, honestly reported but not foretold.** `return group(page, 'roomId')` over a page read `after c` can never publish `next`: every full page answers `complete: false, cut: null`; `check` prints no note. `return { page, groups: group(page, …) }` keeps it. Met by the bounds bar's own reference-app author. Not a defect of correctness — a candidate for the total-reads invariant (carry the page through row-preserving helpers, or note it). |
 
 ## Clique scale fixture facts used in the argument
 

@@ -177,3 +177,24 @@ request 2: groups=2 complete=false cut=null next=no examined=827 idx=817
 The first request is cut by the meter and still carries `next`: a filtered page's cut has positioned after its last
 rule-visible examined row since wave 3 (LLP 3000.007 §5.6). The walk finishes by following one cursor. The last page's
 `complete: false, cut: null` is the predicate-overflow defect (`grouped-defect/`), not an incompleteness.
+
+## group-drops-next/ — `node measure.mjs` (a dead end a builder met while building the bounds bar's reference app)
+
+Ten messages in two rooms, page size 4, so more rows remain after every first page. `check`: "ok … no problems" — no note.
+
+```
+  plain          complete=true  cut=null  next=PRESENT  top-level items=4
+  grouped        complete=false cut=null  next=absent   top-level items=2
+  groupedDirect  complete=false cut=null  next=absent   top-level items=1
+  both           complete=true  cut=null  next=PRESENT  top-level items=4
+```
+
+`grouped` is `page = merge … after c last 4 …; return group(page, 'roomId') { … }`; `groupedDirect` is the same over a
+direct page; `both` returns `{ page, groups: group(page, …) }`. The engine is honest — a page whose position is not
+returned reads `complete: false` (§19.2) — so nothing is lost *silently*. But the query declares `c: cursor ?`, pages
+`after c`, and can never publish `next`: a certain consequence that `check` does not state, surfaced at runtime as
+`cut: null`, which tells the author nothing. Lane W13d's Astra author wrote exactly this first ("grouped by chat" →
+`group(page, 'roomId')`), lost its continuation, and found out from a red multi-page test. `group` returns every element
+of its list argument, so the page's continuation would be sound if it were carried (no row is skipped by following it;
+groups recur across pages as fragments). Open for the author: carry the page through row-preserving helpers (`group`,
+`sort`), or note it at `check`.
