@@ -29739,3 +29739,67 @@ The literal “small/warm sixty seconds” suite premise did not hold on this lo
 Root `./ref-check --verbose` before this entry: `ref-check: ok — 482 LLP docs, 9063 refs in 24176 files, 0 errors, 0 unchecked`; it is rerun after this append. Root `git diff --check` passes. Every changed source is below 1,500 lines. The only command-sheet change is two lines in `snapback4/AGENTS.md`; no other out-of-scope change remains. This is one new dated, append-only journal entry.
 
 Post-append verification: `./ref-check --verbose` again printed `ref-check: ok — 482 LLP docs, 9063 refs in 24176 files, 0 errors, 0 unchecked`. The final three-instrument command again passed (`ℹ tests 10`, `ℹ pass 10`, `ℹ fail 0`, `ℹ duration_ms 4092.154625`). `git diff --check` is clean; `Cargo.lock`, both forbidden metrics files, and the transient SQLite mutant source are unchanged. A SHA-256 comparison of the original journal prefix confirms that all earlier bytes remain unchanged.
+
+
+## 2026-09-17 — device diet S0/S1: the lead's qualification, review record, and what S2 measured
+
+Lane D1 built the instruments and the one-serde-family change of LLP
+3000.002; its three entries above carry their commands. This entry is what
+only the lead could run, and what the lead decided.
+
+Outside the lanes' sandbox, on a machine at load 15–75 whose new executables
+stall for minutes at launch. At the S1 commit: `witness/idb.mjs` exit 0,
+`witness/scale.mjs` exit 0 (40 groups × 500 messages, open-and-acquire
+1,879.5 ms, offline fresh-realm reopen completed), `react.test.mjs` 13/13;
+three alternating Chromium scale pairs against the base build, open-and-acquire
+2,450 / 3,509 / 2,896 ms (base) and 3,123 / 2,027 / 3,877 ms (S1): no
+repeatable difference, the noise is larger than any effect. The lane's paired
+7×7 native runs are the precise evidence: decode-and-apply of 4,000 rows
+245.9 → 243.1 ms, cold open over 100,000 kept rows 2,801 → 2,800 ms. After
+merging `origin/main`, which had gained the retained-read composition, the
+lead combined two conflicts: the dispatcher's `query` arm returns the
+per-field `components` through the one family, and the device harness runs
+the component differential and then routes page commands through
+`call_text`. On that merge (`76fa25a510`): every Rust target green in the
+sharded suite except the ticketed `clock` timing flake; client 592 of 601
+with load timeouts only, each passing alone (`W6R1 B` 4/4 twice); the
+IndexedDB witness green including the composition scenario;
+`--check-families` ok. The merged device is 1,597,622 B raw / 466,171 gzip:
+S1 alone measured 461,533 and the composition costs about 4,600, which the
+new budget line reported the moment the two met. The budget is set to
+467,000.
+
+Reviews, three rounds, two families, recorded verbatim under
+`llp/reviews/3000.002-device-diet-one-serde-family*`. Every round judged the
+product change byte- and behavior-preserving. Round 1 rejected the evidence
+(differentials comparing the new path with itself, an untested production
+entry point, self-referential store bytes, a metrics line carrying the base
+commit's sha); round 2 the binding of the guards; round 3, after both fix
+rounds, Sol NOT READY and Grok READY WITH CHANGES on how evadable those
+guards remain — an import alias slips past the census regex, the census lists
+five core files rather than every web-linked one, the conversion counter
+sits in one wrapper. None is a product defect, all are taken in a follow-up
+lane, and the lead landed the product change at the three-round limit rather
+than hold a reviewed 59,000-byte saving behind the strength of a lint.
+
+S2, small ordered maps, was built, reviewed and measured in three forms and
+is not landed. As first built: 520,557 → 485,032 (−35,525) for −228,209 raw —
+a third of the plan's estimate, because duplicated monomorphized code
+compresses at about 0.15. Both families then found conversions sized by
+data, not program text (a viewer's held-and-left groups, the principals an
+effect reads, a per-row `$filter` binding shifting the runner environment),
+each an unmetered quadratic pass a remote party could drive; the lane's audit
+found a fourth in dynamic JSON maps. Restored: −27,271, with the
+value-and-environment family net negative. Narrowed to compiled structures
+only: 500,660 alone (−19,897), timings within about 10% of base on the
+measured workloads and no stronger claim. Shelved: a custom container in the
+core's public types, and a rule every later contributor must apply
+correctly, for under 4%. The candidate is kept on `sb4/diet-maps` with its
+evidence, and both review records are under
+`llp/reviews/3000.002-device-diet-small-maps*`.
+
+The plan was corrected accordingly: no rung is estimated from an attribution
+table again. A scratch build that removes the structural admission check,
+the prefetch planner and partition-event derivation from the web artifact
+measures 466,171 → 439,856 (−26,315), which is the next rung. No package
+version changed and nothing was published.

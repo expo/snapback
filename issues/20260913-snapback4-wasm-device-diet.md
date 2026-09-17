@@ -99,3 +99,27 @@ web (S3, needs a ruling), a derive-driven compact codec in three parts (S4),
 reachability (S5), then the author's decision with numbers (S6). Its own
 estimates end near 180,000, above this ticket's target, and it says so. The
 scratch builds are measurements, not landed changes. This ticket stays open.
+
+## 2026-09-17 first rungs landed
+
+S0 and S1 of the ladder are on main. One text serde family in each direction
+takes the web device from 520,557 to 461,533 B gzip alone (raw 1,891,742 →
+1,573,446) with canonical bytes, duplicate-field refusal and error positions
+unchanged; decode-and-apply and a 100,000-row cold open are unchanged in paired
+native runs, and Chromium acquisition, fresh-realm IndexedDB reopen and the
+scale witness pass. The tree as landed is 466,171 B, because the retained-read
+composition landed first and costs about 4,600. `scripts/attribute-wasm.mjs`
+prints the attribution and fails on a second serde family;
+`metrics/wasm-budget.json` (467,000) is reported by every suite run.
+
+S2's first cut saved 35,525, not the estimated 100,000 — duplicated B-tree code
+compresses at about 0.15 — and both review families found conversions sized by
+data that turned metered linear passes into unmetered quadratic ones. Narrowed
+to compiled structures only it saves 19,897 alone, and the lead shelved it:
+under 4% does not justify a custom container in the core's public types. The
+candidate is kept on branch `sb4/diet-maps`. A scratch build says the next
+rung, keeping server-only engine code out of the web build, is worth 26,315. The plan's
+restated ladder ends near 300,000 B gzip, twice this ticket's target: the
+executor and device logic alone are about 130,000. The plan now says plainly
+that 150,000 needs a compact shared execution representation or a web device
+that does less. This ticket stays open.

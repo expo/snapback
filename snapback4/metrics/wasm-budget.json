@@ -1,1 +1,1 @@
-{"gzip":463000,"set":"2026-09-17","why":"S1 text serde family with exact JSON validation: 462005 B gzip, rounded up to 1000 B; report-only."}
+{"gzip":467000,"set":"2026-09-17","why":"S1 (one text serde family) measures 461,533 B alone; as landed beside the retained-read composition (about +4,600 B) the device is 466,171 B gzip, rounded up to 1000 B; report-only."}
