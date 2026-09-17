@@ -29032,3 +29032,42 @@ The brief's description of empty September 13 ceremony records was wrong: the
 retained before and after each report three successful runs. Its concrete task
 is roster/unread, while §21.5 calls it a digest; the bar implements the concrete
 brief and makes no digest or device-acquisition claim.
+
+## 2026-09-17 — rulings 28–33, and the Trending lane folded into wave 12 (LLP 3000.007 §14, §21.6, §21.8)
+
+The author ruled §21.6's six questions, each put with its alternatives and a before/after,
+taking the recommended option on all six: a merge lane source may be `range(a, b)` or a
+bounded list (28); a table index may lead with `day`/`hour`/`bucket` of a required time
+column, as index keys only (29); maintained columns yes in direction, with the design and
+a two-family blind review before anything is built (30); `N_PUBLIC_AGGREGATE_COPY`
+generalised to "derived in fact, admitted to everyone" after a false-positive census, a
+note and never an error (31); presence defers an effect and never drops one, after the
+effect-row cost is measured on the chat fixture (32); the blind review of mutation pages
+over an expiring table with a uniformly decided prefix is commissioned (33). Nothing is
+built by this entry.
+
+Two facts checked while the rulings were put. A bounded list argument is refused as a
+merge lane source with the same message as `range` (`a merge for lane requires a bounded
+range read`), so ruling 28 covers both. And ruling 32's mechanism is smaller than §21
+first said: every commit already wakes every held poll (the wait is on the store's
+sequence), a live client re-polls within milliseconds and each arrival already records
+`presence_reconnected`; the d-05 window is the 2-second heartbeat that notices a vanished
+client.
+
+The wave 12 lead was told of §21.1 item 1 before 0.2.28 and did not take it on trust: it
+compiled `trending-validated/` on its own build, reproduced the ranking and the `E_RULE`
+refusal, and ran W14a's brief unmodified inside wave 12 (lane W12R1c). Its blind reviews
+had already found that the read-time-sort `trending()` fabricated a ranking past the
+examined cut — an unfinished maintained point read coerced to 0 — which the lanes form
+dissolves. It also corrected a claim §21 had repeated: for a `count`, a stale value index
+is unbuilt rather than unsound, because expiry only lowers the live value below the stored
+one and a threshold scan terminates exactly. §21.3 P3 now says so. W14b (the digest) stays
+with this session.
+
+The author then delegated ruling-sized decisions for about twelve hours. The first three
+taken under it are §21.8's: rulings 28 and 29 go in one lane after or inside wave 13's
+W13c (one function, the merge lane-source binding, is shared with ruling 23 and with
+`issues/20260917-snapback4-merge-lane-source-seek-expression-is-an-unknown-variable-at-runtime.md`);
+ruling 30's design is a section of LLP 3000.007, reviewed blind before any lane; no
+cargo-building lane is launched from this session above a load average of 15, and
+publishing stays with the wave 12 lead.
