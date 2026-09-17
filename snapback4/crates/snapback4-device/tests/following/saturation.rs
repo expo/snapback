@@ -4,6 +4,7 @@ use snapback4_device::device::Backend;
 #[path = "../../../snapback4-sim/tests/common/following_promotion.rs"]
 mod case;
 
+// @ref LLP 3000.007#20.3 — atomic promotion preserves all followers; a saturated caller gets their own repair.
 fn scenario<H: Host>(mut host: H, reader: &str, slots: usize) {
     let bound = case::app::built();
     let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
@@ -19,7 +20,7 @@ fn scenario<H: Host>(mut host: H, reader: &str, slots: usize) {
         devices.push((viewer, device));
     }
     let before = engine.seq().unwrap();
-    if slots == 32 { case::refused(&mut engine); }
+    if slots == 32 { case::refused_with_code(&mut engine, if reader == case::TRIGGER { "FEED_PULL_CAP" } else { case::CODE }); }
     else { case::promoted(&mut engine); }
     for (viewer, device) in &mut devices {
         let stream = stream_page(&mut engine, viewer, before);
@@ -72,3 +73,8 @@ fn w11a_promotion_partial_routes_sqlite() { scenario(Sqlite::new("w11a-partial")
 fn w11a_promotion_free_slot_memory() { scenario(Memory::new(), "reader00", 31); }
 #[test]
 fn w11a_promotion_free_slot_sqlite() { scenario(Sqlite::new("w11a-free"), "reader00", 31); }
+
+#[test]
+fn w11r1c_saturated_trigger_memory() { scenario(Memory::new(), case::TRIGGER, 32); }
+#[test]
+fn w11r1c_saturated_trigger_sqlite() { scenario(Sqlite::new("w11r1c-trigger"), case::TRIGGER, 32); }

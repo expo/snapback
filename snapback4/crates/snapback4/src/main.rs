@@ -30,7 +30,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
     --i-understand-cleartext         required for a non-loopback bind; see README proxy contract
   run <op> [json] --as <persona|principal-id> [--now <milliseconds|+duration>]   run one operation against the local store (a job runs whole, as the system)
   clock advance <duration> [--port N]  advance a running dev clock, sweep expiry and run due jobs
-  test [--fixture dir] [--as p] [--residency [--verbose]]    load a fixture, run every query, print the meters
+  test [--fixture dir] [--as p] [--residency [--verbose]]    load a fixture, run every query, print the meters; --residency: acquisition report only; add --verbose to run queries and print meters
   why <E_CODE | op | table | id>   explain a refusal or note with its card section, an operation's cost, a table's rules, or work by id; --release <dir>, --values
   guide [keyword]                  list cards and aliases, or print one card
   data <table> [--limit N]         inspect stored rows as an administrator (bypasses read rules)

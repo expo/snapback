@@ -29,3 +29,39 @@ fn w11a_promotion_rolls_back_other_followers_routes() { scenario("reader49", 32)
 
 #[test]
 fn w11a_promotion_with_one_free_slot_continues_delivery() { scenario("reader00", 31); }
+
+#[test]
+fn w11r1c_later_newcomers_refuse_until_the_publicly_identifiable_blocker_frees_a_slot() {
+    let probe = "query slots(authorId: principal):\n  return feedFollows[authorId] first 1000 by byFollowed { followerId, slots: feedPullCounts[.followerId] }\n";
+    let bound = snapback4_lang::compile(&[
+        ("feed.q".into(), snapback4_lang::recipe::following("feed", "feed").unwrap()),
+        ("social.q".into(), case::app::app()), ("probe.q".into(), probe.into()),
+    ]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+    assert_eq!(bound.schema.operations["probe.slots"].runs.as_deref(), Some("server"));
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    case::seed(&mut engine, "reader00", 32);
+    let before = case::rows(&engine);
+    for newcomer in ["carol", "dave"] {
+        let result = engine.mutate("social.follow", None, case::app::context(newcomer, &[("authorId", case::app::id(case::AUTHOR))])).unwrap();
+        let snapback4_core::WriteState::Failed { why, .. } = result.state else { panic!("{newcomer} must refuse"); };
+        assert_eq!(why.code, case::CODE);
+        assert_eq!(case::rows(&engine), before);
+        assert!(!case::shared(&engine));
+    }
+    let found = engine.query("probe.slots", case::app::context(case::AUTHOR, &[("authorId", case::app::id(case::AUTHOR))])).unwrap();
+    assert!(found.complete);
+    let followers = found.data.as_array().unwrap();
+    assert_eq!(followers.len(), 50);
+    let blocked: Vec<_> = followers.iter().filter(|f| f.field("slots").unwrap() != &snapback4_core::Value::Null)
+        .filter(|f| f.field("slots").unwrap().field("used").unwrap() == &snapback4_core::Value::Int(32))
+        .map(|f| f.field("followerId").unwrap().clone()).collect();
+    assert_eq!(blocked, [case::app::id("reader00")]);
+    println!("W11R1c blocker discovery: followers={} read_operations={} examined={} probes={} blocked={}",
+        followers.len(), 1 + followers.len(), found.metered.examined, found.metered.rule_probes, blocked.len());
+    case::free_slot(&mut engine, "reader00");
+    let result = engine.mutate("social.follow", None, case::app::context("carol", &[("authorId", case::app::id(case::AUTHOR))])).unwrap();
+    assert!(matches!(result.state, snapback4_core::WriteState::Sent { .. }), "{:?}", result.state);
+    assert!(case::shared(&engine));
+}

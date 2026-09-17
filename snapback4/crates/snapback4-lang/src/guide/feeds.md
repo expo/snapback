@@ -253,6 +253,8 @@ fn addFollow(authorId: principal):
   if not a.shared:
     near = follows[authorId] first 51 by byFollowed
     if count(near) > 50:
+      -- Check the caller first so their own full slots name their own repair.
+      require tryPull(viewer, authorId) else FEED_PULL_CAP
       update authors[authorId] { shared: true }
       tryPull(authorId, authorId)
       for f in follows[authorId] first 1000 by byFollowed:
@@ -351,10 +353,29 @@ job purgeRemoved():
 schedule purgeRemovedEvery every 1m: purgeRemoved
 ```
 
+FEED_PULL_COUNT_MISSING means an installed pull route has no matching count row.
+For example, importing a route without its `pullCounts` row makes `unfollow`
+refuse atomically. Repair the imported count to match that reader's installed
+routes before retrying with a new write ID; normal helpers update both together.
+
+CANNOT_FOLLOW_SELF means the recipe was asked to follow the caller's own account.
+Keep the caller's own posts through the recipe's own delivery lane; follow a
+different author instead.
+
+AUTHOR_NOT_FOUND means the target author has not registered in the recipe.
+Call `register` during that author's profile creation, then retry the follow
+with a new write ID after registration succeeds.
+
+POST_NOT_FOUND means the recipe could not find the requested source post/event.
+For example, a repost of a deleted event refuses. Refresh the source lookup and
+pass an existing event reference; a prefixed app bridge validates its own post
+before calling the recipe helper.
+
 Call `register` during profile creation. `follow` and `unfollow` are
 idempotent; promotion is permanent and atomic with the follow that triggers
 it. Promotion requires a pull lane for every follower, including the triggering
-reader. If any follower already uses all 32 shared-author slots,
+reader. The caller is checked first: their own full 32 shared-author slots
+refuse `FEED_PULL_CAP`. If another follower already uses all 32 slots,
 `FEED_PROMOTION_PULL_CAP` refuses the whole follow/promotion transaction,
 including the app edge, author mode, routes and counts. Existing followers
 keep receiving private pushes; no follower is silently skipped.
@@ -365,6 +386,16 @@ The triggering reader freeing their own slot does not help a different
 saturated follower. If those followers cannot free slots, decline the new
 follow and keep the existing pushed delivery; more than 32 shared authors
 needs a separate serving design, not a larger cap alone.
+Until every saturated follower frees a slot, every later follow of this author
+refuses the same way: the author stays at 50 followers and gains no new followers,
+possibly indefinitely if a blocking follower is dormant. The newcomer cannot
+free that other follower's slot. To tell the author who is stuck, use a
+server-run query: `follows` and `pullCounts` are both `public`, so enumerate
+`follows[authorId] first 1000 by byFollowed`, then read each follower's
+`pullCounts[f.followerId]` and its `used`. After rollback there are 50 followers:
+51 reads (one follower scan plus 50 count lookups) identify those with `used = 32`.
+An absent count means zero routes. Installed prefixes rename these tables to
+`feedFollows` and `feedPullCounts`; the author IDs in private routes stay hidden.
 A new follow of an already-shared author with no slot refuses `FEED_PULL_CAP`
 atomically, including the app edge; that reader must free their own slot.
 `complete` describes the queried lanes' coverage under the meter; promotion
