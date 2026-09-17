@@ -12,3 +12,10 @@ Lead/Sol traced retained partition and membership history and operation receipts
 ## Acceptance
 
 Define ownership and retention for principals, memberships/logs, operation receipts and work/step records together. Include a minimum resumable watermark/reset policy, an explicit retry horizon, and application data references. Measure sustained guest creation and membership churn. Implement conservative compaction only after these contracts are defined. LLP 3000.002 contains the alternatives; no destructive automatic cleanup is part of this review repair.
+
+## Design proposal — 2026-09-17
+
+The author-requested [Draft proposal for coordinated durable retention](../llp/3000.002-end-to-end-resource-bounds.research.md#durable-retention)
+records the recommendation, alternatives, implementation sequence, validation
+and remaining decisions. This ticket remains open; writing the proposal does
+not establish implementation or acceptance.

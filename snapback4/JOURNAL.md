@@ -28910,6 +28910,169 @@ delta. No implementation, acceptance or ticket closure is claimed by this
 entry; the lanes that follow record their own evidence.
 
 
+## 2026-09-17 — five proposals for the remaining code-review issues
+
+Charlie requested a write-up of each of the five remaining review issues. This
+pass inspected source and current authoring contracts at `70a663c22285dc3a5278ca9ac13db01bbe05446b`
+and extended three covering LLPs with five self-contained Draft proposals:
+LLP 3000.002 contains byte-bounded staged sync, private physical-work bounds and
+coordinated durable retention; LLP 3000.001 contains secure client ID sources;
+LLP 3000.009 §17 contains scoped worker credentials. Root routing and every
+corresponding ticket link directly to the relevant proposal. The working set
+stays at 59, with no new number and no unrelated archival.
+
+Each proposal has source-grounded evidence, a recommended design, alternatives,
+compatibility/rollout, validation and unresolved choices. Staged sync covers
+atomic publication and current authority without waiting for a quiet server.
+Private probe indexes require semantic equivalence and disclosure review.
+Retention compacts history while preserving replay identities; its first phase
+does not promise finite total tombstone storage. The entropy proposal selects
+an explicit synchronous secure host source and distinguishes Expo getRandomValues
+from getRandomBytes' documented development fallback. Worker scoping preserves
+the newer bound identity-session issuance and separates credential scope from
+process isolation. These are proposals, not new author acceptance, executed
+runtime tests, storage measurements, migrations or ticket closures. Existing
+commissioned diet/composition work remains intact.
+
+The fresh same-family document review found one material gap: a delegated-token
+query/mutation allowlist did not explicitly deny sync and child-action routes.
+The draft now makes delegated credentials default-deny elsewhere, separates
+worker control credentials from service-data credentials, and adds direct-HTTP
+negative cases. It also preserves rule-probe expiry/invalidation observations,
+not merely the boolean. The received review and disposition are retained in
+[the review record](../llp/reviews/3000-review-proposals-20260917.md).
+
+The follow-up document review of `ffb24554b` returned **NO MATERIAL FINDING
+REMAINS**. Scoped validation passes: 33 added local links/anchors, unchanged
+59-document working set, byte-preserved pre-task journal prefix and
+`git diff --check`. `ref-check --verbose` reports 481 LLP documents, 9,054
+references, zero errors and zero unchecked. No runtime tests were run for this
+documentation-only change. The five proposed contracts remain Draft.
+
+## 2026-09-17 — derived data: three holes that were not holes (LLP 3000.007 §21)
+
+Asked after the 0.2.27 assessment how to fix the rolling ranking, the principal-writable
+ranking table, the digest over expiring rows, the serving architectures and the dropped
+push "through foundational properties". Before proposing any, the three that were called
+expressiveness holes were run on the **published 0.2.27 binary**; all three have short,
+fresh, safe forms today. Record: `benchmarks/runs/2026-09-17-snapback4-derived-probes/`.
+Nothing is built and no runtime file changed.
+
+- A rolling-24h ranking: `maintain trend: count likes by postHour, postAt, postId` with
+  `by byScore: postHour, value, id`, read as a merge of 25 hour lanes with `where .postAt >
+  now - 86400000`. 3,963 and 31,937 posts in the window: 265 and 276 examined, complete
+  with `next`, p50 2.9 and 2.2 ms over loopback, top ten equal to an oracle, no
+  out-of-window row. Zero-like posts are a second read of 25 examined. With `sync public`
+  on the sources it `runs: device` and the like still predicts.
+- A digest with no staging table: a job's nested range seek over the expiring `messages`
+  table compiles with no note; one helper serves the inbox query and the job. Seek the
+  period and filter the ordinal: for a hub in 1,000 chats of 99 messages with nothing read
+  the ordinal seek parks at `E_BOUND` (16,384) and the period seek finishes in one chunk,
+  57 ms. My first probe used the ordinal seek and passed its small fixture; a compiled
+  probe is not yet a safe example.
+- A rule pins a hand-kept score to the maintained count (`exists likeCounts[postId =
+  .postId, value = .score]`): a forged 999 is `E_RULE`.
+- Refused today, and the reason the good forms are long: `range(a, b)` as a merge lane
+  source; a computed time key in a table index.
+
+Learned: the mechanism was present each time and the pavement taught the detour — the
+README's digest recipe is one sentence, the jobs card's worked job walks a table by id,
+the fresh-ranking recipe itself shipped `update <- allow`. §21 proposes six properties
+(total reads; a fact about a row lives on the row; time is a key; expiry invisible to
+programs; one writer class per table; presence defers an effect and never drops one) and
+asks the author six rulings (28–33). Wave 12's drafted §20.21 is right about likes
+*arriving* in the last day and wrong that posts *younger* than a day need a read-time
+sort. Lanes W14a and W14b are briefed in `~/projects/snapback-next-20260914/`, not
+launched: the host's load average was 37 with 18 GiB free.
+
+## 2026-09-17 — W13d: a bounds bar that walks the hub, before wave 13
+
+Built `loopbar/bounds-brief.md`, `bounds.mjs`, the deterministic seed, metric
+extractor and wire probes, reusing the ceremony process/copy/schema machinery.
+The packet gives a fresh builder only the published pin and logical inputs;
+check, builder acceptance and independent probes each get a fresh copy. Every
+attempt gets a JSONL record, including missing `green=`. The bar records chosen
+integer tokens, saved-check codes, guide lines read, bound vocabulary, per-task
+Quarry lines, table/job/permissive-derived-rule counts, and native per-request
+complete/cut/continuation/meter observations. N is at least three; no nested
+builder was launched and no fresh-builder trial was fabricated in this lane.
+
+Qualified the reference app on published **0.2.27**, binary SHA-256
+`ae7838c7ed3a9a4b4be3fa454af69e9cacb792b5a23ad81d12386ec7e3fd2be7`, with both
+one- and two-cursor search. The seed has 1,300 chats, 1,349 memberships, 99,390
+messages (99,090 hub matches), 1,000 authors, 1,411 follows, 50,000 posts and
+98 likes. Its five source tables receive 152,248 rows through mutations;
+seeding took **12.049 s / 12.788 s**. Hub search returns all matches in
+**50 / 5,005 requests**, examining **100,139 / 2,131,075** rows and
+**2,000 / 198,200** index entries. Sparse search finds exactly five chats in
+5 / 10 requests. All pages complete, no runtime cut; hidden newer matches
+absent. Both protocols give the exact 50-member roster and 50,000 unread total
+(4 requests, 2,052 examined together), and exact changing top tens (12 examined
+per read). The reference has 5 tables plus 2 maintains, 0 jobs, 1 permissive
+derived read rule, and 63 chosen integer literal occurrences.
+
+Following first pages examine **115 / 1,540 / 115** rows for 5 follows / 500
+follows / celebrity, identically in both copies. Sixty samples after three
+warm-ups: 500/5 p50 ratios **2.317× / 2.945×**, p95 **0.995× / 5.285×**;
+celebrity/small post-acknowledgement p50 **0.955× / 1.081×**, p95
+**0.874× / 1.220×**. Ratios are observations, not gates, on this loaded host.
+`loopbar/BOUNDS.md` keeps the full task/counter/latency table and reproduction;
+raw local evidence is `target/w13d-measurements.json` (not seeded data).
+
+Learned: the first two-cursor fixture used `group(page, 'roomId')` and lost the
+merge continuation. The multi-page regression was red (**11 pass, 1 fail**),
+then green (**12 pass, 0 fail**) after returning shaped group fragments that
+preserve it. The final suite, adding terminal-incomplete/cut coverage, is
+**13 pass, 0 fail, 0 skipped** with Node 24:
+`TMPDIR=/private/tmp node --test packages/snapback4/test/loopbar*.test.mjs`.
+`./ref-check --verbose`: 481 LLP docs, 9,055 refs, 0 errors, 0 unchecked.
+No cargo, wasm build, install, full Rust suite, commit or publication. Outside
+`loopbar/`, only the two-line package test entry point and this append changed.
+The brief's description of empty September 13 ceremony records was wrong: the
+retained before and after each report three successful runs. Its concrete task
+is roster/unread, while §21.5 calls it a digest; the bar implements the concrete
+brief and makes no digest or device-acquisition claim.
+
+## 2026-09-17 — rulings 28–33, and the Trending lane folded into wave 12 (LLP 3000.007 §14, §21.6, §21.8)
+
+The author ruled §21.6's six questions, each put with its alternatives and a before/after,
+taking the recommended option on all six: a merge lane source may be `range(a, b)` or a
+bounded list (28); a table index may lead with `day`/`hour`/`bucket` of a required time
+column, as index keys only (29); maintained columns yes in direction, with the design and
+a two-family blind review before anything is built (30); `N_PUBLIC_AGGREGATE_COPY`
+generalised to "derived in fact, admitted to everyone" after a false-positive census, a
+note and never an error (31); presence defers an effect and never drops one, after the
+effect-row cost is measured on the chat fixture (32); the blind review of mutation pages
+over an expiring table with a uniformly decided prefix is commissioned (33). Nothing is
+built by this entry.
+
+Two facts checked while the rulings were put. A bounded list argument is refused as a
+merge lane source with the same message as `range` (`a merge for lane requires a bounded
+range read`), so ruling 28 covers both. And ruling 32's mechanism is smaller than §21
+first said: every commit already wakes every held poll (the wait is on the store's
+sequence), a live client re-polls within milliseconds and each arrival already records
+`presence_reconnected`; the d-05 window is the 2-second heartbeat that notices a vanished
+client.
+
+The wave 12 lead was told of §21.1 item 1 before 0.2.28 and did not take it on trust: it
+compiled `trending-validated/` on its own build, reproduced the ranking and the `E_RULE`
+refusal, and ran W14a's brief unmodified inside wave 12 (lane W12R1c). Its blind reviews
+had already found that the read-time-sort `trending()` fabricated a ranking past the
+examined cut — an unfinished maintained point read coerced to 0 — which the lanes form
+dissolves. It also corrected a claim §21 had repeated: for a `count`, a stale value index
+is unbuilt rather than unsound, because expiry only lowers the live value below the stored
+one and a threshold scan terminates exactly. §21.3 P3 now says so. W14b (the digest) stays
+with this session.
+
+The author then delegated ruling-sized decisions for about twelve hours. The first three
+taken under it are §21.8's: rulings 28 and 29 go in one lane after or inside wave 13's
+W13c (one function, the merge lane-source binding, is shared with ruling 23 and with
+`issues/20260917-snapback4-merge-lane-source-seek-expression-is-an-unknown-variable-at-runtime.md`);
+ruling 30's design is a section of LLP 3000.007, reviewed blind before any lane; no
+cargo-building lane is launched from this session above a load average of 15, and
+publishing stays with the wave 12 lead.
+
+
 ## 2026-09-17 — lane MQ: independent retained and authoritative record fields
 
 Implemented M0–M2 of LLP 3000.001's composition plan in the working tree for
