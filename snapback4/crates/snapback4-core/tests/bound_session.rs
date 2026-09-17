@@ -55,6 +55,13 @@ fn initial_mint_replay_input_binding_and_family_recovery_are_exact() {
     let separate = mint(&mut engine, &service, &separate_lease, "separate", "member:alice", "member", 30, 3, true).unwrap();
     assert_ne!(separate.token, first.token, "another invocation is a genuinely separate intent");
 
+    for (id, days, clamped) in [("short-days", 0, 1), ("long-days", 3_651, 3_650)] {
+        admit(&mut engine, id, 3);
+        let days_lease = claim(&mut engine, 3);
+        let session = mint(&mut engine, &service, &days_lease, id, &format!("member:{id}"), "member", days, 4, false).unwrap();
+        assert_eq!(session.expires_at, 4 + clamped * 86_400_000, "bound integer days retain the legacy lifetime clamp");
+    }
+
     let family: String = engine.store().conn().query_row("SELECT family FROM _sessions WHERE token_digest = ?1", [digest(&first.token)], |row| row.get(0)).unwrap();
     let refreshed = identity::rotate_session(engine.store(), &first.token, 4).unwrap().unwrap();
     let overlap = identity::custom_session(engine.store(), "member:alice", "member", 5, 30).unwrap();
@@ -98,6 +105,17 @@ fn current_claim_worker_and_admitting_authority_gate_every_mint_or_recovery() {
     let cancelled_lease = claim(&mut engine, 3_000);
     engine.cancel_action("cancelled", "dev:alice", 3_001).unwrap();
     assert_eq!(mint(&mut engine, &service, &cancelled_lease, "cancelled", "member:new", "member", 1, 3_002, false).unwrap_err().code(), "E_ACTION_LEASE");
+
+    let mut parked_engine = Engine::memory(Schema::default(), [program()]).unwrap();
+    let parked_service = identity::service_session(parked_engine.store(), "worker", 4_000, 1).unwrap();
+    admit(&mut parked_engine, "parked", 4_000);
+    let first_parked_lease = claim(&mut parked_engine, 4_000);
+    parked_engine.begin_action_step("parked", "service:worker", &first_parked_lease, "provider", &json!({"id":1}), false, 4_001).unwrap();
+    let current_parked_lease = claim(&mut parked_engine, 5_001);
+    assert_eq!(parked_engine.begin_action_step("parked", "service:worker", &current_parked_lease, "provider", &json!({"id":1}), false, 5_002).unwrap_err().code(), "E_STEP_PARKED");
+    assert_eq!(parked_engine.action_request_at("parked", "dev:alice", 5_002).unwrap().state, "parked");
+    assert_eq!(mint(&mut parked_engine, &parked_service, &current_parked_lease, "parked", "member:parked", "member", 1, 5_003, false).unwrap_err().code(), "E_ACTION_LEASE");
+    assert_eq!(binding_count(&parked_engine, "parked"), 0, "the finish/live-authority gate refuses parked work before mint");
 }
 
 #[test]
@@ -218,5 +236,38 @@ fn two_connections_recheck_service_revocation_and_serialize_replacements() {
         "revocation racing replacement must win finally without recreating the family");
     assert_eq!(check.conn().query_row("SELECT COUNT(*) FROM _session_mint_bindings WHERE invocation = 'race'", [], |row| row.get::<_, i64>(0)).unwrap(), 1);
     drop(check); drop(second); drop(engine);
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn two_connections_serialize_logout_and_lost_delivery_replacement_in_both_orders() {
+    let root = std::env::temp_dir().join(format!("sb4-bound-logout-{}-{}", std::process::id(), snapback4_core::ids::mint(snapback4_core::now_ms(), &mut 0).unwrap()));
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("store.sqlite");
+    let mut engine = Engine::new(Store::open(&path).unwrap(), Schema::default(), [program()]).unwrap();
+    let mut logout_store = Store::open(&path).unwrap();
+    let service = identity::service_session(engine.store(), "worker", 0, 1).unwrap();
+
+    admit(&mut engine, "logout-first", 0);
+    let first_lease = claim(&mut engine, 0);
+    let first = mint(&mut engine, &service, &first_lease, "logout-first", "member:logout-first", "member", 1, 1, false).unwrap();
+    let first_family: String = engine.store().conn().query_row(
+        "SELECT family FROM _session_mint_bindings WHERE invocation = 'logout-first'", [], |row| row.get(0)).unwrap();
+    identity::logout_session(&mut logout_store, &first.token, 2).unwrap();
+    assert_eq!(mint(&mut engine, &service, &first_lease, "logout-first", "member:logout-first", "member", 1, 3, true).unwrap_err().code(), "E_ACTION_AUTHORITY");
+    assert_eq!(engine.store().conn().query_row("SELECT COUNT(*) FROM _sessions WHERE family = ?1", [&first_family], |row| row.get::<_, i64>(0)).unwrap(), 0);
+    assert_eq!(binding_count(&engine, "logout-first"), 1, "logout keeps the binding tombstone that prevents resurrection");
+
+    admit(&mut engine, "replace-first", 4);
+    let second_lease = claim(&mut engine, 4);
+    let second = mint(&mut engine, &service, &second_lease, "replace-first", "member:replace-first", "member", 1, 5, false).unwrap();
+    let second_family: String = engine.store().conn().query_row(
+        "SELECT family FROM _session_mint_bindings WHERE invocation = 'replace-first'", [], |row| row.get(0)).unwrap();
+    let replacement = mint(&mut engine, &service, &second_lease, "replace-first", "member:replace-first", "member", 1, 6, true).unwrap();
+    assert_eq!(identity::logout_session(&mut logout_store, &second.token, 7).unwrap_err().code(), "E_AUTH", "a stale delivered token cannot report logout success");
+    assert!(identity::resolve(&logout_store, &replacement.token, 8).unwrap().is_some(), "stale-token logout must not close the replacement");
+    assert_eq!(logout_store.conn().query_row("SELECT COUNT(*) FROM _sessions WHERE family = ?1", [&second_family], |row| row.get::<_, i64>(0)).unwrap(), 1);
+
+    drop(logout_store); drop(engine);
     std::fs::remove_dir_all(root).unwrap();
 }

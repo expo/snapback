@@ -435,6 +435,76 @@ fn single_header<'a>(request: &'a Request, name: &str) -> Result<Option<&'a str>
     if headers.next().is_some() { Err(()) } else { Ok(value) }
 }
 
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct BoundSessionWire {
+    principal: String,
+    #[serde(default = "default_session_kind")]
+    kind: String,
+    #[serde(default = "default_session_days")]
+    days: i64,
+    binding: BoundSessionBindingWire,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct BoundSessionBindingWire {
+    invocation_id: String,
+    intent: String,
+    #[serde(default)]
+    replace_lost_delivery: bool,
+}
+
+enum SessionMintWire {
+    Legacy { principal: String, kind: String, days: i64 },
+    Bound { principal: String, kind: String, days: i64, binding: snapback4_core::identity::SessionMintBinding, lease: String, service_token: String },
+}
+
+fn default_session_kind() -> String { "account".into() }
+fn default_session_days() -> i64 { snapback4_core::identity::SESSION_DAYS }
+
+fn session_mint_wire(request: &Request, payload: &Json) -> Result<SessionMintWire, (u16, Refusal)> {
+    let has_lease = request.headers().iter().any(|header| header.field.as_str().as_str().eq_ignore_ascii_case("x-snapback-action-lease"));
+    let has_binding = payload.as_object().is_some_and(|object| object.contains_key("binding"));
+    if !has_lease && !has_binding {
+        let principal = payload.get("principal").and_then(Json::as_str).map(str::to_owned)
+            .ok_or_else(|| (400, Refusal::new("E_INPUT", "input", "name the account: { \"principal\": \"member:42\" }")))?;
+        return Ok(SessionMintWire::Legacy {
+            principal,
+            kind: payload.get("kind").and_then(Json::as_str).unwrap_or("account").to_owned(),
+            days: payload.get("days").and_then(Json::as_i64).unwrap_or(snapback4_core::identity::SESSION_DAYS),
+        });
+    }
+    let parsed = serde_json::from_value::<BoundSessionWire>(payload.clone()).map_err(|_| (400,
+        Refusal::new("E_INPUT", "input", "a bound session requires exactly { principal, kind?: string, days?: integer, binding: { invocationId, intent: \"identity-session/v1\", replaceLostDelivery?: boolean } }")))?;
+    if parsed.binding.intent != snapback4_core::identity::BOUND_SESSION_INTENT
+        || parsed.binding.invocation_id.is_empty() || parsed.binding.invocation_id.len() > 128
+        || !snapback4_core::value::identity_fits(&parsed.binding.invocation_id)
+    {
+        return Err((400, Refusal::new("E_INPUT", "input", "binding requires { invocationId, intent: \"identity-session/v1\", replaceLostDelivery?: boolean }")));
+    }
+    snapback4_core::identity::validate_custom_session(&parsed.principal, &parsed.kind)
+        .map_err(|error| (200, error.refusal()))?;
+    let lease = match single_header(request, "x-snapback-action-lease") {
+        Ok(Some(token)) if !token.trim().is_empty() => token.trim().to_owned(),
+        _ => return Err((200, Refusal::new("E_ACTION_LEASE", "action", "send the current claim's session.token in x-snapback-action-lease").guide("actions"))),
+    };
+    let service_token = crate::auth::bearer_token(request).map(str::to_owned)
+        .map_err(|error| (401, error.refusal()))?;
+    Ok(SessionMintWire::Bound {
+        principal: parsed.principal,
+        kind: parsed.kind,
+        days: parsed.days,
+        binding: snapback4_core::identity::SessionMintBinding {
+            invocation_id: parsed.binding.invocation_id,
+            intent: parsed.binding.intent,
+            replace_lost_delivery: parsed.binding.replace_lost_delivery,
+        },
+        lease,
+        service_token,
+    })
+}
+
 fn authority_host(authority: &str) -> Option<&str> {
     if authority.is_empty() || authority.chars().any(|c| c.is_ascii_whitespace() || "/\\?#@,".contains(c)) { return None; }
     if let Some(rest) = authority.strip_prefix('[') {
@@ -729,14 +799,16 @@ fn handle(mut request: Request, shared: &Shared) {
     // Check identity before upload admission or allocating any large body.
     // The route rechecks after reading, so expiry/revocation during a slow
     // upload cannot retain the authority held at its start.
+    // Logout's body is only 4 KiB and its sole authentication happens inside
+    // the SQLite writer transaction that closes the live session family.
     if method == Method::Post && (path == "/assets" || path == "/sync" || path.starts_with("/q/") || path.starts_with("/m/") || path.starts_with("/a/")
         || (path.starts_with("/actions/") && path.ends_with("/cancel"))
-        || matches!(path.as_str(), "/auth/refresh" | "/auth/logout" | "/auth/logout-all")) {
+        || matches!(path.as_str(), "/auth/refresh" | "/auth/logout-all")) {
         if let Err(refusal) = principal_of(&request, shared) {
             return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
         }
     }
-    if method == Method::Post && (matches!(path.as_str(), "/auth/session" | "/auth/revoke") || path.starts_with("/effects/") || path.starts_with("/routes/verify/") || (path.starts_with("/actions/") && !path.ends_with("/cancel"))) {
+    if method == Method::Post && (path == "/auth/revoke" || path.starts_with("/effects/") || path.starts_with("/routes/verify/") || (path.starts_with("/actions/") && !path.ends_with("/cancel"))) {
         if let Err(refusal) = service_of(&request, shared) {
             return respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
         }
@@ -1056,11 +1128,39 @@ fn handle(mut request: Request, shared: &Shared) {
                 }
             }
         }
-        (Method::Post, "/auth/session") | (Method::Post, "/auth/revoke") => {
+        (Method::Post, "/auth/session") => {
             // An application that authenticates its own accounts (a phone
             // it verified, a directory it owns) mints their sessions through
             // its service and hands each token to that account's device.
-            let service = match service_of(&request, shared) {
+            let payload: Json = serde_json::from_str(if body.is_empty() { "{}" } else { &body }).unwrap_or(Json::Null);
+            let wire = session_mint_wire(&request, &payload);
+            let now = shared.now();
+            let outcome = {
+                let mut engine = lock(&shared.engine);
+                match service_of_locked(&request, shared, &engine) {
+                    Err(refusal) => Err((401, refusal)),
+                    Ok(service) => match wire {
+                        Err(error) => Err(error),
+                        Ok(SessionMintWire::Legacy { principal, kind, days }) => {
+                            snapback4_core::identity::custom_session(engine.store(), &principal, &kind, now, days)
+                                .map(|session| json!({ "session": { "principal": session.principal, "kind": session.kind, "token": session.token, "expiresAt": session.expires_at }, "by": service }))
+                                .map_err(|error| (if error.is_refusal() { 200 } else { 503 }, error.refusal()))
+                        }
+                        Ok(SessionMintWire::Bound { principal, kind, days, binding, lease, service_token }) => {
+                            snapback4_core::identity::bound_custom_session(engine.store_mut(), &service_token, &service, &lease, &principal, &kind, now, days, &binding)
+                                .map(|session| json!({ "session": { "principal": session.principal, "kind": session.kind, "token": session.token, "expiresAt": session.expires_at }, "by": service }))
+                                .map_err(|error| (if error.is_refusal() { 200 } else { 503 }, error.refusal()))
+                        }
+                    },
+                }
+            };
+            match outcome {
+                Ok(body) => respond(request, 200, body),
+                Err((status, refusal)) => respond(request, status, json!({ "denied": refusal_json(&refusal) })),
+            }
+        }
+        (Method::Post, "/auth/revoke") => {
+            let _service = match service_of(&request, shared) {
                 Ok(service) => service,
                 Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })),
             };
@@ -1068,55 +1168,12 @@ fn handle(mut request: Request, shared: &Shared) {
             let Some(principal) = payload.get("principal").and_then(Json::as_str).map(str::to_owned) else {
                 return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "name the account: { \"principal\": \"member:42\" }")) }));
             };
-            let now = shared.now();
             let outcome = {
-                let mut engine = lock(&shared.engine);
-                if path == "/auth/session" {
-                    if let Some(raw_binding) = payload.get("binding") {
-                        #[derive(serde::Deserialize)]
-                        #[serde(rename_all = "camelCase", deny_unknown_fields)]
-                        struct Binding { invocation_id: String, intent: String, #[serde(default)] replace_lost_delivery: bool }
-                        let binding: Binding = match serde_json::from_value::<Binding>(raw_binding.clone()) {
-                            Ok(binding) if binding.intent == snapback4_core::identity::BOUND_SESSION_INTENT
-                                && !binding.invocation_id.is_empty() && binding.invocation_id.len() <= 128
-                                && snapback4_core::value::identity_fits(&binding.invocation_id) => binding,
-                            _ => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "binding requires { invocationId, intent: \"identity-session/v1\", replaceLostDelivery?: boolean }")) })),
-                        };
-                        let kind = match payload.get("kind") {
-                            None => "account",
-                            Some(value) => match value.as_str() {
-                                Some(kind) => kind,
-                                None => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "a bound session kind must be a string")) })),
-                            },
-                        };
-                        let days = match payload.get("days") {
-                            None => snapback4_core::identity::SESSION_DAYS,
-                            Some(value) => match value.as_i64() {
-                                Some(days) => days,
-                                None => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "bound session days must be an integer")) })),
-                            },
-                        };
-                        let lease = match single_header(&request, "x-snapback-action-lease") {
-                            Ok(Some(token)) if !token.is_empty() => token.to_owned(),
-                            _ => return respond(request, 200, json!({ "denied": refusal_json(&Refusal::new("E_ACTION_LEASE", "action", "send the current claim's session.token in x-snapback-action-lease").guide("actions")) })),
-                        };
-                        let service_token = match crate::auth::bearer_token(&request) {
-                            Ok(token) => token.to_owned(),
-                            Err(error) => return respond(request, 401, json!({ "denied": refusal_json(&error.refusal()) })),
-                        };
-                        let binding = snapback4_core::identity::SessionMintBinding { invocation_id: binding.invocation_id, intent: binding.intent, replace_lost_delivery: binding.replace_lost_delivery };
-                        snapback4_core::identity::bound_custom_session(engine.store_mut(), &service_token, &service, &lease, &principal, kind, now, days, &binding).map(|session| json!({ "session": { "principal": session.principal, "kind": session.kind, "token": session.token, "expiresAt": session.expires_at }, "by": service }))
-                    } else {
-                        let kind = payload.get("kind").and_then(Json::as_str).unwrap_or("account");
-                        let days = payload.get("days").and_then(Json::as_i64).unwrap_or(snapback4_core::identity::SESSION_DAYS);
-                        snapback4_core::identity::custom_session(engine.store(), &principal, kind, now, days).map(|session| json!({ "session": { "principal": session.principal, "kind": session.kind, "token": session.token, "expiresAt": session.expires_at }, "by": service }))
-                    }
-                } else {
-                    snapback4_core::identity::revoke_principal(engine.store(), &principal).map(|revoked| json!({ "revoked": revoked, "principal": principal }))
-                }
+                let engine = lock(&shared.engine);
+                snapback4_core::identity::revoke_principal(engine.store(), &principal)
             };
             match outcome {
-                Ok(body) => respond(request, 200, body),
+                Ok(revoked) => respond(request, 200, json!({ "revoked": revoked, "principal": principal })),
                 Err(error) => respond(request, if error.is_refusal() { 200 } else { 503 }, json!({ "denied": refusal_json(&error.refusal()) })),
             }
         }

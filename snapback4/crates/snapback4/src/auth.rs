@@ -134,11 +134,16 @@ pub fn handle(request: Request, shared: &Shared, path: &str, body: &str) {
             200,
             json!({ "session": { "principal": session.principal, "kind": session.kind, "token": session.token, "expiresAt": session.expires_at } }),
         ),
-        Err(error) => respond(
-            request,
-            if error.is_refusal() { 200 } else { 503 },
-            json!({ "denied": refusal_json(&error.refusal()) }),
-        ),
+        Err(error) => {
+            let status = if path == "/auth/logout" && matches!(&error, RuntimeError::Auth(_)) {
+                401
+            } else if error.is_refusal() {
+                200
+            } else {
+                503
+            };
+            respond(request, status, json!({ "denied": refusal_json(&error.refusal()) }));
+        }
     }
 }
 
@@ -247,8 +252,8 @@ fn perform(
         }
         _ => {
             let token = bearer_token(request)?;
-            let engine = shared.engine.lock().unwrap();
-            identity::close_session(engine.store(), token)?;
+            let mut engine = shared.engine.lock().unwrap();
+            identity::logout_session(engine.store_mut(), token, shared.now())?;
             Ok(Outcome::Logout)
         }
     }

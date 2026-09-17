@@ -217,6 +217,13 @@ fn bound_session_http_requires_exact_shape_and_current_action_lease() {
     let lease = claimed["requests"][0]["session"]["token"].as_str().unwrap().to_owned();
     let headers = format!("{service_header}x-snapback-action-lease: {lease}\r\n");
 
+    let inverse = host.request("POST", "/auth/session", &headers, r#"{"principal":"member:inverse"}"#);
+    assert_eq!(status(&inverse), 400, "{inverse}");
+    assert_eq!(body(&inverse)["denied"]["code"], "E_INPUT");
+    { let engine = lock(&host.shared.engine);
+      assert_eq!(engine.store().conn().query_row("SELECT COUNT(*) FROM _sessions WHERE principal = 'member:inverse'", [], |row| row.get::<_, i64>(0)).unwrap(), 0,
+          "a lease header without binding must never reach legacy minting"); }
+
     let legacy = body(&host.request("POST", "/auth/session", &service_header, r#"{"principal":"member:legacy"}"#));
     assert_eq!(legacy["session"]["principal"], "member:legacy", "unbound behavior is unchanged");
     let tolerant_legacy = body(&host.request("POST", "/auth/session", &service_header, r#"{"principal":"member:tolerant","kind":false,"days":"thirty"}"#));
@@ -245,8 +252,8 @@ fn bound_session_http_requires_exact_shape_and_current_action_lease() {
         assert!(!response.contains(&service.token) && !response.contains(&lease));
     }
     let payload = json!({"principal":"member:http","kind":"member","days":30,"binding":binding.clone()}).to_string();
-    for missing_or_duplicate in [service_header.clone(), format!("{headers}x-snapback-action-lease: duplicate\r\n")] {
-        let response = host.request("POST", "/auth/session", &missing_or_duplicate, &payload);
+    for missing_empty_or_duplicate in [service_header.clone(), format!("{service_header}x-snapback-action-lease: \r\n"), format!("{headers}x-snapback-action-lease: duplicate\r\n")] {
+        let response = host.request("POST", "/auth/session", &missing_empty_or_duplicate, &payload);
         assert_eq!(status(&response), 200, "{response}");
         assert_eq!(body(&response)["denied"]["code"], "E_ACTION_LEASE");
     }
@@ -272,12 +279,55 @@ fn bound_session_http_requires_exact_shape_and_current_action_lease() {
       assert!(snapback4_core::identity::resolve(engine.store(), &first_token, host.shared.now()).unwrap().is_none());
       assert!(snapback4_core::identity::resolve(engine.store(), &recovered_token, host.shared.now()).unwrap().is_some()); }
 
+    let stale_logout = host.request("POST", "/auth/logout", &format!("Authorization: Bearer {first_token}\r\n"), "{}");
+    assert_eq!(status(&stale_logout), 401, "{stale_logout}");
+    assert_eq!(body(&stale_logout)["denied"]["code"], "E_AUTH");
+    { let engine = lock(&host.shared.engine);
+      assert!(snapback4_core::identity::resolve(engine.store(), &recovered_token, host.shared.now()).unwrap().is_some(),
+          "HTTP logout of the stale delivery must not pretend the replacement was closed"); }
+
     let delivered = json!({"result": {"session": recovered["session"].clone()}}).to_string();
     let settled = body(&host.request("POST", "/actions/bound-http/done", &headers, &delivered));
     assert_eq!(settled["ok"], true, "{settled}");
     let after = host.request("POST", "/auth/session", &headers, &recovery);
     assert_eq!(body(&after)["denied"]["code"], "E_ACTION_LEASE");
     assert!(!after.contains(&service.token) && !after.contains(&lease) && !after.contains(&recovered_token));
+}
+
+#[test]
+fn bound_session_http_refuses_stale_and_cancelled_claims_without_minting() {
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), "use personas alice\naction signIn()\n");
+    let service = { let engine = lock(&host.shared.engine);
+        snapback4_core::identity::service_session(engine.store(), "worker", host.shared.now(), 1).unwrap() };
+    let service_header = format!("Authorization: Bearer {}\r\n", service.token);
+
+    let admitted = body(&host.request("POST", "/a/signIn?wait=0", "x-snapback-persona: alice\r\n", r#"{"id":"stale-bound-http","args":{}}"#));
+    assert_eq!(admitted["state"], "pending", "{admitted}");
+    let claimed = body(&host.request("POST", "/actions/claim", &service_header, r#"{"action":"signIn"}"#));
+    let stale_lease = claimed["requests"][0]["session"]["token"].as_str().unwrap().to_owned();
+    let stale_headers = format!("{service_header}x-snapback-action-lease: {stale_lease}\r\n");
+    let retried = body(&host.request("POST", "/actions/stale-bound-http/failed", &stale_headers, r#"{"error":"retry","retry":true}"#));
+    assert_eq!(retried["ok"], true, "{retried}");
+    let stale_payload = json!({"principal":"member:stale-http","kind":"member","days":30,"binding":{
+        "invocationId":"stale-bound-http","intent":"identity-session/v1"}}).to_string();
+    assert_eq!(body(&host.request("POST", "/auth/session", &stale_headers, &stale_payload))["denied"]["code"], "E_ACTION_LEASE");
+
+    let admitted = body(&host.request("POST", "/a/signIn?wait=0", "x-snapback-persona: alice\r\n", r#"{"id":"cancelled-bound-http","args":{}}"#));
+    assert_eq!(admitted["state"], "pending", "{admitted}");
+    let claimed = body(&host.request("POST", "/actions/claim", &service_header, r#"{"action":"signIn"}"#));
+    let cancelled_lease = claimed["requests"][0]["session"]["token"].as_str().unwrap().to_owned();
+    let cancelled_headers = format!("{service_header}x-snapback-action-lease: {cancelled_lease}\r\n");
+    let cancelled = body(&host.request("POST", "/actions/cancelled-bound-http/cancel", "x-snapback-persona: alice\r\n", "{}"));
+    assert_eq!(cancelled["request"]["state"], "failed", "{cancelled}");
+    let cancelled_payload = json!({"principal":"member:cancelled-http","kind":"member","days":30,"binding":{
+        "invocationId":"cancelled-bound-http","intent":"identity-session/v1"}}).to_string();
+    assert_eq!(body(&host.request("POST", "/auth/session", &cancelled_headers, &cancelled_payload))["denied"]["code"], "E_ACTION_LEASE");
+
+    let engine = lock(&host.shared.engine);
+    for principal in ["member:stale-http", "member:cancelled-http"] {
+        assert_eq!(engine.store().conn().query_row("SELECT COUNT(*) FROM _sessions WHERE principal = ?1", [principal], |row| row.get::<_, i64>(0)).unwrap(), 0);
+    }
+    assert_eq!(engine.store().conn().query_row("SELECT COUNT(*) FROM _session_mint_bindings WHERE invocation IN ('stale-bound-http', 'cancelled-bound-http')", [], |row| row.get::<_, i64>(0)).unwrap(), 0);
 }
 
 #[test]

@@ -199,6 +199,32 @@ pub fn close_session(store: &Store, token: &str) -> Result<(), RuntimeError> {
     Ok(())
 }
 
+/// Authenticate and close one live session family in the same writer
+/// transaction. This is the HTTP logout boundary; callers that already own a
+/// different authority boundary may continue to use `close_session`.
+// @ref LLP 3000.009#5.1 — logout and lost-delivery replacement serialize on the session family.
+pub fn logout_session(store: &mut Store, token: &str, now: i64) -> Result<(), RuntimeError> {
+    let token_digest = digest(token);
+    let tx = store.transaction()?;
+    let live: Option<(String, String, String)> = tx.conn().query_row(
+        "SELECT principal, kind, COALESCE(family, token_digest) FROM _sessions WHERE token_digest = ?1 AND expires_at > ?2",
+        params![token_digest, now],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+    ).optional()?;
+    let Some((principal, kind, family)) = live else {
+        return Err(RuntimeError::Auth("this session is not live; sign in again".into()));
+    };
+    if kind == "action" && !crate::engine::actions::live_claim_authority(tx.conn(), &token_digest, now)? {
+        return Err(RuntimeError::Auth("this session is not live; sign in again".into()));
+    }
+    tx.conn().execute(
+        "DELETE FROM _sessions WHERE principal = ?1 AND COALESCE(family, token_digest) = ?2",
+        params![principal, family],
+    )?;
+    tx.commit()?;
+    Ok(())
+}
+
 /// Replace one live bearer token atomically. The new token keeps the
 /// session's originally selected lifetime and starts that lifetime anew.
 pub fn rotate_session(
@@ -522,7 +548,7 @@ pub fn custom_session(store: &Store, principal: &str, kind: &str, now: i64, days
     open_session_for(store, principal, kind, now, days)
 }
 
-fn validate_custom_session(principal: &str, kind: &str) -> Result<(), RuntimeError> {
+pub fn validate_custom_session(principal: &str, kind: &str) -> Result<(), RuntimeError> {
     if principal == crate::SYSTEM_PRINCIPAL || RESERVED_PREFIXES.iter().any(|prefix| principal.starts_with(prefix)) {
         return Err(RuntimeError::Auth(format!("{principal} is a principal the engine mints itself; name the account in your own namespace (`member:42`)")));
     }
@@ -681,6 +707,8 @@ mod service_tests {
         assert_eq!(resolve(&store, &member.token, 2_000).unwrap(), Some(("member:42".into(), "member".into())));
         assert!(matches!(custom_session(&store, "user:42", "member", 1_000, 30), Err(RuntimeError::Auth(_))), "the engine's namespaces are its own");
         assert!(matches!(custom_session(&store, "system", "member", 1_000, 30), Err(RuntimeError::Auth(_))));
+        assert_eq!(custom_session(&store, "member:short", "member", 1_000, 0).unwrap().expires_at, 1_000 + DAY_MS);
+        assert_eq!(custom_session(&store, "member:long", "member", 1_000, 3_651).unwrap().expires_at, 1_000 + 3_650 * DAY_MS);
         let second = custom_session(&store, "member:42", "member", 1_500, 30).unwrap();
         assert_eq!(revoke_principal(&store, "member:42").unwrap(), 2);
         assert!(resolve(&store, &second.token, 2_000).unwrap().is_none());

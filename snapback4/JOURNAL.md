@@ -27174,3 +27174,47 @@ Focused serial evidence used `CARGO_BUILD_JOBS=6`:
 
 No core enum test, publication, push, root gate, Postgres change or C3.2 work
 was added.
+
+## 2026-09-17 — B1b review repair: exact bound entry and serialized logout
+
+The B1b HTTP boundary no longer chooses legacy minting merely because a
+`binding` object is absent. Either a `binding` key or any
+`x-snapback-action-lease` header selects the exact bound wire form. The full
+body, binding, principal, kind, days, authorization header and single nonempty
+lease header are parsed and validated before the engine mutex; malformed or
+one-sided bound attempts refuse without minting. Only requests with both
+signals absent retain the legacy defaults and coercions. Integer days retain
+the existing 1–3,650 clamp in both lanes. The response is produced only after
+the short engine guard has dropped.
+
+HTTP logout now authenticates the presented token as live and closes its
+refresh/recovery family within one immediate SQLite writer transaction. Thus a
+logout committed first leaves the existing binding tombstone unable to
+resurrect the family, while a lost-delivery replacement committed first makes
+the old bearer stale: logout returns 401 `E_AUTH` and leaves the replacement
+live. Logout-all generation semantics, action-session authority checks, and
+the lower-level close used by other internal boundaries remain unchanged.
+
+Focused serial evidence used `CARGO_BUILD_JOBS=6` and one test thread:
+
+- the exact two-connection logout/replacement witness passed 1/1, and the
+  exact live-authority witness passed 1/1, including the explicit parked-action
+  finish-gate refusal;
+- both exact HTTP witnesses passed 1/1: inverse/malformed header-body shapes,
+  empty and duplicate leases, stale/cancelled/settled claims, recovery, and
+  stale-token logout all exercise the real route without creating a forbidden
+  session;
+- `snapback4-core --test bound_session` passed 6/6; core identity unit tests
+  passed 5/5; identity, action-context, and work-record integration groups
+  passed 2/2, 8/8, and 6/6;
+- all `serve::tests::` passed 46/46, and the complete Snapback4 binary unit
+  target passed 61/61; Snapback4 work-record and clock groups passed 1/1 and
+  17/17; the language guide suite passed 37/37.
+
+The root ref checker and root gates were deliberately not run for this
+Snapback4-bounded repair. A local anchor scan found the new
+`LLP 3000.009#5.1` reference and its heading. `git diff --check` is clean and
+all touched source files remain below 1,500 lines. No provider/OIDC protocol,
+Postgres parity, generic store abstraction, raw-token persistence, diagnostic,
+`contract.ts` change, C3.2 work, publication, push, remote work or origin
+contact was added.

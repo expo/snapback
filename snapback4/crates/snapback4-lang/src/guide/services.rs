@@ -55,6 +55,12 @@ whole recorded family and returns one replacement capped at the original
 expiry. Changed inputs, stale or settled claims, revoked authority, and a
 logged-out or expired target family refuse. The record stores no raw token.
 The handler must return the delivered Session in its eventual protected result.
+Bound mode begins when either the `binding` key or any action-lease header is
+present; its object and single nonempty lease must be exact, so neither signal
+can fall back to an unbound mint. With both absent, the legacy route still
+defaults an absent or non-string `kind` to `account`, an absent or non-integer
+`days` to seven, and clamps integer days to 1–3,650. Bound integer days use the
+same clamp; missing bound optionals use the same `account` and seven-day defaults.
 
 The principal is the application's own name for the account, outside the
 engine's namespaces (`dev:`, `guest:`, `user:`, `service:` and `system`

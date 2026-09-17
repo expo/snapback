@@ -1129,7 +1129,9 @@ view-once assets; every response uses `Cache-Control: private, no-store`).
 `POST /auth/guest` (`{}`), `POST /auth/signup` and `/auth/login`
 (`{ "email", "password" }`) answer `{ "session": { principal, kind,
 token, expiresAt } }` or `{ "denied": Refusal }`; `POST /auth/logout`
-with the bearer token answers `{ "ok": true }`; `POST /auth/refresh`
+atomically authenticates and closes the presented live refresh/recovery family,
+then answers `{ "ok": true }`; a stale replaced bearer is 401 and cannot close
+or pretend to close its replacement. `POST /auth/refresh`
 returns a replacement session and invalidates that bearer; `POST
 /auth/logout-all` revokes every session for its principal and answers
 `{ "ok": true, "revoked": N }`. With a service token:
@@ -1145,7 +1147,13 @@ claim invalidates every token in that family and returns one replacement with
 the original expiry; changed inputs or revoked, expired, logged-out, settled,
 cancelled, stale, cross-worker, or cross-invocation authority refuse. Binding
 records retain the family and input digest, never a raw token. The action's
-eventual protected result must contain the Session it actually delivered.
+eventual protected result must contain the Session it actually delivered. Either
+the `binding` key or any action-lease header selects this exact bound shape; a
+missing, empty or duplicate counterpart refuses instead of legacy-minting. Only
+when both are absent does legacy coercion remain: non-string `kind` defaults to
+`account`, non-integer `days` defaults to seven, and integer days clamp to
+1–3,650. Bound integer days retain that clamp and its missing optionals retain
+the same defaults.
 `POST /effects/claim` (`{ "effect"?, "limit"?, "lease"?, "wait"? }`, the
 last two in seconds; `wait` long-polls until something is due) answers
 `{ "effects": [{ id, effect, payload, attempt, seq, at }] }`, `POST
