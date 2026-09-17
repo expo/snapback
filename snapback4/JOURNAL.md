@@ -32799,3 +32799,176 @@ Lead entry (Claude, orchestrating; lanes S5 and S5R1 were Codex `gpt-6-astra`, r
 **What the landing measured.** S5 alone: 466,618 → 444,964 B gzip (prefetch −6,931, event construction −1,243, admission −13,480). But `main` was no longer 466,618: `bash scripts/build-wasm.sh` at `12c64165b0` prints 505,030, and the merged S5 tree prints 482,965. Three code commits in eighty minutes added 38,030 B against a budget that prints on every suite run and blocks nothing. One experiment found most of it: deleting the single line `#[serde(untagged)]` from `ir::LaneSource` (W13c) takes `main` from 505,030 to 471,570 — 33,460 B gzip, 129,900 raw. The derived untagged decoder buffers into serde's `Content` tree and re-reads it through `ContentRefDeserializer`, a second reader, so `Scan`, `Expr` and everything beneath them are instantiated twice — the duplication S1 removed this morning. `attribute-wasm.mjs --check-families` fails on it (`unrecognized serde family …ContentRefDeserializer… LaneSource`), on `main` as well as here, so `measure-wasm.sh` cannot record a line for this landing; the budget file is set by hand to 483,000 from the build-script line and says so. Lane D3 is commissioned on top of this landing: decode that enum without buffering and keep its wire bytes, name the content reader in the instrument, and make the suite's source census refuse the representations that select it. What the instrument could not do was run: the check that catches this lives in a measurement nobody else runs at landing, which is the argument for the fast census rule — and evidence for the author's open question about whether a budget overrun should fail the suite.
 
 **Qualification.** On `57bdc2cbcc`, outside the sandbox: `scripts/test.sh` red only on the clock flake fixed here (client 624 of 627, 0 failures), `witness/idb.mjs` and `witness/scale.mjs` exit 0, React 13/13, `--check-families --check-absent` ok (before W13c reached the lane). On the final merged tree: `bash snapback4/scripts/test.sh` at host load 30–38 → `== 1 failure(s) in 537 s`: cargo build, wasm build, the new release guard, typechecks, chat check and fixtures ok; `cargo test` ok (194 s, 0 failures); client tests 669 of 676 with 4 failures, all four `worker.test.mjs` "lost effect lease on the wire reports queued/failed/sent/running". Those four fail identically on unmodified `main` at `12c64165b0` in a clean detached worktree (`node --test --test-name-pattern='lost effect lease' packages/snapback4/test/worker.test.mjs`: 14 tests, 10 pass, 4 fail) — today's effect-lease change refuses with a newer message before the state-specific one the tests and `worker.ts` expect. S5 touches no effect code; ticketed as `issues/20260917-snapback4-worker-lost-effect-lease-tests-red-on-main.md` and left to that program. Targeted, by exit code: wasm build 0; release guard 0; clock ×3 0; `device_diet` under both policies 0; device `components` + `codec` 0; guide 0 (47 tests, the new pin among them); `wasm-absent`/`-budget`/`-families`/`-codec-census`/`device-diet` node tests 0; `attribute-wasm.mjs --check-absent` 0 ("server-only absence check: ok"); `cargo check -p snapback4-core --no-default-features` 0; `cargo test --workspace --no-run` 0; `./ref-check` 0. `--check-families` is red for the reason above and is not claimed.
+
+
+## 2026-09-17 — D3 / S1b: one reader for the IR again
+
+Implemented the commissioned Lane D3 on base `0eb822d025136df6260f0f68ba190c0ae16f19c2`, without a commit, push, tag, publication, corpus edit, meter-ceiling change, or client-contract change. `LaneSource` retains its untagged derived `Serialize`; only `Deserialize` is replaced. It discriminates the first recognized map field, streams Range/List values through the original reader, and replays a consumed Scan key into Scan's own derive. A tiny metadata-only deserializer obtains Scan's field names from that derive, so even an unknown field preceding `existence` or a Range/List key is skipped without copying Scan's field list. No `FieldNames` symbol survives the web build. Scan alone retains a second map-visitor instantiation; its nested values still use StrRead. Rust permits `ir/lane_source.rs` beside `ir.rs`, contrary to the brief's parenthetical.
+
+The instrument now names the content buffer, including `visit_content_*` helpers, prints its table before refusing, and explains `untagged`, `tag`, and `flatten`. Its only new exception is the exact `(snapback4_core::ir::Scan deserialize, serde map replay (LaneSource first key))` pair. It also recognizes the handwritten SourceVisitor as LaneSource, so removing the derive does not make that reader invisible. Synthetic tests reject a second type using the replay adapter. The fast source census handles decoder derives, type and field attributes, cfg_attr, whitespace, nested metadata, and multiple serde options. Serialize-only types are legal. Its exact SQLite decoder exceptions are consumed once and cannot be used by adding an unconditional Deserialize beside the conditional one. Even json_codec.rs's direct-call exemption does not exempt a content representation. The command sheet documents the content family.
+
+The base symbol-bearing artifact has **zero WriteState or MutationOutcome decoder symbols (0 B)**. Their Serialize derives remain shared and their Deserialize derives are now SQLite-only; the census's two exact cfg-bound exceptions record that distinction. `engine/mod.rs` changes only those two derives, as authorized by the brief. All other production Rust changes are the LaneSource derive/module declaration and its new private module.
+
+### Differential evidence and the brief's premises
+
+`cargo test -p snapback4-core --test lane_source -- --nocapture` reports:
+
+```
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+```
+
+The private old untagged enum exists only under cfg(test) in the integration target. The tests compare values and accept/refuse outcomes over **120 corpus sources (60 null, 60 Scan)**, **76 sources from 52 published Quarry blocks (20 null, 37 Scan, 19 Range, 0 List)**, a separate compiler-generated List source, nested source expressions, and **3,369 generated objects**. Small variants get every key permutation; Scan gets each field at every position with forward/reverse remaining orders. Missing fields, duplicate fields (including null max), max-first and integer bounds, unknown-field positions, new existence-first scans, mixed Range/List subsets, null, scalars and arrays are covered. Every published program also round-trips its exact serialized bytes.
+
+The brief's published List premise is false at this base: no card/README block emits one, so the test adds the compiler fixture instead of changing published prose. Its literal corpus byte premise also needs qualification: **113 original source texts round-trip exactly; seven are pretty-printed**. The test removes only insignificant whitespace for those seven, preserving all key order, number spelling, escapes and string bytes; old-serializer canonical source bytes round-trip exactly for every corpus and guide source. Nothing in a canonical writer's bytes or backend identity changes.
+
+The differential enumerates deliberate difference classes: field-level errors and text positions rather than a generic no-variant error; refusal of mixed Range/List keys that the old first-success fallback accepted; refusal of positional Scan arrays; first-recognized precedence on ambiguous mixed Scan/domain maps; and direct serde's IgnoredAny behavior for malformed/deep unknown subtrees. The latter can accept text that the old Content buffer validated first; tests pin both that difference and the existing web command's `json_codec::validate_text` refusal. No canonical writer emits these exceptional shapes. The new decoder does not claim accept/refuse identity for arbitrary malformed or mixed-schema JSON.
+
+### Measurements
+
+Commands ran in `snapback4/` with `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`: Node **24.18.0**, Rust **1.97.0**, wasm-bindgen **0.2.127**, wasm-opt **132**, the existing wasm profile with web/no-default-features. `bash scripts/build-wasm.sh`:
+
+```
+wasm 1659689 B raw, 482965 B gzip (budget 483000: ok)
+wasm 1530533 B raw, 450956 B gzip (budget 451000: ok)
+```
+
+Saving: **32,009 B gzip (6.63%) / 129,156 B raw**. The report-only budget is **451,000 B**, the measured gzip rounded up to 1,000 B. It remains report-only. The symbol-level census (`node scripts/attribute-wasm.mjs --families --check-families --check-absent`) has the following before/after rows (shallow pre-bindgen bytes, not compressed savings):
+
+Before, the new content-family assertion is red:
+
+```
+DUPLICATE snapback4_core::ir::Expr deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (11722 B), serde content buffer (untagged, internally tagged or flatten) (7167 B)
+DUPLICATE snapback4_core::ir::LaneSource deserialize: serde content buffer (untagged, internally tagged or flatten) (3725 B), serde_json::de::Deserializer<serde_json::read::StrRead> (374 B)
+DUPLICATE snapback4_core::ir::Scan deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (5845 B), serde content buffer (untagged, internally tagged or flatten) (6154 B)
+snapback4_core::ir::Scan deserialize: serde_json::de::Deserializer<serde_json::read::StrRead>, serde content buffer (untagged, internally tagged or flatten)
+snapback4_core::ir::Expr deserialize: serde_json::de::Deserializer<serde_json::read::StrRead>, serde content buffer (untagged, internally tagged or flatten)
+snapback4_core::ir::LaneSource deserialize: serde content buffer (untagged, internally tagged or flatten), serde_json::de::Deserializer<serde_json::read::StrRead>
+```
+
+After:
+
+```
+snapback4_core::ir::Expr deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (11744 B)
+snapback4_core::ir::LaneSource deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1002 B)
+DUPLICATE snapback4_core::ir::Scan deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (5845 B), serde map replay (LaneSource first key) (3951 B)
+serde family check: ok
+server-only absence check: ok
+```
+
+`twiggy top -n 1000000 --format json target/wasm-sym/wasm32-unknown-unknown/wasm/snapback4_device.wasm`, saved as `/tmp/d3-evidence/before.json` and `after.json`, contains **418 content-module symbols / 120,808 shallow B before, 0 / 0 after** (sum shallow_size after removing crate disambiguators from symbol names). The Scan replay visitor is **3,951 shallow B**. WriteState, MutationOutcome decoder, and FieldNames symbol counts and bytes are **0 / 0** in both artifacts.
+
+`bash scripts/measure-wasm.sh` succeeds again. To honor the dirty-tree rule without changing the script, this invocation exported a Bash `tee` function that maps only `tee -a metrics/wasm.jsonl` to `cat` and delegates every other invocation to `command tee`; the line was printed and never appended. The exact line is:
+
+```json
+{"at":"2026-09-17T19:24:07Z","sha":"0eb822d025","dirty":true,"wasm":{"raw":1530533,"gzip":450956,"brotli":351379},"glue":{"raw":11325,"gzip":3047,"brotli":2700},"wasmOpt":false,"budget":451000,"over":0}
+```
+
+Wasm/glue SHA-256 from `shasum -a 256 packages/snapback4/src/wasm/snapback4_device_bg.wasm packages/snapback4/src/wasm/snapback4_device.js`: `6c9bdb0baa0e752435c0df8122042a92dd7741f6d120bf032316d5760249a915` / `243c37b7b8f84a63c0bae1415c548c7b845624d27b90f98a97483cd0144645de`. SDK source and backend representations are unchanged; no payload moved into another bundle. Browser cold transfer, heap and acquisition remain unqualified because Chromium cannot launch in this sandbox.
+
+The existing quick native sanity test was available. `cargo test -p snapback4-device --test diet_timing --no-run --message-format=json` built and saved the exact-base and candidate executables. `python3 /tmp/d3-evidence/pair-native.py` runs each saved executable with `--ignored --nocapture`, base/after then after/base, seven samples per block (14 samples per candidate):
+
+```
+0 base median N=7 apply_4000_ms=29.461 cold_open_100000_ms=354.281
+0 after median N=7 apply_4000_ms=28.772 cold_open_100000_ms=353.991
+1 after median N=7 apply_4000_ms=31.058 cold_open_100000_ms=355.472
+1 base median N=7 apply_4000_ms=28.319 cold_open_100000_ms=345.109
+base median of two alternating blocks (each N=7) 28.89 349.695
+after median of two alternating blocks (each N=7) 29.915 354.7315
+```
+
+The medians of the two block medians are **28.890 → 29.915 ms apply (+3.55%)**, **349.695 → 354.7315 ms cold open (+1.44%)**. The first pair slightly favors the candidate and the reversed pair favors the base; these loaded-host sanity samples do not establish a repeatable regression or a speedup. Each of the four executions reports `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out` (full timed summaries remain in `native-*-*.log`).
+
+### Verification
+
+The census was red before the decoder/gating changes: `node --test packages/snapback4/test/wasm-codec-census.test.mjs` reported **13 tests, 11 pass, 2 fail**, naming LaneSource's untagged derive and the two ungated reply decoders. `node scripts/attribute-wasm.mjs --families --check-families` was also red on the base, naming the content buffer and representation attributes; the original instrument had refused it as unrecognized. Both are green after. Final `node --test packages/snapback4/test/wasm-*.test.mjs`:
+
+```
+ℹ tests 29
+ℹ suites 0
+ℹ pass 29
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+```
+
+`cargo test -p snapback4-core` (final run, **143 passed, 0 failed**, including the nine final differential tests):
+
+```
+test result: ok. 55 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.24s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.65s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+`cargo test -p snapback4-lang --test guide --test components --test lowering` (**65 passed, 0 failed**):
+
+```
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 80.75s
+```
+
+`cargo test -p snapback4-device --test codec --test device_diet --test components` (**16 passed, 0 failed**):
+
+```
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.21s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+```
+
+`bash scripts/check-release-guard.sh`: `release guard: ok (web-device-check refuses the wasm profile)`.
+
+From the repository root, `bash snapback4/scripts/test.sh` (Node 24 PATH) completed at host load **68.52 across 18 CPUs**:
+
+```
+-- ok: cargo test (678 s)
+ℹ tests 670
+ℹ pass 661
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 3
+-- FAIL: client tests (656 s)
+== 1 failure(s) in 707 s
+   client tests
+```
+
+Every other suite stage passed, including the nine fixture-wrapper tests. The suite's compiled differential target contained the initial six tests; the later three compatibility assertions and final census refinements were verified in the final affected core/Node commands above. The brief's roughly 60-second warm-suite premise did not hold on this host.
+
+One failure was the transport deadline: `node --test --test-name-pattern='wasm: maximum pending ids, cursor batches and every terminal acknowledgement' packages/snapback4/test/transport-http.test.mjs` passes alone:
+
+```
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+```
+
+The four effect-lease assertions expect state-specific wording while the server replies `E_EFFECT_LEASE: effect effect-0000000000000001-0000000000000000 is not held by this live claim; claim it first and use its current token`. To establish their provenance, `python3 /tmp/d3-evidence/verify-base-worker.py` temporarily restored only this lane's two changed production Rust files from `git show 0eb822d025136df6260f0f68ba190c0ae16f19c2:<path>`, asserted `git diff --exit-code -- snapback4/crates`, built `cargo build -p snapback4 --bin snapback4 --quiet`, and ran `node --test --test-name-pattern='lost effect lease on the wire' packages/snapback4/test/worker.test.mjs`. Exact-base result:
+
+```
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+```
+
+The script's finally block restored the candidate files and rebuilt the candidate server successfully. Those four failures are verified pre-existing at the full base hash above; no other failure is labeled pre-existing. The remaining React failure is Chromium `SIGABRT`. `node witness/idb.mjs` and `node witness/scale.mjs` each exit 1 at browser launch with the same SIGABRT; neither acquired a device. The scale command's single failure append was removed byte-for-byte and retained in `/tmp/d3-evidence/witness-failure.jsonl`, so neither metric history is changed. The lead must run browser qualification outside the sandbox.
+
+`./ref-check --verbose` and `git diff --check` are the final root checks. The former passed before this appended entry with `ref-check: ok — 483 LLP docs, 9096 refs in 24267 files, 0 errors, 0 unchecked` and is rerun afterward. All edited/new code files are below 1,500 lines. Two mistargeted early Cargo invocations used the repository root and exited 101 without running Snapback 4 tests; every reported successful Cargo command used `snapback4/`.
+
+No README or guide text changed, because canonical wire bytes and the authoring surface did not move. No out-of-scope source file remains changed. The useful lesson is that an untagged derive is a reader choice, not just a wire-shape annotation: a source-level guard at the landing path is needed alongside the slower artifact measurement, and a streaming replacement must explicitly document the malformed-input behavior it no longer obtains from serde's buffer.

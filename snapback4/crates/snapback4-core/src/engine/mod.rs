@@ -188,14 +188,16 @@ pub struct QueryOutcome {
     pub next_expiry: Option<i64>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "sqlite", derive(Deserialize))]
 #[serde(tag = "state", rename_all = "lowercase")]
 pub enum WriteState {
     Sent { seq: u64, result: Value },
     Failed { why: Refusal, #[serde(default, skip_serializing_if = "Option::is_none")] current: Option<Value> },
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "sqlite", derive(Deserialize))]
 pub struct MutationOutcome {
     #[serde(flatten)]
     pub state: WriteState,

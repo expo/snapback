@@ -150,3 +150,39 @@ test('cfg quoted in a doc attribute cannot hide a web call', () => {
   const source = '#[doc = "#[cfg(test)] #[cfg(feature = \"sqlite\")]" ]\n' + line;
   assert.deepEqual(census(new Map([[file, source]]), []), [`${file}:2: ${line}`]);
 });
+
+test('content representations require a decoder and cannot hide in whitespace or cfg_attr', () => {
+  const file = core + 'ir.rs';
+  for (const attr of ['#[serde(untagged)]', '#[ serde ( untagged ) ]', '# [ serde ( untagged ) ]', '#[serde(tag = "kind")]', '#[serde(tag = "kind", content = "data")]', '#[serde(default, flatten)]', '#[serde(rename_all(serialize = "lowercase"), untagged)]', '#[cfg_attr(feature = "web", serde(untagged))]']) {
+    for (const body of [`${attr}\npub enum Added { X }`, `pub struct Added { ${attr} field: String }`]) {
+      const check = derive => census(new Map([[file, `#[derive(${derive})]\n${body}`]]), []);
+      assert.deepEqual(check('Serialize'), [], attr);
+      assert.ok(check('Serialize, Deserialize').some(e => /content buffering.*33,460.*LLP 3000.002/.test(e)), attr);
+    }
+  }
+  const source = sources().get(file);
+  const mutant = source.replace('#[derive(Clone, Debug, PartialEq, Eq, Serialize)]\n#[serde(untagged)]\npub enum LaneSource', '#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]\n#[serde(untagged)]\npub enum LaneSource');
+  assert.notEqual(mutant, source, 'restore LaneSource derived untagged decoder');
+  assert.ok(census(new Map([[file, mutant]]), []).some(e => e.includes('content buffering')));
+  assert.deepEqual(census(new Map([[file, '#[cfg(test)]\nmod oracle { #[derive(Deserialize)] #[serde(untagged)] enum Old { X } }']]), []), []);
+});
+
+test('representation exceptions require the exact sqlite decoder and are consumed once', async () => {
+  const { representationAllow } = await import('./wasm-codec-census.mjs');
+  for (const entry of representationAllow) {
+    const original = sources().get(entry.file);
+    const exceptions = [...allow, ...representationAllow].filter(e => e.file === entry.file);
+    assert.deepEqual(census(new Map([[entry.file, original]]), exceptions), []);
+    for (const changed of [original.replace(entry.line, ''), original.replace(entry.line, entry.line + '\n' + entry.line), original.replaceAll('cfg_attr(feature = "sqlite", derive(Deserialize))', 'cfg_attr(feature = "web", derive(Deserialize))'), original.replaceAll('#[cfg_attr(feature = "sqlite", derive(Deserialize))]', '#[derive(Deserialize)]\n#[cfg_attr(feature = "sqlite", derive(Deserialize))]')]) {
+      assert.ok(census(new Map([[entry.file, changed]]), exceptions).some(e => e.includes(`exception ${entry.item} consumed`)));
+    }
+  }
+});
+
+
+test('the JSON funnel exception does not exempt content representations', () => {
+  const source = 'fn decode() { serde_json::from_str(text) }\n#[derive(Deserialize)] #[serde(untagged)] enum Added { X }';
+  const errors = census(new Map([[core + 'json_codec.rs', source]]), []);
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /content buffering/);
+});

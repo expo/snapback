@@ -318,13 +318,15 @@ pub struct MergeLane {
 
 /// Query lane domains reuse statement-loop binding and evaluation. The scan
 /// variant retains its wire shape for the frozen conformance programs.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(untagged)]
 pub enum LaneSource {
     Scan(Scan),
     Range { start: Expr, end_exclusive: Expr, max: Option<u64> },
     List { value: Expr, max: u32 },
 }
+
+mod lane_source;
 
 impl LaneSource {
     pub fn scan(&self) -> Option<&Scan> { if let Self::Scan(scan) = self { Some(scan) } else { None } }

@@ -45,7 +45,7 @@ function endOf(code, start, open = '{', close = '}') {
 }
 export function items(source) {
   const code = mask(source), found = [];
-  for (const match of code.matchAll(/\b(fn|mod|impl)\s+([\w]+)[^{;]*[;{]/g)) {
+  for (const match of code.matchAll(/\b(fn|mod|impl|struct|enum)\s+([\w]+)[^{;]*[;{]/g)) {
     const start = match.index, brace = start + match[0].length - 1;
     // Attributes immediately preceding an item (including its visibility).
     let attributeStart = start;
@@ -55,12 +55,15 @@ export function items(source) {
       let end = attributeStart;
       while (end > 0 && /\s/.test(code[end - 1])) end--;
       if (code[end - 1] !== ']') break;
-      const begin = code.lastIndexOf('#[', end);
-      if (begin < 0 || code.slice(begin + 2, end - 1).includes(']')) break;
-      attributeStart = begin;
+      let begin = end - 1, depth = 1;
+      while (begin > 0 && depth) { begin--; if (code[begin] === ']') depth++; if (code[begin] === '[') depth--; }
+      if (depth) break;
+      while (begin > 0 && /\s/.test(code[begin - 1])) begin--;
+      if (code[begin - 1] !== '#') break;
+      attributeStart = begin - 1;
     }
     found.push({ name: match[2], kind: match[1], start, end: code[brace] === '{' ? endOf(code, brace) : brace + 1,
-      attrs: mask(source.slice(attributeStart, start), false), external: code[brace] === ';' });
+      attributeStart, attrs: mask(source.slice(attributeStart, start), false), external: code[brace] === ';' });
   }
   return found;
 }
@@ -70,6 +73,33 @@ function cfgs(item) {
 }
 function gated(item, feature) {
   return cfgs(item).some(attr => new RegExp(`^#\\[\\s*cfg\\s*\\(\\s*feature\\s*=\\s*"${feature}"\\s*\\)\\s*\\]$`).test(attr));
+}
+function decodeGated(item) {
+  const code = mask(item.attrs);
+  const derives = [...code.matchAll(/\bderive\s*\([^)]*\bDeserialize\b/g)];
+  if (derives.length !== 1) return false;
+  for (const match of code.matchAll(/#\s*\[/g)) {
+    const end = endOf(code, code.indexOf('[', match.index), '[', ']');
+    if (derives[0].index < match.index || derives[0].index >= end) continue;
+    return /^#\s*\[\s*cfg_attr\s*\(\s*feature\s*=\s*"sqlite"\s*,\s*derive\s*\(\s*Deserialize\s*\)\s*\)\s*\]$/.test(item.attrs.slice(match.index, end));
+  }
+  return false;
+}
+function representations(source, scopes) {
+  const code = mask(source), found = [];
+  for (const item of scopes.filter(item => ['enum', 'struct'].includes(item.kind))) {
+    if (!/\bderive\s*\([^)]*\bDeserialize\b/.test(mask(item.attrs))) continue;
+    for (const match of code.slice(item.attributeStart, item.end).matchAll(/#\s*\[/g)) {
+      const start = item.attributeStart + match.index, end = endOf(code, code.indexOf('[', start), '[', ']');
+      const attr = code.slice(start, end);
+      const buffered = [...attr.matchAll(/\bserde\s*\(/g)].some(match => {
+        const open = attr.indexOf('(', match.index), end = endOf(attr, open, '(', ')');
+        return /(?:^|,)\s*(?:untagged\b|flatten\b|tag\s*=)/.test(attr.slice(open + 1, end - 1));
+      });
+      if (buffered) found.push({ index: start, item });
+    }
+  }
+  return found;
 }
 function testOnly(item) { return cfgs(item).some(attr => /^#\[\s*cfg\s*\(\s*test\s*\)\s*\]$/.test(attr)); }
 function walk(dir) {
@@ -107,6 +137,12 @@ export const allow = [
   { file: core + 'engine/mod.rs', item: 'activate', line: 'let previous: Option<Schema> = previous.map(|text| serde_json::from_str(&text).map_err(|e| RuntimeError::Store(e.to_string()))).transpose()?;' },
   { file: core + 'engine/mod.rs', item: 'mutate', line: 'tx.record_applied(&viewer, op, seq, &serde_json::to_string(&outcome.receipt(Some(op))).map_err(|e| RuntimeError::Store(e.to_string()))?)?;' },
 ];
+export const representationAllow = [
+  // The symbol-bearing web build has zero decoder symbols for these server replies.
+  // Deserialize is sqlite-only; serialization and the wire shape remain shared.
+  { file: core + 'engine/mod.rs', item: 'WriteState', line: '#[serde(tag = "state", rename_all = "lowercase")]' },
+  { file: core + 'engine/mod.rs', item: 'MutationOutcome', line: '#[serde(flatten)]' },
+];
 // Existing refusal envelopes also use the funnel; pin their exact custody
 // until their product routing can change independently of this instrument.
 export const refusalAllow = [
@@ -114,38 +150,42 @@ export const refusalAllow = [
   { file: device + 'call.rs', item: 'call', line: 'Err(error) if error.is_refusal() => json!({ "denied": snapback4_core::json_codec::to_value(&error.refusal()).expect("a refusal is serializable") }),' },
   { file: device + 'web.rs', item: 'refused', line: 'JsError::new(&json!({ "denied": snapback4_core::json_codec::to_value(&error.refusal()).expect("a refusal is serializable") }).to_string())' },
 ];
-export function census(sources, exceptions = [...allow, ...refusalAllow]) {
+export function census(sources, exceptions = [...allow, ...refusalAllow, ...representationAllow]) {
   const used = new Map(exceptions.map(entry => [entry, 0])), errors = [];
   for (const [file, source] of sources) {
-    if (file === core + 'json_codec.rs') continue;
     const code = mask(source), scopes = items(source), hits = new Set();
-    for (const match of code.matchAll(new RegExp(`\\bserde_json\\s*::\\s*(?:(?:value|de|ser)\\s*::\\s*)?(?:r#)?(?:${typed})\\b`, 'g'))) hits.add(match.index);
-    // Reject typed import trees, glob imports, and crate aliases at their use
-    // item. Value/Map/Number/json imports (including aliases) stay legal.
-    for (const match of code.matchAll(/\b(?:use\s+[\s\S]*?;|extern\s+crate\s+serde_json\s+as\s+\w+\s*;)/g)) {
-      if (/\bserde_json\b/.test(match[0]) && (new RegExp(`\\b(?:${typed})\\b|\\*`).test(match[0]) || /\b(?:serde_json|self)\s+as\b/.test(match[0]))) {
-        for (const hit of hits) if (hit >= match.index && hit < match.index + match[0].length) hits.delete(hit);
-        hits.add(match.index);
+    const reps = representations(source, scopes);
+    for (const { index } of reps) hits.add(index);
+    if (file !== core + 'json_codec.rs') {
+      for (const match of code.matchAll(new RegExp(`\\bserde_json\\s*::\\s*(?:(?:value|de|ser)\\s*::\\s*)?(?:r#)?(?:${typed})\\b`, 'g'))) hits.add(match.index);
+      // Reject typed import trees, glob imports, and crate aliases at their use
+      // item. Value/Map/Number/json imports (including aliases) stay legal.
+      for (const match of code.matchAll(/\b(?:use\s+[\s\S]*?;|extern\s+crate\s+serde_json\s+as\s+\w+\s*;)/g)) {
+        if (/\bserde_json\b/.test(match[0]) && (new RegExp(`\\b(?:${typed})\\b|\\*`).test(match[0]) || /\b(?:serde_json|self)\s+as\b/.test(match[0]))) {
+          for (const hit of hits) if (hit >= match.index && hit < match.index + match[0].length) hits.delete(hit);
+          hits.add(match.index);
+        }
       }
-    }
-    if (file.startsWith(device)) {
-      for (const match of code.matchAll(/\bjson_codec\s*::\s*(?:r#)?(from_value|to_value)\b/g)) {
-        const fn = scopes.filter(item => item.kind === 'fn' && item.start < match.index && item.end > match.index).at(-1);
-        if (file !== device + 'call.rs' || fn?.name !== (match[1] === 'from_value' ? 'parse' : 'encoded')) hits.add(match.index);
-      }
-      for (const match of code.matchAll(/\buse\s+[^;]*\bjson_codec\b[^;]*;/g)) {
-        if (/\b(?:from_value|to_value)\b|\*|\b(?:json_codec|self)\s+as\b/.test(match[0])) hits.add(match.index);
+      if (file.startsWith(device)) {
+        for (const match of code.matchAll(/\bjson_codec\s*::\s*(?:r#)?(from_value|to_value)\b/g)) {
+          const fn = scopes.filter(item => item.kind === 'fn' && item.start < match.index && item.end > match.index).at(-1);
+          if (file !== device + 'call.rs' || fn?.name !== (match[1] === 'from_value' ? 'parse' : 'encoded')) hits.add(match.index);
+        }
+        for (const match of code.matchAll(/\buse\s+[^;]*\bjson_codec\b[^;]*;/g)) {
+          if (/\b(?:from_value|to_value)\b|\*|\b(?:json_codec|self)\s+as\b/.test(match[0])) hits.add(match.index);
+        }
       }
     }
     for (const index of [...hits].sort((a, b) => a - b)) {
-      const enclosing = scopes.filter(item => item.start < index && item.end > index);
+      const representation = reps.find(hit => hit.index === index);
+      const enclosing = scopes.filter(item => item.attributeStart <= index && item.end > index);
       if (enclosing.some(testOnly)) continue;
       const fn = enclosing.filter(item => item.kind === 'fn').at(-1);
       const start = source.lastIndexOf('\n', index) + 1, end = source.indexOf('\n', index);
       const line = source.slice(start, end < 0 ? undefined : end).trim();
-      const exception = exceptions.find(entry => entry.file === file && entry.item === fn?.name && entry.line === line && (enclosing.some(item => gated(item, 'sqlite')) || refusalAllow.includes(entry)));
+      const exception = exceptions.find(entry => entry.file === file && entry.item === (representation?.item.name ?? fn?.name) && entry.line === line && (enclosing.some(item => gated(item, 'sqlite')) || refusalAllow.includes(entry) || (representation && decodeGated(representation.item))));
       if (exception) used.set(exception, used.get(exception) + 1);
-      else errors.push(`${file}:${source.slice(0, index).split('\n').length}: ${line}`);
+      else errors.push(`${file}:${source.slice(0, index).split('\n').length}: ${line}${representation ? ' — Deserialize content buffering duplicates nested readers (LaneSource measured +33,460 B gzip); see LLP 3000.002#proposed-device-representation-and-codec-redesign' : ''}`);
     }
   }
   for (const [entry, count] of used) if (count !== 1) errors.push(`${entry.file}: exception ${entry.item} consumed ${count} times (expected 1): ${entry.line}`);

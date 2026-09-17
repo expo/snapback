@@ -47,6 +47,11 @@ export function derivedTypes(name) {
       break;
     }
   }
+  // LaneSource's handwritten visitor has no derive-generated owner in its
+  // symbol. Keep its concrete reader visible after removing the derive.
+  if (/\bsnapback4_core::ir::lane_source::SourceVisitor\b/.test(name) && !found.some(entry => entry.type === 'snapback4_core::ir::LaneSource')) {
+    found.push({ type: 'snapback4_core::ir::LaneSource', direction: 'deserialize' });
+  }
   return found;
 }
 
@@ -60,7 +65,7 @@ export function collectFamilies(kept) {
       let family;
       const ownedTree = /(?:^<|::<)(?:&mut |&)?serde_json::(?:(?:value::)?Value|(?:map::)?Map|map::\w+|value::de::\w*Deserializer)(?:[<>]| as )/.test(n);
       if (direction === 'deserialize') {
-        family = n.includes('serde_json::read::StrRead') ? 'serde_json::de::Deserializer<serde_json::read::StrRead>' : n.includes('serde_json::read::SliceRead') ? 'serde_json::de::Deserializer<serde_json::read::SliceRead>' : concrete(n, 'serde_json::de::Deserializer<') ?? (ownedTree ? 'serde_json::Value/Map (owned tree)' : undefined);
+        family = /serde::private::de::content::(?:Content(?:Ref)?Deserializer|visit_content_)/.test(n) ? contentFamily : n.includes('snapback4_core::ir::lane_source::Replay<') ? replayFamily : n.includes('serde_json::read::StrRead') ? 'serde_json::de::Deserializer<serde_json::read::StrRead>' : n.includes('serde_json::read::SliceRead') ? 'serde_json::de::Deserializer<serde_json::read::SliceRead>' : concrete(n, 'serde_json::de::Deserializer<') ?? (ownedTree ? 'serde_json::Value/Map (owned tree)' : undefined);
       } else {
         const keyWriter = concrete(n, 'serde_json::ser::MapKeySerializer<');
         family = keyWriter ? keyWriter.replace('MapKeySerializer<', 'Serializer<').replace(', serde_json::ser::CompactFormatter>', '>') : n.includes('serde_json::value::ser::Serializer') ? 'serde_json::value::ser::Serializer' : concrete(n, 'serde_json::ser::Serializer<') ?? (ownedTree ? 'serde_json::Value/Map (owned tree)' : undefined);
@@ -79,10 +84,12 @@ export function collectFamilies(kept) {
   return families;
 }
 
-// The allocation-free output meter intentionally adds exactly this writer to
-// these two types. It does not excuse a third family or any deserializer.
+export const contentFamily = 'serde content buffer (untagged, internally tagged or flatten)';
+export const replayFamily = 'serde map replay (LaneSource first key)';
 const textFamily = 'serde_json::de::Deserializer<serde_json::read::StrRead>';
 const writerFamily = 'serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>>';
+// The allocation-free output meter intentionally adds exactly this writer to
+// Value and ObjectFields. It does not excuse a third family or any deserializer.
 const counterFamily = 'serde_json::ser::Serializer<&mut snapback4_core::json_codec::value_bytes::Counter>';
 // Dynamic request/reply trees necessarily keep serde_json's own envelope
 // serializers. These exact scalar/Value entries do not excuse typed containers.
@@ -104,8 +111,10 @@ const allowed = new Set(['snapback4_core::value::Value serialize', 'snapback4_co
 export function checkFamilies(families) {
   if (!families.size) refuse('no derived Snapback serde families found in the symbol-bearing artifact');
   const unexpected = [...families].filter(([type, found]) => [...found.keys()].some(family =>
-    family !== (type.endsWith(' deserialize') ? textFamily : writerFamily) && !(allowed.has(type) && family === counterFamily) && !envelopeFamilies.get(type)?.has(family)));
-  if (unexpected.length) refuse(unexpected.map(([type, found]) => `${type}: ${[...found.keys()].join(', ')}`).join('\n'));
+    family !== (type.endsWith(' deserialize') ? textFamily : writerFamily) && !(allowed.has(type) && family === counterFamily) && !envelopeFamilies.get(type)?.has(family)
+    // Only Scan's map visitor sees the replay adapter; its field values still use StrRead.
+    && !(type === 'snapback4_core::ir::Scan deserialize' && family === replayFamily)));
+  if (unexpected.length) refuse('unexpected serde reader/writer; content buffers come from #[serde(untagged)], #[serde(tag = …)] or #[serde(flatten)] on Deserialize types (LLP 3000.002#proposed-device-representation-and-codec-redesign):\n' + unexpected.map(([type, found]) => `${type}: ${[...found.keys()].join(', ')}`).join('\n'));
 }
 
 // @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — server-only code must not return to the web artifact.
@@ -177,7 +186,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     if (!families.size) refuse('no derived Snapback serde families found in the symbol-bearing artifact');
     lines.push('Derived serde family census (surviving symbols, shallow bytes; inlined bodies have no independent size):');
     for (const [key, found] of [...families].sort(([a],[b]) => a.localeCompare(b))) lines.push(`${found.size > 1 ? 'DUPLICATE ' : ''}${key}: ${[...found].map(([f,b]) => `${f} (${b} B)`).join(', ')}`);
-    if (args.includes('--check-families')) { checkFamilies(families); lines.push('serde family check: ok'); }
+    if (args.includes('--check-families')) { console.log(lines.join('\n')); lines.length = 0; checkFamilies(families); lines.push('serde family check: ok'); }
     const clones = kept.filter(r => /snapback4_core.*::ir::/.test(r.name) && /clone/i.test(r.name));
     lines.push(`IR clone symbols: ${clones.length}, ${clones.reduce((s,r) => s + r.shallow_size,0)} B`);
     for (const r of clones) lines.push(`${r.shallow_size} B  ${clean(r.name)}`);
