@@ -54,16 +54,7 @@ run_logged() {
 }
 
 run_host_tests() {
-  local host_test_status=0 path target
-  local host_targets=()
-  # Discover every integration target except lifecycle from the conventional
-  # Cargo layout. This keeps new host targets in the blocking suite while the
-  # subprocess/listener-heavy lifecycle target runs at one harness thread.
-  for path in crates/snapback4/tests/*.rs; do
-    target=$(basename "$path" .rs)
-    [ "$target" = lifecycle ] || host_targets+=(--test "$target")
-  done
-  cargo test -p snapback4 "${host_targets[@]}" --no-fail-fast --quiet || host_test_status=1
+  local host_test_status=0
   # The binary and lifecycle targets open real listeners and subprocess pipes.
   # Keep concurrency inside each test, but serialize the harness across these
   # targets so Darwin's default 256-descriptor process limit is sufficient.
@@ -114,7 +105,7 @@ run_rust_tests() {
   # otherwise waits for every test binary in one crate before starting the
   # next crate, leaving most cores idle during the large lowering census.
   for package in snapback4-core snapback4-native; do
-    run_rust_lane "$package" cargo test -p "$package" --no-fail-fast --quiet
+    run_rust_lane "$package" cargo test -p "$package" --no-fail-fast --quiet -- --test-threads=4
   done
   # Simulator integration binaries are independent and Cargo otherwise runs
   # them serially. Bound each harness while preserving every target.
@@ -122,7 +113,7 @@ run_rust_tests() {
   run_rust_lane snapback4-sim-doc cargo test -p snapback4-sim --doc --quiet
   for path in crates/snapback4-sim/tests/*.rs; do
     target=$(basename "$path" .rs)
-    run_rust_lane "snapback4-sim-$target" cargo test -p snapback4-sim --test "$target" --quiet -- --test-threads=8
+    run_rust_lane "snapback4-sim-$target" cargo test -p snapback4-sim --test "$target" --quiet -- --test-threads=1
   done
   # Cargo otherwise runs a package's integration binaries one after another.
   # Keep every device target, but let the independent binaries overlap. The
@@ -132,15 +123,27 @@ run_rust_tests() {
   run_rust_lane snapback4-device-doc env RUST_MIN_STACK=33554432 cargo test -p snapback4-device --doc --quiet
   for path in crates/snapback4-device/tests/*.rs; do
     target=$(basename "$path" .rs)
-    run_rust_lane "snapback4-device-$target" env RUST_MIN_STACK=33554432 cargo test -p snapback4-device --test "$target" --quiet -- --test-threads=8
+    if [ "$target" = device ]; then
+      run_rust_lane snapback4-device-device env RUST_MIN_STACK=33554432 cargo test -p snapback4-device --test device --quiet -- --test-threads=8
+    else
+      run_rust_lane "snapback4-device-$target" env RUST_MIN_STACK=33554432 cargo test -p snapback4-device --test "$target" --quiet -- --test-threads=2
+    fi
   done
+  # Give every ordinary host integration target its own process, but bound its
+  # inner harness. The binary and lifecycle targets remain serial together.
+  for path in crates/snapback4/tests/*.rs; do
+    target=$(basename "$path" .rs)
+    if [ "$target" != lifecycle ]; then
+      run_rust_lane "snapback4-host-$target" cargo test -p snapback4 --test "$target" --quiet -- --test-threads=2
+    fi
+  done
+  run_rust_lane snapback4-host-bin-lifecycle run_host_tests
   # The baseline census is independently reproducible. Run it beside the
   # rest of the language crate while keeping every other lowering assertion.
   for shard in 0 1 2 3 4 5 6 7; do
     run_rust_lane "snapback4-lang-golden-$shard" env SNAPBACK4_LOWERING_SHARD="$shard/8" cargo test -p snapback4-lang --test lowering baseline_golden_and_ownership_switch_agree_byte_for_byte --quiet
   done
-  run_rust_lane snapback4-lang-rest cargo test -p snapback4-lang --no-fail-fast --quiet -- --skip baseline_golden_and_ownership_switch_agree_byte_for_byte
-  run_rust_lane snapback4-host run_host_tests
+  run_rust_lane snapback4-lang-rest cargo test -p snapback4-lang --no-fail-fast --quiet -- --test-threads=4 --skip baseline_golden_and_ownership_switch_agree_byte_for_byte
 
   for pid in "${rust_pids[@]}"; do
     wait "$pid" || true

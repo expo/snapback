@@ -22,6 +22,10 @@ incremental = true
 [profile.test]
 opt-level = 1
 
+# Device scale fixtures spend most of their time in the device crate itself.
+[profile.test.package."snapback4-device"]
+opt-level = 3
+
 # The device core as wasm: size first.
 [profile.wasm]
 inherits = "release"
