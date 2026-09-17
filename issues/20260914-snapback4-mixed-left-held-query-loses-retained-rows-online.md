@@ -48,3 +48,15 @@ contract acceptance, fresh reproduction or independently built application's
 need for general composition is claimed. The ticket stays open until the
 actual wasm/process queries and watches satisfy the documented acceptance,
 including reconnect and lifecycle races.
+
+## 2026-09-17 plan rewrite
+
+The linked plan was rewritten and commissioned. It drops per-value provenance
+and the server sidecar: the binder proves which returned-record fields are
+independent, the device reports `complete`/`unknown`/`retained` per field
+from scoped copies of the flags it already keeps, and the client answers each
+field from the host that would have answered it as its own query — the
+recipe above, performed in one observation and one publication, with
+`fresh: false`. The server is unchanged. Shapes the binder cannot prove keep
+today's whole-query fallback and the separate-query recipe. This ticket
+stays open until both client arms pass the documented acceptance.

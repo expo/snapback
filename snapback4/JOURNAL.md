@@ -28869,3 +28869,42 @@ under local `.llp/ship-runs/` records before and after; zero errors added or
 removed. No application tests or byte measurements ran for this docs-only
 change. Source self-review added remote reply identity binding and separated
 shadow provenance accounting from proposed active metering charges.
+
+
+## 2026-09-17 — the two device plans rewritten from a build, and commissioned
+
+Charlie asked for yesterday's two plans to be reviewed, rewritten if a better
+plan existed, and then executed. Both were rewritten; LLPs 3000.002 and
+3000.001 carry the new text, LLP 3000 §7 the decision, both tickets a dated
+follow-up. Planning inspection used local main `68ac50852` (origin
+`46f47983a` plus the planning commit).
+
+The diet plan had been written without a build. On the pinned toolchain the
+shipped-shape device is 1,891,742 B raw / 520,557 gzip / 394,881 brotli
+(glue 11,325 / 3,047); `wasm-opt -Os` gives 1,737,837 raw and 607,684 gzip
+and is not selected. A symbol-bearing build attributes 2,072,629 B: serde
+deserialize 657,165, serialize 134,417, serde_json's own code 53,567; std
+generics over Snapback types 370,741; the core's code 264,100; the device's
+127,558; `.rodata` 183,382; B-trees over std types 147,644. `BTreeMap` code in
+all classes is 505,002 B, slice sorting 107,923. Three scratch builds, none
+landed: one serde family in each direction in the device crate, 1,611,918 /
+458,877; every typed serde entry point in the device crate as an opaque
+import, 1,231,301 / 384,443; that probe without the NFC tables, 1,109,212 /
+324,438. The probe cannot run and still contains the core's own serde; it is
+a bound, not a candidate. The scripts and raw `twiggy` output are kept under
+`~/projects/snapback-dm-20260917/measure/`.
+
+So codec replacement cannot reach 150,000 alone, the cheapest certain saving
+is a fifteen-line change, and two classes the ticket never named are each as
+large as the codecs. The plan is a ladder measured rung by rung, with a
+reported byte budget so the module's growth (about 22 KB gzip a day since
+`bc77d0914`) is visible. Its estimates end near 180,000; the last rung is the
+author's decision. Host Unicode folding needs a ruling and is not landed
+without one.
+
+The composition plan kept its result and consistency rules and lost its
+machinery: a binder-proven component plan, coverage frames over flags the
+runner already keeps, and the client applying its existing routing rule per
+component. No per-value provenance, no server change, no wire or disclosure
+delta. No implementation, acceptance or ticket closure is claimed by this
+entry; the lanes that follow record their own evidence.

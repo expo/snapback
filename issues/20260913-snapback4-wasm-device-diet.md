@@ -78,3 +78,24 @@ The target remains strictly below 150,000 gzip bytes under the plan's
 conservative decimal interpretation. Both-store semantics, browser
 durability, retained history and outbox custody must survive. The ticket
 remains open; the plan supplies no new size result or implemented fix.
+
+## 2026-09-17 plan rewrite, from a build
+
+The linked plan was rewritten the next day after building and attributing
+the current artifact, which the first plan had not done. Today's module is
+1,891,742 B raw / 520,557 B gzip (it was 454,735 three days earlier). A
+fresh `twiggy` attribution puts serde at 41% of the code, not two thirds;
+`BTreeMap` monomorphization at 505,002 B raw in roughly 960 generic items,
+which no earlier candidate list names; and the NFC tables at 60,005 B gzip.
+A no-codec probe — every typed serde entry point in the device crate made an
+opaque import — still weighs 384,443 B gzip, so codec replacement alone
+cannot reach the target. Routing the device's typed JSON through one serde
+family saves 61,680 B gzip for about fifteen lines, more than the rejected
+handwritten decoder did.
+
+The plan is now a measured ladder: instrument and a reported budget (S0),
+one serde family (S1), small ordered maps (S2), host Unicode folding on the
+web (S3, needs a ruling), a derive-driven compact codec in three parts (S4),
+reachability (S5), then the author's decision with numbers (S6). Its own
+estimates end near 180,000, above this ticket's target, and it says so. The
+scratch builds are measurements, not landed changes. This ticket stays open.
