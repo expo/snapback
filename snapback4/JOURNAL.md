@@ -30849,3 +30849,25 @@ table again. A scratch build that removes the structural admission check,
 the prefetch planner and partition-event derivation from the web artifact
 measures 466,171 → 439,856 (−26,315), which is the next rung. No package
 version changed and nothing was published.
+
+## 2026-09-17 — 0.2.28 / snapback4-expo 0.2.19 published
+
+Published from main `8281f4e218`. **This release is not wave 12 alone.** It carries
+wave 12 and its two review rounds, W13a's four merge-cursor fixes (a merge over a
+unique index not ending in `id` no longer skips a row on equal ordering keys; a
+merge's `next` no longer survives a later non-uniform read; a `where` predicate's
+inner read no longer marks a walked answer incomplete; a uniform lazy merge cut
+while draining returns `next`), and W14b's digest card. Attributing the next
+calibration's movement to wave 12 alone would be wrong.
+
+**The gate refused a first attempt and shipped nothing**, on a hard 60-second
+timeout under load 46 — `syspolicyd` at 31% CPU, `PerfPowerServices` at 105%, and
+two other sessions reporting every new executable stalling 3–7 minutes at
+`_dyld_start` on Gatekeeper provenance scans. The same tests passed in isolation.
+The second attempt at load 11 passed: suite 0 failures, binary signed, installed-
+consumer proof passed, xcframework and expo legs exit 0.
+
+The npm propagation fix landed earlier today did its job: `converge()` read
+`snapback4@0.2.28` back **one second** after upload instead of throwing on an
+accepted publish, which is what cost 0.2.27 its second attempt and 0.2.21 a
+hand-finished chain.
