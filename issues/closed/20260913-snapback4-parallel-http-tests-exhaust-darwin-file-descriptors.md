@@ -5,7 +5,7 @@
 **Date:** 2026-09-13
 **Systems:** Snapback 4 HTTP test harness
 **Author:** Codex / GPT-6
-**Resolution:** Fixed by `53871af32`: bounded test processes pass the complete Rust inventory at Darwin's 256-descriptor limit.
+**Resolution:** Fixed by `c4eb1047f`: bounded test processes pass the complete Rust inventory at Darwin's 256-descriptor limit.
 **Related:** [LLP 3000](../../llp/3000-snapback4.explainer.md)
 
 ## Observation
@@ -53,7 +53,7 @@ control then passed the full current host inventory at the same limit:
 integration-target pass counts 58, 17, 27, 2, 31, 14, 20 and 1, followed by
 65 binary tests and 20 lifecycle tests.
 
-Final exact source `53871af32b785c1284d1b00c081054d8adf6f26f` then
+Final code checkpoint `c4eb1047f0d0098a3994e916848300e5fbbca97a` then
 passed the complete 67-binary Rust inventory under `RLIMIT_NOFILE=256` on
 macOS 26.6.2 (18 logical CPUs, 128 GiB RAM; Node 25.9.0, Bun 1.3.12,
 Rust 1.97.0). It passed 1,293 tests with four declared ignores and no OS 24 or
@@ -61,6 +61,6 @@ other failure; the now-exclusive macOS witness target passed 20/20 and
 lifecycle passed 20/20. The 153-second loaded-host run is descriptor evidence,
 not a blocking-budget claim. Raw log SHA-256:
 `d58d20ec1b2342972daf0bf09030eb5026195866eca1cd350e377b68a83c39d6`.
-The same exact source's controlled Linux blocking suite passed in 50 seconds,
+The same source's controlled Linux blocking suite passed in 52/50 seconds,
 so the descriptor repair does not trade away the 60-second budget or any
 HTTP/admission assertion.

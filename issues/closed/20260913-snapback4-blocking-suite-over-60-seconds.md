@@ -5,7 +5,7 @@
 **Date:** 2026-09-13
 **Systems:** `snapback4/scripts/test.sh`, the simulator and development loop
 **Author:** Codex / GPT-6 Astra
-**Resolution:** Fixed by `53871af32`: the complete current suite passes inside the unchanged 60-second budget with every assertion retained.
+**Resolution:** Fixed by `c4eb1047f`: the complete current suite passes inside the unchanged 60-second budget with every assertion retained.
 
 At `2063884c8fd40c672158d4b4e3187864192db11c`, the full suite completed with
 zero failed assertions in 72 seconds twice, including the publication
@@ -305,7 +305,7 @@ contributions before testing deletions. The stale candidate implementation was
 therefore not replayed. The remaining failure was the enlarged current suite's
 execution shape, not that old product helper.
 
-Qualified code checkpoint `37b273b2b5acea6563055c57352e3c1897425070`
+Qualified code checkpoint `c4eb1047f0d0098a3994e916848300e5fbbca97a`
 keeps Cargo's complete, dynamically discovered test-artifact inventory while
 building it once and running independent binaries through a bounded 24-process
 pool. Four scale-heavy artifacts are further expanded from their own `--list`
@@ -318,25 +318,19 @@ remains. Doctests still run explicitly. The client runner similarly shards its
 two dominant files by deterministic case index while direct invocation still
 runs each complete file.
 
-Two consecutive exact `bash scripts/test.sh` runs on expose-builder-pixel
+Two consecutive exact `bash scripts/test.sh` runs after rebasing onto
+`45d315494` on expose-builder-pixel
 (AMD EPYC 9454, 96 logical CPUs, 251 GiB RAM, Ubuntu kernel 6.8;
-Node 24.13.1, Bun 1.3.14, Rust/Cargo 1.93.1) passed in **50 s and 49 s**.
+Node 24.13.1, Bun 1.3.14, Rust/Cargo 1.93.1) passed in **52 s and 50 s**.
 They passed 1,293 Rust tests, all 9 fixture tests and all 554 client tests
 (552 pass, 2 declared skips), plus the build, wasm, package, chat and Expo
 checks. Four declared Rust measurements/throughput cases remained ignored and
 were not counted as passes. Both runs reported zero failures; the Cargo,
-fixture and client branches took 43/12/43 s and 43/11/41 s respectively and
+fixture and client branches took 45/14/44 s and 43/12/42 s respectively and
 overlapped inside the unchanged 60-second ceiling.
 
 Raw log SHA-256 values are
-`0a9f4b1bb38a378acfc63fe759ccb2e8cf158a0f631dfb015032b53bdccb2fe8`
-and `6950f5e4f4390a26eed746333b480692c9cecbcc0fd039530f12c5ecdd3edeec`
-for `/tmp/sb4-delivery-20260917-qualified-{c,d}.log` on that host. No
+`d5ca86f73bd0d06a9586f20ed26188270277361673a72f87ecc2b3206a282d86`
+and `2d51f47502ced0c146e61c435ff357ada45d2af503a1cb0d9810f9e52447918a`
+for `/tmp/sb4-delivery-20260917-rebased-{b,c}.log` on that host. No
 assertion, population, blocking command or budget was removed or raised.
-
-Final runner checkpoint `53871af32b785c1284d1b00c081054d8adf6f26f`
-only makes the macOS simulator-witness artifact exclusive and single-threaded;
-the exact final source reran the same complete command in **50 s** with the
-same pass/skip inventory and zero failures. Its raw log is
-`/tmp/sb4-delivery-20260917-qualified-e.log`, SHA-256
-`899003ff1d59cea9c26b0636d73b27a5e58114d7aef34ca69d8f3f9254863bf0`.

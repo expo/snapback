@@ -5,7 +5,7 @@
 **Date:** 2026-09-14
 **Systems:** CLI lifecycle tests, client test runner, publication qualification
 **Author:** Codex / GPT-6 Astra
-**Resolution:** Fixed by `53871af32`: pre-main and readiness waits are distinct, early exits remain prompt, and loaded-host client execution is bounded.
+**Resolution:** Fixed by `c4eb1047f`: pre-main and readiness waits are distinct, early exits remain prompt, and loaded-host client execution is bounded.
 
 Evidence status: received orchestrator observation plus retained local test logs
 
@@ -102,9 +102,9 @@ uses file concurrency one when the one-minute load is at least the logical CPU
 count (or when `SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1` is explicit); otherwise
 it uses bounded deterministic shards for the two dominant files. On the
 documented 96-CPU qualification host, both ordinary-path runs passed all 554
-client tests and the complete suite in 50/49 seconds. Final exact code
-checkpoint `53871af32b785c1284d1b00c081054d8adf6f26f` passed the
-complete controlled suite in 50 seconds. It also passed lifecycle 20/20 under
+client tests and the complete rebased suite in 52/50 seconds. Final code
+checkpoint `c4eb1047f0d0098a3994e916848300e5fbbca97a` also passed
+lifecycle 20/20 under
 `RLIMIT_NOFILE=256` on the loaded macOS host; that separate 50.2-second target
 observation confirms the bounded launch distinction but is not a suite-budget
 measurement. Raw-log hashes are recorded in the blocking-suite and descriptor
