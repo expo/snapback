@@ -27791,3 +27791,46 @@ authority. The registry and census are unchanged. This is documentation for
 the implemented source contract, not an additional identity capability claim.
 The affected guide suite must pass on the integrated candidate before landing;
 the original failing log is retained in the qualification record.
+
+## 2026-09-17 — bound identity and C3.2 integrated qualification
+
+Integrated product `3a95cfcd3` combines the generated OIDC helper, private
+invocation-bound mint/recovery bridge, fixed-input rejection of unpublished
+unbound receipts, post-writer-lock authority clock, and C3.2's typed authority
+kernel/SQLite adapter. Both independent Sol and Grok reviews are READY on the
+final product and on the integrated clock/kernel seam. The store adapter is
+not yet Postgres; full B and C3 remain open.
+
+Serialized affected checks on 450b pass: bound sessions 8, core routes 14,
+action context 8, work records 6, identity integration/unit 2/4, CLI serve 47,
+guide 50, HTTP routes 12, identity doubles 18, README/runtime/routes 74 and
+real-process routes 13, plus package typecheck/build and fresh WASM. The
+introduced guide red and wrong-binary-path setup failures are retained with
+their corrections. No new complete-suite or release-performance claim.
+
+Actual Keycloak 26.7.4 with the repaired engine passed the primary committed-
+mint/lost-reply/worker-crash assertions: a replacement worker, one provider
+exchange, no provider request on recovery, original family and expiry retained,
+old token refused/new token accepted, durable binding/step and token placement
+checked. Independent read-only retained-store aggregates corroborate the
+completed request, mint step, binding and single live replacement. The command
+then exited 1 with `B1C_PROXY_REQUEST` before its raw-authority matrix, which
+ran zero cases. Root cause is not proved; this is NOT an overall green run.
+Seven registered process identities ended with zero custody uncertainty or
+survivors. The exact manifest and failed outcome are preserved in
+`reports/20260916-identity-c32-provider.json`.
+
+Instrument review found default `why` checked stdout but not stderr. That
+historical observation is narrowed to stdout; both disagreeing actual reviews
+are retained. The optional instrument does not land with the product while
+its material finding remains open, and a later repair cannot retroactively
+expand this evidence. See `reports/20260916-identity-c32.md` for source pins,
+hashes, commands, reviews and unexecuted boundaries.
+
+The route HTTP ticket is dispositioned separately: both fixtures now observe
+durable admission before controlled claim/settlement, retaining all denial
+checks and each route's wait bound. A timeout can precede admission, so the old
+post-timeout presence assumption was invalid; missing historical HTTP bytes
+prevent claiming that this proves the cause of every previously reported red.
+No publication, provider-account purchase, Workroom score or service-retention
+decision is implied by this landing.

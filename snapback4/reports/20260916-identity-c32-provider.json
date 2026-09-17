@@ -1,0 +1,209 @@
+{
+  "kind": "snapback4-identity-integration-qualification-pre-idp",
+  "candidate": "3a95cfcd3ce5443d61f59a01ff7d8c8171f35512",
+  "candidateChain": {
+    "integration": "a29cb824c2560b25788a0833950b23ae1063eb9b",
+    "routeAndTsFence": "5a2e85db71317d4257699c411f09259191182c33",
+    "guideRepair": "3a95cfcd3ce5443d61f59a01ff7d8c8171f35512"
+  },
+  "worktree": "/home/ccheever/lanes/sb4-identity-qualification-20260917",
+  "sourceClean": true,
+  "toolchain": {
+    "node": "v24.13.1",
+    "bun": "1.3.14",
+    "cargo": "1.97.0 (c980f4866 2026-06-30)",
+    "rustc": "1.97.0 (2d8144b78 2026-07-07)",
+    "rustToolchainAuthority": "checked-in rust-toolchain.toml",
+    "rustTargets": ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"],
+    "wasmBindgen": "0.2.127",
+    "wasmOpt": "absent; optional optimization omitted"
+  },
+  "artifacts": {
+    "linuxBinary": {
+      "path": "/home/ccheever/targets/sb4-identity-qualification-20260917/debug/snapback4",
+      "version": "snapback4 0.2.27",
+      "sha256": "475d329aa515601dec6f122e72946efa38d918c097d24faa054a46b760669dec"
+    },
+    "wasm": {
+      "path": "/home/ccheever/lanes/sb4-identity-qualification-20260917/snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+      "rawBytes": 1890828,
+      "gzip9Bytes": 520456,
+      "sha256": "72337544794f6d93dcbea503d25ddb9565231b8e6ac136a316c4d5a463c8eaf8",
+      "packageBuildCopyMatches": true
+    }
+  },
+  "checks": [
+    {
+      "name": "bound-session",
+      "revision": "a29cb824c2560b25788a0833950b23ae1063eb9b",
+      "command": "CARGO_BUILD_JOBS=6 cargo test --locked -p snapback4-core --test bound_session -- --test-threads=1",
+      "result": "8 passed; 0 failed",
+      "log": "/tmp/sb4-c3-20260916-supervision/identity-a29-bound-session.log",
+      "logSha256": "9c8eed3f20e4eba0310fe80ccd4aafbb61520fc842f05b2dccf19ab0ab1012d0"
+    },
+    {
+      "name": "core-routes",
+      "revision": "a29cb824c2560b25788a0833950b23ae1063eb9b",
+      "command": "CARGO_BUILD_JOBS=6 cargo test --locked -p snapback4-core --test routes -- --test-threads=1",
+      "result": "14 passed; 0 failed",
+      "log": "/tmp/sb4-c3-20260916-supervision/identity-a29-core-routes.log",
+      "logSha256": "95e4eb141969477087e551f4f3d8359524d30f6372f9e225c50dafe3caa73de5"
+    },
+    {
+      "name": "action-context",
+      "revision": "a29cb824c2560b25788a0833950b23ae1063eb9b",
+      "command": "CARGO_BUILD_JOBS=6 cargo test --locked -p snapback4-core --test action_context -- --test-threads=1",
+      "result": "8 passed; 0 failed",
+      "log": "/tmp/sb4-c3-20260916-supervision/identity-a29-action-context.log",
+      "logSha256": "123e61f4255186eaf3a574936c6db65ef79291da125c686e5f706b6b3cc40db5"
+    },
+    {
+      "name": "work-records",
+      "revision": "a29cb824c2560b25788a0833950b23ae1063eb9b",
+      "command": "CARGO_BUILD_JOBS=6 cargo test --locked -p snapback4-core --test work_records -- --test-threads=1",
+      "result": "6 passed; 0 failed",
+      "log": "/tmp/sb4-c3-20260916-supervision/identity-a29-work-records.log",
+      "logSha256": "38a0cda41b45599c4166f3d94479de1f8852048e13139195dd5f694ec1d529db"
+    },
+    {
+      "name": "identity-integration",
+      "revision": "a29cb824c2560b25788a0833950b23ae1063eb9b",
+      "command": "CARGO_BUILD_JOBS=6 cargo test --locked -p snapback4-core --test identity -- --test-threads=1",
+      "result": "2 passed; 0 failed",
+      "log": "/tmp/sb4-c3-20260916-supervision/identity-a29-identity-integration.log",
+      "logSha256": "0394a845c319b56564b2bfbc60b9e3c8c6279e39baf5da7a0062c1396895f672"
+    },
+    {
+      "name": "identity-unit",
+      "revision": "a29cb824c2560b25788a0833950b23ae1063eb9b",
+      "command": "CARGO_BUILD_JOBS=6 cargo test --locked -p snapback4-core identity::tests:: -- --test-threads=1",
+      "result": "4 passed; 0 failed",
+      "log": "/tmp/sb4-c3-20260916-supervision/identity-a29-identity-unit.log",
+      "logSha256": "59825b38f1fece787403b734ee1a42955c83af90cb08bbef780c112c8d85081b"
+    },
+    {
+      "name": "cli-serve",
+      "revision": "a29cb824c2560b25788a0833950b23ae1063eb9b",
+      "command": "CARGO_BUILD_JOBS=6 cargo test --locked -p snapback4 serve::tests:: -- --test-threads=1",
+      "result": "47 passed; 0 failed",
+      "log": "/tmp/sb4-c3-20260916-supervision/identity-a29-cli-serve.log",
+      "logSha256": "a9a5c6560e130a4896aaeba90be178972ce8bd8ad532243282f6c01165f03b0a"
+    },
+    {
+      "name": "guide-pre-repair",
+      "revision": "a29cb824c2560b25788a0833950b23ae1063eb9b",
+      "command": "CARGO_BUILD_JOBS=6 cargo test --locked -p snapback4-lang --test guide -- --test-threads=1",
+      "result": "49 passed; 1 failed",
+      "classification": "introduced integration red: ten OIDC codes lacked dedicated services-card sections after the new guide census; fixed by 3a95cfcd3",
+      "log": "/tmp/sb4-c3-20260916-supervision/identity-a29-guide.log",
+      "logSha256": "b094f202c23fb94c2a7c3912fc0ad114b7cfab608f76b1c72fe96e1b320ef508"
+    },
+    {
+      "name": "guide-final",
+      "revision": "3a95cfcd3ce5443d61f59a01ff7d8c8171f35512",
+      "command": "CARGO_BUILD_JOBS=6 cargo test --locked -p snapback4-lang --test guide -- --test-threads=1",
+      "result": "50 passed; 0 failed",
+      "log": "/tmp/sb4-c3-20260916-supervision/identity-guide-final.log",
+      "logSha256": "689d20279852d924314ee209dbb39d82b9dddc1e61c0c99a473a627ee0531763"
+    },
+    {
+      "name": "route-http-final",
+      "revision": "3a95cfcd3ce5443d61f59a01ff7d8c8171f35512",
+      "command": "CARGO_BUILD_JOBS=6 cargo test --locked -p snapback4 serve::tests::route_tests:: -- --test-threads=1",
+      "result": "12 passed; 0 failed",
+      "log": "/tmp/sb4-c3-20260916-supervision/identity-route-http-final.log",
+      "logSha256": "9744c012f1aaa1a48a990c468f223706c5e1dc8c026fe995ecaa557704a2a7b2"
+    },
+    {
+      "name": "package-typecheck",
+      "revision": "3a95cfcd3ce5443d61f59a01ff7d8c8171f35512",
+      "command": "bun run --cwd packages/snapback4 typecheck",
+      "result": "passed",
+      "log": "/tmp/sb4-c3-20260916-supervision/identity-final-package-typecheck.log",
+      "logSha256": "38ac890c60e7f38d59ddfb410325cdfb5fca83c9411765c5481754e01c021630"
+    },
+    {
+      "name": "package-build",
+      "revision": "3a95cfcd3ce5443d61f59a01ff7d8c8171f35512",
+      "command": "bun run --cwd packages/snapback4 build",
+      "result": "passed; fresh WASM copied byte-identically",
+      "log": "/tmp/sb4-c3-20260916-supervision/identity-final-package-build.log",
+      "logSha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa"
+    },
+    {
+      "name": "ts-identity",
+      "revision": "3a95cfcd3ce5443d61f59a01ff7d8c8171f35512",
+      "command": "node --test packages/snapback4/test/identity.test.mjs",
+      "result": "18 passed; 0 failed",
+      "log": "/tmp/sb4-c3-20260916-supervision/identity-final-ts-identity.log",
+      "logSha256": "b582cf129694b5c37745689cfaac9ab1842682ec97f0cf99e2de7545d57b57bd"
+    },
+    {
+      "name": "ts-runtime-routes-docs-first-invocation",
+      "revision": "3a95cfcd3ce5443d61f59a01ff7d8c8171f35512",
+      "command": "node --test --test-concurrency=1 packages/snapback4/test/server-runtime.test.mjs packages/snapback4/test/server-routes.test.mjs packages/snapback4/test/routes.test.mjs packages/snapback4/test/readme-examples.test.mjs",
+      "result": "74 passed; 13 setup errors",
+      "classification": "qualification invocation miss, not product execution: every error was ENOENT for the default worktree target/debug/snapback4 while the exact binary was intentionally built under the private CARGO_TARGET_DIR",
+      "log": "/tmp/sb4-c3-20260916-supervision/identity-final-ts-runtime-routes-docs.log",
+      "logSha256": "eeb212f6320763b1d98cdd2d3fd8e6be6799597f71d37efe16a6911ad9dfc9b7"
+    },
+    {
+      "name": "ts-process-routes-with-exact-binary",
+      "revision": "3a95cfcd3ce5443d61f59a01ff7d8c8171f35512",
+      "command": "SNAPBACK4_BIN=/home/ccheever/targets/sb4-identity-qualification-20260917/debug/snapback4 node --test --test-concurrency=1 packages/snapback4/test/routes.test.mjs",
+      "result": "13 passed; 0 failed",
+      "log": "/tmp/sb4-c3-20260916-supervision/identity-final-ts-routes-with-bin.log",
+      "logSha256": "874c95369a556481a106e61868488274b549e0d6bdc1363319a8f2cbdd0aeefc"
+    }
+  ],
+  "otherLogs": [
+    {"path": "/tmp/sb4-c3-20260916-supervision/identity-final-bun-install.log", "sha256": "81b5ebfc5e29a66d4884216669244bb944e5a07f5e14f42d51ad3914adf13c5f"},
+    {"path": "/tmp/sb4-c3-20260916-supervision/identity-final-rustup-wasm32.log", "sha256": "2c90ce2f37a4e805799561f45e5eab35adbca700c521ce98f460e97aa5aa7d24"},
+    {"path": "/tmp/sb4-c3-20260916-supervision/identity-final-wasm-build.log", "sha256": "49dfdcad50900808612bc361d65340eb0e8fa8614f1878055a108388869ee144"},
+    {"path": "/tmp/sb4-c3-20260916-supervision/identity-final-linux-build.log", "sha256": "935e55c790d71717dae793acaeda980b46f8d8244b3c7bba69c1445b9d76aeb7"},
+    {"path": "/tmp/sb4-c3-20260916-supervision/identity-final-guide-services.log", "sha256": "9449ecfa23fe1b717d70bdf78f151ca521dabe6e62a95b6018ebe6fd22b17899"}
+  ],
+  "actualIdp": {
+    "status": "instrument-failed-after-primary-proof",
+    "startedAt": "2026-09-17T03:49:19.873Z",
+    "wallMilliseconds": 8405,
+    "outerStatus": "failed",
+    "stableCode": "B1C_PROXY_REQUEST",
+    "stage": "raw-authority-project",
+    "classification": "fault-proxy instrument latch after the actual Keycloak phase; not a product failure",
+    "primaryObservationCount": 4,
+    "primaryObservations": [
+      "actual-keycloak-generated-helper",
+      "post-commit-lost-reply-process-crash",
+      "same-family-same-expiry-old-token-invalid",
+      "default-diagnostic-redaction"
+    ],
+    "rawNegativeCompletedCount": 0,
+    "rawNegativeCodes": [],
+    "rawNegativeProofBoundary": "The raw authority matrix did not execute; no post-refusal no-new-family claim is made.",
+    "custody": {
+      "ok": true,
+      "adoptedIdentities": 7,
+      "innerWorkerChains": 2,
+      "uncertainties": 0,
+      "survivors": 0,
+      "limitation": "Sampled ancestry cannot see a process that double-forks and reparents between snapshots; this is not generic subtree custody."
+    },
+    "retainedScratch": "/home/ccheever/sb4-b1c-qualification.ZDPu8s/sb4-b1c-yZ0BVU",
+    "harness": {
+      "sourceRevision": "682a834d5a9557fb7242591825341dc324c040b4",
+      "bundleSha256": "acaf0aa879d7dd4d790a73e3dea4d91148a14b5d39163f01f0b768bcfafc7771",
+      "qualifySha256": "751258446bdf7785b55f5f008b204508e5f4c634aa35217e3f2bbeea7f46e963",
+      "processCustodySha256": "8d33fcae926e933a999cd9e7f2d3503493043669c1b7f03afd575c1eaa57282e",
+      "outerWrapperSha256": "65613d8b04889fa9f7cc97699f1442da84b7d7862ad15e79edcf2f25e6b1defc"
+    },
+    "receipts": [
+      {"path": "/home/ccheever/sb4-b1c-qualification.ZDPu8s/outer-custody-start.json", "mode": 384, "sha256": "ff5bb7fa3f2584e87a1fa9e1da8ed9755346ca7314d93e573e134629b75b1828"},
+      {"path": "/home/ccheever/sb4-b1c-qualification.ZDPu8s/outer-custody-receipt.json", "mode": 384, "sha256": "2f86ba7fac630bf14c1ef435d286dea88a62dc6f77ff4400457836f2ed91834c"},
+      {"path": "/home/ccheever/sb4-b1c-qualification.ZDPu8s/b1c-harness.stdout.jsonl", "mode": 384, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
+      {"path": "/home/ccheever/sb4-b1c-qualification.ZDPu8s/b1c-harness.stderr.jsonl", "mode": 384, "sha256": "4713f85c3edf80a0b25ecb6d1810391d48ab28d1cebbdc494529454d8eec439e"},
+      {"path": "/tmp/sb4-c3-20260916-supervision/identity-actual-b1c-outer.log", "sha256": "0c92c52bf64abf263e91906bdddb3f0c45c3304013d15b269011f6c5c2357f91"}
+    ]
+  },
+  "claimBoundary": "Qualification evidence only; no full Identity B or production identity claim."
+}
