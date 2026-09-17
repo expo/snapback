@@ -27869,6 +27869,7 @@ Authorized Durand cleanup removed 26 inactive dependency directories with
 fresh exact-path checks, reclaiming an observed 8.38 GiB. Source, lockfiles,
 active projects and all Workroom artifacts are intact; reinstall restores
 those dependencies. No additional global-cache/Cargo deletion was performed.
+
 ## 2026-09-17 — B1c real-engine qualification harness source checkpoint
 
 A bounded qualification-only harness now prepares the missing real-engine
