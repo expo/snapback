@@ -28541,3 +28541,36 @@ generation, inventory, guide/generated-artifact, bootstrap, ref-check, pilot,
 benchmark, HTTP concurrency/lost-ack/restart or issuance-crash command ran.
 B1d.2b still owns generation, delivery and those HTTP/recovery cuts; Google,
 full Identity/B, publication and provider qualification remain unclaimed.
+
+## 2026-09-17 — B1d.2a first actual-policy compile refusal
+
+The supervisor ran the exact three frozen policy inputs on the reserved private
+450b slot with Node 24.13.1 and the hash-capable engine from source
+`1e91bc7fe`, SHA-256
+`7342e869fe475e0a4629c36b87f91beac262d4551b769773574903a4cb32f187`.
+The first command stopped at `check` before any policy assertion: 0 pass,
+1 fail, 0 skip in 298.580635 ms. This is a real compiler refusal, not actual-
+policy green evidence.
+
+The sole diagnostic was `E_QUARRY_UNKNOWN` at `organizations.q:104:19`:
+the explicit alias `{ membership: id, ... }` resolved `id` as a local name,
+where a row field on the shape RHS requires `.id`. The repair changes only
+that expression to `membership: .id`. A bounded inspection of every other
+query projection found either valid shorthand row fields (`{ id, role, ... }`)
+or already-qualified explicit RHS expressions; no assertion, refusal or policy
+was weakened.
+
+The retained supervisor artifacts are under the private 450b directory
+`/home/ccheever/sb4-b1d2-policy.nvOWiR`. The frozen input hashes were
+`72db264e8d560c1020eada63e8a35e987aeb14cc2f61e44a26546429d99211df`
+(test), `d4a7bb335b713341390a582b65bb9e97211e7e513ebaf9e16cad983f56322d28`
+(schema) and
+`262e75289f54d976f7f45118328205ea137ead66f785ec4fc9e5555198bf6172`
+(organizations). Full stdout was
+`8904a641fcc035066236a488ca327866f937bad14d99ade7ca76637d3dc847ed`,
+empty stderr was
+`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`,
+and the failure JSON was
+`8695d73dd263e3c56a92703a3d3d0f944a424872caabd902bd5ee599351c6a64`.
+The supervisor's rerun against this repaired source remains pending; no engine,
+remote, provider, listener, Rust/Cargo or installation command ran here.

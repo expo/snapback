@@ -101,7 +101,7 @@ query organizationPolicy():
 
 query ownOrganizations(c: cursor ?):
   return organizationMemberships[viewer] after c first 100 by byPrincipalOrganization
-    { membership: id, role, joinedAt, sourceInvitation, organization: organizations[.organization] }
+    { membership: .id, role, joinedAt, sourceInvitation, organization: organizations[.organization] }
 
 query memberRoster(organization: organizations, c: cursor ?):
   require exists organizationMemberships[organization, viewer] else ORGANIZATION_MEMBER_REQUIRED
