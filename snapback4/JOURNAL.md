@@ -32021,3 +32021,32 @@ variant README. Source and test bytes are unchanged. The prior 32 focused
 assertions remain the retained receipt and were not rerun. No external lookup,
 engine, provider, network, install or Rust command ran; the supervisor owns the
 final bundle and all pending qualification.
+
+## 2026-09-17 — B1d.3 bounded provider-response source repair
+
+Native Sol changed only the optional Resend adapter, its focused protocol
+doubles, the optional README and this append-only record. Successful provider
+JSON now streams under an exact 64 KiB byte ceiling before any chunk is kept;
+reader operations use the invocation abort lifetime. Overflow, read, UTF-8,
+parse and invalid-result failures remain retryable uncertainty. Failure-path
+reader/body cancellation observes rejections without awaiting cancellation,
+including a never-settling provider implementation. Status 409 remains
+unresolved, definitive initial 4xx remains rejected, and other failures never
+become false completion.
+
+The fresh Office load probes were 5.02 and 4.76, below the stop threshold;
+Node was 24.18.0. Syntax and strict helper/adapter no-emit checks passed. Two
+test-authoring runs retained real red receipts: each reported 34 pass and 4
+fail (570.200625 ms, then 376.908958 ms), first exposing a string-slicing typo
+and nondiscriminating stream cancellation, then confirming the remaining typo
+and duplicate cancellation observation. The repaired serial source/double run
+reported 38 pass, 0 fail, 0 skip in 296.511708 ms. It covers the exact byte
+boundary, multiple-chunk overflow with absent/lying length, entered-reader
+abort, 409 cancellation, rejecting and never-settling cancellation, and
+sanitized read/parse errors while retaining all prior cases.
+
+The tests still import authored recipe source while using the pre-existing
+ignored package 0.2.26 public error classes recorded earlier; they are local
+protocol/context-double evidence, not matched-source engine, provider or
+authentication qualification. No build, engine, provider, listener, network,
+install, Rust/Cargo, inventory, publication, push or qualification harness ran.

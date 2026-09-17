@@ -32,6 +32,22 @@ const deferred = () => {
   const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
   return { promise, resolve, reject };
 };
+const byteStream = (chunks, cancel) => new ReadableStream({
+  start(controller) {
+    for (const chunk of chunks) controller.enqueue(typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk);
+    controller.close();
+  },
+  cancel,
+});
+const readerResponse = (chunks, { status = 200, cancel } = {}) => {
+  const values = chunks.map(chunk => typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk);
+  let index = 0;
+  return { status, ok: status >= 200 && status < 300, body: { getReader: () => ({
+    async read() { return index < values.length ? { done: false, value: values[index++] } : { done: true, value: undefined }; },
+    async cancel() { return cancel?.(); },
+    releaseLock() {},
+  }), cancel: async () => cancel?.() } };
+};
 
 class Protocol {
   constructor() {
@@ -371,6 +387,70 @@ test("provider uncertainty, 409 and historical 4xx never become false done; erro
     signal: AbortSignal.timeout(1000), fetch: async () => new Response("conflict", { status: 409 }) }), ResendUnresolved);
 });
 
+test("successful provider JSON is byte-bounded before accumulation and remains uncertain on body faults", async t => {
+  await t.test("exact 64 KiB boundary", async () => {
+    const prefix = JSON.stringify({ id: "boundary-accepted" });
+    const json = prefix + " ".repeat(64 * 1024 - Buffer.byteLength(prefix));
+    assert.equal(Buffer.byteLength(json), 64 * 1024);
+    const result = await sendResendEmail({ apiKey: "key", idempotencyKey: "boundary", body: "{}",
+      signal: AbortSignal.timeout(1000), fetch: async () => readerResponse([
+        Buffer.from(json.slice(0, 32000)), Buffer.from(json.slice(32000)),
+      ]) });
+    assert.equal(result.kind, "accepted");
+    assert.equal(result.providerMessageId, "boundary-accepted");
+  });
+  for (const [name, headers] of [["absent content length", {}], ["lying content length", { "content-length": "12" }]]) {
+    await t.test(name, async () => {
+      let cancelled = 0;
+      const error = await sendResendEmail({ apiKey: "key", idempotencyKey: name, body: "{}",
+        signal: AbortSignal.timeout(1000), fetch: async () => readerResponse([
+          new Uint8Array(64 * 1024), new Uint8Array([0xc3, 0xa9]),
+        ], { cancel: () => { cancelled++; } })
+      }).then(() => assert.fail("overflow became accepted"), value => value);
+      assert.ok(error instanceof Retry);
+      assert.equal(cancelled, 1);
+    });
+  }
+  await t.test("read and parse details are sanitized", async () => {
+    const bodies = [
+      new ReadableStream({ start(controller) { controller.error(new Error("private read detail")); } }),
+      byteStream(["{private parse detail"]),
+    ];
+    for (const body of bodies) {
+      const error = await sendResendEmail({ apiKey: "key", idempotencyKey: "bad-body", body: "{}",
+        signal: AbortSignal.timeout(1000), fetch: async () => new Response(body, { status: 200 })
+      }).then(() => assert.fail("bad body became accepted"), value => value);
+      assert.ok(error instanceof Retry);
+      assert.doesNotMatch(error.message, /private|read|parse/);
+    }
+  });
+});
+
+test("non-success bodies are cancelled without awaiting hostile cancellation", { timeout: 2000 }, async () => {
+  let conflictCancelled = 0;
+  await assert.rejects(sendResendEmail({ apiKey: "key", idempotencyKey: "conflict", body: "{}",
+    signal: AbortSignal.timeout(1000), fetch: async () => new Response(byteStream(["conflict"], () => { conflictCancelled++; }), { status: 409 })
+  }), ResendUnresolved);
+  assert.equal(conflictCancelled, 1);
+
+  const unhandled = [];
+  const onUnhandled = error => unhandled.push(error);
+  process.on("unhandledRejection", onUnhandled);
+  try {
+    const rejected = await sendResendEmail({ apiKey: "key", idempotencyKey: "rejected-cancel", body: "{}",
+      signal: AbortSignal.timeout(1000), fetch: async () => new Response(byteStream(["no"], () => Promise.reject(new Error("cancel detail"))), { status: 400 }) });
+    assert.equal(rejected.kind, "rejected");
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(unhandled, []);
+  } finally { process.removeListener("unhandledRejection", onUnhandled); }
+
+  const never = sendResendEmail({ apiKey: "key", idempotencyKey: "never-cancel", body: "{}",
+    signal: AbortSignal.timeout(1000), fetch: async () => new Response(byteStream(["no"], () => new Promise(() => {})), { status: 400 }) });
+  const bounded = await Promise.race([never, new Promise(resolve => setImmediate(() => resolve("cancel was awaited")))]);
+  assert.notEqual(bounded, "cancel was awaited");
+  assert.equal(bounded.kind, "rejected");
+});
+
 test("HTTP and response consumption settle on abort after the ignoring transport has entered", { timeout: 2000 }, async () => {
   const fetchAbort = new AbortController();
   const fetchEntered = deferred(), fetchLate = deferred();
@@ -385,14 +465,20 @@ test("HTTP and response consumption settle on abort after the ignoring transport
 
   const bodyAbort = new AbortController();
   const bodyEntered = deferred(), bodyLate = deferred();
+  let bodyCancelled = 0;
   const bodyPending = sendResendEmail({ apiKey: "key", idempotencyKey: "key", body: "{}", signal: bodyAbort.signal,
-    fetch: async () => ({ status: 200, ok: true, text: async () => { bodyEntered.resolve(true); return bodyLate.promise; } }) });
+    fetch: async () => ({ status: 200, ok: true, body: { getReader: () => ({
+      read: async () => { bodyEntered.resolve(true); return bodyLate.promise; },
+      cancel: async () => { bodyCancelled++; },
+      releaseLock() {},
+    }) } }) });
   assert.equal(await bodyEntered.promise, true);
   const bodyReason = new Error("body lifetime ended");
   bodyAbort.abort(bodyReason);
   await assert.rejects(bodyPending, error => error === bodyReason);
-  bodyLate.resolve('{"id":"must-not-settle-late"}');
+  bodyLate.resolve({ done: false, value: new TextEncoder().encode('{"id":"must-not-settle-late"}') });
   await Promise.resolve();
+  assert.equal(bodyCancelled, 1);
 });
 
 test("optional staging keeps the baseline registry untouched and uses the exact generated module layout", () => {

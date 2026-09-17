@@ -1,6 +1,7 @@
 import { Retry } from "snapback4/worker";
 
 export const RESEND_EMAIL_ENDPOINT = "https://api.resend.com/emails";
+const RESPONSE_BYTES = 64 * 1024;
 
 export class ResendUnresolved extends Error {
   constructor() {
@@ -35,6 +36,43 @@ function retry(): never {
   throw new Retry("the invitation provider outcome is uncertain");
 }
 
+function observeCancellation(cancel: () => Promise<unknown> | unknown): void {
+  try { void Promise.resolve(cancel()).catch(() => {}); } catch {}
+}
+
+function cancelBody(response: Response): void {
+  if (response.body) observeCancellation(() => response.body!.cancel());
+}
+
+async function boundedJson(response: Response, signal: AbortSignal): Promise<unknown> {
+  if (!response.body) return JSON.parse("");
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let bytes = 0;
+  try {
+    for (;;) {
+      const next = await untilAborted(() => reader.read(), signal);
+      if (next.done) break;
+      if (!(next.value instanceof Uint8Array) || next.value.byteLength > RESPONSE_BYTES - bytes) {
+        return retry();
+      }
+      bytes += next.value.byteLength;
+      chunks.push(next.value);
+    }
+    const body = new Uint8Array(bytes);
+    let offset = 0;
+    for (const chunk of chunks) { body.set(chunk, offset); offset += chunk.byteLength; }
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(body));
+  } catch (error) {
+    observeCancellation(() => reader.cancel());
+    if (signal.aborted) throw signal.reason;
+    void error;
+    return retry();
+  } finally {
+    try { reader.releaseLock(); } catch {}
+  }
+}
+
 /** A deliberately small Resend adapter. The endpoint is not configurable. */
 export async function sendResendEmail(input: {
   readonly apiKey: string;
@@ -63,21 +101,23 @@ export async function sendResendEmail(input: {
     return retry();
   }
 
-  if (response.status === 409) throw new ResendUnresolved();
+  if (response.status === 409) {
+    cancelBody(response);
+    throw new ResendUnresolved();
+  }
   if (response.status >= 400 && response.status < 500
     && ![408, 425, 429].includes(response.status)) {
-    try { void response.body?.cancel(); } catch {}
+    cancelBody(response);
     return { kind: "rejected" };
   }
   if (!response.ok) {
-    try { void response.body?.cancel(); } catch {}
+    cancelBody(response);
     return retry();
   }
 
   let value: unknown;
   try {
-    const text = await untilAborted(() => response.text(), input.signal);
-    value = JSON.parse(text);
+    value = await boundedJson(response, input.signal);
   } catch (error) {
     if (input.signal.aborted) throw input.signal.reason;
     void error;

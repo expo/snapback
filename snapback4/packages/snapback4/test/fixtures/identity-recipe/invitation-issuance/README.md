@@ -59,6 +59,14 @@ fragment and submit it to the existing acceptance mutation under recipient
 authentication. Cancellation or revocation cannot retract in-flight or
 accepted mail.
 
+A successful provider response is consumed through its stream under a strict
+64 KiB byte ceiling; `Content-Length` is never trusted as the bound. Every
+reader operation shares the invocation abort lifetime. Overflow, read,
+decoding, parse and invalid-result failures remain uncertain because the
+provider may already have accepted the request. Failure-path body cancellation
+is observed for rejection but never awaited, so a rejecting or stalled
+provider cancellation cannot leak an unhandled rejection or wedge settlement.
+
 Parked actions do not auto-resume. An operator may inspect privileged
 action/provider evidence and explicitly revoke a still-pending invitation via
 the existing mutation to release its reservation; unknown is never absence.
