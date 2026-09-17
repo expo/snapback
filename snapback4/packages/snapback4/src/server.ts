@@ -187,25 +187,37 @@ export function startServer(manifest: ServerManifest, handlers: ServerHandlers, 
             (safe, secret) => safe.split(secret).join("[REDACTED]"),
             redact(message.split(effect.leaseToken).join("[REDACTED]")),
           );
-          let secrets: Readonly<Record<string, string>>;
-          try { secrets = secretsFor(declaration.secrets); }
-          catch (error) {
-            return { kind: "active-error", error: scopedRedact(error instanceof Error ? error.message : String(error)), retry: !(error instanceof GiveUp) };
-          }
+          let prepared: { kind: "ready"; secrets: Readonly<Record<string, string>> } | { kind: "error"; error: unknown };
+          try { prepared = { kind: "ready", secrets: secretsFor(declaration.secrets) }; }
+          catch (error) { prepared = { kind: "error", error }; }
+          const secrets: Readonly<Record<string, string>> = prepared.kind === "ready" ? prepared.secrets : Object.freeze(Object.create(null));
           const lifetime = effectContext(effect, meta, secrets, runtimeOptions, scopedRedact);
-          try {
-            lifetime.context.invocation.signal.throwIfAborted();
-            const result = await handler(effect.payload as never, lifetime.context as never);
-            await lifetime.confirm();
-            lifetime.context.invocation.signal.throwIfAborted();
-            return { kind: "settle", result };
-          } catch (error) {
+          const withoutSettlement = (error: unknown): GeneratedEffectOutcome | undefined => {
             const lost = lifetime.authorityLost();
             if (lost.lost) return { kind: "authority-lost", error: lost.message, terminal: lost.terminal };
             if (error instanceof ServerError && ["E_STEP_PARKED", "E_STEP_RESULT"].includes(error.refusal.code)) {
               const refusal = error.refusal;
               return { kind: "authority-lost", error: scopedRedact(`${refusal.code}: ${refusal.message}`), terminal: false };
             }
+          };
+          try {
+            let completion: { kind: "result"; value: unknown } | { kind: "error"; error: unknown };
+            if (prepared.kind === "error") completion = prepared;
+            else try {
+              lifetime.context.invocation.signal.throwIfAborted();
+              completion = { kind: "result", value: await handler(effect.payload as never, lifetime.context as never) };
+            } catch (error) {
+              const interrupted = withoutSettlement(error);
+              if (interrupted) return interrupted;
+              completion = { kind: "error", error };
+            }
+            await lifetime.confirm();
+            lifetime.context.invocation.signal.throwIfAborted();
+            if (completion.kind === "result") return { kind: "settle", result: completion.value };
+            throw completion.error;
+          } catch (error) {
+            const interrupted = withoutSettlement(error);
+            if (interrupted) return interrupted;
             return { kind: "active-error", error: scopedRedact(error instanceof Error ? error.message : String(error)), retry: !(error instanceof GiveUp) };
           } finally { lifetime.close(); }
         },

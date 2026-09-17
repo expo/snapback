@@ -114,7 +114,11 @@ export function effectContext(
     async confirm() {
       await poller?.quiesce();
       assertActive();
-      await boundedStatusCheck(checkStatus, lifetime.signal);
+      try { await boundedStatusCheck(checkStatus, lifetime.signal); }
+      catch (error) {
+        if (!ended && !closed) end({ code: "E_OFFLINE", family: "link", message: "the effect authority could not be confirmed", retryable: true });
+        throw error;
+      }
       assertActive();
     },
     close() {

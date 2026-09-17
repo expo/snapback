@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { startServer } from "../dist/server.js";
-import { runWorker } from "../dist/worker.js";
-import { boundedStatusCheck, lifetimeFetch, statusPoller } from "../dist/server-lifetime.js";
+import { GiveUp, runWorker } from "../dist/worker.js";
+import { statusPoller } from "../dist/server-lifetime.js";
 
 const declaration = "rust-static-declaration-digest";
 const effect = (overrides = {}) => ({
@@ -62,7 +62,7 @@ test("generated effects claim one static declaration and expose only frozen effe
   assert.equal(seen.invocation.signal.aborted, true, "handler completion closes the retained context");
 });
 
-test("finalization drains an older failing status body without a fresh read or settlement", async () => {
+test("handler error drains an older failing status body without top-level settlement", async () => {
   const stop = new AbortController(), paths = [], errors = [];
   const claim = claimOnce();
   let statuses = 0, bodyStartedResolve, rejectBody, handlerReturned = false;
@@ -72,7 +72,7 @@ test("finalization drains an older failing status body without a fresh read or s
     await bodyStarted;
     setImmediate(() => { assert.equal(handlerReturned, true); rejectBody(Error("old status body failed")); });
     handlerReturned = true;
-    return "must-not-settle";
+    throw Error("provider failed before status loss");
   } } }, {
     url: "http://runtime.test", token: "service-token", signal: stop.signal, statusIntervalMs: 1,
     onError: error => { errors.push(error); stop.abort(); },
@@ -128,18 +128,65 @@ test("finalization drains an older successful status before one fresh read and s
   assert.deepEqual(errors, []);
 });
 
-for (const stage of ["fetch", "body"]) test(`bounded final status ${stage} settles when transport ignores AbortSignal`, async () => {
-  let transportSignal;
-  await assert.rejects(boundedStatusCheck(async signal => {
-    const guardedFetch = lifetimeFetch(async (_url, init) => {
-      transportSignal = init.signal;
-      if (stage === "fetch") return new Promise(() => {});
-      return { ok: true, json: () => new Promise(() => {}) };
-    }, signal);
-    const response = await guardedFetch("http://runtime.test/status", { signal });
-    await response.json();
-  }, undefined, 5));
-  assert.equal(transportSignal.aborted, true);
+for (const [name, failure, secrets, env, expected] of [
+  ["redacted retry", Error("MAIL_KEY mail-secret service-token private-effect-lease"), ["MAIL_KEY"], { MAIL_KEY: "mail-secret" }, { error: "[REDACTED] [REDACTED] [REDACTED] [REDACTED]", retry: true }],
+  ["GiveUp", new GiveUp("permanent provider refusal"), [], {}, { error: "permanent provider refusal", retry: false }],
+]) test(`handler error ${name} drains an older healthy status before one failed settlement`, async () => {
+  const stop = new AbortController(), paths = [], errors = [];
+  const claim = claimOnce();
+  let statuses = 0, bodyStartedResolve, resolveBody, recorded;
+  const bodyStarted = new Promise(resolve => { bodyStartedResolve = resolve; });
+  const oldBody = new Promise(resolve => { resolveBody = resolve; });
+  const running = { id: effect().id, attempt: 2, state: "running", deadline: null, cancelled: false };
+  const worker = startServer(manifest(secrets), { effects: { async mail() {
+    await bodyStarted;
+    setImmediate(() => resolveBody(running));
+    throw failure;
+  } } }, {
+    url: "http://runtime.test", token: "service-token", env, signal: stop.signal, statusIntervalMs: 1,
+    onError: error => errors.push(error),
+    fetch: async (url, init) => {
+      const path = new URL(url).pathname; paths.push(path);
+      if (path === "/effects/claim") return claim.reply();
+      if (path.endsWith("/status")) {
+        if (++statuses === 1) return { ok: true, json() { bodyStartedResolve(); return oldBody; } };
+        assert.equal(statuses, 2); return Response.json(running);
+      }
+      if (path.endsWith("/failed")) { recorded = JSON.parse(init.body); queueMicrotask(() => stop.abort()); return Response.json({ ok: true }); }
+      stop.abort(); throw Error(`unexpected request ${path}`);
+    },
+  });
+  await worker.done;
+  claim.assertClaimedOnce();
+  assert.equal(statuses, 2);
+  assert.deepEqual(recorded, expected);
+  assert.equal(paths.filter(path => path.endsWith("/failed")).length, 1);
+  assert.equal(paths.some(path => path.endsWith("/done")), false);
+  assert.deepEqual(errors, []);
+});
+
+for (const stage of ["fetch", "body"]) test(`actual final status ${stage} timeout latches E_OFFLINE without settlement`, { timeout: 15_000 }, async () => {
+  const stop = new AbortController(), paths = [], errors = [];
+  const claim = claimOnce();
+  const worker = startServer(manifest(), { effects: { mail: () => "must-not-settle" } }, {
+    url: "http://runtime.test", token: "service-token", signal: stop.signal, statusIntervalMs: 60_000,
+    onError: error => { errors.push(error); stop.abort(); },
+    fetch: async url => {
+      const path = new URL(url).pathname; paths.push(path);
+      if (path === "/effects/claim") return claim.reply();
+      if (path.endsWith("/status")) {
+        if (stage === "fetch") return new Promise(() => {});
+        return { ok: true, json: () => new Promise(() => {}) };
+      }
+      if (path.endsWith("/done") || path.endsWith("/failed")) { stop.abort(); return Response.json({ ok: true }); }
+      stop.abort(); throw Error(`unexpected request ${path}`);
+    },
+  });
+  await worker.done;
+  claim.assertClaimedOnce();
+  assert.equal(paths.filter(path => path.endsWith("/status")).length, 1);
+  assert.equal(paths.some(path => path.endsWith("/done") || path.endsWith("/failed")), false);
+  assert.deepEqual(errors.map(error => error.message), ["E_OFFLINE: the effect authority could not be confirmed"]);
 });
 
 test("quiescing drains an active status poll without dropping its loss callback", async () => {
@@ -246,18 +293,20 @@ test("effect step parking uses the encoded effect path and does not top-level se
 });
 
 test("generated failure records redact declared names and values plus service and effect tokens", async () => {
-  const stop = new AbortController(); let recorded;
+  const stop = new AbortController(); let recorded, statuses = 0;
   const claim = claimOnce();
   const worker = startServer(manifest(["MAIL_KEY"]), { effects: { mail() { throw Error("MAIL_KEY mail-secret service-token private-effect-lease"); } } }, {
     url: "http://runtime.test", token: "service-token", env: { MAIL_KEY: "mail-secret" }, signal: stop.signal,
     fetch: async (url, init) => {
       const path = new URL(url).pathname;
       if (path === "/effects/claim") return claim.reply();
+      if (path.endsWith("/status")) { statuses++; return Response.json({ id: effect().id, attempt: 2, state: "running", deadline: null, cancelled: false }); }
       if (path.endsWith("/failed")) { recorded = JSON.parse(init.body).error; queueMicrotask(() => stop.abort()); return Response.json({ ok: true }); }
       throw Error(`unexpected request ${path}`);
     },
   });
   await worker.done;
   claim.assertClaimedOnce();
+  assert.equal(statuses, 1);
   assert.equal(recorded, "[REDACTED] [REDACTED] [REDACTED] [REDACTED]");
 });

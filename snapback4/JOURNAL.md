@@ -33387,3 +33387,28 @@ This was source-only work. No Cargo, Bun, Node, test, build, formatter,
 generator, install, listener, provider, PostgreSQL, network, remote, fetch,
 push or qualification command ran. c5 and all earlier refs, failed evidence
 and ignored WASM inputs remain preserved; focused qualification is pending.
+
+## 2026-09-17 — B3b handler-error status-drain repair
+
+The same native Codex GPT-5.6 Sol xhigh B3b author thread repaired a proven
+error-path bypass without additional delegation. A handler could throw while
+an older status body remained active; the executor sampled authority before
+that body failed, closed the context (suppressing the pending loss), and then
+attempted `/failed`. Generated execution now retains handler completion as a
+tagged result or error and requires the same drained periodic check plus one
+fresh final status before either result or active-error settlement. Existing
+authority-loss and parked-step lanes still return without top-level settlement.
+
+A separate diagnostic using the real ten-second bound refuted the proposed
+outer-timeout race: both an ignored final fetch and ignored final response body
+latched E_OFFLINE and sent no settlement. The final-confirm catch now repeats
+that latch defensively only when no lease, generation, cancellation, deadline,
+authentication or closed reason is already authoritative; this is ordering
+clarity, not a claimed reproduced timeout fix. Source witnesses cover failing
+and healthy old bodies, redaction, GiveUp retry policy, and both real-bound
+fetch/body cases.
+
+This was source-only work. No Cargo, Bun, Node, test, build, formatter,
+generator, listener, provider, database, install, network, remote, fetch, push
+or qualification command ran. cf31 and all earlier refs and failed evidence
+remain preserved; focused qualification is pending.
