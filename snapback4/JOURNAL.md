@@ -29533,3 +29533,18 @@ local; Grok alone found the over-broad cap note and the identity-mode hole in
 the adoption change that Sol had passed. The lane also corrected its brief:
 frames cannot save and clear the runner's flags, because scans read them
 mid-run, so they mirror each event instead.
+
+## 2026-09-17 — ruling 33 declined after its second blind round
+
+Round 2 on the narrowed proposal (never-predicting only, a static "stable verdict"): GPT
+NOT READY, Grok READY WITH CHANGES; records
+`llp/reviews/3000.007-ruling-33-expiring-mutation-pages-2.{gpt,grok}.md`. GPT's new High: a
+stable verdict is not a stable examined population — a blind update that write authority
+admits can move a hidden row into the viewer's own prefix already expired, and the page's
+`E_BOUND` versus the program's own refusal then reveals that row's retained column, with
+no probe in the rule at all. Grok's High: "statement order" misses writes the interpreter
+runs inside expressions and filter blocks. Decision L10 (the lead's, under delegation):
+the relaxation is declined and the refusal stands. Two rounds each found a new way for a
+mutation to shape what its own page measures; the remaining admitted class is narrow; the
+one observed need is met by a job. The analysis is kept in LLP 3000.007 §21.9 for whoever
+reopens it. W14b still fixes the refusal's rewrite to name the job door.
