@@ -38,29 +38,58 @@ run() {
   fi
 }
 
+stop_logged_command() {
+  local signal="$1" status="$2"
+  trap '' INT TERM
+  kill -s "$signal" "$command_pid" 2>/dev/null || true
+  wait "$command_pid" 2>/dev/null || true
+  exit "$status"
+}
+
 run_logged() {
-  local key="$1" name="$2" elapsed=$SECONDS
+  local key="$1" name="$2" elapsed=$SECONDS command_pid command_status=0
   shift 2
-  {
-    echo "== $name"
-    if "$@"; then
-      echo "-- ok: $name ($((SECONDS - elapsed)) s)"
-      printf 'ok\n' >"$parallel_dir/$key.status"
-    else
-      echo "-- FAIL: $name ($((SECONDS - elapsed)) s)"
-      printf 'fail\n' >"$parallel_dir/$key.status"
-    fi
-  } >"$parallel_dir/$key.log" 2>&1
+  echo "== $name" >"$parallel_dir/$key.log"
+  "$@" >>"$parallel_dir/$key.log" 2>&1 &
+  command_pid=$!
+  trap 'stop_logged_command INT 130' INT
+  trap 'stop_logged_command TERM 143' TERM
+  wait "$command_pid" || command_status=$?
+  trap - INT TERM
+  if [ "$command_status" = 0 ]; then
+    echo "-- ok: $name ($((SECONDS - elapsed)) s)" >>"$parallel_dir/$key.log"
+    printf 'ok\n' >"$parallel_dir/$key.status"
+  else
+    echo "-- FAIL: $name ($((SECONDS - elapsed)) s)" >>"$parallel_dir/$key.log"
+    printf 'fail\n' >"$parallel_dir/$key.status"
+  fi
+}
+
+stop_client_commands() {
+  local signal="$1" status="$2" pid
+  trap '' INT TERM
+  for pid in "${client_pids[@]:-}"; do
+    [ -n "$pid" ] || continue
+    kill -s "$signal" "$pid" 2>/dev/null || true
+  done
+  for pid in "${client_pids[@]:-}"; do
+    [ -n "$pid" ] || continue
+    wait "$pid" 2>/dev/null || true
+  done
+  exit "$status"
 }
 
 run_client_tests() {
+  local client_status=0 count path pid shard target
+  local client_files=()
+  local client_pids=()
+  trap 'stop_client_commands INT 130' INT
+  trap 'stop_client_commands TERM 143' TERM
   if [ "$client_test_serial" = 1 ]; then
     echo "-- loaded host: client test files run serially"
-    node --test --test-concurrency=1 'packages/snapback4/test/*.test.mjs'
+    node --test --test-concurrency=1 'packages/snapback4/test/*.test.mjs' &
+    client_pids+=("$!")
   else
-    local client_status=0 count path pid shard target
-    local client_files=()
-    local client_pids=()
     for path in packages/snapback4/test/*.test.mjs; do
       case "$(basename "$path")" in
         acquisition.test.mjs|server-e2e.test.mjs) ;;
@@ -79,11 +108,12 @@ run_client_tests() {
         shard=$((shard + 1))
       done
     done
-    for pid in "${client_pids[@]}"; do
-      wait "$pid" || client_status=1
-    done
-    return "$client_status"
   fi
+  for pid in "${client_pids[@]}"; do
+    wait "$pid" || client_status=1
+  done
+  trap - INT TERM
+  return "$client_status"
 }
 
 collect() {

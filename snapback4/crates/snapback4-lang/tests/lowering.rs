@@ -29,9 +29,6 @@ fn baseline_golden_and_ownership_switch_agree_byte_for_byte(part: usize, count: 
     let digest = |ir: &str| { use sha2::{Digest, Sha256}; Sha256::digest(ir.as_bytes()).iter().map(|b| format!("{b:02x}")).collect::<String>() };
     assert_eq!(enabled.keys().collect::<Vec<_>>(), golden.keys().collect::<Vec<_>>(), "the corpus must neither lose nor gain a compiled program");
     assert_eq!(enabled.keys().collect::<Vec<_>>(), disabled.keys().collect::<Vec<_>>());
-    for name in include_str!("lowering/r1p-programs.txt").lines() {
-        if golden.contains_key(name) { assert!(enabled.contains_key(name), "missing R1p census program {name}"); }
-    }
     let mut differences = Vec::new();
     let mut admissions = 0;
     let mut executions = 0;
@@ -70,3 +67,22 @@ lowering_shard!(baseline_golden_and_ownership_switch_shard_4, 4);
 lowering_shard!(baseline_golden_and_ownership_switch_shard_5, 5);
 lowering_shard!(baseline_golden_and_ownership_switch_shard_6, 6);
 lowering_shard!(baseline_golden_and_ownership_switch_shard_7, 7);
+
+#[test]
+fn golden_and_r1p_catalogs_keep_the_complete_source_census_pinned() {
+    let mut inputs = cases::generated();
+    inputs.extend(cases::census());
+    let prefixes: Vec<_> = inputs.keys().map(|key| format!("{key}:")).collect();
+    let golden: std::collections::BTreeSet<_> = include_str!("lowering/ce15819ad.sha256")
+        .lines()
+        .map(|line| line.split_once('\t').unwrap().0)
+        .collect();
+
+    for name in &golden {
+        assert!(prefixes.iter().any(|prefix| name.starts_with(prefix)), "golden program has no census source bundle: {name}");
+    }
+    for name in include_str!("lowering/r1p-programs.txt").lines() {
+        assert!(golden.contains(name), "missing R1p golden program {name}");
+        assert!(prefixes.iter().any(|prefix| name.starts_with(prefix)), "missing R1p census source bundle for {name}");
+    }
+}

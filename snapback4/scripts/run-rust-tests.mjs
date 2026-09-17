@@ -6,18 +6,19 @@
 // target is included automatically rather than maintained in a parallel list.
 
 import { availableParallelism } from "node:os";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 
 const requested = Number.parseInt(process.env.SNAPBACK4_RUST_TEST_PROCESSES ?? "", 10);
 const processLimit = Number.isFinite(requested) && requested > 0
   ? requested
   : Math.min(24, Math.max(4, availableParallelism()));
 const active = new Set();
+let interrupted = null;
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => {
+    interrupted ??= signal === "SIGINT" ? 130 : 143;
     for (const child of active) child.kill(signal);
-    process.exitCode = signal === "SIGINT" ? 130 : 143;
   });
 }
 
@@ -91,16 +92,27 @@ function testThreads(artifact) {
   return 4;
 }
 
-function listedTests(artifact) {
-  const listed = spawnSync(artifact.executable, ["--list", "--format=terse"], {
-    encoding: "utf8",
+async function listedTests(artifact) {
+  const chunks = [];
+  const errors = [];
+  const child = spawn(artifact.executable, ["--list", "--format=terse"], {
     env: process.env,
-    maxBuffer: 1024 * 1024,
+    stdio: ["ignore", "pipe", "pipe"],
   });
-  if (listed.status !== 0) {
-    throw new Error(`could not list ${packageName(artifact.packageId)}::${artifact.target}: ${listed.stderr}`);
+  active.add(child);
+  child.stdout.on("data", (chunk) => chunks.push(chunk));
+  child.stderr.on("data", (chunk) => errors.push(chunk));
+  const result = await new Promise((resolve) => {
+    child.on("error", (error) => resolve({ code: 1, error }));
+    child.on("close", (code, signal) => {
+      active.delete(child);
+      resolve({ code: code ?? (signal ? 1 : 0), signal });
+    });
+  });
+  if (result.code !== 0) {
+    throw new Error(`could not list ${packageName(artifact.packageId)}::${artifact.target}: ${Buffer.concat(errors).toString("utf8")}`);
   }
-  return listed.stdout.split("\n").filter((line) => line.endsWith(": test")).map((line) => line.slice(0, -6));
+  return Buffer.concat(chunks).toString("utf8").split("\n").filter((line) => line.endsWith(": test")).map((line) => line.slice(0, -6));
 }
 
 async function runArtifact(artifact) {
@@ -142,7 +154,7 @@ async function runPool(artifacts) {
   const results = new Array(artifacts.length);
   let next = 0;
   async function worker() {
-    while (next < artifacts.length) {
+    while (interrupted === null && next < artifacts.length) {
       const index = next++;
       results[index] = await runArtifact(artifacts[index]);
     }
@@ -152,24 +164,36 @@ async function runPool(artifacts) {
 }
 
 const build = await cargoArtifacts();
-let failed = build.code !== 0;
-if (failed) {
+let failed = build.code !== 0 && interrupted === null;
+if (interrupted !== null) {
+  // The signal handler has already forwarded cancellation to every tracked
+  // child. Do not schedule another artifact or overwrite the signal status.
+} else if (failed) {
   console.error("-- FAIL: Cargo test artifact build");
 } else {
   build.artifacts.sort((left, right) => `${left.packageId}/${left.target}`.localeCompare(`${right.packageId}/${right.target}`));
-  const executions = build.artifacts.flatMap((artifact) => {
+  const executions = [];
+  for (const artifact of build.artifacts) {
     const key = `${packageName(artifact.packageId)}::${artifact.target}`;
     // These targets contain independent scale tests whose aggregate harness
     // otherwise owns the critical path. Exact-filter processes are bounded by
     // the same pool and keep each test's descriptors, globals, and stack local.
-    if (!["snapback4-lang::lowering", "snapback4-device::device", "snapback4-sim::clique", "snapback4-sim::maintains"].includes(key)) return [artifact];
-    return listedTests(artifact).map((test) => ({
-      ...artifact,
-      filter: test,
-      exact: true,
-      labelSuffix: `::${test}`,
-    }));
-  });
+    if (!["snapback4-lang::lowering", "snapback4-device::device", "snapback4-sim::clique", "snapback4-sim::maintains"].includes(key)) {
+      executions.push(artifact);
+      continue;
+    }
+    try {
+      for (const test of await listedTests(artifact)) {
+        executions.push({ ...artifact, filter: test, exact: true, labelSuffix: `::${test}` });
+      }
+    } catch (error) {
+      if (interrupted !== null) break;
+      failed = true;
+      console.error(`-- FAIL rust inventory: ${key} --list`);
+      console.error(error instanceof Error ? error.message : error);
+    }
+  }
+  if (interrupted !== null) executions.length = 0;
   console.log(`-- rust inventory: ${build.artifacts.length} test binaries, ${executions.length} executions; at most ${processLimit} concurrent processes`);
   // The macOS witness target owns simctl and simulator lifecycle. Keep it out
   // of the shared pool so host load cannot turn tool contention into a false
@@ -177,15 +201,20 @@ if (failed) {
   const exclusive = executions.filter((artifact) => packageName(artifact.packageId) === "snapback4" && artifact.target === "witness");
   const regular = executions.filter((artifact) => !exclusive.includes(artifact));
   const results = await runPool(regular);
-  for (const artifact of exclusive) results.push(await runArtifact(artifact));
-  failed ||= results.some((result) => result.code !== 0);
+  for (const artifact of exclusive) {
+    if (interrupted !== null) break;
+    results.push(await runArtifact(artifact));
+  }
+  failed ||= results.some((result) => result && result.code !== 0);
 }
 
 // Cargo does not emit doctest executables in the no-run artifact stream.
 // Run that inventory explicitly even if an ordinary test binary failed.
-const docsStarted = Date.now();
-const docs = await run("cargo", ["test", "--workspace", "--doc", "--no-fail-fast", "--quiet"], { stdio: "inherit" });
-console.log(`-- rust target: workspace doctests (${((Date.now() - docsStarted) / 1000).toFixed(1)} s)`);
-failed ||= docs.code !== 0;
+if (interrupted === null) {
+  const docsStarted = Date.now();
+  const docs = await run("cargo", ["test", "--workspace", "--doc", "--no-fail-fast", "--quiet"], { stdio: "inherit" });
+  console.log(`-- rust target: workspace doctests (${((Date.now() - docsStarted) / 1000).toFixed(1)} s)`);
+  failed ||= docs.code !== 0;
+}
 
-process.exitCode = failed ? 1 : 0;
+process.exitCode = interrupted ?? (failed ? 1 : 0);
