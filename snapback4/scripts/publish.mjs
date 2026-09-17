@@ -183,8 +183,19 @@ function converge(artifact, directory) {
   if (published !== undefined) throw new Error(`${artifact.name}@${artifact.version} already exists with integrity ${published}; staged artifact is ${artifact.integrity}`);
   console.log(`== npm publish ${artifact.filename}`);
   run("npm", ["publish", artifact.tarball, "--access", "public"], { cwd: directory });
-  const after = registryIntegrity(artifact.name, artifact.version);
-  if (after !== artifact.integrity) throw new Error(`npm published ${artifact.name}@${artifact.version}, but registry integrity is ${after ?? "absent"}; expected ${artifact.integrity}`);
+  // npm answers "your package is being processed"; dist.integrity is not readable
+  // for a minute or two after a successful upload. Reading it immediately failed
+  // two 0.2.27 attempts on packages that had in fact published, so wait for the
+  // registry rather than calling an accepted upload a failure. Observed
+  // propagation on 2026-09-17: 60 s, 90 s and 120 s for the three packages.
+  const deadline = Date.now() + 10 * 60 * 1000;
+  let after = registryIntegrity(artifact.name, artifact.version);
+  while (after === undefined && Date.now() < deadline) {
+    process.stdout.write(`publish: waiting for ${artifact.name}@${artifact.version} to become readable\n`);
+    spawnSync("sleep", ["15"]);
+    after = registryIntegrity(artifact.name, artifact.version);
+  }
+  if (after !== artifact.integrity) throw new Error(`npm published ${artifact.name}@${artifact.version}, but registry integrity is ${after ?? "absent after waiting 10 minutes"}; expected ${artifact.integrity}`);
 }
 
 if (dry) {
