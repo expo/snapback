@@ -1234,3 +1234,83 @@ fn w11r2_generic_application_refusals_do_not_claim_the_feed_recipe() {
     assert!(output.status.success());
     assert!(String::from_utf8_lossy(&output.stdout).contains("Full card: snapback4 guide feeds"));
 }
+
+#[test]
+fn w13b_test_names_reads_past_half_a_ceiling_and_bounds_the_summary() {
+    let p = Project::new();
+    let table = "use personas alice\ntable entries:\n  public 'fixture'\n  sync public\n";
+    let query = "query everywhere():\n  return entries[] first 5000 by byId\n";
+    p.source(&format!("{table}{query}"));
+    let fixture = p.0.join("fixture"); fs::create_dir(&fixture).unwrap();
+    fs::write(fixture.join("entries.jsonl"), (0..4312).map(|n| format!("{{\"id\":\"r{n}\"}}\n")).collect::<String>()).unwrap();
+    let output = p.run(&["test", "--memory", "--fixture", "fixture"]);
+    assert!(output.status.success(), "{output:?}");
+    let text = String::from_utf8(output.stdout).unwrap(); println!("{text}");
+    assert!(text.contains("everywhere (alice) examined 4,312 of 8,192"), "{text}");
+    p.source(&format!("{table}{}", (0..12).map(|n| query.replace("everywhere", &format!("everywhere{n}"))).collect::<String>()));
+    let output = p.run(&["test", "--memory", "--fixture", "fixture"]);
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(output.status.success(), "{text}");
+    assert_eq!(text.lines().filter(|line| line.starts_with("near ceiling:")).count(), 11, "{text}");
+    assert!(text.contains("near ceiling: 2 more query/persona reads passed half a ceiling without a cut"), "{text}");
+    p.source(&format!("{table}{query}"));
+    fs::write(fixture.join("entries.jsonl"), "{\"id\":\"one\"}\n").unwrap();
+    let output = p.run(&["test", "--memory", "--fixture", "fixture"]);
+    assert!(output.status.success());
+    assert!(!String::from_utf8(output.stdout).unwrap().contains("near ceiling:"));
+    // A real cut already has the ordinary capped row, not an approach warning.
+    p.source(&format!("{table}query everywhere():\n  return entries[] first 1 by byId where .id = 'absent'\n"));
+    fs::write(fixture.join("entries.jsonl"), (0..8200).map(|n| format!("{{\"id\":\"r{n}\"}}\n")).collect::<String>()).unwrap();
+    let output = p.run(&["test", "--memory", "--fixture", "fixture"]);
+    assert!(output.status.success());
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(text.contains("capped")); assert!(!text.contains("near ceiling:"));
+}
+
+#[test]
+fn w13b_starter_has_no_near_ceiling_summary() {
+    let p = Project::new();
+    let init = p.run(&["init", "starter"]);
+    assert!(init.status.success(), "{init:?}");
+    let output = Command::new(BIN).current_dir(p.0.join("starter")).arg("test").output().unwrap();
+    assert!(output.status.success(), "{output:?}");
+    assert!(!String::from_utf8(output.stdout).unwrap().contains("near ceiling:"));
+}
+
+#[path = "../src/read_cost.rs"]
+mod read_cost;
+
+#[test]
+fn w13b_cut_log_suppresses_per_operation_and_site_with_a_count() {
+    use std::time::{Duration, Instant};
+    let bound = snapback4_lang::compile(&[("schema.q".into(), "query value():\n  return 42\n".into())]);
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    let mut read = engine.query("value", snapback4_core::Context::new("alice", Default::default())).unwrap();
+    let mut log = read_cost::ReadCuts::default();
+    let now = Instant::now();
+    assert!(log.line("value", "alice", &read, now).is_none());
+    read.capped_at = Some((snapback4_core::error::MeterKind::Examined, "scan:1".into()));
+    read.metered.examined = 8193;
+    let first = log.line("value", "alice", &read, now).unwrap();
+    assert!(first.contains("cut by examined rows at scan:1; examined=8193"), "{first}");
+    for _ in 0..5 { assert!(log.line("value", "alice", &read, now).is_none()); }
+    let changed = log.line("value", "bob", &read, now).unwrap();
+    assert!(changed.ends_with("suppressed 5 repeated read cuts"), "{changed}");
+    for principal in ["carol", "alice", "bob"] { assert!(log.line("value", principal, &read, now).is_none()); }
+    let next = log.line("value", "alice", &read, now + Duration::from_secs(60)).unwrap();
+    assert!(next.ends_with("suppressed 3 repeated read cuts"), "{next}");
+    assert!(log.line("other", "alice", &read, now).is_some());
+    read.capped_at = None; read.word_cut_at = Some("search:2".into());
+    assert!(log.line("value", "alice", &read, now).unwrap().contains("cut by words (32 first-term words per scope) at search:2"));
+    println!("W13b suppression: first window emitted=2 suppressed=8; next window reports=3; distinct operation/site independent");
+}
+
+#[test]
+fn w13b_near_ceiling_requires_more_than_half_and_reports_each_counter() {
+    use snapback4_core::{Ceilings, meter::Metered};
+    let c = Ceilings::default();
+    let mut m = Metered { examined: c.examined / 2, ..Default::default() };
+    assert!(read_cost::near_ceiling(m, c).is_none());
+    m.examined += 1; m.heap_bytes = c.heap_bytes / 2 + 1;
+    assert_eq!(read_cost::near_ceiling(m, c).unwrap(), "examined 4,097 of 8,192; heap bytes 8,388,609 of 16,777,216");
+}

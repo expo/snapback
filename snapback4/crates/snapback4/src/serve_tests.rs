@@ -41,7 +41,7 @@ impl Host {
         let shared = Arc::new(Shared {
             adoption: Mutex::new(adoption::Status::new(String::new())),
             engine: Mutex::new(engine),
-            readers: Mutex::new(QueryReaders::default()),
+            readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()),
             bound: Mutex::new(bound),
             generation: Mutex::new(generation),
             worker_revision: AtomicUsize::new(0),

@@ -30300,3 +30300,66 @@ counted from zero while the job counted a period, so they agreed only by fixture
 suite's three client failures are the known sandbox artifacts and await a run outside the
 sandbox; the host's load average was above 100 when it reported. Not yet committed,
 reviewed or landed.
+
+## 2026-09-17 — W13b: fall back for missing knowledge, print measured read costs
+
+Implemented LLP 3000.007 §20.22.1 items 3–4. The device's internal `unknown`
+word includes unknown presence as well as a missing fact; the client uses that
+word for successful-read fallback while preserving the held, retained, online
+and pending-predictable-write guards. Meter and word cuts and cursorless pages
+with known coverage stay local. The device call documents the word without
+adding a public read field. The reads card and package README state the rule.
+
+Loopback dev logs actual meter and word cuts under the same personas gate as
+its existing wire meters: operation, principal, meter, site, all seven counters
+and `snapback4 why <op>`. The small `read_cost.rs` helper remembers operation/site
+windows, prints at most two changed lines in 60 seconds, suppresses identical
+repeats, and includes their count on the next emitted line. Production serve
+never enters that branch. Fixture `test` adds a trailing query/persona line for
+any counter strictly above half its ceiling without a meter or word cut, with
+comma-separated counts; ten detail lines and a remainder count bound the
+summary. No check note, ceiling, value serialization or engine read path changed.
+The bounds card and README explain the measured output.
+
+Verification is partial because executable launches stalled before main on this
+machine. Before production edits, the untouched worktree's existing
+`target/debug/snapback4 --version` timed out in 5 seconds; a newly written tiny
+executable script also timed out, while invoking its interpreter directly
+worked. Cargo stalled running dependency build scripts. Base HEAD is
+`27c1096c894cbb59226cd9203bf06ee12e20b9be`; no product test failure is classified
+as pre-existing from these observations.
+
+The transport-boundary regressions ran against the original `local.ts` saved
+from that base and then the changed client (both compiled with pinned Node
+24.18.0). Before: 8 tests, 5 passed, 3 failed; cursorless, meter and word answers
+each made 1 unnecessary `/q/read` request. After: those request counts are 0;
+9 tests pass, 0 fail, including missing-fact and presence fallback, held and
+retained guards, a pending predictable write, and the added offline case.
+These use controlled device answers, not a claim of real-device execution.
+The real native/web fixtures and the two-store coverage tests were added too:
+the six selected real-client tests all failed waiting for server startup
+(0 passed, 6 failed, 64,750.988916 ms). The targeted Rust device and CLI runs
+were stopped after 20 seconds apiece in dependency compilation, without test
+summaries. `bash snapback4/scripts/test.sh` was attempted and stopped after
+300 seconds at `== cargo build`, with no suite summary. The Rust changes,
+compiled guide cases, real dev/serve log boundary and fixture summary therefore
+still need execution on a working launcher; no actual dev log or fixture cost
+measurement is claimed. The suppression/threshold tests cover deterministic
+clock boundaries, changed principals, independent sites, exact half, multiple
+counters, twelve near-ceiling reads, an actual cut, and the starter.
+
+Direct `node node_modules/typescript/bin/tsc -p
+packages/snapback4/tsconfig.build.json --pretty false` passed (exit 0).
+The wasm bindings used for this JS-only check were regenerated from the warm
+wasm artifact; the modified Rust device was not rebuilt. `python3 ref-check
+--verbose` passed with 482 LLP docs, 9,059 refs in 24,131 files, 0 errors and
+0 unchecked; the executable `./ref-check` form was also attempted but stalled.
+`git diff --check` passed. All changed code files remain below 1,500 lines.
+
+Learned: incompleteness and unknown coverage need separate meanings even at the
+transport boundary; presence must be included before narrowing fallback. Log
+suppression needs operation/site identity rather than principal identity, or
+alternating viewers can flood it. The only additional implementation file is
+`crates/snapback4/src/read_cost.rs`, shared by dev output and fixture formatting;
+`serve_tests.rs` gains only the new Shared field initializer. Nothing was
+committed, pushed, tagged or published.

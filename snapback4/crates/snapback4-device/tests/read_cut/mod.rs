@@ -68,16 +68,22 @@ fn point_probe_cut_sqlite() { point_probes(snapback4_core::Store::memory().unwra
 #[test]
 fn cut_reasons_cross_both_device_wires() {
     on_both(|host| {
-        let (mut engine, backend) = common::compile(fixture::SOURCE);
+        let source = format!("{}\nquery top():\n  return messages['readable'] first 1 by byTime\n", fixture::SOURCE);
+        let (mut engine, backend) = common::compile(&source);
         engine.seed(fixture::seed(8_200, 0)).unwrap();
         let mut device = host.open("cuts", Some(backend)).unwrap();
         for (n, page) in common::snapshot_pages(&mut engine, "dev:alice", 4000).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
+        let top = query(&mut *device, "top", "dev:alice", json!({}), 10000);
+        assert_eq!(rows(&top).len(), 1); assert_eq!(top["complete"], false);
+        assert_eq!(top["unknown"], false, "a cursorless top-N is not a missing fact");
         let cut = query(&mut *device, "filtered", "dev:alice", json!({"roomId":"readable"}), 10000);
         assert_eq!(cut["complete"], false);
         assert_eq!(cut["cut"], "meter");
+        assert_eq!(cut["unknown"], false, "a meter cut is not a missing fact");
         assert!(rows(&cut).is_empty());
         let words = query(&mut *device, "scoped", "dev:alice", json!({"roomId":"words", "q":"cof"}), 10000);
         assert_eq!(words["cut"], "words");
+        assert_eq!(words["unknown"], false, "a word cut is not a missing fact");
         assert_eq!(words["complete"], false);
         assert!(!rows(&words).is_empty());
         for (term, size) in [("coffee", 10), ("absent", 0)] {

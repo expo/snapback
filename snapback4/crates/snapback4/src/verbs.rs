@@ -755,6 +755,7 @@ pub fn test(options: &Options) -> i32 {
     println!("test: {:<28} {:>8} {:>8} {:>8} {:>8} {:>10} {:>10}", "operation (persona)", "examined", "entries", "probes", "steps", "heap B", "output B");
     println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10} {:>10}", "ceilings", ceilings.examined, ceilings.index_entries, ceilings.rule_probes, ceilings.steps, ceilings.heap_bytes, ceilings.output_bytes);
     let mut skipped = Vec::new();
+    let mut near = Vec::new();
     for program in &bound.programs {
         if program.program.kind != ProgramKind::Query {
             continue;
@@ -790,6 +791,10 @@ pub fn test(options: &Options) -> i32 {
                 Ok(outcome) => {
                     let m = outcome.metered;
                     let state = if outcome.complete { "complete" } else { "capped" };
+                    // @ref LLP 3000.007#20.22.1 — report approach to a ceiling on the fixture, separately from actual cuts.
+                    if outcome.capped_at.is_none() && outcome.word_cut_at.is_none() {
+                        if let Some(cost) = crate::serve::read_cost::near_ceiling(m, ceilings) { near.push(format!("{} ({persona}) {cost}", program.program.name)); }
+                    }
                     println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10} {:>10}  {state} in {:.1} ms{shown}", format!("{} ({persona})", program.program.name), m.examined, m.index_entries, m.rule_probes, m.steps, m.heap_bytes, m.output_bytes, started.elapsed().as_secs_f64() * 1000.0);
                 }
                 Err(refusal) if refusal.family == "rule" && derived => {
@@ -805,6 +810,8 @@ pub fn test(options: &Options) -> i32 {
             }
         }
     }
+    for line in near.iter().take(10) { println!("near ceiling: {line}"); }
+    if near.len() > 10 { println!("near ceiling: {} more query/persona reads passed half a ceiling without a cut", near.len() - 10); }
     for line in &skipped {
         println!("      not run: {line} — pass a fixture with a row of that table, or run it: snapback4 run <query> '{{..}}' --as <persona>");
     }

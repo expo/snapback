@@ -848,7 +848,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     type Coverage = { complete?: boolean; unknown?: boolean; retained?: boolean; denied?: Refusal };
     type Outcome = Coverage & { data?: unknown; cut?: ReadCut; next?: string | null; tables?: string[]; nextExpiry?: number | null; components?: Record<string, Coverage> };
     // Keep whole-query and component routing on the same coverage rule.
-    const wantsServer = (coverage: Coverage) => !held && !coverage.retained && (coverage.denied ? !!coverage.unknown : coverage.complete === false);
+    // @ref LLP 3000.007#20.22.1 — ask the server only for facts the device cannot establish (a missing fact, presence), not cuts the server would repeat; the same rule routes a composed component.
+    const wantsServer = (coverage: Coverage) => !held && !coverage.retained && !!coverage.unknown;
     const local = async () => {
       const before = unavailable();
       if (before) return { outcome: {} as Outcome, result: { read: { denied: before } as Read<R>, tables, nextExpiry: null }, terminal: true };
@@ -890,8 +891,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       return { read: { data: data as R, complete: remote.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.read.cut ?? null, fresh: false, next: null }, tables, nextExpiry: expiries.length ? Math.min(...expiries) : null };
     }
     if (wantsServer(outcome) && link === "online" && !await pending()) return server();
-    return first.result;
-  }
+    return first.result;  }
 
   function notify(watch: Watch) {
     for (const subscriber of watch.subscribers) subscriber();

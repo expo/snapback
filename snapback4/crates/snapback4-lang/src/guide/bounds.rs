@@ -10,7 +10,13 @@ query past a ceiling returns what it found with `complete: false`; a
 mutation aborts with E_BOUND naming the meter, the ceiling and the site
 (never the count: it would measure rows the viewer may not read).
 `snapback4 check --cost` prints each site's structural class;
-`snapback4 test` prints the numbers on your data. A loop is bounded
+`snapback4 test` prints the numbers on your data and names query/persona reads
+past half any ceiling without a cut: at most ten lines and a count of the rest.
+Loopback `dev` logs actual meter and word cuts with the operation, principal,
+site, counters and `snapback4 why <op>`. Repeats are suppressed per operation
+and site (at most two lines per minute); the next emitted line includes the
+suppressed count. `serve` neither logs these costs nor returns read meters.
+A loop is bounded
 by a page's `first N`, a list's `<=N`, `range`'s int expressions, `walk`'s depth,
 or `tokens`' 64. An accumulated list is bounded by the heap meter and its
 iterations by the step meter. `while` stays refused.

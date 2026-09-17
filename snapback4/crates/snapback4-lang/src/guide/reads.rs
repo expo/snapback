@@ -12,6 +12,10 @@ Non-uniform server reads report `cut: null`: the reason is withheld, with `compl
 missing coverage or a page without continuation. For `complete: false` with
 `cut: null`, render "Results may be incomplete", even when empty; never "no matches".
 A complete empty page has `cut: null` and `complete: true`.
+For ordinary device reads, online fallback asks the server only for a missing
+fact or unknown presence; a meter or word cut and a cursorless page stay local,
+as do held queries and retained left groups, and pending predictable writes
+still prevent fallback.
 
 A read denied by a table's rule answers as an empty page, not a refusal,
 and a client cannot tell it apart from an empty readable page — by design,

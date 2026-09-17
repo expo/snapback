@@ -965,6 +965,10 @@ device-only: `check` explains it, and `dev`, `serve` and `run` refuse
 E_QUERY_HELD with a rewrite pointing to the scoped server walk on `guide search`.
 The local clients answer it online or offline without server fallback, even
 at a horizon or cut. `held` does not acquire data or promise completeness.
+For ordinary device reads, online fallback asks the server only for a missing
+fact or unknown presence; a meter or word cut and a cursorless page stay local,
+as do held queries and retained left groups, and pending predictable writes
+still prevent fallback.
 
 ### Effects
 
@@ -1093,6 +1097,12 @@ and write 8,192). A query past a ceiling returns what it found with
 `complete: false`; a mutation aborts with `E_BOUND` naming the ceiling
 and the site. `snapback4 check --cost` prints each site's structural
 class; `snapback4 test` prints the numbers, including heap bytes, on your data.
+It also names query/persona reads past half any ceiling without a cut, showing
+at most ten and a count of the rest. Loopback `dev` logs actual meter and word
+cuts with the operation, principal, site, counters and `snapback4 why <op>`;
+repeats are suppressed per operation and site (at most two lines per minute),
+with the suppressed count on the next emitted line. `serve` neither logs these
+costs nor returns read meters.
 
 Heap is a cumulative allocation and binding budget: constructed values,
 concatenation and other allocating builtins, local bindings, and owned
