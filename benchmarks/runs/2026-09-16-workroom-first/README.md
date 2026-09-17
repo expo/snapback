@@ -1,6 +1,7 @@
 # Workroom: qualification, calibration, then first cell
 
-Date: 2026-09-16. State: **diagnostic pilot running; no cell result**.
+Date: 2026-09-16. State: **original pilot capped; supervised diagnostic
+replay continuation; no cell result** (updated 2026-09-17 UTC).
 Governing contract: [LLP 3000.009 §10.1](../../../llp/3000.009-general-purpose-backend.rfc.md#101-the-brief)
 and [benchmark protocol](../../protocol.md).
 
@@ -16,12 +17,15 @@ No additional release is needed merely to repeat that publication.
 
 ## Orientation and scope
 
-- Scope: the Workroom instrument, application qualification and run evidence;
-  no new backend services, SQL implementation, promotion or comparative claim.
+- Scope of this run record: the Workroom instrument, application qualification
+  and run evidence; no promotion or comparative claim. Charlie separately
+  commissioned the remaining general-purpose program, including services and
+  SQL, in [§14.7](../../../llp/3000.009-general-purpose-backend.rfc.md#14-the-authors-rulings-2026-09-15-and-2026-09-16).
+  Those implementation lanes do not change this running application's pin.
 - Governing LLPs: [3000 §3–4](../../../llp/3000-snapback4.explainer.md#3-the-bakeoff-protocol)
   (Snapback 4 corpus root, current working set),
   [3000.009 §10.1–10.2](../../../llp/3000.009-general-purpose-backend.rfc.md#101-the-brief)
-  (current, application evidence chooses services), and the benchmark protocol.
+  (current, application evidence determines service retention/removal), and the benchmark protocol.
 - Constraints: published package, cold sessions, serial lanes on one machine,
   no application SQL in the first Snapback cell, real W3/W5 before that cell,
   calibration before freeze, independent outcomes and retained builder diary.
@@ -76,10 +80,41 @@ driver owns recorded PID/PGID 72357 and a four-hour operational limit.
 Background indexing is active: functional evidence may proceed, but contended
 timings cannot calibrate ceilings. No builder messages are being injected.
 
-The final launcher passed its targeted safety mocks and independent Sol/Grok
+The prelaunch launcher passed its targeted safety mocks and independent Sol/Grok
 source reviews, retained under `reviews/`. Sol cleared before launch; Grok's
 inline-source review completed during diagnostic execution. The earlier Grok
 attempt that returned no verdict is retained as incomplete, not counted.
+
+### Original cap and explicit adoption
+
+The original builder reached its four-hour operational limit at approximately
+**2026-09-16 23:37 UTC**. Its foreground driver exited **124 / SIGTERM**;
+the original private `end.json` and transcript are retained unchanged. The
+builder did not deliver `FINAL.md` or a final message. This is a capped attempt,
+not a completed or scored cell.
+
+The canonical replay's acceptance child had created a separate process group,
+**98850**, which survived the launcher's original-group cleanup. This is a
+custody defect in the instrument, not evidence that cleanup succeeded. The
+received prelaunch reviews remain historical; they do not qualify this missing
+case. A bounded repair and an actual Codex-spawn regression witness are required
+before a cold cell.
+
+After checking the surviving group's recorded ancestry, UID, process start
+identities and commands, the supervisor explicitly adopted that same replay
+at **2026-09-17 00:13:26 UTC**, without changing the application or packet.
+The adoption has a separate two-hour safety cap, a 2 GiB disk floor, and a
+foreground monitor with its own lifecycle receipts under
+`private/adoption-20260917T001326896Z-53865/` on Durand. At adoption the journal
+had reached action 491,098 of 598,224. Its eventual completion and the original
+child's exit status are separate facts; disappearance cannot recover an exit
+status that the original parent did not retain.
+
+A private APFS copy-on-write capture preserves files observed during replay.
+It is **not a verified consistent/restorable backup**: the application was not
+quiesced and the live SQLite/WAL files were not captured through a transactional
+backup operation. No continuation erases the original cap, supplies a score,
+or makes these contended timings suitable for frozen performance ceilings.
 
 Charlie additionally authorized disk cleanup. On Durand, immediately rechecked
 inactive and untracked Cargo debug caches, old-lane dependency trees and npm/Bun
