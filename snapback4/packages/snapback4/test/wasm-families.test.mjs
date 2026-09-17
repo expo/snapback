@@ -105,3 +105,15 @@ test('the handwritten LaneSource visitor still exposes its reader', () => {
   checkFamilies(families);
   assert.throws(() => checkFamilies(collectFamilies([symbol('serde::private::de::content::ContentRefDeserializer<serde_json::error::Error>')])), /LaneSource.*content buffer/);
 });
+
+test('field-only survivors still expose content and replay families', () => {
+  const type = 'snapback4_core::ir::Expr';
+  for (const field of ['__Field', '__FieldVisitor']) {
+    for (const family of ['serde::private::de::content::ContentRefDeserializer<serde_json::error::Error>', 'snapback4_core::ir::lane_source::Replay<serde_json::de::MapAccess<serde_json::read::StrRead>>']) {
+      const name = `<<${type} as serde_core::de::Deserialize>::deserialize::${field} as serde_core::de::Visitor>::visit_map::<${family}>`;
+      const found = collectFamilies([{ name, shallow_size: 19 }]);
+      assert.equal(found.get(`${type} deserialize`)?.size, 1, name);
+      assert.throws(() => checkFamilies(found), /Expr deserialize/);
+    }
+  }
+});

@@ -32972,3 +32972,104 @@ The script's finally block restored the candidate files and rebuilt the candidat
 `./ref-check --verbose` and `git diff --check` are the final root checks. The former passed before this appended entry with `ref-check: ok — 483 LLP docs, 9096 refs in 24267 files, 0 errors, 0 unchecked` and is rerun afterward. All edited/new code files are below 1,500 lines. Two mistargeted early Cargo invocations used the repository root and exited 101 without running Snapback 4 tests; every reported successful Cargo command used `snapback4/`.
 
 No README or guide text changed, because canonical wire bytes and the authoring surface did not move. No out-of-scope source file remains changed. The useful lesson is that an untagged derive is a reader choice, not just a wire-shape annotation: a source-level guard at the landing path is needed alongside the slower artifact measurement, and a streaming replacement must explicitly document the malformed-input behavior it no longer obtains from serde's buffer.
+
+
+## 2026-09-17 — S1b D3-R1: refuse mixed lane maps and close review guard gaps (Codex)
+
+Base: `926e5f19812199da2ee2119a2d03b09bed10ef2e`. Read both received D3-r1 reviews (Sol NOT READY, Grok READY WITH CHANGES). No commit, push, tag, publication, remote execution or sub-agent. This is a dirty-tree review repair in the same lane. The shared interpreter, Serialize implementations, value JSON, wire/store formats, corpus cases and meter ceilings are unchanged.
+
+Mixed Scan/domain maps now refuse in either key order with `mixed scan and range/list lane source fields`: the small decoder recognizes Scan's discovered names, and Replay reads every subsequent key as text before passing it to the field seed. Values still delegate to the original map. Discovery explicitly handles unexpected success, an empty field list and any collision with start/end_exclusive/value/max as decode refusals. Unit tests pin disjointness against the actual Scan derive and show that serde's discovery includes renames **and aliases** (the Grok review's assertion that aliases are omitted was incorrect for the pinned derive).
+
+Differential comparisons now return both results; every deliberate MixedDomain, PositionalScan, MixedScan and SkippedUnknown case asserts its old/new pair, exact old/new variant and named refusal where applicable. Scan order generation asserts every possible first recognized key and samples forward/reverse remaining orders; it is not exhaustive Scan permutations. Error positions also agree with direct Scan decoding through Replay. The new mixed-map test was red before the production repair and green afterward. Restoring derived untagged Deserialize makes all four deliberate-difference tests fail (and the existing nullable-duplicate assertion fails too).
+
+LaneSource now follows the rest of the derived IR when skipping unknown values. Direct Scan, reached without a LaneSource, already accepts unknown `1e999`, an unpaired surrogate and 150 nested arrays at the base; the new test passed before the production change and still passes afterward. The old LaneSource buffer validated those subtrees as a side effect. `validate_text` still refuses each input when a caller uses that boundary. **Question for the lead:** should Engine::open validate every stored program's text, paying that CPU cost on every open? This lane adds no such validation pass and makes no broader corruption-validation claim.
+
+The text census resolves Deserialize imports (including grouped aliases), qualified derives and macro_rules bodies emitting content representations; unresolvable Deserialize aliases refuse. Serialize-only types, including known Serialize aliases, remain legal. The comment states that procedural-macro output is outside a text census and that the measurement's symbol-family check is the backstop. Synthetic aliased, qualified and macro-emitted decoder mutants are refused; __Field and __FieldVisitor survivors expose both content and replay readers. The generic refusal attributes possible reader duplication to the representation and cites **ir::LaneSource's** measured 33,460 B gzip example, not the refused type's cost.
+
+All commands below run from `snapback4/` unless identified as root commands. Every Node command uses `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`. Toolchain: `rustc --version` → `rustc 1.97.0 (2d8144b78 2026-07-07)`; `node --version` → `v24.18.0`; `wasm-bindgen --version` → `wasm-bindgen 0.2.127`; `wasm-opt --version` → `wasm-opt version 132`. The shipped script uses the wasm profile, wasm32-unknown-unknown, no default features, web, wasm-bindgen's web target, gzip -9 and the usual select-wasm-opt-only-if-gzip-improves rule.
+
+`bash scripts/build-wasm.sh` first reported the old budget overrun, then reported the updated rounded-thousand budget on rerun:
+
+```
+wasm 1531216 B raw, 451283 B gzip (budget 451000: OVER by 283 B — issues/20260913-snapback4-wasm-device-diet.md)
+wasm 1531216 B raw, 451283 B gzip (budget 452000: ok)
+```
+
+Against the lead's reviewed 1,530,533 raw / 450,956 gzip artifact, the review repair costs **683 raw / 327 gzip B**. The report-only budget changes from 451,000 to 452,000 only because the upward-rounded thousand changes. `gzip -9 -c packages/snapback4/src/wasm/snapback4_device.js | wc -c` gives **3,047 B**, unchanged. `shasum -a 256 packages/snapback4/src/wasm/snapback4_device_bg.wasm` gives `24e7a756ec5c383e5ca63a0a2ed65a44907f712729cf9995d4049a88bfaa9480`.
+
+`node scripts/attribute-wasm.mjs --families --check-families --check-absent`:
+
+```
+1679777 total attributed bytes
+snapback4_core::ir::LaneSource deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (1102 B)
+DUPLICATE snapback4_core::ir::Scan deserialize: serde_json::de::Deserializer<serde_json::read::StrRead> (5845 B), serde map replay (LaneSource first key) (4306 B)
+serde family check: ok
+server-only absence check: ok
+```
+
+Scan/map replay remains the only second **decoder** instantiation; the separate allowed dynamic-envelope and counting-writer serializer families remain. The replay visitor grew **355 shallow B**, from 3,951 to 4,306, while the entire shipping artifact grew only 327 gzip B. No content reader survives. These are source/symbol/byte measurements, not a fresh browser acquisition claim.
+
+Red/green evidence (full logs and mutation restoration scripts are in `/tmp/d3-r1-evidence/`):
+
+- `cargo test -p snapback4-core --test lane_source` with the new tests over the unchanged base production decoder: `test result: FAILED. 9 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s`. The direct Scan unknown-subtree test passed here.
+- `cargo test -p snapback4-core --test lane_source --lib` after the decoder repair: `test result: ok. 58 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.19s` and `test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s`.
+- `python3 /tmp/d3-r1-evidence/mutants.py` temporarily restored the untagged derive (disabling only the manual impl), ran `cargo test -p snapback4-core --test lane_source`, and restored both production files in finally: `test result: FAILED. 5 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s`. MixedDomain, PositionalScan, MixedScan and SkippedUnknown each fail; current core run below restores green.
+- The same script temporarily added `#[serde(alias = "max")]` to Scan.site and ran `cargo test -p snapback4-core --lib scan_derive_fields_are_nonempty_and_disjoint`: `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 57 filtered out; finished in 0.00s`. The production file was restored in finally; the current core unit run below includes the passing guard.
+- From the repository root, `node --test snapback4/packages/snapback4/test/wasm-codec-census.test.mjs snapback4/packages/snapback4/test/wasm-families.test.mjs`: before the guard repair `ℹ tests 27`, `ℹ pass 25`, `ℹ fail 2`; afterward `ℹ tests 27`, `ℹ pass 27`, `ℹ fail 0`. The final wasm suite below includes one more positive Serialize-alias test.
+
+An early invocation of `cargo test -p snapback4-core --test lane_source --lib` accidentally used the repository root and exited 101 without running tests; it was immediately rerun from snapback4. A later local edit helper initially used the wrong relative path, failed before writing, then was rerun successfully. Neither is a product failure. No product test failed on the final candidate.
+
+`cargo test -p snapback4-core`:
+
+```
+test result: ok. 58 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.20s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.97s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+`cargo test -p snapback4-lang --test guide --test components --test lowering`:
+
+```
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 67.55s
+```
+
+`cargo test -p snapback4-device --test codec --test device_diet --test components`:
+
+```
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+```
+
+`node --test packages/snapback4/test/wasm-*.test.mjs`:
+
+```
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+```
+
+`bash scripts/check-release-guard.sh`:
+
+```
+release guard: ok (web-device-check refuses the wasm profile)
+```
+
+Root `./ref-check --verbose` before this journal append: `ref-check: ok — 483 LLP docs, 9096 refs in 24267 files, 0 errors, 0 unchecked`; rerun after appending. Root `git diff --check` passes and is rerun after appending. All changed source files remain below 1,500 lines. No README/guide change: published authoring forms and canonical writer bytes did not change. No out-of-scope file remains changed; the temporary ir.rs mutants were restored byte-for-byte.
+
+**Not rerun here:** `bash snapback4/scripts/test.sh`, explicitly waived for this review round; the lead runs it outside the sandbox before landing. Also not rerun: the lead's supplied outside-sandbox evidence on `926e5f19812199da2ee2119a2d03b09bed10ef2e`: cargo build --workspace; 450,956 B gzip wasm build and release guard; lane_source/corpus tests; both symbol checks; witness/idb and witness/scale exit 0; React 13/13; wasm Node tests. The lead's alternating maximum-pending-ids transport evidence is 3/3 passes on that commit versus 2/3 on its base under high load, not a reproduced candidate failure here. No failure is claimed pre-existing from this round. No erroneous premise in the R1 brief was found; the corrected alias assertion was in the Grok review. The useful result is a 327-byte refusal/guard repair that keeps the derive authoritative and the values on one reader, with tests now proving the semantic differences they claim.

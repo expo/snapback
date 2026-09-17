@@ -60,7 +60,9 @@ export function collectFamilies(kept) {
   for (const r of kept) {
     const n = clean(r.name);
     if (n.includes('serde::private::de::missing_field::MissingFieldDeserializer<serde_json::error::Error>')) continue; // Derive's missing-field refusal, not an input reader.
-    if (/::__Field(?:Visitor)?/.test(n)) continue; // Field-name visitors are adapters inside a family.
+    // Field adapters must still expose a content/replay reader even when
+    // the owning visitor has been inlined away.
+    if (/::__Field/.test(n) && !/serde::private::de::content::(?:Content(?:Ref)?Deserializer|visit_content_)/.test(n) && !n.includes('snapback4_core::ir::lane_source::Replay<')) continue;
     for (const { type, direction } of derivedTypes(n)) {
       let family;
       const ownedTree = /(?:^<|::<)(?:&mut |&)?serde_json::(?:(?:value::)?Value|(?:map::)?Map|map::\w+|value::de::\w*Deserializer)(?:[<>]| as )/.test(n);

@@ -16,47 +16,28 @@ mod oracle {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-enum Difference {
-    None,
-    // Old untagged tries Range first and ignores List-only fields. A malformed
-    // mixed domain is now refused, independent of its key order.
-    MixedDomain,
-    // The old Scan derive also accepted positional arrays. Sources are objects;
-    // streaming object discrimination intentionally refuses positional structs.
-    PositionalScan,
-    // A map combining Scan fields with a small domain is ambiguous. Streaming
-    // commits to its first recognized variant instead of retrying Scan, Range,
-    // List in that order. No canonical writer emits such a mixed-schema map.
-    MixedScan,
-    // Content validated even ignored subtrees. Direct derived visitors use
-    // IgnoredAny, which skips invalid numbers/surrogates and deep unknown JSON.
-    // The web command's existing validate_text still refuses these inputs.
-    SkippedUnknown,
+struct Compared {
+    old: Result<Option<LaneSource>, serde_json::Error>,
+    new: Result<Option<LaneSource>, serde_json::Error>,
 }
-
-fn compare(text: &str, difference: Difference) -> bool {
-    let old = from_text::<Option<oracle::Old>>(text).map(|x| x.map(oracle::Old::current));
-    let new = from_text::<Option<LaneSource>>(text);
-    match (old, new) {
-        (Ok(old), Ok(new)) => {
-            if !matches!(difference, Difference::MixedScan) { assert_eq!(old, new, "{text}"); }
-            true
+impl Compared {
+    fn same(self) -> bool {
+        match (self.old, self.new) {
+            (Ok(old), Ok(new)) => { assert_eq!(old, new); true }
+            (Err(_), Err(error)) => { assert!(error.line() > 0, "{error}"); false }
+            pair => panic!("unlisted difference: {pair:?}"),
         }
-        (Err(_), Err(error)) => {
-            // Error-detail difference: buffering reports a generic no-variant
-            // error; the direct reader reports the actual field and position.
-            assert!(error.line() > 0, "{text}: {error}"); false
-        }
-        (Ok(_), Err(error)) if matches!(difference, Difference::MixedDomain | Difference::PositionalScan | Difference::MixedScan) => {
-            if matches!(difference, Difference::MixedDomain) { assert!(error.to_string().contains("mixed range and list"), "{text}: {error}"); }
-            false
-        }
-        (Err(_), Ok(_)) if matches!(difference, Difference::SkippedUnknown) => {
-            assert!(snapback4_core::json_codec::validate_text(text).is_err(), "web text validation must still refuse: {text}");
-            true
-        }
-        (old, new) => panic!("unlisted difference {difference:?}: {text}\nold={old:?}\nnew={new:?}"),
+    }
+    fn refused(self, expected: LaneSource, message: &str) {
+        assert_eq!(self.old.unwrap(), Some(expected));
+        let error = self.new.unwrap_err();
+        assert!(error.to_string().contains(message), "{error}");
+    }
+}
+fn compare(text: &str) -> Compared {
+    Compared {
+        old: from_text::<Option<oracle::Old>>(text).map(|x| x.map(oracle::Old::current)),
+        new: from_text::<Option<LaneSource>>(text),
     }
 }
 
@@ -89,7 +70,7 @@ fn source_texts(value: &Json, out: &mut Vec<String>) {
     }
 }
 fn canonical_round_trip(text: &str) {
-    assert!(compare(text, Difference::None));
+    assert!(compare(text).same());
     let old: Option<oracle::Old> = from_text(text).unwrap();
     let bytes = to_text(&old).unwrap();
     let decoded: Option<LaneSource> = from_text(&bytes).unwrap();
@@ -171,42 +152,62 @@ fn generated_field_orders_missing_duplicates_unknowns_and_mixed_domains() {
             }
             orders
         };
+        // Branch coverage, not exhaustive Scan permutations: every recognized
+        // first key, with representative forward/reverse remaining orders.
+        let first_keys: std::collections::BTreeSet<_> = orders.iter().map(|o| &o[0].0).collect();
+        assert_eq!(first_keys, f.iter().map(|(k,_)| k).collect());
         for order in orders {
-            assert!(compare(&object(&order), Difference::None)); cases += 1;
+            assert!(compare(&object(&order)).same()); cases += 1;
             for at in 0..=order.len() {
                 let mut unknown = order.clone(); unknown.insert(at, ("future".into(), r#"{"nested":[null,true,"x",3]}"#.into()));
-                assert!(compare(&object(&unknown), Difference::None)); cases += 1;
+                assert!(compare(&object(&unknown)).same()); cases += 1;
             }
         }
         for i in 0..f.len() {
-            let mut missing = f.clone(); missing.remove(i); compare(&object(&missing), Difference::None); cases += 1;
+            let mut missing = f.clone(); missing.remove(i); compare(&object(&missing)).same(); cases += 1;
             let mut duplicate = f.clone(); duplicate.insert(i, f[i].clone());
-            assert!(!compare(&object(&duplicate), Difference::None)); cases += 1;
+            assert!(!compare(&object(&duplicate)).same()); cases += 1;
         }
     }
     for max in ["null", "0", "4294967295", "4294967296", "18446744073709551615", "-1", "1.5", "\"8\"", "[]", "{}"] {
         for base in [range, list] {
             let mut f = fields(base); f.iter_mut().find(|(k,_)| k == "max").unwrap().1 = max.into();
-            for order in permutations(&f) { compare(&object(&order), Difference::None); cases += 1; }
+            for order in permutations(&f) { compare(&object(&order)).same(); cases += 1; }
         }
     }
     let mut mixed = fields(range); mixed.extend(fields(list).into_iter().filter(|(k,_)| k != "max"));
     for subset in 0..(1 << mixed.len()) {
         let f: Vec<_> = mixed.iter().enumerate().filter(|(i,_)| subset & (1 << i) != 0).map(|(_,f)| f.clone()).collect();
-        let both = f.iter().any(|(k,_)| k == "value") && f.iter().any(|(k,_)| k == "start" || k == "end_exclusive");
-        for order in permutations(&f) { compare(&object(&order), if both { Difference::MixedDomain } else { Difference::None }); cases += 1; }
+        let has = |name| f.iter().any(|(k,_)| k == name);
+        let both = has("value") && (has("start") || has("end_exclusive"));
+        let complete_range = has("start") && has("end_exclusive");
+        for order in permutations(&f) {
+            let text = object(&order);
+            if both && (has("max") || complete_range) {
+                let mut expected = from_text::<LaneSource>(if complete_range { range } else { list }).unwrap();
+                if !has("max") { if let LaneSource::Range { max, .. } = &mut expected { *max = None; } }
+                compare(&text).refused(expected, "mixed range and list lane source fields");
+            } else { compare(&text).same(); }
+            cases += 1;
+        }
     }
-    for text in ["null", "false", "1", "\"source\"", "[]", "[1,2]", "{}", "{\"future\":0}"] { compare(text, Difference::None); cases += 1; }
+    for text in ["null", "false", "1", "\"source\"", "[]", "[1,2]", "{}", "{\"future\":0}"] { compare(text).same(); cases += 1; }
     println!("generated lane source cases: {cases}");
 }
 
 #[test]
 fn typed_errors_keep_text_positions_and_nested_sources_use_the_same_decoder() {
     let bad = "{\n\"start\": {\"Literal\":{\"Int\":\"wrong\"}},\n\"end_exclusive\":{\"Literal\":{\"Int\":8}}}";
-    compare(bad, Difference::None);
+    compare(bad).same();
     let error = from_text::<LaneSource>(bad).unwrap_err();
     assert_eq!(error.line(), 2); assert!(error.column() > 20, "{error}");
     let scan: Scan = from_text(&corpus_sources().into_iter().find(|s| s != "null").unwrap()).unwrap();
+    let scan_error = to_text(&scan).unwrap().replacen("{", "{\n", 1);
+    let scan_error = scan_error.replace("\"site\":\"", "\"site\":false,\"future\":\"");
+    let direct = from_text::<Scan>(&scan_error).unwrap_err();
+    let replay = from_text::<LaneSource>(&scan_error).unwrap_err();
+    assert_eq!((replay.line(), replay.column()), (direct.line(), direct.column()));
+    assert_eq!(replay.line(), 2);
     let nested = LaneSource::List { value: Expr::Merge(snapback4_core::ir::Merge { site: "nested".into(), lanes: vec![snapback4_core::ir::MergeLane {
         setup: vec![], scan, source: Some(LaneSource::Range { start: Expr::Literal(snapback4_core::Value::Int(0)), end_exclusive: Expr::Literal(snapback4_core::Value::Int(8)), max: Some(8) }), binding: "i".into(),
     }] }), max: 8 };
@@ -214,7 +215,8 @@ fn typed_errors_keep_text_positions_and_nested_sources_use_the_same_decoder() {
     // Non-object refusal is deliberate even though a derived Scan accepts its
     // positional sequence form. The object forms above are the durable shape.
     let positional = json!(["s","t","i",[],"Asc",{"Literal":1},false,null,null,null,null,false,null,"Const"]);
-    compare(&to_text(&positional).unwrap(), Difference::PositionalScan);
+    let expected: Scan = from_text(&to_text(&positional).unwrap()).unwrap();
+    compare(&to_text(&positional).unwrap()).refused(LaneSource::Scan(expected), "a scan, range or list lane source object");
 }
 
 #[test]
@@ -278,30 +280,25 @@ fn newly_added_scan_fields_and_nullable_max_keep_the_derive_contract() {
     let existence = f.remove(at); f.insert(0, existence);
     canonical_round_trip(&object(&f));
     f.insert(0, ("future".into(), "null".into()));
-    assert!(compare(&object(&f), Difference::None));
+    assert!(compare(&object(&f)).same());
     for max in ["null", "8"] {
         let duplicate = format!(r#"{{"max":null,"max":{max},"start":{{"Literal":{{"Int":0}}}},"end_exclusive":{{"Literal":{{"Int":8}}}}}}"#);
-        assert!(!compare(&duplicate, Difference::None));
+        assert!(!compare(&duplicate).same());
     }
 }
 
 
 #[test]
-fn mixed_scan_and_domain_fields_have_explicit_streaming_precedence() {
+fn mixed_scan_and_domain_fields_refuse_in_both_orders() {
     let scan = corpus_sources().into_iter().find(|s| s != "null").unwrap();
-    let small = r#"{"start":{"Literal":{"Int":0}},"end_exclusive":{"Literal":{"Int":8}},"max":8}"#;
-    let mut mixed = fields(&scan); mixed.extend(fields(small));
-    for first in 0..mixed.len() {
-        let mut f = mixed.clone(); f.rotate_left(first);
-        compare(&object(&f), Difference::MixedScan);
-    }
-    // A partial Scan also cannot force a retry after a typed Scan field failed.
-    for f in [vec![("site".into(), "false".into())], vec![("site".into(), "\"s\"".into())]] {
-        let mut mixed = f; mixed.extend(fields(small));
-        compare(&object(&mixed), Difference::MixedScan);
+    for small in [r#"{"start":{"Literal":{"Int":0}},"end_exclusive":{"Literal":{"Int":8}},"max":8}"#, r#"{"value":{"Array":[]},"max":8}"#] {
+        let mut mixed = fields(&scan); mixed.extend(fields(small));
+        for first in 0..mixed.len() {
+            let mut f = mixed.clone(); f.rotate_left(first);
+            compare(&object(&f)).refused(LaneSource::Scan(from_text(&scan).unwrap()), "mixed scan and range/list lane source fields");
+        }
     }
 }
-
 
 #[test]
 fn skipped_unknown_syntax_keeps_the_existing_web_validation_boundary() {
@@ -310,7 +307,23 @@ fn skipped_unknown_syntax_keeps_the_existing_web_validation_boundary() {
     for source in [&scan, range] {
         for unknown in ["1e999".to_owned(), r#""\ud800""#.to_owned(), format!("{}0{}", "[".repeat(150), "]".repeat(150))] {
             let mut f = fields(source); f.push(("future".into(), unknown));
-            compare(&object(&f), Difference::SkippedUnknown);
+            let text = object(&f);
+            let outcome = compare(&text);
+            assert!(outcome.old.is_err(), "old buffer must refuse {text}");
+            assert_eq!(outcome.new.unwrap(), Some(from_text::<LaneSource>(source).unwrap()));
+            assert!(snapback4_core::json_codec::validate_text(&text).is_err(), "text validation must refuse {text}");
         }
+    }
+}
+
+#[test]
+fn ordinary_ir_structs_already_skip_unknown_subtrees_without_validation() {
+    let scan = corpus_sources().into_iter().find(|s| s != "null").unwrap();
+    let expected: Scan = from_text(&scan).unwrap();
+    for unknown in ["1e999".to_owned(), r#""\ud800""#.to_owned(), format!("{}0{}", "[".repeat(150), "]".repeat(150))] {
+        let mut f = fields(&scan); f.push(("future".into(), unknown));
+        let text = object(&f);
+        assert_eq!(from_text::<Scan>(&text).unwrap(), expected);
+        assert!(snapback4_core::json_codec::validate_text(&text).is_err());
     }
 }

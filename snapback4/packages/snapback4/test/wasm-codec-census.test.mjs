@@ -186,3 +186,30 @@ test('the JSON funnel exception does not exempt content representations', () => 
   assert.equal(errors.length, 1);
   assert.match(errors[0], /content buffering/);
 });
+
+test('content decoder aliases, qualified derives and macro output cannot evade the census', () => {
+  const file = core + 'fixture.rs';
+  for (const [imports, derive] of [
+    ['use serde::Deserialize as De;', 'De'],
+    ['use serde::{Serialize, Deserialize as De};', 'De'],
+    ['', 'serde::Deserialize'],
+  ]) {
+    for (const body of ['enum Added { X }', 'enum $name { X }']) {
+      const item = `#[derive(${derive})] #[serde(untagged)] ${body}`;
+      const source = imports + (body.includes('$') ? `macro_rules! added { ($name:ident) => { ${item} }; }` : item);
+      assert.ok(census(new Map([[file, source]]), []).some(e => /content buffering.*ir::LaneSource.*33,460.*LLP 3000.002/.test(e)), source);
+    }
+    assert.deepEqual(census(new Map([[file, `${imports} #[derive(${derive})] struct Plain { value: String }`]]), []), []);
+  }
+  for (const source of [
+    'use elsewhere::Deserialize as De; #[derive(De)] #[serde(untagged)] enum Added { X }',
+    'use serde::{de::Deserialize as De}; #[derive(De)] #[serde(untagged)] enum Added { X }',
+  ]) assert.ok(census(new Map([[file, source]]), []).some(e => /unresolved Deserialize alias/.test(e)), source);
+});
+
+test('known Serialize aliases keep serialize-only content representations legal', () => {
+  for (const imports of ['use serde::Serialize as Ser;', 'use serde::{Serialize as Ser};']) {
+    const source = `${imports} #[derive(Ser)] #[serde(untagged)] enum Written { X }`;
+    assert.deepEqual(census(new Map([[core + 'fixture.rs', source]]), []), []);
+  }
+});
