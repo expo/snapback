@@ -71,7 +71,7 @@ pub(super) fn assess(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Step>, RuntimeE
                     fits = validate_column(name, column, kind, row.field(column).ok()).is_ok()
                         && super::activation::validate_assets(tx, kind, row.field(column).ok()).is_ok();
                     // @ref LLP 3000.007#18.3 — changing interpretation rechecks existing dependent invariants at the column's site.
-                    for (index_name, index) in table.indexes.iter().filter(|(_, index)| index.unique && index.columns().iter().any(|c| c == column)) {
+                    for (index_name, index) in table.indexes.iter().filter(|(_, index)| index.unique && index.uses_column(column)) {
                         let values = index_values(index, &row);
                         if !values.contains(&Value::Null) {
                             let count = groups.entry((format!("unique:{index_name}"), key::encode(&values))).or_default();

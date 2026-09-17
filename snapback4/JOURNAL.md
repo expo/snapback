@@ -31201,3 +31201,702 @@ policy covers normalization of assigned characters and not case mappings, so
 the recommendation is NFC only. It reverses LLP 3000 §7's one-implementation
 ruling for the web tokenizer and therefore waits for the author; nothing of it
 is on main.
+
+## 2026-09-17 — W13c: stop restating bounds; prefix existence
+
+Implemented LLP 3000.007 rulings 23–25 and the lane-source expression repair.
+One binder recognition distinguishes full point keys from strict index prefixes.
+Capped prefixes lower to the existing literal scan; changing the one schema cap
+from **100 to 120** changes roster, nested-page and predicting-loop bounds.
+Uncapped or oversize query loop/lane domains use `Bound::Meter`, whose maximum
+comes from `Ceilings::default().examined`, and require uniform visibility.
+Helpers retain the caller's placement even inside a predicate. Jobs use their
+own examined ceiling for a capped inner loop (the **10,000**-cap compile control
+passes). No ceiling, value serialization, existing conformance case, rule-probe
+implementation, client or dev code changed.
+
+Program prefix/matching `exists` uses an additive, default-omitted scan flag:
+top one below page ownership, no overflow/lookahead/cursor. Positive held-row
+answers are exact beyond a device horizon; negative answers mark unknown
+coverage. Source keys, seek expressions and predicate needs are emitted before
+a merge, while per-row lane setup and lazy prefix freezing retain their places.
+An undefined compiler temporary now names the operation/site as E_INTERNAL.
+
+Measured on the server and both device stores: the **9,000**-membership loop
+returns **8,192**, has no continuation, and reports `complete: false`,
+`cut: 'meter'`. Its meter records **8,193 examined**, including the refused
+ceiling-crossing charge, and **0 rule probes**. The static bound is **8,192**.
+A positive plain existence scan costs **1 examined / 1 rule probe**; empty and
+uniformly hidden prefixes cost **0 examined / 1 rule probe**. An expired-only
+prefix returns false after **1 examined**. Hidden-present/hidden-absent answers,
+meters and completeness match, for plain and matching existence, on the server
+and both stores. Rule existence costs **1 probe** with **0 or 9,000 expired
+siblings**; the target scan examines **0** rows without a live permit and **1**
+with one, with identical observations across sibling counts. Its serialized
+rule bytes are pinned unchanged:
+
+```text
+{"Exists":{"table":"permits","index":"byRoom","key":[{"Field":"room"}],"provenance":"Shape"}}
+```
+
+The five lane-source controls return **10 / 10 / 25 / 10 / 10** rows (inline
+seeks, locals, direct page, key expression, source predicate), in both eager
+and lazy discovery, on the server and both stores. Inline and local merges
+both examine **50** rows. Positive existence answers are complete with both
+full holdings and a **last 1** horizon; negative answers beyond that horizon
+are incomplete. The capped roster has **2** rows, no cursor, and is complete;
+the device predicts bump and marks both changed rows pending.
+
+`check --cost` prints these exact forms:
+
+```text
+rows ≤ meter (8,192 examined)
+lanes ≤ meter
+exists: first match, no page overflow or cursor
+```
+
+The cards and README use boundless ascending whole groups, including the feed,
+effect, typing and maintained-count examples. Two descending cap-restatement
+sites remain in published examples: `posts[authorId] last 1000 by byActorTime`
+in the feeds card and its README copy. Newest-first backfill needs descending
+order, so it keeps `last`. Six ascending cap restatements remain in standalone
+regression fixtures: pending-metadata (1), membership (3), clique-relaxed (2);
+explicit `first <cap>` remains legal and those controls retain it. This census
+covers standalone `.q` sources, compiled cards and README blocks, excluding
+frozen corpora, generated output and embedded test-source strings. There are
+**0** ascending cap restatements in `apps/chat`: inbox pins principal, while
+its cap is by conversationId. Removing its first 50 would create an uncapped
+returned page, so the brief's anticipated app edit does not apply.
+
+### Published 0.2.27 probe table, rerun
+
+Before binary: `snapback4-darwin-arm64@0.2.27`, SHA-256
+`ae7838c7ed3a9a4b4be3fa454af69e9cacb792b5a23ad81d12386ec7e3fd2be7`.
+After: this lane's debug binary, based on
+`27c1096c894cbb59226cd9203bf06ee12e20b9be` plus the working changes.
+The variants are reconstructed from the bounds-probes record with nominal
+`roomId: rooms` keys and arguments. An untyped `roomId: id` can instead resolve
+to the existing byId point probe; that meaning intentionally remains unchanged.
+G1 here is `exists (messages[.roomId] matching q)`, without a page modifier.
+Q3 retains its explicit first 50000; the additional boundless cap-50000 control
+is refused as shown below. These are compile outcomes, not a claim that G7's
+count-of-page predicate defect (W13a) is repaired here.
+
+| Variant | Published 0.2.27 | W13c |
+| --- | --- | --- |
+| C1 capped group, explicit first 100 | ok; no note | ok; no note |
+| C2 capped group, no bound | E_QUARRY_TYPE | ok; no note |
+| C3 first 20 below cap | ok; N_NO_CURSOR | ok; N_NO_CURSOR |
+| C4 mutation loop, no bound | E_QUARRY_TYPE | ok; no note |
+| C5 mutation loop, first 100 | ok; no note | ok; no note |
+| G6 lane source, no bound, cap 1000 | E_QUARRY_SYNTAX | ok; N_WIDE_MERGE |
+| G7 count of inner matching top-1 | ok; no note | ok; no note |
+| G1 matching prefix exists | E_QUARRY_SYNTAX | ok; no note |
+| Q1 uncapped query loop, first 1000 | ok; no note | ok; no note |
+| Q2 uncapped query loop, no bound | E_QUARRY_TYPE | ok; no note |
+| Q3 cap 50000, explicit first 50000 | ok; N_NO_CURSOR | ok; N_NO_CURSOR |
+| X1 plain prefix exists | E_QUARRY_UNKNOWN | ok; no note |
+| X2 prefix exists, explicit index | E_QUARRY_TYPE | ok; no note |
+| X3 count of first 1 page | ok; no note | ok; no note |
+| BY1 inferred principal page index | ok; no note | ok; no note |
+| BY2 inferred lane index, first 1000 | ok; N_WIDE_MERGE | ok; N_WIDE_MERGE |
+| BY3 inferred room page index | ok; no note | ok; no note |
+
+G6 is capped at 1000, so its lane count is static and N_WIDE_MERGE correctly
+remains. The uncapped everywhere fixture has no static lane count and no note.
+The rerun also confirms BY2 already emitted N_WIDE_MERGE in 0.2.27; the older
+table only said “ok”. G1's exact unbounded matching spelling reaches the old
+range-bound refusal, whereas adding a page modifier reaches its old exists
+refusal. Both old boundaries are now covered explicitly.
+
+### Exact diagnostics
+
+The following messages and rewrites are verbatim from `check --json` on the
+published binary and this lane's binary; locations and parser cascade entries
+are omitted. “No diagnostic” means an accepted form, not a replacement message.
+
+Capped returned group (the mutation-loop C4 has the same old refusal):
+
+Before:
+
+```text
+E_QUARRY_TYPE: members.byRoomPrincipal takes (roomId: a rooms reference, principal: principal); supplied (roomId: a rooms reference) has the wrong number of keys
+rewrite: members[roomId, principal] by byRoomPrincipal — supply roomId: a rooms reference, principal: principal in index order
+```
+
+After: no diagnostic.
+
+Uncapped uniform query loop:
+
+Before:
+
+```text
+E_QUARRY_TYPE: members.byPrincipalRoom takes (principal: principal, roomId: a rooms reference, id: a members reference); supplied (viewer: principal) has the wrong number of keys
+rewrite: members[principal, roomId, id] by byPrincipalRoom — supply principal: principal, roomId: a rooms reference, id: a members reference in index order
+```
+
+After: no diagnostic.
+
+Merge source:
+
+Before:
+
+```text
+E_QUARRY_SYNTAX: a merge for lane requires a bounded range read
+rewrite: for row in table[prefix] first 50 by index
+```
+
+After: no diagnostic; N_WIDE_MERGE remains for this static cap of 1000.
+
+Prefix existence:
+
+Before:
+
+```text
+E_QUARRY_UNKNOWN: messages has no unique index over 1 column matching this key; its indexes are byId (id), byRoomTime (roomId, at, id), byRoomWords (roomId, at, id)
+rewrite: unique byColumn: <column>
+```
+
+After: no diagnostic.
+
+Unparenthesized matching inside where:
+
+Before:
+
+```text
+E_QUARRY_UNKNOWN: members.byPrincipalRoom has its words after 0 columns; matching takes exactly those as keys
+rewrite: members[] matching q first 50 by byPrincipalRoom
+```
+
+After:
+
+```text
+E_QUARRY_MODIFIER_SCOPE: matching could modify the inner or outer read; parenthesize the inner read, or move the modifier before `where`
+rewrite: (messages[.roomId] matching q)
+```
+
+Returned uncapped prefix:
+
+Before:
+
+```text
+E_QUARRY_TYPE: members.byPrincipalRoom takes (principal: principal, roomId: a rooms reference, id: a members reference); supplied (viewer: principal) has the wrong number of keys
+rewrite: members[principal, roomId, id] by byPrincipalRoom — supply principal: principal, roomId: a rooms reference, id: a members reference in index order
+```
+
+After:
+
+```text
+E_QUARRY_BOUND: members has no cap over this prefix; this position needs a bounded page
+rewrite: declare `cap N by principal` on members, or page with `first N` and a cursor: `members[viewer] after c first 50 by byPrincipalRoom` (declare `c: cursor ?`)
+```
+
+Returned oversized capped group:
+
+Before:
+
+```text
+E_QUARRY_TYPE: members.byRoomPrincipal takes (roomId: a rooms reference, principal: principal); supplied (roomId: a rooms reference) has the wrong number of keys
+rewrite: members[roomId, principal] by byRoomPrincipal — supply roomId: a rooms reference, principal: principal in index order
+```
+
+After:
+
+```text
+E_QUARRY_BOUND: members's whole group has cap 50000, above the 8192 examined ceiling; one read cannot examine the whole group
+rewrite: page with `first N` and a cursor: `members[roomId] after c first 50 by byRoomPrincipal` (declare `c: cursor ?`)
+```
+
+Non-uniform meter domain:
+
+Before:
+
+```text
+E_QUARRY_TYPE: members.byPrincipalRoom takes (principal: principal, roomId: a rooms reference, id: a members reference); supplied (viewer: principal) has the wrong number of keys
+rewrite: members[principal, roomId, id] by byPrincipalRoom — supply principal: principal, roomId: a rooms reference, id: a members reference in index order
+```
+
+After:
+
+```text
+E_QUARRY_BOUND: members by byPrincipalRoom: a meter-bounded prefix needs a read rule uniformly decided by its pinned columns
+rewrite: use `first N`: `members[viewer] first 50 by byPrincipalRoom`; for a complete read, scan by an index leading with unread, roomId, id and pin the deciding columns (N_NEVER_COMPLETE)
+```
+
+Page modifier inside exists:
+
+Before:
+
+```text
+E_QUARRY_SYNTAX: exists requires an indexed read t[key]
+rewrite: fix this Quarry line and rerun snapback4 check
+```
+
+After:
+
+```text
+E_QUARRY_SYNTAX: exists takes a plain indexed read or matching read; no where, first, last, after or seek
+rewrite: exists messages[roomId] by byRoomTime
+```
+
+Explicit smaller predicting page:
+
+Before:
+
+```text
+E_STRUCTURAL_FANOUT: loop over members[roomId] first 20 by byRoomPrincipal: members by byRoomPrincipal (page bound 20): the literal page bound must cover the schema cap 100
+rewrite: iterate the original group: `for row in members[roomId] first 100 by byRoomPrincipal:`; put the condition and work inside that loop
+```
+
+After:
+
+```text
+E_STRUCTURAL_FANOUT: loop over members[roomId] first 20 by byRoomPrincipal: members by byRoomPrincipal (page bound 20): the literal page bound must cover the schema cap 100
+rewrite: iterate the original group: `for row in members[roomId] by byRoomPrincipal:`; put the condition and work inside that loop
+```
+
+N_NO_CURSOR cap clause (Q3):
+
+Before:
+
+```text
+N_NO_CURSOR: query probe returns a page of 50000 inbox rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+rewrite: declare `c: cursor ?` and page with `after c` — probe(.., c: cursor ?): return inbox[..] after c last 50000 by <index>; a table `cap N by column` can replace a cursor for a single plain group page that pins column and covers N within the examined ceiling; this page still needs continuation
+```
+
+After:
+
+```text
+N_NO_CURSOR: query probe returns a page of 50000 inbox rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+rewrite: declare `c: cursor ?` and page with `after c` — probe(.., c: cursor ?): return inbox[..] after c last 50000 by <index>; read the whole group: `t[..]`, when its schema cap fits the examined ceiling; otherwise this page still needs continuation
+```
+
+The original source-seek call returned, verbatim:
+
+```text
+E_INPUT: unknown variable $value1
+```
+
+It now returns the rows reported above. A deliberately malformed IR control
+reaching an undefined compiler temporary instead reports, verbatim:
+
+```text
+E_INTERNAL: internal compiler error: an undefined temporary was evaluated in operation/site broken:1; recompile and report this operation
+```
+
+### Validation and limits
+
+The initial regression run on base
+`27c1096c894cbb59226cd9203bf06ee12e20b9be`, before the fix:
+
+```text
+cargo test -p snapback4-lang --test prefix_reads
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+cargo test -p snapback4-sim --test clique w13c_lane_source_inline_seek_matches_locals_and_direct_page
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 93 filtered out; finished in 0.01s
+```
+
+Final targeted runs (Cargo commands run from snapback4):
+
+```text
+cargo test -p snapback4-lang --test prefix_reads --test guide --test residency_notes --test ergonomics --test frontend_regressions --test maintains --test papercuts --no-fail-fast
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.37s
+test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.43s
+```
+
+```text
+cargo test -p snapback4-lang --test prefix_reads -- --nocapture
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+```text
+cargo test -p snapback4-lang --test guide
+test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+```
+
+```text
+cargo test -p snapback4-sim --test clique prefix_reads -- --nocapture
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 93 filtered out; finished in 0.67s
+```
+
+```text
+cargo test -p snapback4-device --test device prefix_reads -- --nocapture
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 189 filtered out; finished in 2.87s
+```
+
+```text
+cargo test -p snapback4-sim --test maintains_review
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.02s
+```
+
+```text
+cargo test -p snapback4 --test check
+test result: ok. 60 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.75s
+```
+
+The first whole-suite run exposed point-diagnostic/maintained-scalar regressions
+in the new prefix recognition and old rewrite expectations. Recognition now
+changes the form only when range resolution actually succeeds; maintained scalar
+lookups preserve their byGroup preference. The affected suites above pass.
+The first whole-suite summary was `== 2 failure(s) in 887 s` (cargo and client);
+client counts were 544 pass / 3 fail / 3 skipped. Its two transport timeouts pass
+when rerun alone. No such timeout remained in the final whole suite.
+
+The final full run, from the repository root, with Node 24:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+TMPDIR=/private/tmp bash snapback4/scripts/test.sh
+-- ok: cargo build (11 s)
+-- ok: wasm build (6 s)
+-- ok: package typecheck (3 s)
+-- ok: package build (2 s)
+-- ok: chat app check (4 s)
+-- rust inventory: 68 test binaries, 383 executions; at most 18 concurrent processes
+-- ok: cargo test (320 s)
+-- ok: chat app typecheck (2 s)
+-- ok: expo app typecheck (2 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ skipped 0
+-- ok: fixture wrapper tests (27 s)
+ℹ tests 550
+ℹ pass 546
+ℹ fail 1
+ℹ skipped 3
+-- FAIL: client tests (476 s)
+== 1 failure(s) in 506 s
+```
+
+Summing the final Rust summaries gives **1,328 passed, 0 failed, 4 ignored**.
+The only final failure is the brief's known sandbox Chromium SIGABRT in
+`react.test.mjs`; the browser exits before the React scenario can run. These
+standalone reruns used the same Node-24 export, from snapback4:
+
+```text
+TMPDIR=/private/tmp node --test packages/snapback4/test/transport-http.test.mjs
+ℹ tests 6
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+TMPDIR=/private/tmp node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+```
+
+No remaining failure is claimed verified pre-existing against a clean base.
+The React failure needs the lead's outside-sandbox rerun; no permission bypass
+or other-machine run was attempted. The two maintained-prefix prose corrections
+made after the full Rust run were rechecked by the final guide test above.
+
+Outside the brief's named production files, `core/src/ir.rs` carries the two
+additive IR markers; `core/src/engine/runner.rs` supplies the requested internal
+temporary guard. `engine/native.rs`, `engine/prefetch.rs`, core test scan builders
+and sim's `tests/common/write_observation.rs` only initialize the new scan flag
+to false. Tests live in the requested language/sim/device suites and CLI check
+suite. Existing serialized conformance files are untouched; all eight frozen
+lowering shards pass. `engine/read.rs` changes only take/existence/coverage
+handling; merge and filter paths and `engine/rules.rs` are untouched. The search
+two-cursor section, recipe and held guidance remain. No commit, push or publish.
+
+Learned: point recognition must preserve failed full-key diagnostics and a
+maintain's byGroup preference, not interpret every failed point lookup as a
+prefix. An id-typed argument can already mean a byId point read, so a prefix
+regression needs nominal key types. The source-seek failure was setup ownership,
+not a missing runtime value; moving that setup preserves eager/lazy behavior.
+A held positive witness needs no horizon completeness proof, while a negative
+does. All changed code files remain at or below 1,500 lines (largest touched
+files: device suite **1,489**, Clique suite **1,466**).
+
+```text
+./ref-check --verbose
+ref-check: ok — 482 LLP docs, 9058 refs in 24139 files, 0 errors, 0 unchecked
+```
+
+## 2026-09-17 — W13c-2: range/list merge lanes and time index keys (rulings 28–29)
+
+Continued from W13C at `4a1bbf4495e4ccff4e2744cc73c42e3b1c01df43`, preserving
+its prefix reads, cap-derived bounds, prefix existence and P2 setup hoisting.
+A query lane now takes the statement loop's domains except walk: a prefix
+page, an integer range, or a bounded list argument/expression. `LaneSource`
+is `Scan | Range | List`; range/list binding and evaluation reuse statement
+loops. Bounds evaluate once, lists retain their order, duplicate lanes still
+deduplicate rows, and empty domains are complete. Literal or common-expression
+widths and list bounds supply static counts; other widths print `lanes ≤ meter`
+and do not emit N_WIDE_MERGE. Jobs retain literal/table merge lanes inside
+chunks; the new domains are query-only. Mutation pages remain unchanged.
+
+The range itself is not materialized. Uniform merges retain lane descriptors
+under an upfront heap charge (including vector spare capacity, owned prefix
+keys and cursor/seek bounds), then use the existing head strategy. Non-uniform
+traversal is unchanged. A billion-lane empty range stops at the unchanged heap
+ceiling in under 100,000 steps; it cannot allocate a billion descriptors.
+
+Table `by` and `unique` lists now take `day`, `hour` and `bucket` of a required
+local time column, at any position, once per function per index. The compiler
+uses maintain argument validation and the stores share CalendarKey's evaluator
+with maintain groups. Integer key names support positional pins, function-name
+seeks and cursors, without adding row fields, writable values, rule fields,
+cap keys or sync audience keys. Computed indexes are not plain. Job cursors
+check immutability of the underlying time column. Updates and adoption rebuild
+through the ordinary index paths, including changes of period/offset. A real
+column colliding with a function name is refused with a rename rewrite.
+Malformed computed expressions and empty calls produce diagnostics, not panics.
+
+Published examples are a room/hour listing and a daily unique check-in; the
+language card compiles and runs them. The indexes, reads, language, maintains
+and code-explanation cards and package README move together. No new card word
+or diagnostic code was added, no ceiling or Value serialization was changed,
+and no existing conformance case was edited. The two ruling implementations
+are annotated once each with LLP 3000.007 §21.6.
+
+Measured on one 1,200-post, 25-lane maintained-count fixture, typed and range
+ranking both examine **35** rows on the server and each device store, return
+the same rows and cursor, and match the oracle. The base supports maintained
+`value, id` suffixes, so ties use the maintained id; the oracle uses that exact
+order rather than claiming a post-time tie order this base does not provide.
+A **5,000-lane / 20,000-post** range on all three native hosts returns **10**
+rows, `complete: false`, `cut: meter`, no `next`, **9,096 examined**,
+**0 index entries**, **19,112 steps**, and **3,363,950 charged heap bytes**.
+The examined count includes failed charges while the existing head-opening
+loop visits the remaining lanes after the cut; the ceiling stays **8,192**.
+A supplemental WASM/MemoryRows probe matched those rows/counts, with
+**1,763,950 heap bytes** on wasm32. Its four scenarios passed; it was a scratch
+harness, not a replacement for the native server/device suites.
+
+The paired tests compare serialized pages, completeness, cut, cursor and every
+meter field for worlds differing in hidden row contents, and for hidden/absent
+worlds after acquisition on both device stores. There is a brief conflict for
+server hidden/absent worlds: the unchanged non-uniform traversal's operator
+meter counts physical rows. The same **50 visible** rows with **0 versus 50
+hidden** rows produce byte-identical page/complete/cut/next but **50 versus
+100 examined**. An isolated harness over the exact base core/lang sources
+reproduced those numbers. The test records the limitation instead of changing
+or disguising the existing traversal. No claim of hidden/absent equality of
+the server's raw operator meter is made.
+
+Other differences from the adopted brief: this base's lane refusal says
+“prefix read”, not the published 0.2.27 “bounded range read”; Wave 12's
+25-literal-lane Trending example is absent, so the conditional feeds rewrite
+was not performed and existing feed prose was not reformatted. The checked-in
+§21.8 does not contain L5, but the lead's explicit any-position ruling in the
+brief was implemented. Ruling 30's count-on-row design remains unbuilt, as asked.
+
+Regression evidence uses the exact base commit above. The preserved pre-fix
+lane test failed; the time-key positive test also failed against separately
+materialized base core/lang sources. Native process startup initially stalled,
+then recovered; all final Rust tests executed normally. Commands below ran
+from `snapback4/` except the root suite and ref-check, with Node 24 selected:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+```text
+/private/tmp/w13c2-baseline-lane-domains --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+TMPDIR=/private/tmp cargo test --manifest-path /private/tmp/w13c2-base-check/Cargo.toml -p snapback4-lang --test before --target-dir target -- --nocapture
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+```
+
+The base harness's passing test verifies the inherited operator-meter behavior;
+its failing test is the new positive time-index compiler regression.
+
+```text
+TMPDIR=/private/tmp cargo test -p snapback4-lang --test lane_domains --test time_indexes --test guide --no-fail-fast -- --nocapture
+test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+```
+
+```text
+TMPDIR=/private/tmp cargo test -p snapback4-sim --test clique -p snapback4-device --test device --no-fail-fast w13c2 -- --nocapture
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 193 filtered out; finished in 3.08s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 100 filtered out; finished in 1.39s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+```
+
+```text
+TMPDIR=/private/tmp cargo test -p snapback4-device --test index_key_bound -p snapback4 --test check --no-fail-fast -- --nocapture
+test result: ok. 61 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.77s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+```
+
+```text
+TMPDIR=/private/tmp node --test --test-name-pattern='W5c process: pending writes recover' packages/snapback4/test/acquisition.test.mjs
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+```
+
+```text
+TMPDIR=/private/tmp node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+```
+
+The initial targeted guide run was `48 passed; 2 failed` (operation inventory
+and a misspelled code comparison), corrected above. The initial device time-key
+tests expected a display string without its code/detail and read before the
+new generation's acquisition completed; the tests now assert the refusal's
+message and observe the acquisition fence. The first full run reported
+`== 2 failure(s) in 708 s` (Rust and clients); clients were `550 tests`,
+`545 pass`, `2 fail`, `3 skipped`. Its acquisition failure passed alone above;
+Chromium still aborted at launch on the standalone retry. Neither client
+failure is claimed verified pre-existing against a clean base.
+
+The second complete blocking run finished as follows. Its Rust summaries sum
+to **1,350 passed, 0 failed, 4 ignored**. The only remaining failing scenario
+is the brief's sandbox Chromium SIGABRT at browser launch; the lead must rerun
+React outside the sandbox. The final malformed-index/job-rewrite guards were
+rechecked by the final 57-test language command above after the full Rust run.
+
+```text
+TMPDIR=/private/tmp bash snapback4/scripts/test.sh
+== cargo build
+-- ok: cargo build (33 s)
+== wasm build
+-- ok: wasm build (34 s)
+== package typecheck
+-- ok: package typecheck (4 s)
+== package build
+-- ok: package build (5 s)
+== chat app check
+-- ok: chat app check (0 s)
+== cargo test
+-- rust inventory: 70 test binaries, 398 executions; at most 18 concurrent processes
+-- ok: cargo test (276 s)
+== chat app typecheck
+-- ok: chat app typecheck (2 s)
+== expo app typecheck
+-- ok: expo app typecheck (2 s)
+== fixture wrapper tests
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ skipped 0
+-- ok: fixture wrapper tests (34 s)
+== client tests
+ℹ tests 550
+ℹ pass 544
+ℹ fail 3
+ℹ skipped 3
+-- FAIL: client tests (673 s)
+== 1 failure(s) in 753 s
+```
+
+Exact base refusals, and the accepted forms after the change:
+
+```text
+Before ruling 28:
+E_QUARRY_SYNTAX: a merge for lane requires a prefix read
+rewrite: for row in table[prefix] by index
+After ruling 28: range and bounded-list positive examples have no diagnostics or notes.
+Remaining walk refusal:
+E_QUARRY_SYNTAX: a merge for lane requires a prefix page, range(a, b), or a bounded list; walk is not a lane domain
+rewrite: for h in range(hour(now) - 24, hour(now) + 1), for a in authors (authors: [principal] <=50), or for row in table[prefix] by index
+Remaining unbounded/non-domain refusal:
+E_QUARRY_SYNTAX: a merge for lane requires a prefix page, range(a, b), or a bounded list
+rewrite: for h in range(hour(now) - 24, hour(now) + 1), for a in authors (authors: [principal] <=50), or for row in table[prefix] by index
+Before ruling 29:
+E_QUARRY_SYNTAX: expected the end of the line, got "("
+rewrite: end this statement here; put the next statement on its own line at the same indentation
+After ruling 29: the valid by/unique time-key examples have no diagnostics or notes.
+Name collision:
+E_QUARRY_TYPE: visits has a column named hour, which collides with the computed index key
+rewrite: rename column hour before declaring hour(at)
+```
+
+All changed code remains within 1,500 lines (device suite **1,491**, Clique
+suite **1,468**); Markdown was not compressed. No out-of-scope repository file
+was changed. Temporary base/WASM harnesses and execution logs are under
+`/private/tmp`. No commit, push, tag or publication was performed.
+
+Learned: the existing loop-domain binder/evaluator and calendar key encoder
+provided the common semantics without a second engine path. Index key names
+must be distinguished from actual row columns, especially for authorization
+pins and upsert insert images. A new index still obeys the device generation's
+acquisition fence. Operator metrology and the user-visible page contract are
+separate on non-uniform scans; the requested raw-meter assertion cannot erase
+that distinction while retaining the original traversal.
+
+```text
+./ref-check --verbose
+ref-check: ok — 482 LLP docs, 9060 refs in 24165 files, 0 errors, 0 unchecked
+```
+
+Final client enumeration and isolated retry: the second full run's **544 passed,
+3 failed, 3 skipped** includes two `transport-http.test.mjs` pending-id timeout
+cases (wasm and native), in addition to Chromium. Both timeout cases and the
+other four transport cases pass with that file running alone:
+
+```text
+TMPDIR=/private/tmp node --test packages/snapback4/test/transport-http.test.mjs
+ℹ tests 6
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+```
+
+Thus Chromium is the only unresolved failure after isolated reruns, not the
+only failing case in the full-run transcript. No clean-base claim is made for
+the timeout failures. The initial progress message that said 546 client passes
+was corrected after inspecting the final enumeration; the transcript above is
+the authoritative full-run count. `git diff --check` is clean and the complete
+pre-lane JOURNAL byte prefix remains unchanged.
+
+**2026-09-17 — W13cR1, the W13c review round.** Starting from
+`e86496d4738a40dbec7d5feb12e706db67b51b4a`, reproduced the matching-existence
+skip on the server and both device stores: the first witness at examination
+8,192 was followed by a failing 8,193rd charge, and the grouped page returned
+0 rows with its cursor already after `a`. Both eager and lazy word merges now
+return their first witness without lookahead, opening another word lane or
+refilling after success. Across 1, 2 and 9 word lanes, standalone existence
+now uses exactly 8,192 examinations and is complete; the grouped first page
+keeps 1 row, positions after `a`, and only the next outer candidate attempts
+8,193. Each walk returns 2 expected ids in 2 requests with 0 duplicates,
+covering 36 server/device/path/query/word-count combinations. The isolated
+server regressions changed from 0 passed / 4 failed to 4 passed / 0 failed;
+the device regressions from 0 / 8 to 8 / 0. Range width now compares stable
+expression structure without source locations, so differently grouped
+arithmetic reports `lanes ≤ meter` instead of `up to 0 lanes`, while the
+25-hour case still folds to 25. The `exists` modifier refusal keeps
+`matching q` in its rewrite, and the exact suggestion compiles; the width,
+cost and rewrite regressions each changed from 0 / 1 to 1 / 0. Both Trending
+card queries now use the 25-hour range, their compiled expectation follows,
+and the reads card and README distinguish an opening/word cut from a uniform
+lazy drain cut with continuation. The targeted language/card suites passed
+72 tests, simulator 23, device 16 and CLI 66. Moved the unchanged acquisition
+scenario into a module: `device.rs` and the largest changed code file are
+now 1,478 lines, correcting the earlier paragraph's 1,491 claim (the actual
+base was 1,502). The `engine/rules.rs` change stays unchanged: ruling 29
+requires `component.column()`/`key_type` because a calendar key is not a
+column; this is neither a rule probe nor a copy of uniformity analysis.
+Learned: an existence result has no ordering or continuation work left once
+its first witness is established, and printed expressions cannot establish
+structural identity. No meter ceiling, serialized value form or existing
+corpus case changed; no commit, push, tag or publication was performed.
+The complete blocking suite took 646 seconds: Rust 1,456 passed / 7 failed /
+5 ignored, fixtures 9 / 0, and clients 596 passed / 2 failed / 3 skipped.
+The clock assertion and six witness-driver failures passed isolated reruns
+(clock 1 / 0, witness 20 / 0); the transport timeout passed its file rerun
+6 / 0. The React rerun remains 0 / 1 with Chromium SIGABRT in this sandbox,
+the known environment artifact; the lead must qualify that outside it. No
+clean-base full-suite or pre-existing-code-failure claim is made. The final
+reference audit reports 483 LLP documents, 9,079 references, 0 errors and
+0 unchecked; `git diff --check` is clean, and the earlier JOURNAL bytes
+remain an unchanged prefix.

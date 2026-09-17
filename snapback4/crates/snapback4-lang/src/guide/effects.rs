@@ -52,7 +52,7 @@ table messages:
 mutation send(roomId: id, body: text <=4000):
   require exists members[roomId, viewer] else NOT_MEMBER
   msg = insert messages { roomId, authorId: viewer, body, at: now }
-  for m in members[roomId] first 100 by byRoomPrincipal:
+  for m in members[roomId] by byRoomPrincipal:
     if m.principal != viewer and not exists connected[m.principal]:
       emit notify { targetUserId: m.principal, roomId, preview: slice(body, 0, 80) }
   return { id: msg.id }

@@ -248,8 +248,9 @@ impl Flow<'_> {
                 for lane in &merge.lanes {
                     let mut local = env.clone();
                     if let Some(source) = &lane.source {
-                        let source = self.scan(source, &mut local, control);
-                        local.insert(lane.binding.clone(), source.clone()); origins.extend(source);
+                        let mut origins_of_source = source.scan().map_or_else(Origins::new, |scan| self.scan(scan, &mut local, control));
+                        for value in source.expressions() { origins_of_source.extend(self.expr(value, &mut local, control, &merge.site)); }
+                        local.insert(lane.binding.clone(), origins_of_source.clone()); origins.extend(origins_of_source);
                     }
                     origins.extend(self.body(&lane.setup, &mut local, control, &format!("{}.lane", merge.site), true));
                     origins.extend(self.scan(&lane.scan, &mut local, control));

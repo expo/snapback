@@ -36,7 +36,7 @@ query inRoom(roomId: id, q: text <=100, c: cursor ?):
 
 query everywhere(q: text <=100, c: cursor ?):
   return merge messages matching q after c last 50 by byRoomWords:
-    [m.roomId] for m in members[viewer] first 50 by byPrincipalRoom
+    [m.roomId] for m in members[viewer]
 
 query people(q: text <=100, c: cursor ?):
   return profiles matching q after c first 20 by byNameWords
@@ -83,8 +83,10 @@ it); use `everywhere` to search the viewer's rooms, or read on the device.
 
 `everywhere` merges matching pages from the viewer's rooms, ordered by
 `at` and `id`: each lane is one verdict when its scope decides the rule,
-and the page is complete when all lanes are complete; past 50 lanes
-`check` emits N_WIDE_MERGE, and the device runs the same query over held rows.
+and the page is complete when all lanes are complete. The lane source needs no
+restated bound: its uniform prefix runs under the examined meter. `check --cost`
+prints `lanes ≤ meter`; an explicit `first N` above 50 still emits N_WIDE_MERGE.
+The device runs the same query over held rows.
 A pinned conjunct such as `exists members[.roomId, viewer]` can deny a scope
 before word discovery even when another conjunct needs each row. Admitted
 non-uniform scopes keep per-row costs and remain incomplete; hidden rows

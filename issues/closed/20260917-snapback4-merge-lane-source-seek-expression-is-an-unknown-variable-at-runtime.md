@@ -1,6 +1,6 @@
 # Snapback 4: an expression in a merge lane source's range seek compiles clean and is refused at runtime — `E_INPUT: unknown variable $value1`
 
-Status: Open
+Status: Closed (2026-09-17, wave 13 lane W13c)
 Priority: P2 (a program `check` accepts with no problems is refused on every call; loud, not silent, and one rewrite away — but the rewrite is not offered and the message names a compiler temporary)
 Date: 2026-09-17
 Systems: `snapback4-lang` `bind/program.rs::merge` (lane source binding), lane `setup`; the engine's lane-source evaluation order
@@ -58,3 +58,7 @@ source) and a `where` on the source, which hoist through the same path.
 Whatever the fix, a compiler temporary's name should not reach an author: if the
 interpreter can still meet an undefined `$…` variable, that is an internal error
 with the operation and site, not `E_INPUT`.
+
+## Resolution (2026-09-17)
+
+Fixed by wave 13's lane W13c: a lane source's hoisted temporaries are bound into the statements that precede the merge, not the lane's per-row setup; the probe's three queries answer on the server and both device stores; an undefined temporary is now `E_INTERNAL` naming the operation and site, never `E_INPUT`.

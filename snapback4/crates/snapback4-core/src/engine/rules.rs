@@ -90,7 +90,7 @@ pub fn lazy_merge(schema: &Schema, merge: &Merge) -> bool {
             && schema.table(&scan.table).is_some_and(|table| table.index(&scan.index).is_some_and(|index| {
                 // Nullable unique keys allow multiple nulls; they are not a
                 // position from which a one-row refill can safely resume.
-                let total_unique = index.unique && index.columns().iter().all(|c| table.columns.get(c).is_some_and(|kind| !kind.is_optional()));
+                let total_unique = index.unique && index.components.iter().all(|component| component.key_type(table).is_some_and(|kind| !kind.is_optional()));
                 scan.prefix.len() < index.components.len() && (total_unique || index.columns().last().is_some_and(|c| c == "id"))
             }))
     })

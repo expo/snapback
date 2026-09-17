@@ -228,7 +228,7 @@ impl<'a> Runner<'a> {
                     match self.env.get_mut(target) {
                         Some(Value::Array(values)) => values.push(value),
                         Some(other) => return Err(ValueError::Type { expected: "array", actual: other.kind() }.into()),
-                        None => return Err(RuntimeError::Input(format!("unknown variable {target}"))),
+                        None => return Err(missing_variable(target, &self.statement_site)),
                     }
                     Flow::Next
                 }
@@ -359,7 +359,7 @@ impl<'a> Runner<'a> {
         self.env.insert(name.to_owned(), value);
     }
 
-    fn domain(&mut self, domain: &LoopDomain) -> Result<Box<dyn Iterator<Item = Value>>, RuntimeError> {
+    pub(super) fn domain(&mut self, domain: &LoopDomain) -> Result<Box<dyn Iterator<Item = Value>>, RuntimeError> {
         let values = match domain {
             LoopDomain::Page(scan) => {
                 let values = self.scan(scan)?;
@@ -442,13 +442,13 @@ impl<'a> Runner<'a> {
                 Ok(value.clone())
             }
             Expr::Variable(name) => {
-                let value = self.env.get(name).ok_or_else(|| RuntimeError::Input(format!("unknown variable {name}")))?;
+                let value = self.env.get(name).ok_or_else(|| missing_variable(name, &self.statement_site))?;
                 self.meter.heap(value.clone_heap_bytes())?;
                 Ok(value.clone())
             }
             Expr::Input(input) => self.input(*input),
             Expr::Field { base, name } => {
-                if let Some((base, steps)) = borrowed(&self.env, base)? {
+                if let Some((base, steps)) = borrowed(&self.env, base, &self.statement_site)? {
                     self.meter.step(steps)?;
                     if *base == Value::Null { return Ok(Value::Null); }
                     let value = base.field(name)?;
@@ -515,7 +515,7 @@ impl<'a> Runner<'a> {
                 // Inspect a held value without allocating a copy just to count
                 // it. Reads that need ownership still charge every actual clone.
                 if matches!(builtin, Builtin::Len | Builtin::Count | Builtin::CountCapped | Builtin::Sum) {
-                    if let Some((value, steps)) = borrowed(&self.env, &args[0])? {
+                    if let Some((value, steps)) = borrowed(&self.env, &args[0], &self.statement_site)? {
                         self.meter.step(steps)?;
                         return scalar_builtin(builtin, value);
                     }
@@ -821,11 +821,11 @@ fn into_array(value: Value) -> Result<Vec<Value>, RuntimeError> {
 
 /// Only side-effect-free leaves can be borrowed; storage/input evaluation
 /// remains in expr, and visiting a borrowed leaf costs the same steps.
-fn borrowed<'a>(env: &'a BTreeMap<String, Value>, expr: &'a Expr) -> Result<Option<(&'a Value, u64)>, RuntimeError> {
+fn borrowed<'a>(env: &'a BTreeMap<String, Value>, expr: &'a Expr, site: &str) -> Result<Option<(&'a Value, u64)>, RuntimeError> {
     match expr {
         Expr::Literal(value) => Ok(Some((value, 1))),
-        Expr::Variable(name) => env.get(name).map(|value| Some((value, 1))).ok_or_else(|| RuntimeError::Input(format!("unknown variable {name}"))),
-        Expr::Field { base, name } => match borrowed(env, base)? {
+        Expr::Variable(name) => env.get(name).map(|value| Some((value, 1))).ok_or_else(|| missing_variable(name, site)),
+        Expr::Field { base, name } => match borrowed(env, base, site)? {
             Some((value, steps)) => Ok(Some((if *value == Value::Null { value } else { value.field(name)? }, steps + 1))),
             None => Ok(None),
         },
@@ -846,4 +846,10 @@ fn scalar_builtin(builtin: &Builtin, value: &Value) -> Result<Value, RuntimeErro
         _ => unreachable!("only scalar inspectors borrow their argument"),
     };
     Value::int(count as i128).map_err(Into::into)
+}
+
+fn missing_variable(name: &str, site: &str) -> RuntimeError {
+    if name.starts_with('$') {
+        RuntimeError::Structural { code: "E_INTERNAL", message: format!("internal compiler error: an undefined temporary was evaluated in operation/site {site}; recompile and report this operation") }
+    } else { RuntimeError::Input(format!("unknown variable {name}")) }
 }

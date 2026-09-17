@@ -11,6 +11,7 @@ mod actions;
 mod routes;
 mod key_bound;
 mod aggregate_copies;
+mod time_indexes;
 
 use crate::ast::Document;
 use crate::diag::Diagnostic;
@@ -56,7 +57,7 @@ pub fn bind(documents: Vec<Document>) -> Bound {
                 }
                 api_roots.entry(root.clone()).or_insert((nested, decl.site.clone()));
             }
-            if let Some(bound) = program::Binder::bind(&catalog, &module, decl, &mut diagnostics) {
+            if let Some(bound) = program::Binder::bind(&catalog, &schema, &module, decl, &mut diagnostics) {
                 programs.push(bound);
             }
         }
@@ -242,9 +243,9 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                 let cap = if !pinned.is_empty() && schema.group_bound(table, &pinned).is_none() && page.merge_site.is_none() && schema.maintain_for(table).is_none() && schema.tables[table].indexes[&page.index].is_plain() {
                     let limit = take.min(snapback4_core::Ceilings::default().examined);
                     let by = format!(" by {}", pinned.join(", "));
-                    format!("or declare `cap {limit}{by}` on table {table} if that is the intended group limit; other metered work can still cut the read")
+                    format!("or declare `cap {limit}{by}` on table {table} if that is the intended group limit, then read the whole group: `{table}[..]`; other metered work can still cut the read")
                 } else {
-                    "a table `cap N by column` can replace a cursor for a single plain group page that pins column and covers N within the examined ceiling; this page still needs continuation".into()
+                    "read the whole group: `t[..]`, when its schema cap fits the examined ceiling; otherwise this page still needs continuation".into()
                 };
                 notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on", bound.program.kind.word(), bound.program.name), format!("declare `c: cursor ?` and page with `after c` — {}(.., c: cursor ?): return {}[..] after c last {take} by <index>; {cap}", bound.program.name, table)).guide("reads"));
             }
@@ -253,7 +254,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         // when ordered heads avoid reading a full page from every lane.
         for merge in merges(&bound.program.body) {
             let take = merge.take() + 1;
-            let lanes: u64 = merge.lanes.iter().map(|lane| lane.source.as_ref().map_or(1, |source| source.take.maximum())).sum();
+            let Some(lanes) = merge.static_lanes() else { continue };
             if lanes <= 50 {
                 continue;
             }
@@ -268,7 +269,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             // @ref LLP 3000.007#20.3 — principal-to-principal discovery grows with the relationship count; Following is one example.
             let related_principals = merge.lanes.iter().any(|lane| {
                 use snapback4_core::ir::{Expr, Stmt};
-                let Some(source) = &lane.source else { return false };
+                let Some(source) = lane.source.as_ref().and_then(snapback4_core::ir::LaneSource::scan) else { return false };
                 let table = &schema.tables[&source.table];
                 let index = &table.indexes[&source.index];
                 let pinned = index.columns().into_iter().take(source.prefix.len()).collect::<Vec<_>>();

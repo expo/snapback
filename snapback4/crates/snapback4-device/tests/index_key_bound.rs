@@ -58,3 +58,35 @@ fn browser_can_rewrite_a_kept_legacy_violation_then_delete_it() {
     assert_eq!(tx.get("items", "r").unwrap(), None);
     tx.commit().unwrap();
 }
+
+#[test]
+fn time_key_bytes_and_order_match_on_every_store() {
+    use snapback4_core::rows::{Bounds, Dir};
+    let bound=snapback4_lang::compile(&[("schema.q".into(),include_str!("../../snapback4-sim/tests/fixtures/time-indexes.q").into())]);
+    assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+    let schema=bound.schema;
+    let table=&schema.tables["events"];
+    let mut browser=MemoryStore::new();
+    browser.install(&schema,&BTreeMap::new(),false).unwrap();
+    let mut native=Store::memory().unwrap();
+    DeviceStore::install(&mut native,&schema,&BTreeMap::new(),false).unwrap();
+    let browser=browser.transaction().unwrap();
+    let native=native.transaction().unwrap();
+    let memory=MemoryRows::new();
+    let times=[-7_200_001,-1,0,1_799_999,1_800_000,7_200_000,8_999_999,9_000_000];
+    for (n,at) in times.into_iter().enumerate() {
+        let id=format!("e{n}");
+        let row=object([("id",Value::Id(id.clone())),("principal",Value::Id("dev:alice".into())),("at",Value::Int(at))]);
+        let expected=snapback4_core::key::encode(&[Value::Int((at-1_800_000).div_euclid(7_200_000)),Value::Int(at),Value::Id(id.clone()),Value::Id(id.clone())]);
+        assert_eq!(index_key(&table.indexes["byBucket"],&row,&id),expected);
+        for rows in [&browser as &dyn Rows,&native,&memory] { rows.put("events",table,&row,None).unwrap(); }
+    }
+    for index in ["byBucket","byOwnerHour"] {
+        for dir in [Dir::Asc,Dir::Desc] {
+            let expected=native.scan("events",index,&[],&Bounds::default(),dir,100).unwrap();
+            assert_eq!(browser.scan("events",index,&[],&Bounds::default(),dir,100).unwrap(),expected);
+            assert_eq!(memory.scan("events",index,&[],&Bounds::default(),dir,100).unwrap(),expected);
+        }
+    }
+    browser.rollback().unwrap();native.rollback().unwrap();
+}

@@ -246,7 +246,7 @@ impl Rename {
                 for lane in &merge.lanes {
                     if let Some(table) = &lane.table { self.name(&lane.site, table, 0); }
                     for value in &lane.prefix { self.expr(value); }
-                    if let Some((_, read)) = &lane.loop_ { self.read(read); }
+                    if let Some((_, domain)) = &lane.loop_ { self.expr(domain); }
                 }
             }
             Expr::ShapeUse { base, name, site } => { self.expr(base); self.name(site, name, 0); }

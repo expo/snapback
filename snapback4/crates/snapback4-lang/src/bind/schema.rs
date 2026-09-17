@@ -110,6 +110,14 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
     let mut constraints = Vec::new();
     for index in &info.indexes {
         let mut bound = core::Index::of(&index.columns.iter().map(String::as_str).collect::<Vec<_>>(), index.unique);
+        for (position, column) in index.columns.iter().enumerate() {
+            if let Some(expr) = index.computed.get(column) {
+                match super::time_indexes::key(&decl.name, &info.columns, column, expr) {
+                    Ok(key) => bound.components[position] = core::IndexComponent::Calendar(key),
+                    Err(_) => {} // The catalog has already located this refusal.
+                }
+            }
+        }
         if let Some((position, fields)) = &index.words {
             bound.components.insert(*position, core::IndexComponent::WordPrefixes { fields: fields.clone(), contract: serde_json::Value::String(snapback4_core::words::CONTRACT.to_owned()) });
         }
@@ -433,7 +441,7 @@ pub fn bind_probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &S
 
 fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bindings: &RuleBindings, extras: bool) -> Fallible<(String, String, Vec<RuleTerm>, Vec<(String, RuleTerm)>)> {
     super::validate_key_names(read)?;
-    if read.range.is_some() || !read.seeks.is_empty() { return Err(unknown(site, "a rule probe takes equalities, not a range", "exists t[key = .key]")); }
+    if read.range.is_some() || !read.seeks.is_empty() || read.matching.is_some() || read.filter.is_some() { return Err(unknown(site, "a rule probe takes equalities, not a range", "exists t[key = .key]")); }
     let Some(target) = catalog.tables.get(&read.table) else {
         return Err(unknown(site, format!("exists probes unknown table {}", read.table), name_rewrite(&read.table, catalog.tables.keys().map(String::as_str), None)));
     };
@@ -562,7 +570,7 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
         let ty = if computed.contains_key(field) { ScalarType { kind: TypeKind::Int, optional: false } } else { source.columns[field].clone() };
         columns.push(ColumnDecl { default: None, name: field.clone(), type_: ty, site: site.clone() });
     }
-    let mut indexes = vec![IndexDecl { name: "byGroup".into(), columns: maintain.by.clone(), unique: true, refusal: None, words: None, site: site.clone() }];
+    let mut indexes = vec![IndexDecl { name: "byGroup".into(), columns: maintain.by.clone(), unique: true, refusal: None, words: None, computed: BTreeMap::new(), site: site.clone() }];
     let mut names = BTreeSet::from(["byGroup".to_owned(), "byId".to_owned()]);
     for index in &maintain.indexes {
         if !names.insert(index.name.clone()) { return Err(super::maintains::refusal(&index.site, format!("duplicate maintain index {}", index.name), "use a distinct index name; byGroup and byId are generated")); }

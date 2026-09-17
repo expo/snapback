@@ -426,14 +426,24 @@ impl Index {
         Self { components: columns.iter().map(|c| IndexComponent::Column((*c).to_owned())).collect(), unique }
     }
 
-    /// The column names, in order. A `words(..)` component is not a column
-    /// and contributes nothing here; `word_component` names it.
+    /// Ordered key names: columns and time-function names. A `words(..)`
+    /// component contributes nothing here; `word_component` names it.
+    /// Use `IndexComponent::column` for actual row fields (such as rule pins).
     pub fn columns(&self) -> Vec<String> {
-        self.components.iter().filter_map(|c| c.column().cloned()).collect()
+        self.components.iter().filter_map(|c| c.key_name().cloned()).collect()
     }
 
     pub fn is_plain(&self) -> bool {
         self.components.iter().all(|c| matches!(c, IndexComponent::Column(_)))
+    }
+
+    pub fn uses_column(&self, name: &str) -> bool {
+        self.components.iter().any(|component| match component {
+            IndexComponent::Column(column) => column == name,
+            IndexComponent::Calendar(key) => key.column == name,
+            IndexComponent::WordPrefixes { fields, .. } => fields.iter().any(|field| field == name),
+            IndexComponent::Contribution(maintain) => maintain.dependencies().contains(name),
+        })
     }
 
     /// The `words(..)` component, if any: its position among the
@@ -441,7 +451,7 @@ impl Index {
     pub fn word_component(&self) -> Option<(usize, &[String])> {
         self.components.iter().enumerate().find_map(|(position, component)| match component {
             IndexComponent::WordPrefixes { fields, .. } => Some((position, fields.as_slice())),
-            IndexComponent::Column(_) | IndexComponent::Contribution(_) => None,
+            IndexComponent::Column(_) | IndexComponent::Calendar(_) | IndexComponent::Contribution(_) => None,
         })
     }
 
@@ -449,7 +459,7 @@ impl Index {
     /// suffix, and the order a page continues in. Counted in components,
     /// so a scan whose prefix ends with a word skips the word too.
     pub fn suffix_after(&self, components: usize) -> Vec<String> {
-        self.components.iter().skip(components).filter_map(|c| c.column().cloned()).collect()
+        self.components.iter().skip(components).filter_map(|c| c.key_name().cloned()).collect()
     }
 }
 
@@ -458,14 +468,24 @@ pub enum IndexComponent {
     /// Internal selected physical source rows, ordered by computed group then source id.
     Contribution(Box<Maintain>),
     Column(String),
+    Calendar(crate::maintain::CalendarKey),
     WordPrefixes { fields: Vec<String>, #[serde(default)] contract: serde_json::Value },
 }
 
 impl IndexComponent {
+    pub fn key_name(&self) -> Option<&String> {
+        match self { Self::Calendar(key) => Some(&key.function), _ => self.column() }
+    }
+    pub fn key_type(&self, table: &Table) -> Option<ColumnType> {
+        match self { Self::Calendar(_) => Some(ColumnType::Int), Self::Column(name) => table.columns.get(name).cloned(), _ => None }
+    }
+    pub fn value(&self, row: &Value) -> Option<Value> {
+        match self { Self::Calendar(key) => Some(key.value(row)), Self::Column(name) => Some(row.field(name).cloned().unwrap_or(Value::Null)), _ => None }
+    }
     pub fn column(&self) -> Option<&String> {
         match self {
             Self::Column(column) => Some(column),
-            Self::WordPrefixes { .. } | Self::Contribution(_) => None,
+            Self::Calendar(_) | Self::WordPrefixes { .. } | Self::Contribution(_) => None,
         }
     }
 }
@@ -767,6 +787,12 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                             Some(kind) if !kind.is_indexable() => issue(&mut issues, ipath.clone(), format!("column {column} is {kind}, which cannot be indexed")),
                             _ => {}
                         }
+                    }
+                    IndexComponent::Calendar(key) => {
+                        if !seen.insert(&key.function) || table.columns.contains_key(&key.function) {
+                            issue(&mut issues, ipath.clone(), format!("computed index key {} is repeated or collides with a column", key.function));
+                        }
+                        if let Err(message) = key.validate(table) { issue(&mut issues, ipath.clone(), message); }
                     }
                     IndexComponent::Contribution(maintain) => {
                         if index.unique || index.components.len() != 1 || maintain.source != *table_name || name != &maintain.contribution_index() {

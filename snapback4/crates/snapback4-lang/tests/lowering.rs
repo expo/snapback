@@ -10,7 +10,8 @@ use snapback4_lang::{ast, bind::{catalog::Catalog, program::Binder}, Diagnostic}
 use std::collections::BTreeMap;
 
 fn without_ownership(catalog: &Catalog, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>) -> Option<snapback4_lang::BoundProgram> {
-    Binder::bind_with_ownership(catalog, module, decl, diagnostics, false)
+    let schema = snapback4_lang::bind::schema::bind_schema(catalog, diagnostics);
+    Binder::bind_with_ownership(catalog, &schema, module, decl, diagnostics, false)
 }
 
 fn baseline_golden_and_ownership_switch_agree_byte_for_byte(part: usize, count: usize) {

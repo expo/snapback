@@ -3,7 +3,9 @@
 A maintain is an engine-owned table with rows { id, <group columns>, value }.
 A full group-key lookup returns its scalar, zero when no group exists.
 An explicit first/last page returns existing rows, with ordinary shapes and
-cursors. A short key needs a page operator. byGroup orders the complete group
+cursors. A short key reads a prefix: a proven source cap supplies its bound,
+or a uniform query loop/lane may use the meter; otherwise write first/last N.
+byGroup orders the complete group
 tuple. Source caps can prove a distinct-group bound; no new target cap is
 enforced.
 
@@ -19,6 +21,8 @@ outputs are floor ordinals from the Unix UTC epoch; day(-1 ms) is -1.
 Computed fields are named day, hour and bucket, once each; id and value are
 reserved. The same functions work in queries as day(now), hour(now) and
 bucket(now, 2m).
+The same three functions are table index components over required time columns
+at any key position; see `guide indexes` for listings and daily uniqueness.
 An optional literal offset anchors the boundary: day(.at, 8h) or
 bucket(.at, 1d, 8h) groups 08:00 UTC through just before the next 08:00.
 The ordinal is floor((at - offset) / period); offsets are nonnegative whole
@@ -85,7 +89,7 @@ query digestToday():
 query today():
   return dailyPosts[viewer, day(now)]
 query reactionChips(messageId: id):
-  return reactionCounts[messageId] first 50 by byGroup { emoji, count: .value }
+  return reactionCounts[messageId] by byGroup { emoji, count: .value }
 query mostLiked(c: cursor ?):
   return postLikes after c last 10 by byCount { postId, count: .value }
 ```
@@ -155,5 +159,6 @@ cannot maintain a moving time predicate without a write. Store a row-local
 fact, group a required time column with `day(.at)`, or use the bounded live
 query or scheduled Trending recipe on `guide feeds`. Predicates compare
 row-local typed scalars, never tables, viewer, now or helpers. Read a scalar
-with every group key, such as `dailyPosts[viewer, day(now)]`; use an explicit
-page for a partial key. The diagnostic names the expression to repair.
+with every group key, such as `dailyPosts[viewer, day(now)]`; a partial key
+reads a prefix page under the ordinary bounds rules (`guide bounds`).
+The diagnostic names the expression to repair.

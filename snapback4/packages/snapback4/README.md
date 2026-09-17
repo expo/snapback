@@ -228,13 +228,16 @@ mutation edit(messageId: messages, body: text <=4000):
   `else HANDLE_TAKEN` says `the program refused with HANDLE_TAKEN`.
   Codes follow `require`: UPPER_SNAKE, never `E_`, declared at the use site.
   Without the hook the `E_CONSTRAINT` message is unchanged. A point read needs a unique index over its key;
-  `exists` needs any index over its key. Named equalities covering a total
+  In a program, `exists` uses an exact-key index when present, or a strict prefix scan. Rule probes need an index over exactly their keys. Named equalities covering a total
   unique key check extra columns on the one row, with no extra index; a scan needs an index whose
   leading columns are the scan's prefix, and pages in the order of the
   remaining columns; a cursor needs an index ending in `id` or a unique one.
   `by index` names one when two match. `by name: scope, words(text cols),
   at, id` is a words index: one entry per distinct word of the named text
   columns, read with `matching` (Search, below) and nothing else.
+  `day(at)`, `hour(at)` and `bucket(at, 2h, 30m)` are time key components in
+  a table's `by` or `unique` list, at any position, once per function per index;
+  they use a required time column and add no column to the row.
 - **Constraints:** `cap N by cols` (at most N rows per group; needs an index
   leading with those columns), `immutable cols`, `after insert <- exists
   t[..]` (a row that must exist by the end of the mutation that inserted
@@ -364,7 +367,8 @@ offset rebuilds the maintain without adding a source column.
 
 A maintain keeps an engine-owned table of rows { id, <group columns>, value }.
 A full-key lookup returns the number, zero when absent. An explicit page
-returns rows; a short key without a page operator is refused. The generated
+returns rows; a short key reads a prefix, bounded by a proven source cap,
+the meter in a uniform query loop/lane, or an explicit first/last N. The generated
 byGroup index covers the complete group tuple. Source caps can bound distinct
 groups without a new runtime target cap.
 
@@ -428,7 +432,7 @@ maintain postLikes: count likes by postId
 query today():
   return dailyPosts[viewer, day(now)]
 query reactionChips(messageId: id):
-  return reactionCounts[messageId] first 50 by byGroup { emoji, count: .value }
+  return reactionCounts[messageId] by byGroup { emoji, count: .value }
 query mostLiked(c: cursor ?):
   return postLikes after c last 10 by byCount { postId, count: .value }
 
@@ -509,6 +513,14 @@ an earlier loss. If an owned page site executes repeatedly, only its final
 execution supplies `next`; a continuation lost by an earlier execution still
 makes the query incomplete.
 
+A program's prefix `exists` is a top-1 scan below the page: no cursor and no
+page overflow. Expired siblings still cost examined rows, and `matching` pays
+word discovery. A positive held row proves existence on a device regardless of
+its horizon; only a negative answer past that horizon needs coverage. A cut
+before finding a row returns false on an already capped answer. Mutation prefix
+existence tests require a uniform, plain, non-expiring prefix. Rule probes keep
+exact-key, one-unit semantics. `exists` has no `where`, `first`/`last`, cursor or seek.
+
 ### Actions
 
 Declare typed I/O operations in Quarry and implement them with generated
@@ -523,7 +535,11 @@ A mutation classified `predicts: "never"`, from a server site or an author's
 is uniform over the prefix. `matching`, merges and tables with expiry are
 refused for every mutation page (`E_STRUCTURAL_FANOUT`), predicting or not,
 looped or only bound. Prediction still needs a complete
-schema-capped group. Every page a mutation reads, including a page it only
+schema-capped group: `for m in members[roomId]:` takes its bound from the
+schema cap, so changing the cap changes every whole-group read. An explicit
+`first <cap>` stays legal; a smaller explicit bound still fails the prediction
+proof. A job's inner loop may also read a capped group without restating it.
+Every page a mutation reads, including a page it only
 binds, must be uniformly decided by its prefix (`E_STRUCTURAL_FANOUT`): read it in
 a query, or pin the deciding columns.
 A page verdict evaluated from its pinned prefix charges the rule's static probe count on either outcome, including probes skipped by `and`/`or` short-circuiting; an aborting mutation page also costs one examined unit before the verdict.
@@ -546,16 +562,28 @@ charged to that chunk's meter. Writes belong inside a chunk.
 - **Arguments** are typed like columns; `c: cursor ?` is an opaque page
   cursor. An omitted optional argument reads as null.
 - **Reads:** `t[key]` (one row by a unique key, null if absent or
-  hidden), `t[key] ! else CODE` (or refuse), `exists t[key]`; named extra
+  hidden), `t[key] ! else CODE` (or refuse), `exists t[key]` (an exact probe or a prefix top-1 scan), `exists (t[prefix] matching q)`; named extra
   equalities (`t[key = x, col = y]`) return null/false on a mismatch,
+  `t[prefix]` (ascending whole group when a schema cap fits the examined ceiling),
   `t[prefix] first N by index` (ascending; `t first N by index` is the
   whole table's page), `t[prefix] after c last N by index` (descending,
   from a cursor; table-page modifiers may come in any order, once each), `merge t [after c]
   first N by index [where predicate]:` with `[lane]` lines (one ordered page over several
-  prefixes; a lane may be `[f.col] for f in t[prefix] first N by index`;
+  prefixes; a query lane may be `[f.col] for f in t[prefix] by index`,
+  using the schema cap or the examined meter when its prefix decides the read rule;
+  its `for` also accepts `range(a, b)` over int expressions and bounded lists,
+  including list arguments and expressions, in their element order; bounds are
+  evaluated once, empty domains are complete, and duplicate lanes deduplicate rows;
+  `walk` is not a lane domain. Unknown widths print `lanes ≤ meter`; literal
+  widths, equal expressions plus literal offsets, and list bounds are static.
+  A non-uniform answer, an opening cut or a word-limit cut has no `next`.
+  A uniform lazy merge cut while draining established heads carries `next`
+  after its last emitted row, with `complete: false, cut: 'meter'`.
+  Lanes computed from `now` move between pages:
+  the cursor remains valid, but newly appearing rows before it are skipped;
   uniform lanes with a non-nullable unique index or an index ending in
   `id` read one head per lane, then advance the winning lanes; other
-  lanes read a page each; `check` notes a merge past 50 lanes), `walk
+  lanes read a page each; `check` notes an explicit static lane count past 50), `walk
   t[seed] up .parentId depth 8` (a bounded list of rows), `t[scope]
   matching q after c last N by wordsIndex` (word-prefix search; Search,
   below), `merge t matching q [after c] last N by wordsIndex:` over scope
@@ -573,11 +601,12 @@ charged to that chunk's meter. Writes belong inside a chunk.
   seeks on the first unpinned index column. `t[prefix] after c first N by idx
   where predicate` evaluates the read rule then the predicate for each row;
   only rows passing both count toward N. `.` is the row, and indexed reads
-  inside the predicate are metered probes. At that level, `matching`, `after`
+  inside the predicate are metered probes or prefix scans. At that level, `after`
   and `first`/`last` end the predicate and modify the outer read. An immediate
-  `by` after an unparenthesized inner read refuses `E_QUARRY_MODIFIER_SCOPE`:
+  `by` or `matching` after an unparenthesized inner read refuses `E_QUARRY_MODIFIER_SCOPE`:
   parenthesize the inner read, or move the modifier before `where`.
-  `check --fix` adds parentheses to preserve the inner index. A lone next-column comparison
+  `check --fix` adds parentheses to preserve the inner modifier, as in
+  `where exists (messages[.roomId] matching q)`. A lone next-column comparison
   lowers to a seek with N_SEEK. A full direct page's cursor is after its last result;
   a cut direct page continues after the last rule-visible examined row, including a
   filter rejection, never a hidden row. Non-uniform ranges stay incomplete.
@@ -600,7 +629,10 @@ charged to that chunk's meter. Writes belong inside a chunk.
   `slice`, `count`, `sum`, `group`, `first`, `last`, `at`, `join`, and `for`,
   subject to their element types. Aggregating a page aggregates that page;
   `check --cost` names the examined and probe work, and expression ranges
-  as `steps ≤ meter`.
+  as `steps ≤ meter`. A uniform query prefix loop may omit `first N`;
+  `check --cost` prints `rows ≤ meter (8,192 examined)` and `lanes ≤ meter`
+  when no fitting cap supplies a static bound. A cut loop has no continuation;
+  use a `maintain` for a total over a group that can outgrow one read.
 - **Shapes:** `{ *, author: users[.authorId], count: counts[.conversationId] }`
   after a page, a list, a row or an object; `.` is the row; `*` spreads its
   columns; a shape based on a row keeps its device-owned `pending?: boolean`,
@@ -812,6 +844,54 @@ cannot be native, because a device predicts Quarry and the server replays it.
 Anything that needs the network stays outside and writes into a table the job
 reads.
 
+### Time-bucketed listings and daily uniqueness
+
+```quarry
+table roomEntries:
+  roomId: id
+  at: time
+  by byRoomHour: roomId, hour(at), at, id
+  public 'Room entries are public.'
+
+table checkins:
+  principal: principal
+  at: time
+  unique byPrincipalDay: principal, day(at) else ALREADY_CHECKED_IN 'One check-in per day.'
+  read <- .principal = viewer
+  insert <- .principal = viewer
+
+query roomHour(roomId: id, c: cursor ?):
+  return roomEntries[roomId, hour(now) - 3] after c last 10 by byRoomHour
+
+query roomWindow(roomId: id, c: cursor ?):
+  return merge roomEntries after c last 10 by byRoomHour:
+    [roomId, h] for h in range(hour(now) - 3, hour(now) + 1)
+
+mutation checkin():
+  return insert checkins { principal: viewer, at: now }
+```
+
+A table's `by` and `unique` key lists admit `day(at[, offset])`,
+`hour(at[, offset])` and `bucket(at, period[, offset])` at any position,
+once per function per index. The input is a required `time` column of that
+same table. Periods and offsets follow maintain groups: floor ordinals from
+the Unix UTC epoch, with a nonnegative whole offset smaller than the period;
+`day(-1 ms)` is -1. Pin the ordinal positionally with an int expression,
+or seek on the function name: `roomEntries[roomId, hour >= start, hour < end]`
+with a page bound and `by byRoomHour`.
+
+The key is not a column: it is absent from `*`, generated `api.ts`, rules,
+`cap … by` and the sync audience, and cannot be written. An index containing
+one is not plain, so a mutation page cannot use it. A real column named
+`day`, `hour` or `bucket` colliding with that function's key must be renamed.
+Changing the underlying time reindexes the row; a job `chunk` can sweep the
+index only when that column and every other non-id key column are immutable.
+A cursor carries the ordinal. Adding a time key, or changing its period or
+offset, rebuilds the index at activation over existing rows.
+
+With a maintained count on the row (LLP 3000.007 §21.3 P2, in design), the
+same time key can serve Trending directly.
+
 ### Search
 
 ```quarry
@@ -862,7 +942,7 @@ query inChat(conversationId: conversations, q: text <=100, c: cursor ?):
 
 query everywhere(q: text <=100, c: cursor ?):
   return merge messages matching q after c last 50 by byConvWords:
-    [m.conversationId] for m in memberships[viewer] first 50 by byPrincipalConversation
+    [m.conversationId] for m in memberships[viewer]
 
 query people(q: text <=100, c: cursor ?):
   return profiles matching q after c first 20 by byNameWords
@@ -940,7 +1020,7 @@ and the two-cursor walk. Search fully synced messages with one unscoped
 words index on the device, or page memberships 50 at a time on the server
 and exhaust each batch's matching result cursor before advancing the
 membership cursor. Group the accumulated results by chat in the client.
-The `everywhere` example above covers its first 50 chats; its result cursor
+The `everywhere` example above discovers chats under the examined meter; its result cursor
 does not advance to the next 50 memberships. Batches are each newest first;
 one globally ordered stream needs a merge of all batch heads.
 
@@ -1005,7 +1085,7 @@ table messages:
 mutation send(conversationId: id, body: text <=4000):
   require exists memberships[conversationId, viewer] else NOT_MEMBER
   msg = insert messages { conversationId, authorId: viewer, body, at: now }
-  for m in memberships[conversationId] first 50 by byConversationPrincipal:
+  for m in memberships[conversationId] by byConversationPrincipal:
     if m.principal != viewer and not exists connected[m.principal]:
       emit notify { targetUserId: m.principal, chatId: conversationId, preview: slice(body, 0, 80) }
   return { id: msg.id }
@@ -1624,7 +1704,7 @@ fn addFollow(authorId: principal):
       require tryPull(viewer, authorId) else FEED_PULL_CAP
       update authors[authorId] { shared: true }
       tryPull(authorId, authorId)
-      for f in follows[authorId] first 1000 by byFollowed:
+      for f in follows[authorId] by byFollowed:
         require tryPull(f.followerId, authorId) else FEED_PROMOTION_PULL_CAP
   visited = 0
   for p in posts[authorId] last 1000 by byActorTime:
@@ -1642,7 +1722,7 @@ mutation follow(authorId: principal):
 fn dropFollow(authorId: principal):
   if not exists follows[followerId = viewer, followedId = authorId]:
     return null
-  for e in feed[viewer, authorId] first 1000 by byReaderActor:
+  for e in feed[viewer, authorId] by byReaderActor:
     delete feed[e.id]
   if exists pulls[viewer, authorId]:
     delete pulls[viewer, authorId]
@@ -1665,7 +1745,7 @@ fn deliver(p: posts):
       copy(p, viewer, false)
   else:
     copy(p, viewer, false)
-    for f in follows[viewer] first 1000 by byFollowed:
+    for f in follows[viewer] by byFollowed:
       copy(p, f.followerId, false)
   return null
 
@@ -1710,11 +1790,11 @@ mutation unrepost(postId: id):
 query following(c: cursor ?):
   return merge feed after c last 20 by byReaderTime where not exists removedEvents[eventId = .eventId]:
     [viewer]
-    broadcast[p.authorId] for p in pulls[viewer] first 32 by byReaderAuthor
+    broadcast[p.authorId] for p in pulls[viewer] by byReaderAuthor
 
 job purgeRemoved():
   chunk p in removedEvents first 1 by byId:
-    for e in feed[p.eventId] first 1001 by byEvent:
+    for e in feed[p.eventId] by byEvent:
       delete feed[e.id]
     delete removedEvents[p.id]
 schedule purgeRemovedEvery every 1m: purgeRemoved

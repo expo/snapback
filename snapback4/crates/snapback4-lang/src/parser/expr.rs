@@ -74,8 +74,9 @@ impl Parser {
             let Expr::Read(read) = value else {
                 return Err(syntax(value.site(), format!("{} requires an indexed read t[key]", token.value)));
             };
-            if read.range.is_some() || !read.seeks.is_empty() || read.filter.is_some() {
-                return Err(syntax(&read.site, format!("{} requires an indexed read t[key]", token.value)));
+            if read.range.is_some() || !read.seeks.is_empty() || read.filter.is_some() || (token.value == "created" && read.matching.is_some()) {
+                let plain = ReadExpr { range: None, matching: if token.value == "exists" { read.matching.clone() } else { None }, filter: None, seeks: Vec::new(), ..read.clone() };
+                return Err(syntax_with(&read.site, format!("{} takes a plain indexed read{}; no where, first, last, after or seek", token.value, if token.value == "exists" { " or matching read" } else { "" }), format!("{} {}", token.value, print::read_expr(&plain))));
             }
             return self.postfix(if token.value == "exists" { Expr::Exists { read, site: token.site } } else { Expr::Created { read, site: token.site } }, stops);
         }
@@ -135,7 +136,8 @@ impl Parser {
             }
             _ if token.value == "(" => {
                 self.position += 1;
-                let first = self.expression(0, &[",", ")"])?;
+                let inner = if stops.contains(&"<probe-shape>") { vec![",", ")", "<probe-shape>"] } else { vec![",", ")"] };
+                let first = self.expression(0, &inner)?;
                 let value = if self.maybe(",") {
                     let mut items = vec![first];
                     loop {
@@ -150,8 +152,8 @@ impl Parser {
                 };
                 self.take(")")?;
                 let mut value = value;
-                if stops.contains(&"<where>") && self.at("by") && let Expr::Read(read) = &mut value {
-                    if read.index.is_some() {
+                if stops.contains(&"<where>") && matches!(self.peek().value.as_str(), "by" | "matching") && let Expr::Read(read) = &mut value {
+                    if (self.at("by") && read.index.is_some()) || (self.at("matching") && read.matching.is_some()) {
                         let scoped: Vec<_> = stops.iter().copied().filter(|stop| *stop != "<where>").collect();
                         return self.postfix(value, &scoped);
                     }
@@ -175,11 +177,15 @@ impl Parser {
         loop {
             if self.is_stop(self.peek(), stops) {
                 // @ref LLP 3000.007#5.6 — a formerly inner index must not silently become the outer page's index.
-                if stops.contains(&"<where>") && self.at("by") && let Expr::Read(read) = &mut value {
-                    self.take("by")?;
-                    read.index = Some(self.word()?.value);
+                if stops.contains(&"<where>") && matches!(self.peek().value.as_str(), "by" | "matching") && let Expr::Read(read) = &mut value {
+                    let modifier = self.word()?.value;
+                    if modifier == "by" { read.index = Some(self.word()?.value); }
+                    else {
+                        read.matching = Some(Box::new(self.expression(0, &["after", "first", "last", "by", "where", "<newline>", ":", "{", ",", "}", ")", "]", "<probe-shape>"])?));
+                        if self.maybe("by") { read.index = Some(self.word()?.value); }
+                    }
                     self.diagnostics.push(Diagnostic::new(&read.site, "E_QUARRY_MODIFIER_SCOPE",
-                        "by could modify the inner or outer read; parenthesize the inner read, or move the modifier before `where`",
+                        format!("{modifier} could modify the inner or outer read; parenthesize the inner read, or move the modifier before `where`"),
                         format!("({})", print::read_expr(read))).guide("reads").mechanical());
                 }
                 break;
@@ -221,7 +227,7 @@ impl Parser {
                 return Err(unsupported(&self.peek().site.clone(), "before", "use after c; reverse display order in the client when needed"));
             } else if matches!(value, Expr::Read(_)) && matches!(self.peek().value.as_str(), "matching" | "after" | "first" | "last" | "by" | "where") {
                 let Expr::Read(read) = value else { unreachable!() };
-                value = Expr::Read(self.parse_range(read)?);
+                value = Expr::Read(self.parse_range(read, stops.contains(&"<probe-shape>"))?);
             } else if self.maybe("!") {
                 let assertion = self.tokens[self.position - 1].site.clone();
                 if !self.maybe("else") {
@@ -274,7 +280,7 @@ impl Parser {
         Ok(ReadExpr { table: table.to_owned(), keys, index: None, range: None, filter: None, matching: None, seeks, site: site.clone() })
     }
 
-    pub(super) fn parse_range(&mut self, mut read: ReadExpr) -> Fallible<ReadExpr> {
+    pub(super) fn parse_range(&mut self, mut read: ReadExpr, probe: bool) -> Fallible<ReadExpr> {
         let mut order = None;
         let mut take = None;
         let mut cursor: Option<Box<Expr>> = None;
@@ -337,7 +343,13 @@ impl Parser {
         if let Some(violation) = violation {
             return Err(syntax_with(&violation.site, format!("read modifier {} is repeated; choose one value", violation.value), "write each modifier once: [matching q] [after c] first|last N by index [where predicate]"));
         }
-        if take.is_none() && cursor.is_none() && read.matching.is_none() && read.filter.is_none() {
+        if take.is_none() && cursor.is_none() {
+            return Ok(read);
+        }
+        if probe && take.is_none() {
+            // Retain the cursor long enough for exists/created to give their
+            // plain-read rewrite instead of suggesting a page inside a probe.
+            read.range = Some(RangeSpec { order: Order::Asc, take: 1, cursor, site });
             return Ok(read);
         }
         let (Some(take), Some(order)) = (take, order) else {
@@ -395,10 +407,10 @@ impl Parser {
                 let name = self.binding_name()?;
                 self.take("in")?;
                 let domain = self.expression(0, &["<newline>"])?;
-                match domain {
-                    Expr::Read(read) if read.range.is_some() => loop_ = Some((name, read)),
-                    other => return Err(syntax_with(other.site(), "a merge for lane requires a bounded range read", "for row in table[prefix] first 50 by index")),
+                if matches!(domain, Expr::Walk { .. }) {
+                    return Err(syntax_with(domain.site(), "a merge for lane requires a prefix page, range(a, b), or a bounded list; walk is not a lane domain", "for h in range(hour(now) - 24, hour(now) + 1), for a in authors (authors: [principal] <=50), or for row in table[prefix] by index"));
                 }
+                loop_ = Some((name, domain));
             }
             self.newline()?;
             lanes.push(MergeLane { table: lane_table, prefix, columns, loop_, site: lane_site });

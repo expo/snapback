@@ -36,6 +36,7 @@ pub(super) fn check(catalog: &Catalog, schema: &Schema, diagnostics: &mut Vec<Di
                     IndexComponent::Column(column) => {
                         if let Some(kind) = table.columns.get(column) { components.push((column.clone(), column_bytes(kind))); }
                     }
+                    IndexComponent::Calendar(key) => components.push((format!("{}({})", key.function, key.column), 9)),
                     IndexComponent::WordPrefixes { .. } => components.push(("words(..)".into(), snapback4_core::words::MAX_TOKEN_BYTES + 3)),
                     IndexComponent::Contribution(maintain) => {
                         for column in &maintain.by {

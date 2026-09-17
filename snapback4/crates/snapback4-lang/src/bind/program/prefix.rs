@@ -1,0 +1,85 @@
+//! One recognition of point keys versus prefix populations, shared by reads,
+//! loop domains, merge discovery and program existence tests.
+use super::*;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum Position { Page, Domain, Exists }
+
+impl Binder<'_> {
+    pub(super) fn is_page(&self, read: &ReadExpr, point: ReadMode) -> Fallible<bool> {
+        if read.range.is_some() || read.matching.is_some() || read.filter.is_some() || !read.seeks.is_empty() || read.keys.is_empty() { return Ok(true); }
+        // Speculation cannot emit setup or consume compiler names. The selected
+        // form binds its key expressions exactly once in the caller's body.
+        let mut probe = self.clone();
+        let info = probe.table(&read.table, &read.site)?;
+        let mut lookup = read.clone();
+        if point == ReadMode::FilteredPoint && info.maintained.is_some() && lookup.index.is_none() { lookup.index = Some("byGroup".into()); }
+        match probe.select_index(info, &lookup, point, &mut setup::Body::default()) {
+            Ok(_) => Ok(false),
+            Err(error) if error.code == "E_QUARRY_AMBIGUOUS" => Err(error),
+            Err(point_error) => {
+                // Only an actual index prefix changes the form. A mistyped
+                // full key or an uncovered named equality keeps its point
+                // diagnostic, including the established repair.
+                let mut probe = self.clone();
+                match probe.select_index(info, read, ReadMode::Range, &mut setup::Body::default()) {
+                    Ok(_) => Ok(true),
+                    Err(error) if error.code == "E_QUARRY_AMBIGUOUS" => Err(error),
+                    Err(_) => Err(point_error),
+                }
+            },
+        }
+    }
+
+    pub(super) fn prefix_bound(&self, read: &ReadExpr, index: &ast::IndexDecl, position: Position) -> Fallible<(ast::RangeSpec, Bound)> {
+        if let Some(range) = &read.range { return Ok((range.clone(), Bound::Literal(range.take))); }
+        let ceiling = if self.caller_kind == ProgramKind::Job { snapback4_core::Ceilings::job() } else { snapback4_core::Ceilings::default() }.examined;
+        let pinned = &index.columns[..read.keys.len()];
+        let cap = self.schema.group_bound(&read.table, pinned);
+        let bound = if position == Position::Exists { Bound::Literal(1) }
+        // @ref LLP 3000.007#20.22 — ruling 24: the schema cap supplies the whole group's ordinary literal scan bound.
+        else if let Some(cap) = cap.filter(|cap| u64::from(*cap) <= ceiling) { Bound::Literal(cap) }
+        // @ref LLP 3000.007#20.22 — ruling 23: only query loop and lane domains may consume a prefix under the examined meter.
+        else if position == Position::Domain && self.caller_kind == ProgramKind::Query { Bound::Meter }
+        else {
+            let columns = if pinned.is_empty() { String::new() } else { format!(" by {}", pinned.join(", ")) };
+            let mut page = read.clone();
+            page.index = Some(index.name.clone());
+            page.range = Some(ast::RangeSpec { order: ast::Order::Asc, take: 50, cursor: Some(Box::new(A::Name { name: "c".into(), site: read.site.clone() })), site: read.site.clone() });
+            let suggestion = format!("page with `first N` and a cursor: `{}` (declare `c: cursor ?`)", print::read_expr(&page));
+            let rewrite = if cap.is_none() { format!("declare `cap N{columns}` on {}, or {suggestion}", read.table) } else { suggestion };
+            let message = match cap {
+                Some(cap) => format!("{}'s whole group has cap {cap}, above the {ceiling} examined ceiling; one read cannot examine the whole group", read.table),
+                None => format!("{} has no cap over this prefix; this position needs a bounded page", read.table),
+            };
+            return Err(if position == Position::Domain && self.caller_kind != ProgramKind::Query {
+                placement(&read.site, format!("{message}; meter-bounded prefix loops and lane sources belong in queries"), rewrite).guide("bounds")
+            } else { Diagnostic::new(&read.site, "E_QUARRY_BOUND", message, rewrite).guide("bounds") });
+        };
+        if !read.seeks.is_empty() {
+            return Err(Diagnostic::new(&read.site, "E_QUARRY_BOUND", "a seek needs an explicit page bound", format!("{} first 50 by {}", print::read_expr(read), index.name)).guide("bounds"));
+        }
+        Ok((ast::RangeSpec { order: ast::Order::Asc, take: bound.maximum() as u32, cursor: None, site: read.site.clone() }, bound))
+    }
+
+    pub(super) fn check_meter_prefix(&self, read: &ReadExpr, scan: &Scan) -> Fallible<()> {
+        if scan.take != Bound::Meter || snapback4_core::engine::rules::scan_visibility(self.schema, scan).uniform { return Ok(()); }
+        let table = &self.schema.tables[&scan.table];
+        let index = &table.indexes[&scan.index];
+        let pinned = index.columns().into_iter().take(scan.prefix.len()).collect::<std::collections::BTreeSet<_>>();
+        let used = snapback4_core::engine::rules::deciding_fields(&scan.table, table, &table.rules.read);
+        let mut leading = used.difference(&pinned).cloned().collect::<Vec<_>>();
+        for column in index.columns().into_iter().skip(scan.prefix.len()) { if !leading.contains(&column) { leading.push(column); } }
+        let mut page = read.clone();
+        page.range = Some(ast::RangeSpec { order: ast::Order::Asc, take: 50, cursor: None, site: read.site.clone() });
+        Err(Diagnostic::new(&read.site, "E_QUARRY_BOUND", format!("{} by {}: a meter-bounded prefix needs a read rule uniformly decided by its pinned columns", scan.table, scan.index),
+            format!("use `first N`: `{}`; for a complete read, scan by an index leading with {} and pin the deciding columns (N_NEVER_COMPLETE)", print::read_expr(&page), leading.join(", "))).guide("bounds"))
+    }
+
+    // @ref LLP 3000.007#20.22 — ruling 25: program existence over a prefix is a top-1 scan below page ownership; rule probes retain their exact-key path.
+    pub(super) fn exists_read(&mut self, read: &ReadExpr, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        if !self.is_page(read, ReadMode::Exists)? { return Ok((self.read_value(read, ReadMode::Exists, out)?, Ty::Bool)); }
+        let (scan, _) = self.scan_at(read, out, Position::Exists)?;
+        Ok((Expr::Binary { op: BinaryOp::Gt, left: Box::new(Expr::Builtin { builtin: Builtin::Count, args: vec![Expr::Scan(scan)] }), right: Box::new(Expr::Literal(Value::Int(0))) }, Ty::Bool))
+    }
+}

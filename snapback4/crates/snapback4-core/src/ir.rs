@@ -282,6 +282,9 @@ pub struct Scan {
     pub prefix: Vec<IndexKeyExpr>,
     pub order: Order,
     pub take: Bound,
+    /// A program existence test consumes at most its first match below page ownership.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub existence: bool,
     #[serde(default)]
     pub after: Option<Box<Expr>>,
     #[serde(default)]
@@ -309,8 +312,39 @@ pub struct MergeLane {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub setup: Vec<Stmt>,
     pub scan: Scan,
-    pub source: Option<Scan>,
+    pub source: Option<LaneSource>,
     pub binding: String,
+}
+
+/// Query lane domains reuse statement-loop binding and evaluation. The scan
+/// variant retains its wire shape for the frozen conformance programs.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum LaneSource {
+    Scan(Scan),
+    Range { start: Expr, end_exclusive: Expr, max: Option<u64> },
+    List { value: Expr, max: u32 },
+}
+
+impl LaneSource {
+    pub fn scan(&self) -> Option<&Scan> { if let Self::Scan(scan) = self { Some(scan) } else { None } }
+    pub fn expressions(&self) -> Vec<&Expr> {
+        match self { Self::Scan(_) => Vec::new(), Self::Range { start, end_exclusive, .. } => vec![start, end_exclusive], Self::List { value, .. } => vec![value] }
+    }
+    pub fn static_max(&self) -> Option<u64> {
+        match self {
+            Self::Scan(scan) => if scan.take == Bound::Meter { None } else { Some(scan.take.maximum()) },
+            Self::Range { max, .. } => *max,
+            Self::List { max, .. } => Some(u64::from(*max)),
+        }
+    }
+    pub fn domain(&self) -> LoopDomain {
+        match self {
+            Self::Scan(scan) => LoopDomain::Page(scan.clone()),
+            Self::Range { start, end_exclusive, .. } => LoopDomain::ExpressionRange { start: start.clone(), end_exclusive: end_exclusive.clone() },
+            Self::List { value, max } => LoopDomain::DerivedArray { value: value.clone(), max: *max, bound_source: "list".into() },
+        }
+    }
 }
 
 impl Merge {
@@ -321,7 +355,10 @@ impl Merge {
         self.lanes.first().map_or("", |lane| lane.scan.table.as_str())
     }
     pub fn max_lanes(&self) -> u64 {
-        self.lanes.iter().map(|lane| lane.source.as_ref().map_or(1, |s| s.take.maximum())).fold(0, u64::saturating_add)
+        self.static_lanes().unwrap_or(crate::meter::Ceilings::default().examined)
+    }
+    pub fn static_lanes(&self) -> Option<u64> {
+        self.lanes.iter().try_fold(0u64, |sum, lane| Some(sum.saturating_add(match &lane.source { None => 1, Some(source) => source.static_max()? })))
     }
 }
 
@@ -340,6 +377,8 @@ pub struct Range {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Bound {
     Literal(u32),
+    /// A query prefix domain has no static population count.
+    Meter,
     Arg { name: String, max: u32 },
 }
 
@@ -347,6 +386,7 @@ impl Bound {
     pub fn maximum(&self) -> u64 {
         match self {
             Self::Literal(value) => *value as u64,
+            Self::Meter => crate::meter::Ceilings::default().examined,
             Self::Arg { max, .. } => *max as u64,
         }
     }
@@ -490,7 +530,8 @@ fn expr_read_sites(expr: &Expr, out: &mut Vec<ReadSite>) {
             for lane in &merge.lanes {
                 stmts_read_sites(&lane.setup, out);
                 if let Some(source) = &lane.source {
-                    scan_read_sites(source, out);
+                    if let Some(scan) = source.scan() { scan_read_sites(scan, out); }
+                    for value in source.expressions() { expr_read_sites(value, out); }
                 }
                 scan_read_sites(&lane.scan, out);
             }
@@ -590,8 +631,8 @@ fn expr_scans<'a>(expr: &'a Expr, out: &mut Vec<&'a Scan>, has_merge: &mut bool)
             for lane in &merge.lanes {
                 stmts_scans(&lane.setup, out, has_merge);
                 if let Some(source) = &lane.source {
-                    expr_scans_of_scan(source, out, has_merge);
-                    out.push(source);
+                    if let Some(scan) = source.scan() { expr_scans_of_scan(scan, out, has_merge); out.push(scan); }
+                    for value in source.expressions() { expr_scans(value, out, has_merge); }
                 }
                 expr_scans_of_scan(&lane.scan, out, has_merge);
                 out.push(&lane.scan);

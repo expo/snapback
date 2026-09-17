@@ -225,7 +225,7 @@ fn expr(schema: &Schema, value: &Expr, codes: &mut BTreeSet<String>, sites: &mut
         Expr::Binary { left, right, .. } => { expr(schema, left, codes, sites); expr(schema, right, codes, sites); }
         Expr::Get(read) | Expr::Exists(read) => for key in &read.key { expr(schema, key, codes, sites); },
         Expr::Scan(scan) => scan_exprs(schema, scan, codes, sites),
-        Expr::Merge(merge) => for lane in &merge.lanes { inspect(schema, &lane.setup, codes, sites); scan_exprs(schema, &lane.scan, codes, sites); if let Some(source) = &lane.source { scan_exprs(schema, source, codes, sites); } },
+        Expr::Merge(merge) => for lane in &merge.lanes { inspect(schema, &lane.setup, codes, sites); scan_exprs(schema, &lane.scan, codes, sites); if let Some(source) = &lane.source { if let Some(scan) = source.scan() { scan_exprs(schema, scan, codes, sites); } for value in source.expressions() { expr(schema, value, codes, sites); } } },
         _ => {}
     }
 }

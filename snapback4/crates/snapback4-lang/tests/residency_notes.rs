@@ -162,7 +162,7 @@ fn accumulated_recipient_list_fanout_is_located_and_has_a_concrete_rewrite() {
     assert!(!d.message.contains('$') && !d.message.contains("E_STRUCTURAL_FANOUT"), "{d}");
     assert!(d.message.contains("recipients") && d.message.contains("members") && d.message.contains("50"), "{d}");
     assert_ne!(d.message, d.rewrite);
-    assert!(d.rewrite.contains("members[room] first 50 by byRoom"), "{d}");
+    assert!(d.rewrite.contains("members[room] by byRoom"), "{d}");
     let fixed = source.replace("  recipients = []\n", "").replace("      recipients = recipients + [m.principal]\n  for p in recipients:\n    insert members { room, principal: p }", "      insert members { room, principal: m.principal }");
     let b = clean(&fixed);
     assert_eq!(b.schema.operations["send"].predicts.as_deref(), Some("eligible"));
@@ -233,7 +233,7 @@ fn fanout_read_and_small_page_name_the_source_and_a_passing_rewrite() {
     println!("{d}");
     assert_eq!((d.site.line, d.site.col), (9, 3));
     assert!(d.message.contains("page bound 10") && d.message.contains("schema cap 50"));
-    assert!(d.rewrite.contains("members[room] first 50 by byRoom"));
+    assert!(d.rewrite.contains("members[room] by byRoom"));
     clean(&format!("{base}mutation send(room: id):\n  for m in members[room] first 50 by byRoom:\n    require m.room = room else WRONG_ROOM\n"));
 }
 
@@ -278,9 +278,9 @@ fn feed_removal_fanout_names_the_private_deciding_column_and_loop() {
     println!("{d}");
     assert_eq!(d.code, "E_STRUCTURAL_FANOUT");
     assert!(d.rewrite.contains(".readerId"), "{d}");
-    assert!(d.rewrite.contains("for f in follows[actorId] first 1000 by byFollowed"), "{d}");
+    assert!(d.rewrite.contains("for f in follows[actorId] by byFollowed"), "{d}");
     assert!(d.rewrite.contains("readerId = f.followerId"), "{d}");
-    clean(&source.replace("  for row in feedEntries[eventId] first 10000 by byEvent:\n    delete feedEntries[row]", "  for f in follows[actorId] first 1000 by byFollowed:\n    if exists feedEntries[f.followerId, eventId]:\n      delete feedEntries[f.followerId, eventId]"));
+    clean(&source.replace("  for row in feedEntries[eventId] first 10000 by byEvent:\n    delete feedEntries[row]", "  for f in follows[actorId] by byFollowed:\n    if exists feedEntries[f.followerId, eventId]:\n      delete feedEntries[f.followerId, eventId]"));
 }
 
 #[test]
@@ -382,7 +382,7 @@ fn w10a_no_cursor_names_both_remedies_and_the_capped_control_is_silent() {
     assert_eq!(b.notes.len(), 1);
     let note = &b.notes[0];
     println!("W10a diagnostic:\n{note}");
-    assert_eq!(note.to_string(), "chat.q:6:1 — N_NO_CURSOR: query chat.typingNow returns a page of 50 typing rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on\n  rewrite: declare `c: cursor ?` and page with `after c` — chat.typingNow(.., c: cursor ?): return typing[..] after c last 50 by <index>; or declare `cap 50 by conversationId` on table typing if that is the intended group limit; other metered work can still cut the read\n  guide: reads");
+    assert_eq!(note.to_string(), "chat.q:6:1 — N_NO_CURSOR: query chat.typingNow returns a page of 50 typing rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on\n  rewrite: declare `c: cursor ?` and page with `after c` — chat.typingNow(.., c: cursor ?): return typing[..] after c last 50 by <index>; or declare `cap 50 by conversationId` on table typing if that is the intended group limit, then read the whole group: `typing[..]`; other metered work can still cut the read\n  guide: reads");
     for fixed in [source.replace("  public 'typing roster'", "  cap 50 by conversationId\n  public 'typing roster'"), source.replace("conversationId: id):", "conversationId: id, c: cursor ?):").replace("first 50", "after c first 50")] {
         let b = compile(&[("chat.q".into(), fixed)]);
         assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);

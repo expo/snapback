@@ -2,8 +2,8 @@
 
 For 100–1,000 memberships, choose full device holdings for cheap offline
 search, or walk bounded chat batches on the server for history that is not
-held. The earlier `everywhere` example discovers only its first 50 chats;
-its result cursor does not advance membership discovery.
+held. The earlier `everywhere` example discovers chats under the examined meter;
+its result cursor does not continue a meter-cut membership discovery.
 For a wired server walk, run `snapback4 init --recipe search` and
 `snapback4 check`; the installed helper manages both cursors and stops on
 any cut. The installable backend and usage are below.
