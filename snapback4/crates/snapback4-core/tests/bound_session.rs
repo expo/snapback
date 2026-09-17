@@ -198,6 +198,26 @@ fn admitting_family_logout_all_and_expiry_cannot_be_replaced_by_a_fresh_sign_in(
 }
 
 #[test]
+fn a_cyclic_delegated_authority_chain_fails_closed() {
+    let mut engine = engine();
+    let owner = identity::custom_session(engine.store(), "member:cycle", "member", 0, 1).unwrap();
+    engine.request_action("work", "cycle-parent", Context::new(&owner.principal, BTreeMap::new()).with_session(&owner.token).at(0)).unwrap();
+    let parent = claim(&mut engine, 0);
+    engine.request_action("work", "cycle-child", Context::new(&owner.principal, BTreeMap::new()).with_session(&parent).at(1)).unwrap();
+    let child = claim(&mut engine, 1);
+
+    // Corrupt the parent's admission edge to point back at the child. The
+    // shared authority walk must retain the existing cycle refusal.
+    engine.store().conn().execute(
+        "UPDATE _requests SET family = ?2 WHERE id = ?1",
+        rusqlite::params!["cycle-parent", digest(&child)],
+    ).unwrap();
+    assert!(identity::resolve(engine.store(), &child, 2).unwrap().is_none());
+    let status = engine.action_status("cycle-child", "service:worker", &child, 2).unwrap();
+    assert_eq!(status.error_code.as_deref(), Some("E_ACTION_AUTHORITY"));
+}
+
+#[test]
 fn two_connections_recheck_service_revocation_and_serialize_replacements() {
     let root = std::env::temp_dir().join(format!("sb4-bound-session-{}-{}", std::process::id(), snapback4_core::ids::mint(snapback4_core::now_ms(), &mut 0).unwrap()));
     std::fs::create_dir_all(&root).unwrap();

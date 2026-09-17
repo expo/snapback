@@ -26,7 +26,9 @@ impl Engine {
     /// authority to restore a revoked service seat.
     pub fn route_service_generation(&self, name: &str, contract: &str) -> Result<(String, i64), RuntimeError> {
         let principal = declaration(self, name, contract)?.service.clone().ok_or_else(unknown)?;
-        let generation = identity::principal_generation(self.store.conn(), &principal)?;
+        let tx = self.store.authority_transaction()?;
+        let generation = identity::principal_generation(&tx, &principal)?;
+        tx.rollback()?;
         Ok((principal, generation))
     }
 
@@ -51,14 +53,14 @@ impl Engine {
         let now = context.now.unwrap_or_else(crate::now_ms);
         let tx = self.store.transaction()?;
         let scope = if let Some(expected) = service_generation {
-            if route.service.as_deref() != Some(context.viewer.as_str()) || identity::principal_generation(tx.conn(), &context.viewer)? != expected {
+            if route.service.as_deref() != Some(context.viewer.as_str()) || identity::principal_generation(&tx, &context.viewer)? != expected {
                 return Err(RuntimeError::Auth("the service authority changed during route verification".into()));
             }
             // Do not re-key service work after a declaration/seat change.
             // Existing same-body work must refuse, not execute a second time.
             json!(["service"])
         } else if let Some(token) = &context.session_digest {
-            let authority = identity::authority(tx.conn(), token, &context.viewer, now)?;
+            let authority = identity::authority(&tx, token, &context.viewer, now)?;
             json!(["session", context.viewer, authority.family, authority.generation])
         } else { json!(["dev", context.viewer]) };
         let body_digest = format!("{:x}", Sha256::digest(&body));
@@ -66,7 +68,7 @@ impl Engine {
         let program = route.program(name);
         if let Some(run) = actions::request(tx.conn(), &id)? {
             if run.action != program.name || run.contract.as_deref() != Some(contract) { return Err(generation()); }
-            if run.principal != context.viewer || actions::authority_expiry(tx.conn(), &run, now)?.is_none() { return Err(unknown()); }
+            if run.principal != context.viewer || actions::authority_expiry(&tx, &run, now)?.is_none() { return Err(unknown()); }
             // Headers (e.g. fresh signatures/timestamps) are authentication
             // metadata, not a second intent. Retain the first admitted envelope.
             let previous = run.args.get("request").map(wire::to_json).ok_or_else(unknown)?;
@@ -84,7 +86,7 @@ impl Engine {
         if serde_json::to_vec(&context.args).map_err(|error| RuntimeError::Input(error.to_string()))?.len() as u64 > self.ceilings.heap_bytes {
             return Err(refused("E_ROUTE_INPUT", "the route envelope exceeds the engine heap bound"));
         }
-        actions::insert_spec(tx.conn(), &program, &id, &context, &raw, service_generation.is_some(), &route.action_spec(), contract, now)?;
+        actions::insert_spec(&tx, &program, &id, &context, &raw, service_generation.is_some(), &route.action_spec(), contract, now)?;
         let run = actions::request(tx.conn(), &id)?.ok_or_else(unknown)?;
         tx.commit()?;
         Ok((run, false))

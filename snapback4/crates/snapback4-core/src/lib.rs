@@ -5,6 +5,7 @@
 //! partition log. Nothing here knows about HTTP, files, or a device.
 
 pub mod assets;
+pub(crate) mod authority;
 pub mod cursor;
 pub mod engine;
 pub mod error;

@@ -1,7 +1,7 @@
 //! Request/response I/O outside the data plane. Durable admission is at most
 //! once; a handler's delivery is at least once, under a fenced viewer lease.
 use super::{Context, Engine, effects::MAX_LEASE_MS, validate};
-use crate::{RuntimeError, identity, ir::{BinaryOp, Expr, Input, Program, ProgramKind, Stmt, UnaryOp}, value::Value};
+use crate::{RuntimeError, authority::{self, AuthorityTransaction}, identity, ir::{BinaryOp, Expr, Input, Program, ProgramKind, Stmt, UnaryOp}, store::Tx, value::Value};
 use crate::schema::{ActionSpec, Schema};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::Value as Json;
@@ -86,19 +86,14 @@ fn lease_error() -> RuntimeError { RuntimeError::Structural { code: "E_ACTION_LE
 
 pub const AUTHORITY_ERROR: &str = "the authority that admitted this action was revoked or has expired";
 
-pub(super) fn authority_expiry(conn: &Connection, run: &ActionRequest, now: i64) -> Result<Option<i64>, RuntimeError> {
-    if let Some(generation) = run.service_generation {
-        return Ok((identity::principal_generation(conn, &run.principal)? == generation).then_some(i64::MAX));
-    }
-    match &run.authority {
-        Some(binding) => identity::authority_expiry(conn, &run.principal, &binding.family, binding.generation, now),
-        None => Ok(Some(i64::MAX)), // Legacy rows and development personas have no recorded session.
-    }
+pub(super) fn authority_expiry(tx: &Tx<'_>, run: &ActionRequest, now: i64) -> Result<Option<i64>, RuntimeError> {
+    let Some(work) = tx.work_by_id(&run.id)? else { return Ok(None) };
+    authority::work_authority_expiry(tx, &work, now)
 }
 
-fn replay(conn: &Connection, id: &str, principal: &str, name: &str, args: &Json, now: i64) -> Result<Option<ActionRequest>, RuntimeError> {
-    let Some(run) = request(conn, id)? else { return Ok(None); };
-    if run.principal != principal || authority_expiry(conn, &run, now)?.is_none() { return Err(unknown()); }
+fn replay(tx: &Tx<'_>, id: &str, principal: &str, name: &str, args: &Json, now: i64) -> Result<Option<ActionRequest>, RuntimeError> {
+    let Some(run) = request(tx.conn(), id)? else { return Ok(None); };
+    if run.principal != principal || authority_expiry(tx, &run, now)?.is_none() { return Err(unknown()); }
     if run.action != name { return Err(if run.args_digest.is_some() { crate::store::id_reused() } else { unknown() }); }
     if let Some(digest) = &run.args_digest {
         if crate::store::payload_digest(args) != *digest { return Err(crate::store::id_reused()); }
@@ -135,24 +130,24 @@ pub fn authorize(program: &Program, viewer: &str) -> Result<(), RuntimeError> {
     Ok(())
 }
 
-fn finish(conn: &Connection, id: &str, state: &str, code: &str, error: &str, now: i64) -> Result<(), RuntimeError> {
-    conn.execute("DELETE FROM _sessions WHERE token_digest = (SELECT session_digest FROM _requests WHERE id = ?1)", [id])?;
+fn finish(tx: &Tx<'_>, id: &str, state: &str, code: &str, error: &str, now: i64) -> Result<(), RuntimeError> {
+    if let Some(work) = tx.work_by_id(id)? && let Some(digest) = work.session_digest { tx.invalidate_session(&digest)?; }
     // Retain the last claim fence so an in-flight handler may observe cancellation.
-    conn.execute("UPDATE _requests SET state = ?2, error_code = ?3, error = ?4, result = NULL, next_at = NULL, settled_at = ?5 WHERE id = ?1", params![id, state, code, error, now])?;
+    tx.conn().execute("UPDATE _requests SET state = ?2, error_code = ?3, error = ?4, result = NULL, next_at = NULL, settled_at = ?5 WHERE id = ?1", params![id, state, code, error, now])?;
     Ok(())
 }
 
-fn expire(conn: &Connection, now: i64) -> Result<u64, RuntimeError> {
-    let runs = conn.prepare(&format!("SELECT {COLUMNS} FROM _requests WHERE state IN ('queued', 'running') AND (deadline <= ?1 OR (state = 'running' AND lease_until <= ?1))"))?
+fn expire(tx: &Tx<'_>, now: i64) -> Result<u64, RuntimeError> {
+    let runs = tx.conn().prepare(&format!("SELECT {COLUMNS} FROM _requests WHERE state IN ('queued', 'running') AND (deadline <= ?1 OR (state = 'running' AND lease_until <= ?1))"))?
         .query_map([now], read)?.collect::<Result<Vec<_>, _>>()?;
     for run in &runs {
         if run.deadline.is_some_and(|deadline| deadline <= now) {
-            finish(conn, &run.id, "failed", "E_ACTION_DEADLINE", "the action deadline passed", now)?;
+            finish(tx, &run.id, "failed", "E_ACTION_DEADLINE", "the action deadline passed", now)?;
         } else if run.attempt >= run.spec.work.policy.max_attempts {
-            finish(conn, &run.id, "failed", "E_ACTION_ATTEMPTS", "the action exhausted its attempts", now)?;
+            finish(tx, &run.id, "failed", "E_ACTION_ATTEMPTS", "the action exhausted its attempts", now)?;
         } else {
-            conn.execute("DELETE FROM _sessions WHERE token_digest = (SELECT session_digest FROM _requests WHERE id = ?1)", [&run.id])?;
-            conn.execute("UPDATE _requests SET state = 'queued', error = 'the action lease expired', error_code = NULL, next_at = ?2, lease_until = NULL, claimed_by = NULL, session_digest = NULL WHERE id = ?1", params![run.id, now])?;
+            if let Some(work) = tx.work_by_id(&run.id)? && let Some(digest) = work.session_digest { tx.invalidate_session(&digest)?; }
+            tx.conn().execute("UPDATE _requests SET state = 'queued', error = 'the action lease expired', error_code = NULL, next_at = ?2, lease_until = NULL, claimed_by = NULL, session_digest = NULL WHERE id = ?1", params![run.id, now])?;
         }
     }
     Ok(runs.len() as u64)
@@ -160,32 +155,26 @@ fn expire(conn: &Connection, now: i64) -> Result<u64, RuntimeError> {
 
 /// Delegated credentials remain dependent on the admitted authority in flight,
 /// not merely at claim time. Revocation cannot leave a live independent seat.
-pub(crate) fn live_claim_authority(conn: &Connection, digest: &str, now: i64) -> Result<bool, RuntimeError> {
-    let run = conn.query_row(&format!("SELECT {COLUMNS} FROM _requests WHERE session_digest = ?1 AND state = 'running' AND lease_until > ?2 AND (deadline IS NULL OR deadline > ?2)"), params![digest, now], read).optional()?;
-    match run { Some(run) => Ok(authority_expiry(conn, &run, now)?.is_some()), None => Ok(false) }
-}
-
-pub(crate) fn held_claim_authority(conn: &Connection, id: &str, worker: &str, token: &str, now: i64) -> Result<ActionRequest, RuntimeError> {
-    let run = request(conn, id)?.ok_or_else(unknown)?;
+pub(crate) fn held_claim_authority(tx: &Tx<'_>, id: &str, worker: &str, token: &str, now: i64) -> Result<ActionRequest, RuntimeError> {
+    let run = request(tx.conn(), id)?.ok_or_else(unknown)?;
     let digest = identity::digest(token);
-    let matches: bool = conn.query_row("SELECT claimed_by = ?2 AND session_digest = ?3 FROM _requests WHERE id = ?1", params![id, worker, digest], |row| row.get::<_, Option<bool>>(0))?.unwrap_or(false);
-    if !matches || !live_claim_authority(conn, &digest, now)? { return Err(lease_error()); }
+    if !authority::held_claim_authority(tx, id, worker, &digest, now)? { return Err(lease_error()); }
     Ok(run)
 }
 
-pub(super) fn insert_request(conn: &Connection, schema: &Schema, program: &Program, id: &str, context: &Context, raw: &Json, service: bool, now: i64) -> Result<(), RuntimeError> {
+pub(super) fn insert_request(tx: &Tx<'_>, schema: &Schema, program: &Program, id: &str, context: &Context, raw: &Json, service: bool, now: i64) -> Result<(), RuntimeError> {
     let spec = schema.action_specs.get(&program.name).cloned().unwrap_or_default();
-    insert_spec(conn, program, id, context, raw, service, &spec, &spec.contract(program), now)
+    insert_spec(tx, program, id, context, raw, service, &spec, &spec.contract(program), now)
 }
 
 /// Routes use the same durable record and authority binding, with their
 /// declaration's contract rather than a public action program's contract.
-pub(super) fn insert_spec(conn: &Connection, program: &Program, id: &str, context: &Context, raw: &Json, service: bool, spec: &ActionSpec, contract: &str, now: i64) -> Result<(), RuntimeError> {
+pub(super) fn insert_spec(tx: &Tx<'_>, program: &Program, id: &str, context: &Context, raw: &Json, service: bool, spec: &ActionSpec, contract: &str, now: i64) -> Result<(), RuntimeError> {
     if !spec.work.policy.valid() { return Err(RuntimeError::Schema("the action policy is outside its bounds".into())); }
-    let authority = context.session_digest.as_deref().map(|digest| identity::authority(conn, digest, &context.viewer, now)).transpose()?;
-    let service_generation = if service { Some(identity::principal_generation(conn, &context.viewer)?) } else { None };
-    let release: Option<String> = conn.query_row("SELECT value FROM _meta WHERE key = 'release'", [], |row| row.get(0)).optional()?;
-    conn.execute("INSERT INTO _requests(id, name, args, principal, at, state, family, principal_generation, admitted_expires_at, args_digest, spec, contract, deadline, release, service_generation) VALUES (?1, ?2, ?3, ?4, ?5, 'queued', ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+    let authority = context.session_digest.as_deref().map(|digest| identity::authority(tx, digest, &context.viewer, now)).transpose()?;
+    let service_generation = if service { Some(identity::principal_generation(tx, &context.viewer)?) } else { None };
+    let release: Option<String> = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'release'", [], |row| row.get(0)).optional()?;
+    tx.conn().execute("INSERT INTO _requests(id, name, args, principal, at, state, family, principal_generation, admitted_expires_at, args_digest, spec, contract, deadline, release, service_generation) VALUES (?1, ?2, ?3, ?4, ?5, 'queued', ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
         params![id, program.name, serde_json::to_string(&context.args).map_err(|e| RuntimeError::Input(e.to_string()))?, context.viewer, now,
             authority.as_ref().map(|a| &a.family), authority.as_ref().map(|a| a.generation), authority.as_ref().map(|a| a.expires_at), crate::store::payload_digest(raw),
             serde_json::to_string(&spec).map_err(|e| RuntimeError::Schema(e.to_string()))?, contract, spec.work.policy.deadline_ms.map(|ms| now.saturating_add(ms as i64)), release, service_generation])?;
@@ -202,7 +191,7 @@ impl Engine {
         let now = context.now.unwrap_or_else(crate::now_ms);
         let wire_args = context.wire_args.take().unwrap_or_else(|| Json::Object(crate::wire::map_to_json(&context.args)));
         let tx = self.store.transaction()?;
-        if let Some(recorded) = replay(tx.conn(), id, &context.viewer, name, &wire_args, now)? {
+        if let Some(recorded) = replay(&tx, id, &context.viewer, name, &wire_args, now)? {
             tx.rollback()?;
             return Ok((recorded, true));
         }
@@ -211,7 +200,7 @@ impl Engine {
         authorize(program, &context.viewer)?;
         let args = serde_json::to_string(&context.args).map_err(|e| RuntimeError::Input(e.to_string()))?;
         if args.len() as u64 > self.ceilings.heap_bytes { return Err(RuntimeError::Input("action arguments exceed the heap bound".into())); }
-        insert_request(tx.conn(), &self.schema, program, id, &context, &wire_args, false, now)?;
+        insert_request(&tx, &self.schema, program, id, &context, &wire_args, false, now)?;
         let run = request(tx.conn(), id)?.ok_or_else(unknown)?;
         tx.commit()?;
         Ok((run, false))
@@ -222,8 +211,10 @@ impl Engine {
     }
 
     pub fn action_request_at(&self, id: &str, principal: &str, now: i64) -> Result<ActionRequest, RuntimeError> {
-        let run = request(self.store.conn(), id)?.filter(|run| run.principal == principal).ok_or_else(unknown)?;
-        if authority_expiry(self.store.conn(), &run, now)?.is_none() { return Err(unknown()); }
+        let tx = self.store.authority_transaction()?;
+        let run = request(tx.conn(), id)?.filter(|run| run.principal == principal).ok_or_else(unknown)?;
+        if authority_expiry(&tx, &run, now)?.is_none() { return Err(unknown()); }
+        tx.rollback()?;
         Ok(run)
     }
 
@@ -231,7 +222,10 @@ impl Engine {
         // The public action fast path must not collect private route responses
         // before ingress has authenticated this delivery (including a replay).
         if id.starts_with(super::routes::ID_PREFIX) || name.starts_with(crate::schema::routes::ACTION_PREFIX) { return Err(unknown()); }
-        replay(self.store.conn(), id, principal, name, args, now)
+        let tx = self.store.authority_transaction()?;
+        let answer = replay(&tx, id, principal, name, args, now)?;
+        tx.rollback()?;
+        Ok(answer)
     }
 
     /// `session_seconds` is chosen per action by the worker. A lease ends
@@ -255,7 +249,7 @@ impl Engine {
         if !identity::is_service(worker) { return Err(RuntimeError::Auth("actions are claimed by a service".into())); }
         let duration = lease_ms.clamp(1_000, MAX_LEASE_MS).min(session_seconds.clamp(1, MAX_LEASE_MS / 1_000) * 1_000);
         let tx = self.store.transaction()?;
-        expire(tx.conn(), now)?;
+        expire(&tx, now)?;
         let ids: Vec<String> = tx.conn().prepare("SELECT id FROM _requests WHERE state = 'queued' AND (next_at IS NULL OR next_at <= ?1) AND (?2 IS NULL OR name = ?2) AND (?4 IS NULL OR name IN (SELECT value FROM json_each(?4))) ORDER BY at, id LIMIT ?3")?.query_map(params![now, action, limit.clamp(1, 100) as i64, names], |row| row.get(0))?.collect::<Result<_, _>>()?;
         let mut claims = Vec::new();
         for id in ids {
@@ -265,12 +259,12 @@ impl Engine {
                     self.schema.routes.get(name).map(|route| route.contract(name))
                 } else { self.programs.get(&run.action).map(|program| self.schema.action_specs.get(&run.action).cloned().unwrap_or_default().contract(program)) };
                 if current.as_ref() != Some(contract) {
-                    finish(tx.conn(), &id, "parked", "E_ACTION_GENERATION", "the admitted action declaration changed; inspect this work before replacing it", now)?;
+                    finish(&tx, &id, "parked", "E_ACTION_GENERATION", "the admitted action declaration changed; inspect this work before replacing it", now)?;
                     continue;
                 }
             }
             // @ref LLP 3000.009#5.1 — a claim borrows only authority that still stands.
-            let Some(expiry) = authority_expiry(tx.conn(), &run, now)? else {
+            let Some(expiry) = authority_expiry(&tx, &run, now)? else {
                 tx.conn().execute("UPDATE _requests SET state = 'failed', error_code = 'E_ACTION_AUTHORITY', error = ?2, settled_at = ?3, next_at = NULL, lease_until = NULL, claimed_by = NULL, session_digest = NULL WHERE id = ?1", params![id, AUTHORITY_ERROR, now])?;
                 continue;
             };
@@ -284,7 +278,7 @@ impl Engine {
 
     pub fn settle_action(&mut self, id: &str, worker: &str, lease_token: &str, mut settled: ActionSettled, now: i64) -> Result<ActionRequest, RuntimeError> {
         let tx = self.store.transaction()?;
-        let run = held_claim_authority(tx.conn(), id, worker, lease_token, now)?;
+        let run = held_claim_authority(&tx, id, worker, lease_token, now)?;
         let digest = identity::digest(lease_token);
         let mut application_refusal = None;
         if run.action.starts_with(crate::schema::routes::ACTION_PREFIX) && let ActionSettled::Done(value) = &settled {
@@ -292,7 +286,7 @@ impl Engine {
                 .and_then(|response| response.validate().map(|_| response));
             match validated {
                 Err(message) => {
-                    finish(tx.conn(), id, "failed", "E_ROUTE_RESULT", &message, now)?;
+                    finish(&tx, id, "failed", "E_ROUTE_RESULT", &message, now)?;
                     let run = request(tx.conn(), id)?.ok_or_else(unknown)?;
                     tx.commit()?;
                     return Ok(run);
@@ -315,7 +309,7 @@ impl Engine {
             match validated {
                 Ok(result) => Some(result),
                 Err(message) => {
-                    finish(tx.conn(), id, "failed", "E_ACTION_RESULT", &message, now)?;
+                    finish(&tx, id, "failed", "E_ACTION_RESULT", &message, now)?;
                     let run = request(tx.conn(), id)?.ok_or_else(unknown)?;
                     tx.commit()?;
                     return Ok(run);
@@ -324,11 +318,11 @@ impl Engine {
         } else { None };
         // The claim token fences the attempt even when the next worker
         // uses the same service seat. No secret is persisted in plaintext.
-        tx.conn().execute("DELETE FROM _sessions WHERE token_digest = ?1", [&digest])?;
+        tx.invalidate_session(&digest)?;
         let (state, error, next_at) = match settled {
             ActionSettled::Done(_) => ("done", application_refusal.clone(), None),
             ActionSettled::Refused { code, error } => {
-                finish(tx.conn(), id, "failed", code, &error.chars().take(2_000).collect::<String>(), now)?;
+                finish(&tx, id, "failed", code, &error.chars().take(2_000).collect::<String>(), now)?;
                 let run = request(tx.conn(), id)?.ok_or_else(unknown)?;
                 tx.commit()?;
                 return Ok(run);
@@ -350,10 +344,10 @@ impl Engine {
     pub fn cancel_action(&mut self, id: &str, principal: &str, now: i64) -> Result<ActionRequest, RuntimeError> {
         let tx = self.store.transaction()?;
         let run = request(tx.conn(), id)?.filter(|run| run.principal == principal).ok_or_else(unknown)?;
-        if authority_expiry(tx.conn(), &run, now)?.is_none() { return Err(unknown()); }
+        if authority_expiry(&tx, &run, now)?.is_none() { return Err(unknown()); }
         if !run.spec.work.policy.cancellable { return Err(RuntimeError::Structural { code: "E_ACTION_CANCELLATION", message: "this action declaration does not allow cancellation".into() }); }
         if matches!(run.state.as_str(), "queued" | "running" | "parked") {
-            finish(tx.conn(), id, "failed", "E_ACTION_CANCELLED", "the action was cancelled; external effects are not undone", now)?;
+            finish(&tx, id, "failed", "E_ACTION_CANCELLED", "the action was cancelled; external effects are not undone", now)?;
             tx.conn().execute("UPDATE _requests SET cancelled = 1 WHERE id = ?1", [id])?;
         }
         let run = request(tx.conn(), id)?.ok_or_else(unknown)?;
@@ -363,12 +357,13 @@ impl Engine {
 
     pub fn action_status(&mut self, id: &str, worker: &str, lease_token: &str, now: i64) -> Result<ActionRequest, RuntimeError> {
         let tx = self.store.transaction()?;
-        expire(tx.conn(), now)?;
-        let matches: bool = tx.conn().query_row("SELECT claimed_by = ?2 AND session_digest = ?3 FROM _requests WHERE id = ?1", params![id, worker, identity::digest(lease_token)], |row| row.get::<_, Option<bool>>(0)).optional()?.flatten().unwrap_or(false);
+        expire(&tx, now)?;
+        let digest = identity::digest(lease_token);
+        let matches = tx.work_by_id(id)?.is_some_and(|work| authority::claim_is_owned(&work, worker, &digest));
         if !matches { return Err(lease_error()); }
         let mut run = request(tx.conn(), id)?.ok_or_else(unknown)?;
-        if run.state == "running" && authority_expiry(tx.conn(), &run, now)?.is_none() {
-            finish(tx.conn(), id, "failed", "E_ACTION_AUTHORITY", AUTHORITY_ERROR, now)?;
+        if run.state == "running" && authority_expiry(&tx, &run, now)?.is_none() {
+            finish(&tx, id, "failed", "E_ACTION_AUTHORITY", AUTHORITY_ERROR, now)?;
             run = request(tx.conn(), id)?.ok_or_else(unknown)?;
         }
         tx.commit()?;
@@ -377,7 +372,7 @@ impl Engine {
 
     pub fn requeue_expired_actions(&mut self, now: i64) -> Result<u64, RuntimeError> {
         let tx = self.store.transaction()?;
-        let changed = expire(tx.conn(), now)?;
+        let changed = expire(&tx, now)?;
         tx.commit()?;
         Ok(changed)
     }

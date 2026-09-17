@@ -369,7 +369,7 @@ impl Engine {
                 let raw = serde_json::Value::Object(crate::wire::map_to_json(&args));
                 let context = Context::new(principal, args).at(now);
                 // @ref LLP 3000.009#5.2 — the boundary and service-seat admission are one commit.
-                super::actions::insert_request(tx.conn(), &self.schema, &program, &id, &context, &raw, true, now)?;
+                super::actions::insert_request(&tx, &self.schema, &program, &id, &context, &raw, true, now)?;
             } else {
                 #[cfg(feature = "native")]
                 let program_hash = job_admission_hash(&program, self.native.as_deref().map(super::native::Module::digest));

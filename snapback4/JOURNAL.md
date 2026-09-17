@@ -27659,3 +27659,47 @@ needed because the ten-code diagnostic mapping and `CODES` entries already
 existed. Unrelated `rotate_session` and unbound legacy `custom_session` retain
 their prior clock/serialization limitations and lifecycle semantics; this
 repair deliberately does not redesign them or add a store-wide clock.
+
+## 2026-09-17 — C3.2: shared authority policy over typed transaction reads
+
+Identity-session and action-work authority decisions now run in one
+store-neutral kernel over typed transaction capabilities. The SQLite adapter
+provides principal generations, sessions by digest, the latest live family
+member, work by id or claim-session digest, and the two session invalidations
+the extracted paths require. Admission, refresh-family and delegated-chain
+walking, service-generation checks, claim ownership/liveness and session
+resolution remain policy in the shared module. Writer paths reuse their
+existing immediate `Tx`; borrowed read APIs use one deferred snapshot and
+finish it before best-effort expired-session cleanup, avoiding a read-to-write
+lock upgrade. Nullable legacy/development bindings, partial admission fields,
+refresh versus admission lifetime, strict expiry/deadline boundaries, cycle
+failure, stale leases, cancellation and refusal distinctions retain their
+prior SQLite behavior.
+
+This is only the authority-read seam. SQLite still owns identity/work schema
+initialization; credential, session, refresh, generation and mint-binding
+writes; full request lifecycle reads and writes; and development-clock lease
+adjustment. There is no Postgres authority adapter, production target, engine
+enum, SQL-policy, service/runtime, migration, activation, restore or credential
+claim in this checkpoint. No separate C3 report existed in the approved
+surface, so this append-only entry is the checkpoint record.
+
+Focused serial locked evidence used `CARGO_BUILD_JOBS=6`:
+
+- `snapback4-core --test bound_session`: 7/7, including the new delegated-cycle
+  fail-closed witness;
+- core identity units: 5/5; identity integration: 2/2; action-context: 8/8;
+  work-records: 6/6;
+- the two exact bound-session HTTP witnesses: 1/1 each; and
+- `snapback4-core --no-default-features` checked successfully, confirming the
+  policy module is not gated behind SQLite (expected unused-policy warnings in
+  that host-free build).
+
+One attempted HTTP filter used `serve_tests::...` and selected zero tests; the
+correct exact `serve::tests::...` commands above each ran one and passed. An
+earlier test invocation also stopped before Cargo because the ambient PATH did
+not contain it; subsequent commands used the existing
+`/home/ccheever/.cargo/bin/cargo`. The predecessor's accidental crate-wide
+formatter churn had been removed before this verification; this checkpoint
+contains only the intended paths. `git diff --check` is clean. No full suite,
+root gate, inventory, install, fetch, push or remote contact ran.

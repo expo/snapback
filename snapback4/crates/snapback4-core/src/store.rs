@@ -16,6 +16,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 mod activation;
+mod authority;
 mod successor;
 
 const STORE_VERSION: &str = "snapback4-store-1";
@@ -194,6 +195,16 @@ impl Store {
     /// A consistent read snapshot does not reserve SQLite's writer lock.
     pub fn read_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
         let tx = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+        if activation::identity(&tx)? != self.identity {
+            return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
+        }
+        Ok(Tx { tx, catalog: &self.catalog })
+    }
+
+    /// One deferred snapshot for an authority walk from an API that only
+    /// borrows the engine. Writer operations pass their existing `Tx` instead.
+    pub(crate) fn authority_transaction(&self) -> Result<Tx<'_>, RuntimeError> {
+        let tx = self.conn.unchecked_transaction()?;
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }

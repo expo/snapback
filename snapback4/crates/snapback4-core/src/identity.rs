@@ -6,7 +6,8 @@
 //! refuses personas; `dev` admits them.
 
 use crate::error::RuntimeError;
-use crate::store::Store;
+use crate::authority::{self, AuthorityTransaction};
+use crate::store::{Store, Tx};
 use argon2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
 use argon2::Argon2;
 use rusqlite::{Connection, OptionalExtension, params};
@@ -44,59 +45,18 @@ pub(crate) fn initialize(conn: &Connection) -> Result<(), RuntimeError> {
     Ok(())
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Authority {
-    pub family: String,
-    pub generation: i64,
-    pub expires_at: i64,
-}
+pub use crate::authority::Authority;
 
-pub(crate) fn principal_generation(conn: &Connection, principal: &str) -> Result<i64, RuntimeError> {
-    Ok(conn.query_row("SELECT generation FROM _principal_generations WHERE principal = ?1", [principal], |row| row.get(0)).optional()?.unwrap_or(0))
+pub(crate) fn principal_generation(tx: &Tx<'_>, principal: &str) -> Result<i64, RuntimeError> {
+    tx.principal_generation(principal)
 }
 
 /// Resolve the admitting credential inside the admission transaction.
-pub(crate) fn authority(conn: &Connection, token_digest: &str, principal: &str, now: i64) -> Result<Authority, RuntimeError> {
-    let found: Option<(String, i64)> = conn.query_row(
-        "SELECT COALESCE(family, token_digest), expires_at FROM _sessions WHERE token_digest = ?1 AND principal = ?2 AND expires_at > ?3",
-        params![token_digest, principal, now], |row| Ok((row.get(0)?, row.get(1)?)),
-    ).optional()?;
-    let (family, expires_at) = found.ok_or_else(|| RuntimeError::Auth("the admitting session is no longer live".into()))?;
-    let generation = principal_generation(conn, principal)?;
-    let standing = authority_expiry(conn, principal, &family, generation, now)?
-        .ok_or_else(|| RuntimeError::Auth("the admitting session's authority is no longer live".into()))?;
-    Ok(Authority { family, generation, expires_at: expires_at.min(standing) })
-}
-
-pub(crate) fn authority_expiry(conn: &Connection, principal: &str, family: &str, generation: i64, now: i64) -> Result<Option<i64>, RuntimeError> {
-    // A child admitted by an action session borrows the whole authority chain,
-    // not just the parent credential's row. Check iteratively, so revoking an
-    // ancestor takes effect before a worker polls or settles the parent.
-    // @ref LLP 3000.009#5.1 — delegated work cannot outlive its admitting authority.
-    let current_generation = principal_generation(conn, principal)?;
-    let (mut family, mut generation, mut bound) = (family.to_owned(), generation, i64::MAX);
-    let mut seen = std::collections::BTreeSet::new();
-    loop {
-        if generation != current_generation || !seen.insert(family.clone()) { return Ok(None); }
-        let session: Option<(String, String, i64)> = conn.query_row(
-            "SELECT token_digest, kind, expires_at FROM _sessions WHERE principal = ?1 AND COALESCE(family, token_digest) = ?2 AND expires_at > ?3 ORDER BY expires_at DESC LIMIT 1",
-            params![principal, family, now], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?))).optional()?;
-        let Some((digest, kind, expires)) = session else { return Ok(None); };
-        bound = bound.min(expires);
-        if kind != "action" { return Ok(Some(bound)); }
-        let parent: Option<(Option<String>, Option<i64>, Option<i64>, i64, Option<i64>)> = conn.query_row(
-            "SELECT family, principal_generation, service_generation, lease_until, deadline FROM _requests WHERE session_digest = ?1 AND principal = ?2 AND state = 'running' AND lease_until > ?3 AND (deadline IS NULL OR deadline > ?3)",
-            params![digest, principal, now], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))).optional()?;
-        let Some((parent_family, parent_generation, service_generation, lease, deadline)) = parent else { return Ok(None); };
-        bound = bound.min(lease).min(deadline.unwrap_or(i64::MAX));
-        if let Some(service_generation) = service_generation {
-            return Ok((service_generation == current_generation).then_some(bound));
-        }
-        match (parent_family, parent_generation) {
-            (Some(next), Some(next_generation)) => { family = next; generation = next_generation; }
-            (None, None) => return Ok(Some(bound)), // Legacy work and development personas.
-            _ => return Ok(None),
-        }
+pub(crate) fn authority(tx: &Tx<'_>, token_digest: &str, principal: &str, now: i64) -> Result<Authority, RuntimeError> {
+    match authority::admission_authority(tx, token_digest, principal, now)? {
+        authority::AdmissionStanding::SessionNotLive => Err(RuntimeError::Auth("the admitting session is no longer live".into())),
+        authority::AdmissionStanding::AuthorityNotLive => Err(RuntimeError::Auth("the admitting session's authority is no longer live".into())),
+        authority::AdmissionStanding::Live(binding) => Ok(binding),
     }
 }
 
@@ -175,22 +135,10 @@ pub(crate) fn action_session(conn: &Connection, principal: &str, now: i64, expir
 /// The principal behind a bearer token, if the session is live.
 pub fn resolve(store: &Store, token: &str, now: i64) -> Result<Option<(String, String)>, RuntimeError> {
     let token_digest = digest(token);
-    let mut resolved = store
-        .conn()
-        .prepare_cached("SELECT principal, kind FROM _sessions WHERE token_digest = ?1 AND expires_at > ?2")?
-        .query_row(params![token_digest, now], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
-        .optional()?;
-    if resolved.as_ref().is_some_and(|(_, kind)| kind == "action")
-        && !crate::engine::actions::live_claim_authority(store.conn(), &token_digest, now)?
-    {
-        resolved = None;
-    }
-    if resolved.is_none() {
-        store.conn().execute(
-            "DELETE FROM _sessions WHERE token_digest = ?1 AND expires_at <= ?2",
-            params![token_digest, now],
-        )?;
-    }
+    let tx = store.authority_transaction()?;
+    let resolved = authority::live_session(&tx, &token_digest, now)?.map(|session| (session.principal, session.kind));
+    tx.rollback()?;
+    if resolved.is_none() { store.invalidate_expired_authority_session(&token_digest, now)?; }
     Ok(resolved)
 }
 
@@ -209,21 +157,10 @@ pub fn logout_session(store: &mut Store, token: &str, now: impl FnOnce() -> i64)
     // The successful immediate transaction is the authority linearization
     // point: time spent waiting for its writer lock cannot keep a token live.
     let now = now();
-    let live: Option<(String, String, String)> = tx.conn().query_row(
-        "SELECT principal, kind, COALESCE(family, token_digest) FROM _sessions WHERE token_digest = ?1 AND expires_at > ?2",
-        params![token_digest, now],
-        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-    ).optional()?;
-    let Some((principal, kind, family)) = live else {
+    let Some(session) = authority::live_session(&tx, &token_digest, now)? else {
         return Err(RuntimeError::Auth("this session is not live; sign in again".into()));
     };
-    if kind == "action" && !crate::engine::actions::live_claim_authority(tx.conn(), &token_digest, now)? {
-        return Err(RuntimeError::Auth("this session is not live; sign in again".into()));
-    }
-    tx.conn().execute(
-        "DELETE FROM _sessions WHERE principal = ?1 AND COALESCE(family, token_digest) = ?2",
-        params![principal, family],
-    )?;
+    tx.invalidate_family(&session.principal, &session.family)?;
     tx.commit()?;
     Ok(())
 }
@@ -626,15 +563,12 @@ pub fn bound_custom_session(
     // Sample only after the immediate writer transaction is ours, beside
     // every service, claim, admitting and target-family authority check.
     let now = now();
-    let service_is_live: bool = tx.conn().query_row(
-        "SELECT EXISTS(SELECT 1 FROM _sessions WHERE token_digest = ?1 AND principal = ?2 AND kind = 'service' AND expires_at > ?3)",
-        params![service_digest, worker, now], |row| row.get(0),
-    )?;
+    let service_is_live = authority::live_service_session(&tx, &service_digest, worker, now)?;
     if !service_is_live || !is_service(worker) {
         return Err(RuntimeError::Auth("the service credential is no longer live for this action claim".into()));
     }
-    crate::engine::actions::held_claim_authority(tx.conn(), &binding.invocation_id, worker, action_lease, now)?;
-    let target_generation = principal_generation(tx.conn(), principal)?;
+    crate::engine::actions::held_claim_authority(&tx, &binding.invocation_id, worker, action_lease, now)?;
+    let target_generation = principal_generation(&tx, principal)?;
     let previous = mint_binding_record(tx.conn(), &binding.invocation_id, &binding.intent)?;
     let session = match previous {
         None => {
@@ -659,17 +593,11 @@ pub fn bound_custom_session(
             if previous.expires_at <= now || previous.principal_generation != target_generation {
                 return Err(session_mint_authority_error("the bound session authority expired or was revoked and cannot be recreated"));
             }
-            let family_is_live: bool = tx.conn().query_row(
-                "SELECT EXISTS(SELECT 1 FROM _sessions WHERE principal = ?1 AND COALESCE(family, token_digest) = ?2 AND expires_at > ?3)",
-                params![principal, previous.family, now], |row| row.get(0),
-            )?;
+            let family_is_live = tx.latest_live_family_member(principal, &previous.family, now)?.is_some();
             if !family_is_live {
                 return Err(session_mint_authority_error("the bound session family is no longer live and cannot be recreated"));
             }
-            tx.conn().execute(
-                "DELETE FROM _sessions WHERE principal = ?1 AND COALESCE(family, token_digest) = ?2",
-                params![principal, previous.family],
-            )?;
+            tx.invalidate_family(principal, &previous.family)?;
             let mut session = new_session(principal, kind, now, days)?;
             session.expires_at = previous.expires_at;
             insert_session(tx.conn(), &session, now)?;

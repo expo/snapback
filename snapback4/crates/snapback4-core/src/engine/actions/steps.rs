@@ -51,7 +51,7 @@ impl Engine {
         let digest = crate::store::payload_digest(input);
         let claim = identity::digest(lease);
         let tx = self.store.transaction()?;
-        held_claim_authority(tx.conn(), id, worker, lease, now)?;
+        held_claim_authority(&tx, id, worker, lease, now)?;
         let answer = if let Some(previous) = record(tx.conn(), id, name)? {
             if previous.digest != digest { return Err(invalid("E_STEP_INPUT", "this step name already binds another input")); }
             if previous.state == "done" {
@@ -63,7 +63,7 @@ impl Engine {
                 ActionStep { state: "reconcile".into(), key: previous.key, result: None }
             } else {
                 tx.conn().execute("UPDATE _action_steps SET state = 'parked', error = 'no recorded outcome; reconciliation required' WHERE invocation = ?1 AND name = ?2", params![id, name])?;
-                finish(tx.conn(), id, "parked", "E_STEP_PARKED", "an external step has no recorded outcome; reconcile its provider key or inspect it before replacing this work", now)?;
+                finish(&tx, id, "parked", "E_STEP_PARKED", "an external step has no recorded outcome; reconcile its provider key or inspect it before replacing this work", now)?;
                 tx.commit()?;
                 return Err(invalid("E_STEP_PARKED", "the invocation is parked: an external step needs reconciliation"));
             }
@@ -80,12 +80,12 @@ impl Engine {
         name_fits(name)?;
         let bytes = serde_json::to_string(result).map_err(|_| invalid("E_STEP_RESULT", "a step result must be JSON"))?;
         let tx = self.store.transaction()?;
-        held_claim_authority(tx.conn(), id, worker, lease, now)?;
+        held_claim_authority(&tx, id, worker, lease, now)?;
         let previous = record(tx.conn(), id, name)?.ok_or_else(|| invalid("E_STEP_UNKNOWN", "begin the step before recording its outcome"))?;
         if previous.claim != identity::digest(lease) { return Err(lease_error()); }
         if bytes.len() as u64 > self.ceilings.output_bytes {
             tx.conn().execute("UPDATE _action_steps SET state = 'parked', error = 'result exceeds output byte ceiling' WHERE invocation = ?1 AND name = ?2", params![id, name])?;
-            finish(tx.conn(), id, "parked", "E_STEP_RESULT", "a step outcome exceeds the output byte ceiling; inspect the provider before replacing this work", now)?;
+            finish(&tx, id, "parked", "E_STEP_RESULT", "a step outcome exceeds the output byte ceiling; inspect the provider before replacing this work", now)?;
             tx.commit()?;
             return Err(invalid("E_STEP_RESULT", "the invocation is parked: the external step outcome exceeds the output byte ceiling"));
         }
@@ -103,12 +103,12 @@ impl Engine {
     pub fn park_action_step(&mut self, id: &str, worker: &str, lease: &str, name: &str, error: &str, now: i64) -> Result<(), RuntimeError> {
         name_fits(name)?;
         let tx = self.store.transaction()?;
-        held_claim_authority(tx.conn(), id, worker, lease, now)?;
+        held_claim_authority(&tx, id, worker, lease, now)?;
         let previous = record(tx.conn(), id, name)?.ok_or_else(|| invalid("E_STEP_UNKNOWN", "begin the step before parking it"))?;
         if previous.claim != identity::digest(lease) || previous.state != "started" { return Err(lease_error()); }
         let error: String = error.chars().take(2_000).collect();
         tx.conn().execute("UPDATE _action_steps SET state = 'parked', error = ?3 WHERE invocation = ?1 AND name = ?2", params![id, name, error])?;
-        finish(tx.conn(), id, "parked", "E_STEP_PARKED", "the handler could not reconcile an external step; inspect it before replacing this work", now)?;
+        finish(&tx, id, "parked", "E_STEP_PARKED", "the handler could not reconcile an external step; inspect it before replacing this work", now)?;
         tx.commit()
     }
 }
