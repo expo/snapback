@@ -31185,3 +31185,19 @@ The guard-hardening entry above (lane D1-R3) is the disposition of the third
 review round's findings on the diet's regression guards; it is test and
 instrument code only, changes the web artifact by 0 bytes, and lands without
 a further review round.
+
+
+## 2026-09-17 — diet S3 (host Unicode) is built on a branch and waits for a ruling
+
+Lane S3 built the candidate of LLP 3000.002 stage S3 on branch
+`sb4/diet-s3-host-unicode` (`a98aa62eb0`, pushed; not on main). Shipped
+pipeline, base 466,618 B gzip: host NFC only 407,786 (−58,832); plus the
+tokenizer's lowercase 407,839; plus `Builtin::Lower` 403,532. The lane's
+Node differential and the lead's Chromium 153 run of `node witness/idb.mjs
+unicode` both report zero differences over 57,848 folds of the pinned
+`NormalizationTest` 17.0.0 corpus, 1,488 lowercase mappings and 119
+`SpecialCasing` entries. The lane corrected the plan: Unicode's stability
+policy covers normalization of assigned characters and not case mappings, so
+the recommendation is NFC only. It reverses LLP 3000 §7's one-implementation
+ruling for the web tokenizer and therefore waits for the author; nothing of it
+is on main.
