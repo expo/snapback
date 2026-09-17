@@ -99,8 +99,10 @@ for `complete: false` with `cut: null`, even when empty; never "no matches".
 The precise reason remains in development-only `Read.meter.cut`; `serve` never
 returns that meter. If the server cannot answer the query, declare `query … held:`
 to answer from the device; the server refuses it with E_QUERY_HELD.
-Merged pages return no `next` for a non-uniform read or a meter or word-limit
-cut: one cursor cannot advance past an unfinished lane. Reads inside
+Merged pages return no `next` for a non-uniform answer, an opening cut or a
+word-limit cut. A uniform lazy merge cut while draining established heads
+carries `next` after its last emitted row, with `complete: false, cut: 'meter'`.
+Following that cursor does not clear the earlier page's incompleteness in `usePage`. Reads inside
 `where` use their own rules and search terms. Even an empty matching result
 past a device horizon is incomplete; a held group can fall back to the server.
 

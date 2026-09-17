@@ -21,6 +21,33 @@ pub fn baseline(catalog: &Catalog, module: &str, decl: &ast::ProgramDecl, diagno
 }
 
 pub fn snapshot(inputs: BTreeMap<String, Sources>, binder: Bind, measure: bool) -> BTreeMap<String, Record> {
+    // The golden census has eight ordinary test shards. Two workers per shard
+    // keep its nested concurrency bounded while still using sixteen workers
+    // when all shards are scheduled together.
+    let worker_limit = 2;
+    let workers = std::thread::available_parallelism().map_or(1, usize::from).min(worker_limit).min(inputs.len());
+    if workers <= 1 {
+        return snapshot_shard(inputs, binder, measure);
+    }
+
+    // Each source bundle builds an independent catalog and engine. Shard the
+    // expensive golden census without changing the deterministic BTreeMap
+    // result or the paired enabled/disabled observations.
+    let mut shards: Vec<BTreeMap<String, Sources>> = (0..workers).map(|_| BTreeMap::new()).collect();
+    for (index, (key, sources)) in inputs.into_iter().enumerate() {
+        shards[index % workers].insert(key, sources);
+    }
+    std::thread::scope(|scope| {
+        let handles: Vec<_> = shards.into_iter().map(|shard| scope.spawn(move || snapshot_shard(shard, binder, measure))).collect();
+        let mut records = BTreeMap::new();
+        for handle in handles {
+            records.extend(handle.join().expect("lowering snapshot worker panicked"));
+        }
+        records
+    })
+}
+
+fn snapshot_shard(inputs: BTreeMap<String, Sources>, binder: Bind, measure: bool) -> BTreeMap<String, Record> {
     let mut records = BTreeMap::new();
     for (key, sources) in inputs {
         let mut diagnostics = Vec::new();

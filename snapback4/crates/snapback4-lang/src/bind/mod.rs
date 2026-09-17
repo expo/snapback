@@ -74,6 +74,7 @@ pub fn bind(documents: Vec<Document>) -> Bound {
         for decl in &doc.programs {
             if decl.held && let Some(fact) = schema.operations.get_mut(&operation_name(&module, &decl.name)) {
                 fact.held = true;
+                fact.components.clear();
                 fact.runs = Some("device".into());
             }
             if decl.server && let Some(fact) = schema.operations.get_mut(&operation_name(&module, &decl.name)) {
@@ -281,9 +282,9 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             });
             let matching = merge.lanes.iter().any(|lane| lane.scan.prefix.iter().any(|key| matches!(key, snapback4_core::ir::IndexKeyExpr::WordPrefix(_))));
             let (message, rewrite) = if matching {
-                // @ref LLP 3000.007#18.1 — page scope discovery separately; a matching merge cursor cannot recover an unfinished lane.
+                // @ref LLP 3000.007#18.1 — page scope discovery separately; a matching merge cursor cannot recover an opening cut.
                 (format!("{} {}: the merge over {} reads {work}; a read past the {ceiling} examined ceiling returns `complete: false`", bound.program.kind.word(), bound.program.name, merge.table()),
-                    "`snapback4 guide search`, section \"Search every chat I'm in\": search held messages with one unscoped words index, or page memberships 50 at a time and exhaust each matching merge with its own result cursor before advancing the membership cursor; a result cursor alone does not continue undiscovered chats or a meter-cut merge. Measure with `snapback4 check --cost`; if a held query answers this read, delete the merge")
+                    "`snapback4 guide search`, section \"Search every chat I'm in\": search held messages with one unscoped words index, or page memberships 50 at a time and exhaust each matching merge with its own result cursor before advancing the membership cursor; a result cursor alone does not continue undiscovered chats, an opening cut or a word-limit cut; a uniform lazy drain cut carries `next` after its last emitted row. Measure with `snapback4 check --cost`; if a held query answers this read, delete the merge")
             } else if related_principals {
                 (format!("{} {}: read cost grows with the number of related principals (up to {lanes} lanes); a read past the {ceiling} examined ceiling returns `complete: false`", bound.program.kind.word(), bound.program.name),
                     "keep read-time merges for a bounded small number of related principals; for Following, `snapback4 init --recipe feeds --prefix feed`; measure with `snapback4 check --cost`; if a held query answers this read, delete the merge")

@@ -22,16 +22,28 @@ pub fn query(rows: &dyn Rows, schema: &Schema, program: &Program, context: Conte
 }
 
 /// Preserve unknown coverage and whether incompleteness is exclusively retained history, even after a require/unwrap refusal.
-pub fn query_with_coverage(rows: &dyn Rows, schema: &Schema, program: &Program, mut context: Context, ceilings: Ceilings) -> (Result<QueryOutcome, Refusal>, bool, bool) {
-    if program.kind == crate::ir::ProgramKind::Action { return (Err(RuntimeError::UnknownOp("an action runs only through client.act".into()).refusal()), false, false); }
-    if let Err(error) = validate_inputs(schema, program, &mut context.args) { return (Err(error.refusal()), false, false); }
+pub fn query_with_coverage(rows: &dyn Rows, schema: &Schema, program: &Program, context: Context, ceilings: Ceilings) -> (Result<QueryOutcome, Refusal>, bool, bool) {
+    let (result, unknown, retained, _) = observe_query(rows, schema, program, context, ceilings, false);
+    (result, unknown, retained)
+}
+
+pub fn query_with_components(rows: &dyn Rows, schema: &Schema, program: &Program, context: Context, ceilings: Ceilings) -> (Result<QueryOutcome, Refusal>, bool, bool, std::collections::BTreeMap<String, super::components::Coverage>) {
+    observe_query(rows, schema, program, context, ceilings, true)
+}
+
+fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut context: Context, ceilings: Ceilings, components: bool) -> (Result<QueryOutcome, Refusal>, bool, bool, std::collections::BTreeMap<String, super::components::Coverage>) {
+    if program.kind == crate::ir::ProgramKind::Action { return (Err(RuntimeError::UnknownOp("an action runs only through client.act".into()).refusal()), false, false, Default::default()); }
+    if let Err(error) = validate_inputs(schema, program, &mut context.args) { return (Err(error.refusal()), false, false, Default::default()); }
     let mut runner = Runner::new(rows, schema, context, Meter::new(ceilings, Cut::Cap), 0);
     runner.device = true;
+    runner.component_observation = components;
     let result = (|| {
     let data = runner.run(program)?;
-    runner.charge_output(&data)?;
-    let next = runner.next_cursor()?;
-    Ok(QueryOutcome {
+    let capped = runner.meter.capped_at.is_some();
+    let charged = runner.charge_output(&data);
+    if !capped && runner.meter.capped_at.is_some() { runner.components.note(|frame| frame.capped = true); }
+    charged?;
+    let next = runner.outcome_next_cursor()?;    Ok(QueryOutcome {
         complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.page_position_lost() && !runner.beyond_horizon && !runner.presence_unknown,
         cut: runner.read_cut(),
         capped_at: runner.meter.capped_at.clone(),
@@ -44,7 +56,8 @@ pub fn query_with_coverage(rows: &dyn Rows, schema: &Schema, program: &Program, 
         next_expiry: runner.next_expiry,
     })
     })();
-    (result, runner.missing_fact.is_some(), runner.only_retained_incomplete())
+    let components = if result.as_ref().is_ok_and(|outcome| matches!(outcome.data, Value::Row(_))) { runner.component_coverage() } else { Default::default() };
+    (result, runner.missing_fact.is_some(), runner.only_retained_incomplete(), components)
 }
 
 /// What a mutation predicts on the device: its result, and the tables it
@@ -125,6 +138,7 @@ impl Runner<'_> {
     // @ref LLP 3000.007#6.2 — preserve the first undecidable site's evaluated key.
     pub(crate) fn unknown_fact(&mut self, table: &str, index: &str, key: &[Value], site: &str) {
         self.beyond_horizon = true;
+        self.components.note(|frame| { frame.beyond = true; frame.unknown = true; });
         if self.missing_fact.is_none() {
             let key = crate::wire::to_json(&Value::Array(key.to_vec()));
             self.missing_fact = Some(format!("site {site}: this device cannot establish {table} by {index} at key {key}; the row or its absence is past the acquired horizon or online only"));

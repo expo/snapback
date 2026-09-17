@@ -55,6 +55,7 @@ table messages:
   room: text <=40
   at: time
   body: text <=40
+  unique byRoomAt: room, at
   by byTime: room, at, id
   by byWords: room, words(body), at, id
   read <- exists members[.room, viewer]
@@ -66,6 +67,14 @@ query search(room: text <=40, q: text <=40, c: cursor ?):
 query mixed():
   ignored = messages['left'] last 1 by byTime
   return messages['held'] last 50 by byTime
+query pointIndex():
+  return {left: messages[room = 'left', at = 25], held: messages['held'] last 50 by byTime}
+query pointId():
+  return {left: messages['left-25'], held: messages['held'] last 50 by byTime}
+query pointMiss():
+  return {left: messages['left-0'], held: messages['held'] last 50 by byTime}
+query pointExists():
+  return {left: exists messages['left-25'], held: messages['held'] last 50 by byTime}
 query both():
   leftRows = messages['left'] last 50 by byTime
   heldRows = messages['held'] last 50 by byTime

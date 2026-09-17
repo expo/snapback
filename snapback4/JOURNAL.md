@@ -29401,3 +29401,833 @@ and no permanent out-of-scope changes. The sandbox refused `git add` on the
 worktree's `index.lock`, so the resolved working files still have unmerged
 index entries; the lead must stage them before committing. No commit, push,
 tag, publication, sub-agent, clone or remote machine was used.
+
+## 2026-09-16 — planning the deferred device diet and mixed retained reads
+
+Charlie asked whether the two open architecture tickets warrant LLP planning,
+using modern Snapback 4 first. The main checkout was clean and fast-forwarded
+447 commits from `bc77d0914` to fetched `origin/main` at `18c8f5daf` before
+source/design inspection. Both warrant planning. Existing Draft research LLPs
+3000.002 and 3000.001 cover the resource and replica-lifecycle concerns, so
+those documents were extended rather than adding numbers or working-set links.
+LLP 3000 §7 and LLP 3000.007 §18.2 route readers to the proposals; both tickets
+remain open.
+
+The WASM lane's historical notes record 454,735 → 402,428 → 394,126 gzip
+bytes. Git confirms integration reverted both candidate cuts (`1e9944cb4`,
+`e429dc724`). The request reports an acquisition regression; this planning
+pass did not rerun it or establish its exact root cause. The 60,609-byte
+saving is therefore a rejected experiment, not current shipped progress.
+The recommended next investigation replaces backend/command/persistence
+representations while keeping the shared Rust executor initially. Actual
+acquisition, durable admission and fresh-realm offline reopen are required
+at the first end-to-end slice. A shared compact execution representation is
+conditional on the measured result; a new interpreter is not assumed necessary.
+
+The composition proposal tracks per-value data, absence and control
+provenance. Its first candidate combines only compiler-proven independent,
+cursor-free result components, under one publication to the client. The
+25 retained left rows plus 26 server-held rows remain incomplete and are not
+a single server snapshot; the draft recommends conservative freshness and
+names it as an acceptance choice. Cross-source joins/aggregates and dependent
+branches remain outside that slice. Current whole-query fallback, explicit
+held queries and the separate-query recipe remain the implemented behavior.
+
+These are planning changes only: no runtime implementation, new measurement,
+independent review, contract acceptance, publication or ticket closure is
+claimed. The existing NOT-DOING and gate budgets are unchanged. Each proposal
+has alternatives, staged work, real-client acceptance and stop conditions;
+the shared interpreter and resource budget connect the two without requiring
+one to wait for an unrelated implementation campaign.
+
+
+## 2026-09-17 — device architecture planning validation
+
+The two Draft extensions pass scoped metadata and all 19 newly added local
+link/anchor checks. The working set remains 59 document links. The journal's
+pre-task bytes are unchanged, and `git diff --check` passes. Full
+`./ref-check --verbose` reports the same 40 pre-existing reference errors
+under local `.llp/ship-runs/` records before and after; zero errors added or
+removed. No application tests or byte measurements ran for this docs-only
+change. Source self-review added remote reply identity binding and separated
+shadow provenance accounting from proposed active metering charges.
+
+
+## 2026-09-17 — the two device plans rewritten from a build, and commissioned
+
+Charlie asked for yesterday's two plans to be reviewed, rewritten if a better
+plan existed, and then executed. Both were rewritten; LLPs 3000.002 and
+3000.001 carry the new text, LLP 3000 §7 the decision, both tickets a dated
+follow-up. Planning inspection used local main `68ac50852` (origin
+`46f47983a` plus the planning commit).
+
+The diet plan had been written without a build. On the pinned toolchain the
+shipped-shape device is 1,891,742 B raw / 520,557 gzip / 394,881 brotli
+(glue 11,325 / 3,047); `wasm-opt -Os` gives 1,737,837 raw and 607,684 gzip
+and is not selected. A symbol-bearing build attributes 2,072,629 B: serde
+deserialize 657,165, serialize 134,417, serde_json's own code 53,567; std
+generics over Snapback types 370,741; the core's code 264,100; the device's
+127,558; `.rodata` 183,382; B-trees over std types 147,644. `BTreeMap` code in
+all classes is 505,002 B, slice sorting 107,923. Three scratch builds, none
+landed: one serde family in each direction in the device crate, 1,611,918 /
+458,877; every typed serde entry point in the device crate as an opaque
+import, 1,231,301 / 384,443; that probe without the NFC tables, 1,109,212 /
+324,438. The probe cannot run and still contains the core's own serde; it is
+a bound, not a candidate. The scripts and raw `twiggy` output are kept under
+`~/projects/snapback-dm-20260917/measure/`.
+
+So codec replacement cannot reach 150,000 alone, the cheapest certain saving
+is a fifteen-line change, and two classes the ticket never named are each as
+large as the codecs. The plan is a ladder measured rung by rung, with a
+reported byte budget so the module's growth (about 22 KB gzip a day since
+`bc77d0914`) is visible. Its estimates end near 180,000; the last rung is the
+author's decision. Host Unicode folding needs a ruling and is not landed
+without one.
+
+The composition plan kept its result and consistency rules and lost its
+machinery: a binder-proven component plan, coverage frames over flags the
+runner already keeps, and the client applying its existing routing rule per
+component. No per-value provenance, no server change, no wire or disclosure
+delta. No implementation, acceptance or ticket closure is claimed by this
+entry; the lanes that follow record their own evidence.
+
+
+## 2026-09-17 — five proposals for the remaining code-review issues
+
+Charlie requested a write-up of each of the five remaining review issues. This
+pass inspected source and current authoring contracts at `70a663c22285dc3a5278ca9ac13db01bbe05446b`
+and extended three covering LLPs with five self-contained Draft proposals:
+LLP 3000.002 contains byte-bounded staged sync, private physical-work bounds and
+coordinated durable retention; LLP 3000.001 contains secure client ID sources;
+LLP 3000.009 §17 contains scoped worker credentials. Root routing and every
+corresponding ticket link directly to the relevant proposal. The working set
+stays at 59, with no new number and no unrelated archival.
+
+Each proposal has source-grounded evidence, a recommended design, alternatives,
+compatibility/rollout, validation and unresolved choices. Staged sync covers
+atomic publication and current authority without waiting for a quiet server.
+Private probe indexes require semantic equivalence and disclosure review.
+Retention compacts history while preserving replay identities; its first phase
+does not promise finite total tombstone storage. The entropy proposal selects
+an explicit synchronous secure host source and distinguishes Expo getRandomValues
+from getRandomBytes' documented development fallback. Worker scoping preserves
+the newer bound identity-session issuance and separates credential scope from
+process isolation. These are proposals, not new author acceptance, executed
+runtime tests, storage measurements, migrations or ticket closures. Existing
+commissioned diet/composition work remains intact.
+
+The fresh same-family document review found one material gap: a delegated-token
+query/mutation allowlist did not explicitly deny sync and child-action routes.
+The draft now makes delegated credentials default-deny elsewhere, separates
+worker control credentials from service-data credentials, and adds direct-HTTP
+negative cases. It also preserves rule-probe expiry/invalidation observations,
+not merely the boolean. The received review and disposition are retained in
+[the review record](../llp/reviews/3000-review-proposals-20260917.md).
+
+The follow-up document review of `ffb24554b` returned **NO MATERIAL FINDING
+REMAINS**. Scoped validation passes: 33 added local links/anchors, unchanged
+59-document working set, byte-preserved pre-task journal prefix and
+`git diff --check`. `ref-check --verbose` reports 481 LLP documents, 9,054
+references, zero errors and zero unchecked. No runtime tests were run for this
+documentation-only change. The five proposed contracts remain Draft.
+
+## 2026-09-17 — derived data: three holes that were not holes (LLP 3000.007 §21)
+
+Asked after the 0.2.27 assessment how to fix the rolling ranking, the principal-writable
+ranking table, the digest over expiring rows, the serving architectures and the dropped
+push "through foundational properties". Before proposing any, the three that were called
+expressiveness holes were run on the **published 0.2.27 binary**; all three have short,
+fresh, safe forms today. Record: `benchmarks/runs/2026-09-17-snapback4-derived-probes/`.
+Nothing is built and no runtime file changed.
+
+- A rolling-24h ranking: `maintain trend: count likes by postHour, postAt, postId` with
+  `by byScore: postHour, value, id`, read as a merge of 25 hour lanes with `where .postAt >
+  now - 86400000`. 3,963 and 31,937 posts in the window: 265 and 276 examined, complete
+  with `next`, p50 2.9 and 2.2 ms over loopback, top ten equal to an oracle, no
+  out-of-window row. Zero-like posts are a second read of 25 examined. With `sync public`
+  on the sources it `runs: device` and the like still predicts.
+- A digest with no staging table: a job's nested range seek over the expiring `messages`
+  table compiles with no note; one helper serves the inbox query and the job. Seek the
+  period and filter the ordinal: for a hub in 1,000 chats of 99 messages with nothing read
+  the ordinal seek parks at `E_BOUND` (16,384) and the period seek finishes in one chunk,
+  57 ms. My first probe used the ordinal seek and passed its small fixture; a compiled
+  probe is not yet a safe example.
+- A rule pins a hand-kept score to the maintained count (`exists likeCounts[postId =
+  .postId, value = .score]`): a forged 999 is `E_RULE`.
+- Refused today, and the reason the good forms are long: `range(a, b)` as a merge lane
+  source; a computed time key in a table index.
+
+Learned: the mechanism was present each time and the pavement taught the detour — the
+README's digest recipe is one sentence, the jobs card's worked job walks a table by id,
+the fresh-ranking recipe itself shipped `update <- allow`. §21 proposes six properties
+(total reads; a fact about a row lives on the row; time is a key; expiry invisible to
+programs; one writer class per table; presence defers an effect and never drops one) and
+asks the author six rulings (28–33). Wave 12's drafted §20.21 is right about likes
+*arriving* in the last day and wrong that posts *younger* than a day need a read-time
+sort. Lanes W14a and W14b are briefed in `~/projects/snapback-next-20260914/`, not
+launched: the host's load average was 37 with 18 GiB free.
+
+## 2026-09-17 — W13d: a bounds bar that walks the hub, before wave 13
+
+Built `loopbar/bounds-brief.md`, `bounds.mjs`, the deterministic seed, metric
+extractor and wire probes, reusing the ceremony process/copy/schema machinery.
+The packet gives a fresh builder only the published pin and logical inputs;
+check, builder acceptance and independent probes each get a fresh copy. Every
+attempt gets a JSONL record, including missing `green=`. The bar records chosen
+integer tokens, saved-check codes, guide lines read, bound vocabulary, per-task
+Quarry lines, table/job/permissive-derived-rule counts, and native per-request
+complete/cut/continuation/meter observations. N is at least three; no nested
+builder was launched and no fresh-builder trial was fabricated in this lane.
+
+Qualified the reference app on published **0.2.27**, binary SHA-256
+`ae7838c7ed3a9a4b4be3fa454af69e9cacb792b5a23ad81d12386ec7e3fd2be7`, with both
+one- and two-cursor search. The seed has 1,300 chats, 1,349 memberships, 99,390
+messages (99,090 hub matches), 1,000 authors, 1,411 follows, 50,000 posts and
+98 likes. Its five source tables receive 152,248 rows through mutations;
+seeding took **12.049 s / 12.788 s**. Hub search returns all matches in
+**50 / 5,005 requests**, examining **100,139 / 2,131,075** rows and
+**2,000 / 198,200** index entries. Sparse search finds exactly five chats in
+5 / 10 requests. All pages complete, no runtime cut; hidden newer matches
+absent. Both protocols give the exact 50-member roster and 50,000 unread total
+(4 requests, 2,052 examined together), and exact changing top tens (12 examined
+per read). The reference has 5 tables plus 2 maintains, 0 jobs, 1 permissive
+derived read rule, and 63 chosen integer literal occurrences.
+
+Following first pages examine **115 / 1,540 / 115** rows for 5 follows / 500
+follows / celebrity, identically in both copies. Sixty samples after three
+warm-ups: 500/5 p50 ratios **2.317× / 2.945×**, p95 **0.995× / 5.285×**;
+celebrity/small post-acknowledgement p50 **0.955× / 1.081×**, p95
+**0.874× / 1.220×**. Ratios are observations, not gates, on this loaded host.
+`loopbar/BOUNDS.md` keeps the full task/counter/latency table and reproduction;
+raw local evidence is `target/w13d-measurements.json` (not seeded data).
+
+Learned: the first two-cursor fixture used `group(page, 'roomId')` and lost the
+merge continuation. The multi-page regression was red (**11 pass, 1 fail**),
+then green (**12 pass, 0 fail**) after returning shaped group fragments that
+preserve it. The final suite, adding terminal-incomplete/cut coverage, is
+**13 pass, 0 fail, 0 skipped** with Node 24:
+`TMPDIR=/private/tmp node --test packages/snapback4/test/loopbar*.test.mjs`.
+`./ref-check --verbose`: 481 LLP docs, 9,055 refs, 0 errors, 0 unchecked.
+No cargo, wasm build, install, full Rust suite, commit or publication. Outside
+`loopbar/`, only the two-line package test entry point and this append changed.
+The brief's description of empty September 13 ceremony records was wrong: the
+retained before and after each report three successful runs. Its concrete task
+is roster/unread, while §21.5 calls it a digest; the bar implements the concrete
+brief and makes no digest or device-acquisition claim.
+
+## 2026-09-17 — rulings 28–33, and the Trending lane folded into wave 12 (LLP 3000.007 §14, §21.6, §21.8)
+
+The author ruled §21.6's six questions, each put with its alternatives and a before/after,
+taking the recommended option on all six: a merge lane source may be `range(a, b)` or a
+bounded list (28); a table index may lead with `day`/`hour`/`bucket` of a required time
+column, as index keys only (29); maintained columns yes in direction, with the design and
+a two-family blind review before anything is built (30); `N_PUBLIC_AGGREGATE_COPY`
+generalised to "derived in fact, admitted to everyone" after a false-positive census, a
+note and never an error (31); presence defers an effect and never drops one, after the
+effect-row cost is measured on the chat fixture (32); the blind review of mutation pages
+over an expiring table with a uniformly decided prefix is commissioned (33). Nothing is
+built by this entry.
+
+Two facts checked while the rulings were put. A bounded list argument is refused as a
+merge lane source with the same message as `range` (`a merge for lane requires a bounded
+range read`), so ruling 28 covers both. And ruling 32's mechanism is smaller than §21
+first said: every commit already wakes every held poll (the wait is on the store's
+sequence), a live client re-polls within milliseconds and each arrival already records
+`presence_reconnected`; the d-05 window is the 2-second heartbeat that notices a vanished
+client.
+
+The wave 12 lead was told of §21.1 item 1 before 0.2.28 and did not take it on trust: it
+compiled `trending-validated/` on its own build, reproduced the ranking and the `E_RULE`
+refusal, and ran W14a's brief unmodified inside wave 12 (lane W12R1c). Its blind reviews
+had already found that the read-time-sort `trending()` fabricated a ranking past the
+examined cut — an unfinished maintained point read coerced to 0 — which the lanes form
+dissolves. It also corrected a claim §21 had repeated: for a `count`, a stale value index
+is unbuilt rather than unsound, because expiry only lowers the live value below the stored
+one and a threshold scan terminates exactly. §21.3 P3 now says so. W14b (the digest) stays
+with this session.
+
+The author then delegated ruling-sized decisions for about twelve hours. The first three
+taken under it are §21.8's: rulings 28 and 29 go in one lane after or inside wave 13's
+W13c (one function, the merge lane-source binding, is shared with ruling 23 and with
+`issues/20260917-snapback4-merge-lane-source-seek-expression-is-an-unknown-variable-at-runtime.md`);
+ruling 30's design is a section of LLP 3000.007, reviewed blind before any lane; no
+cargo-building lane is launched from this session above a load average of 15, and
+publishing stays with the wave 12 lead.
+
+## 2026-09-17 — ruling 32 measured, ruling 33 under blind review, ruling 30's design drafted (LLP 3000.007 §21.8, LLP 3000.007.001)
+
+Work taken under the author's twelve-hour delegation; each decision is recorded as the
+lead's in LLP 3000.007 §21.8 (L1–L6). Nothing is built and nothing is published.
+
+- **Ruling 32's measurement** (`presence-cost/` in the derived-probes record; published
+  0.2.27; a 50-member room; host load 30+, so shape not magnitude): 49 durable effect rows
+  cost about 0.9 ms a send, about 18 µs a row. With 49 held polls a send's p50 rises from
+  2.9 ms to 15–19 ms whether or not it emits — every commit wakes every held poll — and
+  6,724 of about 7,800 connected-recipient decisions were already recorded as deferred
+  effects, because under rapid sends most recipients are in grace between a poll's answer
+  and its re-poll. Decision L4: build ruling 32 on the existing effect row, one per
+  recipient. What a busy room pays for is the wake storm, which ruling 32 does not touch
+  and which deserves its own look (a poll waits on the store's sequence, not on its
+  partitions).
+- **Rulings 28 and 29** go to wave 13: its lead absorbs both as a serial continuation of
+  W13c, which already owns the merge lane-source binding (ruling 23 and the lane-source
+  seek ticket). The brief section is `~/projects/snapback-next-20260914/W13c-rulings-28-29.md`.
+  Decision L5 reads ruling 29 as a key component at any position, as maintain groups allow.
+- **Ruling 33's blind review is running** (`~/projects/snapback-r33-review/`, baseline
+  `0e3cf8959`; gpt-6-astra xhigh read-only, grok-4.6 xhigh plan mode; the Grok CLI was
+  probed first and answered). The proposal's centre is one claim for the reviewers to
+  break: for a uniformly decided prefix, a mutation's abort-versus-commit shows a viewer
+  nothing that an already-admitted query over the same expiring prefix does not.
+- **Ruling 30's design is LLP 3000.007.001** (Draft; `llp/current/` is now 60 links).
+  Facts checked on the way: a reference does not enforce existence (`dangling-reference/`:
+  a like of `no-such-post` is `sent`), so a maintained column counts at its parent's birth;
+  the change stream applies no horizon (`partition.rs` uses it for acquisition only), so
+  engine-written counts would make devices acquire old parents — the design's §3.6, left
+  open for the reviewers with a measurement owed; engine-maintained writes do not fan out
+  to maintains (`row_changed`, `Origin::Maintained`), so the first build has no cascade.
+- Corrected in §21.3 P1 from the bounds bar's numbers (the wave 13 lead's correction): a
+  merge-on-read Following measured 2.5–3.1× on metered requests and 7.3–9.0× on bare
+  clients at 500 over 5 follows; the feeds recipe stays the paved Following until
+  keys-only heads are measured.
+
+## 2026-09-17 — every commit wakes every held poll: measured and ticketed
+
+Following ruling 32's measurement: the rise of a send's p50 with 49 held polls is not the
+room's own fan-out. With 49 connected personas who belong to **nothing**, 160 commits into
+one principal's private room produced 6,439 bystander `/changes` answers and doubled the
+writer's p50 (2.07 → 4.00 ms, `dev --memory`, published 0.2.27); a bystander's answer names
+the table the other principal wrote (`"tables":["messages"]`). The poll waits on the store's
+one commit counter and `check` reports every table committed after `since`, unfiltered. LLP
+3000.009 §7.1 already owns narrower observation and asks for this fan-out to be measured
+first; the ticket (`issues/20260917-snapback4-every-commit-wakes-every-held-poll.md`) adds
+that replica devices are woken too and that the wake is an activity side channel, and
+suggests the smaller first step: wake a poll only for a commit that touched a partition its
+principal holds or a table its watches read. Probes are in the derived-probes record.
+
+## 2026-09-17 — two blind rounds returned: ruling 33 narrowed, maintained columns revised, a sync defect reproduced
+
+Both commissioned reviews came back the same way: **GPT NOT READY, Grok READY WITH
+CHANGES**, and in each the decisive High findings came from one family only. Records:
+`llp/reviews/3000.007-ruling-33-expiring-mutation-pages.{gpt,grok}.md` and
+`llp/reviews/3000.007.001-maintained-columns.{gpt,grok}.md`; dispositions in LLP 3000.007
+§21.9 and LLP 3000.007.001 §10. Nothing is built.
+
+- **Ruling 33.** The lead's argument — a query over the same prefix already shows the
+  viewer its unswept population — fails when the mutation itself makes the prefix readable
+  (a hidden gate row written, the page bound, the gate written back): abort versus commit
+  then measures a prefix no query of that viewer can reach. And a predicting mutation can
+  fail locally on a device-only unswept row and never reach a server that would have
+  committed it. Revision 2 admits never-predicting mutations only, under a static
+  stable-verdict condition, and is back with both families. The broader disclosure
+  contract is left to the author.
+- **Maintained columns (LLP 3000.007.001, revision 2).** The reservation the draft cited
+  does not hide a parent's presence (it no-ops for a readable, unfiltered source):
+  now unconditional and origin-keyed. Counting at a parent's birth leaked hidden
+  population work: replaced by **limbo aggregates**, so birth and death are O(1). A column
+  rebuild that reused `rebuild_maintain` would have **deleted every parent row**: the
+  rebuild is in place, never deletes, and rewrites nonzero-to-zero on redefinition.
+  Old images do not read 0 today: an implicit literal 0 and a named `Additive` exception.
+  A 100,000-parent activation is one undeliverable commit: activation becomes a generation
+  barrier with no row events. Rule probes from other tables could read the column: a
+  resolved dependency walk, shared by binder and core. And the first build **does not
+  predict the column on a device**, because of the next item.
+- **A sync defect, found by the GPT review and reproduced on published 0.2.27**
+  (`stream-image-ahead/` in the derived-probes record; ticket
+  `issues/20260917-snapback4-stream-page-serves-images-newer-than-its-watermark.md`): a
+  stream page re-materializes each `put` from the *current* row while its watermark stays
+  at the log page, so a page ending before a device's own commit, and not acknowledging
+  it, already carries its effect; the device replays the pending write on top. A public
+  counter bumped by bob (seq 2) and alice (seq 3): alice's page from watermark 1 with
+  limit 1 ends at watermark 2 with `n = 2`, and her pending `bump` replays to 3. Any
+  predicted read-modify-write is affected; writes that set a value are not.
+
+Learned, again: the design I thought was the careful one (ruling 33's "a query already
+shows this") had the hole; and two families are not redundancy — of eleven High findings
+on the RFC they shared one.
+
+## 2026-09-17 — rulings 28–33, and the Trending lane folded into wave 12 (LLP 3000.007 §14, §21.6, §21.8)
+
+The author ruled §21.6's six questions, each put with its alternatives and a before/after,
+taking the recommended option on all six: a merge lane source may be `range(a, b)` or a
+bounded list (28); a table index may lead with `day`/`hour`/`bucket` of a required time
+column, as index keys only (29); maintained columns yes in direction, with the design and
+a two-family blind review before anything is built (30); `N_PUBLIC_AGGREGATE_COPY`
+generalised to "derived in fact, admitted to everyone" after a false-positive census, a
+note and never an error (31); presence defers an effect and never drops one, after the
+effect-row cost is measured on the chat fixture (32); the blind review of mutation pages
+over an expiring table with a uniformly decided prefix is commissioned (33). Nothing is
+built by this entry.
+
+Two facts checked while the rulings were put. A bounded list argument is refused as a
+merge lane source with the same message as `range` (`a merge for lane requires a bounded
+range read`), so ruling 28 covers both. And ruling 32's mechanism is smaller than §21
+first said: every commit already wakes every held poll (the wait is on the store's
+sequence), a live client re-polls within milliseconds and each arrival already records
+`presence_reconnected`; the d-05 window is the 2-second heartbeat that notices a vanished
+client.
+
+The wave 12 lead was told of §21.1 item 1 before 0.2.28 and did not take it on trust: it
+compiled `trending-validated/` on its own build, reproduced the ranking and the `E_RULE`
+refusal, and ran W14a's brief unmodified inside wave 12 (lane W12R1c). Its blind reviews
+had already found that the read-time-sort `trending()` fabricated a ranking past the
+examined cut — an unfinished maintained point read coerced to 0 — which the lanes form
+dissolves. It also corrected a claim §21 had repeated: for a `count`, a stale value index
+is unbuilt rather than unsound, because expiry only lowers the live value below the stored
+one and a threshold scan terminates exactly. §21.3 P3 now says so. W14b (the digest) stays
+with this session.
+
+The author then delegated ruling-sized decisions for about twelve hours. The first three
+taken under it are §21.8's: rulings 28 and 29 go in one lane after or inside wave 13's
+W13c (one function, the merge lane-source binding, is shared with ruling 23 and with
+`issues/20260917-snapback4-merge-lane-source-seek-expression-is-an-unknown-variable-at-runtime.md`);
+ruling 30's design is a section of LLP 3000.007, reviewed blind before any lane; no
+cargo-building lane is launched from this session above a load average of 15, and
+publishing stays with the wave 12 lead.
+
+
+## 2026-09-17 — lane MQ: independent retained and authoritative record fields
+
+Implemented M0–M2 of LLP 3000.001's composition plan in the working tree for
+lead integration, from base `70a663c22285dc3a5278ca9ac13db01bbe05446b`.
+No commit, push, publication, ticket closure, or outside-sandbox qualification
+is claimed. `Execution.components` is optional with serde default/empty
+omission. The binder proves ownership over lowered IR; the device dispatcher
+returns coverage for proven fields; the client requests the original query,
+observes the device again, and publishes one composed ordinary `Read`.
+The server and `contract.ts` are unchanged. The exact fixture is 25 retained
+left rows and 26 authoritative held rows online, 25 and 25 offline, with
+`complete: false`, `fresh: false`, no `since`, and no continuation online.
+Transport failure uses the second whole local answer. Composed operations
+delete any remembered server answer and do not cache their server reply.
+
+The frame implementation mirrors coverage events; it never clears the
+interpreter's global flags. Literal save/clear/merge would change execution:
+scans and merges consult earlier cuts. The original global flags still
+choose the first missing-fact text, whole-query completeness, cut, cursor,
+dependencies, expiry and metering. There is one meter. An expression after
+its cap is incomplete, including the returned expression of an earlier
+binding. A shared guard after the cap withholds component coverage.
+
+The flag-read audit used
+`rg -n 'capped_at|word_cut_at|missing_fact|beyond_horizon|non_uniform|page_overflow|presence_unknown|discarded_page_loss|self\.page\b|self\.pages\b' snapback4/crates/snapback4-core/src/engine snapback4/crates/snapback4-core/src/meter.rs`.
+All paths retain the same global state and order:
+
+- `engine/read.rs:428` preserves the first word-cut description.
+- `engine/read.rs:607,614,634` stops candidate/filter work after a meter cap;
+  `:667` selects scan continuation from cap/non-uniform/word state;
+  `:802` gates merge continuation; `:864` gates merge refill. These mid-run
+  branches are why flags cannot be cleared.
+- `engine/read.rs:676–677,684,689` preserves discarded page-position loss,
+  tests page loss and constructs the next cursor. `engine/runner.rs:255,339`
+  accesses collector interruption and the returned page. No page state is
+  reset; cursor-bearing programs receive no plan, and any page loss
+  defensively withholds coverage.
+- `engine/runner.rs:114–116` chooses the public cut from global flags.
+- `engine/local.rs:143` preserves the first missing fact; `:85–86` reads
+  beyond-horizon/missing-fact state for prediction; `:48–61,117–136` derives
+  the final whole result and retained-only word. Prediction has no frames.
+- `engine/write_target.rs:59–60,81` preserves first-missing-fact diagnostics
+  and uses global beyond-horizon state for absence proof;
+  `engine/write.rs:452,454` preserves the first unknown write diagnostic.
+  Writes are ineligible, and these helpers still see the original flags.
+- `meter.rs:131,144,149` preserves the first cap and existing mark/restore
+  behavior. Frame bookkeeping never changes meter state or charges.
+- `engine/mod.rs:705,722–725` and `engine/postgres/mod.rs:144–151` read final
+  server coverage. Servers never enable component observation.
+- New reads in `engine/components.rs:57,62,75,85`, `engine/runner.rs:198`
+  and `engine/local.rs:42–44` only copy cap/page observations into coverage
+  or withhold the component map. They do not branch the program's work.
+
+Helper bodies are not opaque calls in IR. `bind/program/control.rs`
+`helper_arguments` snapshots arguments once into fresh runtime names;
+`fn_call` expands expression helpers in the caller, and block-bodied helpers
+into fresh result/done bindings plus assignments/conditional statements.
+The analysis sees all reads and top-level dependencies after expansion.
+Fresh names prevent helper-local variables from hiding a caller binding;
+nested writes may target only locals declared inside the inspected block.
+A top-level block-bodied helper is conservatively ineligible because its
+lowered top level is not bind-once. Expression helpers called from both
+components pass. Inline multi-read aggregates are ineligible, as are their
+bind-once equivalents; the final review added a red-before/green-after test
+for this distinction. Multi-source forms that cannot prove independence
+keep whole-query behavior.
+
+Test commands below ran from `snapback4/`, except the root suite and root
+checks. All Node/Bun commands used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+
+- Base routing regression: `node --test --test-name-pattern='R2 mixed result' /tmp/mq-base-retained.test.mjs`.
+  The temporary test used the exact base `local.ts`, transpiled into a
+  temporary module, with the current real device hosts to isolate routing.
+  Summary: `ℹ tests 2`, `ℹ pass 0`, `ℹ fail 2`, both `0 !== 25`.
+  This is a base-client comparison, not a complete base checkout run.
+  The temporary module was removed from package `dist` after the comparison.
+- Inline aggregate regression, before the binder correction:
+  `cargo test -p snapback4-lang --test components inline_cross_read_aggregate_has_no_plan`.
+  `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.01s`.
+- Final affected Rust checks:
+  `cargo test -p snapback4-device --test components -p snapback4-lang --test components -p snapback4-lang --test guide -p snapback4-core --test corpus -- --nocapture`.
+  `corpus (Rust server only; no TypeScript/replica conformance claim): 212 passed, 83 skipped, 0 failed`.
+  `test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 24.06s`.
+  `test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.22s`.
+  `test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s`.
+  `test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.78s`.
+  Each store printed `component differential: 45 comparisons; 0 differences`:
+  nine planned scenarios times five ceilings, 90 comparisons total.
+  Corpus differential: `2 planned programs; 2 comparisons; 0 differences`.
+  Seven named legacy word-search IR cases are explicitly excluded because
+  they cannot deserialize into the current IR (the main corpus runner also
+  excludes legacy word-search); no differential claim covers them. Unexpected
+  decode failures are assertions. Existing corpus files were not changed.
+- Whole device suite, including full-outcome/meter comparisons in the test
+  dispatcher for every planned query it receives:
+  `cargo test -p snapback4-device --test device -- --nocapture`.
+  `test result: ok. 188 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 198.93s`.
+  There were two dispatcher comparisons, one per store. The dedicated
+  scenarios additionally cover helpers, guards, unknown guards, discarded
+  reads, zero retained rows, missing points, scalars, caps, page overflow
+  and word cuts. The final inline-aggregate binder restriction was checked
+  by the affected Rust command above after this whole-device run.
+- Final actual clients:
+  `node --test --test-concurrency=2 packages/snapback4/test/retained-history.test.mjs`.
+  `ℹ tests 20`, `ℹ pass 20`, `ℹ fail 0`, `ℹ skipped 0`,
+  `ℹ duration_ms 25458.314375`.
+  Both wasm and process arms exercise exact rows/body/card words; watches;
+  offline/reconnect; offline close/reopen using persisted wasm memory and
+  SQLite; ineligible shapes; delayed replies across regrant, a held-room
+  write, close, sign-out and transport failure. Delayed watch and query
+  publications are checked together. Native and nested-local-sink
+  ineligibility is tested at the binder rather than as a new native client
+  fixture.
+
+The root command `bash snapback4/scripts/test.sh` ran three times under
+bounded process-group wrappers. It did not produce a successful aggregate:
+360 s, 240 s and 600 s limits all expired (wrapper status 124). Logs are
+`/tmp/mq-suite.log`, `/tmp/mq-suite2.log`, `/tmp/mq-suite-final.log`; the last
+says `TIMEOUT: bash snapback4/scripts/test.sh exceeded 600 seconds; intermediate logs retained.`
+The final attempt's copied logs are `/tmp/mq-suite-final-*.log`.
+Builds, wasm, package typecheck/build, chat check, chat/Expo typechecks and
+fixture wrappers completed; fixtures reported `ℹ tests 9`, `ℹ pass 9`,
+`ℹ fail 0`. Its default-concurrency client arm reported `ℹ tests 554`,
+`ℹ pass 529`, `ℹ fail 23`, `ℹ skipped 2`; the witness Rust binary reported
+`test result: FAILED. 8 passed; 12 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.19s`,
+mostly `E_WITNESS_TIMEOUT` from simulator-command probes. An earlier attempt
+had lifecycle `18 passed; 1 failed` with a child that did not exit. These are
+observations under sandbox/load, not claims verified on a clean base.
+The full-suite attempts preceded the final conservative inline-aggregate
+restriction; the final affected Rust and client checks followed it.
+
+The required lower-concurrency rerun,
+`node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'`, reported
+`ℹ tests 554`, `ℹ pass 547`, `ℹ fail 5`, `ℹ skipped 2`,
+`ℹ duration_ms 231762.532042`. Its four non-browser failures all passed alone:
+
+- `node --test --test-name-pattern='healthy heartbeat polls' packages/snapback4/test/transport-http.test.mjs`
+- `node --test --test-name-pattern='an exit send invalidates' packages/snapback4/test/web-navigation.test.mjs`
+- `node --test --test-name-pattern='lost effect lease on the wire reports sent' packages/snapback4/test/worker.test.mjs`
+- `node --test --test-name-pattern='W6R1 A native: already-open owners equal input, in-flight send' packages/snapback4/test/write-ids.test.mjs`
+
+Each printed `ℹ tests 1`, `ℹ pass 1`, `ℹ fail 0`, `ℹ skipped 0`.
+`node --test packages/snapback4/test/react.test.mjs` still printed
+`ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`, with Chromium SIGABRT.
+`cargo test -p snapback4 --test witness` passed alone:
+`test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 28.12s`.
+
+`bash scripts/build-wasm.sh` measured `wasm 1921140 B raw, 525668 B gzip`.
+This is an absolute measurement, not a controlled before/after byte delta.
+No meter ceiling or serialized value form changed. The human and JSON
+`check --residency` commands on `/tmp/mq-residency` both name
+`both: runs: device; components: held, left`; the human active-store path
+also prints component names when it suppresses detailed facts.
+`./ref-check --verbose` reported
+`ref-check: ok — 481 LLP docs, 9057 refs in 24113 files, 0 errors, 0 unchecked`.
+`git diff --check` passed. All changed code files are at most 1,499 lines.
+`node scripts/caps.mjs` reports one violation outside the lane:
+`crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs is 1504 lines, over the cap of 1500.`
+A byte comparison against `git show 70a663c22285dc3a5278ca9ac13db01bbe05446b:crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs`
+confirmed the offending file exactly matches the base. It was not edited.
+
+Remaining M3 work: composition-specific reset/adoption/rotation, pending-write
+settlement, expiry/revocation/interrupted-acquisition interleavings and real
+IndexedDB browser reopen. The existing queued-write and incarnation guards
+are used, but this lane does not claim those extra witnesses. The lead must
+rerun the full suite and both client arms outside the sandbox before closing
+the ticket. `call.rs` has only the dispatcher addition; `web.rs`, `memory.rs`,
+map types, durable stores, value wire forms and `contract.ts` were not edited.
+No out-of-scope source file was changed.
+
+Two brief premises needed correction besides the flag reset: block-bodied
+helpers do not lower to a single bind-once expression, and the IR's
+`Divmod.remainder_sink` is an output label (`sink`), not an assignment in the
+interpreter. The requested top-level-name exclusion is nevertheless enforced
+conservatively. The approximately 60-second warm-suite expectation was not
+reproducible on this shared machine; even the passing whole-device run took
+198.93 seconds. Those limitations are reported rather than hidden by new
+fallbacks, raised budgets or environment fixes.
+
+## 2026-09-17 — MQ-R1: retained-read review fixes
+
+Implemented the lead's dispositions against base `34a21aa90363728684e0bd64754cb84e04a82ed0`, after reading both `MQ-r1.sol.md` and `MQ-r1.grok.md`. Composition still requires both retained history and a component needing the server. Once entered, it keeps every second-local component for which the shared predicate does not want the server; completeness conjoins every locally kept frame with the server's word. The delayed third until-revoked component now stays deleted after an applied row deletion or scope tombstone.
+
+Found point reads, including `exists`, mark only their component. `Reading::retained_group` also sets the old whole-query retention cell, so the new `Rows::retained_row` hook derives membership from the found row through `history::row_key`/`is_left` without that side effect. Misses retain the old unknown/null behavior. This deliberately follows the lead over Sol's proposed miss reclassification and over Grok's broader composition-entry predicate. Direct reading guards and escaped nested free names have no plan. The shared runtime frame still withholds an unclean forced plan. Meter charge refusals and read sites observing a cap mark their active frame; returning a previously completed binding does not inherit a later binding's cap. With examined=30, left keeps all 25 rows and its retained word; the later held read is capped. With examined=3, the subsequent reading binding is incomplete.
+
+The new adoption qualification exposed a further defect: a program-only backend update cleared images and left-group metadata, and an old backend's delayed answer could publish. `device.rs` now preserves images for unchanged tables/maintains as well as the existing literal-default evolution case, and keeps their history metadata. The client advances its incarnation on successful adoption and drops remembered server answers. No durable or wire format changed. This small additional change in `device.rs` was necessary for disposition 8; the forbidden `web.rs`, `memory.rs`, serde plumbing, ceilings and `contract.ts` were not edited.
+
+The actual-client file now has 21 scenarios per tier (42 total). New scenarios cover unique-index/id point hits, a miss and exists; complete-only composition entry's positive control; delayed current-row deletion and revocation; compatible adoption; store replacement; real guest-session rotation; prediction admission and settlement; expiry of one retained or held row using `POST /dev/clock/advance` by 7,200,000 ms and the device query's explicit clock input; interrupted replacement acquisition; and a same-store interrupted snapshot preserving retained history. Both delayed query and watch responses must actually reach the reply gate before the event runs. Every retained watch publication is checked for exact retained rows and incomplete coverage. Server-owned held fields preserve the one server transaction's observation; the next query observes held-row expiry. There is no claim of a common snapshot across the two hosts.
+
+`witness/idb.mjs` now joins two dedicated rooms on the real server, leaves one, checks exact 25+26 online, 25+25 offline, reloads into a fresh realm with all network blocked, checks exact 25+25 from IndexedDB, and reconnects to exact 25+26. Composed observations are incomplete and not fresh. The command remains `node witness/idb.mjs`. Its extra Quarry was independently started through the existing `devServer` helper: `IndexedDB witness backend: 2 component fields; 0 compile errors`. The browser run itself cannot be claimed: Chromium exited with SIGABRT before the page existed. The lead must run that one command outside the sandbox.
+
+All JavaScript commands below used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`; Cargo/Bun and package commands ran from `snapback4/`. No bare formatter, installation, commit, push, tag, publication, remote machine or sub-agent was used.
+
+Red-before evidence, with regression tests added before their corresponding fixes:
+
+- `cargo test -p snapback4-lang --test components -- --nocapture` (`/tmp/mqr1-lang-red.log`): `test result: FAILED. 4 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s`. The failures are the reading guard and escaped nested local.
+- `cargo test -p snapback4-device --test components -- --nocapture` (`/tmp/mqr1-frames-red.log`): `test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.95s`. Both stores fail the examined=30 retained-frame assertion.
+- `cargo test -p snapback4-device --test components --test device retained_point_hits_and_misses_on_both_stores -- --nocapture` (`/tmp/mqr1-point-red.log`): `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 188 filtered out; finished in 0.34s` for the device suite. The components suite's filter selects zero tests. The found unique-index point lacks retention.
+- `node --test --test-concurrency=2 --test-name-pattern='MQ (points|delete current|revoke current)' packages/snapback4/test/retained-history.test.mjs` (`/tmp/mqr1-client-red2.log`): `ℹ tests 6`, `ℹ pass 0`, `ℹ fail 6`, `ℹ skipped 0`, `ℹ duration_ms 4099.692791`. The unchanged base binary/wasm/package artifacts lose the found left point and resurrect the third component's deleted/revoked row. The first harness attempt was interrupted after its cleanup waited on a blocked reply; cleanup now releases the gate before closing the client.
+- `cargo test -p snapback4-lang --test guide composition_card_matches_readme_and_the_routing_boundary -- --nocapture` initially stalled before any test output. Running the same compiled pre-edit test binary copied to `/tmp/mqr1-guide-probe` with `composition_card_matches_readme_and_the_routing_boundary --nocapture` (`/tmp/mqr1-doc-red-final.log`) produced `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 50 filtered out; finished in 0.00s`: the old card says verbose is required for component names.
+- `node --test --test-concurrency=2 --test-name-pattern='MQ (adoption|reset|expiry|interrupted)' packages/snapback4/test/retained-history.test.mjs` (`/tmp/mqr1-m3-red.log`): `ℹ tests 10`, `ℹ pass 8`, `ℹ fail 2`, `ℹ skipped 0`, `ℹ duration_ms 8854.12975`. Both adoption cases publish epoch 1 after adopting epoch 2. The earlier harness-only run had 5 passes/9 failures: two were genuine adoption failures; expiry lacked its required index and used an unsupported duration literal, and reset events occurred before both replies reached the gate. Those fixture errors were corrected before the named red run.
+
+Final targeted evidence:
+
+- `cargo test -p snapback4-device --test components -p snapback4-lang --test components --test guide -- --nocapture` (`/tmp/mqr1-affected-last.log`):
+  `test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s`;
+  `test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s`;
+  `test result: ok. 51 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.61s`.
+  Each store prints `component differential: 35 comparisons; 0 differences` (70 comparisons total). The corpus prints `corpus component differential: 2 planned programs; 2 comparisons; 0 differences` and asserts by name `component-independent-record.json: 2 fields; 1 differential comparison; 0 differences`. The same seven legacy word-search cases remain explicitly excluded because they cannot deserialize into the current IR; no existing corpus case was edited.
+- `cargo test -p snapback4-device --test device retained_point_hits_and_misses_on_both_stores -- --nocapture`: `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 188 filtered out; finished in 0.09s`. Eight dispatcher differentials cover four point shapes on both stores.
+- `cargo test -p snapback4-device --test device compatible_adoption_keeps_retained_components_on_both_stores -- --nocapture` (`/tmp/mqr1-adoption-green.log`): `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 189 filtered out; finished in 0.26s`. A first incomplete adoption correction still failed this test and both client adoption cases; the final condition also admits unchanged tables, whereas the existing literal-default helper requires an actual new literal field.
+- `node --test --test-concurrency=2 packages/snapback4/test/retained-history.test.mjs` (`/tmp/mqr1-client-final.log`): `ℹ tests 42`, `ℹ pass 42`, `ℹ fail 0`, `ℹ cancelled 0`, `ℹ skipped 0`, `ℹ duration_ms 28059.557292`. The immediately preceding run was `42 tests`, `40 pass`, `2 fail`, exposing the incomplete adoption condition; all other scenarios passed. Additional same-store snapshot development runs exposed a test branch-selection error and then an expectation error (an online reply can still provide 26 held rows during a staged snapshot); the final test pins that valid composed observation and its incomplete word.
+- `bash scripts/build-wasm.sh` (`/tmp/mqr1-wasm-final.log`): `wasm 1923678 B raw, 526650 B gzip`. This is an absolute build measurement, not a controlled before/after byte attribution. Earlier intermediate builds measured 1,921,745/526,015 bytes. `bun run --cwd packages/snapback4 build` passed, as did the package build/typecheck steps in the blocking-suite attempts.
+
+The negative eligibility controls and named corpus assertion already pass at this base because the feature is implemented there. Several M3 safeguards also already pass. The brief's request for a red-before line for every disposition cannot truthfully be met by these qualification tests or by an unavailable Chromium witness; no fake failures or mutated no-op implementation are presented as base regressions. The card's older guide test also prohibited every bare `check --residency` mention in sync; it now preserves the verbose requirement for detailed facts while admitting bare component names. README and sync use identical composition text, including at most one read per field, no reading require, found point composition, every locally kept component's completeness and the pending-write exception.
+
+The final adoption correction preserves the existing acquisition contract: unchanged tables keep their physical images/history, but a program-only generation change still refuses reads with `E_PREDICT` until its snapshot completes. The literal-default case retains its prior acquisition behavior. The adoption test now uses a real engine adoption and replacement snapshot, checks the interim refusal, and then compares exact images/frames. `cargo test -p snapback4-device --test device compatible_adoption_keeps_retained_components_on_both_stores -- --nocapture` (`/tmp/mqr1-adoption-verified.log`) prints `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 189 filtered out; finished in 0.24s`. Its earlier test edit mistakenly accessed `.generation` on `Engine::adopt`'s `u64` return; that compile error was corrected without a product change. `cargo test -p snapback4-device --test device the_device_follows_the_server_and_answers_locally -- --nocapture` (`/tmp/mqr1-acquisition-neighbor-final.log`) preserves the old acquisition/reopen scenario: `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 189 filtered out; finished in 0.36s`. An initial attempted filter `query_prediction_stream_and_reopen` selected zero tests and is not counted as validation.
+
+`cargo test -p snapback4-device --test device search_merge:: -- --nocapture` (`/tmp/mqr1-device-targeted.log`) prints `test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 178 filtered out; finished in 0.96s`. The broader `cargo test -p snapback4-device --test device -- --nocapture` attempt was stopped after exposing the first incomplete adoption correction and while scale tests continued beyond sixty seconds; no aggregate pass is claimed for that superseded run.
+
+The required lower-concurrency whole-client run, `node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'` (`/tmp/mqr1-clients-low.log`), prints `ℹ tests 576`, `ℹ pass 573`, `ℹ fail 1`, `ℹ cancelled 0`, `ℹ skipped 2`, `ℹ duration_ms 308049.265292`. Its only failure is `React hooks and reference-app lifetimes`: Chromium exits with SIGABRT. The non-browser failures observed under the earlier blocking run's default concurrency do not recur at concurrency 2. That earlier run began before the final adoption corrections and reported `ℹ tests 576`, `ℹ pass 565`, `ℹ fail 7`, `ℹ cancelled 2`, `ℹ skipped 2`, `ℹ duration_ms 118663.141042`; it is superseded, not base evidence.
+
+Final-tree qualification after preserving acquisition:
+
+- `node --test --test-concurrency=2 packages/snapback4/test/retained-history.test.mjs` (`/tmp/mqr1-client-verified.log`): `ℹ tests 42`, `ℹ pass 42`, `ℹ fail 0`, `ℹ cancelled 0`, `ℹ skipped 0`, `ℹ duration_ms 25936.209542`.
+- Root command `bash snapback4/scripts/test.sh`, launched by `/tmp/mqr1-final-suite.py` with Node 24 on PATH and `TMPDIR=/private/tmp/mqr1-suite-temp/`, reached its 300-second bound: `final suite exit=124; elapsed_s=300.07`. `/tmp/mqr1-suite-final.log` ends `TIMEOUT: bash snapback4/scripts/test.sh exceeded 300 seconds; intermediate logs retained.` There is no aggregate suite pass/fail count. The final Rust arm recorded no failed test summary before interruption; it was still in the 190-test device suite, with the calibration, following-scale/removal and global-search scale cases reporting over sixty seconds. This is incomplete qualification, not evidence that those tests passed or a claim that a failure was verified on the base.
+- That run completed cargo build (5 s), wasm build (15 s), package typecheck (3 s), package build (6 s), chat check (2 s), chat and Expo typechecks (2 s each), and fixture tests: `ℹ tests 9`, `ℹ pass 9`, `ℹ fail 0`, `ℹ skipped 0`, `ℹ duration_ms 34531.664792`. Its client arm printed `ℹ tests 576`, `ℹ pass 572`, `ℹ fail 2`, `ℹ cancelled 0`, `ℹ skipped 2`, `ℹ duration_ms 89039.39375`. Archived arm logs are `/tmp/mqr1-suite-final-cargo-test.log`, `/tmp/mqr1-suite-final-client-tests.log` and `/tmp/mqr1-suite-final-fixture-tests.log`.
+- The two client failures are Chromium SIGABRT in `react.test.mjs` and the wasm maximum-pending-IDs transport case. Required isolated rerun: `node --test --test-name-pattern='wasm: maximum pending ids, cursor batches and every terminal acknowledgement' packages/snapback4/test/transport-http.test.mjs` (`/tmp/mqr1-transport-rerun.log`): `ℹ tests 1`, `ℹ pass 1`, `ℹ fail 0`, `ℹ skipped 0`, `ℹ duration_ms 12917.686042`. It acknowledged 273 terminal writes, exercised the 256-ID boundary and used 5 snapshot cursors. The lower-concurrency whole-client run above independently leaves only the Chromium failure.
+- Two earlier full-suite attempts are not final-tree qualifications. The first was interrupted after it exposed the incomplete adoption correction. The second reached a 600-second bound, with `suite exit=124; elapsed_s=668.62` (including slow enumeration while preserving its logs); `/tmp/mqr1-suite.log` and `/tmp/mqr1-suite-{cargo-test,client-tests}.log` retain that attempt. Cross-session signaling of the first recorded suite PID 10389 was refused by the sandbox; its owning tool session was interrupted. The final wrapper uses its own small temporary directory and terminated its launched process group on timeout.
+- The final suite's `bash scripts/build-wasm.sh` output supersedes the earlier size: `wasm 1923700 B raw, 526683 B gzip`. No ceiling was raised. The exact-row client measurements remain online/reconnect 25 retained + 26 held, offline/reopen 25 + 25; expiry advances 7,200,000 ms and leaves 24 live retained rows when the retained row expires. The actual IndexedDB counts are assertions awaiting the lead's browser run, not fabricated measurements.
+- `./ref-check --verbose`: `ref-check: ok — 481 LLP docs, 9058 refs in 24114 files, 0 errors, 0 unchecked`. `git diff --check` passes. The journal's bytes still begin with the entire base journal, proving this entry is append-only. All changed code is at most 1,323 lines.
+- `node scripts/caps.mjs` reports one inherited violation outside Snapback 4: `crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs is 1504 lines, over the cap of 1500.` A byte comparison with `git show 34a21aa90363728684e0bd64754cb84e04a82ed0:crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs` verifies that exact base has the identical file. This is the only failure called pre-existing here. No out-of-scope file was edited; `device.rs` was the minimal additional implementation site needed by disposition 8.
+
+Remaining lead work is the real IndexedDB/Chromium run and a completed blocking suite outside these timing/sandbox limits. Neither the ticket nor publication is claimed complete.
+
+## 2026-09-17 — MQ-R2: restore adoption scope and correct the composition record
+
+Base: `d41c7dca12bc6d9aa5d776ab8e6a42d8f612e0ba`. Read both received round-2 reviews (`MQ-r2.sol.md`, `MQ-r2.grok.md`) and applied the lead's five dispositions. `device.rs` is byte-for-byte its `b5a7ddde3` form: both adoption sites keep images only through `keeps_literal_default_images`, clear `GROUPS` on every generation reset, and carry the original LLP 3000.007 §18.3 annotation. The client incarnation bump and server-answer clearing remain unchanged. The both-store adoption test now records the baseline limitation: 25 left rows before adoption, 0 after reacquisition, 25 held rows reacquired, and no retained component. The actual-client adoption test delays both query and watch replies, adopts epoch 2 on the same store, requires a retry, and checks that every settled publication is the whole new server answer (0 left, 26 held, epoch 2, complete and fresh). The requested P2/Open ticket records the reverted predicate, both reviews' reasoning, the identity-mode scenario and the cross-product design questions.
+
+LLP 3000.007 §18.2 now states the implemented eligibility, second-local routing and consistency contract; §18.3 and the already-present Revised clause are unchanged. README and the sync card contain the identical explicit pending-write sentence, required in full by the guide test. `completeOnly` now proves 26 held rows and exactly one `/q/completeOnly` request. LLP 3000.001 links the new ticket, distinguishes genuine M3 regressions from qualification, and attributes the IndexedDB execution to the lead after the bounded reconnect polling correction at `d41c7dca1`; this lane did not rerun or claim the lead's browser measurements.
+
+Red-before evidence used the base product with the new assertions (client artifacts explicitly rebuilt before the recorded run). Commands below run from `snapback4/` unless stated otherwise; every Node/Bun command used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+
+- `cargo test -p snapback4-device --test device program_only_adoption_resets_retained_components_on_both_stores -- --nocapture` (`/tmp/mqr2-device-red.log`): `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 189 filtered out; finished in 0.20s`. The left rows survived instead of resetting.
+- `cargo test -p snapback4-lang --test guide composition_card_matches_readme_and_the_routing_boundary` (`/tmp/mqr2-guide-red.log`): `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 50 filtered out; finished in 0.00s`. The full pending-write sentence was absent.
+- `node --test --test-concurrency=2 --test-name-pattern='MQ (adoption|delete current|revoke current)' packages/snapback4/test/retained-history.test.mjs` (`/tmp/mqr2-client-red-built.log`): `ℹ tests 6`, `ℹ pass 4`, `ℹ fail 2`, `ℹ duration_ms 5658.139167`. Both adoption cases retained history contrary to the restored lifecycle. The stronger complete-only controls already passed; they are qualification, not a new product regression. An earlier run using the existing built artifacts had the same 4-pass/2-fail result (`/tmp/mqr2-client-red.log`, `ℹ duration_ms 3864.860625`).
+
+Final-tree evidence received so far:
+
+- `node --test --test-concurrency=2 packages/snapback4/test/retained-history.test.mjs` (`/tmp/mqr2-client-green.log`): `ℹ tests 42`, `ℹ suites 0`, `ℹ pass 42`, `ℹ fail 0`, `ℹ cancelled 0`, `ℹ skipped 0`, `ℹ todo 0`, `ℹ duration_ms 26325.577125`. Both wasm and process adoption scenarios pass, including all watch publications and the old-reply retry count.
+- `cargo test -p snapback4-lang --test components --test guide` (`/tmp/mqr2-lang-green.log`): `test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s` and `test result: ok. 51 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.13s`.
+- `bash scripts/build-wasm.sh` (`/tmp/mqr2-wasm.log`): `wasm 1921723 B raw, 525989 B gzip`; the base rebuild printed `wasm 1923700 B raw, 526683 B gzip` (`/tmp/mqr2-base-wasm.log`). No ceiling changed; these are build outputs, not a newly commissioned performance claim.
+
+Two execution mistakes are not product or inherited failures: the first filtered Cargo invocation was accidentally issued at the repository root and exited 101 before running tests; it was rerun from `snapback4/`. I also overlapped the full suite's wasm regeneration with the targeted package build, causing that package build to exit 2 with TS6053 for the temporarily missing generated declarations (`/tmp/mqr2-package.log`). The full suite's subsequent package build passed, and the 42-client run above used its completed artifacts. No workaround or source change was made for either error.
+
+Completed targeted Rust command, `cargo test -p snapback4-device --test device --test components -p snapback4-lang --test components --test guide` (`/tmp/mqr2-rust-green.log`), exited 0 with these verbatim summaries, in order (device components, device, language components, guide):
+
+```
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+test result: ok. 190 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 386.44s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 51 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.86s
+```
+
+The blocking command, `bash snapback4/scripts/test.sh` from the repository root with the pinned Node PATH, ran under `/tmp/mqr2-run-suite.py`, a 360-second process-group timeout wrapper. It ended `suite exit=124; elapsed_s=360.05` (`/tmp/mqr2-suite.log`). Cargo build, wasm build, package typecheck/build, chat check/typecheck and Expo typecheck passed. The fixture worker reports `ℹ tests 9`, `ℹ pass 9`, `ℹ fail 0`, `ℹ skipped 0`, `ℹ duration_ms 38837.970125`. The client worker reports `ℹ tests 576`, `ℹ suites 0`, `ℹ pass 570`, `ℹ fail 4`, `ℹ cancelled 0`, `ℹ skipped 2`, `ℹ todo 0`, `ℹ duration_ms 99488.146708`, then `-- FAIL: client tests (99 s)`. Its failures were Chromium SIGABRT, both maximum-pending-id transport cases, and the deferred-presence worker case. The Rust worker had passed all completed groups and was still in the 190-test device suite at timeout; no aggregate Rust or blocking-suite pass is claimed. The wrapper preserved worker output as `/tmp/mqr2-suite-{cargo-test,client-tests,fixture-tests,chat-typecheck,expo-typecheck}.log` before terminating its launched process group.
+
+Each timing-sensitive client failure was retried in isolation, and the browser failure was also retried:
+
+- `node --test --test-name-pattern='maximum pending ids' packages/snapback4/test/transport-http.test.mjs` (`/tmp/mqr2-transport-retry.log`): `ℹ tests 2`, `ℹ pass 2`, `ℹ fail 0`, `ℹ skipped 0`, `ℹ duration_ms 22189.982542`.
+- `node --test --test-name-pattern='W7r1 runWorker and doctor' packages/snapback4/test/worker.test.mjs` (`/tmp/mqr2-worker-retry.log`): `ℹ tests 2`, `ℹ pass 2`, `ℹ fail 0`, `ℹ skipped 0`, `ℹ duration_ms 8291.169459`.
+- `node --test packages/snapback4/test/react.test.mjs` (`/tmp/mqr2-react-retry.log`): `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`, `ℹ skipped 0`, `ℹ duration_ms 549.54425`. Chromium exits with `signal=SIGABRT` before a page exists. This is the sandbox artifact named in the brief; I did not rerun the browser case against the base and do not label it a verified pre-existing failure.
+
+The requested adoption and routing measurements come from the Rust/client commands above: device left rows 25 → 0 across program-only adoption, held rows 25 after reacquisition; both client hosts settle at epoch 2 with 0 left + 26 held, and the delayed call count is at least three beyond the pre-delay count (two blocked replies plus a retry). `completeOnly` supplies 26 held rows with exactly one request. The normal retained composition still measures online/reconnect 25 + 26 and offline/reopen 25 + 25 through both client hosts. The lead's fresh-realm IndexedDB numbers in LLP 3000.001 are attributed evidence, not measurements made by this round.
+
+All five dispositions are implemented; the outstanding qualification is a completed full suite outside this time/sandbox limit. There is no out-of-scope tracked edit and no newly claimed pre-existing failure. No functional premise of the brief was found wrong; its approximate warm-suite timing did not reproduce here (the targeted device group alone took 386.44 seconds). This round learned that preserving composition and preserving rows across generation adoption are separate contracts: the former must not silently broaden the latter. The checked source files remain below 1,500 lines; `device.rs` matches `git show b5a7ddde3:snapback4/crates/snapback4-device/src/device.rs` exactly, `local.ts` is untouched, and LLP 3000.007 §18.3 is untouched.
+
+Final repository-root checks: `./ref-check --verbose` (`/tmp/mqr2-ref-check-final.log`) exited 0 with `ref-check: ok — 481 LLP docs, 9058 refs in 24115 files, 0 errors, 0 unchecked`; `git diff --check` (`/tmp/mqr2-diff-check.log`) exited 0 with no output. The worktree contains only the ten intended files, including the new ticket. No commit, push, tag or publication was performed.
+
+
+## 2026-09-17 — retained-read composition: the lead's qualification, review record and landing
+
+Lane MQ built the composition of LLP 3000.001 and two fix rounds took the
+findings of three blind review rounds by Sol (gpt-5.6-sol) and Grok
+(grok-4.6); the lane entries above carry their own commands. This entry is
+what only the lead could run, and what the lead decided.
+
+Outside the lanes' sandbox, on a machine whose load average ran between 15
+and 75 all day. At `65bc84ac9`: `packages/snapback4/test/react.test.mjs`
+13/13 and `retained-history.test.mjs` 42/42 on both tiers. The new
+real-IndexedDB scenario in `witness/idb.mjs` then ran in Chromium for the
+first time and composed correctly online (25 retained + 26 held), offline
+(25 + 25) and after a fresh-realm reopen from IndexedDB (25 + 25); its one
+failure was the scenario's own single-shot reconnect query, which raced the
+client's in-flight offline retry. The lead first made that query poll for the
+expected data (`d41c7dca1`); Sol's round-3 re-check rightly called that a
+false-green risk, and it now waits, bounded, for `client.link()` and checks
+the first online read. On the branch merged with `origin/main`
+(`b58126b88` plus that witness change) the witness reports `composition:
+{online [25,26], offline [25,25], reopened [25,25], reconnected [25,26],
+fresh false, complete false}` and the React test is 13/13. The blocking suite
+on that tree: builds, typechecks and fixtures green; client tests 587 of 596
+with four timing failures in `transport-http` and the wide-snapshot
+acquisition test; Rust green except
+`clock_advance_preserves_a_live_action_claim_session_and_settlement`. Both
+classes were checked against the exact base rather than called flaky by
+eye: the clock test alone fails 2 runs of 3 at `70a663c22` on the same 5 ms
+wall-clock tolerance (ticketed today), and the `maximum pending ids` transport
+tests fail at `70a663c22` under the same load. An earlier full run at
+`b5a7ddde3` is not evidence either way: most of its Rust test binaries were
+killed with SIGKILL mid-run.
+
+Decisions. The client keeps every field that would stay local as its own
+query, not only retained ones, and still enters composition only when some
+field is retained: an all-held query keeps its one fresh server answer. A
+found point read of a left row marks its frame and nothing else; a miss is
+unchanged. Fix round 1 also widened generation adoption so that a
+program-only deploy would keep left history; one reviewer judged it sound and
+the other showed it ignores `schema.auth`. It was reverted byte-for-byte
+rather than patched, because it is a lifecycle this plan does not own, and it
+has its own ticket. The mixed left/held ticket is closed. Left for the author:
+whether `fresh: false` without `since` is the right card for a composed read.
+No package version changed and nothing was published.
+
+What the reviews were worth: across two full rounds the families agreed on
+two findings of nine. Sol alone found the reading guard and the leaked nested
+local; Grok alone found the over-broad cap note and the identity-mode hole in
+the adoption change that Sol had passed. The lane also corrected its brief:
+frames cannot save and clear the runner's flags, because scans read them
+mid-run, so they mirror each event instead.
+
+## 2026-09-17 — ruling 33 declined after its second blind round
+
+Round 2 on the narrowed proposal (never-predicting only, a static "stable verdict"): GPT
+NOT READY, Grok READY WITH CHANGES; records
+`llp/reviews/3000.007-ruling-33-expiring-mutation-pages-2.{gpt,grok}.md`. GPT's new High: a
+stable verdict is not a stable examined population — a blind update that write authority
+admits can move a hidden row into the viewer's own prefix already expired, and the page's
+`E_BOUND` versus the program's own refusal then reveals that row's retained column, with
+no probe in the rule at all. Grok's High: "statement order" misses writes the interpreter
+runs inside expressions and filter blocks. Decision L10 (the lead's, under delegation):
+the relaxation is declined and the refusal stands. Two rounds each found a new way for a
+mutation to shape what its own page measures; the remaining admitted class is narrow; the
+one observed need is met by a job. The analysis is kept in LLP 3000.007 §21.9 for whoever
+reopens it. W14b still fixes the refusal's rewrite to name the job door.
+
+## 2026-09-17 — W13a: merge positions, drain continuation, and predicate page depth
+
+Implemented LLP 3000.007.000's merge position and candidate/publication split,
+and LLP 3000.007 §20.22's predicate-depth correction. Only merge positions
+append a missing row id; direct descriptors and existing id-ending v1 tokens
+keep their bytes. An older no-id merge token is refused by the existing
+Descriptor error. The server, local query and Postgres builders apply the final
+non-uniform class to a merge's candidate; raw position-loss accounting retains
+it. Lazy merges mark exhaustion only after an uncut short read and stop after
+an emitted or duplicate pop whose next head cannot be established. No ceiling,
+serialized value, non-uniform traversal, matching-lane eligibility or hook changed.
+
+Base: `06aa90095191bf1d58e0a39aa3b43b52f9023715`. The final shared regression
+suite was run against that base implementation before restoring the repair:
+server **7 pass / 12 fail → 19 pass / 0 fail**; memory plus SQLite devices
+**14 pass / 24 fail → 38 pass / 0 fail**. The core's raw-loss and error-unwind
+suite was **1 pass / 1 fail → 2 pass / 0 fail**. All 24 ordering/index/path
+configurations ran on each host. The unchanged feed tripwire passed **7/7**;
+guide/README examples passed **50/50**, residency notes **39/39**, and the
+Postgres feature compiled. The four ticket/probe fixtures also ran through the
+CLI's HTTP boundary and through both device stores.
+
+The grouped predicate probes now read `complete=true cut=null next=null`:
+v1 returns **4** rooms at **22** examined, v2 **10** at **30**, with no meter
+change. The unique-suffix walk returns **4/4** instead of **3/4**; the
+non-unique single-lane tie returns **3/3** instead of **2/3**. In the 0/9,000
+hidden-row worlds, a non-uniform server answer withholds next in both orders;
+devices retain their precise meter cut, and synced device reads retain next.
+D5.1 now stops at **70** emissions, versus **81** before; D5.2/D5.4 at **32**,
+versus **41**; the duplicate-pop fixture at **4**, versus **5**. Each first page
+cuts at **8,193 examined**, with **0 / 10 / 10 index entries**, and now carries
+next. Their complete walks return **120 / 90 / 10** distinct ordered matches
+in **2 / 3 / 3 requests**. The meter ceilings remain **8,192 examined** and
+**16,384 index entries**. A later shape cut still preserves an already safe
+merge candidate; prior word overflow still withholds it.
+
+The mandated audit found one conflict within the Spec: D2's uncut-only `done`
+and stop-at-unknown-head rule also shortens an *opening*-cut small merge whose
+cut lane has a short nonempty buffer. The two-lane control returns **100 rows
+before, 1 after**, both `complete=false cut="meter" next=null` at **8,193**
+examined. This follows D2 but contradicts C2's blanket "every answer unchanged";
+C2 needs to qualify that promise. The eight-or-fewer-lane drain analysis and
+`feed_forms.rs`'s no-next assertion remain green; no assertion was relaxed.
+The lead should also add the uniform drain-cut exception to LLP 3000.007
+§20.3's **review round 1, lane W2R1m** paragraph. Both September 17 merge
+tickets are resolved by this lane; their moves and the LLP edits remain the
+lead's. The published cards and matching N_WIDE_MERGE rewrite now distinguish
+opening/word cuts from drain cuts; the eager Following recipe stays unchanged.
+
+Learned: the frontier must be unique *across* lanes, not just inside one unique
+prefix. A lookahead cut cannot prove the lane exhausted, even when it returned
+a row. A test of public incompleteness alone cannot catch lost raw
+continuation evidence when the meter independently makes the same answer
+incomplete; that invariant needs the private Runner-state regression too.
+
+C2d's owner-word-overflow twin is labelled a positive in the Spec, but already
+passes on the base implementation: its existing global word-cut guard is the
+safety control to preserve. It is not claimed as a red-to-green regression.
+The raw D5.8 assertion lives in the core Runner test; public device answers are
+already incomplete from the meter and cannot expose that private loss bit.
+
+Full validation (`TMPDIR=/private/tmp bash snapback4/scripts/test.sh`) finished
+in **612 s**: Rust **1,365 passed / 0 failed / 4 ignored**, fixture wrappers
+**9 passed**, and client **544 passed / 3 failed / 3 skipped**. All build and
+typecheck stages passed. Chromium aborted with `SIGABRT` both here and on the
+exact base above. The native acknowledgement timeout passed when isolated;
+the wasm acknowledgement timeout persisted alone (**0 passed / 1 failed**),
+while that case passed in the base comparison. A subsequent focused run also
+hit its host-start deadline. Host load measured **74.42 across 18 CPUs**; the
+wasm timeout remains an outside-sandbox qualification item, not a claimed
+base failure. The native e2e test from an interrupted earlier suite passed
+alone (**1 passed / 0 failed**). Sources were restored byte-for-byte after the
+base comparison and native, wasm and package artifacts rebuilt successfully.
+`ref-check` reports **482 docs, 9,058 refs, 0 errors, 0 unchecked**. Every changed
+code file is below the cap (**17 files; maximum 1,489 lines**). The repository
+caps command has the same two failures on the verified base: **60 / 59**
+working-set docs and **205 / 204** allowed oversized files (the extra file is
+Snapback 1's 1,504-line `snapback-agent-safe-paired.rs`), outside this lane.
+
+**2026-09-17 — W13a review round 1 preserves C2.** The review rejected the
+preceding entry's recommendation to weaken C2: the stop rule applies only
+after an uncut opening. Gated the empty-buffer refill/stop block on
+`opened_all`, keeping both cap checks inside it, so an opening cut keeps
+popping buffered heads without refilling. It cannot mint a continuation:
+the `has_more` arm requires an uncut meter and the drain arm requires
+`opened_all`. The shared server/memory/SQLite control now pins the exact
+100-row answer, `b9000` then `a101` through `a3`, and retains
+`complete=false cut="meter" next=null`; the fixture's timestamps establish
+that order. Runtime counts could not be measured in this session: on base
+`6550d4ceb5eae58cdd99ab450b1116a15a8429cc`, the strengthened server/device
+tests stalled before the harness printed any result, as did every requested
+targeted check after the fix. A freshly compiled one-line Rust program also
+timed out before printing after 15 seconds; a copied test binary timed out
+after 30 seconds. The full suite passed native build (4 s), wasm build
+(18 s), package typecheck (1 s) and package build (1 s), then stalled at the
+CLI's chat app check. Stalled commands were interrupted; no red/green
+pass/fail counts or complete-suite result are claimed. The lesson is that
+terminal status alone did not preserve C2: its buffered answer must be pinned
+too. The lead still needs the requested runtime checks in an environment
+where freshly built native executables start.

@@ -95,7 +95,9 @@ narrow the first term or use scoped search. Further terms filter candidates
 and can spend the meter on misses. Fifty server lanes and twenty results
 are a measured starting point, not a guarantee for arbitrary text: word
 fan-out, duplicates and other metered work can still cut the batch. A
-meter-cut or word-cut matching merge has no safe result continuation.
+matching merge cut during opening or at the word limit has no safe result
+continuation. A uniform lazy merge cut while draining established heads carries
+`next` after its last emitted row; its page stays `complete: false, cut: 'meter'`.
 Treat `cut: 'meter'` or `cut: 'words'` as unfinished, narrow the term or retry with fewer
 chat lanes; never advance past it and claim an exhaustive search.
 To reduce a batch, change both membership `first 50` bounds together

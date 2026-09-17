@@ -1,0 +1,107 @@
+//! Device-only coverage observations. Never reset the interpreter's flags:
+//! scans consult earlier cuts while running, even in a cursor-free program.
+use super::runner::Runner;
+use crate::{error::{MeterKind, RuntimeError}, ir::{Expr, Program}, schema::Component, value::Value};
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Coverage { pub complete: bool, pub unknown: bool, pub retained: bool }
+
+#[derive(Clone, Default)]
+pub(super) struct Frame {
+    pub beyond: bool,
+    pub unknown: bool,
+    pub retained: bool,
+    pub non_uniform: bool,
+    pub overflow: bool,
+    pub words: bool,
+    pub presence: bool,
+    pub capped: bool,
+}
+impl Frame {
+    fn coverage(&self) -> Coverage {
+        let other = self.unknown || self.non_uniform || self.overflow || self.words || self.presence || self.capped;
+        Coverage { complete: !other && !self.beyond, unknown: self.unknown, retained: self.retained && !other }
+    }
+}
+
+#[derive(Default)]
+pub(super) struct Frames {
+    pub plan: Vec<Component>,
+    pub frames: Vec<Frame>,
+    pub shared: Frame,
+    pub active: Option<usize>,
+    pub depth: usize,
+}
+impl Frames {
+    pub fn note(&mut self, note: impl FnOnce(&mut Frame)) {
+        if !self.plan.is_empty() { note(match self.active { Some(index) => &mut self.frames[index], None => &mut self.shared }); }
+    }
+}
+
+// @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — mirror coverage events in the active frame; global flags, first diagnostic, page state and the one meter remain untouched.
+impl Runner<'_> {
+    pub(super) fn prepare_components(&mut self, program: &Program) {
+        self.components = Frames::default();
+        if self.component_observation && self.device && !program.native && let Some(fact) = self.schema.operations.get(&program.name).filter(|fact| !fact.held && !fact.components.is_empty()) {
+            self.components = Frames { plan: fact.components.clone(), frames: vec![Frame::default(); fact.components.len()], ..Frames::default() };
+        }
+    }
+
+    pub(super) fn begin_component(&mut self, index: usize) -> (Option<usize>, bool, bool) {
+        let top = !self.components.plan.is_empty() && self.components.depth == 0;
+        self.components.depth += 1;
+        let previous = self.components.active;
+        if top { self.components.active = self.components.plan.iter().position(|component| component.statements.contains(&index)); }
+        (previous, self.meter.capped_at.is_some(), top)
+    }
+
+    pub(super) fn end_component(&mut self, previous: Option<usize>, capped: bool) {
+        self.components.depth -= 1;
+        if self.meter.capped_at.is_some() && !capped { self.components.note(|frame| frame.capped = true); }
+        self.components.active = previous;
+    }
+
+    pub(super) fn component_record(&mut self, fields: &BTreeMap<String, Expr>, expr: &Expr) -> Result<Value, RuntimeError> {
+        // The ordinary Object expression's exact evaluation order and charges.
+        self.meter.step(1)?;
+        self.read_presence_value(expr)?;
+        let mut values = BTreeMap::new();
+        for (field, expr) in fields {
+            let previous = self.components.active;
+            self.components.active = self.components.plan.iter().position(|component| &component.field == field);
+            let capped = self.meter.capped_at.is_some();
+            let result = self.expr(expr);
+            if !capped && self.meter.capped_at.is_some() { self.components.note(|frame| frame.capped = true); }
+            self.components.active = previous;
+            values.insert(field.clone(), result?);
+        }
+        let value = Value::Row(values.into());
+        self.meter.heap(value.heap_bytes())?;
+        Ok(value)
+    }
+
+    pub(super) fn component_coverage(&self) -> BTreeMap<String, Coverage> {
+        if !self.components.shared.coverage().complete || self.page_position_lost() { return BTreeMap::new(); }
+        self.components.plan.iter().zip(&self.components.frames).map(|(plan, frame)| (plan.field.clone(), frame.coverage())).collect()
+    }
+
+    pub(super) fn read_charge(&mut self, kind: MeterKind, amount: u64) -> Result<bool, RuntimeError> {
+        let charged = self.meter.charge(kind, amount)?;
+        if !charged { self.components.note(|frame| frame.capped = true); }
+        Ok(charged)
+    }
+
+    pub(super) fn read_capped(&mut self) -> bool {
+        let capped = self.meter.capped_at.is_some();
+        if capped { self.components.note(|frame| frame.capped = true); }
+        capped
+    }
+
+    pub(super) fn retained_group(&mut self, table: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> {
+        let retained = self.tx.retained_group(table, index, prefix)?;
+        if retained { self.components.note(|frame| frame.retained = true); }
+        Ok(retained)
+    }
+}

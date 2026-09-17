@@ -576,16 +576,24 @@ charged to that chunk's meter. Writes belong inside a chunk.
   `by` after an unparenthesized inner read refuses `E_QUARRY_MODIFIER_SCOPE`:
   parenthesize the inner read, or move the modifier before `where`.
   `check --fix` adds parentheses to preserve the inner index. A lone next-column comparison
-  lowers to a seek with N_SEEK. A full page's cursor is after its last result;
-  a cut page continues after the last rule-visible examined row, including a
+  lowers to a seek with N_SEEK. A full direct page's cursor is after its last result;
+  a cut direct page continues after the last rule-visible examined row, including a
   filter rejection, never a hidden row. Non-uniform ranges stay incomplete.
-  Merged pages return no `next` for a non-uniform read or a meter or word-limit
-  cut, because a shared cursor cannot advance past an unfinished lane.
+  Merged pages return no `next` for a non-uniform answer, an opening cut or a
+  word-limit cut. A uniform lazy merge cut while draining established heads
+  carries `next` after its last emitted row, with `complete: false, cut: 'meter'`.
+  Its position appends the row id unless the ordering suffix already ends in
+  `id`, so equal ordering values never skip rows. Following a cut page keeps
+  the aggregate incomplete in `usePage`.
+  An older merge token missing that id is refused; restart the walk. Existing
+  id-ending merge tokens and direct-page tokens keep their encoding.
   A uniform filtered scan is complete at N matches or the range's end, even
   without a cursor; a meter cut is incomplete. A merge header's `where`
   applies the predicate in every lane before emission; a cut predicate never
   emits its unchecked row. Filtered merges retain the merge's cursor rules:
   use `after c` for a complete page when more matches exist.
+  Reads inside a predicate are below its page: an inner top-N does not make
+  the outer answer incomplete or take its cursor; an inner meter cut still does.
 - **List operations:** pages, lists, and shaped collections share `sort`,
   `slice`, `count`, `sum`, `group`, `first`, `last`, `at`, `join`, and `for`,
   subject to their element types. Aggregating a page aggregates that page;
@@ -897,9 +905,11 @@ admitted non-uniform scope keeps its per-row costs and stays incomplete;
 hidden rows there still spend the query-wide examined/index-entry budget.
 The 32-word bound makes that lane incomplete without cutting later lanes;
 operator results name it in `word_cut_at`, separately from a meter cut in `capped_at`.
-Merged pages withhold `next` for a non-uniform read or a meter or word-limit
-cut, including a non-uniform read within budget, so cursor presence cannot
-reveal hidden-row costs.
+Merged pages withhold `next` for a non-uniform answer, an opening cut or a
+word-limit cut, including a non-uniform read within budget or after the merge,
+so cursor presence cannot reveal hidden-row costs. A uniform lazy merge cut
+while draining established heads carries `next` after its last emitted row;
+the page stays `complete: false, cut: 'meter'`.
 Reads inside `where` use their own rules and search terms. An empty
 matching result past a device horizon is incomplete too, so a held group
 can fall back to the server.
@@ -940,7 +950,7 @@ search over held messages working but reports `complete: false`, including
 empty searches; online, use the scoped server walk for full history.
 The card records whole-walk costs, horizon measurements, the 32-word
 limit (global on the device, per chat on the server), and the per-reader
-copy cost. A meter-cut matching merge cannot be continued with a result
+copy cost. This eager matching batch's opening cut cannot be continued with a result
 cursor alone. The card intentionally documents N_NO_HORIZON for full sync.
 With horizon-free sources, `check` reports horizon-free source coverage for
 `searchHeld`. Answer completeness still depends on runtime authorization,
@@ -1163,11 +1173,23 @@ applies after leaving: an exhausted horizon is `complete: false`, while
 unbounded whole-group history is `complete: true`. A read pinning the left
 group answers from those rows on the device online and offline, through a
 query without a membership `require`. Replacement snapshots keep left groups
-and replace held groups with their current acquisition. If the same query
-also has an unknown held-group read, it still falls back to the server.
-Keep a read of a left group in its own query: mixing its retained rows
-with an unknown held-group read returns the whole server answer online
-(without the left rows) and the whole device answer offline.
+and replace held groups with their current acquisition. A device query returning
+independent fields of a record can compose when one component retains history
+and another needs the server. Each field may hold at most one read; the query
+must be cursor-free, not declared `held`, and have no reading `require`.
+A found point read of a delivered left row also composes; a missing point
+keeps ordinary coverage and fallback. `check --residency` names the proven
+components. The second local observation supplies every component that would
+stay local as its own query; the one server reply supplies those that need it.
+The composed read is `complete` only when the server answer and
+every locally kept component are complete; it reports `fresh: false`, no `since`,
+and no continuation. Offline or after a failed request, the whole local
+answer stands.
+Composition is never entered while a predictable write is unobserved; the whole local answer stands until it settles.
+Every other shape keeps the separate-query recipe: keep a
+left-group read in its own query, since a mixed query without a component
+plan returns the whole server answer online when no predictable write is awaiting observation,
+and the whole device answer offline.
 A table with no horizon delivers every row of every group the device
 holds, at every cold start, as the table grows: a public table of posts,
 or a group's receipts, is soon the whole cold start. `check` notes such a

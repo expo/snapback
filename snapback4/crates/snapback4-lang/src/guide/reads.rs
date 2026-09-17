@@ -192,18 +192,28 @@ words index (guide search). Uniform plain merge lanes with a unique index or one
 in `id` read one head each, then advance the winning lanes; `check` notes
 a merge past 50 lanes (N_WIDE_MERGE). The meter counts examined rows and
 probes; a query it cuts returns what it found and `complete: false`.
+A merge position uses the ordering suffix and appends the row id when that
+suffix does not already end in `id`, so equal ordering values never skip rows.
+An older merge token missing that id is refused; restart the walk. Tokens whose
+suffix already ends in `id` keep their encoding, as do direct-page tokens.
+A uniform lazy merge cut while draining established lane heads carries `next`
+after its last emitted row, with `complete: false, cut: 'meter'`.
+An opening cut or word-limit cut has no continuation. A non-uniform answer
+withholds a merge's `next` even when that read ran after the merge.
 `t[prefix, col >= start, col < end]` seeks on the first unpinned index column;
 its bounds have that column's type. A lone `where .col >= start` on that
 column lowers to the seek and emits N_SEEK naming the key spelling.
 Other `where` predicates run after the read rule, with `.` bound to each row.
 Comparisons, `and`/`or`/`not`, arguments, `viewer`, literals and indexed reads
 are metered; a predicate read is a probe. Only rows passing both count toward N.
+Reads inside the predicate are below the outer page: their own top-N does not
+make it incomplete or own its cursor; their meter cuts still cut the answer.
 A uniformly authorized filtered page is complete when it holds N matches or
 reaches the range's end, including without a cursor; a meter cut is incomplete.
 Direct table and maintain page cursors bind the evaluated prefix and active
 generation. Reusing one under another prefix or after adoption is refused;
 ordinary writes keep it valid, and rows can move between pages.
-A filled page positions `next` after its last returned row. A meter-cut page
+A filled direct page positions `next` after its last returned row. A meter-cut direct page
 positions after its last rule-visible examined row, even if the filter rejected
 it, never after a hidden row. A non-uniform page stays incomplete; a cut in a
 hidden run with no rule-visible row ends on an empty capped page."##;

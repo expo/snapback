@@ -17,3 +17,10 @@ Paths are relative to `snapback4/`: `crates/snapback4-core/src/engine/read.rs:ru
 ## Acceptance
 
 Measure fixed logical probes across expired-row counts and sync across membership history. Bound physical acquisition or maintain live indexes without turning private sibling counts into an observable meter oracle. Preserve LLP 3000.007 §17 uniformity. Design in LLP 3000.002.
+
+## Design proposal — 2026-09-17
+
+The author-requested [Draft proposal for bounded private physical work](../llp/3000.002-end-to-end-resource-bounds.research.md#physical-work)
+records the recommendation, alternatives, implementation sequence, validation
+and remaining decisions. This ticket remains open; writing the proposal does
+not establish implementation or acceptance.

@@ -67,6 +67,10 @@ pub(super) struct Reading<'a, T: DeviceTx> {
 }
 
 impl<T: DeviceTx> Rows for Reading<'_, T> {
+    fn retained_row(&self, name: &str, row: &Value) -> Result<bool, RuntimeError> {
+        let Some(table) = self.schema.table(name).filter(|table| table.sync.is_some() && table.leave == LeavePolicy::DeliveredHistory) else { return Ok(false) };
+        Ok(is_left(&self.groups, name, &row_key(table, row)?))
+    }
     fn retained_group(&self, name: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> {
         let retained = retained_group(self.schema, &self.groups, name, index, prefix)?;
         if retained { self.retained.set(true); }
