@@ -86,7 +86,7 @@ function testThreads(artifact) {
   const packageNameValue = packageName(artifact.packageId);
   if (packageNameValue === "snapback4-sim") return 4;
   if (packageNameValue === "snapback4-device") return artifact.target === "device" ? 8 : 2;
-  if (packageNameValue === "snapback4") return artifact.target === "lifecycle" || artifact.target === "snapback4" ? 1 : 2;
+  if (packageNameValue === "snapback4") return ["lifecycle", "snapback4", "witness"].includes(artifact.target) ? 1 : 2;
   if (packageNameValue === "snapback4-lang" && artifact.target === "lowering") return 8;
   return 4;
 }
@@ -171,7 +171,13 @@ if (failed) {
     }));
   });
   console.log(`-- rust inventory: ${build.artifacts.length} test binaries, ${executions.length} executions; at most ${processLimit} concurrent processes`);
-  const results = await runPool(executions);
+  // The macOS witness target owns simctl and simulator lifecycle. Keep it out
+  // of the shared pool so host load cannot turn tool contention into a false
+  // product timeout; its own assertions still run one at a time.
+  const exclusive = executions.filter((artifact) => packageName(artifact.packageId) === "snapback4" && artifact.target === "witness");
+  const regular = executions.filter((artifact) => !exclusive.includes(artifact));
+  const results = await runPool(regular);
+  for (const artifact of exclusive) results.push(await runArtifact(artifact));
   failed ||= results.some((result) => result.code !== 0);
 }
 
