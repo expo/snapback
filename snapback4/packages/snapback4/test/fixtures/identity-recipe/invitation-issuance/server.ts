@@ -19,9 +19,9 @@ const oidc = oidcHandlers({
 });
 
 const issueInvitation = invitationIssuanceHandler({
-  adminOrganizationSummary: api.adminOrganizationSummary,
-  invitationDeliveryState: api.invitationDeliveryState,
-  organizationRecordInvitation: api.organizationRecordInvitation,
+  adminOrganizationSummary: api.organizations.adminOrganizationSummary,
+  invitationDeliveryState: api.organizations.invitationDeliveryState,
+  organizationRecordInvitation: api.organizations.organizationRecordInvitation,
 }, {
   acceptanceBase: "https://app.example/invitations/accept",
   from: "Invitations <invitations@example.com>",

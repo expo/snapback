@@ -31941,3 +31941,52 @@ network, Rust/Cargo, install, publication or full suite ran. R3 remains overall
 negative, later raw cases remain unexecuted in that run, and the repaired
 deadline sequence plus every provider-backed row remain pending an actual
 qualification rerun.
+
+## 2026-09-17 — B1d.3 optional invitation issuance source (authored through Codex gpt-5.6-sol HIGH)
+
+This bounded native Sol lane added optional issuance source outside the
+identity fixture's active `snapback/`, plus exactly one ordinary admin
+delivery-state point query. Root `issueInvitation` durably prepares a 32-byte
+token, repeats one stable managed write and exact-ID read in
+`invite.record/v1`, then uses one fixed-body `invite.mail/v1` provider key.
+The existing mutation remains directly callable with a digest; only this
+optional action proves its own random issuance.
+
+Prepare retains the raw token, frozen nonsecret config/template, config hash
+and SHA-256 credential-namespace fingerprint. Privileged `why --values` can
+reveal it, and Resend receives the fragment link. Mail guards current admin,
+exact immutable identity, pending state, strict expiry, a ten-minute horizon
+and unchanged config/key fingerprints inside run and reconciliation.
+Historical unknown parks without another POST. The fixed Resend endpoint
+refuses redirects; abort fences fetch and body consumption. API acceptance is
+not inbox delivery.
+
+The serial test imports authored recipe `.ts` source but resolves public error
+classes through the already-built package 0.2.26. That ignored build was not
+rebuilt or claimed to match a source commit. Exact artifacts: `dist/server.js`
+`40856abc8fb1be815a124875a9af100e27e24c107d3ec436b293fdd42b1cbd10`,
+`dist/worker.js`
+`8945b72c9d0cead289867543b55049475debc3551ca7b8f44ddb45dd1f072d38`,
+`dist/server.d.ts`
+`922e51ebc91b4a964cd850c8aaf926a4fda63f1306cbdb9aef6975c72de20d3e`,
+and `dist/worker.d.ts`
+`0f42fee3e455d268d95b278759a16fc461847f5e6fc337704e1c1554b843b085`.
+Strict no-emit compilation separately checked the helper/adapter declarations.
+
+The first source-mapped Node attempt failed before tests: 0 pass, 1 fail,
+215.449375 ms, `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX` on a transitive parameter
+property. Removing that test-only mapper produced 27 pass, 0 fail in
+352.025916 ms. After final corrections, Office load was 7.72, Node 24.18.0,
+syntax/no-emit/diff checks passed, and the focused serial test reported 32
+pass, 0 fail, 0 skip in 494.33175 ms. These protocol/context doubles cover
+prepare/mail completion cuts, write replay, before/after provider acceptance,
+stable keys/bodies, historical fences, definitive initial 400, uncertain
+5xx/unreadable/409, redirect refusal, redaction and entered-fetch/body aborts.
+They are not actual engine, HTTP crash, authentication or provider evidence.
+
+No engine/CLI check/dev/run, generation, listener, provider, network,
+credential, install, Rust/Cargo, root gate, bootstrap, fleet, fetch, push,
+publication or deployment ran. Generated registry/typecheck, default
+why/log secrecy, actual HTTP/process cuts, concurrency/restart/rollback,
+authentication and Resend/inbox evidence remain pending with the parent, as
+do independent reviews and any full Identity/B or delivery qualification.

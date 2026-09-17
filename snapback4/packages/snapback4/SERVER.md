@@ -419,6 +419,24 @@ retained stdout and source hashes do not create a retrospective raw-response
 audit. The digest-pinned CLI source is `1e91bc7fe`; see
 `../../reports/20260917-invitation-policy.md` for commands, digests and limits.
 
+### Optional invitation issuance source (B1d.3)
+
+The identity fixture's `invitation-issuance/` sibling stays outside active
+`snapback/`. When staged, root `issueInvitation` preserves the OIDC handlers
+and uses ordinary generated `organizations.*` operations. Preparation freezes
+a 32-byte token, digest, nonsecret config/template and hash-only config/key
+fingerprints before a stable record step confirms the same managed write and
+exact-ID query. Only then may one fixed-body, fixed-key Resend POST run;
+redirects are refused.
+
+Mail run/reconciliation requires a fresh complete point read, current admin,
+matching immutable identity, pending state, strict expiry, a ten-minute horizon
+and unchanged fingerprints. Historical unknown parks without another POST and
+never becomes `not-sent`. This is source/double evidence—not generated-
+registry, engine, auth, process-crash, actual Resend, inbox or full Identity/B
+qualification. `why --values` can reveal retained step plaintext, and
+cancellation cannot retract accepted provider work.
+
 ## Handler context
 
 `check` and `dev` generate `snapback/generated/server.ts` from declared

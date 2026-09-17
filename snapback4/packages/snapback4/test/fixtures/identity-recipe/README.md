@@ -321,3 +321,10 @@ raw-token arguments on failure; it preserves unexpected CLI output in the
 private scratch child and leaves that child in place. On success the frozen
 helper removes that raw-response journal; retained stdout and source hashes
 are qualification evidence, not a retrospective raw-response audit.
+
+## Optional B1d.3 issuance source
+
+`invitation-issuance/` is an optional staged action, handler and fixed-endpoint
+Resend adapter outside active `snapback/`, preserving the B1c registry. Its
+README gives exact staging and pending actual-cut details. The source doubles
+are not generated-registry, engine, auth, crash-process or provider evidence.

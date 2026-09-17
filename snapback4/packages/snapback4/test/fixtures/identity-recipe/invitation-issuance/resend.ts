@@ -48,6 +48,7 @@ export async function sendResendEmail(input: {
     const transport = input.fetch ?? globalThis.fetch.bind(globalThis);
     response = await untilAborted(() => transport(RESEND_EMAIL_ENDPOINT, {
       method: "POST",
+      redirect: "error",
       headers: {
         authorization: `Bearer ${input.apiKey}`,
         "content-type": "application/json",

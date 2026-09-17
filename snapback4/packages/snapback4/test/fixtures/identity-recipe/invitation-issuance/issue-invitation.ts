@@ -1,33 +1,47 @@
 import { createHash, randomBytes } from "node:crypto";
-import { ParkStep, ServerError } from "snapback4/server";
+import type { Mutation, Query, Read } from "snapback4/contract";
+import { ParkStep, ServerError, type ServerContext } from "snapback4/server";
 import { Retry } from "snapback4/worker";
 import { ResendUnresolved, sendResendEmail } from "./resend.ts";
 
-type Json = null | boolean | number | string | Json[] | { readonly [key: string]: Json };
-type Operation = { readonly kind: "query" | "mutation"; readonly name: string };
-type Read = { readonly data: unknown; readonly complete: boolean; readonly next?: unknown; readonly cut?: unknown }
-  | { readonly denied: { readonly code: string } }
-  | { readonly capped: true };
-type Write = { readonly state: "pending"; readonly id?: string }
-  | { readonly state: "failed"; readonly why?: { readonly code?: string } }
-  | { readonly state: "sent"; readonly result?: unknown; readonly replayed?: boolean };
+interface AdminSummary {
+  readonly seatLimit: number;
+  readonly memberCount: number;
+  readonly reservationCount: number;
+}
 
-export interface InvitationIssuanceContext {
-  readonly principal: string;
-  readonly invocation: { readonly id: string; readonly signal: AbortSignal };
-  readonly secrets: Readonly<Record<"MAIL_API_KEY", string>>;
-  query(operation: Operation, args: Readonly<Record<string, unknown>>): Promise<Read>;
-  mutate(operation: Operation, args: Readonly<Record<string, unknown>>, options: { readonly id: string }): Promise<Write>;
-  step<T extends Json>(name: string, input: Json, run: (key: string) => T | Promise<T>, options?: {
-    readonly reconcile?: (key: string) => T | Promise<T>;
-  }): Promise<T>;
-  writeIdFor(label: string): string;
+interface DeliveryState {
+  readonly id: string;
+  readonly organization: string;
+  readonly recipientEmail: string;
+  readonly issuer: string;
+  readonly issuedAt: number;
+  readonly expiresAt: number;
+  readonly status: "pending" | "accepted" | "revoked";
+  readonly serverNow: number;
+}
+
+interface RecordedInvitation {
+  readonly protocol: "invite.record/v1";
+  readonly id: string;
+  readonly organization: string;
+  readonly recipientEmail: string;
+  readonly issuer: string;
+  readonly issuedAt: number;
+  readonly expiresAt: number;
+}
+
+interface RecordInvitationArgs {
+  readonly id: string;
+  readonly organization: string;
+  readonly recipientEmail: string;
+  readonly tokenHash: string;
 }
 
 export interface InvitationIssuanceOperations {
-  readonly adminOrganizationSummary: Operation;
-  readonly invitationDeliveryState: Operation;
-  readonly organizationRecordInvitation: Operation;
+  readonly adminOrganizationSummary: Query<{ readonly organization: string }, AdminSummary>;
+  readonly invitationDeliveryState: Query<{ readonly invitation: string }, DeliveryState>;
+  readonly organizationRecordInvitation: Mutation<RecordInvitationArgs, unknown>;
 }
 
 export interface InvitationIssuanceConfig {
@@ -52,16 +66,10 @@ interface PreparedInvitation {
   };
 }
 
-interface DeliveryState {
-  readonly id: string;
-  readonly organization: string;
-  readonly recipientEmail: string;
-  readonly issuer: string;
-  readonly issuedAt: number;
-  readonly expiresAt: number;
-  readonly status: string;
-  readonly serverNow: number;
-}
+type MailResult = {
+  readonly delivery: "accepted" | "not-sent";
+  readonly providerMessageId: string | null;
+};
 
 const RECONCILIATION_HORIZON_MS = 10 * 60 * 1000;
 const hash = (value: string) => createHash("sha256").update(value, "utf8").digest("hex");
@@ -88,16 +96,19 @@ function freezeConfig(config: InvitationIssuanceConfig): PreparedInvitation["fro
 }
 
 function fingerprints(frozen: PreparedInvitation["frozen"], apiKey: string) {
+  if (typeof apiKey !== "string" || apiKey.length === 0) {
+    throw new ServerError("E_SECRET_MISSING", "the declared invitation credential is missing or empty");
+  }
   return {
     configSha256: hash(canonical(frozen)),
     credentialNamespaceFingerprint: hash(`snapback4:resend-credential-namespace:v1\0${apiKey}`),
   };
 }
 
-function authoritativeData(read: Read, purpose: string): unknown {
-  if (!("data" in read) || read.complete !== true || read.next !== undefined && read.next !== null
-    || read.cut !== undefined && read.cut !== null) {
-    throw new Retry(`the ${purpose} query did not return an authoritative point result`);
+function authoritativeData<T>(read: Read<T>, purpose: string): T {
+  if (!("data" in read) || read.complete !== true || read.fresh !== true || read.cut !== null
+    || read.next !== undefined && read.next !== null) {
+    throw new Retry(`the ${purpose} query did not return an authoritative fresh point result`);
   }
   if (read.data === null || read.data === undefined) {
     throw new Retry(`the ${purpose} query returned no authoritative row`);
@@ -105,27 +116,29 @@ function authoritativeData(read: Read, purpose: string): unknown {
   return read.data;
 }
 
-function deliveryState(value: unknown): DeliveryState {
-  if (!value || typeof value !== "object") throw new Retry("the invitation delivery-state result was invalid");
-  const row = value as Record<string, unknown>;
+function validDeliveryState(value: DeliveryState): DeliveryState {
+  const row = value as Partial<DeliveryState>;
   for (const name of ["id", "organization", "recipientEmail", "issuer", "status"] as const) {
     if (typeof row[name] !== "string") throw new Retry("the invitation delivery-state result was invalid");
   }
   for (const name of ["issuedAt", "expiresAt", "serverNow"] as const) {
     if (!Number.isSafeInteger(row[name])) throw new Retry("the invitation delivery-state result was invalid");
   }
-  return row as unknown as DeliveryState;
+  if (!(["pending", "accepted", "revoked"] as const).includes(row.status as DeliveryState["status"])) {
+    throw new Retry("the invitation delivery-state result was invalid");
+  }
+  return value;
 }
 
-function providerBody(prepared: PreparedInvitation, invitation: string, organization: string, recipientEmail: string): string {
+function providerBody(prepared: PreparedInvitation, recorded: RecordedInvitation): string {
   const target = new URL(prepared.frozen.acceptanceBase);
-  target.hash = new URLSearchParams({ invitation, token: prepared.rawToken }).toString();
+  target.hash = new URLSearchParams({ invitation: recorded.id, token: prepared.rawToken }).toString();
   const link = target.href;
-  const text = `You have been invited to organization ${organization}. Sign in as ${recipientEmail}, then open ${link}`;
+  const text = `You have been invited to organization ${recorded.organization}. Sign in as ${recorded.recipientEmail}, then open ${link}`;
   const htmlLink = link.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
   return JSON.stringify({
     from: prepared.frozen.from,
-    to: [recipientEmail],
+    to: [recorded.recipientEmail],
     subject: prepared.frozen.subject,
     text,
     html: `<p>You have been invited to an organization.</p><p><a href="${htmlLink}">Accept invitation</a></p>`,
@@ -136,7 +149,7 @@ function park(): never {
   throw new ParkStep("the invitation delivery outcome needs operator reconciliation");
 }
 
-// @ref LLP 3000.009#5.2 — prepare is durable before managed writes; uncertain delivery reuses one provider key or parks.
+// @ref LLP 3000.009#5.2 — prepare and record complete before provider work; uncertain delivery reuses one key or parks.
 // @ref LLP 3000.009#7 — identity provider protocol stays in the optional application server adapter.
 export function invitationIssuanceHandler(
   operations: InvitationIssuanceOperations,
@@ -145,28 +158,28 @@ export function invitationIssuanceHandler(
 ) {
   return async function issueInvitation(
     args: { readonly organization: string; readonly recipientEmail: string },
-    ctx: InvitationIssuanceContext,
+    ctx: ServerContext<"MAIL_API_KEY">,
   ): Promise<{ invitation: string; delivery: "accepted" | "not-sent"; providerMessageId: string | null }> {
     if (typeof args.organization !== "string" || typeof args.recipientEmail !== "string"
       || args.recipientEmail.length < 1 || args.recipientEmail.length > 320 || args.recipientEmail.trim() !== args.recipientEmail) {
       throw new ServerError("E_INVITATION_INPUT", "the invitation arguments are invalid");
     }
 
-    // This ordinary point query is the initial current-admin preflight. No
-    // token exists until its complete result has been checked.
-    authoritativeData(await ctx.query(operations.adminOrganizationSummary, {
-      organization: args.organization,
-    }), "organization-admin preflight");
-
-    const frozen = freezeConfig(config);
-    const currentFingerprints = fingerprints(frozen, ctx.secrets.MAIL_API_KEY);
-    const prepare = (): PreparedInvitation => {
+    // The callback is the only place that preflights current admin authority
+    // and reads live configuration before randomness. A completed prepare
+    // receipt replays without either read.
+    const prepare = async (): Promise<PreparedInvitation> => {
+      authoritativeData(await ctx.query(operations.adminOrganizationSummary, {
+        organization: args.organization,
+      }), "organization-admin preflight");
+      const frozen = freezeConfig(config);
+      const frozenFingerprints = fingerprints(frozen, ctx.secrets.MAIL_API_KEY);
       const rawToken = randomBytes(32).toString("base64url");
       return {
         protocol: "invite.prepare/v1",
         rawToken,
         tokenHash: hash(rawToken),
-        ...currentFingerprints,
+        ...frozenFingerprints,
         frozen,
       };
     };
@@ -177,36 +190,58 @@ export function invitationIssuanceHandler(
     }, prepare, { reconcile: prepare });
 
     const invitation = ctx.writeIdFor("invite.entity/v1");
-    let written: Write;
-    try {
-      written = await ctx.mutate(operations.organizationRecordInvitation, {
-        id: invitation,
-        organization: args.organization,
-        recipientEmail: args.recipientEmail,
-        tokenHash: prepared.tokenHash,
-      }, { id: ctx.writeIdFor("invite.record/v1") });
-    } catch {
-      throw new Retry("the invitation write outcome is uncertain");
-    }
-    if (written.state === "pending") throw new Retry("the invitation write outcome is uncertain");
-    if (written.state !== "sent") throw new ServerError("E_INVITATION_WRITE", "the invitation could not be recorded");
+    const recordArgs = {
+      id: invitation,
+      organization: args.organization,
+      recipientEmail: args.recipientEmail,
+      tokenHash: prepared.tokenHash,
+    } as const;
+    const record = async (): Promise<RecordedInvitation> => {
+      let written;
+      try {
+        written = await ctx.mutate(operations.organizationRecordInvitation, recordArgs, {
+          id: ctx.writeIdFor("invite.record.write/v1"),
+        });
+      } catch {
+        throw new Retry("the invitation write outcome is uncertain");
+      }
+      if (written.state === "pending") throw new Retry("the invitation write outcome is uncertain");
+      if (written.state !== "sent") throw new ServerError("E_INVITATION_WRITE", "the invitation could not be recorded");
 
-    // Never rely on a mutation result: replayed sent receipts intentionally
-    // need not retain one. The exact-ID query is the authoritative row source.
-    const recorded = deliveryState(authoritativeData(await ctx.query(operations.invitationDeliveryState, {
-      invitation,
-    }), "invitation delivery-state"));
-    if (recorded.id !== invitation || recorded.organization !== args.organization
-      || recorded.recipientEmail !== args.recipientEmail || recorded.issuer !== ctx.principal) {
-      throw new Retry("the invitation delivery-state identity did not match the immutable intent");
-    }
-
-    const body = providerBody(prepared, invitation, args.organization, args.recipientEmail);
-    const intent = {
-      protocol: "invite.mail/v1",
+      // Replayed sent writes may omit their old result. Confirm the exact row
+      // through the ordinary current-admin point query instead.
+      const row = validDeliveryState(authoritativeData(await ctx.query(operations.invitationDeliveryState, {
+        invitation,
+      }), "invitation delivery-state record"));
+      if (row.id !== invitation || row.organization !== args.organization
+        || row.recipientEmail !== args.recipientEmail || row.issuer !== ctx.principal
+        || row.status !== "pending" || row.serverNow < row.issuedAt || row.serverNow >= row.expiresAt) {
+        throw new Retry("the recorded invitation did not match the immutable delivery intent");
+      }
+      return {
+        protocol: "invite.record/v1",
+        id: row.id,
+        organization: row.organization,
+        recipientEmail: row.recipientEmail,
+        issuer: row.issuer,
+        issuedAt: row.issuedAt,
+        expiresAt: row.expiresAt,
+      };
+    };
+    const recorded = await ctx.step("invite.record/v1", {
+      protocol: "invite.record/v1",
       invitation,
       organization: args.organization,
       recipientEmail: args.recipientEmail,
+      tokenHash: prepared.tokenHash,
+    }, record, { reconcile: record });
+
+    const body = providerBody(prepared, recorded);
+    const intent = {
+      protocol: "invite.mail/v1",
+      invitation,
+      organization: recorded.organization,
+      recipientEmail: recorded.recipientEmail,
       issuedAt: recorded.issuedAt,
       expiresAt: recorded.expiresAt,
       providerBodySha256: hash(body),
@@ -215,20 +250,29 @@ export function invitationIssuanceHandler(
     } as const;
 
     const checkGuard = async (historicalUnknown: boolean): Promise<DeliveryState | null> => {
-      const nowFingerprints = fingerprints(freezeConfig(config), ctx.secrets.MAIL_API_KEY);
-      if (nowFingerprints.configSha256 !== prepared.configSha256
-        || nowFingerprints.credentialNamespaceFingerprint !== prepared.credentialNamespaceFingerprint) return park();
+      try {
+        const currentFrozen = freezeConfig(config);
+        const currentFingerprints = fingerprints(currentFrozen, ctx.secrets.MAIL_API_KEY);
+        if (currentFingerprints.configSha256 !== prepared.configSha256
+          || currentFingerprints.credentialNamespaceFingerprint !== prepared.credentialNamespaceFingerprint) return park();
+      } catch (error) {
+        if (ctx.invocation.signal.aborted) throw ctx.invocation.signal.reason;
+        void error;
+        return park();
+      }
+
       let current: DeliveryState;
       try {
-        current = deliveryState(authoritativeData(await ctx.query(operations.invitationDeliveryState, {
+        current = validDeliveryState(authoritativeData(await ctx.query(operations.invitationDeliveryState, {
           invitation,
         }), "invitation delivery-state guard"));
       } catch (error) {
+        if (ctx.invocation.signal.aborted) throw ctx.invocation.signal.reason;
         if (historicalUnknown) return park();
         throw error;
       }
-      const identityMatches = current.id === invitation && current.organization === args.organization
-        && current.recipientEmail === args.recipientEmail && current.issuer === ctx.principal
+      const identityMatches = current.id === recorded.id && current.organization === recorded.organization
+        && current.recipientEmail === recorded.recipientEmail && current.issuer === recorded.issuer
         && current.issuedAt === recorded.issuedAt && current.expiresAt === recorded.expiresAt;
       const active = identityMatches && current.status === "pending" && current.serverNow < current.expiresAt
         && current.serverNow >= current.issuedAt
@@ -240,9 +284,9 @@ export function invitationIssuanceHandler(
       return current;
     };
 
-    const send = async (key: string, historicalUnknown: boolean) => {
+    const send = async (key: string, historicalUnknown: boolean): Promise<MailResult> => {
       const current = await checkGuard(historicalUnknown);
-      if (current === null) return { delivery: "not-sent" as const, providerMessageId: null };
+      if (current === null) return { delivery: "not-sent", providerMessageId: null };
       let sent;
       try {
         sent = await sendResendEmail({
@@ -258,9 +302,9 @@ export function invitationIssuanceHandler(
       }
       if (sent.kind === "rejected") {
         if (historicalUnknown) return park();
-        return { delivery: "not-sent" as const, providerMessageId: null };
+        return { delivery: "not-sent", providerMessageId: null };
       }
-      return { delivery: "accepted" as const, providerMessageId: sent.providerMessageId };
+      return { delivery: "accepted", providerMessageId: sent.providerMessageId };
     };
 
     const delivered = await ctx.step("invite.mail/v1", intent,
