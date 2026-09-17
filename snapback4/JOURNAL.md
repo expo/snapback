@@ -29122,6 +29122,47 @@ that replica devices are woken too and that the wake is an activity side channel
 suggests the smaller first step: wake a poll only for a commit that touched a partition its
 principal holds or a table its watches read. Probes are in the derived-probes record.
 
+## 2026-09-17 — two blind rounds returned: ruling 33 narrowed, maintained columns revised, a sync defect reproduced
+
+Both commissioned reviews came back the same way: **GPT NOT READY, Grok READY WITH
+CHANGES**, and in each the decisive High findings came from one family only. Records:
+`llp/reviews/3000.007-ruling-33-expiring-mutation-pages.{gpt,grok}.md` and
+`llp/reviews/3000.007.001-maintained-columns.{gpt,grok}.md`; dispositions in LLP 3000.007
+§21.9 and LLP 3000.007.001 §10. Nothing is built.
+
+- **Ruling 33.** The lead's argument — a query over the same prefix already shows the
+  viewer its unswept population — fails when the mutation itself makes the prefix readable
+  (a hidden gate row written, the page bound, the gate written back): abort versus commit
+  then measures a prefix no query of that viewer can reach. And a predicting mutation can
+  fail locally on a device-only unswept row and never reach a server that would have
+  committed it. Revision 2 admits never-predicting mutations only, under a static
+  stable-verdict condition, and is back with both families. The broader disclosure
+  contract is left to the author.
+- **Maintained columns (LLP 3000.007.001, revision 2).** The reservation the draft cited
+  does not hide a parent's presence (it no-ops for a readable, unfiltered source):
+  now unconditional and origin-keyed. Counting at a parent's birth leaked hidden
+  population work: replaced by **limbo aggregates**, so birth and death are O(1). A column
+  rebuild that reused `rebuild_maintain` would have **deleted every parent row**: the
+  rebuild is in place, never deletes, and rewrites nonzero-to-zero on redefinition.
+  Old images do not read 0 today: an implicit literal 0 and a named `Additive` exception.
+  A 100,000-parent activation is one undeliverable commit: activation becomes a generation
+  barrier with no row events. Rule probes from other tables could read the column: a
+  resolved dependency walk, shared by binder and core. And the first build **does not
+  predict the column on a device**, because of the next item.
+- **A sync defect, found by the GPT review and reproduced on published 0.2.27**
+  (`stream-image-ahead/` in the derived-probes record; ticket
+  `issues/20260917-snapback4-stream-page-serves-images-newer-than-its-watermark.md`): a
+  stream page re-materializes each `put` from the *current* row while its watermark stays
+  at the log page, so a page ending before a device's own commit, and not acknowledging
+  it, already carries its effect; the device replays the pending write on top. A public
+  counter bumped by bob (seq 2) and alice (seq 3): alice's page from watermark 1 with
+  limit 1 ends at watermark 2 with `n = 2`, and her pending `bump` replays to 3. Any
+  predicted read-modify-write is affected; writes that set a value are not.
+
+Learned, again: the design I thought was the careful one (ruling 33's "a query already
+shows this") had the hole; and two families are not redundancy — of eleven High findings
+on the RFC they shared one.
+
 ## 2026-09-17 — rulings 28–33, and the Trending lane folded into wave 12 (LLP 3000.007 §14, §21.6, §21.8)
 
 The author ruled §21.6's six questions, each put with its alternatives and a before/after,
