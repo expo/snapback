@@ -28948,3 +28948,39 @@ REMAINS**. Scoped validation passes: 33 added local links/anchors, unchanged
 `git diff --check`. `ref-check --verbose` reports 481 LLP documents, 9,054
 references, zero errors and zero unchecked. No runtime tests were run for this
 documentation-only change. The five proposed contracts remain Draft.
+
+## 2026-09-17 — derived data: three holes that were not holes (LLP 3000.007 §21)
+
+Asked after the 0.2.27 assessment how to fix the rolling ranking, the principal-writable
+ranking table, the digest over expiring rows, the serving architectures and the dropped
+push "through foundational properties". Before proposing any, the three that were called
+expressiveness holes were run on the **published 0.2.27 binary**; all three have short,
+fresh, safe forms today. Record: `benchmarks/runs/2026-09-17-snapback4-derived-probes/`.
+Nothing is built and no runtime file changed.
+
+- A rolling-24h ranking: `maintain trend: count likes by postHour, postAt, postId` with
+  `by byScore: postHour, value, id`, read as a merge of 25 hour lanes with `where .postAt >
+  now - 86400000`. 3,963 and 31,937 posts in the window: 265 and 276 examined, complete
+  with `next`, p50 2.9 and 2.2 ms over loopback, top ten equal to an oracle, no
+  out-of-window row. Zero-like posts are a second read of 25 examined. With `sync public`
+  on the sources it `runs: device` and the like still predicts.
+- A digest with no staging table: a job's nested range seek over the expiring `messages`
+  table compiles with no note; one helper serves the inbox query and the job. Seek the
+  period and filter the ordinal: for a hub in 1,000 chats of 99 messages with nothing read
+  the ordinal seek parks at `E_BOUND` (16,384) and the period seek finishes in one chunk,
+  57 ms. My first probe used the ordinal seek and passed its small fixture; a compiled
+  probe is not yet a safe example.
+- A rule pins a hand-kept score to the maintained count (`exists likeCounts[postId =
+  .postId, value = .score]`): a forged 999 is `E_RULE`.
+- Refused today, and the reason the good forms are long: `range(a, b)` as a merge lane
+  source; a computed time key in a table index.
+
+Learned: the mechanism was present each time and the pavement taught the detour — the
+README's digest recipe is one sentence, the jobs card's worked job walks a table by id,
+the fresh-ranking recipe itself shipped `update <- allow`. §21 proposes six properties
+(total reads; a fact about a row lives on the row; time is a key; expiry invisible to
+programs; one writer class per table; presence defers an effect and never drops one) and
+asks the author six rulings (28–33). Wave 12's drafted §20.21 is right about likes
+*arriving* in the last day and wrong that posts *younger* than a day need a read-time
+sort. Lanes W14a and W14b are briefed in `~/projects/snapback-next-20260914/`, not
+launched: the host's load average was 37 with 18 GiB free.
