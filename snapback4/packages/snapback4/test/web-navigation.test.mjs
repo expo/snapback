@@ -31,10 +31,13 @@ function page(t) {
 }
 async function fixture(t, { stallExitBody = false, applyExit = true } = {}) {
   const events = page(t);
-  const server = await devServer({ seed, port: 46000 + process.pid % 1000 });
+  const server = await devServer({ seed });
   const clients = [];
   const stalledBodies = [];
-  t.after(async () => { stalledBodies.forEach(c => c.close()); for (const c of clients) await c.close(); await server.close(); });
+  t.after(async () => {
+    try { stalledBodies.forEach(c => c.close()); for (const c of clients) await c.close(); }
+    finally { await server.close(); }
+  });
   const persist = memoryPersistence(), requests = [], responses = [], cores = [];
   let offline = false, pauseOrdinary = false, pauseExit = false;
   const exits = [];

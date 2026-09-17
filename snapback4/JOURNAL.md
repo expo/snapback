@@ -28800,3 +28800,21 @@ These landed-source qualifications do not close issuance/delivery, actual
 OIDC matrix/cuts, full Identity/B, Workroom, Postgres or publication. The W8
 warm diagnostic runs independently on Durand; service development continues
 without treating its eventual result as a prerequisite to adding services.
+
+
+## 2026-09-17 — fixture endpoints belong to their spawned server
+
+The local device and navigation fixtures and shared witness helper now use
+OS-assigned ports and read readiness from their own child's stdout. A failed
+bind can no longer make a fixture probe or seed an unrelated listener. The
+helper rejects startup exit and cleans failed startup; shutdown awaits child
+closure before removing the temporary app, with bounded escalation if needed.
+Navigation teardown closes its server through `finally` even if earlier
+cleanup fails. Main's newer claim, lock and recovery tests remain intact.
+
+On current 0.2.27 source, the CLI, wasm and client builds passed, followed by
+80/80 affected tests with zero failures or skips (34.494 s). The occupied-port
+probe passed with zero requests to the other listener; two simultaneous
+fixtures then used distinct ports, seeded and completed awaited cleanup.
+These are fixture checks; product behavior, assertions and existing test
+deadlines are unchanged. No package version or publication change is included.
