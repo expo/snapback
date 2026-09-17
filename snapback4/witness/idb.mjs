@@ -169,8 +169,16 @@ try {
     try {
       client = await window.createLocalClient({ url: api, persona: "bob", waitSeconds: 1, fetch: (...args) => window.fetch(...args) });
       const offline = await client.query({ kind: "query", name: "media.both" }, {});
-      window.fetch = realFetch; await client.sync();
-      const online = await client.query({ kind: "query", name: "media.both" }, {});
+      window.fetch = realFetch;
+      // A client opened offline is already retrying; an explicit sync can join
+      // that failing attempt. Poll, bounded, until the link is back.
+      let online;
+      for (let i = 0; i < 200; i++) {
+        await client.sync();
+        online = await client.query({ kind: "query", name: "media.both" }, {});
+        if (online.data?.held?.length === 26) break;
+        await new Promise((r) => setTimeout(r, 50));
+      }
       return { offline, online };
     } finally { await client?.close(); window.fetch = realFetch; }
   }, api);
