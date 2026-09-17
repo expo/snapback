@@ -27834,3 +27834,38 @@ post-timeout presence assumption was invalid; missing historical HTTP bytes
 prevent claiming that this proves the cause of every previously reported red.
 No publication, provider-account purchase, Workroom score or service-retention
 decision is implied by this landing.
+
+## 2026-09-17 — Workroom warm completion is not independent qualification
+
+The separate capped diagnostic continuation completed the full 598,224-record
+journal by applying its final 10,933 records and preserving 587,291 completed
+receipts. It exited 0, with 27 builder assertion labels passed and two
+performance ceilings not run, after a verified logical SQLite backup. Process
+custody ended cleanly. The original pilot and adopted replay remain
+failed-capped; no full replay elapsed time or cold result was recovered.
+
+The original builder resumed only to provide its closing handoff. Its sole
+change was `FINAL.md`; application and packet source stayed unchanged. Root
+rebound the independent source audit to the final archive's exact hashes.
+W3/W5 remain unqualified: blanket pass assignments do not establish the
+prewritten checklist, and source gaps include trusted invitation identity,
+invitation read isolation, configured expiry windows, already-member
+acceptance, and several response-loss/seat/effective-audit witnesses. Search's
+timing assertion does not establish the claimed tenant/known-hit validation.
+The builder honestly records the inline attachment size mismatch. A prior
+environment finding is explicitly narrowed: CLI inheritance is established,
+handler credential exposure is not. No exploit or runtime probe was run by
+this source audit.
+
+The full report compared all 2,000 expected rows successfully; descriptive
+warm report/search medians are retained, not calibrated p95 ceilings. Final
+webhook/email timings are receipt-skip overhead and unusable as service
+latencies. The snapshot receipt's Pacific-as-UTC mtime mistake has a separate
+correction; original bytes are preserved. Exact evidence and the fresh,
+isolated W8 boundary are in
+`benchmarks/runs/2026-09-16-workroom-first/diagnostic-disposition.md`.
+
+Authorized Durand cleanup removed 26 inactive dependency directories with
+fresh exact-path checks, reclaiming an observed 8.38 GiB. Source, lockfiles,
+active projects and all Workroom artifacts are intact; reinstall restores
+those dependencies. No additional global-cache/Cargo deletion was performed.

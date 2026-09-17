@@ -1,7 +1,8 @@
 # Workroom: qualification, calibration, then first cell
 
-Date: 2026-09-16. State: **original pilot and diagnostic replay adoption
-capped; acceptance incomplete; no cell result** (updated 2026-09-17 UTC).
+Date: 2026-09-16. State: **original pilot/adoption capped; separate warm
+replay and builder handoff complete; independent qualification incomplete;
+no cell result** (updated 2026-09-17 UTC).
 Governing contract: [LLP 3000.009 §10.1](../../../llp/3000.009-general-purpose-backend.rfc.md#101-the-brief)
 and [benchmark protocol](../../protocol.md).
 
@@ -177,6 +178,31 @@ until the calibration disposition is written.
 No task on this run may put load on `expo-build-1000`. Heavy verification,
 replays and cells are serialized. Stop only PIDs/process groups recorded at
 launch; preserve application stores and receipts for diagnosis.
+
+## Completed diagnostic continuation and final-source audit
+
+The separately authorized warm continuation completed the remaining 10,933
+records at 2026-09-17 03:14:45 UTC, preserving all 587,291 earlier receipts.
+The full journal now has 598,224 records. The acceptance program exited 0
+with 27 pass labels and two performance ceilings not run; the independently
+audited assertion coverage does **not** establish full W3/W5 qualification.
+The original builder subsequently added only its closing `FINAL.md`; original
+application code, packet and evidence were not rewritten. See the
+[final-source disposition](diagnostic-disposition.md) for exact hashes,
+the timestamp correction, concrete gaps and usable descriptive observations.
+The original failures remain failures; no cold result, score or calibrated
+ceiling is inferred. W8 preparation uses a fresh session and isolated copy.
+
+The third authorized cleanup pass removed 26 exact inactive dependency
+directories after fresh ownership/non-symlink/holder checks: no skips or
+failures. Observed free space increased by 8,995,078,144 bytes (8.38 GiB),
+less than the 19,055,996,928 nominal directory bytes. Source, lockfiles,
+active dependencies, Workroom state and all evidence were preserved. Restore
+dependencies by frozen installation; no trash recovery is promised. The
+private receipt `2026-09-17-durand-node-modules-pass3.json` has SHA-256
+`df37019e36e2c4cea75e20b515bc47a28de48a3d9259f12d0d346d184f787a42`.
+An initial module-import failure occurred before any deletion and is retained
+separately. No additional global-cache or Cargo directory was removed.
 
 ## Three-family interpretation and record-format correction
 
