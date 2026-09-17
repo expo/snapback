@@ -48,11 +48,16 @@ const signedJwt = (signingKey, claims, header = {}) => {
 async function localProvider(t) {
   const old = key("old"), rotated = key("rotated"), unknown = key("unknown");
   const codes = new Map(), requests = [];
-  let current = old, unavailable = false;
+  let current = old, unavailable = false, jwksUnavailable = false, nextDiscoveryFailure = null;
   const server = createServer(async (request, response) => {
     const url = new URL(request.url, issuer);
     if (url.pathname.endsWith("/.well-known/openid-configuration")) {
       requests.push({ kind: "discovery" });
+      const failure = nextDiscoveryFailure; nextDiscoveryFailure = null;
+      if (failure === "503") { response.writeHead(503); response.end(); return; }
+      if (failure === "unreadable") {
+        response.writeHead(200, { "content-type": "application/json" }); response.end("{"); return;
+      }
       if (unavailable) { response.writeHead(503); response.end(); return; }
       response.setHeader("content-type", "application/json");
       response.end(JSON.stringify({ issuer, authorization_endpoint: `${issuer}/authorize`, token_endpoint: `${issuer}/token`,
@@ -63,7 +68,7 @@ async function localProvider(t) {
     }
     if (url.pathname === "/jwks") {
       requests.push({ kind: "jwks", kid: current.kid });
-      if (unavailable) { response.writeHead(503); response.end(); return; }
+      if (unavailable || jwksUnavailable) { response.writeHead(503); response.end(); return; }
       response.setHeader("content-type", "application/json"); response.end(JSON.stringify({ keys: [current.jwk] })); return;
     }
     if (url.pathname === "/token") {
@@ -118,6 +123,9 @@ async function localProvider(t) {
     },
     rotate() { current = rotated; },
     setUnavailable(value) { unavailable = value; },
+    setJwksUnavailable(value) { jwksUnavailable = value; },
+    failNextDiscovery(value) { nextDiscoveryFailure = value; },
+    consume(code) { const entry = codes.get(code); if (entry) entry.used = true; },
     discoveryCalls() { return requests.filter(request => request.kind === "discovery").length; },
     tokenCalls(code) { return requests.filter(request => request.kind === "token" && request.code === code).length; },
     jwksCalls() { return requests.filter(request => request.kind === "jwks").length; },
@@ -141,6 +149,9 @@ class FakeCore {
     this.inactiveInvocations = new Set();
     this.revokedTargets = new Set();
     this.loseMintStepDone = 0;
+    this.loseMarkerBegin = 0;
+    this.loseMarkerDone = 0;
+    this.loseDiscoveryDone = 0;
     this.allBodies = [];
   }
   byInvocation(invocation) { return [...this.transactions.values()].find(row => row.beginInvocation === invocation) ?? null; }
@@ -177,11 +188,24 @@ class FakeCore {
         }
         if (found) { found.attempt = claim.attempt; return { step: { state: "reconcile", key: found.key } }; }
         const created = { input, key: `step:${id}`, state: "started", attempt: claim.attempt };
-        this.steps.set(id, created); return { step: { state: "run", key: created.key } };
+        this.steps.set(id, created);
+        if (name === "oidc.exchange.v2.marker" && this.loseMarkerBegin > 0) {
+          this.loseMarkerBegin--;
+          throw Error("lost v2 marker admission response after begin");
+        }
+        return { step: { state: "run", key: created.key } };
       }
       if (!found) throw Error("missing step");
       if (verb === "park") { found.state = "parked"; return { ok: true }; }
       found.state = "done"; found.result = structuredClone(body.result);
+      if (name === "oidc.exchange.v2.marker" && this.loseMarkerDone > 0) {
+        this.loseMarkerDone--;
+        throw Error("lost v2 marker completion response after commit");
+      }
+      if (name === "oidc.exchange.v2.discovery" && this.loseDiscoveryDone > 0) {
+        this.loseDiscoveryDone--;
+        throw Error("lost v2 discovery completion response after commit");
+      }
       if (name === "oidc.mint" && this.loseMintStepDone > 0) {
         this.loseMintStepDone--;
         throw Error("lost mint-step completion response after commit");
@@ -314,6 +338,24 @@ function suite(provider, core = new FakeCore()) {
   return { core, invoke, begin, callback };
 }
 
+function exchangeInput(core, flow, code, responseIssuer) {
+  const row = core.byState(flow.state);
+  return {
+    codeHash: createHash("sha256").update(JSON.stringify(["snapback4:oidc-code:v1", code])).digest("base64url"),
+    configFingerprint: row.configFingerprint,
+    responseIssuer,
+    state: flow.state,
+    transaction: row.id,
+  };
+}
+
+function seedStep(core, invocation, name, input, state, result) {
+  core.steps.set(`${invocation}:${name}`, {
+    input: JSON.stringify(input), key: `step:${invocation}:${name}`, state, attempt: 1,
+    ...(state === "done" ? { result: structuredClone(result) } : {}),
+  });
+}
+
 test("OIDC helper runs a signed Authorization Code + S256 flow and persists no provider tokens", async t => {
   const provider = await localProvider(t), s = suite(provider);
   const flow = await s.begin("healthy");
@@ -333,6 +375,10 @@ test("OIDC helper runs a signed Authorization Code + S256 flow and persists no p
   assert.equal(transaction.email, "person@example.test"); assert.equal(transaction.emailVerified, true);
   const durable = JSON.stringify({ transactions: [...s.core.transactions.values()], steps: [...s.core.steps.values()] });
   for (const secret of [ACCESS_TOKEN, REFRESH_TOKEN, SESSION_TOKEN, CLIENT_SECRET]) assert.equal(durable.includes(secret), false, secret);
+  const stepResults = JSON.stringify([...s.core.steps.values()].map(step => step.result));
+  for (const protectedValue of ["healthy-code", flow.binding, transaction.pkceVerifier, ACCESS_TOKEN, REFRESH_TOKEN, SESSION_TOKEN, CLIENT_SECRET]) {
+    assert.equal(stepResults.includes(protectedValue), false, `step result retained ${protectedValue}`);
+  }
   const mint = s.core.allBodies.find(entry => entry.path === "/auth/session");
   assert.deepEqual(mint.body, {
     principal: result.settled.body.result.principal, kind: "oidc", days: 7,
@@ -428,6 +474,131 @@ test("persisted verification replays through provider outage without repeating e
   assert.deepEqual({ discovery: provider.discoveryCalls(), token: provider.tokenCalls("resume-code"), jwks: provider.jwksCalls() }, providerCalls,
     "a completed exchange replays its claims without discovery, token or JWKS reachability");
   assert.equal(s.core.allBodies.filter(entry => entry.path === "/auth/session").length, 1);
+  assert.equal(s.core.steps.get("complete-resume:oidc.exchange.v2.marker").state, "done");
+  assert.equal(s.core.steps.get("complete-resume:oidc.exchange.v2.discovery").state, "done");
+  assert.equal(s.core.steps.get("complete-resume:oidc.exchange.v2.token").state, "done");
+});
+
+test("protocol double: pre-token discovery failures reconcile with one total code POST", async t => {
+  const provider = await localProvider(t);
+  for (const mode of ["503", "timeout", "unreadable"]) {
+    const s = suite(provider), flow = await s.begin(`discovery-${mode}`), code = `discovery-${mode}-code`;
+    provider.register(code, flow.authorizationUrl);
+    let timeoutRaised = false;
+    if (mode !== "timeout") provider.failNextDiscovery(mode);
+    const first = await s.invoke("completeOidc", s.callback(flow, code), {
+      id: `complete-discovery-${mode}`, attempt: 1,
+      ...(mode === "timeout" ? { providerFetch: async (url, init) => {
+        if (!timeoutRaised && new URL(url).pathname.endsWith("/.well-known/openid-configuration")) {
+          timeoutRaised = true;
+          throw new DOMException("the injected discovery request timed out", "TimeoutError");
+        }
+        return nativeFetch(url, init);
+      } } : {}),
+    });
+    assert.equal(first.settled.body.retry, true, mode);
+    assert.equal(provider.tokenCalls(code), 0, `${mode}: discovery failure occurs before token POST`);
+    assert.equal(s.core.steps.get(`complete-discovery-${mode}:oidc.exchange.v2.marker`).state, "done", mode);
+    assert.equal(s.core.steps.get(`complete-discovery-${mode}:oidc.exchange.v2.discovery`).state, "started", mode);
+    if (mode === "timeout") assert.equal(timeoutRaised, true, "the library received a DOM TimeoutError from its transport");
+    const recovered = await s.invoke("completeOidc", s.callback(flow, code), {
+      id: `complete-discovery-${mode}`, attempt: 2,
+    });
+    assert.ok(recovered.settled.path.endsWith("/done"), mode);
+    assert.equal(provider.tokenCalls(code), 1, `${mode}: reconciliation performs exactly one total code POST`);
+    assert.equal(s.core.steps.get(`complete-discovery-${mode}:oidc.exchange.v2.discovery`).state, "done", mode);
+  }
+});
+
+test("protocol double: v2 marker and discovery acknowledgements recover only from durable completed phases", async t => {
+  const provider = await localProvider(t);
+
+  const marker = suite(provider), markerFlow = await marker.begin("marker-ack"), markerCode = "marker-ack-code";
+  provider.register(markerCode, markerFlow.authorizationUrl); marker.core.loseMarkerDone = 1;
+  const markerFirst = await marker.invoke("completeOidc", marker.callback(markerFlow, markerCode), { id: "complete-marker-ack", attempt: 1 });
+  assert.equal(markerFirst.settled.body.retry, true);
+  assert.equal(marker.core.steps.get("complete-marker-ack:oidc.exchange.v2.marker").state, "done");
+  assert.equal(provider.tokenCalls(markerCode), 0);
+  assert.ok((await marker.invoke("completeOidc", marker.callback(markerFlow, markerCode),
+    { id: "complete-marker-ack", attempt: 2 })).settled.path.endsWith("/done"));
+  assert.equal(provider.tokenCalls(markerCode), 1);
+
+  const discovery = suite(provider), discoveryFlow = await discovery.begin("discovery-ack"), discoveryCode = "discovery-ack-code";
+  provider.register(discoveryCode, discoveryFlow.authorizationUrl); discovery.core.loseDiscoveryDone = 1;
+  const discoveryFirst = await discovery.invoke("completeOidc", discovery.callback(discoveryFlow, discoveryCode),
+    { id: "complete-discovery-ack", attempt: 1 });
+  assert.equal(discoveryFirst.settled.body.retry, true);
+  assert.equal(discovery.core.steps.get("complete-discovery-ack:oidc.exchange.v2.discovery").state, "done");
+  assert.equal(provider.tokenCalls(discoveryCode), 0);
+  let replayDiscovery = false;
+  const discoverySecond = await discovery.invoke("completeOidc", discovery.callback(discoveryFlow, discoveryCode), {
+    id: "complete-discovery-ack", attempt: 2,
+    providerFetch: async (url, init) => {
+      if (new URL(url).pathname.endsWith("/.well-known/openid-configuration")) {
+        replayDiscovery = true;
+        throw Error("completed discovery must replay its public metadata");
+      }
+      return nativeFetch(url, init);
+    },
+  });
+  assert.ok(discoverySecond.settled.path.endsWith("/done"));
+  assert.equal(replayDiscovery, false); assert.equal(provider.tokenCalls(discoveryCode), 1);
+});
+
+test("protocol double: legacy completed exchanges replay, while unfinished exchanges without a valid marker park", async t => {
+  const provider = await localProvider(t);
+
+  const completed = suite(provider), completedFlow = await completed.begin("legacy-complete"), completedId = "complete-legacy-complete";
+  const completedCode = "legacy-complete-code", before = provider.requests.length;
+  seedStep(completed.core, completedId, "oidc.exchange",
+    exchangeInput(completed.core, completedFlow, completedCode, provider.issuer), "done",
+    { ok: true, claims: { issuer: provider.issuer, subject: "legacy-subject", email: null, emailVerified: null } });
+  provider.setUnavailable(true);
+  const replay = await completed.invoke("completeOidc", completed.callback(completedFlow, completedCode), { id: completedId, attempt: 2 });
+  assert.ok(replay.settled.path.endsWith("/done"), JSON.stringify(replay));
+  assert.equal(provider.requests.length, before, "completed legacy outer result needs no provider reachability");
+  assert.equal(completed.core.steps.has(`${completedId}:oidc.exchange.v2.marker`), false);
+  provider.setUnavailable(false);
+
+  const unfinished = suite(provider), unfinishedFlow = await unfinished.begin("legacy-unfinished"), unfinishedCode = "legacy-unfinished-code";
+  const unfinishedId = "complete-legacy-unfinished";
+  provider.register(unfinishedCode, unfinishedFlow.authorizationUrl); provider.consume(unfinishedCode);
+  seedStep(unfinished.core, unfinishedId, "oidc.exchange",
+    exchangeInput(unfinished.core, unfinishedFlow, unfinishedCode, provider.issuer), "started");
+  const parked = await unfinished.invoke("completeOidc", unfinished.callback(unfinishedFlow, unfinishedCode),
+    { id: unfinishedId, attempt: 2 });
+  assert.equal(parked.settled.body.code, "E_STEP_PARKED");
+  assert.equal(provider.tokenCalls(unfinishedCode), 0, "missing v2 proof never repeats a possibly consumed code");
+  assert.equal(unfinished.core.steps.get(`${unfinishedId}:oidc.exchange.v2.marker`).state, "parked");
+
+  const interrupted = suite(provider), interruptedFlow = await interrupted.begin("legacy-marker-interrupted");
+  const interruptedCode = "legacy-marker-interrupted-code", interruptedId = "complete-legacy-marker-interrupted";
+  provider.register(interruptedCode, interruptedFlow.authorizationUrl); provider.consume(interruptedCode);
+  seedStep(interrupted.core, interruptedId, "oidc.exchange",
+    exchangeInput(interrupted.core, interruptedFlow, interruptedCode, provider.issuer), "started");
+  interrupted.core.loseMarkerBegin = 1;
+  const interruptedFirst = await interrupted.invoke("completeOidc", interrupted.callback(interruptedFlow, interruptedCode),
+    { id: interruptedId, attempt: 2 });
+  assert.equal(interruptedFirst.settled.body.retry, true);
+  assert.equal(interrupted.core.steps.get(`${interruptedId}:oidc.exchange.v2.marker`).state, "started");
+  const interruptedSecond = await interrupted.invoke("completeOidc", interrupted.callback(interruptedFlow, interruptedCode),
+    { id: interruptedId, attempt: 3 });
+  assert.equal(interruptedSecond.settled.body.code, "E_STEP_PARKED");
+  assert.equal(provider.tokenCalls(interruptedCode), 0, "a lost marker admission response cannot manufacture v2 proof");
+});
+
+test("protocol double: JWKS outage after code consumption parks without a second POST or mint", async t => {
+  const provider = await localProvider(t), s = suite(provider);
+  const flow = await s.begin("jwks-outage"), code = "jwks-outage-code", id = "complete-jwks-outage";
+  provider.register(code, flow.authorizationUrl); provider.setJwksUnavailable(true);
+  const first = await s.invoke("completeOidc", s.callback(flow, code), { id, attempt: 1 });
+  assert.equal(first.settled.body.code, "E_STEP_PARKED");
+  assert.equal(s.core.steps.get(`${id}:oidc.exchange.v2.token`).state, "parked");
+  assert.equal(provider.tokenCalls(code), 1); assert.equal(s.core.mints, 0);
+  provider.setJwksUnavailable(false);
+  const restart = await s.invoke("completeOidc", s.callback(flow, code), { id, attempt: 2 });
+  assert.equal(restart.settled.body.code, "E_STEP_PARKED");
+  assert.equal(provider.tokenCalls(code), 1); assert.equal(s.core.mints, 0);
 });
 
 test("bound mint recovers losses before commit, after commit, and after completed metadata without extending expiry", async t => {
@@ -606,7 +777,7 @@ test("invocation lifetime releases provider and private-core fetch and body stal
     return response;
   };
   const assertClosed = async (result, before, label, release) => {
-    assert.equal(result.settled.body.code, "E_ACTION_CANCELLED", label);
+    assert.equal(result.settled.body.code, "E_ACTION_CANCELLED", `${label}: ${JSON.stringify(result)}`);
     assert.equal(s.core.mints, 0, label);
     assert.equal(s.core.allBodies.some(entry => entry.path === "/m/identity.verified" || entry.path === "/auth/session"), false, label);
     release();

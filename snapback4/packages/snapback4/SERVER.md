@@ -220,16 +220,28 @@ account linking remain application work. The organizations-and-invitations
 recipe and provider-specific verification/recovery path still follow this
 private handoff; B1c alone is not full Identity/B.
 
-Discovery for completion runs inside the first `oidc.exchange` step execution.
-Once validated minimal claims are durably recorded, a restart replays them
-without discovery, token or JWKS reachability. A provider's definitive
+The outer `oidc.exchange` input and validated-claims result remain the replay
+boundary, including for completed receipts written by the earlier helper. New
+executions first durably complete a non-secret v2 admission marker. Only an
+already-completed valid marker permits reconciliation into a separately
+reconcilable discovery phase, whose result contains whitelisted public
+provider metadata. A discovery timeout, 503 or unreadable response before the
+token request can therefore retry under the same invocation and a new claim
+without posting the code. A crash before marker completion is conservative:
+an unfinished legacy outer exchange, an absent marker, or a marker whose
+admission reply was lost parks rather than risking a repeated code request.
+
+The subsequent token phase has no reconcile callback. A provider's definitive
 `invalid_grant` and known state, claim, timestamp, algorithm, key-selection or
 signature validation refusal settle terminally as `E_OIDC_EXCHANGE`. A lost
-or unreadable response, bare 5xx, `server_error`, `temporarily_unavailable`,
-unknown OAuth error, or malformed token-response shape is uncertain after the
-one-time code may have been consumed: the step parks and never automatically
-POSTs that code again. The local signed-provider tests are protocol doubles;
-only the credentials-gated recipe is actual-provider evidence.
+or unreadable token response, bare 5xx, `server_error`,
+`temporarily_unavailable`, unknown OAuth error, malformed token-response shape,
+or JWKS outage after the code POST is uncertain after the one-time code may
+have been consumed: it parks and never automatically POSTs that code again.
+Completed old or new outer receipts replay validated minimal claims without
+discovery, token or JWKS reachability. The local signed-provider tests are
+protocol doubles; only the credentials-gated recipe is actual-provider
+evidence, and no repaired-engine B1c qualification is claimed here.
 
 Provider discovery, token and JWKS fetches and their response-body reads share
 the invocation lifetime with private recipe reads/writes. Cancellation,

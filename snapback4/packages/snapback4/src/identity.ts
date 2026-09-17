@@ -2,6 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import {
   ClientSecretPost,
   ClientError,
+  Configuration,
   AuthorizationResponseError,
   ResponseBodyError,
   allowInsecureRequests,
@@ -14,9 +15,9 @@ import {
   randomNonce,
   randomPKCECodeVerifier,
   randomState,
-  type Configuration,
   type CustomFetch,
   type IDToken,
+  type ServerMetadata,
 } from "openid-client";
 import type { Mutation, Principal, Query, Session } from "./contract.ts";
 import { ServerError } from "./server-json.ts";
@@ -192,6 +193,85 @@ function assertProviderMetadata(provider: Configuration, issuer: string, insecur
   }
 }
 
+interface DurableProviderMetadata {
+  readonly protocol: "oidc-provider-metadata/v2";
+  readonly issuer: string;
+  readonly authorizationEndpoint: string;
+  readonly tokenEndpoint: string;
+  readonly jwksUri: string;
+  readonly responseTypesSupported: readonly string[];
+  readonly codeChallengeMethodsSupported: readonly string[];
+  readonly subjectTypesSupported: readonly string[] | null;
+  readonly idTokenSigningAlgValuesSupported: readonly string[] | null;
+  readonly tokenEndpointAuthMethodsSupported: readonly string[] | null;
+  readonly tokenEndpointAuthSigningAlgValuesSupported: readonly string[] | null;
+  readonly authorizationResponseIssParameterSupported: boolean | null;
+}
+
+function metadataList(value: unknown, required: boolean): readonly string[] | null {
+  if (value === undefined && !required) return null;
+  if (!Array.isArray(value) || value.length === 0 || value.length > 64
+    || value.some(item => !text(item, 1, 128)) || new Set(value).size !== value.length) {
+    throw new ServerError("E_OIDC_PROVIDER", "the provider metadata contains an invalid public capability list");
+  }
+  return Object.freeze([...value] as string[]);
+}
+
+function durableProviderMetadata(value: unknown, issuer: string, insecure: boolean): DurableProviderMetadata {
+  const metadata = value as Partial<DurableProviderMetadata> & Record<string, unknown> | null;
+  const expectedKeys = [
+    "authorizationEndpoint", "authorizationResponseIssParameterSupported", "codeChallengeMethodsSupported",
+    "idTokenSigningAlgValuesSupported", "issuer", "jwksUri", "protocol", "responseTypesSupported",
+    "subjectTypesSupported", "tokenEndpoint", "tokenEndpointAuthMethodsSupported",
+    "tokenEndpointAuthSigningAlgValuesSupported",
+  ];
+  if (!metadata || metadata.protocol !== "oidc-provider-metadata/v2" || metadata.issuer !== issuer
+    || Object.keys(metadata).sort().join("\0") !== expectedKeys.sort().join("\0")
+    || !allowedEndpoint(metadata.authorizationEndpoint, insecure)
+    || !allowedEndpoint(metadata.tokenEndpoint, insecure) || !allowedEndpoint(metadata.jwksUri, insecure)
+    || !(metadata.authorizationResponseIssParameterSupported === null
+      || typeof metadata.authorizationResponseIssParameterSupported === "boolean")) {
+    throw new ServerError("E_OIDC_PROVIDER", "the durable provider metadata does not match the fixed secure configuration");
+  }
+  const result: DurableProviderMetadata = Object.freeze({
+    protocol: "oidc-provider-metadata/v2",
+    issuer: metadata.issuer,
+    authorizationEndpoint: metadata.authorizationEndpoint,
+    tokenEndpoint: metadata.tokenEndpoint,
+    jwksUri: metadata.jwksUri,
+    responseTypesSupported: metadataList(metadata.responseTypesSupported, true)!,
+    codeChallengeMethodsSupported: metadataList(metadata.codeChallengeMethodsSupported, true)!,
+    subjectTypesSupported: metadataList(metadata.subjectTypesSupported ?? undefined, false),
+    idTokenSigningAlgValuesSupported: metadataList(metadata.idTokenSigningAlgValuesSupported ?? undefined, false),
+    tokenEndpointAuthMethodsSupported: metadataList(metadata.tokenEndpointAuthMethodsSupported ?? undefined, false),
+    tokenEndpointAuthSigningAlgValuesSupported: metadataList(metadata.tokenEndpointAuthSigningAlgValuesSupported ?? undefined, false),
+    authorizationResponseIssParameterSupported: metadata.authorizationResponseIssParameterSupported,
+  });
+  if (!result.responseTypesSupported.includes("code") || !result.codeChallengeMethodsSupported.includes("S256")) {
+    throw new ServerError("E_OIDC_PROVIDER", "the durable provider metadata does not support the fixed secure flow");
+  }
+  return result;
+}
+
+function publicProviderMetadata(provider: Configuration, issuer: string, insecure: boolean): DurableProviderMetadata {
+  assertProviderMetadata(provider, issuer, insecure);
+  const metadata = provider.serverMetadata();
+  return durableProviderMetadata({
+    protocol: "oidc-provider-metadata/v2",
+    issuer: metadata.issuer,
+    authorizationEndpoint: metadata.authorization_endpoint,
+    tokenEndpoint: metadata.token_endpoint,
+    jwksUri: metadata.jwks_uri,
+    responseTypesSupported: metadata.response_types_supported,
+    codeChallengeMethodsSupported: metadata.code_challenge_methods_supported,
+    subjectTypesSupported: metadata.subject_types_supported ?? null,
+    idTokenSigningAlgValuesSupported: metadata.id_token_signing_alg_values_supported ?? null,
+    tokenEndpointAuthMethodsSupported: metadata.token_endpoint_auth_methods_supported ?? null,
+    tokenEndpointAuthSigningAlgValuesSupported: metadata.token_endpoint_auth_signing_alg_values_supported ?? null,
+    authorizationResponseIssParameterSupported: metadata.authorization_response_iss_parameter_supported ?? null,
+  }, issuer, insecure);
+}
+
 function matchesBinding(expected: string, binding: string): boolean {
   if (!text(binding, 32, 1024) || !/^[A-Za-z0-9_-]{43}$/.test(expected)) return false;
   const decoded = Buffer.from(expected, "base64url");
@@ -219,7 +299,35 @@ function minimalClaims(claims: IDToken | undefined, expectedIssuer: string, clie
 // ordinary declared actions and managed recipe rows, never an engine protocol.
 export function oidcHandlers<Secret extends string>(configuration: OidcConfiguration<Secret>) {
   const fixed = validateSettings(configuration);
-  const provider = async (secret: string, runtime: IdentityRuntime): Promise<Configuration> => {
+  const configureProvider = (metadataValue: unknown, secret: string, runtime: IdentityRuntime): Configuration => {
+    const metadata = durableProviderMetadata(metadataValue, fixed.issuer, fixed.insecure);
+    const server: ServerMetadata = {
+      issuer: metadata.issuer,
+      authorization_endpoint: metadata.authorizationEndpoint,
+      token_endpoint: metadata.tokenEndpoint,
+      jwks_uri: metadata.jwksUri,
+      response_types_supported: [...metadata.responseTypesSupported],
+      code_challenge_methods_supported: [...metadata.codeChallengeMethodsSupported],
+      ...(metadata.subjectTypesSupported ? { subject_types_supported: [...metadata.subjectTypesSupported] } : {}),
+      ...(metadata.idTokenSigningAlgValuesSupported
+        ? { id_token_signing_alg_values_supported: [...metadata.idTokenSigningAlgValuesSupported] } : {}),
+      ...(metadata.tokenEndpointAuthMethodsSupported
+        ? { token_endpoint_auth_methods_supported: [...metadata.tokenEndpointAuthMethodsSupported] } : {}),
+      ...(metadata.tokenEndpointAuthSigningAlgValuesSupported
+        ? { token_endpoint_auth_signing_alg_values_supported: [...metadata.tokenEndpointAuthSigningAlgValuesSupported] } : {}),
+      ...(metadata.authorizationResponseIssParameterSupported === null ? {}
+        : { authorization_response_iss_parameter_supported: metadata.authorizationResponseIssParameterSupported }),
+    };
+    const configured = new Configuration(server, fixed.clientId,
+      { client_secret: secret, redirect_uris: [fixed.redirectURI], response_types: ["code"] }, ClientSecretPost(secret));
+    configured[customFetch] = runtime.providerFetch as CustomFetch;
+    configured.timeout = 10;
+    if (fixed.insecure) allowInsecureRequests(configured);
+    enableNonRepudiationChecks(configured);
+    assertProviderMetadata(configured, fixed.issuer, fixed.insecure);
+    return configured;
+  };
+  const discoverProvider = async (secret: string, runtime: IdentityRuntime, signal: AbortSignal): Promise<Configuration> => {
     try {
       const execute: ((config: Configuration) => void)[] = [enableNonRepudiationChecks];
       if (fixed.insecure) execute.push(allowInsecureRequests);
@@ -229,6 +337,7 @@ export function oidcHandlers<Secret extends string>(configuration: OidcConfigura
       assertProviderMetadata(found, fixed.issuer, fixed.insecure);
       return found;
     } catch (error) {
+      if (signal.aborted) throw signal.reason;
       if (error instanceof ServerError) throw error;
       throw new Retry("the fixed OIDC provider could not be discovered");
     }
@@ -237,7 +346,7 @@ export function oidcHandlers<Secret extends string>(configuration: OidcConfigura
   const begin = identityHandler<OidcBeginArguments, OidcBeginResult, Secret>(async (args, ctx, runtime) => {
     if (!args || !/^[A-Za-z0-9_-]{43}$/.test(args.bindingHash ?? "")) throw new ServerError("E_OIDC_BINDING", "supply a SHA-256 browser binding hash");
     const clientSecret = ctx.secrets[fixed.clientSecret];
-    const discovered = await provider(clientSecret, runtime);
+    const discovered = await discoverProvider(clientSecret, runtime, ctx.invocation.signal);
     let transaction = await runtime.query(fixed.transactions.byInvocation, { invocation: ctx.invocation.id });
     if (transaction === null) {
       // Quarry `time` is integer epoch milliseconds; the action clock adds a
@@ -290,38 +399,100 @@ export function oidcHandlers<Secret extends string>(configuration: OidcConfigura
     if (stored.completionInvocation !== ctx.invocation.id || stored.expiresAt <= runtime.now()) {
       throw new ServerError("E_OIDC_REPLAY", "this identity transaction cannot be completed by this invocation");
     }
-    const exchange = await ctx.step("oidc.exchange", {
+    const exchangeInput = {
       transaction: stored.id, configFingerprint: fixed.configFingerprint,
       codeHash: fingerprint(["snapback4:oidc-code:v1", code]), state: args.state, responseIssuer: args.iss ?? null,
-    }, async () => {
-      try {
-        // Discovery belongs to the first exchange execution. A completed step
-        // replays its validated minimal claims without any IdP reachability.
-        const discovered = await provider(ctx.secrets[fixed.clientSecret], runtime);
-        const callback = new URL(fixed.redirectURI);
-        callback.searchParams.set("code", code);
-        callback.searchParams.set("state", args.state);
-        if (typeof args.iss === "string") callback.searchParams.set("iss", args.iss);
-        const tokens = await authorizationCodeGrant(discovered, callback, {
-          expectedState: stored.state, expectedNonce: stored.nonce, pkceCodeVerifier: stored.pkceVerifier, idTokenExpected: true,
-        });
-        return { ok: true as const, claims: minimalClaims(tokens.claims(), fixed.issuer, fixed.clientId, runtime.now()) };
-      } catch (error) {
-        // A closed invocation must preserve cancellation/deadline/refusal
-        // semantics. It must not attempt to park through lost authority.
-        if (ctx.invocation.signal.aborted) throw ctx.invocation.signal.reason;
-        if (error instanceof ServerError
-          || (error instanceof ResponseBodyError && error.error === "invalid_grant")
-          || error instanceof AuthorizationResponseError
-          || (error instanceof ClientError && knownValidationRefusal(error))) {
-          return { ok: false as const };
-        }
-        // No reliable token response or readable validation input exists.
-        // The authorization code may already have been consumed, so never
-        // repeat this non-deduplicable request automatically.
-        throw new ParkStep("the OIDC exchange outcome is uncertain");
+    };
+    const markerInput = { transaction: stored.id, configFingerprint: fixed.configFingerprint, protocol: "oidc-exchange/v2" };
+    const markerResult = { protocol: "oidc-exchange/v2" } as const;
+    const runV2Exchange = async (reconcilingOuter: boolean) => {
+      const marker = await ctx.step("oidc.exchange.v2.marker", markerInput,
+        reconcilingOuter
+          ? () => { throw new ParkStep("an unfinished legacy OIDC exchange has no durable v2 admission marker"); }
+          : () => markerResult);
+      if (!marker || marker.protocol !== markerResult.protocol || Object.keys(marker).length !== 1) {
+        throw new ParkStep("the durable OIDC v2 admission marker is invalid");
       }
-    });
+
+      const discoveryInput = { transaction: stored.id, configFingerprint: fixed.configFingerprint, issuer: fixed.issuer };
+      const discoverMetadata = async () => publicProviderMetadata(
+        await discoverProvider(ctx.secrets[fixed.clientSecret], runtime, ctx.invocation.signal), fixed.issuer, fixed.insecure,
+      );
+      let discoveryRefusal: ServerError | undefined;
+      let metadata: DurableProviderMetadata;
+      try {
+        metadata = await ctx.step("oidc.exchange.v2.discovery", discoveryInput, discoverMetadata, {
+          reconcile: async () => {
+            try { return await discoverMetadata(); }
+            catch (error) {
+              // Generic GiveUp during reconciliation parks. A known metadata
+              // refusal is authoritative and must remain a terminal refusal.
+              if (error instanceof ServerError) {
+                discoveryRefusal = error;
+                throw new Error("the durable OIDC discovery was refused");
+              }
+              throw error;
+            }
+          },
+        });
+      } catch (error) {
+        if (discoveryRefusal) throw discoveryRefusal;
+        throw error;
+      }
+      const discovered = configureProvider(metadata, ctx.secrets[fixed.clientSecret], runtime);
+      try {
+        return await ctx.step("oidc.exchange.v2.token", exchangeInput, async () => {
+          try {
+            const callback = new URL(fixed.redirectURI);
+            callback.searchParams.set("code", code);
+            callback.searchParams.set("state", args.state);
+            if (typeof args.iss === "string") callback.searchParams.set("iss", args.iss);
+            const tokens = await authorizationCodeGrant(discovered, callback, {
+              expectedState: stored.state, expectedNonce: stored.nonce, pkceCodeVerifier: stored.pkceVerifier, idTokenExpected: true,
+            });
+            return { ok: true as const, claims: minimalClaims(tokens.claims(), fixed.issuer, fixed.clientId, runtime.now()) };
+          } catch (error) {
+            // A closed invocation must preserve cancellation/deadline/refusal
+            // semantics. It must not attempt to park through lost authority.
+            if (ctx.invocation.signal.aborted) throw ctx.invocation.signal.reason;
+            if (error instanceof ServerError
+              || (error instanceof ResponseBodyError && error.error === "invalid_grant")
+              || error instanceof AuthorizationResponseError
+              || (error instanceof ClientError && knownValidationRefusal(error))) {
+              return { ok: false as const };
+            }
+            // The token request or subsequent validation may have consumed the
+            // code. This phase has no reconcile callback and can never POST it
+            // again after an uncertain outcome.
+            throw new ParkStep("the OIDC exchange outcome is uncertain");
+          }
+        });
+      } catch (error) {
+        if (error instanceof ServerError && error.refusal.code === "E_STEP_PARKED") {
+          throw new ParkStep("the one-time OIDC token phase is parked");
+        }
+        throw error;
+      }
+    };
+    let exchangeRefusal: ServerError | undefined;
+    let exchange: Awaited<ReturnType<typeof runV2Exchange>>;
+    try {
+      exchange = await ctx.step("oidc.exchange", exchangeInput, () => runV2Exchange(false), {
+        reconcile: async () => {
+          try { return await runV2Exchange(true); }
+          catch (error) {
+            if (error instanceof ServerError && error.refusal.code !== "E_STEP_PARKED") {
+              exchangeRefusal = error;
+              throw new Error("the OIDC v2 exchange was refused");
+            }
+            throw error;
+          }
+        },
+      });
+    } catch (error) {
+      if (exchangeRefusal) throw exchangeRefusal;
+      throw error;
+    }
     if (!exchange.ok) throw new ServerError("E_OIDC_EXCHANGE", "the authorization code exchange or ID token verification failed");
     const claims = exchange.claims;
     await runtime.mutate(fixed.transactions.verified, {

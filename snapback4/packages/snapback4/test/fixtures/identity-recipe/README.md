@@ -44,3 +44,11 @@ and crash qualification is pending in the parent integration lane. Google
 credentials remain absent, so Google, production HTTPS and a real browser are
 also unqualified. Verification/recovery and the organizations-and-invitations
 recipe remain later identity work; this fixture is not full Identity/B.
+
+The in-package signed-provider protocol double additionally exercises the v2
+marker, public-metadata discovery reconciliation, conservative refusal of an
+unfinished legacy exchange without that marker, and the non-reconcilable
+one-time token phase. In particular, discovery failures before any token POST
+can recover, while a JWKS outage after a consumed code parks without another
+POST. Those deterministic assertions do not add actual-provider or repaired-
+engine evidence to this fixture.

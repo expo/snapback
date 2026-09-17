@@ -27533,3 +27533,83 @@ Sol/Grok review. Verification/recovery and the organizations-and-invitations
 recipe still follow. Google credentials are absent; Google, production HTTPS,
 real-browser, full Identity/B, B1b/B1c real-engine qualification, publication
 and deployment are not claimed.
+
+## 2026-09-16 — final bounded identity discovery repair checkpoint
+
+The final bounded source repair keeps the existing `oidc.exchange` input and
+minimal-claims result as the compatibility boundary. Completed old receipts
+therefore replay with zero provider reachability and no nested v2 receipt.
+Every new outer execution first completes a non-secret
+`oidc.exchange.v2.marker`. Outer reconciliation enters the new phases only
+when that exact marker is already done and valid. Its missing-marker callback
+parks and has no reconcile callback: an unfinished legacy exchange, a crash
+before marker completion, or a marker admission whose response was lost
+cannot later manufacture proof that the one-time code was unconsumed. This
+intentionally parks the rare interrupted marker-admission case.
+
+After proven admission, `oidc.exchange.v2.discovery` can reconcile a timeout,
+503 or unreadable discovery response before any token POST. Its result is
+strictly whitelisted public provider metadata. The helper reconstructs the
+`openid-client@6.8.8` `Configuration` with the fixed issuer, client, redirect,
+client authentication, endpoint metadata, invocation-bound fetch, timeout,
+loopback policy and non-repudiation checks; it persists no library object,
+client secret, code, browser binding, PKCE verifier or provider/session token
+in a step result. The following `oidc.exchange.v2.token` phase has no reconcile
+callback. Once the code POST may have happened, uncertain token or JWKS I/O
+parks and restart never POSTs again. Known OAuth/ID-token validation refusals
+remain fail-closed, completed new exchanges still replay without the provider,
+and B1c's bound mint/recovery wire is unchanged.
+
+The labelled signed-provider protocol double now distinguishes all three
+pre-token discovery failures, lost marker and discovery acknowledgements,
+completed and unfinished legacy outer receipts, completed-new receipt replay,
+and a JWKS outage after code consumption. The discovery cases resume only on
+the same invocation's new claim and perform exactly one total code POST. The
+legacy missing-marker and interrupted-marker-probe cases perform zero. The
+JWKS case performs one POST, parks, and performs neither a second POST nor a
+mint after restart. Existing signed-token, issuer/audience/expiry/nonce/state,
+PKCE, key rotation, actual-secret HS256 refusal, lifetime and bound-session
+recovery/refusal coverage remains in the same suite. These are protocol-double
+assertions, not repaired-engine or provider qualification.
+
+Serial verification used Node 24.18.0 with
+`/Users/ccheever/.volta/tools/image/node/24.18.0/bin` first on `PATH`:
+
+```text
+PATH=/Users/ccheever/.volta/tools/image/node/24.18.0/bin:$PATH npm run typecheck
+pass
+
+PATH=/Users/ccheever/.volta/tools/image/node/24.18.0/bin:$PATH npm run build
+pass; existing ignored WASM inputs copied only to ignored dist output
+
+PATH=/Users/ccheever/.volta/tools/image/node/24.18.0/bin:$PATH node --test --test-concurrency=1 test/identity.test.mjs
+17/17 pass, 0 skipped, 8.75 s
+
+PATH=/Users/ccheever/.volta/tools/image/node/24.18.0/bin:$PATH node --test --test-concurrency=1 test/server-runtime.test.mjs
+47/47 pass, 0 skipped, 0.74 s
+
+PATH=/Users/ccheever/.volta/tools/image/node/24.18.0/bin:$PATH node --test --test-concurrency=1 test/server-routes.test.mjs
+21/21 pass, 0 skipped, 0.48 s
+
+PATH=/Users/ccheever/.volta/tools/image/node/24.18.0/bin:$PATH SNAPBACK4_BIN=/Users/ccheever/.codex/sb4-oidc-qualification.eAfU4c/snapback4-0.2.26 node --test --test-concurrency=1 test/readme-examples.test.mjs
+6/6 pass, 0 skipped, 4.96 s; documentation census 20 blocks / 40 public functions
+```
+
+The first expanded identity run passed 15/17. The completed-legacy fixture had
+seeded its step input in insertion order while the real step wire is canonical
+key order, producing `E_STEP_INPUT`; seeding canonical order fixed the double.
+The discovery lifetime cut also exposed that `openid-client` wrapped an
+invocation abort before the helper's discovery catch, which became a generic
+retry. Reasserting the already-public invocation signal in the discovery
+adapter restored the existing terminal cancellation semantics. The focused
+rerun passed 2/2 and the final identity run passed 17/17.
+
+No core, contract, Work witness, pilot, benchmark or adapter source changed.
+No Cargo, root/full gate, install, upgrade, generation, provider/app listener,
+remote, origin or publication command ran. The supplied 0.2.26 binary was used
+only to compile documentation examples; no new identity flow ran against it.
+The parent retains actual repaired-engine HTTP/crash/Keycloak qualification
+and fresh blind combined reviews. Verification/recovery and the
+organizations-and-invitations recipe still follow; Google credentials remain
+absent, and full Identity/B, Google, production HTTPS, real-browser and
+repaired-engine qualification are not claimed.
