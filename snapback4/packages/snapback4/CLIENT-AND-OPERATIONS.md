@@ -172,12 +172,13 @@ keepalive request.
 An admission that finishes while the page is suspended rechecks the exit
 transport after its commit; on reopen, a matching server store identity and
 non-regressed head allow unknown writes to replay before the first sync finishes.
-With an exclusive Web Lock, the web device records the mutation id, operation,
+With an exclusive provider claim (a Web Lock for built-in IndexedDB), the web
+device records the mutation id, operation,
 arguments and minted row ids synchronously in localStorage, in call order,
 before `mutate` returns its promise. Same-origin navigation can therefore leave before IndexedDB admission
 commits: the next client admits those records before new writes, then sends
 through the ordinary outbox with the original ids. A closed tab's records are
-adopted by the next device that opens the store, under the outbox's Web Lock.
+adopted by the next device that opens the store, under the same provider claim.
 Adoption runs with that device's first sync, so a receipt from a closed tab
 answers `client.write(id)` once that sync completes, not at the moment it opens.
 Recovery and new admissions take submission numbers from the same device counter;
@@ -202,8 +203,10 @@ needs confirmation. A write-specific admission refusal returns the ordinary fail
 outcome and removes its journal record, replaces it with a non-executable
 cancellation, or acknowledges it in IndexedDB. If both stores reject cancellation,
 the recovery outcome is indeterminate: the executable record can survive and a
-later recovery can admit it if the authored condition changes. The returned
-refusal alone does not guarantee preserved cancellation in that case.
+later matching recovery admits it for a server decision. A successful local
+prediction is retained; a local refusal is not terminal during recovery, so that
+record queues without a prediction. The returned refusal alone does not guarantee
+preserved cancellation in that case.
 
 On the web one tab is one device: a second tab on the same store opens
 its own, and the writes a tab left queued when it closed are adopted by
@@ -211,8 +214,11 @@ the next device that opens the store. The built-in IndexedDB provider refuses
 to open when the Web Locks API is unavailable, because two durable owners of
 one name can overwrite each other's state. A custom `Persistence` must provide
 an exclusive `claim(name, alternate)` operation used both for opening a device
-and for nonblocking orphan recovery; `memoryPersistence()` supplies a
-single-realm implementation for tests. `webDevice({ wasm })` takes the
+and for nonblocking orphan recovery. An alternate claim must use the
+`${name}:tab-*` namespace and requires `others(prefix)` plus `remove(name)` so
+its durable work is discoverable and adoptable after release. A non-alternate
+claim must return the exact requested name or `null`. `memoryPersistence()`
+supplies a single-realm implementation for tests. `webDevice({ wasm })` takes the
 wasm as a URL, a Response, bytes or a compiled module when a bundler
 cannot resolve the default beside the module; `webDevice({ persist:
 memoryPersistence() })` keeps nothing, for tests:

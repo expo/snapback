@@ -107,6 +107,7 @@ fn insert_job(conn: &Connection, id: &str, name: &str, args: &BTreeMap<String, V
 /// bytes that define its private state format. The explicit no-module value
 /// lets an initially missing module reach the useful E_NATIVE refusal, while
 /// every legacy declaration-only native hash fails closed at chunk admission.
+// @ref LLP 3000.005#4 — queued native continuations bind Program plus exact wasm bytes; changed and legacy-unbound runs park.
 fn job_admission_hash(program: &crate::ir::Program, native_digest: Option<&str>) -> String {
     let program_hash = digest(program);
     if !program.native {

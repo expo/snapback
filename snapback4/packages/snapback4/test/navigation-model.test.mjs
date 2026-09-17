@@ -288,6 +288,9 @@ test("pre-admission journal: the next device adopts a closed tab's writes in ord
   assert.equal((await f.audit()).ordering, 123);
   assert.ok(!f.persist.stores.has(source));
   assert.equal(journalEntries(f).length, 0);
+  await client.close();
+  const again = await f.open(); await again.sync();
+  assert.equal((await f.audit()).total, 3, "a valid custom alternate is adopted exactly once");
 });
 
 test("pre-admission journal: a live tab's journal is never adopted", async t => {
@@ -493,6 +496,8 @@ test("W4R1 A: deferred recovery allocates before an offline successor, then appl
   };
   const client = await f.open(transport);
   assert.equal((await f.cores.at(-1).call({ op: "sync_state" })).ok.backend_required, false);
+  assert.deepEqual(f.durable().map(e => e.seq), [1, 2], "reopen transfers journal custody before a successor");
+  assert.ok((await Promise.all(records.map(record => client.write(record.entry.id)))).every(write => write?.state === "pending"));
   unavailable = true; await client.sync();
   const successor = await client.mutate(mark, { digit: 3 });
   assert.equal(successor.state, "pending");
@@ -571,9 +576,8 @@ for (const available of ["localStorage", "IDB", "neither"]) test(`W4R1 C: known 
   assert.equal(failed.why.code, "LOCKED", "bookkeeping must not replace a known authored refusal with E_STORE");
   assert.equal(failed.state, "failed");
   console.log(`W4R1 C: cancellation=${available}; refusal=${JSON.stringify(failed.why)}`);
-  // Change the authored condition, then let the same exclusive owner acquire
-  // it before recovery. Custom persistence no longer has an unsafe no-owner
-  // opening mode: every device that can touch this store also owns its journal.
+  // Change the authored condition. Recovery may still see the device's stale
+  // rows; the stranded intent must queue for the server's current decision.
   await fetch(f.server.api + "/m/media.mark", { method: "POST", headers: { "x-snapback-persona": "alice", "content-type": "application/json" }, body: JSON.stringify({ id: "unlock", args: { digit: 1 }, newIds: ["unlock-row"] }) }).then(r => r.json());
   await client.sync();
   await client.close();
@@ -586,6 +590,30 @@ for (const available of ["localStorage", "IDB", "neither"]) test(`W4R1 C: known 
   await reopened.close();
   const cleaned = await f.open(); await cleaned.sync();
   assert.equal(f.storage.size, 0, "successful removal also collects non-executable cancellations");
+});
+
+test("W4R1 C: an orphan journal does not settle against its stale authored condition", async t => {
+  const f = await fixture(t), primary = await f.open(), orphan = await f.open();
+  const save = f.persist.save.bind(f.persist), setItem = f.localStorage.setItem;
+  f.localStorage.removeItem = () => { throw new Error("removal unavailable"); };
+  const gate = deferred(), entered = deferred();
+  f.persist.save = async (name, changes) => { entered.resolve(); await gate.promise; await save(name, changes); };
+  const barrier = f.cores.at(-1).call({ op: "set_meta", key: "orphan-refusal-test", value: "1" });
+  await entered.promise;
+  const write = orphan.mutate({ kind: "mutation", name: "media.guarded" }, {});
+  f.localStorage.setItem = () => { throw new Error("replacement unavailable"); };
+  f.persist.save = async () => { throw new Error("IDB unavailable"); };
+  gate.resolve(); await barrier;
+  const failed = await write;
+  f.persist.save = save; f.localStorage.setItem = setItem;
+  assert.equal(failed.state, "failed"); assert.equal(failed.why.code, "LOCKED");
+  await fetch(f.server.api + "/m/media.mark", { method: "POST", headers: { "x-snapback-persona": "alice", "content-type": "application/json" }, body: JSON.stringify({ id: "orphan-unlock", args: { digit: 1 }, newIds: ["orphan-unlock-row"] }) }).then(r => r.json());
+  await primary.sync();
+  await orphan.close(); await primary.close();
+  const reopened = await f.open(); await reopened.sync();
+  assert.equal((await f.rows()).filter(row => row.body === "guarded").length, 1,
+    "the acquired destination cannot let stale orphan rows cancel journal custody");
+  f.localStorage.removeItem = key => f.storage.delete(key);
 });
 
 test("W4R1 D: single-context persistence supplies exclusive ownership without Web Locks", async t => {
@@ -620,6 +648,32 @@ test("durable IndexedDB and custom persistence cannot silently open without owne
     async load() { return []; },
     async save() {},
   } }), /must provide an exclusive claim\(name, alternate\) ownership contract/);
+});
+
+for (const fault of ["arbitrary alternate", "unrecoverable alternate", "inexact orphan claim"]) test(`custom persistence rejects ${fault} before opening`, async () => {
+  const base = memoryPersistence();
+  let rejectedReleased = 0;
+  if (fault === "inexact orphan claim") await base.save("owned:tab-orphan", [{ s: "m", k: "present", v: "1" }]);
+  const persist = {
+    load: base.load,
+    save: base.save,
+    ...(fault === "unrecoverable alternate" ? {} : { others: base.others, remove: base.remove }),
+    async claim(name, alternate) {
+      if (fault === "inexact orphan claim" && !alternate) {
+        return { name: `${name}:wrong`, async release() { rejectedReleased++; } };
+      }
+      if (fault === "inexact orphan claim") return base.claim(name, alternate);
+      return {
+        name: fault === "arbitrary alternate" ? "unrelated" : `${name}:tab-custom`,
+        async release() { rejectedReleased++; },
+      };
+    },
+  };
+  await assert.rejects(webDevice({ wasm, persist }).open("owned", null),
+    fault === "arbitrary alternate" ? /must use the owned:tab-\* namespace/
+      : fault === "unrecoverable alternate" ? /must implement others\(prefix\) and remove\(name\)/
+        : /non-alternate claim for owned:tab-orphan must return that exact name/);
+  assert.equal(rejectedReleased, 1, "the rejected claim is released");
 });
 
 test("W4R1 E: one malformed journal key does not hide a real closed tab journal", async t => {
@@ -723,7 +777,9 @@ for (const offlineReopen of [false, true]) test(`W6R1 journal: caller ID stays f
   assert.equal(record.entry.id, id);
   if (offlineReopen) {
     const offline = await f.open(() => Promise.reject(new TypeError("offline")));
-    assert.equal(f.durable().length, 1); assert.equal(f.durable()[0].id, id); await offline.close();
+    assert.equal(f.durable().length, 1); assert.equal(f.durable()[0].id, id);
+    assert.equal((await offline.write(id))?.state, "pending", "offline reopen retains visible caller-ID custody");
+    await offline.close();
   }
   const sends = [];
   const reopened = await f.open(async (url, init) => {

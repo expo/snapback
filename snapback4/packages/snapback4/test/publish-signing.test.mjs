@@ -109,7 +109,7 @@ syncBuiltinESMExports();
   if (!scenario.real) argv.push("--dry-run");
   if (scenario.resume) argv.push("--resume");
   const result = spawnSync(process.execPath, argv, { cwd: root, encoding: "utf8", env });
-  const commands = readFileSync(join(root, "commands.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
+  const commands = readFileSync(join(root, "commands.jsonl"), "utf8").trim().split("\n").filter(Boolean).map(JSON.parse);
   const metrics = join(root, "metrics/publish.jsonl");
   const records = existsSync(metrics) ? readFileSync(metrics, "utf8").trim().split("\n").filter(Boolean) : [];
   return { ...result, root, commands, record: records.length ? JSON.parse(records.at(-1)) : null };
@@ -192,6 +192,8 @@ test("a red suite still refuses before signing", (t) => {
   assert.equal(r.status, 1);
   assert.match(r.stderr, /the suite is red/);
   assert.deepEqual(r.commands.map(c => c.cmd), ["bash"]);
+  assert.ok(!existsSync(join(r.root, "target/publication")), "a red fresh source must not create a stage");
+  assert.ok(!r.commands.some(c => c.cmd === "npm" && c.args[0] === "publish"));
 });
 
 test("the installed digest still refuses tampering after signing", (t) => {
@@ -218,17 +220,18 @@ test("the installed consumer signature must verify even with a matching digest",
   assert.equal(r.record, null);
 });
 
-test("publication resumes the exact staged pair after platform success and client failure", t => {
+test("publication resumes the exact staged pair despite a red current source", t => {
   const first = publish(t, { real: true, failClientPublish: true });
   assert.notEqual(first.status, 0);
   assert.match(first.stderr, /registry unavailable after platform publish/);
   assert.equal(first.commands.filter(c => c.cmd === "npm" && c.args[0] === "publish").length, 2);
-  const retry = publish(t, { real: true, resume: true }, first.root);
+  const retry = publish(t, { real: true, resume: true, suiteRed: true }, first.root);
   assert.equal(retry.status, 0, retry.stderr);
   const publishes = retry.commands.filter(c => c.cmd === "npm" && c.args[0] === "publish");
   assert.equal(publishes.length, 1);
   assert.ok(publishes[0].args[1].endsWith("client.tgz"));
   assert.match(retry.stdout, /snapback4-darwin-arm64@0\.0\.0 already matches staged artifact/);
+  assert.ok(!retry.commands.some(c => c.cmd === "bash"), "resume qualifies staged bytes instead of unrelated current source");
   assert.ok(!retry.commands.some(c => c.cmd === "cargo"), "resume requalifies exact tarballs without rebuilding different signed bytes");
   assert.ok(retry.commands.some(c => c.cmd.includes("node_modules/.bin/snapback4")), "resume repeats installed-consumer qualification");
 });
@@ -260,11 +263,24 @@ test("publication fails closed on non-404 registry errors", t => {
   assert.ok(!failed.commands.some(c => c.cmd === "npm" && c.args[0] === "publish"));
 });
 
+test("resume requires the stage's recorded source-suite qualification", t => {
+  const staged = publish(t);
+  assert.equal(staged.status, 0, staged.stderr);
+  const receiptPath = join(staged.root, "target/publication", `${platform}-0.0.0`, "resume.json");
+  const receipt = JSON.parse(readFileSync(receiptPath, "utf8"));
+  delete receipt.qualification;
+  writeFileSync(receiptPath, JSON.stringify(receipt));
+  const resumed = publish(t, { real: true, resume: true }, staged.root);
+  assert.notEqual(resumed.status, 0);
+  assert.match(resumed.stderr, /does not carry a recorded successful source-suite qualification/);
+  assert.deepEqual(resumed.commands, []);
+});
+
 test("an existing stage requires explicit resume instead of silently publishing stale bytes", t => {
   const staged = publish(t);
   assert.equal(staged.status, 0, staged.stderr);
   const ordinary = publish(t, { real: true }, staged.root);
   assert.notEqual(ordinary.status, 0);
   assert.match(ordinary.stderr, /pass --resume to requalify and converge those exact bytes/);
-  assert.ok(!ordinary.commands.some(c => c.cmd === "cargo" || (c.cmd === "npm" && c.args[0] === "publish")));
+  assert.deepEqual(ordinary.commands, [], "existing-stage refusal happens before the suite or any build and publish command");
 });

@@ -65,10 +65,13 @@ the current bearer token. Viewer-authorized asset responses use
 
 ## Publishing
 
-From `snapback4/`, `node scripts/publish.mjs` runs the blocking suite,
-builds the production CLI and client, packs them, proves an installed
-consumer and publishes both packages. `--dry-run` does the same work
-through the consumer proof without publishing. Use Node 24 on PATH.
+From `snapback4/`, `node scripts/publish.mjs` runs the blocking suite before
+creating a stage, builds the production CLI and client, packs them, proves an
+installed consumer and publishes both packages. `--dry-run` does the same work
+through the consumer proof without publishing. A durable stage must be finished
+with `--resume`; resume validates its original suite qualification and exact
+tarball integrities, then repeats the installed-consumer proof without testing
+unrelated current source. Use Node 24 on PATH.
 
 The production darwin CLI in `snapback4-darwin-arm64` is signed with a
 Developer ID Application identity, hardened runtime and a secure timestamp

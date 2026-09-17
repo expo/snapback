@@ -155,12 +155,12 @@ keepalive request.
 An admission that finishes while the page is suspended rechecks the exit
 transport after its commit; on reopen, a matching server store identity and
 non-regressed head allow unknown writes to replay before the first sync finishes.
-With an exclusive Web Lock, the web device records the mutation id, operation,
+With an exclusive persistence claim, the web device records the mutation id, operation,
 arguments and minted row ids synchronously in localStorage, in call order,
 before `mutate` returns its promise. Same-origin navigation can therefore leave before IndexedDB admission
 commits: the next client admits those records before new writes, then sends
 through the ordinary outbox with the original ids. A closed tab's records are
-adopted by the next device that opens the store, under the outbox's Web Lock.
+adopted by the next device that opens the store, under the outbox's exclusive claim.
 Adoption runs with that device's first sync, so a receipt from a closed tab
 answers `client.write(id)` once that sync completes, not at the moment it opens.
 Recovery and new admissions take submission numbers from the same device counter;
@@ -173,11 +173,15 @@ Recovered records stay bound to their original backend store identity; a
 replacement retires them without sending them to the new backend.
 The journal allows at most 32 records and 256 KiB of UTF-8 keys and values per
 device store; a serialized record over 64 KiB is not journaled. Unavailable,
-throwing or full localStorage, missing Web Locks, an unidentified backend store,
+throwing or full localStorage, an unidentified backend store,
 exceeded journal limits, or browser storage clearing leave unawaited navigation
 best-effort: that write can still be lost before IndexedDB commits. A destination must open
 a client to recover a record that never reached the outbox; keepalive remains
-best-effort and sends only admitted writes.
+best-effort and sends only admitted writes. Built-in IndexedDB requires Web
+Locks and refuses opening without them. Custom persistence must provide an
+exclusive claim and discoverable alternate stores; see the client reference.
+Recovered executable records keep successful predictions, but local refusals
+queue for the server to decide, so stale rows cannot permanently cancel them.
 For programmatic navigation, `await client.mutate(...)` before navigating
 is the strongest durable boundary; handle a `failed` outcome before leaving.
 `pending` means IndexedDB admission is durable and the server outcome still

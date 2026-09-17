@@ -25,23 +25,10 @@ delete buildEnv.SNAPBACK4_BIN;
 const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { stdio: ["ignore", "pipe", "inherit"], encoding: "utf8", ...opts });
 const version = JSON.parse(readFileSync(join(pkg, "package.json"), "utf8")).version;
 
-// The suite first, and a red suite is a refusal: nothing publishes over a
-// failing test (0.1.10 went out on a red suite through a chained shell
-// command; this gate is the durable answer).
-console.log(`== the suite`);
-try {
-  execFileSync("bash", [join(root, "scripts/test.sh")], { stdio: "inherit", cwd: root, env: buildEnv });
-} catch {
-  console.error(`publish: the suite is red; snapback4@${version} is not published`);
-  process.exit(1);
-}
-
 // The binary rides in a platform package the client package depends on
 // optionally; this machine builds darwin-arm64.
 const platformPkg = join(root, `packages/snapback4-${process.platform}-${process.arch}`);
 const platformName = `snapback4-${process.platform}-${process.arch}`;
-const platformVersion = JSON.parse(readFileSync(join(platformPkg, "package.json"), "utf8")).version;
-if (platformVersion !== version) throw new Error(`snapback4-${process.platform}-${process.arch} is ${platformVersion}; the client is ${version}`);
 const expectedVersion = `snapback4 ${version}`;
 const digest = (path) => createHash("sha256").update(readFileSync(path)).digest("hex");
 const sri = (path) => `sha512-${createHash("sha512").update(readFileSync(path)).digest("base64")}`;
@@ -53,7 +40,8 @@ function loadStage() {
   let receipt;
   try { receipt = JSON.parse(readFileSync(receiptPath, "utf8")); }
   catch (error) { throw new Error(`cannot read publication resume ${receiptPath}: ${error.message}`); }
-  if (receipt.format !== 1 || receipt.version !== version || receipt.platform !== platformName || receipt.client?.name !== "snapback4" || receipt.platformArtifact?.name !== platformName) throw new Error(`publication resume ${receiptPath} does not describe ${platformName} and snapback4 at ${version}`);
+  if (receipt.format !== 2 || receipt.version !== version || receipt.platform !== platformName || receipt.client?.name !== "snapback4" || receipt.platformArtifact?.name !== platformName) throw new Error(`publication resume ${receiptPath} does not describe ${platformName} and snapback4 at ${version}`);
+  if (receipt.qualification?.suite !== "passed") throw new Error(`publication resume ${receiptPath} does not carry a recorded successful source-suite qualification`);
   for (const artifact of [receipt.platformArtifact, receipt.client]) {
     if (artifact.version !== version || typeof artifact.filename !== "string" || typeof artifact.integrity !== "string") throw new Error(`publication resume has an incomplete ${artifact.name} artifact`);
     artifact.tarball = join(stateDirectory, artifact.filename);
@@ -69,6 +57,18 @@ if (!staged && resume) throw new Error(`--resume needs an existing publication s
 if (staged) {
   console.log(`== resume exact qualified tarballs from ${receiptPath}`);
 } else {
+  const platformVersion = JSON.parse(readFileSync(join(platformPkg, "package.json"), "utf8")).version;
+  if (platformVersion !== version) throw new Error(`snapback4-${process.platform}-${process.arch} is ${platformVersion}; the client is ${version}`);
+  // A new stage must qualify its source before producing any durable bytes.
+  // A resume instead requalifies the already qualified staged bytes below;
+  // unrelated current-checkout failures cannot strand a partial publication.
+  console.log(`== the suite`);
+  try {
+    execFileSync("bash", [join(root, "scripts/test.sh")], { stdio: "inherit", cwd: root, env: buildEnv });
+  } catch {
+    console.error(`publish: the suite is red; snapback4@${version} is not published`);
+    process.exit(1);
+  }
   console.log(`== build snapback4@${version}`);
   rmSync(join(pkg, "dist"), { recursive: true, force: true });
   run("bun", ["run", "--cwd", pkg, "build"]);
@@ -103,7 +103,7 @@ if (staged) {
   const tarball = join(stateDirectory, packed.filename), platformTarball = join(stateDirectory, packedPlatform.filename);
   copyFileSync(join(work, packed.filename), tarball);
   copyFileSync(join(work, packedPlatform.filename), platformTarball);
-  staged = { format: 1, version, platform: platformName, binaryProfile, binarySha256, binaryVersion, binaryBytes: statSync(sourceBinary).size, cargoProfile: artifact.profile, sqliteBuildFlags, signing,
+  staged = { format: 2, version, platform: platformName, qualification: { suite: "passed" }, binaryProfile, binarySha256, binaryVersion, binaryBytes: statSync(sourceBinary).size, cargoProfile: artifact.profile, sqliteBuildFlags, signing,
     client: { name: "snapback4", version, filename: packed.filename, integrity: sri(tarball), bytes: statSync(tarball).size, files: packed.entryCount },
     platformArtifact: { name: platformName, version, filename: packedPlatform.filename, integrity: sri(platformTarball), bytes: statSync(platformTarball).size, files: packedPlatform.entryCount } };
   const temporaryReceipt = `${receiptPath}.tmp-${process.pid}`;

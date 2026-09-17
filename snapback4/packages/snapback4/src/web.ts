@@ -23,9 +23,10 @@ export interface Change {
 
 /** Where a host keeps what the device changed, by store name. */
 export interface Persistence {
-  /** Acquire one exclusive device-store name. A provider may return a
-   * provider-scoped alternate name when `alternate` is true and the requested
-   * name is busy. With `alternate` false, return null rather than waiting. */
+  /** Acquire one exclusive device-store name. When `alternate` is true, an
+   * alternate must be named `${name}:tab-*` and the provider must implement
+   * `others` and `remove` so a later owner can adopt it. With `alternate`
+   * false, return the exact requested name or null rather than waiting. */
   claim(name: string, alternate: boolean): Promise<PersistenceClaim | null>;
   load(name: string): Promise<Change[]>;
   read?(name: string, store: string, key: string): Promise<string | null>;
@@ -63,7 +64,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       ready ??= cachedWasm(options.wasm ?? new URL("./wasm/snapback4_device_bg.wasm", import.meta.url), persist)
         .catch((error) => { ready = null; throw error; });
       await ready;
-      const store = await persist.claim(name, true);
+      const store = await claimStore(persist, name, true);
       if (!store) throw new Error("webDevice: persistence could not claim an exclusive device store");
       const journal = new AdmissionJournal(store.name, true);
       const admissions = new Set<string>();
@@ -288,6 +289,24 @@ async function claimWithWebLocks(name: string, alternate: boolean): Promise<Pers
   return { name: own, release };
 }
 
+async function claimStore(persist: Persistence, name: string, alternate: boolean): Promise<PersistenceClaim | null> {
+  const claim = await persist.claim(name, alternate);
+  if (!claim) return null;
+  let problem: string | undefined;
+  if (typeof claim.name !== "string" || typeof claim.release !== "function") {
+    problem = "persistence returned an invalid exclusive claim";
+  } else if (!alternate && claim.name !== name) {
+    problem = `a non-alternate claim for ${name} must return that exact name`;
+  } else if (claim.name !== name && (!claim.name.startsWith(`${name}:tab-`) || claim.name.length === `${name}:tab-`.length)) {
+    problem = `an alternate claim for ${name} must use the ${name}:tab-* namespace`;
+  } else if (claim.name !== name && (typeof persist.others !== "function" || typeof persist.remove !== "function")) {
+    problem = "a persistence provider returning an alternate must implement others(prefix) and remove(name) for orphan adoption";
+  }
+  if (!problem) return claim;
+  if (typeof claim.release === "function") await claim.release();
+  throw new Error(`webDevice: ${problem}`);
+}
+
 /** Hold a lock until released; null when another holder has it. */
 function hold(locks: LockManager, name: string): Promise<(() => Promise<void>) | null> {
   return new Promise((resolve, reject) => {
@@ -312,15 +331,17 @@ function hold(locks: LockManager, name: string): Promise<(() => Promise<void>) |
  * and the orphan's store goes; its rows are the stream's to bring back. */
 async function adoptOrphans(device: WebDevice, name: string, own: string, persist: Persistence, settle: (extra?: Change[]) => Promise<void>): Promise<void> {
   if (!persist.others || !persist.remove) return;
-  for (const orphan of new Set([...await persist.others(`${name}:tab-`), ...journalStores(`${name}:tab-`)])) {
+  const orphanPrefix = `${name}:tab-`;
+  for (const orphan of new Set([...await persist.others(orphanPrefix), ...journalStores(orphanPrefix)])) {
+    if (!orphan.startsWith(orphanPrefix)) continue;
     if (orphan === own) continue;
     // A tab that just closed can still hold its lock for a moment. Its records
     // and receipts are only reachable once it lets go, and nothing else would
     // retry until the next apply, so wait briefly for a busy orphan.
-    let held = await persist.claim(orphan, false);
+    let held = await claimStore(persist, orphan, false);
     for (let wait = 0; !held && wait < 10; wait++) {
       await new Promise(resume => setTimeout(resume, 20));
-      held = await persist.claim(orphan, false);
+      held = await claimStore(persist, orphan, false);
     }
     if (!held) continue;
     let destinationDirty = false;

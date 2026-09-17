@@ -74,11 +74,12 @@ Gotchas you cannot derive from the code:
   names the indexes that exist. Named equalities covering a total unique key
   check any extra columns on that one row without an additional index.
 - The packaged CLI uses `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT` during both publication tests and its production build (LLP 3000 §7). A plain production Cargo build retains the dependency's ordinary SQLite policy; use the same build input when comparing with the package. The variable is unnecessary at runtime.
-- `scripts/publish.mjs` runs the suite and refuses on red, builds the production binary, packs `snapback4-darwin-arm64` and verifies the installed digest, then publishes both packages. Bump `version` in `packages/snapback4/package.json` (and its `optionalDependencies`), `packages/snapback4-darwin-arm64/package.json` and `Cargo.toml` together; a test refuses a mismatch.
+- When creating a stage, `scripts/publish.mjs` runs the suite and refuses on red, builds the production binary, packs `snapback4-darwin-arm64` and verifies the installed digest, then publishes both packages. Bump `version` in `packages/snapback4/package.json` (and its `optionalDependencies`), `packages/snapback4-darwin-arm64/package.json` and `Cargo.toml` together; a test refuses a mismatch.
 - Publication retains exact signed tarballs under `target/publication/`. If a
-  stage exists, use `node scripts/publish.mjs --resume` to requalify those bytes
-  and finish missing registry artifacts; an existing version must match its
-  staged integrity. This also applies after `--dry-run`. An ordinary invocation
+  stage exists, use `node scripts/publish.mjs --resume` to validate its recorded
+  suite qualification, requalify those exact bytes through the installed-consumer
+  proof, and finish missing registry artifacts; an existing version must match
+  its staged integrity. This also applies after `--dry-run`. An ordinary invocation
   refuses an existing stage so changed source cannot silently publish old bytes.
   Bump the version to build a new pair; preserve a partially published stage.
 - The guide is tested text. Every ```quarry block in `crates/snapback4-lang/src/guide.rs` and in `packages/snapback4/README.md` is compiled by `crates/snapback4-lang/tests/guide.rs` with no diagnostic and no note (the language card is also run against the engine); every refusal code the sources emit must be in `guide::CODES`; every `guide("..")` a diagnostic carries must name a card. Add a form to the language card when you add it to the parser, fence README Quarry as ```quarry, and never fence Quarry as plain text to dodge the test.

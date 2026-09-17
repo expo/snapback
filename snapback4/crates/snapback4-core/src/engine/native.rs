@@ -147,6 +147,7 @@ impl<'a> Host<'a> {
     }
 }
 
+// @ref LLP 3000.005#4 — native wasm memory/table and host bridge bytes stay inside the existing heap/output ceilings.
 fn native_limits(heap_limit: usize, table_bytes: usize) -> wasmi::StoreLimits {
     let table_bytes = table_bytes.min(heap_limit);
     wasmi::StoreLimitsBuilder::new()
