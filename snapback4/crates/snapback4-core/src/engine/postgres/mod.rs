@@ -149,7 +149,7 @@ impl PostgresEngine {
             cut: runner.read_cut(),
             capped_at: runner.meter.capped_at.clone(),
             word_cut_at: runner.word_cut_at.clone(),
-            next: runner.next_cursor()?,
+            next: runner.outcome_next_cursor()?,
             data,
             seq,
             metered: runner.meter.used,

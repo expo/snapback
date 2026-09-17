@@ -390,7 +390,7 @@ impl Runner<'_> {
         }
         let empty_page = |this: &mut Self| {
             if this.page_depth == 0 && scan.opaque_cursor {
-                this.record_page(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: position + 1, prefix: None, interrupted: false, next: None });
+                this.record_page(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: position + 1, prefix: None, merge: true, interrupted: false, next: None });
             }
         };
         // @ref LLP 3000.007#18.1 — one verdict per matching scope, before word discovery; the outer merge orders these scoped pages.
@@ -470,6 +470,15 @@ impl Runner<'_> {
         index.suffix_after(prefix_len).iter().map(|name| CursorColumn { name: name.clone(), kind: table.columns[name].clone() }).collect()
     }
 
+    // @ref LLP 3000.007.000#1 — only a merge appends the stored row id; direct descriptors and paved id-ending tokens keep their bytes.
+    fn merge_suffix(table: &Table, index: &Index, prefix_len: usize) -> Vec<CursorColumn> {
+        let mut suffix = Self::cursor_suffix(table, index, prefix_len);
+        if suffix.last().is_none_or(|column| column.name != "id") {
+            suffix.push(CursorColumn { name: "id".into(), kind: table.columns["id"].clone() });
+        }
+        suffix
+    }
+
     /// The bounds of a scan: the cursor position and any value range.
     fn bounds(&mut self, scan: &Scan, table: &Table, index: &Index, prefix: Option<&[Value]>) -> Result<Bounds, RuntimeError> {
         let mut bounds = Bounds::default();
@@ -483,7 +492,8 @@ impl Runner<'_> {
         match after {
             None | Some(Value::Null) => {}
             Some(Value::String(token)) if scan.opaque_cursor => {
-                let suffix = Self::cursor_suffix(table, index, scan.prefix.len());
+                let suffix = if scan.merge_site.is_some() || index.word_component().is_some() { Self::merge_suffix(table, index, scan.prefix.len()) }
+                    else { Self::cursor_suffix(table, index, scan.prefix.len()) };
                 let values = decode_cursor_for(self.schema, &token, &scan.table, &scan.index, scan.order, &suffix).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
                 if scan.merge_site.is_none() && let Some(prefix) = prefix {
                     let expected = CursorScope { generation: self.context.generation, prefix: prefix.to_vec() };
@@ -627,9 +637,13 @@ impl Runner<'_> {
                     last_rule_visible = Some(key.clone());
                     if let Some(filter) = &scan.filter {
                         let prior = self.env.insert("$filter".into(), row.clone());
+                        // @ref LLP 3000.007#20.22 — predicate reads are below the page; restore depth even when evaluating one fails.
+                        let page_depth = self.page_depth;
+                        self.page_depth += 1;
                         self.filter_depth += 1;
                         let matched = self.expr(filter);
                         self.filter_depth -= 1;
+                        self.page_depth = page_depth;
                         match prior { Some(value) => { self.env.insert("$filter".into(), value); }, None => { self.env.remove("$filter"); } }
                         let matched = matched?.as_bool()?;
                         self.meter.at(&scan.site);
@@ -668,7 +682,7 @@ impl Runner<'_> {
             let position = if visible.len() == take { keys.last() } else { last_rule_visible.as_ref().or_else(|| keys.last()) };
             let continues = if capped || self.non_uniform || self.word_cut_at.is_some() { position.is_some() } else { has_more };
             let next = if continues { position.and_then(|key| crate::key::decode(key)).map(|values| values.into_iter().take(components).skip(prefix.len()).collect()) } else { None };
-            self.record_page(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: prefix.len(), prefix: (scan.merge_site.is_none() && word.is_none()).then(|| prefix.clone()), interrupted: false, next });
+            self.record_page(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: prefix.len(), prefix: (scan.merge_site.is_none() && word.is_none()).then(|| prefix.clone()), merge: scan.merge_site.is_some() || word.is_some(), interrupted: false, next });
         }
         Ok((visible, keys))
     }
@@ -686,13 +700,19 @@ impl Runner<'_> {
         self.discarded_page_loss || self.pages.iter().any(|(site, page)| page.interrupted || (page.next.is_some() && self.page_owner.as_ref() != Some(site)))
     }
 
-    /// The opaque `next` cursor of the program's page, if it has one.
+    // @ref LLP 3000.007.000#3 — publish merge candidates using the final answer's class, without deleting raw position-loss evidence.
+    pub(super) fn outcome_next_cursor(&self) -> Result<Option<String>, RuntimeError> {
+        if self.non_uniform && self.page.as_ref().is_some_and(|page| page.merge) { return Ok(None); }
+        self.next_cursor()
+    }
+
+    /// Encode the raw candidate; loss accounting never uses publication eligibility.
     pub(super) fn next_cursor(&self) -> Result<Option<String>, RuntimeError> {
         let Some(page) = &self.page else { return Ok(None) };
         let Some(values) = &page.next else { return Ok(None) };
         let table = self.schema.table(&page.table).expect("scanned table");
         let index = table.index(&page.index).expect("scanned index");
-        let suffix = Self::cursor_suffix(table, index, page.prefix_len);
+        let suffix = if page.merge { Self::merge_suffix(table, index, page.prefix_len) } else { Self::cursor_suffix(table, index, page.prefix_len) };
         encode_cursor(self.schema, &CursorPosition { table: page.table.clone(), index: page.index.clone(), order: page.order, suffix, values: values.clone(), scope: page.prefix.as_ref().map(|prefix| CursorScope { generation: self.context.generation, prefix: prefix.clone() }) })
             .map(Some)
             .map_err(|error| RuntimeError::Input(format!("cursor: {error}")))
@@ -716,14 +736,13 @@ impl Runner<'_> {
         let order = first.scan.order;
         let take = self.take(&first.scan.take)?;
         let prefix_len = first.scan.prefix.len();
-        let suffix_columns: Vec<String> = index.suffix_after(prefix_len);
+        let suffix = Self::merge_suffix(table, index, prefix_len);
         // A merge's cursor names the merge's own scope; it is checked before
         // lane discovery so an empty discovery cannot admit a foreign token.
         if first.scan.opaque_cursor
             && let Some(after) = first.scan.after.as_deref()
             && let Value::String(token) = self.expr(after)?
         {
-            let suffix = Self::cursor_suffix(table, index, prefix_len);
             decode_cursor_for(self.schema, &token, &first.scan.table, &first.scan.index, order, &suffix).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
         }
         let mut candidates: Vec<(Vec<Value>, Value)> = Vec::new();
@@ -766,7 +785,7 @@ impl Runner<'_> {
                     if !seen.insert(id) {
                         continue;
                     }
-                    let key: Vec<Value> = suffix_columns.iter().map(|column| row.field(column).cloned().unwrap_or(Value::Null)).collect();
+                    let key: Vec<Value> = suffix.iter().map(|column| row.field(&column.name).cloned().unwrap_or(Value::Null)).collect();
                     candidates.push((key, row));
                 }
             }
@@ -788,20 +807,11 @@ impl Runner<'_> {
             self.page_overflow = true; self.components.note(|frame| frame.overflow = true);
         }
         if self.page_depth == 0 && first.scan.opaque_cursor {
-            let continues = self.merge_can_continue() && has_more;
+            let continues = has_more && self.meter.capped_at.is_none() && self.word_cut_at.is_none();
             let next = if continues { candidates.last().map(|(key, _)| key.clone()) } else { None };
-            self.record_page(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, prefix: None, interrupted: false, next });
+            self.record_page(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, prefix: None, merge: true, interrupted: false, next });
         }
         Ok(candidates.into_iter().map(|(_, row)| row).collect())
-    }
-
-    // @ref LLP 3000.007#18.1 — one shared position must be established by every lane, including a lane cut before contributing a row.
-    fn merge_can_continue(&mut self) -> bool {
-        // A cut can leave unread rows ahead of the last merged result. The
-        // existing cursor has no per-lane positions, so it cannot resume that
-        // page safely. Withhold for the entire non-uniform class, even without
-        // a cut: presence of next must not reveal a hidden run's meter cost.
-        !self.non_uniform && !self.read_capped() && self.word_cut_at.is_none()
     }
 
     /// One head per uniform lane, then advance only the winning lane. Each
@@ -814,15 +824,15 @@ impl Runner<'_> {
         let take = self.take(&first.scan.take)?;
         let order = first.scan.order;
         let prefix_len = first.scan.prefix.len();
-        let columns: Vec<_> = index.suffix_after(prefix_len);
+        let suffix = Self::merge_suffix(table, index, prefix_len);
         if first.scan.opaque_cursor
             && let Some(after) = first.scan.after.as_deref()
             && let Value::String(token) = self.expr(after)?
         {
-            decode_cursor_for(self.schema, &token, &first.scan.table, &first.scan.index, order, &Self::cursor_suffix(table, index, prefix_len))
+            decode_cursor_for(self.schema, &token, &first.scan.table, &first.scan.index, order, &suffix)
                 .map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
         }
-        let key_of = |row: &Value| columns.iter().map(|column| row.field(column).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>();
+        let key_of = |row: &Value| suffix.iter().map(|column| row.field(&column.name).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>();
         let depth = self.page_depth;
         self.page_depth += 1;
         let mut lanes = Vec::new();
@@ -843,13 +853,16 @@ impl Runner<'_> {
         let batch = if lanes.len() <= 8 { take + 1 } else { 1 };
         for (position, (scan, prefix, bounds, buffer, done)) in lanes.iter_mut().enumerate() {
             let (rows, _) = self.scan_prepared(scan, prefix.clone(), bounds.clone(), batch, word)?;
-            *done = rows.len() < batch;
+            *done = rows.len() < batch && !self.read_capped();
             *buffer = rows.into();
             if let Some(row) = buffer.pop_front() {
                 self.meter.step(1)?;
                 heap.push(MergeHead { key: key_of(&row), row, lane: position, order });
             }
         }
+        // @ref LLP 3000.007.000#3 — only after an uncut opening does a failed refill stop the drain, after emitted and duplicate pops alike.
+        let opened_all = !self.read_capped();
+        let mut drain_cut = false;
         let mut seen = BTreeSet::new();
         let mut page = Vec::new();
         let mut has_more = false;
@@ -863,10 +876,12 @@ impl Runner<'_> {
             }
             let (scan, prefix, bounds, buffer, done) = &mut lanes[head.lane];
             bounds.after = Some(head.key);
-            if buffer.is_empty() && !*done && !self.read_capped() {
+            if opened_all && buffer.is_empty() && !*done {
+                if self.read_capped() { drain_cut = true; break; }
                 let (rows, _) = self.scan_prepared(scan, prefix.clone(), bounds.clone(), batch, word)?;
-                *done = rows.len() < batch;
+                *done = rows.len() < batch && !self.read_capped();
                 *buffer = rows.into();
+                if self.read_capped() { drain_cut = true; break; }
             }
             if let Some(row) = buffer.pop_front() {
                 heap.push(MergeHead { key: key_of(&row), row, lane: head.lane, order });
@@ -875,8 +890,8 @@ impl Runner<'_> {
         self.page_depth = depth;
         if depth == 0 {
             if first.scan.opaque_cursor {
-                let continues = self.merge_can_continue() && has_more;
-                self.record_page(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, prefix: None, interrupted: false, next: if continues { last } else { None } });
+                let continues = self.word_cut_at.is_none() && ((has_more && !self.read_capped()) || (opened_all && drain_cut && !page.is_empty()));
+                self.record_page(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, prefix: None, merge: true, interrupted: false, next: if continues { last } else { None } });
             } else if has_more { self.page_overflow = true; self.components.note(|frame| frame.overflow = true); }
         }
         Ok(page)

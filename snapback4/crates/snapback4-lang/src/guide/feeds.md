@@ -84,11 +84,15 @@ Entries carry the app post ID and attribution, without copying a text body.
 Join the app's card at read time as shown below; its residency decides whether
 that card can answer on the device.
 
-A merge with non-uniform lanes or a meter or word-limit cut returns no
-`next`: its single cursor cannot safely advance every lane.
+A merge with a non-uniform answer, an opening cut or a word-limit cut returns no
+`next`: its single cursor cannot safely advance every lane. A uniform lazy
+merge cut while draining established heads carries `next` after its last
+emitted row, with `complete: false, cut: 'meter'`. Following it keeps the
+aggregate incomplete in `usePage`.
 Non-uniform merges withhold the cursor even within budget, so its presence
 cannot reveal hidden rows; pin the columns that decide each lane's rule to
-get a pageable feed. IDs break equal ordering keys and identify copies
+get a pageable feed. The engine appends the row id to a merge position unless
+its ordering suffix already ends in `id`. IDs break equal ordering keys and identify copies
 across projections, which must keep the same ordering fields.
 A merge cursor from generation N is accepted on N+1 when its table, index,
 direction and typed ordering suffix still match; it is a position in the

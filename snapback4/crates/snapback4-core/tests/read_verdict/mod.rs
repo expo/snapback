@@ -10,6 +10,7 @@ use std::collections::BTreeMap;
 
 mod round2;
 mod round3;
+mod merge_continuation;
 
 fn table() -> Table {
     Table { residency: Default::default(), defaults: BTreeMap::new(),

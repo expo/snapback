@@ -43,8 +43,7 @@ fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut contex
     let charged = runner.charge_output(&data);
     if !capped && runner.meter.capped_at.is_some() { runner.components.note(|frame| frame.capped = true); }
     charged?;
-    let next = runner.next_cursor()?;
-    Ok(QueryOutcome {
+    let next = runner.outcome_next_cursor()?;    Ok(QueryOutcome {
         complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.page_position_lost() && !runner.beyond_horizon && !runner.presence_unknown,
         cut: runner.read_cut(),
         capped_at: runner.meter.capped_at.clone(),

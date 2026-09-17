@@ -5,6 +5,7 @@
 mod papercuts;
 mod following;
 mod merge_cursor;
+mod merge_continuation;
 mod trending;
 mod grace_effects;
 mod search_global;

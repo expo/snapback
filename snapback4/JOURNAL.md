@@ -29548,3 +29548,104 @@ the relaxation is declined and the refusal stands. Two rounds each found a new w
 mutation to shape what its own page measures; the remaining admitted class is narrow; the
 one observed need is met by a job. The analysis is kept in LLP 3000.007 §21.9 for whoever
 reopens it. W14b still fixes the refusal's rewrite to name the job door.
+
+## 2026-09-17 — W13a: merge positions, drain continuation, and predicate page depth
+
+Implemented LLP 3000.007.000's merge position and candidate/publication split,
+and LLP 3000.007 §20.22's predicate-depth correction. Only merge positions
+append a missing row id; direct descriptors and existing id-ending v1 tokens
+keep their bytes. An older no-id merge token is refused by the existing
+Descriptor error. The server, local query and Postgres builders apply the final
+non-uniform class to a merge's candidate; raw position-loss accounting retains
+it. Lazy merges mark exhaustion only after an uncut short read and stop after
+an emitted or duplicate pop whose next head cannot be established. No ceiling,
+serialized value, non-uniform traversal, matching-lane eligibility or hook changed.
+
+Base: `06aa90095191bf1d58e0a39aa3b43b52f9023715`. The final shared regression
+suite was run against that base implementation before restoring the repair:
+server **7 pass / 12 fail → 19 pass / 0 fail**; memory plus SQLite devices
+**14 pass / 24 fail → 38 pass / 0 fail**. The core's raw-loss and error-unwind
+suite was **1 pass / 1 fail → 2 pass / 0 fail**. All 24 ordering/index/path
+configurations ran on each host. The unchanged feed tripwire passed **7/7**;
+guide/README examples passed **50/50**, residency notes **39/39**, and the
+Postgres feature compiled. The four ticket/probe fixtures also ran through the
+CLI's HTTP boundary and through both device stores.
+
+The grouped predicate probes now read `complete=true cut=null next=null`:
+v1 returns **4** rooms at **22** examined, v2 **10** at **30**, with no meter
+change. The unique-suffix walk returns **4/4** instead of **3/4**; the
+non-unique single-lane tie returns **3/3** instead of **2/3**. In the 0/9,000
+hidden-row worlds, a non-uniform server answer withholds next in both orders;
+devices retain their precise meter cut, and synced device reads retain next.
+D5.1 now stops at **70** emissions, versus **81** before; D5.2/D5.4 at **32**,
+versus **41**; the duplicate-pop fixture at **4**, versus **5**. Each first page
+cuts at **8,193 examined**, with **0 / 10 / 10 index entries**, and now carries
+next. Their complete walks return **120 / 90 / 10** distinct ordered matches
+in **2 / 3 / 3 requests**. The meter ceilings remain **8,192 examined** and
+**16,384 index entries**. A later shape cut still preserves an already safe
+merge candidate; prior word overflow still withholds it.
+
+The mandated audit found one conflict within the Spec: D2's uncut-only `done`
+and stop-at-unknown-head rule also shortens an *opening*-cut small merge whose
+cut lane has a short nonempty buffer. The two-lane control returns **100 rows
+before, 1 after**, both `complete=false cut="meter" next=null` at **8,193**
+examined. This follows D2 but contradicts C2's blanket "every answer unchanged";
+C2 needs to qualify that promise. The eight-or-fewer-lane drain analysis and
+`feed_forms.rs`'s no-next assertion remain green; no assertion was relaxed.
+The lead should also add the uniform drain-cut exception to LLP 3000.007
+§20.3's **review round 1, lane W2R1m** paragraph. Both September 17 merge
+tickets are resolved by this lane; their moves and the LLP edits remain the
+lead's. The published cards and matching N_WIDE_MERGE rewrite now distinguish
+opening/word cuts from drain cuts; the eager Following recipe stays unchanged.
+
+Learned: the frontier must be unique *across* lanes, not just inside one unique
+prefix. A lookahead cut cannot prove the lane exhausted, even when it returned
+a row. A test of public incompleteness alone cannot catch lost raw
+continuation evidence when the meter independently makes the same answer
+incomplete; that invariant needs the private Runner-state regression too.
+
+C2d's owner-word-overflow twin is labelled a positive in the Spec, but already
+passes on the base implementation: its existing global word-cut guard is the
+safety control to preserve. It is not claimed as a red-to-green regression.
+The raw D5.8 assertion lives in the core Runner test; public device answers are
+already incomplete from the meter and cannot expose that private loss bit.
+
+Full validation (`TMPDIR=/private/tmp bash snapback4/scripts/test.sh`) finished
+in **612 s**: Rust **1,365 passed / 0 failed / 4 ignored**, fixture wrappers
+**9 passed**, and client **544 passed / 3 failed / 3 skipped**. All build and
+typecheck stages passed. Chromium aborted with `SIGABRT` both here and on the
+exact base above. The native acknowledgement timeout passed when isolated;
+the wasm acknowledgement timeout persisted alone (**0 passed / 1 failed**),
+while that case passed in the base comparison. A subsequent focused run also
+hit its host-start deadline. Host load measured **74.42 across 18 CPUs**; the
+wasm timeout remains an outside-sandbox qualification item, not a claimed
+base failure. The native e2e test from an interrupted earlier suite passed
+alone (**1 passed / 0 failed**). Sources were restored byte-for-byte after the
+base comparison and native, wasm and package artifacts rebuilt successfully.
+`ref-check` reports **482 docs, 9,058 refs, 0 errors, 0 unchecked**. Every changed
+code file is below the cap (**17 files; maximum 1,489 lines**). The repository
+caps command has the same two failures on the verified base: **60 / 59**
+working-set docs and **205 / 204** allowed oversized files (the extra file is
+Snapback 1's 1,504-line `snapback-agent-safe-paired.rs`), outside this lane.
+
+**2026-09-17 — W13a review round 1 preserves C2.** The review rejected the
+preceding entry's recommendation to weaken C2: the stop rule applies only
+after an uncut opening. Gated the empty-buffer refill/stop block on
+`opened_all`, keeping both cap checks inside it, so an opening cut keeps
+popping buffered heads without refilling. It cannot mint a continuation:
+the `has_more` arm requires an uncut meter and the drain arm requires
+`opened_all`. The shared server/memory/SQLite control now pins the exact
+100-row answer, `b9000` then `a101` through `a3`, and retains
+`complete=false cut="meter" next=null`; the fixture's timestamps establish
+that order. Runtime counts could not be measured in this session: on base
+`6550d4ceb5eae58cdd99ab450b1116a15a8429cc`, the strengthened server/device
+tests stalled before the harness printed any result, as did every requested
+targeted check after the fix. A freshly compiled one-line Rust program also
+timed out before printing after 15 seconds; a copied test binary timed out
+after 30 seconds. The full suite passed native build (4 s), wasm build
+(18 s), package typecheck (1 s) and package build (1 s), then stalled at the
+CLI's chat app check. Stalled commands were interrupted; no red/green
+pass/fail counts or complete-suite result are claimed. The lesson is that
+terminal status alone did not preserve C2: its buffered answer must be pinned
+too. The lead still needs the requested runtime checks in an environment
+where freshly built native executables start.

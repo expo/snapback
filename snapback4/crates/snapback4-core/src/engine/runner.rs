@@ -30,10 +30,11 @@ pub(crate) struct PagePosition {
     pub order: Order,
     pub prefix_len: usize,
     pub prefix: Option<Vec<Value>>,
+    pub merge: bool,
     /// A collector exited with rows still unconsumed, even on a short page.
     pub interrupted: bool,
-    /// The suffix values of the last returned row, if another visible row
-    /// followed it (else the page is the last one).
+    /// Raw continuation candidate. Merge candidates include the row id and
+    /// survive later cuts; outcome publication applies the final read class.
     pub next: Option<Vec<Value>>,
 }
 
