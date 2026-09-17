@@ -28818,3 +28818,54 @@ probe passed with zero requests to the other listener; two simultaneous
 fixtures then used distinct ports, seeded and completed awaited cleanup.
 These are fixture checks; product behavior, assertions and existing test
 deadlines are unchanged. No package version or publication change is included.
+
+
+## 2026-09-16 — planning the deferred device diet and mixed retained reads
+
+Charlie asked whether the two open architecture tickets warrant LLP planning,
+using modern Snapback 4 first. The main checkout was clean and fast-forwarded
+447 commits from `bc77d0914` to fetched `origin/main` at `18c8f5daf` before
+source/design inspection. Both warrant planning. Existing Draft research LLPs
+3000.002 and 3000.001 cover the resource and replica-lifecycle concerns, so
+those documents were extended rather than adding numbers or working-set links.
+LLP 3000 §7 and LLP 3000.007 §18.2 route readers to the proposals; both tickets
+remain open.
+
+The WASM lane's historical notes record 454,735 → 402,428 → 394,126 gzip
+bytes. Git confirms integration reverted both candidate cuts (`1e9944cb4`,
+`e429dc724`). The request reports an acquisition regression; this planning
+pass did not rerun it or establish its exact root cause. The 60,609-byte
+saving is therefore a rejected experiment, not current shipped progress.
+The recommended next investigation replaces backend/command/persistence
+representations while keeping the shared Rust executor initially. Actual
+acquisition, durable admission and fresh-realm offline reopen are required
+at the first end-to-end slice. A shared compact execution representation is
+conditional on the measured result; a new interpreter is not assumed necessary.
+
+The composition proposal tracks per-value data, absence and control
+provenance. Its first candidate combines only compiler-proven independent,
+cursor-free result components, under one publication to the client. The
+25 retained left rows plus 26 server-held rows remain incomplete and are not
+a single server snapshot; the draft recommends conservative freshness and
+names it as an acceptance choice. Cross-source joins/aggregates and dependent
+branches remain outside that slice. Current whole-query fallback, explicit
+held queries and the separate-query recipe remain the implemented behavior.
+
+These are planning changes only: no runtime implementation, new measurement,
+independent review, contract acceptance, publication or ticket closure is
+claimed. The existing NOT-DOING and gate budgets are unchanged. Each proposal
+has alternatives, staged work, real-client acceptance and stop conditions;
+the shared interpreter and resource budget connect the two without requiring
+one to wait for an unrelated implementation campaign.
+
+
+## 2026-09-17 — device architecture planning validation
+
+The two Draft extensions pass scoped metadata and all 19 newly added local
+link/anchor checks. The working set remains 59 document links. The journal's
+pre-task bytes are unchanged, and `git diff --check` passes. Full
+`./ref-check --verbose` reports the same 40 pre-existing reference errors
+under local `.llp/ship-runs/` records before and after; zero errors added or
+removed. No application tests or byte measurements ran for this docs-only
+change. Source self-review added remote reply identity binding and separated
+shadow provenance accounting from proposed active metering charges.
