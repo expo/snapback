@@ -97,11 +97,14 @@ run_rust_tests() {
     local key="$1"
     shift
     (
+      lane_start=$(date +%s)
       if "$@"; then
         printf 'ok\n' >"$parallel_dir/rust-$key.status"
       else
         printf 'fail\n' >"$parallel_dir/rust-$key.status"
       fi
+      lane_end=$(date +%s)
+      echo "-- rust lane: $key ($((lane_end - lane_start)) s)"
     ) >"$parallel_dir/rust-$key.log" 2>&1 &
     rust_pids+=("$!")
     rust_keys+=("$key")
@@ -113,7 +116,14 @@ run_rust_tests() {
   for package in snapback4-core snapback4-native; do
     run_rust_lane "$package" cargo test -p "$package" --no-fail-fast --quiet
   done
-  run_rust_lane snapback4-sim env RUST_MIN_STACK=33554432 cargo test -p snapback4-sim --no-fail-fast --quiet
+  # Simulator integration binaries are independent and Cargo otherwise runs
+  # them serially. Bound each harness while preserving every target.
+  run_rust_lane snapback4-sim-lib cargo test -p snapback4-sim --lib --quiet
+  run_rust_lane snapback4-sim-doc cargo test -p snapback4-sim --doc --quiet
+  for path in crates/snapback4-sim/tests/*.rs; do
+    target=$(basename "$path" .rs)
+    run_rust_lane "snapback4-sim-$target" cargo test -p snapback4-sim --test "$target" --quiet -- --test-threads=8
+  done
   # Cargo otherwise runs a package's integration binaries one after another.
   # Keep every device target, but let the independent binaries overlap. The
   # optimized production-scale fixtures need more than Rust's 2 MiB default

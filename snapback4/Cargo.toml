@@ -20,7 +20,7 @@ incremental = true
 # populations. Optimize their code without disabling those assertions so the
 # complete warm blocking suite keeps its 60-second contract.
 [profile.test]
-opt-level = 3
+opt-level = 1
 
 # The device core as wasm: size first.
 [profile.wasm]
