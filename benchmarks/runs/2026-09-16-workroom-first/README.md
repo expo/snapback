@@ -117,8 +117,10 @@ recorded identities and the monitor were independently absent afterward.
 The end record says `budget-exhausted`, original pilot `failed-capped`, and
 acceptance exit `unknown`. Cleanup success is not application acceptance.
 No successor was launched: a private supervisor preparation missed its bounded
-checkpoint, and no monitor pause or cap extension occurred. The remaining
-10,934 records and later phases require an explicitly separate diagnostic
+checkpoint, and no monitor pause or cap extension occurred. A post-drain
+inspection found one more fsynced receipt: the final durable journal has
+587,291 records, one beyond the last monitor sample. The remaining
+10,933 records and later phases require an explicitly separate diagnostic
 continuation after safe resumption has been established.
 
 The [repaired launcher's qualification](protocol/launcher-verification.md)

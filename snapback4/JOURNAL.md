@@ -25039,3 +25039,13 @@ the separately retained real-process witness. No application qualification,
 cold cell, publication, or general-purpose-backend completion is claimed.
 The main journal's already-landed program commission is preserved once;
 the duplicate introduced while rebasing the unlanded append was removed.
+
+## 2026-09-17 — adoption final durable-count reconciliation
+
+The 587,290 count above is the monitor's last sample, not the post-drain
+journal count. One further receipt was fsynced during TERM/drain. After all
+recorded processes were absent, the newline-terminated durable journal had
+587,291 records, leaving 10,933 of 598,224. Its SHA-256 is
+`28326213c56db40a932a21dc3cde755e42aabc6a522e1e5a5072581a550835cd`.
+The last-poll/end receipt remains unchanged; neither count establishes
+acceptance completion or recovers the original child's exit status.
