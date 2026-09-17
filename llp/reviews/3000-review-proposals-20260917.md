@@ -32,3 +32,13 @@ meaning. The physical-work proposal now requires expiry/invalidation equivalence
 and says that a maximum-lifetime boolean lookup alone does not establish the
 complete ordered-witness contract. A follow-up verdict is recorded only after
 it is actually received.
+
+## Final received delta review
+
+**NO MATERIAL FINDING REMAINS** for `ffb24554bf54fe8c07d388991fbe4401b7e36e65`, delta-reviewed against `4b2de9d69e7934b48c53effa69cc289ec809d1c8`.
+
+The revision addresses the delegated-token gap: other endpoints default-deny, worker credentials carry no ambient service-data authority, lease headers remain distinct, and negative HTTP cases cover both bypass paths.
+
+The physical-work clarification also preserves ordered-witness expiry observations and requires bounded access beyond a maximum-expiry boolean lookup.
+
+The recorded review and disposition accurately reflect my findings. No remaining material discrepancy or additional minor finding. This remains a documentation review, without implementation or security qualification.
