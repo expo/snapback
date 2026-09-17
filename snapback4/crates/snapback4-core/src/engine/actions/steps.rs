@@ -51,7 +51,7 @@ impl Engine {
         let digest = crate::store::payload_digest(input);
         let claim = identity::digest(lease);
         let tx = self.store.transaction()?;
-        held(tx.conn(), id, worker, lease, now)?;
+        held_claim_authority(tx.conn(), id, worker, lease, now)?;
         let answer = if let Some(previous) = record(tx.conn(), id, name)? {
             if previous.digest != digest { return Err(invalid("E_STEP_INPUT", "this step name already binds another input")); }
             if previous.state == "done" {
@@ -80,7 +80,7 @@ impl Engine {
         name_fits(name)?;
         let bytes = serde_json::to_string(result).map_err(|_| invalid("E_STEP_RESULT", "a step result must be JSON"))?;
         let tx = self.store.transaction()?;
-        held(tx.conn(), id, worker, lease, now)?;
+        held_claim_authority(tx.conn(), id, worker, lease, now)?;
         let previous = record(tx.conn(), id, name)?.ok_or_else(|| invalid("E_STEP_UNKNOWN", "begin the step before recording its outcome"))?;
         if previous.claim != identity::digest(lease) { return Err(lease_error()); }
         if bytes.len() as u64 > self.ceilings.output_bytes {
@@ -103,7 +103,7 @@ impl Engine {
     pub fn park_action_step(&mut self, id: &str, worker: &str, lease: &str, name: &str, error: &str, now: i64) -> Result<(), RuntimeError> {
         name_fits(name)?;
         let tx = self.store.transaction()?;
-        held(tx.conn(), id, worker, lease, now)?;
+        held_claim_authority(tx.conn(), id, worker, lease, now)?;
         let previous = record(tx.conn(), id, name)?.ok_or_else(|| invalid("E_STEP_UNKNOWN", "begin the step before parking it"))?;
         if previous.claim != identity::digest(lease) || previous.state != "started" { return Err(lease_error()); }
         let error: String = error.chars().take(2_000).collect();

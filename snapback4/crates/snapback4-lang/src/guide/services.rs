@@ -44,6 +44,18 @@ const session = await mintSession(url, serviceToken, "member:42", "member", 30);
 await revokeSessions(url, serviceToken, "member:42");                              // POST /auth/revoke
 ```
 
+An action performing identity verification may bind that same `POST
+/auth/session` mint to its current claim by also sending
+`x-snapback-action-lease: <claim session.token>` and `binding: {
+invocationId, intent: "identity-session/v1" }`. The first call atomically
+records the intent and new session. An ordinary repeat refuses because token
+delivery is ambiguous. After a lost committed response, repeat from the
+current live claim with `replaceLostDelivery: true`; this invalidates the
+whole recorded family and returns one replacement capped at the original
+expiry. Changed inputs, stale or settled claims, revoked authority, and a
+logged-out or expired target family refuse. The record stores no raw token.
+The handler must return the delivered Session in its eventual protected result.
+
 The principal is the application's own name for the account, outside the
 engine's namespaces (`dev:`, `guest:`, `user:`, `service:` and `system`
 are refused). `snapback4 dev` and `snapback4 serve` both take these

@@ -165,7 +165,7 @@ pub(crate) fn live_claim_authority(conn: &Connection, digest: &str, now: i64) ->
     match run { Some(run) => Ok(authority_expiry(conn, &run, now)?.is_some()), None => Ok(false) }
 }
 
-fn held(conn: &Connection, id: &str, worker: &str, token: &str, now: i64) -> Result<ActionRequest, RuntimeError> {
+pub(crate) fn held_claim_authority(conn: &Connection, id: &str, worker: &str, token: &str, now: i64) -> Result<ActionRequest, RuntimeError> {
     let run = request(conn, id)?.ok_or_else(unknown)?;
     let digest = identity::digest(token);
     let matches: bool = conn.query_row("SELECT claimed_by = ?2 AND session_digest = ?3 FROM _requests WHERE id = ?1", params![id, worker, digest], |row| row.get::<_, Option<bool>>(0))?.unwrap_or(false);
@@ -284,7 +284,7 @@ impl Engine {
 
     pub fn settle_action(&mut self, id: &str, worker: &str, lease_token: &str, mut settled: ActionSettled, now: i64) -> Result<ActionRequest, RuntimeError> {
         let tx = self.store.transaction()?;
-        let run = held(tx.conn(), id, worker, lease_token, now)?;
+        let run = held_claim_authority(tx.conn(), id, worker, lease_token, now)?;
         let digest = identity::digest(lease_token);
         let mut application_refusal = None;
         if run.action.starts_with(crate::schema::routes::ACTION_PREFIX) && let ActionSettled::Done(value) = &settled {

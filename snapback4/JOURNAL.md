@@ -27092,3 +27092,47 @@ recorded processes were absent, the newline-terminated durable journal had
 `28326213c56db40a932a21dc3cde755e42aabc6a522e1e5a5072581a550835cd`.
 The last-poll/end receipt remains unchanged; neither count establishes
 acceptance completion or recovers the original child's exit status.
+
+## 2026-09-17 — B1b: action-bound identity-session handoff
+
+The existing SQLite `POST /auth/session` path now accepts the bounded internal
+`identity-session/v1` binding. In one immediate write transaction it rechecks
+the raw bearer by digest as a live service credential for the claiming worker,
+reuses the action queue's held/live claim-authority chain, and then either
+creates one custom session plus its binding or explicitly recovers a lost
+committed delivery. The typed binding row records invocation, intent, the
+immutable principal/kind/days digest and values, original expiry, issued
+family, and target principal generation. It contains no raw token.
+
+An existing binding never behaves as byte-idempotent delivery. An ordinary
+repeat refuses. `replaceLostDelivery: true` requires the current claim, the
+original live expiry and target generation, and a still-live issued family;
+it deletes every token currently in that family and inserts one replacement in
+the same family, capped at the original expiry. Refresh is found through the
+family. Logout, logout-all, revocation, expiry, changed inputs, stale or
+cross-invocation leases, wrong workers, cancellation and settlement do not
+turn the retained binding tombstone into a fresh mint. The unbound legacy
+route and its response shape are unchanged.
+
+Focused serial evidence used `CARGO_BUILD_JOBS=6` and one test thread:
+
+- `cargo test -p snapback4-core --test bound_session -- --test-threads=1`:
+  5 passed, including two actual SQLite connections, concurrent replacements,
+  the precheck/revocation window, family refresh and overlap, and every named
+  service/admitting/target authority end state.
+- `cargo test -p snapback4-core --lib identity:: -- --test-threads=1`: 5 passed;
+  `--test identity`: 2 passed; `--test action_context`: 8 passed; and
+  `--test work_records`: 6 passed.
+- The exact real-HTTP shape/header, recovery, fencing and secret-safe
+  diagnostic case passed. An earlier full `serve::tests::` run passed 44/44;
+  a final rerun passed 43 and exposed the unrelated 1 ms long-route claim
+  timing test, which then reproduced alone. `--test work_records`: 1 passed;
+  `--test clock`: 17 passed.
+- `cargo test -p snapback4-lang --test guide -- --test-threads=1`: 37 passed.
+
+`./ref-check --verbose` reports 481 LLP documents, 9,034 references in
+24,000 files, zero errors and zero unchecked references.
+
+This slice adds no PostgreSQL parity or production claim, generic identity
+framework, provider protocol, `contract.ts` change, publication, remote work
+or origin contact. C3.1's Postgres receipt semantics are unchanged.

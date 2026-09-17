@@ -16,6 +16,7 @@ const DAY_MS: i64 = 86_400_000;
 /// Ordinary guest and password sessions expire after one week. Service and
 /// application-owned sessions keep the explicit duration their issuer chose.
 pub const SESSION_DAYS: i64 = 7;
+pub const BOUND_SESSION_INTENT: &str = "identity-session/v1";
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct Session {
@@ -33,7 +34,13 @@ pub(crate) fn initialize(conn: &Connection) -> Result<(), RuntimeError> {
         conn.execute_batch("ALTER TABLE _sessions ADD COLUMN family TEXT;")?;
     }
     conn.execute_batch("CREATE INDEX IF NOT EXISTS _sessions_family ON _sessions(principal, family, expires_at);
-        CREATE TABLE IF NOT EXISTS _principal_generations (principal TEXT PRIMARY KEY, generation INTEGER NOT NULL);")?;
+        CREATE TABLE IF NOT EXISTS _principal_generations (principal TEXT PRIMARY KEY, generation INTEGER NOT NULL);
+        CREATE TABLE IF NOT EXISTS _session_mint_bindings (
+            invocation TEXT NOT NULL, intent TEXT NOT NULL, input_digest TEXT NOT NULL,
+            principal TEXT NOT NULL, kind TEXT NOT NULL, days INTEGER NOT NULL,
+            expires_at INTEGER NOT NULL, family TEXT NOT NULL, principal_generation INTEGER NOT NULL,
+            PRIMARY KEY(invocation, intent)
+        ) WITHOUT ROWID;")?;
     Ok(())
 }
 
@@ -511,6 +518,11 @@ pub fn service_session(store: &Store, name: &str, now: i64, days: i64) -> Result
 /// talks to the server directly. The principal is the application's own
 /// name for the account (`member:42`), outside the engine's namespaces.
 pub fn custom_session(store: &Store, principal: &str, kind: &str, now: i64, days: i64) -> Result<Session, RuntimeError> {
+    validate_custom_session(principal, kind)?;
+    open_session_for(store, principal, kind, now, days)
+}
+
+fn validate_custom_session(principal: &str, kind: &str) -> Result<(), RuntimeError> {
     if principal == crate::SYSTEM_PRINCIPAL || RESERVED_PREFIXES.iter().any(|prefix| principal.starts_with(prefix)) {
         return Err(RuntimeError::Auth(format!("{principal} is a principal the engine mints itself; name the account in your own namespace (`member:42`)")));
     }
@@ -520,12 +532,123 @@ pub fn custom_session(store: &Store, principal: &str, kind: &str, now: i64, days
     if !valid_name(kind) {
         return Err(RuntimeError::Auth("a session kind is 1–64 letters, digits, _ or -".into()));
     }
-    open_session_for(store, principal, kind, now, days)
+    Ok(())
 }
 
 fn open_session_for(store: &Store, principal: &str, kind: &str, now: i64, days: i64) -> Result<Session, RuntimeError> {
     let session = new_session(principal, kind, now, days)?;
     insert_session(store.conn(), &session, now)?;
+    Ok(session)
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SessionMintBinding {
+    pub invocation_id: String,
+    pub intent: String,
+    pub replace_lost_delivery: bool,
+}
+
+struct SessionMintRecord {
+    input_digest: String,
+    principal: String,
+    kind: String,
+    days: i64,
+    expires_at: i64,
+    family: String,
+    principal_generation: i64,
+}
+
+fn mint_binding_record(conn: &Connection, invocation: &str, intent: &str) -> Result<Option<SessionMintRecord>, RuntimeError> {
+    Ok(conn.query_row(
+        "SELECT input_digest, principal, kind, days, expires_at, family, principal_generation FROM _session_mint_bindings WHERE invocation = ?1 AND intent = ?2",
+        params![invocation, intent],
+        |row| Ok(SessionMintRecord { input_digest: row.get(0)?, principal: row.get(1)?, kind: row.get(2)?, days: row.get(3)?, expires_at: row.get(4)?, family: row.get(5)?, principal_generation: row.get(6)? }),
+    ).optional()?)
+}
+
+fn session_mint_authority_error(message: &str) -> RuntimeError {
+    RuntimeError::Structural { code: "E_ACTION_AUTHORITY", message: message.into() }
+}
+
+/// Mint once for one live action claim, or explicitly replace a response
+/// whose delivery was lost. The binding and token family change together.
+// @ref LLP 3000.009#5.1 — the identity handoff borrows the transaction-scoped service and action authorities.
+pub fn bound_custom_session(
+    store: &mut Store,
+    service_token: &str,
+    worker: &str,
+    action_lease: &str,
+    principal: &str,
+    kind: &str,
+    now: i64,
+    days: i64,
+    binding: &SessionMintBinding,
+) -> Result<Session, RuntimeError> {
+    validate_custom_session(principal, kind)?;
+    if binding.intent != BOUND_SESSION_INTENT || binding.invocation_id.is_empty() || binding.invocation_id.len() > 128
+        || !crate::value::identity_fits(&binding.invocation_id)
+    {
+        return Err(RuntimeError::Input("binding requires a valid invocationId and intent identity-session/v1".into()));
+    }
+    let input = serde_json::json!({ "principal": principal, "kind": kind, "days": days });
+    let input_digest = crate::store::payload_digest(&input);
+    let service_digest = digest(service_token);
+    let tx = store.transaction()?;
+    let service_is_live: bool = tx.conn().query_row(
+        "SELECT EXISTS(SELECT 1 FROM _sessions WHERE token_digest = ?1 AND principal = ?2 AND kind = 'service' AND expires_at > ?3)",
+        params![service_digest, worker, now], |row| row.get(0),
+    )?;
+    if !service_is_live || !is_service(worker) {
+        return Err(RuntimeError::Auth("the service credential is no longer live for this action claim".into()));
+    }
+    crate::engine::actions::held_claim_authority(tx.conn(), &binding.invocation_id, worker, action_lease, now)?;
+    let target_generation = principal_generation(tx.conn(), principal)?;
+    let previous = mint_binding_record(tx.conn(), &binding.invocation_id, &binding.intent)?;
+    let session = match previous {
+        None => {
+            let session = new_session(principal, kind, now, days)?;
+            insert_session(tx.conn(), &session, now)?;
+            let family = digest(&session.token);
+            tx.conn().execute(
+                "INSERT INTO _session_mint_bindings(invocation, intent, input_digest, principal, kind, days, expires_at, family, principal_generation) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                params![binding.invocation_id, binding.intent, input_digest, principal, kind, days, session.expires_at, family, target_generation],
+            )?;
+            session
+        }
+        Some(previous) => {
+            if previous.input_digest != input_digest || previous.principal != principal
+                || previous.kind != kind || previous.days != days
+            {
+                return Err(RuntimeError::Input("this action intent already binds different session inputs".into()));
+            }
+            if !binding.replace_lost_delivery {
+                return Err(RuntimeError::Input("this action intent already minted a session; delivery is ambiguous, so recover it explicitly".into()));
+            }
+            if previous.expires_at <= now || previous.principal_generation != target_generation {
+                return Err(session_mint_authority_error("the bound session authority expired or was revoked and cannot be recreated"));
+            }
+            let family_is_live: bool = tx.conn().query_row(
+                "SELECT EXISTS(SELECT 1 FROM _sessions WHERE principal = ?1 AND COALESCE(family, token_digest) = ?2 AND expires_at > ?3)",
+                params![principal, previous.family, now], |row| row.get(0),
+            )?;
+            if !family_is_live {
+                return Err(session_mint_authority_error("the bound session family is no longer live and cannot be recreated"));
+            }
+            tx.conn().execute(
+                "DELETE FROM _sessions WHERE principal = ?1 AND COALESCE(family, token_digest) = ?2",
+                params![principal, previous.family],
+            )?;
+            let mut session = new_session(principal, kind, now, days)?;
+            session.expires_at = previous.expires_at;
+            insert_session(tx.conn(), &session, now)?;
+            tx.conn().execute(
+                "UPDATE _sessions SET family = ?2 WHERE token_digest = ?1",
+                params![digest(&session.token), previous.family],
+            )?;
+            session
+        }
+    };
+    tx.commit()?;
     Ok(session)
 }
 

@@ -166,6 +166,83 @@ fn raced_mutation_id_refusal_keeps_its_terminal_http_status() {
 }
 
 #[test]
+fn bound_session_http_requires_exact_shape_and_current_action_lease() {
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), "use personas alice\naction signIn()\n");
+    let (service, other) = { let engine = lock(&host.shared.engine); let now = host.shared.now(); (
+        snapback4_core::identity::service_session(engine.store(), "worker", now, 1).unwrap(),
+        snapback4_core::identity::service_session(engine.store(), "other", now, 1).unwrap()) };
+    let service_header = format!("Authorization: Bearer {}\r\n", service.token);
+    let admitted = body(&host.request("POST", "/a/signIn?wait=0", "x-snapback-persona: alice\r\n", r#"{"id":"bound-http","args":{}}"#));
+    assert_eq!(admitted["state"], "pending", "{admitted}");
+    let claimed = body(&host.request("POST", "/actions/claim", &service_header, "{}"));
+    assert_eq!(claimed["requests"].as_array().map(Vec::len), Some(1), "{claimed}");
+    let lease = claimed["requests"][0]["session"]["token"].as_str().unwrap().to_owned();
+    let headers = format!("{service_header}x-snapback-action-lease: {lease}\r\n");
+
+    let legacy = body(&host.request("POST", "/auth/session", &service_header, r#"{"principal":"member:legacy"}"#));
+    assert_eq!(legacy["session"]["principal"], "member:legacy", "unbound behavior is unchanged");
+    let tolerant_legacy = body(&host.request("POST", "/auth/session", &service_header, r#"{"principal":"member:tolerant","kind":false,"days":"thirty"}"#));
+    assert_eq!(tolerant_legacy["session"]["kind"], "account", "unbound malformed optionals retain their legacy defaults");
+    for malformed in [json!(null), json!({}), json!({"invocationId":"","intent":"identity-session/v1"}), json!({"invocationId":"bound-http","intent":"other"}),
+        json!({"invocationId":"bound-http","intent":"identity-session/v1","replaceLostDelivery":"yes"}),
+        json!({"invocationId":"bound-http","intent":"identity-session/v1","extra":true})] {
+        let payload = json!({"principal":"member:http","kind":"member","days":30,"binding":malformed}).to_string();
+        let response = host.request("POST", "/auth/session", &headers, &payload);
+        assert_eq!(status(&response), 400, "{response}");
+        assert_eq!(body(&response)["denied"]["code"], "E_INPUT");
+        assert!(!response.contains(&service.token) && !response.contains(&lease));
+    }
+
+    let binding = json!({"invocationId":"bound-http","intent":"identity-session/v1"});
+    for malformed in [
+        json!({"principal":"member:http","kind":null,"days":30,"binding":binding.clone()}),
+        json!({"principal":"member:http","kind":7,"days":30,"binding":binding.clone()}),
+        json!({"principal":"member:http","kind":"member","days":null,"binding":binding.clone()}),
+        json!({"principal":"member:http","kind":"member","days":"30","binding":binding.clone()}),
+        json!({"principal":"member:http","kind":"member","days":30.5,"binding":binding.clone()}),
+    ] {
+        let response = host.request("POST", "/auth/session", &headers, &malformed.to_string());
+        assert_eq!(status(&response), 400, "{response}");
+        assert_eq!(body(&response)["denied"]["code"], "E_INPUT");
+        assert!(!response.contains(&service.token) && !response.contains(&lease));
+    }
+    let payload = json!({"principal":"member:http","kind":"member","days":30,"binding":binding.clone()}).to_string();
+    for missing_or_duplicate in [service_header.clone(), format!("{headers}x-snapback-action-lease: duplicate\r\n")] {
+        let response = host.request("POST", "/auth/session", &missing_or_duplicate, &payload);
+        assert_eq!(status(&response), 200, "{response}");
+        assert_eq!(body(&response)["denied"]["code"], "E_ACTION_LEASE");
+    }
+    let wrong_worker = format!("Authorization: Bearer {}\r\nx-snapback-action-lease: {lease}\r\n", other.token);
+    assert_eq!(body(&host.request("POST", "/auth/session", &wrong_worker, &payload))["denied"]["code"], "E_ACTION_LEASE");
+
+    let first = body(&host.request("POST", "/auth/session", &headers, &payload));
+    let first_token = first["session"]["token"].as_str().unwrap().to_owned();
+    let first_expiry = first["session"]["expiresAt"].as_i64().unwrap();
+    let replay = host.request("POST", "/auth/session", &headers, &payload);
+    assert_eq!(body(&replay)["denied"]["code"], "E_INPUT");
+    assert!(!replay.contains(&service.token) && !replay.contains(&lease) && !replay.contains(&first_token));
+    let changed = json!({"principal":"member:http","kind":"member","days":29,"binding":binding}).to_string();
+    assert_eq!(body(&host.request("POST", "/auth/session", &headers, &changed))["denied"]["code"], "E_INPUT");
+
+    let recovery = json!({"principal":"member:http","kind":"member","days":30,"binding":{
+        "invocationId":"bound-http","intent":"identity-session/v1","replaceLostDelivery":true}}).to_string();
+    let recovered = body(&host.request("POST", "/auth/session", &headers, &recovery));
+    let recovered_token = recovered["session"]["token"].as_str().unwrap().to_owned();
+    assert_ne!(recovered_token, first_token);
+    assert_eq!(recovered["session"]["expiresAt"], first_expiry);
+    { let engine = lock(&host.shared.engine);
+      assert!(snapback4_core::identity::resolve(engine.store(), &first_token, host.shared.now()).unwrap().is_none());
+      assert!(snapback4_core::identity::resolve(engine.store(), &recovered_token, host.shared.now()).unwrap().is_some()); }
+
+    let delivered = json!({"result": {"session": recovered["session"].clone()}}).to_string();
+    let settled = body(&host.request("POST", "/actions/bound-http/done", &headers, &delivered));
+    assert_eq!(settled["ok"], true, "{settled}");
+    let after = host.request("POST", "/auth/session", &headers, &recovery);
+    assert_eq!(body(&after)["denied"]["code"], "E_ACTION_LEASE");
+    assert!(!after.contains(&service.token) && !after.contains(&lease) && !after.contains(&recovered_token));
+}
+
+#[test]
 fn foreign_origins_and_rebound_hosts_cannot_seed_or_impersonate() {
     let host = Host::new(true);
     for origin in [

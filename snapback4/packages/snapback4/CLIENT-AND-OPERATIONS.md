@@ -1136,6 +1136,16 @@ returns a replacement session and invalidates that bearer; `POST
 `POST /auth/session` (`{ "principal", "kind"?, "days"? }`) mints a session
 for an account the application authenticated, `POST /auth/revoke`
 (`{ "principal" }`) ends every session of one and answers `{ "revoked" }`,
+and an identity-verifying action may bind the mint to its current claim by
+also sending `x-snapback-action-lease` plus `binding: { invocationId,
+intent: "identity-session/v1", replaceLostDelivery?: true }`. A first bound
+call atomically creates one family. An ordinary replay refuses rather than
+returning a stale token. Explicit lost-delivery recovery from the current live
+claim invalidates every token in that family and returns one replacement with
+the original expiry; changed inputs or revoked, expired, logged-out, settled,
+cancelled, stale, cross-worker, or cross-invocation authority refuse. Binding
+records retain the family and input digest, never a raw token. The action's
+eventual protected result must contain the Session it actually delivered.
 `POST /effects/claim` (`{ "effect"?, "limit"?, "lease"?, "wait"? }`, the
 last two in seconds; `wait` long-polls until something is due) answers
 `{ "effects": [{ id, effect, payload, attempt, seq, at }] }`, `POST

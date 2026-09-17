@@ -1070,11 +1070,47 @@ fn handle(mut request: Request, shared: &Shared) {
             };
             let now = shared.now();
             let outcome = {
-                let engine = lock(&shared.engine);
+                let mut engine = lock(&shared.engine);
                 if path == "/auth/session" {
-                    let kind = payload.get("kind").and_then(Json::as_str).unwrap_or("account");
-                    let days = payload.get("days").and_then(Json::as_i64).unwrap_or(snapback4_core::identity::SESSION_DAYS);
-                    snapback4_core::identity::custom_session(engine.store(), &principal, kind, now, days).map(|session| json!({ "session": { "principal": session.principal, "kind": session.kind, "token": session.token, "expiresAt": session.expires_at }, "by": service }))
+                    if let Some(raw_binding) = payload.get("binding") {
+                        #[derive(serde::Deserialize)]
+                        #[serde(rename_all = "camelCase", deny_unknown_fields)]
+                        struct Binding { invocation_id: String, intent: String, #[serde(default)] replace_lost_delivery: bool }
+                        let binding: Binding = match serde_json::from_value::<Binding>(raw_binding.clone()) {
+                            Ok(binding) if binding.intent == snapback4_core::identity::BOUND_SESSION_INTENT
+                                && !binding.invocation_id.is_empty() && binding.invocation_id.len() <= 128
+                                && snapback4_core::value::identity_fits(&binding.invocation_id) => binding,
+                            _ => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "binding requires { invocationId, intent: \"identity-session/v1\", replaceLostDelivery?: boolean }")) })),
+                        };
+                        let kind = match payload.get("kind") {
+                            None => "account",
+                            Some(value) => match value.as_str() {
+                                Some(kind) => kind,
+                                None => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "a bound session kind must be a string")) })),
+                            },
+                        };
+                        let days = match payload.get("days") {
+                            None => snapback4_core::identity::SESSION_DAYS,
+                            Some(value) => match value.as_i64() {
+                                Some(days) => days,
+                                None => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "bound session days must be an integer")) })),
+                            },
+                        };
+                        let lease = match single_header(&request, "x-snapback-action-lease") {
+                            Ok(Some(token)) if !token.is_empty() => token.to_owned(),
+                            _ => return respond(request, 200, json!({ "denied": refusal_json(&Refusal::new("E_ACTION_LEASE", "action", "send the current claim's session.token in x-snapback-action-lease").guide("actions")) })),
+                        };
+                        let service_token = match crate::auth::bearer_token(&request) {
+                            Ok(token) => token.to_owned(),
+                            Err(error) => return respond(request, 401, json!({ "denied": refusal_json(&error.refusal()) })),
+                        };
+                        let binding = snapback4_core::identity::SessionMintBinding { invocation_id: binding.invocation_id, intent: binding.intent, replace_lost_delivery: binding.replace_lost_delivery };
+                        snapback4_core::identity::bound_custom_session(engine.store_mut(), &service_token, &service, &lease, &principal, kind, now, days, &binding).map(|session| json!({ "session": { "principal": session.principal, "kind": session.kind, "token": session.token, "expiresAt": session.expires_at }, "by": service }))
+                    } else {
+                        let kind = payload.get("kind").and_then(Json::as_str).unwrap_or("account");
+                        let days = payload.get("days").and_then(Json::as_i64).unwrap_or(snapback4_core::identity::SESSION_DAYS);
+                        snapback4_core::identity::custom_session(engine.store(), &principal, kind, now, days).map(|session| json!({ "session": { "principal": session.principal, "kind": session.kind, "token": session.token, "expiresAt": session.expires_at }, "by": service }))
+                    }
                 } else {
                     snapback4_core::identity::revoke_principal(engine.store(), &principal).map(|revoked| json!({ "revoked": revoked, "principal": principal }))
                 }
