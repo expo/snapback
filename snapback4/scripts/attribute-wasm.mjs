@@ -58,12 +58,12 @@ export function collectFamilies(kept) {
     if (/::__Field(?:Visitor)?/.test(n)) continue; // Field-name visitors are adapters inside a family.
     for (const { type, direction } of derivedTypes(n)) {
       let family;
+      const ownedTree = /(?:^<|::<)(?:&mut |&)?serde_json::(?:(?:value::)?Value|(?:map::)?Map|map::\w+|value::de::\w*Deserializer)(?:[<>]| as )/.test(n);
       if (direction === 'deserialize') {
-        const ownedReader = /(?:^<|::<)(?:&mut |&)?serde_json::(?:value::(?:Value|de::\w*Deserializer)|map::\w+)(?:[<>]| as )/.test(n);
-        family = n.includes('serde_json::read::StrRead') ? 'serde_json::de::Deserializer<serde_json::read::StrRead>' : n.includes('serde_json::read::SliceRead') ? 'serde_json::de::Deserializer<serde_json::read::SliceRead>' : concrete(n, 'serde_json::de::Deserializer<') ?? (ownedReader ? 'serde_json::Value/Map (owned tree)' : undefined);
+        family = n.includes('serde_json::read::StrRead') ? 'serde_json::de::Deserializer<serde_json::read::StrRead>' : n.includes('serde_json::read::SliceRead') ? 'serde_json::de::Deserializer<serde_json::read::SliceRead>' : concrete(n, 'serde_json::de::Deserializer<') ?? (ownedTree ? 'serde_json::Value/Map (owned tree)' : undefined);
       } else {
         const keyWriter = concrete(n, 'serde_json::ser::MapKeySerializer<');
-        family = keyWriter ? keyWriter.replace('MapKeySerializer<', 'Serializer<').replace(', serde_json::ser::CompactFormatter>', '>') : n.includes('serde_json::value::ser::Serializer') ? 'serde_json::value::ser::Serializer' : concrete(n, 'serde_json::ser::Serializer<');
+        family = keyWriter ? keyWriter.replace('MapKeySerializer<', 'Serializer<').replace(', serde_json::ser::CompactFormatter>', '>') : n.includes('serde_json::value::ser::Serializer') ? 'serde_json::value::ser::Serializer' : concrete(n, 'serde_json::ser::Serializer<') ?? (ownedTree ? 'serde_json::Value/Map (owned tree)' : undefined);
       }
       if (!family) {
         // A derived entry can be fully inlined; its non-generic helper is

@@ -30849,3 +30849,105 @@ table again. A scratch build that removes the structural admission check,
 the prefetch planner and partition-event derivation from the web artifact
 measures 466,171 → 439,856 (−26,315), which is the next rung. No package
 version changed and nothing was published.
+
+## 2026-09-17 — D1-R3: close the source-census and conversion-probe holes
+
+Base `614898e9a7eb6240fb2aef8cda3e08ae0f4acb0a`. Tests and instruments
+only; the dispatcher's only changes are `cfg(test)` observations. The census
+now walks both complete Rust source trees, deriving file/subtree exclusions
+from the positive sqlite/native/wasm-host/postgres module cfgs in their
+`lib.rs` files and the core's `engine/mod.rs`. Its 50 files comprise 39 core
+and 11 device files (including the deliberately exempt codec funnel). It
+masks comments, nested block comments, strings, raw/byte strings and character
+literals while preserving source offsets. Typed imports, grouped imports,
+crate aliases, globs, pretty writers, deserializer constructors and direct
+qualified calls are refused. Eleven SQLite exceptions name their file,
+enclosing function and exact line, must remain in a SQLite-gated item, and
+must each be consumed exactly once. Test-only items cannot ship and are
+excluded by their actual cfg, not text quoted in a doc attribute.
+
+The page route separately counts owned decodes and encodes. On memory and
+SQLite, direct apply/observe_store requests decode zero owned trees; the
+duplicate-key fallback decodes one. Apply encodes zero owned trees;
+observe_store encodes one reply, on either route. The static census confines
+new device owned-adapter calls to `parse` and `encoded`. There is one explicit
+scope exception: the base already has three refusal serializers outside
+`encoded`, in `call.rs::answer`, `call.rs::call` and `web.rs::refused`.
+Routing those through the wrapper would violate this lane's no-product-edit
+rule. They remain unchanged, with exact, function-bound, single-use entries;
+the literal wrapper-only requirement is not claimed. The lead was asked
+whether to authorize that product routing; no answer arrived during this run.
+
+The symbol classifier recognizes both public and module-qualified Value/Map
+spellings in either direction, retaining the existing owned map/deserializer
+spellings. Its CLI dispatch tail is untouched for S5. No LLP, ticket, budget,
+metrics record, published guide, README or durable format changed.
+
+Commands used Node 24 via
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`; Cargo and the
+scripts below ran in `snapback4/` except the explicitly root-scoped checks.
+One accidental initial `cargo test -p snapback4-device --lib --test codec`
+invocation from the repository root exited 101; it was immediately corrected,
+with no root-workspace edit.
+
+- From the repository root,
+  `node --test snapback4/packages/snapback4/test/wasm-budget.test.mjs snapback4/packages/snapback4/test/wasm-families.test.mjs snapback4/packages/snapback4/test/wasm-codec-census.test.mjs`:
+  `ℹ tests 21`, `ℹ pass 21`, `ℹ fail 0`. These are all three existing wasm
+  instrument test files, including the census. Before replacing the guards,
+  the census/families run with new regressions reported `ℹ tests 13`,
+  `ℹ pass 9`, `ℹ fail 4`.
+- `cargo test -p snapback4-device --lib --test codec`: the new encode assertion
+  before its observation reported `test result: FAILED. 2 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s`.
+  Final: `test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s`
+  and `test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.54s`.
+- `node --test /tmp/d1-r3-mutants.mjs`: eight independent in-memory source
+  mutations deliberately run against the production zero-errors assertion,
+  `ℹ tests 8`, `ℹ pass 0`, `ℹ fail 8`: imported from_value, crate alias,
+  to_string_pretty, Deserializer::from_str, typed calls in wire.rs and
+  engine/read.rs, the fast-route owned-decode bypass, and encoded reverting
+  to the aliased owned serializer. The permanent tests assert each rejection.
+- `node scripts/attribute-wasm.mjs --check-families`: `serde family check: ok`.
+- `bash scripts/build-wasm.sh`, on both the clean base and final source:
+  `wasm 1599360 B raw, 466618 B gzip (budget 467000: ok)`; delta 0 raw,
+  0 gzip. The clean rebuild differs from the earlier journal's landing
+  measurement; this comparison uses the measured base above. Initially,
+  adding test-only source lines changed gzip by one byte because production
+  source locations moved. Keeping those line locations fixed restored the
+  exact size; even non-shipping instrumentation can affect panic metadata.
+- `bash scripts/test.sh`: `-- ok: cargo test (538 s)` (72 Rust test binaries,
+  459 executions), fixture wrapper `ℹ pass 9`, `ℹ fail 0`, client
+  `ℹ tests 623`, `ℹ pass 617`, `ℹ fail 3`, `ℹ skipped 3`, then
+  `-- FAIL: client tests (621 s)` and `== 1 failure(s) in 634 s`.
+  The HTTP oversized-sync timeout also fails its parent test; Chromium
+  SIGABRT supplies the other failure. `node --test packages/snapback4/test/http-bounds.test.mjs`
+  alone passed `ℹ tests 10`, `ℹ pass 10`, `ℹ fail 0`.
+  `node --test packages/snapback4/test/react.test.mjs` alone repeated the
+  Chromium launch SIGABRT: `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`.
+  This matches the commissioned sandbox limitation; no failure is claimed
+  verified pre-existing, and the lead still owes the outside-sandbox browser run.
+- Repository-root `./ref-check --verbose`:
+  `ref-check: ok — 483 LLP docs, 9075 refs in 24212 files, 0 errors, 0 unchecked`.
+  `git diff --check`: exit 0, no output.
+
+One review premise was too broad: the old regex already caught direct
+`use serde_json::from_value` and `use serde_json::to_value as to_tree`
+imports. Crate renames and grouped imports really escaped it, as did the
+omitted files, pretty entry points and owned decode bypass. The expanded
+mutant checks cover both previously caught and newly caught forms. No commit,
+push, tag or publication was made.
+
+
+## 2026-09-17 — after the two landings: the exact landed commit, verified
+
+On `614898e9a7` — main with the retained-read composition and diet S0/S1 both
+in it — outside any lane sandbox, once the machine's load had fallen:
+`bash scripts/test.sh` reported `== 0 failure(s) in 350 s` (every Rust target,
+client tests 587 of 590 passing with none failing and 3 skipped, fixtures
+green); `node witness/idb.mjs` exit 0 with `composition: online [25,26],
+offline [25,25], reopened [25,25], reconnected [25,26], fresh false, complete
+false`; `react.test.mjs` 13/13. Every red seen during the day's loaded runs —
+the `clock` lease test, the `transport-http` deadlines, `W6R1 B` — was absent.
+The guard-hardening entry above (lane D1-R3) is the disposition of the third
+review round's findings on the diet's regression guards; it is test and
+instrument code only, changes the web artifact by 0 bytes, and lands without
+a further review round.

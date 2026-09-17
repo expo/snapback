@@ -1,44 +1,8 @@
 // @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — suite-speed wiring proof; artifact families remain a separate measurement.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { census, webSources as sources, selectWebSources, mask, items, allow, refusalAllow, core, device } from './wasm-codec-census.mjs';
 
-const root = fileURLToPath(new URL('../../../', import.meta.url));
-const device = 'crates/snapback4-device/src/';
-const core = 'crates/snapback4-core/src/';
-function walk(dir) {
-  return readdirSync(root + dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(`${dir}${entry.name}/`) : [dir + entry.name]);
-}
-const files = [...walk(device).filter(file => !['sqlite.rs', 'ffi.rs', 'native.rs'].includes(file.slice(device.length))),
-  ...['cursor.rs', 'value.rs', 'partition.rs', 'engine/runner.rs', 'engine/components.rs'].map(file => core + file)];
-
-// Exact source lines, not type-name or whole-file exclusions. Test-module oracle
-// calls, if added inside this source scope, also need an exact line and reason.
-// Json/Value::to_string is the dynamic envelope's non-generic Display path and
-// does not match the typed serde entry points below.
-const allow = [
-  { file: core + 'partition.rs', line: 'Ok(groups.into_iter().map(|group| serde_json::from_str(&group).expect("canonical")).collect())', count: 1, reason: 'groups_now is cfg(sqlite), absent from the web artifact' },
-  { file: core + 'partition.rs', line: 'let group: Vec<Value> = serde_json::from_str(group).map_err(|e| RuntimeError::Store(e.to_string()))?;', count: 1, reason: 'stream is cfg(sqlite), absent from the web artifact' },
-  { file: core + 'partition.rs', line: 'let group: Vec<Value> = serde_json::from_str(&event.id).map_err(|e| RuntimeError::Store(e.to_string()))?;', count: 2, reason: 'stream and expand_joins are cfg(sqlite), absent from the web artifact' },
-  { file: core + 'partition.rs', line: 'let group_values: Vec<Value> = serde_json::from_str(group).map_err(|e| RuntimeError::Store(e.to_string()))?;', count: 1, reason: 'stream is cfg(sqlite), absent from the web artifact' },
-];
-function census(sources, exceptions = allow) {
-  const used = new Map();
-  const errors = [];
-  for (const [file, source] of sources) {
-    for (const match of source.matchAll(/serde_json\s*::\s*(?:from_str|from_slice|from_value|from_reader|to_string|to_vec|to_value|to_writer)\b/g)) {
-      const start = source.lastIndexOf('\n', match.index) + 1;
-      const end = source.indexOf('\n', match.index);
-      const line = source.slice(start, end < 0 ? undefined : end).trim();
-      const exception = exceptions.find(entry => entry.file === file && entry.line === line && entry.reason && (used.get(entry) ?? 0) < entry.count);
-      if (exception) used.set(exception, (used.get(exception) ?? 0) + 1);
-      else errors.push(`${file}:${source.slice(0, match.index).split('\n').length}: ${line}`);
-    }
-  }
-  return errors;
-}
-const sources = () => new Map(files.map(file => [file, readFileSync(root + file, 'utf8')]));
 test('web-reachable typed JSON calls all use the codec funnel', () => {
   assert.deepEqual(census(sources()), [], 'direct serde family outside json_codec.rs');
 });
@@ -60,14 +24,129 @@ test('census kills parse, encoded, MQ components and container regressions', () 
   }
 });
 
-test('allowlist admits only its exact dynamic envelope or test oracle line', () => {
-  const file = device + 'fixture.rs';
-  for (const [line, reason] of [
-    ['let request = serde_json::from_str::<Json>(text)?;', 'dynamic request envelope, not a typed model'],
-    ['    let oracle = serde_json::to_value(&page).unwrap();', 'plain-serde oracle inside a cfg(test) module'],
-  ]) {
-    const exceptions = [{ file, line: line.trim(), count: 1, reason }];
-    assert.deepEqual(census(new Map([[file, line]]), exceptions), []);
-    assert.equal(census(new Map([[file, line.replace('Json', 'Backend') + '\nserde_json::from_value(value)']]), exceptions).length >= 1, true);
+test('allowlist binds the exact line to its sqlite function and consumes it once', () => {
+  const file = core + 'fixture.rs';
+  const line = 'let request = serde_json::from_str::<Json>(text)?;';
+  const wrap = text => '#[cfg(feature = "sqlite")]\nfn load() {\n' + text + '\n}';
+  const exceptions = [{ file, item: 'load', line }];
+  const check = source => census(new Map([[file, source]]), exceptions);
+  assert.deepEqual(check(wrap(line)), []);
+  const changed = line.replace('Json', 'Backend');
+  assert.ok(check(wrap(changed)).includes(`${file}:3: ${changed}`));
+  const extra = 'serde_json::from_value(value);';
+  assert.deepEqual(check(wrap(line + '\n' + extra)), [`${file}:4: ${extra}`]);
+  for (const source of [wrap(''), wrap(line + '\n' + line), wrap(line).replace('load', 'other'), wrap(line).replace('sqlite', 'web')]) {
+    assert.ok(check(source).some(error => error.includes('consumed')));
   }
+});
+
+test('census rejects typed imports, crate aliases, pretty writers and deserializer constructors', () => {
+  for (const line of [
+    'use serde_json::from_value; from_value(v);',
+    'use serde_json as sj; sj::to_value(&x);',
+    'extern crate serde_json as sj;',
+    'use serde_json::{Value as Json, from_value as decode};',
+    'serde_json::to_string_pretty(&page);',
+    'serde_json::Deserializer::from_str(text);',
+  ]) assert.ok(census(new Map([[device + 'fixture.rs', line]]), []).some(error => error.includes(line)), line);
+});
+
+test('census includes wire and engine read mutants', () => {
+  for (const file of [core + 'wire.rs', core + 'engine/read.rs']) {
+    const mutant = sources();
+    assert.ok(mutant.has(file), `missing web source: ${file}`);
+    mutant.set(file, mutant.get(file) + '\nfn regression() { serde_json::from_value(v); }');
+    assert.ok(census(mutant).some(error => error.includes(file) && error.includes('fn regression()')));
+  }
+});
+
+test('census refuses an owned decode bypassing parse on the fast route', () => {
+  const mutant = sources(); const file = device + 'call.rs';
+  mutant.set(file, mutant.get(file).replace('json_codec::validate_text(request)?;', 'let command = json_codec::from_value(json_codec::from_text::<Json>(request)?)?;'));
+  assert.ok(census(mutant).some(error => error.includes('let command = json_codec::from_value')));
+});
+
+test('census refuses encoded reverting to an aliased owned serializer', () => {
+  const mutant = sources(); const file = device + 'call.rs';
+  mutant.set(file, mutant.get(file).replace('snapback4_core::json_codec::to_value(value)', '{ use serde_json::to_value as to_tree; to_tree(value) }'));
+  assert.ok(census(mutant).some(error => error.includes('use serde_json::to_value as to_tree')));
+});
+
+test('module cfg declarations exclude only their files and subtrees', () => {
+  const all = new Map([
+    [device + 'lib.rs', '#[cfg(feature = "native")]\npub mod native;\npub mod new_device;'],
+    [core + 'lib.rs', '#[cfg(feature = "sqlite")]\npub mod store;\npub mod new_core;'],
+    [core + 'engine/mod.rs', '#[cfg(feature = "postgres")]\npub mod postgres;\n#[cfg(feature = "wasm-host")]\npub mod native;\npub mod read;'],
+    ...[device + 'native.rs', device + 'native/child.rs', device + 'new_device.rs', core + 'store.rs', core + 'store/child.rs', core + 'new_core.rs', core + 'engine/postgres/mod.rs', core + 'engine/native.rs', core + 'engine/read.rs'].map(file => [file, '']),
+  ]);
+  assert.deepEqual([...selectWebSources(all).keys()], [device + 'lib.rs', core + 'lib.rs', core + 'engine/mod.rs', device + 'new_device.rs', core + 'new_core.rs', core + 'engine/read.rs']);
+  all.set(core + 'lib.rs', 'pub mod store;\npub mod new_core;');
+  assert.ok(selectWebSources(all).has(core + 'store/child.rs'));
+  for (const file of [device + 'new_device.rs', core + 'new_core.rs', core + 'engine/read.rs']) {
+    all.set(file, 'fn new_path() { serde_json::to_value(value); }');
+    assert.ok(census(selectWebSources(all), []).some(error => error.startsWith(file + ':')));
+  }
+});
+
+test('comments and literals are inert, dynamic envelope imports stay legal', () => {
+  const source = `use serde_json::{Value as Json, json, Map, Number};
+// serde_json::to_value(v)
+/* outer /* nested */ serde_json::from_value(v) */
+fn envelope<'a>(value: &'a Json) {
+    let text = "serde_json::from_str(text)";
+    let raw = r##"serde_json::Deserializer::from_str(text)"##;
+    let bytes = br#"use serde_json as sj;"#;
+    let escaped = "quote: \\" serde_json::to_value(v)";
+    let brace = '}';
+    value.to_string();
+}`;
+  assert.equal(mask(source).length, source.length);
+  assert.deepEqual(census(new Map([[device + 'fixture.rs', source]]), []), []);
+  assert.equal(census(new Map([[device + 'fixture.rs', source + '\nserde_json::to_value(v);']]), []).length, 1);
+});
+
+test('every typed entry point is refused in qualified, imported and grouped forms', () => {
+  for (const name of ['from_str', 'from_slice', 'from_reader', 'from_value', 'to_string', 'to_string_pretty', 'to_vec', 'to_vec_pretty', 'to_value', 'to_writer', 'to_writer_pretty', 'Deserializer', 'Serializer', 'StreamDeserializer']) {
+    for (const line of [`serde_json::${name}(v);`, `use serde_json::${name} as renamed;`, `use serde_json::{Value as Json, ${name} as renamed};`]) {
+      assert.ok(census(new Map([[core + 'fixture.rs', line]]), []).some(error => error.includes(line)), line);
+    }
+  }
+  for (const line of ['use serde_json::*;', 'use serde_json::{self as sj, Value};', 'use serde_json::{value::from_value as decode};', 'serde_json::value::from_value(v);', 'serde_json::r#from_value(v);']) {
+    assert.ok(census(new Map([[core + 'fixture.rs', line]]), []).length, line);
+  }
+});
+
+test('sqlite exceptions cannot move into a web function or lose their cfg', () => {
+  for (const entry of allow) {
+    const mutant = sources();
+    const original = mutant.get(entry.file);
+    assert.ok(original.includes(entry.line));
+    const owner = items(original).find(item => item.kind === 'fn' && item.name === entry.item);
+    const offset = original.indexOf(entry.line, owner.start);
+    assert.ok(offset < owner.end);
+    mutant.set(entry.file, original.slice(0, offset) + original.slice(offset + entry.line.length) + `\nfn moved() { ${entry.line} }`);
+    const errors = census(mutant);
+    assert.ok(errors.some(error => error.includes('fn moved()')));
+    assert.ok(errors.some(error => error.includes(`exception ${entry.item} consumed 0 times`)));
+  }
+});
+
+
+test('existing refusal exceptions are exact, function-bound and consumed once', () => {
+  for (const entry of refusalAllow) {
+    const source = sources().get(entry.file);
+    const fixture = new Map([[entry.file, source]]);
+    assert.deepEqual(census(fixture, refusalAllow.filter(other => other.file === entry.file)), []);
+    for (const changed of [source.replace(entry.line, ''), source.replace(entry.line, entry.line + '\n' + entry.line), source.replace(entry.line, entry.line.replace('&error.refusal()', '&page'))]) {
+      const errors = census(new Map([[entry.file, changed]]), refusalAllow.filter(other => other.file === entry.file));
+      assert.ok(errors.some(error => error.includes(`exception ${entry.item} consumed`)));
+    }
+  }
+});
+
+
+test('cfg quoted in a doc attribute cannot hide a web call', () => {
+  const file = core + 'fixture.rs', line = 'fn load() { serde_json::from_value(v); }';
+  const source = '#[doc = "#[cfg(test)] #[cfg(feature = \"sqlite\")]" ]\n' + line;
+  assert.deepEqual(census(new Map([[file, source]]), []), [`${file}:2: ${line}`]);
 });
