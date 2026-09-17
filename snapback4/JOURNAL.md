@@ -32350,3 +32350,51 @@ benchmark records and the instrument — nine matches remain in `loopbar/` by de
 new ticket's fix prescription was also corrected: shaping runs in a loop after the source
 page is materialised, so the continuation must resume before the first unfinished shaped
 row, not one candidate back in `scan_prepared`.
+
+## 2026-09-17 — B1c remaining public-helper crash-cut source modes
+
+R4 actually ran source `1b2178f07` with binary `7342` and package `32c447`
+under the correct outer envelope. It passed in 22.589 seconds with nine
+sanitized observations, eight adopted identities and zero custody
+uncertainties or surviving owned processes. That qualifies the executable
+primary and raw rows in that source, including the repaired deadline sequence;
+it does not retroactively qualify missing crash cuts. Prior R2/R3 failures
+remain retained exactly as recorded.
+
+Native Sol HIGH added two source-pending actual-helper modes without changing
+the product helper, protocol, schema or proxy custody model. Each mode uses a
+fresh disposable project and independent Keycloak sign-in, so its provider
+token POST count is exactly one while a future combined run has three provider
+exchanges overall including the existing primary.
+
+The before-commit mode intercepts the legitimate initial bound
+`/auth/session` before upstream forwarding, after the helper has durably
+completed provider exchange and verification. It revalidates the exact owned
+worker's UID/start/ancestry and engine-log membership, observes through a
+read-only query that no invocation/intent binding exists, kills only that
+worker and intentionally cuts the response. A distinct worker must reconcile
+the same invocation with `replaceLostDelivery: true`, identical
+principal/kind/days and intent, creating the first binding and sole live family
+without provider replay.
+
+The after-step mode first performs the existing post-commit lost-ack cut. It
+then requires the recovered worker's exact invocation path
+`steps/oidc.mint/done` to return upstream success plus a durable done receipt
+whose result says `minted: true`; only then does it revalidate and kill that
+second worker and cut the acknowledgement. A third distinct worker must replay
+the completed step and explicitly replace the lost handoff in the original
+family and expiry. Both earlier bearers must refuse, exactly one final family
+digest remains, every bearer is absent from step results, stale bearers occur
+nowhere and the final bearer occurs only in protected `_requests.result`.
+
+Seven deterministic cut-plan assertions cover the ordered valid cuts, wrong
+invocation, wrong path, wrong phase, failed upstream, missing terminal receipt
+and observation refusal before clean teardown. They are labelled doubles, not
+actual engine/provider evidence. The existing deadline, proxy lifecycle and
+secrecy tests remain in the serial affected command, which passed 28/28 under
+Node 24.13.1; qualification and cut-plan syntax checks plus `git diff --check`
+also passed. No actual qualification,
+engine, provider, crash, network, Rust/Cargo, install, publication or full
+suite ran in this source phase. The two new modes remain pending actual
+execution. Legacy unpublished receipts and production wall-clock expiry remain
+separate unqualified gaps.
