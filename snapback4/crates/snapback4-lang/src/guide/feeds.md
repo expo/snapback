@@ -915,7 +915,7 @@ query trending(c: cursor ?):
   return ranked after c last 10 by byScore { *, post: posts[.postId] }
 
 query trendingNow():
-  day = posts[at > now - 86400000, at <= now] first 8192 by byTime { id, at, likes: likeCounts[.id] }
+  day = posts[at > now - 86400000, at <= now] first 4095 by byTime { id, at, likes: likeCounts[.id] }
   return slice(sort(day, '-likes', '-at', '-id'), 0, 10)
 ```
 
@@ -943,9 +943,10 @@ The post id breaks score/time ties just as it does in `trendingNow()`;
 the ranked row's separately minted id comes last.
 
 For an immediate answer, the live bounded query `trendingNow()` ranks the
-trailing post day up to the 8,192-row examined ceiling. A day or its nested
-reads past the meter is `complete: false`, so its top ten is of an incomplete
-set. A maintain over expiring likes cannot replace that with an exact value
+trailing post day with at most 4,095 candidates under the shared 8,192-row
+examined ceiling. Each post costs a scan examination and a count lookup.
+A larger day returns the selected prefix's winners with `complete: false`;
+a cut count lookup or heap allocation returns `data: null, complete: false`. A maintain over expiring likes cannot replace that with an exact value
 index (`E_QUARRY_MAINTAIN_EXPIRE`): stored contributions survive until the
 sweep, while live values change at expiry. Rechecking only stored winners
 can miss another group's new rank. Use this scheduled recipe when score lag
@@ -1070,7 +1071,8 @@ This standalone recipe keeps likes private and runs the ranking on the server.
 A disconnected device can retain that answer with `fresh: false`, not compute
 a complete ranking from only its own likes. For a locally computed public-like
 variant, change the likes read rule to `read <- allow`, its sync to `sync public`,
-and remove `online only` from `likeCounts`. The resulting `N_MAINTAIN_SYNCED`
+remove `online only` from `likeCounts`, and replace the posts sync line with
+`sync public` (removing its `last 2000 by byTime` horizon). The resulting `N_MAINTAIN_SYNCED`
 note discloses that every count group reaches every device. This variant
 replicates all posts and live like sources without a horizon too: make that
 privacy and acquisition choice explicitly. Both device stores run that variant
@@ -1085,7 +1087,7 @@ table posts:
   immutable authorId, at
   public 'posts are public'
   insert <- .authorId = viewer
-  sync public
+  sync public last 2000 by byTime
 
 table likes:
   postId: posts
@@ -1118,11 +1120,11 @@ mutation setLike(postId: posts, liked: bool):
     delete likes[postId, viewer]
 
 query trending():
-  candidates = posts[at > now - 86400000, at <= now] first 8192 by byTime { postId: .id, at, score: likeCounts[.id] }
+  candidates = posts[at > now - 86400000, at <= now] first 4095 by byTime { postId: .id, at, score: likeCounts[.id] }
   return slice(sort(candidates, '-score', '-at', '-postId'), 0, 10)
 
 query rollingLikes():
-  candidates = likeCounts first 8192 by byGroup { postId, score: .value }
+  candidates = likeCounts first 4095 by byGroup { postId, score: .value }
   return slice(sort(candidates, '-score', '-postId'), 0, 10)
 ```
 
@@ -1145,13 +1147,29 @@ source coverage; adding a source horizon makes a local ranking incomplete.
 range in `trending` is evaluated on each query: requery as the clock advances
 to remove zero-like posts at the window edge or admit future-dated imports.
 
-**Read cost:** sort the whole bounded candidate set, then slice. The 8,192
-examined ceiling is shared with count lookups and live source contributions;
-it is not permission to rank 8,192 posts plus their likes. A meter cut preserves
-`complete: false` through sort/slice; those ten rows are not a certified global
-top ten. The query has no ranking cursor: continuing an unsorted source page
-cannot continue its sorted winners. Narrow the candidate scope or accept an
-explicitly delayed materialisation when the full live set does not fit.
+**Read cost:** sort the whole bounded candidate set, then slice. Each post
+costs two examined units (the scan and its count lookup), plus one per live
+source contribution; unswept expired source rows also cost examinations.
+With short bodies and one live like, 4,095 posts use 8,191 of the 8,192
+examined units and return a complete top ten. Both recipes use `first 4095`:
+one lookahead candidate costs another examination, and exceeding that candidate
+bound makes the ranking incomplete even when scoring fits. The like-window
+query pays one examination per count group plus its source rows; 4,095 groups
+with one live like each also fit. More contributions can exhaust either query
+before the candidate bound.
+
+When only the candidate bound is exceeded, the result is the top ten of the
+selected prefix with accurately read scores and `complete: false`, not the
+global top ten. If a count lookup or live count computation exhausts the meter,
+the whole query returns `data: null, complete: false`; it never substitutes zero
+or a partially counted score. The separate 16 MiB heap ceiling includes the
+materialised post bodies before projection: 6,000-byte bodies can exhaust it
+below 4,095 candidates (the fixture fits 1,000 and cuts at 2,700), also returning
+`data: null, complete: false`. The candidate bound is not a capacity guarantee
+for arbitrary bodies or like populations. The query has no ranking cursor:
+continuing an unsorted source page cannot continue its sorted winners. Narrow
+the candidate scope or accept an explicitly delayed materialisation when the
+full live set does not fit.
 
 `E_QUARRY_MAINTAIN_EXPIRE` remains a correctness refusal, not a reindex cost
 refusal. The sweep already subtracts physical contributions and updates target

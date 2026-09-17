@@ -37,32 +37,43 @@ fn value_rank_index_cost_for_a_host_sized_expiry_batch() {
     table.columns.insert("value".into(), value_type);
     table.indexes.remove("byBucket");
     table.indexes.insert("byGroup".into(), snapback4_core::schema::Index::of(&["body"], true));
-    table.indexes.insert("byValue".into(), snapback4_core::schema::Index::of(&["value", "id"], false));
-    let table = table.clone();
-    let mut engine = snapback4_core::Engine::memory(schema, []).unwrap();
-    let tx = engine.store_mut().transaction().unwrap();
-    let memory = MemoryRows::new();
     let row = |value| object([("id", Value::Id("r".into())), ("body", Value::String("group".into())), ("value", Value::Int(value))]);
-    let mut old = row(2001);
-    assert_eq!(tx.put("writes", &table, &old, None).unwrap(), 3);
-    assert_eq!(memory.put("writes", &table, &old, None).unwrap(), 3);
-    let mut total = 0;
-    for value in (1..=2000).rev() {
-        let next = row(value);
-        let sql = tx.put("writes", &table, &next, Some(&old)).unwrap();
-        assert_eq!(sql, 2);
-        assert_eq!(memory.put("writes", &table, &next, Some(&old)).unwrap(), sql);
-        total += sql;
-        old = next;
+    let mut measurements = Vec::new();
+    for ranked in [false, true] {
+        let mut schema = schema.clone();
+        let table = schema.tables.get_mut("writes").unwrap();
+        if ranked { table.indexes.insert("byValue".into(), snapback4_core::schema::Index::of(&["value", "id"], false)); }
+        let table = table.clone();
+        let mut engine = snapback4_core::Engine::memory(schema, []).unwrap();
+        let tx = engine.store_mut().transaction().unwrap();
+        let memory = MemoryRows::new();
+        let mut totals = Vec::new();
+        for rows in [&tx as &dyn Rows, &memory as &dyn Rows] {
+            let mut old = row(2001);
+            let inserted = rows.put("writes", &table, &old, None).unwrap();
+            let mut changed = 0;
+            for value in (1..=2000).rev() {
+                let next = row(value);
+                changed += rows.put("writes", &table, &next, Some(&old)).unwrap();
+                old = next;
+            }
+            let index = if ranked { "byValue" } else { "byGroup" };
+            let surviving = rows.scan("writes", index, &[], &Bounds::default(), Dir::Desc, 1).unwrap();
+            assert_eq!(surviving[0].0.field("value").unwrap(), &Value::Int(1));
+            let deleted = rows.delete("writes", &table, &old).unwrap();
+            assert!(rows.scan("writes", index, &[], &Bounds::default(), Dir::Desc, 1).unwrap().is_empty());
+            totals.push((inserted, changed, deleted));
+        }
+        assert_eq!(totals[0], totals[1], "SQLite and MemoryRows must measure the same work");
+        measurements.push(totals[0]);
     }
-    assert_eq!(total, 4000);
-    for rows in [&tx as &dyn Rows, &memory as &dyn Rows] {
-        let ranked = rows.scan("writes", "byValue", &[], &Bounds::default(), Dir::Desc, 1).unwrap();
-        assert_eq!(ranked[0].0.field("value").unwrap(), &Value::Int(1));
-        assert_eq!(rows.delete("writes", &table, &old).unwrap(), 3);
-        assert!(rows.scan("writes", "byValue", &[], &Bounds::default(), Dir::Desc, 1).unwrap().is_empty());
-    }
-    println!("W12a SQLite and MemoryRows: value changes=2000; extra rank entries=4000; entries/change=2; group deletion entries=3 (2 base + 1 rank)");
+    let (base, ranked) = (measurements[0], measurements[1]);
+    assert_eq!(base, (2, 0, 2));
+    assert_eq!(ranked, (3, 4000, 3));
+    assert_eq!(ranked.1 - base.1, 4000);
+    assert_eq!(ranked.2 - base.2, 1);
+    println!("W12a SQLite and MemoryRows: value changes=2000; without byValue: insert={}, changes={}, delete={}; with byValue: insert={}, changes={}, delete={}; extra rank entries={}; entries/change={}; extra deletion entries={}",
+        base.0, base.1, base.2, ranked.0, ranked.1, ranked.2, ranked.1 - base.1, (ranked.1 - base.1) / 2000, ranked.2 - base.2);
 }
 
 #[test]

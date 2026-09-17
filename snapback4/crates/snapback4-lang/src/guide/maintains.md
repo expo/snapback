@@ -109,8 +109,10 @@ refused: the sweep updates physical aggregates and indexes transactionally,
 but live values change before the sweep, so stored top-N can miss a winner.
 Unranked expiring aggregates recompute live contributions before the sweep;
 every expiring maintain uses an internal selected-group/source-id index.
-Zero-sum occupancy uses one entry. Large live groups can still be incomplete
-at the meter.
+Zero-sum occupancy uses one entry. If the meter interrupts a live group or a
+maintained point lookup, the Quarry query returns `data: null, complete: false`
+without a continuation; an unfinished count is neither zero nor a partial total.
+A missing group still reads as zero when its lookup completes.
 
 An inherited aggregate has no horizon and remains until-revoked even when its
 source retains delivered-history. After leave, retained source rows are

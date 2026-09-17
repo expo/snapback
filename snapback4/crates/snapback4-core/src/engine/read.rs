@@ -200,6 +200,7 @@ impl Runner<'_> {
             }
             if count < 32 { break; }
         }
+        self.meter.require_uncapped()?;
         if !any { return Ok(None); }
         if !(crate::value::I53_MIN as i128..=crate::value::I53_MAX as i128).contains(&total) {
             return Err(super::maintains::aggregate_overflow(&maintain));
@@ -279,6 +280,15 @@ impl Runner<'_> {
     /// A point read: the row when it exists and the viewer may read it, else
     /// `null`. Hidden and absent are the same word on purpose.
     pub(super) fn get(&mut self, read: &Read) -> Result<Value, RuntimeError> {
+        // @ref LLP 3000.007#20.21 — an unfinished maintained value is unavailable, never an absent group coerced to zero.
+        let maintained = self.schema.maintain_for(&read.table).is_some();
+        if maintained { self.meter.require_uncapped()?; }
+        let value = self.get_inner(read)?;
+        if maintained { self.meter.require_uncapped()?; }
+        Ok(value)
+    }
+
+    fn get_inner(&mut self, read: &Read) -> Result<Value, RuntimeError> {
         let key = read.key.iter().map(|value| self.expr(value)).collect::<Result<Vec<_>, _>>()?;
         let table = self.schema.table(&read.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", read.table)))?;
         let index = table.index(&read.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", read.table, read.index)))?;
@@ -611,12 +621,6 @@ impl Runner<'_> {
                     self.note_expiry(table, &row);
                     let aggregate = self.live_aggregate(&scan.table, row)?;
                     if self.meter.capped_at.is_some() {
-                        // The aggregate carries the live contribution observed
-                        // before this cut, just as a maintained point read does.
-                        if let Some(row) = aggregate && visible.len() < take {
-                            visible.push(row);
-                            keys.push(key.clone());
-                        }
                         capped = true;
                         break 'outer;
                     }
