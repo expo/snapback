@@ -28908,3 +28908,28 @@ runner already keeps, and the client applying its existing routing rule per
 component. No per-value provenance, no server change, no wire or disclosure
 delta. No implementation, acceptance or ticket closure is claimed by this
 entry; the lanes that follow record their own evidence.
+
+
+## 2026-09-17 — five proposals for the remaining code-review issues
+
+Charlie requested a write-up of each of the five remaining review issues. This
+pass inspected source and current authoring contracts at `70a663c22285dc3a5278ca9ac13db01bbe05446b`
+and extended three covering LLPs with five self-contained Draft proposals:
+LLP 3000.002 contains byte-bounded staged sync, private physical-work bounds and
+coordinated durable retention; LLP 3000.001 contains secure client ID sources;
+LLP 3000.009 §17 contains scoped worker credentials. Root routing and every
+corresponding ticket link directly to the relevant proposal. The working set
+stays at 59, with no new number and no unrelated archival.
+
+Each proposal has source-grounded evidence, a recommended design, alternatives,
+compatibility/rollout, validation and unresolved choices. Staged sync covers
+atomic publication and current authority without waiting for a quiet server.
+Private probe indexes require semantic equivalence and disclosure review.
+Retention compacts history while preserving replay identities; its first phase
+does not promise finite total tombstone storage. The entropy proposal selects
+an explicit synchronous secure host source and distinguishes Expo getRandomValues
+from getRandomBytes' documented development fallback. Worker scoping preserves
+the newer bound identity-session issuance and separates credential scope from
+process isolation. These are proposals, not new author acceptance, executed
+runtime tests, storage measurements, migrations or ticket closures. Existing
+commissioned diet/composition work remains intact.

@@ -17,3 +17,10 @@ Paths are relative to `snapback4/`: `crates/snapback4-core/src/partition.rs:stre
 ## Acceptance
 
 Demonstrate a join whose bytes exceed one response, then guarantee forward progress with bounded staged acquisition and atomic visibility, or reject oversize holdings before accepting membership. Preserve group fanout and conservative horizons. Design alternatives in LLP 3000.002; do not merely raise the response ceiling.
+
+## Design proposal — 2026-09-17
+
+The author-requested [Draft proposal for byte-bounded staged sync](../llp/3000.002-end-to-end-resource-bounds.research.md#staged-sync)
+records the recommendation, alternatives, implementation sequence, validation
+and remaining decisions. This ticket remains open; writing the proposal does
+not establish implementation or acceptance.
