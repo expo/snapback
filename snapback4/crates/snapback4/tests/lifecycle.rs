@@ -16,6 +16,9 @@ use serde_json::{Value, json};
 
 const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
 const SCHEMA: &str = "use personas alice\nquery alive():\n  return true\n";
+const MAIN_REACHED: &str = "SNAPBACK4_TEST_MAIN_REACHED";
+const PROCESS_LAUNCH_TIMEOUT: Duration = Duration::from_secs(30);
+const SERVER_READINESS_TIMEOUT: Duration = Duration::from_secs(15);
 static SERIAL: AtomicUsize = AtomicUsize::new(0);
 
 #[test]
@@ -62,21 +65,26 @@ impl Host {
     fn start(dir: &Directory, args: &[&str]) -> Self {
         let stdout = dir.0.join("stdout"); let stderr = dir.0.join("stderr");
         let child = Command::new(BIN).args(args).args(["--port", "0"]).current_dir(&dir.0)
+            .env(MAIN_REACHED, "1")
             .stdout(File::create(&stdout).unwrap()).stderr(File::create(&stderr).unwrap()).spawn().unwrap();
         let mut host = Self { child, stdout, stderr, port: 0 };
-        host.until(|h| fs::read_to_string(&h.stdout).unwrap().contains('\n'));
+        host.until_for("process did not reach main", PROCESS_LAUNCH_TIMEOUT, |h| h.log().lines().any(|line| line == MAIN_REACHED));
+        host.until_for("server did not become ready", SERVER_READINESS_TIMEOUT, |h| fs::read_to_string(&h.stdout).unwrap().contains('\n'));
         host.port = fs::read_to_string(&host.stdout).unwrap().lines().next().unwrap().rsplit(':').next().unwrap().parse().unwrap();
         host
     }
     fn log(&self) -> String { fs::read_to_string(&self.stderr).unwrap() }
-    fn until(&mut self, predicate: impl Fn(&Self) -> bool) {
-        let deadline = Instant::now() + Duration::from_secs(15);
+    fn until_for(&mut self, label: &str, timeout: Duration, predicate: impl Fn(&Self) -> bool) {
+        let deadline = Instant::now() + timeout;
         while !predicate(self) {
-            assert!(self.child.try_wait().unwrap().is_none(), "server exited: {}", self.log());
-            assert!(Instant::now() < deadline, "timed out: {}", self.log());
+            if let Some(status) = self.child.try_wait().unwrap() {
+                panic!("{label}: server exited with {status}; stderr:\n{}", self.log());
+            }
+            assert!(Instant::now() < deadline, "{label} after {timeout:?}; child still running; stderr:\n{}", self.log());
             std::thread::sleep(Duration::from_millis(10));
         }
     }
+    fn until(&mut self, predicate: impl Fn(&Self) -> bool) { self.until_for("condition did not become true", SERVER_READINESS_TIMEOUT, predicate); }
     fn signal(&mut self, signal: i32) -> std::process::ExitStatus {
         assert_eq!(unsafe { libc::kill(self.child.id() as i32, signal) }, 0);
         wait(&mut self.child)
@@ -95,6 +103,20 @@ fn wait(child: &mut Child) -> std::process::ExitStatus {
         if Instant::now() >= deadline { let _ = child.kill(); let _ = child.wait(); panic!("child did not exit"); }
         std::thread::sleep(Duration::from_millis(10));
     }
+}
+fn wait_logged(child: &mut Child, log: &Path, label: &str) -> std::process::ExitStatus {
+    let deadline = Instant::now() + SERVER_READINESS_TIMEOUT;
+    loop {
+        if let Some(status) = child.try_wait().unwrap() { return status; }
+        if Instant::now() >= deadline {
+            let _ = child.kill(); let _ = child.wait();
+            panic!("{label} did not exit after {SERVER_READINESS_TIMEOUT:?}; stderr:\n{}", fs::read_to_string(log).unwrap());
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+fn panic_message(payload: Box<dyn std::any::Any + Send>) -> String {
+    payload.downcast_ref::<String>().cloned().or_else(|| payload.downcast_ref::<&str>().map(|message| (*message).to_owned())).unwrap_or_else(|| "non-string panic".into())
 }
 fn post(port: u16, path: &str, body: Value) -> Value {
     post_as(port, path, body, "x-snapback-persona: alice")
@@ -206,6 +228,28 @@ fn startup_refusals_name_the_unserved_generation() {
 }
 
 #[test]
+fn a_dead_child_reports_its_status_and_stderr_without_waiting_for_the_deadline() {
+    let dir = Directory::new();
+    let stdout = dir.0.join("dead.stdout"); let stderr = dir.0.join("dead.stderr");
+    let child = Command::new("/bin/sh").args(["-c", "printf 'deliberate child refusal\\n' >&2; exit 23"])
+        .stdout(File::create(&stdout).unwrap()).stderr(File::create(&stderr).unwrap()).spawn().unwrap();
+    let mut host = Host { child, stdout, stderr, port: 0 };
+    let launch_deadline = Instant::now() + PROCESS_LAUNCH_TIMEOUT;
+    while !host.log().contains("deliberate child refusal") {
+        assert!(Instant::now() < launch_deadline, "dead-child fixture did not launch; stderr:\n{}", host.log());
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let started = Instant::now();
+    let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        host.until_for("deliberately dead child", Duration::from_secs(15), |_| false);
+    })).unwrap_err();
+    assert!(started.elapsed() < Duration::from_secs(2), "dead child was not diagnosed promptly: {:?}", started.elapsed());
+    let message = panic_message(panic);
+    assert!(message.contains("deliberately dead child: server exited with exit status: 23"), "{message}");
+    assert!(message.contains("deliberate child refusal"), "{message}");
+}
+
+#[test]
 fn a_real_mapping_fault_reports_before_the_os_terminates_the_process() {
     let dir = Directory::new(); let (status, log) = probe("mapping", &dir);
     assert_eq!(status.signal(), Some(libc::SIGBUS));
@@ -291,14 +335,23 @@ fn a_signal_still_cleans_up_the_application_worker() {
 fn abort_profile_reports_an_off_thread_panic_to_redirected_stderr() {
     let dir = Directory::new(); let source = dir.0.join("probe.rs"); let executable = dir.0.join("abort-probe");
     let lifecycle = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lifecycle.rs");
-    fs::write(&source, format!("#[path = {lifecycle:?}] mod lifecycle; fn main() {{ lifecycle::install(\"serve\").unwrap(); lifecycle::generation(9); std::thread::Builder::new().name(\"maintenance\".into()).spawn(|| panic!(\"abort witness\")).unwrap().join().unwrap(); }}")).unwrap();
+    fs::write(&source, format!("#[path = {lifecycle:?}] mod lifecycle; fn main() {{ eprintln!(\"{MAIN_REACHED}\"); lifecycle::install(\"serve\").unwrap(); lifecycle::generation(9); std::thread::Builder::new().name(\"maintenance\".into()).spawn(|| panic!(\"abort witness\")).unwrap().join().unwrap(); }}")).unwrap();
     let deps = std::env::current_exe().unwrap().parent().unwrap().to_path_buf();
     let libc = fs::read_dir(&deps).unwrap().map(|e| e.unwrap().path()).find(|p| p.file_name().unwrap().to_string_lossy().starts_with("liblibc-") && p.extension().is_some_and(|s| s == "rlib")).unwrap();
     let built = Command::new("rustc").args(["--edition=2024", "-C", "panic=abort", "-A", "dead_code", "--extern"]).arg(format!("libc={}", libc.display())).arg(&source).arg("-o").arg(&executable).output().unwrap();
     assert!(built.status.success(), "{}", String::from_utf8_lossy(&built.stderr));
     let log = dir.0.join("abort.log");
     let mut child = Command::new(executable).stderr(File::create(&log).unwrap()).spawn().unwrap();
-    assert_eq!(wait(&mut child).signal(), Some(libc::SIGABRT));
+    let deadline = Instant::now() + PROCESS_LAUNCH_TIMEOUT;
+    while !fs::read_to_string(&log).unwrap().lines().any(|line| line == MAIN_REACHED) {
+        if let Some(status) = child.try_wait().unwrap() {
+            panic!("abort probe exited before reaching main with {status}; stderr:\n{}", fs::read_to_string(&log).unwrap());
+        }
+        assert!(Instant::now() < deadline, "abort probe did not reach main after {PROCESS_LAUNCH_TIMEOUT:?}; stderr:\n{}", fs::read_to_string(&log).unwrap());
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let status = wait_logged(&mut child, &log, "abort probe");
+    assert_eq!(status.signal(), Some(libc::SIGABRT), "{}", fs::read_to_string(&log).unwrap());
     let log = fs::read_to_string(log).unwrap();
     assert!(log.lines().any(|l| l.starts_with("SNAPBACK4_PANIC verb=serve generation=9 thread=\"maintenance\" action=abort reason=\"abort witness\" location=")), "{log}");
     assert!(log.contains("SNAPBACK4_SIGNAL verb=serve generation=9 reason=SIGABRT signal=6"), "{log}");

@@ -5,6 +5,7 @@ set -u
 cd "$(dirname "$0")/.."
 failures=()
 child_pids=()
+client_test_serial=0
 parallel_dir=$(mktemp -d "${TMPDIR:-/tmp}/snapback4-test.XXXXXX")
 
 cleanup() {
@@ -52,6 +53,93 @@ run_logged() {
   } >"$parallel_dir/$key.log" 2>&1
 }
 
+run_host_tests() {
+  local host_test_status=0 path target
+  local host_targets=()
+  # Discover every integration target except lifecycle from the conventional
+  # Cargo layout. This keeps new host targets in the blocking suite while the
+  # subprocess/listener-heavy lifecycle target runs at one harness thread.
+  for path in crates/snapback4/tests/*.rs; do
+    target=$(basename "$path" .rs)
+    [ "$target" = lifecycle ] || host_targets+=(--test "$target")
+  done
+  cargo test -p snapback4 "${host_targets[@]}" --no-fail-fast --quiet || host_test_status=1
+  # The binary and lifecycle targets open real listeners and subprocess pipes.
+  # Keep concurrency inside each test, but serialize the harness across these
+  # targets so Darwin's default 256-descriptor process limit is sufficient.
+  cargo test -p snapback4 --bins --test lifecycle --no-fail-fast --quiet -- --test-threads=1 || host_test_status=1
+  return "$host_test_status"
+}
+
+run_rust_tests() {
+  local rust_test_status=0 key package pid status
+  local rust_pids=()
+  local rust_keys=()
+
+  rust_cleanup() {
+    local cleanup_status=$?
+    trap - EXIT INT TERM
+    for pid in "${rust_pids[@]:-}"; do
+      [ -n "$pid" ] || continue
+      kill "$pid" 2>/dev/null || true
+    done
+    for pid in "${rust_pids[@]:-}"; do
+      [ -n "$pid" ] || continue
+      wait "$pid" 2>/dev/null || true
+    done
+    exit "$cleanup_status"
+  }
+  trap rust_cleanup EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+
+  run_rust_lane() {
+    local key="$1"
+    shift
+    (
+      if "$@"; then
+        printf 'ok\n' >"$parallel_dir/rust-$key.status"
+      else
+        printf 'fail\n' >"$parallel_dir/rust-$key.status"
+      fi
+    ) >"$parallel_dir/rust-$key.log" 2>&1 &
+    rust_pids+=("$!")
+    rust_keys+=("$key")
+  }
+
+  # These crates and the host target have disjoint test processes. Cargo
+  # otherwise waits for every test binary in one crate before starting the
+  # next crate, leaving most cores idle during the large lowering census.
+  for package in snapback4-core snapback4-device snapback4-native snapback4-sim; do
+    run_rust_lane "$package" cargo test -p "$package" --no-fail-fast --quiet
+  done
+  # The baseline census is independently reproducible. Run it beside the
+  # rest of the language crate while keeping every other lowering assertion.
+  run_rust_lane snapback4-lang-golden cargo test -p snapback4-lang --test lowering baseline_golden_and_ownership_switch_agree_byte_for_byte --quiet
+  run_rust_lane snapback4-lang-rest cargo test -p snapback4-lang --no-fail-fast --quiet -- --skip baseline_golden_and_ownership_switch_agree_byte_for_byte
+  run_rust_lane snapback4-host run_host_tests
+
+  for pid in "${rust_pids[@]}"; do
+    wait "$pid" || true
+  done
+  rust_pids=()
+  for key in "${rust_keys[@]}"; do
+    cat "$parallel_dir/rust-$key.log"
+    status=$(cat "$parallel_dir/rust-$key.status" 2>/dev/null || printf 'missing\n')
+    [ "$status" = ok ] || rust_test_status=1
+  done
+  return "$rust_test_status"
+}
+
+run_client_tests() {
+  if [ "$client_test_serial" = 1 ]; then
+    echo "-- loaded host: client test files run serially"
+    node --test --test-concurrency=1 'packages/snapback4/test/*.test.mjs'
+  else
+    node --test 'packages/snapback4/test/*.test.mjs'
+  fi
+}
+
 collect() {
   local key="$1" name="$2" status
   if [ -f "$parallel_dir/$key.log" ]; then
@@ -75,15 +163,22 @@ run "wasm build" bash scripts/build-wasm.sh
 run "package typecheck" bun run --cwd packages/snapback4 typecheck
 run "package build" bun run --cwd packages/snapback4 build
 run "chat app check" bash -c 'cd apps/chat && ../../target/debug/snapback4 check'
+if [ "${SNAPBACK4_TEST_SERIAL_CLIENT_FILES:-0}" = 1 ]; then
+  client_test_serial=1
+elif node -e 'const os = require("node:os"); const load = os.loadavg()[0], cpus = os.cpus().length; console.log(`-- host load: ${load.toFixed(2)} across ${cpus} CPUs`); process.exit(load >= cpus ? 0 : 1)'; then
+  client_test_serial=1
+fi
 
-(run_logged "cargo-test" "cargo test" cargo test --workspace --no-fail-fast --quiet) &
+(run_logged "cargo-test" "cargo test" run_rust_tests) &
 child_pids+=("$!")
 (run_logged "fixture-tests" "fixture wrapper tests" node --test fixtures/) &
 child_pids+=("$!")
 (
   run_logged "chat-typecheck" "chat app typecheck" bun run --cwd apps/chat typecheck
   run_logged "expo-typecheck" "expo app typecheck" bun run --cwd apps/chat-expo typecheck
-  run_logged "client-tests" "client tests" node --test 'packages/snapback4/test/*.test.mjs'
+  # Loaded hosts run files serially; each file retains its intended internal
+  # concurrency. Idle qualification hosts keep the blocking-suite budget.
+  run_logged "client-tests" "client tests" run_client_tests
 ) &
 child_pids+=("$!")
 
