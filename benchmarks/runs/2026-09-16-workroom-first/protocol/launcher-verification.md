@@ -1,6 +1,6 @@
 # Pilot launcher verification
 
-Final runner SHA-256:
+Historical initial-pilot runner SHA-256 (not the repaired r3 runner):
 `35f2417ea79479f18c0ae8d19e4107d1cf10284c0f25505a6b283c4dbe11f53b`.
 Node 24.13.1. No real model was used by these mock checks.
 
@@ -195,9 +195,14 @@ identity cleanup for safe ledger members left by a refused or unchanged group.
 every current member to be a verified ledger identity; unknown or foreign
 members refuse the group signal.
 
-One internal, non-configurable 30,000 ms cleanup deadline starts at `_cleanup`
-entry, before graceful SIGINT, and clamps the graceful, group and exact-PID
-waits plus the evolving drain. Exhaustion records
+One internal, non-configurable 30,000 ms signalling/drain budget starts at
+`_cleanup` entry, before graceful SIGINT, and clamps the graceful, group and
+exact-PID polling waits plus the evolving drain. It is not a hard 30-second
+stop-to-end wall-clock bound: an already active sample is awaited before
+entry; a snapshot begun before the deadline has its own two-second timeout;
+and the final evidence snapshot has a separate two-second timeout. This
+bounded snapshot overhead is outside the drain budget, as is the separate
+identity-unverified exact-child fallback. Exhaustion records
 `PILOT_TERMINAL_CLEANUP_DEADLINE_EXHAUSTED`, performs an adopt-enabled final
 snapshot, retains actual verified survivors and forces `ok: false`, including
 when the last signal action races the deadline. Driver SIGINT/SIGTERM handlers
@@ -209,12 +214,12 @@ Node 24.13.1 syntax checks pass. The focused deterministic suite reports 14
 passes, 0 failures and one explicit actual-Codex skip. The new old-fail/new-pass
 cases cover a distinct-PGID child first visible during its parent's TERM wait,
 extension from a verified adopted parent after leader exit, and the 30-second
-overall budget expiring during graceful cancellation with real final survivor
+drain budget expiring during graceful cancellation with real final survivor
 evidence.
 
 The exact invocation below then ran against these exact uncommitted r3 bytes,
 with the receipt directory initially absent, production
-`CUSTODY_SAMPLE_MS=5000`, and the 30,000 ms total cleanup deadline. Tool session
+`CUSTODY_SAMPLE_MS=5000`, and the 30,000 ms signalling/drain budget. Tool session
 42313 ran Node test PID 80789. The exact actual-test pattern completed in
 25.754435625 seconds with 1 pass and 0 failures. It retained native thread
 `01a0ad07-c8a5-7c02-9507-31fa653e2194` and fixture PID 83357.
@@ -258,3 +263,21 @@ application qualification, or the late-visible-child race beyond the
 deterministic mock cases. A process that double-forks and reparents between
 snapshots can still escape sampled ancestry, so this diagnostic launcher makes
 no generic subtree-custody claim.
+
+## R3 source review disposition — 2026-09-17
+
+Fresh, mutually blind source reviews of `19cc2656f7` returned Sol NOT READY
+and Grok READY. Sol correctly identified that the earlier documentation's
+hard overall 30-second claim did not match the independently bounded snapshot
+calls, and that the leading historical hash was ambiguously labelled. This
+documentation-only correction narrows that claim; it does not change the
+runner or test bytes or retroactively report the earlier review as READY.
+No fourth product-code repair round was undertaken.
+
+Grok additionally noted two bounded completeness limits. Five seconds of
+SIGINT grace can leave only 25 seconds for the leader group's default TERM
+wait, exhausting the budget before KILL; the survivor/deadline receipt is
+then non-green. A cap/disk/driver stop preserves its original process exit
+code even when cleanup is non-green. Consumers must inspect `end.json`'s
+`custody.ok`, not treat the preserved 124/125/130/143 exit alone as successful
+cleanup. Those limits are retained, not described as stronger containment.
