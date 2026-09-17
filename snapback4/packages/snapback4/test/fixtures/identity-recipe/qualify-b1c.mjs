@@ -13,6 +13,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { DatabaseSync } from "node:sqlite";
 import { authorizeWithKeycloak } from "./keycloak-browser.mjs";
 import { diagnosticStreamsAreSecretFree } from "./diagnostic-secrecy.mjs";
+import { proveDeadlineSequence } from "./deadline-sequence.mjs";
 import { captureEngineCustody, registerWorkerCustody, verifyWorkerCustody } from "./process-custody.mjs";
 import { abortProxyServer, closeExpectedProxy, createProxyPhase, stopOwnedChild, trackProxyExchange } from "./proxy-phase.mjs";
 
@@ -527,10 +528,13 @@ async function rawAuthorityWitness(paths, scratch) {
     assert((await mint(cancelled, `oidc:raw-cancel-${randomUUID()}`)).denied?.code === "E_ACTION_LEASE", "cancel-refusal");
     const settled = await admit(); await finish(settled);
     assert((await mint(settled, `oidc:raw-settled-${randomUUID()}`)).denied?.code === "E_ACTION_LEASE", "settled-refusal");
-    const deadline = await admit("qualificationDeadline"); await delay(2_200);
-    const deadlineOutcome = await action(deadline.actionName, deadline.id, {}, deadline.owner.token, 0);
-    assert(deadlineOutcome.state === "failed" && deadlineOutcome.why?.code === "E_ACTION_DEADLINE", "deadline-terminal-evidence");
-    assert((await mint(deadline, `oidc:raw-deadline-${randomUUID()}`)).denied?.code === "E_ACTION_LEASE", "deadline-refusal");
+    const deadline = await admit("qualificationDeadline");
+    await proveDeadlineSequence({ run: deadline, waitPastDeadline: () => delay(2_200), require: assert,
+      status: async () => (await http(`/actions/${encodeURIComponent(deadline.id)}/status`, {}, service,
+        { "x-snapback-action-lease": deadline.held.session.token })).value,
+      collect: () => action(deadline.actionName, deadline.id, {}, deadline.owner.token, 0),
+      mint: () => mint(deadline, `oidc:raw-deadline-${randomUUID()}`),
+    });
 
     stage = "raw-parked";
     const parked = await admit();

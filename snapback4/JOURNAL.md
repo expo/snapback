@@ -31900,3 +31900,44 @@ clean-base full-suite or pre-existing-code-failure claim is made. The final
 reference audit reports 483 LLP documents, 9,079 references, 0 errors and
 0 unchecked; `git diff --check` is clean, and the earlier JOURNAL bytes
 remain an unchanged prefix.
+## 2026-09-17 — B1c R3 deadline-sequence instrument repair
+
+The actual R3 final-95 command used the correct outer module and exited after
+9.803 seconds with `B1C_DEADLINE_TERMINAL_EVIDENCE` at
+`raw-cancelled-settled-deadline`. Before that failure, the command recorded the
+actual Keycloak, post-commit lost-reply, worker-crash, derived own-profile and
+two-stream default-`why` redaction labels. Its retained raw database showed the
+deadline invocation still `running` with a null error code. Outer custody
+finished with zero surviving owned processes. The earlier R2 wrong-module miss
+remains retained and is not rewritten.
+
+Native Sol HIGH source inspection found an instrument chronology mismatch, not
+a backend defect: public action replay/collection reads the request and does
+not run action expiry. The normal worker `POST /actions/<id>/status` path does
+run expiry transactionally and returns the retained claim fence. The raw
+deadline sequence now waits past the declared two seconds, invokes that status
+door with the exact standing service credential and held action lease, and
+requires the returned invocation id and attempt to match with state `failed`
+and `errorCode: E_ACTION_DEADLINE`. Only then does it require the original
+public collection to expose `E_ACTION_DEADLINE` and the bound mint to refuse
+`E_ACTION_LEASE`. It neither accepts pending, adds an arbitrary longer sleep,
+writes the database nor substitutes the read-only aggregate.
+
+The sequence lives in one injected helper shared by the actual harness and
+three deterministic labelled-response tests. The green case proves the order
+status → collect → mint; missing and mismatched status receipts refuse before
+either downstream assertion can false-green. Review of the complete remaining
+raw witness against current HTTP/core contracts found no additional concrete
+mismatch: the admitting-logout sweep is driven by its claim pulse, parked-step
+transition invalidates its lease, and issued/target/service revocation plus the
++25h family-expiry path use their intended authority doors. This is source
+inspection only, not execution of those later cases.
+
+Node 24.13.1 syntax checks passed for `qualify-b1c.mjs` and the new deadline
+helper. The exact serial affected command over deadline, proxy phase, loopback
+HTTP lifecycle and diagnostic-secrecy tests passed 21/21; `git diff --check`
+passed. No actual engine, provider, crash qualification, raw case, external
+network, Rust/Cargo, install, publication or full suite ran. R3 remains overall
+negative, later raw cases remain unexecuted in that run, and the repaired
+deadline sequence plus every provider-backed row remain pending an actual
+qualification rerun.
