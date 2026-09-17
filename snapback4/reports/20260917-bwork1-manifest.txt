@@ -1,0 +1,62 @@
+Snapback4 Bwork1 focused verification manifest
+Date: 2026-09-17
+Repository: /home/ccheever/lanes/sb4-general-c3-20260916
+Working directory for Cargo commands: /home/ccheever/lanes/sb4-general-c3-20260916/snapback4
+Branch: llp-ship/sb4-workroom-20260916/bwork1-step-kernel
+Exact base excluded from bundle: 1e91bc7fe6b9be532efd5da98b94127151c0c289
+Qualified commit: ea77ee6ad15ca526053d27827296e40820511a5a
+Cargo concurrency: CARGO_BUILD_JOBS=6
+Lock policy: --locked on every Cargo command
+Test concurrency: --test-threads=1
+
+Initial environment miss (no compile or test ran):
+Command: CARGO_BUILD_JOBS=6 cargo check --locked -p snapback4-core
+Result: exit 127; ambient cargo not found
+Log: /tmp/sb4-bwork1.kH32QD/01-core-check.log
+Log SHA256: 00e1b45bfc5179ad573a29bef8e0dfc3b5e908b93bc23292d260f31a10799855
+
+1. Core check
+Command: CARGO_BUILD_JOBS=6 /home/ccheever/.cargo/bin/cargo check --locked -p snapback4-core
+Result: PASS; dev profile finished; one expected dead-code warning for reserved WorkKind::Effect
+Log: /tmp/sb4-bwork1.kH32QD/02-core-check.log
+Log SHA256: 504febb6070fbbb1206a34210e8eaa93dc0b571a0a2174343a20e67d4bdd3e4f
+
+2. Exact shared-key unit
+Command: CARGO_BUILD_JOBS=6 /home/ccheever/.cargo/bin/cargo test --locked -p snapback4-core --lib engine::steps::tests::action_provider_keys_keep_the_v1_bytes_and_effects_have_their_own_domain -- --exact --test-threads=1
+Result: PASS; 1 passed, 0 failed, 0 ignored, 56 filtered out
+Log: /tmp/sb4-bwork1.kH32QD/03-key-unit.log
+Log SHA256: 3c5985229774e92e40939b9bdbda8cdefb9da3fd2479c63a2061b3588e2b96d5
+
+3. Action context
+Command: CARGO_BUILD_JOBS=6 /home/ccheever/.cargo/bin/cargo test --locked -p snapback4-core --test action_context -- --test-threads=1
+Result: PASS; 9 passed, 0 failed, 0 ignored
+Log: /tmp/sb4-bwork1.kH32QD/04-action-context.log
+Log SHA256: 1bb0efbf2b1547eee636b70b5f17295405b80e8619acdb0cebd61a05f83b0c39
+
+4. Routes
+Command: CARGO_BUILD_JOBS=6 /home/ccheever/.cargo/bin/cargo test --locked -p snapback4-core --test routes -- --test-threads=1
+Result: PASS; 14 passed, 0 failed, 0 ignored
+Log: /tmp/sb4-bwork1.kH32QD/05-routes.log
+Log SHA256: 5c18ae0debff6ed1a78a2a99b9e637c2d1c56255ba4a3f4fbc2bd2c3cd0666be
+
+5. Bound session
+Command: CARGO_BUILD_JOBS=6 /home/ccheever/.cargo/bin/cargo test --locked -p snapback4-core --test bound_session -- --test-threads=1
+Result: PASS; 8 passed, 0 failed, 0 ignored
+Log: /tmp/sb4-bwork1.kH32QD/06-bound-session.log
+Log SHA256: a4151342df97e7b163d4e37c48234d2843dc90be8a4c36c5ee194a8dc2148b17
+
+6. Language guide
+Command: CARGO_BUILD_JOBS=6 /home/ccheever/.cargo/bin/cargo test --locked -p snapback4-lang --test guide -- --test-threads=1
+Result: PASS; 50 passed, 0 failed, 0 ignored
+Log: /tmp/sb4-bwork1.kH32QD/07-lang-guide.log
+Log SHA256: 5b41c83c54bdac9fb37ee3e273af3eb8e9398f489126d8dcc9729cbc5cd3fe35
+
+Selected-test total: 82 passed, 0 failed, 0 ignored
+Source repair after testing: none
+Static audit: git diff --cached --check passed before commit; all touched source files were <=1500 lines
+Excluded work: root inventories, broad suites, PostgreSQL, providers, listeners, installs, network, remotes, models, origin, push, publication
+
+Bundle: /tmp/sb4-bwork1-ea77ee6ad.bundle
+Bundle SHA256: f608c23c0cce5feb8621c8b6b9c17a097bed918ba776e6dc191e21caff48add1
+Bundle HEAD: ea77ee6ad15ca526053d27827296e40820511a5a
+Bundle prerequisite: 1e91bc7fe6b9be532efd5da98b94127151c0c289

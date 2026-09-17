@@ -28445,3 +28445,29 @@ install or full suite ran. The corrected source and independently pinned-
 subject assertion remain pending actual qualification; provider revocation,
 email chronology/boundaries, invitation, recovery and the other documented
 cuts remain unproved.
+
+## 2026-09-17 — Bwork1 review, provenance correction and integration
+
+Correction to the Bwork1 source-only entry above: native Codex Sol authored
+that checkpoint in thread `01a0adba-edec-7fb2-880b-e5208e463db2`; the same
+author then ran the focused qualification. Its sentence saying no model work
+ran was false as a blanket statement and is preserved only as historical
+text. The retained raw qualification manifest's excluded-model wording likewise
+does not mean no model authored the change. No additional model delegation
+occurred inside that authoring lane; independent reviews occurred separately.
+
+Fresh mutually blind Sol xhigh and Grok 4.6 requested-xhigh reviews both returned
+READY for `ea77ee6ad15ca526053d27827296e40820511a5a`, which is copied as
+`d3360d209` in integration. Product and test bytes match; the only cherry-pick
+conflict was independent JOURNAL appends, preserved byte-for-byte. Root fixed
+the reviewers' SERVER.md punctuation advisory and queued the adapter failure-
+injection suggestion with the forthcoming effect adapter. Public review answers
+are retained under `llp/reviews/3000.009-bwork1.*.md`.
+
+The 82 focused passes and initial ambient-Cargo exit127 are recorded with exact
+commands and log digests in `reports/20260917-bwork1-manifest.txt`; the qualified
+scope and limits are in `reports/20260917-bwork1.md`. This extraction is not
+effect storage, HTTP, generated context or fault qualification, and is not a
+full-suite, PostgreSQL, publication or promotion claim. The next effect adapter
+will use the existing generic Value payload contract explicitly; no typed
+effect payload declaration exists today, so no such type binding is claimed.
