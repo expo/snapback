@@ -10,11 +10,11 @@
 **Battery gate:** `fastpath-release-fixtures`
 **Failure signature:** `sha256:582b7c8e2cdd937049a8f3df96dc9f4f119cf6e596db4bad8fa4dd29cdb30c02`
 **First observed run:** `local.20260914T104118Z.86928d068765`
-**Last observed run:** `local.20260916T152410Z.9d9a5cb67d30`
-**Last processed run:** `local.20260916T152410Z.9d9a5cb67d30`
+**Last observed run:** `local.20260917T013752Z.61a3a6fa6021`
+**Last processed run:** `local.20260917T013752Z.61a3a6fa6021`
 **Detected at revision:** `86928d068765e3d57c68747e4f2359950b8ff7d1`
-**Last observed revision:** `9d9a5cb67d30ae688a3d86ce88016056340a0b7f`
-**Consecutive red runs:** `6`
+**Last observed revision:** `61a3a6fa60211153b439fc57ea6cd49ed0d17455`
+**Consecutive red runs:** `7`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
