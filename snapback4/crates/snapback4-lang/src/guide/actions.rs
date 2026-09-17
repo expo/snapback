@@ -266,8 +266,11 @@ Session routes take a function; service routes take `{ verify, handle }`.
 Remove extra keys and inherited handlers; optional effect handlers must
 name declared effects, and an empty registry may be omitted.
 
-E_SERVER_TOOLCHAIN means `check` cannot find the app's local TypeScript
-compiler. For example, a new app with a `snapback/server.ts` entry but no
+E_SERVER_TOOLCHAIN means `check` cannot start Node 24 or load the app's local
+TypeScript compiler. Read the accompanying cause first: a Node launch failure
+needs a working Node 24 executable (check `SNAPBACK_NODE` if set), while a
+compiler-load failure needs the app's TypeScript installation repaired.
+For example, a new app with a `snapback/server.ts` entry but no
 TypeScript dependency cannot check that entry. Install `typescript` and
 `@types/node` as development dependencies in the application, then rerun
 `snapback4 check`. A globally installed compiler alone is insufficient;

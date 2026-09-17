@@ -70,7 +70,7 @@ Suppression is reader-dependent, even for an uncapped `sync public` table.
 Eligible mutations that require whole-partition coverage can suppress this
 advice. An absent note does not certify bounded acquisition or a safe
 cold-start size.
-Inspect the table's `sync`, horizon and group `cap` with `check --residency`.
+Inspect the table's `sync`, horizon and group `cap` with `check --residency --verbose`.
 A snapshot arrives in pages the client
 asks for 4,000 events at a time (2,000 by default on the wire, 10,000 at
 most), each applied in its own transaction. `POST /sync` takes JSON

@@ -1179,3 +1179,35 @@ fn w11c_check_acquisition_uses_active_schema_read_only_and_fixture_uses_current_
         assert!(!p.run(&[verb, "--residency", "--fixture", "missing"]).status.success());
     }
 }
+
+#[test]
+fn w11r1c_help_describes_residency_without_query_meters() {
+    let p = Project::new();
+    p.source("query answer():\n  return 42\n");
+    let help = p.run(&["--help"]);
+    let text = String::from_utf8(help.stdout).unwrap();
+    assert!(text.contains("--residency: acquisition report only; add --verbose to run queries and print meters"), "{text}");
+    let report = p.run(&["test", "--residency"]);
+    assert!(report.status.success(), "{report:?}");
+    assert!(!String::from_utf8_lossy(&report.stdout).contains("answer ("));
+    let verbose = p.run(&["test", "--residency", "--verbose"]);
+    assert!(verbose.status.success(), "{verbose:?}");
+    assert!(String::from_utf8_lossy(&verbose.stdout).contains("answer ("), "{verbose:?}");
+}
+
+#[test]
+fn w11r1c_toolchain_why_explains_node_start_failure_too() {
+    let p = Project::new();
+    p.source("query answer():\n  return 42\n");
+    fs::write(p.0.join("snapback/server.ts"), "export default {};\n").unwrap();
+    fs::create_dir(p.0.join("node_modules")).unwrap();
+    std::os::unix::fs::symlink(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../node_modules/typescript"), p.0.join("node_modules/typescript")).unwrap();
+    let output = Command::new(BIN).arg("check").env("SNAPBACK_NODE", p.0.join("missing-node")).current_dir(&p.0).output().unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("E_SERVER_TOOLCHAIN: cannot start Node 24 to check server handlers:"));
+    let why = p.run(&["why", "E_SERVER_TOOLCHAIN"]);
+    let text = String::from_utf8(why.stdout).unwrap();
+    assert!(text.contains("Node 24") && text.contains("SNAPBACK_NODE") && text.contains("TypeScript"), "{text}");
+    let repaired = p.run(&["check"]);
+    assert!(repaired.status.success(), "{repaired:?}");
+}

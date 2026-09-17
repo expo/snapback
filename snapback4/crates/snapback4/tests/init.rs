@@ -677,6 +677,7 @@ fn w10r1b_51st_follow_fits_the_write_ceiling_with_the_app_edge() {
     assert_eq!(e.store().rows("feedPulls").unwrap().len(), 52);
     assert_eq!(e.store().rows("appFollows").unwrap().len(), 1);
     assert_eq!(e.store().rows("feedFeed").unwrap().len(), 917);
+    assert_eq!(write.metered.rows_written, 1024);
 }
 
 #[test]

@@ -33,23 +33,68 @@ const README: &str = concat!(include_str!("../../../packages/snapback4/README.md
 fn w11a_feeds_card_requires_delivery_preserving_promotion() {
     let feeds = card("feeds").unwrap();
     for text in [
-        "Promotion requires a pull lane for every follower, including the triggering\nreader. If any follower already uses all 32 shared-author slots,\n`FEED_PROMOTION_PULL_CAP` refuses the whole follow/promotion transaction,\nincluding the app edge, author mode, routes and counts. Existing followers\nkeep receiving private pushes; no follower is silently skipped.",
+        "Promotion requires a pull lane for every follower, including the triggering\nreader. The caller is checked first: their own full 32 shared-author slots\nrefuse `FEED_PULL_CAP`. If another follower already uses all 32 slots,\n`FEED_PROMOTION_PULL_CAP` refuses the whole follow/promotion transaction,\nincluding the app edge, author mode, routes and counts. Existing followers\nkeep receiving private pushes; no follower is silently skipped.",
         "Show the refusal in the app. Have each saturated follower unfollow a shared\nauthor to free a slot, then retry the refused follow with a new write ID.\nThe triggering reader freeing their own slot does not help a different\nsaturated follower. If those followers cannot free slots, decline the new\nfollow and keep the existing pushed delivery; more than 32 shared authors\nneeds a separate serving design, not a larger cap alone.",
         "`complete` describes the queried lanes' coverage under the meter; promotion\nnever omits a subscribed follower's route.",
         "Promotion uses that count to refuse a saturated follower without reading\ntheir routes.",
         "Requiring route success adds no writes, so the 107-write allowance and\n917-event backfill bound are unchanged; a refusal rolls back attempted writes.",
     ] { assert!(feeds.contains(text), "feeds card omits verbatim policy: {text}"); }
     for doc in [feeds, README] {
+        assert!(doc.contains("if count(near) > 50:\n      -- Check the caller first so their own full slots name their own repair.\n      require tryPull(viewer, authorId) else FEED_PULL_CAP\n      update authors"), "both published copies check the caller before promotion");
         assert!(doc.contains("require tryPull(f.followerId, authorId) else FEED_PROMOTION_PULL_CAP"));
         assert!(!doc.contains("skips a follower") && !doc.contains("skip saturated readers"));
         assert!(!doc.contains("A skipped follower") && !doc.contains("not skipped\nauthors"));
     }
     assert_eq!(snapback4_lang::diag::guide_for("FEED_PROMOTION_PULL_CAP"), "feeds");
     let explanation = guide::CODES.iter().find(|(code, _)| *code == "FEED_PROMOTION_PULL_CAP").unwrap().1;
-    assert_eq!(explanation, "a follower already uses all 32 shared-author slots. The triggering follow and promotion were rolled back; existing followers still receive private pushes. Show this refusal in the app. Have each saturated follower unfollow a shared author, then retry the refused follow with a new write ID. Freeing only the caller's slot cannot fix another follower's full slots; if they cannot free a slot, decline the new follow and keep pushed delivery. More than 32 shared authors needs a separate serving design. guide feeds.");
+    assert_eq!(explanation, "another follower already uses all 32 shared-author slots. The triggering follow and promotion were rolled back; existing followers still receive private pushes. Show this refusal in the app. Have each saturated follower unfollow a shared author, then retry the refused follow with a new write ID. Freeing only the caller's slot cannot fix another follower's full slots; if they cannot free a slot, decline the new follow and keep pushed delivery. Until every saturated follower frees a slot, every later follow refuses the same way and the author stays at 50 followers, gaining no new followers. A server-run query over public follows and pullCounts identifies the blocker by used = 32 in 51 reads (one scan plus 50 count lookups). More than 32 shared authors needs a separate serving design. guide feeds.");
     let why = explain_code("FEED_PROMOTION_PULL_CAP").unwrap();
     assert!(why.contains(explanation) && why.contains("snapback4 guide feeds"));
     assert!(!explain_code("FEED_PULL_CAP").unwrap().contains("skips saturated readers"));
+}
+
+#[test]
+fn w11r1c_promotion_names_the_persistent_block_and_its_discovery_path() {
+    for text in [card("feeds").unwrap().to_owned(), README.to_owned(), explain_code("FEED_PROMOTION_PULL_CAP").unwrap()] {
+        let prose = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        for fact in ["every later follow", "50 followers", "follows", "pullCounts", "public", "server-run query", "51 reads", "used"] {
+            assert!(prose.contains(fact), "missing {fact}: {prose}");
+        }
+    }
+}
+
+#[test]
+fn w11r1c_residency_fact_cards_require_verbose() {
+    for name in ["residency", "sync", "services"] {
+        let text = card(name).unwrap();
+        assert!(text.contains("check --residency --verbose"), "{name}");
+        assert!(!text.contains("`check --residency`"), "{name}: bare command promises facts");
+    }
+}
+
+#[test]
+fn w11r1c_first_screen_generates_types_and_starts_the_backend() {
+    let path = README.split_once("1. **Choose the Expo/local-replica starter.**").unwrap().1.split_once("2. **").unwrap().0;
+    for text in ["npx snapback4 check", "npx snapback4 dev", "./CLIENT-AND-OPERATIONS.md#5-development"] {
+        assert!(path.contains(text), "step 1 omits {text}");
+    }
+}
+
+#[test]
+fn w11r1c_new_recipe_refusals_must_be_registered_with_sections() {
+    assert!(sources().iter().any(|file| file.ends_with("src/guide/feeds.md")), "the census must scan the extracted recipe");
+    let unknown = "FEED_NEW_RECIPE_REFUSAL";
+    let source = format!("mutation probe():\n  require false else {unknown}\n");
+    let b = compile(&source);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert_eq!(code_words(&source), [unknown]);
+    let missing: Vec<_> = code_words(&source).into_iter().filter(|code| explain_code(code).is_none()).collect();
+    assert_eq!(missing, [unknown], "the emitted-code census must reject a newly authored recipe refusal");
+    for code in ["FEED_PULL_COUNT_MISSING", "CANNOT_FOLLOW_SELF", "AUTHOR_NOT_FOUND", "POST_NOT_FOUND", "FEED_PULL_CAP"] {
+        assert!(explain_code(code).is_some(), "unregistered recipe code: {code}");
+        assert_eq!(snapback4_lang::diag::guide_for(code), "feeds");
+        assert!(snapback4_lang::Diagnostic::new(&Default::default(), code, "", "").explanation_section().is_some(), "no dedicated section: {code}");
+    }
 }
 
 #[test]
@@ -638,7 +683,7 @@ fn sources() -> Vec<PathBuf> {
                 // A test module inside `src/` invents refusal codes for fixtures;
                 // this check is about the codes the product itself emits.
                 continue;
-            } else if path.extension().is_some_and(|e| e == "rs" || e == "ts" || e == "tsx") {
+            } else if path.extension().is_some_and(|e| e == "rs" || e == "ts" || e == "tsx" || e == "md") {
                 files.push(path);
             }
         }
@@ -646,25 +691,27 @@ fn sources() -> Vec<PathBuf> {
     for dir in ["crates", "packages/snapback4/src", "packages/snapback4-expo/src"] {
         walk(&root.join(dir), &mut files);
     }
+    files.push(root.join("packages/snapback4/README.md"));
     assert!(files.len() > 40, "{} source files", files.len());
     files
 }
 
-/// The words matching `E_UPPER` or `N_UPPER` in a text, at identifier boundaries.
+/// Product and feed-recipe codes at identifier boundaries, including extracted Markdown cards.
 fn code_words(text: &str) -> Vec<String> {
     let bytes = text.as_bytes();
     let ident = |b: u8| b.is_ascii_alphanumeric() || b == b'_';
     let mut out = Vec::new();
     let mut i = 0;
     while i + 2 < bytes.len() {
-        if (bytes[i] == b'E' || bytes[i] == b'N') && bytes[i + 1] == b'_' && bytes[i + 2].is_ascii_uppercase() && (i == 0 || !ident(bytes[i - 1])) {
+        let prefix = [b"E_".as_slice(), b"N_".as_slice(), b"FEED_".as_slice()].into_iter().find(|p| bytes[i..].starts_with(p));
+        if let Some(prefix) = prefix.filter(|p| bytes.get(i + p.len()).is_some_and(u8::is_ascii_uppercase) && (i == 0 || !ident(bytes[i - 1]))) {
             let start = i;
-            let mut end = i + 2;
+            let mut end = i + prefix.len();
             while end < bytes.len() && (bytes[end].is_ascii_uppercase() || bytes[end] == b'_' || bytes[end].is_ascii_digit()) {
                 end += 1;
             }
-            if end >= bytes.len() || !ident(bytes[end]) {
-                out.push(text[start..end].trim_end_matches('_').to_owned());
+            if (end >= bytes.len() || !ident(bytes[end])) && bytes[end - 1] != b'_' {
+                out.push(text[start..end].to_owned());
             }
             i = end;
         } else {

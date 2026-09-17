@@ -16,15 +16,15 @@ pub fn seed(engine: &mut Engine, reader: &str, slots: usize) {
     app::mutate(engine, "register", AUTHOR, &[], 1);
     for n in 0..slots { app::mutate(engine, "follow", reader, &[("authorId", app::id(&format!("shared{n}")))], 2); }
     post(engine, "old-push", 3);
-    // The reader follows Q while Q is unshared; 49 further follows succeed,
-    // and the 50th further follow is the transaction under test.
-    app::mutate(engine, "follow", reader, &[("authorId", app::id(AUTHOR))], 4);
+    // Existing blockers already follow Q. A saturated trigger waits until
+    // the 50 existing followers are in place before attempting its own edge.
+    if reader != TRIGGER { app::mutate(engine, "follow", reader, &[("authorId", app::id(AUTHOR))], 4); }
     for n in 0..50 {
         let who = format!("reader{n:02}");
         if who != reader { app::mutate(engine, "follow", &who, &[("authorId", app::id(AUTHOR))], 4); }
     }
     assert!(!shared(engine));
-    assert_eq!(posts(&app::query(engine, reader)), ["old-push"]);
+    assert_eq!(posts(&app::query(engine, reader)), if reader == TRIGGER { vec![] } else { vec!["old-push"] });
 }
 
 pub fn post(engine: &mut Engine, post: &str, now: i64) {
@@ -44,13 +44,15 @@ pub fn promote(engine: &mut Engine) -> MutationOutcome {
     engine.mutate("social.follow", None, app::context(TRIGGER, &[("authorId", app::id(AUTHOR))]).at(5)).unwrap()
 }
 
-pub fn refused(engine: &mut Engine) {
+pub fn refused(engine: &mut Engine) { refused_with_code(engine, CODE); }
+
+pub fn refused_with_code(engine: &mut Engine, code: &str) {
     let before = rows(engine);
     let seq = engine.seq().unwrap();
     let result = promote(engine);
     let WriteState::Failed { why, .. } = &result.state else { panic!("promotion must refuse atomically: {:?}", result.state); };
-    assert_eq!(why.code, CODE);
-    assert_eq!(why.message, "the program refused with FEED_PROMOTION_PULL_CAP");
+    assert_eq!(why.code, code);
+    assert_eq!(why.message, format!("the program refused with {code}"));
     assert_eq!(rows(engine), before, "app edge, recipe edge, mode, routes, counts and deliveries all roll back");
     assert_eq!(engine.seq().unwrap(), seq, "no partial promotion reaches sync");
     assert_eq!(result.events, 0);

@@ -31,7 +31,7 @@ like any principal, so the ranker is admitted and nobody else is; with
 its token a worker claims effects (guide effects) and runs any operation
 a rule admits it to.
 An audience read rule may add `or viewer = 'service:ranker'`; sync ignores
-service grants, and `check --residency` lists them without changing any device's partition.
+service grants, and `check --residency --verbose` lists them without changing any device's partition.
 
 An application that authenticates its own accounts — a phone number it
 verified, a member of its own directory — mints their sessions through its

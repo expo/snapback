@@ -25953,3 +25953,303 @@ complete. No out-of-scope file, ceiling, serialized value, existing corpus
 case or diagnostic text changed. No commit, push, tag, publication,
 sub-agent, clone or other machine. `git diff --check` passes. The prior
 journal bytes were checked against HEAD before this one append.
+
+## 2026-09-16 — W11R1c: promotion advice reaches the caller, and review corrections
+
+Base: `975bbf76e01a9418fe0073cfebb8f9dc999ada3b`. Read Snapback 4's fence,
+NOT-DOING, rules, LLP 3000 §§6–7 and LLP 3000.007's rulings and execution
+record; the promotion constraint is §20.3. Read GPT finding 5 in the lead's
+wave-11 review record for this same base. No policy change: atomic refusal
+still preserves every existing follower's delivery instead of silently
+omitting a route. An indefinitely blocked 51st follow is a severe product
+limitation, now explicit and discoverable; it does not justify a silent
+partial follow. The lead retains the policy decision.
+
+Both published copies of `addFollow` now check the caller's own pull slot
+before the promotion loop. The caller receives FEED_PULL_CAP; a saturated
+existing follower still causes FEED_PROMOTION_PULL_CAP and full rollback.
+The card, README and explanation say the author stays at 50 followers and
+every later follow refuses until the blocker frees a slot. Both public tables
+support a server query that identifies the blocker without reading private
+routes. The discovery regression refuses Carol and Dave, verifies unchanged
+tables, locates reader00 from the author's query, then succeeds after freeing
+that reader's slot. The saturated-trigger scenario verifies both memory and
+SQLite devices, empty refusal streams, preserved private delivery, successful
+retry and delivery after durable reopen.
+
+The four missing recipe codes have registered explanations and dedicated
+feeds sections. The census scans FEED_ identifiers in extracted Markdown and
+the README, with a regression that rejects a newly authored unregistered
+recipe refusal. Prefix wildcards such as E_WITNESS_* are not complete codes.
+CLI help now distinguishes the residency-only report from verbose query
+meters; sync/services fact instructions require --verbose. The existing
+maximum-backfill test asserts exactly 1,024 writes. The toolchain explanation
+now distinguishes Node-launch failure from local-TypeScript failure, tested
+with TypeScript installed, an invalid SNAPBACK_NODE, and a successful repair.
+Step 1 of the first-screen path names check, dev, the backend address and §5.
+A final cross-reference search caught the README's duplicate recipe; its
+missing caller check was separately reproduced red before synchronizing it.
+
+Measurements: caller refusal on each store examined 56 rows, visited 10 index
+entries and attempted 2 writes, with 0 committed events. The write envelope is
+1,024 = 107 promotion/app-edge writes + 917 copies, leaving 0 write headroom;
+its meter reported 1,161 examined / 8,625 index entries / 1,024 written.
+Discovery returned 50 followers, found 1 blocker, used 51 read operations
+(one scan + 50 lookups), examined 100 rows and used 0 rule probes. Successful
+promotion installs 52 routes for 51 followers plus the author. All 142
+registered codes have dedicated sections; the largest why output is 4,095
+bytes against 4,096. No ceiling or serialized value form changed.
+
+Commands below ran from snapback4/ with
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`, except the
+root suite wrapper and ref-check. Logs remain under /tmp/w11r1c-*.
+Red regressions preceded their fixes; the C4 assertion is hardening an
+already-correct existing test and has no failing baseline to invent.
+
+```sh
+cargo test -p snapback4-lang --test guide w11r1c -- --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 40 filtered out; finished in 0.01s
+```
+
+```sh
+cargo test -p snapback4-device --test device w11r1c -- --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 185 filtered out; finished in 0.55s
+```
+
+```sh
+cargo test -p snapback4 --test check w11r1c -- --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 55 filtered out; finished in 1.30s
+```
+
+```sh
+cargo test -p snapback4-lang --test guide w11a_feeds_card_requires_delivery_preserving_promotion -- --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 43 filtered out; finished in 0.00s
+```
+
+```sh
+cargo test -p snapback4-lang --test guide -- --nocapture
+```
+
+```text
+test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+```
+
+```sh
+cargo test -p snapback4-device --test device following::saturation -- --nocapture
+```
+
+```text
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 179 filtered out; finished in 1.81s
+```
+
+```sh
+cargo test -p snapback4-sim --test clique following::promotion -- --nocapture
+```
+
+```text
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 89 filtered out; finished in 0.59s
+```
+
+```sh
+cargo test -p snapback4 --test check w11r1c -- --nocapture
+```
+
+```text
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 55 filtered out; finished in 1.34s
+```
+
+```sh
+cargo test -p snapback4 --test init w10r1b_51st_follow_fits_the_write_ceiling_with_the_app_edge -- --nocapture
+```
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 30 filtered out; finished in 0.37s
+```
+
+The first discovery-test drafts exposed a cursor note and an index without
+cursor support; the final query covers the existing 1,000-follower group cap
+and compiles without notes. No production index or cap was changed. Two
+retry invocations accidentally ran from the repository root and stopped at
+ibex-runtime dependency resolution before running any test; they were rerun
+from snapback4/. No root files changed.
+
+Full blocking run (the final README-only synchronization was separately
+verified by the 44/0 guide run above while the remaining suite continued):
+
+```sh
+bash snapback4/scripts/test.sh
+```
+
+```text
+-- ok: cargo build (4 s)
+-- ok: wasm build (27 s)
+-- ok: package typecheck (3 s)
+-- ok: package build (0 s)
+-- ok: chat app check (3 s)
+test result: FAILED. 58 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.52s
+test result: FAILED. 0 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.17s
+test result: FAILED. 2 passed; 5 failed; 1 ignored; 0 measured; 0 filtered out; finished in 4.05s
+-- FAIL: cargo test (917 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (22 s)
+ℹ tests 485
+ℹ pass 483
+ℹ fail 2
+-- FAIL: client tests (77 s)
+== 2 failure(s) in 954 s
+```
+
+Summing Rust target summaries gives 1,243 passed / 14 failed / 4 ignored.
+The 14 failures were one route-admission assertion, eight native-read fixture
+builds and five native-job fixture builds. The native builds could not create
+unicode-ident-1.0.25.crate in the sandbox's read-only global Cargo cache
+(Operation not permitted). A separate /private/tmp/w11r1c-cargo-cache used a
+copy of the existing temporary registry cache and a locked fetch; no credentials,
+repository dependency or lockfile was copied or changed. The client run had
+two failures: Chromium SIGABRT and a store-replacement assertion. The route
+and store-replacement tests passed alone. Native retries passed with the
+temporary cache. These isolated passes do not erase the full-run failures.
+
+Native retry preparation (test executables rebuilt from this working tree):
+
+```sh
+CARGO_HOME=/private/tmp/w11r1c-cargo-cache cargo fetch --locked --manifest-path native-fixtures/rescore/Cargo.toml
+cargo test -p snapback4-device --test native_reads --no-run --message-format=json
+cargo test -p snapback4-sim --test native --no-run --message-format=json
+```
+
+```sh
+cargo test -p snapback4 --bin snapback4 route_development_exception_does_not_expose_core_doors_or_personas -- --nocapture
+```
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 58 filtered out; finished in 0.04s
+```
+
+```sh
+node --test --test-name-pattern='sync store identity survives' packages/snapback4/test/store-reset.test.mjs
+```
+
+```text
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+```
+
+```sh
+node --test packages/snapback4/test/react.test.mjs
+```
+
+```text
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+```
+
+```sh
+CARGO_HOME=/private/tmp/w11r1c-cargo-cache target/debug/deps/native_reads-b3b06dc295738225 --nocapture
+```
+
+```text
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.31s
+```
+
+```sh
+CARGO_HOME=/private/tmp/w11r1c-cargo-cache target/debug/deps/native-3d25140fa7501473 --nocapture
+```
+
+```text
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 4.28s
+```
+
+The isolated React failure is again signal=SIGABRT, the known sandbox artifact
+in the brief; the lead must rerun outside the sandbox. No failure is claimed
+pre-existing: this lane did not run a separate clean-base complete suite.
+All implementation items are complete. The supporting production edit outside
+the specifically named files is diag.rs's one match arm routing the four codes
+to feeds; tests stay in existing suites. No corpus case, meter ceiling, value
+serialization, dependency, generated publication artifact or other lane's
+implementation changed. No commit, push, tag, publication, sub-agent, clone or
+remote execution. All changed code files are below 1,500 lines. git diff --check
+passed. This journal block was appended in one write after checking that every
+previous byte matched HEAD.
+
+Reference check before this append:
+
+```sh
+./ref-check --verbose
+```
+
+```text
+ref-check: ok — 481 LLP docs, 9037 refs in 23996 files, 0 errors, 0 unchecked
+```
+
+Verbatim refusal messages for the saturated caller:
+
+```text
+before: the program refused with FEED_PROMOTION_PULL_CAP
+after: the program refused with FEED_PULL_CAP
+```
+
+The generic Node-launch emitter is unchanged:
+`E_SERVER_TOOLCHAIN: cannot start Node 24 to check server handlers: {e}`.
+Its code explanation and dedicated actions paragraph now name that branch.
+The following are the verbatim code explanations before and after this lane.
+
+### FEED_PROMOTION_PULL_CAP
+
+Before:
+
+```text
+a follower already uses all 32 shared-author slots. The triggering follow and promotion were rolled back; existing followers still receive private pushes. Show this refusal in the app. Have each saturated follower unfollow a shared author, then retry the refused follow with a new write ID. Freeing only the caller's slot cannot fix another follower's full slots; if they cannot free a slot, decline the new follow and keep pushed delivery. More than 32 shared authors needs a separate serving design. guide feeds.
+```
+
+After:
+
+```text
+another follower already uses all 32 shared-author slots. The triggering follow and promotion were rolled back; existing followers still receive private pushes. Show this refusal in the app. Have each saturated follower unfollow a shared author, then retry the refused follow with a new write ID. Freeing only the caller's slot cannot fix another follower's full slots; if they cannot free a slot, decline the new follow and keep pushed delivery. Until every saturated follower frees a slot, every later follow refuses the same way and the author stays at 50 followers, gaining no new followers. A server-run query over public follows and pullCounts identifies the blocker by used = 32 in 51 reads (one scan plus 50 count lookups). More than 32 shared authors needs a separate serving design. guide feeds.
+```
+
+### FEED_PULL_CAP
+
+Before:
+
+```text
+the Following recipe's reader already pulls 32 shared authors. Free a pull slot by unfollowing a shared author, then retry the refused follow with a new write ID. The app and recipe follow edges were rolled back. guide feeds.
+```
+
+After:
+
+```text
+the Following recipe's reader already pulls 32 shared authors. Free a pull slot by unfollowing a shared author, then retry the refused follow with a new write ID. The app and recipe follow edges were rolled back. guide feeds.
+```
+
+### E_SERVER_TOOLCHAIN
+
+Before:
+
+```text
+the server entry needs a locally installed TypeScript compiler. Install the application's TypeScript dependency and run check again; check does not fetch a compiler dynamically. guide actions.
+```
+
+After:
+
+```text
+check could not start Node 24 or load the application's local TypeScript compiler. Read the accompanying cause: fix Node or SNAPBACK_NODE for a launch failure; install or repair the application's TypeScript dependency for a compiler-load failure. Then run check again; check does not fetch a compiler dynamically. guide actions.
+```

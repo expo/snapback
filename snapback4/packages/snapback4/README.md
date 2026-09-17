@@ -35,6 +35,9 @@ the existing sections; the reference map below can wait.
 1. **Choose the Expo/local-replica starter.** Run `npx snapback4 init --expo`
    and follow [§7 Expo](./CLIENT-AND-OPERATIONS.md#7-expo). Use a development
    or production build for the native replica; Expo Go uses the online tier.
+   From the project directory, run `npx snapback4 check` to generate the API, then
+   keep `npx snapback4 dev` running to serve the backend at `127.0.0.1:4400`;
+   see [§5 Development](./CLIENT-AND-OPERATIONS.md#5-development).
 
 2. **Enable identity and persist the session.** For password accounts declare
    `use identity password`; follow [Sign-in](./CLIENT-AND-OPERATIONS.md#sign-in-snapback4auth)
@@ -1262,15 +1265,25 @@ inboxes for small accounts, one public projection for celebrity posts,
 follow-time backfill, atomic unfollow purge, own posts and attributed
 reposts, and a cursor query that runs on the device. On a successful 51st follow,
 future events switch to broadcast; older events retain their delivery mode.
-Promotion requires a pull route for every follower. If any follower's 32
-shared-author slots are full, `FEED_PROMOTION_PULL_CAP` refuses the triggering
+Promotion requires a pull route for every follower. The caller is checked first:
+their own full 32 shared-author slots refuse `FEED_PULL_CAP`, and freeing their
+own slot is the repair. If another follower's slots are full,
+`FEED_PROMOTION_PULL_CAP` refuses the triggering
 follow and promotion atomically, including the app edge, author mode, routes
 and counts. Existing followers keep receiving private pushes. Show the refusal;
 have each saturated follower unfollow a shared author to free a slot, then
 retry the refused follow with a new write ID. Freeing the caller's slot cannot
 fix another follower's full slots. If they cannot free a slot, decline the new
 follow and keep pushed delivery; more than 32 shared authors needs a separate
-serving design. A saturated new follow of an already-shared author refuses
+serving design. Until every saturated follower frees a slot, every later follow
+refuses the same way: the author stays at 50 followers and gains no new followers,
+possibly indefinitely for a dormant blocker. The newcomer cannot free that slot.
+A server-run query can identify the blocker for the author: `follows` and
+`pullCounts` are both `public`. Scan the author's followers, then read each one's
+`used`; after rollback, 51 reads (one scan plus 50 count lookups) identify those
+at 32. An absent count means zero routes; installed prefixes use `feedFollows`
+and `feedPullCounts`. See `guide feeds` for the indexed lookup path.
+A saturated new follow of an already-shared author refuses
 `FEED_PULL_CAP`, rolling back the app edge too. A saturated
 author keeps their own shared events through an own-inbox copy.
 `deletePost` and `unrepost` hide source events through synced removal
@@ -1465,6 +1478,8 @@ fn addFollow(authorId: principal):
   if not a.shared:
     near = follows[authorId] first 51 by byFollowed
     if count(near) > 50:
+      -- Check the caller first so their own full slots name their own repair.
+      require tryPull(viewer, authorId) else FEED_PULL_CAP
       update authors[authorId] { shared: true }
       tryPull(authorId, authorId)
       for f in follows[authorId] first 1000 by byFollowed:
