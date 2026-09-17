@@ -60,3 +60,18 @@ No change is proposed in this ticket. LLP 3000.007 §20.22 ("total reads") is wa
 13's and this must not pre-empt it; the maintained-columns design (LLP 3000.007.001)
 is separately under review. Filed so the next wave scopes from a verified limit
 rather than from "qualify the example".
+
+## Disposition (the derived-data lead, 2026-09-17; LLP 3000.007 §21.8 L19)
+
+Taken into the derived-data program (LLP 3000.007 §21). **Recommendation: option 1**, stated
+as one rule — *a maintain value index is a prefix of group fields, then `value`, then any
+remaining group fields, then `id`.* Every group field is fixed for the life of a maintain row
+(one row per group), so trailing group fields add key bytes and no index rewrite that a
+change of `value` does not already cause; the sweep and the rebuild are unaffected. It is a
+change to the language surface and to code a merge cursor depends on, so it is a lane with a
+two-family blind review (W15c, after W15a and W15b), and the author may prefer to wait for the
+form that needs no maintain table at all: with ruling 29 (built, W13c) and ruling 30
+(LLP 3000.007.001, READY, not built) the ranking is an ordinary index on the parent —
+`by byHourLikes: hour(.at), likeCount, at, id` — whose ties are whatever the author writes.
+Option 2 is declined (it makes an id order meaningful that the cards call opaque); option 3
+is what ships until one of the other two does.
