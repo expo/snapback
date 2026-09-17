@@ -1,6 +1,6 @@
 # Derived-data probes on published Snapback 4 0.2.27
 
-**Status: complete; a probe record, not a calibration.** Eleven small projects run against
+**Status: complete; a probe record, not a calibration.** Twelve small projects run against
 the **published `snapback4-darwin-arm64@0.2.27` binary** (`npm pack`, `snapback4 --version`
 → `snapback4 0.2.27`) on 2026-09-17, to test whether three shapes the 0.2.27 Clique record
 called expressiveness holes — a rolling-window ranking, a derived table any principal can
@@ -188,6 +188,22 @@ answer, about 5 ms after the other principal's commit, is
 `insert likes { postId, principal: viewer }` with `postId = 'no-such-post'` → `state: sent`.
 LLP 3000.007.001 §3.3 (a maintained column counts pre-existing contributions at its
 parent's birth) rests on this.
+
+## `stream-image-ahead/` — a stream page carries an image newer than its own watermark
+
+Found by the GPT-family blind review of LLP 3000.007.001 and reproduced here. A public
+synced `counters` row; bob bumps it (sequence 2), alice bumps it (sequence 3); alice's
+device asks for one event from watermark 1:
+
+```
+alice acquires      → watermark 1 image n = 0
+bob bump seq 2 → n 1 | alice bump seq 3 → n 2
+page(limit 1) from 1 → watermark 2, more=true, acks={}, events: seq 2 put n=2
+```
+
+The page ends before alice's commit and does not acknowledge it, yet its image already
+includes it, so her device replays the pending `bump` over it and shows 3 until the next
+page. Filed as `issues/20260917-snapback4-stream-page-serves-images-newer-than-its-watermark.md`.
 
 ## What this record does not show
 
