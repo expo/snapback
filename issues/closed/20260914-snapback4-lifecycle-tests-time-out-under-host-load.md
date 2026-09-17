@@ -5,7 +5,7 @@
 **Date:** 2026-09-14
 **Systems:** CLI lifecycle tests, client test runner, publication qualification
 **Author:** Codex / GPT-6 Astra
-**Resolution:** Fixed by `c4eb1047f`: pre-main and readiness waits are distinct, early exits remain prompt, and loaded-host client execution is bounded.
+**Resolution:** Fixed by `768ff746b`: pre-main and readiness waits are distinct, early exits remain prompt, and loaded-host client execution is bounded.
 
 Evidence status: received orchestrator observation plus retained local test logs
 
