@@ -24883,3 +24883,39 @@ snapback4/experiments/postgres/Cargo.toml --format-version 1` now exits zero
 without changing the lockfile. This is dependency-resolution evidence, not a
 test-suite or benchmark pass. The original C3.1 focused tests' non-locked
 invocation remains recorded; this repair does not relabel it.
+
+## 2026-09-17 — C3.1: Postgres receipts bind operation and raw arguments
+
+The Postgres evaluation executor now matches SQLite's A1 receipt identity:
+before current program lookup or input validation it binds `(principal, id)`
+to the exact operation name and SHA-256 of raw wire JSON with recursively
+sorted object keys. It repeats that comparison inside the writer transaction
+before execution, and inserts the sanitized receipt, name, digest and admission
+time atomically. Whole-operation retry and commit-tail order are unchanged.
+Evaluation layout version 2 refuses version-1 stores; there is deliberately no
+migration that could bless their unbound receipts. SQLite's legacy nullable
+binding behavior is unchanged.
+
+Focused evidence on the private socket-only PostgreSQL 16.15 cluster:
+
+- `snapback4-core --test work_records`: 6 passed, including digest ordering,
+  pre-validation replay, redaction and legacy SQLite receipts.
+- Real-Postgres conformance: the binding/redaction differential, concurrent
+  same-id/two-argument race, version-1 refusal, reopen/equivalence, late
+  rollback and refused-receipt race each passed. The race admitted exactly one
+  fresh binding, refused the loser with `E_ID_REUSED`/`input`, and replayed only
+  the winner.
+- `snapback4-core --features postgres --lib engine::postgres::tests`: 5 passed.
+
+The cluster was verified as postmaster PID/PGID 3608271/3608271 and stopped
+with its own `pg_ctl`. Data and logs remain under
+`/tmp/sb4-c3-20260916-supervision/postgres-abe8883-c31/`; focused command logs
+and the launch ledger remain beside it. The experiment lockfile on the clean
+base still pins three path packages at 0.2.25 while their manifests are 0.2.26,
+so its `--locked` command refused before compilation; the real-PG tests ran
+offline and the incidental lock rewrite was excluded. No full suite, full
+build, production-Postgres target, migration, service/runtime change,
+performance claim, publication or push was made.
+
+`./ref-check --verbose` reports 481 LLP documents, 9,033 references in
+23,999 files, zero errors and zero unchecked references.

@@ -14,7 +14,7 @@ use std::{
     collections::BTreeMap,
 };
 
-pub(super) const VERSION: &str = "snapback4-postgres-evaluation-1";
+pub(super) const VERSION: &str = "snapback4-postgres-evaluation-2";
 pub(super) const DDL: &str = "
 CREATE TABLE _backend (singleton BOOLEAN PRIMARY KEY CHECK(singleton), version TEXT NOT NULL, schema TEXT NOT NULL, programs TEXT NOT NULL);
 CREATE TABLE _head (singleton BOOLEAN PRIMARY KEY CHECK(singleton), seq BIGINT NOT NULL CHECK(seq >= 0));
@@ -23,7 +23,7 @@ CREATE TABLE r (t TEXT COLLATE \"C\" NOT NULL, id TEXT COLLATE \"C\" NOT NULL, d
 CREATE TABLE i (t TEXT COLLATE \"C\" NOT NULL, ix TEXT COLLATE \"C\" NOT NULL, k BYTEA NOT NULL, id TEXT COLLATE \"C\" NOT NULL, PRIMARY KEY(t,ix,k));
 CREATE TABLE _commits (seq BIGINT PRIMARY KEY, at BIGINT NOT NULL, program TEXT NOT NULL, principal TEXT NOT NULL, kind TEXT NOT NULL, touched TEXT NOT NULL, writes BIGINT NOT NULL);
 CREATE TABLE _log (partition TEXT COLLATE \"C\" NOT NULL, seq BIGINT NOT NULL REFERENCES _commits(seq), ord BIGINT NOT NULL, t TEXT NOT NULL, kind TEXT NOT NULL, id TEXT NOT NULL, data TEXT, PRIMARY KEY(partition,seq,ord));
-CREATE TABLE _ops (principal TEXT COLLATE \"C\" NOT NULL, id TEXT COLLATE \"C\" NOT NULL, seq BIGINT NOT NULL, outcome TEXT NOT NULL, PRIMARY KEY(principal,id));
+CREATE TABLE _ops (principal TEXT COLLATE \"C\" NOT NULL, id TEXT COLLATE \"C\" NOT NULL, seq BIGINT NOT NULL, outcome TEXT NOT NULL, name TEXT NOT NULL, args_digest TEXT NOT NULL, at BIGINT NOT NULL, PRIMARY KEY(principal,id));
 CREATE TABLE _outbox (id TEXT PRIMARY KEY, seq BIGINT NOT NULL REFERENCES _commits(seq), effect TEXT NOT NULL, payload TEXT NOT NULL, state TEXT NOT NULL, attempts BIGINT NOT NULL, at BIGINT NOT NULL);
 ";
 
@@ -185,8 +185,17 @@ impl Tx<'_> {
         Ok(self.query("SELECT outcome FROM _ops WHERE principal = $1 AND id = $2", &[&principal, &id])?.first().map(|r| r.get(0)))
     }
 
-    pub fn record_applied(&self, principal: &str, id: &str, seq: u64, outcome: &str) -> Result<(), RuntimeError> {
-        self.execute("INSERT INTO _ops VALUES ($1,$2,$3,$4)", &[&principal, &id, &signed(seq)?, &outcome])?;
+    pub fn applied_bound(&self, principal: &str, id: &str, name: &str, args_digest: &str) -> Result<Option<String>, RuntimeError> {
+        let Some(row) = self.query("SELECT outcome,name,args_digest FROM _ops WHERE principal = $1 AND id = $2", &[&principal, &id])?.into_iter().next() else { return Ok(None); };
+        if row.get::<_, &str>(1) != name || row.get::<_, &str>(2) != args_digest {
+            return Err(crate::store::id_reused());
+        }
+        Ok(Some(row.get(0)))
+    }
+
+    pub fn record_applied(&self, principal: &str, id: &str, seq: u64, outcome: &str, name: &str, args_digest: &str, at: i64) -> Result<(), RuntimeError> {
+        self.execute("INSERT INTO _ops(principal,id,seq,outcome,name,args_digest,at) VALUES ($1,$2,$3,$4,$5,$6,$7)",
+            &[&principal, &id, &signed(seq)?, &outcome, &name, &args_digest, &at])?;
         Ok(())
     }
 
