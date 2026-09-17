@@ -33295,3 +33295,26 @@ scoped credentials or a completed B milestone.
 Per the commissioned source-only phase, no tests, builds, Cargo or Node command,
 formatter, generator, listener, provider, PostgreSQL, install, network, origin,
 remote, clone, fetch or push ran. The authored witnesses remain unexecuted.
+
+## 2026-09-17 — B3b follow-up: opaque effect-lease reporting correction
+
+The same native Codex GPT-5.6 Sol author repaired an inherited B2 worker
+reporting regression with no delegation. Strict settlement now returns the
+state-free E_EFFECT_LEASE refusal that the exact live claim is no longer held.
+The low-level worker reports that redacted refusal as lost authority and no
+longer fabricates queued, failed, sent or running state, classifies the refusal
+as informational, or claims that settlement/status requeued the effect. It
+adds no state listing, retry or wire change; the public `runWorker` signature,
+claim body and settlement return behavior remain unchanged.
+
+The existing four real-wire state cases and ten handler success/failure doubles
+now pin the same opaque refusal, no invented state/requeue text, one settlement
+attempt and preservation of the original handler error. The E_EFFECT_LEASE code
+card distinguishes status observation from a later claim/maintenance path that
+may separately observe expiry and requeue eligible work.
+
+This was a source-only same-author pass. No tests, builds, Cargo or Node command,
+formatter, generator, listener, provider, PostgreSQL, install, network, origin,
+remote, fetch or push ran, and no additional agent was delegated. Focused
+qualification remains pending and must run all 14 `lost effect lease` cases
+plus the B3b checks.

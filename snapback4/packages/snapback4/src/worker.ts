@@ -157,13 +157,9 @@ export function runWorker(options: WorkerOptions): Worker {
     const path = "result" in outcome ? `/effects/${encodeURIComponent(effect.id)}/done` : `/effects/${encodeURIComponent(effect.id)}/failed`;
     const reply = (await post(path, outcome, undefined, effect.leaseToken)) as { ok?: boolean; denied?: Refusal };
     if (reply.denied?.code === "E_EFFECT_LEASE") {
-      // @ref LLP 3000.007#20.12 — only a recorded requeue is informational; a lost claim does not imply expiry or retry.
-      const message = `effect ${effect.id} settlement refused (${reply.denied.code}): ${reply.denied.message}`;
-      const queued = `effect ${effect.id} is queued and not claimed by this worker; claim it first`;
-      // Match the server's complete queued refusal, never a substring or
-      // a later listing that could describe another attempt. Unknown stays loud.
-      if (reply.denied.message === queued || reply.denied.message === `E_EFFECT_LEASE: ${queued}`) console.info(redact(`snapback4 worker: ${message}; the effect was requeued`));
-      else report(new Error(message));
+      // @ref LLP 3000.007#20.12 — a lost claim says nothing about current
+      // state; only a separate claim or maintenance path may observe requeue.
+      report(new Error(`effect ${effect.id} settlement lost authority: ${reply.denied.code}: ${reply.denied.message}`));
     } else if (reply.denied) report(new Error(`${reply.denied.code}: ${reply.denied.message}`));
     return !reply.denied;
   };
