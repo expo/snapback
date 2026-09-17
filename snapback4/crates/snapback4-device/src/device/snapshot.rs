@@ -64,11 +64,18 @@ pub(super) fn retain<T: DeviceTx>(tx: &T, schema: &Schema, held: Option<&wire::H
     Ok(())
 }
 
-pub(super) fn stage<T: DeviceTx>(tx: &T, schema: &Schema, events: &[StreamEvent], snapshot: bool) -> Result<(), RuntimeError> {
-    for event in events {
+pub(super) fn stage<T: DeviceTx>(tx: &T, schema: &Schema, page: &StreamPage) -> Result<(), RuntimeError> {
+    let mut boundaries = boundary::Boundaries::editing(true);
+    let mut markers = page.acquisitions.iter().peekable();
+    boundary::validate_positions(page)?;
+    for position in 0..=page.events.len() {
+        while markers.peek().is_some_and(|marker| marker.at == position) {
+            boundaries.marker(tx, schema, markers.next().unwrap(), page.snapshot)?;
+        }
+        let Some(event) = page.events.get(position) else { break };
         let table = schema.table(&event.table).ok_or_else(|| RuntimeError::Schema(format!("unknown table {}", event.table)))?;
         let key = encoded(&(&event.table, &event.id))?;
-        if snapshot && event.kind != "put" {
+        if page.snapshot && event.kind != "put" {
             return Err(RuntimeError::Input("snapshots contain only row images".into()));
         }
         match event.kind.as_str() {
@@ -77,12 +84,19 @@ pub(super) fn stage<T: DeviceTx>(tx: &T, schema: &Schema, events: &[StreamEvent]
                 if row.field("id")?.as_str()? != event.id {
                     return Err(RuntimeError::Input("snapshot row identity does not match its event".into()));
                 }
+                if !page.snapshot {
+                    // Keys are JSON tuples ending in ']'; its strict prefix
+                    // seeks this exact staged key without scanning the group.
+                    let held = tx.staged_after(&key[..key.len() - 1], 1)?.first().is_some_and(|(found, _, _)| found == &key);
+                    if !boundaries.accept(tx, &event.table, table, &row, held)? { continue; }
+                }
                 tx.staged_put(&key, &event.table, &encoded(&Staged { row, acquired: true })?)?;
             }
             "del" => tx.staged_delete(&key)?,
             "scope" => {
                 let columns = audience_prefix(table);
                 let group = scope_group(table, event)?;
+                boundaries.scope(tx, &event.table, table, &group)?;
                 if table.leave == LeavePolicy::DeliveredHistory && !table.columns.values().any(|kind| kind.contains_asset()) { continue; }
                 let mut after = String::new();
                 loop {
@@ -108,6 +122,21 @@ pub(super) fn stage<T: DeviceTx>(tx: &T, schema: &Schema, events: &[StreamEvent]
             }
             _ => return Err(RuntimeError::Input("unknown stream event".into())),
         }
+    }
+    boundaries.save(tx, true)
+}
+
+// @ref LLP 3000.007#18.2 — staged completion is publishable only after every snapshot continuation and the terminal page.
+pub(super) fn continuation<T: DeviceTx>(tx: &T, page: &StreamPage, first: bool) -> Result<(), RuntimeError> {
+    let expected = tx.meta(SNAPSHOT_NEXT)?;
+    if page.snapshot {
+        let valid = if first { page.after.is_none() } else { expected.as_deref().is_some_and(|next| !next.is_empty() && Some(next) == page.after.as_deref()) };
+        if !valid || page.more != page.next.is_some() || page.next.as_deref() == Some("") {
+            return Err(RuntimeError::Generation("snapshot continuation does not match the expected page; restart at its first page".into()));
+        }
+        tx.set_meta(SNAPSHOT_NEXT, page.next.as_deref().unwrap_or(""))?;
+    } else if expected.as_deref() != Some("") {
+        return Err(RuntimeError::Generation("snapshot catch-up requires the terminal snapshot page".into()));
     }
     Ok(())
 }

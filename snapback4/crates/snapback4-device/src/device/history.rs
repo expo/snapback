@@ -63,10 +63,14 @@ pub(super) struct Reading<'a, T: DeviceTx> {
     pub tx: &'a T,
     pub schema: &'a Schema,
     pub groups: Groups,
+    pub boundaries: boundary::Boundaries,
     pub retained: Cell<bool>,
 }
 
 impl<T: DeviceTx> Rows for Reading<'_, T> {
+    fn acquired_boundary(&self, table: &str, index: &str, prefix: &[Value]) -> Result<Option<snapback4_core::rows::AcquiredBoundary>, RuntimeError> {
+        boundary::read(&self.boundaries, self.schema, table, index, prefix)
+    }
     fn retained_row(&self, name: &str, row: &Value) -> Result<bool, RuntimeError> {
         let Some(table) = self.schema.table(name).filter(|table| table.sync.is_some() && table.leave == LeavePolicy::DeliveredHistory) else { return Ok(false) };
         Ok(is_left(&self.groups, name, &row_key(table, row)?))

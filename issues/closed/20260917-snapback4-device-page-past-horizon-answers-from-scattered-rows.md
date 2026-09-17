@@ -1,6 +1,6 @@
 # Snapback 4: a device pages past its horizon from scattered old rows and calls the page complete — a timeline silently skips posts
 
-Status: Open — taken 2026-09-17 by the wave 13 lead as lane W13g (after W13c lands; two-family blind review; ships with 0.2.29). The open design question that lane puts to its review: whether an update that moves a *held* row's horizon-index key below the boundary deletes it from the device or leaves it as a row the coverage rule excludes
+Status: Closed 2026-09-17 — landed on main from the reviewed tip `e4f274b479` (lane W13g; LLP 3000.007 §20.22.7)
 Priority: P1 (a wrong answer marked `complete: true, fresh: true`, on the published product, in the most ordinary app shape: a horizoned public table whose old rows are ever updated)
 Date: 2026-09-17
 Systems: `snapback4-core` `partition.rs` (the change stream applies no horizon), `engine/read.rs` (the device's horizon coverage rule in the scan loop); `snapback4-device` `device.rs` (`apply` stores every `put`); the sync card and `NOT-DOING.md` ("A local read past the horizon says `complete: false`")
@@ -108,3 +108,14 @@ whole (fewer than N rows), which must stay complete to its end.
 - `issues/20260917-snapback4-stream-page-serves-images-newer-than-its-watermark.md` (the
   other place "holding a row" and "knowing the base" come apart)
 - LLP 3000.007 §21.3 P1 (total reads) — this is a read that lies about completeness
+
+## Resolution (2026-09-17)
+
+Landed on main 2026-09-17 (reviewed at `e4f274b479`): a device page over a horizoned table is complete by its acquisition boundary, which the
+server names on the snapshot wire (`acquisitions[{at, table, index, group, floor?}]`); a page that crosses the
+boundary is `complete: false`; a group the snapshot delivered whole stays complete to its end; a retained
+re-acquisition stays unknown until a full replacement snapshot; a completion is published only when provable
+from the delivered rows, the current readable images and the post-join row events (LLP 3000.007 §20.22.7). The
+design question this ticket put to the review — an update that moves a held row's key below the boundary —
+is answered by the coverage rule: the row stays held for point reads and delivered history and is excluded
+from the certified suffix. Five blind rounds (`llp/reviews/3000.007-w13g-implementation.*`).

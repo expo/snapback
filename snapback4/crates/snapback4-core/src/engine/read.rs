@@ -607,6 +607,10 @@ impl Runner<'_> {
         }
         // Non-uniform hidden runs cost examined rows, never a materialized
         // table. A uniform page already has its verdict before fetching.
+        let horizon = table.sync.as_ref().and_then(|sync| sync.horizon.as_ref());
+        let by_boundary = self.device && !scan.existence && horizon.is_some_and(|horizon| horizon.by == scan.index) && dir == Dir::Desc;
+        let boundary = if by_boundary { self.tx.acquired_boundary(&scan.table, &scan.index, &prefix)? } else { None };
+        let mut crossed = false;
         let mut cursor = bounds.clone();
         let batch = if visibility.uniform { take + 1 } else { (take + 1).max(32) };
         'outer: loop {
@@ -616,6 +620,9 @@ impl Runner<'_> {
             }
             let fetched_len = fetched.len();
             for (mut row, key) in fetched {
+                if let Some(crate::rows::AcquiredBoundary::Key(floor)) = &boundary {
+                    if &key < floor { crossed = true; break 'outer; }
+                }
                 if !self.read_charge(MeterKind::Examined, 1)? {
                     capped = true;
                     break 'outer;
@@ -691,13 +698,29 @@ impl Runner<'_> {
                 break;
             }
         }
-        // Acquired horizons do not backfill. Missing rows and alternate
-        // index orderings cannot establish a complete answer from counts.
-        if self.device && !scan.existence
-            && let Some(horizon) = table.sync.as_ref().and_then(|sync| sync.horizon.as_ref())
-            && (horizon.by != scan.index || scan.order != crate::ir::Order::Desc || !has_more)
-        {
-            self.horizon_coverage(scan, &prefix, retained);
+        // @ref LLP 3000.007#20.22 — a device page is complete by its acquisition boundary, carried on the wire, not by a count.
+        // An existence probe is exempt (W13c): a held witness below the floor still proves existence.
+        if self.device && !scan.existence && horizon.is_some() {
+            let known = if by_boundary {
+                match &boundary {
+                    Some(crate::rows::AcquiredBoundary::Whole) => true,
+                    Some(crate::rows::AcquiredBoundary::Key(floor)) => {
+                        // A full page stops at its last selected key. A shorter
+                        // page stops at its range end, which may cross the floor
+                        // even when no older row happens to be held.
+                        let stops_inside = visible.len() == take && keys.last().is_some_and(|key| key >= floor);
+                        let range_inside = crate::rows::scan_range(&prefix, &bounds, dir).is_none_or(|(lo, _)| lo >= *floor);
+                        stops_inside || (!crossed && range_inside)
+                    }
+                    None => false,
+                }
+            } else { false };
+            if !known { self.horizon_coverage(scan, &prefix, retained); }
+            // A full boundary page must continue so the next request can fall
+            // back. Lookahead cannot prove the end below a partial acquisition.
+            if by_boundary && visible.len() == take && let Some(crate::rows::AcquiredBoundary::Key(floor)) = &boundary {
+                if crate::rows::scan_range(&prefix, &bounds, dir).is_some_and(|(lo, _)| lo < *floor) { has_more = true; }
+            }
         }
         if self.page_depth == 0 && !scan.opaque_cursor && has_more && scan.filter.is_none() {
             self.page_overflow = true; self.components.note(|frame| frame.overflow = true);

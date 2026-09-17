@@ -96,6 +96,8 @@ impl PostgresEngine {
 
     fn attach(mut client: Client, schema: Schema, programs: BTreeMap<String, Program>) -> Result<Self, RuntimeError> {
         client.batch_execute("SET statement_timeout = '5s'; SET lock_timeout = '5s';")?;
+        // Both new and reopened stores need the row-event lookup for join completion.
+        client.batch_execute("DROP INDEX IF EXISTS _log_row_seq; CREATE INDEX IF NOT EXISTS _log_row_seq_kind ON _log(t, id, seq, kind);")?;
         Ok(Self { store: Store::new(client), schema, programs, ceilings: Ceilings::default(), mode: WriteMode::Serialized, retries: 0, precharge: Metered::default() })
     }
 

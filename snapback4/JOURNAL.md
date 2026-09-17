@@ -31586,6 +31586,142 @@ TMPDIR=/private/tmp node --test packages/snapback4/test/transport-http.test.mjs
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
+## 2026-09-17 — W13g stops at the acquisition-wire condition; the horizon regressions are red
+
+Base: `a1afab4e3625a64ffb80d19bf6cd83fc1f3a0b38`. No product implementation,
+wire change, ceiling change, commit or publication. The lane's explicit stop
+condition applies: “Do not change the wire form of a snapshot or the stream
+unless the boundary cannot be recorded without it; if it cannot, stop and say
+so.” The added `crates/snapback4-device/tests/w13g_probe.rs` retains the two
+requested red regressions and executable evidence for that stop. Its red
+tests are intentional unfinished acceptance, not a green landing candidate.
+
+**Design and the obstruction.** The coverage rule must distinguish an acquired
+suffix from arbitrary holdings, as LLP 3000.007 §20.22 requires. The proposed
+mutable-key policy is to keep an already held row when its key moves below the
+boundary: point reads and delivered history still own that row, while a
+descending suffix page excludes it. A put moving an unheld row above the
+boundary becomes part of the known suffix. This choice is unimplemented;
+the move-below/move-above acceptance tests remain owed. A continuous live
+renewal keeps the old boundary; acquisition after a gap replaces it, even
+when older rows remain held. That renewal acceptance remains owed too.
+
+The missing input is an authoritative acquisition boundary. `expand_joins`
+in `partition.rs` chooses the newest N candidates from `group_at(join_seq)`,
+then `stream` replaces each candidate with its current row image. A mutable
+ordering key can therefore disappear before the device ever sees it. A
+device cannot safely treat the oldest delivered image as the acquisition
+floor. The following two histories, tested with `retain delivered-history`
+so that `joined` is present, produce identical snapshot and stream payloads,
+including event sequence numbers:
+
+| History | Before joining, `p1.at`, `p2.at`, `p3.at` | `last 2` acquisition floor | After joining |
+| --- | --- | --- | --- |
+| A | 1000, 2000, 3000 | `p2` at 2000 | move `p2.at` to 500 |
+| B | 700, 800, 3000 | `p2` at 800 | move `p2.at` to 500 |
+
+Both streams contain `p3(at=3000, seq=2)`, `p2(at=500, seq=2)`,
+`p2(at=500, seq=3)`, `joined: {posts: [["g"]]}`, watermark 3, generation 1,
+and `more: false`. Neither contains `p1`, although each server's current
+descending page is `p3 p1`. Inferring the floor at 500 would promise a known
+suffix containing a row the device never acquired. The boundary values
+2000 and 800 are absent from both payloads. Reading `seq`, which the current
+device event struct discards, cannot recover them. The test asserts equality
+of both complete modeled payload histories and pins the server positive.
+Backend store identity is independent random incarnation metadata, not an
+encoding of a boundary; no inference can come from that field either.
+
+There is a separate empty-group ambiguity. With an online-only membership
+table and default until-revoked retention, a snapshot for an acquired empty
+group and a snapshot for a never-acquired group are byte-identical after the
+ordinary JSON serialization: empty events, `held: {}`, watermark 1 and the
+same generation. Snapshot `held` and stream `joined` currently enumerate
+delivered-history tables only. Thus the requested `whole` versus no-boundary
+distinction also lacks an input. Extending the audience lists alone would
+address that ambiguity but would not restore the lost ordering key above.
+
+The lead needs to authorize a protocol carrying a group acquisition's
+table/index/prefix and encoded floor or `whole`, with an ordering relative to
+puts and scope tombstones and publication only after staged acquisition and
+catch-up. Snapshot group completion, first acquisition, continuous renewal
+and re-acquisition must be distinguished; ordinary puts must never widen
+coverage. This is a proposed next design step, not an implemented or reviewed
+wire format. Selecting a guessed floor, counting all puts in a stream page,
+or dropping every old put cannot satisfy the accepted brief. The related
+current-image/watermark ticket is therefore relevant to this lane, not merely
+an independent growth concern.
+
+**Measured before the fix.** On SQLite and memory, cold page 1 is
+`p12(0) p11(0) p10(0)`, complete, with next and no unknown; cold page 2 is
+`p09(0) p08(0)`, `complete: false`, `cut: null`, no next, `unknown: true`.
+After streamed likes of `p02` and `p04`, page 1 is unchanged and page 2 is
+`p09(0) p08(0) p04(1)`, `complete: true`, `cut: null`, with next,
+`unknown: false`. Both stores gain exactly **2** unheld old rows. The pinned
+server page is `p09 p08 p07`. These are the two red regressions; no after-fix
+result exists because no fix was authorized past the wire stop.
+
+The original `horizon-gap/measure.mjs` also ran against this worktree's built
+binary and built wasm/client package, not an npm publication. Its verbatim
+output is `/private/tmp/w13g-client-probe.log`. Before likes, its client pages
+are `p12 p11 p10`, `p09 p08 p07`, `p06 p05 p04`; after likes they are
+`p12 p11 p10`, `p09 p08 p04`, `p03 p02 p01`, every page
+`{"complete":true,"cut":null,"fresh":true}`. Server pages remain
+`p12 p11 p10`, `p09 p08 p07`, `p06 p05 p04`. The raw device and client
+observations reproduce the ticket on the exact base above.
+
+**Scope left open.** Boundary recording/persistence/reset, the suffix read
+rule, put filtering, whole-group completeness, reopening, activation,
+renewal, both mutable-key directions, hidden-world coverage comparisons and
+the wasm regression's green result are not built. The README, sync card,
+NOT-DOING, diagnostic catalogue and existing source are unchanged. No new
+diagnostic or diagnostic-text change exists. The raw boundary-key count at
+1,000 groups of `last 500` is **1,000**, independent of the 500,000 acquired
+rows. Persisted metadata framing and storage overhead are unmeasured because
+there is no implementation. Verification and raw encoding measurements follow
+below in this same entry.
+
+The encoding test uses the chat table's real `byConvTime` index and 32-byte
+hex group and message IDs: **114 bytes per key; 114,000 bytes for 1,000
+keys**. This is an encoding measurement for that ID shape, not a persisted
+database-size measurement or a replay of the Clique fixture. `index_key`
+includes the stored row ID after the declared index components, including
+the declared `id`; no encoding is changed.
+
+Targeted commands ran from `snapback4/`:
+
+```
+cargo test -p snapback4-device --test w13g_probe -- --nocapture
+test result: FAILED. 2 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+cargo test -p snapback4-device --test w13g_probe join_current_images_do_not_carry_the_acquired_boundary -- --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.01s
+
+cargo test -p snapback4-device --test w13g_probe -- --nocapture
+test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+```
+
+The first run proved the crossing page and growth red on unchanged product
+code. The second strengthened the mutable-key witness to identical histories
+with distinct acquisition floors. The final run adds the encoding measurement
+and explicit positive control assertions. Logs:
+`/private/tmp/w13g-probe.log`, `/private/tmp/w13g-wire-proof.log`,
+`/private/tmp/w13g-probe-final.log`. There is no green-after claim.
+
+For the original wasm/client probe, from the ticket's `horizon-gap/` directory:
+
+```
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+SB=/Users/ccheever/projects/snapback-w13g/snapback4/target/debug/snapback4 PKG=/Users/ccheever/projects/snapback-w13g/snapback4/packages/snapback4 node measure.mjs
+page 2: device DIFFERS FROM server  ← and the device called it complete
+page 3: device DIFFERS FROM server  ← and the device called it complete
+```
+
+Exit 0 is the probe script's behavior, not a correctness pass. Its generated
+`snapback/generated/` files were removed afterward; they are not lane changes.
+The suite's Chromium failure was independently retried from `snapback4/`,
+with Node 24 on PATH:
+
+```
 TMPDIR=/private/tmp node --test packages/snapback4/test/react.test.mjs
 ℹ tests 1
 ℹ pass 0
@@ -31742,6 +31878,907 @@ TMPDIR=/private/tmp node --test --test-name-pattern='W5c process: pending writes
 ```text
 TMPDIR=/private/tmp node --test packages/snapback4/test/react.test.mjs
 ℹ tests 1
+ℹ skipped 0
+```
+
+The browser exits `signal=SIGABRT` before navigation; log
+`/private/tmp/w13g-react-retry.log`. This was executed with production and
+existing test sources unchanged from the base hash at the top of the entry.
+`./ref-check --verbose` at the repository root reports
+`ref-check: ok — 483 LLP docs, 9077 refs in 24222 files, 0 errors, 0 unchecked`.
+`git diff --check` is clean. The added Rust file is 160 lines.
+
+The required whole-suite command, from the repository root, was:
+
+```
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+TMPDIR=/private/tmp bash snapback4/scripts/test.sh
+== 2 failure(s) in 758 s
+   cargo test
+   client tests
+```
+
+Log: `/private/tmp/w13g-suite.log`. Summing its 492 Rust summary lines gives
+**1,458 passed, 2 failed, 6 ignored**. The only failed Rust target is the
+new W13g evidence target, with this verbatim summary:
+
+```
+test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+```
+
+Existing Rust targets all pass, including lifecycle 20/20 and witness 20/20.
+Cargo/wasm builds, package build/typecheck, chat check, both app typechecks
+and fixture wrappers pass. Fixture and client summaries respectively:
+
+```
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ skipped 0
+
+ℹ tests 612
+ℹ pass 607
+ℹ fail 2
+ℹ skipped 3
+```
+
+The client failures are the Chromium sandbox abort recorded above and
+`wasm: maximum pending ids, cursor batches and every terminal acknowledgement`:
+`AssertionError [ERR_ASSERTION]: timed out` at `transport-http.test.mjs:172`.
+The latter passes alone, with Node 24 on PATH and cwd `snapback4/`:
+
+```
+TMPDIR=/private/tmp node --test --test-name-pattern='^wasm: maximum pending ids' packages/snapback4/test/transport-http.test.mjs
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+ℹ skipped 0
+```
+
+Log: `/private/tmp/w13g-transport-retry.log`. Both were observed against
+`a1afab4e3625a64ffb80d19bf6cd83fc1f3a0b38` with unchanged production and
+existing test sources; only the new evidence target and this journal entry
+remain in the working tree. No remaining out-of-scope file change. Learned:
+an acquisition receipt cannot be reconstructed from row images after the
+stream has replaced their ordering keys; the wire stop is a correctness
+dependency, not a missing device-store facility.
+
+## 2026-09-17 — W13g-2 carries the acquisition boundary and pages by it
+
+Base: `a1afab4e3625a64ffb80d19bf6cd83fc1f3a0b38`. This continues the preceding
+entry after the author's explicit authorization of an additive acquisition
+wire field. No commit, push, publication, ceiling change, value serialization
+change, eviction or backfill. The predecessor's entry is unchanged.
+
+**Design.** Snapshot and stream replies add optional `acquisitions`:
+
+```json
+{"acquisitions":[
+  {"at":0,"table":"posts","index":"byTime","group":["g"]},
+  {"at":2,"table":"posts","index":"byTime","group":["g"],"floor":"056700000480000000000007d006703200000670320000"}
+]}
+```
+
+Each marker applies before `events[at]`; `at == events.length` means after
+all events. A missing `floor` begins acquisition; a completion supplies
+`"whole"` or the hex encoding of the full `rows::index_key`, including its
+appended row ID. A begin and completion can share a position for an empty
+group. This is a separate field, not a new event kind: older clients ignore
+unknown reply fields, and events, sequence numbers, `held`, `joined` and
+watermarks keep their forms and meanings. The TypeScript client does see and
+forward it to the device, so `local.ts` now types `AcquisitionMarker` and the
+optional field on its transport page; the public Read/Write card is unchanged.
+Native and wasm deserialize the same Rust `StreamPage`.
+
+`partition.rs::snapshot_page` records the scan's selected key as `at.after`
+and publishes a completion only when `group_rows_from` finishes that group;
+it re-encodes the group and that stored-key suffix, not a subsequently updated
+row. `expand_joins` selects from `group_at(group_partition, event.seq)`, sorts
+by the horizon's encoded index key and truncates to N. Immediately after that
+selection it captures the oldest selected key (or `whole` for fewer than N).
+Only later does `stream` replace candidate images with current readable
+images. Its marker offsets are remapped when current visibility suppresses
+an event, preserving ordering before subsequent puts or scope tombstones.
+A continuous live renewal emits no markers; a replacement after expiry emits
+the scope first, then the new acquisition. Current authorization also gates
+boundary publication; metadata is not a way to retrieve a revoked group.
+
+`device/boundary.rs` owns the persisted map at
+`device:acquisition-boundaries`, keyed by JSON `(table, index, hex group
+prefix)`. A null entry denotes an unfinished acquisition. Snapshot markers
+and catch-up use `device:snapshot:boundaries`; the existing snapshot owner,
+generation, send-revision and watermark guards fence that state, and publication
+copies it alongside the staged rows in one transaction. Replacement retains
+boundaries only for retained left groups. Reacquisition replaces the boundary;
+clear/reset and a schema change requiring acquisition clear it. A completion
+for a group without a matching begin, or with an invalid index/prefix/key, is
+ignored and reported both to stderr and in `device:acquisition-report`:
+
+```text
+ignored acquisition boundary for posts.byTime: group is not acquiring or boundary is invalid
+```
+
+Ordinary puts neither create nor move a boundary. An unheld put below it is
+dropped, including during staged catch-up; held puts and deletes still apply.
+A held row whose key moves below it stays held for point reads, but descending
+suffix pages stop before it. A put moving above it joins the suffix. The
+interpreter obtains the boundary through `Rows::acquired_boundary` on the
+reading and prediction adapters. A full page stops at its last returned key;
+an exhausted shorter page must also prove that its range ends within the
+boundary. Otherwise it reports incomplete/unknown and the client falls back.
+`whole` proves the group's end, including acquired empty groups. Missing
+metadata stays unknown. Other indexes, ascending reads, existence scans and
+the merge algorithms are unchanged. Excluding a straggler requires a guard
+inside the existing scan loop as well as replacing its final coverage test;
+the original brief's suggestion that only the after-loop check would change
+was insufficient for its mutable-key requirement.
+
+**Measurements and regressions.** On both SQLite and persisted memory,
+1,000 group boundaries for the `last 500` envelope occupy **114,000 raw key
+bytes**, **228,000 hex floor bytes**, **338,001 bytes of persisted map value**
+and **29 bytes of metadata key**, totaling **338,030 logical metadata bytes**.
+The test persists 1,000 boundary receipts with 32-byte group and row IDs,
+without allocating 500,000 row images. This measures actual stored metadata
+keys/values, not SQLite file-page allocation or filesystem overhead.
+
+Before, the public probe's device page 1 was `p12(0) p11(0) p10(0)`,
+`complete:true, cut:null`, with its cursor after p10. Page 2 after the likes
+was `p09(0) p08(0) p04(1)`, `complete:true, cut:null`, with its cursor after
+p04 and `unknown:false`. Each store held **2** unheld old puts.
+After, page 1 and its cursor are unchanged; page 2 is exactly
+`[{"id":"p09","score":0},{"id":"p08","score":0}]`,
+`complete:false, cut:null, next:null`, with `unknown:true`. Both stores hold
+**0** unheld old puts. The pinned server page remains
+`p09(0) p08(0) p07(0)` with identical data, completeness, cut and cursor.
+The wasm client returns `p12 p11 p10`, `p09 p08 p07`, `p06 p05 p04` both
+before and after the likes. The conversation-ordinal variant likewise returns
+`m12 m11 m10`, `m09 m08 m07`, `m06 m05 m04`: m07, m06 and m05 are preserved.
+The upstream `horizon-gap-group/` directory is absent at this worktree's base;
+the added Rust and wasm tests encode its stated chat/index scenario directly.
+
+The former byte-identical witness is now positive: selection floors at 2000
+and 800 produce distinct boundary fields despite identical current row events
+(p3 at 3000, p2 at 500, p2 at 500). A later p1 put at 1000 joins only the
+800-floor suffix. The tests cover both mutable-key directions, continuous
+renewal, reacquisition after a gap with older rows still held, reopen,
+whole/empty/never-acquired groups, staged publication, unexpected completions,
+legacy replies without boundaries, schema reacquisition, and the paired-world
+observation of hidden rows. An empty group join also invalidates its table's
+coverage even though it sends no row events.
+
+The red-before command, from `snapback4/`, on unchanged product sources:
+
+```text
+cargo test -p snapback4-device --test w13g_probe -- --nocapture
+test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+```
+
+The same public and group wasm regressions ran before the binary and wasm
+were rebuilt, then passed against the new wire and device:
+
+```text
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+TMPDIR=/private/tmp node --test packages/snapback4/test/horizon-boundary.test.mjs
+# before
+ℹ tests 2
+ℹ pass 0
+ℹ fail 2
+ℹ skipped 0
+# after
+ℹ tests 2
+ℹ pass 2
+ℹ fail 0
+ℹ skipped 0
+```
+
+Logs: `/private/tmp/w13g2-before.log`, `w13g2-client-before.log`, and
+`w13g2-client-after.log` in the same directory. The before failures show
+p04 replacing p07 and m04 replacing m07 on page 2, not a startup or timing
+failure. One mistaken initial Cargo invocation used the repository root and
+immediately refused the uninitialized Snapback 1 `ibex-runtime` dependency;
+no root build or bootstrap was performed. Subsequent Cargo commands use the
+Snapback 4 workspace. Verification completion follows below.
+
+The first whole-suite pass exposed the expected old count-based assertions in
+Trending and native reads (`whole` now proves their end), and the retained
+rejoin assertion equating physical holdings with the newly acquired suffix.
+Those assertions now state the new contract. The simulator's cursor positive
+now acquires through the real server/device protocol; its manually populated
+`MemoryRows` remains a no-boundary negative. The pass also found a real
+continuation error in the first implementation: a full bounded range entirely
+above the floor was given a synthetic continuation. The floor now only forces
+a continuation when that range extends below it; the retained scalar regression
+is complete, retained and cursor-free. The expanded sync paragraph exceeded
+the diagnostic excerpt budget before its `E_STORE_RESTORE` mention; a section
+break keeps the existing explanation available without raising that budget.
+The new empty-join notification regression also went red in that pass
+(`13 passed; 1 failed`) before the final rebuilt device included its table
+notification. These were lane changes to fix, not pre-existing failures.
+
+Targeted final commands from `snapback4/` (verbatim summary lines):
+
+```text
+cargo test -p snapback4-device --test w13g_probe --test retained_history --test native_reads --no-fail-fast
+# native_reads
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.01s
+# retained_history
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.47s
+# w13g_probe
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.82s
+
+cargo test -p snapback4-device --test device trending::
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 244 filtered out; finished in 3.96s
+
+cargo test -p snapback4-sim --test device
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+cargo test -p snapback4-lang --test guide
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+```
+
+An earlier broader targeted command,
+`cargo test -p snapback4-device --test w13g_probe --test device --test retained_history`,
+finished while those fixes were being made and stopped on the two old Trending
+expectations: `test result: FAILED. 253 passed; 2 failed; 0 ignored; 0 measured;
+0 filtered out; finished in 230.34s`. The initial build-only command was
+`cargo test -p snapback4-device --test w13g_probe --no-run` (compiled successfully;
+no tests run). The first isolated crossing proof was
+`cargo test -p snapback4-device --test w13g_probe crossing_page_red -- --nocapture`:
+`test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out;
+finished in 0.03s`. The expanded 12-case probe initially found the renewal test
+trying to update a membership after expiry (not a new grant); it now seeds its
+replacement grant and passes. The 12-case green summary was
+`test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;
+finished in 0.66s`.
+
+The diagnostic renderer check also passes:
+
+```text
+cargo test -p snapback4 --bin snapback4 verbs::doctor_tests::w11_check_renderer_has_a_dedicated_excerpt_for_every_registered_code
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 64 filtered out; finished in 0.02s
+```
+
+The first full command (repository root, Node 24 on PATH) was
+`TMPDIR=/private/tmp bash snapback4/scripts/test.sh`; its final lines were:
+
+```text
+== 2 failure(s) in 888 s
+   cargo test
+   client tests
+```
+
+Its 492 Rust summary lines total **1,457 passed, 12 failed, 6 ignored**.
+Eleven failed assertions were the intermediate lane changes described above;
+the twelfth was `driver::cli_rejects_step_change_appended_after_done`, which
+received `E_WITNESS_TIMEOUT: xcrun simctl list devices booted --json timed out`.
+It passes alone (not claimed pre-existing):
+
+```text
+cargo test -p snapback4 --test witness driver::cli_rejects_step_change_appended_after_done -- --exact
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 4.52s
+```
+
+The first full client summary was:
+
+```text
+ℹ tests 614
+ℹ pass 609
+ℹ fail 2
+ℹ skipped 3
+```
+
+The two failures were the Chromium `SIGABRT` before navigation and the wasm
+maximum-pending-IDs timeout at `transport-http.test.mjs:172`. Both signatures
+were already executed on the exact base hash in the preceding journal entry,
+with production sources unchanged. Both were retried here with Node 24 on PATH:
+
+```text
+TMPDIR=/private/tmp node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ skipped 0
+
+TMPDIR=/private/tmp node --test --test-name-pattern='^wasm: maximum pending ids' packages/snapback4/test/transport-http.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ skipped 0
+```
+
+The transport retry still hit the same 15-second wait while the heavy Rust
+runs were active; neither the timeout nor a meter ceiling was raised. The
+Chromium retry again exits `signal=SIGABRT` before navigation. The lead's
+outside-sandbox browser run remains necessary.
+
+The final wasm build reports **1,626,394 raw bytes, 474,456 gzip bytes**.
+The unchanged reporting budget is 467,000; the artifact is 7,456 over it.
+The predecessor's base build in `/private/tmp/w13g-suite.log` was 1,601,389
+raw / 467,605 gzip bytes: this lane adds **25,005 raw / 6,851 gzip bytes**.
+The budget remains report-only as before, and was not raised.
+
+**Final verification.** The second full command used the final production
+sources and rebuilt both devices. From the repository root, with Node 24 on
+PATH:
+
+```text
+TMPDIR=/private/tmp bash snapback4/scripts/test.sh
+== 2 failure(s) in 549 s
+   cargo test
+   client tests
+```
+
+Its Rust target summaries total **1,468 passed, 1 failed, 6 ignored**.
+The sole failed target was the witness suite:
+
+```text
+test result: FAILED. 19 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 55.98s
+```
+
+This time `driver::cli_invalid_receipts_missing_video_and_step_timeout_fail_and_stop_backend`
+reported `out-of-order: E_WITNESS_TIMEOUT: xcrun simctl list devices booted --json timed out`.
+It passes alone; this failure is not claimed pre-existing:
+
+```text
+cargo test -p snapback4 --test witness driver::cli_invalid_receipts_missing_video_and_step_timeout_fail_and_stop_backend -- --exact
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 16.03s
+```
+
+The final fixture wrapper and client summaries were:
+
+```text
+# fixture wrapper tests
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ skipped 0
+# client tests
+ℹ tests 614
+ℹ pass 610
+ℹ fail 1
+ℹ skipped 3
+```
+
+Only the baseline-verified Chromium SIGABRT failed in the final client run;
+the transport timeout passed this time. Both new wasm probes passed inside
+the final full suite and separately against its rebuilt artifacts:
+
+```text
+TMPDIR=/private/tmp node --test packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 2
+ℹ pass 2
+ℹ fail 0
+ℹ skipped 0
+```
+
+The full suite is therefore not claimed green; its remaining outside-sandbox
+browser qualification belongs to the lead. Logs are
+`/private/tmp/w13g2-suite-final.log`, `w13g2-witness-final-retry.log` and
+`w13g2-client-final.log` in that directory. All requested product cases are
+implemented. The only fixture substitution is the absent upstream group
+probe described above. The minimal simulator-test adaptation is outside the
+original engine/device file list; the server serializer, shared wire/Rows
+interfaces and TypeScript transport type changes implement the newly
+authorized protocol. No existence or merge implementation was edited.
+
+The final standalone native regression command matches the red-before command:
+
+```text
+cargo test -p snapback4-device --test w13g_probe -- --nocapture
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.76s
+```
+
+For exact comparison, these are the probe's JSON page values on both stores.
+Page 1 before and after (unknown is false):
+
+```json
+{"complete":true,"cut":null,"data":[{"id":"p12","score":0},{"id":"p11","score":0},{"id":"p10","score":0}],"next":"WzIsInBvc3RzIiwiYnlUaW1lIiwiRGVzYyIsW3sibmFtZSI6ImF0Iiwia2luZCI6IlRpbWUifSx7Im5hbWUiOiJpZCIsImtpbmQiOiJJZCJ9XSxbeyJJbnQiOjEwMDAwfSx7IklkIjoicDEwIn1dLHsiZ2VuZXJhdGlvbiI6MSwicHJlZml4IjpbXX1d"}
+```
+
+Page 2 before the fix, after the likes (unknown is false):
+
+```json
+{"complete":true,"cut":null,"data":[{"id":"p09","score":0},{"id":"p08","score":0},{"id":"p04","score":1}],"next":"WzIsInBvc3RzIiwiYnlUaW1lIiwiRGVzYyIsW3sibmFtZSI6ImF0Iiwia2luZCI6IlRpbWUifSx7Im5hbWUiOiJpZCIsImtpbmQiOiJJZCJ9XSxbeyJJbnQiOjQwMDB9LHsiSWQiOiJwMDQifV0seyJnZW5lcmF0aW9uIjoxLCJwcmVmaXgiOltdfV0"}
+```
+
+Page 2 after the fix, after the likes (unknown is true; also equals the
+control before the likes):
+
+```json
+{"complete":false,"cut":null,"data":[{"id":"p09","score":0},{"id":"p08","score":0}],"next":null}
+```
+
+Final repository-root reference validation:
+
+```text
+./ref-check --verbose
+ref-check: ok — 483 LLP docs, 9077 refs in 24226 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` is clean. A direct count of changed code files, including
+untracked additions, finds **22 files**, maximum **1,500 lines** in
+`crates/snapback4-device/tests/device.rs`. A mistaken caps-script path under
+`snapback4/scripts/` does not exist (the repository script is `scripts/caps.mjs`);
+the changed-code count above checks the applicable limit directly. No new
+diagnostic code was introduced. Invalid acquisition ordering uses the existing
+input error with text `acquisition markers must be ordered within the page`.
+
+## 2026-09-17 — W13gR1: current acquisition, readable floors and ordered snapshot pages
+
+Base: `2a3cf84ed2ca067040eb1dd02c40f91848e5f03d`. This is the review round of
+W13g, answering the six findings in the lane brief. No commit, push, publication,
+ceiling increase, value-model change, existing corpus edit, agent delegation or
+remote execution. The two preceding W13g entries remain historical records;
+the selected historical floor described there is no longer a viewer wire value.
+
+**Re-acquisition.** Chose the brief's option (b). A streamed acquisition of a
+`delivered-history` group with earlier acquisition/history stays `unknown` on
+its horizon index until a full replacement snapshot acquires it. This is
+conservative and requires no per-row stamps. A missed deletion or a key that
+moved below the new selection cannot turn an old retained image into a certified
+current row. Point reads and incomplete local history still retain those images;
+an unknown local answer can include them, while the online client falls back
+for the held group. A full snapshot replaces held groups and restores coverage.
+Continuous renewal preserves the existing boundary. The renewal regression now
+also reads downward into its old retained rows and asserts unknown/incomplete.
+There is still no eviction or backfill to maintain exactly N rows.
+
+**Wire semantics.** The `acquisitions` shape and marker positions are unchanged.
+A keyed join completion now carries the oldest *delivered current readable*
+selected key at or above the private selection floor. Historical selection keys
+stay private. Moving the former floor below its old selection, deleting it, or
+moving it into an unreadable group narrows the public floor; both 800/2000
+histories now have identical payloads again. If no safe selected key is delivered,
+there is no completion, so the group stays unknown. An originally empty group
+can still complete `whole`; whole-group acquisitions with surviving delivered
+images keep `whole`. Snapshot replies additionally echo the request's `after`
+cursor. The device persists the expected `next`, rejects mismatched continuations
+before staging their rows or markers, and requires the terminal snapshot page
+before catch-up can publish anything. A first page followed by the last page is
+refused on both native stores and wasm; applying the actual middle page and then
+the last page succeeds. A legacy snapshot without `acquisitions` leaves newly
+acquired horizon groups unknown, not locally complete under an old count rule.
+
+**Budget and storage.** Snapshot room now charges at least one unit per visited
+group, including an empty one. The 5,000-group witness uses 434-character keys
+(430 four-byte characters plus a four-digit prefix), so the base's limit-1
+response really exceeds 16 MiB without violating the portable index-key cap.
+It completes in **158 pages**: first limit 1, then limit 32. The largest marker
+array is **114,369 bytes** and largest full HTTP response **119,311 bytes**.
+The response ceiling remains **16,777,216 bytes**.
+
+Boundaries are individually addressed under `device:acquisition-boundaries:`
+and `device:snapshot:boundaries:`. Reads/predictions load their namespace once;
+page application lazily fetches only the groups it touches, and saves only
+changed entries. Namespace reset/removal is transactional on both stores,
+including schema installation, store replacement, clear and snapshot publication.
+The small core `store/activation.rs` change is necessary to clear these entries
+inside backend installation's existing transaction. There is no compatibility
+shim for the earlier on-disk map. At 1,000 groups of the previous `last 500`
+measurement, floors still occupy **114,000 raw / 228,000 hex bytes**; independently
+addressed metadata totals **356,000 key-and-value bytes**, versus **338,030** for
+the old map, an increase of **17,970 bytes**. This is logical metadata size,
+not SQLite page allocation. The hex floor is still twice its necessary raw
+size; a later shrink can persist trailing components only.
+
+The actual 1,000-lane merge makes **1,001** horizon scans (1,000 initial lanes
+plus one refill). The base boundary implementation parses the whole map
+**1,001 times**; the replacement parses it **0 times**, with **1 namespace load**
+for the read. The before measurement temporarily restored the exact base versions
+of `device.rs`, `boundary.rs`, `history.rs`, `predictions.rs`, `snapshot.rs` and
+`partition.rs`, then restored the intended edits in a `finally` block. A counting
+store wrapper observes metadata reads without changing the interpreter. Ordinary
+pages now load no whole boundary namespace and persist no boundary entries;
+changing one group persists one entry. The first passing wasm empty-group run
+took **172,168.7575 ms** on this loaded host; that exposed the remaining whole
+namespace reads during application and prompted the lazy per-group edit cache.
+The read cache and changed-entry behavior, rather than a timing threshold, are
+asserted by the regression.
+
+The published sync card and README now state the boundary rule after a leave,
+including `whole`, unknown retained re-acquisition, and legacy reply behavior.
+`tests/device.rs` was split from **1,500** to **950** lines before its cursor
+fixture edits; the moved tests are in `tests/device_scenarios/mod.rs`. The other
+fixture edits only supply real continuations or update expectations for option
+(b). No authoring form or diagnostic code was added. The shared wire comment,
+TypeScript transport type, HTTP serializer and serializer tests follow the new
+cursor echo; `engine/read.rs` needs no change because its existing unknown path
+already withholds completeness.
+
+As requested by the other reviewer, the preceding lane's wasm growth
+(**+6,851 gzip bytes**, **474,456 total**, **7,456 above 467,000**) is recorded as
+the cost of carrying acquisition metadata in wasm; it is not gated off. This
+review round's final rebuilt artifact is **1,639,793 raw / 478,427 gzip bytes**,
+**+13,399 raw / +3,971 gzip** over that lane and **11,427 gzip bytes** above the
+unchanged report-only budget. The initial intermediate build was 1,638,501 raw /
+477,538 gzip; the lazy edit cache accounts for the final difference.
+
+**Red-before evidence.** The initial native `review::` run reported
+`test result: FAILED. 0 passed; 7 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.13s`.
+Six failures reproduced product findings; the empty-group fixture initially
+violated the index declaration's key bound and was corrected. With the legal
+long-key fixture and the base partition implementation, it emitted **10,000
+markers at limit 1** and reported
+`test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.32s`.
+The base counting test reported
+`test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.28s`.
+The existing wasm artifact failed all three skipped-page/gap cases:
+`ℹ tests 3`, `ℹ pass 0`, `ℹ fail 3`, `ℹ skipped 0`.
+The saved base server also failed both paired disclosure cases and the 5,000
+empty-group HTTP case with the same **0 passed / 3 failed** node summary.
+Its empty-group refusal is verbatim:
+
+```text
+the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+```
+
+New continuation refusals, as the dispatcher renders them, are verbatim:
+
+```text
+E_GENERATION: snapshot continuation does not match the expected page; restart at its first page
+E_GENERATION: snapshot catch-up requires the terminal snapshot page
+```
+
+Before the fix both operations succeeded, so they had no refusal text. The
+existing marker report remains unchanged:
+
+```text
+ignored acquisition boundary for posts.byTime: group is not acquiring or boundary is invalid
+```
+
+Final verification commands, summaries and remaining environmental limits follow.
+
+**Final verification.** Cargo commands below ran from `snapback4/`. Every Node,
+Bun and suite command used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` first.
+
+```text
+cargo test -p snapback4-device --test w13g_probe --test retained_history --test native_reads --test device
+# device, native_reads, retained_history, w13g_probe respectively:
+test result: ok. 255 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 205.18s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.60s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.85s
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.28s
+
+cargo test -p snapback4-sim --test device
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+cargo test -p snapback4-device --test w13g_probe -- --nocapture
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.82s
+
+cargo test -p snapback4-device --test w13g_probe review::thousand_lane -- --nocapture
+1000-lane merge: lanes=1001 whole-map-parses=0 boundary-namespace-loads=1
+ordinary stream: namespace-loads=0 boundary-writes=0; one changed group: namespace-loads=0 boundary-writes=1
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.08s
+
+TMPDIR=/private/tmp node --test packages/snapback4/test/horizon-boundary.test.mjs
+wasm empty groups: groups=5000 pages=158 max-response-bytes=119311
+ℹ tests 8
+ℹ pass 8
+ℹ fail 0
+ℹ skipped 0
+```
+
+The final standalone wasm empty-group run took **153,966.579958 ms**; the complete
+file took **154,872.9755 ms**. The loaded-host wall-time difference is not a
+portable speed claim. The counting test pins the removed whole-namespace work.
+The initial wasm-after run had 7 passes / 1 failure solely because its new
+assertion omitted the dispatcher's `E_GENERATION:` prefix; correcting that
+assertion also passed alone:
+
+```text
+TMPDIR=/private/tmp node --test --test-name-pattern='wasm rejects' packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+ℹ skipped 0
+```
+
+Earlier native iterations caught relative include paths after the test split,
+manual snapshot fixtures missing their cursor echo, and retained-history
+expectations written for an excluding boundary instead of option (b)'s unknown
+answer. Those are corrected. The first complete native run after fixture
+correction passed 255 / 8 / 18 / 23 tests; the final run above repeats those
+targets after lazy entry loading. No affected product regression remains red.
+
+The full suite ran twice from the repository root, with exactly this command:
+
+```text
+TMPDIR=/private/tmp bash snapback4/scripts/test.sh
+# First run:
+== 2 failure(s) in 883 s
+   cargo test
+   client tests
+# Final run:
+== 2 failure(s) in 670 s
+   cargo test
+   client tests
+```
+
+The first run's Rust test-artifact build found two `SnapshotReply` test
+constructors missing `after`; they now initialize it, and the encoding
+expectations include it. Its client results, and the final run's client results,
+are both:
+
+```text
+ℹ tests 620
+ℹ pass 616
+ℹ fail 1
+ℹ skipped 3
+```
+
+The final Rust run totals **1,469 passed / 9 failed / 6 ignored**, counting each
+harness result once. All nine failures are in the simulator-driver witness
+file; seven print `E_WITNESS_TIMEOUT: xcrun simctl list devices booted --json
+timed out`, and two assert an expected driver refusal that did not arrive.
+The file's full-suite summary was:
+
+```text
+test result: FAILED. 11 passed; 9 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.04s
+```
+
+Running its tests alone, serially, passes all twenty without any source or
+threshold change:
+
+```text
+cargo test -p snapback4 --test witness -- --test-threads=1
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 49.10s
+```
+
+The client failure is Chromium aborting with `signal=SIGABRT` before navigation.
+Its isolated retry has the same result:
+
+```text
+TMPDIR=/private/tmp node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ skipped 0
+```
+
+The wasm maximum-pending-IDs test passes in both full runs, including the final
+run's three request boundaries (232, 233 and 256 pending IDs); it did not need
+a failing-test retry. Fixture wrapper tests pass **9 / 9**, and build, wasm,
+package typecheck/build, guide compilation and app checks complete. The full
+suite remains red as recorded above. Chromium needs the lead's outside-sandbox
+qualification. The witness failures are reported with their successful isolated
+retry, not labeled pre-existing; no failure is claimed verified on the exact
+base commit. No ceiling or test timeout was increased.
+
+Final root checks:
+
+```text
+./ref-check --verbose
+ref-check: ok — 483 LLP docs, 9080 refs in 24229 files, 0 errors, 0 unchecked
+
+git diff --check
+# exit 0, no output
+```
+
+Changed code: **25 files**, maximum **1,405 lines** (`serve.rs`), none over
+1,500. The requested work is complete; the remaining qualification limitation
+is the sandbox browser, with the full-run witness timing behavior recorded
+above. The storage trait/adapters, atomic installation helper, serializer test
+constructors and snapshot fixture helpers are the minimal supporting files
+outside the brief's initial boundary/partition implementation list. No other
+lane's implementation, interpreter read loop, meter, conformance case or
+public Read/Write contract was changed. `LANE-BRIEF-W13G.md` was already
+untracked and remains untouched. HEAD remains
+`2a3cf84ed2ca067040eb1dd02c40f91848e5f03d`.
+
+Logs: `/private/tmp/w13gr1-targeted-final2.log`, `w13gr1-sim.log`,
+`w13gr1-probe-green2.log`, `w13gr1-count-before.log`, `w13gr1-count-final.log`,
+`w13gr1-empty-red-valid.log`, `w13gr1-wasm-red.log`, `w13gr1-wire-red.log`,
+`w13gr1-wasm-green.log`, `w13gr1-suite.log`, `w13gr1-suite-final.log`,
+`w13gr1-witness-retry.log`, `w13gr1-react-retry.log` and `w13gr1-ref-final.log`
+in that directory preserve the raw outputs.
+
+## 2026-09-17 — W13gR2: completion presence is proved without a withheld floor
+
+Base: `4886a043662a24ec03a81f2fb0c5fc1a0f061fd9`. This recheck closes the
+remaining High: keeping a selected row's historical floor off the wire did
+not stop that floor from deciding whether a completion appeared. The earlier
+three W13g entries remain historical records. No commit, push, tag, publication,
+remote execution, delegation, meter change or existing corpus edit.
+
+**Implementation and wire semantics.** Join selection still uses
+`group_at(join_seq)` and the same descending horizon sort and first N images.
+The private selected floor is no longer computed or consulted. The rows
+previously discarded by `truncate` are retained for this stream's proof.
+The acquisition gathers the current readable selected keys actually delivered
+between its markers. Its oldest delivered key K is safe unless an unselected
+row still has its join-time key at or above K and is currently present,
+readable and in this group. Such a row was never acquired. The highest such
+falsifier is found first in the already descending unselected list; the next
+delivered key above it is the narrowest safe completion. If none exists, only
+the begin marker is published and the group remains unknown. No new index
+scan is used. In the ordinary case the first unselected historical key is
+below K, so the proof stops before any additional point read.
+
+Chose the brief's conservative unchanged test: a same-key current readable
+row counts as unchanged since the join even if a non-key write happened.
+`PartitionRows` exposes no cheap per-row last-write sequence. A changed key,
+deleted row or row outside the readable group cannot falsify the claim: the
+post-join stream carries what happened to it at its own log position. Tests
+also check completion on a limited stream page before that later write's page.
+This can decline a provable boundary after a same-key write; it cannot certify
+a missing unchanged row.
+
+`acquisitions: [{ at, table, index, group, floor? }]`, its encoding, marker
+positions and device handling are unchanged. A keyed `floor` now means the
+oldest **provable** delivered current readable selected key, without the old
+historical-floor eligibility condition. The paired histories publish p3's
+1000 key in both worlds. The 1500 unselected-row control publishes p2's 2000
+key; deleting p2 leaves no completion. A page ending exactly at or above the
+published key is complete, while crossing it is unknown/incomplete on SQLite,
+persisted memory and wasm. `whole` proves the same claim without a lower bound:
+a selection of fewer than N rows has no unselected rows and can still publish
+`whole` after all its selected rows become deleted or unreadable. This removes
+the old requirement for a surviving selected image in that whole-group case.
+
+**Leak argument.** The decision is a function of this stream's delivered
+events (which the device receives) and current readable images (which it is
+entitled to read), never the withheld selected floor. The history retained for
+the proof identifies potential missing rows, but a row can block a completion
+only through its own current readable image. Its key must equal the old key,
+so any blocking ordering value is itself readable now. A withheld image does
+not block the claim or supply a key. The two deletion histories and the two
+move-into-unreadable-group histories, each with p3 moved from 3000 to 1000,
+produce byte-identical viewer payloads. HTTP comparison excludes only the
+independently generated `store_id`, as the existing two-world witness does.
+
+The delivered **count** of a `last N` acquisition still depends on history when
+a selected row is deleted or hidden before delivery. That is an existing
+property of join-time selection, not repaired here. The lead's alternative of
+selecting the current top N is left to the author; changing §18.2's selection
+time is outside this lane. The code implements the requested conservative
+proof; no contradictory behavior was found in the requested scenarios.
+
+**Tests and measurement.** Added twelve regressions under `w13g_review/recheck.rs`
+(six scenarios on each device store), and four wasm HTTP/device tests in
+`horizon-boundary.test.mjs`. Existing W13g tests keep their meaning. The Rust
+paired device payloads measure **591 bytes** (deletion) and **538 bytes**
+(unreadable group), identically on both stores; each world emits **one**
+completion at **1000**. The correctness control emits **one** at **2000**, or
+**zero** when p2 is removed. Whole-group deletion/hide emits **one** `whole`.
+There are **zero** added index scans, wire fields, diagnostic codes or notes.
+
+The first Rust red run used the unchanged base implementation and eight new
+tests. After adding changed-unselected and whole-group regressions, the final
+red run temporarily restored the exact base `partition.rs` using `git show`
+and restored the fix in a Python `finally` block; it reported four passing
+controls and eight failures. The base CLI was explicitly rebuilt before the
+wasm red rerun. Logs preserve both early and final observations; no existing
+failure is inferred from a previous lane's records.
+
+The full HTTP payloads after excluding the independent store ID measure
+**589 bytes** (deletion) and **528 bytes** (unreadable group). The complete
+wasm file passes **12/12**. Its existing 5,000-empty-group witness completes
+in **158 pages**, at **119,311 bytes** maximum full response, in
+**156,339.72175 ms** on this loaded host. The rebuilt wasm remains
+**1,639,793 raw / 478,427 gzip bytes** (the existing report-only 467,000-byte
+budget is unchanged).
+
+Commands below ran from `snapback4/`, with
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` before JS
+and `TMPDIR=/private/tmp` during the final checks. Rust summaries under the
+device command are, in execution order, `device`, `native_reads`,
+`retained_history` and `w13g_probe`. Verbatim summaries:
+
+Initial base regression (`/private/tmp/w13gr2-rust-red.log`):
+
+```text
+cargo test -p snapback4-device --test w13g_probe review::recheck -- --nocapture
+test result: FAILED. 4 passed; 4 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.37s
+```
+
+Initial green regression (`/private/tmp/w13gr2-rust-green.log`):
+
+```text
+cargo test -p snapback4-device --test w13g_probe review::recheck -- --nocapture
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.22s
+```
+
+Expanded base regression (`/private/tmp/w13gr2-rust-red-final.log`):
+
+```text
+cargo test -p snapback4-device --test w13g_probe review::recheck -- --nocapture
+test result: FAILED. 4 passed; 8 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.28s
+```
+
+Expanded final regression (`/private/tmp/w13gr2-rust-green-final.log`):
+
+```text
+cargo test -p snapback4-device --test w13g_probe review::recheck -- --nocapture
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.54s
+```
+
+Required device suites (`/private/tmp/w13gr2-device.log`):
+
+```text
+cargo test -p snapback4-device --test w13g_probe --test retained_history --test native_reads --test device
+test result: ok. 255 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 116.86s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.70s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.90s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.16s
+```
+
+Simulator device (`/private/tmp/w13gr2-sim.log`):
+
+```text
+cargo test -p snapback4-sim --test device
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+```
+
+Published guide and README (`/private/tmp/w13gr2-guide.log`):
+
+```text
+cargo test -p snapback4-lang --test guide
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+```
+
+Initial wasm red (`/private/tmp/w13gr2-client-red.log`):
+
+```text
+TMPDIR=/private/tmp node --test --test-name-pattern=recheck packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 4
+ℹ suites 0
+ℹ pass 2
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 786.046
+```
+
+Rebuilt-base wasm red (`/private/tmp/w13gr2-client-red-built.log`):
+
+```text
+TMPDIR=/private/tmp node --test --test-name-pattern=recheck packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 4
+ℹ suites 0
+ℹ pass 2
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2212.2585
+```
+
+Wasm green (`/private/tmp/w13gr2-client-green.log`):
+
+```text
+TMPDIR=/private/tmp node --test --test-name-pattern=recheck packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3126.469791
+```
+
+Complete wasm boundary file (`/private/tmp/w13gr2-client.log`):
+
+```text
+TMPDIR=/private/tmp node --test packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 157491.56225
+```
+
+Isolated Chromium retry (`/private/tmp/w13gr2-react-retry.log`):
+
+```text
+TMPDIR=/private/tmp node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ suites 0
 ℹ pass 0
 ℹ fail 1
 ℹ cancelled 0
@@ -31784,6 +32821,20 @@ TMPDIR=/private/tmp bash snapback4/scripts/test.sh
 == expo app typecheck
 -- ok: expo app typecheck (2 s)
 == fixture wrapper tests
+ℹ todo 0
+ℹ duration_ms 646.414
+```
+
+Both `cargo build -p snapback4` commands succeeded (the explicit base build
+and the fixed CLI build). The full suite rebuilds wasm and the package before
+its own client tests. No targeted `serve` rerun was required because `serve.rs`
+was not changed; the full suite includes its existing tests.
+
+**Whole suite.** From the repository root, with Node 24.18.0 on PATH:
+
+```text
+TMPDIR=/private/tmp bash snapback4/scripts/test.sh
+-- ok: cargo test (348 s)
 ℹ tests 9
 ℹ pass 9
 ℹ fail 0
@@ -31846,6 +32897,452 @@ other four transport cases pass with that file running alone:
 ```text
 TMPDIR=/private/tmp node --test packages/snapback4/test/transport-http.test.mjs
 ℹ tests 6
+ℹ duration_ms 21851.471292
+-- ok: fixture wrapper tests (22 s)
+ℹ tests 624
+ℹ pass 620
+ℹ fail 1
+ℹ skipped 3
+ℹ duration_ms 514877.421833
+-- FAIL: client tests (515 s)
+== 1 failure(s) in 586 s
+   client tests
+```
+
+Log: `/private/tmp/w13gr2-suite.log`. Summing its 492 Rust summary lines gives
+**1,490 passed, 0 failed, 6 ignored**. Lifecycle is **20/20**, witness is
+**20/20** and W13g is **35/35** in this full run. Builds, package and both app
+typechecks, chat compilation, and the fixture wrapper pass. The suite chose
+serial client files after observing load **41.96 across 18 CPUs**.
+
+The only client failure is `React hooks and reference-app lifetimes`:
+Chromium exits `signal=SIGABRT` before navigation. Its isolated retry above
+reproduces the same launch abort. This is the sandbox artifact named in the
+brief and needs the lead's outside-sandbox rerun; it is not claimed as a
+failure verified on the exact base commit. No test timeout was increased,
+no timing failure needed a retry, and no failure is labeled pre-existing.
+
+**Final scope.** Seven intended files: core `partition.rs`; device test module
+`w13g_review/mod.rs` and new `w13g_review/recheck.rs`; the language sync card;
+the package README and `horizon-boundary.test.mjs`; this appended entry.
+The largest changed source is `partition.rs`, **796 lines**. No out-of-scope
+file was changed. The two existing untracked lane briefs are untouched.
+Every requested implementation and targeted check is complete; the whole
+suite's browser qualification remains red as recorded. No authoring form,
+wire field, diagnostic code, note or diagnostic text changed. The current-state
+selection alternative and historical delivered-count property were deliberately
+left unchanged as directed.
+
+Root checks before this journal-only append:
+
+```text
+./ref-check --verbose
+ref-check: ok — 483 LLP docs, 9081 refs in 24231 files, 0 errors, 0 unchecked
+
+git diff --check
+# exit 0, no output
+```
+
+The lead receives an uncommitted working tree at the base hash above. The final
+report also records the post-append reference/diff checks.
+
+
+## 2026-09-17 — W13gR3: a post-join write is a log fact, never an image comparison
+
+Base: `0e7b9718f1073c93037ce30f0c502e4ee5008eb2`. This corrects the single
+High in the second recheck. The W13gR2 entry above is a historical record:
+its same-key shortcut and its leak argument are unsound and are superseded
+by this entry. A p1 written away and back after the join was treated as an
+unwritten blocker only when its withheld pre-join key equalled its current
+key. The two worlds consequently differed in completion presence despite
+identical selected rows, current images, and delivered events.
+
+**Implementation.** `JoinSelection` now retains the join sequence.
+`PartitionRows::written_after(table, id, seq) -> Result<bool, RuntimeError>`
+asks whether this transaction's log contains any event for that table and id
+strictly after the sequence. Both server implementations supply it: SQLite
+and the Postgres evaluation adapter. The brief's implied per-row index did
+not exist in either adapter; this change adds `_log_row_seq` on `(t, id, seq)`.
+SQLite creates it with the existing store DDL. Postgres creates it at attach,
+so both a new and a reopened evaluation store have the index.
+
+The exact SQLite query is:
+
+```sql
+SELECT EXISTS(SELECT 1 FROM _log WHERE t = ?1 AND id = ?2 AND seq > ?3)
+```
+
+The exact Postgres query is:
+
+```sql
+SELECT EXISTS(SELECT 1 FROM _log WHERE t = $1 AND id = $2 AND seq > $3)
+```
+
+`join_completion` keeps the descending falsifier walk. The ordinary case
+breaks when the first unselected key is below K, before any additional log
+query or row fetch. A potential blocker with a post-join event is discharged
+before fetching its current row; the old `index_key(current) != key` test is
+deleted. A candidate with no such event proceeds through the existing current
+presence, read-rule and group checks. The first real blocker narrows K to the
+next delivered key above it, or to no completion. Join-time selection,
+`whole`, the wire, `read.rs`, and device implementation are unchanged. Only
+the blocker sentence changes in the README and sync card. There is no new
+form, diagnostic, note, or diagnostic text.
+
+**Corrected leak argument.** The completion decision is a function of the
+delivered rows, the current readable images, and the post-join event set,
+each of which the device receives. The historical descending list locates
+potential blockers; a written row cannot block, regardless of whether its
+current key happens to equal any withheld prior key. With no post-join write,
+the join-time key is the row's current key. The remaining blocker therefore
+uses a currently readable ordering value, with no equality or inequality test
+between that row's current and historical images. This preserves the early
+ordering stop without allowing a withheld key to decide completion presence.
+As in the earlier lane, join-time selection itself is held fixed; this change
+makes no broader claim that selection is independent of history.
+
+**Regression and controls.** Four new Rust tests run the paired worlds and
+same-key-only rewrite on SQLite and persisted memory. Two new wasm tests use
+the real HTTP stream and wasm device. They assert that both p1 puts carry
+1500, that the complete paired payloads including markers are byte-identical
+(the independent HTTP `store_id` is excluded), that each completion is p3's
+1000 key, and that the local two-row page is complete. Existing no-write
+controls still narrow to 2000 or omit completion; the other W13g review and
+probe tests retain their meaning, including the later-page write, key moves,
+deletions, group moves, and `whole` controls. The additional core store test
+checks strict `seq > join_seq`, table/id isolation, puts and deletes across
+partitions, and the index plan. No existing corpus case was changed.
+
+Measured payloads: Rust **755 B** for each paired world, **673 B** for the
+same-key-only control; HTTP/wasm **769 B** and **679 B**, excluding `store_id`.
+Each paired world has **2** post-join p1 puts, the same-key control **1**;
+all have **1** completion at **1000**. The unwritten controls have **1** at
+**2000**, or **0** when p2 is removed. The full wasm file's 5,000 empty groups
+still take **158** pages with maximum response **119,311 B**.
+
+**Query cost.** The new query is one indexed existence probe per potential
+blocker on the rare path, independent of the number of other rows or the
+number of events returned on this stream page. It stops at the first matching
+entry and reads no image. The ordinary early-stop path adds **0** queries and
+**0** fetches; a discharged candidate adds **1** log query and **0** row
+fetches. With **10,004** logged events, SQLite reports **0** full-scan steps
+for either outcome, **22** VM steps for a hit and **19** for a miss:
+
+```text
+SEARCH _log USING COVERING INDEX _log_row_seq (t=? AND id=? AND seq>?)
+```
+
+The cost model is O(log L) per candidate, at worst O(U log L) for U examined
+unselected candidates, plus the existing current-row/rule checks only for
+unwritten candidates. Postgres adds one database query for each probe; its
+adapter is compile-checked here, not runtime-qualified against a live
+Postgres cluster. The added index maintains one entry per log event and has
+a one-time build cost when opening a store that lacks it. No meter ceiling
+or resource policy was changed.
+
+**Commands and results.** Cargo commands below ran from `snapback4/`.
+Before every Node/Bun command, PATH included
+`$HOME/.volta/tools/image/node/24.18.0/bin`. Full logs are
+`/private/tmp/w13gr3-*.log`. No commit, push, tag, publication, delegation,
+remote machine, clone, install, bare fmt, reset, checkout, or stash was used.
+
+The regression ran against the untouched production source at the base,
+after adding only the tests. `cargo build -p snapback4` built the base CLI
+before the wasm red run. The same build command rebuilt the fixed CLI before
+the wasm green run. Both builds exited 0.
+
+Red, on the exact base:
+
+```text
+cargo test -p snapback4-device --test w13g_probe written_unselected -- --nocapture
+test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 35 filtered out; finished in 0.15s
+```
+
+```text
+node --test --test-name-pattern='wasm written unselected' packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9263.159625
+```
+
+Green, with the fix:
+
+```text
+cargo test -p snapback4-device --test w13g_probe written_unselected -- --nocapture
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 35 filtered out; finished in 0.16s
+```
+
+```text
+node --test --test-name-pattern='wasm written unselected' packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2290.842458
+```
+
+```text
+cargo test -p snapback4-device --test w13g_probe --test retained_history --test native_reads --test device
+test result: ok. 255 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 117.88s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.14s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.80s
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.99s
+```
+
+```text
+cargo test -p snapback4-sim --test device
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+```
+
+```text
+cargo test -p snapback4-core --lib
+test result: ok. 59 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.64s
+```
+
+```text
+cargo test -p snapback4-core --test rows written_after -- --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.03s
+```
+
+```text
+node --test packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 14
+ℹ suites 0
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 144776.251625
+```
+
+```text
+cargo check -p snapback4-core --features postgres
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 12.06s
+```
+
+The targeted device summaries above are respectively `device`, `native_reads`,
+`retained_history`, and `w13g_probe` (whose `review` module includes the existing
+review suites). Every targeted product test is green.
+
+The complete blocking-suite result and final root checks follow below.
+
+**Complete suite.** From the repository root with Node 24.18.0 on PATH:
+
+```text
+TMPDIR=/private/tmp bash snapback4/scripts/test.sh
+-- ok: cargo build (2 s)
+-- ok: wasm build (35 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (2 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (303 s)
+-- ok: chat app typecheck (2 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ skipped 0
+ℹ duration_ms 15296.296167
+-- ok: fixture wrapper tests (16 s)
+ℹ tests 626
+ℹ pass 622
+ℹ fail 1
+ℹ skipped 3
+ℹ duration_ms 500338.275
+-- FAIL: client tests (500 s)
+== 1 failure(s) in 544 s
+   client tests
+```
+
+Exit 1. The 487 Rust target summary lines total **1,495 passed, 0 failed,
+6 ignored**; workspace doctests also pass. `w13g_probe` is **39/39**,
+`lifecycle` **20/20**, and `witness` **20/20**. The suite selected serial
+client files after measuring load **45.49 across 18 CPUs**. No Rust or
+client timing failure needed an isolated retry.
+
+The only client failure is `React hooks and reference-app lifetimes`.
+Chromium exits before navigation with `signal=SIGABRT`. The isolated retry
+uses the same Node 24 PATH and runs from `snapback4/`:
+
+```text
+node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 717.0625
+```
+
+It exits 1 with the same `signal=SIGABRT`. This is the sandbox artifact named
+in the brief, not a failure claimed verified on this base. The lead's
+outside-sandbox browser qualification remains outstanding; the implementation,
+requested regressions, targeted tests, and full-suite run are complete. No
+claim is made that the blocking suite is green.
+
+**Root checks and scope.** `./ref-check --verbose` after the main entry passes:
+
+```text
+ref-check: ok — 483 LLP docs, 9081 refs in 24232 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` exits 0. An additional `node scripts/caps.mjs` check at
+the repository root exits 1 with `2 violations.`: working set **61 of 59**,
+and **205 of 204** oversize sources, naming
+`crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs` at **1,504**
+lines under the cap script's counting convention. Both defect inputs were
+verified in `0e7b9718f1073c93037ce30f0c502e4ee5008eb2` using `git ls-tree`
+and `git show`; the cap script, rules, overlays, and named file are unchanged
+from that base. Evidence: `/private/tmp/w13gr3-base-caps.log`. No unrelated
+corpus entry or source was changed to address them. Every changed source
+remains below 1,500 lines; the largest is `store.rs`, **823 physical lines**.
+
+Eleven intended files: core `partition.rs`, `partition/storage.rs`, `store.rs`,
+`engine/postgres/log.rs`, `engine/postgres/mod.rs`, and `tests/rows.rs`; device
+test `tests/w13g_review/recheck.rs`; language `guide/sync.rs`; package README
+and `test/horizon-boundary.test.mjs`; and this journal. There are no out-of-scope
+edits. The three pre-existing untracked lane briefs remain untouched. HEAD is
+still the base. No diagnostic text changed (before/after: not applicable).
+The only correction to the brief's store description is that the required
+per-row log index had to be added, rather than reused.
+
+
+## 2026-09-17 — W13gR4: only row events discharge a join blocker
+
+Base: `00f439892a19d26ee54025374bd3902397c52bb6`. The single High in the
+third recheck is reproduced on this base with tests added and production
+source unchanged. A legal content id, `[{"String":"g"}]`, collides with the
+canonical JSON used as the id of a membership event for text group `g`.
+Those events use the content table but live in the affected principal's
+partition. Charlie's hidden `join` or `scope` therefore passed the old
+`written_after` probe even though Bob never receives that event or the
+unselected content row. The paired worlds differed only in whether Charlie's
+membership was in `g` or `h`; the completion incorrectly disclosed 1000 in
+the first and 2000 in the second.
+
+**Implementation.** Both SQLite and Postgres now count only `put` and `del`
+row transitions in the existing `written_after` existence probe. The old
+index is replaced by `_log_row_seq_kind` over `(t, id, seq, kind)`. A new
+name is necessary: changing the column list beneath the old `IF NOT EXISTS`
+would leave reopened stores using the uncovered index. The old index is
+dropped so there is still one per-row probe index to maintain. A regression
+opens the old shape, then reopens it twice, asserting the four indexed
+columns and absence of the superseded index. No selection time, `whole`,
+wire form, `read.rs`, device implementation, meter ceiling or serialized
+value changes. The README and sync card gain the same one-sentence
+clarification; no diagnostic or note changes.
+
+Final SQLite query:
+
+```sql
+SELECT EXISTS(SELECT 1 FROM _log WHERE t = ?1 AND id = ?2 AND seq > ?3 AND kind IN ('put', 'del'))
+```
+
+Final Postgres query:
+
+```sql
+SELECT EXISTS(SELECT 1 FROM _log WHERE t = $1 AND id = $2 AND seq > $3 AND kind IN ('put', 'del'))
+```
+
+Final index DDL in both adapters (SQLite splits these statements across lines):
+
+```sql
+DROP INDEX IF EXISTS _log_row_seq;
+CREATE INDEX IF NOT EXISTS _log_row_seq_kind ON _log(t, id, seq, kind);
+```
+
+**Corrected leak argument.** This replaces the unsound sentence in the
+W13gR3 entry above; that entry remains unchanged as append-only history.
+The decision is a function of the delivered rows, the current readable
+images and the **post-join row-event set** for this group's table — the
+events the device itself receives — and an unwritten blocker is precisely
+an undelivered readable row. A private membership event is not a row write,
+even if its table and id collide. The `join_completion` reference gloss
+now says this. The historical ordering walk and its early stop are unchanged.
+
+**Regressions and controls.** SQLite and persisted-memory devices each run
+the two-world `scope` and `join` cases, plus genuine `put` and `del` controls
+with each membership kind. The tests pin Charlie's actual private log
+entry, Bob's delivered p2/p3 events, absence of membership events from his
+stream, authoritative newest-two truth, byte-identical payloads including
+markers, and local completeness. The wasm tests repeat all six paired cases
+through the real HTTP server and web device. HTTP comparisons exclude only
+the independently random `store_id`. All unwritten cases now complete at
+2000 in both worlds; their local suffix is p2 and remains incomplete/unknown
+when asked for two rows. A true row write still discharges the collision and
+completes at 1000: the put case returns p2/p1, the deletion case p2/p3,
+both complete. No existing corpus case was changed.
+
+**Measurements.** Each paired scenario has 2 worlds and 1 completion per
+world. Rust payloads are 567 B without a row event, 685 B with a put, and
+638 B with a deletion. HTTP/wasm payloads excluding `store_id` are 557 B,
+683 B and 636 B respectively. Scope and join produce the same measurements.
+The core probe test contains 10,006 log events, including both membership
+kinds for the same table/id. Hit and miss both use 0 full-scan steps; the
+hit takes 26 VM steps, the miss 31:
+
+```text
+SEARCH _log USING COVERING INDEX _log_row_seq_kind (t=? AND id=? AND seq>?)
+```
+
+This is one indexed existence probe, with no table lookup. Unlike the R3
+cost argument, a kind-inclusive range may step past membership entries
+before a hit or exhaustion; 0 full-scan steps does not mean constant work
+within that index range. The ordinary early stop adds 0 queries; a probed
+candidate adds 1, with 0 image fetches if discharged. Postgres is compile
+checked here, not runtime-qualified on a live cluster.
+
+**Commands and results.** Cargo and client commands run from `snapback4/`;
+Node/Bun use `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`.
+Logs are `/private/tmp/w13gr4-*.log`. The base CLI was built before the red
+wasm run and the fixed CLI before the green run with `cargo build -p
+snapback4`; both builds exited 0. An initial Rust test compile used the
+nonexistent `Store::head`; correcting the test to `Store::seq` preceded the
+behavioral red run below and is not counted as red evidence.
+
+Red on the exact base; green after the fix, with identical tests:
+
+```text
+cargo test -p snapback4-core --test rows written_after -- --nocapture
+red:
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.02s
+green:
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.02s
+```
+
+```text
+cargo test -p snapback4-device --test w13g_probe membership_collision -- --nocapture
+red:
+test result: FAILED. 2 passed; 4 failed; 0 ignored; 0 measured; 39 filtered out; finished in 0.35s
+green:
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 39 filtered out; finished in 0.37s
+```
+
+```text
+node --test --test-name-pattern='wasm membership collision' packages/snapback4/test/horizon-boundary.test.mjs
+red:
+ℹ tests 6
+ℹ suites 0
+ℹ pass 4
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1897.861542
+green:
+ℹ tests 6
+ℹ suites 0
 ℹ pass 6
 ℹ fail 0
 ℹ cancelled 0
@@ -33850,6 +35347,96 @@ load-sensitive clock, witness and lifecycle tests. Client summary:
 The sole client failure was the named sandbox Chromium `SIGABRT`.
 An isolated rerun from `snapback4/`, with the same Node 24 PATH,
 reproduced it:
+ℹ todo 0
+ℹ duration_ms 1916.543875
+```
+Requested targeted commands, all green:
+
+```text
+cargo test -p snapback4-device --test w13g_probe --test retained_history --test native_reads --test device
+test result: ok. 255 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 70.79s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.28s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
+test result: ok. 45 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.77s
+```
+
+```text
+cargo test -p snapback4-sim --test device
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+```text
+cargo check -p snapback4-core --features postgres
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.82s
+```
+
+```text
+node --test packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 20
+ℹ suites 0
+ℹ pass 20
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 86585.396042
+```
+
+The device summaries above are `device`, `native_reads`, `retained_history`
+and `w13g_probe`, respectively. The full horizon file's 5,000-group case
+still takes 158 pages with a maximum response of 119,311 B. The blocking
+suite and final checks follow below.
+
+**Complete blocking suite.** From the repository root, with Node 24.18.0 on PATH:
+
+```text
+TMPDIR=/private/tmp bash snapback4/scripts/test.sh
+-- ok: cargo build (4 s)
+-- ok: wasm build (18 s)
+-- ok: package typecheck (0 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- FAIL: cargo test (231 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ skipped 0
+ℹ duration_ms 7054.891
+-- ok: fixture wrapper tests (7 s)
+ℹ tests 632
+ℹ pass 628
+ℹ fail 1
+ℹ skipped 3
+ℹ duration_ms 472822.188
+-- FAIL: client tests (473 s)
+== 2 failure(s) in 499 s
+```
+
+Exit 1. The 492 Rust summary lines total **1501 passed,
+1 failed, 6 ignored**, with workspace doctests green. The suite measured
+load **24.32 across 18 CPUs** and selected serial client files. `w13g_probe`
+passes **45/45**, the full horizon client file **20/20**, and lifecycle
+**20/20**. The Rust failure is the witness driver's
+`cli_invalid_receipts_missing_video_and_step_timeout_fail_and_stop_backend`:
+
+```text
+test result: FAILED. 19 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 59.54s
+out-of-order: E_WITNESS_TIMEOUT: xcrun simctl list devices booted --json timed out
+see snapback4 guide witness
+```
+
+It passes alone on the unchanged final implementation:
+
+```text
+cargo test -p snapback4 --test witness driver::cli_invalid_receipts_missing_video_and_step_timeout_fail_and_stop_backend -- --exact
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 17.35s
+```
+
+The sole client failure is `React hooks and reference-app lifetimes`:
+Chromium terminates at launch with `signal=SIGABRT`, the sandbox artifact
+named in the brief. An isolated retry from `snapback4/` repeats it:
 
 ```text
 node --test packages/snapback4/test/react.test.mjs
@@ -34835,3 +36422,41 @@ moves from 817 steps / 43,297 heap bytes / 0 effect rows to 1,356 / 69,400 / 49 
 every one of those effects ends `satisfied` with zero worker attempts when the clients
 re-poll through the commit's own wake. A recipient whose client has vanished is pushed five
 seconds after the commit instead of never.
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 588.901625
+```
+
+No failure is labelled pre-existing: neither failing whole-suite observation
+was separately reproduced on the base. The witness timeout passes in isolation;
+the Chromium result matches the explicitly named environment artifact. The
+lead's outside-sandbox browser run remains outstanding. No product test
+failure was left uninvestigated, and the blocking suite is not claimed green.
+
+**Final scope and checks.** Eleven intended files: core `partition.rs`,
+`partition/storage.rs`, `store.rs`, `engine/postgres/log.rs`,
+`engine/postgres/mod.rs`, and `tests/rows.rs`; device test
+`tests/w13g_review/recheck.rs`; language `guide/sync.rs`; package README and
+`test/horizon-boundary.test.mjs`; and this journal. No out-of-scope file was
+touched. Every changed source is below 1,500 lines; the maximum is `store.rs`
+at **824** physical lines. The exact base journal is a byte-for-byte prefix
+of this file, with one dated entry appended. The four pre-existing untracked
+lane briefs are untouched. No commit, push, tag, publication, delegation,
+remote machine, clone, install, bare fmt, reset, checkout or stash was used.
+
+The brief's collision and code description agree. Two implementation details
+are explicit here: the index must get a new name to replace the old shape
+on reopen, and the historical journal sentence is superseded here rather
+than edited in place. No requested implementation or test was omitted.
+Diagnostic texts before/after: not applicable; no diagnostic changed.
+
+Final root reference check:
+
+```text
+./ref-check --verbose
+ref-check: ok — 483 LLP docs, 9081 refs in 24233 files, 0 errors, 0 unchecked
+```

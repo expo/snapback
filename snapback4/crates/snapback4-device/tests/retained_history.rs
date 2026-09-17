@@ -117,9 +117,10 @@ fn snapshot(engine: &mut Engine, now: i64) -> Vec<StreamPage> {
     let mut after = None;
     let mut pages = Vec::new();
     loop {
-        let (events, watermark, next, held) = engine.snapshot_page_with_groups_at("dev:bob", after.as_deref(), 7, now).unwrap();
+        let acquisition = engine.snapshot_acquisition_page_at("dev:bob", after.as_deref(), 7, now).unwrap();
+        let (events, watermark, next, held) = (acquisition.events, acquisition.watermark, acquisition.next.map(|next| next.encode()), acquisition.held);
         pages.push(serde_json::from_value(serde_json::json!({
-            "snapshot": true, "held": held, "watermark": watermark, "more": next.is_some(), "next": next,
+            "snapshot": true, "after": after, "acquisitions": acquisition.acquisitions, "held": held, "watermark": watermark, "more": next.is_some(), "next": next,
             "generation": engine.generation(), "events": events.iter().map(|e| serde_json::json!({
                 "table": e.table, "kind": e.kind.word(), "id": e.id, "data": e.data.as_ref().map(snapback4_core::wire::to_json),
             })).collect::<Vec<_>>(),
@@ -131,7 +132,7 @@ fn snapshot(engine: &mut Engine, now: i64) -> Vec<StreamPage> {
 fn stream(engine: &mut Engine, watermark: u64, now: i64) -> StreamPage {
     let page = engine.stream_at("dev:bob", watermark, 1_000, now).unwrap();
     serde_json::from_value(serde_json::json!({
-        "snapshot": false, "joined": page.joined, "watermark": page.watermark, "more": page.more, "generation": engine.generation(),
+        "snapshot": false, "acquisitions": page.acquisitions, "joined": page.joined, "watermark": page.watermark, "more": page.more, "generation": engine.generation(),
         "events": page.events.iter().map(|e| serde_json::json!({"table": e.table, "kind": e.kind, "id": e.id, "data": e.data.as_ref().map(snapback4_core::wire::to_json)})).collect::<Vec<_>>(),
     })).unwrap()
 }
@@ -239,7 +240,10 @@ fn rejoin<H: Host>(host: &mut H) where H::Store: PhysicalRows {
     assert_eq!(page.events.iter().filter(|e| e.table == "messages" && e.kind == "put").count(), 25, "rejoin acquisition stays bounded");
     device.apply(&page, false).unwrap();
     device.apply(&page, false).unwrap();
-    assert_eq!(observation(&mut device, label, "rejoin/after-duplicate", 170), (26, false));
+    let read = device.query("history", "dev:bob", &serde_json::json!({"conversationId":"g"}), 170).unwrap();
+    assert_eq!(read.data.as_array().unwrap().len(), 26, "the unconfirmed retained rows remain in an unknown local answer");
+    assert!(!read.complete);
+    assert_eq!(device.store().message_count(), 26, "reacquisition keeps the older held row for point reads");
     retained_answer(&mut device, false, 170);
     for (i, page) in snapshot(&mut engine, 170).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
     assert_eq!(observation(&mut device, label, "rejoin/resnapshot", 170), (25, false));
@@ -355,7 +359,7 @@ fn collector_coverage<H: Host>(host: &mut H) {
     let (read, unknown, retained) = device.query_with_coverage("exhaustedScalar", "dev:bob", &args, 130);
     let read = read.unwrap();
     assert_eq!(read.data, Value::Int(5));
-    assert!(!read.complete && read.next.is_none() && !unknown && retained, "only the retained horizon remains: {read:?}; unknown={unknown}, retained={retained}");
+    assert!(read.complete && read.next.is_none() && !unknown && retained, "the bounded range ends within the retained suffix: {read:?}; unknown={unknown}, retained={retained}");
 }
 
 #[test]
@@ -422,10 +426,11 @@ fn removal_between_pages<H: Host>(host: &mut H) where H::Store: PhysicalRows {
     write(&mut engine, "leave", "leave-between", 150, &[]);
     let mut after = first.next;
     while let Some(cursor) = after {
-        let (events, watermark, next, held) = engine.snapshot_page_with_groups_at("dev:bob", Some(&cursor), 7, 150).unwrap();
+        let acquisition = engine.snapshot_acquisition_page_at("dev:bob", Some(&cursor), 7, 150).unwrap();
+        let (events, watermark, next, held) = (acquisition.events, acquisition.watermark, acquisition.next.map(|next| next.encode()), acquisition.held);
         assert!(held.is_none());
         assert!(!events.iter().any(|event| event.table == "messages"));
-        let page = serde_json::from_value(serde_json::json!({"snapshot":true,"stage_snapshot":true,"watermark":watermark,"more":next.is_some(),"next":next,
+        let page = serde_json::from_value(serde_json::json!({"snapshot":true,"after":cursor,"acquisitions":acquisition.acquisitions,"stage_snapshot":true,"watermark":watermark,"more":next.is_some(),"next":next,
             "events":events.iter().map(|event| serde_json::json!({"table":event.table,"kind":event.kind.word(),"id":event.id,"data":event.data.as_ref().map(snapback4_core::wire::to_json)})).collect::<Vec<_>>() })).unwrap();
         device.apply(&page, false).unwrap();
         after = next;

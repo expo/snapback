@@ -22,6 +22,7 @@ mod predictions;
 mod media;
 mod snapshot;
 mod history;
+mod boundary;
 mod store_identity;
 pub use store_identity::StoreObservation;
 
@@ -61,6 +62,8 @@ pub struct StreamEvent {
 /// One page of `POST /sync`.
 #[derive(Clone, Debug, Deserialize)]
 pub struct StreamPage {
+    #[serde(default)]
+    pub acquisitions: Vec<wire::Acquisition>,
     /// Local request watermark and persisted acquisition watermark at capture.
     #[serde(default)]
     pub requested_watermark: Option<u64>,
@@ -87,6 +90,9 @@ pub struct StreamPage {
     pub more: bool,
     #[serde(default)]
     pub next: Option<String>,
+    /// The server echoes the cursor that selected this snapshot page.
+    #[serde(default)]
+    pub after: Option<String>,
     #[serde(default)]
     pub generation: Option<u64>,
 }
@@ -140,7 +146,8 @@ const SNAPSHOT_OWNERS: &str = "device:snapshot:owners";
 const SNAPSHOT_WATERMARK: &str = "device:snapshot:watermark";
 const SNAPSHOT_SEND_REVISION: &str = "device:snapshot:send_revision";
 const SNAPSHOT_THROUGH: &str = "device:snapshot:through";
-const SNAPSHOT_KEYS: [&str; 5] = [SNAPSHOT_OWNER, SNAPSHOT_WATERMARK, SNAPSHOT_SEND_REVISION, SNAPSHOT_THROUGH, history::STAGED_GROUPS];
+const SNAPSHOT_NEXT: &str = "device:snapshot:next";
+const SNAPSHOT_KEYS: [&str; 7] = [SNAPSHOT_NEXT, boundary::STAGED, SNAPSHOT_OWNER, SNAPSHOT_WATERMARK, SNAPSHOT_SEND_REVISION, SNAPSHOT_THROUGH, history::STAGED_GROUPS];
 /// The app's native module (LLP 3000.005 §9), kept so a cold start offline
 /// answers native reads too: the bytes as hex, and the digest the server named.
 const NATIVE: &str = "device:native";
@@ -167,10 +174,14 @@ struct Predicting<'a, T: DeviceTx> {
     tx: &'a T,
     schema: &'a Schema,
     groups: history::Groups,
+    boundaries: boundary::Boundaries,
     written: RefCell<Vec<String>>,
 }
 
 impl<T: DeviceTx> Rows for Predicting<'_, T> {
+    fn acquired_boundary(&self, table: &str, index: &str, prefix: &[Value]) -> Result<Option<snapback4_core::rows::AcquiredBoundary>, RuntimeError> {
+        boundary::read(&self.boundaries, self.schema, table, index, prefix)
+    }
     fn retained_group(&self, table: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> {
         history::retained_group(self.schema, &self.groups, table, index, prefix)
     }
@@ -276,6 +287,8 @@ impl<S: DeviceStore> Device<S> {
             invalidate_native(&mut metadata);
             metadata.insert(history::GROUPS.to_owned(), "{}".into());
             metadata.insert(history::STAGED_GROUPS.to_owned(), "{}".into());
+            metadata.insert(boundary::STAGED.to_owned(), "{}".into());
+            if !keep_acquired { metadata.insert(boundary::BOUNDARIES.to_owned(), "{}".into()); }
         }
         store.install(&backend.schema, &metadata, reset && !keep_images)?;
         let cached_digest = store.meta(NATIVE_DIGEST)?;
@@ -388,6 +401,8 @@ impl<S: DeviceStore> Device<S> {
             invalidate_native(&mut metadata);
             metadata.insert(history::GROUPS.to_owned(), "{}".into());
             metadata.insert(history::STAGED_GROUPS.to_owned(), "{}".into());
+            metadata.insert(boundary::STAGED.to_owned(), "{}".into());
+            if !keep_acquired { metadata.insert(boundary::BOUNDARIES.to_owned(), "{}".into()); }
         }
         if replacement { invalidate_native(&mut metadata); }
         self.store.install_checked(&backend.schema, &metadata, reset && !keep_images, &expected)?;
@@ -455,7 +470,7 @@ impl<S: DeviceStore> Device<S> {
         tx.staged_clear()?;
         tx.set_meta(WATERMARK, "0")?;
         tx.delete_meta(&[ACQUIRED])?;
-        tx.delete_meta(&[history::GROUPS])?;
+        tx.delete_meta(&[history::GROUPS, boundary::BOUNDARIES, boundary::REPORT])?;
         tx.delete_meta(&SNAPSHOT_KEYS)?;
         tx.commit()?;
         self.snapshot_owner = None;
@@ -508,6 +523,7 @@ impl<S: DeviceStore> Device<S> {
             if page.snapshot && first {
                 tx.staged_clear()?;
                 snapshot::retain(&tx, &self.schema, page.held.as_ref())?;
+                boundary::retain(&tx, &self.schema)?;
                 tx.set_meta(SNAPSHOT_WATERMARK, &page.watermark.to_string())?;
                 tx.set_meta(SNAPSHOT_THROUGH, &page.watermark.to_string())?;
                 tx.set_meta(SNAPSHOT_OWNER, owner.as_deref().expect("first page owner"))?;
@@ -526,7 +542,8 @@ impl<S: DeviceStore> Device<S> {
             if page.watermark < meta_u64(&tx, SNAPSHOT_THROUGH)? {
                 return Err(RuntimeError::Generation("snapshot catch-up moved backwards".into()));
             }
-            snapshot::stage(&tx, &self.schema, &page.events, page.snapshot)?;
+            snapshot::continuation(&tx, page, first)?;
+            snapshot::stage(&tx, &self.schema, page)?;
             history::events(&tx, &self.schema, &page.events, &page.joined, true)?;
             tx.set_meta(SNAPSHOT_THROUGH, &page.watermark.to_string())?;
             // Paged snapshots read different server transactions. Keep every
@@ -563,10 +580,18 @@ impl<S: DeviceStore> Device<S> {
                 }
             }
             tx.set_meta(history::GROUPS, &encoded(&groups)?)?;
+            boundary::Boundaries::load(&tx, true)?.save(&tx, false)?;
             tx.staged_clear()?;
             tx.delete_meta(&SNAPSHOT_KEYS)?;
         } else {
-            for event in &page.events {
+            let mut boundaries = boundary::Boundaries::editing(false);
+            let mut markers = page.acquisitions.iter().peekable();
+            boundary::validate_positions(page)?;
+            for position in 0..=page.events.len() {
+                while markers.peek().is_some_and(|marker| marker.at == position) {
+                    boundaries.marker(&tx, &self.schema, markers.next().unwrap(), false)?;
+                }
+                let Some(event) = page.events.get(position) else { break };
                 touched.insert(event.table.clone());
                 let table = self.schema.table(&event.table).ok_or_else(|| RuntimeError::Schema(format!("unknown table {}", event.table)))?;
                 match event.kind.as_str() {
@@ -576,6 +601,7 @@ impl<S: DeviceStore> Device<S> {
                             return Err(RuntimeError::Input("row identity does not match its event".into()));
                         }
                         let old = tx.get(&event.table, &event.id)?;
+                        if !boundaries.accept(&tx, &event.table, table, &row, old.is_some())? { continue; }
                         if let Some(old) = &old { media::forget(&tx, table, old)?; }
                         tx.put(&event.table, table, &row, old.as_ref())?;
                         media::remember(&tx, &event.table, table, &row, self.generation)?;
@@ -589,13 +615,16 @@ impl<S: DeviceStore> Device<S> {
                     "scope" => {
                         let group = scope_group(table, event)?;
                         leave(&tx, &self.schema, &event.table, &group)?;
+                        boundaries.scope(&tx, &event.table, table, &group)?;
                     }
                     _ => return Err(RuntimeError::Input("unknown stream event".into())),
                 }
             }
+            boundaries.save(&tx, false)?;
         }
         if !replacing { history::events(&tx, &self.schema, &page.events, &page.joined, false)?; }
         touched.extend(page.joined.keys().cloned());
+        touched.extend(page.acquisitions.iter().map(|marker| marker.table.clone()));
         tx.set_meta(WATERMARK, &page.watermark.to_string())?;
         // @ref LLP 3000.008.001#2-three-facts-to-distinguish — schema availability is not acquisition.
         // A staged snapshot reaches here only after catch-up publishes its
@@ -653,7 +682,7 @@ impl<S: DeviceStore> Device<S> {
                 unknown = matches!(&error, RuntimeError::Prediction(_));
                 return Err(error.refusal());
             }
-            let reading = history::Reading { tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, retained: std::cell::Cell::new(false) };
+            let reading = history::Reading { tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, boundaries: boundary::Boundaries::load(&tx, false)?, retained: std::cell::Cell::new(false) };
             let (result, coverage, history_only) = if program.native {
                 // A native read over the rows held (LLP 3000.005 §9); without
                 // the module the device does not know, and the host asks the
@@ -689,7 +718,7 @@ impl<S: DeviceStore> Device<S> {
         store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
         require_acquired(&tx, &self.schema, &program)?;
         let context = Context::new(viewer, media::inputs(&tx, &program, viewer, args)?).at(now).with_generation(self.generation).with_ids(new_ids).with_entropy(entropy.max(1));
-        let predicting = Predicting { tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, written: RefCell::new(Vec::new()) };
+        let predicting = Predicting { tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, boundaries: boundary::Boundaries::load(&tx, false)?, written: RefCell::new(Vec::new()) };
         match local::predict(&predicting, &self.schema, &program, context, Ceilings::default()) {
             Ok(prediction) => {
                 let predicted = predicting.written.into_inner();

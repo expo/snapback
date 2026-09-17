@@ -44,6 +44,9 @@ pub trait DeviceTx: Rows {
 
     fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError>;
     fn set_meta(&self, key: &str, value: &str) -> Result<(), RuntimeError>;
+    /// Read a metadata namespace in key order. Keys ending in `:` name namespaces.
+    fn meta_prefix(&self, prefix: &str) -> Result<Vec<(String, String)>, RuntimeError>;
+    /// Delete exact keys, or every entry of a namespace ending in `:`.
     fn delete_meta(&self, keys: &[&str]) -> Result<(), RuntimeError>;
     /// Every row and index entry goes.
     fn clear_rows(&self) -> Result<(), RuntimeError>;

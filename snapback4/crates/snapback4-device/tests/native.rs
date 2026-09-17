@@ -130,7 +130,7 @@ fn snapshot_catchup_publishes_one_consistent_base_before_replaying_writes() {
     sender.begin_send().unwrap();
     let capture = device.sync_state().unwrap();
     let (events, pinned, mut after) = engine.snapshot_page("dev:alice", None, 1).unwrap();
-    let mut page: StreamPage = serde_json::from_value(serde_json::json!({ "snapshot": true, "events": events.into_iter().map(|e| serde_json::json!({ "table": e.table, "kind": e.kind.word(), "id": e.id, "data": e.data.as_ref().map(snapback4_core::wire::to_json) })).collect::<Vec<_>>(), "watermark": pinned, "more": true, "stage_snapshot": true, "send_revision": capture.send_revision })).unwrap();
+    let mut page: StreamPage = serde_json::from_value(serde_json::json!({ "snapshot": true, "events": events.into_iter().map(|e| serde_json::json!({ "table": e.table, "kind": e.kind.word(), "id": e.id, "data": e.data.as_ref().map(snapback4_core::wire::to_json) })).collect::<Vec<_>>(), "watermark": pinned, "next": after, "more": true, "stage_snapshot": true, "send_revision": capture.send_revision })).unwrap();
     device.apply(&page, true).unwrap();
     // The send began before capture; it commits between snapshot pages. A
     // second commit changes an already-staged row, so both directions need
@@ -140,7 +140,7 @@ fn snapshot_catchup_publishes_one_consistent_base_before_replaying_writes() {
     engine.mutate("inc", None, context("dev:alice", &[("id", id("a"))]).at(3)).unwrap();
     while let Some(token) = after {
         let (events, wm, next) = engine.snapshot_page("dev:alice", Some(&token), 1).unwrap();
-        page = serde_json::from_value(serde_json::json!({ "snapshot": true, "events": events.into_iter().map(|e| serde_json::json!({ "table": e.table, "kind": e.kind.word(), "id": e.id, "data": e.data.as_ref().map(snapback4_core::wire::to_json) })).collect::<Vec<_>>(), "watermark": wm, "more": next.is_some(), "stage_snapshot": true, "send_revision": capture.send_revision })).unwrap();
+        page = serde_json::from_value(serde_json::json!({ "snapshot": true, "events": events.into_iter().map(|e| serde_json::json!({ "table": e.table, "kind": e.kind.word(), "id": e.id, "data": e.data.as_ref().map(snapback4_core::wire::to_json) })).collect::<Vec<_>>(), "watermark": wm, "after": token, "next": next, "more": next.is_some(), "stage_snapshot": true, "send_revision": capture.send_revision })).unwrap();
         device.apply(&page, false).unwrap();
         after = next;
     }

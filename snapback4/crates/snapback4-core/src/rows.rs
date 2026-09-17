@@ -174,7 +174,12 @@ pub enum PrefetchRequest {
     Lookup { table: String, index: String, key: Vec<Value> },
 }
 
+#[derive(Clone, Debug)]
+pub enum AcquiredBoundary { Whole, Key(Vec<u8>) }
+
 pub trait Rows {
+    /// The server-selected suffix of a device partition, independent of holdings.
+    fn acquired_boundary(&self, _table: &str, _index: &str, _prefix: &[Value]) -> Result<Option<AcquiredBoundary>, RuntimeError> { Ok(None) }
     /// A device-only fact: this scan pins a delivered-history group it left.
     /// A found row belongs to retained history, without changing whole-query coverage.
     fn retained_row(&self, _table: &str, _row: &Value) -> Result<bool, RuntimeError> { Ok(false) }

@@ -619,7 +619,10 @@ impl serde::Serialize for SyncEvents {
 
 #[derive(serde::Serialize)]
 struct SnapshotReply {
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    acquisitions: Vec<wire::Acquisition>,
     acknowledged: BTreeMap<String, u64>,
+    after: Option<String>,
     events: SyncEvents,
     generation: u64,
     held: Option<wire::HeldGroups>,
@@ -632,6 +635,8 @@ struct SnapshotReply {
 
 #[derive(serde::Serialize)]
 struct StreamReply {
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    acquisitions: Vec<wire::Acquisition>,
     acknowledged: BTreeMap<String, u64>,
     events: SyncEvents,
     generation: u64,
@@ -1098,19 +1103,21 @@ fn handle(mut request: Request, shared: &Shared) {
                     match reader {
                         Ok(mut reader) => {
                             let generation = reader.generation();
-                            (reader.snapshot_page_with_groups_at(&principal, after.as_deref(), limit, shared.now()).and_then(|(events, watermark, next, held)| reader.acknowledged(&principal, &pending, watermark).map(|acks| (events, watermark, next, held, acks))), generation)
+                            (reader.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, shared.now()).and_then(|page| reader.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))), generation)
                         }
                         Err(_) => {
                             let mut engine = lock(&shared.engine);
-                            (engine.snapshot_page_with_groups_at(&principal, after.as_deref(), limit, shared.now()).and_then(|(events, watermark, next, held)| engine.acknowledged(&principal, &pending, watermark).map(|acks| (events, watermark, next, held, acks))), *lock(&shared.generation))
+                            (engine.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, shared.now()).and_then(|page| engine.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))), *lock(&shared.generation))
                         }
                     }
                 };
                 match outcome {
-                    Ok((events, watermark, next, held, acknowledged)) => {
+                    Ok((page, acknowledged)) => {
+                        let next = page.next.map(|next| next.encode());
+                        let (events, watermark, held) = (page.events, page.watermark, page.held);
                         respond(request, 200, SnapshotReply {
-                            acknowledged, events: SyncEvents::Snapshot(events), generation, store_id,
-                            held, more: next.is_some(), next, snapshot: true, watermark,
+                            acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Snapshot(events), generation, store_id,
+                            held, more: next.is_some(), next, after, snapshot: true, watermark,
                         });
                     }
                     Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else if refusal.code == "E_INPUT" { 400 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
@@ -1132,7 +1139,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 match outcome {
                     Ok((page, acknowledged)) => {
                         respond(request, 200, StreamReply {
-                            acknowledged, events: SyncEvents::Stream(page.events), generation, store_id,
+                            acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Stream(page.events), generation, store_id,
                             joined: page.joined, more: page.more, snapshot: false, watermark: page.watermark,
                         });
                     }

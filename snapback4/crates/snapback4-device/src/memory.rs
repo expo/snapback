@@ -211,6 +211,11 @@ impl DeviceStore for MemoryStore {
         let mut state = self.state.borrow_mut();
         let mut changes = self.changes.borrow_mut();
         for (key, value) in metadata {
+            if key.ends_with(':') {
+                let keys: Vec<_> = state.meta.range(key.clone()..).take_while(|(k, _)| k.starts_with(key)).map(|(k, _)| k.clone()).collect();
+                for k in keys { state.meta.remove(&k); changes.push(Change { s: 'm', k, v: None }); }
+                continue;
+            }
             state.meta.insert(key.clone(), value.clone());
             changes.push(Change { s: 'm', k: key.clone(), v: Some(value.clone()) });
         }
@@ -496,9 +501,14 @@ impl DeviceTx for MemoryTx<'_> {
         self.set_meta_value(key, Some(value.to_owned()));
         Ok(())
     }
+    fn meta_prefix(&self, prefix: &str) -> Result<Vec<(String, String)>, RuntimeError> {
+        Ok(self.store.state.borrow().meta.range(prefix.to_owned()..).take_while(|(k, _)| k.starts_with(prefix)).map(|(k, v)| (k.clone(), v.clone())).collect())
+    }
     fn delete_meta(&self, keys: &[&str]) -> Result<(), RuntimeError> {
         for key in keys {
-            self.set_meta_value(key, None);
+            if key.ends_with(':') {
+                for (k, _) in self.meta_prefix(key)? { self.set_meta_value(&k, None); }
+            } else { self.set_meta_value(key, None); }
         }
         Ok(())
     }

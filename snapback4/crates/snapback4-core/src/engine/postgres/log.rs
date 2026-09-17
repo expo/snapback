@@ -26,6 +26,10 @@ impl Tx<'_> {
 }
 
 impl PartitionRows for Tx<'_> {
+    fn written_after(&self, table: &str, id: &str, seq: u64) -> Result<bool, RuntimeError> {
+        Ok(self.query("SELECT EXISTS(SELECT 1 FROM _log WHERE t = $1 AND id = $2 AND seq > $3 AND kind IN ('put', 'del'))", &[&table, &id, &signed(seq)?])?[0].get(0))
+    }
+
     fn next_seq(&self) -> Result<u64, RuntimeError> {
         if let Some(head) = self.head.get() { return Ok(head + 1); }
         Ok(self.query("SELECT seq FROM _head WHERE singleton", &[])?[0].get::<_, i64>(0) as u64 + 1)

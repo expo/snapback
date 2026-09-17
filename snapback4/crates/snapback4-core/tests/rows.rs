@@ -136,3 +136,59 @@ fn adoption_names_legacy_index_count_and_rewrites_can_shrink_or_delete() {
     tx.commit().unwrap();
     store.install(&schema).unwrap();
 }
+
+#[test]
+fn written_after_is_strict_per_row_and_uses_the_log_index() {
+    use snapback4_core::partition::PartitionRows;
+    let mut engine = snapback4_core::Engine::memory(common::schema(), []).unwrap();
+    let tx = engine.store_mut().transaction().unwrap();
+    for n in 0..10_000 {
+        tx.append_log("noise", n + 1, 0, "other", "put", "p1", None).unwrap();
+    }
+    tx.append_log("g", 10, 0, "posts", "put", "p1", None).unwrap();
+    assert!(tx.written_after("posts", "p1", 9).unwrap());
+    assert!(!tx.written_after("posts", "p1", 10).unwrap(), "the join commit is not after itself");
+    assert!(!tx.written_after("posts", "missing", 0).unwrap());
+    assert!(!tx.written_after("missing", "p1", 0).unwrap());
+    for (seq, partition, kind) in [(11, "g", "put"), (12, "g", "del"), (13, "elsewhere", "put")] {
+        tx.append_log(partition, seq, 0, "posts", kind, "p1", None).unwrap();
+        assert!(tx.written_after("posts", "p1", seq - 1).unwrap(), "{kind} in {partition}");
+        assert!(!tx.written_after("posts", "p1", seq).unwrap());
+    }
+    for (seq, kind) in [(14, "join"), (15, "scope")] {
+        tx.append_log("hidden-principal", seq, 0, "posts", kind, "p1", None).unwrap();
+        assert!(!tx.written_after("posts", "p1", 13).unwrap(), "{kind} is not a row transition");
+    }
+    let sql = "SELECT EXISTS(SELECT 1 FROM _log WHERE t = ?1 AND id = ?2 AND seq > ?3 AND kind IN ('put', 'del'))";
+    let plan: Vec<String> = tx.conn().prepare(&format!("EXPLAIN QUERY PLAN {sql}")).unwrap()
+        .query_map(rusqlite::params!["posts", "p1", 10], |row| row.get(3)).unwrap().map(Result::unwrap).collect();
+    assert!(plan.iter().any(|step| step.contains("SEARCH _log USING COVERING INDEX _log_row_seq_kind (t=? AND id=? AND seq>?)")), "{plan:?}");
+    for (after, expected) in [(10, true), (13, false)] {
+        let mut statement = tx.conn().prepare(sql).unwrap();
+        let found: bool = statement.query_row(rusqlite::params!["posts", "p1", after], |row| row.get(0)).unwrap();
+        assert_eq!(found, expected);
+        let scanned = statement.get_status(rusqlite::StatementStatus::FullscanStep);
+        let steps = statement.get_status(rusqlite::StatementStatus::VmStep);
+        assert_eq!(scanned, 0);
+        println!("written_after: log-rows=10006 after={after} found={found} fullscan-steps={scanned} vm-steps={steps}; plan={plan:?}");
+    }
+}
+
+#[test]
+fn written_after_reopened_store_replaces_the_uncovered_index() {
+    use snapback4_core::store::Store;
+    let dir = std::env::temp_dir().join(format!("snapback4-written-after-{}-{}", std::process::id(), snapback4_core::ids::mint(snapback4_core::now_ms(), &mut 0).unwrap()));
+    let path = dir.join("store.sqlite");
+    let store = Store::open(&path).unwrap();
+    store.conn().execute_batch("DROP INDEX IF EXISTS _log_row_seq_kind; CREATE INDEX IF NOT EXISTS _log_row_seq ON _log(t, id, seq);").unwrap();
+    drop(store);
+    for _ in 0..2 {
+        let store = Store::open(&path).unwrap();
+        let columns: Vec<String> = store.conn().prepare("SELECT name FROM pragma_index_info('_log_row_seq_kind') ORDER BY seqno").unwrap()
+            .query_map([], |row| row.get(0)).unwrap().map(Result::unwrap).collect();
+        assert_eq!(columns, ["t", "id", "seq", "kind"]);
+        let old: bool = store.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = '_log_row_seq')", [], |row| row.get(0)).unwrap();
+        assert!(!old, "the superseded index must not double the per-event index writes");
+    }
+    std::fs::remove_dir_all(dir).unwrap();
+}

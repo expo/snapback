@@ -36,7 +36,12 @@ impl Store {
                 let held: Option<String> = tx.conn().query_row("SELECT value FROM _meta WHERE key = ?1", [key], |row| row.get(0)).optional()?;
                 if &held != value { return Err(RuntimeError::Generation("the backend adoption capture is obsolete; retry sync".into())); }
             }
-            for (key, value) in metadata { tx.set_meta(key, value)?; }
+            for (key, value) in metadata {
+                // A device metadata namespace reset shares backend installation's transaction.
+                if key.ends_with(':') {
+                    tx.conn().execute("DELETE FROM _meta WHERE key >= ?1 AND key < ?2", params![key, format!("{key}\u{10ffff}")])?;
+                } else { tx.set_meta(key, value)?; }
+            }
             if reset { tx.conn().execute_batch("DELETE FROM _device_base; DELETE FROM _device_snapshot;")?; }
             Ok(())
         }).map(|_| ())

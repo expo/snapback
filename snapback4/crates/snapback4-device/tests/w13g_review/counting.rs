@@ -1,0 +1,50 @@
+//! Instrument store reads, not the engine's algorithm, for the 1000-lane witness.
+use snapback4_device::store::{DeviceStore, DeviceTx};
+use snapback4_device::memory::{MemoryStore, MemoryTx};
+use snapback4_core::{error::RuntimeError, rows::{Rows, Bounds, Dir}, schema::{Schema, Table, Index}, value::Value};
+use std::{cell::Cell, collections::BTreeMap, rc::Rc};
+#[derive(Default)]
+pub struct Counts { pub legacy: Cell<usize>, pub boundary_loads: Cell<usize>, pub lanes: Cell<usize> }
+pub struct Counted { pub store: MemoryStore, pub counts: Rc<Counts> }
+pub struct CountedTx<'a> { tx: MemoryTx<'a>, counts: Rc<Counts> }
+impl DeviceStore for Counted {
+    type Tx<'a> = CountedTx<'a>;
+    fn install(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool) -> Result<(), RuntimeError> { self.store.install(schema, metadata, reset) }
+    fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> { self.store.meta(key) }
+    fn set_meta(&mut self, key: &str, value: &str) -> Result<(), RuntimeError> { self.store.set_meta(key, value) }
+    fn transaction(&mut self) -> Result<Self::Tx<'_>, RuntimeError> { Ok(CountedTx { tx: self.store.transaction()?, counts: self.counts.clone() }) }
+}
+impl Rows for CountedTx<'_> {
+    fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> { self.tx.get(table, id) }
+    fn lookup(&self, table: &str, index_name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> { self.tx.lookup(table, index_name, index, key) }
+    fn scan(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> { if index_name == "byTime" { self.counts.lanes.set(self.counts.lanes.get() + 1); } self.tx.scan(table, index_name, prefix, bounds, dir, limit) }
+    fn count_prefix(&self, table: &str, index_name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> { self.tx.count_prefix(table, index_name, prefix, limit) }
+    fn put(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> { self.tx.put(table_name, table, row, old) }
+    fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> { self.tx.delete(table_name, table, old) }
+}
+impl DeviceTx for CountedTx<'_> {
+    fn commit(self) -> Result<(), RuntimeError> { self.tx.commit() }
+    fn rollback(self) -> Result<(), RuntimeError> { self.tx.rollback() }
+    fn savepoint(&self, name: &str) -> Result<(), RuntimeError> { self.tx.savepoint(name) }
+    fn release(&self, name: &str) -> Result<(), RuntimeError> { self.tx.release(name) }
+    fn rollback_to(&self, name: &str) -> Result<(), RuntimeError> { self.tx.rollback_to(name) }
+    fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> { if key == "device:acquisition-boundaries" { self.counts.legacy.set(self.counts.legacy.get() + 1); } self.tx.meta(key) }
+    fn set_meta(&self, key: &str, value: &str) -> Result<(), RuntimeError> { self.tx.set_meta(key, value) }
+    fn meta_prefix(&self, prefix: &str) -> Result<Vec<(String, String)>, RuntimeError> { if prefix == "device:acquisition-boundaries:" { self.counts.boundary_loads.set(self.counts.boundary_loads.get() + 1); } self.tx.meta_prefix(prefix) }
+    fn delete_meta(&self, keys: &[&str]) -> Result<(), RuntimeError> { self.tx.delete_meta(keys) }
+    fn clear_rows(&self) -> Result<(), RuntimeError> { self.tx.clear_rows() }
+    fn outbox_insert(&self, seq: u64, id: &str, entry: &str) -> Result<(), RuntimeError> { self.tx.outbox_insert(seq, id, entry) }
+    fn outbox_upsert(&self, seq: u64, id: &str, entry: &str) -> Result<(), RuntimeError> { self.tx.outbox_upsert(seq, id, entry) }
+    fn outbox_delete(&self, id: &str) -> Result<(), RuntimeError> { self.tx.outbox_delete(id) }
+    fn outbox_get(&self, id: &str) -> Result<Option<String>, RuntimeError> { self.tx.outbox_get(id) }
+    fn outbox_entries(&self) -> Result<Vec<String>, RuntimeError> { self.tx.outbox_entries() }
+    fn outbox_max_seq(&self) -> Result<u64, RuntimeError> { self.tx.outbox_max_seq() }
+    fn base_remember(&self, table: &str, id: &str, image: Option<&str>) -> Result<(), RuntimeError> { self.tx.base_remember(table, id, image) }
+    fn base_entries(&self) -> Result<Vec<(String, String, Option<String>)>, RuntimeError> { self.tx.base_entries() }
+    fn base_clear(&self) -> Result<(), RuntimeError> { self.tx.base_clear() }
+    fn staged_put(&self, key: &str, table: &str, image: &str) -> Result<(), RuntimeError> { self.tx.staged_put(key, table, image) }
+    fn staged_delete(&self, key: &str) -> Result<(), RuntimeError> { self.tx.staged_delete(key) }
+    fn staged_after(&self, after: &str, limit: usize) -> Result<Vec<(String, String, String)>, RuntimeError> { self.tx.staged_after(after, limit) }
+    fn staged_table_after(&self, table: &str, after: &str, limit: usize) -> Result<Vec<(String, String)>, RuntimeError> { self.tx.staged_table_after(table, after, limit) }
+    fn staged_clear(&self) -> Result<(), RuntimeError> { self.tx.staged_clear() }
+}

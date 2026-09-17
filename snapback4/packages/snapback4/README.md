@@ -1350,13 +1350,40 @@ has the matching grant, or that the mutation created the referenced group;
 `.principal = viewer` alone is a self-grant and fails `check`. Audience group
 and recipient columns must be immutable or guarded on update. This also covers
 insert-if-absent and upsert. The horizon `last N by index` bounds what a device acquires per group;
-older rows are online-only, and a device's read past them says
-`complete: false`. Joining a group delivers its rows; leaving it delivers
+the server carries each group's delivered selected boundary key (or `whole` for fewer
+than N selected rows, including an empty group) in additive acquisition metadata.
+Descending pages on that index are complete while they stay at or above the
+boundary by key. Crossing it returns the known suffix with `complete: false`
+and unknown coverage, and the online client asks the server. A never-acquired
+group has no boundary and remains unknown. Ascending reads and other indexes
+keep their ordinary horizon rule. Unheld puts below the boundary are dropped;
+held rows that move below it stay available to point reads and leave the suffix.
+Puts moving above it enter the suffix. Continuous renewal keeps the boundary.
+A join reacquiring retained history leaves the horizon unknown until a full
+replacement snapshot acquires the group again. The boundary persists with
+acquisition, and staged snapshots publish it with their rows only after catch-up. Sync replies add
+`acquisitions: [{ at, table, index, group, floor? }]`: markers apply before
+`events[at]`, or after all events when `at` equals their count. Missing `floor`
+begins acquisition; a completion supplies `whole` or the hex-encoded index key.
+A keyed completion starts at the oldest current readable selected key delivered
+by that acquisition. It narrows upward if an unselected, current readable row
+with no write after the join has a key at or above that boundary: that row was not acquired.
+Only row puts and deletes count as writes; membership joins and scopes do not.
+If no delivered key proves a complete suffix, the group stays unknown. Selection
+is at the join commit; its historical floor never decides completion or appears
+on the wire. `whole` proves the same claim without a lower bound, including when
+every selected row has since disappeared or become unreadable.
+Snapshot replies echo `after`; the device checks every
+continuation and requires the terminal page before catch-up publishes coverage.
+Unsolicited completions are ignored and reported in `device:acquisition-report`.
+Joining a group delivers its rows; leaving it delivers
 one scope tombstone, and the table's `retain` says what the device keeps.
 Retained rows survive a leave whatever the horizon; the horizon bounds what
 a device acquires, never what it keeps. The same local completeness rule
-applies after leaving: an exhausted horizon is `complete: false`, while
-unbounded whole-group history is `complete: true`. A read pinning the left
+applies after leaving: a page within the acquired suffix is complete, crossing
+the floor is incomplete, and `whole` proves the group's end even on a horizoned
+table. A snapshot from a server without `acquisitions` leaves newly acquired
+groups unknown, so local pages fall back online. A read pinning the left
 group answers from those rows on the device online and offline, through a
 query without a membership `require`. Replacement snapshots keep left groups
 and replace held groups with their current acquisition. A device query returning
