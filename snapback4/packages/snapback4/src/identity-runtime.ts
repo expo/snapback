@@ -2,6 +2,7 @@ import type { Query, Mutation, Refusal, Session } from "./contract.ts";
 import { oidcPrincipal } from "./identity-principal.ts";
 import { ServerError } from "./server-json.ts";
 import type { IdentityRuntime } from "./server-private.ts";
+import { lifetimeFetch } from "./server-context.ts";
 import { Retry } from "./worker.ts";
 
 interface RuntimeLifetime {
@@ -27,12 +28,13 @@ function refusal(value: unknown): Refusal | undefined {
 // narrow bridge exposes neither a service client nor arbitrary session minting.
 export function identityRuntime(options: RuntimeOptions, lifetime: RuntimeLifetime): IdentityRuntime {
   const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
+  const fetchWithinLifetime = lifetimeFetch(doFetch, lifetime.signal);
   const base = options.url.replace(/\/$/, "");
   const post = async (path: string, body: unknown): Promise<Record<string, unknown>> => {
     lifetime.assertActive();
     let response: Response;
     try {
-      response = await doFetch(`${base}${path}`, {
+      response = await fetchWithinLifetime(`${base}${path}`, {
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${options.token}` },
         body: JSON.stringify(body),
@@ -44,7 +46,10 @@ export function identityRuntime(options: RuntimeOptions, lifetime: RuntimeLifeti
     }
     let json: Record<string, unknown>;
     try { json = await response.json() as Record<string, unknown>; }
-    catch { throw new Retry("the private identity operation returned an unreadable response"); }
+    catch (error) {
+      lifetime.assertActive();
+      throw new Retry("the private identity operation returned an unreadable response", { cause: error });
+    }
     lifetime.assertActive();
     const denied = refusal(json.denied ?? json.why);
     if (denied) throw new ServerError(denied.code, "the private identity operation was refused", denied.family);
@@ -53,6 +58,7 @@ export function identityRuntime(options: RuntimeOptions, lifetime: RuntimeLifeti
   };
   return Object.freeze({
     now: lifetime.now,
+    providerFetch: fetchWithinLifetime,
     async query<A, R>(op: Query<A, R>, args: A): Promise<R> {
       if (!op || op.kind !== "query" || typeof op.name !== "string") throw new ServerError("E_OIDC_RECIPE", "the identity query is not configured");
       const result = await post(`/q/${encodeURIComponent(op.name)}`, { args });

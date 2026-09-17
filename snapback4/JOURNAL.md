@@ -27333,3 +27333,76 @@ The preceding Work witness's “signed” wording was an overstatement, correcte
 here; this checkout says “already-qualified,” which should be read no more
 broadly. The supplied 0.2.26 artifact was checked only by `--version` and a
 matching SHA-256. No code-signature qualification was performed or claimed.
+
+## 2026-09-16 — B1a review repair checkpoint
+
+The bounded identity repair keeps provider discovery inside the first
+`oidc.exchange` callback, so a completed validated-claims step replays after a
+lost verified-mutation acknowledgement with no discovery, token or JWKS
+request. `openid-client@6.8.8` remains exactly pinned. Its exported error types,
+codes and structured causes now separate a definitive `invalid_grant` and
+known authorization/claim/timestamp/key/signature validation refusal from an
+uncertain exchange. A consumed authorization code followed by a dropped reply,
+`server_error`, `temporarily_unavailable`, an unknown OAuth error, bare 503,
+unreadable JSON or a malformed token-response shape parks; restart does not
+POST the code again. No provider token or false `{ok:false}` outcome is stored.
+
+The existing server-context lifetime race was reused for private identity core
+HTTP and the provider's discovery, token and JWKS fetches, including cloned
+response-body consumption. Protocol-double tests release every deliberately
+stalled transport after cancellation and observe no late verified mutation,
+mint or action result. This does not claim that abort cancels an already
+committed core write or provider effect. The asymmetric non-repudiation path
+also refuses HS256 signed with the actual configured client secret; no second
+signature implementation was added. Unknown callback state is the same public
+`E_OIDC_CALLBACK` class as a bad binding, while malformed recipe rows retain
+the internal `E_OIDC_RECIPE` diagnosis. The callable-export census now includes
+the shipped linked `SERVER.md`; its real `oidcHandlers(...)` example is one of
+20 compiled TypeScript blocks and one of 40 counted public functions.
+
+The exact tagged upstream `openid-client` source inspected at
+`panva/openid-client/v6.8.8/src/index.ts` had SHA-256
+`0250479e346695f91c55ca676f41faf0fab4c8aa4b45aca608fe02d84ecb9d5a`.
+The project `llp-orient` symlink was dangling, so no submodule was initialized;
+root/Snapback 4 instructions, LLP 3000.009 §§5/7/11, the published server
+guide, source, tests and the received public Sol review supplied the context.
+The parent-restored ignored 0.2.26 WASM inputs matched its ready marker; this
+lane neither generated nor downloaded them. The supplied 0.2.26 binary remains
+version/SHA-only evidence (`fa4834f3fd128f4c37f02c9c3954da95306bbf208b2c0c94eb34cda419e7d7be`),
+not code-signature evidence.
+
+Serial Node 24.18.0 verification at this checkpoint:
+
+```text
+npm run typecheck
+pass
+
+npm run build
+pass (parent-restored ignored WASM inputs copied to ignored dist output)
+
+node --test --test-concurrency=1 test/identity.test.mjs
+10/10 pass, 0 skipped, 4.96 s wall
+
+SNAPBACK4_BIN=<supplied-0.2.26> node --test --test-concurrency=1 test/readme-examples.test.mjs test/server-runtime.test.mjs test/server-routes.test.mjs
+73/73 pass, 0 skipped, 5.77 s wall; documentation census 20 blocks / 40 public functions
+```
+
+Three intermediate failures were retained rather than erased. The first full
+typecheck found TS2418 at the private openid-client `CustomFetch` boundary; an
+explicit type-only boundary cast fixed it and the rerun passed. The first
+identity run passed 8/9 but the private-core body-stall case exposed a generic
+retry where cancellation was required; reasserting lifetime authority in that
+body catch fixed it and the next 9/9 run passed. The first expanded
+documentation census failed on 23 missing generated-module/context/example
+diagnostics; adding typed generated stubs for the legitimately included server
+guide and declaring its application adapters fixed the 20-block/40-function
+rerun.
+
+This is still a B1a preview, not identity/B completion. The published 0.2.26
+core drops `E_OIDC_*` settlement codes, so the protocol double is not evidence
+of public real-core refusal collection. The parent owns that core allowlist
+repair and B1b's exact-live lease/mint intent/atomic replacement semantics;
+B1c was not commissioned. Google, production HTTPS and a real browser remain
+unqualified. Default diagnostics continue to omit credentials and tokens;
+the existing privileged `why --values` behavior remains intentionally
+sensitive and unchanged.

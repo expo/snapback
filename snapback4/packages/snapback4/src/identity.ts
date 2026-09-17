@@ -1,21 +1,27 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import {
   ClientSecretPost,
+  ClientError,
+  AuthorizationResponseError,
+  ResponseBodyError,
   allowInsecureRequests,
   authorizationCodeGrant,
   buildAuthorizationUrl,
   calculatePKCECodeChallenge,
+  customFetch,
   discovery,
   enableNonRepudiationChecks,
   randomNonce,
   randomPKCECodeVerifier,
   randomState,
   type Configuration,
+  type CustomFetch,
   type IDToken,
 } from "openid-client";
 import type { Mutation, Principal, Query, Session } from "./contract.ts";
 import { ServerError } from "./server-json.ts";
-import { identityHandler } from "./server-private.ts";
+import { identityHandler, type IdentityRuntime } from "./server-private.ts";
+import { ParkStep } from "./server-json.ts";
 import { Retry } from "./worker.ts";
 
 export interface OidcTransaction {
@@ -102,6 +108,25 @@ const allowedEndpoint = (value: unknown, insecure: boolean): value is string => 
 };
 const fingerprint = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("base64url");
 const bindingDigest = (value: string) => createHash("sha256").update(value, "utf8").digest();
+const definitiveValidationCodes = new Set([
+  "OAUTH_JWT_TIMESTAMP_CHECK_FAILED", "OAUTH_JWT_CLAIM_COMPARISON_FAILED",
+  "OAUTH_JSON_ATTRIBUTE_COMPARISON_FAILED", "OAUTH_KEY_SELECTION_FAILED",
+]);
+
+function knownValidationRefusal(error: ClientError): boolean {
+  if (definitiveValidationCodes.has(error.code ?? "")) return true;
+  if (error.code !== "OAUTH_INVALID_RESPONSE") return false;
+  // In openid-client 6.8.8, the wrapped oauth4webapi cause distinguishes
+  // token/JWKS response-shape failures ({body}) from validation of an actual
+  // authorization response or ID token (raw JWS, {parameters}, {claims},
+  // {header}, or signature material). Keep malformed response bodies
+  // uncertain without matching error text.
+  const wrapped = error.cause;
+  const detail = wrapped instanceof Error ? wrapped.cause : undefined;
+  if (typeof detail === "string") return true;
+  return !!detail && typeof detail === "object"
+    && ["parameters", "claims", "header", "signature"].some(field => Object.hasOwn(detail, field));
+}
 
 function validateTransaction(value: unknown): OidcTransaction {
   const row = value as Partial<OidcTransaction> | null;
@@ -116,7 +141,7 @@ function validateTransaction(value: unknown): OidcTransaction {
     || !(row.verifiedSubject === null || text(row.verifiedSubject, 1, 1024))
     || !(row.email === null || text(row.email, 1, 320))
     || !(row.emailVerified === null || typeof row.emailVerified === "boolean")) {
-    throw new ServerError("E_OIDC_TRANSACTION", "the private identity transaction is invalid");
+    throw new ServerError("E_OIDC_RECIPE", "the private identity transaction row is invalid");
   }
   return row as OidcTransaction;
 }
@@ -175,7 +200,7 @@ function matchesBinding(expected: string, binding: string): boolean {
 }
 
 function minimalClaims(claims: IDToken | undefined, expectedIssuer: string, clientId: string, now: number) {
-  if (!claims) throw new Error("missing claims");
+  if (!claims) throw new ServerError("E_OIDC_EXCHANGE", "the verified ID token has no claims");
   const issuer = claims.iss, subject = claims.sub;
   const audience = typeof claims.aud === "string" ? [claims.aud] : claims.aud;
   const nowSeconds = Math.floor(now / 1000);
@@ -183,7 +208,7 @@ function minimalClaims(claims: IDToken | undefined, expectedIssuer: string, clie
     || (claims.azp !== undefined && claims.azp !== clientId) || (audience.length > 1 && claims.azp !== clientId)
     || !Number.isInteger(claims.iat) || !Number.isInteger(claims.exp)
     || claims.iat > nowSeconds + 60 || claims.iat < nowSeconds - 600 || claims.exp <= nowSeconds || claims.exp <= claims.iat) {
-    throw new Error("invalid claims");
+    throw new ServerError("E_OIDC_EXCHANGE", "the verified ID token claims were refused");
   }
   const email = typeof claims.email === "string" && text(claims.email, 1, 320) ? claims.email : null;
   const emailVerified = email !== null && typeof claims.email_verified === "boolean" ? claims.email_verified : null;
@@ -194,13 +219,13 @@ function minimalClaims(claims: IDToken | undefined, expectedIssuer: string, clie
 // ordinary declared actions and managed recipe rows, never an engine protocol.
 export function oidcHandlers<Secret extends string>(configuration: OidcConfiguration<Secret>) {
   const fixed = validateSettings(configuration);
-  const provider = async (secret: string): Promise<Configuration> => {
+  const provider = async (secret: string, runtime: IdentityRuntime): Promise<Configuration> => {
     try {
       const execute: ((config: Configuration) => void)[] = [enableNonRepudiationChecks];
       if (fixed.insecure) execute.push(allowInsecureRequests);
       const found = await discovery(fixed.issuerUrl, fixed.clientId,
         { client_secret: secret, redirect_uris: [fixed.redirectURI], response_types: ["code"] },
-        ClientSecretPost(secret), { execute, timeout: 10 });
+        ClientSecretPost(secret), { execute, timeout: 10, [customFetch]: runtime.providerFetch as CustomFetch });
       assertProviderMetadata(found, fixed.issuer, fixed.insecure);
       return found;
     } catch (error) {
@@ -212,7 +237,7 @@ export function oidcHandlers<Secret extends string>(configuration: OidcConfigura
   const begin = identityHandler<OidcBeginArguments, OidcBeginResult, Secret>(async (args, ctx, runtime) => {
     if (!args || !/^[A-Za-z0-9_-]{43}$/.test(args.bindingHash ?? "")) throw new ServerError("E_OIDC_BINDING", "supply a SHA-256 browser binding hash");
     const clientSecret = ctx.secrets[fixed.clientSecret];
-    const discovered = await provider(clientSecret);
+    const discovered = await provider(clientSecret, runtime);
     let transaction = await runtime.query(fixed.transactions.byInvocation, { invocation: ctx.invocation.id });
     if (transaction === null) {
       // Quarry `time` is integer epoch milliseconds; the action clock adds a
@@ -249,7 +274,9 @@ export function oidcHandlers<Secret extends string>(configuration: OidcConfigura
       throw new ServerError("E_OIDC_CALLBACK", "the provider callback was refused");
     }
     const code = args.code;
-    let stored = validateTransaction(await runtime.query(fixed.transactions.byState, { state: args.state }));
+    const found = await runtime.query(fixed.transactions.byState, { state: args.state });
+    if (found === null) throw new ServerError("E_OIDC_CALLBACK", "the provider callback was refused");
+    let stored = validateTransaction(found);
     if (stored.admittingPrincipal !== ctx.principal || stored.configFingerprint !== fixed.configFingerprint
       || stored.state !== args.state || stored.expiresAt <= runtime.now() || !matchesBinding(stored.bindingHash, args.binding)) {
       throw new ServerError("E_OIDC_CALLBACK", "the provider callback was refused");
@@ -263,12 +290,14 @@ export function oidcHandlers<Secret extends string>(configuration: OidcConfigura
     if (stored.completionInvocation !== ctx.invocation.id || stored.expiresAt <= runtime.now()) {
       throw new ServerError("E_OIDC_REPLAY", "this identity transaction cannot be completed by this invocation");
     }
-    const discovered = await provider(ctx.secrets[fixed.clientSecret]);
     const exchange = await ctx.step("oidc.exchange", {
       transaction: stored.id, configFingerprint: fixed.configFingerprint,
       codeHash: fingerprint(["snapback4:oidc-code:v1", code]), state: args.state, responseIssuer: args.iss ?? null,
     }, async () => {
       try {
+        // Discovery belongs to the first exchange execution. A completed step
+        // replays its validated minimal claims without any IdP reachability.
+        const discovered = await provider(ctx.secrets[fixed.clientSecret], runtime);
         const callback = new URL(fixed.redirectURI);
         callback.searchParams.set("code", code);
         callback.searchParams.set("state", args.state);
@@ -277,7 +306,21 @@ export function oidcHandlers<Secret extends string>(configuration: OidcConfigura
           expectedState: stored.state, expectedNonce: stored.nonce, pkceCodeVerifier: stored.pkceVerifier, idTokenExpected: true,
         });
         return { ok: true as const, claims: minimalClaims(tokens.claims(), fixed.issuer, fixed.clientId, runtime.now()) };
-      } catch { return { ok: false as const }; }
+      } catch (error) {
+        // A closed invocation must preserve cancellation/deadline/refusal
+        // semantics. It must not attempt to park through lost authority.
+        if (ctx.invocation.signal.aborted) throw ctx.invocation.signal.reason;
+        if (error instanceof ServerError
+          || (error instanceof ResponseBodyError && error.error === "invalid_grant")
+          || error instanceof AuthorizationResponseError
+          || (error instanceof ClientError && knownValidationRefusal(error))) {
+          return { ok: false as const };
+        }
+        // No reliable token response or readable validation input exists.
+        // The authorization code may already have been consumed, so never
+        // repeat this non-deduplicable request automatically.
+        throw new ParkStep("the OIDC exchange outcome is uncertain");
+      }
     });
     if (!exchange.ok) throw new ServerError("E_OIDC_EXCHANGE", "the authorization code exchange or ID token verification failed");
     const claims = exchange.claims;

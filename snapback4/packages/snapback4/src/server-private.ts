@@ -5,6 +5,8 @@ import type { ServerContext } from "./server.ts";
  * identity helper. It is intentionally absent from ServerContext. */
 export interface IdentityRuntime {
   readonly now: () => number;
+  /** Invocation-bound transport used only by the packaged provider adapter. */
+  readonly providerFetch: typeof fetch;
   query<A, R>(op: Query<A, R>, args: A): Promise<R>;
   mutate<A, R>(op: Mutation<A, R>, args: A, id: string): Promise<void>;
   mint(issuer: string, subject: string, kind: string, days: number): Promise<Session>;

@@ -8,7 +8,7 @@ import { steps, writeIdFor } from "./server-steps.ts";
 
 /** Unlike a raw injected fetch, this settles on abort even if its implementation
  * ignores the signal. The pending fetch's rejection is still observed. */
-async function untilAborted<T>(work: () => Promise<T>, signal?: AbortSignal | null): Promise<T> {
+export async function untilAborted<T>(work: () => Promise<T>, signal?: AbortSignal | null): Promise<T> {
   if (signal?.aborted) throw signal.reason;
   if (!signal) return work();
   return new Promise((resolve, reject) => {
@@ -16,6 +16,28 @@ async function untilAborted<T>(work: () => Promise<T>, signal?: AbortSignal | nu
     signal.addEventListener("abort", abort, { once: true });
     Promise.resolve().then(() => { if (signal.aborted) throw signal.reason; return work(); }).then(resolve, reject).finally(() => signal.removeEventListener("abort", abort));
   });
+}
+
+/** Bind both a fetch and consumption of any response clones to one lifetime.
+ * This is a settlement guard for injected transports that ignore AbortSignal,
+ * not a claim that aborting a request cancels a committed server operation. */
+export function lifetimeFetch(doFetch: typeof fetch, lifetime: AbortSignal): typeof fetch {
+  const responseWithin = (response: Response, signal: AbortSignal): Response => new Proxy(response, {
+    get(target, property) {
+      if (property === "clone") return () => responseWithin(target.clone(), signal);
+      if (["arrayBuffer", "blob", "bytes", "formData", "json", "text"].includes(String(property))) {
+        const consume = Reflect.get(target, property, target) as ((...args: unknown[]) => Promise<unknown>) | undefined;
+        if (typeof consume === "function") return (...args: unknown[]) => untilAborted(() => consume.apply(target, args), signal);
+      }
+      const value = Reflect.get(target, property, target) as unknown;
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+  return async (input, init) => {
+    const signal = init?.signal ? AbortSignal.any([lifetime, init.signal]) : lifetime;
+    const response = await untilAborted(() => doFetch(input, { ...init, signal }), signal);
+    return responseWithin(response, signal);
+  };
 }
 
 export function context(
@@ -36,6 +58,7 @@ export function context(
   const started = performance.now();
   const claimedAt = (meta as ActionMeta & { readonly now?: number }).now ?? Date.now();
   const now = () => claimedAt + (performance.now() - started);
+  const fetchWithinLifetime = lifetimeFetch(doFetch, lifetime.signal);
   const closedWhy = { code: "E_ACTION_CLOSED", family: "action", message: "the action context has closed" };
   const end = (why: Refusal) => {
     if (ended) return;
@@ -61,24 +84,19 @@ export function context(
     session: meta.session,
     fetch: async (url, init) => {
       const signal = init?.signal ? AbortSignal.any([lifetime.signal, init.signal]) : lifetime.signal;
-      const response = await untilAborted(() => doFetch(url, { ...init, signal }), signal);
-      // The online client only consumes JSON. Bind body consumption to the
-      // same lifetime, including a test transport that ignores abort itself.
-      const json = response.json.bind(response);
-      response.json = () => untilAborted(json, signal);
-      return response;
+      return fetchWithinLifetime(url, { ...init, signal });
     },
   });
   const post = async (path: string, body: unknown, timeout?: AbortSignal): Promise<unknown> => {
     assertActive();
     const signal = timeout ? AbortSignal.any([lifetime.signal, timeout]) : lifetime.signal;
-    const response = await untilAborted(() => doFetch(`${base}${path}`, {
+    const response = await fetchWithinLifetime(`${base}${path}`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${options.token}`, "x-snapback-action-lease": meta.session.token },
       body: JSON.stringify(body),
       signal,
-    }), signal);
-    const json = await untilAborted(() => response.json(), signal) as { denied?: Refusal };
+    });
+    const json = await response.json() as { denied?: Refusal };
     assertActive();
     if (json.denied) {
       const why = json.denied;

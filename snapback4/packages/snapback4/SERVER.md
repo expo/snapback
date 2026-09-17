@@ -67,6 +67,11 @@ handler lost the final `Session`, collection fails closed with
 Do not turn that failure into a new automatic completion action. B1b remains
 required before treating this recipe as complete, and it will not
 retroactively resume B1a work that is already parked; old parks stay parked.
+The published 0.2.26 engine also does not preserve `E_OIDC_*` codes through
+real core settlement: its action-failure allowlist turns them into the public
+`E_ACTION_FAILED` collection result. Protocol-double assertions of helper
+failure bodies are not proof otherwise. A separately qualified combined core
+repair is required before relying on the more specific public codes.
 
 The helper is configured for one fixed trusted issuer, client id and exact
 redirect URI per application/server. It has no provider registry or
@@ -187,11 +192,32 @@ session cannot.
 
 Discovery is against the fixed issuer. `openid-client` 6.8.8 performs the
 code grant with expected state, nonce and PKCE verifier, and non-repudiation
-checks require a JWKS-verified ID-token signature. The principal is a fixed
+checks require a JWKS-verified ID-token signature. An HS256 token is refused
+even when signed with the configured client secret; this adapter requires the
+provider's asymmetric signature and does not duplicate the library's JWS
+verification. The principal is a fixed
 `oidc:` namespace derived from issuer plus `sub`; email is never an automatic
 linking key. `email` and `email_verified` are optional metadata only. Profile
 binding, recovery, organization membership and account linking remain
 application work.
+
+Discovery for completion runs inside the first `oidc.exchange` step execution.
+Once validated minimal claims are durably recorded, a restart replays them
+without discovery, token or JWKS reachability. A provider's definitive
+`invalid_grant` and known state, claim, timestamp, algorithm, key-selection or
+signature validation refusal settle terminally as `E_OIDC_EXCHANGE`. A lost
+or unreadable response, bare 5xx, `server_error`, `temporarily_unavailable`,
+unknown OAuth error, or malformed token-response shape is uncertain after the
+one-time code may have been consumed: the step parks and never automatically
+POSTs that code again. The local signed-provider tests are protocol doubles;
+only the credentials-gated recipe is actual-provider evidence.
+
+Provider discovery, token and JWKS fetches and their response-body reads share
+the invocation lifetime with private recipe reads/writes. Cancellation,
+deadline, lost authority and handler completion therefore release the handler
+promptly even when an injected transport ignores `AbortSignal`. This is a
+settlement guard, not a claim that aborting HTTP reverses a provider effect or
+a committed server write; an already uncertain step or write stays uncertain.
 
 Access tokens, refresh tokens and ID tokens are neither returned nor stored.
 The PKCE verifier lives only in the private expiring transaction row. Default
@@ -211,6 +237,11 @@ actions and routes. Import its `server` function in the application's server ent
 import { server } from "./generated/server.ts";
 import { api } from "./generated/api.ts";
 import { GiveUp } from "snapback4/worker";
+
+declare const model: {
+  summarize(text: string, options: { idempotencyKey: string }): Promise<string>;
+  lookupResult(key: string): Promise<string>;
+};
 
 export default server({
   actions: {
@@ -394,6 +425,12 @@ be omitted; a supplied empty map accepts no undeclared handler.
 import { server } from "./generated/server.ts";
 import { api } from "./generated/api.ts";
 import { GiveUp, Retry } from "snapback4/worker";
+
+declare const reports: { export(body: Uint8Array, ctx: unknown): Promise<BodyInit> };
+declare const billing: {
+  verify(body: Uint8Array, headers: Headers, key: string, options: { signal: AbortSignal }): Promise<boolean>;
+  decode(body: Uint8Array): unknown;
+};
 
 export default server({ routes: {
   async reportDownload(req, ctx) {

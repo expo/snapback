@@ -13,6 +13,7 @@ const REDIRECT_URI = "http://127.0.0.1:38972/auth/callback";
 const ACCESS_TOKEN = "access-token-must-not-persist";
 const REFRESH_TOKEN = "refresh-token-must-not-persist";
 const SESSION_TOKEN = "session-token-final-result-only";
+const nativeFetch = globalThis.fetch.bind(globalThis);
 const op = (kind, name) => ({ kind, name });
 const operations = {
   byInvocation: op("query", "identity.byInvocation"),
@@ -40,17 +41,19 @@ const signedJwt = (signingKey, claims, header = {}) => {
   const protectedHeader = { alg: "RS256", typ: "JWT", kid: signingKey.kid, ...header };
   const input = `${b64(JSON.stringify(protectedHeader))}.${b64(JSON.stringify(claims))}`;
   if (protectedHeader.alg === "none") return `${input}.`;
-  if (protectedHeader.alg === "HS256") return `${input}.${createHmac("sha256", "wrong-shared-key").update(input).digest("base64url")}`;
+  if (protectedHeader.alg === "HS256") return `${input}.${createHmac("sha256", CLIENT_SECRET).update(input).digest("base64url")}`;
   return `${input}.${sign("RSA-SHA256", Buffer.from(input), signingKey.privateKey).toString("base64url")}`;
 };
 
 async function localProvider(t) {
   const old = key("old"), rotated = key("rotated"), unknown = key("unknown");
   const codes = new Map(), requests = [];
-  let current = old;
+  let current = old, unavailable = false;
   const server = createServer(async (request, response) => {
     const url = new URL(request.url, issuer);
     if (url.pathname.endsWith("/.well-known/openid-configuration")) {
+      requests.push({ kind: "discovery" });
+      if (unavailable) { response.writeHead(503); response.end(); return; }
       response.setHeader("content-type", "application/json");
       response.end(JSON.stringify({ issuer, authorization_endpoint: `${issuer}/authorize`, token_endpoint: `${issuer}/token`,
         jwks_uri: `${issuer}/jwks`, response_types_supported: ["code"], subject_types_supported: ["public"],
@@ -60,6 +63,7 @@ async function localProvider(t) {
     }
     if (url.pathname === "/jwks") {
       requests.push({ kind: "jwks", kid: current.kid });
+      if (unavailable) { response.writeHead(503); response.end(); return; }
       response.setHeader("content-type", "application/json"); response.end(JSON.stringify({ keys: [current.jwk] })); return;
     }
     if (url.pathname === "/token") {
@@ -72,6 +76,15 @@ async function localProvider(t) {
         response.writeHead(400, { "content-type": "application/json" }); response.end(JSON.stringify({ error: "invalid_grant" })); return;
       }
       entry.used = true;
+      if (entry.behavior.dropTokenReply) { response.destroy(); return; }
+      if (entry.behavior.oauthError) {
+        response.writeHead(400, { "content-type": "application/json" });
+        response.end(JSON.stringify({ error: entry.behavior.oauthError })); return;
+      }
+      if (entry.behavior.httpStatus) { response.writeHead(entry.behavior.httpStatus); response.end(); return; }
+      if (entry.behavior.unreadableReply) {
+        response.writeHead(200, { "content-type": "application/json" }); response.end("{"); return;
+      }
       if (entry.behavior.httpError) {
         response.writeHead(400, { "content-type": "application/json" }); response.end(JSON.stringify({ error: "invalid_grant" })); return;
       }
@@ -82,7 +95,9 @@ async function localProvider(t) {
       let idToken = signedJwt(signingKey, claims, entry.behavior.header);
       if (entry.behavior.malformed) idToken = "not-a-jwt";
       response.setHeader("content-type", "application/json");
-      response.end(JSON.stringify({ access_token: ACCESS_TOKEN, refresh_token: REFRESH_TOKEN, token_type: "Bearer", expires_in: 300, id_token: idToken }));
+      response.end(JSON.stringify(entry.behavior.malformedTokenResponse
+        ? { token_type: "Bearer", expires_in: 300, id_token: idToken }
+        : { access_token: ACCESS_TOKEN, refresh_token: REFRESH_TOKEN, token_type: "Bearer", expires_in: 300, id_token: idToken }));
       return;
     }
     response.writeHead(404); response.end();
@@ -93,11 +108,17 @@ async function localProvider(t) {
   t.after(() => new Promise(resolve => server.close(resolve)));
   return {
     issuer, requests,
+    metadata() { return { issuer, authorization_endpoint: `${issuer}/authorize`, token_endpoint: `${issuer}/token`,
+      jwks_uri: `${issuer}/jwks`, response_types_supported: ["code"], subject_types_supported: ["public"],
+      id_token_signing_alg_values_supported: ["RS256"], token_endpoint_auth_methods_supported: ["client_secret_post"],
+      code_challenge_methods_supported: ["S256"], authorization_response_iss_parameter_supported: true }; },
     register(code, authorizationUrl, behavior = {}) {
       const url = new URL(authorizationUrl);
       codes.set(code, { challenge: url.searchParams.get("code_challenge"), nonce: url.searchParams.get("nonce"), behavior, used: false });
     },
     rotate() { current = rotated; },
+    setUnavailable(value) { unavailable = value; },
+    discoveryCalls() { return requests.filter(request => request.kind === "discovery").length; },
     tokenCalls(code) { return requests.filter(request => request.kind === "token" && request.code === code).length; },
     jwksCalls() { return requests.filter(request => request.kind === "jwks").length; },
   };
@@ -198,11 +219,20 @@ function suite(provider, core = new FakeCore()) {
       env: { SNAPBACK_URL: "http://core.test", SNAPBACK_SERVICE_TOKEN: "service-token", OIDC_CLIENT_SECRET: CLIENT_SECRET },
       signal: stop.signal, statusIntervalMs: 100, wait: 0, onError: error => errors.push(error),
       fetch: async (url, init) => {
-        const path = new URL(url).pathname;
+        const target = new URL(url);
+        if (target.origin !== "http://core.test") return (options.providerFetch ?? nativeFetch)(url, init);
+        const path = target.pathname;
         const body = init.body ? JSON.parse(init.body) : {};
         if (path === "/actions/claim-set") {
           if (claimed) { await delay(10); return { json: async () => ({ requests: [], worker: "service:worker" }) }; }
           claimed = true;
+        }
+        if (path === `/actions/${claim.id}/status` && options.cancelOnStatus) {
+          return Response.json({ invocation: { id: claim.id, attempt: claim.attempt, cancelled: true, state: "failed" } });
+        }
+        if (options.coreFetch) {
+          const response = await options.coreFetch(path, body, init, claim);
+          if (response !== undefined) return response;
         }
         const reply = await core.wire(path, body, claim, stop);
         return Response.json(reply);
@@ -252,7 +282,7 @@ test("callback, browser, authority, expiry and replay bindings fail closed befor
   for (const [label, mutate, expected] of [
     ["provider-error", args => ({ ...args, code: null, error: "access_denied" }), "E_OIDC_CALLBACK"],
     ["binding", args => ({ ...args, binding: "wrong-binding-" + "z".repeat(32) }), "E_OIDC_CALLBACK"],
-    ["state", args => ({ ...args, state: "wrong-state-" + "z".repeat(32) }), "E_OIDC_TRANSACTION"],
+    ["state", args => ({ ...args, state: "wrong-state-" + "z".repeat(32) }), "E_OIDC_CALLBACK"],
   ]) {
     const flow = await s.begin(label); provider.register(`${label}-code`, flow.authorizationUrl);
     const args = mutate(s.callback(flow, `${label}-code`));
@@ -282,7 +312,7 @@ test("openid-client rejects hostile ID tokens and an expired authorization code"
   const cases = [
     ["malformed", { malformed: true }],
     ["none", { header: { alg: "none" } }],
-    ["wrong-alg", { header: { alg: "HS256" } }],
+    ["symmetric-hs256-with-actual-client-secret", { header: { alg: "HS256" } }],
     ["wrong-issuer", { claims: { iss: "http://127.0.0.1:9/other" } }],
     ["wrong-aud", { claims: { aud: "another-client" } }],
     ["wrong-azp", { claims: { aud: [CLIENT_ID, "other"], azp: "other" } }],
@@ -317,14 +347,19 @@ test("unknown signing-key rotation refreshes JWKS without weakening signature ch
   assert.ok(provider.jwksCalls() > before, `JWKS calls ${before} -> ${provider.jwksCalls()}`);
 });
 
-test("persisted verification resumes after restart while uncertain mint and lost handoff never mint twice", async t => {
+test("persisted verification replays through provider outage while uncertain mint and lost handoff never mint twice", async t => {
   const provider = await localProvider(t), s = suite(provider);
   const resumed = await s.begin("resume"); provider.register("resume-code", resumed.authorizationUrl);
   s.core.failAfterVerified = 1;
   const first = await s.invoke("completeOidc", s.callback(resumed, "resume-code"), { id: "complete-resume", attempt: 1 });
   assert.equal(first.settled.body.retry, true); assert.equal(provider.tokenCalls("resume-code"), 1); assert.equal(s.core.mints, 0);
+  const providerCalls = { discovery: provider.discoveryCalls(), token: provider.tokenCalls("resume-code"), jwks: provider.jwksCalls() };
+  provider.setUnavailable(true);
   const second = await s.invoke("completeOidc", s.callback(resumed, "resume-code"), { id: "complete-resume", attempt: 2 });
   assert.ok(second.settled.path.endsWith("/done")); assert.equal(provider.tokenCalls("resume-code"), 1); assert.equal(s.core.mints, 1);
+  assert.deepEqual({ discovery: provider.discoveryCalls(), token: provider.tokenCalls("resume-code"), jwks: provider.jwksCalls() }, providerCalls,
+    "a completed exchange replays its claims without discovery, token or JWKS reachability");
+  provider.setUnavailable(false);
 
   const uncertain = await s.begin("uncertain-mint"); provider.register("uncertain-mint-code", uncertain.authorizationUrl); s.core.loseMint = 1;
   assert.equal((await s.invoke("completeOidc", s.callback(uncertain, "uncertain-mint-code"),
@@ -338,6 +373,118 @@ test("persisted verification resumes after restart while uncertain mint and lost
   const failedClosed = await s.invoke("completeOidc", s.callback(lost, "lost-handoff-code"), { id: "complete-lost-handoff", attempt: 2 });
   assert.equal(failedClosed.settled.body.code, "E_OIDC_HANDOFF");
   assert.equal(provider.tokenCalls("lost-handoff-code"), 1); assert.equal(s.core.mints, 3, "lost handoff did not repeat mint");
+});
+
+test("a consumed code with a dropped token reply parks and is never posted twice", async t => {
+  const provider = await localProvider(t), s = suite(provider);
+  const flow = await s.begin("lost-token-reply");
+  provider.register("lost-token-reply-code", flow.authorizationUrl, { dropTokenReply: true });
+  const first = await s.invoke("completeOidc", s.callback(flow, "lost-token-reply-code"),
+    { id: "complete-lost-token-reply", attempt: 1 });
+  assert.equal(first.settled.body.code, "E_STEP_PARKED");
+  assert.equal(s.core.steps.get("complete-lost-token-reply:oidc.exchange").state, "parked");
+  assert.equal(provider.tokenCalls("lost-token-reply-code"), 1); assert.equal(s.core.mints, 0);
+  const restart = await s.invoke("completeOidc", s.callback(flow, "lost-token-reply-code"),
+    { id: "complete-lost-token-reply", attempt: 2 });
+  assert.equal(restart.settled.body.code, "E_STEP_PARKED");
+  assert.equal(provider.tokenCalls("lost-token-reply-code"), 1); assert.equal(s.core.mints, 0);
+});
+
+test("consumed-code uncertain OAuth and malformed responses park without a second token POST", async t => {
+  const provider = await localProvider(t), s = suite(provider);
+  const cases = [
+    ["server-error", { oauthError: "server_error" }],
+    ["temporarily-unavailable", { oauthError: "temporarily_unavailable" }],
+    ["unknown-oauth-error", { oauthError: "provider_extension_error" }],
+    ["http-503", { httpStatus: 503 }],
+    ["unreadable-reply", { unreadableReply: true }],
+    ["malformed-token-response", { malformedTokenResponse: true }],
+  ];
+  for (const [label, behavior] of cases) {
+    const flow = await s.begin(label); const code = `${label}-code`;
+    provider.register(code, flow.authorizationUrl, behavior);
+    const id = `complete-${label}`;
+    const first = await s.invoke("completeOidc", s.callback(flow, code), { id, attempt: 1 });
+    assert.equal(first.settled.body.code, "E_STEP_PARKED", label);
+    assert.equal(s.core.steps.get(`${id}:oidc.exchange`).state, "parked", label);
+    assert.equal(provider.tokenCalls(code), 1, label); assert.equal(s.core.mints, 0, label);
+    const restart = await s.invoke("completeOidc", s.callback(flow, code), { id, attempt: 2 });
+    assert.equal(restart.settled.body.code, "E_STEP_PARKED", label);
+    assert.equal(provider.tokenCalls(code), 1, `${label}: restart must not resend a consumed code`);
+    assert.equal(s.core.mints, 0, label);
+  }
+});
+
+test("unknown callback state is public refusal while malformed recipe data retains its internal diagnosis", async t => {
+  const provider = await localProvider(t), s = suite(provider);
+  const unknown = { code: "unknown-code", state: `unknown-${"z".repeat(32)}`, binding: `binding-${"z".repeat(32)}`, error: null, iss: provider.issuer };
+  assert.equal((await s.invoke("completeOidc", unknown, { id: "complete-unknown-state" })).settled.body.code, "E_OIDC_CALLBACK");
+  const flow = await s.begin("malformed-recipe");
+  s.core.byState(flow.state).nonce = null;
+  assert.equal((await s.invoke("completeOidc", s.callback(flow, "unused-code"),
+    { id: "complete-malformed-recipe" })).settled.body.code, "E_OIDC_RECIPE");
+});
+
+test("invocation lifetime releases provider and private-core fetch and body stalls without late identity effects", async t => {
+  const provider = await localProvider(t), s = suite(provider);
+  const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done; }); return { promise, resolve }; };
+  const stalledBody = (response, entered, pending) => {
+    const clone = response.clone.bind(response);
+    for (const method of ["json", "text", "arrayBuffer"]) response[method] = () => { entered.value = true; return pending.promise; };
+    response.clone = () => stalledBody(clone(), entered, pending);
+    return response;
+  };
+  const assertClosed = async (result, before, label, release) => {
+    assert.equal(result.settled.body.code, "E_ACTION_CANCELLED", label);
+    assert.equal(s.core.mints, 0, label);
+    assert.equal(s.core.allBodies.some(entry => entry.path === "/m/identity.verified" || entry.path === "/auth/session"), false, label);
+    release();
+    await delay(40);
+    assert.equal(s.core.allBodies.length, before, `${label}: no late core request after authority closed`);
+  };
+
+  for (const phase of ["discovery", "token", "jwks"]) {
+    for (const kind of ["fetch", "body"]) {
+      const label = `provider-${phase}-${kind}`, code = `${label}-code`;
+      const flow = await s.begin(label); provider.register(code, flow.authorizationUrl);
+      let providerSignal;
+      const entered = { value: false }, pending = deferred();
+      const result = await s.invoke("completeOidc", s.callback(flow, code), {
+        id: `complete-${label}`, cancelOnStatus: true,
+        providerFetch: async (url, init) => {
+          const path = new URL(url).pathname;
+          const actual = path.endsWith("/.well-known/openid-configuration") ? "discovery"
+            : path === "/token" ? "token" : path === "/jwks" ? "jwks" : "other";
+          if (actual !== phase) return nativeFetch(url, init);
+          providerSignal = init.signal; entered.value = true;
+          if (kind === "fetch") return pending.promise;
+          return stalledBody(await nativeFetch(url, init), entered, pending);
+        },
+      });
+      const before = s.core.allBodies.length;
+      assert.equal(entered.value, true); assert.equal(providerSignal.aborted, true);
+      assert.equal(provider.tokenCalls(code), phase === "discovery" || (phase === "token" && kind === "fetch") ? 0 : 1, label);
+      await assertClosed(result, before, `${phase} ${kind} stall`, () => pending.resolve(Response.json({})));
+    }
+  }
+
+  for (const kind of ["fetch", "body"]) {
+    let coreSignal;
+    const entered = { value: false }, pending = deferred();
+    const binding = `core-${kind}-${"x".repeat(32)}`;
+    const result = await s.invoke("beginOidc", { bindingHash: bindingHash(binding) }, {
+      id: `begin-core-${kind}`, cancelOnStatus: true,
+      coreFetch(path, _body, init) {
+        if (path !== "/q/identity.byInvocation") return undefined;
+        coreSignal = init.signal; entered.value = true;
+        if (kind === "fetch") return pending.promise;
+        return stalledBody(Response.json({ data: null }), entered, pending);
+      },
+    });
+    const before = s.core.allBodies.length;
+    assert.equal(entered.value, true); assert.equal(coreSignal.aborted, true);
+    await assertClosed(result, before, `private core ${kind} stall`, () => pending.resolve(Response.json({ data: null })));
+  }
 });
 
 test("configuration refuses non-HTTPS production and non-literal-loopback development", () => {

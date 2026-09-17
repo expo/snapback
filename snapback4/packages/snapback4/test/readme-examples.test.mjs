@@ -19,6 +19,7 @@ const publicSources = Object.entries(pkg.exports).filter(([key]) => key !== "./c
 // Each block is a separate module: no ambient client/api/any can hide a broken example.
 // The generated module stands for the app's schema; package imports always reach real source.
 const apiStub = `import type { Query, Mutation, Action, Cursor } from "snapback4/contract";
+import type { OidcTransactionOperations } from "snapback4/identity";
 type Message = { id: string; body: string | null; photo?: { id: string } | null };
 export declare const api: {
   handleAvailable: Query<{ handle: string }, boolean>;
@@ -30,7 +31,34 @@ export declare const api: {
   sendPhoto: Mutation<{ conversationId: string; photo: { id: string } }, { id: string }>;
   invite: Action<{ email: string }, { principal: string }>;
   social: { follow: Mutation<{ principal: string }, null> };
+  identityByInvocation: OidcTransactionOperations["byInvocation"];
+  identityByState: OidcTransactionOperations["byState"];
+  identityBegin: OidcTransactionOperations["begin"];
+  identityClaim: OidcTransactionOperations["claim"];
+  identityVerified: OidcTransactionOperations["verified"];
+  documentAt: Query<{ doc: string; revision: number }, { text: string }>;
+  saveSummary: Mutation<{ doc: string; revision: number; text: string }, unknown>;
+  applyBillingEvent: Mutation<unknown, unknown>;
 };\n`;
+const serverStub = `import type { OidcBeginArguments, OidcBeginResult, OidcCompleteArguments, OidcSession } from "snapback4/identity";
+import type { RouteRequest, ServerContext, VerificationContext } from "snapback4/server";
+import type { Worker } from "snapback4/worker";
+type MaybePromise<T> = T | Promise<T>;
+export declare const manifest: import("snapback4/server").ServerManifest;
+export declare function server(handlers: {
+  actions?: {
+    beginOidc?: (args: OidcBeginArguments, ctx: ServerContext<"OIDC_CLIENT_SECRET">) => MaybePromise<OidcBeginResult>;
+    completeOidc?: (args: OidcCompleteArguments, ctx: ServerContext<"OIDC_CLIENT_SECRET">) => MaybePromise<OidcSession>;
+    summarize?: (args: { doc: string; revision: number }, ctx: ServerContext) => MaybePromise<{ saved: boolean }>;
+  };
+  routes?: {
+    reportDownload?: (req: RouteRequest, ctx: ServerContext) => MaybePromise<Response>;
+    billingHook?: {
+      verify(req: RouteRequest, ctx: VerificationContext<"BILLING_KEY">): MaybePromise<boolean>;
+      handle(req: RouteRequest, ctx: ServerContext<"BILLING_KEY">): MaybePromise<Response>;
+    };
+  };
+}): Worker;\n`;
 
 test("README TypeScript examples compile and call every public function", (t) => {
   const started = performance.now();
@@ -38,9 +66,12 @@ test("README TypeScript examples compile and call every public function", (t) =>
   t.after(() => rmSync(scratch, { recursive: true, force: true }));
   mkdirSync(join(scratch, "src"));
   mkdirSync(join(scratch, "snapback/generated"), { recursive: true });
+  mkdirSync(join(scratch, "src/generated"), { recursive: true });
   writeFileSync(join(scratch, "snapback/generated/api.ts"), apiStub);
-  writeFileSync(join(scratch, "snapback/generated/server.ts"), 'import type { ServerManifest } from "snapback4/server";\nexport declare const manifest: ServerManifest;\n');
-  const readme = ["README.md", "CLIENT-AND-OPERATIONS.md"].map(name => read(join(root, name))).join("\n");
+  writeFileSync(join(scratch, "src/generated/api.ts"), apiStub);
+  writeFileSync(join(scratch, "snapback/generated/server.ts"), serverStub);
+  writeFileSync(join(scratch, "src/generated/server.ts"), serverStub);
+  const readme = ["README.md", "CLIENT-AND-OPERATIONS.md", "SERVER.md"].map(name => read(join(root, name))).join("\n");
   const blocks = [...readme.matchAll(/^```(tsx?)\s*\n([\s\S]*?)^```\s*$/gm)].map((match, index) => {
     const line = readme.slice(0, match.index).split("\n").length + 1;
     const file = join(scratch, "src", `block-${index + 1}.${match[1]}`);
