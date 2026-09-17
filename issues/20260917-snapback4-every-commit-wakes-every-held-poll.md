@@ -62,5 +62,14 @@ from 2.9 ms to 15–19 ms whether or not the send emits anything.
   `since`.
 - Keep the head-advance property the comment in `check` protects (a saturated page
   invalidates everything) and the restore detection of LLP 3000.007 §18.2.
+- **An obligation from LLP 3000.007 ruling 32 (lane W15a).** A push guarded by absence is recorded
+  and deferred a few seconds when its recipient holds a poll, and is cancelled only by a poll that
+  *arrives after the commit*. Today that arrival is guaranteed by the accident this ticket removes:
+  every commit wakes every poll, so a healthy recipient re-polls within milliseconds. A filtered wake
+  must therefore also wake the held polls of every principal a commit names as an unconfirmed
+  presence dependency (`_effect_presence`), whether or not the commit touched a partition that
+  principal holds — otherwise a connected recipient of a row-less effect is pushed while connected.
+  The failure is a duplicate notification, never a lost one, so it is safe to land the two in either
+  order; it is still a regression this fix must test.
 - Regression shape: the two probes above — a bystander's poll stays held across an
   unrelated commit and answers at its deadline with no table names it did not earn.
