@@ -23,7 +23,7 @@ export function context(
   secrets: Readonly<Record<string, string>>,
   options: ServerOptions & { url: string; token: string },
   redact: (message: string) => string,
-): { context: ServerContext<string>; close: () => Promise<void> } {
+): { context: ServerContext<string>; privateLifetime: { readonly signal: AbortSignal; readonly now: () => number; assertActive(): void }; close: () => Promise<void> } {
   const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
   const base = `${options.url.replace(/\/$/, "")}/actions/${encodeURIComponent(meta.id)}`;
   const lifetime = new AbortController();
@@ -150,6 +150,7 @@ export function context(
       writeIdFor(name) { assertActive(); return writeIdFor(meta.id, name); },
       step: steps(post, assertActive, redact),
     } satisfies ServerContext<string>),
+    privateLifetime: Object.freeze({ signal: lifetime.signal, now, assertActive }),
     async close() {
       if (!closed) {
         closed = true;

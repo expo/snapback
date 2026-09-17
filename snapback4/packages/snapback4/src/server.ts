@@ -2,7 +2,9 @@
 import type { Client } from "./contract.ts";
 import { runWorker, type ActionHandler, type EffectHandler, type Worker, type WorkerOptions } from "./worker.ts";
 import { context } from "./server-context.ts";
+import { identityRuntime } from "./identity-runtime.ts";
 import { redactor, ServerError, strictJson } from "./server-json.ts";
+import { identityExecutor, type IdentityRuntime } from "./server-private.ts";
 import type { StepRunner } from "./server-steps.ts";
 import { applicationRefusal, routeRequest, routeResponse, type RouteDeclaration, type ServiceRoute } from "./server-routes.ts";
 import { runVerifiers } from "./server-verify.ts";
@@ -114,14 +116,14 @@ export function startServer(manifest: ServerManifest, handlers: ServerHandlers, 
   if (options.signal?.aborted) abort(); else options.signal?.addEventListener("abort", abort, { once: true });
   const runtimeOptions = { ...options, url, token, signal: stop.signal };
   const actions: Record<string, ActionHandler<never>> = Object.create(null);
-  const bind = (declaration: { contract: string; secrets: readonly string[] }, handler: (args: unknown, ctx: ServerContext<string>, redact: (message: string) => string) => unknown): ActionHandler<never> => {
+  const bind = (declaration: { contract: string; secrets: readonly string[] }, handler: (args: unknown, ctx: ServerContext<string>, redact: (message: string) => string, runtime: IdentityRuntime) => unknown): ActionHandler<never> => {
     return async (args, meta) => {
       if (!declaration.contract || meta.contract !== declaration.contract) throw new ServerError("E_ACTION_GENERATION", "regenerate the server handlers for this action contract");
       const scopedRedact = (message: string) => redact(message.split(meta.session.token).join("[REDACTED]"));
       const lifetime = context(meta, secretsFor(declaration.secrets), runtimeOptions, scopedRedact);
       try {
         lifetime.context.invocation.signal.throwIfAborted();
-        const result = await handler(args, lifetime.context, scopedRedact);
+        const result = await handler(args, lifetime.context, scopedRedact, identityRuntime(runtimeOptions, lifetime.privateLifetime));
         lifetime.context.invocation.signal.throwIfAborted();
         return JSON.parse(strictJson(result, "E_ACTION_RESULT")) as unknown;
       } finally { await lifetime.close(); }
@@ -129,7 +131,10 @@ export function startServer(manifest: ServerManifest, handlers: ServerHandlers, 
   };
   for (const name of actionNames) {
     const handler = actionHandlers[name]!;
-    actions[name] = bind(manifest.actions[name]!, (args, ctx) => handler(args as never, ctx as never));
+    const privateHandler = identityExecutor(handler);
+    actions[name] = bind(manifest.actions[name]!, (args, ctx, _redact, runtime) => privateHandler
+      ? privateHandler(args, ctx, runtime)
+      : handler(args as never, ctx as never));
   }
   const verifiers: Record<string, { declaration: RouteDeclaration; handler: ServiceRoute<string> }> = Object.create(null);
   for (const name of routeNames) {

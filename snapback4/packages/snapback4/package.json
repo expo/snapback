@@ -39,6 +39,10 @@
       "types": "./dist/server.d.ts",
       "import": "./dist/server.js"
     },
+    "./identity": {
+      "types": "./dist/identity.d.ts",
+      "import": "./dist/identity.js"
+    },
     "./web": {
       "types": "./dist/web.d.ts",
       "import": "./dist/web.js"
@@ -57,6 +61,9 @@
   ],
   "optionalDependencies": {
     "snapback4-darwin-arm64": "0.2.27"
+  },
+  "dependencies": {
+    "openid-client": "6.8.8"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/",
