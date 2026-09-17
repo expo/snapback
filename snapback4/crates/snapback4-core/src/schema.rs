@@ -14,6 +14,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 mod work;
+mod json_contract;
 pub use work::{ActionSpec, WorkPolicy, WorkSpec};
 pub mod routes;
 pub use routes::RouteSpec;
@@ -469,7 +470,7 @@ pub enum IndexComponent {
     Contribution(Box<Maintain>),
     Column(String),
     Calendar(crate::maintain::CalendarKey),
-    WordPrefixes { fields: Vec<String>, #[serde(default)] contract: serde_json::Value },
+    WordPrefixes { fields: Vec<String>, #[serde(default, with = "json_contract")] contract: serde_json::Value },
 }
 
 impl IndexComponent {

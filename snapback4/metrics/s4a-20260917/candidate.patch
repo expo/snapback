@@ -1,0 +1,493 @@
+diff --git a/snapback4/Cargo.lock b/snapback4/Cargo.lock
+index 4fe695d7ab..daa491b098 100644
+--- a/snapback4/Cargo.lock
++++ b/snapback4/Cargo.lock
+@@ -850,6 +850,7 @@ dependencies = [
+ name = "snapback4-device"
+ version = "0.2.28"
+ dependencies = [
++ "base64",
+  "rusqlite",
+  "serde",
+  "serde_json",
+diff --git a/snapback4/crates/snapback4-core/src/ir.rs b/snapback4/crates/snapback4-core/src/ir.rs
+index 0eec06ee2d..3e59936aa5 100644
+--- a/snapback4/crates/snapback4-core/src/ir.rs
++++ b/snapback4/crates/snapback4-core/src/ir.rs
+@@ -318,8 +318,7 @@ pub struct MergeLane {
+ 
+ /// Query lane domains reuse statement-loop binding and evaluation. The scan
+ /// variant retains its wire shape for the frozen conformance programs.
+-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+-#[serde(untagged)]
++#[derive(Clone, Debug, PartialEq, Eq)]
+ pub enum LaneSource {
+     Scan(Scan),
+     Range { start: Expr, end_exclusive: Expr, max: Option<u64> },
+@@ -422,6 +421,7 @@ pub fn lit(value: Value) -> Expr {
+ }
+ 
+ fn deserialize_text_format<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Option<crate::schema::TextFormat>, D::Error> {
++    if !deserializer.is_human_readable() { return Option::<crate::schema::TextFormat>::deserialize(deserializer); }
+     match String::deserialize(deserializer)?.as_str() {
+         "handle" => Ok(Some(crate::schema::TextFormat::Handle)),
+         "url" => Ok(Some(crate::schema::TextFormat::Url)),
+diff --git a/snapback4/crates/snapback4-core/src/ir/lane_source.rs b/snapback4/crates/snapback4-core/src/ir/lane_source.rs
+index 34213ff65d..091e031bba 100644
+--- a/snapback4/crates/snapback4-core/src/ir/lane_source.rs
++++ b/snapback4/crates/snapback4-core/src/ir/lane_source.rs
+@@ -3,18 +3,50 @@
+ // nesting depth; the old untagged Content buffer did so only as a side effect.
+ // validate_text is a separate boundary policy, not a stored-program open pass.
+ use super::{Expr, LaneSource, Scan};
+-use serde::{Deserialize, Deserializer};
++use serde::{Deserialize, Deserializer, Serialize, Serializer};
+ use serde::de::{self, DeserializeSeed, IntoDeserializer, MapAccess, Visitor};
+ use std::fmt;
+ 
+ // @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — discriminate without a Content tree; nested values keep the original reader.
+ impl<'de> Deserialize<'de> for LaneSource {
+     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
++        if !deserializer.is_human_readable() {
++            #[derive(Deserialize)]
++            enum Tagged { Scan(Scan), Range { start: Expr, end_exclusive: Expr, max: Option<u64> }, List { value: Expr, max: u32 } }
++            return Ok(match Tagged::deserialize(deserializer)? {
++                Tagged::Scan(scan) => Self::Scan(scan),
++                Tagged::Range { start, end_exclusive, max } => Self::Range { start, end_exclusive, max },
++                Tagged::List { value, max } => Self::List { value, max },
++            });
++        }
+         let fields = checked_fields(Scan::deserialize(FieldNames).map(|_| ())).map_err(de::Error::custom)?;
+         deserializer.deserialize_map(SourceVisitor { fields })
+     }
+ }
+ 
++impl Serialize for LaneSource {
++    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
++        #[derive(Serialize)]
++        #[serde(untagged)]
++        enum Text<'a> { Scan(&'a Scan), Range { start: &'a Expr, end_exclusive: &'a Expr, max: &'a Option<u64> }, List { value: &'a Expr, max: u32 } }
++        #[derive(Serialize)]
++        enum Tagged<'a> { Scan(&'a Scan), Range { start: &'a Expr, end_exclusive: &'a Expr, max: &'a Option<u64> }, List { value: &'a Expr, max: u32 } }
++        if serializer.is_human_readable() {
++            match self {
++                Self::Scan(scan) => Text::Scan(scan),
++                Self::Range { start, end_exclusive, max } => Text::Range { start, end_exclusive, max },
++                Self::List { value, max } => Text::List { value, max: *max },
++            }.serialize(serializer)
++        } else {
++            match self {
++                Self::Scan(scan) => Tagged::Scan(scan),
++                Self::Range { start, end_exclusive, max } => Tagged::Range { start, end_exclusive, max },
++                Self::List { value, max } => Tagged::List { value, max: *max },
++            }.serialize(serializer)
++        }
++    }
++}
++
+ // Ask the derive for its field names without invoking its visitor. This keeps
+ // new Scan fields authoritative in one place, including for unknown-first maps.
+ #[derive(Debug)]
+diff --git a/snapback4/crates/snapback4-core/src/lib.rs b/snapback4/crates/snapback4-core/src/lib.rs
+index 5c79efea65..bebb235290 100644
+--- a/snapback4/crates/snapback4-core/src/lib.rs
++++ b/snapback4/crates/snapback4-core/src/lib.rs
+@@ -10,6 +10,7 @@ compile_error!("web-device-check is only for debug test witnesses of the web dev
+ 
+ pub mod assets;
+ pub(crate) mod authority;
++pub mod compact;
+ pub mod cursor;
+ pub mod engine;
+ pub mod error;
+diff --git a/snapback4/crates/snapback4-core/src/schema.rs b/snapback4/crates/snapback4-core/src/schema.rs
+index 369133fe3d..88913b28f9 100644
+--- a/snapback4/crates/snapback4-core/src/schema.rs
++++ b/snapback4/crates/snapback4-core/src/schema.rs
+@@ -14,6 +14,7 @@ use std::collections::{BTreeMap, BTreeSet};
+ use std::fmt;
+ 
+ mod work;
++mod json_contract;
+ pub use work::{ActionSpec, WorkPolicy, WorkSpec};
+ pub mod routes;
+ pub use routes::RouteSpec;
+@@ -469,7 +470,7 @@ pub enum IndexComponent {
+     Contribution(Box<Maintain>),
+     Column(String),
+     Calendar(crate::maintain::CalendarKey),
+-    WordPrefixes { fields: Vec<String>, #[serde(default)] contract: serde_json::Value },
++    WordPrefixes { fields: Vec<String>, #[serde(default, with = "json_contract")] contract: serde_json::Value },
+ }
+ 
+ impl IndexComponent {
+diff --git a/snapback4/crates/snapback4-core/src/value.rs b/snapback4/crates/snapback4-core/src/value.rs
+index 238a0441ff..1435b26c12 100644
+--- a/snapback4/crates/snapback4-core/src/value.rs
++++ b/snapback4/crates/snapback4-core/src/value.rs
+@@ -260,13 +260,22 @@ mod bytes_hex {
+     where
+         S: Serializer,
+     {
+-        serializer.serialize_str(&encode(bytes))
++        if serializer.is_human_readable() { serializer.serialize_str(&encode(bytes)) } else { serializer.serialize_bytes(bytes) }
+     }
+ 
+     pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+     where
+         D: Deserializer<'de>,
+     {
++        if !deserializer.is_human_readable() {
++            struct Bytes;
++            impl<'de> de::Visitor<'de> for Bytes {
++                type Value = Vec<u8>;
++                fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result { f.write_str("bytes") }
++                fn visit_bytes<E: de::Error>(self, value: &[u8]) -> Result<Vec<u8>, E> { Ok(value.to_vec()) }
++            }
++            return deserializer.deserialize_bytes(Bytes);
++        }
+         let encoded = String::deserialize(deserializer)?;
+         decode(&encoded).ok_or_else(|| {
+             de::Error::custom("Bytes must be canonical lowercase even-length base16")
+diff --git a/snapback4/crates/snapback4-device/Cargo.toml b/snapback4/crates/snapback4-device/Cargo.toml
+index f6ffeef59d..f821df6418 100644
+--- a/snapback4/crates/snapback4-device/Cargo.toml
++++ b/snapback4/crates/snapback4-device/Cargo.toml
+@@ -22,6 +22,7 @@ web = ["dep:wasm-bindgen", "snapback4-core/web"]
+ web-device-check = ["snapback4-core/web-device-check"]
+ 
+ [dependencies]
++base64 = "0.22"
+ snapback4-core = { path = "../snapback4-core", default-features = false }
+ serde = { version = "1", features = ["derive"] }
+ serde_json = "1"
+diff --git a/snapback4/crates/snapback4-device/src/call.rs b/snapback4/crates/snapback4-device/src/call.rs
+index 2a8c88b26a..947701c4d6 100644
+--- a/snapback4/crates/snapback4-device/src/call.rs
++++ b/snapback4/crates/snapback4-device/src/call.rs
+@@ -6,7 +6,9 @@
+ //! admit, settle, predict, withdraw, enqueue, queued, next_submission,
+ //! dequeue, meta, set_meta, clear_rows, install_native.
+ 
+-use crate::device::{Backend, Device, Queued, StreamPage};
++use crate::device::{Device, Queued, StreamPage};
++#[cfg(not(target_arch = "wasm32"))]
++use crate::device::Backend;
+ use crate::store::DeviceStore;
+ use serde_json::{Value as Json, json};
+ use snapback4_core::error::RuntimeError;
+@@ -62,6 +64,9 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
+             }
+             "sync_state" => encoded(&device.sync_state()?)?,
+             "begin_send" => json!({ "send_revision": device.begin_send()? }),
++            #[cfg(target_arch = "wasm32")]
++            "adopt" => return Err(crate::device::backend_image::image_error("the web device adopts backend bytes through adopt_image")),
++            #[cfg(not(target_arch = "wasm32"))]
+             "adopt" => {
+                 let mut expected = std::collections::BTreeMap::new();
+                 for (field, key) in [("store_id", "device:store_id"), ("send_revision", "device:send_revision")] {
+@@ -96,7 +101,10 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
+                     Err(refusal) => json!({ "denied": encoded(&refusal)?, "unknown": unknown, "retained": retained }),
+                 }
+             }
++            #[cfg(not(target_arch = "wasm32"))]
+             "backend" => encoded(&device.backend())?,
++            #[cfg(target_arch = "wasm32")]
++            "backend" => Json::String(device.store().meta("device:backend")?.ok_or_else(|| crate::device::backend_image::image_error("the kept backend has no host JSON"))?),
+             "upload_facts" => {
+                 device.upload_facts(text(&request, "viewer")?, arg(&request, "asset")?)?;
+                 Json::Null
+diff --git a/snapback4/crates/snapback4-device/src/device.rs b/snapback4/crates/snapback4-device/src/device.rs
+index fd74f57fd5..ff8c5f6168 100644
+--- a/snapback4/crates/snapback4-device/src/device.rs
++++ b/snapback4/crates/snapback4-device/src/device.rs
+@@ -22,7 +22,9 @@ mod predictions;
+ mod media;
+ mod snapshot;
+ mod history;
+-mod store_identity;
++pub mod store_identity;
++pub mod backend_image;
++pub use backend_image::BackendImage;
+ pub use store_identity::StoreObservation;
+ 
+ /// The compiled backend, as `GET /schema` sends it.
+@@ -252,24 +254,29 @@ impl<S: DeviceStore> Device<S> {
+     /// or, with none, for the backend kept from last time, so a device
+     /// that starts with no network opens on what it holds. The schema is
+     /// installed; a literal-default addition can keep older row images.
+-    pub fn open_store(mut store: S, backend: Option<Backend>) -> Result<Self, RuntimeError> {
+-        let mut backend = match backend {
+-            Some(backend) => backend,
+-            None => {
+-                let kept = store.meta(BACKEND)?.ok_or_else(|| RuntimeError::Auth("this device has never synced: the server must be reachable once to open".into()))?;
+-                snapback4_core::json_codec::from_text(&kept).map_err(|e| RuntimeError::Store(format!("the kept backend does not parse: {e}")))?
+-            }
+-        };
+-        backend.schema.prepare_contribution_indexes();
++    #[cfg(not(target_arch = "wasm32"))]
++    pub fn open_store(store: S, backend: Option<Backend>) -> Result<Self, RuntimeError> {
++        let prepared = match backend { Some(backend) => backend_image::Prepared::json(backend)?, None => backend_image::Prepared::kept(&store)? };
++        Self::open_prepared(store, prepared)
++    }
++
++    pub fn open_image(store: S, image: Option<BackendImage>) -> Result<Self, RuntimeError> {
++        let prepared = match image { Some(image) => backend_image::Prepared::image(image)?, None => backend_image::Prepared::kept(&store)? };
++        Self::open_prepared(store, prepared)
++    }
++
++    fn open_prepared(mut store: S, prepared: backend_image::Prepared) -> Result<Self, RuntimeError> {
++        let mut metadata = prepared.metadata();
++        let backend = prepared.backend;
++        let backend_identity = prepared.identity;
+         let held = store.meta(GENERATION)?.and_then(|g| g.parse::<u64>().ok()).unwrap_or(0);
+         let reset = held != 0 && held != backend.generation;
+-        let previous = store.meta(BACKEND)?.and_then(|text| snapback4_core::json_codec::from_text::<Backend>(&text).ok());
++        let previous = backend_image::previous(&store)?;
+         let keep_images = reset && previous.as_ref()
+             .is_some_and(|old| snapback4_core::successor::keeps_literal_default_images(&old.schema, &backend.schema));
+         let keep_acquired = keep_images && previous.as_ref().is_some_and(|old| old.schema.tables.len() == backend.schema.tables.len())
+             && store.meta(ACQUIRED)? == Some(held.to_string());
+-        let backend_identity = store_identity::backend_identity(&backend);
+-        let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string()), (BACKEND_IDENTITY.to_owned(), backend_identity.clone())]);
++
+         if reset {
+             metadata.insert(WATERMARK.to_owned(), "0".into());
+             metadata.insert(ACQUIRED.to_owned(), if keep_acquired { backend.generation.to_string() } else { String::new() });
+@@ -358,12 +365,24 @@ impl<S: DeviceStore> Device<S> {
+     /// The backend changed (a new generation from `/schema`): adopt it and
+     /// keep it; a literal-default addition keeps the old images readable.
+     /// A changed generation still requests a fresh snapshot.
++    #[cfg(not(target_arch = "wasm32"))]
+     pub fn adopt(&mut self, backend: Backend) -> Result<(), RuntimeError> {
+         self.adopt_captured(backend, BTreeMap::new())
+     }
+ 
+-    pub fn adopt_captured(&mut self, mut backend: Backend, mut expected: BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
+-        backend.schema.prepare_contribution_indexes();
++    #[cfg(not(target_arch = "wasm32"))]
++    pub fn adopt_captured(&mut self, backend: Backend, expected: BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
++        self.adopt_prepared(backend_image::Prepared::json(backend)?, expected)
++    }
++
++    pub fn adopt_image(&mut self, image: BackendImage, expected: BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
++        self.adopt_prepared(backend_image::Prepared::image(image)?, expected)
++    }
++
++    fn adopt_prepared(&mut self, prepared: backend_image::Prepared, mut expected: BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
++        let mut metadata = prepared.metadata();
++        let backend = prepared.backend;
++        let backend_identity = prepared.identity;
+         let required = self.store.meta(BACKEND_REQUIRED)?;
+         expected.entry(BACKEND_REQUIRED.into()).or_insert(required.clone());
+         expected.entry(STORE_ID.into()).or_insert(self.store.meta(STORE_ID)?);
+@@ -379,8 +398,7 @@ impl<S: DeviceStore> Device<S> {
+         // The image predicate permits added tables; those require acquisition.
+         let keep_acquired = keep_images && self.schema.tables.len() == backend.schema.tables.len()
+             && self.store.meta(ACQUIRED)? == Some(self.generation.to_string());
+-        let backend_identity = store_identity::backend_identity(&backend);
+-        let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string()), (BACKEND_IDENTITY.to_owned(), backend_identity.clone())]);
++
+         metadata.insert(BACKEND_REQUIRED.to_owned(), String::new());
+         if reset {
+             metadata.insert(WATERMARK.to_owned(), "0".into());
+diff --git a/snapback4/crates/snapback4-device/src/device/store_identity.rs b/snapback4/crates/snapback4-device/src/device/store_identity.rs
+index 7ee3d1512b..ea448e0b9c 100644
+--- a/snapback4/crates/snapback4-device/src/device/store_identity.rs
++++ b/snapback4/crates/snapback4-device/src/device/store_identity.rs
+@@ -14,10 +14,13 @@ pub(super) fn require_healthy<T: DeviceTx>(tx: &T) -> Result<(), RuntimeError> {
+ 
+ // The installed program set is shared, but each native owner has its own
+ // interpreter. Same-generation replacement must invalidate that interpreter.
+-pub(super) fn backend_identity(backend: &Backend) -> String {
++#[cfg(not(target_arch = "wasm32"))]
++pub fn backend_identity(backend: &Backend) -> String {
+     let mut programs: Vec<_> = backend.programs.iter().collect();
+     programs.sort_by(|a, b| a.name.cmp(&b.name));
+-    snapback4_core::value::digest(&(&backend.schema, programs, backend.generation))
++    let mut schema = backend.schema.clone();
++    schema.prepare_contribution_indexes();
++    snapback4_core::value::digest(&(&schema, programs, backend.generation))
+ }
+ 
+ // @ref LLP 3000.007#18.2 — each owner's interpreter and loaded native bytes belong to its adopted incarnation.
+diff --git a/snapback4/crates/snapback4-device/src/memory.rs b/snapback4/crates/snapback4-device/src/memory.rs
+index 3cf8ed6ebd..5cf504866e 100644
+--- a/snapback4/crates/snapback4-device/src/memory.rs
++++ b/snapback4/crates/snapback4-device/src/memory.rs
+@@ -55,7 +55,10 @@ enum Undo {
+     Staged(String, Option<(String, String)>),
+ }
+ 
++#[cfg(not(target_arch = "wasm32"))]
+ const SCHEMA_HASH: &str = "memory:schema";
++#[cfg(target_arch = "wasm32")]
++const SCHEMA_HASH: &str = "memory:backend";
+ 
+ #[derive(Default)]
+ pub struct MemoryStore {
+@@ -208,6 +211,10 @@ impl DeviceStore for MemoryStore {
+         self.install(schema, metadata, reset)
+     }
+     fn install(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool) -> Result<(), RuntimeError> {
++        #[cfg(target_arch = "wasm32")]
++        let hash = metadata.get("device:backend_identity").ok_or_else(|| crate::device::backend_image::image_error("backend installation needs its server identity"))?.clone();
++        #[cfg(not(target_arch = "wasm32"))]
++        let hash = schema.hash();
+         let mut state = self.state.borrow_mut();
+         let mut changes = self.changes.borrow_mut();
+         for (key, value) in metadata {
+@@ -229,9 +236,8 @@ impl DeviceStore for MemoryStore {
+             state.staged.clear();
+         }
+         // Rows are projected onto the schema only when it changed since they
+-        // were kept (the hash rides in the metadata); index entries are
++        // were kept (web uses the server backend identity); index entries are
+         // rebuilt on every install.
+-        let hash = schema.hash();
+         if state.meta.get(SCHEMA_HASH) != Some(&hash) {
+             let mut rows = std::mem::take(&mut state.rows);
+             rows.retain(|(table, id), _| {
+diff --git a/snapback4/crates/snapback4-device/src/web.rs b/snapback4/crates/snapback4-device/src/web.rs
+index 3d1f7ab65f..13d7f395c5 100644
+--- a/snapback4/crates/snapback4-device/src/web.rs
++++ b/snapback4/crates/snapback4-device/src/web.rs
+@@ -4,7 +4,7 @@
+ //! takes the changes to persist (IndexedDB, behind the call) — so a cold
+ //! start with no network opens on what it holds.
+ 
+-use crate::device::{Backend, Device};
++use crate::device::{BackendImage, Device};
+ use crate::memory::{Change, MemoryStore};
+ use serde_json::json;
+ use wasm_bindgen::prelude::*;
+@@ -20,24 +20,32 @@ fn refused(error: &snapback4_core::error::RuntimeError) -> JsError {
+ 
+ #[wasm_bindgen]
+ impl WebDevice {
+-    /// Open on `backend` (`GET /schema`'s JSON text, or null to open on the
+-    /// backend kept) with `kept`: a JSON array of the changes the host
+-    /// persisted, in order. Throws the refusal as JSON text.
++    /// Open from the server image and opaque host JSON; empty bytes reopen
++    /// the image kept by the host. No backend JSON is decoded in this module.
+     #[wasm_bindgen(constructor)]
+-    pub fn new(backend: Option<String>, kept: &str) -> Result<WebDevice, JsError> {
+-        let backend = match backend {
+-            Some(text) if !text.is_empty() && text != "null" => Some(snapback4_core::json_codec::from_text::<Backend>(&text).map_err(|e| JsError::new(&json!({ "denied": { "code": "E_INPUT", "family": "input", "message": e.to_string() } }).to_string()))?),
+-            _ => None,
+-        };
++    pub fn new(bytes: &[u8], identity: &str, host_json: &str, kept: &str) -> Result<WebDevice, JsError> {
++        let image = if bytes.is_empty() { None } else { Some(BackendImage { bytes: bytes.to_vec(), identity: identity.into(), host_json: host_json.into() }) };
+         let changes: Vec<Change> = if kept.is_empty() { Vec::new() } else { snapback4_core::json_codec::from_text(kept).map_err(|e| JsError::new(&json!({ "denied": { "code": "E_STORE", "family": "store", "message": format!("the kept changes do not parse: {e}") } }).to_string()))? };
+         let mut store = MemoryStore::new();
+         store.load(changes).map_err(|e| refused(&e))?;
+         // What the open installed (the backend, the generation, a reset) is
+         // the host's to keep too: the first drain carries it.
+-        let device = Device::open_store(store, backend).map_err(|e| refused(&e))?;
++        let device = Device::open_image(store, image).map_err(|e| refused(&e))?;
+         Ok(WebDevice { device })
+     }
+ 
++    /// Adopt while preserving the capture checks of the JSON host protocol.
++    pub fn adopt_image(&mut self, bytes: &[u8], identity: &str, host_json: &str, capture: &str) -> String {
++        let result = (|| {
++            let expected = snapback4_core::json_codec::from_text(capture).map_err(|e| crate::device::backend_image::image_error(format!("invalid adoption capture: {e}")))?;
++            self.device.adopt_image(BackendImage { bytes: bytes.to_vec(), identity: identity.into(), host_json: host_json.into() }, expected)
++        })();
++        match result {
++            Ok(()) => json!({ "ok": null }).to_string(),
++            Err(error) => json!({ "denied": snapback4_core::json_codec::to_value(&error.refusal()).expect("a refusal is serializable") }).to_string(),
++        }
++    }
++
+     /// One call: JSON text in, JSON text out.
+     pub fn call(&mut self, request: &str) -> String {
+         crate::call::call_text(&mut self.device, request).to_string()
+diff --git a/snapback4/crates/snapback4-lang/src/guide/codes.rs b/snapback4/crates/snapback4-lang/src/guide/codes.rs
+index 5f09f9b16d..e1a660668c 100644
+--- a/snapback4/crates/snapback4-lang/src/guide/codes.rs
++++ b/snapback4/crates/snapback4-lang/src/guide/codes.rs
+@@ -34,6 +34,7 @@ pub const CODES: &[(&str, &str)] = &[
+     ("E_WRITE_RECEIPT_EXPIRED", "family input — this client already used the write id, but its receipt is no longer retained; reopen the client to ask the server for the original outcome. The client never admits a known id twice; guide writes."),
+     ("E_QUARRY_MODIFIER_SCOPE", "by or matching immediately after an unparenthesized read inside where could belong to the inner or outer read. Parenthesize the inner read, or move the modifier before where; check --fix preserves the inner modifier by adding parentheses. guide reads."),
+     ("E_REPLAY_DEV_ONLY", "--replay requires dev without --release; serve and releases always emit effects normally. Use snapback4 dev --replay to suppress new effects and hold schedules; guide replay."),
++    ("E_BACKEND_IMAGE", "family structural — the backend image is malformed, unsupported, mismatched, or missing from a pre-image web store. The store is untouched. Connect once so this device can upgrade its kept backend; a version mismatch needs a matching runtime. Web hosts use adopt_image, not JSON adopt. See `guide sync`."),
+     ("E_STORE_RESTORE", "family store — the same backend store identity reports a head below this device's watermark. Sync and reads halt; stop the client and use a fresh device store and outbox for the restored backend. A retry or backend adoption does not reacquire the same identity. See `guide sync`."),
+     ("E_CURSOR_INDEX", "a cursor needs an index ending in id or a total unique key. Append id to the named index with check --fix; guide indexes."),
+     ("E_CLOCK_DEV_ONLY", "clock controls require dev; serve always uses wall time. Use dev --clock-offset, clock advance or a local run --now; guide clock."),
+diff --git a/snapback4/crates/snapback4/src/serve.rs b/snapback4/crates/snapback4/src/serve.rs
+index 0dec097a8c..77a3e3c66e 100644
+--- a/snapback4/crates/snapback4/src/serve.rs
++++ b/snapback4/crates/snapback4/src/serve.rs
+@@ -45,7 +45,11 @@ mod tests;
+ #[path = "read_cost.rs"]
+ pub(crate) mod read_cost;
+ 
++#[path = "schema_image.rs"]
++mod schema_image;
++
+ pub struct Shared {
++    schema_image: Mutex<Option<schema_image::Image>>,
+     pub clock: Arc<Mutex<crate::dev_clock::Clock>>,
+     maintenance: Mutex<()>,
+     pub engine: Mutex<Engine>,
+@@ -289,7 +293,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(),
+     let generation: u64 = engine.generation();
+     let adoption = Mutex::new(adoption::Status::new(engine.store().meta("store_id").map_err(|e| e.to_string())?.unwrap_or_default()));
+     let shared = Arc::new(Shared {
+-        adoption, clock, maintenance: Mutex::new(()), engine: Mutex::new(engine), readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), worker_revision: AtomicUsize::new(0), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
++        schema_image: Mutex::new(None), adoption, clock, maintenance: Mutex::new(()), engine: Mutex::new(engine), readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), worker_revision: AtomicUsize::new(0), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
+         route_verification: routes::Verification::default(),
+         #[cfg(test)] auth_work: Mutex::new(None),
+         #[cfg(test)] upload_work: Mutex::new(None),
+@@ -901,16 +905,7 @@ fn handle(mut request: Request, shared: &Shared) {
+             };
+             respond(request, 200, body);
+         }
+-        (Method::Get, "/schema") => {
+-            // The compiled backend a device runs locally: the schema and the
+-            // programs' IR, bound to a generation.
+-            let (schema, programs, generation, native) = {
+-                let bound = lock(&shared.bound);
+-                (bound.schema.clone(), snapback4_lang::emit::backend_programs(&bound), *lock(&shared.generation), lock(&shared.native).as_ref().map(|n| (n.digest.clone(), n.jobs.clone(), n.reads.clone())))
+-            };
+-            let native = native.map(|(digest, jobs, reads)| json!({ "digest": digest, "jobs": jobs, "reads": reads }));
+-            respond(request, 200, json!({ "generation": generation, "schema": schema, "programs": programs, "native": native }));
+-        }
++        (Method::Get, "/schema") => schema_image::respond_schema(request, shared),
+         (Method::Get, "/native.wasm") => {
+             // The app's module, for a device to run its native reads over
+             // the rows it holds (LLP 3000.005 §9).
+@@ -1247,6 +1242,7 @@ mod poison_tests {
+             adoption: Mutex::new(adoption::Status::new(String::new())),
+             engine: Mutex::new(engine),
+             readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()),
++            schema_image: Mutex::new(None),
+             bound: Mutex::new(Bound { schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics: Vec::new(), notes: Vec::new() }),
+             generation: Mutex::new(1),
+             worker_revision: AtomicUsize::new(0),
+diff --git a/snapback4/crates/snapback4/src/serve_tests.rs b/snapback4/crates/snapback4/src/serve_tests.rs
+index d840d41bdd..333d397d7f 100644
+--- a/snapback4/crates/snapback4/src/serve_tests.rs
++++ b/snapback4/crates/snapback4/src/serve_tests.rs
+@@ -42,6 +42,7 @@ impl Host {
+             adoption: Mutex::new(adoption::Status::new(String::new())),
+             engine: Mutex::new(engine),
+             readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()),
++            schema_image: Mutex::new(None),
+             bound: Mutex::new(bound),
+             generation: Mutex::new(generation),
+             worker_revision: AtomicUsize::new(0),
+diff --git a/snapback4/scripts/attribute-wasm.mjs b/snapback4/scripts/attribute-wasm.mjs
+index a156045f81..105f374dce 100644
+--- a/snapback4/scripts/attribute-wasm.mjs
++++ b/snapback4/scripts/attribute-wasm.mjs
+@@ -67,7 +67,7 @@ export function collectFamilies(kept) {
+       let family;
+       const ownedTree = /(?:^<|::<)(?:&mut |&)?serde_json::(?:(?:value::)?Value|(?:map::)?Map|map::\w+|value::de::\w*Deserializer)(?:[<>]| as )/.test(n);
+       if (direction === 'deserialize') {
+-        family = /serde::private::de::content::(?:Content(?:Ref)?Deserializer|visit_content_)/.test(n) ? contentFamily : n.includes('snapback4_core::ir::lane_source::Replay<') ? replayFamily : n.includes('serde_json::read::StrRead') ? 'serde_json::de::Deserializer<serde_json::read::StrRead>' : n.includes('serde_json::read::SliceRead') ? 'serde_json::de::Deserializer<serde_json::read::SliceRead>' : concrete(n, 'serde_json::de::Deserializer<') ?? (ownedTree ? 'serde_json::Value/Map (owned tree)' : undefined);
++        family = n.includes('snapback4_core::compact::de::Deserializer') ? 'snapback4_core::compact::de::Deserializer' : n.includes('snapback4_core::compact::de::Absent') ? 'snapback4_core::compact::de::Absent' : /serde::private::de::content::(?:Content(?:Ref)?Deserializer|visit_content_)/.test(n) ? contentFamily : n.includes('snapback4_core::ir::lane_source::Replay<') ? replayFamily : n.includes('serde_json::read::StrRead') ? 'serde_json::de::Deserializer<serde_json::read::StrRead>' : n.includes('serde_json::read::SliceRead') ? 'serde_json::de::Deserializer<serde_json::read::SliceRead>' : concrete(n, 'serde_json::de::Deserializer<') ?? (ownedTree ? 'serde_json::Value/Map (owned tree)' : undefined);
+       } else {
+         const keyWriter = concrete(n, 'serde_json::ser::MapKeySerializer<');
+         family = keyWriter ? keyWriter.replace('MapKeySerializer<', 'Serializer<').replace(', serde_json::ser::CompactFormatter>', '>') : n.includes('serde_json::value::ser::Serializer') ? 'serde_json::value::ser::Serializer' : concrete(n, 'serde_json::ser::Serializer<') ?? (ownedTree ? 'serde_json::Value/Map (owned tree)' : undefined);

@@ -45,7 +45,7 @@ if (process.argv[2] !== '--check-families' || process.env.TEST_FAMILY_FAIL === '
     const budget = path.join(root, 'metrics/wasm-budget.json');
     const log = path.join(dir, 'tools.log');
     for (const name of ['build-wasm.sh', 'measure-wasm.sh']) {
-      const run = (dirty = '', familyFail = false) => spawnSync('bash', [path.join(root, 'scripts', name)], {
+      const run = (dirty = '', familyFail = false, extra = []) => spawnSync('bash', [path.join(root, 'scripts', name), ...extra], {
         encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${path.dirname(process.execPath)}:${process.env.PATH}`, TOOLS_LOG: log, TEST_DIRTY: dirty, TEST_FAMILY_FAIL: String(familyFail) },
       });
       rmSync(budget, { force: true }); writeFileSync(log, '');
@@ -69,6 +69,14 @@ if (process.argv[2] !== '--check-families' || process.env.TEST_FAMILY_FAIL === '
         writeFileSync(log, '');
         const metrics = path.join(root, 'metrics/wasm.jsonl');
         const before = readFileSync(metrics, 'utf8');
+        const preview = run('snapback4/crates', false, ['--no-record']);
+        assert.equal(preview.status, 0, preview.stderr);
+        assert.equal(JSON.parse(preview.stdout).dirty, true);
+        assert.equal(readFileSync(metrics, 'utf8'), before, 'a preview must not append a dirty measurement');
+        const unknown = run('', false, ['--unknown']);
+        assert.notEqual(unknown.status, 0);
+        assert.match(unknown.stderr, /usage:/);
+        writeFileSync(log, '');
         const rejected = run('', true);
         assert.notEqual(rejected.status, 0);
         assert.doesNotMatch(readFileSync(log, 'utf8'), /cargo/);

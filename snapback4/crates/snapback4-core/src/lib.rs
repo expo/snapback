@@ -10,6 +10,7 @@ compile_error!("web-device-check is only for debug test witnesses of the web dev
 
 pub mod assets;
 pub(crate) mod authority;
+pub mod compact;
 pub mod cursor;
 pub mod engine;
 pub mod error;

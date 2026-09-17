@@ -260,13 +260,22 @@ mod bytes_hex {
     where
         S: Serializer,
     {
-        serializer.serialize_str(&encode(bytes))
+        if serializer.is_human_readable() { serializer.serialize_str(&encode(bytes)) } else { serializer.serialize_bytes(bytes) }
     }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
     where
         D: Deserializer<'de>,
     {
+        if !deserializer.is_human_readable() {
+            struct Bytes;
+            impl<'de> de::Visitor<'de> for Bytes {
+                type Value = Vec<u8>;
+                fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result { f.write_str("bytes") }
+                fn visit_bytes<E: de::Error>(self, value: &[u8]) -> Result<Vec<u8>, E> { Ok(value.to_vec()) }
+            }
+            return deserializer.deserialize_bytes(Bytes);
+        }
         let encoded = String::deserialize(deserializer)?;
         decode(&encoded).ok_or_else(|| {
             de::Error::custom("Bytes must be canonical lowercase even-length base16")

@@ -318,8 +318,7 @@ pub struct MergeLane {
 
 /// Query lane domains reuse statement-loop binding and evaluation. The scan
 /// variant retains its wire shape for the frozen conformance programs.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-#[serde(untagged)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LaneSource {
     Scan(Scan),
     Range { start: Expr, end_exclusive: Expr, max: Option<u64> },
@@ -422,6 +421,7 @@ pub fn lit(value: Value) -> Expr {
 }
 
 fn deserialize_text_format<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Option<crate::schema::TextFormat>, D::Error> {
+    if !deserializer.is_human_readable() { return Option::<crate::schema::TextFormat>::deserialize(deserializer); }
     match String::deserialize(deserializer)?.as_str() {
         "handle" => Ok(Some(crate::schema::TextFormat::Handle)),
         "url" => Ok(Some(crate::schema::TextFormat::Url)),

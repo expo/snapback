@@ -1,0 +1,34 @@
+[package]
+name = "snapback4-device"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+description = "Snapback 4 on a device: one implementation of the device — the partition held, the stream applied, the outbox kept, queries and predictions answered — over the core's SQLite on a native host (`native`, with a C ABI) or over memory as wasm on the web (`web`)."
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[features]
+default = ["native"]
+# The app's native module on the device (LLP 3000.005 §9): a native read
+# runs over the rows the device holds, the same Rust as on the server.
+wasm-host = ["snapback4-core/wasm-host", "dep:sha2"]
+native = ["snapback4-core/sqlite", "dep:rusqlite", "wasm-host"]
+# The web keeps its wasm without the host: with it the device's wasm is
+# 647,583 B gzip against 312,924 (measured 2026-09-13); a web device answers
+# a native read by saying it has no module, and the client asks the server.
+web = ["dep:wasm-bindgen", "snapback4-core/web"]
+web-device-check = ["snapback4-core/web-device-check"]
+
+[dependencies]
+base64 = "0.22"
+snapback4-core = { path = "../snapback4-core", default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = { version = "0.10", optional = true }
+wasm-bindgen = { version = "=0.2.127", optional = true }
+rusqlite = { version = "0.40.2", features = ["bundled"], optional = true }
+
+[dev-dependencies]
+snapback4-lang = { path = "../snapback4-lang" }

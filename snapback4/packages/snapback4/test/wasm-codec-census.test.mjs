@@ -161,9 +161,15 @@ test('content representations require a decoder and cannot hide in whitespace or
     }
   }
   const source = sources().get(file);
-  const mutant = source.replace('#[derive(Clone, Debug, PartialEq, Eq, Serialize)]\n#[serde(untagged)]\npub enum LaneSource', '#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]\n#[serde(untagged)]\npub enum LaneSource');
+  const mutant = source.replace('#[derive(Clone, Debug, PartialEq, Eq)]\npub enum LaneSource', '#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]\n#[serde(untagged)]\npub enum LaneSource');
   assert.notEqual(mutant, source, 'restore LaneSource derived untagged decoder');
   assert.ok(census(new Map([[file, mutant]]), []).some(e => e.includes('content buffering')));
+  const mirrorFile = core + 'ir/lane_source.rs';
+  const mirror = sources().get(mirrorFile);
+  const buffered = mirror.replace('#[derive(Serialize)]\n        #[serde(untagged)]', '#[derive(Serialize, Deserialize)]\n        #[serde(untagged)]');
+  assert.notEqual(buffered, mirror, 'the private text mirror is serializer-only');
+  assert.ok(census(new Map([[mirrorFile, buffered]]), []).some(e => e.includes('content buffering')));
+
   assert.deepEqual(census(new Map([[file, '#[cfg(test)]\nmod oracle { #[derive(Deserialize)] #[serde(untagged)] enum Old { X } }']]), []), []);
 });
 

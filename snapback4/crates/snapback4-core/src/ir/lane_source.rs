@@ -3,15 +3,47 @@
 // nesting depth; the old untagged Content buffer did so only as a side effect.
 // validate_text is a separate boundary policy, not a stored-program open pass.
 use super::{Expr, LaneSource, Scan};
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{self, DeserializeSeed, IntoDeserializer, MapAccess, Visitor};
 use std::fmt;
 
 // @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — discriminate without a Content tree; nested values keep the original reader.
 impl<'de> Deserialize<'de> for LaneSource {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        if !deserializer.is_human_readable() {
+            #[derive(Deserialize)]
+            enum Tagged { Scan(Scan), Range { start: Expr, end_exclusive: Expr, max: Option<u64> }, List { value: Expr, max: u32 } }
+            return Ok(match Tagged::deserialize(deserializer)? {
+                Tagged::Scan(scan) => Self::Scan(scan),
+                Tagged::Range { start, end_exclusive, max } => Self::Range { start, end_exclusive, max },
+                Tagged::List { value, max } => Self::List { value, max },
+            });
+        }
         let fields = checked_fields(Scan::deserialize(FieldNames).map(|_| ())).map_err(de::Error::custom)?;
         deserializer.deserialize_map(SourceVisitor { fields })
+    }
+}
+
+impl Serialize for LaneSource {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        #[derive(Serialize)]
+        #[serde(untagged)]
+        enum Text<'a> { Scan(&'a Scan), Range { start: &'a Expr, end_exclusive: &'a Expr, max: &'a Option<u64> }, List { value: &'a Expr, max: u32 } }
+        #[derive(Serialize)]
+        enum Tagged<'a> { Scan(&'a Scan), Range { start: &'a Expr, end_exclusive: &'a Expr, max: &'a Option<u64> }, List { value: &'a Expr, max: u32 } }
+        if serializer.is_human_readable() {
+            match self {
+                Self::Scan(scan) => Text::Scan(scan),
+                Self::Range { start, end_exclusive, max } => Text::Range { start, end_exclusive, max },
+                Self::List { value, max } => Text::List { value, max: *max },
+            }.serialize(serializer)
+        } else {
+            match self {
+                Self::Scan(scan) => Tagged::Scan(scan),
+                Self::Range { start, end_exclusive, max } => Tagged::Range { start, end_exclusive, max },
+                Self::List { value, max } => Tagged::List { value, max: *max },
+            }.serialize(serializer)
+        }
     }
 }
 
