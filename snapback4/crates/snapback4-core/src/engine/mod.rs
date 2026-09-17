@@ -226,7 +226,7 @@ pub struct Engine {
     native: Option<std::sync::Arc<native::Module>>,
     /// Lines native jobs logged, for the host to print.
     #[cfg(feature = "native")]
-    native_logs: Vec<String>,
+    native_logs: native::Logs,
     /// The server's registry of open connections, given to every context
     /// that does not bring its own; none in tests and `run`.
     presence: Option<std::sync::Arc<dyn Presence>>,
@@ -243,7 +243,7 @@ impl Engine {
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         let generation = Self::activate(&mut store, &schema, &programs, None)?;
         let dev_effects = store.meta("release")?.is_none();
-        Ok(Self { store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: Vec::new(), presence: None })
+        Ok(Self { store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// A detached read owner for HTTP query/sync computation. Creating it is
@@ -252,7 +252,7 @@ impl Engine {
         Ok(Self { store: self.store.reader()?, schema: self.schema.clone(), programs: self.programs.clone(),
             ceilings: self.ceilings, entropy: 0, generation: self.generation, dev_effects: self.dev_effects,
             #[cfg(feature = "native")] native: self.native.clone(),
-            #[cfg(feature = "native")] native_logs: Vec::new(), presence: self.presence.clone() })
+            #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: self.presence.clone() })
     }
 
     /// The registry every program's `connected[p]` reads, on this engine.
@@ -269,7 +269,7 @@ impl Engine {
         if let Some(issue) = crate::schema::validate(&schema).first() { return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message))); }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         let generation = Self::activate(&mut store, &schema, &programs, Some((release, expected_previous)))?;
-        Ok(Self { store, schema, programs, generation, dev_effects: false, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: Vec::new(), presence: None })
+        Ok(Self { store, schema, programs, generation, dev_effects: false, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// Attach to an already activated semantic generation without installing
@@ -289,7 +289,7 @@ impl Engine {
         // backend, never a caller's source. The repair logs its row changes.
         let generation = if store.meta("live_sum_candidates")?.as_deref() == Some("1") { generation }
             else { Self::activate(&mut store, &schema, &programs, None)? };
-        Ok(Self { store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: Vec::new(), presence: None })
+        Ok(Self { store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// Serving a selected immutable release may attach only while that release
@@ -356,7 +356,7 @@ impl Engine {
     /// What native jobs logged since the last call.
     #[cfg(feature = "native")]
     pub fn take_native_logs(&mut self) -> Vec<String> {
-        std::mem::take(&mut self.native_logs)
+        self.native_logs.take()
     }
 
     /// The jobs the schema declares as native, in name order.

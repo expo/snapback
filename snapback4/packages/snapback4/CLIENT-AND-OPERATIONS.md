@@ -190,7 +190,7 @@ Recovered records stay bound to their original backend store identity; a
 replacement retires them without sending them to the new backend.
 The journal allows at most 32 records and 256 KiB of UTF-8 keys and values per
 device store; a serialized record over 64 KiB is not journaled. Unavailable,
-throwing or full localStorage, missing Web Locks, an unidentified backend store,
+throwing or full localStorage, an unidentified backend store,
 exceeded journal limits, or browser storage clearing leave unawaited navigation
 best-effort: that write can still be lost before IndexedDB commits. A destination must open
 a client to recover a record that never reached the outbox; keepalive remains
@@ -207,7 +207,12 @@ refusal alone does not guarantee preserved cancellation in that case.
 
 On the web one tab is one device: a second tab on the same store opens
 its own, and the writes a tab left queued when it closed are adopted by
-the next device that opens the store. `webDevice({ wasm })` takes the
+the next device that opens the store. The built-in IndexedDB provider refuses
+to open when the Web Locks API is unavailable, because two durable owners of
+one name can overwrite each other's state. A custom `Persistence` must provide
+an exclusive `claim(name, alternate)` operation used both for opening a device
+and for nonblocking orphan recovery; `memoryPersistence()` supplies a
+single-realm implementation for tests. `webDevice({ wasm })` takes the
 wasm as a URL, a Response, bytes or a compiled module when a bundler
 cannot resolve the default beside the module; `webDevice({ persist:
 memoryPersistence() })` keeps nothing, for tests:
@@ -409,6 +414,14 @@ local `failed` with `E_WRITE_ID`. Mint once and keep it with the intent;
 prediction mints separate row ids through `new_ids`. The caller id is the
 mutation id in the outbox, `/m` request, receipt, `client.write(id)` and
 `usePendingWrite(op, id)`.
+
+A burst in one process keeps the observed millisecond and increments the
+80-bit entropy field, so ordering does not manufacture future `minted_at`
+values; clock rollback continues that logical millisecond. A new logical
+millisecond is seeded with `crypto.getRandomValues` when the host supplies it.
+Not every supported host does. The legacy no-crypto fallback remains for
+compatibility and is not cryptographically secure; IDs are identities, not
+capabilities.
 
 A same-client retry while pending returns the same Write object; a settled
 retry returns its retained receipt, without historical results. Reopen reuses

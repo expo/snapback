@@ -23,6 +23,10 @@ export interface Change {
 
 /** Where a host keeps what the device changed, by store name. */
 export interface Persistence {
+  /** Acquire one exclusive device-store name. A provider may return a
+   * provider-scoped alternate name when `alternate` is true and the requested
+   * name is busy. With `alternate` false, return null rather than waiting. */
+  claim(name: string, alternate: boolean): Promise<PersistenceClaim | null>;
   load(name: string): Promise<Change[]>;
   read?(name: string, store: string, key: string): Promise<string | null>;
   /** One batch, all or nothing, in order. */
@@ -30,6 +34,11 @@ export interface Persistence {
   /** The stores held whose names begin with `prefix`. */
   others?(prefix: string): Promise<string[]>;
   remove?(name: string): Promise<void>;
+}
+
+export interface PersistenceClaim {
+  readonly name: string;
+  release(): Promise<void>;
 }
 
 type WasmSource = URL | string | Response | BufferSource | WebAssembly.Module;
@@ -48,13 +57,15 @@ let runtime: { identity: string | WebAssembly.Module; initialized: unknown } | u
 /** The opener `createLocalClient` takes on the web. */
 export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
   const persist = options.persist ?? indexedDbPersistence();
+  if (typeof persist.claim !== "function") throw new Error("webDevice: custom persistence must provide an exclusive claim(name, alternate) ownership contract");
   return {
     async open(name, backend) {
       ready ??= cachedWasm(options.wasm ?? new URL("./wasm/snapback4_device_bg.wasm", import.meta.url), persist)
         .catch((error) => { ready = null; throw error; });
       await ready;
-      const store = await claim(name);
-      const journal = new AdmissionJournal(store.name, store.exclusive);
+      const store = await persist.claim(name, true);
+      if (!store) throw new Error("webDevice: persistence could not claim an exclusive device store");
+      const journal = new AdmissionJournal(store.name, true);
       const admissions = new Set<string>();
       let device: WebDevice | undefined;
       let chain: Promise<unknown> = Promise.resolve();
@@ -258,26 +269,23 @@ function refusalText(error: unknown): string {
 
 // ----- one device per tab -----
 
-interface Claim {
-  name: string;
-  exclusive: boolean;
-  release(): Promise<void>;
-}
-
 function lockManager(): LockManager | undefined {
   return (globalThis.navigator as { locks?: LockManager } | undefined)?.locks;
 }
 
 /** Hold the store's lock for this tab; when another tab holds it, take a
- * tab-scoped store instead. Without the Web Locks API the name is shared. */
-async function claim(name: string): Promise<Claim> {
+ * tab-scoped store instead. Durable IndexedDB refuses when Web Locks cannot
+ * establish exclusive ownership. */
+async function claimWithWebLocks(name: string, alternate: boolean): Promise<PersistenceClaim | null> {
   const locks = lockManager();
-  if (!locks) return { name, exclusive: false, async release() {} };
+  if (!locks) throw new Error("webDevice: durable IndexedDB requires the Web Locks API for exclusive store ownership");
   const held = await hold(locks, name);
-  if (held) return { name, exclusive: true, release: held };
+  if (held) return { name, release: held };
+  if (!alternate) return null;
   const own = `${name}:tab-${Math.random().toString(36).slice(2, 10)}`;
   const release = await hold(locks, own);
-  return { name: own, exclusive: !!release, release: release ?? (async () => {}) };
+  if (!release) throw new Error("webDevice: could not claim an exclusive tab-scoped device store");
+  return { name: own, release };
 }
 
 /** Hold a lock until released; null when another holder has it. */
@@ -303,17 +311,16 @@ function hold(locks: LockManager, name: string): Promise<(() => Promise<void>) |
 /** Writes an orphaned tab left queued are queued here, in their order,
  * and the orphan's store goes; its rows are the stream's to bring back. */
 async function adoptOrphans(device: WebDevice, name: string, own: string, persist: Persistence, settle: (extra?: Change[]) => Promise<void>): Promise<void> {
-  const locks = lockManager();
-  if (!locks || !persist.others || !persist.remove) return;
+  if (!persist.others || !persist.remove) return;
   for (const orphan of new Set([...await persist.others(`${name}:tab-`), ...journalStores(`${name}:tab-`)])) {
     if (orphan === own) continue;
     // A tab that just closed can still hold its lock for a moment. Its records
     // and receipts are only reachable once it lets go, and nothing else would
     // retry until the next apply, so wait briefly for a busy orphan.
-    let held = await hold(locks, orphan);
+    let held = await persist.claim(orphan, false);
     for (let wait = 0; !held && wait < 10; wait++) {
       await new Promise(resume => setTimeout(resume, 20));
-      held = await hold(locks, orphan);
+      held = await persist.claim(orphan, false);
     }
     if (!held) continue;
     let destinationDirty = false;
@@ -388,7 +395,7 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
       // A destination commit failure still requires the caller to discard its VM.
       if (destinationDirty) throw error;
     } finally {
-      await held();
+      await held.release();
     }
   }
 }
@@ -410,6 +417,7 @@ export function indexedDbPersistence(): Persistence {
     tx.onabort = () => reject(tx.error);
   });
   return {
+    claim: claimWithWebLocks,
     async read(name, store, key) {
       const db = await open(name);
       try {
@@ -463,8 +471,18 @@ export function indexedDbPersistence(): Persistence {
 /** Memory: what a test keeps between opens. */
 export function memoryPersistence(): Persistence & { readonly stores: Map<string, Map<string, Change>> } {
   const stores = new Map<string, Map<string, Change>>();
+  const held = new Set<string>();
+  let alternate = 0;
   return {
     stores,
+    async claim(name, allowAlternate) {
+      let own = name;
+      if (held.has(own) && !allowAlternate) return null;
+      while (held.has(own)) own = `${name}:tab-memory-${++alternate}`;
+      held.add(own);
+      let released = false;
+      return { name: own, async release() { if (!released) { released = true; held.delete(own); } } };
+    },
     async read(name, store, key) { return stores.get(name)?.get(`${store} ${key}`)?.v ?? null; },
     async load(name) {
       return [...(stores.get(name)?.values() ?? [])];

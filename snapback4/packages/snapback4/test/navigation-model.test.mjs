@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createLocalClient } from "../dist/local.js";
 import { mintId } from "../dist/client.js";
-import { memoryPersistence, webDevice } from "../dist/web.js";
+import { indexedDbPersistence, memoryPersistence, webDevice } from "../dist/web.js";
 import { devServer } from "../../../witness/lib.mjs";
 
 const wasm = readFileSync(new URL("../src/wasm/snapback4_device_bg.wasm", import.meta.url));
@@ -571,16 +571,12 @@ for (const available of ["localStorage", "IDB", "neither"]) test(`W4R1 C: known 
   assert.equal(failed.why.code, "LOCKED", "bookkeeping must not replace a known authored refusal with E_STORE");
   assert.equal(failed.state, "failed");
   console.log(`W4R1 C: cancellation=${available}; refusal=${JSON.stringify(failed.why)}`);
-  await client.close();
-  // Change the authored condition after the refusal without opening its journal.
+  // Change the authored condition, then let the same exclusive owner acquire
+  // it before recovery. Custom persistence no longer has an unsafe no-owner
+  // opening mode: every device that can touch this store also owns its journal.
   await fetch(f.server.api + "/m/media.mark", { method: "POST", headers: { "x-snapback-persona": "alice", "content-type": "application/json" }, body: JSON.stringify({ id: "unlock", args: { digit: 1 }, newIds: ["unlock-row"] }) }).then(r => r.json());
-  // A host without journal ownership can acquire the changed condition, but
-  // cannot recover the outstanding record. The next exclusive owner can.
-  const navigator = globalThis.navigator;
-  Object.defineProperty(globalThis, "navigator", { configurable: true, value: {} });
-  try {
-    const acquisition = await f.open(); await acquisition.sync(); await acquisition.close();
-  } finally { Object.defineProperty(globalThis, "navigator", { configurable: true, value: navigator }); }
+  await client.sync();
+  await client.close();
   const reopened = await f.open(); await reopened.sync();
   const guarded = (await f.rows()).filter(r => r.body === "guarded");
   assert.equal(guarded.length, available === "neither" ? 1 : 0, "only total cancellation failure leaves an indeterminate record");
@@ -592,7 +588,7 @@ for (const available of ["localStorage", "IDB", "neither"]) test(`W4R1 C: known 
   assert.equal(f.storage.size, 0, "successful removal also collects non-executable cancellations");
 });
 
-test("W4R1 D: without Web Locks a live admission is not captured or recovered by another owner", async t => {
+test("W4R1 D: single-context persistence supplies exclusive ownership without Web Locks", async t => {
   const f = await fixture(t, { exclusive: false });
   const previous = Object.getOwnPropertyDescriptor(globalThis, "navigator");
   Object.defineProperty(globalThis, "navigator", { configurable: true, value: {} });
@@ -609,10 +605,21 @@ test("W4R1 D: without Web Locks a live admission is not captured or recovered by
   await entered.promise;
   const other = await f.open(); await other.sync();
   assert.equal(await f.audit(), null, "the second owner must not execute the live admission");
-  assert.equal(captured, 0);
+  assert.equal(captured, 1);
   gate.resolve();
   assert.equal((await write).state, "sent");
   assert.equal((await f.audit()).total, 1);
+});
+
+test("durable IndexedDB and custom persistence cannot silently open without ownership", async t => {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: {} });
+  t.after(() => previous ? Object.defineProperty(globalThis, "navigator", previous) : delete globalThis.navigator);
+  await assert.rejects(indexedDbPersistence().claim("durable", true), /requires the Web Locks API/);
+  assert.throws(() => webDevice({ persist: {
+    async load() { return []; },
+    async save() {},
+  } }), /must provide an exclusive claim\(name, alternate\) ownership contract/);
 });
 
 test("W4R1 E: one malformed journal key does not hide a real closed tab journal", async t => {

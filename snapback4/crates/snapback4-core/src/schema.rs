@@ -1214,6 +1214,16 @@ pub fn audience_binding(schema: &Schema, table_name: &str, table: &Table, sync: 
         }
         index_columns[..prefix.len()].to_vec()
     };
+    for column in prefix {
+        if table.columns.get(column).is_some_and(ColumnType::is_optional) {
+            return Err(format!("sync to {target_name}[{spelled_prefix}] needs required group keys; {table_name}.{column} is optional. Make every content group column required so online rules and device partitions name the same group"));
+        }
+    }
+    for column in &columns {
+        if target.columns.get(column).is_some_and(ColumnType::is_optional) {
+            return Err(format!("sync to {target_name}[{spelled_prefix}] needs required group keys; {target_name}.{column} is optional. Make every audience group column required so membership discovery, revocation and content delivery name the same group"));
+        }
+    }
     let mut by_group = columns.clone();
     by_group.push(principal.clone());
     let (group_index, group_def) = target.indexes.iter().find(|(_, index)| index.is_plain() && index.columns() == by_group).ok_or_else(|| format!("sync to {target_name}[{spelled_prefix}] needs an index on {target_name} over {}", by_group.join(", ")))?;
@@ -1273,6 +1283,30 @@ pub fn row_image<'a>(row: &'a Value, table: &Table) -> std::borrow::Cow<'a, Valu
     let mut image = row.clone();
     materialize_optional_fields(&mut image, table);
     std::borrow::Cow::Owned(image)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn target_sync_schema(content_optional: bool, audience_optional: bool) -> Schema {
+        let optional_id = |optional| if optional { ColumnType::Optional(Box::new(ColumnType::Id)) } else { ColumnType::Id };
+        let mut audience = public_table(BTreeMap::from([("id".into(), ColumnType::Id), ("room".into(), optional_id(audience_optional)), ("principal".into(), ColumnType::Principal)]), BTreeMap::from([(BY_ID.into(), Index::of(&["id"], true)), ("byRoomPrincipal".into(), Index::of(&["room", "principal"], true)), ("byPrincipalRoom".into(), Index::of(&["principal", "room", "id"], false))]));
+        audience.rules.insert = RuleExpr::Deny;
+        audience.rules.update = RuleExpr::Deny;
+        let mut content = public_table(BTreeMap::from([("id".into(), ColumnType::Id), ("room".into(), optional_id(content_optional))]), BTreeMap::from([(BY_ID.into(), Index::of(&["id"], true)), ("byRoom".into(), Index::of(&["room", "id"], false))]));
+        content.sync = Some(Sync { audience: Audience::Target { table: "memberships".into(), prefix: vec!["room".into()], principal: "principal".into() }, horizon: None });
+        Schema { tables: BTreeMap::from([("memberships".into(), audience), ("messages".into(), content)]), ..Schema::default() }
+    }
+
+    #[test]
+    fn target_sync_group_keys_are_required_in_raw_schemas() {
+        assert!(validate(&target_sync_schema(false, false)).is_empty());
+        for schema in [target_sync_schema(true, false), target_sync_schema(false, true)] {
+            let issues = validate(&schema);
+            assert!(issues.iter().any(|issue| issue.path == "tables.messages.sync" && issue.message.contains("needs required group keys")), "{issues:?}");
+        }
+    }
 }
 
 /// The type an argument declares as a column type, for value validation.

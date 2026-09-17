@@ -6,11 +6,13 @@
 use crate::project::Project;
 use snapback4_core::Engine;
 use snapback4_lang::Bound;
+use std::collections::BTreeSet;
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::Instant;
 
 /// A refusal in the diagnostic's shape: code, message, the line to paste.
+#[derive(Debug)]
 pub struct Problem {
     pub code: &'static str,
     pub message: String,
@@ -92,7 +94,7 @@ pub fn build(project: &Project, bound: &Bound) -> Result<Option<Built>, Problem>
     }
     let target_dir = generated.join("native-target");
     let output = Command::new("cargo")
-        .args(["build", "--release", "--quiet", "--target", TARGET, "--manifest-path"])
+        .args(["build", "--release", "--quiet", "--message-format=json-render-diagnostics", "--target", TARGET, "--manifest-path"])
         .arg(&manifest)
         .arg("--target-dir")
         .arg(&target_dir)
@@ -107,28 +109,56 @@ pub fn build(project: &Project, bound: &Bound) -> Result<Option<Built>, Problem>
     };
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        if stderr.contains("target may not be installed") || stderr.contains("can't find crate for `core`") || stderr.contains("can't find crate for `std`") {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let rendered = stdout.lines().filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok()).filter(|message| message["reason"] == "compiler-message").filter_map(|message| message["message"]["rendered"].as_str().map(str::to_owned)).collect::<Vec<_>>().join("\n");
+        let details = format!("{rendered}\n{stderr}");
+        if details.contains("target may not be installed") || details.contains("can't find crate for `core`") || details.contains("can't find crate for `std`") {
             return Err(Problem { code: "E_NATIVE_TOOLCHAIN", message: format!("the {TARGET} target is not installed"), rewrite: format!("rustup target add {TARGET}") });
         }
-        let tail: Vec<&str> = stderr.lines().rev().take(40).collect::<Vec<_>>().into_iter().rev().collect();
+        let tail: Vec<&str> = details.lines().rev().take(40).collect::<Vec<_>>().into_iter().rev().collect();
         return Err(Problem { code: "E_NATIVE_BUILD", message: format!("cargo build failed in {}:\n{}", project.native_dir().display(), tail.join("\n")), rewrite: format!("cd {} && cargo build --release --target {TARGET}", project.native_dir().display()) });
     }
-    let built_dir = target_dir.join(TARGET).join("release");
-    let mut candidates: Vec<PathBuf> = std::fs::read_dir(&built_dir).map(|entries| entries.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|x| x == "wasm")).collect()).unwrap_or_default();
-    candidates.sort();
-    let Some(built) = candidates.pop() else {
-        return Err(Problem { code: "E_NATIVE_BUILD", message: format!("cargo built nothing under {}; the crate needs `crate-type = [\"cdylib\"]`", built_dir.display()), rewrite: "[lib]\ncrate-type = [\"cdylib\"]".into() });
-    };
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let built = current_cdylib_artifact(&stdout, &manifest)?;
     let bytes = std::fs::read(&built).map_err(|e| Problem { code: "E_NATIVE_BUILD", message: format!("cannot read {}: {e}", built.display()), rewrite: "run `snapback4 check` again".into() })?;
-    let path = project.native_module();
-    if std::fs::read(&path).ok().as_deref() != Some(bytes.as_slice()) {
-        std::fs::write(&path, &bytes).map_err(|e| Problem { code: "E_NATIVE_BUILD", message: format!("cannot write {}: {e}", path.display()), rewrite: "check the directory's permissions".into() })?;
-    }
+    // Validate the candidate while the previously served module is still in place.
     let module = snapback4_core::engine::native::Module::compile(&bytes).map_err(|e| Problem { code: "E_NATIVE", message: e.to_string(), rewrite: "snapback4_native::module! { jobs: [..], reads: [..] } names what the module implements".into() })?;
     check_implemented(&declared_of(bound, snapback4_core::ProgramKind::Job), &declared_of(bound, snapback4_core::ProgramKind::Query), &module)?;
+    let path = project.native_module();
+    if std::fs::read(&path).ok().as_deref() != Some(bytes.as_slice()) {
+        let staged = path.with_extension(format!("wasm.tmp-{}", std::process::id()));
+        std::fs::write(&staged, &bytes).and_then(|()| std::fs::rename(&staged, &path)).map_err(|e| {
+            let _ = std::fs::remove_file(&staged);
+            Problem { code: "E_NATIVE_BUILD", message: format!("cannot replace {}: {e}", path.display()), rewrite: "check the directory's permissions".into() }
+        })?;
+    }
     let mut implemented = module.jobs().to_vec();
     implemented.extend(module.reads().iter().cloned());
     Ok(Some(Built { path, bytes: bytes.len() as u64, jobs: implemented, ms: started.elapsed().as_millis() }))
+}
+
+/// Select only the cdylib emitted for this app manifest. The target directory
+/// may retain wasm files from old package names and dependencies.
+fn current_cdylib_artifact(output: &str, manifest: &std::path::Path) -> Result<PathBuf, Problem> {
+    let wanted = std::fs::canonicalize(manifest).unwrap_or_else(|_| manifest.to_path_buf());
+    let mut candidates = BTreeSet::new();
+    for line in output.lines().filter(|line| !line.trim().is_empty()) {
+        let Ok(message) = serde_json::from_str::<serde_json::Value>(line) else { continue };
+        let cdylib = ["kind", "crate_types"].into_iter().any(|field| message["target"][field].as_array().is_some_and(|kinds| kinds.iter().any(|kind| kind == "cdylib")));
+        if message["reason"] != "compiler-artifact" || !cdylib { continue; }
+        let Some(reported_manifest) = message["manifest_path"].as_str() else { continue };
+        let reported = PathBuf::from(reported_manifest);
+        if std::fs::canonicalize(&reported).unwrap_or(reported) != wanted { continue; }
+        for filename in message["filenames"].as_array().into_iter().flatten().filter_map(|value| value.as_str()) {
+            let path = PathBuf::from(filename);
+            if path.extension().is_some_and(|extension| extension == "wasm") { candidates.insert(path); }
+        }
+    }
+    match candidates.len() {
+        1 => Ok(candidates.pop_first().expect("one candidate")),
+        0 => Err(Problem { code: "E_NATIVE_BUILD", message: format!("cargo did not report one wasm cdylib for {}; the crate needs `crate-type = [\"cdylib\"]`", manifest.display()), rewrite: "[lib]\ncrate-type = [\"cdylib\"]".into() }),
+        count => Err(Problem { code: "E_NATIVE_BUILD", message: format!("cargo reported {count} wasm cdylibs for {}; the app native crate must build exactly one", manifest.display()), rewrite: "keep one `[lib]` target with `crate-type = [\"cdylib\"]`".into() }),
+    }
 }
 
 /// Install the built module into an engine whose schema declares native
@@ -168,4 +198,28 @@ pub fn toolchain() -> Result<String, String> {
 
 fn list(noun: &str, names: &[String]) -> String {
     format!("{noun}{} {}", if names.len() == 1 { "" } else { "s" }, names.join(", "))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn artifact(manifest: &str, name: &str, filename: &str) -> String {
+        serde_json::json!({ "reason": "compiler-artifact", "manifest_path": manifest, "target": { "name": name, "kind": ["cdylib"] }, "filenames": [filename] }).to_string()
+    }
+
+    #[test]
+    fn cargo_messages_select_the_current_cdylib_over_a_later_stale_name() {
+        let manifest = PathBuf::from("/app/snapback/native/Cargo.toml");
+        let output = [artifact("/dependency/Cargo.toml", "zzz_dependency", "/target/zzz_dependency.wasm"), artifact("/old/Cargo.toml", "zzz_old", "/target/zzz_old.wasm"), artifact(manifest.to_str().unwrap(), "aaa_new", "/target/aaa_new.wasm")].join("\n");
+        assert_eq!(current_cdylib_artifact(&output, &manifest).unwrap(), PathBuf::from("/target/aaa_new.wasm"));
+    }
+
+    #[test]
+    fn cargo_messages_refuse_missing_or_ambiguous_app_cdylibs() {
+        let manifest = PathBuf::from("/app/Cargo.toml");
+        assert!(current_cdylib_artifact("", &manifest).unwrap_err().message.contains("did not report one"));
+        let output = [artifact("/app/Cargo.toml", "one", "/target/one.wasm"), artifact("/app/Cargo.toml", "two", "/target/two.wasm")].join("\n");
+        assert!(current_cdylib_artifact(&output, &manifest).unwrap_err().message.contains("reported 2"));
+    }
 }

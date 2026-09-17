@@ -2,7 +2,7 @@
 //! rescore` — Interview's rescore in Rust, and two jobs that misbehave on
 //! purpose — compiled to wasm here and run by the engine as jobs.
 
-use snapback4_core::JobState;
+use snapback4_core::{JobState, Store};
 use snapback4_core::engine::{Context, Engine, WriteState};
 use snapback4_core::partition::holdings;
 use snapback4_core::value::Value;
@@ -48,6 +48,14 @@ fn module() -> &'static [u8] {
         assert!(output.status.success(), "the fixture did not build; is the target installed? `rustup target add wasm32-unknown-unknown`\n{}", String::from_utf8_lossy(&output.stderr));
         std::fs::read(target.join("wasm32-unknown-unknown/release/sb4_fixture_rescore.wasm")).expect("the built module")
     })
+}
+
+/// The same executable module with a harmless custom section appended: all
+/// declarations and behavior stay the same, while its byte identity changes.
+fn rebuilt_module() -> Vec<u8> {
+    let mut rebuilt = module().to_vec();
+    rebuilt.extend_from_slice(&[0x00, 0x01, 0x00]);
+    rebuilt
 }
 
 fn engine() -> Engine {
@@ -154,6 +162,67 @@ fn a_native_job_resumes_by_the_state_it_returns() {
 }
 
 #[test]
+fn a_native_continuation_parks_when_module_bytes_change_and_new_work_runs() {
+    let mut engine = engine();
+    engine.install_native(module()).unwrap();
+    let prompt = mutate(&mut engine, "createPrompt", "dev:alice", &[("title", Value::String("Module identity".into()))], NOW);
+    let prompt = prompt.field("id").unwrap().as_str().unwrap().to_owned();
+    engine.seed((0..150).map(|n| ("posts".to_owned(), snapback4_core::value::object([("id", id(&format!("identity{n:03}"))), ("promptId", id(&prompt)), ("authorId", id("dev:alice")), ("summary", Value::String(format!("post {n}"))), ("at", Value::Int(NOW))])))).unwrap();
+    let original = engine.enqueue_job("rescore", BTreeMap::new(), NOW).unwrap();
+    let first = engine.run_job_chunk(NOW + 1).unwrap().unwrap();
+    assert_eq!((first.id.as_str(), first.state, first.chunks, first.rows_written), (original.as_str(), JobState::Running, 1, 100));
+    assert_eq!(engine.store().rows("ranked").unwrap().len(), 100);
+
+    engine.install_native(&rebuilt_module()).unwrap();
+    let parked = engine.run_job_chunk(NOW + 2).unwrap().unwrap();
+    assert_eq!((parked.id.as_str(), parked.state, parked.chunks, parked.rows_written), (original.as_str(), JobState::Parked, 1, 100));
+    assert!(parked.error.as_deref().unwrap_or("").starts_with("E_JOB_GENERATION:"), "{parked:?}");
+    assert_eq!(engine.store().rows("ranked").unwrap().len(), 100, "the changed module did not execute another chunk");
+
+    let fresh = engine.run_job("rescore", BTreeMap::new(), NOW + 3).unwrap();
+    assert_eq!(fresh.state, JobState::Done, "{fresh:?}");
+    assert_eq!(engine.store().rows("ranked").unwrap().len(), 150);
+}
+
+#[test]
+fn a_native_continuation_keeps_its_module_binding_across_restart() {
+    let dir = std::env::temp_dir().join(format!("sb4-native-generation-{}-{NOW}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("store.sqlite");
+    let bound = snapback4_lang::compile(&[("schema.q".to_owned(), SCHEMA.to_owned())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::new(Store::open(&path).unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.install_native(module()).unwrap();
+    let prompt = mutate(&mut engine, "createPrompt", "dev:alice", &[("title", Value::String("Restart".into()))], NOW);
+    let prompt = prompt.field("id").unwrap().as_str().unwrap().to_owned();
+    engine.seed((0..150).map(|n| ("posts".to_owned(), snapback4_core::value::object([("id", id(&format!("restart{n:03}"))), ("promptId", id(&prompt)), ("authorId", id("dev:alice")), ("summary", Value::String(format!("post {n}"))), ("at", Value::Int(NOW))])))).unwrap();
+    let id = engine.enqueue_job("rescore", BTreeMap::new(), NOW).unwrap();
+    assert_eq!(engine.run_job_chunk(NOW + 1).unwrap().unwrap().rows_written, 100);
+    drop(engine);
+
+    let mut reopened = Engine::open(Store::open(&path).unwrap()).unwrap();
+    reopened.install_native(&rebuilt_module()).unwrap();
+    let parked = reopened.run_job_chunk(NOW + 2).unwrap().unwrap();
+    assert_eq!((parked.id.as_str(), parked.state, parked.chunks, parked.rows_written), (id.as_str(), JobState::Parked, 1, 100));
+    assert!(parked.error.as_deref().unwrap_or("").starts_with("E_JOB_GENERATION:"), "{parked:?}");
+    assert_eq!(reopened.store().rows("ranked").unwrap().len(), 100);
+    drop(reopened);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn a_legacy_declaration_only_native_hash_parks_without_executing() {
+    let mut engine = engine();
+    engine.install_native(module()).unwrap();
+    let run = engine.enqueue_job("rescore", BTreeMap::new(), NOW).unwrap();
+    let legacy = snapback4_core::value::digest(engine.program("rescore").unwrap());
+    engine.store().conn().execute("UPDATE _jobs SET program_hash = ?2 WHERE id = ?1", [&run, &legacy]).unwrap();
+    let parked = engine.run_job_chunk(NOW + 1).unwrap().unwrap();
+    assert_eq!((parked.state, parked.chunks, parked.rows_written), (JobState::Parked, 0, 0));
+    assert!(parked.error.as_deref().unwrap_or("").starts_with("E_JOB_GENERATION:"), "{parked:?}");
+}
+
+#[test]
 fn a_refused_write_parks_a_native_job_and_rolls_the_chunk_back() {
     let mut engine = engine();
     engine.install_native(module()).unwrap();
@@ -196,6 +265,25 @@ fn a_schedule_fires_a_native_job() {
     assert_eq!(engine.fire_schedules(NOW + 300_000).unwrap(), vec!["rescoreEvery".to_owned()]);
     let run = engine.run_job_chunk(NOW + 300_001).unwrap().unwrap();
     assert_eq!((run.name.as_str(), run.state), ("rescore", JobState::Done));
+    assert_eq!(engine.store().rows("ranked").unwrap().len(), 3);
+}
+
+#[test]
+fn a_scheduled_native_run_binds_the_module_at_the_boundary() {
+    let mut engine = engine();
+    engine.install_native(module()).unwrap();
+    seed_interview(&mut engine);
+    engine.fire_schedules(NOW).unwrap();
+    assert_eq!(engine.fire_schedules(NOW + 300_000).unwrap(), vec!["rescoreEvery".to_owned()]);
+    engine.install_native(&rebuilt_module()).unwrap();
+    let parked = engine.run_job_chunk(NOW + 300_001).unwrap().unwrap();
+    assert_eq!((parked.name.as_str(), parked.state, parked.chunks), ("rescore", JobState::Parked, 0));
+    assert!(parked.error.as_deref().unwrap_or("").starts_with("E_JOB_GENERATION:"), "{parked:?}");
+    assert!(engine.store().rows("ranked").unwrap().is_empty());
+
+    assert_eq!(engine.fire_schedules(NOW + 600_000).unwrap(), vec!["rescoreEvery".to_owned()]);
+    let fresh = engine.run_job_chunk(NOW + 600_001).unwrap().unwrap();
+    assert_eq!((fresh.name.as_str(), fresh.state), ("rescore", JobState::Done));
     assert_eq!(engine.store().rows("ranked").unwrap().len(), 3);
 }
 

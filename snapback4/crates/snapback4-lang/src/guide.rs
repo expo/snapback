@@ -712,6 +712,9 @@ rule branch must also prove the caller already has that audience grant, for
 example `exists participants[.threadId, viewer]`, or that this mutation
 created the group. `.personId = viewer` alone is refused because it would
 let anyone join. Audience keys are immutable or guarded on update. These
+target audiences require every content prefix and corresponding target
+group column to be non-optional: `null` cannot name a device partition, so
+`sync to participants[.threadId]` requires both copies of `threadId`.
 checks also cover insert-if-absent and upsert. The horizon
 `last N by index` bounds what a device acquires per group: the newest N stay
 on the device, older rows are online-only, and a local read past them is
@@ -1196,13 +1199,18 @@ and partition events apply, the meter counts, and so the ordinary query and
 a bad value — parks the job with it (`snapback4 doctor` lists runs); a panic
 parks it as E_NATIVE_TRAP with the panic's text; 2,000,000,000 units of
 fuel per chunk (about 90,000 per host call) is the step ceiling, so the row
-ceilings bind first. The module imports one host function and nothing
-else: no clock, no randomness, no network — `chunk.now` is the host's — so
-a native job runs under the simulator like any job. Quarry still declares
-the table, its rules and its `sync`; a query or mutation cannot be native,
-because a device predicts Quarry and the certificate reads it. Anything
-that needs the network stays outside and writes into a table the job
-reads. A query, not a mutation, can be native too (LLP 3000.005 §9)."##,
+ceilings bind first. Native reads get 200,000,000 fuel units. Each instance
+bounds its memory and table within the existing heap allowance; bridge buffers,
+answers and logs also have byte bounds. A queued native job binds the exact wasm
+bytes: changing or removing the module parks it with E_JOB_GENERATION before
+another chunk can use its saved state. Legacy native runs without that binding
+also park; already committed chunks remain committed. Identical bytes resume.
+The module imports one host function and nothing else: no clock, no randomness,
+no network — `chunk.now` is the host's — so a native job runs under the simulator
+like any job. Quarry still declares the table, its rules and its `sync`.
+A query can be native too (LLP 3000.005 §9); a mutation stays Quarry so devices
+can predict it. Anything that needs the network stays outside and writes into
+a table the job reads."##,
         "feeds" => include_str!("guide/feeds.md"),
         "search" => search::CARD,
         "actions" => actions::CARD,

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { createClient } from "../dist/client.js";
+import { createClient, mintId } from "../dist/client.js";
 import { createLocalClient } from "../dist/local.js";
 import { memorySessionStore } from "../dist/auth.js";
 
@@ -183,4 +183,84 @@ test("online session: a refresh cannot change principal or resurrect a closed cl
     assert.notEqual(client.session()?.token, "next");
     assert.deepEqual(observed, close ? [] : [null]);
   }
+});
+
+test("online assets revoke late credential-bound URLs across rotation, sign-out and close", async t => {
+  const originalCreate = URL.createObjectURL, originalRevoke = URL.revokeObjectURL;
+  let serial = 0;
+  const revoked = [];
+  URL.createObjectURL = () => `blob:asset-${++serial}`;
+  URL.revokeObjectURL = url => revoked.push(url);
+  t.after(() => { URL.createObjectURL = originalCreate; URL.revokeObjectURL = originalRevoke; });
+
+  for (const ending of ["close", "sign-out"]) {
+    const entered = deferred(), release = deferred();
+    const client = createClient({ url: "https://asset.invalid", session: session("old"), fetch: async (url) => {
+      const path = new URL(url).pathname;
+      if (path === "/auth/logout") return Response.json({ ok: true });
+      entered.resolve(); await release.promise;
+      return new Response(new Uint8Array([1, 2, 3]), { headers: { "content-type": "image/png" } });
+    } });
+    const reading = client.asset("photo");
+    await entered.promise;
+    await (ending === "close" ? client.close() : client.signOut());
+    release.resolve();
+    const result = await reading;
+    assert.equal(result.denied?.code, "E_CLOSED");
+  }
+  assert.deepEqual(revoked, ["blob:asset-1", "blob:asset-2"]);
+
+  const oldEntered = deferred(), oldRelease = deferred();
+  const bearers = [];
+  const client = createClient({ url: "https://asset.invalid", session: session("old"), fetch: async (url, init) => {
+    const path = new URL(url).pathname;
+    if (path === "/auth/refresh") return Response.json({ session: session("next") });
+    bearers.push(bearer(init));
+    if (bearers.length === 1) { oldEntered.resolve(); await oldRelease.promise; }
+    return new Response(new Uint8Array([4]), { headers: { "content-type": "image/png" } });
+  } });
+  t.after(() => client.close());
+  const reading = client.asset("photo");
+  await oldEntered.promise;
+  assert.equal((await client.refreshSession()).ok, true);
+  oldRelease.resolve();
+  const result = await reading;
+  assert.deepEqual(bearers, ["Bearer old", "Bearer next"]);
+  assert.equal(result.url, "blob:asset-4");
+  assert.deepEqual(revoked, ["blob:asset-1", "blob:asset-2", "blob:asset-3"]);
+  result.revoke();
+});
+
+test("mintId keeps burst and rollback ids monotonic without advancing their timestamp", () => {
+  const alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+  const timestamp = id => [...id.slice(0, 10)].reduce((value, digit) => value * 32 + alphabet.indexOf(digit), 0);
+  for (const invalid of [-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, 0x1_0000_0000_0000]) assert.throws(() => mintId(invalid), RangeError);
+  const now = Date.now() + 1_000_000;
+  const ids = Array.from({ length: 10_000 }, () => mintId(now));
+  ids.push(mintId(now - 10_000));
+  assert.equal(new Set(ids).size, ids.length);
+  assert.deepEqual([...ids].sort(), ids);
+  assert.ok(ids.every(id => timestamp(id) === now), "entropy ordering must not fabricate future wall-clock milliseconds");
+});
+
+test("mintId refuses entropy-field exhaustion without poisoning a later millisecond", async t => {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "crypto");
+  Object.defineProperty(globalThis, "crypto", { configurable: true, value: { getRandomValues(bytes) { bytes.fill(255); return bytes; } } });
+  t.after(() => previous ? Object.defineProperty(globalThis, "crypto", previous) : delete globalThis.crypto);
+  const isolated = await import(`../dist/client.js?entropy-exhaustion=${Date.now()}`);
+  const now = Date.now();
+  isolated.mintId(now);
+  assert.throws(() => isolated.mintId(now), /exhausted 80-bit entropy/);
+  assert.doesNotThrow(() => isolated.mintId(now + 1));
+});
+
+test("mintId does not publish timestamp state when secure entropy throws", async t => {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "crypto");
+  Object.defineProperty(globalThis, "crypto", { configurable: true, value: { getRandomValues() { throw new Error("entropy unavailable"); } } });
+  t.after(() => previous ? Object.defineProperty(globalThis, "crypto", previous) : delete globalThis.crypto);
+  const isolated = await import(`../dist/client.js?entropy-throw=${Date.now()}`);
+  const now = Date.now();
+  assert.throws(() => isolated.mintId(now), /entropy unavailable/);
+  Object.defineProperty(globalThis, "crypto", { configurable: true, value: { getRandomValues(bytes) { bytes.fill(0); return bytes; } } });
+  assert.doesNotThrow(() => isolated.mintId(now));
 });
