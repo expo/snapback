@@ -1,0 +1,86 @@
+
+## Known pre-existing defect, in scope for this run's interpretation
+
+**A device can page past its sync horizon from scattered old rows and mark the page
+`complete: true, fresh: true`, silently skipping rows.** Filed by a peer session as
+P1 (`issues/20260917-snapback4-device-page-past-horizon-answers-from-scattered-rows.md`),
+reproduced by that session on published 0.2.27 **and** 0.2.28, and reproduced
+independently by this lead on its own build with byte-identical output:
+
+    device page 2   p09 p08 p04   complete:true fresh:true
+    server page 2   p09 p08 p07                              <- p07, p06, p05 skipped
+
+`sync [audience] last N by index` bounds what a device *acquires*, but the change
+stream applies no horizon and `Device::apply` stores every `put`, so an update to a
+row older than the acquired window lands as a lone old row. The device's completeness
+rule assumes its rows on the horizon index are a contiguous newest suffix; a scattered
+old row breaks that.
+
+**Why it is recorded here rather than fixed before this run.** It is **not** a 0.2.28
+regression — it reproduces identically on 0.2.27, the previously published version, so
+withdrawing 0.2.28 would remove that release's fixes and leave the same defect in
+place. Read completeness belongs to wave 13, which owns it now.
+
+**What it means for this run's numbers.** A builder or grader that scrolls a feed on a
+device *after* likes or edits have landed on older posts can see skipped rows on any
+version. A fresh device hides it, which is why no fixture or previous calibration has
+caught it. If this run reports a feed or timeline defect of that shape, attribute it
+here and to neither wave 12 nor 0.2.28.
+
+---
+
+## Result: holistic 85 — and the instrument was compromised for the one number that drove it
+
+Grader: **84 pass, 1 fail, 16 not-run**. The single failure, `m3-a11`, is an
+application UI defect (tapping a quote preview does not bring an off-frame original
+into view), not Snapback.
+
+| category | 0.2.27 | 0.2.28 | delta |
+|---|---:|---:|---:|
+| background_work | 86 | 91 | **+5** |
+| operations | 84 | 85 | +1 |
+| authorization | 95 | 95 | 0 |
+| writes_and_transactions | 94 | 94 | 0 |
+| offline_sync | 93 | 93 | 0 |
+| media_assets | 96 | 95 | -1 |
+| client_integration | 89 | 88 | -1 |
+| diagnostics_dev_loop | 95 | 94 | -1 |
+| data_modeling | 84 | 82 | -2 |
+| queries_and_live | 83 | 81 | -2 |
+| **overall** | **89** | **85** | **-4** |
+| setup_and_docs | 92 | 88 | -4 |
+| **scale_and_limits** | **85** | **65** | **-20** |
+
+**Read the −20 with the host in mind, and do not record it as a product fact.**
+`scale_and_limits` is driven by one measurement: a **54,982 ms** cold
+login-to-first-feed against a 30,000 ms probe bound. That is wall-clock, and this
+run executed 17:15–19:28 UTC in a window where the lead measured host load at
+**56–70**, `syspolicyd` at 31% CPU, and two peer sessions independently reported
+**every new executable stalling 3–7 minutes at `_dyld_start`** on Gatekeeper
+provenance scans. In the same window a suite that normally takes ~600 s took
+**3,239 s**, and a client test run that normally takes 70 s exceeded **10 minutes** —
+a measured 5× slowdown.
+
+**But the honest answer is that this run cannot separate the two, and neither
+direction should be asserted.** 55 s is ~6.6× the 0.2.25 run's 8.29 s cold
+acquisition, which is more than the ~5× host slowdown accounts for; and the app
+itself chose a residency shape this run that the report states plainly — social
+feeds bounded to 5,000/1,000 rows while *"other public rows still fully sync"* —
+which is a plausible independent cause. **What would separate them is one re-run of
+the cold-start probe on an unloaded host.** Until that exists, 65 is a number
+produced by a compromised instrument and is not evidence of a 0.2.28 regression.
+
+**What did move, and is not in doubt:** `background_work` **+5** to 91, its best in
+the programme, on a release carrying wave 12's rolling ranking and W14b's digest
+card. And wave 12's work reached the builder — the essay records that *"Trending
+required explicit hour lanes"*, i.e. the §20.21 form shipped in this version was the
+one used, rather than the hand-rolled expiring table three consecutive builders wrote
+before it.
+
+**Attribution.** 0.2.28 is not wave 12 alone: it carries wave 12 and its two review
+rounds, W13a's four merge-cursor fixes, and W14b's digest card, from two peer
+sessions. No movement in this table should be attributed to any one of them.
+
+**Also in scope:** the pre-existing horizon-gap P1 recorded above, reproduced by this
+lead on its own build, which can make a device feed silently skip rows on any
+version.
