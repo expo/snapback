@@ -27779,3 +27779,15 @@ ref-check, full package/runtime/routes/docs suite, install, provider/engine
 launch, remote, push or publication command ran. No actual-provider or actual-
 core evidence was produced; repaired-engine and actual-provider qualification
 remain pending with the parent.
+
+## 2026-09-16 — B1 integration: dedicated OIDC refusal help
+
+Integration with main's wave-11 guide census produced one genuine affected
+red: 49 of 50 guide tests passed, but the ten newly registered `E_OIDC_*`
+codes had no dedicated prose on their services card. Added individual
+sections explaining each refusal and safe recovery without bypassing browser
+binding, replay protection, fixed provider configuration or bound mint
+authority. The registry and census are unchanged. This is documentation for
+the implemented source contract, not an additional identity capability claim.
+The affected guide suite must pass on the integrated candidate before landing;
+the original failing log is retained in the qualification record.
