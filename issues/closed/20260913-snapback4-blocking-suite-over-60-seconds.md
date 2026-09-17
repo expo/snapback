@@ -5,7 +5,7 @@
 **Date:** 2026-09-13
 **Systems:** `snapback4/scripts/test.sh`, the simulator and development loop
 **Author:** Codex / GPT-6 Astra
-**Resolution:** Fixed by `c4eb1047f`: the complete current suite passes inside the unchanged 60-second budget with every assertion retained.
+**Resolution:** Fixed by `a58c4c3af`: the complete current suite passes inside the unchanged 60-second budget with every assertion and cancellation guarantee retained.
 
 At `2063884c8fd40c672158d4b4e3187864192db11c`, the full suite completed with
 zero failed assertions in 72 seconds twice, including the publication
@@ -334,3 +334,30 @@ Raw log SHA-256 values are
 and `2d51f47502ced0c146e61c435ff357ada45d2af503a1cb0d9810f9e52447918a`
 for `/tmp/sb4-delivery-20260917-rebased-{b,c}.log` on that host. No
 assertion, population, blocking command or budget was removed or raised.
+
+## Post-review correction and exact qualification — 2026-09-17
+
+Cross-family review found that the first sharded form made the global R1p
+presence check tautological and that its signal handler forwarded a signal but
+could continue scheduling tests. Checkpoint
+`a58c4c3af14f13d23f7c3fbc408c9de9d6bd3a11` restores a cheap unsharded
+catalog test: every golden program must belong to a current source bundle and
+every independently pinned R1p identity must exist in both the golden and the
+source census. The eight expensive execution shards remain unchanged.
+
+The Rust runner now tracks asynchronous `--list` children, records a list
+failure without suppressing the remaining inventory or doctests, stops
+scheduling after `SIGINT`/`SIGTERM`, and preserves exit 130/143. The shell
+wrapper forwards cancellation through each logged worker and through all
+client shards before waiting. A direct scoped runner probe exited 143 in one
+second after `SIGTERM`, with no test child left in this worktree.
+
+Two consecutive exact warm `bash scripts/test.sh` runs on the same controlled
+Linux host passed in **50 s and 50 s**. Each run dynamically discovered 67 Rust
+test binaries and ran 371 bounded executions: **1,294 passed, zero failed,
+four declared ignored**. All 9 fixture tests and all 554 client tests also ran
+(552 passed, two declared skips), with zero stage failures. Cargo, fixture and
+client branches took 44/13/42 s in the second run and overlapped inside the
+unchanged ceiling. Raw log SHA-256 values:
+`ebfbe74b4b73d29981f6d15729205399bd00329d7e9a575b22735aa61bb9e09e`
+and `2778bd2d2a75ce682d898be7f2971f83600cc0ae4a73f56b1a57e8ece970a6a2`.

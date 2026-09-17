@@ -5,7 +5,7 @@
 **Date:** 2026-09-13
 **Systems:** Snapback 4 HTTP test harness
 **Author:** Codex / GPT-6
-**Resolution:** Fixed by `c4eb1047f`: bounded test processes pass the complete Rust inventory at Darwin's 256-descriptor limit.
+**Resolution:** Fixed by `a58c4c3af`: bounded test processes pass the complete Rust inventory at Darwin's 256-descriptor limit and cancellation leaves no scoped children behind.
 **Related:** [LLP 3000](../../llp/3000-snapback4.explainer.md)
 
 ## Observation
@@ -66,3 +66,14 @@ The rebase to code checkpoint
 file from that executed checkpoint. Its exact controlled Linux blocking suite
 passed in 52/50 seconds, so the descriptor repair does not trade away the
 60-second budget or any HTTP/admission assertion.
+
+Post-review checkpoint `a58c4c3af14f13d23f7c3fbc408c9de9d6bd3a11`
+also closes the cancellation leak in the first runner form. `--list` children
+are now tracked asynchronously, no new artifact is scheduled after a signal,
+and the shell forwards cancellation through its logged Rust and client
+workers before waiting. A scoped `SIGTERM` probe exited 143 in one second with
+no remaining test child. The steady-state process limit remains 24; the one
+restored global census assertion adds one bounded execution. Two exact Linux
+blocking runs with this checkpoint passed the complete enlarged inventory in
+50/50 seconds. The retained Darwin run above remains the descriptor-limit
+qualification; this follow-up does not claim a second Darwin run.
