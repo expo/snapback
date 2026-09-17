@@ -155,7 +155,7 @@ fn sha256_charges_utf8_work_before_its_fixed_result_and_rolls_back() {
     let write = Program {
         body: vec![
             Stmt::Insert { table: "writes".into(), row: Expr::Literal(object([
-                ("id", Value::Id("written-before-hash".into())),
+                ("id", Value::Id("written-before-cut".into())),
                 ("bucket", Value::Int(0)),
                 ("body", Value::String("ok".into())),
             ])) },
@@ -166,6 +166,8 @@ fn sha256_charges_utf8_work_before_its_fixed_result_and_rolls_back() {
     let programs = vec![
         digest("hash_empty", ProgramKind::Query, ""),
         digest("hash_ascii", ProgramKind::Query, "abc"),
+        digest("hash_multibyte", ProgramKind::Query, "🙂"),
+        program("raw_empty", ProgramKind::Query, vec![Stmt::Return(text(""))]),
         program("raw_ascii", ProgramKind::Query, vec![Stmt::Return(text("abc"))]),
         write,
         written(),
@@ -173,10 +175,14 @@ fn sha256_charges_utf8_work_before_its_fixed_result_and_rolls_back() {
     let mut full = engine(programs.clone(), 0);
     let empty = full.query("hash_empty", context()).unwrap();
     let ascii = full.query("hash_ascii", context()).unwrap();
+    let multibyte = full.query("hash_multibyte", context()).unwrap();
+    let raw_empty = full.query("raw_empty", context()).unwrap();
     let raw = full.query("raw_ascii", context()).unwrap();
     assert_eq!(empty.data, Value::String("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".into()));
     assert_eq!(ascii.data, Value::String("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad".into()));
+    assert_eq!(empty.metered.steps - raw_empty.metered.steps, 2, "sha256 adds one expression-node step and the mandatory +1 work charge");
     assert_eq!(ascii.metered.steps - empty.metered.steps, 3, "the variable charge is the UTF-8 byte length");
+    assert_eq!(multibyte.metered.steps - empty.metered.steps, 4, "the variable charge counts UTF-8 bytes, not characters");
     assert_eq!(ascii.metered.heap_bytes - raw.metered.heap_bytes, 64, "the owned digest string is the fixed output allocation");
 
     full.set_ceilings(Ceilings { steps: ascii.metered.steps - 1, ..Ceilings::default() });
@@ -190,6 +196,7 @@ fn sha256_charges_utf8_work_before_its_fixed_result_and_rolls_back() {
     let mut measured = engine(programs.clone(), 0);
     let success = measured.mutate("write_hash", None, context()).unwrap();
     assert!(matches!(success.state, WriteState::Sent { .. }));
+    assert_eq!(measured.query("written", context()).unwrap().data, Value::Bool(true), "the probe observes a successful mutation before testing rollback");
     let mut cut = engine(programs, 0);
     cut.set_ceilings(Ceilings { steps: success.metered.steps - 1, ..Ceilings::default() });
     let failed = cut.mutate("write_hash", None, context()).unwrap();
