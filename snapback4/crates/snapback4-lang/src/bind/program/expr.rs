@@ -473,6 +473,14 @@ impl Binder<'_> {
                 let (builtin, max) = if name == "lower" { (Builtin::Lower, max.saturating_mul(3)) } else { (Builtin::Trim, max) };
                 Ok((Expr::Builtin { builtin, args: vec![value] }, Ty::Text(max)))
             }
+            "sha256" => {
+                arity(1, "sha256(text)")?;
+                let (value, ty) = self.expr(&args[0], out)?;
+                if !matches!(ty, Ty::Text(_)) {
+                    return Err(type_error(site, format!("sha256 takes present text, got {}", ty.name()), "sha256(text ?? '')"));
+                }
+                Ok((Expr::Builtin { builtin: Builtin::Sha256, args: vec![value] }, Ty::Text(64)))
+            }
             "group" => {
                 arity(2, "group(list, 'column')")?;
                 let (value, ty) = self.expr(&args[0], out)?;
@@ -617,7 +625,7 @@ impl Binder<'_> {
             other => Err(unknown(
                 site,
                 format!("unknown function {other}"),
-                name_rewrite(other, self.catalog.functions.keys().map(String::as_str).chain(["count", "sum", "slice", "min", "max", "tokens", "share", "sort", "divmod", "sorted", "lower", "trim", "join", "group", "first", "last", "at"]), None),
+                name_rewrite(other, self.catalog.functions.keys().map(String::as_str).chain(["count", "sum", "slice", "min", "max", "tokens", "share", "sort", "divmod", "sorted", "lower", "trim", "sha256", "join", "group", "first", "last", "at"]), None),
             )),
         }
     }

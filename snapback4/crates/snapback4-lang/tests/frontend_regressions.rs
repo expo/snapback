@@ -369,6 +369,40 @@ mutation joinText(xs: [text <=1000] <=3):
 }
 
 #[test]
+fn sha256_hashes_exact_utf8_and_infers_one_fixed_text_bound() {
+    let source = r#"
+query hash(value: text <=1000):
+  return sha256(value)
+query vectors():
+  return { empty: sha256(''), ascii: sha256('abc'), nonAscii: sha256('你好'), composed: sha256('é'), decomposed: sha256('é') }
+"#;
+    let bound = bound(source);
+    assert_eq!(bound.programs.iter().find(|program| program.program.name == "hash").unwrap().result, Ty::Text(64));
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|program| program.program)).unwrap();
+    let vectors = query(&mut engine, "vectors", &[]);
+    for (field, expected) in [
+        ("empty", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
+        ("ascii", "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"),
+        ("nonAscii", "670d9743542cae3ea7ebe36af56bd53648b0a1126162e78d81a32934a711302e"),
+        ("composed", "4a99557e4033c3539de2eb65472017cad5f9557f7a0625a09f1c3f6e2ba69c4c"),
+        ("decomposed", "bf12767b0f2a56b2190075bae8169f656e3ce8d6357d4aff184bc6c7ea48f9f6"),
+    ] {
+        assert_eq!(vectors.field(field), Ok(&Value::String(expected.into())), "{field}");
+    }
+    assert_ne!(vectors.field("composed"), vectors.field("decomposed"), "sha256 must not normalize Unicode");
+
+    for source in [
+        "query q():\n  return sha256()\n",
+        "query q():\n  return sha256('a', 'b')\n",
+        "query q():\n  return sha256(1)\n",
+        "query q(value: text <=10 ?):\n  return sha256(value)\n",
+    ] {
+        let refused = compile(&[("schema.q".into(), source.into())]);
+        assert!(refused.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"), "{source}\n{:?}", refused.diagnostics);
+    }
+}
+
+#[test]
 fn else_if_selects_one_branch_and_elif_names_the_exact_rewrite() {
     let source = r#"
 query choose(n: int):

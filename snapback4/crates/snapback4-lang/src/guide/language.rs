@@ -280,6 +280,9 @@ query digest(roomId: rooms):
 query mentions(body: text <=4000):
   return tokens(body)                 -- the @mentions in a text, without the @, at most 64: a bounded list
 
+query tokenDigest(token: text <=200):
+  return sha256(token)                -- lowercase SHA-256 of the exact UTF-8 bytes: text <=64
+
 query search(roomId: rooms, q: text <=100, c: cursor ?):
   require exists members[roomId, viewer] else NOT_MEMBER
   return messages[roomId] matching q after c last 50 by byRoomWords   -- word-prefix search: every term a prefix of some word of the row, newest first
@@ -387,10 +390,15 @@ conditional arms and the paths that survive an early return; rebinding clears th
 time. Text `+` concatenates two present texts. `count(text | page | list)` counts characters or items; `lower(text)`, `trim(text)`, `join(list, separator)`, `sum(page, .col)`, `sum(list)`, `min(a, b)`,
 `max(a, b)`, `slice(text | list, start, end)`, `sort(list, 'col', '-col')`,
 `group(list, 'col')`, `first(list)`, `last(list)`, `at(list, index)` (element or null),
-`tokens(text)`, `share(amount, list, member)`, `(q, r) = divmod(a, b)`,
+`tokens(text)`, `sha256(text)`, `share(amount, list, member)`, `(q, r) = divmod(a, b)`,
 `(lo, hi) = sorted(a, b)`. `x = expr` binds or reassigns a local with a compatible type; reassignment resets its refinements. Arguments cannot be shadowed. A program ends
 with `return [value]`, or with its last expression, or with its final write.
 `xs = []` then `xs = xs + [value]` appends under the heap meter; `for x in xs:` can iterate the accumulated list.
+
+`sha256` is for high-entropy capability tokens and content checksums. It hashes
+the exact UTF-8 bytes without normalization and returns lowercase hexadecimal.
+It is not password hashing, low-entropy email anonymization, a signature, a
+MAC, or entropy generation; a digest is not automatically safe to publish.
 
 ## Fixing a refused line
 

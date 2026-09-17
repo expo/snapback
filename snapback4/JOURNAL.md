@@ -28195,3 +28195,58 @@ session row: its equality predicates did not independently check present
 liveness. The historical public-query assertion remains separate evidence.
 No full Identity, production PostgreSQL, full-suite, performance, Workroom,
 publication or promotion claim is made by this landing.
+
+## 2026-09-17 — B1d prerequisite: transaction-local token hashing
+
+Quarry now has exactly one `sha256(text)` spelling. It accepts one required
+present text value (including empty text), infers `text <=64`, and returns the
+lowercase hexadecimal RustCrypto SHA-256 of the exact UTF-8 bytes without
+normalization, case folding, quoting, salt, key, entropy or a host callback.
+The new IR variant runs only in the shared Rust interpreter used by the server
+and devices; existing serialized builtin spellings and the conformance corpus
+are unchanged.
+
+Before hashing, the interpreter charges the step meter by the input UTF-8 byte
+length plus one with checked `usize` conversion and addition. It then charges
+the fixed 64-byte owned `Value::String` through the existing heap convention.
+The builtin is absent from prediction's total-expression allowlist and is
+conservatively refused by conditional write-target purity. Existing residency,
+presence, hidden-row metering and rule authorization remain controlling; the
+presence regression proves a presence-selected hash keeps `predicts: never`.
+
+Tests pin empty, ASCII, non-ASCII, composed and decomposed UTF-8 vectors,
+non-normalization, unary arity, wrong and optional type refusal, and the inferred
+output bound. Meter cuts distinguish the pre-hash variable step refusal from
+the fixed result allocation: a scalar query step cut refuses E_BOUND, a heap
+cut returns null and incomplete, and a mutation cut rolls back an earlier
+insert. The focused device witness produced the same output through the shared
+interpreter on the SQLite and memory-backed device stores and the SQLite server.
+
+Focused serial evidence used `CARGO_BUILD_JOBS=6`, the existing repository
+Cargo, `--locked`, and one test thread:
+
+- `snapback4-core --test meter`: 8/8;
+- `snapback4-core --test corpus`: 18/18 harness tests, 211 Rust-server cases
+  passed and 83 named skips; its Postgres arm reported 294 skips because the
+  feature was disabled;
+- the focused language SHA-256 regression: 1/1;
+- the language guide suite: 50/50;
+- the language presence suite: 9/9; and
+- the focused device witness: 1/1, run once over each of SQLite and memory.
+
+One broader `frontend_regressions` attempt ran all affected tests successfully
+but ended 37/38 because the existing Bun workspace dependencies were absent for
+its emitted-TypeScript test. The diagnostic requested `bun install
+--frozen-lockfile`; no install was performed under this slice's prohibition,
+and the directly affected filtered test then passed. No real PostgreSQL harness
+was run: its focused tests require an explicitly supplied isolated local server,
+and compilation alone is not claimed as host evidence.
+
+This primitive is only for high-entropy capability tokens and content
+checksums. It is not password hashing, low-entropy email anonymization, a
+signature, a MAC, entropy generation or permission to publish digests
+indiscriminately. No invitation schema, issuance or acceptance recipe, auth
+endpoint, raw-token persistence, client-contract field, JavaScript transaction,
+static admission ceiling, dependency, version, publication or deployment is
+included. No root inventory, full suite, benchmark, network, remote, origin,
+push or model/subagent work ran.

@@ -619,7 +619,8 @@ charged to that chunk's meter. Writes belong inside a chunk.
   `trim(text)`, `group(list, 'col')` (first-seen `{ key, items }` groups),
   `first(list)`, `last(list)`, `at(list, i)` (element or null), `join(list, separator)`, `sum(page, .x)`, `sum(list)`, `min(a, b)`, `max(a,
   b)`, `slice(text | list, start, end)`, `sort(list, 'col', '-col')`,
-  `tokens(text)` (the @mentions, at most 64), `share(amount, list,
+  `tokens(text)` (the @mentions, at most 64), `sha256(text)` (lowercase
+  64-character hexadecimal of the exact UTF-8 bytes), `share(amount, list,
   member)`, `a ?? b`, `a if cond else b` (the arm not taken is never
   evaluated; `x != null` as the condition narrows `x` in the taken arm).
   `/` and `%` give the Euclidean quotient and remainder of ints or times;
@@ -633,6 +634,10 @@ charged to that chunk's meter. Writes belong inside a chunk.
   narrow bound row fields through short circuits and surviving branches;
   rebinding the local clears its field facts. `not` binds
   tightest: `a != b`, not `not a = b`.
+- Use `sha256` only for high-entropy capability tokens and content checksums.
+  It performs no Unicode normalization, case folding, quoting, salting or keying.
+  It is not for passwords, low-entropy email anonymization, signatures, MACs or
+  entropy generation, and a digest is not automatically safe to publish.
 - **Refusals** a program raises with `require .. else CODE` reach the
   client as `{ code: "CODE", family: "rule", rule: "CODE", .. }`; `CODE` is
   UPPER_SNAKE and never starts with `E_`.
@@ -1076,6 +1081,10 @@ with `data: null`, `complete: false`, and no continuation, since an interrupted
 scalar or shape has no valid partial answer. Its cut site remains internal;
 the meter is available only through dev's default read inspection (§4).
 A mutation rolls back with `E_BOUND` as above.
+`sha256(text)` charges the step meter by the input's UTF-8 byte length plus
+one before hashing and charges its fixed 64-byte text result to the heap meter.
+A step cut refuses a scalar query with `E_BOUND`; a cut on that result allocation
+returns `data: null`, `complete: false`. A mutation rolls back on either cut.
 
 A page whose read rule the prefix does not decide (the deciding fields include a
 column the scan does not pin) is never `complete`: the server cannot tell

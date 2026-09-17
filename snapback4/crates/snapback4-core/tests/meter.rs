@@ -146,3 +146,57 @@ fn scalar_inspection_borrows_large_values_but_still_charges_steps() {
     assert_eq!(result.metered.heap_bytes, 8000, "range iterates under the step meter without materializing its 100 integers");
     assert!(result.metered.steps >= 300);
 }
+
+#[test]
+fn sha256_charges_utf8_work_before_its_fixed_result_and_rolls_back() {
+    let digest = |name: &str, kind: ProgramKind, text: &str| {
+        program(name, kind, vec![Stmt::Return(builtin(Builtin::Sha256, vec![self::text(text)]))])
+    };
+    let write = Program {
+        body: vec![
+            Stmt::Insert { table: "writes".into(), row: Expr::Literal(object([
+                ("id", Value::Id("written-before-hash".into())),
+                ("bucket", Value::Int(0)),
+                ("body", Value::String("ok".into())),
+            ])) },
+            Stmt::Return(builtin(Builtin::Sha256, vec![text("abc")])),
+        ],
+        ..program("write_hash", ProgramKind::Mutation, Vec::new())
+    };
+    let programs = vec![
+        digest("hash_empty", ProgramKind::Query, ""),
+        digest("hash_ascii", ProgramKind::Query, "abc"),
+        program("raw_ascii", ProgramKind::Query, vec![Stmt::Return(text("abc"))]),
+        write,
+        written(),
+    ];
+    let mut full = engine(programs.clone(), 0);
+    let empty = full.query("hash_empty", context()).unwrap();
+    let ascii = full.query("hash_ascii", context()).unwrap();
+    let raw = full.query("raw_ascii", context()).unwrap();
+    assert_eq!(empty.data, Value::String("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".into()));
+    assert_eq!(ascii.data, Value::String("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad".into()));
+    assert_eq!(ascii.metered.steps - empty.metered.steps, 3, "the variable charge is the UTF-8 byte length");
+    assert_eq!(ascii.metered.heap_bytes - raw.metered.heap_bytes, 64, "the owned digest string is the fixed output allocation");
+
+    full.set_ceilings(Ceilings { steps: ascii.metered.steps - 1, ..Ceilings::default() });
+    assert_eq!(full.query("hash_ascii", context()).unwrap_err().code, "E_BOUND", "a step cut refuses a scalar query");
+    full.set_ceilings(Ceilings { heap_bytes: ascii.metered.heap_bytes - 1, ..Ceilings::default() });
+    let capped = full.query("hash_ascii", context()).unwrap();
+    assert!(!capped.complete);
+    assert_eq!(capped.data, Value::Null);
+    assert_eq!(capped.capped_at.as_ref().map(|cut| cut.0), Some(MeterKind::HeapBytes));
+
+    let mut measured = engine(programs.clone(), 0);
+    let success = measured.mutate("write_hash", None, context()).unwrap();
+    assert!(matches!(success.state, WriteState::Sent { .. }));
+    let mut cut = engine(programs, 0);
+    cut.set_ceilings(Ceilings { steps: success.metered.steps - 1, ..Ceilings::default() });
+    let failed = cut.mutate("write_hash", None, context()).unwrap();
+    let WriteState::Failed { why, .. } = &failed.state else { panic!("hash step cut must refuse: {failed:?}") };
+    assert_eq!(why.code, "E_BOUND");
+    assert_eq!(why.family, "bound");
+    assert_eq!(success.metered.heap_bytes, failed.metered.heap_bytes + 64, "step refusal precedes digest allocation");
+    assert_eq!(failed.events, 0);
+    assert_eq!(cut.query("written", context()).unwrap().data, Value::Bool(false), "the preceding insert rolls back with the mutation");
+}
