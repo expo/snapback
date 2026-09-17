@@ -67,10 +67,11 @@ For dispatch-time presence or any other presence-dependent decision, emit uncond
 
 An effect accepts the same `secrets`, `retry`, `backoff`, `deadline` and `cancellation` clauses as an action (guide actions). A bare `effect notify` retains the defaults: eight total attempts, 4s initial backoff, no deadline, cancellation allowed. Generated `server({ actions, effects })` accepts optional legacy effect handlers; these still receive `(payload, meta)`.
 
-The core reserves an effect-specific identity domain in its shared external-step
-transition policy, but no effect storage adapter or effect step surface exists
-yet. Effects keep the handler, claim, retry and settlement behavior described
-on this card; they do not use `_action_steps`, `ServerContext` or `ctx.step`.
+Effects use the shared external-step transition policy through their own
+`_effect_steps` records and the provider-key domain
+`snapback4:effect-step:v1`; action rows and keys are unchanged. This bounded
+slice exposes the step wire, not a typed effect context: effect handlers still
+receive `(payload, meta)` and do not gain `ServerContext` or `ctx.step`.
 
 The data plane never calls out. `emit name { payload }` in a mutation or
 a job writes the payload durably in the same commit as the rows (a
@@ -95,7 +96,7 @@ The loop is `POST /effects/claim { effect?, limit?, lease?, wait?, fenced? }` (a
 lease in seconds; `wait` long-polls until something is due), then `POST
 /effects/<id>/done { result? }` or `POST /effects/<id>/failed { error,
 retry }`; `GET /effects?state=` lists them (queued, running, sent,
-satisfied, failed) and `doctor` counts them, including pending grace deferrals. A thrown handler retries with backoff
+satisfied, parked, failed) and `doctor` counts them, including pending grace deferrals. A thrown handler retries with backoff
 (by default 4 s, 8 s, ... up to 5 min) until the declared final attempt, then rests as
 `failed`; throw `GiveUp` to fail at once. A worker that dies loses its
 lease and the effect is claimed again (E_EFFECT_LEASE for the one that
@@ -112,7 +113,36 @@ Two workers never hold one effect. `meta.id` is the
 idempotency key a provider should see. A scheduled job that `emit`s once
 per period is the digest recipe.
 
+A fenced claim may call `POST /effects/<id>/steps/<name>/begin` with
+`{ input, reconcile? }`, `/done` with `{ result }`, or `/park` with
+`{ error? }`. Every step request requires exactly one nonempty
+`x-snapback-effect-lease`. Completed steps replay their result; changed input
+refuses; uncertain work reconciles under its existing provider key or parks
+the parent effect. Oversized results park it with E_STEP_RESULT, while unknown
+provider outcome parks it with E_STEP_PARKED. Parked effects are not reclaimed
+or expired. Explicit policy-allowed cancellation may move one to failed with
+E_EFFECT_CANCELLED; it never resumes the effect.
+
+New emits bind the exact generic `Value` payload and full admitted work policy
+to the effect name. There is no typed effect-payload declaration today and no
+same-name typed-change safety claim. If that surface becomes typed, the type's
+schema identity must replace the generic validator tag. Pre-contract rows with
+a NULL contract explicitly retain legacy comparison behavior. A legacy effect
+present only in `schema.effects` compares with the same implicit default work
+policy used when it was admitted, including the 4s initial backoff. Strict HTTP
+claim, step and settlement authenticate the current service and supervisor
+revision inside their writer transaction, then compare the current declaration.
+A mismatch parks with E_EFFECT_GENERATION before a stale lease can mask it.
+Direct core claim/settle methods remain compatibility APIs without this strict
+HTTP authority and generation boundary.
+
 ## Effect lifecycle refusals
+
+E_EFFECT_GENERATION means the effect's declaration disappeared or changed
+after admission. The effect is durably parked and its claim fields are cleared,
+even when the presented lease is stale. Inspect its durable steps and provider
+outcomes before creating replacement intent; editing the declaration does not
+resume it.
 
 E_EFFECT_UNKNOWN means this server has no queued effect under that ID.
 For example, looking up an emit performed under `dev --replay` finds no

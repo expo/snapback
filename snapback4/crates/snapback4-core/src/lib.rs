@@ -28,7 +28,7 @@ pub mod wire;
 pub mod words;
 
 #[cfg(feature = "sqlite")]
-pub use engine::effects::{EffectRun, Settled};
+pub use engine::effects::{EffectRun, EffectStep, Settled};
 #[cfg(feature = "sqlite")]
 pub use engine::job::{JobRun, JobState};
 pub use engine::Presence;

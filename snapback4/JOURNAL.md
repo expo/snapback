@@ -32068,3 +32068,83 @@ helper/adapter no-emit compilation and the focused serial test passed; the
 test reported 38 pass, 0 fail, 0 skip in 370.188 ms. The prior two red runs
 and 38-pass receipt remain historical evidence. No engine, provider, listener,
 build, install, Rust/Cargo, root gate, network or qualification command ran.
+
+## 2026-09-17 — Bwork2 source checkpoint: effect steps and strict HTTP authority
+
+Effects now adapt the existing shared external-step transition kernel onto the
+additive SQLite `_effect_steps` table. Their provider keys use the reserved
+`snapback4:effect-step:v1` domain, while action storage, keys and public
+behavior remain unchanged. Begin, completion, reconciliation takeover,
+completed-result replay, changed-input refusal and parking therefore use one
+transition policy across the two durable work kinds. An uncertain provider
+outcome parks the parent effect with E_STEP_PARKED; an oversized outcome parks
+it with E_STEP_RESULT. Both transitions atomically record a nonnull error and
+settlement time and clear the effect claim, lease and schedule. Parked effects
+do not expire or return to claim. A policy-allowed cancellation can terminate
+one as failed/E_EFFECT_CANCELLED, never resume it.
+
+New SQLite emissions store no release and bind a contract over the exact
+generic `Value` payload, effect name and full admitted `WorkSpec`. There is no
+typed effect-payload declaration and no same-name typed-change claim. A future
+typed payload surface must replace the generic validator tag with its schema
+identity. A persisted NULL contract explicitly bypasses comparison for legacy
+rows; a legacy declaration present only in `schema.effects` recomputes the same
+implicit 4-second-backoff `WorkSpec` used at admission. Missing or changed
+nonnull contracts park with E_EFFECT_GENERATION and clear the live claim.
+
+The HTTP effect arms moved out of near-limit `serve.rs`. Claim, step and
+settlement parse their body, path and headers before taking the engine guard,
+and serialize their response after releasing it. Their strict core entry points
+begin one immediate transaction, take the supplied time and supervisor-revision
+sample exactly once, and authenticate the current live service through the
+same core identity policy used by the other host worker doors. Settlement and
+every step verb then load and compare the admitted contract before checking
+the effect lease, so a stale or expired lease cannot hide generation drift.
+Held-effect long polls use a narrow authority-only immediate transaction with
+the same after-BEGIN sample and claim no work. Manually provisioned service
+seats retain their legacy current-session meaning. Existing direct core
+claim/settle APIs and legacy unfenced HTTP wire remain compatibility paths.
+The new step routes require exactly one nonempty effect lease header. This
+slice adds no typed effect context, status route, provider adapter, Postgres
+work lifecycle or new Quarry form.
+
+Discriminating source tests cover contract drift with an already-expired lease
+across top-level settlement and all three step verbs, asserting durable parent
+parking and cleared claim fields. They also cover the legacy declaration
+fallback and the held-poll sample count. This checkpoint is source-only:
+qualification remains pending and no Cargo, test, build, listener, install,
+network, commit, bundle, provider or remote command ran.
+
+Native Sol authored this surviving Bwork2 source and documentation with no
+additional model/subagent delegation. An accidental wrong-model resume was
+fully inverse-patched before this correction pass and contributes no surviving
+source. The resumed Sol turn authors every surviving correction recorded here;
+this is not a claim that no model work occurred.
+
+## 2026-09-17 — Bwork2 focused qualification
+
+The bounded SQLite/HTTP slice compiled and passed its serial locked affected
+checks with `CARGO_BUILD_JOBS=6`: the SQLite core check passed;
+`effect_policy` passed 7/7; the unchanged action step surface passed its
+`action_context` regression 9/9; the host effect filter passed eight selected
+tests across its unit and integration targets, including the new HTTP parsing,
+lease-header and step round-trip witness; supervised adoption fencing passed
+1/1; and the language guide passed 50/50. The touched Snapback4 source maximum
+is 1,323 lines (`serve_tests.rs`), below the 1,500-line ceiling. Final diff
+whitespace validation and the canonical repository-root reference check pass;
+the latter reports 481 LLP documents, 9,057 references, zero errors and zero
+unchecked references.
+
+One preliminary host command included `--lib` and exited 101 because
+`snapback4` is a binary package with no library target; removing that selector
+ran the intended tests successfully. An attempted `ref-check --root snapback4`
+also exited 1 because the Snapback4 documents intentionally live in the
+repository-level `llp/` corpus, so the canonical root invocation replaced it
+and passed. Neither precondition miss compiled product source or motivated a
+product change. No root inventory, PostgreSQL, provider, external listener,
+network, remote, origin, push or publication command ran.
+
+Native Sol authored and qualified every surviving Bwork2 change with no
+additional model/subagent delegation. The accidental wrong-model edit attempt
+was fully inverse-restored and contributes no surviving source. This provenance
+does not claim that no model work occurred.

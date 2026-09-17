@@ -14,6 +14,8 @@ use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+pub use super::steps::Step as EffectStep;
+
 /// A failed effect retries this many times, then rests as `failed`.
 pub const MAX_ATTEMPTS: u32 = 8;
 /// The longest a retry waits, whatever the attempt.
@@ -27,7 +29,7 @@ pub struct EffectRun {
     pub id: String,
     pub effect: String,
     pub payload: Value,
-    /// `queued`, `running`, `sent`, `satisfied` or `failed`.
+    /// `queued`, `running`, `sent`, `satisfied`, `parked` or `failed`.
     pub state: String,
     /// Claims so far; the current claim counts.
     pub attempts: u32,
@@ -54,6 +56,8 @@ pub struct EffectRun {
     pub error_code: Option<String>,
     #[serde(default)]
     pub cancelled: bool,
+    #[serde(skip)]
+    pub(crate) contract: Option<String>,
     /// Returned once on a fenced claim; only its digest is persisted.
     #[serde(skip)]
     pub lease_token: Option<String>,
@@ -66,7 +70,7 @@ pub enum Settled {
     Failed { error: String, retry: bool },
 }
 
-const COLUMNS: &str = "id, effect, payload, state, attempts, seq, at, next_at, lease_until, claimed_by, result, error, work_spec, deadline, release, error_code, cancelled";
+const COLUMNS: &str = "id, effect, payload, state, attempts, seq, at, next_at, lease_until, claimed_by, result, error, work_spec, deadline, release, error_code, cancelled, contract";
 
 fn legacy_work() -> WorkSpec { let mut work = WorkSpec::default(); work.policy.backoff_ms = 4_000; work }
 
@@ -80,8 +84,8 @@ pub(super) fn record(tx: &crate::store::Tx<'_>, outbox: &[super::presence::Emiss
         for (id, effect, payload, presence) in outbox {
             let work = schema.effect_specs.get(effect).cloned().unwrap_or_else(legacy_work);
             if !work.policy.valid() { return Err(RuntimeError::Schema("the effect policy is outside its bounds".into())); }
-            let release: Option<String> = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'release'", [], |row| row.get(0)).optional()?;
-            tx.conn().execute("INSERT INTO _outbox(id, seq, effect, payload, state, attempts, at, next_at, work_spec, deadline, release) VALUES (?1, ?2, ?3, ?4, 'queued', 0, ?5, ?6, ?7, ?8, ?9)", params![id, seq as i64, effect, canonical_json(payload), now, presence.values().flatten().max(), canonical_json(&work), work.policy.deadline_ms.map(|ms| now.saturating_add(ms as i64)), release])?;
+            let contract = work.effect_contract(effect, payload);
+            tx.conn().execute("INSERT INTO _outbox(id, seq, effect, payload, state, attempts, at, next_at, work_spec, deadline, release, contract) VALUES (?1, ?2, ?3, ?4, 'queued', 0, ?5, ?6, ?7, ?8, NULL, ?9)", params![id, seq as i64, effect, canonical_json(payload), now, presence.values().flatten().max(), canonical_json(&work), work.policy.deadline_ms.map(|ms| now.saturating_add(ms as i64)), contract])?;
             for (principal, deadline) in presence {
                 let Some(deadline) = deadline else { continue; };
                 tx.conn().execute("INSERT INTO _effect_presence(principal, id, deadline) VALUES (?1, ?2, ?3)", params![principal, id, deadline])?;
@@ -108,8 +112,54 @@ fn read_run(row: &rusqlite::Row<'_>) -> rusqlite::Result<EffectRun> {
         result: result.and_then(|text| serde_json::from_str(&text).ok()),
         error: row.get(11)?,
         work: row.get::<_, Option<String>>(12)?.map(|text| serde_json::from_str(&text).map_err(|e| rusqlite::Error::FromSqlConversionFailure(12, rusqlite::types::Type::Text, Box::new(e)))).transpose()?.unwrap_or_else(legacy_work),
-        deadline: row.get(13)?, release: row.get(14)?, error_code: row.get(15)?, cancelled: row.get(16)?, lease_token: None,
+        deadline: row.get(13)?, release: row.get(14)?, error_code: row.get(15)?, cancelled: row.get(16)?, contract: row.get(17)?, lease_token: None,
     })
+}
+
+pub(super) fn auth_error() -> RuntimeError {
+    RuntimeError::Auth("this is a worker's door: send a live current service token".into())
+}
+
+fn lease_error(id: &str) -> RuntimeError {
+    RuntimeError::Structural { code: "E_EFFECT_LEASE", message: format!("effect {id} is not held by this live claim; claim it first and use its current token") }
+}
+
+pub(super) fn generation_error() -> RuntimeError {
+    RuntimeError::Structural { code: "E_EFFECT_GENERATION", message: "the admitted effect declaration changed; inspect this work before replacing it".into() }
+}
+
+fn park_generation(tx: &crate::store::Tx<'_>, id: &str, now: i64) -> Result<(), RuntimeError> {
+    tx.conn().execute("UPDATE _outbox SET state = 'parked', error_code = 'E_EFFECT_GENERATION', error = 'the admitted effect declaration changed; inspect this work before replacing it', settled_at = ?2, lease_until = NULL, claimed_by = NULL, lease_digest = NULL, next_at = NULL WHERE id = ?1", params![id, now])?;
+    Ok(())
+}
+
+// @ref LLP 3000.009#5.2 — admitted work cannot run under a replacement declaration.
+pub(super) fn contract_stands(tx: &crate::store::Tx<'_>, schema: &Schema, run: &EffectRun, now: i64) -> Result<bool, RuntimeError> {
+    // NULL is an explicit legacy bypass: pre-contract rows retain their
+    // compatibility behavior rather than acquiring a guessed declaration.
+    let Some(recorded) = &run.contract else { return Ok(true) };
+    let current = schema.effect_specs.get(&run.effect).cloned()
+        .or_else(|| schema.effects.contains(&run.effect).then(legacy_work))
+        .map(|work| work.effect_contract(&run.effect, &run.payload));
+    if current.as_ref() == Some(recorded) { return Ok(true); }
+    park_generation(tx, &run.id, now)?;
+    Ok(false)
+}
+
+pub(super) fn strict_run(tx: &crate::store::Tx<'_>, id: &str) -> Result<EffectRun, RuntimeError> {
+    tx.conn().query_row(&format!("SELECT {COLUMNS} FROM _outbox WHERE id = ?1"), [id], read_run).optional()?.ok_or_else(|| RuntimeError::Structural { code: "E_EFFECT_UNKNOWN", message: format!("no effect {id} is queued here") })
+}
+
+pub(super) fn held_strict_claim(tx: &crate::store::Tx<'_>, run: &EffectRun, worker: &str, token: &str, now: i64) -> Result<(), RuntimeError> {
+    let id = run.id.as_str();
+    let token_digest = identity::digest(token);
+    let digest: Option<String> = tx.conn().query_row("SELECT lease_digest FROM _outbox WHERE id = ?1", [id], |row| row.get(0))?;
+    if run.state != "running" || run.cancelled || run.claimed_by.as_deref() != Some(worker)
+        || digest.as_deref() != Some(token_digest.as_str())
+        || run.lease_until.is_none_or(|lease| lease <= now)
+        || run.deadline.is_some_and(|deadline| deadline <= now)
+    { return Err(lease_error(id)); }
+    Ok(())
 }
 
 /// The wait before attempt `attempts + 1`: doubling from two seconds.
@@ -118,6 +168,15 @@ pub fn backoff_ms(attempts: u32) -> i64 {
 }
 
 impl Engine {
+    /// A held-effects poll still authenticates at a writer boundary. The host
+    /// sample is taken once after BEGIN IMMEDIATE; no work is claimed.
+    pub fn authorize_effect_poll_strict(&mut self, service_token: &str, sample: impl FnOnce() -> identity::ServiceSample) -> Result<(), RuntimeError> {
+        let tx = self.store.transaction()?;
+        let sample = sample();
+        identity::current_service_tx(&tx, service_token, sample)?.ok_or_else(auth_error)?;
+        tx.rollback()
+    }
+
     /// Claim up to `limit` queued effects (of one kind, or any) for `worker`
     /// until `now + lease_ms`: oldest first, only those whose backoff has
     /// passed, each counted as an attempt. Two workers never hold one effect.
@@ -152,6 +211,46 @@ impl Engine {
             }
             let token = if fenced { Some(identity::claim_token()?) } else { None };
             tx.conn().execute("UPDATE _outbox SET state = 'running', attempts = attempts + 1, claimed_by = ?2, lease_until = MIN(?3, COALESCE(deadline, ?3)), next_at = NULL, error = NULL, error_code = NULL, lease_digest = ?4 WHERE id = ?1", params![id, worker, now.saturating_add(lease), token.as_deref().map(identity::digest)])?;
+            if let Some(mut run) = tx.conn().query_row(&format!("SELECT {COLUMNS} FROM _outbox WHERE id = ?1"), [&id], read_run).optional()? {
+                run.lease_token = token;
+                claimed.push(run);
+            }
+        }
+        tx.commit()?;
+        Ok(claimed)
+    }
+
+    /// HTTP authority path. The deterministic host sample is taken exactly
+    /// once, after the immediate transaction begins; direct claim APIs above
+    /// deliberately retain their compatibility behavior.
+    // @ref LLP 3000.009#5.2 — effect claims bind current service and declaration authority in the claim transaction.
+    pub fn claim_effects_strict(&mut self, service_token: &str, effect: Option<&str>, limit: usize, lease_ms: i64, fenced: bool, sample: impl FnOnce() -> identity::ServiceSample) -> Result<Vec<EffectRun>, RuntimeError> {
+        let limit = limit.clamp(1, 100) as i64;
+        let lease = lease_ms.clamp(1_000, MAX_LEASE_MS);
+        let tx = self.store.transaction()?;
+        let sample = sample();
+        let worker = identity::current_service_tx(&tx, service_token, sample)?.ok_or_else(auth_error)?;
+        expire_strict(&tx, &self.schema, sample.now)?;
+        let ids: Vec<String> = match effect {
+            Some(effect) => tx.conn().prepare("SELECT id FROM _outbox WHERE state = 'queued' AND cancelled = 0 AND (next_at IS NULL OR next_at <= ?1) AND effect = ?2 ORDER BY seq, id LIMIT ?3")?.query_map(params![sample.now, effect, limit], |row| row.get(0))?.collect::<Result<_, _>>()?,
+            None => tx.conn().prepare("SELECT id FROM _outbox WHERE state = 'queued' AND cancelled = 0 AND (next_at IS NULL OR next_at <= ?1) ORDER BY seq, id LIMIT ?2")?.query_map(params![sample.now, limit], |row| row.get(0))?.collect::<Result<_, _>>()?,
+        };
+        let mut claimed = Vec::with_capacity(ids.len());
+        for id in ids {
+            let run = tx.conn().query_row(&format!("SELECT {COLUMNS} FROM _outbox WHERE id = ?1"), [&id], read_run)?;
+            if !contract_stands(&tx, &self.schema, &run, sample.now)? { continue; }
+            let dependencies = tx.conn().prepare("SELECT principal, reconnected FROM _effect_presence WHERE id = ?1")?
+                .query_map([&id], |row| Ok((row.get::<_, String>(0)?, row.get::<_, bool>(1)?)))?.collect::<Result<Vec<_>, _>>()?;
+            let satisfied = dependencies.iter().any(|(principal, reconnected)| *reconnected
+                || self.presence.as_ref().is_some_and(|presence| presence.effect_presence(principal).0 > 0));
+            tx.conn().execute("DELETE FROM _effect_presence WHERE id = ?1", [&id])?;
+            if satisfied {
+                let outcome = crate::value::object([("outcome", Value::String("presence_reconnected".into()))]);
+                tx.conn().execute("UPDATE _outbox SET state = 'satisfied', result = ?2, next_at = NULL WHERE id = ?1", params![id, canonical_json(&outcome)])?;
+                continue;
+            }
+            let token = if fenced { Some(identity::claim_token()?) } else { None };
+            tx.conn().execute("UPDATE _outbox SET state = 'running', attempts = attempts + 1, claimed_by = ?2, lease_until = MIN(?3, COALESCE(deadline, ?3)), next_at = NULL, error = NULL, error_code = NULL, lease_digest = ?4 WHERE id = ?1 AND state = 'queued' AND cancelled = 0", params![id, worker, sample.now.saturating_add(lease), token.as_deref().map(identity::digest)])?;
             if let Some(mut run) = tx.conn().query_row(&format!("SELECT {COLUMNS} FROM _outbox WHERE id = ?1"), [&id], read_run).optional()? {
                 run.lease_token = token;
                 claimed.push(run);
@@ -214,6 +313,40 @@ impl Engine {
         Ok(run)
     }
 
+    /// Strict HTTP settlement; unfenced rows still accept the legacy absent
+    /// token, while a fenced row can never be downgraded by omission.
+    pub fn settle_effect_strict(&mut self, service_token: &str, id: &str, token: Option<&str>, settled: Settled, sample: impl FnOnce() -> identity::ServiceSample) -> Result<EffectRun, RuntimeError> {
+        let tx = self.store.transaction()?;
+        let sample = sample();
+        let worker = identity::current_service_tx(&tx, service_token, sample)?.ok_or_else(auth_error)?;
+        let run = strict_run(&tx, id)?;
+        if !contract_stands(&tx, &self.schema, &run, sample.now)? {
+            tx.commit()?;
+            return Err(generation_error());
+        }
+        let digest: Option<String> = tx.conn().query_row("SELECT lease_digest FROM _outbox WHERE id = ?1", [id], |row| row.get(0))?;
+        if run.state != "running" || run.cancelled || run.claimed_by.as_deref() != Some(worker.as_str())
+            || digest != token.map(identity::digest) || run.lease_until.is_none_or(|lease| lease <= sample.now)
+            || run.deadline.is_some_and(|deadline| deadline <= sample.now)
+        { return Err(lease_error(id)); }
+        match settled {
+            Settled::Done { result } => {
+                tx.conn().execute("UPDATE _outbox SET state = 'sent', result = ?2, error = NULL, error_code = NULL, settled_at = ?3, lease_until = NULL, claimed_by = NULL, lease_digest = NULL, next_at = NULL WHERE id = ?1", params![id, result.map(|value| canonical_json(&value)), sample.now])?;
+            }
+            Settled::Failed { error, retry } => {
+                let error: String = error.chars().take(2_000).collect();
+                if retry && run.attempts < run.work.policy.max_attempts {
+                    tx.conn().execute("UPDATE _outbox SET state = 'queued', error = ?2, error_code = NULL, next_at = ?3, settled_at = NULL, lease_until = NULL, claimed_by = NULL, lease_digest = NULL WHERE id = ?1", params![id, error, sample.now.saturating_add(run.work.policy.backoff(run.attempts))])?;
+                } else {
+                    tx.conn().execute("UPDATE _outbox SET state = 'failed', error = ?2, settled_at = ?3, next_at = NULL, lease_until = NULL, claimed_by = NULL, lease_digest = NULL WHERE id = ?1", params![id, error, sample.now])?;
+                }
+            }
+        }
+        let run = tx.conn().query_row(&format!("SELECT {COLUMNS} FROM _outbox WHERE id = ?1"), [id], read_run)?;
+        tx.commit()?;
+        Ok(run)
+    }
+
     /// Move held effect/action leases and their delegated viewer sessions
     /// together. Backoffs and ordinary sessions stay put; overdue stays overdue.
     // @ref LLP 3000.007#20.12 — dev advances preserve worker lifetimes without making retries wait longer.
@@ -240,7 +373,7 @@ impl Engine {
         let tx = self.store.transaction()?;
         let run = tx.conn().query_row(&format!("SELECT {COLUMNS} FROM _outbox WHERE id = ?1"), [id], read_run).optional()?.ok_or_else(|| RuntimeError::Structural { code: "E_EFFECT_UNKNOWN", message: "no effect with this id is available".into() })?;
         if !run.work.policy.cancellable { return Err(RuntimeError::Structural { code: "E_EFFECT_CANCELLATION", message: "this effect declaration does not allow cancellation".into() }); }
-        if matches!(run.state.as_str(), "queued" | "running") {
+        if matches!(run.state.as_str(), "queued" | "running" | "parked") {
             tx.conn().execute("UPDATE _outbox SET state = 'failed', cancelled = 1, error = 'the effect was cancelled; external effects are not undone', error_code = 'E_EFFECT_CANCELLED', settled_at = ?2, lease_until = NULL, claimed_by = NULL, lease_digest = NULL, next_at = NULL WHERE id = ?1", params![id, now])?;
         }
         let run = tx.conn().query_row(&format!("SELECT {COLUMNS} FROM _outbox WHERE id = ?1"), [id], read_run)?;
@@ -281,10 +414,24 @@ fn expire(conn: &rusqlite::Connection, now: i64) -> Result<u64, RuntimeError> {
     let runs = conn.prepare(&format!("SELECT {COLUMNS} FROM _outbox WHERE state IN ('queued', 'running') AND (deadline <= ?1 OR (state = 'running' AND lease_until < ?1))"))?
         .query_map([now], read_run)?.collect::<Result<Vec<_>, _>>()?;
     for run in &runs {
-        let deadline = run.deadline.is_some_and(|deadline| deadline <= now);
-        let failed = deadline || run.attempts >= run.work.policy.max_attempts;
-        let code = if deadline { Some("E_EFFECT_DEADLINE") } else if failed { Some("E_EFFECT_ATTEMPTS") } else { None };
-        conn.execute("UPDATE _outbox SET state = ?2, error = ?3, error_code = ?4, settled_at = ?5, lease_until = NULL, claimed_by = NULL, lease_digest = NULL, next_at = ?6 WHERE id = ?1", params![run.id, if failed { "failed" } else { "queued" }, if deadline { "the effect deadline passed" } else { "the lease expired" }, code, if failed { Some(now) } else { None }, if failed { None } else { Some(now) }])?;
+        expire_run(conn, run, now)?;
     }
     Ok(runs.len() as u64)
+}
+
+fn expire_strict(tx: &crate::store::Tx<'_>, schema: &Schema, now: i64) -> Result<u64, RuntimeError> {
+    let runs = tx.conn().prepare(&format!("SELECT {COLUMNS} FROM _outbox WHERE state IN ('queued', 'running') AND (deadline <= ?1 OR (state = 'running' AND lease_until < ?1))"))?
+        .query_map([now], read_run)?.collect::<Result<Vec<_>, _>>()?;
+    for run in &runs {
+        if contract_stands(tx, schema, run, now)? { expire_run(tx.conn(), run, now)?; }
+    }
+    Ok(runs.len() as u64)
+}
+
+fn expire_run(conn: &rusqlite::Connection, run: &EffectRun, now: i64) -> Result<(), RuntimeError> {
+    let deadline = run.deadline.is_some_and(|deadline| deadline <= now);
+    let failed = deadline || run.attempts >= run.work.policy.max_attempts;
+    let code = if deadline { Some("E_EFFECT_DEADLINE") } else if failed { Some("E_EFFECT_ATTEMPTS") } else { None };
+    conn.execute("UPDATE _outbox SET state = ?2, error = ?3, error_code = ?4, settled_at = ?5, lease_until = NULL, claimed_by = NULL, lease_digest = NULL, next_at = ?6 WHERE id = ?1", params![run.id, if failed { "failed" } else { "queued" }, if deadline { "the effect deadline passed" } else { "the lease expired" }, code, if failed { Some(now) } else { None }, if failed { None } else { Some(now) }])?;
+    Ok(())
 }

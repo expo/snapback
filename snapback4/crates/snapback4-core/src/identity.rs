@@ -27,6 +27,38 @@ pub struct Session {
     pub expires_at: i64,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ServiceSample {
+    pub now: i64,
+    pub supervisor_revision: usize,
+}
+
+/// Resolve one live service seat and apply the host supervisor marker when
+/// this is the supervised worker family. Manually provisioned seats retain
+/// their ordinary live-session semantics.
+// @ref LLP 3000.009#16 — the deployment-trusted worker credential is current only for its supervising revision.
+pub(crate) fn current_service_tx(tx: &Tx<'_>, token: &str, sample: ServiceSample) -> Result<Option<String>, RuntimeError> {
+    let token_digest = digest(token);
+    let Some(session) = authority::live_session(tx, &token_digest, sample.now)? else { return Ok(None) };
+    if session.kind != "service" || !is_service(&session.principal) { return Ok(None); }
+    let supervised_family = tx.meta("worker:session-family")?;
+    if supervised_family.as_deref() == Some(session.family.as_str())
+        && tx.meta("worker:session-revision")?.as_deref() != Some(sample.supervisor_revision.to_string().as_str())
+    {
+        return Ok(None);
+    }
+    Ok(Some(session.principal))
+}
+
+/// Read-only wrapper for host doors that do not already own a writer
+/// transaction. Strict work transitions call `current_service_tx` directly.
+pub fn current_service(store: &Store, token: &str, sample: ServiceSample) -> Result<Option<String>, RuntimeError> {
+    let tx = store.authority_transaction()?;
+    let service = current_service_tx(&tx, token, sample)?;
+    tx.rollback()?;
+    Ok(service)
+}
+
 // @ref LLP 3000.009#5.1 — refresh preserves admission authority; revocation changes its generation.
 pub(crate) fn initialize(conn: &Connection) -> Result<(), RuntimeError> {
     let columns: Vec<String> = conn.prepare("SELECT name FROM pragma_table_info('_sessions')")?

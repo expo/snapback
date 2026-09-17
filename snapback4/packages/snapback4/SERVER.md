@@ -606,19 +606,40 @@ double, not evidence for a production provider adapter:
 This row is an application-level operator disposition. It does not turn the
 old action's result into `done`, resume it or create a general administration
 subsystem. An unknown or unqueryable outcome remains unresolved; never issue a
-blind replacement send. Recovery and compensation are application-specific.
-The core now evaluates these transitions in one work-kind-aware policy, while
-the only storage adapter remains the existing action `_action_steps` table.
-That extraction alone adds no effect step API, records or completeness claim.
+blind replacement send. Recovery and compensation are application-specific,
+The core evaluates action and effect step transitions in one work-kind-aware
+policy. Effects use `_effect_steps` and the provider-key domain
+`snapback4:effect-step:v1`; `_action_steps`, action keys and action behavior are
+unchanged. Effects retain their legacy `(payload, meta)` handler signature and
+do not gain the action context or `ctx.step` in this slice.
 
-Effects retain their legacy handler signature and at-least-once semantics,
-not the action context or `ctx.step`. Their declared retry/deadline/cancellation
-policy is frozen at emission. Current `runWorker` requests fenced effect
-claims; hand-written wire workers must request `fenced: true` and return the
-`leaseToken` as `x-snapback-effect-lease`. Legacy unfenced claims remain
-compatible and do not gain the same-worker successor fence. Only a service
-may call `POST /effects/<id>/cancel`; cancellation cannot stop provider I/O
-already in flight.
+Current `runWorker` requests fenced effect claims; hand-written wire workers
+request `fenced: true` and return the `leaseToken` as
+`x-snapback-effect-lease`. A fenced worker can call
+`POST /effects/<id>/steps/<name>/begin` with `{ input, reconcile? }`, `/done`
+with `{ result }`, and `/park` with `{ error? }`. These routes mirror action
+step JSON and require exactly one nonempty lease header. Completion replays;
+changed input refuses; an uncertain provider outcome reconciles under the
+same key or parks the effect. Oversized outcomes park with E_STEP_RESULT and
+unknown outcomes park with E_STEP_PARKED. Parked effects are excluded from
+lease expiry and reclaim. Policy-allowed cancellation may move parked work to
+failed/E_EFFECT_CANCELLED but never resumes it.
+
+New emits store a contract over the exact generic `Value` payload, effect name
+and full admitted work policy. Effect payloads have no typed declaration yet,
+so this makes no same-name typed-change safety claim; a future typed surface
+must replace the generic validator tag with its schema identity. A persisted
+NULL contract is the explicit legacy bypass. A legacy effect represented only
+in `schema.effects` recomputes the implicit admission policy, including its 4s
+initial backoff, rather than becoming an absent declaration. Strict HTTP claim, step and
+settlement open an immediate transaction, sample time and supervisor revision
+once, authenticate the current service, and compare that contract. A mismatch
+parks with E_EFFECT_GENERATION before lease validity is considered, clearing
+claim, lease and scheduling fields. Legacy unfenced claim/settle wire remains
+compatible. Existing direct core claim/settle methods retain their historical
+compatibility behavior and do not provide the strict HTTP authority boundary.
+Only a service may call `POST /effects/<id>/cancel`; cancellation cannot stop
+provider I/O already in flight.
 
 ## Routes and webhooks
 

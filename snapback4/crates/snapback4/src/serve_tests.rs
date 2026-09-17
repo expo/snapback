@@ -608,6 +608,36 @@ fn a_poll_rechecks_session_liveness_after_waiting() {
 }
 
 #[test]
+fn effect_http_parses_before_authority_and_steps_require_one_live_lease() {
+    let source = "use personas alice\neffect mail retry 2\nmutation send():\n  emit mail {n: 1}\n";
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), source);
+    let malformed_claim = host.request("POST", "/effects/claim", "", "[]");
+    assert_eq!(status(&malformed_claim), 400); assert_eq!(body(&malformed_claim)["denied"]["code"], "E_INPUT");
+    let malformed_settle = host.request("POST", "/effects/not-yet/done", "", "[]");
+    assert_eq!(status(&malformed_settle), 400); assert_eq!(body(&malformed_settle)["denied"]["code"], "E_INPUT");
+
+    let emitted = body(&host.request("POST", "/m/send", "x-snapback-persona: alice\r\n", r#"{"id":"01ARZ3NDEKTSV4RRFFQ69G5FAV","args":{}}"#));
+    assert_eq!(emitted["state"], "sent", "{emitted}");
+    let service = { let engine = lock(&host.shared.engine);
+        snapback4_core::identity::service_session(engine.store(), "worker", host.shared.now(), 1).unwrap() };
+    let bearer = format!("Authorization: Bearer {}\r\n", service.token);
+    let claimed = body(&host.request("POST", "/effects/claim", &bearer, r#"{"fenced":true}"#));
+    let effect = &claimed["effects"][0];
+    let id = effect["id"].as_str().unwrap();
+    let lease = effect["leaseToken"].as_str().unwrap();
+    let begin_path = format!("/effects/{id}/steps/provider/begin");
+    let missing = body(&host.request("POST", &begin_path, &bearer, r#"{"input":{"n":1}}"#));
+    assert_eq!(missing["denied"]["code"], "E_EFFECT_LEASE");
+    let duplicate = format!("{bearer}x-snapback-effect-lease: {lease}\r\nx-snapback-effect-lease: {lease}\r\n");
+    assert_eq!(body(&host.request("POST", &begin_path, &duplicate, r#"{"input":{"n":1}}"#))["denied"]["code"], "E_EFFECT_LEASE");
+    let held = format!("{bearer}x-snapback-effect-lease: {lease}\r\n");
+    assert_eq!(body(&host.request("POST", &begin_path, &held, r#"{"input":{"n":1}}"#))["step"]["state"], "run");
+    let done_path = format!("/effects/{id}/steps/provider/done");
+    assert_eq!(body(&host.request("POST", &done_path, &held, r#"{"result":{"ok":true}}"#))["step"]["state"], "done");
+    assert_eq!(body(&host.request("POST", &format!("/effects/{id}/done"), &held, "{}"))["ok"], true);
+}
+
+#[test]
 fn an_effect_claim_rechecks_service_session_after_waiting() {
     let host = Host::new(false);
     let token = {
