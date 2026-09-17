@@ -1,1 +1,1 @@
-{"gzip":445000,"set":"2026-09-17","why":"S5 gates Postgres prefetch, log event construction (preserving partition meters) and structural admission on the web; 444,964 B gzip on the shipped pipeline, rounded up to 1000 B; report-only."}
+{"gzip":483000,"set":"2026-09-17","why":"S5 (server-only engine code out of the web device) measures 444,964 B alone; the tree it landed on had grown to 505,030 B (33,460 of it one untagged serde enum, repair commissioned), so as landed the device is 482,965 B gzip, rounded up to 1000 B; report-only."}

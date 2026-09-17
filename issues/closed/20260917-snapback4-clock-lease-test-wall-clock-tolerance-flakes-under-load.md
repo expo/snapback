@@ -1,7 +1,7 @@
 # Snapback 4: the clock lease test's 5 ms wall-clock tolerance flakes under load
 
 **Priority:** P3
-**Status:** Open
+**Status:** Closed (2026-09-17, fixed with the device diet's S5 landing)
 **Date:** 2026-09-17
 **Scope:** `snapback4/crates/snapback4/tests/clock.rs`, `clock_advance_preserves_a_live_action_claim_session_and_settlement`
 
@@ -48,3 +48,14 @@ runs, each `17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out`
 `57bdc2cbcc`). The lead's prior failure evidence at `70a663c22` remains the
 red-before evidence above; it was not rerun in this lane. Ready for the lead
 to move this ticket to `issues/closed/` with the landing.
+
+## 2026-09-17 — final form (S5 review round 2)
+
+The second review round found the fixed 60,000 ms threshold still depends on
+scheduling: two near-timeout HTTP phases can exceed it without any advance.
+The landed assertion uses nested intervals instead. The test reads its own
+clock, then the server's, runs the refused advance, reads the server's again
+and then its own: the server interval lies inside the test's interval, so
+`elapsed <= bracket + 50` holds under any load, and `bracket < 100_000` keeps
+an applied 120,000 ms advance from hiding inside a stalled run. Three
+consecutive runs passed on a machine at load 19–34.
