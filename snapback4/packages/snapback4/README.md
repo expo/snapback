@@ -279,9 +279,10 @@ mutation edit(messageId: messages, body: text <=4000):
   complete: false`, without substituting zero or a partial total.
   Value-order indexes over expiring sources are refused
   (`E_QUARRY_MAINTAIN_EXPIRE`): live values change before the physical sweep,
-  so stored top-N can miss a winner. `guide feeds` gives a fresh bounded
-  ranking with no schedule lag or writable score table; a candidate or
-  contribution scan cut makes it incomplete.
+  so stored top-N can miss a winner. For a window over the entity's own
+  immutable time, `guide feeds` gives hour lanes over a non-expiring source;
+  for contributions arriving in the window, its live bounded `rollingLikes()`
+  read remains necessary, and a candidate or contribution scan cut makes it incomplete.
 
 ### Write authority
 
@@ -442,16 +443,18 @@ it. Ordinary writes keep it valid; rows can move between pages. Only existing no
 appear. Author attribution stays a source field. A value-order page pins
 every group field before value in its index;
 value, id alone gives a global ranking. A UTC day is not a rolling
-24-hour window: the fresh bounded Trending recipe on `guide feeds` sorts
-live counts before taking the top ten, with no schedule lag or writable score
-table. It has separate queries for recent posts (including zero-like posts)
-and recent likes on posts of any age. Private likes use server reads; an
-explicit public-sync variant runs on both device stores. The meter covers
-both candidates and count contributions, so a cut makes the ranking incomplete.
-Value ordering over an expiring source remains refused: the sweep maintains
-physical aggregates and indexes transactionally, but stored order is stale
-between expiry and the sweep. The optional scheduled recipe offers stored
-pages at the cost of delayed scores.
+24-hour window: for posts younger than a day, `guide feeds` groups
+non-expiring likes by `hour(.postAt), postAt, postId` and merges the last
+25 hour lanes ordered by `hour, value, id`, filtering the exact time edge.
+It includes the validated copied-time insert rule and a zero-like fill;
+ties use maintained id, and groups persist as long as any like remains.
+Whole old buckets are skipped, but rejected candidates in the oldest
+included hour still consume the meter. For likes arriving in the last day
+on posts of any age, `rollingLikes()` still sorts live counts at read time;
+a cut makes that bounded ranking incomplete. Value ordering over an
+expiring source remains refused because stored order is stale between
+expiry and the sweep. The optional scheduled recipe buys a job-computed
+score or stored device page, with delayed scores.
 
 A maintain inherits source sync only when every audience column survives as
 a bare key, with no target horizon. It stays until-revoked even when its source
@@ -1656,23 +1659,37 @@ arrive. Its five-follow and celebrity-plus-four readers acquire 52,915 and
 52,866 rows, with 0 and 1 own pulls respectively. The feeds card records
 the exact prediction boundary and acquisition tradeoff.
 
-The feeds card's fresh bounded Trending recipe ranks the trailing post day
-with live counts and zero-like candidates, or the trailing like day across
-posts of any age. It has no ranking table, refresh helper, backfill or schedule:
-source writes maintain the count, and each read sorts all candidates that fit
-the meter. The recipe selects at most 4,095 candidates; each post costs two
-examinations plus its live like contributions (and unswept expired sources).
-A complete answer sees committed writes immediately. Exceeding the candidate
+The feeds card's first Trending answer ranks posts younger than a day in
+the like's own transaction: a value-indexed maintain merges 25 hour lanes,
+with the exact trailing edge in `where`. It has one cursor for liked posts
+and a separate bounded zero-like fill when the first page is short; score
+changes can move rows between pages, so the cursor is not a snapshot.
+The source rule pins principal to viewer, validates the copied post time,
+keeps the pair unique and immutable, and admits the viewer's unlike.
+No declared mutation accepts a score, time or hour. Ties use maintained id;
+the maintain cannot expire or be capped, so historical liked groups stay.
+With no source sync it is server-run; adding `sync public` on posts and
+likes gives device reads and eligible likes after acquisition, with the
+`N_MAINTAIN_SYNCED` disclosure that every group reaches every device.
+`check --residency --verbose` shows the exact sites on the card.
+
+For likes arriving in the trailing day on posts of any age, `rollingLikes()`
+keeps the bounded live sort and sees expiry before a sweep on both device
+stores. It selects at most 4,095 groups, paying one examination per group plus
+its source rows under the shared 8,192 examined ceiling. Exceeding the candidate
 bound returns accurately scored prefix winners with `complete: false`; an
 unfinished count or the separate 16 MiB heap cut returns `data: null,
-complete: false`. Large post bodies can hit heap before the candidate bound.
-The default keeps likes private, reads on the server and syncs only the last
-2,000 posts on acquisition. Its documented public-like variant explicitly
-removes that horizon and replicates full sources and count groups, so both
-device stores can recompute expiry offline. New remote
-writes still require sync. The card also retains the optional scheduled
-ranking for stored pagination with explicit score lag; a complete stored page
-does not certify score freshness.
+complete: false`. The default keeps these expiring likes private, reads on the
+server and syncs only the last 2,000 posts on acquisition. Its public-like
+variant explicitly removes that horizon and replicates full sources and count
+groups, so both device stores can recompute expiry offline. A bounded post
+sort such as `trendingNow()` pays two examinations per post plus any live
+contributions; large post bodies can hit heap before its 4,095 candidate bound
+(the 6,000-byte-body fixture fits 1,000 and cuts at 2,700). These bounds do not
+apply to the indexed hour-lanes recipe. Remote writes still require sync.
+The optional scheduled ranked-table recipe buys a score
+computed by a job, such as a native scorer, or a stored page for a device
+that cannot hold the maintain; it is neither fresh nor exact.
 The card's `vote` predicts its first offline upsert when the post is held;
 the viewer's votes have no horizon and are capped at 1,000 per viewer.
 

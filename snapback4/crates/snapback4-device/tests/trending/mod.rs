@@ -101,3 +101,5 @@ fn tied_pages<H: Host>(host: &mut H) {
 #[test] fn trending_equal_score_equal_time_pages_match_immediate_on_memory() { tied_pages(&mut Memory::new()); }
 
 mod rolling;
+
+mod lanes;

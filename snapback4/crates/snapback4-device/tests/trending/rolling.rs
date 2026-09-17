@@ -12,6 +12,8 @@ fn recipe() -> String {
         .replace("  sync to .principal", "  sync public")
         .replace("  online only\n", "")
         .replace("  sync public last 2000 by byTime", "  sync public")
+        // W12's bounded-sort coverage remains independent of the new indexed recipe.
+        + "\nquery trending():\n  candidates = posts[at > now - 86400000, at <= now] first 4095 by byTime { postId: .id, at, score: likeCounts[.id] }\n  return slice(sort(candidates, '-score', '-at', '-postId'), 0, 10)\n"
 }
 
 fn post(name: &str, at: i64) -> (String, Value) {
