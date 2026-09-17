@@ -30995,3 +30995,169 @@ test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fin
 ```
 
 Final source checks: root `./ref-check --verbose` reports `ref-check: ok — 483 LLP docs, 9079 refs in 24214 files, 0 errors, 0 unchecked`; `git diff --check` is clean. The largest changed source is 1,032 lines. The original 1,809,607-byte journal prefix retains SHA-256 `807eb708f822111617fc296175937b72f2f222a13312ac46623a5add47972a47`, and exactly one dated entry was appended. All work remains uncommitted.
+
+## 2026-09-17 — S5 review round 1: confine the check feature, honest witnesses, and the clock property
+
+Base: `3d1c38c21f786c2795a92b87426d84a3b67dd2f0`, the metrics-only child of the brief's `57bdc2cbcc`. Applied the lead's six dispositions after reading both received reviews. No LLP, durable/wire format, meter ceiling, client contract, publication script, XCFramework script, wasm build script, or existing corpus case changed. No commit, push, tag or publication. The README already covers queries and predictions and remains consistent with the corrected guide cards.
+
+`web-device-check` now emits a `compile_error!` in core whenever debug assertions are off. It names the feature and its debug-test purpose. The ordinary shipped wasm is byte-identical. The only production code added is this build refusal; no shipped execution path changed.
+
+**Correction to the preceding S5 entry's census claim:** the 3,452 manually compared observations were exploratory measurements, not an asserted regression test of the gates. That claim is withdrawn. Removed the ignored record generator and its environment-controlled file outputs. Kept the non-ignored IR-patched admission witness on memory and SQLite, the direct server `validate_inputs` refusal, and the 24-step accounting comparison (first success at 11). Dropped the query against the unmodified server: it never exercised the patched IR. The accounting comparison establishes retained work/refusal behavior; it does not prove event allocation absent.
+
+The absence matcher now follows `prefetch`, `admission` and `log_events` module segments at any mount, and the current partition `row_changed`/`put`/`del`/`scope`/`join` names even under a moved submodule. Its test includes valid near-miss segments and unrelated `put`, as well as the forbidden spellings. Fully inlined or renamed logic is explicitly outside this instrument's reach; the measured byte budget line is the backstop and remains report-only. The real artifact check remains on `measure-wasm.sh`, outside `scripts/test.sh`.
+
+The prediction card now includes query answers; the codes, bounds and programs cards explain that compiling/serving hosts refuse inadmissible backends while the web device trusts server admission. The clock test captures wall time before server time and asserts the refused 120 s advance leaves the server interval under 60 s. It still verifies the successful retry's exact deadline shifts. Appended the ticket resolution for the lead to close.
+
+| Disposition / assertion | Mutation caught / evidence |
+| --- | --- |
+| Production feature guard | Before: the same production `cargo check` succeeded. After: exit 101 with the explicit feature-purpose error below. Ordinary debug witnesses and the shipped wasm still build. |
+| Patched query returns 7 under `web-device-check` | Temporarily restored device admission under that feature: 1 passed, 1 failed. Restored source: 2 passed, 0 failed. The server's direct input validation still refuses the same patched program. |
+| Absence assertion | Old matcher with expanded symbol tests: 1 passed, 1 failed. New matcher: all 12 instrument tests pass. Event construction returning to the web path is caught when its current names survive: the saved pre-S5 census's `partition::row_changed` and closures are refused with actual `twiggy paths`; the current artifact passes. This is symbol reachability evidence, not a claim that a native outcome comparison observes discarded events. |
+| Guide | 46 compiled-guide tests pass; README already states the same boundary. |
+| Clock | Lead's ticket supplies the old assertion's red-before evidence (2 failures in 3 runs at `70a663c22`); corrected suite passes 17/17 five consecutive times here. |
+
+All following commands ran from `snapback4/` unless marked root. Every Node/Bun invocation used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`. Logs are in `/tmp/s5-r1-evidence/`.
+
+`cargo check -p snapback4-core --features web-device-check --profile production` before the guard exited 0:
+
+```text
+    Finished `production` profile [optimized] target(s) in 1m 31s
+```
+
+The identical command after the guard exited 101:
+
+```text
+error: web-device-check is only for debug test witnesses of the web device policy; it cannot be enabled in release, production, or wasm profiles
+error: could not compile `snapback4-core` (lib) due to 1 previous error
+```
+
+`cargo test -p snapback4-device --features web-device-check --test device_diet` with the temporary admission-restored mutation (fully restored before final checks):
+
+```text
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+```
+
+`node --test packages/snapback4/test/wasm-absent.test.mjs` with expanded tests before the matcher change:
+
+```text
+ℹ tests 2
+ℹ pass 1
+ℹ fail 1
+```
+
+`cargo test -p snapback4-device --test device_diet`:
+
+```text
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+```
+
+`cargo test -p snapback4-device --features web-device-check --test device_diet`:
+
+```text
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+```
+
+`cargo test -p snapback4 --test clock` (run 1):
+
+```text
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.53s
+```
+
+`cargo test -p snapback4 --test clock` (run 2):
+
+```text
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.24s
+```
+
+`cargo test -p snapback4 --test clock` (run 3):
+
+```text
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.33s
+```
+
+`cargo test -p snapback4 --test clock` (run 4):
+
+```text
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.12s
+```
+
+`cargo test -p snapback4 --test clock` (run 5):
+
+```text
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.11s
+```
+
+`cargo test -p snapback4-lang --test guide`:
+
+```text
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+```
+
+`node --test packages/snapback4/test/wasm-*.test.mjs`:
+
+```text
+ℹ tests 12
+ℹ pass 12
+ℹ fail 0
+ℹ skipped 0
+```
+
+`node --test packages/snapback4/test/device-diet.test.mjs`:
+
+```text
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+ℹ skipped 0
+```
+
+`node scripts/attribute-wasm.mjs --check-families --check-absent` exited 0:
+
+```text
+1662585 total attributed bytes
+serde family check: ok
+server-only absence check: ok
+```
+
+`bash scripts/build-wasm.sh` exited 0 with the exact base size line:
+
+```text
+wasm 1515327 B raw, 444964 B gzip (budget 445000: ok)
+```
+
+Delta: **0 B raw, 0 B gzip**. `shasum -a 256 packages/snapback4/src/wasm/snapback4_device_bg.wasm` before and after returned `ed6510ddaa70bfed2ceb0b51196df744dd245323cdb9d50d5c7f18d3e76f7586`, identical to the preceding S5 record. This round changes no SDK JS, backend image or transfer format, and does not claim new acquisition timing measurements. The 24 accounting cases on each store still first succeed at ceiling **11** (`cargo test -p snapback4-device --test device_diet` and the feature run).
+
+Supplied by the lead, not rerun as standalone witnesses here: at `57bdc2cbcc`, outside-sandbox `scripts/test.sh` was red only on `snapback4::clock`; client tests passed 624 of 627 with 0 failures; `witness/idb.mjs` exited 0 including composition; `witness/scale.mjs` exited 0; `react.test.mjs` passed 13/13; `attribute-wasm.mjs --check-families --check-absent` passed. The clock's old 5 ms assertion failed 2 of 3 runs at `70a663c22`, per the lead's ticket. These are attributed evidence, not this lane's base reruns.
+
+Nothing requested was deliberately omitted. The census disposition uses the expressly allowed smaller option (withdraw its regression claim and keep the patched witness), rather than adding policy hooks. README needed no edit; the server query assertion was dropped as allowed. No out-of-scope file was touched. The actual base differing by one metrics commit is the brief's factual mismatch. The lesson is that equality of discarded outcomes cannot witness removal of discarded work: the admission witness and the code-reachability instrument answer different questions.
+
+Root `bash snapback4/scripts/test.sh` exited 1. Verbatim step/client summaries:
+
+```text
+-- ok: cargo test (382 s)
+ℹ tests 615
+ℹ pass 610
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 3
+-- FAIL: client tests (721 s)
+== 1 failure(s) in 742 s
+   client tests
+```
+
+The 465 Rust target summaries total **1,426 passed, 0 failed, 6 ignored** (the removed ignored census accounts for the prior seventh ignore). The full run's clock target also passed 17/17 in 11.88 s. Fixture wrapper summary: `ℹ tests 9`, `ℹ pass 9`, `ℹ fail 0`. All build/typecheck steps passed. The two client failures were Chromium `SIGABRT` during launch in `react.test.mjs` (the known sandbox artifact) and `transport-http.test.mjs`'s wasm maximum-pending test timing out at its `until` assertion. Reran the latter alone:
+
+`node --test --test-name-pattern='wasm: maximum pending' packages/snapback4/test/transport-http.test.mjs`:
+
+```text
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ duration_ms 18755.080833
+```
+
+No client timeout or browser behavior was changed. No failure is claimed personally base-proven pre-existing: no untouched-base rerun was made in this round. The lead's clock evidence is explicitly attributed above. The brief's warm 60-second premise did not hold; this complete suite took **742 s**. Chromium still needs the lead's outside-sandbox qualification; the supplied 13/13 React run is its existing evidence.
+
+Root `./ref-check --verbose`: `ref-check: ok — 483 LLP docs, 9080 refs in 24214 files, 0 errors, 0 unchecked`. Root `git diff --check`: exit 0, no output. Largest changed source: **540 lines** (`wc -l` over the changed Rust/JS sources). The existing journal prefix is preserved byte-for-byte; this is one new dated entry. Full commands, outputs and red/green logs are retained under `/tmp/s5-r1-evidence/`.

@@ -318,12 +318,13 @@ fn clock_advance_preserves_a_live_action_claim_session_and_settlement() {
     // Force the last lease update to fail: sessions, effects and the clock
     // must all retain their earlier deadlines before an ordinary retry.
     conn.execute_batch("CREATE TRIGGER refuse_action_shift BEFORE UPDATE OF lease_until ON _requests BEGIN SELECT RAISE(ABORT, 'test refuses action shift'); END;").unwrap();
-    let before = host.query("time").as_i64().unwrap();
     let wall = snapback4_core::now_ms();
+    let before = host.query("time").as_i64().unwrap();
     assert_eq!(host.post("/dev/clock/advance", json!({"duration":"120s"}))["denied"]["code"], "E_STORE");
     assert_eq!(deadlines(), (original_expiry, original_expiry));
     assert_eq!(effect_deadline(), original_effect_expiry);
-    assert!(host.query("time").as_i64().unwrap() - before <= snapback4_core::now_ms() - wall + 5, "a refused lease transaction must not advance the clock");
+    let elapsed = host.query("time").as_i64().unwrap() - before;
+    assert!(elapsed < 60_000, "a refused lease transaction must not advance the clock: server {elapsed} ms, wall {} ms", snapback4_core::now_ms() - wall);
     conn.execute_batch("DROP TRIGGER refuse_action_shift;").unwrap();
     let start = Instant::now();
     let port = host.address.rsplit(':').next().unwrap();

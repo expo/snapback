@@ -30,3 +30,21 @@ alone. Assert that, not a 5 ms race: capture `wall` before `before`, or
 require the server interval to be far below the refused 120,000 ms (for
 example under 60,000 ms), which a wrongly applied advance cannot satisfy and
 no plausible scheduling delay can violate.
+
+## 2026-09-17 — resolution (S5 review round 1)
+
+Captured the wall clock before the first server-time read and replaced the
+5 ms comparison of unequal HTTP intervals with the property under test:
+the server interval after a refused 120,000 ms advance must remain below
+60,000 ms. The assertion reports both intervals if it fails. The successful
+retry still asserts the exact 120,000 ms deadline shifts; neither the host
+clock nor lease behavior changed.
+
+From `snapback4/`, `cargo test -p snapback4 --test clock` passed five consecutive
+runs, each `17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out`
+(11.53 s, 11.24 s, 11.33 s, 11.12 s, 11.11 s). Logs are
+`/tmp/s5-r1-evidence/clock-{1,2,3,4,5}.log`. The worktree base is
+`3d1c38c21f786c2795a92b87426d84a3b67dd2f0` (the metrics-only child of
+`57bdc2cbcc`). The lead's prior failure evidence at `70a663c22` remains the
+red-before evidence above; it was not rerun in this lane. Ready for the lead
+to move this ticket to `issues/closed/` with the landing.
