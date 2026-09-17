@@ -31990,3 +31990,24 @@ publication or deployment ran. Generated registry/typecheck, default
 why/log secrecy, actual HTTP/process cuts, concurrency/restart/rollback,
 authentication and Resend/inbox evidence remain pending with the parent, as
 do independent reviews and any full Identity/B or delivery qualification.
+
+The final successful commands, from `snapback4/`, were:
+
+```text
+PATH=<Node-24.18.0> node --check packages/snapback4/test/identity-invitation-issuance.test.mjs
+pass
+
+PATH=<Node-24.18.0> ./node_modules/.bin/tsc --noEmit --strict --exactOptionalPropertyTypes --noUncheckedIndexedAccess --skipLibCheck --target ES2022 --module NodeNext --moduleResolution NodeNext --allowImportingTsExtensions packages/snapback4/test/fixtures/identity-recipe/invitation-issuance/issue-invitation.ts packages/snapback4/test/fixtures/identity-recipe/invitation-issuance/resend.ts
+pass
+
+PATH=<Node-24.18.0> node --test --test-concurrency=1 packages/snapback4/test/identity-invitation-issuance.test.mjs
+32 pass, 0 fail, 0 skip; 494.33175 ms
+
+git diff --check
+pass
+```
+
+One preceding syntax command mistakenly prefixed the path with `snapback4/`
+while already in that directory; it failed with `MODULE_NOT_FOUND` before
+reading a source file. The immediately corrected command above passed. This
+instrument-path error is not a product or test failure.
