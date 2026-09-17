@@ -84,5 +84,11 @@ silent loss for a merge.
 
 Either way, add the regression above on the server and both device stores, for
 the eager path and the lazy path at ≤ 8 and > 8 lanes (the batch size differs).
-The ruling-26 design (LLP 3000.007 §20.22.5, drafted 2026-09-17) depends on this: its drain-cut
-continuation is only correct when the merged suffix identifies a row.
+The ruling-26 design depends on this: its drain-cut continuation is only correct
+when the merged position identifies a row.
+
+**Fix specified (2026-09-17):** [LLP 3000.007.000](../llp/3000.007.000-merge-position-and-drain-cut-continuation.spec.md)
+§1 item 1 (D0.1) — option 1 above, as *append-if-missing* and confined to the
+**merge** position (a direct page's token does not change) — with its acceptance in
+§6 (D5.6). Two blind review families verified the premise on all three stores.
+Built by wave 13's first engine lane (LLP 3000.007 §20.22.1).

@@ -187,10 +187,13 @@ Ten messages in two rooms, page size 4, so more rows remain after every first pa
   grouped        complete=false cut=null  next=absent   top-level items=2
   groupedDirect  complete=false cut=null  next=absent   top-level items=1
   both           complete=true  cut=null  next=PRESENT  top-level items=4
+  sorted         complete=false cut=null  next=absent   top-level items=4
+  shaped         complete=true  cut=null  next=PRESENT  top-level items=4
 ```
 
 `grouped` is `page = merge … after c last 4 …; return group(page, 'roomId') { … }`; `groupedDirect` is the same over a
-direct page; `both` returns `{ page, groups: group(page, …) }`. The engine is honest — a page whose position is not
+direct page; `both` returns `{ page, groups: group(page, …) }`; `sorted` is `return sort(page, 'at') { id, at }`; `shaped`
+is `return page { id, at }` — a shape alone keeps the continuation, a helper call does not. The engine is honest — a page whose position is not
 returned reads `complete: false` (§19.2) — so nothing is lost *silently*. But the query declares `c: cursor ?`, pages
 `after c`, and can never publish `next`: a certain consequence that `check` does not state, surfaced at runtime as
 `cut: null`, which tells the author nothing. Lane W13d's Astra author wrote exactly this first ("grouped by chat" →
@@ -198,3 +201,19 @@ returned reads `complete: false` (§19.2) — so nothing is lost *silently*. But
 of its list argument, so the page's continuation would be sound if it were carried (no row is skipped by following it;
 groups recur across pages as fragments). Open for the author: carry the page through row-preserving helpers (`group`,
 `sort`), or note it at `check`.
+
+## merge-lane-inline-seek/ — `node measure.mjs` (a defect a fresh builder met in the bounds bar's first "before" run)
+
+`check: ok … no problems`. Thirty hours, one post each; `at` inside the newest hour.
+
+```
+  inline  REFUSED {"denied":{"code":"E_INPUT","family":"input","message":"E_INPUT: unknown variable $value1"}}
+  bound   rows=10 complete=true next=yes
+  direct  rows=25 complete=true next=no
+```
+
+`inline` is `merge posts … : [h.hourAt] for h in hours[hourAt >= hour(at - 86400000), hourAt <= hour(at)] first 25 by byHour`;
+`bound` assigns the two `hour(..)` expressions to locals first; `direct` is the same inline seek on a direct page. The
+binder binds a lane's source scan with the lane's per-row `setup` (`bind/program.rs:536`), so the temporaries hoisted for
+the source's seek bounds are assigned by statements the engine runs *after* the source scan (`engine/read.rs:730–743`,
+`:828–830`). P2, ticketed.

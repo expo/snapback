@@ -41,3 +41,8 @@ when the page is recorded: for the non-uniform class on the server, a merge's
 (§5.6: a non-uniform direct page does carry `next` after its last rule-visible
 row). Regression: both statement orders, paired worlds, server and both device
 stores (a device does not set `non_uniform` for synced tables).
+
+**Fix specified (2026-09-17):** [LLP 3000.007.000](../llp/3000.007.000-merge-position-and-drain-cut-continuation.spec.md)
+§3 item 4 (D2.4): the traversal records a continuation *candidate*; the outcome
+publishes it for a merge owner unless the whole answer is the server's
+non-uniform class. Acceptance: §6 (D5.7). Built by wave 13's first engine lane.
