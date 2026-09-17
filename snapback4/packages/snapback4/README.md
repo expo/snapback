@@ -559,7 +559,9 @@ charged to that chunk's meter. Writes belong inside a chunk.
   t[seed] up .parentId depth 8` (a bounded list of rows), `t[scope]
   matching q after c last N by wordsIndex` (word-prefix search; Search,
   below), `merge t matching q [after c] last N by wordsIndex:` over scope
-  lanes (search across groups), `connected[p]` (open connections; `exists connected[p]` tests;
+  lanes (search across groups; uniform scopes share one heap of discovered
+  word lanes, with one verdict before discovery and at most 32 words per scope),
+  `connected[p]` (open connections; `exists connected[p]` tests;
   Presence, below). A key may name its columns: `t[a = x, b = y]`.
   If several indexes match a positional key, a single exact-type match wins
   first. If that remains ambiguous and exactly one is unique over the whole

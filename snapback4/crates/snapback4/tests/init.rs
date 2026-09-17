@@ -743,7 +743,8 @@ fn w11c_installed_search_walks_past_wide_merge_and_reports_real_cuts() {
         engine.query(name, Context::new("dev:alice", args).at(2000)).unwrap()
     };
     let wide = query(&mut engine, "wide", None, None, "cof");
-    assert!(!wide.complete && wide.next.is_none() && wide.capped_at.is_some());
+    assert!(wide.complete && wide.next.is_some() && wide.capped_at.is_none());
+    assert_eq!(wide.metered.examined, 1540);
     let mut batch = None;
     let mut walk = search_fixture::Walk::new();
     let mut batches = 0;

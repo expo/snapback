@@ -30871,3 +30871,162 @@ The npm propagation fix landed earlier today did its job: `converge()` read
 `snapback4@0.2.28` back **one second** after upload instead of throwing on an
 accepted publish, which is what cost 0.2.27 its second attempt and 0.2.21 a
 hand-finished chain.
+
+## 2026-09-17 — W13f: uniform matching scopes share the lazy heap
+
+Built on base `6cad8916c8467f6f8415f93cdb399920a3e965da`, including W13a.
+`rules::lazy_merge` now admits a trailing matching term when every lane is
+uniform and otherwise meets the existing lazy predicate. The binder already
+uses that same predicate for N_WIDE_MERGE, so no binder edit was necessary.
+The scoped search preparation is shared: validate first, give one verdict
+per scope before discovering any word, cap each scope at 32 words, then put
+its admitted word lanes into the existing heap. Further terms remain scan
+filters; id deduplication, the v1 descriptor, and W13a's candidate and drain
+rules are unchanged. The eager merge body compares byte-for-byte equal to
+base. Plain lanes borrow their scans; generated word lanes own theirs.
+No ceiling, serialized form, parser, client or store interface changed.
+
+The card's dense 30-message / 24-hit fixture, q = `cof`, page size 20:
+
+| Memberships | Before examined / complete / next | After examined / complete / next | Ordered ids in one-cursor walk | After whole-walk examined |
+|---|---|---|---|---|
+| 100 | 2,400 / true / yes | 340 / true / yes | 2,400 | 39,600 |
+| 500 | 8,358 / false / no | 1,540 / true / yes | 12,000 | 898,000 |
+| 1,000 | 8,880 / false / no | 3,040 / true / yes | 24,000 | 3,546,000 |
+
+These counts and every expected id/order are asserted on the server and on
+both devices, acquired through snapshots and closed/reopened. The unreadable
+newer chat is absent. A second Clique-shaped fixture puts `coffee` in every
+one of 30,000 readable messages across 1,000 chats; its first page of 20 and
+full walk (pages of 200) pass on all three hosts. Duplicate-word and
+further-term walks pass too. A 33-word first scope still reports `cut: words`,
+withholds next, and includes the later scope's newer hit. Paired worlds differ
+by a hidden membership and 9,000 newer hidden hits over 9,000 distinct words;
+all serialized pages, complete, cut, next and every meter field are identical.
+An explicitly denied scope checks verdict-before-word-discovery as well.
+
+The new drain positive has nine scopes with one word each and every 100th
+row satisfying term two: nine membership rows + 9 × 200 opening examinations
++ 31 × 200 refills = 8,009. Refill 32 cuts in lookahead at 8,193, after 32
+emissions, and returns next. Following it returns all 90 expected ids once in
+order. The control opens 3,000 dense scope/word lanes: 3,000 + 2 × 3,000 is
+over 8,192. It returns 20 buffered rows at 8,596 recorded examinations, with
+`complete: false, cut: meter`, no next. Neither ceiling is raised.
+
+The existing 50-chat batch recipe remains intact for W13e. Its first-page
+count falls from 1,201 to 191; whole-walk counts including separate membership
+discovery fall from 79,181 / 396,149 / 792,359 to 22,261 / 111,549 / 223,159.
+The measured envelope and the unbatched comparison on the search card are
+updated; the two-cursor prose, recipe, helper and held form are untouched.
+The README records shared uniform word heads. No diagnostic code was added.
+
+Head-only work stopped at the requested store boundary. `Rows::scan` can only
+return `(Value, key)`; SQLite and Postgres join and decode the row, and both
+memory stores clone it. A real key-only head needs a new bounded index-head
+method on `Rows`, implementations in SQLite, Postgres, core MemoryRows and the
+device MemoryTx, forwarding through Reading/Predicting, then deferred row
+materialization in the heap. Estimate: seven production files, roughly
+200–350 lines plus store/engine/device tests. Expiry, filters, further terms
+and live aggregates that require source rows need the existing materializing
+path. No prototype or head-only speedup is claimed; that extension is for the
+lead's decision.
+
+Following measurements use optimized binaries built with
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo build --release -p snapback4`.
+The committed `following/measure.mjs` was copied to
+`/private/tmp/w13f-following.mjs`, with only `{ meter: true }` made conditional
+on `BARE`. Each cell is 60 loopback HTTP samples after three warm-ups. Both
+binaries seed the unchanged 1,000-author × 50-post fixture afresh. Requests
+omitting meter STILL RECEIVE meter: this base's loopback dev returns it by
+default (`serve.rs`). Thus these are the two requested request forms, not a
+measurement of a genuinely meter-free response path. The brief's distinction
+between those response paths does not hold on this base; no 3× bare-path
+Following gate is established here.
+
+Paired repeat after this lane's own tests stopped (shared host still loaded):
+
+| Request | Follows | Examined before / after | Before p50 / p95 ms | After p50 / p95 ms |
+|---|---|---|---|---|
+| meter: true | 5 | 115 / 115 | 1.90 / 2.32 | 1.88 / 2.23 |
+| meter: true | 500 | 1,540 / 1,540 | 4.32 / 5.25 | 4.22 / 4.66 |
+| meter: true | 1,000 | 3,040 / 3,040 | 7.10 / 7.96 | 6.76 / 8.05 |
+| meter omitted | 5 | 115 / 115 | 1.98 / 2.34 | 1.87 / 2.14 |
+| meter omitted | 500 | 1,540 / 1,540 | 4.11 / 4.76 | 4.11 / 4.59 |
+| meter omitted | 1,000 | 3,040 / 3,040 | 6.28 / 7.53 | 6.57 / 7.14 |
+
+The 500/5 p50 ratios are 2.27× → 2.25× with meter requested and
+2.07× → 2.20× with meter omitted. These show the unchanged plain merge,
+not a head-only implementation. The incremental 500-versus-5 cost per
+additional lane is 4.89 → 4.73 microseconds on the metered request and
+4.30 → 4.53 microseconds on the omitted-meter request (derived from these
+rounded p50s). No fourfold head-cost reduction was built or measured.
+Commands from the committed `following/` probe directory:
+`SB=/private/tmp/w13f-base-release node /private/tmp/w13f-following.mjs`,
+then `SB=/Users/ccheever/projects/snapback-w13f/snapback4/target/release/snapback4 node /private/tmp/w13f-following.mjs`,
+then both again with `BARE=1`. Raw outputs:
+`/private/tmp/w13f-paired-{before,after}-{meter,bare}.log`.
+
+The first release timing pass overlapped this lane's tests during the after
+measurements and was repeated for that reason, not hidden: before/after
+meter-requested p50/p95 were 1.89/2.33 → 2.57/3.56 ms (5),
+4.22/4.86 → 5.94/6.27 ms (500), 6.65/7.53 → 9.11/10.59 ms (1,000);
+omitted-meter were 2.00/2.35 → 2.72/3.76, 4.50/5.09 → 6.16/6.71,
+7.11/7.93 → 9.03/11.84 ms respectively. Both passes are loopback
+observations on a shared Mac, not a portable latency guarantee.
+
+Validation: the new suite was red against the exact base above before the
+engine edit: server `test result: FAILED. 4 passed; 5 failed; 0 ignored; 0 measured; 120 filtered out; finished in 1.31s`;
+devices `test result: FAILED. 8 passed; 10 failed; 0 ignored; 0 measured; 236 filtered out; finished in 4.28s`.
+After: server `test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 120 filtered out; finished in 32.16s`;
+devices `test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 236 filtered out; finished in 47.29s`.
+The commands (from snapback4/, with TMPDIR=/private/tmp) were
+`cargo test -p snapback4-sim --test clique w13f -- --nocapture` and
+`cargo test -p snapback4-device --test device w13f -- --nocapture`.
+Four server/eight device controls pass both before and after; dense cost,
+dense completeness, Clique and drain continuation supply the red positives.
+The broader `search` filters pass 15 server / 50 device tests; `--test search_merge`
+passes 11; the `merge_continuation` filters pass 19 server / 38 device tests;
+`cargo test -p snapback4-lang --test residency_notes --test guide` passes 39 / 45.
+
+The full command, at the repository root with Node 24.18.0 on PATH, was
+`TMPDIR=/private/tmp bash snapback4/scripts/test.sh`. It reported
+`== 2 failure(s) in 597 s`: Rust 1,422 passed / 5 failed / 5 ignored;
+fixture wrappers 9 passed / 0 failed; client `ℹ tests 584`, `ℹ pass 580`,
+`ℹ fail 1`, `ℹ skipped 3`. All build and typecheck stages passed.
+The five Rust failures were one stale recipe assertion expecting the newly
+complete 500-chat merge to cut, plus four witness-driver failures (including
+`E_WITNESS_TIMEOUT: xcrun simctl list devices booted --json timed out`).
+The one additional out-of-scope file, `crates/snapback4/tests/init.rs`, changes
+that assertion to complete/next and pins 1,540 examined; its existing real
+meter/word-cut controls stay unchanged. The isolated test passed 1/1, and the
+whole `cargo test -p snapback4 --test init -- --nocapture` target passed
+`test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.40s`.
+The witness retry, `cargo test -p snapback4 --test witness -- --test-threads=1`,
+passed `test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 48.99s`.
+No engine code changed after the full run began; the assertion-only correction
+was verified through its complete affected target.
+
+The sole client failure is the brief's Chromium sandbox artifact. Isolated
+`TMPDIR=/private/tmp node --test packages/snapback4/test/react.test.mjs`
+reports `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`, `ℹ skipped 0`:
+Chromium exits SIGABRT at launch, before navigation. The test, launch helper
+and lockfile are byte-identical to the base commit named above; this verifies
+the unchanged launch inputs, not a second complete base battery. No unresolved
+product failure is labelled pre-existing. The browser witness needs the lead's
+outside-sandbox rerun. Full output is `/private/tmp/w13f-suite.log`; targeted
+logs use `/private/tmp/w13f-*.log`.
+`./ref-check --verbose` reports 483 LLP docs, 9,066 refs, 0 errors, 0 unchecked.
+All changed code files are below 1,500 lines (maximum 931).
+
+Learned: flattening fixes the first page without inventing a continuation
+protocol. It does not make exhaustive wide walks cheaper than batching:
+reopening all 1,000 scopes for each 20-row page costs 3,546,000 examined over
+the full walk, despite the cheap 3,040-examined first page. The key-only-head
+hypothesis needs a real store capability and a true bare response measurement,
+not an inferred win from these metered dev ratios. All work is left uncommitted.
+
+Execution note: one initial regression-test command mistakenly ran from the
+repository root and exited 101 before running tests; it was rerun from the
+Snapback 4 workspace. All reported Cargo test/build results are from
+`snapback4/`. The first fixture compile also caught a moved `next` value in
+a test assertion; that assertion was corrected before the baseline red runs.

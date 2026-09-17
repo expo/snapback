@@ -114,3 +114,5 @@ fn crafted_cursors<H: Host>(mut host: H) {
 fn w7r1b_search_cursor_memory() { crafted_cursors(Memory::new()); }
 #[test]
 fn w7r1b_search_cursor_sqlite() { crafted_cursors(Sqlite::new("w7r1b-cursors")); }
+
+mod lazy;
