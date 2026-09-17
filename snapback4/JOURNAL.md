@@ -30363,3 +30363,40 @@ alternating viewers can flood it. The only additional implementation file is
 `crates/snapback4/src/read_cost.rs`, shared by dev output and fixture formatting;
 `serve_tests.rs` gains only the new Shared field initializer. Nothing was
 committed, pushed, tagged or published.
+
+## 2026-09-17 — maintained columns: round 5, READY from both families
+
+LLP 3000.007.001 revision 5 went back to both families as a final confirmation: round 4 had
+ended with GPT at READY and Grok at READY WITH CHANGES (two Medium tightness items, no
+Critical or High), and the author's bar for ruling 30 is "READY from both". The lead read
+that literally rather than deciding one family's Mediums did not count (LLP 3000.007 §21.8,
+L13). The brief asked four things only — are round 4's four edits applied correctly (the
+derivation identity as a field of the projected `Table`; no inherited `sync` and outside
+`Schema.synced()`; `doctor`'s count through `visible`; §6's device summary), and did they
+disturb anything.
+
+Result, at `934939fc74`: **GPT READY, no finding at any severity; Grok READY, no findings.**
+Both checked the identity against `keeps_literal_default_images` (`successor.rs`), the
+binder's inherit loop (`bind/schema.rs`), `Schema::synced`, `partition::row_changed` and
+`Device::adopt`/`apply`. Grok's useful sentence: on the projection
+`from.maintains != to.maintains` cannot see a private redefinition, so the identity *must*
+live on `Table` — exactly the case (a redefinition in the same generation as an unrelated
+literal-default add) that would otherwise let a device keep images holding the old total.
+
+Recorded verbatim under `llp/reviews/3000.007.001-maintained-columns-5.{gpt,grok}.md`; §10
+of the design carries the round; §14 ruling 30 of LLP 3000.007 now states the bar is met.
+Five rounds, 2026-09-17: NOT READY/RWC, NOT READY/RWC, NOT READY/RWC (converging),
+READY/RWC, READY/READY. The design that survived is not the one that went in: the total
+moved off the row into a private authoritative maintain that the column mirrors (GPT's
+round-2 alternative), device prediction left the first build, and "private" became a
+mechanism rather than a naming convention.
+
+What this does **not** do: accept the design (the author's), brief a lane (§7's gates —
+bytes per like, rows a device gains per day, a real device adopting 100,000 parents over
+HTTP — are measured first), or build anything. Status stays `Review`.
+
+Learned: a confirmation round is cheap (seven minutes for both families on a 60-line
+diff) and worth running to the letter of the bar; "one family's Mediums do not count" is
+the lead grading its own design. And a review harness detail worth keeping: both families
+were pointed at `git diff <previous reviewed commit> HEAD -- <design>` so a confirmation
+round reviews the delta, not the document again.
