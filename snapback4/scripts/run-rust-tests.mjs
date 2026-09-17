@@ -84,7 +84,7 @@ function packageName(packageId) {
 
 function testThreads(artifact) {
   const packageNameValue = packageName(artifact.packageId);
-  if (packageNameValue === "snapback4-sim") return 1;
+  if (packageNameValue === "snapback4-sim") return 4;
   if (packageNameValue === "snapback4-device") return artifact.target === "device" ? 8 : 2;
   if (packageNameValue === "snapback4") return artifact.target === "lifecycle" || artifact.target === "snapback4" ? 1 : 2;
   if (packageNameValue === "snapback4-lang" && artifact.target === "lowering") return 8;
@@ -92,12 +92,15 @@ function testThreads(artifact) {
 }
 
 async function runArtifact(artifact) {
-  const label = `${packageName(artifact.packageId)}::${artifact.target}`;
+  const label = `${packageName(artifact.packageId)}::${artifact.target}${artifact.labelSuffix ?? ""}`;
   const started = Date.now();
   const chunks = [];
   const env = { ...process.env };
   if (packageName(artifact.packageId) === "snapback4-device") env.RUST_MIN_STACK = "33554432";
-  const child = spawn(artifact.executable, ["--quiet", `--test-threads=${testThreads(artifact)}`], {
+  const args = ["--quiet", `--test-threads=${testThreads(artifact)}`];
+  if (artifact.filter) args.push(artifact.filter);
+  if (artifact.exact) args.push("--exact");
+  const child = spawn(artifact.executable, args, {
     env,
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -142,8 +145,18 @@ if (failed) {
   console.error("-- FAIL: Cargo test artifact build");
 } else {
   build.artifacts.sort((left, right) => `${left.packageId}/${left.target}`.localeCompare(`${right.packageId}/${right.target}`));
-  console.log(`-- rust inventory: ${build.artifacts.length} test binaries; at most ${processLimit} concurrent processes`);
-  const results = await runPool(build.artifacts);
+  const executions = build.artifacts.flatMap((artifact) => {
+    if (packageName(artifact.packageId) !== "snapback4-lang" || artifact.target !== "lowering") return [artifact];
+    const shards = Array.from({ length: 8 }, (_, part) => ({
+      ...artifact,
+      filter: `baseline_golden_and_ownership_switch_shard_${part}`,
+      exact: true,
+      labelSuffix: `::golden-${part}`,
+    }));
+    return [...shards, { ...artifact, filter: "regression::", labelSuffix: "::regressions" }];
+  });
+  console.log(`-- rust inventory: ${build.artifacts.length} test binaries, ${executions.length} executions; at most ${processLimit} concurrent processes`);
+  const results = await runPool(executions);
   failed ||= results.some((result) => result.code !== 0);
 }
 
