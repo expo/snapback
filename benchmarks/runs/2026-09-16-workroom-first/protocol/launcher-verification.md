@@ -95,7 +95,7 @@ WORKROOM_ACTUAL_CODEX_RECEIPT_DIR=/tmp/workroom-actual-codex-custody-20260917-r2
   benchmarks/runs/2026-09-16-workroom-first/protocol/run-pilot.test.mjs
 ```
 
-It ran from this clean worktree on the control Mac with the receipt directory
+It ran against the sealed candidate in this worktree on the control Mac with the receipt directory
 initially absent and production `CUSTODY_SAMPLE_MS=5000`. It used one real
 `codex exec` session and an ordinary foreground tool
 command whose dependency-free fixture creates a distinct child PGID. The
