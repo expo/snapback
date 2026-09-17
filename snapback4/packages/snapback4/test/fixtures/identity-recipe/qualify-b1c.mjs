@@ -5,13 +5,14 @@ import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { createServer } from "node:http";
 import { createServer as createSocket } from "node:net";
-import { access, cp, lstat, mkdir, mkdtemp, readFile, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
+import { access, cp, lstat, mkdir, mkdtemp, readFile, realpath, stat, symlink, writeFile } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import { dirname, isAbsolute, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { DatabaseSync } from "node:sqlite";
 import { authorizeWithKeycloak } from "./keycloak-browser.mjs";
+import { captureEngineCustody, registerWorkerCustody, verifyWorkerCustody } from "./process-custody.mjs";
 
 const fixture = dirname(fileURLToPath(import.meta.url));
 const enginePort = 38973;
@@ -23,10 +24,22 @@ const expectedProvider = Object.freeze({
   redirectUri: "http://127.0.0.1:38972/auth/callback",
 });
 let stage = "configuration";
+let retainedScratch = null;
+let approvedDigest = null;
+let runtimeUid = null;
+let instrumentFailureCode = null;
 const observations = [];
 const children = new Set();
 const secrets = new Set();
-const fail = code => { throw new Error(`B1c qualification failed during ${stage} (${code})`); };
+const custodyReceipts = [];
+class InstrumentFailure extends Error {
+  constructor(code) {
+    super(code);
+    this.label = String(code);
+    this.code = `B1C_${this.label.replace(/[^A-Za-z0-9]+/g, "_").toUpperCase()}`;
+  }
+}
+const fail = code => { throw new InstrumentFailure(code); };
 const requireValue = name => {
   const value = process.env[name];
   if (!value || !value.trim()) fail(`missing-${name}`);
@@ -79,16 +92,27 @@ async function makeScratch(parent) {
   const actual = await realpath(root);
   assert(descendant(parent, actual), "scratch-outside-parent");
   const marker = join(actual, ".sb4-b1c-owned");
-  await writeFile(marker, randomBytes(24).toString("hex"), { mode: 0o600, flag: "wx" });
-  return { root: actual, marker };
+  const markerProof = randomBytes(24).toString("hex");
+  await writeFile(marker, markerProof, { mode: 0o600, flag: "wx" });
+  const scratch = { root: actual, marker, markerProof };
+  await assertScratch(scratch);
+  return scratch;
 }
 
 async function assertScratch(scratch) {
-  assert(Boolean(scratch?.root && scratch?.marker), "scratch-empty");
+  assert(Boolean(scratch?.root && scratch?.marker && scratch?.markerProof), "scratch-empty");
   const actual = await realpath(scratch.root).catch(() => fail("scratch-missing"));
   const parent = await realpath(dirname(scratch.root));
   assert(actual === scratch.root && descendant(parent, actual), "scratch-moved");
-  assert((await lstat(scratch.marker)).isFile(), "scratch-marker");
+  assert(((await stat(actual)).mode & 0o777) === 0o700, "scratch-mode");
+  assert((await lstat(scratch.marker)).isFile()
+    && await readFile(scratch.marker, "utf8") === scratch.markerProof, "scratch-marker");
+}
+
+async function verifiedScratchPath() {
+  if (!retainedScratch) return null;
+  try { await assertScratch(retainedScratch); return retainedScratch.root; }
+  catch { return null; }
 }
 
 async function prepareProject(scratch, name, paths, mode) {
@@ -126,15 +150,19 @@ async function startEngine(binary, project, env = {}) {
     stdio: ["ignore", "pipe", "pipe"],
   });
   children.add(child);
+  let spawnFailed = false;
+  child.on("error", () => { spawnFailed = true; instrumentFailureCode ??= "engine-spawn"; });
+  const identity = await captureEngineCustody(child.pid, runtimeUid).catch(() => fail("engine-custody-capture"));
   let output = "";
   for (const stream of [child.stdout, child.stderr]) stream.on("data", bytes => { output += bytes.toString(); });
   await until(async () => {
+    if (spawnFailed) fail("engine-spawn");
     if (child.exitCode !== null) fail("engine-exited");
     try { const response = await fetch(`${engineUrl}/auth/guest`, { method: "POST", signal: AbortSignal.timeout(500) }); return response.status < 500; }
     catch { return false; }
   }, 20_000, "engine-start");
   return {
-    child,
+    child, identity,
     workerPids: () => new Set([...output.matchAll(/snapback4 worker: .* \(pid (\d+)\)/g)].map(match => Number(match[1]))),
     async stop() { await stopChild(child); },
   };
@@ -153,19 +181,27 @@ async function stopChild(child) {
 async function until(check, milliseconds, code) {
   const deadline = Date.now() + milliseconds;
   while (Date.now() < deadline) {
+    if (instrumentFailureCode) fail(instrumentFailureCode);
     const value = await check();
     if (value) return value;
     await delay(40);
   }
+  if (instrumentFailureCode) fail(instrumentFailureCode);
   fail(`timeout-${code}`);
 }
 
 async function http(path, body = {}, token, headers = {}) {
-  const response = await fetch(`${engineUrl}${path}`, {
-    method: "POST", signal: AbortSignal.timeout(15_000),
-    headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}), ...headers },
-    body: JSON.stringify(body),
-  });
+  let response;
+  try {
+    response = await fetch(`${engineUrl}${path}`, {
+      method: "POST", signal: AbortSignal.timeout(15_000),
+      headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}), ...headers },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    if (instrumentFailureCode) fail(instrumentFailureCode);
+    fail("http-transport");
+  }
   const value = await response.json().catch(() => fail("http-json"));
   return { status: response.status, value };
 }
@@ -201,20 +237,31 @@ function boundedBody(request, limit = 2 * 1024 * 1024) {
   });
 }
 
-async function startFaultProxy(engine, completionIdRef) {
-  const state = { phase: "initial", providerClosed: false, provider: [], mints: [], cuts: [] };
+async function startFaultProxy(engine) {
+  const state = { phase: "initial", providerClosed: false, provider: [], mints: [], cuts: [], workers: new Map() };
+  const register = async pid => {
+    if (state.workers.has(pid)) return state.workers.get(pid);
+    let registered;
+    try { registered = await registerWorkerCustody(pid, engine.identity(), runtimeUid); }
+    catch { instrumentFailureCode ??= "custody-registration"; throw new Error("custody"); }
+    state.workers.set(pid, registered);
+    custodyReceipts.push(registered.receipt);
+    return registered;
+  };
   const server = createServer(async (request, response) => {
     try {
       const body = await boundedBody(request);
       if (request.url === "/__qualification/provider-attempt") {
         const event = JSON.parse(body.toString("utf8"));
         assert(event && ["GET", "POST"].includes(event.method) && typeof event.path === "string" && Number.isInteger(event.pid), "provider-event");
+        await register(event.pid);
         state.provider.push({ method: event.method, path: event.path, blocked: state.providerClosed });
         response.writeHead(state.providerClosed ? 503 : 204).end();
         return;
       }
       const pid = Number(request.headers["x-snapback4-qualification-worker-pid"]);
       assert(Number.isInteger(pid) && pid > 1, "proxy-worker-pid");
+      const registered = await register(pid);
       const bearer = String(request.headers.authorization ?? "").match(/^Bearer (.+)$/)?.[1];
       const actionLease = request.headers["x-snapback-action-lease"];
       if (bearer) secrets.add(bearer);
@@ -234,7 +281,10 @@ async function startFaultProxy(engine, completionIdRef) {
           secrets.add(received.session.token);
           if (state.phase === "initial" && sent.binding?.replaceLostDelivery !== true) {
             await until(() => engine.workerPids().has(pid), 5_000, "worker-pid-registration");
-            process.kill(pid, "SIGKILL");
+            try { await verifyWorkerCustody(registered, engine.identity(), runtimeUid); }
+            catch { instrumentFailureCode ??= "custody-revalidation"; throw new Error("custody"); }
+            try { process.kill(pid, "SIGKILL"); }
+            catch { instrumentFailureCode ??= "custody-signal"; throw new Error("custody"); }
             state.cuts.push({ cut: "after-core-mint-commit-before-worker-ack", pid });
             state.providerClosed = true;
             state.phase = "recovery";
@@ -248,12 +298,15 @@ async function startFaultProxy(engine, completionIdRef) {
       upstream.headers.forEach((value, name) => { if (!["connection", "content-length", "transfer-encoding"].includes(name)) replyHeaders[name] = value; });
       response.writeHead(upstream.status, { ...replyHeaders, "content-length": bytes.length });
       response.end(bytes);
-    } catch {
+    } catch (error) {
+      instrumentFailureCode ??= error instanceof InstrumentFailure ? error.label : "proxy-request";
       if (!response.destroyed) response.destroy();
     }
   });
-  await new Promise((resolvePromise, reject) => { server.once("error", reject); server.listen(proxyPort, "127.0.0.1", resolvePromise); });
-  return { state, close: () => new Promise(resolvePromise => server.close(resolvePromise)), completionIdRef };
+  try { await new Promise((resolvePromise, reject) => { server.once("error", reject); server.listen(proxyPort, "127.0.0.1", resolvePromise); }); }
+  catch { fail("proxy-listen"); }
+  server.on("error", () => { instrumentFailureCode ??= "proxy-server"; });
+  return { state, close: () => new Promise(resolvePromise => server.close(resolvePromise)) };
 }
 
 function database(project) {
@@ -281,7 +334,10 @@ async function keycloakWitness(paths, scratch, config) {
   await assertScratch(scratch);
   safeCommand(paths.binary, project, ["check", "--json"]);
   const completion = { id: null };
-  let engine; const proxy = await startFaultProxy({ workerPids: () => engine?.workerPids() ?? new Set() }, completion);
+  let engine; const proxy = await startFaultProxy({
+    workerPids: () => engine?.workerPids() ?? new Set(),
+    identity: () => engine?.identity ?? fail("engine-custody-unavailable"),
+  });
   try {
     engine = await startEngine(paths.binary, project, { OIDC_CLIENT_SECRET: config.clientSecret });
     const admitting = await guest();
@@ -342,8 +398,8 @@ async function keycloakWitness(paths, scratch, config) {
     for (const secret of secrets) assert(!diagnostic.includes(secret), "default-diagnostic-secret");
     observations.push("actual-keycloak-generated-helper", "post-commit-lost-reply-process-crash", "same-family-same-expiry-old-token-invalid", "default-diagnostic-redaction");
   } finally {
-    if (engine) await engine.stop();
-    await proxy.close();
+    if (engine) await engine.stop().catch(() => {});
+    await proxy.close().catch(() => {});
   }
 }
 
@@ -363,7 +419,7 @@ async function rawAuthorityWitness(paths, scratch) {
     const found = requests[0];
     if (found?.session?.token) { secrets.add(found.session.token); return found; }
     return null;
-  }, 8_000, `claim-${id}`);
+  }, 8_000, "claim-current-invocation");
   const admit = async (actionName = "qualificationMint") => {
     const owner = await guest(); const id = `b1c-raw-${randomUUID()}`;
     const result = await action(actionName, id, {}, owner.token, 0);
@@ -462,10 +518,12 @@ async function rawAuthorityWitness(paths, scratch) {
 
     observations.push("explicit-first-binding-with-recovery-flag", "stale-parked-cancelled-settled-deadline-refusals",
       "admitting-issued-target-service-refusals", "issued-family-expiry-supported-dev-clock");
-  } finally { await engine.stop(); }
+  } finally { await engine.stop().catch(() => {}); }
 }
 
 async function main() {
+  assert(process.platform === "linux" && typeof process.getuid === "function", "linux-proc-required");
+  runtimeUid = process.getuid();
   assert(process.versions.node.split(".")[0] === "24", "node-major");
   const paths = {
     binary: await existingPath("SNAPBACK4_BIN", "file"),
@@ -476,26 +534,36 @@ async function main() {
   await access(paths.binary, fsConstants.X_OK).catch(() => fail("binary-not-executable"));
   const expectedDigest = requireValue("SNAPBACK4_B1C_BINARY_SHA256").toLowerCase();
   assert(/^[0-9a-f]{64}$/.test(expectedDigest) && await fileDigest(paths.binary) === expectedDigest, "binary-digest");
+  approvedDigest = expectedDigest;
   const config = await readPrivateConfig();
   const privateParent = await existingPath("SNAPBACK4_QUALIFICATION_PRIVATE_PARENT", "directory");
   const parentMode = (await stat(privateParent)).mode;
   assert((parentMode & 0o077) === 0, "private-parent-mode");
-  await portMustBeFree(enginePort); await portMustBeFree(proxyPort);
+  await portMustBeFree(enginePort).catch(() => fail("engine-port-occupied"));
+  await portMustBeFree(proxyPort).catch(() => fail("proxy-port-occupied"));
   const scratch = await makeScratch(privateParent);
+  retainedScratch = scratch;
   try {
     await keycloakWitness(paths, scratch, config);
-    await portMustBeFree(enginePort);
+    await portMustBeFree(enginePort).catch(() => fail("engine-port-not-released"));
     await rawAuthorityWitness(paths, scratch);
-    process.stdout.write(JSON.stringify({ status: "passed", binarySha256: expectedDigest, observations }) + "\n");
   } finally {
-    for (const child of [...children]) await stopChild(child);
-    await assertScratch(scratch);
-    await rm(scratch.root, { recursive: true, force: false });
+    for (const child of [...children]) await stopChild(child).catch(() => {});
   }
+  stage = "complete";
+  const scratchPath = await verifiedScratchPath();
+  assert(scratchPath === scratch.root, "scratch-custody-final");
+  return { status: "passed", code: "B1C_QUALIFICATION_PASSED", stage, binarySha256: expectedDigest,
+    observations, custody: custodyReceipts, scratch: scratchPath };
 }
 
-main().catch(async () => {
+main().then(result => {
+  process.stdout.write(JSON.stringify(result) + "\n");
+}).catch(async error => {
   for (const child of [...children]) await stopChild(child).catch(() => {});
-  process.stderr.write(`B1c qualification failed during ${stage}; sensitive diagnostics suppressed\n`);
+  const scratch = await verifiedScratchPath();
+  const code = error instanceof InstrumentFailure ? error.code : "B1C_UNEXPECTED_FAILURE";
+  process.stderr.write(JSON.stringify({ status: "failed", code, stage, scratch, binarySha256: approvedDigest,
+    observations, custody: custodyReceipts }) + "\n");
   process.exitCode = 1;
 });

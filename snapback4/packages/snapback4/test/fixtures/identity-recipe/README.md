@@ -72,9 +72,11 @@ injected fetch sends worker-to-engine HTTP through a parent-owned loopback
 fault proxy on `127.0.0.1:38974`. Provider fetches remain direct. After the
 actual engine returns the first committed bound Session, the parent keeps that
 Session only in memory, closes further provider access, verifies the reporting
-PID belongs to the supervised worker, kills that exact PID, and drops the
-reply. The replacement attempt must use `replaceLostDelivery: true`, the same
-invocation/intent/immutable inputs and one completed provider code exchange.
+PID's registered Linux `/proc` UID, start-time identity and finite ancestry
+belong to the owned engine, revalidates that exact custody immediately before
+signalling, kills that PID, and drops the reply. The replacement attempt must
+use `replaceLostDelivery: true`, the same invocation/intent/immutable inputs
+and one completed provider code exchange.
 It must preserve expiry, replace inside the inspected original family, make
 the old bearer fail `identityWhoami`, and make the returned bearer pass it.
 The proxy is a fault instrument, not an application backend or provider
@@ -94,7 +96,11 @@ production/release clocks remain wall-only.
 Run only on the isolated Linux executor after the parent has assembled and
 reviewed the final package and binary. Every path must be absolute. The
 private parent and credential file must have no group/other permission bits;
-the harness creates and later removes one marker-owned child beneath it.
+the harness creates one marker-owned mode-0700 child beneath it. That directory
+is deliberately retained after both success and failure for root-controlled
+evidence extraction and cleanup. Its engine databases contain protected action
+arguments and the legitimate final protected Session result: the directory is
+a private diagnostic workspace, never a public artifact.
 
 ```sh
 PATH=/absolute/path/to/node24/bin:$PATH \
@@ -108,14 +114,21 @@ SNAPBACK4_OIDC_QUALIFICATION_CONFIG=/absolute/private/mode-0600-keycloak.json \
 node ./snapback4/packages/snapback4/test/fixtures/identity-recipe/qualify-b1c.mjs
 ```
 
-The harness refuses occupied ports 38973 and 38974. It never starts, stops or
+The harness is Linux-only and refuses to start without `/proc`, the current UID,
+or free ports 38973 and 38974. It never starts, stops or
 kills Keycloak, a tunnel or a process selected by name. It starts one owned
-engine at 38973, records its exact child handle, recognizes supervised worker
-PIDs from that engine's log and terminates only owned children. It never emits
+engine at 38973, captures the engine's UID/start identity, and registers each
+worker's UID/start identity and ancestry on first observation. Immediately
+before the fault SIGKILL it re-reads both identities and the ancestry and also
+requires the worker PID in that engine's log. This sharply bounds custody but
+does not claim to close the kernel-level PID-reuse race between the final read
+and `kill(2)`. The harness terminates only owned children. It never emits
 the client secret, credentials, provider code, state, browser binding, PKCE
-material, action lease or Session bearer. Failure output contains only the
-stage label. The single success line contains only the binary digest and
-non-secret observation names.
+material, action lease or Session bearer. Its only output is one structured
+JSON object: status, stable code, known stage, validated retained-scratch path,
+and non-secret digest/observation/custody fields. Unexpected exceptions map to
+one generic stable code; arbitrary error messages, stacks and HTTP/provider
+bodies are never printed. Before scratch creation, the path is null.
 
 ### Fault and observation matrix — source checkpoint
 

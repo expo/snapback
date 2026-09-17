@@ -27915,3 +27915,37 @@ instrument remains field-agnostic; the final integrated helper supplies its
 new `protocol: 'oidc-mint-bound/v1'` durable mint input. No engine, provider,
 listener, application, test, build, install, Cargo, remote, publication or
 qualification command ran here.
+
+## 2026-09-17 — B1c harness custody and retained-evidence correction
+
+Before the first runtime, source inspection corrected two instrument-safety
+boundaries without changing a qualification case or fault cut. The mode-0700,
+marker-owned scratch directory is no longer automatically deleted. Both
+success and failure retain it for root-controlled extraction and cleanup, and
+the harness exposes its canonical path only after revalidating the directory,
+parent containment, exact mode and marker. The retained databases contain
+protected action arguments and the legitimate final Session action result;
+they remain private diagnostic material, not a public evidence artifact.
+
+Success and failure now emit one structured non-secret JSON record containing
+only a stable status/code, known stage, validated scratch path, approved binary
+digest, observation names and process-custody receipts. Typed instrument
+failures keep their stable code; unexpected exceptions collapse to one generic
+code. Arbitrary exception text, stacks and provider/HTTP bodies remain silent.
+Before scratch exists its reported path is null. Child-process `error` events
+are observed so a failed spawn cannot bypass this reporting path.
+
+The runtime is explicitly Linux-only. It captures the owned engine's `/proc`
+UID and start-time ticks after spawn. On each worker's first proxied request it
+captures that worker's UID/start identity and a finite parent chain ending at
+the captured engine identity. Immediately before the existing post-commit,
+pre-delivery SIGKILL, it re-reads and requires the same worker identity, engine
+identity, UID and ancestry, in addition to the engine's own worker log. The
+receipt contains only PIDs, parent PIDs, UID and start ticks. This fails closed
+against stale/reused identities but does not claim atomic protection from the
+kernel PID-reuse race between the final `/proc` read and `kill(2)`.
+
+Only `process-custody.mjs`, harness wiring and these documentation records
+changed. No engine, provider, listener, app, test, build, install, Cargo,
+remote, publication or qualification command ran; every runtime matrix row
+remains PENDING.
