@@ -404,8 +404,10 @@ binary. It also rejects a canonical scratch parent beneath either a repository
 `.git` directory or linked-worktree `.git` file before creating the child.
 Frozen base `06171ed` passed 3/3 (two synthetic, one actual), with 49
 source-bound refusal probes and 15 recorded invitation IDs; all three earlier
-failed runs remain retained. Because this correction changes the mutation
-outputs, its actual qualification is pending. No issuance/send, action-result
+failed runs remain retained. The explicit mutation-output correction
+`e1536df94` then passed 4/4 (three synthetic, one actual), retaining those
+refusals and IDs and checking all affected success-result projections. Both
+independent own-thread delta reviews are READY. No issuance/send, action-result
 plaintext boundary, email-provider,
 HTTP write-ID/lost-ack, concurrent admission, restart, crash-cut, Google,
 full Identity/B or billing-plan claim follows. Hash-only invitation storage

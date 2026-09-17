@@ -28769,3 +28769,34 @@ passed before this append. No actual engine, provider, listener, HTTP,
 restart, Rust/Cargo, install, remote, root-gate or push command ran. Issuance,
 delivery, concurrency/lost-ack, restart, crash-cut, authentication/provider,
 full Identity/B and publication claims remain outside this correction.
+
+## 2026-09-17 — invitation output qualification and B1c instrument reviews
+
+The exact `e1536df94` mutation-output correction passed its one authorized
+450b run: four tests, zero failures or skips, 10517.262862 ms total, with
+10453.317516 ms in the actual interpreter journey. The 49 source-bound refusal
+probes and 15 recorded invitation IDs remain, and exact output assertions now
+cover record, both acceptance paths and first/repeated revoke. The root read
+the remote actual log and reconfirmed its SHA-256
+`2ac012a57a94d1b3072f7ad36df60fc08f4394a203caf9753db32bd1a1c7840c`.
+Both same-reviewer blind delta reviews are READY; their actual received public
+answers, original differing verdicts and dispositions are under `llp/reviews/`.
+The source and test bytes survived cherry-pick unchanged; only independent
+documentation blocks needed conflict resolution. The prior JOURNAL prefix
+and the source's full 3561-byte append were preserved exactly.
+
+The final B1c proxy source `95c326e65` also has both actual source-review
+verdicts READY and 18/18 synthetic checks. Its next external qualification
+attempt failed because the outer wrapper selected the inner worker-identity
+module instead of the full process monitor. The initial claim that no child
+was spawned was corrected from exact source order and retained scratch: the
+child ran beyond the primary into part of the raw matrix, but no final harness
+or outer custody receipt exists. This remains an instrument-red attempt, not
+an overall pass. The inner/outer API mismatch is diagnosed; recovery uses the
+existing byte-identical full monitor with an import-only preflight, not a new
+monitoring framework. `reports/20260917-b1c-instrument.md` preserves these facts.
+
+These landed-source qualifications do not close issuance/delivery, actual
+OIDC matrix/cuts, full Identity/B, Workroom, Postgres or publication. The W8
+warm diagnostic runs independently on Durand; service development continues
+without treating its eventual result as a prerequisite to adding services.

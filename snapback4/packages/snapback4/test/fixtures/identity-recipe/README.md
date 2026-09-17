@@ -265,8 +265,9 @@ primitive and must not be run against this module. The source test requires an
 explicit binary path and SHA-256 pin from the parent core lane. Frozen base
 `06171ed` passed its pinned run 3/3 (two synthetic tests and one actual test),
 including 49 source-bound refusal probes and 15 recorded invitation IDs; the
-three earlier failed runs remain retained. This explicit-output correction
-changes the Quarry source, so its actual-interpreter qualification is pending.
+three earlier failed runs remain retained. The explicit-output correction
+`e1536df94` then passed 4/4 (three synthetic, one actual), with exact field/value
+assertions on all affected success responses and both blind delta reviews READY.
 The CLI source is `1e91bc7fe`, with Node 24.13.1. Operator-supplied principals
 and times are not authentication, provider, concurrent HTTP or crash proof.
 The three failed scratch directories and journals remain private.
