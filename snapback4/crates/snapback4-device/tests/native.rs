@@ -278,18 +278,18 @@ fn finding_4_delayed_legacy_page_does_not_erase_an_advanced_owners_history() {
     let capture = first.sync_state().unwrap();
     let page = |watermark| json!({ "snapshot": false, "events": [], "watermark": watermark, "more": false,
         "send_revision": capture.send_revision, "requested_watermark": capture.watermark, "captured_watermark": capture.watermark });
-    assert!(call(&mut second, &json!({ "op": "apply", "page": page(12) }))["ok"].is_object());
-    let delayed = call(&mut first, &json!({ "op": "apply", "page": page(11) }));
+    assert!(call(&mut second, json!({ "op": "apply", "page": page(12) }))["ok"].is_object());
+    let delayed = call(&mut first, json!({ "op": "apply", "page": page(11) }));
     eprintln!("finding 4 delayed page: {delayed}; watermark={}", first.state().unwrap().0);
     assert!(delayed["denied"].is_object());
     assert_eq!(first.state().unwrap().0, 12, "a page ahead of its own requested watermark is stale, not a replacement");
-    assert_eq!(call(&mut first, &json!({ "op": "query", "name": "retainedHistory", "viewer": "dev:alice", "args": { "conversationId": "c1" }, "now": 1 }))["ok"]["data"].as_array().unwrap().len(), 50);
+    assert_eq!(call(&mut first, json!({ "op": "query", "name": "retainedHistory", "viewer": "dev:alice", "args": { "conversationId": "c1" }, "now": 1 }))["ok"]["data"].as_array().unwrap().len(), 50);
     // A current authenticated reply behind its own requested watermark is
     // a real legacy regression, and still resets the partition.
     let current = first.sync_state().unwrap();
     let regressed = json!({ "snapshot": false, "events": [], "watermark": 9, "more": false,
         "send_revision": current.send_revision, "requested_watermark": 12, "captured_watermark": 12 });
-    assert!(call(&mut first, &json!({ "op": "apply", "page": regressed }))["denied"].is_object());
+    assert!(call(&mut first, json!({ "op": "apply", "page": regressed }))["denied"].is_object());
     assert_eq!(first.state().unwrap().0, 0);
 }
 
@@ -304,7 +304,7 @@ fn finding_1_another_owner_adopting_b_does_not_bless_this_owners_a_programs() {
     let path = host.path("store");
     let mut owner = Device::open(&path, Some(a.clone())).unwrap();
     let page = |store| json!({ "snapshot": true, "events": [], "watermark": 0, "more": false, "store_id": store });
-    assert!(call(&mut owner, &json!({ "op": "apply", "page": page("A"), "first": true }))["ok"].is_object());
+    assert!(call(&mut owner, json!({ "op": "apply", "page": page("A"), "first": true }))["ok"].is_object());
     let mut reader = Device::open(&path, None).unwrap();
     owner.adopt(a).unwrap();
     assert!(!reader.sync_state().unwrap().backend_required, "same-store same-program adoption remains usable");

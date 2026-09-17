@@ -268,7 +268,7 @@ impl SnapshotCursor {
 
     pub fn decode(token: &str) -> Option<Self> {
         let bytes = crate::cursor::base64url_decode(token).ok()?;
-        serde_json::from_slice(&bytes).ok()
+        crate::json_codec::from_slice(&bytes).ok()
     }
 }
 

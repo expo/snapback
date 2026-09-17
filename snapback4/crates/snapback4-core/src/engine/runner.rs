@@ -742,15 +742,9 @@ impl<'a> Runner<'a> {
         // Count the canonical tagged representation without allocating a
         // second result-sized string. A shaped/scalar result cannot be
         // truncated without changing its type or inventing a continuation.
-        struct Counter(u64);
-        impl std::io::Write for Counter {
-            fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> { self.0 = self.0.saturating_add(bytes.len() as u64); Ok(bytes.len()) }
-            fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
-        }
-        let mut count = Counter(0);
-        serde_json::to_writer(&mut count, value).map_err(|e| RuntimeError::Store(e.to_string()))?;
-        if !self.meter.charge(MeterKind::OutputBytes, count.0)? {
-            return Err(RuntimeError::Bound { kind: MeterKind::OutputBytes, actual: count.0, ceiling: self.meter.ceilings.output_bytes, site: self.meter.site().to_owned() });
+        let count = crate::json_codec::value_bytes(value).map_err(|e| RuntimeError::Store(e.to_string()))?;
+        if !self.meter.charge(MeterKind::OutputBytes, count)? {
+            return Err(RuntimeError::Bound { kind: MeterKind::OutputBytes, actual: count, ceiling: self.meter.ceilings.output_bytes, site: self.meter.site().to_owned() });
         }
         Ok(true)
     }

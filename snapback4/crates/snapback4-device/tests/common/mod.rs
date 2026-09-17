@@ -27,6 +27,9 @@ pub fn compile(source: &str) -> (Engine, Backend) {
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
     let backend = Backend { generation: engine.generation(), schema: bound.schema, programs: bound.programs.into_iter().map(|p| p.program).collect() };
+    let text = serde_json::to_string(&backend).unwrap();
+    let decoded: Backend = snapback4_core::json_codec::from_text(&text).unwrap();
+    assert_eq!(serde_json::to_value(&backend).unwrap(), serde_json::to_value(decoded).unwrap());
     (engine, backend)
 }
 

@@ -5,6 +5,7 @@
 # build carries it into dist/wasm/. `scripts/measure-wasm.sh` measures the same build.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+node scripts/wasm-budget.mjs >/dev/null
 out=packages/snapback4/src/wasm
 cargo build -p snapback4-device --no-default-features --features web --profile wasm --target wasm32-unknown-unknown --quiet
 rm -rf "$out"
@@ -15,4 +16,6 @@ if command -v wasm-opt >/dev/null; then
   if [ "$(gzip -9 -c "$out/os.wasm" | wc -c)" -lt "$(gzip -9 -c "$wasm" | wc -c)" ]; then mv "$out/os.wasm" "$wasm"; else rm "$out/os.wasm"; fi
 fi
 rm -f "$out/.gitignore" "$out/package.json"
-printf 'wasm %s B raw, %s B gzip\n' "$(wc -c < "$wasm" | tr -d ' ')" "$(gzip -9 -c "$wasm" | wc -c | tr -d ' ')"
+gzip_bytes=$(gzip -9 -c "$wasm" | wc -c | tr -d ' ')
+status=$(node scripts/wasm-budget.mjs metrics/wasm-budget.json "$gzip_bytes")
+printf 'wasm %s B raw, %s B gzip %s\n' "$(wc -c < "$wasm" | tr -d ' ')" "$gzip_bytes" "$status"

@@ -222,11 +222,11 @@ fn require_acquired<T: DeviceTx>(tx: &T, schema: &Schema, program: &Program) -> 
 }
 
 fn encoded<T: Serialize>(value: &T) -> Result<String, RuntimeError> {
-    serde_json::to_string(value).map_err(|e| RuntimeError::Store(e.to_string()))
+    snapback4_core::json_codec::to_text(value).map_err(|e| RuntimeError::Store(e.to_string()))
 }
 
 fn decoded<T: for<'de> Deserialize<'de>>(text: &str) -> Result<T, RuntimeError> {
-    serde_json::from_str(text).map_err(|e| RuntimeError::Store(e.to_string()))
+    snapback4_core::json_codec::from_text(text).map_err(|e| RuntimeError::Store(e.to_string()))
 }
 
 #[cfg(feature = "wasm-host")]
@@ -257,13 +257,13 @@ impl<S: DeviceStore> Device<S> {
             Some(backend) => backend,
             None => {
                 let kept = store.meta(BACKEND)?.ok_or_else(|| RuntimeError::Auth("this device has never synced: the server must be reachable once to open".into()))?;
-                serde_json::from_str(&kept).map_err(|e| RuntimeError::Store(format!("the kept backend does not parse: {e}")))?
+                snapback4_core::json_codec::from_text(&kept).map_err(|e| RuntimeError::Store(format!("the kept backend does not parse: {e}")))?
             }
         };
         backend.schema.prepare_contribution_indexes();
         let held = store.meta(GENERATION)?.and_then(|g| g.parse::<u64>().ok()).unwrap_or(0);
         let reset = held != 0 && held != backend.generation;
-        let previous = store.meta(BACKEND)?.and_then(|text| serde_json::from_str::<Backend>(&text).ok());
+        let previous = store.meta(BACKEND)?.and_then(|text| snapback4_core::json_codec::from_text::<Backend>(&text).ok());
         let keep_images = reset && previous.as_ref()
             .is_some_and(|old| snapback4_core::successor::keeps_literal_default_images(&old.schema, &backend.schema));
         let keep_acquired = keep_images && previous.as_ref().is_some_and(|old| old.schema.tables.len() == backend.schema.tables.len())
@@ -632,7 +632,7 @@ impl<S: DeviceStore> Device<S> {
         let mut unknown = false;
         let mut retained = false;
         let result = (|| {
-            let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
+            let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?;
             let context = Context::new(viewer, typed_args(&program, args)?).at(now).with_generation(self.generation);
             let tx = self.store.read_transaction()?;
             if let Err(error) = store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()) {
@@ -670,7 +670,7 @@ impl<S: DeviceStore> Device<S> {
     /// Predict a mutation: its rows land in the store marked `pending`, in
     /// one transaction that a refusal rolls back whole.
     pub fn predict(&mut self, name: &str, viewer: &str, args: &serde_json::Value, now: i64, new_ids: Vec<String>, entropy: u64) -> Result<Predicted, RuntimeError> {
-        let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
+        let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?;
         let tx = self.store.transaction()?;
         store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
         require_acquired(&tx, &self.schema, &program)?;
@@ -821,7 +821,7 @@ impl<S: DeviceStore> Device<S> {
     /// Unresolved writes live independently in the executable outbox.
     // @ref LLP 3000.007#20.4 — receipt retention cannot evict an unresolved durable write.
     pub fn keep_write(&mut self, value: &str) -> Result<(), RuntimeError> {
-        let parse = |text: &str| serde_json::from_str::<serde_json::Value>(text).map_err(|e| RuntimeError::Store(e.to_string()));
+        let parse = |text: &str| snapback4_core::json_codec::from_text::<serde_json::Value>(text).map_err(|e| RuntimeError::Store(e.to_string()));
         let write = parse(value)?;
         // A list is an adopted older window; a single receipt is a new local completion.
         let adopting = write.is_array();

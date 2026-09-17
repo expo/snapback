@@ -101,11 +101,10 @@ pub extern "C" fn sb4_call(device: *mut Device, request: *const c_char) -> *mut 
         }
         // SAFETY: the pointer came from `sb4_open` and has not been closed.
         let device = unsafe { &mut *device };
-        let request: Json = match c_text(request).map(serde_json::from_str) {
-            Some(Ok(json)) => json,
-            _ => return json!({ "denied": { "code": "E_INPUT", "family": "input", "message": "the request is JSON text" } }),
-        };
-        call(device, &request)
+        match c_text(request) {
+            Some(request) => crate::call::call_text(device, request),
+            None => json!({ "denied": { "code": "E_INPUT", "family": "input", "message": "the request is JSON text" } }),
+        }
     }))
 }
 

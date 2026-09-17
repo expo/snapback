@@ -68,8 +68,8 @@ pub fn encode_cursor(schema: &Schema, position: &CursorPosition) -> Result<Strin
         position.values.clone(),
     );
     let bytes = match &position.scope {
-        Some(scope) => serde_json::to_vec(&(2_u8, tagged.1, tagged.2, tagged.3, tagged.4, tagged.5, scope)),
-        None => serde_json::to_vec(&tagged),
+        Some(scope) => crate::json_codec::to_vec(&(2_u8, tagged.1, tagged.2, tagged.3, tagged.4, tagged.5, scope)),
+        None => crate::json_codec::to_vec(&tagged),
     }.map_err(|_| CursorError::Encoding)?;
     if bytes.len() > MAX_TOKEN_BYTES {
         return Err(CursorError::TooLarge);
@@ -88,13 +88,13 @@ pub fn decode_cursor(schema: &Schema, token: &str) -> Result<CursorPosition, Cur
     if bytes.len() > MAX_TOKEN_BYTES {
         return Err(CursorError::TooLarge);
     }
-    let raw: serde_json::Value = serde_json::from_slice(&bytes).map_err(|_| CursorError::Encoding)?;
+    let raw: serde_json::Value = crate::json_codec::from_slice(&bytes).map_err(|_| CursorError::Encoding)?;
     let version = raw.get(0).and_then(serde_json::Value::as_u64).ok_or(CursorError::Encoding)?;
     let (tagged, scope): (Tagged, Option<CursorScope>) = if version == 2 {
-        let (v,t,i,o,s,k,scope): (u8,String,String,Order,Vec<CursorColumn>,Vec<Value>,CursorScope) = serde_json::from_slice(&bytes).map_err(|_| CursorError::Encoding)?;
+        let (v,t,i,o,s,k,scope): (u8,String,String,Order,Vec<CursorColumn>,Vec<Value>,CursorScope) = crate::json_codec::from_slice(&bytes).map_err(|_| CursorError::Encoding)?;
         ((v,t,i,o,s,k),Some(scope))
     } else if version == u64::from(VERSION) {
-        (serde_json::from_slice(&bytes).map_err(|_| CursorError::Encoding)?,None)
+        (crate::json_codec::from_slice(&bytes).map_err(|_| CursorError::Encoding)?,None)
     } else { return Err(CursorError::Version(version.try_into().map_err(|_| CursorError::Encoding)?)); };
     let position = CursorPosition { table: tagged.1, index: tagged.2, order: tagged.3, suffix: tagged.4, values: tagged.5, scope };
     validate_values(schema, &position.table, &position.suffix, &position.values)?;

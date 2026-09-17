@@ -335,7 +335,7 @@ pub fn decode_bytes_hex(encoded: &str) -> Option<Vec<u8>> {
 }
 
 pub fn canonical_json<T: Serialize>(value: &T) -> String {
-    serde_json::to_string(value).expect("IR values are serializable")
+    crate::json_codec::to_text(value).expect("IR values are serializable")
 }
 
 pub fn digest<T: Serialize>(value: &T) -> String {

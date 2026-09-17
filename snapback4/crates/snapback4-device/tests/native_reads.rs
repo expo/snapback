@@ -185,7 +185,7 @@ fn a_device_keeps_the_module_across_a_reopen() {
     reopened.load(kept).unwrap();
     let mut device = Device::open_store(reopened, None).unwrap();
     assert_eq!(device.native_digest(), Some(digest.as_str()));
-    let read = call(&mut device, &json!({ "op": "query", "name": "personalize", "viewer": "dev:bob", "args": { "first": 10 }, "now": NOW + 2_000 }));
+    let read = call(&mut device, json!({ "op": "query", "name": "personalize", "viewer": "dev:bob", "args": { "first": 10 }, "now": NOW + 2_000 }));
     assert!(read["ok"]["denied"].is_null(), "{read}");
     assert_eq!(read["ok"]["data"].as_array().unwrap().len(), 3);
 }
@@ -299,7 +299,7 @@ trait AnyCall {
 
 impl<S: snapback4_device::store::DeviceStore> AnyCall for Device<S> {
     fn call_json(&mut self, request: Json) -> Json {
-        call(self, &request)
+        call(self, request)
     }
 }
 

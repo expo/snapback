@@ -40,11 +40,11 @@ impl Host {
 }
 
 fn device_sync<S: DeviceStore>(mut device: Device<S>, snapshot: &Value, stream: &Value, local_now: i64) {
-    let applied = call(&mut device, &json!({"op":"apply", "page":snapshot, "first":true}));
+    let applied = call(&mut device, json!({"op":"apply", "page":snapshot, "first":true}));
     assert!(applied.get("denied").is_none(), "{applied}");
-    let read = |device: &mut Device<S>, name| call(device, &json!({"op":"query", "name":name, "viewer":"dev:alice", "args":{}, "now":local_now}));
+    let read = |device: &mut Device<S>, name| call(device, json!({"op":"query", "name":name, "viewer":"dev:alice", "args":{}, "now":local_now}));
     assert_eq!(read(&mut device, "stories")["ok"]["data"].as_array().unwrap().len(), 1);
-    let applied = call(&mut device, &json!({"op":"apply", "page":stream, "first":false}));
+    let applied = call(&mut device, json!({"op":"apply", "page":stream, "first":false}));
     assert!(applied.get("denied").is_none(), "{applied}");
     assert_eq!(read(&mut device, "stories")["ok"]["data"], json!([]), "deletion must sync even with the device clock unchanged");
     assert_eq!(read(&mut device, "counters")["ok"]["data"][0]["n"], 1);

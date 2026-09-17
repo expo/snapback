@@ -27,6 +27,7 @@ node witness/scale.mjs [G] [N] [M]   # cold sync at scale: G groups × N message
 node scripts/measure-storage.mjs     # what the store weighs on the scale seed (rows, indexes, partition log) → metrics/storage.jsonl
                                      # SNAPBACK4_BIN=target/release/snapback4 measures the release build (throughput numbers)
 node scripts/measure-client.mjs      # each client tier's bytes on the pinned toolchain → metrics/client.jsonl
+node scripts/attribute-wasm.mjs [--families] # class bytes, generic census and concrete serde families (needs twiggy)
 bash scripts/measure-wasm.sh         # the device core as wasm (crates/snapback4-device), bound and measured → metrics/wasm.jsonl
 bash scripts/build-xcframework.sh    # the device as an iOS xcframework for packages/snapback4-expo (staticlib alone, stripped; 13.2 MB with native reads)
 node loopbar/run.mjs --n 3           # the loop bar: fresh agents on the published pin build reduced Clique M1–M3 → metrics/loopbar.jsonl

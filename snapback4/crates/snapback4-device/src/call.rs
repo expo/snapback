@@ -14,7 +14,7 @@ use snapback4_core::error::RuntimeError;
 fn answer(result: Result<Json, RuntimeError>) -> Json {
     match result {
         Ok(value) => json!({ "ok": value }),
-        Err(error) => json!({ "denied": error.refusal() }),
+        Err(error) => json!({ "denied": snapback4_core::json_codec::to_value(&error.refusal()).expect("a refusal is serializable") }),
     }
 }
 
@@ -26,22 +26,26 @@ fn text<'a>(request: &'a Json, name: &str) -> Result<&'a str, RuntimeError> {
     arg(request, name)?.as_str().ok_or_else(|| RuntimeError::Input(format!("{name} is text")))
 }
 
-fn parse<T: serde::de::DeserializeOwned>(value: &Json) -> Result<T, RuntimeError> {
-    serde_json::from_value(value.clone()).map_err(|e| RuntimeError::Input(e.to_string()))
+fn parse<T: serde::de::DeserializeOwned>(value: Json) -> Result<T, RuntimeError> {
+    snapback4_core::json_codec::from_value(value).map_err(|e| RuntimeError::Input(e.to_string()))
 }
 
 fn encoded<T: serde::Serialize>(value: &T) -> Result<Json, RuntimeError> {
-    serde_json::to_value(value).map_err(|e| RuntimeError::Store(e.to_string()))
+    snapback4_core::json_codec::to_value(value).map_err(|e| RuntimeError::Store(e.to_string()))
 }
 
-/// The dispatcher: the same call on every host.
-pub fn call<S: DeviceStore>(device: &mut Device<S>, request: &Json) -> Json {
+fn take(request: &mut Json, name: &str) -> Result<Json, RuntimeError> {
+    request.get_mut(name).map(Json::take).ok_or_else(|| RuntimeError::Input(format!("the call needs {name}")))
+}
+
+/// The dispatcher consumes the request so decoding never clones a page.
+pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
     let op = match request.get("op").and_then(Json::as_str) {
-        Some(op) => op,
+        Some(op) => op.to_owned(),
         None => return answer(Err(RuntimeError::Input("the call needs op".into()))),
     };
     answer((|| -> Result<Json, RuntimeError> {
-        Ok(match op {
+        Ok(match op.as_str() {
             "state" => {
                 let (watermark, generation) = device.state()?;
                 json!({ "watermark": watermark, "generation": generation, "native": device.native_digest() })
@@ -49,13 +53,13 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, request: &Json) -> Json {
             "install_native" => {
                 // The app's module from `/native.wasm`, as hex, with the digest
                 // the server named (LLP 3000.005 §9).
-                let bytes = snapback4_core::value::decode_bytes_hex(text(request, "wasm")?).ok_or_else(|| RuntimeError::Input("wasm is the module's bytes as lowercase base16".into()))?;
-                let generation = arg(request, "generation")?.as_u64().ok_or_else(|| RuntimeError::Input("generation is an unsigned integer".into()))?;
-                let (jobs, reads) = device.install_native(&bytes, text(request, "digest")?, generation)?;
+                let bytes = snapback4_core::value::decode_bytes_hex(text(&request, "wasm")?).ok_or_else(|| RuntimeError::Input("wasm is the module's bytes as lowercase base16".into()))?;
+                let generation = arg(&request, "generation")?.as_u64().ok_or_else(|| RuntimeError::Input("generation is an unsigned integer".into()))?;
+                let (jobs, reads) = device.install_native(&bytes, text(&request, "digest")?, generation)?;
                 json!({ "jobs": jobs, "reads": reads })
             }
             "sync_state" => encoded(&device.sync_state()?)?,
-            "observe_store" => encoded(&device.observe_store(&parse::<StreamPage>(arg(request, "page")?)?)?)?,
+            "observe_store" => encoded(&device.observe_store(&parse::<StreamPage>(take(&mut request, "page")?)?)?)?,
             "begin_send" => json!({ "send_revision": device.begin_send()? }),
             "adopt" => {
                 let mut expected = std::collections::BTreeMap::new();
@@ -70,11 +74,11 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, request: &Json) -> Json {
                         expected.insert(key.to_owned(), value);
                     }
                 }
-                device.adopt_captured(parse::<Backend>(arg(request, "backend")?)?, expected)?;
+                device.adopt_captured(parse::<Backend>(take(&mut request, "backend")?)?, expected)?;
                 Json::Null
             }
             "apply" => {
-                let page: StreamPage = parse(arg(request, "page")?)?;
+                let page: StreamPage = parse(take(&mut request, "page")?)?;
                 // A missing marker is a continuation. Starting a snapshot is
                 // destructive to its private staging area and must be explicit.
                 let first = request.get("first").and_then(Json::as_bool).unwrap_or(false);
@@ -83,59 +87,60 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, request: &Json) -> Json {
             "query" => {
                 let args = request.get("args").cloned().unwrap_or(json!({}));
                 let now = request.get("now").and_then(Json::as_i64).unwrap_or(0);
-                let (result, unknown, retained) = device.query_with_coverage(text(request, "name")?, text(request, "viewer")?, &args, now);
+                let (result, unknown, retained) = device.query_with_coverage(text(&request, "name")?, text(&request, "viewer")?, &args, now);
                 match result {
-                    Ok(outcome) => json!({ "data": snapback4_core::wire::to_json(&outcome.data), "complete": outcome.complete, "cut": outcome.cut, "next": outcome.next, "nextExpiry": outcome.next_expiry, "tables": outcome.tables, "unknown": unknown, "retained": retained }),
-                    Err(refusal) => json!({ "denied": refusal, "unknown": unknown, "retained": retained }),
+                    Ok(outcome) => json!({ "data": snapback4_core::wire::to_json(&outcome.data), "complete": outcome.complete, "cut": encoded(&outcome.cut)?, "next": outcome.next, "nextExpiry": outcome.next_expiry, "tables": outcome.tables, "unknown": unknown, "retained": retained }),
+                    Err(refusal) => json!({ "denied": encoded(&refusal)?, "unknown": unknown, "retained": retained }),
                 }
             }
             "backend" => encoded(&device.backend())?,
             "upload_facts" => {
-                device.upload_facts(text(request, "viewer")?, arg(request, "asset")?)?;
+                device.upload_facts(text(&request, "viewer")?, arg(&request, "asset")?)?;
                 Json::Null
             }
-            "asset_home" => device.asset_home(text(request, "id")?, text(request, "viewer")?, request.get("now").and_then(Json::as_i64).unwrap_or(0))?,
+            "asset_home" => device.asset_home(text(&request, "id")?, text(&request, "viewer")?, request.get("now").and_then(Json::as_i64).unwrap_or(0))?,
             "admit" => {
-                let entry = arg(request, "entry")?;
-                encoded(&device.admit_with_replay(parse::<Queued>(entry)?, entry.get("replay_candidate").and_then(Json::as_bool).unwrap_or(false))?)?
+                let entry = take(&mut request, "entry")?;
+                let replay = entry.get("replay_candidate").and_then(Json::as_bool).unwrap_or(false);
+                encoded(&device.admit_with_replay(parse::<Queued>(entry)?, replay)?)?
             }
             "settle" => {
-                device.settle(text(request, "id")?, request.get("seq").and_then(Json::as_u64))?;
+                device.settle(text(&request, "id")?, request.get("seq").and_then(Json::as_u64))?;
                 Json::Null
             }
             "predict" => {
                 let args = request.get("args").cloned().unwrap_or(json!({}));
                 let now = request.get("now").and_then(Json::as_i64).unwrap_or(0);
-                let new_ids: Vec<String> = request.get("newIds").map(parse).transpose()?.unwrap_or_default();
+                let new_ids: Vec<String> = request.get_mut("newIds").map(Json::take).map(parse).transpose()?.unwrap_or_default();
                 let entropy = request.get("entropy").and_then(Json::as_u64).unwrap_or(1);
-                match device.predict(text(request, "name")?, text(request, "viewer")?, &args, now, new_ids, entropy) {
+                match device.predict(text(&request, "name")?, text(&request, "viewer")?, &args, now, new_ids, entropy) {
                     Ok(predicted) => encoded(&predicted)?,
-                    Err(error) if error.is_refusal() => json!({ "denied": error.refusal() }),
+                    Err(error) if error.is_refusal() => json!({ "denied": snapback4_core::json_codec::to_value(&error.refusal()).expect("a refusal is serializable") }),
                     Err(error) => return Err(error),
                 }
             }
             "withdraw" => {
-                let keys: Vec<String> = parse(arg(request, "predicted")?)?;
+                let keys: Vec<String> = parse(take(&mut request, "predicted")?)?;
                 device.withdraw(&keys)?;
                 Json::Null
             }
             "enqueue" => {
-                device.enqueue(&parse::<Queued>(arg(request, "entry")?)?)?;
+                device.enqueue(&parse::<Queued>(take(&mut request, "entry")?)?)?;
                 Json::Null
             }
             "queued" => encoded(&device.queued()?)?,
             "next_submission" => json!(device.next_submission()?),
             "dequeue" => {
-                device.dequeue(text(request, "id")?)?;
+                device.dequeue(text(&request, "id")?)?;
                 Json::Null
             }
-            "meta" => json!(device.meta(text(request, "key")?)?),
+            "meta" => json!(device.meta(text(&request, "key")?)?),
             "set_meta" => {
-                device.set_meta(text(request, "key")?, text(request, "value")?)?;
+                device.set_meta(text(&request, "key")?, text(&request, "value")?)?;
                 Json::Null
             }
             "keep_write" => {
-                device.keep_write(text(request, "value")?)?;
+                device.keep_write(text(&request, "value")?)?;
                 Json::Null
             }
             "clear_rows" => {
@@ -145,4 +150,33 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, request: &Json) -> Json {
             other => return Err(RuntimeError::UnknownOp(other.to_owned())),
         })
     })())
+}
+
+
+/// Decode the complete page command from its original text. Nonmatching envelopes
+/// (including duplicate fields) use the owned dispatcher's existing rules.
+/// Other commands keep the dispatcher above; no command has a second model.
+pub fn call_text<S: DeviceStore>(device: &mut Device<S>, request: &str) -> Json {
+    try_call_text(device, request).unwrap_or_else(|_| json!({ "denied": { "code": "E_INPUT", "family": "input", "message": "the request is JSON text" } }))
+}
+
+pub fn try_call_text<S: DeviceStore>(device: &mut Device<S>, request: &str) -> Result<Json, serde_json::Error> {
+    use snapback4_core::json_codec;
+    #[derive(serde::Deserialize)]
+    struct PageArgument {
+        op: String,
+        page: Option<StreamPage>,
+        #[serde(default)]
+        first: Json,
+    }
+    if let Ok(PageArgument { op, page: Some(page), first }) = json_codec::from_text(request) {
+        if matches!(op.as_str(), "apply" | "observe_store") {
+            json_codec::validate_text(request)?;
+            return Ok(answer((|| {
+                if op == "observe_store" { return encoded(&device.observe_store(&page)?); }
+                Ok(json!({ "touched": device.apply(&page, first.as_bool().unwrap_or(false))? }))
+            })()));
+        }
+    }
+    Ok(call(device, json_codec::from_text(request)?))
 }

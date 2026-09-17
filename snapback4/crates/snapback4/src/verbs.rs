@@ -922,8 +922,8 @@ pub fn device(options: &Options) -> i32 {
         if line.trim().is_empty() {
             continue;
         }
-        let answer = match serde_json::from_str::<Json>(&line) {
-            Ok(request) => snapback4_device::ffi::call(&mut device, &request),
+        let answer = match snapback4_device::call::try_call_text(&mut device, &line) {
+            Ok(answer) => answer,
             Err(error) => json!({ "denied": { "code": "E_INPUT", "family": "input", "message": format!("the request is JSON: {error}") } }),
         };
         if writeln!(stdout, "{answer}").and_then(|()| stdout.flush()).is_err() {

@@ -14,6 +14,7 @@ pub mod identity;
 pub mod ids;
 pub mod ir;
 pub mod key;
+pub mod json_codec;
 pub mod meter;
 pub mod maintain;
 pub mod partition;

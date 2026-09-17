@@ -65,19 +65,19 @@ pub struct MemoryStore {
 }
 
 fn row_key(table: &str, id: &str) -> String {
-    serde_json::to_string(&(table, id)).expect("a key")
+    snapback4_core::json_codec::to_text(&(table, id)).expect("a key")
 }
 
 fn parse_row_key(key: &str) -> Result<(String, String), RuntimeError> {
-    serde_json::from_str(key).map_err(|e| RuntimeError::Store(format!("a kept row key does not parse: {e}")))
+    snapback4_core::json_codec::from_text(key).map_err(|e| RuntimeError::Store(format!("a kept row key does not parse: {e}")))
 }
 
 fn stored<T: Serialize>(value: &T) -> String {
-    serde_json::to_string(value).expect("a stored value")
+    snapback4_core::json_codec::to_text(value).expect("a stored value")
 }
 
 fn parsed<T: for<'de> Deserialize<'de>>(what: &str, text: &str) -> Result<T, RuntimeError> {
-    serde_json::from_str(text).map_err(|e| RuntimeError::Store(format!("a kept {what} does not parse: {e}")))
+    snapback4_core::json_codec::from_text(text).map_err(|e| RuntimeError::Store(format!("a kept {what} does not parse: {e}")))
 }
 
 impl MemoryStore {
