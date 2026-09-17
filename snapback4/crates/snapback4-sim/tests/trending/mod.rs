@@ -46,6 +46,8 @@ fn drain(engine: &mut Engine, now: i64) -> u64 {
 fn live_engine() -> Engine {
     let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).into_iter()
         .find(|source| source.contains("query rollingLikes():")).expect("the feeds card needs the fresh bounded ranking recipe");
+    // Retain W12's bounded-sort engine coverage after the post-window card moves to lanes.
+    let source = source + "\nquery trending():\n  candidates = posts[at > now - 86400000, at <= now] first 8192 by byTime { postId: .id, at, score: likeCounts[.id] }\n  return slice(sort(candidates, '-score', '-at', '-postId'), 0, 10)\n";
     let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     assert!(bound.notes.is_empty(), "{:?}", bound.notes);
@@ -181,3 +183,5 @@ fn trending_equal_score_equal_time_pages_match_immediate() {
     assert_eq!(actual, expected, "continuation loses or duplicates no tied post");
     println!("Trending server ties: 11 candidates; 2 pages; 10/10 immediate matches; 11 unique posts; score=0; one timestamp");
 }
+
+mod lanes;

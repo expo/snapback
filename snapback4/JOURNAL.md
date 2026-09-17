@@ -29060,3 +29060,88 @@ probe passed with zero requests to the other listener; two simultaneous
 fixtures then used distinct ports, seeded and completed awaited cleanup.
 These are fixture checks; product behavior, assertions and existing test
 deadlines are unchanged. No package version or publication change is included.
+
+
+## 2026-09-17 — W14a: Trending merges validated hour lanes
+
+The feeds card now leads with recent posts ranked by a non-expiring count,
+grouped by `hour(.postAt), postAt, postId`, with 25 explicit lanes and exact
+time bounds. The insert rule checks the copied post time against the post,
+pins principal to viewer, and keeps one immutable pair; no published
+mutation accepts a score, time or hour. The source transaction owns the
+rank change. The card includes a bounded zero-like fill, both residency
+choices and actual `check --residency --verbose` lines. The maintains card,
+README and `E_QUARRY_MAINTAIN_EXPIRE` rewrite route by window intent.
+`rollingLikes()` and its live-contribution limits stay unchanged. The
+scheduled recipe remains for a job-computed score or a stored device page.
+
+Measurements below rerun the retained published-0.2.27 probes with this
+lane's debug build on the shared Mac; loopback latency is not a release
+performance comparison. The live clock advanced during seeding (45,352 ms
+and 175,060 ms), so the trailing-window populations differ from the record.
+
+| Probe | Published 0.2.27 | W14a debug build |
+|---|---|---|
+| 5,000 total posts / 32,892 likes | 3,963 in window; 265 examined; p50 2.92 ms, p95 4.32 ms | 3,960 in window; 294 examined; p50 8.24 ms, p95 12.43 ms |
+| 40,000 total posts / 264,722 likes | 31,937 in window; 276 examined; p50 2.24 ms, p95 2.89 ms | 31,884 in window; 284 examined; p50 8.60 ms, p95 10.34 ms |
+| Validated copied-time ranking | 3 examined; false time E_RULE, true time sent | 3 examined; false time E_RULE, true time sent |
+| Zero-like fill | 25 examined, 11 probes, 515 steps | 25 examined, 11 probes, 515 steps |
+
+Both scale pages were complete with `next`, their top-ten score vectors
+matched the JavaScript oracle, and each returned zero out-of-window rows;
+page two continued with first scores 161 and 195. The exact card's fill
+also returned ten complete at 25 examinations (582 steps with its extra
+upper-edge check and branch); a full liked page returned ten complete at
+14 examinations without filling. The public-sync variant has 25 held,
+horizon-free ranking lanes and eligible `setLike`; it necessarily emits
+`N_MAINTAIN_SYNCED`. The original synced probe retains its post horizon and
+reports eligible except past that horizon, as in the published record.
+
+The deterministic simulator fixture ranks 48,200 in-window liked posts at
+264 examinations, complete with `next`; after 48 hours all 48,200 target
+rows remain, totaling 6,073,200 bytes of serialized row JSON (not a SQLite
+file or index-size claim). Removing one last like leaves 48,199 groups.
+Both device stores rank 10,000 in-window posts at 264 examinations and
+acquire 10,000 target rows. They match a source-count oracle across more
+than 25 hours, drop the 23.5-hour-old post on a one-hour clock advance
+without other changes, fill only a short liked page, and predict all four
+set/clear operations. Server and both stores page 37 liked posts exactly
+once while an already-returned winner receives another like; the server
+also witnesses an unread row crossing ahead of the cursor and being
+omitted. This is continuation, not snapshot pagination.
+
+Two caveats in the brief needed correction. Whole old buckets are never
+entered, but the old portion of the oldest included hour is filtered and
+charged: 8,300 such groups reach 8,193 examinations and return incomplete.
+The cost is not population-independent in that adversarial case. Also,
+assembling a full liked page into a list loses its continuation and marks
+it incomplete; the card's full branch returns the shaped page directly,
+while the short branch appends the bounded zero-like read. Tests caught
+both before publication. Public inherited sync cannot be a no-note form
+while retaining its required disclosure, so the standalone card block is
+note-free and the explicitly transformed device variant asserts that note.
+
+The initial language regressions were 8 passed / 2 failed; the final
+maintains suite is 10 / 0. Final guide blocks are 44 / 0; aggregate-copy
+checks are 8 / 0 with one existing retained-calibration survey ignored;
+Trending simulator tests are 11 / 0 and device tests 10 / 0. Old calendar
+card tests were replaced by the stronger validated hour-lane witnesses;
+W12's bounded-sort/expiry witnesses remain as test-only queries. No parser,
+engine, client, ceiling or serialized form changed. This checkout is
+`sb4/w12r1c` at `a4bb414c3d359b19117f18fba09bcca9679b7dba`, with wave 12;
+its missing RFC §21 and probe records were read in the existing local
+`snapback-w13-record` worktree. The local §20.21 revision and existing
+reference cover this correction; no missing §21 anchor was manufactured.
+
+The complete `bash snapback4/scripts/test.sh` run finished in 1,627 s:
+Rust summed to 1,312 passed, zero failed, five ignored; fixtures were 9/9;
+the client group reported 533 passed, five failed, two cancelled and two
+skipped. The prescribed concurrency-2 rerun reported 536 passed, four
+failed and two skipped; its two transport timeouts and store-reset race
+then each passed alone (1/0 each). The isolated React test remained 0/1:
+Chromium exited SIGABRT, the sandbox artifact named in the lane brief.
+All build/typecheck stages passed. No unrelated failure is claimed verified
+on the unmodified base, and no client or test deadline was changed.
+The final reference check reported 481 LLP documents, 9,054 references,
+zero errors and zero unchecked references. All 15 changed files are this
+lane's intended changes; the work remains uncommitted.
