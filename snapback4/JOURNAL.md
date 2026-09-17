@@ -25605,3 +25605,108 @@ plumbing changed. No sub-agent, clone, other machine, tag or publication.
 `git diff --check` passed. The journal's prior bytes were compared with HEAD
 before this single append; the final reference audit is recorded in the lane
 report, with the full command logs kept under `/tmp/w11-cards-*`.
+
+
+## 2026-09-16 — W11R1b: make the calendar maintain example true
+
+Base: `975bbf76e01a9418fe0073cfebb8f9dc999ada3b`. Corrected only the
+feeds card and its existing guide tests, plus this single appended entry.
+The maintain is now a narrow current-calendar-bucket ranking of positively-liked
+originals with maintained-id ties, not the preferred replacement for rolling
+Trending. The source pins insert and delete to the viewer, caps each principal
+at 1,000 likes, and exposes `setLike(postId, liked)` that derives originalness
+and day from the authoritative post. The example's `create` sets time on the
+server; parent and time are immutable. No caller supplies the copied facts.
+
+The card distinguishes an unwritable maintain target from trustworthy source
+rows and treats both recipes' latent permissions evenly: neither declared
+mutation takes a caller-supplied score. It states zero-group omission,
+unbounded age retention while a contribution remains, midnight exclusion,
+unlike permission, descending maintained-id ties, unenforced writer/query
+offsets, and the separate coverage, freshness and offline outcomes. A rolling
+post-time window with zero-like candidates keeps the handwritten recipe.
+The existing README describes the scheduled and bounded-live alternatives;
+it does not carry this mistaken block, and no language form or diagnostic
+changed, so no README, language card or CODES edit was needed.
+
+Six regressions were run against the unedited card first. A test-only future
+mutation actually admitted a forged principal before the source rule fix;
+four engine tests also exposed the missing published `setLike` operation.
+The same tests pass after the correction. Measured behavior: 40 posts and
+0 likes yield 0 groups; first/repeated/foreign-clear/second/first-unlike/
+last-unlike/repeated-clear scores are 1/1/1/2/1/0/0, with no target row at
+zero. Two equal-score posts order `z-older`, `a-newer`, opposite post-time
+order. One historical group with score 2 still exists at day 100, while the
+current-bucket query returns 0 rows. The 1,000th like succeeds, the 1,001st
+for the same principal refuses, a second principal can like, and an unlike
+frees a slot. The changed Rust file is 1,118 lines, below the 1,500-line cap.
+
+Commands from `snapback4/`:
+
+```sh
+cargo test -p snapback4-lang --test guide w11r1b_ -- --nocapture > /tmp/w11r1b-guide-red.log 2>&1
+cargo test -p snapback4-lang --test guide w11r1b_ -- --nocapture > /tmp/w11r1b-guide-green.log 2>&1
+cargo test -p snapback4-lang --test guide -- --nocapture > /tmp/w11r1b-guide-full.log 2>&1
+```
+
+```text
+test result: FAILED. 0 passed; 6 failed; 0 ignored; 0 measured; 39 filtered out; finished in 0.21s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 39 filtered out; finished in 0.24s
+test result: ok. 45 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+```
+
+Commands from the repository root:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+bash snapback4/scripts/test.sh > /tmp/w11r1b-suite.log 2>&1
+./ref-check --verbose > /tmp/w11r1b-ref-check.log 2>&1
+```
+
+The full run summed to Rust 1,240 passed / 13 failed / 4 ignored. Its two
+failed Rust targets were native fixture builds denied access to the ordinary
+Cargo cache's `unicode-ident-1.0.25.crate` (`Operation not permitted`). The
+client's sole failure was Chromium `SIGABRT` in `react.test.mjs`, the sandbox
+artifact named in the brief. All builds, typechecks and 9 fixture tests
+passed. Verbatim summary lines:
+
+```text
+test result: FAILED. 0 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.32s
+test result: FAILED. 2 passed; 5 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.34s
+-- FAIL: cargo test (967 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ tests 485
+ℹ pass 484
+ℹ fail 1
+-- FAIL: client tests (67 s)
+== 2 failure(s) in 996 s
+ref-check: ok — 481 LLP docs, 9037 refs in 23996 files, 0 errors, 0 unchecked
+```
+
+The native failures were retried with a writable temporary Cargo cache,
+without changing dependencies or any repository source. Preparation and
+isolated commands from `snapback4/`:
+
+```sh
+CARGO_HOME=/private/tmp/w11r1b-cargo-cache cargo fetch --locked --manifest-path native-fixtures/rescore/Cargo.toml > /tmp/w11r1b-native-fetch.log 2>&1
+cargo test -p snapback4-device --test native_reads --no-run --message-format=json > /tmp/w11r1b-native-reads-build.jsonl 2>/tmp/w11r1b-native-reads-build.log
+cargo test -p snapback4-sim --test native --no-run --message-format=json > /tmp/w11r1b-native-build.jsonl 2>/tmp/w11r1b-native-build.log
+CARGO_HOME=/private/tmp/w11r1b-cargo-cache ./target/debug/deps/native_reads-b3b06dc295738225 --nocapture > /tmp/w11r1b-native-reads-retry.log 2>&1
+CARGO_HOME=/private/tmp/w11r1b-cargo-cache ./target/debug/deps/native-3d25140fa7501473 --nocapture > /tmp/w11r1b-native-retry.log 2>&1
+```
+
+```text
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.71s
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 4.20s
+```
+
+The complete run and the isolated passes are separate evidence; no green
+complete suite is claimed. Chromium still needs the lead's outside-sandbox
+run. No clean-base full-suite run was made, and no unrelated failure is
+claimed pre-existing. All brief implementation and behavioral tests are
+complete. No out-of-scope file, ceiling, serialized value, existing corpus
+case or diagnostic text changed. No commit, push, tag, publication,
+sub-agent, clone or other machine. `git diff --check` passes. The prior
+journal bytes were checked against HEAD before this one append.

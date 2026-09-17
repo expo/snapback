@@ -916,50 +916,121 @@ scheduled recipe, a newly created post and a changed like count appear in
 the very next server read; no schedule has to run. Unlike `trendingNow()`,
 the read pages a score index instead of sorting a bounded candidate scan.
 
-**Prefer a `maintain` to this recipe wherever it fits.** A maintain can be
-indexed by its own `value` and grouped by a window column, which is a fresh
-ranking the engine keeps and principals never write:
+### Calendar-bucket alternative: positively-liked originals
+
+A maintain fits a current-calendar-bucket ranking of positively-liked
+originals with id ties. A Trending feed usually wants a rolling window over
+post time and zero-like candidates; use the handwritten recipe below for
+that contract. This narrower alternative indexes the maintained `value`
+within the post's calendar day:
 
 ```quarry
 table posts:
   authorId: principal
   parentId: posts ?
   at: time
+  immutable authorId, parentId, at
   public 'posts'
-  insert <- allow
+  insert <- .authorId = viewer
 
 table likes:
   postId: posts
   principal: principal
-  isOriginal: bool          -- denormalised: the post has no parent
-  postDay: int              -- denormalised: day(post.at), static per post
+  isOriginal: bool          -- setLike derives this from the authoritative post
+  postDay: int              -- setLike derives day(post.at), with UTC offset 0
   at: time
   unique byPair: postId, principal
+  by byPrincipal: principal, id
+  cap 1000 by principal
   public 'likes'
-  insert <- allow
+  insert <- .principal = viewer
+  delete <- .principal = viewer
 
 maintain trendScore: count likes where .isOriginal = true by postDay, postId
   read <- allow
   by byScore: postDay, value, id
 
+mutation create(parentId: posts ?):
+  if parentId != null:
+    require exists posts[parentId] else POST_NOT_FOUND
+  return insert posts { authorId: viewer, parentId, at: now }
+
+mutation setLike(postId: posts, liked: bool):
+  p = posts[postId] ! else POST_NOT_FOUND
+  if liked:
+    insert likes { postId: p.id, principal: viewer, isOriginal: p.parentId = null, postDay: day(p.at), at: now } if absent
+  else if exists likes[postId, viewer]:
+    delete likes[postId, viewer]
+
 query trending(c: cursor ?):
   return trendScore[day(now)] after c last 10 by byScore { postId, score: .value }
 ```
 
-That is four lines, needs no `refreshRank`, and has no principal-writable
-score. Its cost is that a maintain predicate compares row-local scalar
-columns and literals only, so the two facts it filters on — here
-`isOriginal` and `postDay` — must be denormalised onto the counted row at
-insert. `day()` is a calendar bucket, not a rolling 24 hours.
+The engine updates `trendScore` inside the source transaction, with no
+`refreshRank`. A maintain's target cannot be written by a principal, but
+its score is only as trustworthy as the source rows' insert rule and the
+mutations that construct those rows. The insert rule pins `principal` to
+`viewer`; the unique pair permits one like per viewer per post. `setLike`
+derives `isOriginal` and `postDay` from the authoritative post row, never
+from caller arguments. The maintain cannot validate these denormalised
+facts: its predicate compares row-local scalar columns and literals only,
+and the owner rule does not prove the copied facts. `create` sets post time
+on the server; post time and parent are immutable in this example.
 
-Use the handwritten table below only when the window truly must roll, or
-when the score is not a `count`/`sum` a maintain can keep. Its maintenance is
-handwritten: every source write must call `refreshRank`, and **the target
-table is writable by principals** — the helper uses the caller's ordinary
-write rules, grants no privilege and does not reserve `ranked` writes to
-itself. That is a real exposure a maintain does not have. Keep that tradeoff
-in view when adapting the recipe, rather than treating the table as
-engine-owned derived state.
+The costs and limits of this calendar ranking are:
+
+- **Zero-like posts are absent.** Launching with 40 posts and no likes
+  returns `[]`. The first like creates a group; the last unlike deletes it.
+  `complete: true` does not mean all posts have a candidate row.
+- **Old buckets have no age-based retention bound.** A maintain target
+  cannot expire or be capped. Each `(postDay, postId)` group stays as long
+  as any contributing like remains, even when the query can no longer reach
+  its day. The per-principal cap bounds one viewer's likes, not total
+  historical groups across all viewers. The handwritten `ranked` table
+  below instead expires at `post.at + 24h`.
+- **The window is the post's calendar day, and the query reads only today's
+  bucket.** `day()` here uses UTC, not a rolling 24 hours. At 00:00:01 UTC,
+  Trending is empty unless a post created since midnight already has a
+  like. A post made at 23:50 that collects 400 likes at 00:10 stays in
+  yesterday's bucket and is unreachable by this query from then on.
+- **Unlike needs its own permission.** Without the `delete` rule, unlike
+  is denied and this insert-only score can only rise. The rule and
+  `setLike(false)` above remove only the viewer's own like; repeated set
+  and clear calls do not double-count. Each viewer may hold at most 1,000
+  likes, and unliking frees a slot.
+- **Ties break by descending maintained id, not post time.** The index
+  orders `value, id` within a day; the handwritten recipe uses score,
+  post time and post id. Score changes can move rows between cursor pages;
+  neither pagination is a snapshot across writes.
+- **Nothing enforces that the writer's bucket offset matches the query's.**
+  This block pairs `day(p.at)` with `day(now)`. For an offset, change both
+  to `day(p.at, 8h)` and `day(now, 8h)` and rebuild the stored `postDay`
+  facts. A UTC writer and an `8h` query can choose different day ordinals
+  and silently return an empty ranking; there is no diagnostic for this
+  mismatch. Changing only the query does not migrate existing likes.
+
+With no source sync, `trending` is server-run and a load reads the committed
+ranking as of that server read. An offline watch can retain its previous
+server answer with `fresh: false`, or refuse `E_OFFLINE` without one.
+`complete` describes page coverage under the meter, not freshness, rolling
+eligibility or validation of the copied facts. An offline answer cannot
+promise a fresh ranking.
+
+### Fresh ranking over posts younger than 24 hours
+
+Use this handwritten table for posts younger than 24 hours, including
+zero-like posts, or for a score beyond the `count`/`sum` a maintain can
+keep. Every source write must call `refreshRank`. The helper uses the
+caller's ordinary write rules, grants no privilege and does not reserve
+`ranked` writes to itself; its target is writable under those rules.
+
+The client surface is declared queries, mutations and actions, not direct
+table writes. Neither recipe exposes a caller-supplied score. Both have
+latent permissions to review when adding mutations: accepting untrusted
+denormalised facts could corrupt the maintain's source, and accepting an
+untrusted score could corrupt the handwritten target. The maintain's
+target has the additional compiler-enforced prohibition on direct writes;
+that does not make arbitrary source inserts trustworthy.
 
 ```quarry
 table posts:
