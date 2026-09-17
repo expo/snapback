@@ -104,7 +104,7 @@ fn retained_point_hits_and_misses_on_both_stores() {
 }
 
 #[test]
-fn compatible_adoption_keeps_retained_components_on_both_stores() {
+fn program_only_adoption_resets_retained_components_on_both_stores() {
     on_both(|host| history_device(host, |device, engine| {
         let before = query(device, "both", "dev:bob", serde_json::json!({}), 100);
         assert_eq!(before["data"]["left"].as_array().unwrap().len(), 25);
@@ -115,7 +115,9 @@ fn compatible_adoption_keeps_retained_components_on_both_stores() {
         assert_eq!(unacquired["denied"]["code"], "E_PREDICT", "program adoption still requires acquisition");
         for (n, page) in snapshot_pages(engine, "dev:bob", 100).iter().enumerate() { ok(apply(device, page, n == 0)); }
         let after = query(device, "both", "dev:bob", serde_json::json!({}), 100);
-        assert_eq!(after["data"], before["data"]);
-        assert_eq!(after["components"], before["components"]);
+        assert_eq!(after["data"]["left"], serde_json::json!([]), "left history cannot be re-acquired after generation reset");
+        assert_eq!(after["data"]["held"], before["data"]["held"], "held rows are re-acquired");
+        assert_eq!(after["components"]["left"]["retained"], false, "the old left-group map is cleared");
+        assert_eq!(after["components"]["held"]["retained"], false);
     }));
 }

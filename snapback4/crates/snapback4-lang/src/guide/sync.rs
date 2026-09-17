@@ -129,7 +129,9 @@ stay local as its own query; the one server reply supplies those that need it.
 The composed read is `complete` only when the server answer and
 every locally kept component are complete; it reports `fresh: false`, no `since`,
 and no continuation. Offline or after a failed request, the whole local
-answer stands. Every other shape keeps the separate-query recipe: keep a
+answer stands.
+Composition is never entered while a predictable write is unobserved; the whole local answer stands until it settles.
+Every other shape keeps the separate-query recipe: keep a
 left-group read in its own query, since a mixed query without a component
 plan returns the whole server answer online when no predictable write is awaiting observation,
 and the whole device answer offline.

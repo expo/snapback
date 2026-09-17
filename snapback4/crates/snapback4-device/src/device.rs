@@ -265,8 +265,8 @@ impl<S: DeviceStore> Device<S> {
         let reset = held != 0 && held != backend.generation;
         let previous = store.meta(BACKEND)?.and_then(|text| serde_json::from_str::<Backend>(&text).ok());
         let keep_images = reset && previous.as_ref()
-            .is_some_and(|old| (old.schema.tables == backend.schema.tables && old.schema.maintains == backend.schema.maintains) || snapback4_core::successor::keeps_literal_default_images(&old.schema, &backend.schema));
-        let keep_acquired = keep_images && previous.as_ref().is_some_and(|old| old.schema.tables.len() == backend.schema.tables.len() && snapback4_core::successor::keeps_literal_default_images(&old.schema, &backend.schema))
+            .is_some_and(|old| snapback4_core::successor::keeps_literal_default_images(&old.schema, &backend.schema));
+        let keep_acquired = keep_images && previous.as_ref().is_some_and(|old| old.schema.tables.len() == backend.schema.tables.len())
             && store.meta(ACQUIRED)? == Some(held.to_string());
         let backend_identity = store_identity::backend_identity(&backend);
         let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string()), (BACKEND_IDENTITY.to_owned(), backend_identity.clone())]);
@@ -274,7 +274,7 @@ impl<S: DeviceStore> Device<S> {
             metadata.insert(WATERMARK.to_owned(), "0".into());
             metadata.insert(ACQUIRED.to_owned(), if keep_acquired { backend.generation.to_string() } else { String::new() });
             invalidate_native(&mut metadata);
-            if !keep_images { metadata.insert(history::GROUPS.to_owned(), "{}".into()); }
+            metadata.insert(history::GROUPS.to_owned(), "{}".into());
             metadata.insert(history::STAGED_GROUPS.to_owned(), "{}".into());
         }
         store.install(&backend.schema, &metadata, reset && !keep_images)?;
@@ -374,10 +374,10 @@ impl<S: DeviceStore> Device<S> {
         let obsolete_native = adopted_store != self.store_identity || cached_native.filter(|s| !s.is_empty()).as_deref() != self.native_digest.as_deref();
         let replacement = required.as_ref().is_some_and(|value| !value.is_empty());
         let reset = backend.generation != self.generation;
-        let keep_images = (self.schema.tables == backend.schema.tables && self.schema.maintains == backend.schema.maintains) || snapback4_core::successor::keeps_literal_default_images(&self.schema, &backend.schema);
-        // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — unchanged tables and literal-default evolution keep acquired images and their left-group history.
+        let keep_images = snapback4_core::successor::keeps_literal_default_images(&self.schema, &backend.schema);
+        // @ref LLP 3000.007#18.3 — literal-default-only evolution keeps already acquired images readable.
         // The image predicate permits added tables; those require acquisition.
-        let keep_acquired = keep_images && self.schema.tables.len() == backend.schema.tables.len() && snapback4_core::successor::keeps_literal_default_images(&self.schema, &backend.schema)
+        let keep_acquired = keep_images && self.schema.tables.len() == backend.schema.tables.len()
             && self.store.meta(ACQUIRED)? == Some(self.generation.to_string());
         let backend_identity = store_identity::backend_identity(&backend);
         let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string()), (BACKEND_IDENTITY.to_owned(), backend_identity.clone())]);
@@ -386,7 +386,7 @@ impl<S: DeviceStore> Device<S> {
             metadata.insert(WATERMARK.to_owned(), "0".into());
             metadata.insert(ACQUIRED.to_owned(), if keep_acquired { backend.generation.to_string() } else { String::new() });
             invalidate_native(&mut metadata);
-            if !keep_images { metadata.insert(history::GROUPS.to_owned(), "{}".into()); }
+            metadata.insert(history::GROUPS.to_owned(), "{}".into());
             metadata.insert(history::STAGED_GROUPS.to_owned(), "{}".into());
         }
         if replacement { invalidate_native(&mut metadata); }

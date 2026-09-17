@@ -224,6 +224,8 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["R5 history", "R
       const completeOnly = await client.query({ kind: "query", name: "completeOnly" }, {});
       assert.equal(completeOnly.fresh, true, "complete-only locals do not enter composition");
       assert.deepEqual(completeOnly.data.current, [rows.find(item => item.table === "current").row]);
+      assert.deepEqual(completeOnly.data.held, expected("held", 0), "the server supplies all 26 held rows");
+      assert.equal(allRequests.filter(path => path === "/q/completeOnly").length, 1);
     }
     assert.deepEqual((await client.query(both, {})).data.left, expected("left", 1));
     let release, entered;
@@ -315,7 +317,8 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["R5 history", "R
       assert.equal(recovered.complete, false);
     } else if (scenario === "MQ adoption") {
       assert.equal(result.data.epoch, 2);
-      assert.deepEqual(result.data.left, expected("left", 1)); assert.equal(result.complete, false);
+      assert.deepEqual(result.data, { left: [], held: expected("held", 0), epoch: 2 }, "generation reset leaves the whole new server answer");
+      assert.equal(result.complete, true); assert.equal(result.fresh, true);
       assert.ok(allRequests.filter(path => path === `/q/${delayedName}`).length >= from + 3, "old backend query must be retried");
     } else if (scenario === "MQ prediction") {
       assert.equal(result.complete, false);
@@ -350,7 +353,14 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["R5 history", "R
     }
     if (scenario.includes("current")) assert.deepEqual(result.data.current, [], "second local observes deletion or revocation");
     intercept = undefined;
-    if (!closing && !["MQ rejoin", "MQ reset", "MQ interrupted snapshot"].includes(scenario)) {
+    if (scenario === "MQ adoption") {
+      await until(() => publications.length > 0, "watch must publish the new generation");
+      for (const read of publicationReads) {
+        assert.deepEqual(read.data, { left: [], held: expected("held", 0), epoch: 2 }, "no old-generation query or watch reply may publish");
+        assert.equal(read.complete, true); assert.equal(read.fresh, true);
+      }
+    }
+    if (!closing && !["MQ adoption", "MQ rejoin", "MQ reset", "MQ interrupted snapshot"].includes(scenario)) {
       await until(() => publications.length > 0, "watch must publish the composed observation");
       for (const read of publicationReads) assert.equal(read.complete, false, "watch cannot certify the undelivered left row");
       for (const data of publications) {

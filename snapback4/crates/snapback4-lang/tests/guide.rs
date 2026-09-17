@@ -1194,7 +1194,7 @@ fn composition_card_matches_readme_and_the_routing_boundary() {
     let paragraph = |text: &str| text.split("A device query returning\n").nth(1).unwrap().split("answer offline.").next().unwrap().to_owned();
     assert_eq!(paragraph(sync), paragraph(README));
     for text in [sync, README] {
-        for word in ["`check --residency` names", "at most one read", "no reading `require`", "found point read", "when no predictable write is awaiting observation", "every locally kept component"] {
+        for word in ["`check --residency` names", "at most one read", "no reading `require`", "found point read", "Composition is never entered while a predictable write is unobserved; the whole local answer stands until it settles.", "every locally kept component"] {
             assert!(text.contains(word), "missing {word}");
         }
     }
