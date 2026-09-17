@@ -280,7 +280,8 @@ coverage rule (`engine/read.rs`: same index, descending, more rows held below) a
 rows are a contiguous newest suffix; the stream applies no horizon and `Device::apply`
 stores every `put`, so any update to an old row breaks the assumption. Filed as
 `issues/20260917-snapback4-device-page-past-horizon-answers-from-scattered-rows.md` (P1).
-Run: `SB=<binary> PKG=<unpacked snapback4 npm package> node measure.mjs`.
+Run: `SB=<binary> PKG=<unpacked snapback4 npm package> node measure.mjs`. Re-run the same day against the
+just-published `0.2.28` binary and client: identical (`RESULT-0.2.28.txt`).
 
 ## What this record does not show
 

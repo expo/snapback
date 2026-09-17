@@ -4,7 +4,7 @@ Status: Open
 Priority: P1 (a wrong answer marked `complete: true, fresh: true`, on the published product, in the most ordinary app shape: a horizoned public table whose old rows are ever updated)
 Date: 2026-09-17
 Systems: `snapback4-core` `partition.rs` (the change stream applies no horizon), `engine/read.rs` (the device's horizon coverage rule in the scan loop); `snapback4-device` `device.rs` (`apply` stores every `put`); the sync card and `NOT-DOING.md` ("A local read past the horizon says `complete: false`")
-Observed version: published `snapback4@0.2.27` binary **and** published `snapback4@0.2.27` client (wasm device in Node); the two code sites read unchanged on main at `28534f6f5c`
+Observed version: published `snapback4@0.2.27` **and** `snapback4@0.2.28` — binary and client (wasm device in Node) of each, identical output (`RESULT.txt`, `RESULT-0.2.28.txt`); the two code sites read unchanged on main at `28534f6f5c`
 Evidence status: reproduced by execution; found while measuring LLP 3000.007.001 §7's gate 2 (rows a device gains beyond its horizon)
 
 ## Problem
