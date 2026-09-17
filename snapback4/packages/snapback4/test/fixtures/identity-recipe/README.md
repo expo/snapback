@@ -254,8 +254,9 @@ forthcoming shared-interpreter `sha256(text)` primitive, whose contract is
 UTF-8 input to lowercase 64-character hex. The current published 0.2.26 binary
 does not have that primitive and must not be run against this module. The
 source test requires an explicit binary path and SHA-256 pin from the parent
-core lane. Until that pinned run occurs, this is source, not green actual-
-interpreter qualification.
+core lane. The pinned parent run has reached the interpreter but remains red
+after three preserved failures; this is therefore still source, not green
+actual-interpreter qualification.
 
 Hash-only table storage is a narrow claim. It does not say that a later
 issuance action result, durable step, email-provider payload or privileged
@@ -272,6 +273,14 @@ stale-but-still-verified profile can read bounded invitation metadata. Both
 `invitePreview` and `organizationAcceptInvitation` separately require strict
 `proofExpiresAt > now`, pending status, strict `expiresAt > now` and the raw
 token hash. The trusted-profile five-minute policy is unchanged.
+
+Because the invitation read rule also admits an exact recipient profile, an
+admin's `adminInvitations` scan is a deliberately non-uniform bounded page:
+its `complete: false` is a rule-completeness classification, not evidence that
+more rows exist or a count. Use `invitationMetadata` for an exact invitation
+point read. Owners and admins use `adminOrganizationSummary` for uniform
+point-read seat, member and live-reservation counts; capacity assertions must
+not infer totals from the bounded invitation page.
 
 The actual-CLI source is `test/identity-organizations.test.mjs`. It uses only
 service calls to `identityBegin`, `identityClaim` and `identityVerified` for

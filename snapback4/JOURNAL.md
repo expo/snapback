@@ -28634,3 +28634,61 @@ output, exit 2, a signal and unsupported action/job names. No Quarry policy,
 expected policy code, core, generic identity surface or provider/HTTP surface
 changed. The supervisor's next actual-policy run remains pending; no engine,
 remote, listener, provider, Rust/Cargo or installation command ran here.
+
+## 2026-09-17 — B1d.2a non-uniform invitation-page verification design
+
+The supervisor's third pinned run used frozen commit
+`3aef350081109ff7b4b1b7f16ce5e83a7acd0330`, Node 24.13.1 and the same
+hash-capable engine source `1e91bc7fe`, SHA-256
+`7342e869fe475e0a4629c36b87f91beac262d4551b769773574903a4cb32f187`.
+It produced 2 synthetic passes, 1 actual-test failure and 0 skips in
+3459.837467 ms. Compile, profile setup, organization creation and the earlier
+refusal probes completed before the test stopped at its line 320 on a
+successful `adminInvitations` response whose envelope had status 0,
+`complete: false`, `cut: null`, a string `next`, one data row, three examined
+rows and four rule probes. This remains a third actual red, not acceptance-
+policy green evidence.
+
+The private 0600 response journal retained all 59 responses at
+`/home/ccheever/sb4-b1d2-policy.nvOWiR/scratch/b1d2a-organizations-QAa1th/managed-policy-responses.jsonl`;
+its SHA-256 is
+`b06228610ec10b1e1a0249a69d5d930427888c5a2684364de4c2658b0d3e9992`.
+Full stdout SHA-256 is
+`c19c6725b7d0d826998f2ec1ed27a22bb69c8fa3ec05d0a421fda7048ce3f42b`;
+empty stderr SHA-256 is
+`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+This receipt and both older reds remain preserved beneath the same private
+450b root.
+
+The response is legitimate non-uniform completeness, not truncation to repair
+by pagination: the invitation rule unions organization-admin membership with
+an unpinned recipient-email profile branch, while the query scan pins only the
+organization. In the interpreter, `complete` classifies whether the rule is
+uniform over the scan; it is not an inventory-count assertion. This native Sol
+authoring pass therefore keeps the generic query classifier strict and adds a
+single operation-named bounded-page validator for the positive
+`adminInvitations` observation. That validator accepts only the known
+`complete: false`, null-cut, nullable/string-continuation shape, caps the page
+at 100 and verifies every returned row's organization and public projection.
+Synthetic cases prove that only this named path accepts the partial page and
+that it rejects a cut, a uniform envelope, the wrong organization and an
+unpublished field.
+
+All invitation state assertions now use exact-ID `invitationMetadata` point
+reads. Successful created IDs are captured only after a sent mutation and the
+final no-token/digest check targets those 15 IDs rather than claiming a
+complete listing. The new ordinary `adminOrganizationSummary` query uses only
+existing organization, member-count and reservation-count point reads. It
+supplies owner/admin capacity assertions and the late-admission rollback
+witness, including equality of both maintained counts before and after the
+refusal. Three member/outsider/other-tenant-admin denials extend the runtime
+matrix to 22 query plus 27 mutation refusal probes without changing any
+expected policy code.
+
+With the actual-policy environment variables explicitly unset, Node 24.18.0
+reported 2 pass, 0 fail and 1 named prerequisite skip in 131.674209 ms. The
+same file passed `node --check`, and `git diff --check` passed. No actual
+engine, listener, provider, remote, Rust/Cargo, install or root-gate command ran
+on Office in this phase. Qualification remains pending a supervisor rerun of
+the frozen committed sources; issuance, delivery, HTTP concurrency/lost-ack,
+restart, provider and full Identity/B claims remain outside B1d.2a.

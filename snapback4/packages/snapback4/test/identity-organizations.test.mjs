@@ -46,6 +46,7 @@ const QUERY_OPERATIONS = new Set([
   "organizations.ownOrganizations",
   "organizations.memberRoster",
   "organizations.adminInvitations",
+  "organizations.adminOrganizationSummary",
   "organizations.invitationMetadata",
   "organizations.invitePreview",
   "organizations.adminAudit",
@@ -106,13 +107,42 @@ function classifyRunResponse(kind, response) {
   return { type: "unsafe", code: `${kind.toUpperCase()}_REFUSAL_ENVELOPE` };
 }
 
+const ADMIN_INVITATION_FIELDS = new Set([
+  "id", "organization", "recipientEmail", "issuer", "issuedAt", "expiresAt",
+  "status", "acceptedBy", "acceptedAt", "reservation",
+]);
+
+function classifyAdminInvitationPageResponse(response, expectedOrganization) {
+  if (response.error) return { type: "unsafe", code: "SPAWN_ERROR" };
+  if (response.signal !== null && response.signal !== undefined) return { type: "unsafe", code: "SIGNAL" };
+  if (response.status !== 0) return { type: "unsafe", code: "ADMIN_INVITATIONS_EXIT_STATUS" };
+  let body;
+  try {
+    body = JSON.parse(response.stdout);
+  } catch {
+    return { type: "unsafe", code: "NON_JSON" };
+  }
+  if (!object(body) || !Array.isArray(body.data) || body.data.length > 100
+    || body.complete !== false || body.cut !== null
+    || !(body.next === null || typeof body.next === "string") || !own(body, "metered")) {
+    return { type: "unsafe", code: "ADMIN_INVITATIONS_PAGE_ENVELOPE" };
+  }
+  for (const row of body.data) {
+    if (!object(row) || row.organization !== expectedOrganization
+      || Object.keys(row).some(key => !ADMIN_INVITATION_FIELDS.has(key))) {
+      return { type: "unsafe", code: "ADMIN_INVITATIONS_PAGE_ROW" };
+    }
+  }
+  return { type: "success", body };
+}
+
 const response = (status, body, overrides = {}) => ({
   status, signal: null, error: undefined,
   stdout: typeof body === "string" ? body : JSON.stringify(body), stderr: "", ...overrides,
 });
 
 test("managed-policy CLI operation inventory excludes actions and jobs", () => {
-  assert.equal(QUERY_OPERATIONS.size, 7);
+  assert.equal(QUERY_OPERATIONS.size, 8);
   assert.equal(MUTATION_OPERATIONS.size, 12);
   assert.equal(operationKind("organizations.invitePreview"), "query");
   assert.equal(operationKind("identityVerified"), "mutation");
@@ -143,6 +173,29 @@ test("managed-policy CLI envelopes are kind-specific and fail closed", () => {
   assert.equal(classifyRunResponse("query", response(2, {})).code, "EXIT_STATUS");
   assert.equal(classifyRunResponse("query", response(null, {}, { signal: "SIGTERM" })).code, "SIGNAL");
   assert.equal(classifyRunResponse("mutation", response(1, { error: "input" })).code, "MUTATION_REFUSAL_ENVELOPE");
+
+  const partialAdminPage = {
+    data: [{
+      id: "invite-1", organization: "org-1", recipientEmail: "person@example.test",
+      issuer: "owner", issuedAt: 1, expiresAt: 2, status: "pending",
+      acceptedBy: null, acceptedAt: null, reservation: { invitation: "invite-1" },
+    }],
+    complete: false, cut: null, next: "continuation", metered: {},
+  };
+  assert.equal(classifyAdminInvitationPageResponse(response(0, partialAdminPage), "org-1").type, "success");
+  assert.equal(classifyRunResponse("query", response(0, partialAdminPage)).code, "QUERY_SUCCESS_ENVELOPE");
+  assert.equal(classifyAdminInvitationPageResponse(response(0, {
+    ...partialAdminPage, cut: {},
+  }), "org-1").code, "ADMIN_INVITATIONS_PAGE_ENVELOPE");
+  assert.equal(classifyAdminInvitationPageResponse(response(0, {
+    ...partialAdminPage, complete: true, next: null,
+  }), "org-1").code, "ADMIN_INVITATIONS_PAGE_ENVELOPE");
+  assert.equal(classifyAdminInvitationPageResponse(response(0, {
+    ...partialAdminPage, data: [{ ...partialAdminPage.data[0], organization: "org-2" }],
+  }), "org-1").code, "ADMIN_INVITATIONS_PAGE_ROW");
+  assert.equal(classifyAdminInvitationPageResponse(response(0, {
+    ...partialAdminPage, data: [{ ...partialAdminPage.data[0], tokenHash: "hidden" }],
+  }), "org-1").code, "ADMIN_INVITATIONS_PAGE_ROW");
 });
 
 test("managed organization and invitation policy runs in the shared interpreter", {
@@ -251,16 +304,33 @@ test("managed organization and invitation policy runs in the shared interpreter"
       }, SERVICE, proofStartedAt + 2);
     };
     const roster = (organization, principal, now) => data(orgRun("memberRoster", { organization, c: null }, principal, now));
-    const invitations = (organization, principal, now) => data(orgRun("adminInvitations", { organization, c: null }, principal, now));
+    const summary = (organization, principal, now) => data(orgRun("adminOrganizationSummary", { organization }, principal, now));
+    const adminInvitationPage = (organization, principal, now) => {
+      const operation = "organizations.adminInvitations";
+      const result = spawnRecorded([
+        "run", operation, JSON.stringify({ organization, c: null }),
+        "--as", principal, "--now", String(now), "--json",
+      ], operation, "query", principal, now);
+      const outcome = classifyAdminInvitationPageResponse(result, organization);
+      if (outcome.type !== "success") stop(outcome.code, operation);
+      return outcome.body.data;
+    };
     const audit = (organization, principal, now) => data(orgRun("adminAudit", { organization, c: null }, principal, now));
-    const findInvitation = (organization, invitation, principal, now) => {
-      const found = invitations(organization, principal, now).find(row => row.id === invitation);
-      assert.ok(found, `invitation ${invitation} must be present in admin history`);
+    const invitationMetadata = (organization, invitation, principal, now) => {
+      const found = data(orgRun("invitationMetadata", { invitation }, principal, now));
+      assert.equal(found.id, invitation, "invitation metadata must retain the exact requested id");
+      assert.equal(found.organization, organization, "invitation metadata must remain in the expected organization");
       return found;
     };
-    const recordInvitation = (invitation, organization, email, rawToken, principal, now) => written(orgRun("organizationRecordInvitation", {
-      id: invitation, organization, recipientEmail: email, tokenHash: digest(rawToken),
-    }, principal, now));
+    const successfulInvitationIds = [];
+    const recordInvitation = (invitation, organization, email, rawToken, principal, now) => {
+      const created = written(orgRun("organizationRecordInvitation", {
+        id: invitation, organization, recipientEmail: email, tokenHash: digest(rawToken),
+      }, principal, now));
+      assert.equal(created.id, invitation, "recorded invitation must retain its caller-selected id");
+      successfulInvitationIds.push(created.id);
+      return created;
+    };
 
     const checkResult = spawnRecorded(["check", "--json"], "check", "check");
     if (checkResult.error) stop("CHECK_SPAWN_ERROR", "check");
@@ -299,6 +369,9 @@ test("managed organization and invitation policy runs in the shared interpreter"
     const organization = written(orgRun("organizationCreate", { name: "Managed Organization" }, OWNER, T));
     assert.equal(organization.owner, OWNER);
     assert.equal(organization.seatLimit, 5);
+    assert.deepEqual(summary(organization.id, OWNER, T), {
+      seatLimit: 5, memberCount: 1, reservationCount: 0,
+    }, "the owner sees the initial uniform organization summary");
     assert.deepEqual(roster(organization.id, OWNER, T), [{
       id: roster(organization.id, OWNER, T)[0].id,
       principal: OWNER, role: "admin", joinedAt: T, sourceInvitation: null,
@@ -317,17 +390,17 @@ test("managed organization and invitation policy runs in the shared interpreter"
 
     const defaultToken = "default-lifetime-token";
     recordInvitation(id(2), organization.id, "recipient@example.test", defaultToken, OWNER, T + 10);
-    const defaultInvite = findInvitation(organization.id, id(2), OWNER, T + 10);
+    const defaultInvite = invitationMetadata(organization.id, id(2), OWNER, T + 10);
     assert.equal(defaultInvite.expiresAt, T + 10 + 604_800_000, "default invitation lifetime is seven days");
     assert.ok(defaultInvite.reservation, "a pending invitation reserves one seat");
     written(orgRun("organizationRevokeInvitation", { invitation: id(2) }, OWNER, T + 11));
     const auditAfterFirstRevoke = audit(organization.id, OWNER, T + 11).filter(row => row.event === "invitation.revoked").length;
     written(orgRun("organizationRevokeInvitation", { invitation: id(2) }, OWNER, T + 12));
     assert.equal(audit(organization.id, OWNER, T + 12).filter(row => row.event === "invitation.revoked").length, auditAfterFirstRevoke, "re-revoke is a no-op");
-    assert.equal(findInvitation(organization.id, id(2), OWNER, T + 12).reservation, null);
+    assert.equal(invitationMetadata(organization.id, id(2), OWNER, T + 12).reservation, null);
     const auditBeforeRevokedAccept = audit(organization.id, OWNER, T + 13).length;
     denied("organizationAcceptInvitation", { invitation: id(2), rawToken: defaultToken }, RECIPIENT, T + 13, "ORGANIZATION_INVITATION_NOT_PENDING");
-    const revokedAfterAccept = findInvitation(organization.id, id(2), OWNER, T + 13);
+    const revokedAfterAccept = invitationMetadata(organization.id, id(2), OWNER, T + 13);
     assert.equal(revokedAfterAccept.status, "revoked");
     assert.equal(revokedAfterAccept.reservation, null);
     assert.equal(audit(organization.id, OWNER, T + 13).length, auditBeforeRevokedAccept, "accepting a revoked invitation changes no audit state");
@@ -355,7 +428,10 @@ test("managed organization and invitation policy runs in the shared interpreter"
     assert.equal(roster(organization.id, OWNER, T + 41).length, 3);
     assert.equal(roster(organization.id, ADMIN, T + 41).length, 3);
     assert.equal(roster(organization.id, MEMBER, T + 41).length, 3);
-    assert.ok(invitations(organization.id, ADMIN, T + 41).length > 0, "an admin can read invitation history");
+    const boundedAdminPage = adminInvitationPage(organization.id, ADMIN, T + 41);
+    assert.ok(boundedAdminPage.some(row => row.id === id(5)), "an admin observes a fixture invitation on the bounded non-uniform page");
+    assert.deepEqual(summary(organization.id, ADMIN, T + 41), summary(organization.id, OWNER, T + 41),
+      "owner and admin see the same uniform organization summary");
     assert.ok(audit(organization.id, ADMIN, T + 41).length > 0, "an admin can read organization audit history");
     denied("memberRoster", { organization: organization.id, c: null }, RECIPIENT, T + 41, "ORGANIZATION_MEMBER_REQUIRED");
     denied("memberRoster", { organization: organization.id, c: null }, OUTSIDER, T + 41, "ORGANIZATION_MEMBER_REQUIRED");
@@ -385,6 +461,7 @@ test("managed organization and invitation policy runs in the shared interpreter"
     recordInvitation(id(10), organization.id, "recipient@example.test", recipientToken, OWNER, T + 70);
     for (const principal of [MEMBER, OUTSIDER, OTHER_OWNER]) {
       denied("adminInvitations", { organization: organization.id, c: null }, principal, T + 70, "ORGANIZATION_ADMIN_REQUIRED");
+      denied("adminOrganizationSummary", { organization: organization.id }, principal, T + 70, "ORGANIZATION_ADMIN_REQUIRED");
       denied("adminAudit", { organization: organization.id, c: null }, principal, T + 70, "ORGANIZATION_ADMIN_REQUIRED");
     }
     denied("invitationMetadata", { invitation: id(10) }, WRONG_ACCOUNT, T + 70, "ORGANIZATION_INVITATION_NOT_FOUND");
@@ -395,7 +472,7 @@ test("managed organization and invitation policy runs in the shared interpreter"
     const auditBeforeWrongTokens = audit(organization.id, OWNER, T + 71).length;
     denied("organizationAcceptInvitation", { invitation: id(10), rawToken: "wrong-token" }, RECIPIENT, T + 71, "ORGANIZATION_INVITATION_TOKEN");
     denied("organizationAcceptInvitation", { invitation: id(10), rawToken: digest(recipientToken) }, RECIPIENT, T + 71, "ORGANIZATION_INVITATION_TOKEN");
-    const afterWrongTokens = findInvitation(organization.id, id(10), OWNER, T + 71);
+    const afterWrongTokens = invitationMetadata(organization.id, id(10), OWNER, T + 71);
     assert.equal(afterWrongTokens.status, "pending");
     assert.ok(afterWrongTokens.reservation, "wrong-token acceptance keeps the reservation");
     assert.equal(roster(organization.id, OWNER, T + 71).length, rosterBeforeWrongTokens);
@@ -406,7 +483,7 @@ test("managed organization and invitation policy runs in the shared interpreter"
 
     recordInvitation(id(22), organization.id, "admin-revoke@example.test", "admin-revoke-token", ADMIN, T + 80);
     written(orgRun("organizationRevokeInvitation", { invitation: id(22) }, ADMIN, T + 81));
-    assert.equal(findInvitation(organization.id, id(22), OWNER, T + 81).status, "revoked", "an admin may revoke a pending invitation");
+    assert.equal(invitationMetadata(organization.id, id(22), OWNER, T + 81).status, "revoked", "an admin may revoke a pending invitation");
 
     written(orgRun("organizationSetPolicy", { invitationLifetimeMs: 1000, defaultSeatLimit: 20 }, SERVICE, T + 100));
     const expiringToken = "exact-expiry-token";
@@ -417,9 +494,9 @@ test("managed organization and invitation policy runs in the shared interpreter"
     assert.equal(data(orgRun("invitePreview", { invitation: id(11), rawToken: expiringToken }, RECIPIENT, T + 1199)).id, id(11));
     denied("invitePreview", { invitation: id(11), rawToken: expiringToken }, RECIPIENT, T + 1200, "ORGANIZATION_INVITATION_EXPIRED");
     denied("organizationAcceptInvitation", { invitation: id(11), rawToken: expiringToken }, RECIPIENT, T + 1200, "ORGANIZATION_INVITATION_EXPIRED");
-    assert.equal(findInvitation(organization.id, id(11), OWNER, T + 1200).status, "pending", "expiry refusal does not consume the invitation");
+    assert.equal(invitationMetadata(organization.id, id(11), OWNER, T + 1200).status, "pending", "expiry refusal does not consume the invitation");
     recordInvitation(id(13), organization.id, "recipient@example.test", "replacement-after-expiry", OWNER, T + 1200);
-    assert.ok(findInvitation(organization.id, id(13), OWNER, T + 1200).reservation, "the expired reservation releases its exact email key");
+    assert.ok(invitationMetadata(organization.id, id(13), OWNER, T + 1200).reservation, "the expired reservation releases its exact email key");
     written(orgRun("organizationRevokeInvitation", { invitation: id(13) }, OWNER, T + 1201));
     written(orgRun("organizationSetPolicy", { invitationLifetimeMs: 10_000, defaultSeatLimit: 20 }, SERVICE, T + 1202));
 
@@ -446,35 +523,36 @@ test("managed organization and invitation policy runs in the shared interpreter"
     assert.equal(data(orgRun("invitePreview", { invitation: id(18), rawToken: boundaryToken }, BOUNDARY_PROFILE, T + 4999)).id, id(18));
     denied("invitePreview", { invitation: id(18), rawToken: boundaryToken }, BOUNDARY_PROFILE, T + 5000, "ORGANIZATION_PROFILE_STALE");
     denied("organizationAcceptInvitation", { invitation: id(18), rawToken: boundaryToken }, BOUNDARY_PROFILE, T + 5000, "ORGANIZATION_PROFILE_STALE");
-    const boundaryAfter = findInvitation(organization.id, id(18), OWNER, T + 5000);
+    const boundaryAfter = invitationMetadata(organization.id, id(18), OWNER, T + 5000);
     assert.equal(boundaryAfter.status, "pending");
     assert.ok(boundaryAfter.reservation, "proof-boundary refusal keeps the reservation");
 
-    let currentRoster = roster(organization.id, OWNER, T + 5100);
-    let currentInvitations = invitations(organization.id, OWNER, T + 5100);
-    let liveReservations = currentInvitations.filter(row => row.reservation !== null).length;
+    let currentSummary = summary(organization.id, OWNER, T + 5100);
     written(orgRun("organizationSetCapacity", {
-      organization: organization.id, seatLimit: currentRoster.length + liveReservations,
+      organization: organization.id, seatLimit: currentSummary.memberCount + currentSummary.reservationCount,
     }, SERVICE, T + 5100));
     denied("organizationRecordInvitation", {
       id: id(19), organization: organization.id, recipientEmail: "capacity-denied@example.test", tokenHash: digest("capacity-denied"),
     }, OWNER, T + 5101, "ORGANIZATION_CAPACITY");
 
     written(orgRun("organizationSetCapacity", {
-      organization: organization.id, seatLimit: currentRoster.length + liveReservations + 1,
+      organization: organization.id, seatLimit: currentSummary.memberCount + currentSummary.reservationCount + 1,
     }, SERVICE, T + 5110));
     const lateToken = "late-capacity-token";
     recordInvitation(id(20), organization.id, "late@example.test", lateToken, OWNER, T + 5111);
-    currentRoster = roster(organization.id, OWNER, T + 5111);
+    currentSummary = summary(organization.id, OWNER, T + 5111);
     const auditBeforeLate = audit(organization.id, OWNER, T + 5111).length;
     written(orgRun("organizationSetCapacity", {
-      organization: organization.id, seatLimit: currentRoster.length,
+      organization: organization.id, seatLimit: currentSummary.memberCount,
     }, SERVICE, T + 5112));
+    const summaryBeforeLate = summary(organization.id, OWNER, T + 5112);
     const auditAfterCapacityReduction = audit(organization.id, OWNER, T + 5112).length;
     assert.equal(auditAfterCapacityReduction, auditBeforeLate + 1);
     denied("organizationAcceptInvitation", { invitation: id(20), rawToken: lateToken }, LATE_PROFILE, T + 5113, "ORGANIZATION_CAPACITY");
-    assert.equal(roster(organization.id, OWNER, T + 5113).length, currentRoster.length, "failed late admission rolls back the tentative member");
-    const lateAfter = findInvitation(organization.id, id(20), OWNER, T + 5113);
+    assert.equal(roster(organization.id, OWNER, T + 5113).length, summaryBeforeLate.memberCount, "failed late admission rolls back the tentative member");
+    assert.deepEqual(summary(organization.id, OWNER, T + 5113), summaryBeforeLate,
+      "failed late admission preserves capacity and both maintained counts");
+    const lateAfter = invitationMetadata(organization.id, id(20), OWNER, T + 5113);
     assert.equal(lateAfter.status, "pending", "failed late admission rolls back invitation consumption");
     assert.ok(lateAfter.reservation, "failed late admission restores the reservation");
     assert.equal(audit(organization.id, OWNER, T + 5113).length, auditAfterCapacityReduction, "failed late admission rolls back its audit row");
@@ -527,7 +605,9 @@ test("managed organization and invitation policy runs in the shared interpreter"
     for (const row of finalAudit) {
       assert.ok(!Object.hasOwn(row, "tokenHash") && !Object.hasOwn(row, "rawToken"), "audit rows contain neither token nor digest");
     }
-    for (const row of invitations(organization.id, OWNER, T + 6004)) {
+    assert.equal(successfulInvitationIds.length, 15, "the fixture records exactly its expected successful invitations");
+    for (const invitationId of successfulInvitationIds) {
+      const row = invitationMetadata(organization.id, invitationId, OWNER, T + 6004);
       assert.ok(!Object.hasOwn(row, "tokenHash") && !Object.hasOwn(row, "rawToken"), "ordinary invitation reads expose neither token nor digest");
     }
     assert.equal(roster(otherOrganization.id, OTHER_OWNER, T + 6004).length, 1, "other-tenant membership remains isolated");

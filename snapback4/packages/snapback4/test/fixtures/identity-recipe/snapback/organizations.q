@@ -113,6 +113,13 @@ query adminInvitations(organization: organizations, c: cursor ?):
   return invitations[organization] after c last 100 by byOrganizationIssued
     { id, organization, recipientEmail, issuer, issuedAt, expiresAt, status, acceptedBy, acceptedAt, reservation: invitationReservations[invitation = .id] }
 
+query adminOrganizationSummary(organization: organizations):
+  require exists organizationMemberships[organization, viewer, 'admin'] else ORGANIZATION_ADMIN_REQUIRED
+  org = organizations[organization] ! else ORGANIZATION_NOT_FOUND
+  memberCount = organizationMemberCounts[organization]
+  reservationCount = organizationReservationCounts[organization]
+  return { seatLimit: org.seatLimit, memberCount, reservationCount }
+
 query invitationMetadata(invitation: invitations):
   invite = invitations[invitation] ! else ORGANIZATION_INVITATION_NOT_FOUND
   return { id: invite.id, organization: invite.organization, recipientEmail: invite.recipientEmail, issuer: invite.issuer, issuedAt: invite.issuedAt, expiresAt: invite.expiresAt, status: invite.status, acceptedBy: invite.acceptedBy, acceptedAt: invite.acceptedAt, reservation: invitationReservations[invitation = invite.id] }

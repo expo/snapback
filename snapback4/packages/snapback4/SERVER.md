@@ -377,6 +377,14 @@ accept separately require fresh proof. Audit is admin-only and has no token or
 digest field. Trusted profiles remain own/service, while their five-minute
 proof policy, OIDC tables and counters are unchanged.
 
+`adminInvitations` is a bounded, intentionally non-uniform page because the
+underlying read rule is the union of admin membership and exact recipient
+profile access. Its `complete: false` describes that rule class; callers must
+not treat the returned page length as a complete inventory or count.
+`invitationMetadata` provides exact-ID point reads, while
+`adminOrganizationSummary` gives an authorized owner/admin a uniform point
+read of the seat limit and maintained member/live-reservation counts.
+
 This is managed recipe source, not completed qualification. The exact hash
 primitive contract is UTF-8 text to lowercase hex64 from the shared metered
 RustCrypto interpreter. The published 0.2.26 engine predates it; the focused
@@ -386,7 +394,8 @@ binary. No issuance/send, action-result plaintext boundary, email-provider,
 HTTP write-ID/lost-ack, concurrent admission, restart, crash-cut, Google,
 full Identity/B or billing-plan claim follows. Hash-only invitation storage
 also does not imply that a later action result, step or delivery payload lacks
-the raw token, and is not a global erasure claim.
+the raw token, and is not a global erasure claim. Three pinned parent runs are
+preserved as failures; none is an actual-policy green qualification.
 
 ## Handler context
 
