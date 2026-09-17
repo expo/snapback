@@ -28692,3 +28692,21 @@ engine, listener, provider, remote, Rust/Cargo, install or root-gate command ran
 on Office in this phase. Qualification remains pending a supervisor rerun of
 the frozen committed sources; issuance, delivery, HTTP concurrency/lost-ack,
 restart, provider and full Identity/B claims remain outside B1d.2a.
+
+## 2026-09-17 — frozen invitation-policy qualification receipt
+
+The root retained the actual `06171edca` policy receipt in
+`reports/20260917-invitation-policy.md` and reconciled the service baseline,
+SERVER guide and fixture README against it. The digest-pinned `1e91bc7fe`
+engine on 450b passed two synthetic checks and one actual interpreter journey,
+including 49 source-bound refusal probes and 15 recorded invitation IDs.
+Three earlier failures remain failures. Successful scratch cleanup was
+approved before the frozen run; source and stdout digests are not a retained
+raw-response audit. Operator principal/time inputs do not establish provider,
+authentication, HTTP concurrency, delivery or restart qualification.
+
+Independent review then motivated explicit mutation-result projections. The
+separate `e1536df94` correction has three synthetic passes and one named
+actual-test skip; its queued actual run and own-thread blind delta reviews
+remain pending at this documentation checkpoint. No overall Identity/B,
+Workroom, publication or full-suite claim is made.

@@ -250,13 +250,18 @@ is the member recorded on acceptance.
 
 The invitation table stores only a 64-character lowercase digest. Acceptance
 hashes the exact raw-token text inside the same managed mutation with the
-forthcoming shared-interpreter `sha256(text)` primitive, whose contract is
-UTF-8 input to lowercase 64-character hex. The current published 0.2.26 binary
+shared-interpreter `sha256(text)` primitive, whose contract is
+UTF-8 input to lowercase 64-character hex. Workroom's frozen published 0.2.26 binary
 does not have that primitive and must not be run against this module. The
 source test requires an explicit binary path and SHA-256 pin from the parent
-core lane. The pinned parent run has reached the interpreter but remains red
-after three preserved failures; this is therefore still source, not green
-actual-interpreter qualification.
+core lane. Three parent failures remain preserved. Frozen `06171edca` then
+passed two synthetic checks and the actual interpreter journey with all 49
+source-authored refusal probes (22 query, 27 mutation), using the hash-pinned
+`1e91bc7fe` CLI and Node 24.13.1. This is operator-supplied principal/time
+qualification, not authentication, provider, concurrent HTTP or crash proof.
+The successful scratch/raw response journal was removed by the frozen helper;
+stdout and exact source/CLI digests remain, not a retrospective raw-response
+audit. The three failed scratch directories and journals remain private.
 
 Hash-only table storage is a narrow claim. It does not say that a later
 issuance action result, durable step, email-provider payload or privileged

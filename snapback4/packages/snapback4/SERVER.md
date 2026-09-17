@@ -338,7 +338,7 @@ arguments/results (including callback values and a successful final Session),
 and `data`/`sql` can inspect private transaction rows. Restrict that access and
 do not paste its output into logs or bug reports.
 
-### Managed organizations and invitation policy (B1d.2a source)
+### Managed organizations and invitation policy (B1d.2a)
 
 The identity fixture's sibling `snapback/organizations.q` demonstrates the
 managed organization and invitation policy layered on trusted profiles. It
@@ -385,7 +385,8 @@ not treat the returned page length as a complete inventory or count.
 `adminOrganizationSummary` gives an authorized owner/admin a uniform point
 read of the seat limit and maintained member/live-reservation counts.
 
-This is managed recipe source, not completed qualification. The exact hash
+This managed recipe has focused operator-driven interpreter qualification,
+not complete Identity qualification. The exact hash
 primitive contract is UTF-8 text to lowercase hex64 from the shared metered
 RustCrypto interpreter. The published 0.2.26 engine predates it; the focused
 CLI test refuses an implicit binary, requires an executable plus expected
@@ -395,7 +396,11 @@ HTTP write-ID/lost-ack, concurrent admission, restart, crash-cut, Google,
 full Identity/B or billing-plan claim follows. Hash-only invitation storage
 also does not imply that a later action result, step or delivery payload lacks
 the raw token, and is not a global erasure claim. Three pinned parent runs are
-preserved as failures; none is an actual-policy green qualification.
+preserved as failures. The frozen `06171edca` revision then passed two synthetic
+checks and one actual interpreter journey, including all 49 source-bound
+refusal probes, using the digest-pinned `1e91bc7fe` binary. Principals and time
+were operator inputs, not authentication or provider evidence. See
+`../../reports/20260917-invitation-policy.md` for commands, digests and limits.
 
 ## Handler context
 
