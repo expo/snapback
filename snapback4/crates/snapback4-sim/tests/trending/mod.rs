@@ -51,6 +51,8 @@ fn live_engine() -> Engine {
     assert!(bound.notes.is_empty(), "{:?}", bound.notes);
     assert!(!bound.schema.tables.contains_key("ranked"));
     assert!(bound.schema.schedules.is_empty());
+    let horizon = bound.schema.tables["posts"].sync.as_ref().unwrap().horizon.as_ref().unwrap();
+    assert_eq!((horizon.last, horizon.by.as_str()), (2000, "byTime"));
     Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap()
 }
 
@@ -85,19 +87,83 @@ fn w12a_fresh_ranking_changes_in_the_source_transaction_without_a_schedule() {
 fn w12a_fresh_ranking_seed_ties_boundaries_and_meter() {
     let mut engine = live_engine();
     let now = 2 * DAY;
-    engine.seed((0..1500).map(|n| post(&format!("p{n:05}"), now))).unwrap();
+    engine.seed((0..4094).map(|n| post(&format!("p{n:05}"), now))).unwrap();
     engine.seed([post("expired", now - DAY), post("edge", now - DAY + 1), post("future", now + 1)]).unwrap();
     engine.seed([("likes".into(), row(&[("id", id("seed-like")), ("postId", id("p00000")), ("principal", id("bob")), ("at", Value::Int(now)), ("expiresAt", Value::Int(now + DAY))]))]).unwrap();
     let read = engine.query("trending", Context::new("bob", args(&[])).at(now)).unwrap();
     assert!(read.complete, "{read:?}");
-    let expected = std::iter::once(id("p00000")).chain((1491..1500).rev().map(|n| id(&format!("p{n:05}")))).collect::<Vec<_>>();
+    let expected = std::iter::once(id("p00000")).chain((4085..4094).rev().map(|n| id(&format!("p{n:05}")))).collect::<Vec<_>>();
     assert_eq!(read.data.as_array().unwrap().iter().map(|r| r.field("postId").unwrap().clone()).collect::<Vec<_>>(), expected);
-    println!("W12a complete ranking: candidates=1501; likes=1; examined={}; index_entries={}; heap_bytes={}; returned=10", read.metered.examined, read.metered.index_entries, read.metered.heap_bytes);
-    engine.seed((1500..8193).map(|n| post(&format!("p{n:05}"), now))).unwrap();
+    println!("W12a complete ranking: candidates=4095; likes=1; examined={}; index_entries={}; heap_bytes={}; returned=10", read.metered.examined, read.metered.index_entries, read.metered.heap_bytes);
+    engine.seed((4094..4095).map(|n| post(&format!("p{n:05}"), now))).unwrap();
     let cut = engine.query("trending", Context::new("bob", args(&[])).at(now)).unwrap();
     assert!(!cut.complete, "{cut:?}");
     assert_eq!(cut.data.as_array().unwrap().len(), 10);
-    println!("W12a capped ranking: candidates=8194; likes=1; examined={}; returned=10; complete={}", cut.metered.examined, cut.complete);
+    for ranked in cut.data.as_array().unwrap() {
+        let expected_score = i64::from(ranked.field("postId").unwrap() == &id("p00000"));
+        assert_eq!(ranked.field("score").unwrap(), &Value::Int(expected_score), "a cut must not invent a score");
+    }
+    assert_eq!(cut.data.as_array().unwrap()[0].field("postId").unwrap(), &id("p00000"));
+    assert_eq!(cut.data.as_array().unwrap()[0].field("score").unwrap(), &Value::Int(1));
+    assert_eq!(read.metered.examined, 8191);
+    println!("W12a capped ranking: candidates=4096; likes=1; examined={}; heap_bytes={}; returned=10; complete={}", cut.metered.examined, cut.metered.heap_bytes, cut.complete);
+    engine.seed((4095..8193).map(|n| post(&format!("p{n:05}"), now))).unwrap();
+    let large = engine.query("trending", Context::new("bob", args(&[])).at(now)).unwrap();
+    assert!(!large.complete);
+    assert_eq!(large.data, cut.data, "more candidates beyond the page cannot change the scored prefix");
+}
+
+#[test]
+fn w12r1a_exhausted_count_projection_is_unavailable() {
+    let mut engine = live_engine();
+    let now = 2 * DAY;
+    engine.seed([post("winner", now)]).unwrap();
+    engine.seed((0..8192).map(|n| ("likes".into(), row(&[
+        ("id", id(&format!("like-{n}"))), ("postId", id("winner")), ("principal", id(&format!("viewer-{n}"))),
+        ("at", Value::Int(now)), ("expiresAt", Value::Int(now + DAY)),
+    ])))).unwrap();
+    for op in ["trending", "rollingLikes"] {
+        let cut = engine.query(op, Context::new("bob", args(&[])).at(now)).unwrap();
+        assert!(!cut.complete);
+        assert_eq!(cut.data, Value::Null, "an unfinished count is unavailable, never a score: {cut:?}");
+        assert_eq!(cut.next, None);
+        assert_eq!(cut.metered.examined, 8193);
+        println!("W12R1a {op}: candidates=1; likes=8192; examined={}; data=null; complete=false", cut.metered.examined);
+    }
+    // The scan fits, but even the first count lookup has no examined unit left.
+    engine.set_ceilings(snapback4_core::meter::Ceilings { examined: 1, ..engine.ceilings() });
+    let cut = engine.query("trending", Context::new("bob", args(&[])).at(now)).unwrap();
+    assert!(!cut.complete);
+    assert_eq!(cut.data, Value::Null, "a lookup cut must not be coerced to an absent-group zero");
+    assert_eq!(cut.metered.examined, 2);
+}
+
+#[test]
+fn w12r1a_fresh_ranking_heap_cut_with_full_size_bodies() {
+    let mut engine = live_engine();
+    let now = 2 * DAY;
+    for (start, end) in [(0, 1000), (1000, 2700)] {
+        engine.seed((start..end).map(|n| ("posts".into(), row(&[
+            ("id", id(&format!("p{n:05}"))), ("authorId", id("alice")),
+            ("body", Value::String("x".repeat(6000))), ("at", Value::Int(now)),
+        ])))).unwrap();
+        let read = engine.query("trending", Context::new("bob", args(&[])).at(now)).unwrap();
+        assert_eq!(read.complete, end == 1000);
+        if end == 1000 { assert_eq!(read.data.as_array().unwrap().len(), 10); }
+        else {
+            assert_eq!(read.data, Value::Null);
+            assert_eq!(read.next, None);
+            assert_eq!(read.capped_at.as_ref().map(|cut| cut.0), Some(snapback4_core::error::MeterKind::HeapBytes));
+        }
+        println!("W12R1a body=6000 B; candidates={end}; examined={}; heap_bytes={}; complete={}; null={}", read.metered.examined, read.metered.heap_bytes, read.complete, read.data == Value::Null);
+    }
+    // Heap still unwinds to null if an earlier scan already recorded another cut.
+    engine.set_ceilings(snapback4_core::meter::Ceilings { examined: 2650, ..engine.ceilings() });
+    let cut = engine.query("trending", Context::new("bob", args(&[])).at(now)).unwrap();
+    assert!(!cut.complete);
+    assert_eq!(cut.data, Value::Null);
+    assert_eq!(cut.capped_at.as_ref().map(|cut| cut.0), Some(snapback4_core::error::MeterKind::Examined));
+    assert!(cut.metered.heap_bytes > engine.ceilings().heap_bytes);
 }
 
 // @ref LLP 3000.007#20.9 — the scheduled alternative keeps source writes predictable and gives score freshness an explicit cadence.

@@ -163,6 +163,15 @@ impl Meter {
         used.saturating_add(amount) <= self.ceilings.of(kind)
     }
 
+    /// A scalar cannot substitute absence or a partial total for unfinished work.
+    pub(crate) fn require_uncapped(&self) -> Result<(), RuntimeError> {
+        if let Some((kind, site)) = &self.capped_at {
+            let mut used = self.used;
+            return Err(RuntimeError::Bound { kind: *kind, actual: *used.slot(*kind), ceiling: self.ceilings.of(*kind), site: site.clone() });
+        }
+        Ok(())
+    }
+
     pub fn step(&mut self, n: u64) -> Result<(), RuntimeError> {
         // Steps always abort: a runaway loop is not a page to cap.
         let slot = &mut self.used.steps;

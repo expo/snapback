@@ -29122,3 +29122,110 @@ the base commit above. The isolated core routes target also passed 14/14.
 Several test processes paused before printing their harness output; no cause
 or baseline timing comparison is claimed. The full command reported
 “== 1 failure(s) in 2931 s”; it is not recorded as a green blocking suite.
+
+## 2026-09-17 — W12R1a: a bounded ranking must not invent its scores
+
+Chose the unavailable-query repair for an unfinished count. A maintained
+point read checks the meter before and after lookup; a live aggregate cannot
+return a partially counted value. The existing query unwind returns
+`data: null, complete: false` without a continuation, keeping the cut private.
+This is a small shared-interpreter change on the server and both device stores;
+it avoids a streaming-projection redesign and preserves zero for a completed
+missing-group lookup. Heap exhaustion still uses that result even if the scan
+recorded an examined cut first. No meter ceiling, serialized value, parser
+form, corpus case, permission or diagnostic text changed.
+
+The default and adjacent immediate Trending recipes now select at most 4,095
+candidates. Each post costs two examinations, plus its live contributions and
+any unswept expired sources. The default again has `sync public last 2000 by
+byTime`; the public-like variant explicitly removes this horizon. The feeds
+and maintains cards, package README and LLP 3000.007 §20.21 describe exact
+prefix scores when only the candidate bound is exceeded, unavailable values
+when counting is cut, and the separate 16 MiB cumulative heap budget. The
+existing simulator assertions that expected partial counts or ten fabricated
+zero-score rows were updated with positive controls. The older language repair
+tests now assert the bounded prefix's scores too; RFC §5.3 carries the same bound.
+
+Measurements on the private server recipe: 4,095 short-body candidates plus
+one like return ten complete winners at 8,191 examinations, zero index entries
+and 7,477,013 heap bytes. A 4,096th candidate adds the lookahead examination:
+8,192 examinations, the same heap charge, ten accurately scored prefix winners,
+complete=false. The 8,194-candidate fixture returns the same prefix. Tests
+assert the liked winner and returned scores, with the complete/incomplete flip
+also on SQLite and MemoryRows. A single post with 8,192 likes returns null
+for both rankings at examination 8,193, instead of the observed partial score
+8,190; a smaller test ceiling separately reaches the count-lookup cut. With
+6,000-byte bodies, 1,000 candidates fit at 2,000 examinations and 7,822,758
+heap bytes; 2,700 cut at 2,700 examinations and 17,375,972 charged heap bytes.
+These are meter charges, not measurements of peak resident memory.
+
+The index experiment now actually measures the counterfactual on both stores:
+without `byValue`, insertion / 2,000 changes / deletion touch 2 / 0 / 2 entries;
+with it, 3 / 4,000 / 3. The differences are two additional entries per changing
+value and one on deletion. The partial-sweep device witness now asserts the
+physical old group at 2, 1, then absent, and the other group remaining at 2,
+beside its existing live-answer assertions.
+
+Correction to the W12a entry above: its red-before on
+`82eebd6b1174eb6ed35f2e375649e0efaa1e3f65` was fixture absence:
+`live_engine()` / `recipe()` could not find the new guide block. It was not
+proof that the old recipe produced a wrong ranking. Its standalone Rows
+experiment measured pre-existing store behavior, not a regression guard for
+new engine behavior, and did not then measure the no-value-index arm. This
+lane's behavioral regressions ran against base
+`a4bb414c3d359b19117f18fba09bcca9679b7dba` before production changes: the
+simulator W12 subset reported 2 passed / 2 failed, the device subset 1 passed /
+2 failed, and the maintained-count subset 0 passed / 2 failed. They exposed
+wrong payloads, not absent fixtures. Their green results and broader checks
+follow.
+
+Targeted final Rust checks passed: simulator W12 4/0, device W12 3/0,
+maintained-count review corrections 32/0, Rows 5/0, guide 50/0, the full
+Clique suite 94/0 with one ignored, and language repairs 9/0. The rebuilt
+HTTP test executable passed 2/0. These are passed/failed counts, not a claim
+that the blocking suite completed.
+
+`bash snapback4/scripts/test.sh` was attempted three times. The first run
+included an earlier implementation and stale assertions; its relevant failures
+were repaired and the affected suites passed above. It also encountered a
+SQLite `disk I/O error` while the shared volume had only 180 MiB free, a host
+child timeout and witness-driver timeouts. Only this lane's disposable Rust
+incremental cache was removed to recover space. The second run stalled before
+the HTTP test harness; that executable also stalled on `--list` and signature
+verification, although its 2,516,328 bytes read in 0.001 s. Removing only its
+cached executable and Cargo fingerprint and rebuilding it restored execution.
+The final full attempt passed build, wasm, typecheck, package, chat and fixture
+checks; its client result was 539 passed, one failed and two skipped. Seven
+Rust suite summaries completed with 218 passed and one failed. That failure,
+`killed_supervisors_leave_only_bounded_sessions_and_startup_sweeps_their_children`,
+read an empty PID string; the exact existing binary rerun passed 1/0 with
+18 filtered out. The full run then stalled before the replay harness, and
+that executable also stalled on `--list`. Each interrupted run's worker logs
+was preserved under `/tmp/w12r1a-*-run-workers/`. There is no completed
+blocking-suite summary and no all-green claim: the lead still needs that run.
+
+The required Node 24 client command,
+`node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'`, was
+rerun after stopping all Rust work and finished with 542 tests: 539 passed,
+one failed, zero cancelled and two skipped (309633.292084 ms). The sole
+failure was Chromium `SIGABRT`; `node --test packages/snapback4/test/react.test.mjs`
+alone repeated it (zero passed, one failed, 2817.234791 ms). An earlier
+concurrency-two attempt overlapped the HTTP Cargo rebuild, then was interrupted:
+488 tests, 461 passed, 21 failed, four cancelled, two skipped. Its startup
+timeouts did not recur in the sequential rerun; they are not attributed to
+this code change. Final runs used an isolated task temporary directory,
+`/private/tmp/w12r1a-validation.elGBtT`, and the required Node 24 PATH.
+
+The pre-append `./ref-check --verbose` passed with 481 LLP documents,
+9,056 references and zero errors/unchecked; it is rerun after this append.
+`git diff --check` and the changed-source line-cap audit passed. Validation
+logs remain in `/tmp/w12r1a-*.log`; the final lane report names the commands
+and their actual summary lines, including the incomplete blocking validation.
+
+All changed Rust sources remain below 1,500 lines; the largest is clique.rs
+at 1,465. The JOURNAL prefix is preserved byte for byte and this is one appended
+block. Two mistakenly rooted Cargo test launches exited 101; the actual test
+runs used the Snapback 4 workspace. No commit, push, tag, publication, sub-agent
+or remote machine was used. No failure is claimed pre-existing without a base
+verification; the broad-suite environment observations are reported separately
+from the successful lane regressions.

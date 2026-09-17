@@ -274,7 +274,9 @@ mutation edit(messageId: messages, body: text <=4000):
   are one field on insert, `expiresAt: now + ttl if ttl != null else
   null` with `ttl: int ?`; nothing else to write. A `maintain` over an
   expiring table recomputes its live source group at read time, before the
-  sweep; a partial device or a meter cut reports `complete: false`.
+  sweep; a partial device reports `complete: false`. If the meter interrupts
+  a maintained lookup or live group, the query returns `data: null,
+  complete: false`, without substituting zero or a partial total.
   Value-order indexes over expiring sources are refused
   (`E_QUARRY_MAINTAIN_EXPIRE`): live values change before the physical sweep,
   so stored top-N can miss a winner. `guide feeds` gives a fresh bounded
@@ -1086,6 +1088,8 @@ map clones share their immutable image. A heap cut stops a query immediately
 with `data: null`, `complete: false`, and no continuation, since an interrupted
 scalar or shape has no valid partial answer. Its cut site remains internal;
 the meter is available only through dev's default read inspection (§4).
+An unfinished maintained lookup or live aggregate uses the same unavailable
+query result, preserving zero only for a completed missing-group lookup.
 A mutation rolls back with `E_BOUND` as above.
 `sha256(text)` charges the step meter by the input's UTF-8 byte length plus
 one before hashing and charges its fixed 64-byte text result to the heap meter.
@@ -1656,10 +1660,16 @@ The feeds card's fresh bounded Trending recipe ranks the trailing post day
 with live counts and zero-like candidates, or the trailing like day across
 posts of any age. It has no ranking table, refresh helper, backfill or schedule:
 source writes maintain the count, and each read sorts all candidates that fit
-the meter. A complete answer sees committed writes immediately; a cut is
-incomplete, not an exact top ten. The default keeps likes private and reads on
-the server. Its documented public-like variant replicates full sources and
-count groups, so both device stores can recompute expiry offline. New remote
+the meter. The recipe selects at most 4,095 candidates; each post costs two
+examinations plus its live like contributions (and unswept expired sources).
+A complete answer sees committed writes immediately. Exceeding the candidate
+bound returns accurately scored prefix winners with `complete: false`; an
+unfinished count or the separate 16 MiB heap cut returns `data: null,
+complete: false`. Large post bodies can hit heap before the candidate bound.
+The default keeps likes private, reads on the server and syncs only the last
+2,000 posts on acquisition. Its documented public-like variant explicitly
+removes that horizon and replicates full sources and count groups, so both
+device stores can recompute expiry offline. New remote
 writes still require sync. The card also retains the optional scheduled
 ranking for stored pagination with explicit score lag; a complete stored page
 does not certify score freshness.

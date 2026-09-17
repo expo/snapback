@@ -11,6 +11,7 @@ fn recipe() -> String {
         .replace("  read <- .principal = viewer", "  read <- allow")
         .replace("  sync to .principal", "  sync public")
         .replace("  online only\n", "")
+        .replace("  sync public last 2000 by byTime", "  sync public")
 }
 
 fn post(name: &str, at: i64) -> (String, Value) {
@@ -55,10 +56,14 @@ fn w12a_live_ranking_and_partial_sweeps_on_both_stores() {
         let post_window = rank(&mut *device, "trending", now + 1);
         assert_eq!(post_window[0]["postId"], "future");
         assert_eq!(post_window.as_array().unwrap().len(), 2, "the lower edge leaves and the upper edge enters exactly");
-        for limit in [1, 1, 1] {
+        for remaining in [2, 1, 0] {
             let from = state(&mut *device).0;
-            assert_eq!(server.sweep_expired(now + 1, limit).unwrap(), 1);
+            assert_eq!(server.sweep_expired(now + 1, 1).unwrap(), 1);
             let physical = server.store().rows("likeCounts").unwrap();
+            let old = physical.iter().find(|r| r.field("postId").unwrap() == &id("old-winner"));
+            assert_eq!(old.map(|r| r.field("value").unwrap()), (remaining > 0).then_some(&Value::Int(remaining)));
+            assert_eq!(physical.len(), if remaining > 0 { 2 } else { 1 });
+            assert_eq!(physical.iter().find(|r| r.field("postId").unwrap() == &id("new-winner")).unwrap().field("value").unwrap(), &Value::Int(2));
             let live = server.query("rollingLikes", Context::new("bob", args(&[])).at(now + 1)).unwrap();
             assert!(live.complete);
             assert_eq!(snapback4_core::wire::to_json(&live.data), expected);
@@ -86,7 +91,7 @@ fn w12a_bounded_ranking_coverage_on_both_stores() {
     on_both(|host| {
         let label = host.label();
         let now = 2 * DAY;
-        for count in [1500, 8193] {
+        for count in [4095, 4096, 8194] {
             let (mut server, backend) = compile(&recipe());
             server.seed((0..count).map(|n| post(&format!("p{n:05}"), now))).unwrap();
             server.seed([like("winner", "p01250", now + DAY)]).unwrap();
@@ -94,9 +99,12 @@ fn w12a_bounded_ranking_coverage_on_both_stores() {
             let mut device = host.open(&name, Some(backend)).unwrap();
             for (i, page) in snapshot_pages_at(&mut server, "bob", 1000, now).iter().enumerate() { ok(apply(&mut *device, page, i == 0)); }
             let read = query(&mut *device, "trending", "bob", json!({}), now);
-            assert_eq!(read["complete"], count == 1500, "{label}: {read}");
+            assert_eq!(read["complete"], count == 4095, "{label}: {read}");
             assert_eq!(read["data"].as_array().unwrap().len(), 10);
-            if count == 1500 { assert_eq!(read["data"][0]["postId"], "p01250"); }
+            assert_eq!(read["data"][0]["postId"], "p01250");
+            for row in read["data"].as_array().unwrap() {
+                assert_eq!(row["score"], i64::from(row["postId"] == "p01250"), "{label}: a cut must not invent a score");
+            }
             println!("W12a {label} coverage: candidates={count}; likes=1; returned=10; complete={}", read["complete"]);
             device.close();
         }
@@ -106,6 +114,27 @@ fn w12a_bounded_ranking_coverage_on_both_stores() {
         let mut device = host.open("w12a-source-horizon", Some(backend)).unwrap();
         for (i, page) in snapshot_pages_at(&mut server, "bob", 100, now).iter().enumerate() { ok(apply(&mut *device, page, i == 0)); }
         assert_eq!(query(&mut *device, "rollingLikes", "bob", json!({}), now)["complete"], false, "a partial source cannot certify a count or ranking");
+        device.close();
+    });
+}
+
+#[test]
+fn w12r1a_exhausted_live_count_is_unavailable_on_both_stores() {
+    on_both(|host| {
+        let label = host.label();
+        let (mut server, backend) = compile(&recipe());
+        let now = 2 * DAY;
+        server.seed([post("winner", now)]).unwrap();
+        server.seed((0..8192).map(|n| like(&format!("l{n:05}"), "winner", now + DAY))).unwrap();
+        let mut device = host.open("w12r1a-count-cut", Some(backend)).unwrap();
+        for (i, page) in snapshot_pages_at(&mut server, "bob", 1000, now).iter().enumerate() { ok(apply(&mut *device, page, i == 0)); }
+        for op in ["trending", "rollingLikes"] {
+            let cut = query(&mut *device, op, "bob", json!({}), now);
+            assert_eq!(cut["complete"], false);
+            assert_eq!(cut["data"], serde_json::Value::Null, "{label}: {cut}");
+            assert!(cut["next"].is_null());
+        }
+        println!("W12R1a {label}: candidates=1; likes=8192; both rankings data=null; complete=false");
         device.close();
     });
 }

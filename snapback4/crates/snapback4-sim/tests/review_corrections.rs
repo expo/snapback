@@ -445,20 +445,21 @@ fn expired_sources_recompute_a_zero_sum_for_point_and_scan_reads() {
 }
 
 #[test]
-fn a_capped_aggregate_scan_returns_a_cursor_from_its_last_visible_group() {
+fn an_unfinished_aggregate_discards_the_page_without_skipping_its_group() {
     let mut e = engine("table items:\n  group: text <=10\n  until: time ?\n  by byGroup: group, id\n  by byExpiry: until\n  expire at .until\n  read <- allow\nmaintain counts: count items by group\n  read <- allow\nquery page(c: cursor ?):\n  return counts after c first 2 by byGroup\n");
     seed(&mut e, "items", serde_json::json!([
         {"id":"a","group":"A","until":null},
         {"id":"b","group":"B","until":null}
     ]));
+    let whole = e.query("page", Context::new("dev:alice", BTreeMap::from([("c".into(), Value::Null)])).at(1000)).unwrap();
+    assert!(whole.complete);
+    assert_eq!(whole.data.as_array().unwrap().len(), 2);
     let mut ceilings = e.ceilings();
     ceilings.examined = 3;
     e.set_ceilings(ceilings);
     let outcome = e.query("page", Context::new("dev:alice", BTreeMap::from([("c".into(), Value::Null)])).at(1000)).unwrap();
-    let rows = outcome.data.as_array().unwrap();
-    assert_eq!(rows.len(), 1, "{outcome:?}");
-    assert_eq!(rows[0].field("group").unwrap(), &Value::String("A".into()));
-    assert!(outcome.next.is_some(), "the capped page must resume after A: {outcome:?}");
+    assert_eq!(outcome.data, Value::Null, "the second group's unfinished count makes the result unavailable: {outcome:?}");
+    assert_eq!(outcome.next, None, "an unavailable count has no continuation: {outcome:?}");
     assert!(!outcome.complete, "{outcome:?}");
 }
 
@@ -524,41 +525,44 @@ fn opening_an_older_store_backfills_missing_live_sum_candidates_once() {
 }
 
 #[test]
-fn a_capped_maintained_point_returns_the_observed_partial_count() {
+fn a_capped_maintained_point_is_unavailable() {
     let mut e = engine("table items:\n  group: text <=10\n  until: time ?\n  by byGroup: group, id\n  by byExpiry: until\n  expire at .until\n  read <- allow\nmaintain counts: count items by group\n  read <- allow\nquery count():\n  return counts['g'] by byGroup\n");
     seed(&mut e, "items", serde_json::json!((0..5).map(|n| serde_json::json!({
         "id": format!("item-{n}"),
         "group": "g",
         "until": null
     })).collect::<Vec<_>>()));
+    let whole = e.query("count", ctx()).unwrap();
+    assert!(whole.complete);
+    assert_eq!(whole.data, Value::Int(5));
     let mut ceilings = e.ceilings();
     ceilings.examined = 3;
     e.set_ceilings(ceilings);
 
     let outcome = e.query("count", ctx()).unwrap();
-    assert_eq!(outcome.data, Value::Int(2), "one candidate and two observed source rows: {outcome:?}");
+    assert_eq!(outcome.data, Value::Null, "two observed contributions cannot stand for the whole count: {outcome:?}");
     assert!(!outcome.complete, "{outcome:?}");
     assert!(matches!(outcome.capped_at, Some((snapback4_core::error::MeterKind::Examined, _))), "{outcome:?}");
 }
 
 #[test]
-fn a_capped_maintained_scan_returns_the_observed_partial_count_and_cursor() {
+fn a_capped_maintained_scan_is_unavailable_without_a_cursor() {
     let mut e = engine("table items:\n  group: text <=10\n  until: time ?\n  by byGroup: group, id\n  by byExpiry: until\n  expire at .until\n  read <- allow\nmaintain counts: count items by group\n  read <- allow\nquery page(c: cursor ?):\n  return counts after c first 2 by byGroup\n");
     seed(&mut e, "items", serde_json::json!((0..5).map(|n| serde_json::json!({
         "id": format!("item-{n}"),
         "group": "g",
         "until": null
     })).collect::<Vec<_>>()));
+    let whole = e.query("page", Context::new("dev:alice", BTreeMap::from([("c".into(), Value::Null)])).at(1000)).unwrap();
+    assert!(whole.complete);
+    assert_eq!(whole.data.as_array().unwrap()[0].field("value"), Ok(&Value::Int(5)));
     let mut ceilings = e.ceilings();
     ceilings.examined = 3;
     e.set_ceilings(ceilings);
 
     let outcome = e.query("page", Context::new("dev:alice", BTreeMap::from([("c".into(), Value::Null)])).at(1000)).unwrap();
-    let rows = outcome.data.as_array().unwrap();
-    assert_eq!(rows.len(), 1, "the partially observed aggregate remains usable: {outcome:?}");
-    assert_eq!(rows[0].field("group"), Ok(&Value::String("g".into())), "{outcome:?}");
-    assert_eq!(rows[0].field("value"), Ok(&Value::Int(2)), "one candidate and two observed source rows: {outcome:?}");
+    assert_eq!(outcome.data, Value::Null, "an unfinished aggregate has no value: {outcome:?}");
     assert!(!outcome.complete, "{outcome:?}");
     assert!(matches!(outcome.capped_at, Some((snapback4_core::error::MeterKind::Examined, _))), "{outcome:?}");
-    assert!(outcome.next.is_some(), "the capped page must resume after g: {outcome:?}");
+    assert_eq!(outcome.next, None, "an unavailable aggregate cannot be skipped by a cursor: {outcome:?}");
 }
