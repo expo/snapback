@@ -97,15 +97,165 @@ fn w11b_first_account_screen_has_a_sufficient_path_before_the_reference() {
 }
 
 #[test]
-fn w11b_fresh_ranking_states_the_handwritten_authority_gap_verbatim() {
+fn w11r1b_calendar_ranking_states_its_contract_and_latent_permissions() {
     let feeds = card("feeds").unwrap().split_whitespace().collect::<Vec<_>>().join(" ");
-    // The narrower authority does exist and is called `maintain`; the card must
-    // lead with it and must name the handwritten table's real exposure.
-    assert!(feeds.contains("**Prefer a `maintain` to this recipe wherever it fits.**"));
-    assert!(feeds.contains("maintain trendScore: count likes where .isOriginal = true by postDay, postId"));
-    assert!(feeds.contains("by byScore: postDay, value, id"));
-    assert!(feeds.contains("the target table is writable by principals**"));
-    assert!(!feeds.contains("no narrower synchronous derived-write authority exists yet"));
+    for text in [
+        "current-calendar-bucket ranking of positively-liked originals with id ties",
+        "A Trending feed usually wants a rolling window over post time",
+        "A maintain's target cannot be written by a principal, but its score is only as trustworthy as the source rows' insert rule",
+        "The maintain cannot validate these denormalised facts",
+        "Neither recipe exposes a caller-supplied score",
+        "Both have latent permissions to review when adding mutations",
+        "The client surface is declared queries, mutations and actions, not direct table writes",
+        "Zero-like posts are absent",
+        "40 posts and no likes returns `[]`",
+        "The first like creates a group; the last unlike deletes it",
+        "A maintain target cannot expire or be capped",
+        "Old buckets have no age-based retention bound",
+        "00:00:01 UTC",
+        "23:50",
+        "400 likes at 00:10",
+        "Without the `delete` rule, unlike is denied",
+        "Ties break by descending maintained id, not post time",
+        "Nothing enforces that the writer's bucket offset matches the query's",
+        "`day(p.at, 8h)` and `day(now, 8h)`",
+        "`complete` describes page coverage under the meter",
+        "`fresh: false`",
+        "`E_OFFLINE`",
+    ] { assert!(feeds.contains(text), "feeds card omits: {text}"); }
+    for obsolete in [
+        "Prefer a `maintain` to this recipe wherever it fits",
+        "has no principal-writable score",
+        "That is a real exposure a maintain does not have",
+        "Use the handwritten table below only when the window truly must roll",
+        "no narrower synchronous derived-write authority exists yet",
+    ] { assert!(!feeds.contains(obsolete), "feeds card retains: {obsolete}"); }
+}
+
+fn calendar_ranking_source() -> String {
+    quarry(card("feeds").unwrap()).into_iter().find(|block| block.contains("maintain trendScore:")).unwrap()
+}
+
+fn calendar_post(post: &str, parent: Option<&str>, at: i64) -> (String, Value) {
+    ("posts".into(), snapback4_core::value::object([
+        ("id", id(post)), ("authorId", id("author")), ("parentId", parent.map(id).unwrap_or(Value::Null)), ("at", Value::Int(at)),
+    ]))
+}
+
+fn calendar_like(engine: &mut Engine, viewer: &str, post: &str, liked: bool, now: i64, write: &str) {
+    sent(&engine.mutate("setLike", Some(write), Context::new(viewer, args(&[("postId", id(post)), ("liked", Value::Bool(liked))]))
+        .at(now).with_ids([format!("like-{write}")])).unwrap());
+}
+
+fn calendar_page(engine: &mut Engine, now: i64) -> Vec<Value> {
+    let read = engine.query("trending", Context::new("reader", args(&[])).at(now)).unwrap();
+    assert!(read.complete);
+    read.data.as_array().unwrap().to_vec()
+}
+
+// @ref LLP 3000.007#20.9.3 — count groups follow source writes atomically and disappear at zero.
+#[test]
+fn w11r1b_calendar_first_like_and_last_unlike_change_group_occupancy() {
+    let bound = clean("calendar ranking", &calendar_ranking_source());
+    assert_eq!(bound.schema.operations["trending"].runs.as_deref(), Some("server"));
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed((0..40).map(|n| calendar_post(&format!("post-{n}"), None, 1_000))).unwrap();
+    assert_eq!(engine.store().rows("posts").unwrap().len(), 40);
+    assert!(calendar_page(&mut engine, 2_000).is_empty());
+    assert!(engine.store().rows("trendScore").unwrap().is_empty());
+    for (n, (viewer, liked, score)) in [
+        ("alice", true, 1), ("alice", true, 1), ("bob", false, 1), ("bob", true, 2),
+        ("alice", false, 1), ("bob", false, 0), ("bob", false, 0),
+    ].into_iter().enumerate() {
+        calendar_like(&mut engine, viewer, "post-0", liked, 2_000, &format!("set-{n}"));
+        let page = calendar_page(&mut engine, 2_000);
+        assert_eq!(page.len(), usize::from(score != 0));
+        assert_eq!(engine.store().rows("trendScore").unwrap().len(), page.len());
+        if score != 0 { assert_eq!(page[0].field("score").unwrap(), &Value::Int(score)); }
+    }
+}
+
+#[test]
+fn w11r1b_calendar_equal_scores_use_descending_maintained_ids_not_post_time() {
+    let bound = clean("calendar ranking", &calendar_ranking_source());
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed([calendar_post("z-older", None, 1_000), calendar_post("a-newer", None, 2_000)]).unwrap();
+    for post in ["a-newer", "z-older"] { calendar_like(&mut engine, "alice", post, true, 3_000, post); }
+    let mut targets = engine.store().rows("trendScore").unwrap();
+    targets.sort_by(|a, b| b.field("id").unwrap().as_str().unwrap().cmp(a.field("id").unwrap().as_str().unwrap()));
+    let page = calendar_page(&mut engine, 3_000);
+    assert_eq!(page.iter().map(|row| row.field("postId").unwrap().clone()).collect::<Vec<_>>(), [id("z-older"), id("a-newer")]);
+    for (row, target) in page.iter().zip(targets) {
+        assert_eq!(row.field("postId").unwrap(), target.field("postId").unwrap());
+        assert_eq!(row.field("score").unwrap(), &Value::Int(1));
+    }
+}
+
+#[test]
+fn w11r1b_calendar_derives_original_and_day_from_posts_and_keeps_old_buckets() {
+    const DAY: i64 = 86_400_000;
+    let bound = clean("calendar ranking", &calendar_ranking_source());
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed([calendar_post("late", None, DAY - 600_000), calendar_post("reply", Some("late"), DAY + 100)]).unwrap();
+    calendar_like(&mut engine, "alice", "late", true, DAY - 1, "late-like");
+    assert_eq!(calendar_page(&mut engine, DAY - 1).len(), 1);
+    assert!(calendar_page(&mut engine, DAY + 1_000).is_empty());
+    calendar_like(&mut engine, "bob", "late", true, DAY + 600_000, "next-day-like");
+    calendar_like(&mut engine, "alice", "reply", true, DAY + 600_000, "reply-like");
+    assert!(calendar_page(&mut engine, DAY + 600_000).is_empty());
+    let likes = engine.store().rows("likes").unwrap();
+    for row in likes {
+        let original = row.field("postId").unwrap() == &id("late");
+        assert_eq!(row.field("principal").unwrap(), &id(if row.field("id").unwrap() == &id("like-next-day-like") { "bob" } else { "alice" }));
+        assert_eq!(row.field("isOriginal").unwrap(), &Value::Bool(original));
+        assert_eq!(row.field("postDay").unwrap(), &Value::Int(if original { 0 } else { 1 }));
+    }
+    assert!(calendar_page(&mut engine, 100 * DAY).is_empty());
+    let targets = engine.store().rows("trendScore").unwrap();
+    assert_eq!(targets.len(), 1);
+    assert_eq!(targets[0].field("value").unwrap(), &Value::Int(2));
+    assert_eq!(targets[0].field("postDay").unwrap(), &Value::Int(0));
+}
+
+#[test]
+fn w11r1b_calendar_source_rules_refuse_forged_principals_and_foreign_deletes() {
+    // Deliberately unsafe future operations test the table rules independently
+    // of the card's safe mutation; these operations are not published.
+    let source = format!("{}\nmutation unsafeLike(postId: posts, principal: principal):\n  insert likes {{ postId, principal, isOriginal: true, postDay: day(now), at: now }}\nmutation unsafeUnlike(postId: posts, principal: principal):\n  delete likes[postId, principal]\n", calendar_ranking_source());
+    let bound = clean("calendar source rules", &source);
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed([calendar_post("post", None, 1_000)]).unwrap();
+    let forged = engine.mutate("unsafeLike", Some("forged"), Context::new("attacker", args(&[("postId", id("post")), ("principal", id("alice"))]))
+        .at(2_000).with_ids(["forged-like".into()])).unwrap();
+    assert_eq!(failed(&forged), "E_RULE");
+    assert!(engine.store().rows("likes").unwrap().is_empty());
+    assert!(calendar_page(&mut engine, 2_000).is_empty());
+    calendar_like(&mut engine, "alice", "post", true, 2_000, "own-like");
+    let removed = engine.mutate("unsafeUnlike", Some("foreign-unlike"), Context::new("attacker", args(&[("postId", id("post")), ("principal", id("alice"))])).at(2_000)).unwrap();
+    assert_eq!(failed(&removed), "E_RULE");
+    assert_eq!(calendar_page(&mut engine, 2_000)[0].field("score").unwrap(), &Value::Int(1));
+    calendar_like(&mut engine, "alice", "post", false, 2_000, "own-unlike");
+    assert!(calendar_page(&mut engine, 2_000).is_empty());
+}
+
+#[test]
+fn w11r1b_calendar_cap_bounds_each_principal_and_unlike_frees_a_slot() {
+    let bound = clean("calendar ranking", &calendar_ranking_source());
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed((0..=1_000).map(|n| calendar_post(&format!("post-{n}"), None, 1_000))).unwrap();
+    engine.seed((0..999).map(|n| ("likes".into(), snapback4_core::value::object([
+        ("id", id(&format!("seed-{n}"))), ("postId", id(&format!("post-{n}"))), ("principal", id("alice")),
+        ("isOriginal", Value::Bool(true)), ("postDay", Value::Int(0)), ("at", Value::Int(2_000)),
+    ])))).unwrap();
+    calendar_like(&mut engine, "alice", "post-999", true, 3_000, "thousandth");
+    let capped = engine.mutate("setLike", Some("over-cap"), Context::new("alice", args(&[("postId", id("post-1000")), ("liked", Value::Bool(true))]))
+        .at(3_000).with_ids(["over-cap-like".into()])).unwrap();
+    assert_eq!(failed(&capped), "E_CONSTRAINT");
+    assert_eq!(engine.store().rows("likes").unwrap().len(), 1_000);
+    calendar_like(&mut engine, "bob", "post-1000", true, 3_000, "other-principal");
+    calendar_like(&mut engine, "alice", "post-0", false, 3_000, "free-slot");
+    calendar_like(&mut engine, "alice", "post-1000", true, 3_000, "reuse-slot");
+    assert_eq!(engine.store().rows("likes").unwrap().len(), 1_001);
 }
 
 #[test]
