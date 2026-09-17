@@ -110,9 +110,10 @@ run_rust_tests() {
   # These crates and the host target have disjoint test processes. Cargo
   # otherwise waits for every test binary in one crate before starting the
   # next crate, leaving most cores idle during the large lowering census.
-  for package in snapback4-core snapback4-native snapback4-sim; do
+  for package in snapback4-core snapback4-native; do
     run_rust_lane "$package" cargo test -p "$package" --no-fail-fast --quiet
   done
+  run_rust_lane snapback4-sim env RUST_MIN_STACK=33554432 cargo test -p snapback4-sim --no-fail-fast --quiet
   # Cargo otherwise runs a package's integration binaries one after another.
   # Keep every device target, but let the independent binaries overlap. The
   # optimized production-scale fixtures need more than Rust's 2 MiB default
