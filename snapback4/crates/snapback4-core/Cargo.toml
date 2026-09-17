@@ -21,6 +21,8 @@ sqlite = ["dep:rusqlite", "dep:argon2"]
 postgres = ["sqlite", "dep:postgres"]
 # The browser device mints additional prediction ids through Web Crypto.
 web = ["getrandom/wasm_js"]
+# Exercise the web-only engine choices in native device differentials.
+web-device-check = []
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

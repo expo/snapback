@@ -619,6 +619,10 @@ charged to that chunk's meter. Writes belong inside a chunk.
   readability; otherwise a first like or reaction queues without a
   predicted row. `guide prediction` shows predictable
   insert-if-absent/delete set-state writes over a held viewer partition.
+  Web queries and predictions trust the backend compiler's structural admission; the server
+  rechecks every submitted mutation. Argument, row, rule, coverage and runtime
+  budget checks still run locally. A hand-built or corrupted backend can differ
+  from a native device's structural refusal; see `guide prediction`.
   A final write is the implicit return; bind it to use it (`row = insert
   ..`). Writes check the rule, unique indexes, caps, immutables, text
   formats and `after insert`; any refusal rolls the whole mutation back.

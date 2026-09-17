@@ -114,8 +114,20 @@ fn fits(kind: &ColumnType, value: Option<&Value>) -> bool {
 
 /// Validate the arguments and fill each omitted optional with `null`, so
 /// a caller that leaves `c` out reads page one.
+#[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
 pub fn validate_inputs(schema: &Schema, program: &Program, inputs: &mut BTreeMap<String, Value>) -> Result<(), RuntimeError> {
     super::admission::check(schema, program)?;
+    validate_arguments(schema, program, inputs)
+}
+
+// @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — the web predicts a server-admitted backend; the server and native hosts still check every call.
+pub(super) fn validate_device_inputs(schema: &Schema, program: &Program, inputs: &mut BTreeMap<String, Value>) -> Result<(), RuntimeError> {
+    #[cfg(not(any(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite")), feature = "web-device-check")))]
+    super::admission::check(schema, program)?;
+    validate_arguments(schema, program, inputs)
+}
+
+fn validate_arguments(schema: &Schema, program: &Program, inputs: &mut BTreeMap<String, Value>) -> Result<(), RuntimeError> {
     for (name, kind) in &program.args {
         if !inputs.contains_key(name) && (kind.is_optional() || matches!(kind, ArgType::Cursor)) {
             inputs.insert(name.clone(), Value::Null);

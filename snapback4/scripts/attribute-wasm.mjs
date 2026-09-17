@@ -108,9 +108,34 @@ export function checkFamilies(families) {
   if (unexpected.length) refuse(unexpected.map(([type, found]) => `${type}: ${[...found.keys()].join(', ')}`).join('\n'));
 }
 
+// @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — server-only code must not return to the web artifact.
+export function checkAbsent(rows, retainingPath) {
+  if (!rows.length) refuse('cannot check absent code in an empty census');
+  const forbidden = /snapback4_core::(?:engine::(?:pages::prefetch|admission)::|partition::(?:row_changed(?:$|::)|log_events::))/;
+  const unexpected = rows.filter(row => forbidden.test(clean(row.name)));
+  const failures = unexpected.map(row => {
+    const path = retainingPath(row.name);
+    if (!path?.trim()) refuse(`no retaining path returned for ${row.name}`);
+    return `${row.name} (${row.shallow_size} B)\n${path}`;
+  });
+  if (failures.length) refuse(`server-only code retained in the web artifact:\n${failures.join('\n')}`);
+}
+
+function retainingPath(artifact, name) {
+  const paths = JSON.parse(run('twiggy', ['paths', '--format', 'json', '-d', '10', '-r', '1', artifact, name]));
+  if (!Array.isArray(paths) || !paths.length) refuse(`twiggy returned no retaining path for ${name}`);
+  const lines = [];
+  function visit(row, depth) {
+    lines.push(`${'  '.repeat(depth)}${depth ? '<- ' : ''}${clean(row.name)}`);
+    for (const caller of row.callers ?? []) visit(caller, depth + 1);
+  }
+  for (const row of paths) visit(row, 0);
+  return lines.join('\n');
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) try {
   if (Number(process.versions.node.split('.')[0]) !== 24) refuse('Node 24 required; export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH');
-  if (args.some(a => !['--families', '--check-families'].includes(a))) refuse('usage: node scripts/attribute-wasm.mjs [--families] [--check-families]');
+  if (args.some(a => !['--families', '--check-families', '--check-absent'].includes(a))) refuse('usage: node scripts/attribute-wasm.mjs [--families] [--check-families] [--check-absent]');
   const twiggy = spawnSync('twiggy', ['--version'], { encoding: 'utf8' });
   if (twiggy.error || twiggy.status !== 0) refuse('twiggy is required: cargo install twiggy --version 0.8.0 --locked');
   if (!run('rustup', ['target', 'list', '--installed']).split(/\s+/).includes('wasm32-unknown-unknown')) refuse('wasm target is required: rustup target add wasm32-unknown-unknown');
@@ -152,6 +177,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const clones = kept.filter(r => /snapback4_core.*::ir::/.test(r.name) && /clone/i.test(r.name));
     lines.push(`IR clone symbols: ${clones.length}, ${clones.reduce((s,r) => s + r.shallow_size,0)} B`);
     for (const r of clones) lines.push(`${r.shallow_size} B  ${clean(r.name)}`);
+  }
+  if (args.includes('--check-absent')) {
+    checkAbsent(kept, name => retainingPath(path.join(root, 'target/wasm-sym/wasm32-unknown-unknown/wasm/snapback4_device.wasm'), name));
+    lines.push('server-only absence check: ok');
   }
   console.log(lines.join('\n'));
 } catch (error) { console.error(`attribute-wasm: ${error.message}`); process.exitCode = 1; }

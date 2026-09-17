@@ -30849,3 +30849,149 @@ table again. A scratch build that removes the structural admission check,
 the prefetch planner and partition-event derivation from the web artifact
 measures 466,171 → 439,856 (−26,315), which is the next rung. No package
 version changed and nothing was published.
+
+## 2026-09-17 — device diet S5: server reachability, with the partition meter retained
+
+Base: `614898e9a7eb6240fb2aef8cda3e08ae0f4acb0a`. This is the commissioned S5 lane only. No commit, push, tag, publication, LLP, ticket, client contract, existing corpus case, meter ceiling or durable/wire format changed. All commands below ran from `snapback4/` unless explicitly marked root; every Node/Bun command used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`. Detailed logs and saved artifacts are in `/tmp/s5-evidence/`.
+
+The Postgres feature now owns the prefetch planner, its tables, and both fill sites. `Rows::prefetch_enabled()` returns true only in the Postgres adapter; memory and SQLite use false. Postgres still compiles the original planner and executes the same plan/admit/fill calls. The native differential's control enables `snapback4-core/postgres`, so it includes the planner even though its device stores do not prefetch.
+
+Partition events needed a correction to the brief's premise. Predictions on BOTH stores discard `Runner.events`, but deriving those events charges steps, can charge maintain work, and can scan expired memberships with examined-row charges and store errors. Deleting `partition::row_changed` changes observable refusal boundaries. The shared `account_row_change` therefore retains the same interpreted images, id validation, audience membership decisions, replacement scans and meter calls. Only event constructors live in the SQLite-only `log_events` module. The native SQLite device still constructs and discards events as before. A native-only `web-device-check` feature selects the web's local validation/accounting choices for the differential; ordinary server calls retain admission even under that test feature. A public-table insert still first succeeds at a step ceiling of **11** on both stores; every ceiling from 0 through 23 is compared across the two builds.
+
+Structural admission is removed from the actual web build (`wasm32` + `web`, without `sqlite`), not from other hosts. The compiler and every server/native call retain it. This explicitly changes the handling of a malformed backend: `E_STRUCTURAL_FANOUT` and `E_UNBOUND_SCAN` are `RuntimeError::Structural` values with wire family `schema`, and were observable on devices before this change. A web query containing an unreachable unbound scan now returns its valid branch instead of the former structural refusal; a regression executes that example against the saved baseline and candidate wasm. An executed invalid read and an invalid argument still refuse. The README and prediction card disclose this trust boundary.
+
+An inadmissible backend can cause a web device to produce incomplete/incorrect speculative results or local writes that admission formerly prevented, consume its own runtime meter, and persist speculative rows/base images/outbox state through the ordinary IndexedDB commit. Those are real durable LOCAL effects, not server commits. It cannot thereby read beyond data already held by the device, bypass the remaining row/rule/coverage checks, acquire a new partition, or commit a server mutation: the server rechecks admission, rules and the meter. A hostile server already chooses the backend and the rows it supplies to that same device; this adds no remote authority. A buggy server can now mispredict locally where native refuses, and that is the deliberate trust trade, not a claim of malformed-backend refusal parity. I chose the brief's web-only removal rather than the cached-verdict fallback on that basis. Predictions remain provisional and server-judged.
+
+### Reachability evidence and dispositions
+
+The baseline symbol-bearing module was saved before editing. Commands: `node scripts/attribute-wasm.mjs --check-families`, `twiggy top -n 1000000 --format json /tmp/s5-evidence/00-symbols.wasm`, and `twiggy paths --regex --format json -d 7 -r 1 /tmp/s5-evidence/00-symbols.wasm '<pattern>'`. The exact patterns and JSON paths are retained in `00-paths.json` and `00-more-paths.json`; the earlier unrestricted text paths are in `00-paths.txt`; exact float-symbol paths are in `00-float-paths.json` and `00-zmij-paths.json`. Paths below read from caller to retained code; generic iterator intermediates are omitted for readability. Byte figures are symbol shallow sums, not compressed savings.
+
+| Candidate | Observed retaining path | Decision |
+| --- | --- | --- |
+| Admission, 35,626 B including its generics | WebDevice call → device query observation → local observe_query → validate_inputs → admission::check/check_detail | Remove from web under the trust boundary above; other hosts keep per-call checks. |
+| Prefetch, 33,889 B including its generics | WebDevice call → local observe_query → Runner::run → pages::prefetch::walk; plan/admit is inlined into the caller | Compile only with Postgres. No other repository store enables it. |
+| Partition row_changed, 3,959 B for the named function plus helpers | Runner::statements → write_target → replace_authorized → Runner::row_changed → partition::row_changed | Keep accounting; exclude only log-event constructors from logless builds. |
+| Successor, 5,410 B including generics | WebDevice call → adopt_captured → keeps_literal_default_images | Required for on-disk row-image continuity. No other successor classifier was found linked. |
+| Assets, 765 B under assets::* | Runner::write_target → replace_authorized → with_asset_facts → Asset::column_value; Runner::row_changed → asset_id | Required prediction validation; also below the extra-candidate threshold. Server ledger/sniffing code was not linked. |
+| Presence, 11,704 B including generics | local observe_query → Runner::run → presence::plan_guards | Keep: its reservations and dependency work affect prediction heap cuts, including untaken arms. |
+| Maintains | Runner::write_target → reserve_target_resolution → reserve_maintains; aggregate_overflow also survives | Keep local maintained overlays and their reservations. Server rebuild paths already have SQLite gates. |
+| Authority | No authority::* symbol in the full baseline census; paths matched none | Already absent. |
+| Float formatting: flt2dec 16,023 B; zmij 2,222 B | flt2dec format_shortest ← float_to_decimal_common_shortest ← f64 Display ← indirect table; zmij::Buffer::format ← serde_json::error::JsonUnexpected::fmt ← indirect table | Keep: Quarry values have no float, but dynamic JSON envelopes and diagnostics do. The page codec deliberately accepts finite float extensions and refuses invalid numbers; absence of a Quarry float type is not a proof that this code is unused. |
+
+No extra candidate met both the size and behavioral-removal tests. `--check-absent` is a separate exported function, with its own `wasm-absent.test.mjs`, and refuses prefetch, admission, partition::row_changed and partition::log_events symbols with their retaining paths. It runs beside `--check-families` in `measure-wasm.sh`, before any metric append, and not in `test.sh`. The family-classification implementation and the other lane's census test are untouched. An intermediate guard failure caught LLVM sharing a live generic helper under an `admission::Origin` symbol; excluding the entire web admission module removed that ambiguous survivor instead of weakening the guard.
+
+### Shipped byte measurements
+
+Each row is cumulative and was measured with `bash scripts/build-wasm.sh`, then saved before the next item. Raw/gzip/brotli were independently re-read with `python3 /tmp/s5-evidence/measure-sizes.py`, which uses file length, `gzip -9 -c`, and `brotli -c -q 11`. Every saved file is named `snapback4_device_bg.wasm`, preserving the shipped gzip header's filename length. No record was appended to `metrics/wasm.jsonl`.
+
+| Stage | Raw B | Gzip B | Brotli B | Item saving: raw / gzip / brotli |
+| --- | ---: | ---: | ---: | ---: |
+| Clean base | 1,599,360 | 466,618 | 362,604 | — |
+| Prefetch gated | 1,565,363 | 459,687 | 357,859 | 33,997 / 6,931 / 4,745 |
+| Event construction gated; accounting kept | 1,560,946 | 458,444 | 356,664 | 4,417 / 1,243 / 1,195 |
+| Admission module excluded; final | 1,515,327 | 444,964 | 346,767 | 45,619 / 13,480 / 9,897 |
+| Total saving | 84,033 | 21,654 | 15,837 | 4.64% of baseline gzip |
+
+Final build summary: `wasm 1515327 B raw, 444964 B gzip (budget 445000: ok)`. The budget is lowered to **445,000**, the next 1,000 B, with its measured reason. Final SHA-256: `ed6510ddaa70bfed2ceb0b51196df744dd245323cdb9d50d5c7f18d3e76f7586`. Toolchain: Node `v24.18.0`, Rust `1.97.0 (2d8144b78 2026-07-07)`, wasm-bindgen `0.2.127`, wasm-opt `132`. Build features/profile/target: `--no-default-features --features web --profile wasm --target wasm32-unknown-unknown`.
+
+The final wasm glue is separately **11,325 B raw / 3,047 B gzip / 2,700 B brotli**. No SDK TypeScript runtime source or backend encoding changed. SDK JS, backend-image transfer and total cold acquisition were not remeasured; the Chromium acquisition/offline-reopen witnesses remain the lead's outside-sandbox work. No unchanged-source argument is presented as a browser transfer measurement.
+
+Class census before/after, using `node scripts/attribute-wasm.mjs` with `--check-families` on the base and `--check-families --check-absent` on the final source. This is the symbol-bearing pre-bindgen module, excluding debug/name sections, not the shipped raw module:
+
+| Class | Before B | After B |
+| --- | ---: | ---: |
+| serde deserialize | 377,383 | 377,383 |
+| serde serialize | 65,887 | 65,887 |
+| serde_json own code | 51,157 | 50,388 |
+| std generics over Snapback types | 403,763 | 351,912 |
+| B-trees over std-only types | 147,644 | 140,645 |
+| snapback4-core own code | 277,208 | 247,811 |
+| snapback4-device own code | 107,655 | 107,655 |
+| .rodata | 182,430 | 179,830 |
+| everything else | 141,735 | 141,074 |
+| Total | 1,754,862 | 1,662,585 |
+
+### Verification and limits
+
+The exact native control command is `DIET_RECORD=/tmp/s5-evidence/native-off-final.json cargo test -p snapback4-device --features snapback4-core/postgres --test device_diet -- --include-ignored --nocapture`; the web-choice command is `DIET_RECORD=/tmp/s5-evidence/native-on-verified.json cargo test -p snapback4-device --features web-device-check --test device_diet -- --include-ignored --nocapture`. Their records compare byte-for-byte: **1,726 programs, 3,452 observations, 1,596 positive calls**, **1,168,779 identical bytes**, plus **24** prediction step-ceiling records (**3,677 identical bytes**). The observations include query meters, coverage/components, refusals, prediction results, read/written tables, and drained speculative changes. The control compiles prefetch, admission and event construction; the simulated web build omits prefetch and skips local admission/event construction. Both modes retain server admission. The separate step test runs on both stores and asserts the exact first-success ceiling, 11.
+
+This is not a claim to have generated inputs for every dynamically composed Rust fixture: it covers the frozen 740-source census and current reference-app/device `.q` bundles on empty acquired stores, excluding 229 compiler-refused bundles and non-device native/job/action programs. Actual seeded fixture behavior is supplied by the complete default device/client suites and the additional device suite with the web choices enabled. Full arbitrary-fixture prediction meter vectors are not exposed by the published Prediction result; query vectors and explicit prediction budget boundaries are compared instead. No test-only meter field was added to the wire. These are the precise substitutes for the brief's universal differential requirement, which this lane does not claim in full.
+
+The regression `SNAPBACK4_DIET_WASM=/tmp/s5-evidence/00-baseline.wasm node --test packages/snapback4/test/device-diet.test.mjs` was red against the original artifact: `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`. The same command without the environment override was green: `ℹ tests 1`, `ℹ pass 1`, `ℹ fail 0`. The new absence test before its implementation was `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`; after implementation it was `ℹ tests 2`, `ℹ pass 2`, `ℹ fail 0`. More importantly, running `checkAbsent` on the saved baseline twiggy table exited 1 and printed the actual retaining paths; the final artifact prints `serde family check: ok` and `server-only absence check: ok`.
+
+Final targeted JS command: `node --test packages/snapback4/test/wasm-{absent,families,budget}.test.mjs packages/snapback4/test/device-diet.test.mjs`: `ℹ tests 10`, `ℹ pass 10`, `ℹ fail 0`, `ℹ skipped 0`.
+
+`node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'` completed: `ℹ tests 615`, `ℹ pass 607`, `ℹ fail 5`, `ℹ cancelled 0`, `ℹ skipped 3`, `ℹ duration_ms 311622.843375`. Failures were three mocked fallback assertions, one transport deadline, and Chromium launch. `node --test --test-name-pattern='W13b fallback boundary' packages/snapback4/test/client-lifecycle.test.mjs` then passed: `ℹ tests 9`, `ℹ pass 9`, `ℹ fail 0`. `node --test packages/snapback4/test/transport-http.test.mjs` passed 5 and failed 1 (the native deadline); `node --test --test-name-pattern='native: maximum pending' packages/snapback4/test/transport-http.test.mjs` passed: `ℹ tests 1`, `ℹ pass 1`, `ℹ fail 0`. Both transport tiers subsequently passed in the full suite. No deadlines or client behavior were changed.
+
+Root full-suite attempts: `bash snapback4/scripts/test.sh` completed with `== 2 failure(s) in 696 s`: the initial extraction's compile error (`canonical_json` needed a reference to the slice) and Chromium. The extraction was corrected, not excused as environmental. The final `TMPDIR=/tmp/s5-evidence/suite-tmp/ bash snapback4/scripts/test.sh` completed with `-- ok: cargo test (491 s)` and `== 1 failure(s) in 585 s`: client Chromium launch only. The final Rust inventory has **1,426 passed, 0 failed, 7 ignored** across 465 emitted target summaries; the client summary is `ℹ tests 615`, `ℹ pass 611`, `ℹ fail 1`, `ℹ cancelled 0`, `ℹ skipped 3`. Fixture-wrapper summary: `ℹ tests 9`, `ℹ pass 9`, `ℹ fail 0`. Both app typechecks, package typecheck/build, chat check, and wasm build passed. The Chromium failure is `SIGABRT`/sandbox launch, the artifact named by the brief. Logs: `suite.log`, `suite-final.log`, `client-concurrency2.log`, and the isolated retry logs.
+
+`bash scripts/test-postgres.sh` exited 1 before tests: `initdb` reported `FATAL: could not create shared memory segment: Operation not permitted`, with failed `shmget`. Therefore real Postgres/prefetch execution equivalence remains unqualified here; the control feature compiles and its memory-device differential passes, but that does not replace a database run. The lead must run the Postgres harness and Chromium witnesses outside this sandbox. No failure is labelled base-proven pre-existing: none was rerun against an untouched checkout of the recorded base.
+
+The brief's wrong premise was the discarded partition log being observationally disposable: accounting survives even when events do not. Its raw no-call probe was therefore not an acceptable implementation or saving target. The clean base differed from the scratch commits, and the warm/60-second premise did not hold: dependencies rebuilt and the successful battery took 585 seconds. The only intentionally changed malformed-backend behavior is the expressly chosen admission trust boundary. No out-of-scope file was touched; `engine/mod.rs` and both Cargo manifests are necessary feature wiring. The lesson is that discarded data can still carry a meter contract, and compile-time reachability must be proved separately from a raw-size probe.
+
+Verbatim Rust target summaries for the targeted commands follow (the full suite's 465 summaries remain in its log):
+
+`DIET_RECORD=/tmp/s5-evidence/native-off-final.json cargo test -p snapback4-device --features snapback4-core/postgres --test device_diet -- --include-ignored --nocapture`
+
+```text
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.66s
+```
+
+`DIET_RECORD=/tmp/s5-evidence/native-on-verified.json cargo test -p snapback4-device --features web-device-check --test device_diet -- --include-ignored --nocapture`
+
+```text
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.17s
+```
+
+`cargo test -p snapback4-device --features web-device-check --test device --test components --test retained_history`
+
+```text
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+test result: ok. 237 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 84.40s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.82s
+```
+
+`cargo test -p snapback4-core -p snapback4-sim --no-fail-fast`
+
+```text
+test result: ok. 55 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.17s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.61s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.14s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.67s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.04s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
+test result: ok. 127 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 35.59s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.72s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.37s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 55.98s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.92s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 11 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.32s
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.52s
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.95s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+`cargo test -p snapback4-lang --test guide`
+
+```text
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+```
+
+Final source checks: root `./ref-check --verbose` reports `ref-check: ok — 483 LLP docs, 9079 refs in 24214 files, 0 errors, 0 unchecked`; `git diff --check` is clean. The largest changed source is 1,032 lines. The original 1,809,607-byte journal prefix retains SHA-256 `807eb708f822111617fc296175937b72f2f222a13312ac46623a5add47972a47`, and exactly one dated entry was appended. All work remains uncommitted.

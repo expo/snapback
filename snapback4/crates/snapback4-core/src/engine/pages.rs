@@ -17,6 +17,8 @@ type Bindings = BTreeMap<String, Origin>;
 #[path = "page_collectors.rs"]
 mod collectors;
 
+// @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — only Postgres can prefetch; other stores keep no physical plan.
+#[cfg(feature = "postgres")]
 #[path = "prefetch.rs"]
 mod prefetch;
 
@@ -25,19 +27,23 @@ mod prefetch;
 pub(super) struct Plan {
     pub returns: BTreeMap<String, String>,
     pub collectors: BTreeMap<String, String>,
+    #[cfg(feature = "postgres")]
     pub prefetch: prefetch::Plan,
 }
 
 pub(super) fn plan(program: &Program, schema: &crate::schema::Schema, prefetch_enabled: bool) -> Plan {
+    #[cfg(not(feature = "postgres"))]
+    let _ = (schema, prefetch_enabled);
+    #[cfg(feature = "postgres")]
     let prefetch = if prefetch_enabled { prefetch::plan(program).admit(schema) } else { prefetch::Plan::default() };
-    if program.kind != ProgramKind::Query { return Plan { prefetch, ..Plan::default() }; }
+    if program.kind != ProgramKind::Query { return Plan { #[cfg(feature = "postgres")] prefetch, ..Plan::default() }; }
     let mut collectors = BTreeMap::new();
     let returns = returned_origins(program, false, &mut collectors).into_iter().filter_map(|(path, origin)| result_page(&origin).map(|(site, _)| (path, site.to_owned()))).collect();
     if !collectors.is_empty() {
         let flow = collectors::returned_collectors(program);
         collectors.retain(|path, _| flow.returned.contains(path) || !flow.visited.contains(path));
     }
-    Plan { returns, collectors, prefetch }
+    Plan { returns, collectors, #[cfg(feature = "postgres")] prefetch }
 }
 
 /// Read sites whose pages flow to a query return, including cursorless pages.

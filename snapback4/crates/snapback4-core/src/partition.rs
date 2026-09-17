@@ -125,10 +125,37 @@ pub fn partitions(table_name: &str, sync: &Sync, row: &Value) -> Vec<String> {
     }
 }
 
-/// Called for every physical row change. Produces the events of the row's
-/// own sync, then the join and scope events of every table that syncs to
-/// this table as a target.
+#[cfg(feature = "sqlite")]
+mod log_events {
+    use super::*;
+    pub(super) fn put(events: &mut Vec<Event>, table: &str, id: &str, new: &Value, after: &BTreeSet<String>) {
+        let image = new.clone();
+        for partition in after {
+            events.push(Event { partition: partition.clone(), table: table.to_owned(), kind: EventKind::Put, id: id.to_owned(), data: Some(image.clone()) });
+        }
+    }
+    pub(super) fn del(events: &mut Vec<Event>, table: &str, id: &str, before: &BTreeSet<String>, after: &BTreeSet<String>) {
+        for partition in before.difference(after) {
+            events.push(Event { partition: partition.clone(), table: table.to_owned(), kind: EventKind::Del, id: id.to_owned(), data: None });
+        }
+    }
+    pub(super) fn scope(events: &mut Vec<Event>, table: &str, partition: &str, group: &[Value]) {
+        events.push(Event { partition: partition.to_owned(), table: table.to_owned(), kind: EventKind::Scope, id: canonical_json(&group), data: Some(Value::Array(group.to_vec())) });
+    }
+    pub(super) fn join(events: &mut Vec<Event>, table: &str, partition: &str, group: &[Value], expiry: Value) {
+        events.push(Event { partition: partition.to_owned(), table: table.to_owned(), kind: EventKind::Join, id: canonical_json(&group), data: Some(crate::value::object([("expiresAt", expiry)])) });
+    }
+}
+
+// @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — logless devices retain partition accounting and refusals, but construct no events.
+#[cfg(feature = "sqlite")]
 pub fn row_changed(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
+    account_row_change::<true>(runner, table_name, old, new)
+}
+
+/// Every host pays the same partition work, including expired membership
+/// scans. Only a log-bearing host constructs the corresponding events.
+pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
     let schema = runner.schema;
     let table = schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
     // @ref LLP 3000.007#18.3 — audience keys and lifetimes use the same interpreted image as rules and indexes.
@@ -139,15 +166,18 @@ pub fn row_changed(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value
     if let Some(sync) = &table.sync {
         let before: BTreeSet<String> = old.map(|old| partitions(table_name, sync, old)).unwrap_or_default().into_iter().collect();
         let after: BTreeSet<String> = new.map(|new| partitions(table_name, sync, new)).unwrap_or_default().into_iter().collect();
-        let id = old.or(new).expect("a row change has an image").field("id")?.as_str()?.to_owned();
-        if let Some(new) = new {
-            let image = new.clone();
-            for partition in &after {
-                runner.events.push(Event { partition: partition.clone(), table: table_name.to_owned(), kind: EventKind::Put, id: id.clone(), data: Some(image.clone()) });
-            }
+        let id = old.or(new).expect("a row change has an image").field("id")?.as_str()?;
+        #[cfg(feature = "sqlite")]
+        let id = if LOG { id.to_owned() } else { String::new() };
+        #[cfg(not(feature = "sqlite"))]
+        let _ = id;
+        #[cfg(feature = "sqlite")]
+        if LOG && let Some(new) = new {
+            log_events::put(&mut runner.events, table_name, &id, new, &after);
         }
-        for partition in before.difference(&after) {
-            runner.events.push(Event { partition: partition.clone(), table: table_name.to_owned(), kind: EventKind::Del, id: id.clone(), data: None });
+        #[cfg(feature = "sqlite")]
+        if LOG {
+            log_events::del(&mut runner.events, table_name, &id, &before, &after);
         }
         if schema.maintain_for(table_name).is_some() { runner.charge_maintain(MeterKind::Steps, (before.len() + after.len()) as u64)?; }
         else { runner.meter.charge(MeterKind::Steps, (before.len() + after.len()) as u64)?; }
@@ -208,12 +238,16 @@ pub fn row_changed(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value
             // revocation. If the old lifetime already ended, catch-up inserts
             // its scope before that join; shortening to expiry still revokes.
             let renewed = was == is && new.is_some_and(|row| !runner.context.now.is_some_and(|now| table.expired(row, now)));
-            if !replaced && !renewed {
-                runner.events.push(Event { partition: partition.clone(), table: content_name.clone(), kind: EventKind::Scope, id: canonical_json(group), data: Some(Value::Array(group.clone())) });
+            #[cfg(not(feature = "sqlite"))]
+            let _ = (partition, replaced, renewed);
+            #[cfg(feature = "sqlite")]
+            if LOG && !replaced && !renewed {
+                log_events::scope(&mut runner.events, &content_name, partition, group);
             }
         }
-        if let Some((partition, group)) = &is {
-            runner.events.push(Event { partition: partition.clone(), table: content_name.clone(), kind: EventKind::Join, id: canonical_json(group), data: Some(crate::value::object([("expiresAt", expiry(new))])) });
+        #[cfg(feature = "sqlite")]
+        if LOG && let Some((partition, group)) = &is {
+            log_events::join(&mut runner.events, &content_name, partition, group, expiry(new));
         }
         runner.meter.charge(MeterKind::Steps, 1)?;
     }

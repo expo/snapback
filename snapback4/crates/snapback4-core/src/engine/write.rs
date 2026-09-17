@@ -526,7 +526,13 @@ impl Runner<'_> {
                 self.created_rows.insert(owner, keys);
             }
         }
+        #[cfg(all(feature = "sqlite", not(feature = "web-device-check")))]
         partition::row_changed(self, table_name, old, new)?;
+        #[cfg(not(feature = "sqlite"))]
+        partition::account_row_change::<false>(self, table_name, old, new)?;
+        #[cfg(all(feature = "sqlite", feature = "web-device-check"))]
+        if self.device { partition::account_row_change::<false>(self, table_name, old, new)?; }
+        else { partition::row_changed(self, table_name, old, new)?; }
         if origin == Origin::Source {
             self.place_assets(table_name, &table, old, new)?;
             self.maintain(table_name, old, new)?;

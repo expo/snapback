@@ -363,6 +363,7 @@ impl<'a> Runner<'a> {
         let values = match domain {
             LoopDomain::Page(scan) => {
                 let values = self.scan(scan)?;
+                #[cfg(feature = "postgres")]
                 self.page_plan.prefetch.fill(&scan.site, &values, &self.context, self.schema, self.tx);
                 self.meter.heap(values.capacity() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Value::heap_bytes).sum::<u64>())?;
                 Ok(values)
@@ -386,11 +387,13 @@ impl<'a> Runner<'a> {
                 Ok(values)
             }
             LoopDomain::DerivedArray { value, max, .. } => {
+                #[cfg(feature = "postgres")]
                 let site = self.statement_site.clone();
                 let values = into_array(self.expr(value)?)?;
                 if values.len() > *max as usize {
                     return Err(RuntimeError::Fanout);
                 }
+                #[cfg(feature = "postgres")]
                 self.page_plan.prefetch.fill(&site, &values, &self.context, self.schema, self.tx);
                 Ok(values)
             }
