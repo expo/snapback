@@ -1065,16 +1065,21 @@ promise a fresh ranking.
 ### Fresh ranking over posts younger than 24 hours
 
 Use this handwritten table for posts younger than 24 hours, including
-zero-like posts, or for a score beyond the `count`/`sum` a maintain can
-keep. Every source write must call `refreshRank`. The helper uses the
-caller's ordinary write rules, grants no privilege and does not reserve
-`ranked` writes to itself; its target is writable under those rules.
+zero-like posts. This version copies the exact maintained count; a custom
+score needs its own write-rule design. Every source write must call
+`refreshRank`. The helper uses the
+caller's ordinary write rules and grants no privilege. The insert and
+update rules below require the copied score to equal `likeCounts`; when
+the maintain has no group, only zero is allowed. These probes work because
+the likes do not expire. A maintain over expiring sources cannot be probed
+for its live value in a rule; use the scheduled recipe or read it directly.
 
 The client surface is declared queries, mutations and actions, not direct
 table writes. Neither recipe exposes a caller-supplied score. Both have
 latent permissions to review when adding mutations: accepting untrusted
-denormalised facts could corrupt the maintain's source, and accepting an
-untrusted score could corrupt the handwritten target. The maintain's
+denormalised facts could corrupt the maintain's source, and accepting
+untrusted post times could corrupt the handwritten target's window. Its
+score rules refuse a caller-supplied score that differs from the count. The maintain's
 target has the additional compiler-enforced prohibition on direct writes;
 that does not make arbitrary source inserts trustworthy.
 
@@ -1114,8 +1119,8 @@ table ranked:
   by byExpiresAt: expiresAt
   immutable postId, at, expiresAt
   public 'the fresh ranking is public'
-  insert <- allow
-  update <- allow
+  insert <- exists likeCounts[postId = .postId, value = .score] or (.score = 0 and not exists likeCounts[.postId])
+  update (old, next) <- exists likeCounts[postId = next.postId, value = next.score] or (next.score = 0 and not exists likeCounts[next.postId])
   delete <- deny
   expire at .expiresAt
   online only
@@ -1171,3 +1176,22 @@ in 100-post chunks; it is an idempotent backfill, not a scheduled freshness
 mechanism or an atomic snapshot of the whole table. This example has no
 post deletion or expiring likes. If those enter the app, their removal and
 expiry paths need their own ranking maintenance too.
+
+## N_PUBLIC_AGGREGATE_COPY: a public copy keeps ordinary write authority
+
+N_PUBLIC_AGGREGATE_COPY is a note, not an error. A public column is assigned
+directly from a declared `maintain`, but `update <- allow` (or a provably
+unrestricted equivalent) lets any principal set it through a mutation that
+writes it. The column duplicates an aggregate the engine already keeps.
+Read the maintain directly, or restrict the update rule; check the insert
+rule too if a caller can supply the initial value. The fresh-ranking recipe
+above checks the copied score against the non-expiring maintain in both rules.
+
+The client calls declared operations, not arbitrary table writes. This note
+identifies latent table permission, not proof that a current mutation accepts
+an arbitrary score. It covers direct scalar maintain-to-column assignments in
+programs and helpers, including jobs, once per column and maintain. It does not
+infer copies from names, matching group keys, increments, aliases or arithmetic.
+Restricted rules, private targets and immutable columns do not receive it;
+absence of the note is not a proof that a ranking cannot be forged. Sync and
+`online only` do not change write authority.
