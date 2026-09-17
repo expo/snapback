@@ -1,6 +1,6 @@
 // Real CLI, HTTP, supervised Node children and an on-disk provider double.
 // This proves the provider protocol under crashes, not a third-party adapter.
-import test from "node:test";
+import nodeTest from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { createServer } from "node:http";
@@ -10,6 +10,16 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
+
+const shard = process.env.SNAPBACK4_TEST_SHARD?.split("/").map(Number);
+if (shard && (shard.length !== 2 || !Number.isInteger(shard[0]) || !Number.isInteger(shard[1]) || shard[0] < 0 || shard[1] < 1 || shard[0] >= shard[1])) {
+  throw Error("SNAPBACK4_TEST_SHARD must be a zero-based part/count pair");
+}
+let registered = 0;
+const test = (...args) => {
+  const index = registered++;
+  if (!shard || index % shard[1] === shard[0]) return nodeTest(...args);
+};
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");

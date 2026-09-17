@@ -7,6 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 mod presence;
 mod inserts;
 mod horizons;
+mod components;
 pub(super) use horizons::{guard_notes, incompatible_horizon_pages, needs_whole_partition};
 
 pub fn execution(schema: &Schema, program: &Program) -> Execution {
@@ -69,6 +70,7 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
         ProgramKind::Job => fact.runs = Some("server".into()),
         ProgramKind::Action => { fact.runs = Some("server".into()); fact.predicts = Some("never".into()); }
     }
+    fact.components = components::plan(program);
     fact
 }
 
@@ -394,6 +396,7 @@ pub fn operation_lines(name: &str, fact: &Execution) -> String {
         None => "predicts: eligible".into(),
     }, _ => "predicts: never; queued without a row".into() };
     if fact.held { word.push_str(" (held; server refuses E_QUERY_HELD; no server fallback)"); }
+    if !fact.components.is_empty() { word.push_str(&format!("; components: {}", fact.components.iter().map(|component| component.field.as_str()).collect::<Vec<_>>().join(", "))); }
     let reads = horizons::reads(fact);
     if fact.predicts.as_deref() == Some("eligible") && !reads.is_empty() {
         word.push_str(&format!("{} past the horizon at {}", if blocked.is_some() { "; also queues" } else { " except" }, reads.join(", ")));

@@ -44,7 +44,7 @@ impl Eq for MergeHead {}
 
 impl Probe for Runner<'_> {
     fn exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
-        if !self.meter.charge(MeterKind::RuleProbes, 1)? {
+        if !self.read_charge(MeterKind::RuleProbes, 1)? {
             // Cut: no lookup and no verdict; the site stops on `capped_at`.
             return Ok(false);
         }
@@ -79,7 +79,7 @@ impl Runner<'_> {
         if !uniform || !matches!(verdict, Ok(true)) { self.next_expiry = expiry; }
         let verdict = verdict?;
         // A partial conjunction denial costs the same static allowance as a uniform denial.
-        Ok(self.meter.charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? && verdict)
+        Ok(self.read_charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? && verdict)
     }
 
     // @ref LLP 3000.007#20.9 — coverage applies before a missing candidate or empty page can return zero/complete.
@@ -94,7 +94,7 @@ impl Runner<'_> {
     }
 
     fn horizon_coverage(&mut self, scan: &Scan, prefix: &[Value], retained: bool) {
-        if retained { self.beyond_horizon = true; }
+        if retained { self.beyond_horizon = true; self.components.note(|frame| { frame.beyond = true; frame.retained = true; }); }
         else { self.unknown_fact(&scan.table, &scan.index, prefix, &scan.site); }
     }
 
@@ -154,7 +154,7 @@ impl Runner<'_> {
             let count = rows.len();
             for (mut row, stored) in rows {
                 materialize_optional_fields(&mut row, table);
-                if charge && !self.meter.charge(MeterKind::Examined, 1)? { return Ok(None); }
+                if charge && !self.read_charge(MeterKind::Examined, 1)? { return Ok(None); }
                 bounds.after = crate::key::decode(&stored).map(|values| values.into_iter().skip(key.len()).collect());
                 if !self.expired(table, &row) { return Ok(Some(row)); }
             }
@@ -190,9 +190,9 @@ impl Runner<'_> {
             let count = rows.len();
             for (mut candidate, key) in rows {
                 materialize_optional_fields(&mut candidate, source);
-                if !self.meter.charge(MeterKind::Examined, 1)? { break 'sources; }
+                if !self.read_charge(MeterKind::Examined, 1)? { break 'sources; }
                 bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(prefix.len()).collect());
-                if !self.meter.charge(MeterKind::Steps, maintain.evaluation_steps())? { break 'sources; }
+                if !self.read_charge(MeterKind::Steps, maintain.evaluation_steps())? { break 'sources; }
                 if self.expired(source, &candidate) || !maintain.selected(&candidate) || maintain.source_key(&candidate) != group { continue; }
                 any = true;
                 self.note_expiry(source, &candidate);
@@ -286,7 +286,7 @@ impl Runner<'_> {
         self.rule_dependencies(&table.rules.read);
         self.meter.at(&read.site);
         self.aggregate_read_coverage(&read.table, &read.index, &key, &read.site);
-        if self.filter_depth > 0 && !self.meter.charge(MeterKind::RuleProbes, 1)? { return Ok(Value::Null); }
+        if self.filter_depth > 0 && !self.read_charge(MeterKind::RuleProbes, 1)? { return Ok(Value::Null); }
         if self.device && table.sync.is_none() {
             self.unknown_fact(&read.table, &read.index, &key, &read.site);
         }
@@ -296,7 +296,7 @@ impl Runner<'_> {
         }
         // @ref LLP 3000.007#20.12 — reserve authorization before knowing hit, miss or hidden; an exhausted probe is not a false verdict to roll back.
         let trusted = self.context.is_system() || self.trust_synced_read(table);
-        if !trusted && !self.meter.charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? { return Ok(Value::Null); }
+        if !trusted && !self.read_charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? { return Ok(Value::Null); }
         // Hidden and absent cost one examined row and the same static probe
         // allowance, including probes that a rule would short-circuit.
         let mark = self.meter.mark();
@@ -304,7 +304,7 @@ impl Runner<'_> {
         let found = self.live_lookup(&read.table, &read.index, index, &key)?;
         // An expiring lookup already charged its live candidate while
         // passing expired siblings. A miss still costs one point read.
-        if (table.expire.is_none() || found.is_none()) && !self.meter.charge(MeterKind::Examined, 1)? {
+        if (table.expire.is_none() || found.is_none()) && !self.read_charge(MeterKind::Examined, 1)? {
             return Ok(Value::Null);
         }
         let Some(mut row) = found else {
@@ -318,12 +318,14 @@ impl Runner<'_> {
         let viewer = self.context.viewer.clone();
         let allowed = trusted || rules::evaluate(&table.rules.read, &viewer, None, &row, false, &mut PrefixProbe { runner: self })?;
         if allowed {
+            // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
+            if self.device && self.tx.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
             self.note_expiry(table, &row);
             Ok(self.live_aggregate(&read.table, row)?.unwrap_or(Value::Null))
         } else {
             self.next_expiry = expiry_mark;
             self.meter.restore(mark);
-            self.meter.charge(MeterKind::Examined, 1)?;
+            self.read_charge(MeterKind::Examined, 1)?;
             Ok(Value::Null)
         }
     }
@@ -383,7 +385,7 @@ impl Runner<'_> {
             self.unknown_fact(&scan.table, &scan.index, &scope, &scan.site);
         }
         if self.device && table.sync.as_ref().is_some_and(|sync| sync.horizon.is_some()) {
-            let retained = self.tx.retained_group(&scan.table, &scan.index, &scope)?;
+            let retained = self.retained_group(&scan.table, &scan.index, &scope)?;
             self.horizon_coverage(scan, &scope, retained);
         }
         let empty_page = |this: &mut Self| {
@@ -394,14 +396,14 @@ impl Runner<'_> {
         // @ref LLP 3000.007#18.1 — one verdict per matching scope, before word discovery; the outer merge orders these scoped pages.
         let visibility = rules::scan_visibility(self.schema, scan);
         let mut admitted = self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
-        if !admitted && !visibility.uniform { self.non_uniform = true; }
+        if !admitted && !visibility.uniform { self.non_uniform = true; self.components.note(|frame| frame.non_uniform = true); }
         if terms.is_empty() {
             empty_page(self);
             return Ok(Vec::new());
         }
         if !admitted && let Some(rule) = rules::prefix_decision(self.schema, scan) {
             let aborting = self.meter.cut == crate::meter::Cut::Abort;
-            if aborting && !self.meter.charge(MeterKind::Examined, 1)? { empty_page(self); return Ok(Vec::new()); }
+            if aborting && !self.read_charge(MeterKind::Examined, 1)? { empty_page(self); return Ok(Vec::new()); }
             if !self.prefix_verdict(table, index, &scope, &rule, visibility.uniform)? {
                 empty_page(self);
                 return Ok(Vec::new());
@@ -414,7 +416,7 @@ impl Runner<'_> {
         let mut words: Vec<String> = Vec::new();
         let mut bounds = Bounds { word: Some(terms[0].clone()), ..Bounds::default() };
         loop {
-            if !self.meter.charge(MeterKind::IndexEntries, 1)? {
+            if !self.read_charge(MeterKind::IndexEntries, 1)? {
                 break;
             }
             let found = self.tx.scan(&scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1)?;
@@ -424,6 +426,7 @@ impl Runner<'_> {
             };
             if words.len() == MAX_WORD_LANES {
                 // @ref LLP 3000.007#18.1 — the word bound limits this scope, not later lanes; actual meter ceilings still cut the whole query.
+                self.components.note(|frame| frame.words = true);
                 if self.word_cut_at.is_none() { self.word_cut_at = Some(format!("{} lane {:?}", scan.site, scope)); }
                 break;
             }
@@ -535,7 +538,7 @@ impl Runner<'_> {
     fn scan_prepared(&mut self, scan: &Scan, prefix: Vec<Value>, bounds: Bounds, take: usize, word: Option<&WordRead>) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
-        let retained = self.device && self.tx.retained_group(&scan.table, &scan.index, &prefix)?;
+        let retained = self.device && self.retained_group(&scan.table, &scan.index, &prefix)?;
         self.read_tables.insert(scan.table.clone());
         self.rule_dependencies(&table.rules.read);
         self.meter.at(&scan.site);
@@ -550,7 +553,7 @@ impl Runner<'_> {
         let visibility = rules::scan_visibility(self.schema, scan);
         let always_visible = word.is_some_and(|word| word.admitted) || self.trust_synced_read(table) || self.context.is_system() || visibility.decided_true || table.rules.read.is_uniformly_readable();
         if !visibility.uniform && !always_visible && !(self.device && table.sync.is_some()) {
-            self.non_uniform = true;
+            self.non_uniform = true; self.components.note(|frame| frame.non_uniform = true);
         }
         let mut visible: Vec<Value> = Vec::new();
         let mut keys: Vec<Vec<u8>> = Vec::new();
@@ -560,7 +563,7 @@ impl Runner<'_> {
         let mut uniform_verdict: Option<bool> = always_visible.then_some(true);
         // @ref LLP 3000.007#17 — an aborting page pass costs one examined unit before its verdict in every world; capped queries retain their cut contract.
         let aborting = self.meter.cut == crate::meter::Cut::Abort;
-        if aborting && !self.meter.charge(MeterKind::Examined, 1)? { return Ok((Vec::new(), Vec::new())); }
+        if aborting && !self.read_charge(MeterKind::Examined, 1)? { return Ok((Vec::new(), Vec::new())); }
         if !always_visible && word.is_none() && let Some(rule) = rules::prefix_decision(self.schema, scan) {
             if !self.prefix_verdict(table, index, &prefix, &rule, visibility.uniform)? { return Ok((Vec::new(), Vec::new())); }
             if visibility.uniform { uniform_verdict = Some(true); }
@@ -576,7 +579,7 @@ impl Runner<'_> {
             }
             let fetched_len = fetched.len();
             for (mut row, key) in fetched {
-                if !self.meter.charge(MeterKind::Examined, 1)? {
+                if !self.read_charge(MeterKind::Examined, 1)? {
                     capped = true;
                     break 'outer;
                 }
@@ -603,14 +606,14 @@ impl Runner<'_> {
                         verdict
                     }
                 };
-                if self.meter.capped_at.is_some() {
+                if self.read_capped() {
                     capped = true;
                     break 'outer;
                 }
                 if allowed {
                     self.note_expiry(table, &row);
                     let aggregate = self.live_aggregate(&scan.table, row)?;
-                    if self.meter.capped_at.is_some() {
+                    if self.read_capped() {
                         // The aggregate carries the live contribution observed
                         // before this cut, just as a maintained point read does.
                         if let Some(row) = aggregate && visible.len() < take {
@@ -630,7 +633,7 @@ impl Runner<'_> {
                         match prior { Some(value) => { self.env.insert("$filter".into(), value); }, None => { self.env.remove("$filter"); } }
                         let matched = matched?.as_bool()?;
                         self.meter.at(&scan.site);
-                        if self.meter.capped_at.is_some() { capped = true; break 'outer; }
+                        if self.read_capped() { capped = true; break 'outer; }
                         if !matched { continue; }
                     }
                     if visible.len() == take {
@@ -657,7 +660,7 @@ impl Runner<'_> {
             self.horizon_coverage(scan, &prefix, retained);
         }
         if self.page_depth == 0 && !scan.opaque_cursor && has_more && scan.filter.is_none() {
-            self.page_overflow = true;
+            self.page_overflow = true; self.components.note(|frame| frame.overflow = true);
         }
         if self.page_depth == 0 && scan.opaque_cursor {
             let components = index.components.len();
@@ -782,7 +785,7 @@ impl Runner<'_> {
         let has_more = candidates.len() > take;
         candidates.truncate(take);
         if self.page_depth == 0 && !first.scan.opaque_cursor && has_more {
-            self.page_overflow = true;
+            self.page_overflow = true; self.components.note(|frame| frame.overflow = true);
         }
         if self.page_depth == 0 && first.scan.opaque_cursor {
             let continues = self.merge_can_continue() && has_more;
@@ -793,12 +796,12 @@ impl Runner<'_> {
     }
 
     // @ref LLP 3000.007#18.1 — one shared position must be established by every lane, including a lane cut before contributing a row.
-    fn merge_can_continue(&self) -> bool {
+    fn merge_can_continue(&mut self) -> bool {
         // A cut can leave unread rows ahead of the last merged result. The
         // existing cursor has no per-lane positions, so it cannot resume that
         // page safely. Withhold for the entire non-uniform class, even without
         // a cut: presence of next must not reveal a hidden run's meter cost.
-        !self.non_uniform && self.meter.capped_at.is_none() && self.word_cut_at.is_none()
+        !self.non_uniform && !self.read_capped() && self.word_cut_at.is_none()
     }
 
     /// One head per uniform lane, then advance only the winning lane. Each
@@ -860,7 +863,7 @@ impl Runner<'_> {
             }
             let (scan, prefix, bounds, buffer, done) = &mut lanes[head.lane];
             bounds.after = Some(head.key);
-            if buffer.is_empty() && !*done && self.meter.capped_at.is_none() {
+            if buffer.is_empty() && !*done && !self.read_capped() {
                 let (rows, _) = self.scan_prepared(scan, prefix.clone(), bounds.clone(), batch, word)?;
                 *done = rows.len() < batch;
                 *buffer = rows.into();
@@ -874,7 +877,7 @@ impl Runner<'_> {
             if first.scan.opaque_cursor {
                 let continues = self.merge_can_continue() && has_more;
                 self.record_page(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, prefix: None, interrupted: false, next: if continues { last } else { None } });
-            } else if has_more { self.page_overflow = true; }
+            } else if has_more { self.page_overflow = true; self.components.note(|frame| frame.overflow = true); }
         }
         Ok(page)
     }

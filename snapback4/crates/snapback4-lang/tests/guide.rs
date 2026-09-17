@@ -68,7 +68,8 @@ fn w11r1c_residency_fact_cards_require_verbose() {
     for name in ["residency", "sync", "services"] {
         let text = card(name).unwrap();
         assert!(text.contains("check --residency --verbose"), "{name}");
-        assert!(!text.contains("`check --residency`"), "{name}: bare command promises facts");
+        if name == "sync" { assert!(text.contains("`check --residency` names the proven")); }
+        else { assert!(!text.contains("`check --residency`"), "{name}: bare command promises facts"); }
     }
 }
 
@@ -1185,4 +1186,16 @@ fn w9a_held_search_leads_with_coverage_then_cost_then_refusal() {
     assert!(prose.contains("The local clients never fall back to the server for a held query, even at a horizon, meter cut or word cut."));
     let wide = explain_code("N_WIDE_MERGE").unwrap();
     assert!(wide.contains("Inspect structural costs with `snapback4 check --cost`; if a held query answers this read, delete the merge."));
+}
+
+#[test]
+fn composition_card_matches_readme_and_the_routing_boundary() {
+    let sync = card("sync").unwrap();
+    let paragraph = |text: &str| text.split("A device query returning\n").nth(1).unwrap().split("answer offline.").next().unwrap().to_owned();
+    assert_eq!(paragraph(sync), paragraph(README));
+    for text in [sync, README] {
+        for word in ["`check --residency` names", "at most one read", "no reading `require`", "found point read", "Composition is never entered while a predictable write is unobserved; the whole local answer stands until it settles.", "every locally kept component"] {
+            assert!(text.contains(word), "missing {word}");
+        }
+    }
 }

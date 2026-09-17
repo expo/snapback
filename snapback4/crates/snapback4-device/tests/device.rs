@@ -52,9 +52,19 @@ struct Held<'a, H: Host> {
 
 impl<H: Host> AnyDevice for Held<'_, H> {
     fn call(&mut self, request: serde_json::Value) -> serde_json::Value {
+        let device = self.device.as_mut().expect("open");
+        if request["op"] == "query" && let Some(name) = request["name"].as_str()
+            && device.schema().operations.get(name).is_some_and(|fact| !fact.components.is_empty()) {
+            let viewer = request["viewer"].as_str().unwrap();
+            let now = request["now"].as_i64().unwrap_or(0);
+            let (framed, unknown, retained, _) = device.query_with_components(name, viewer, &request["args"], now);
+            let whole = device.query_with_coverage(name, viewer, &request["args"], now);
+            assert_eq!((framed, unknown, retained), whole, "{name}: full outcome and meter with and without component observation");
+            println!("component differential device: {name}: whole outcome and meter equal");
+        }
         if matches!(request["op"].as_str(), Some("apply" | "observe_store")) {
-            snapback4_device::call::call_text(self.device.as_mut().expect("open"), &request.to_string())
-        } else { call(self.device.as_mut().expect("open"), request) }
+            snapback4_device::call::call_text(device, &request.to_string())
+        } else { call(device, request) }
     }
     fn close(mut self: Box<Self>) {
         let device = self.device.take().expect("open");

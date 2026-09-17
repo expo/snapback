@@ -72,6 +72,7 @@ pub fn bind(documents: Vec<Document>) -> Bound {
         for decl in &doc.programs {
             if decl.held && let Some(fact) = schema.operations.get_mut(&operation_name(&module, &decl.name)) {
                 fact.held = true;
+                fact.components.clear();
                 fact.runs = Some("device".into());
             }
             if decl.server && let Some(fact) = schema.operations.get_mut(&operation_name(&module, &decl.name)) {

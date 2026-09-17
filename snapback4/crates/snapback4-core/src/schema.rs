@@ -58,6 +58,8 @@ pub struct Execution {
     /// Author-declared device-only query. Incomplete local answers never fall back to the server.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub held: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub components: Vec<Component>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runs: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -71,6 +73,13 @@ pub struct Execution {
     /// Pure presence-dependent branches whose untaken arm prediction also charges.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub prediction_guards: Vec<String>,
+}
+
+/// A returned record field and the zero-based top-level statements it owns.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Component {
+    pub field: String,
+    pub statements: Vec<usize>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

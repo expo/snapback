@@ -30,3 +30,10 @@ still use the documented non-cryptographic fallback. Removing it without a
 qualified synchronous source for every supported client can break native app
 admission; an injected source or supported native bridge needs separate
 implementation and platform qualification. IDs are not capabilities.
+
+## Design proposal — 2026-09-17
+
+The author-requested [Draft proposal for secure client ID sources](../llp/3000.001-durable-replica-and-write-lifecycle.research.md#secure-client-entropy)
+records the recommendation, alternatives, implementation sequence, validation
+and remaining decisions. This ticket remains open; writing the proposal does
+not establish implementation or acceptance.

@@ -83,9 +83,13 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
             "query" => {
                 let args = request.get("args").cloned().unwrap_or(json!({}));
                 let now = request.get("now").and_then(Json::as_i64).unwrap_or(0);
-                let (result, unknown, retained) = device.query_with_coverage(text(&request, "name")?, text(&request, "viewer")?, &args, now);
+                let (result, unknown, retained, components) = device.query_with_components(text(&request, "name")?, text(&request, "viewer")?, &args, now);
                 match result {
-                    Ok(outcome) => json!({ "data": snapback4_core::wire::to_json(&outcome.data), "complete": outcome.complete, "cut": encoded(&outcome.cut)?, "next": outcome.next, "nextExpiry": outcome.next_expiry, "tables": outcome.tables, "unknown": unknown, "retained": retained }),
+                    Ok(outcome) => {
+                        let mut reply = json!({ "data": snapback4_core::wire::to_json(&outcome.data), "complete": outcome.complete, "cut": encoded(&outcome.cut)?, "next": outcome.next, "nextExpiry": outcome.next_expiry, "tables": outcome.tables, "unknown": unknown, "retained": retained });
+                        if !components.is_empty() { reply["components"] = encoded(&components)?; }
+                        reply
+                    },
                     Err(refusal) => json!({ "denied": encoded(&refusal)?, "unknown": unknown, "retained": retained }),
                 }
             }

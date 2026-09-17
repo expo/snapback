@@ -43,6 +43,11 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   --version";
 
 fn main() -> ExitCode {
+    // Keep this first: lifecycle tests distinguish a pre-main process-launch
+    // stall from a server that reached its own bounded readiness window.
+    if std::env::var_os("SNAPBACK4_TEST_MAIN_REACHED").is_some() {
+        eprintln!("SNAPBACK4_TEST_MAIN_REACHED");
+    }
     let args: Vec<String> = std::env::args().skip(1).collect();
     let verb = args.first().map(String::as_str).unwrap_or("");
     if args.iter().any(|a| a == "--help" || a == "-h") || verb.is_empty() {

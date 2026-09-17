@@ -23,3 +23,10 @@ The immediate documentation clarification can land; the capability redesign rema
 worker provisioning and service tokens. LLP 3000.009 §16 records the alternatives.
 The ticket remains open for the product decision and capability separation;
 no isolated-integration guarantee is claimed.
+
+## Design proposal — 2026-09-17
+
+The author-requested [Draft proposal for scoped worker credentials](../llp/3000.009-general-purpose-backend.rfc.md#scoped-worker-credentials)
+records the recommendation, alternatives, implementation sequence, validation
+and remaining decisions. This ticket remains open; writing the proposal does
+not establish implementation or acceptance.

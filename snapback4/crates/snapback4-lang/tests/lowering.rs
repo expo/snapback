@@ -13,22 +13,22 @@ fn without_ownership(catalog: &Catalog, module: &str, decl: &ast::ProgramDecl, d
     Binder::bind_with_ownership(catalog, module, decl, diagnostics, false)
 }
 
-#[test]
-fn baseline_golden_and_ownership_switch_agree_byte_for_byte() {
+fn baseline_golden_and_ownership_switch_agree_byte_for_byte(part: usize, count: usize) {
     let mut inputs = cases::generated();
-    let generated = inputs.len();
+    let generated_keys: std::collections::BTreeSet<_> = inputs.keys().cloned().collect();
     inputs.extend(cases::census());
+    assert!(count > 0 && part < count);
+    inputs = inputs.into_iter().enumerate().filter(|(index, _)| index % count == part).map(|(_, input)| input).collect();
+    let generated = inputs.keys().filter(|key| generated_keys.contains(*key)).count();
+    let selected: Vec<_> = inputs.keys().map(|key| format!("{key}:")).collect();
     let enabled = snapshot::snapshot(inputs.clone(), snapshot::baseline, true);
     let disabled = snapshot::snapshot(inputs, without_ownership, true);
     // The baseline golden keeps one SHA-256 per executed program's serialized IR
     // (derived from the ce15819ad serialization; see lowering/README.md).
-    let golden: BTreeMap<String, String> = include_str!("lowering/ce15819ad.sha256").lines().map(|line| { let (name, digest) = line.split_once('\t').unwrap(); (name.to_owned(), digest.to_owned()) }).collect();
+    let golden: BTreeMap<String, String> = include_str!("lowering/ce15819ad.sha256").lines().map(|line| { let (name, digest) = line.split_once('\t').unwrap(); (name.to_owned(), digest.to_owned()) }).filter(|(name, _)| selected.iter().any(|prefix| name.starts_with(prefix))).collect();
     let digest = |ir: &str| { use sha2::{Digest, Sha256}; Sha256::digest(ir.as_bytes()).iter().map(|b| format!("{b:02x}")).collect::<String>() };
     assert_eq!(enabled.keys().collect::<Vec<_>>(), golden.keys().collect::<Vec<_>>(), "the corpus must neither lose nor gain a compiled program");
     assert_eq!(enabled.keys().collect::<Vec<_>>(), disabled.keys().collect::<Vec<_>>());
-    for name in include_str!("lowering/r1p-programs.txt").lines() {
-        assert!(enabled.contains_key(name), "missing R1p census program {name}");
-    }
     let mut differences = Vec::new();
     let mut admissions = 0;
     let mut executions = 0;
@@ -43,4 +43,46 @@ fn baseline_golden_and_ownership_switch_agree_byte_for_byte() {
     }
     println!("differential: {generated} generated bundles; 740 R1p bundles; {} programs; {} IR comparisons; {admissions} admission comparisons; {executions} execution comparisons; {} differences", enabled.len(), enabled.len() * 2, differences.len());
     assert!(differences.is_empty(), "{}", differences.join("\n"));
+}
+
+// Keep the complete lowering census in the ordinary test inventory while
+// exposing independent deterministic shards to the Rust harness. Their union
+// is exactly the prior single test's ordered input map, so every golden digest,
+// compiler-arm comparison, admission record, and execution observation remains
+// asserted without one monolithic test owning the blocking-suite critical path.
+macro_rules! lowering_shard {
+    ($name:ident, $part:expr) => {
+        #[test]
+        fn $name() {
+            baseline_golden_and_ownership_switch_agree_byte_for_byte($part, 8);
+        }
+    };
+}
+
+lowering_shard!(baseline_golden_and_ownership_switch_shard_0, 0);
+lowering_shard!(baseline_golden_and_ownership_switch_shard_1, 1);
+lowering_shard!(baseline_golden_and_ownership_switch_shard_2, 2);
+lowering_shard!(baseline_golden_and_ownership_switch_shard_3, 3);
+lowering_shard!(baseline_golden_and_ownership_switch_shard_4, 4);
+lowering_shard!(baseline_golden_and_ownership_switch_shard_5, 5);
+lowering_shard!(baseline_golden_and_ownership_switch_shard_6, 6);
+lowering_shard!(baseline_golden_and_ownership_switch_shard_7, 7);
+
+#[test]
+fn golden_and_r1p_catalogs_keep_the_complete_source_census_pinned() {
+    let mut inputs = cases::generated();
+    inputs.extend(cases::census());
+    let prefixes: Vec<_> = inputs.keys().map(|key| format!("{key}:")).collect();
+    let golden: std::collections::BTreeSet<_> = include_str!("lowering/ce15819ad.sha256")
+        .lines()
+        .map(|line| line.split_once('\t').unwrap().0)
+        .collect();
+
+    for name in &golden {
+        assert!(prefixes.iter().any(|prefix| name.starts_with(prefix)), "golden program has no census source bundle: {name}");
+    }
+    for name in include_str!("lowering/r1p-programs.txt").lines() {
+        assert!(golden.contains(name), "missing R1p golden program {name}");
+        assert!(prefixes.iter().any(|prefix| name.starts_with(prefix)), "missing R1p census source bundle for {name}");
+    }
 }

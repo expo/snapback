@@ -4,6 +4,7 @@
 // `snapback4 dev`: the wasm device syncs and keeps its partition in
 // IndexedDB behind each call, reads run on it, a queued write survives a
 // reload, and the rows kept are what the server sent. Prints one JSON line.
+import assert from "node:assert/strict";
 import { launch } from "./lib.mjs";
 
 const witness = await launch({ extraSource: `table secrets:
@@ -13,7 +14,35 @@ const witness = await launch({ extraSource: `table secrets:
   sync public
 mutation attach(photo: image <=100000):
   return insert secrets { photo }
+table mqMembers:
+  room: text <=40
+  principal: principal
+  unique byRoomPrincipal: room, principal
+  by byPrincipal: principal, room
+  immutable room, principal
+  read <- exists mqMembers[.room, viewer]
+  insert <- exists mqMembers[.room, viewer]
+  delete <- exists mqMembers[.room, viewer]
+  sync to mqMembers[.room]
+table mqMessages:
+  room: text <=40
+  at: time
+  body: text <=40
+  by byTime: room, at, id
+  read <- exists mqMembers[.room, viewer]
+  retain delivered-history
+  sync to mqMembers[.room] last 25 by byTime
+mutation joinRoom(room: text <=40):
+  insert mqMembers {room, principal: 'dev:bob'}
+mutation leaveRoom(room: text <=40):
+  delete mqMembers[room = room, principal = 'dev:bob']
+query both():
+  return {left: mqMessages['left'] last 50 by byTime, held: mqMessages['held'] last 50 by byTime}
 `, seed: [
+  ...["left", "held"].flatMap(room => [
+    { table: "mqMembers", row: { id: `mq-alice-${room}`, room, principal: "dev:alice" } },
+    ...Array.from({ length: 26 }, (_, at) => ({ table: "mqMessages", row: { id: `mq-${room}-${at}`, room, at, body: `message ${at}` } })),
+  ]),
   { table: "conversations", row: { id: "c1", title: "General", creatorId: "dev:alice" } },
   { table: "memberships", row: { id: "m1", conversationId: "c1", principal: "dev:alice", role: "admin", joinedAt: 1 } },
   { table: "memberships", row: { id: "m2", conversationId: "c1", principal: "dev:bob", role: "member", joinedAt: 2 } },
@@ -107,6 +136,54 @@ try {
     return { rowsInIdbBeforeOpen: rows, reopenMs: +reopened.toFixed(1), landed: thread.data.some(row => row.body === "queued while offline" && !row.pending) };
   }, api);
   Object.assign(out, { second });
+  // Composition survives actual IndexedDB persistence and a fresh JS realm.
+  const expected = (room, start) => Array.from({ length: 26 - start }, (_, n) => {
+    const at = 25 - n; return { id: `mq-${room}-${at}`, room, at, body: `message ${at}` };
+  });
+  const checkComposition = (read, heldStart) => {
+    assert.deepEqual(read.data, { left: expected("left", 1), held: expected("held", heldStart) });
+    assert.equal(read.complete, false); assert.equal(read.fresh, false);
+  };
+  const composed = await page.evaluate(async api => {
+    const post = (name, room) => fetch(`${api}/m/media.${name}`, { method: "POST", headers: { "x-snapback-persona": "alice" }, body: JSON.stringify({ args: { room }, id: `mq-${name}-${room}` }) }).then(r => r.json());
+    for (const room of ["left", "held"]) if ((await post("joinRoom", room)).state !== "sent") throw new Error("composition join refused");
+    const client = await window.createLocalClient({ url: api, persona: "bob", waitSeconds: 1, fetch: (...args) => window.fetch(...args) });
+    const realFetch = window.fetch;
+    try {
+      await client.sync();
+      if ((await post("leaveRoom", "left")).state !== "sent") throw new Error("composition leave refused");
+      await client.sync();
+      const online = await client.query({ kind: "query", name: "media.both" }, {});
+      window.fetch = () => Promise.reject(new TypeError("composition offline"));
+      await client.sync();
+      const offline = await client.query({ kind: "query", name: "media.both" }, {});
+      return { online, offline };
+    } finally { await client.close(); window.fetch = realFetch; }
+  }, api);
+  checkComposition(composed.online, 0); checkComposition(composed.offline, 1);
+  await witness.reload();
+  const reopened = await page.evaluate(async api => {
+    const realFetch = window.fetch;
+    window.fetch = () => Promise.reject(new TypeError("composition offline reopen"));
+    let client;
+    try {
+      client = await window.createLocalClient({ url: api, persona: "bob", waitSeconds: 1, fetch: (...args) => window.fetch(...args) });
+      const offline = await client.query({ kind: "query", name: "media.both" }, {});
+      window.fetch = realFetch;
+      // A client opened offline is already retrying; an explicit sync can join
+      // that failing attempt. Wait, bounded, for the LINK — never for the
+      // expected data — so the first online read is the one that is checked.
+      for (let i = 0; i < 200 && client.link() !== "online"; i++) {
+        await client.sync();
+        if (client.link() !== "online") await new Promise((r) => setTimeout(r, 50));
+      }
+      if (client.link() !== "online") throw new Error("composition witness: the link did not come back within the reconnect bound");
+      const online = await client.query({ kind: "query", name: "media.both" }, {});
+      return { offline, online };
+    } finally { await client?.close(); window.fetch = realFetch; }
+  }, api);
+  checkComposition(reopened.offline, 1); checkComposition(reopened.online, 0);
+  out.composition = { exactRows: true, online: [25, 26], offline: [25, 25], reopened: [25, 25], reconnected: [25, 26], fresh: false, complete: false };
   // Real transaction aborts: neither rejected admission nor failed orphan
   // adoption may change the recovered replica or strand its Web Lock.
   out.durability = await page.evaluate(async api => {

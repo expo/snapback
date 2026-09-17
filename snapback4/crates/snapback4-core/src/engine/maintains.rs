@@ -149,7 +149,7 @@ impl Runner<'_> {
         if !self.upsert_absence_proven(&maintain.target, "byGroup", key)? { return Ok(false); }
         for (name, index) in &source.indexes {
             let values = index.columns().iter().map_while(|column| maintain.by.iter().position(|field| field == column).map(|n| key[n].clone())).collect::<Vec<_>>();
-            if self.tx.retained_group(&maintain.source, name, &values)? { return Ok(false); }
+            if self.retained_group(&maintain.source, name, &values)? { return Ok(false); }
         }
         Ok(true)
     }

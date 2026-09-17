@@ -87,6 +87,8 @@ pub struct Runner<'a> {
     /// The device touched an online-only table or a horizon: `complete: false`.
     pub(crate) beyond_horizon: bool,
     pub(crate) missing_fact: Option<String>,
+    pub(super) components: super::components::Frames,
+    pub(super) component_observation: bool,
     /// Reads inside a where filter share the query's rule-probe budget.
     pub(crate) filter_depth: u32,
     /// The program read `connected[p]` where no registry answers (a
@@ -149,6 +151,8 @@ impl<'a> Runner<'a> {
             device: false,
             beyond_horizon: false,
             missing_fact: None,
+            components: Default::default(),
+            component_observation: false,
             filter_depth: 0,
             presence_unknown: false,
             seq,
@@ -163,6 +167,7 @@ impl<'a> Runner<'a> {
     }
 
     pub fn run(&mut self, program: &Program) -> Result<Value, RuntimeError> {
+        self.prepare_components(program);
         self.page_plan = super::pages::plan(program, self.schema, self.tx.prefetch_enabled());
         self.prediction_guards = self.schema.operations.get(&program.name)
             .filter(|fact| self.device && fact.connected_effects_only && fact.predicts.as_deref() == Some("eligible"))
@@ -189,6 +194,8 @@ impl<'a> Runner<'a> {
 
     pub(super) fn statements(&mut self, statements: &[Stmt], prefix: &str) -> Result<Flow, RuntimeError> {
         for (index, statement) in statements.iter().enumerate() {
+            let (previous, capped, component_return) = self.begin_component(index);
+            let result = (|| {
             self.effect_presence.reads.clear();
             let site = format!("{prefix}:{}", index + 1);
             if matches!(statement, Stmt::Insert { .. } | Stmt::InsertIfAbsent { .. } | Stmt::Update { .. } | Stmt::Upsert { .. } | Stmt::WriteTarget { .. } | Stmt::Delete { .. } | Stmt::Emit { .. }) { self.refuse_condition_write()?; }
@@ -323,7 +330,10 @@ impl<'a> Runner<'a> {
                     Flow::Next
                 }
                 Stmt::Return(value) => {
-                    let value = self.expr(value)?;
+                    let value = match value {
+                        Expr::Object(fields) if component_return => self.component_record(fields, value)?,
+                        _ => self.expr(value)?,
+                    };
                     self.page_owner = self.page_plan.returns.get(&site).cloned();
                     self.page = self.page_owner.as_ref().and_then(|owner| self.pages.get(owner)).cloned();
                     Flow::Return(value)
@@ -331,6 +341,10 @@ impl<'a> Runner<'a> {
                 Stmt::Break => Flow::Break,
                 Stmt::Continue => Flow::Continue,
             };
+            Ok(flow)
+            })();
+            self.end_component(previous, capped);
+            let flow = result?;
             if !matches!(flow, Flow::Next) {
                 return Ok(flow);
             }
@@ -724,6 +738,7 @@ impl<'a> Runner<'a> {
                         // server's answer replaces its prediction; `run`
                         // and tests read nobody as connected.
                         self.presence_unknown = true;
+                        self.components.note(|frame| frame.presence = true);
                         if self.effect_presence.enabled { self.grace_read(principal, None)?; }
                         Ok(Value::Int(if self.device { 1 } else { 0 }))
                     }

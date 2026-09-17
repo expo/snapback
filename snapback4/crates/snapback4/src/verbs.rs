@@ -198,6 +198,11 @@ pub fn check(options: &Options) -> i32 {
     }
     if details && !options.json && let Some(summary) = snapback4_lang::bind::residency::prediction_summary(&bound) { println!("{summary}"); }
     if details && options.flags.contains_key("residency") && !options.json { println!("{}", residency::facts(&bound)); }
+    if !details && options.flags.contains_key("residency") && !options.json {
+        for (name, fact) in bound.schema.operations.iter().filter(|(_, fact)| !fact.components.is_empty()) {
+            println!("  {name}: components: {}", fact.components.iter().map(|component| component.field.as_str()).collect::<Vec<_>>().join(", "));
+        }
+    }
     if !options.json && let Some(report) = &acquisition { println!("{report}"); }
     if !options.json && options.flags.contains_key("residency") && acquisition.is_none() {
         println!("residency (measurements): not measured — no dev store; use check --residency --fixture <fixture-directory> --as <principal>");
