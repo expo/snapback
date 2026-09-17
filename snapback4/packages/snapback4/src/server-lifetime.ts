@@ -32,6 +32,20 @@ export function lifetimeFetch(doFetch: typeof fetch, lifetime: AbortSignal): typ
   };
 }
 
+/** @internal Run one status check under the shared hard bound. The outer race settles
+ * even when an injected transport or the check itself ignores AbortSignal. */
+export async function boundedStatusCheck(
+  check: (timeout: AbortSignal) => Promise<void>,
+  lifetime?: AbortSignal,
+  timeoutMs = 10_000,
+): Promise<void> {
+  const timeout = new AbortController();
+  const timer = setTimeout(() => timeout.abort(), timeoutMs);
+  const signal = lifetime ? AbortSignal.any([lifetime, timeout.signal]) : timeout.signal;
+  try { await untilAborted(() => check(signal), signal); }
+  finally { clearTimeout(timer); }
+}
+
 /** One abort-aware status cadence shared by generated action and effect
  * contexts. The caller remains authoritative for interpreting status. */
 export function statusPoller(options: {
@@ -39,24 +53,33 @@ export function statusPoller(options: {
   readonly stopped: () => boolean;
   readonly poll: (timeout: AbortSignal) => Promise<void>;
   readonly lost: (error: unknown) => void;
-}): { close(): void } {
+}): { close(): void; quiesce(): Promise<void> } {
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let active: Promise<void> | undefined;
   let closed = false;
+  let quiesced = false;
   const schedule = () => {
-    if (closed || options.stopped()) return;
+    if (closed || quiesced || options.stopped()) return;
     // A handler may await only its cancellation signal; keep this timer live.
     timer = setTimeout(() => { void poll(); }, options.intervalMs);
   };
-  const poll = async () => {
+  const poll = () => {
     timer = undefined;
-    if (closed || options.stopped()) return;
-    const timeout = new AbortController();
-    const timeoutTimer = setTimeout(() => timeout.abort(), 10_000);
-    try { await options.poll(timeout.signal); }
-    catch (error) { if (!closed && !options.stopped()) options.lost(error); }
-    finally { clearTimeout(timeoutTimer); }
-    schedule();
+    if (closed || quiesced || options.stopped()) return;
+    active = (async () => {
+      try { await boundedStatusCheck(options.poll); }
+      catch (error) { if (!closed && !options.stopped()) options.lost(error); }
+      finally { active = undefined; schedule(); }
+    })();
   };
   schedule();
-  return { close() { closed = true; if (timer) clearTimeout(timer); } };
+  return {
+    close() { closed = true; if (timer) clearTimeout(timer); timer = undefined; },
+    async quiesce() {
+      quiesced = true;
+      if (timer) clearTimeout(timer);
+      timer = undefined;
+      await active;
+    },
+  };
 }

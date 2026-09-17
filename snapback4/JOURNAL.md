@@ -33363,3 +33363,27 @@ generator, listener, provider, PostgreSQL, install, network, remote, fetch,
 push or other qualification command ran. Focused qualification of this batched
 repair remains pending; earlier commits, refs, failed evidence and ignored WASM
 inputs remain preserved.
+
+## 2026-09-17 — B3b changed status-drain lifecycle repair
+
+The c5 generated-context qualification reached its per-file 60-second cap: the
+microtask overlap witness still observed a top-level settlement, and a parked
+step fixture could repoll fast enough to starve its timer abort. The same native
+Codex GPT-5.6 Sol xhigh B3b author thread replaced that timing premise without
+additional delegation.
+
+Status checks now share a hard bounded operation that settles even when an
+injected callback or transport ignores its AbortSignal. The shared poller
+tracks its active check and can quiesce new admission while draining that check
+through its ordinary result, loss callback or bound. Generated effect
+finalization quiesces the cadence, asserts authority, performs one fresh
+bounded status read, and asserts again before the existing synchronous server
+fence. Tests control old response bodies directly, cover failed and successful
+drains, pin ignored fetch/body bounds and preserved loss callbacks, and guard
+reusable generated claims against hot repolls. Park acknowledgement now aborts
+on the next microtask rather than a starvable timer.
+
+This was source-only work. No Cargo, Bun, Node, test, build, formatter,
+generator, install, listener, provider, PostgreSQL, network, remote, fetch,
+push or qualification command ran. c5 and all earlier refs, failed evidence
+and ignored WASM inputs remain preserved; focused qualification is pending.

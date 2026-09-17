@@ -3,7 +3,7 @@ import type { EffectMeta } from "./worker.ts";
 import { Retry } from "./worker.ts";
 import type { EffectContext, ServerOptions } from "./server.ts";
 import { ServerError } from "./server-json.ts";
-import { lifetimeFetch, statusPoller } from "./server-lifetime.ts";
+import { boundedStatusCheck, lifetimeFetch, statusPoller } from "./server-lifetime.ts";
 import { steps } from "./server-steps.ts";
 
 interface EffectClaim {
@@ -36,7 +36,7 @@ export function effectContext(
   let ended: Refusal | undefined;
   let closed = false;
   let cancelled = false;
-  let poller: { close(): void } | undefined;
+  let poller: { close(): void; quiesce(): Promise<void> } | undefined;
   const closedWhy: Refusal = { code: "E_EFFECT_CLOSED", family: "effect", message: "the effect context has closed" };
   const fetchWithinLifetime = lifetimeFetch(doFetch, lifetime.signal);
   const end = (why: Refusal) => {
@@ -80,7 +80,7 @@ export function effectContext(
     }
     return json;
   };
-  const confirm = async (timeout?: AbortSignal) => {
+  const checkStatus = async (timeout: AbortSignal) => {
     const status = await request("/status", {}, timeout) as { id?: string; attempt?: number; state?: string; deadline?: number | null; cancelled?: boolean; errorCode?: string };
     if (status.id !== claim.id || status.attempt !== claim.attempt) {
       end({ code: "E_EFFECT_LEASE", family: "effect", message: "this effect attempt no longer holds its lease" });
@@ -94,7 +94,7 @@ export function effectContext(
   poller = statusPoller({
     intervalMs: options.statusIntervalMs ?? 1000,
     stopped: () => closed || Boolean(ended),
-    poll: confirm,
+    poll: checkStatus,
     lost(error) {
       if (error instanceof ServerError && LOST_CODES.has(error.refusal.code)) end(error.refusal);
       else if (!ended) end({ code: "E_OFFLINE", family: "link", message: "the effect status could not be confirmed", retryable: true });
@@ -111,7 +111,12 @@ export function effectContext(
       const why = ended;
       return { lost: Boolean(why), terminal: why?.code === "E_EFFECT_GENERATION", message: redact(why ? `${why.code}: ${why.message}` : "effect authority lost") };
     },
-    confirm: () => confirm(),
+    async confirm() {
+      await poller?.quiesce();
+      assertActive();
+      await boundedStatusCheck(checkStatus, lifetime.signal);
+      assertActive();
+    },
     close() {
       if (closed) return;
       closed = true;
