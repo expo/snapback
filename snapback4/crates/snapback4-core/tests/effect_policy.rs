@@ -209,25 +209,33 @@ fn declaration_fence_precedes_all_queue_mutation_and_absence_stays_compatible() 
     let id = emit(&mut subject, "generated", 0);
     let subject_service = service(&subject);
     let current = subject.schema().effect_specs["mail"].effect_declaration_contract("mail");
+    let first = subject.claim_effects_fenced("service:worker", Some("mail"), 1, 1_000, 0).unwrap().remove(0);
+    assert_eq!((first.state.as_str(), first.attempts, first.lease_until), ("running", 1, Some(1_000)));
+    subject.store().conn().execute("INSERT INTO _effect_presence(principal, id, deadline) VALUES ('dev:pending', ?1, 10_000)", [&id]).unwrap();
     let before = outbox_snapshot(&subject, &id);
-    let counts_before: (i64, i64) = subject.store().conn().query_row(
-        "SELECT COALESCE(SUM(attempts), 0), (SELECT COUNT(*) FROM _effect_steps)
-         FROM _outbox", [], |row| Ok((row.get(0)?, row.get(1)?)),
+    let counts_before: (i64, i64, i64) = subject.store().conn().query_row(
+        "SELECT COALESCE(SUM(attempts), 0), (SELECT COUNT(*) FROM _effect_steps),
+                (SELECT COUNT(*) FROM _effect_presence WHERE id = ?1)
+         FROM _outbox", [&id], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
     ).unwrap();
-    let error = subject.claim_effects_strict(&subject_service.token, Some("mail"), 1, 1_000, true, Some("stale-generated-contract"), || sample(1)).unwrap_err();
+    let error = subject.claim_effects_strict(&subject_service.token, Some("mail"), 1, 1_000, true, Some("stale-generated-contract"), || sample(1_001)).unwrap_err();
     assert_eq!(error.code(), "E_EFFECT_GENERATION");
     assert_eq!(outbox_snapshot(&subject, &id), before);
-    let counts_after: (i64, i64) = subject.store().conn().query_row(
-        "SELECT COALESCE(SUM(attempts), 0), (SELECT COUNT(*) FROM _effect_steps)
-         FROM _outbox", [], |row| Ok((row.get(0)?, row.get(1)?)),
+    let counts_after: (i64, i64, i64) = subject.store().conn().query_row(
+        "SELECT COALESCE(SUM(attempts), 0), (SELECT COUNT(*) FROM _effect_steps),
+                (SELECT COUNT(*) FROM _effect_presence WHERE id = ?1)
+         FROM _outbox", [&id], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
     ).unwrap();
     assert_eq!(counts_after, counts_before);
 
-    let claim = subject.claim_effects_strict(&subject_service.token, Some("mail"), 1, 1_000, true, Some(&current), || sample(1)).unwrap().remove(0);
+    let claim = subject.claim_effects_strict(&subject_service.token, Some("mail"), 1, 1_000, true, Some(&current), || sample(1_001)).unwrap().remove(0);
     assert_eq!(claim.id, id);
+    assert_eq!(claim.attempts, 2, "the matching declaration must permit ordinary expiry, requeue and reclaim");
+    assert_ne!(claim.lease_token, first.lease_token);
     assert_eq!(claim.declaration_contract.as_deref(), Some(current.as_str()));
+    assert_eq!(subject.store().conn().query_row("SELECT COUNT(*) FROM _effect_presence WHERE id = ?1", [&id], |row| row.get::<_, i64>(0)).unwrap(), 0);
     let claimed = outbox_snapshot(&subject, &id);
-    assert_eq!(subject.claim_effects_strict(&subject_service.token, Some("missing"), 1, 1_000, true, Some(&current), || sample(2)).unwrap_err().code(), "E_EFFECT_GENERATION");
+    assert_eq!(subject.claim_effects_strict(&subject_service.token, Some("missing"), 1, 1_000, true, Some(&current), || sample(1_002)).unwrap_err().code(), "E_EFFECT_GENERATION");
     assert_eq!(outbox_snapshot(&subject, &id), claimed, "a missing current named declaration must not maintain another row");
 
     let mut legacy = engine("retry 2");
@@ -246,6 +254,11 @@ fn strict_status_samples_once_fences_running_authority_and_preserves_terminal_ev
     let subject_service = service(&subject);
     let claims = subject.claim_effects_strict(&subject_service.token, Some("mail"), 2, 10_000, true, None, || sample(2)).unwrap();
     let leases: BTreeMap<_, _> = claims.into_iter().map(|run| (run.id, run.lease_token.unwrap())).collect();
+    let other_service = identity::service_session(subject.store(), "other", 0, 1).unwrap();
+    let before_other = outbox_snapshot(&subject, &target);
+    let copied_lease = leases[&target].clone();
+    assert_eq!(subject.effect_status_strict(&other_service.token, &target, &copied_lease, || sample(3)).unwrap_err().code(), "E_EFFECT_LEASE");
+    assert_eq!(outbox_snapshot(&subject, &target), before_other, "a different current service cannot use the real lease");
     let samples = std::cell::Cell::new(0);
     let running = subject.effect_status_strict(&subject_service.token, &target, &leases[&target], || { samples.set(samples.get() + 1); sample(3) }).unwrap();
     assert_eq!(samples.get(), 1); assert_eq!(running.state, "running");
@@ -268,12 +281,15 @@ fn strict_status_samples_once_fences_running_authority_and_preserves_terminal_ev
 
     let mut expiry = engine("retry 2");
     let id = emit(&mut expiry, "expiry", 0);
+    let unrelated = emit(&mut expiry, "unrelated", 1);
     let service = service(&expiry);
-    let claim = expiry.claim_effects_strict(&service.token, Some("mail"), 1, 1_000, true, None, || sample(0)).unwrap().remove(0);
+    let claim = expiry.claim_effects_strict(&service.token, Some("mail"), 1, 1_000, true, None, || sample(2)).unwrap().remove(0);
     let before = outbox_snapshot(&expiry, &id);
-    assert_eq!(expiry.effect_status_strict(&service.token, &id, claim.lease_token.as_deref().unwrap(), || sample(1_000)).unwrap_err().code(), "E_EFFECT_LEASE");
+    assert_eq!(expiry.effect_status_strict(&service.token, &id, claim.lease_token.as_deref().unwrap(), || sample(1_002)).unwrap_err().code(), "E_EFFECT_LEASE");
     assert_eq!(outbox_snapshot(&expiry, &id), before, "status must not requeue or grant a successor after lease loss");
-    let cancelled = expiry.cancel_effect(&id, 1_001).unwrap();
-    assert!(cancelled.cancelled);
-    assert!(expiry.effect_status_strict(&service.token, &id, "terminal", || sample(1_002)).unwrap().cancelled);
+    let unrelated_before = outbox_snapshot(&expiry, &unrelated);
+    assert_eq!(expiry.store().conn().execute("UPDATE _outbox SET cancelled = 1 WHERE id = ?1 AND state = 'running'", [&id]).unwrap(), 1);
+    let cancelled = expiry.effect_status_strict(&service.token, &id, claim.lease_token.as_deref().unwrap(), || sample(1_003)).unwrap();
+    assert_eq!((cancelled.state.as_str(), cancelled.cancelled, cancelled.error_code.as_deref()), ("failed", true, Some("E_EFFECT_CANCELLED")));
+    assert_eq!(outbox_snapshot(&expiry, &unrelated), unrelated_before, "status cancellation must finalize only its target");
 }

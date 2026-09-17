@@ -633,6 +633,24 @@ fn effect_http_strictly_validates_present_fields_without_mutating_work() {
     let bearer = format!("Authorization: Bearer {}\r\n", service.token);
     let id = { lock(&host.shared.engine).effects(Some("queued"), 1).unwrap().remove(0).id };
     let queued = effect_snapshot(&host, &id);
+    let engine_guard = lock(&host.shared.engine);
+    let address = host.address;
+    let malformed_bearer = bearer.clone();
+    let (response_tx, response_rx) = mpsc::channel();
+    let malformed_worker = thread::spawn(move || {
+        let malformed = r#"{"effect":17}"#;
+        let response = exchange(address, &format!(
+            "POST /effects/claim HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: {}\r\n{malformed_bearer}\r\n{malformed}", malformed.len()
+        ));
+        let _ = response_tx.send(response);
+    });
+    let prompt_response = response_rx.recv_timeout(Duration::from_secs(2));
+    drop(engine_guard);
+    let joined = malformed_worker.join();
+    assert!(joined.is_ok(), "malformed claim request thread panicked");
+    let prompt_response = prompt_response.expect("malformed claim waited for the engine mutex");
+    assert_eq!(status(&prompt_response), 400); assert_eq!(body(&prompt_response)["denied"]["code"], "E_INPUT");
+    assert_eq!(effect_snapshot(&host, &id), queued, "pre-mutex malformed claim mutated work");
     for malformed in [
         r#"{"effect":17,"fenced":"true"}"#,
         r#"{"fenced":"true"}"#,

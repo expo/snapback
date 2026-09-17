@@ -33203,3 +33203,24 @@ crash proof or a completed B milestone. It adds no store column, payload-
 contract migration, release-equality fence, broader credential model or generic
 identity framework. The separately noted Draft/unaccepted scoped-credentials
 direction is absent from this base and was neither implemented nor anticipated.
+
+## 2026-09-17 — B3a independent-review test discrimination repairs
+
+This resumed native Sol authoring pass changes tests only. The declaration
+fence witness now starts from an already-running effect whose lease is expired:
+a stale generated declaration leaves the full row, attempts, steps and a
+pending presence dependency exact, while the matching declaration positively
+exercises expiry, presence cleanup, requeue and successor claim. The omitted-
+contract legacy lane and missing-current-name zero-mutation check remain.
+Strict status now rejects a second current service even when it copies the
+real lease, and the original claimant remains the positive control. A test-
+only cancelled flag on a running row proves status
+itself performs targeted E_EFFECT_CANCELLED finalization without touching an
+unrelated row. The real HTTP malformed-claim witness holds the engine mutex and
+requires 400/E_INPUT over the socket before releasing it, with bounded failure
+cleanup and exact row/attempt/step preservation.
+
+No production source, guide prose, prior evidence or earlier journal history
+was changed. Per the source-only authorization, no Cargo or Node command, test,
+build, formatter, generator, install, listener, network, clone, fetch, push,
+remote or additional model ran; these review-repair tests remain unexecuted.
