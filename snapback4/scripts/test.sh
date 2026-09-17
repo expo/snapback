@@ -147,7 +147,31 @@ run_client_tests() {
     echo "-- loaded host: client test files run serially"
     node --test --test-concurrency=1 'packages/snapback4/test/*.test.mjs'
   else
-    node --test 'packages/snapback4/test/*.test.mjs'
+    local client_status=0 count path pid shard target
+    local client_files=()
+    local client_pids=()
+    for path in packages/snapback4/test/*.test.mjs; do
+      case "$(basename "$path")" in
+        acquisition.test.mjs|server-e2e.test.mjs) ;;
+        *) client_files+=("$path") ;;
+      esac
+    done
+    node --test "${client_files[@]}" &
+    client_pids+=("$!")
+    for target in acquisition:4 server-e2e:3; do
+      count=${target#*:}
+      target=${target%:*}
+      shard=0
+      while [ "$shard" -lt "$count" ]; do
+        SNAPBACK4_TEST_SHARD="$shard/$count" node --test "packages/snapback4/test/$target.test.mjs" &
+        client_pids+=("$!")
+        shard=$((shard + 1))
+      done
+    done
+    for pid in "${client_pids[@]}"; do
+      wait "$pid" || client_status=1
+    done
+    return "$client_status"
   fi
 }
 

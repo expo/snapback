@@ -1,5 +1,5 @@
 // @ref LLP 3000.008.001#2-three-facts-to-distinguish — a compiled device capability is not an acquired partition.
-import test from "node:test";
+import nodeTest from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
@@ -11,6 +11,16 @@ import { createLocalClient } from "../dist/local.js";
 import { processDevice } from "../dist/native.js";
 import { memoryPersistence, webDevice } from "../dist/web.js";
 import { WriteHistory } from "../dist/writes.js";
+
+const shard = process.env.SNAPBACK4_TEST_SHARD?.split("/").map(Number);
+if (shard && (shard.length !== 2 || !Number.isInteger(shard[0]) || !Number.isInteger(shard[1]) || shard[0] < 0 || shard[1] < 1 || shard[0] >= shard[1])) {
+  throw Error("SNAPBACK4_TEST_SHARD must be a zero-based part/count pair");
+}
+let registered = 0;
+const test = (...args) => {
+  const index = registered++;
+  if (!shard || index % shard[1] === shard[0]) return nodeTest(...args);
+};
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
