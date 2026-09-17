@@ -1,7 +1,8 @@
 # Two `serve::tests::route_tests` HTTP tests fail under full-suite load and pass on every re-run
 
-**Status:** open
+**Status:** resolved
 **Filed:** 2026-09-16, from the wave-11 (0.2.27) integration runs
+**Resolved:** 2026-09-16, integrated identity/C3.2 landing
 **Owner:** the session that landed the `routes` feature — not wave 11, which touches none of these files
 
 ## What happened
@@ -41,3 +42,29 @@ registry has settled the claim, and whether the development-exception path can
 admit before the bearer's session is visible. If both are genuinely timing-only,
 consider making the assertions wait on a condition rather than a single
 observation, so a slow machine cannot produce a false red.
+
+## Resolution
+
+Both fixtures now witness admission and settlement instead of treating a
+timeout response as evidence that admission happened. The source has a real
+distinction: `serve_routes::ingress` starts its deadline before reading the
+body, then may return `503 E_ROUTE_PENDING` before creating a work record.
+A short elapsed wait therefore does not establish the durable state the old
+fixtures subsequently assumed. This is a source diagnosis; the historical
+failed HTTP bytes were not retained, so it is not a claim to have reproduced
+every original failure or ruled out all other causes under arbitrary load.
+
+- `83bd333b9` (source `f81678086`) sends the maximum-name route concurrently,
+  waits for the two durable records, checks the exact claimed operation names,
+  settles the route and observes HTTP 204.
+- `cc0e3e0bb` (source `4dd0462e4`) keeps every foreign-origin/core/persona
+  denial assertion, then sends the bearer request concurrently, waits for one
+  admitted record, claims and settles it, and observes HTTP 204. The report
+  route has a bounded two-second wait; main's billing wait remains 250 ms.
+
+No production route behavior or authorization rule changed. The integrated
+route HTTP group passes 12/12 on `3a95cfcd3`; the core route target passes
+14/14 on the same authority sources. Both independent integrated source
+reviews accept the synchronized witness. [Commands, scope and reviews](../../snapback4/reports/20260916-identity-c32.md)
+retain the evidence. This is not a guarantee against exhausted resources or
+arbitrary scheduling stalls, and it does not replace serial heavy-suite policy.
