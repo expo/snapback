@@ -276,8 +276,10 @@ mutation edit(messageId: messages, body: text <=4000):
   expiring table recomputes its live source group at read time, before the
   sweep; a partial device or a meter cut reports `complete: false`.
   Value-order indexes over expiring sources are refused
-  (`E_QUARRY_MAINTAIN_EXPIRE`); `guide feeds` gives the scheduled Trending
-  recipe with predictable likes and an explicit score lag.
+  (`E_QUARRY_MAINTAIN_EXPIRE`): live values change before the physical sweep,
+  so stored top-N can miss a winner. `guide feeds` gives a fresh bounded
+  ranking with no schedule lag or writable score table; a candidate or
+  contribution scan cut makes it incomplete.
 
 ### Write authority
 
@@ -438,12 +440,16 @@ it. Ordinary writes keep it valid; rows can move between pages. Only existing no
 appear. Author attribution stays a source field. A value-order page pins
 every group field before value in its index;
 value, id alone gives a global ranking. A UTC day is not a rolling
-24-hour window: the scheduled Trending recipe on `guide feeds` includes
-zero-like candidates and keeps likes predictable, with scores lagging one
-schedule period plus execution/sync delay. It ranks likes on posts younger
-than 24 hours, not recent likes on older posts. Value ordering over an
-expiring source is refused; live unranked reads still recompute selected,
-unexpired contributions.
+24-hour window: the fresh bounded Trending recipe on `guide feeds` sorts
+live counts before taking the top ten, with no schedule lag or writable score
+table. It has separate queries for recent posts (including zero-like posts)
+and recent likes on posts of any age. Private likes use server reads; an
+explicit public-sync variant runs on both device stores. The meter covers
+both candidates and count contributions, so a cut makes the ranking incomplete.
+Value ordering over an expiring source remains refused: the sweep maintains
+physical aggregates and indexes transactionally, but stored order is stale
+between expiry and the sweep. The optional scheduled recipe offers stored
+pages at the cost of delayed scores.
 
 A maintain inherits source sync only when every audience column survives as
 a bare key, with no target horizon. It stays until-revoked even when its source
@@ -1637,20 +1643,17 @@ arrive. Its five-follow and celebrity-plus-four readers acquire 52,915 and
 52,866 rows, with 0 and 1 own pulls respectively. The feeds card records
 the exact prediction boundary and acquisition tradeoff.
 
-The feeds card also retains the ranked-feed and Trending recipes: a job
-scores the shared pool into `ranked`, and the device composes it with the
-reader's own signals. Trending's `create` and `like` write only their source
-rows and predict when their required data is held; no mutation updates
-another author's post or ranking row. The schedule alone writes `ranked`
-from non-expiring like counts and post time every minute. Both the scheduled
-and immediate queries break equal-score, equal-time ties by post id; the
-ranked row's separately minted id is the final stored ordering key. Scores and new
-candidates lag by one period plus queue, execution and sync delay; chunks
-commit independently. Candidates expire at post time plus 24 hours before
-any sweep. This is a post-time window, not recent likes on older posts.
-The immediate `trendingNow` alternative is incomplete when the day's posts
-or nested reads exceed the meter; a complete ranked page does not certify
-score freshness.
+The feeds card's fresh bounded Trending recipe ranks the trailing post day
+with live counts and zero-like candidates, or the trailing like day across
+posts of any age. It has no ranking table, refresh helper, backfill or schedule:
+source writes maintain the count, and each read sorts all candidates that fit
+the meter. A complete answer sees committed writes immediately; a cut is
+incomplete, not an exact top ten. The default keeps likes private and reads on
+the server. Its documented public-like variant replicates full sources and
+count groups, so both device stores can recompute expiry offline. New remote
+writes still require sync. The card also retains the optional scheduled
+ranking for stored pagination with explicit score lag; a complete stored page
+does not certify score freshness.
 The card's `vote` predicts its first offline upsert when the post is held;
 the viewer's votes have no horizon and are capped at 1,000 per viewer.
 

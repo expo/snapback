@@ -567,8 +567,8 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
     for index in &maintain.indexes {
         if !names.insert(index.name.clone()) { return Err(super::maintains::refusal(&index.site, format!("duplicate maintain index {}", index.name), "use a distinct index name; byGroup and byId are generated")); }
         if index.columns.contains(&"value".into()) {
-            // @ref LLP 3000.007#20.9 — stored expiry rank stays refused; the scheduled alternative names its prediction and freshness contract.
-            if source.decl.expire.is_some() { return Err(Diagnostic::new(&index.site, "E_QUARRY_MAINTAIN_EXPIRE", format!("maintain {} cannot order by value because source {} expires", maintain.name, maintain.source), "use a live bounded query, or guide feeds' scheduled Trending recipe: like writes only likes; the schedule scores ranked from non-expiring likeCounts and post time, with one-period score lag").guide("feeds")); }
+            // @ref LLP 3000.007#20.21 — transactional sweep reindexing cannot order live values between sweeps; the bounded live rewrite has no schedule lag.
+            if source.decl.expire.is_some() { return Err(Diagnostic::new(&index.site, "E_QUARRY_MAINTAIN_EXPIRE", format!("maintain {} cannot order by value because source {} expires: live values change before the physical sweep, so stored top-N can miss a winner", maintain.name, maintain.source), "use guide feeds' fresh bounded Trending recipe: sort live counts at read time, with no schedule lag or writable score table; if the candidate or contribution scan hits the meter, the ranking is incomplete").guide("feeds")); }
             let prefix = index.columns.len().saturating_sub(2);
             if index.columns.get(prefix..).is_none_or(|tail| tail != ["value", "id"]) || !index.columns[..prefix].iter().all(|field| maintain.by.contains(field)) {
                 return Err(super::maintains::refusal(&index.site, "a maintain value index is group fields followed by value, id", "by byCount: value, id"));
