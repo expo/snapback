@@ -1,0 +1,8 @@
+$ npx snapback4 check --cost --residency
+schema.q:107:39 — E_QUARRY_SYNTAX: write sigils are invalid; use insert, update, upsert, or delete
+  rewrite: use insert, update, upsert, or delete
+  guide: language
+
+check: 1 problem
+
+exit=1

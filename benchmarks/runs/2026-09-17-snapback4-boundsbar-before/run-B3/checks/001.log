@@ -1,0 +1,23 @@
+schema.q:126:25 — E_QUARRY_SYNTAX: a merge for lane requires a bounded range read
+  rewrite: for row in table[prefix] first 50 by index
+  guide: language
+
+E_QUARRY_SYNTAX: the parser expected the token or construct named at file:line:column. Object fields use name: expression (or a bare name for name: name); ...shape belongs in a row/page shape, not an object payload. Operations need name(args): followed by an indented body, including () for no arguments. Close each (, [ and { with its matching delimiter; separate fields and arguments with commas. The rewrite names the expected spelling; `check --fix` applies only repairs marked mechanical. Read `snapback4 guide language` for complete examples. `check` hides a parser-proven empty-operation cascade after an earlier error in that operation; `--verbose` and `--json` retain it. Independent errors stay visible.
+
+## Fixing a refused line
+
+E_QUARRY_SYNTAX means the parser could not read the form at the reported
+file, line and column. For example, `query answer:` is missing its argument
+parentheses: write `query answer():`, then indent `return 42` by two spaces
+on the next line. Keep the colon, close each `(`, `[` and `{`, and separate
+arguments and object fields with commas. Follow the diagnostic's rewrite;
+`snapback4 check --fix` applies it only when marked mechanical. Fix the first
+bad line and rerun `check`; a later empty-body error may be its consequence.
+
+Full card: snapback4 guide language
+
+schema.q:127:3 — E_QUARRY_SYNTAX: unexpected top-level "return"
+  rewrite: fix this Quarry line and rerun snapback4 check
+  guide: language
+
+check: 2 problems

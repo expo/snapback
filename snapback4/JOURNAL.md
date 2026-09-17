@@ -30231,3 +30231,39 @@ pass/fail counts or complete-suite result are claimed. The lesson is that
 terminal status alone did not preserve C2: its buffered answer must be pinned
 too. The lead still needs the requested runtime checks in an environment
 where freshly built native executables start.
+
+## 2026-09-17 — maintained columns, revision 3: a private authoritative maintain, mirrored onto the row
+
+Round 2 on LLP 3000.007.001 (revision 2, limbo aggregates): GPT NOT READY, Grok READY WITH
+CHANGES, both still "build this form"; records
+`llp/reviews/3000.007.001-maintained-columns-2.{gpt,grok}.md`. Both families found the
+same new channel — `/changes` reports touched tables unfiltered, so a source writer who
+cannot read a parent learns from its own next poll whether the parent row was written. GPT
+alone found that limbo splits one aggregate across two places whenever a parent is expired
+but unswept (a valid sum refused, the sweep poisoned by an addition that no longer fits,
+a redefinition with no owner for the stale half, a revived row with stranded debt), that a
+"device load ignores supplied values" rule would zero a confirmed count on cold
+restoration, that an insert's returned image is prepared before the engine writes (so a
+maintained field in it is missing, fabricated or — if fixed naively — disclosed to a
+creator who cannot read), and that generation discovery still depends on a row page being
+deliverable. Grok alone found that a column maintain targeting the parent table would trip
+`classify`'s maintain-target bypass and `refuse_engine_owned` for the whole application
+table, that an implicit 0 stored as a literal default makes
+`keeps_literal_default_images` true so devices keep rows reading 0, and that a sync
+horizon ordered by the column makes delivery depend on it.
+
+Revision 3 takes GPT's alternative rather than patching limbo: the declaration generates a
+**private maintain** — today's machinery unchanged, the authoritative total for every
+parent id — and the column is its **mirror** onto the live parent row. Birth is one lookup,
+death does nothing, overflow has one home, a rebuild is today's `rebuild_maintain` on the
+private table (where its delete loop is correct) followed by an in-place mirror pass. The
+price is one small private row per nonzero parent, which all three Clique apps already pay
+for the `maintain likeCounts` they declare. Also: the parent table is always named as
+touched; write results never carry a maintained field; restoration preserves stored
+values; the horizon joins the dependency walk; one reservation per attempt.
+
+Ticketed from the review after reading both code paths:
+`issues/20260917-snapback4-oversized-sync-page-hides-generation.md` — an over-16-MiB
+response is replaced by a bare `E_BOUND` body with no generation, the client only halves
+its page, and one undeliverable commit wedges a device. Decision L11: a third and last
+round; READY from both still builds nothing until §7's measurements are taken.
