@@ -28169,3 +28169,29 @@ deploy/serve and backup/restore. There is no production PostgreSQL target,
 host, migration, restore, performance, publication or general-purpose backend
 claim. No root gate, inventory, full suite, benchmark, install, fetch, push or
 remote contact ran.
+
+## 2026-09-17 — B1d.1 and C3.3 integrated qualification and reviews
+
+Integrated the trusted-profile checkpoint `a6cb839b7` as `5098444fd` and
+PostgreSQL authority-fact checkpoint `e5cbbd8a2` as `93c790762`. Product and
+test sources match their reviewed checkpoints byte-for-byte. Documentation
+keeps the landed deployment-trusted service-token boundary and historical
+B1c failed-command/partial-primary result. The append-only JOURNAL was
+verified as each exact prior prefix plus its exact source append; an initial
+read-only validator hit Node's default output-buffer limit before any git
+continuation and passed with an explicit larger buffer.
+
+Both slices received fresh mutually blind Sol xhigh and Grok 4.6 requested
+xhigh source reviews, all READY. The reviewers ran no tests. The sole heavy
+qualifier ran the integrated `93c790762` guide suite (50/50) and the actual
+managed profile-policy case (1/1) serially, with the latter using the already
+qualified 0.2.27 binary and unchanged SQLite engine inputs. Its operator
+principals/time do not qualify real authentication or provider behavior.
+The exact command manifest, source/log digests, received reviews and
+remaining boundaries are in `reports/20260917-identity-profile-c33.md`.
+
+The older identity aggregate report now says one retained replacement
+session row: its equality predicates did not independently check present
+liveness. The historical public-query assertion remains separate evidence.
+No full Identity, production PostgreSQL, full-suite, performance, Workroom,
+publication or promotion claim is made by this landing.

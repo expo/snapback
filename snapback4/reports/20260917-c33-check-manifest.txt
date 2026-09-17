@@ -1,0 +1,66 @@
+C3.3 Postgres authority adapter — source-bound check manifest
+Generated from retained evidence only; no checks were rerun for this manifest.
+These are author/implementation-lane checks, not independent review execution.
+
+SOURCE
+worktree: /home/ccheever/lanes/sb4-general-c3-20260916
+branch: llp-ship/sb4-workroom-20260916/c33
+base: 3a95cfcd3ce5443d61f59a01ff7d8c8171f35512
+head: e5cbbd8a2a12a27ddd7c46f7a2e9f28c524c88e2
+bundle (remote and control): /tmp/sb4-c33-e5cbbd8a2.bundle
+bundle sha256: 00b5b7251e9860c6f0a16e089708a01bb6e9985cc5fc15976b509dde9fcd2838
+final source state: git show --check clean; worktree clean; Postgres stopped
+
+RAW EVIDENCE
+/tmp/sb4-c33-sol.jsonl sha256 a83a7b86d9b57b2337199be5da74187a7313381cfdbfda080a49aea3a6d62b00 (144 lines)
+/tmp/sb4-c33-sol-final.md sha256 4852b90aa15056a4a47e274dcc1b9f8275ce7cd6199c26dd94f8d2cf7da331db
+/tmp/sb4-c33-pg.Z6c5sY/server.log sha256 76bdddbed94a00ceb1c00d6e358f84017380e9aa47ad9d1089d4663a94274fbc (67 lines)
+
+PRIVATE POSTGRES WITNESS
+version: PostgreSQL 16.15, user-prefix /home/ccheever/.local/sb4-postgresql-16.15
+data: /tmp/sb4-c33-pg.Z6c5sY/data (retained)
+socket: /tmp/sb4-c33-pg.Z6c5sY; port: 55443; listen_addresses empty; local trust; host reject
+initial server PID/PGID: 3866068/3866068; exact-identity fast stop succeeded
+final verification restart PID/PGID: 3872354/3872354; exact-identity fast stop succeeded
+postcondition: pg_ctl reports stopped; both recorded PIDs absent
+
+FINAL SUCCESSFUL COMMANDS AND RESULTS
+1. CARGO_BUILD_JOBS=6 /home/ccheever/.cargo/bin/cargo test --locked -p snapback4-core store::authority::tests -- --nocapture --test-threads=1
+   PASS: SQLite shared authority facts/policy 3/3.
+
+2. SNAPBACK4_EVAL_POSTGRES='host=/tmp/sb4-c33-pg.Z6c5sY port=55443 user=sb4_c33 dbname=postgres' CARGO_BUILD_JOBS=6 /home/ccheever/.cargo/bin/cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::tests::shared_authority_ -- --include-ignored --nocapture --test-threads=1
+   PASS: real Postgres shared authority cases 2/2.
+
+3. SNAPBACK4_EVAL_POSTGRES='host=/tmp/sb4-c33-pg.Z6c5sY port=55443 user=sb4_c33 dbname=postgres' CARGO_BUILD_JOBS=6 /home/ccheever/.cargo/bin/cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::tests::authority_ -- --include-ignored --nocapture --test-threads=1
+   PASS: real Postgres invalidation/rollback/snapshot cases 2/2. Combined real-PG authority total: 4/4.
+
+4. With SNAPBACK4_EVAL_POSTGRES as above and CARGO_BUILD_JOBS=6, each command below used:
+   /home/ccheever/.cargo/bin/cargo test --locked --manifest-path experiments/postgres/Cargo.toml --test conformance <name> -- --include-ignored --nocapture --test-threads=1
+   PASS 1/1 each (6/6 total):
+   - real_quarry_queries_mutations_cursors_rules_defaults_maintains_and_receipts_match_sqlite
+   - receipt_bindings_match_sqlite_before_lookup_and_validation
+   - rollback_covers_rows_indexes_maintains_log_head_outbox_and_receipt
+   - concurrent_mismatching_receipts_admit_one_binding_and_replay_only_its_arguments
+   - version_one_and_two_evaluation_stores_are_refused_instead_of_being_adopted
+   - racing_refused_operations_replay_one_receipt_without_advancing_head
+
+5. With CARGO_BUILD_JOBS=6, serial locked regressions:
+   /home/ccheever/.cargo/bin/cargo test --locked -p snapback4-core --test bound_session -- --nocapture --test-threads=1       PASS 8/8
+   /home/ccheever/.cargo/bin/cargo test --locked -p snapback4-core --test identity -- --nocapture --test-threads=1            PASS 2/2
+   /home/ccheever/.cargo/bin/cargo test --locked -p snapback4-core --test action_context -- --nocapture --test-threads=1      PASS 8/8
+   /home/ccheever/.cargo/bin/cargo test --locked -p snapback4-core --test work_records -- --nocapture --test-threads=1        PASS 6/6
+   /home/ccheever/.cargo/bin/cargo test --locked -p snapback4-core --lib identity::tests -- --nocapture --test-threads=1       PASS 4/4
+
+6. CARGO_BUILD_JOBS=6 /home/ccheever/.cargo/bin/cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::tests --no-run
+   PASS: Postgres-feature core test target compiled.
+   Followed by git diff --check: PASS.
+
+RETAINED NON-PRODUCT FAILURES / CORRECTIONS
+- Ambient `cargo` unavailable: exit 127; rerun with /home/ccheever/.cargo/bin/cargo.
+- Initial shared test helper name collision: exit 101; corrected helper naming.
+- One cargo invocation supplied multiple filters: exit 1; rerun as separate serial filters.
+- Experiment lock held three local Snapback package entries at 0.2.26: --locked exit 101; only those three local entries changed to 0.2.27, then all six conformance cases passed.
+- rustfmt --check on compact repository-style files: exit 1; no broad formatter rewrite accepted. Diff whitespace checks passed.
+
+SOURCE AUDIT
+The committed delta is the bounded 11-file C3.3 source/docs/lock delta recorded in commit e5cbbd8a2. No subsequent suite or source mutation is represented here. Raw JSONL is the command/output authority for exact ordering and complete output.
