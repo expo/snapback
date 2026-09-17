@@ -273,7 +273,7 @@ fn the_language_card_compiles_and_runs() {
     let source = language();
     let bound = clean("the language card", &source);
     let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).collect();
-    assert_eq!(names, ["daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "heldRoom", "room", "helperRows", "thread", "inbox", "following", "ancestors", "digest", "mentions", "tokenDigest", "search", "everywhere", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative", "summarizeRoom", "scheduledSummary"]);
+    assert_eq!(names, ["daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "heldRoom", "room", "helperRows", "thread", "inbox", "following", "ancestors", "digest", "mentions", "tokenDigest", "search", "everywhere", "wholeRoster", "memberTotal", "hasMessages", "groupedMessages", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative", "roomHour", "roomWindow", "checkin", "summarizeRoom", "scheduledSummary"]);
     assert_eq!(bound.schema.effects, ["notify", "sendDigest"]);
     assert_eq!(bound.schema.schedules.len(), 2);
     assert_eq!(bound.schema.routes.keys().map(String::as_str).collect::<Vec<_>>(), ["providerEvent", "roomExport"]);
@@ -283,6 +283,20 @@ fn the_language_card_compiles_and_runs() {
     assert_eq!(bound.personas, ["alice", "bob", "carol"]);
     let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
     let (alice, bob) = ("dev:alice", "dev:bob");
+
+    engine.seed((0..4).map(|h| ("roomEntries".into(), snapback4_core::value::object([
+        ("id", id(&format!("entry{h}"))), ("roomId", id("calendar-room")), ("at", Value::Int(h * 3_600_000)),
+    ])))).unwrap();
+    let calendar_context = || Context::new(alice, args(&[("roomId", id("calendar-room"))])).at(3 * 3_600_000);
+    let hour = engine.query("roomHour", calendar_context()).unwrap();
+    assert_eq!(hour.data.as_array().unwrap().len(), 1);
+    let window = engine.query("roomWindow", calendar_context()).unwrap();
+    assert_eq!(window.data.as_array().unwrap().len(), 4);
+    assert!(window.complete);
+    for (write, at, allowed) in [("checkin1", 86_399_999, true), ("checkin2", 86_399_999, false), ("checkin3", 86_400_000, true)] {
+        let outcome = engine.mutate("checkin", Some(write), Context::new(alice, args(&[])).at(at).with_ids([write.into()])).unwrap();
+        if allowed { sent(&outcome); } else { assert_eq!(failed(&outcome), "ALREADY_CHECKED_IN"); }
+    }
 
     let registered = engine.mutate("registerProfile", Some("profile1"), Context::new(alice, args(&[("handle", text("alice"))])).with_ids(["profile1".into()])).unwrap();
     assert_eq!(sent(&registered).field("handle").unwrap(), &text("alice"));
@@ -334,6 +348,14 @@ fn the_language_card_compiles_and_runs() {
     let helper = engine.query("helperRows", Context::new(bob, args(&[("messageId", id("msg2"))])).at(2_200)).unwrap();
     assert_eq!(helper.data.field("body"), helper.data.field("byId"));
     assert_eq!(helper.data.field("body").unwrap(), &text("keep"));
+    let roster = engine.query("wholeRoster", Context::new(bob, args(&[("roomId", id("r1"))])).at(2_200)).unwrap();
+    assert!(roster.complete && roster.next.is_none());
+    assert_eq!(roster.data.as_array().unwrap().len(), 2);
+    assert_eq!(engine.query("memberTotal", Context::new(bob, args(&[]))).unwrap().data, Value::Int(1));
+    assert_eq!(engine.query("hasMessages", Context::new(bob, args(&[("roomId", id("r1"))])).at(2_200)).unwrap().data, Value::Bool(true));
+    let grouped = engine.query("groupedMessages", Context::new(bob, args(&[("q", text("keep"))])).at(2_200)).unwrap();
+    assert!(grouped.complete);
+    assert_eq!(grouped.data.as_array().unwrap().len(), 1);
     // inbox and room: shapes over a page and over a row.
     let inbox = engine.query("inbox", Context::new(bob, args(&[])).at(2_200)).unwrap();
     assert_eq!(inbox.data.as_array().unwrap()[0].field("unread").unwrap(), &Value::Int(2));
@@ -910,7 +932,7 @@ fn language_following_uses_private_inbox_and_capped_pulls() {
     assert!(fact.sites.iter().any(|s| s.table == "feed"), "{:?}", fact.sites);
     assert!(!fact.sites.iter().any(|s| s.table == "follows"));
     assert_eq!(fact.runs.as_deref(), Some("device"));
-    assert!(source.contains("broadcast[p.authorId] for p in pulls[viewer] first 32 by byReaderAuthor"));
+    assert!(source.contains("broadcast[p.authorId] for p in pulls[viewer]"));
     assert!(LANGUAGE.contains("guide feeds"));
     assert!(source.lines().any(|line| line.trim_start().starts_with("online only") && line.contains("mutations reading this maintain never predict")));
 }

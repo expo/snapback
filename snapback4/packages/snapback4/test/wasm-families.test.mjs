@@ -62,3 +62,14 @@ test('dynamic envelope exceptions cannot admit an owned typed container or decod
   }
   assert.throws(() => checkFamilies(collectFamilies([row('alloc::vec::Vec<alloc::string::String>', 'serde_json::value::ser::Serializer', true)])), /Vec/);
 });
+
+test('owned Value and Map reexports are readers and writers, never invisible families', () => {
+  const type = 'snapback4_device::fixture::OnlyOwned';
+  for (const family of ['serde_json::Value', 'serde_json::value::Value', 'serde_json::Map<alloc::string::String, serde_json::Value>', 'serde_json::map::Map<alloc::string::String, serde_json::value::Value>']) {
+    for (const serialize of [false, true]) {
+      const found = collectFamilies([row(type, family, serialize)]);
+      assert.equal(found.size, 1, family);
+      assert.throws(() => checkFamilies(found), /owned tree/);
+    }
+  }
+});

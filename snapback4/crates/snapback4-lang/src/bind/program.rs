@@ -16,6 +16,8 @@ mod control;
 mod diagnostics;
 mod expr;
 mod reads;
+mod prefix;
+mod lanes;
 pub(crate) mod setup;
 
 /// A bound operation: the IR plus the types the client sees.
@@ -36,8 +38,10 @@ pub struct Binder<'a> {
     sources: BTreeMap<String, (Site, String)>,
     presence_sources: Vec<(Expr, Site, String)>,
     catalog: &'a Catalog,
+    schema: &'a snapback4_core::schema::Schema,
     name: String,
     kind: ProgramKind,
+    caller_kind: ProgramKind,
     scopes: Vec<BTreeMap<String, Binding>>,
     focal: Option<(String, Ty)>,
     temps: u32,
@@ -71,14 +75,14 @@ const MAX_EXPANSION_DEPTH: u32 = 8;
 const MENTION_MAX: u32 = 64;
 
 impl<'a> Binder<'a> {
-    pub fn bind(catalog: &'a Catalog, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>) -> Option<BoundProgram> {
-        Self::bind_with_ownership(catalog, module, decl, diagnostics, true)
+    pub fn bind(catalog: &'a Catalog, schema: &'a snapback4_core::schema::Schema, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>) -> Option<BoundProgram> {
+        Self::bind_with_ownership(catalog, schema, module, decl, diagnostics, true)
     }
 
     /// Differential-test control: lowering is identical with the side map disabled.
     #[doc(hidden)]
-    pub fn bind_with_ownership(catalog: &'a Catalog, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>, record_ownership: bool) -> Option<BoundProgram> {
-        let mut binder = Binder { sources: BTreeMap::new(), presence_sources: Vec::new(), catalog, name: decl.name.clone(), kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, notes: Vec::new(), errors: Vec::new() };
+    pub fn bind_with_ownership(catalog: &'a Catalog, schema: &'a snapback4_core::schema::Schema, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>, record_ownership: bool) -> Option<BoundProgram> {
+        let mut binder = Binder { sources: BTreeMap::new(), presence_sources: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, notes: Vec::new(), errors: Vec::new() };
         let mut args = BTreeMap::new();
         let mut arg_types = Vec::new();
         for arg in &decl.args {
@@ -216,7 +220,7 @@ impl<'a> Binder<'a> {
 
     fn read(&mut self, read: &ReadExpr, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         if let Some(shaped) = self.page_shape(read) { return self.expr(&shaped, out); }
-        if read.range.is_some() {
+        if self.is_page(read, ReadMode::FilteredPoint)? {
             let (scan, take) = self.scan(read, out)?;
             return Ok((Expr::Scan(scan), Ty::Page(read.table.clone(), take)));
         }
@@ -247,10 +251,14 @@ impl<'a> Binder<'a> {
     }
 
     fn scan(&mut self, read: &ReadExpr, out: &mut setup::Body) -> Fallible<(Scan, u32)> {
+        self.scan_at(read, out, prefix::Position::Page)
+    }
+
+    fn scan_at(&mut self, read: &ReadExpr, out: &mut setup::Body, position: prefix::Position) -> Fallible<(Scan, u32)> {
         let info = self.table(&read.table, &read.site)?;
-        let range = read.range.as_ref().expect("a range read");
         let (keys, index) = self.select_index(info, read, ReadMode::Range, out)?;
         let prefix = self.order_keys(info, &index, keys)?;
+        let (range, bound) = self.prefix_bound(read, &index, position)?;
         if info.maintained.is_some() && let Some(position) = index.columns.iter().position(|field| field == "value") {
             if prefix.len() != position {
                 return Err(super::maintains::refusal(&range.site, format!("{} by {} needs every ranking scope field pinned: {}", read.table, index.name, index.columns[..position].join(", ")),
@@ -290,24 +298,24 @@ impl<'a> Binder<'a> {
         }
         let scan_site = self.site();
         self.sources.insert(scan_site.clone(), (read.site.clone(), print::read_expr(&ReadExpr { index: None, range: None, matching: None, filter: None, seeks: Vec::new(), ..read.clone() })));
-        Ok((
-            Scan {
-                site: scan_site,
-                table: read.table.clone(),
-                index: index.name,
-                prefix,
-                order: if range.order == ast::Order::Asc { Order::Asc } else { Order::Desc },
-                take: Bound::Literal(range.take),
-                after,
-                before: None,
-                range: seek,
-                filter,
-                opaque_cursor: range.cursor.is_some(),
-                merge_site: None,
-                provenance: KeyProvenance::Shape,
-            },
-            range.take,
-        ))
+        let scan = Scan {
+            site: scan_site,
+            table: read.table.clone(),
+            index: index.name,
+            prefix,
+            order: if range.order == ast::Order::Asc { Order::Asc } else { Order::Desc },
+            take: bound,
+            existence: position == prefix::Position::Exists,
+            after,
+            before: None,
+            range: seek,
+            filter,
+            opaque_cursor: range.cursor.is_some(),
+            merge_site: None,
+            provenance: KeyProvenance::Shape,
+        };
+        self.check_meter_prefix(read, &scan)?;
+        Ok((scan, range.take))
     }
 
     /// Evaluate the keys, then choose the index: explicit `by`, else by
@@ -341,7 +349,7 @@ impl<'a> Binder<'a> {
             .iter()
             .filter(|index| read.index.as_ref().is_none_or(|explicit| explicit == &index.name))
             .filter(|index| read.seeks.iter().all(|b| index.columns.get(keys.len()) == Some(&b.column)))
-            .filter(|index| if searching { index.searches_after(keys.len()) } else { index.is_plain() })
+            .filter(|index| if searching { index.searches_after(keys.len()) } else { index.words.is_none() })
             .filter(|index| match mode {
                 ReadMode::Point | ReadMode::FilteredPoint => index.unique && (index.columns.len() == keys.len() || (named && mode == ReadMode::FilteredPoint && info.total_unique(index) && index.columns.len() < keys.len())),
                 ReadMode::Exists => index.columns.len() == keys.len() || (named && info.total_unique(index) && index.columns.len() < keys.len()),
@@ -366,13 +374,13 @@ impl<'a> Binder<'a> {
             candidates.retain(|index| {
                 keys.iter().enumerate().all(|(position, (_, e, t))| {
                     index.columns.get(position).is_some_and(|column| {
-                        let expected = self.column_ty(info, column);
+                        let expected = self.key_ty(info, index, column);
                         t.comparable(&expected) || (expected.is_identity() && matches!(e, Expr::Literal(Value::String(_))))
                     })
                 })
             });
             // @ref LLP 3000.007#18.5 — resolve remaining ambiguity without replacing an existing exact-type winner.
-            let exact: Vec<_> = candidates.iter().copied().filter(|index| keys.iter().enumerate().all(|(position, (_, _, t))| index.columns.get(position).is_some_and(|column| self.column_ty(info, column) == t.required()))).collect();
+            let exact: Vec<_> = candidates.iter().copied().filter(|index| keys.iter().enumerate().all(|(position, (_, _, t))| index.columns.get(position).is_some_and(|column| self.key_ty(info, index, column) == t.required()))).collect();
             if exact.len() == 1 { candidates = exact; }
             else {
                 // Filter before the one-candidate arm so identity literals receive their index's type.
@@ -397,7 +405,7 @@ impl<'a> Binder<'a> {
                 if !named {
                     for (position, (_, e, t)) in keys.iter_mut().enumerate() {
                         if let Some(column) = index.columns.get(position)
-                            && self.column_ty(info, column).is_identity()
+                            && self.key_ty(info, &index, column).is_identity()
                             && let Expr::Literal(Value::String(text)) = e
                         {
                             *e = Expr::Literal(Value::Id(text.clone()));
@@ -425,7 +433,8 @@ impl<'a> Binder<'a> {
         }
     }
 
-    fn column_ty(&self, info: &TableInfo, column: &str) -> Ty {
+    fn key_ty(&self, info: &TableInfo, index: &ast::IndexDecl, column: &str) -> Ty {
+        if index.computed.contains_key(column) { return Ty::Int; }
         if column == "id" {
             return Ty::Ref(info.decl.name.clone());
         }
@@ -436,7 +445,7 @@ impl<'a> Binder<'a> {
         let named = keys.iter().all(|(c, _, _)| c.is_some());
         if !named {
             for (position, (_, _, t)) in keys.iter().enumerate() {
-                let expected = self.column_ty(info, &index.columns[position]);
+                let expected = self.key_ty(info, index, &index.columns[position]);
                 if !t.comparable(&expected) {
                     return Err(type_error(&index.site, format!("key {} is {}; {}.{}.{} is {}", position + 1, t.name(), info.decl.name, index.name, index.columns[position], expected.name()), format!("use {} for key {}", expected.name(), position + 1)));
                 }
@@ -448,7 +457,7 @@ impl<'a> Binder<'a> {
             let Some(position) = keys.iter().position(|(c, _, _)| c.as_deref() == Some(column)) else {
                 return Err(unknown(&index.site, format!("key omits column {column} of {}.{}", info.decl.name, index.name), format!("name each prefix column once: {}", index.columns.iter().take(keys.len()).cloned().collect::<Vec<_>>().join(", "))));
             };
-            let expected = self.column_ty(info, column);
+            let expected = self.key_ty(info, index, column);
             if !keys[position].2.comparable(&expected) {
                 return Err(type_error(&index.site, format!("{column} is {}; {}.{column} is {}", keys[position].2.name(), info.decl.name, expected.name()), format!("use {} for {column}", expected.name())));
             }
@@ -524,7 +533,7 @@ impl<'a> Binder<'a> {
             if table != merge.table {
                 let other = self.table(table, &lane.site)?;
                 let other_index = other.indexes.iter().find(|i| i.name == merge.index);
-                if info.columns != other.columns || other_index.is_none_or(|i| i.columns != index.columns || i.unique != index.unique || i.words != index.words) || merge.matching.is_some() {
+                if info.columns != other.columns || other_index.is_none_or(|i| i.columns != index.columns || i.unique != index.unique || i.words != index.words || self.schema.tables[table].indexes[&i.name] != self.schema.tables[&merge.table].indexes[&index.name]) || merge.matching.is_some() {
                     return Err(type_error(&lane.site, "a named-table merge lane needs the same columns and plain index as its header table", format!("give {table} the columns and {} index of {}, or read it separately", merge.index, merge.table)).guide("feeds"));
                 }
             }
@@ -533,11 +542,13 @@ impl<'a> Binder<'a> {
             let mut source = None;
             let mut binding = String::new();
             if let Some((name, domain)) = &lane.loop_ {
-                let (scan, _) = self.scan(domain, &mut setup)?;
-                source = Some(scan);
-                binding = self.declare(name, Ty::Row(domain.table.clone()));
+                // Source keys, seeks and predicate setup precede discovery; only
+                // the lane prefix may depend on the source row.
+                let (domain, ty) = self.lane_domain(domain, out)?;
+                source = Some(domain);
+                binding = self.declare(name, ty);
                 // @ref LLP 3000.007#20.12 — filtered discovery lanes keep their selector in eager setup; lazy discovery freezes only prefixes.
-                if merge.filter.is_some() {
+                if merge.filter.as_ref().is_some_and(|filter| source.as_ref().is_some_and(|source| source.scan().is_some()) || lanes::filter_uses_lane(filter, name)) {
                     let source_binding = self.temp("source");
                     setup.push(Stmt::Let { name: binding, value: ir::var(&source_binding) });
                     binding = source_binding;
@@ -946,7 +957,13 @@ fn stable_chunk(catalog: &Catalog, site: &Site, scan: &Scan) -> Fallible<()> {
     let Some(info) = catalog.tables.get(&scan.table) else { return Ok(()) };
     let Some(index) = info.indexes.iter().find(|index| index.name == scan.index) else { return Ok(()) };
     let immutable: Vec<&str> = info.decl.immutable.iter().flat_map(|(columns, _)| columns.iter().map(String::as_str)).collect();
-    let moving: Vec<&str> = index.columns.iter().map(String::as_str).filter(|column| *column != "id" && !immutable.contains(column)).collect();
+    let moving: Vec<&str> = index.columns.iter().map(|column| match index.computed.get(column) {
+        Some(A::Call { args, .. }) => match args.first() { Some(A::Name { name, .. }) => name.as_str(), _ => column.as_str() },
+        _ => column.as_str(),
+    }).filter(|column| *column != "id" && !immutable.contains(column)).fold(Vec::new(), |mut columns, column| {
+        if !columns.contains(&column) { columns.push(column); }
+        columns
+    });
     if !moving.is_empty() {
         return Err(Diagnostic::new(site, "E_JOB_CURSOR_INDEX", format!("chunk over {}.{} sweeps by {}, which a write could change under the cursor; a sweep's index columns are id or immutable", scan.table, scan.index, moving.join(", ")), format!("immutable {}  -- on table {}, or sweep by byId", moving.join(", "), scan.table)).guide("jobs"));
     }

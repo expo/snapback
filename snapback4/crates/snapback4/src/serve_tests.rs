@@ -121,6 +121,14 @@ fn status(response: &str) -> u16 {
 fn body(response: &str) -> Json {
     serde_json::from_str(response.split_once("\r\n\r\n").unwrap().1).unwrap()
 }
+fn effect_snapshot(host: &Host, id: &str) -> (Vec<rusqlite::types::Value>, i64) {
+    let engine = lock(&host.shared.engine);
+    let mut statement = engine.store().conn().prepare("SELECT * FROM _outbox WHERE id = ?1").unwrap();
+    let columns = statement.column_count();
+    let row = statement.query_row([id], |row| (0..columns).map(|column| row.get(column)).collect()).unwrap();
+    let steps = engine.store().conn().query_row("SELECT COUNT(*) FROM _effect_steps WHERE effect_id = ?1", [id], |row| row.get(0)).unwrap();
+    (row, steps)
+}
 fn wait_until(mut predicate: impl FnMut() -> bool) {
     let deadline = Instant::now() + Duration::from_secs(2);
     while !predicate() {
@@ -605,6 +613,65 @@ fn a_poll_rechecks_session_liveness_after_waiting() {
     *host.shared.seq.lock().unwrap() = 1;
     host.shared.committed.notify_all();
     assert_eq!(status(&poll.join().unwrap()), 401);
+}
+
+#[test]
+fn effect_http_strictly_validates_present_fields_without_mutating_work() {
+    let source = "use personas alice\neffect mail retry 2\nmutation send():\n  emit mail {n: 1}\n";
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), source);
+    let malformed_claim = host.request("POST", "/effects/claim", "", "[]");
+    assert_eq!(status(&malformed_claim), 400); assert_eq!(body(&malformed_claim)["denied"]["code"], "E_INPUT");
+    let malformed_settle = host.request("POST", "/effects/not-yet/done", "", "[]");
+    assert_eq!(status(&malformed_settle), 400); assert_eq!(body(&malformed_settle)["denied"]["code"], "E_INPUT");
+    let malformed_step = host.request("POST", "/effects/not-yet/steps/provider/begin", "", r#"{"input":null,"reconcile":"false"}"#);
+    assert_eq!(status(&malformed_step), 400); assert_eq!(body(&malformed_step)["denied"]["code"], "E_INPUT");
+
+    let emitted = body(&host.request("POST", "/m/send", "x-snapback-persona: alice\r\n", r#"{"id":"01ARZ3NDEKTSV4RRFFQ69G5FAV","args":{}}"#));
+    assert_eq!(emitted["state"], "sent", "{emitted}");
+    let service = { let engine = lock(&host.shared.engine);
+        snapback4_core::identity::service_session(engine.store(), "worker", host.shared.now(), 1).unwrap() };
+    let bearer = format!("Authorization: Bearer {}\r\n", service.token);
+    let id = { lock(&host.shared.engine).effects(Some("queued"), 1).unwrap().remove(0).id };
+    let queued = effect_snapshot(&host, &id);
+    for malformed in [
+        r#"{"effect":17,"fenced":"true"}"#,
+        r#"{"fenced":"true"}"#,
+        r#"{"limit":"1"}"#,
+        r#"{"lease":"60"}"#,
+        r#"{"wait":"0"}"#,
+    ] {
+        let response = host.request("POST", "/effects/claim", &bearer, malformed);
+        assert_eq!(status(&response), 400, "{response}");
+        assert_eq!(body(&response)["denied"]["code"], "E_INPUT");
+        assert_eq!(effect_snapshot(&host, &id), queued, "malformed claim mutated the row: {malformed}");
+    }
+    let claimed = body(&host.request("POST", "/effects/claim", &bearer, r#"{"fenced":true}"#));
+    let effect = &claimed["effects"][0];
+    assert_eq!(effect["id"], id);
+    let lease = effect["leaseToken"].as_str().unwrap();
+    let begin_path = format!("/effects/{id}/steps/provider/begin");
+    let missing = body(&host.request("POST", &begin_path, &bearer, r#"{"input":{"n":1}}"#));
+    assert_eq!(missing["denied"]["code"], "E_EFFECT_LEASE");
+    let duplicate = format!("{bearer}x-snapback-effect-lease: {lease}\r\nx-snapback-effect-lease: {lease}\r\n");
+    assert_eq!(body(&host.request("POST", &begin_path, &duplicate, r#"{"input":{"n":1}}"#))["denied"]["code"], "E_EFFECT_LEASE");
+    let held = format!("{bearer}x-snapback-effect-lease: {lease}\r\n");
+    let running = effect_snapshot(&host, &id);
+    let park_path = format!("/effects/{id}/steps/provider/park");
+    let failed_path = format!("/effects/{id}/failed");
+    for (path, malformed) in [
+        (&begin_path, r#"{"input":{"n":1},"reconcile":"false"}"#),
+        (&park_path, r#"{"error":17}"#),
+        (&failed_path, r#"{"retry":"false"}"#),
+    ] {
+        let response = host.request("POST", path, &held, malformed);
+        assert_eq!(status(&response), 400, "{response}");
+        assert_eq!(body(&response)["denied"]["code"], "E_INPUT");
+        assert_eq!(effect_snapshot(&host, &id), running, "malformed settlement or step mutated work: {malformed}");
+    }
+    assert_eq!(body(&host.request("POST", &begin_path, &held, r#"{"input":{"n":1}}"#))["step"]["state"], "run");
+    let done_path = format!("/effects/{id}/steps/provider/done");
+    assert_eq!(body(&host.request("POST", &done_path, &held, r#"{"result":{"ok":true}}"#))["step"]["state"], "done");
+    assert_eq!(body(&host.request("POST", &format!("/effects/{id}/done"), &held, "{}"))["ok"], true);
 }
 
 #[test]

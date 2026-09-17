@@ -131,7 +131,7 @@ impl Parser {
             if !self.at("first") {
                 return Err(syntax(&self.peek().site.clone(), "chunk requires first N by index"));
             }
-            domain = self.parse_range(domain)?;
+            domain = self.parse_range(domain, false)?;
             if domain.index.is_none() || domain.range.as_ref().is_none_or(|r| r.order != Order::Asc || r.cursor.is_some()) {
                 return Err(syntax(&site, "chunk requires table[prefix] first N by index"));
             }

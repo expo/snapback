@@ -57,7 +57,7 @@ impl Catalog {
                         ok = false;
                     }
                 }
-                let mut indexes = vec![IndexDecl { name: "byId".into(), columns: vec!["id".into()], unique: true, refusal: None, words: None, site: table.site.clone() }];
+                let mut indexes = vec![IndexDecl { name: "byId".into(), columns: vec!["id".into()], unique: true, refusal: None, words: None, computed: BTreeMap::new(), site: table.site.clone() }];
                 for index in &table.indexes {
                     if indexes.iter().any(|existing| existing.name == index.name) {
                         diagnostics.push(unknown(&index.site, format!("duplicate index {}.{}", table.name, index.name), "name one ordering explicitly"));
@@ -65,6 +65,7 @@ impl Catalog {
                         continue;
                     }
                     for column in &index.columns {
+                        if index.computed.contains_key(column) { continue; }
                         if column != "id" && !columns.contains_key(column) {
                             diagnostics.push(crate::diag::type_error(&index.site, format!("index {}.{} names unknown column {column}", table.name, index.name), name_rewrite(column, columns.keys().map(String::as_str).chain(["id"]), None)));
                             ok = false;
@@ -79,6 +80,9 @@ impl Catalog {
                             Some(other) => diagnostics.push(crate::diag::type_error(&index.site, format!("index {}.{} tokenizes {field}, which is {}, not text", table.name, index.name, crate::print::scalar_type(other)), format!("words(<a text column of {}>)", table.name))),
                             None => diagnostics.push(crate::diag::type_error(&index.site, format!("index {}.{} tokenizes unknown column {field}", table.name, index.name), name_rewrite(field, columns.keys().map(String::as_str), None))),
                         }
+                    }
+                    for (name, expr) in &index.computed {
+                        if let Err(error) = super::time_indexes::key(&table.name, &columns, name, expr) { diagnostics.push(error); }
                     }
                     indexes.push(index.clone());
                 }
@@ -134,7 +138,7 @@ impl Catalog {
             match super::schema::maintain_target(&source, &maintain) {
                 Ok(decl) => {
                     let columns: BTreeMap<String, ScalarType> = decl.columns.iter().map(|c| (c.name.clone(), c.type_.clone())).collect();
-                    let mut indexes = vec![IndexDecl { name: "byId".into(), columns: vec!["id".into()], unique: true, refusal: None, words: None, site: decl.site.clone() }];
+                    let mut indexes = vec![IndexDecl { name: "byId".into(), columns: vec!["id".into()], unique: true, refusal: None, words: None, computed: BTreeMap::new(), site: decl.site.clone() }];
                     indexes.extend(decl.indexes.iter().cloned());
                     tables.insert(name.clone(), TableInfo { decl, columns, indexes, maintained: Some(maintain) });
                 }

@@ -28,11 +28,11 @@ fn text<'a>(request: &'a Json, name: &str) -> Result<&'a str, RuntimeError> {
 
 fn parse<T: serde::de::DeserializeOwned>(value: Json) -> Result<T, RuntimeError> {
     #[cfg(test)]
-    OWNED_CONVERSIONS.set(OWNED_CONVERSIONS.get() + 1);
+    OWNED_DECODES.set(OWNED_DECODES.get() + 1);
     snapback4_core::json_codec::from_value(value).map_err(|e| RuntimeError::Input(e.to_string()))
 }
 
-fn encoded<T: serde::Serialize>(value: &T) -> Result<Json, RuntimeError> {
+fn encoded<T: serde::Serialize>(value: &T) -> Result<Json, RuntimeError> { #[cfg(test)] OWNED_ENCODES.set(OWNED_ENCODES.get() + 1);
     snapback4_core::json_codec::to_value(value).map_err(|e| RuntimeError::Store(e.to_string()))
 }
 
@@ -197,7 +197,8 @@ fn page_call<S: DeviceStore>(device: &mut Device<S>, command: PageArgument) -> R
 std::thread_local! {
     static PAGE_CALLS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
     static OWNED_FALLBACKS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
-    static OWNED_CONVERSIONS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static OWNED_ENCODES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    static OWNED_DECODES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 #[cfg(test)]
 #[path = "../tests/codec/route.rs"]

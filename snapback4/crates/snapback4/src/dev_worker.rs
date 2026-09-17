@@ -1,7 +1,6 @@
 //! The host owns exactly one application worker and only stops the child it started.
 use crate::{project::Project, serve::{Shared, lock}};
 use sha2::{Digest, Sha256};
-use rusqlite::OptionalExtension;
 use snapback4_core::{Store, RuntimeError, identity};
 use std::{path::PathBuf, process::{Child, Command, Stdio}, sync::Arc, time::{Duration, Instant}};
 
@@ -32,19 +31,6 @@ pub(crate) fn child_session(store: &Store, now: i64, revision: usize) -> Result<
     store.set_meta("worker:session-revision", &revision.to_string())?;
     tx.commit()?;
     Ok(session)
-}
-
-// @ref LLP 3000.009#5.1 — activation fences the old supervisor before new work is claimable.
-// Called under the same engine guard as claim/adoption, including after a
-// long poll wakes. Manual service seats are not supervised and remain valid.
-pub(crate) fn current_session(store: &Store, token: &str, revision: usize) -> Result<bool, RuntimeError> {
-    let digest = format!("{:x}", Sha256::digest(token.as_bytes()));
-    let family: Option<String> = store.conn().query_row(
-        "SELECT COALESCE(family, token_digest) FROM _sessions WHERE token_digest = ?1", [&digest], |row| row.get(0)).optional()?;
-    if family.is_some() && family == store.meta("worker:session-family")? {
-        return Ok(store.meta("worker:session-revision")?.as_deref() == Some(revision.to_string().as_str()));
-    }
-    Ok(true)
 }
 
 pub(crate) fn source(project: &Project) -> Option<PathBuf> {

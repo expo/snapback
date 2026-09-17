@@ -19,6 +19,7 @@ pub(crate) struct StepOwner<'a> {
 
 impl<'a> StepOwner<'a> {
     pub(crate) fn action(id: &'a str) -> Self { Self { kind: WorkKind::Action, id } }
+    pub(crate) fn effect(id: &'a str) -> Self { Self { kind: WorkKind::Effect, id } }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -203,7 +204,7 @@ mod tests {
     fn action_provider_keys_keep_the_v1_bytes_and_effects_have_their_own_domain() {
         let action = provider_key(StepOwner::action("work"), "mail");
         assert_eq!(action, "c3bba5ac56563e1a2d5ca3c2135fa128bbdf1c94444d18e391b339a1332a971f");
-        let effect = provider_key(StepOwner { kind: WorkKind::Effect, id: "work" }, "mail");
+        let effect = provider_key(StepOwner::effect("work"), "mail");
         assert_eq!(effect, "568da10fc8539e3f90b8d7dc518efe0687c49fbca8223e9bbb0de45fdb41fd0e");
         assert_ne!(action, effect);
     }

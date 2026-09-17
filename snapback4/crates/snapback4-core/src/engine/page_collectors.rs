@@ -136,7 +136,7 @@ fn selected_names(value: &Expr, selected: &[String], live: &mut Names) {
                 let mut local = Names::new();
                 scan_names(&lane.scan, &mut local);
                 let (mut local, _) = live_body(&lane.setup, "", local, &Names::new(), &Names::new(), &[], &mut Flow::default());
-                if let Some(source) = &lane.source { local.retain(|(name, _)| name != &lane.binding); scan_names(source, &mut local); }
+                if let Some(source) = &lane.source { local.retain(|(name, _)| name != &lane.binding); if let Some(scan) = source.scan() { scan_names(scan, &mut local); } for value in source.expressions() { names(value, &mut local); } }
                 live.extend(local);
             }
         }

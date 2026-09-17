@@ -2,8 +2,8 @@
 
 For 100–1,000 memberships, choose full device holdings for cheap offline
 search, or walk bounded chat batches on the server for history that is not
-held. The earlier `everywhere` example discovers only its first 50 chats;
-its result cursor does not advance membership discovery.
+held. The earlier `everywhere` example discovers chats under the examined meter;
+its result cursor does not continue a meter-cut membership discovery.
 For a wired server walk, run `snapback4 init --recipe search` and
 `snapback4 check`; the installed helper manages both cursors and stops on
 any cut. The installable backend and usage are below.
@@ -118,16 +118,16 @@ held chat; the unreadable chat is absent.
 
 | Memberships | Hits / chats in the full walk | Full-sync messages acquired | Device examined, first / whole walk | Server examined, first / whole walk |
 |---|---|---|---|---|
-| 100 | 2,400 / 100 | 3,000 | 22 / 2,638 | 1,201 / 79,181 |
-| 500 | 12,000 / 500 | 15,000 | 22 / 13,198 | 1,201 / 396,149 |
-| 1,000 | 24,000 / 1,000 | 30,000 | 22 / 26,398 | 1,201 / 792,359 |
+| 100 | 2,400 / 100 | 3,000 | 22 / 2,638 | 191 / 22,261 |
+| 500 | 12,000 / 500 | 15,000 | 22 / 13,198 | 191 / 111,549 |
+| 1,000 | 24,000 / 1,000 | 30,000 | 22 / 26,398 | 191 / 223,159 |
 
 Every full-sync device and bounded server result page is `complete: true`.
 The walks take 120 / 600 / 1,200 result pages. Server totals include the
 separate 2 / 10 / 20 membership discovery calls (101 / 509 / 1,019 examined);
 the matching merges also rediscover their own 50 memberships on every
 result page. Maximum examined per result page is 22 on either device
-store and 1,201 on the server. These are deterministic examined counts,
+store and 191 on the server. These are deterministic examined counts,
 not milliseconds or a worst-case text-search bound.
 
 With a ten-message acquisition horizon, either device store instead
@@ -138,11 +138,12 @@ is `complete: false`; the retained 4 hits per chat are exhaustively found,
 but 20 older hits per chat are outside acquisition.
 
 For comparison, the unbatched `first 1000` membership merge examines
-2,400 / 8,358 / 8,880 on its first result page at these sizes. Only the
-100-chat case is complete and has a result cursor; 500 and 1,000 hit the
-unchanged 8,192 ceiling and have no continuation. The recorded examined
-ledger can exceed that ceiling as later lanes attempt charges after the
-cut; those attempts do not make the read complete.
+340 / 1,540 / 3,040 on its first result page at these sizes. All three
+cases are complete and have a result cursor on the server and both device
+stores, below the unchanged 8,192 ceiling. Their one-cursor walks return
+every expected id once, newest first across all chats, at 39,600 / 898,000 /
+3,546,000 examined in total; every page rediscovers all memberships.
+Uniform matching scopes share one heap of discovered word lanes.
 
 **Per-reader inbox considered.** It buys the same single-lane read shape
 by copying each message into each reader's search table, but is not cheap

@@ -3,26 +3,26 @@ use super::*;
 
 impl Binder<'_> {
     pub(super) fn index_mismatch(&self, info: &TableInfo, read: &ReadExpr, mode: ReadMode, keys: &[(Option<String>, Expr, Ty)], index: &ast::IndexDecl) -> Diagnostic {
-        let expected = index.columns.iter().map(|col| format!("{col}: {}", self.column_ty(info, col).name())).collect::<Vec<_>>().join(", ");
+        let expected = index.columns.iter().map(|col| format!("{col}: {}", self.key_ty(info, index, col).name())).collect::<Vec<_>>().join(", ");
         let supplied = read.keys.iter().zip(keys).map(|(part, (_, _, ty))| {
             let value = print::expression(&part.value);
             format!("{}{}: {}", part.column.as_ref().map_or(String::new(), |col| format!("{col} = ")), value, ty.name())
         }).collect::<Vec<_>>().join(", ");
         let label = format!("{}.{} takes ({expected}); supplied ({supplied})", read.table, index.name);
         let accepts = |candidate: &ast::IndexDecl| {
-            candidate.is_plain() && match mode {
+            candidate.words.is_none() && match mode {
                 ReadMode::Point | ReadMode::FilteredPoint => candidate.unique && candidate.columns.len() == keys.len(),
                 ReadMode::Exists => candidate.columns.len() == keys.len(),
                 ReadMode::Range => candidate.columns.len() > keys.len(),
             } && keys.iter().enumerate().all(|(i, (name, expr, ty))| {
                 let col = name.as_ref().unwrap_or(&candidate.columns[i]);
-                candidate.columns[..keys.len()].contains(col) && (ty.comparable(&self.column_ty(info, col)) || (self.column_ty(info, col).is_identity() && matches!(expr, Expr::Literal(Value::String(_)))))
+                candidate.columns[..keys.len()].contains(col) && (ty.comparable(&self.key_ty(info, candidate, col)) || (self.key_ty(info, candidate, col).is_identity() && matches!(expr, Expr::Literal(Value::String(_)))))
             })
         };
         let keys_match = keys.iter().enumerate().all(|(i, (name, expr, ty))| {
             let Some(col) = name.as_ref().or_else(|| index.columns.get(i)) else { return false; };
             index.columns.iter().take(keys.len()).any(|column| column == col)
-                && (ty.comparable(&self.column_ty(info, col)) || (self.column_ty(info, col).is_identity() && matches!(expr, Expr::Literal(Value::String(_)))))
+                && (ty.comparable(&self.key_ty(info, index, col)) || (self.key_ty(info, index, col).is_identity() && matches!(expr, Expr::Literal(Value::String(_)))))
         });
         if mode == ReadMode::Range && keys.len() == index.columns.len() && keys_match {
             let mut point = read.clone();
@@ -52,12 +52,12 @@ impl Binder<'_> {
             fixed.index = Some(alternative.name.clone());
             let mut rewrite = format!("{} — this index accepts the supplied key", print::read_expr(&fixed));
             if let (Some(col), Some((_, _, ty))) = (index.columns.first(), keys.first()) {
-                rewrite.push_str(&format!("; for {}, pass {} instead of {}", index.name, self.column_ty(info, col).name(), ty.name()));
+                rewrite.push_str(&format!("; for {}, pass {} instead of {}", index.name, self.key_ty(info, index, col).name(), ty.name()));
             }
             rewrite
         } else {
             let columns = if mode == ReadMode::Range { &index.columns[..index.columns.len().saturating_sub(1)] } else { &index.columns[..] };
-            format!("{}[{}]{} by {} — supply {} in index order", read.table, columns.join(", "), if mode == ReadMode::Range { " first 50" } else { "" }, index.name, columns.iter().map(|col| format!("{col}: {}", self.column_ty(info, col).name())).collect::<Vec<_>>().join(", "))
+            format!("{}[{}]{} by {} — supply {} in index order", read.table, columns.join(", "), if mode == ReadMode::Range { " first 50" } else { "" }, index.name, columns.iter().map(|col| format!("{col}: {}", self.key_ty(info, index, col).name())).collect::<Vec<_>>().join(", "))
         };
         type_error(&read.site, format!("{label} {reason}"), rewrite).guide("indexes")
     }

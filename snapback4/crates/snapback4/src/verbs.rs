@@ -235,7 +235,8 @@ fn cost_report(bound: &Bound, program: &ir::Program) -> String {
     range_costs(&program.body, &mut lines);
     for merge in snapback4_lang::bind::merges(&program.body) {
         let matching = merge.lanes.iter().any(|lane| lane.scan.prefix.iter().any(|key| matches!(key, ir::IndexKeyExpr::WordPrefix(_))));
-        lines.push(format!("    merge {}: up to {} lanes{}", merge.table(), merge.max_lanes(), if matching { "; each matching scope merges at most 32 first-term words, further terms filter; past 32 words a lane is incomplete (word_cut_at names it), later lanes continue; meter ceilings remain query-wide" } else { "" }));
+        let lanes = if merge.static_lanes().is_none() { "lanes ≤ meter".into() } else { format!("up to {} lanes", merge.max_lanes()) };
+        lines.push(format!("    merge {}: {lanes}{}", merge.table(), if matching { "; each matching scope merges at most 32 first-term words, further terms filter; past 32 words a lane is incomplete (word_cut_at names it), later lanes continue; meter ceilings remain query-wide" } else { "" }));
     }
     let scans = ir::scans(program);
     let sites = ir::read_sites(program);
@@ -257,12 +258,16 @@ fn cost_report(bound: &Bound, program: &ir::Program) -> String {
             "write target" => "engine-private lookup; the update rule decides",
             _ => "bounded walk",
         };
-        let take = if site.kind == "scan" { format!(" first {}", site.take) } else { String::new() };
         let scan = scans.iter().copied().find(|scan| scan.site == site.site);
+        let take = if scan.is_some_and(|scan| scan.take == ir::Bound::Meter) {
+            let digits = snapback4_core::Ceilings::default().examined.to_string();
+            let examined = digits.chars().enumerate().map(|(i, c)| format!("{}{c}", if i > 0 && (digits.len() - i) % 3 == 0 { "," } else { "" })).collect::<String>();
+            format!(" rows ≤ meter ({examined} examined)")
+        } else if site.kind == "scan" { format!(" first {}", site.take) } else { String::new() };
         let kind = if scan.is_some_and(|s| s.range.is_some()) { "prefix seek" } else { site.kind };
         lines.push(format!("    {kind} {}.{}{take} — {hoist}", site.table, site.index));
         if let Some(scan) = scan {
-            lines.push("      sort/group/sum/count consume this page, not the whole population".into());
+            lines.push(if scan.existence { "      exists: first match, no page overflow or cursor" } else { "      sort/group/sum/count consume this page, not the whole population" }.into());
             if let Some(filter) = &scan.filter {
                 let ceiling = if program.kind == ProgramKind::Job { snapback4_core::Ceilings::job() } else { snapback4_core::Ceilings::default() }.examined;
                 lines.push(format!("      filter over ≤ examined ceiling ({ceiling})"));

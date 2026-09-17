@@ -164,7 +164,7 @@ pub fn stored_index_keys(table: &Table, index: &Index, row: &Value, id: &str) ->
 /// word component skipped; absent optionals are null.
 pub fn index_values(index: &Index, row: &Value) -> Vec<Value> {
     if let Some(crate::schema::IndexComponent::Contribution(maintain)) = index.components.first() { return maintain.source_key(row); }
-    index.columns().iter().map(|column| row.field(column).cloned().unwrap_or(Value::Null)).collect()
+    index.components.iter().filter_map(|component| component.value(row)).collect()
 }
 
 /// The store as the interpreter sees it.

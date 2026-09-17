@@ -273,8 +273,8 @@ impl Flow<'_> {
                     let pinned: Vec<_> = table.index(&scan.index).map(|index| index.columns().into_iter().take(scan.prefix.len()).collect()).unwrap_or_default();
                     let cap = table.constraints.iter().filter_map(|c| match c { Constraint::Cap { by, max } if by.iter().all(|key| pinned.contains(key)) => Some(*max), _ => None }).min();
                     match cap {
-                        Some(cap) => format!("iterate the original group: `for row in {}[..] first {cap} by {}:`; put the condition and work inside that loop", scan.table, scan.index),
-                        None if !pinned.is_empty() => format!("declare `cap {} by {}` on {}, then pin those columns and iterate the whole group with `first {} by {}`", scan.take.maximum(), pinned.join(", "), scan.table, scan.take.maximum(), scan.index),
+                        Some(_) => format!("iterate the original group: `for row in {}[..] by {}:`; put the condition and work inside that loop", scan.table, scan.index),
+                        None if !pinned.is_empty() => format!("declare `cap {} by {}` on {}, then pin those columns and iterate the whole group: `for row in {}[..] by {}:`", scan.take.maximum(), pinned.join(", "), scan.table, scan.table, scan.index),
                         _ => format!("move this pass to a job: `chunk row in {} first {} by {}:`", scan.table, scan.take.maximum(), scan.index),
                     }
                 } else { "pass a bounded list argument directly, or move the population pass to a job chunk".into() };
@@ -423,9 +423,9 @@ fn uniform_rewrite(schema: &Schema, scan: &Scan) -> String {
         && follows.columns.contains_key("followerId") && follows.expire.is_none()
         && { let mut deciding = BTreeSet::new(); follows.rules.read.fields(&mut deciding); deciding.iter().all(|field| field == "followedId") }
         && table.indexes.values().any(|index| index.unique && index.columns() == ["readerId", "eventId"])
-        && let Some(cap) = follows.cap(&["followedId".into()])
+        && follows.cap(&["followedId".into()]).is_some()
         && let Some((index, _)) = follows.indexes.iter().find(|(_, i)| i.is_plain() && i.columns().starts_with(&["followedId".into()])) {
-        rewrite.push_str(&format!("; for example, with actorId and eventId bound: `for f in follows[actorId] first {cap} by {index}:`, then address `{}[readerId = f.followerId, eventId = eventId]`; pinning .readerId decides visibility but grants no read authority over another reader's inbox (see `snapback4 guide feeds`)", scan.table));
+        rewrite.push_str(&format!("; for example, with actorId and eventId bound: `for f in follows[actorId] by {index}:`, then address `{}[readerId = f.followerId, eventId = eventId]`; pinning .readerId decides visibility but grants no read authority over another reader's inbox (see `snapback4 guide feeds`)", scan.table));
     } else {
         let keys = fields.iter().map(|field| format!("{field} = row.{field}")).collect::<Vec<_>>().join(", ");
         rewrite.push_str(&format!("; inside that loop use `{}[{keys}]` with an index leading on those columns; or read the page in a query", scan.table));
@@ -473,7 +473,7 @@ fn read_only_expr(value: &Expr) -> bool {
         Expr::Binary { left, right, .. } => read_only_expr(left) && read_only_expr(right),
         Expr::Get(read) | Expr::Exists(read) => read.key.iter().all(read_only_expr),
         Expr::Scan(scan) => read_only_scan(scan),
-        Expr::Merge(merge) => merge.lanes.iter().all(|lane| read_emit_only(&lane.setup) && read_only_scan(&lane.scan) && lane.source.as_ref().is_none_or(read_only_scan)),
+        Expr::Merge(merge) => merge.lanes.iter().all(|lane| read_emit_only(&lane.setup) && read_only_scan(&lane.scan) && lane.source.as_ref().is_none_or(|source| source.scan().is_none_or(read_only_scan) && source.expressions().into_iter().all(read_only_expr))),
         Expr::Literal(_) | Expr::Variable(_) | Expr::Input(_) => true,
     }
 }

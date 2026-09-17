@@ -200,6 +200,17 @@ diagnostic secrecy observation cannot be established retroactively because it
 scanned only stdout. A new run under the required external envelope is needed
 to exercise the corrected two-stream assertion.
 
+The later R3 run of source `95c326e65` used the correct outer module and
+exited after 9.803 seconds with `B1C_DEADLINE_TERMINAL_EVIDENCE` in
+`raw-cancelled-settled-deadline`. Its primary Keycloak, committed-lost-reply,
+worker-crash, own-profile and two-stream `why` redaction labels had completed,
+and outer custody reported zero surviving owned processes. The deadline row
+was still `running` with no error code because public action collection is
+read-only and does not itself drive expiry. This is an instrument sequencing
+failure, not evidence of a backend defect. R3 stopped there: no later parked,
+revocation, service or +25h raw case is claimed. The earlier R2 wrong-outer-
+module miss remains a separate retained failed attempt.
+
 | Row | Scope / injected cut | Required actual observable | Source status |
 | --- | --- | --- | --- |
 | Keycloak authorization code + S256 | Actual provider and generated helper | Begin completes, browser-form login returns the fixed callback, complete settles | PENDING; executable |
@@ -212,7 +223,7 @@ to exercise the corrected two-stream assertion.
 | Before-mint-commit HTTP fault | Actual generated helper request cut before core commit, followed by a new-process recovery | Recovery creates the first binding without provider replay | PENDING; not implemented in this bounded source checkpoint |
 | Stale claim | Explicit retry settlement followed by its declared backoff and a fresh actual claim | Old lease refuses `E_ACTION_LEASE`; no target mint | PENDING; executable; retry settlement, not timer expiry, makes the old lease stale |
 | Parked work | Real step begin, retry/reclaim, unreconciled second begin | Step returns `E_STEP_PARKED`; mint under that claim refuses `E_ACTION_LEASE` | PENDING; executable |
-| Cancelled / settled / deadline | Public cancel, real done settlement, and a 2-second declared deadline under a 10-second lease | Cancellation/done commit; collection records `E_ACTION_DEADLINE` before the deadline mint refuses `E_ACTION_LEASE` | PENDING; executable |
+| Cancelled / settled / deadline | Public cancel, real done settlement, and a 2-second declared deadline under a 10-second lease; after the wait, exact service/lease-authenticated `/status` drives normal expiry | Status receipt matches invocation id and attempt with failed/`E_ACTION_DEADLINE`; public collection then records the same refusal before bound mint refuses `E_ACTION_LEASE` | PENDING after R3 instrument-order failure; repaired source executable, not rerun |
 | Admitting-family logout | Public logout of the guest that admitted the invocation | Bound mint refuses `E_ACTION_LEASE`; a fresh sign-in is not substituted | PENDING; executable |
 | Issued-family logout | Initial actual bound mint then public logout | Recovery refuses `E_ACTION_AUTHORITY`; no replacement | PENDING; executable |
 | Target revocation | `/auth/revoke` from a separate live service | Recovery refuses `E_ACTION_AUTHORITY`; no recreated target family | PENDING; executable |
@@ -310,3 +321,10 @@ raw-token arguments on failure; it preserves unexpected CLI output in the
 private scratch child and leaves that child in place. On success the frozen
 helper removes that raw-response journal; retained stdout and source hashes
 are qualification evidence, not a retrospective raw-response audit.
+
+## Optional B1d.3 issuance source
+
+`invitation-issuance/` is an optional staged action, handler and fixed-endpoint
+Resend adapter outside active `snapback/`, preserving the B1c registry. Its
+README gives exact staging and pending actual-cut details. The source doubles
+are not generated-registry, engine, auth, crash-process or provider evidence.

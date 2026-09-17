@@ -1,0 +1,153 @@
+import { readFileSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+
+const root = fileURLToPath(new URL('../../../', import.meta.url));
+export const device = 'crates/snapback4-device/src/';
+export const core = 'crates/snapback4-core/src/';
+const typed = 'from_str|from_slice|from_reader|from_value|to_string|to_string_pretty|to_vec|to_vec_pretty|to_value|to_writer|to_writer_pretty|Deserializer|Serializer|StreamDeserializer';
+
+// Mask Rust trivia without moving offsets: diagnostics and exceptions refer to
+// the original line, and braces inside strings/comments cannot change custody.
+export function mask(source, strings = true) {
+  const out = source.split('');
+  const blank = (start, end) => { for (let i = start; i < end; i++) if (out[i] !== '\n') out[i] = ' '; };
+  const literal = /(?:br|r)(#*)"[\s\S]*?"\1|b?"(?:\\[\s\S]|[^"\\])*"|b?'(?:\\(?:u\{[\da-fA-F]+\}|x[\da-fA-F]{2}|[\s\S])|[^'\\\n])'/y;
+  for (let i = 0; i < source.length;) {
+    const start = i;
+    if (source.startsWith('//', i)) {
+      i = source.indexOf('\n', i); if (i < 0) i = source.length;
+    } else if (source.startsWith('/*', i)) {
+      let depth = 1; i += 2;
+      while (i < source.length && depth) {
+        if (source.startsWith('/*', i)) { depth++; i += 2; }
+        else if (source.startsWith('*/', i)) { depth--; i += 2; }
+        else i++;
+      }
+      if (depth) throw new Error('unterminated Rust comment');
+    } else {
+      literal.lastIndex = i;
+      const match = literal.exec(source);
+      if (!match) { i++; continue; }
+      i += match[0].length;
+    }
+    if (strings || source.startsWith('//', start) || source.startsWith('/*', start)) blank(start, i);
+  }
+  return out.join('');
+}
+function endOf(code, start, open = '{', close = '}') {
+  let depth = 0;
+  for (let i = start; i < code.length; i++) {
+    if (code[i] === open) depth++;
+    if (code[i] === close && --depth === 0) return i + 1;
+  }
+  throw new Error(`unclosed ${open} at ${start}`);
+}
+export function items(source) {
+  const code = mask(source), found = [];
+  for (const match of code.matchAll(/\b(fn|mod|impl)\s+([\w]+)[^{;]*[;{]/g)) {
+    const start = match.index, brace = start + match[0].length - 1;
+    // Attributes immediately preceding an item (including its visibility).
+    let attributeStart = start;
+    const visibility = code.slice(0, start).match(/(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?(?:unsafe\s+)?$/)[0];
+    attributeStart -= visibility.length;
+    while (true) {
+      let end = attributeStart;
+      while (end > 0 && /\s/.test(code[end - 1])) end--;
+      if (code[end - 1] !== ']') break;
+      const begin = code.lastIndexOf('#[', end);
+      if (begin < 0 || code.slice(begin + 2, end - 1).includes(']')) break;
+      attributeStart = begin;
+    }
+    found.push({ name: match[2], kind: match[1], start, end: code[brace] === '{' ? endOf(code, brace) : brace + 1,
+      attrs: mask(source.slice(attributeStart, start), false), external: code[brace] === ';' });
+  }
+  return found;
+}
+function cfgs(item) {
+  const code = mask(item.attrs);
+  return [...code.matchAll(/#\[\s*cfg\s*\(/g)].map(match => item.attrs.slice(match.index, code.indexOf(']', match.index) + 1));
+}
+function gated(item, feature) {
+  return cfgs(item).some(attr => new RegExp(`^#\\[\\s*cfg\\s*\\(\\s*feature\\s*=\\s*"${feature}"\\s*\\)\\s*\\]$`).test(attr));
+}
+function testOnly(item) { return cfgs(item).some(attr => /^#\[\s*cfg\s*\(\s*test\s*\)\s*\]$/.test(attr)); }
+function walk(dir) {
+  return readdirSync(root + dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(`${dir}${entry.name}/`) : entry.name.endsWith('.rs') ? [dir + entry.name] : []);
+}
+export function webSources() {
+  const all = new Map([...walk(device), ...walk(core)].sort().map(file => [file, readFileSync(root + file, 'utf8')]));
+  return selectWebSources(all);
+}
+export function selectWebSources(all) {
+  const excluded = [];
+  for (const file of [device + 'lib.rs', core + 'lib.rs', core + 'engine/mod.rs']) {
+    assertSource(all, file);
+    for (const item of items(all.get(file)).filter(item => item.kind === 'mod' && item.external)) {
+      if (!['sqlite', 'native', 'wasm-host', 'postgres'].some(feature => gated(item, feature))) continue;
+      const stem = path.posix.dirname(file) + '/' + item.name;
+      excluded.push(stem + '.rs', stem + '/');
+    }
+  }
+  return new Map([...all].filter(([file]) => !excluded.some(exclude => exclude.endsWith('/') ? file.startsWith(exclude) : file === exclude)));
+}
+function assertSource(all, file) { if (!all.has(file)) throw new Error(`missing module declaration source: ${file}`); }
+
+// Every exception is an exact line in a named enclosing function and a sqlite
+// item (possibly its impl). Moving the line, lifting cfg, or deleting it is red.
+export const allow = [
+  { file: core + 'partition.rs', item: 'groups_now', line: 'Ok(groups.into_iter().map(|group| serde_json::from_str(&group).expect("canonical")).collect())' },
+  { file: core + 'partition.rs', item: 'stream', line: 'let group: Vec<Value> = serde_json::from_str(group).map_err(|e| RuntimeError::Store(e.to_string()))?;' },
+  ...['stream', 'expand_joins'].map(item => ({ file: core + 'partition.rs', item, line: 'let group: Vec<Value> = serde_json::from_str(&event.id).map_err(|e| RuntimeError::Store(e.to_string()))?;' })),
+  { file: core + 'partition.rs', item: 'stream', line: 'let group_values: Vec<Value> = serde_json::from_str(group).map_err(|e| RuntimeError::Store(e.to_string()))?;' },
+  { file: core + 'engine/receipt.rs', item: 'from_receipt', line: 'let body: Json = serde_json::from_str(text).map_err(|e| RuntimeError::Store(e.to_string()))?;' },
+  { file: core + 'engine/receipt.rs', item: 'from_receipt', line: 'let mut why: Refusal = serde_json::from_value(body["why"].clone()).map_err(|e| RuntimeError::Store(e.to_string()))?;' },
+  { file: core + 'engine/mod.rs', item: 'open', line: 'let schema = serde_json::from_str(&schema).map_err(|e| RuntimeError::Store(format!("invalid stored schema: {e}")))?;' },
+  { file: core + 'engine/mod.rs', item: 'open', line: 'let programs = serde_json::from_str(&programs).map_err(|e| RuntimeError::Store(format!("invalid stored programs: {e}")))?;' },
+  { file: core + 'engine/mod.rs', item: 'activate', line: 'let previous: Option<Schema> = previous.map(|text| serde_json::from_str(&text).map_err(|e| RuntimeError::Store(e.to_string()))).transpose()?;' },
+  { file: core + 'engine/mod.rs', item: 'mutate', line: 'tx.record_applied(&viewer, op, seq, &serde_json::to_string(&outcome.receipt(Some(op))).map_err(|e| RuntimeError::Store(e.to_string()))?)?;' },
+];
+// Existing refusal envelopes also use the funnel; pin their exact custody
+// until their product routing can change independently of this instrument.
+export const refusalAllow = [
+  { file: device + 'call.rs', item: 'answer', line: 'Err(error) => json!({ "denied": snapback4_core::json_codec::to_value(&error.refusal()).expect("a refusal is serializable") }),' },
+  { file: device + 'call.rs', item: 'call', line: 'Err(error) if error.is_refusal() => json!({ "denied": snapback4_core::json_codec::to_value(&error.refusal()).expect("a refusal is serializable") }),' },
+  { file: device + 'web.rs', item: 'refused', line: 'JsError::new(&json!({ "denied": snapback4_core::json_codec::to_value(&error.refusal()).expect("a refusal is serializable") }).to_string())' },
+];
+export function census(sources, exceptions = [...allow, ...refusalAllow]) {
+  const used = new Map(exceptions.map(entry => [entry, 0])), errors = [];
+  for (const [file, source] of sources) {
+    if (file === core + 'json_codec.rs') continue;
+    const code = mask(source), scopes = items(source), hits = new Set();
+    for (const match of code.matchAll(new RegExp(`\\bserde_json\\s*::\\s*(?:(?:value|de|ser)\\s*::\\s*)?(?:r#)?(?:${typed})\\b`, 'g'))) hits.add(match.index);
+    // Reject typed import trees, glob imports, and crate aliases at their use
+    // item. Value/Map/Number/json imports (including aliases) stay legal.
+    for (const match of code.matchAll(/\b(?:use\s+[\s\S]*?;|extern\s+crate\s+serde_json\s+as\s+\w+\s*;)/g)) {
+      if (/\bserde_json\b/.test(match[0]) && (new RegExp(`\\b(?:${typed})\\b|\\*`).test(match[0]) || /\b(?:serde_json|self)\s+as\b/.test(match[0]))) {
+        for (const hit of hits) if (hit >= match.index && hit < match.index + match[0].length) hits.delete(hit);
+        hits.add(match.index);
+      }
+    }
+    if (file.startsWith(device)) {
+      for (const match of code.matchAll(/\bjson_codec\s*::\s*(?:r#)?(from_value|to_value)\b/g)) {
+        const fn = scopes.filter(item => item.kind === 'fn' && item.start < match.index && item.end > match.index).at(-1);
+        if (file !== device + 'call.rs' || fn?.name !== (match[1] === 'from_value' ? 'parse' : 'encoded')) hits.add(match.index);
+      }
+      for (const match of code.matchAll(/\buse\s+[^;]*\bjson_codec\b[^;]*;/g)) {
+        if (/\b(?:from_value|to_value)\b|\*|\b(?:json_codec|self)\s+as\b/.test(match[0])) hits.add(match.index);
+      }
+    }
+    for (const index of [...hits].sort((a, b) => a - b)) {
+      const enclosing = scopes.filter(item => item.start < index && item.end > index);
+      if (enclosing.some(testOnly)) continue;
+      const fn = enclosing.filter(item => item.kind === 'fn').at(-1);
+      const start = source.lastIndexOf('\n', index) + 1, end = source.indexOf('\n', index);
+      const line = source.slice(start, end < 0 ? undefined : end).trim();
+      const exception = exceptions.find(entry => entry.file === file && entry.item === fn?.name && entry.line === line && (enclosing.some(item => gated(item, 'sqlite')) || refusalAllow.includes(entry)));
+      if (exception) used.set(exception, used.get(exception) + 1);
+      else errors.push(`${file}:${source.slice(0, index).split('\n').length}: ${line}`);
+    }
+  }
+  for (const [entry, count] of used) if (count !== 1) errors.push(`${entry.file}: exception ${entry.item} consumed ${count} times (expected 1): ${entry.line}`);
+  return errors;
+}

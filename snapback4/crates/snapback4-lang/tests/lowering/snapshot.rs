@@ -17,7 +17,8 @@ pub struct Record {
 }
 
 pub fn baseline(catalog: &Catalog, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>) -> Option<snapback4_lang::BoundProgram> {
-    Binder::bind(catalog, module, decl, diagnostics)
+    let schema = snapback4_lang::bind::schema::bind_schema(catalog, diagnostics);
+    Binder::bind(catalog, &schema, module, decl, diagnostics)
 }
 
 pub fn snapshot(inputs: BTreeMap<String, Sources>, binder: Bind, measure: bool) -> BTreeMap<String, Record> {

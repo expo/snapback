@@ -261,7 +261,7 @@ fn addFollow(authorId: principal):
       require tryPull(viewer, authorId) else FEED_PULL_CAP
       update authors[authorId] { shared: true }
       tryPull(authorId, authorId)
-      for f in follows[authorId] first 1000 by byFollowed:
+      for f in follows[authorId] by byFollowed:
         require tryPull(f.followerId, authorId) else FEED_PROMOTION_PULL_CAP
   visited = 0
   for p in posts[authorId] last 1000 by byActorTime:
@@ -279,7 +279,7 @@ mutation follow(authorId: principal):
 fn dropFollow(authorId: principal):
   if not exists follows[followerId = viewer, followedId = authorId]:
     return null
-  for e in feed[viewer, authorId] first 1000 by byReaderActor:
+  for e in feed[viewer, authorId] by byReaderActor:
     delete feed[e.id]
   if exists pulls[viewer, authorId]:
     delete pulls[viewer, authorId]
@@ -302,7 +302,7 @@ fn deliver(p: posts):
       copy(p, viewer, false)
   else:
     copy(p, viewer, false)
-    for f in follows[viewer] first 1000 by byFollowed:
+    for f in follows[viewer] by byFollowed:
       copy(p, f.followerId, false)
   return null
 
@@ -347,11 +347,11 @@ mutation unrepost(postId: id):
 query following(c: cursor ?):
   return merge feed after c last 20 by byReaderTime where not exists removedEvents[eventId = .eventId]:
     [viewer]
-    broadcast[p.authorId] for p in pulls[viewer] first 32 by byReaderAuthor
+    broadcast[p.authorId] for p in pulls[viewer] by byReaderAuthor
 
 job purgeRemoved():
   chunk p in removedEvents first 1 by byId:
-    for e in feed[p.eventId] first 1001 by byEvent:
+    for e in feed[p.eventId] by byEvent:
       delete feed[e.id]
     delete removedEvents[p.id]
 schedule purgeRemovedEvery every 1m: purgeRemoved
@@ -410,7 +410,7 @@ refuses the same way: the author stays at 50 followers and gains no new follower
 possibly indefinitely if a blocking follower is dormant. The newcomer cannot
 free that other follower's slot. To tell the author who is stuck, use a
 server-run query: `follows` and `pullCounts` are both `public`, so enumerate
-`follows[authorId] first 1000 by byFollowed`, then read each follower's
+`follows[authorId] by byFollowed`, then read each follower's
 `pullCounts[f.followerId]` and its `used`. After rollback there are 50 followers:
 51 reads (one follower scan plus 50 count lookups) identify those with `used = 32`.
 An absent count means zero routes. Installed prefixes rename these tables to
@@ -743,7 +743,7 @@ mutation unrepost(postId: posts):
 query following(c: cursor ?):
   entries = merge feedFeed after c last 20 by byReaderTime where not exists feedRemovedEvents[eventId = .eventId]:
     [viewer]
-    feedBroadcast[p.authorId] for p in feedPulls[viewer] first 32 by byReaderAuthor
+    feedBroadcast[p.authorId] for p in feedPulls[viewer] by byReaderAuthor
   return entries { *, post: posts[.postId] postCard, attribution: reposts[.actorId, .postId] }
 ```
 
@@ -890,60 +890,12 @@ mutation setLike(postId: posts, liked: bool):
 
 query trending(c: cursor ?):
   return merge trend after c last 10 by byScore where .postAt > now - 86400000 and .postAt <= now:
-    [hour(now) - 0]
-    [hour(now) - 1]
-    [hour(now) - 2]
-    [hour(now) - 3]
-    [hour(now) - 4]
-    [hour(now) - 5]
-    [hour(now) - 6]
-    [hour(now) - 7]
-    [hour(now) - 8]
-    [hour(now) - 9]
-    [hour(now) - 10]
-    [hour(now) - 11]
-    [hour(now) - 12]
-    [hour(now) - 13]
-    [hour(now) - 14]
-    [hour(now) - 15]
-    [hour(now) - 16]
-    [hour(now) - 17]
-    [hour(now) - 18]
-    [hour(now) - 19]
-    [hour(now) - 20]
-    [hour(now) - 21]
-    [hour(now) - 22]
-    [hour(now) - 23]
-    [hour(now) - 24]
+    [h] for h in range(hour(now) - 24, hour(now) + 1)
 
 query trendingWithZeros(c: cursor ?):
   since = now - 86400000
   liked = merge trend after c last 10 by byScore where .postAt > since and .postAt <= now:
-    [hour(now) - 0]
-    [hour(now) - 1]
-    [hour(now) - 2]
-    [hour(now) - 3]
-    [hour(now) - 4]
-    [hour(now) - 5]
-    [hour(now) - 6]
-    [hour(now) - 7]
-    [hour(now) - 8]
-    [hour(now) - 9]
-    [hour(now) - 10]
-    [hour(now) - 11]
-    [hour(now) - 12]
-    [hour(now) - 13]
-    [hour(now) - 14]
-    [hour(now) - 15]
-    [hour(now) - 16]
-    [hour(now) - 17]
-    [hour(now) - 18]
-    [hour(now) - 19]
-    [hour(now) - 20]
-    [hour(now) - 21]
-    [hour(now) - 22]
-    [hour(now) - 23]
-    [hour(now) - 24]
+    [h] for h in range(hour(now) - 24, hour(now) + 1)
   out = []
   if count(liked) = 10:
     return liked { postId, score: .value, at: .postAt }
@@ -979,8 +931,6 @@ but its score is only as trustworthy as the source rows' insert rule.
   file or index bytes), and the last unlike removed one group.
 - `hour` is UTC, and the trailing edge is exact only because of `where`;
   the upper check also excludes future-dated imports in the current hour.
-- The 25 lanes are typed out because `range(..)` as a lane source is refused
-  today (`E_QUARRY_SYNTAX`), and 25 is below `N_WIDE_MERGE`'s 50 lanes.
 
 For whole old buckets, dead data is a contiguous key range the lanes never
 enter. Nothing stale is ordered, charged or swept under a reader in those
@@ -1030,31 +980,7 @@ operations (facts)
   create: predicts: never; queued without a row
   setLike: predicts: never; queued without a row
   trending: runs: server
-    Server: scan trend by byScore: online only (site schema.q:36:5 (trend[hour(now) - 0]))
-    Server: scan trend by byScore: online only (site schema.q:37:5 (trend[hour(now) - 1]))
-    Server: scan trend by byScore: online only (site schema.q:38:5 (trend[hour(now) - 2]))
-    Server: scan trend by byScore: online only (site schema.q:39:5 (trend[hour(now) - 3]))
-    Server: scan trend by byScore: online only (site schema.q:40:5 (trend[hour(now) - 4]))
-    Server: scan trend by byScore: online only (site schema.q:41:5 (trend[hour(now) - 5]))
-    Server: scan trend by byScore: online only (site schema.q:42:5 (trend[hour(now) - 6]))
-    Server: scan trend by byScore: online only (site schema.q:43:5 (trend[hour(now) - 7]))
-    Server: scan trend by byScore: online only (site schema.q:44:5 (trend[hour(now) - 8]))
-    Server: scan trend by byScore: online only (site schema.q:45:5 (trend[hour(now) - 9]))
-    Server: scan trend by byScore: online only (site schema.q:46:5 (trend[hour(now) - 10]))
-    Server: scan trend by byScore: online only (site schema.q:47:5 (trend[hour(now) - 11]))
-    Server: scan trend by byScore: online only (site schema.q:48:5 (trend[hour(now) - 12]))
-    Server: scan trend by byScore: online only (site schema.q:49:5 (trend[hour(now) - 13]))
-    Server: scan trend by byScore: online only (site schema.q:50:5 (trend[hour(now) - 14]))
-    Server: scan trend by byScore: online only (site schema.q:51:5 (trend[hour(now) - 15]))
-    Server: scan trend by byScore: online only (site schema.q:52:5 (trend[hour(now) - 16]))
-    Server: scan trend by byScore: online only (site schema.q:53:5 (trend[hour(now) - 17]))
-    Server: scan trend by byScore: online only (site schema.q:54:5 (trend[hour(now) - 18]))
-    Server: scan trend by byScore: online only (site schema.q:55:5 (trend[hour(now) - 19]))
-    Server: scan trend by byScore: online only (site schema.q:56:5 (trend[hour(now) - 20]))
-    Server: scan trend by byScore: online only (site schema.q:57:5 (trend[hour(now) - 21]))
-    Server: scan trend by byScore: online only (site schema.q:58:5 (trend[hour(now) - 22]))
-    Server: scan trend by byScore: online only (site schema.q:59:5 (trend[hour(now) - 23]))
-    Server: scan trend by byScore: online only (site schema.q:60:5 (trend[hour(now) - 24]))
+    Server: scan trend by byScore: online only (site schema.q:36:5 (trend[h]))
   trendingWithZeros: runs: server
 ```
 
@@ -1069,31 +995,7 @@ operations (facts)
   create: predicts: eligible
   setLike: predicts: eligible
   trending: runs: device
-    Held: scan trend by byScore: held, no horizon (site schema.q:38:5 (trend[hour(now) - 0]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:39:5 (trend[hour(now) - 1]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:40:5 (trend[hour(now) - 2]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:41:5 (trend[hour(now) - 3]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:42:5 (trend[hour(now) - 4]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:43:5 (trend[hour(now) - 5]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:44:5 (trend[hour(now) - 6]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:45:5 (trend[hour(now) - 7]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:46:5 (trend[hour(now) - 8]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:47:5 (trend[hour(now) - 9]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:48:5 (trend[hour(now) - 10]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:49:5 (trend[hour(now) - 11]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:50:5 (trend[hour(now) - 12]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:51:5 (trend[hour(now) - 13]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:52:5 (trend[hour(now) - 14]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:53:5 (trend[hour(now) - 15]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:54:5 (trend[hour(now) - 16]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:55:5 (trend[hour(now) - 17]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:56:5 (trend[hour(now) - 18]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:57:5 (trend[hour(now) - 19]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:58:5 (trend[hour(now) - 20]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:59:5 (trend[hour(now) - 21]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:60:5 (trend[hour(now) - 22]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:61:5 (trend[hour(now) - 23]))
-    Held: scan trend by byScore: held, no horizon (site schema.q:62:5 (trend[hour(now) - 24]))
+    Held: scan trend by byScore: held, no horizon (site schema.q:38:5 (trend[h]))
   trendingWithZeros: runs: device
 ```
 

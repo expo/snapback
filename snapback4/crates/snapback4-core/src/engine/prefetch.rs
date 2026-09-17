@@ -270,7 +270,7 @@ impl Plan {
 mod tests {
     use super::*;
     fn scan() -> Scan {
-        Scan { site: "page".into(), table: "items".into(), index: "byId".into(), prefix: vec![], order: Order::Asc, take: Bound::Literal(10),
+        Scan { site: "page".into(), table: "items".into(), index: "byId".into(), prefix: vec![], order: Order::Asc, take: Bound::Literal(10), existence: false,
             after: None, before: None, range: None, filter: None, opaque_cursor: false, merge_site: None, provenance: KeyProvenance::Const }
     }
     fn read(site: &str, key: Expr) -> Expr {
@@ -361,7 +361,7 @@ mod write_walk_tests {
         }
         assert_eq!(found.sites["page"].iter().map(|m| m.read.site.as_str()).collect::<Vec<_>>(), ["target", "current"]);
         let scan = Scan { site: "page".into(), table: "items".into(), index: "byId".into(), prefix: vec![], order: Order::Asc,
-            take: Bound::Literal(10), after: None, before: None, range: None, filter: None, opaque_cursor: false,
+            take: Bound::Literal(10), existence: false, after: None, before: None, range: None, filter: None, opaque_cursor: false,
             merge_site: None, provenance: KeyProvenance::Const };
         let make = |body| Program { name: "p".into(), kind: ProgramKind::Mutation,
             args: BTreeMap::from([("alias".into(), ArgType::Id)]), read_time_granularity_ms: None,

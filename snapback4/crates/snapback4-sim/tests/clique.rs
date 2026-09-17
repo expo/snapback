@@ -12,6 +12,9 @@ mod search_global;
 mod read_cut;
 mod digest;
 mod search_directory;
+mod prefix_reads;
+mod lane_domains;
+mod time_indexes;
 
 use snapback4_core::engine::{Context, Engine, WriteState};
 use snapback4_core::partition::holdings;

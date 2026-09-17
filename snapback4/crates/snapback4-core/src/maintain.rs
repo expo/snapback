@@ -13,6 +13,20 @@ pub struct CalendarKey {
     pub offset: i64,
 }
 
+impl CalendarKey {
+    pub fn value(&self, row: &Value) -> Value {
+        Value::Int(calendar_ordinal(row.field(&self.column).ok().and_then(|v| v.as_int().ok()).unwrap_or(0), self.millis, self.offset))
+    }
+    pub fn validate(&self, source: &Table) -> Result<(), String> {
+        if source.columns.get(&self.column) != Some(&ColumnType::Time) || self.millis <= 0 || self.offset < 0 || self.offset >= self.millis
+            || !matches!(self.function.as_str(), "day" | "hour" | "bucket")
+            || (self.function == "day" && self.millis != 86_400_000) || (self.function == "hour" && self.millis != 3_600_000) {
+            return Err("computed time keys need a required time column, a positive calendar duration and a nonnegative offset smaller than the period".into());
+        }
+        Ok(())
+    }
+}
+
 fn zero(value: &i64) -> bool { *value == 0 }
 
 // @ref LLP 3000.007#20.9 — anchored UTC ordinals use the existing integer key encoding on every host; zero offsets retain the old serialized form.
@@ -66,7 +80,7 @@ impl Maintain {
     pub fn selected(&self, image: &Value) -> bool { self.filter.as_ref().is_none_or(|p| p.matches(image)) }
     pub fn source_key(&self, image: &Value) -> Vec<Value> {
         self.by.iter().map(|field| match self.computed.get(field) {
-            Some(key) => Value::Int(calendar_ordinal(image.field(&key.column).ok().and_then(|v| v.as_int().ok()).unwrap_or(0), key.millis, key.offset)),
+            Some(key) => key.value(image),
             None => image.field(field).cloned().unwrap_or(Value::Null),
         }).collect()
     }
@@ -88,11 +102,7 @@ impl Maintain {
     }
     pub fn validate_keys(&self, source: &Table) -> Result<(), String> {
         for key in self.computed.values() {
-            if source.columns.get(&key.column) != Some(&ColumnType::Time) || key.millis <= 0 || key.offset < 0 || key.offset >= key.millis
-                || !matches!(key.function.as_str(), "day" | "hour" | "bucket")
-                || (key.function == "day" && key.millis != 86_400_000) || (key.function == "hour" && key.millis != 3_600_000) {
-                return Err("computed maintain keys need a required time column, a positive calendar duration and a nonnegative offset smaller than the period".into());
-            }
+            key.validate(source)?;
         }
         Ok(())
     }
