@@ -200,8 +200,10 @@ export function startServer(manifest: ServerManifest, handlers: ServerHandlers, 
             return { kind: "settle", result };
           } catch (error) {
             const lost = lifetime.authorityLost();
-            if (lost.lost || (error instanceof ServerError && ["E_STEP_PARKED", "E_STEP_RESULT"].includes(error.refusal.code))) {
-              return { kind: "authority-lost", error: lost.lost ? lost.message : scopedRedact(`${error.refusal.code}: ${error.refusal.message}`), terminal: lost.terminal };
+            if (lost.lost) return { kind: "authority-lost", error: lost.message, terminal: lost.terminal };
+            if (error instanceof ServerError && ["E_STEP_PARKED", "E_STEP_RESULT"].includes(error.refusal.code)) {
+              const refusal = error.refusal;
+              return { kind: "authority-lost", error: scopedRedact(`${refusal.code}: ${refusal.message}`), terminal: false };
             }
             return { kind: "active-error", error: scopedRedact(error instanceof Error ? error.message : String(error)), retry: !(error instanceof GiveUp) };
           } finally { lifetime.close(); }

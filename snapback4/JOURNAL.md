@@ -33318,3 +33318,24 @@ formatter, generator, listener, provider, PostgreSQL, install, network, origin,
 remote, fetch or push ran, and no additional agent was delegated. Focused
 qualification remains pending and must run all 14 `lost effect lease` cases
 plus the B3b checks.
+
+## 2026-09-17 — B3b qualification source repair
+
+The authorized B3b qualification preserved its failed output and established
+three source-bound defects on the integrated candidate: the factored action
+status poll passed `.signal` from a value that was already an AbortSignal; the
+generated effect catch path relied on a compound TypeScript narrowing that did
+not retain `ServerError`; and the generated private effect context emitted
+E_EFFECT_CLOSED without a guide code-card entry.
+
+The original native Sol author repaired only those findings. Action status now
+passes the existing timeout signal directly. The generated effect catch path
+separates existing lost authority from the two step-terminal `ServerError`
+codes before reading their refusal, without changing either outcome. The new
+compact E_EFFECT_CLOSED card says the private context closes with handler
+lifetime or authority and must not be retained or reused.
+
+This was a source-only repair. No Cargo, Bun, Node, test, build, formatter,
+generator, listener, provider, PostgreSQL, install, network, remote, fetch or
+push command ran in this pass. The failed qualification and original commits
+remain preserved for the subsequent focused rerun.

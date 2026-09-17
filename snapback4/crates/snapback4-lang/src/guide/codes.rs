@@ -13,6 +13,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_ROUTE_LEASE", "the verifier claim expired or its fence does not match the current claim. Its response cannot authorize admission; obtain a current verification claim before replying. guide routes."),
     ("E_EFFECT_CANCELLATION", "this effect's admitted policy forbids cancellation; inspect its state with doctor or why."),
     ("E_EFFECT_CANCELLED", "the effect was cancelled; no further claim or settlement is admitted. External effects already performed are not undone."),
+    ("E_EFFECT_CLOSED", "family effect — the private generated effect context closed when its handler lifetime or authority ended. Callers must not retain or reuse it after the handler; start work only while its invocation signal is live. guide effects."),
     ("E_EFFECT_DEADLINE", "the effect's admitted deadline passed; it is terminal and will not be claimed again."),
     ("E_EFFECT_ATTEMPTS", "the effect exhausted the admitted attempt limit after a lease expired; inspect the provider before replacing it."),
     ("E_EFFECT_GENERATION", "the effect declaration changed or disappeared after admission. The effect is parked before claim or settlement; inspect its steps and provider outcomes before issuing new intent. guide effects."),

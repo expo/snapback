@@ -89,7 +89,7 @@ export function context(
     intervalMs: options.statusIntervalMs ?? 1000,
     stopped: () => closed || Boolean(ended),
     async poll(timeout) {
-      const reply = await post("/status", {}, timeout.signal) as { invocation?: { id: string; attempt: number; cancelled: boolean; state: string; errorCode?: string } };
+      const reply = await post("/status", {}, timeout) as { invocation?: { id: string; attempt: number; cancelled: boolean; state: string; errorCode?: string } };
       if (closed || ended) return;
       const status = reply.invocation;
       if (!status || status.id !== meta.id || status.attempt !== meta.attempt) {
