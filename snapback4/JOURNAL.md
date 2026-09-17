@@ -24867,3 +24867,19 @@ continuation adopting only the verified, recorded acceptance process tree,
 with a new two-hour operational limit and the same 2 GiB disk floor. The
 descendant-custody defect must be corrected before any cold scored cell.
 The completed baseline still needs independent W3/W5 qualification and W8.
+
+## 2026-09-17 — repair the experiment's inherited lockfile version drift
+
+On unchanged integration source, `cargo metadata --offline --locked` for
+`experiments/postgres/Cargo.toml` refused before compilation: the separate
+experiment lockfile still named `snapback4-core`, `snapback4-device` and
+`snapback4-lang` 0.2.25, while their workspace manifests are 0.2.26. The repair
+changes only those three local-package versions. A trial offline Cargo update
+also selected unrelated cached dependency downgrades; that generated delta was
+discarded before committing, and no third-party lock entry changed.
+
+`cargo metadata --locked --manifest-path
+snapback4/experiments/postgres/Cargo.toml --format-version 1` now exits zero
+without changing the lockfile. This is dependency-resolution evidence, not a
+test-suite or benchmark pass. The original C3.1 focused tests' non-locked
+invocation remains recorded; this repair does not relabel it.
