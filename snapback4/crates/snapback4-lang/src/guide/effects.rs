@@ -123,26 +123,31 @@ provider outcome parks it with E_STEP_PARKED. Parked effects are not reclaimed
 or expired. Explicit policy-allowed cancellation may move one to failed with
 E_EFFECT_CANCELLED; it never resumes the effect.
 
-New emits bind the exact generic `Value` payload and full admitted work policy
-to the effect name. There is no typed effect-payload declaration today and no
-same-name typed-change safety claim. If that surface becomes typed, the type's
-schema identity must replace the generic validator tag. Pre-contract rows with
-a NULL contract explicitly retain legacy comparison behavior. A legacy effect
-present only in `schema.effects` compares with the same implicit default work
-policy used when it was admitted, including the 4s initial backoff. Strict HTTP
-claim, step and settlement authenticate the current service and supervisor
-revision inside their writer transaction, then compare the current declaration.
-A mismatch parks with E_EFFECT_GENERATION before a stale lease can mask it.
+New emits retain the current release as admission provenance and bind the exact
+generic `Value` payload and full admitted work policy to the effect name. Release
+is excluded from declaration and row-compatibility digests: changing only the
+current release does not park older work. There is no typed effect-payload
+declaration today and no same-name typed-change safety claim. If that surface
+becomes typed, the type's schema identity must replace the generic validator
+tag. Pre-contract rows with a NULL contract explicitly retain legacy comparison
+behavior. A legacy effect present only in `schema.effects` compares with the
+same implicit default work policy used when it was admitted, including the 4s
+initial backoff. Strict HTTP claim, step and settlement authenticate the current
+service and supervisor revision inside their writer transaction, then compare
+the current declaration. A mismatch returns E_EFFECT_GENERATION; queued or
+running work is parked before a stale lease can mask the drift, while sent,
+satisfied, failed, cancelled and already parked evidence is not rewritten.
 Direct core claim/settle methods remain compatibility APIs without this strict
 HTTP authority and generation boundary.
 
 ## Effect lifecycle refusals
 
 E_EFFECT_GENERATION means the effect's declaration disappeared or changed
-after admission. The effect is durably parked and its claim fields are cleared,
-even when the presented lease is stale. Inspect its durable steps and provider
-outcomes before creating replacement intent; editing the declaration does not
-resume it.
+after admission. Queued or running work is durably parked and its claim fields
+are cleared, even when the presented lease is stale. A terminal or already
+parked row returns the same refusal without rewriting its evidence. Inspect its
+durable steps and provider outcomes before creating replacement intent; editing
+the declaration does not resume it.
 
 E_EFFECT_UNKNOWN means this server has no queued effect under that ID.
 For example, looking up an emit performed under `dev --replay` finds no

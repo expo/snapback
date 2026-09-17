@@ -81,11 +81,13 @@ pub(super) fn record(tx: &crate::store::Tx<'_>, outbox: &[super::presence::Emiss
     if replay {
         tx.conn().execute("INSERT INTO _meta(key, value) VALUES ('dev:suppressed-effects', ?1) ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + CAST(excluded.value AS INTEGER)", [outbox.len().to_string()])?;
     } else {
+        // @ref LLP 3000.009#5.2 — release is admission provenance, not an input to the effect compatibility contract.
+        let release: Option<String> = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'release'", [], |row| row.get(0)).optional()?;
         for (id, effect, payload, presence) in outbox {
             let work = schema.effect_specs.get(effect).cloned().unwrap_or_else(legacy_work);
             if !work.policy.valid() { return Err(RuntimeError::Schema("the effect policy is outside its bounds".into())); }
             let contract = work.effect_contract(effect, payload);
-            tx.conn().execute("INSERT INTO _outbox(id, seq, effect, payload, state, attempts, at, next_at, work_spec, deadline, release, contract) VALUES (?1, ?2, ?3, ?4, 'queued', 0, ?5, ?6, ?7, ?8, NULL, ?9)", params![id, seq as i64, effect, canonical_json(payload), now, presence.values().flatten().max(), canonical_json(&work), work.policy.deadline_ms.map(|ms| now.saturating_add(ms as i64)), contract])?;
+            tx.conn().execute("INSERT INTO _outbox(id, seq, effect, payload, state, attempts, at, next_at, work_spec, deadline, release, contract) VALUES (?1, ?2, ?3, ?4, 'queued', 0, ?5, ?6, ?7, ?8, ?9, ?10)", params![id, seq as i64, effect, canonical_json(payload), now, presence.values().flatten().max(), canonical_json(&work), work.policy.deadline_ms.map(|ms| now.saturating_add(ms as i64)), release, contract])?;
             for (principal, deadline) in presence {
                 let Some(deadline) = deadline else { continue; };
                 tx.conn().execute("INSERT INTO _effect_presence(principal, id, deadline) VALUES (?1, ?2, ?3)", params![principal, id, deadline])?;
@@ -129,11 +131,11 @@ pub(super) fn generation_error() -> RuntimeError {
 }
 
 fn park_generation(tx: &crate::store::Tx<'_>, id: &str, now: i64) -> Result<(), RuntimeError> {
-    tx.conn().execute("UPDATE _outbox SET state = 'parked', error_code = 'E_EFFECT_GENERATION', error = 'the admitted effect declaration changed; inspect this work before replacing it', settled_at = ?2, lease_until = NULL, claimed_by = NULL, lease_digest = NULL, next_at = NULL WHERE id = ?1", params![id, now])?;
+    tx.conn().execute("UPDATE _outbox SET state = 'parked', error_code = 'E_EFFECT_GENERATION', error = 'the admitted effect declaration changed; inspect this work before replacing it', settled_at = ?2, lease_until = NULL, claimed_by = NULL, lease_digest = NULL, next_at = NULL WHERE id = ?1 AND state IN ('queued', 'running')", params![id, now])?;
     Ok(())
 }
 
-// @ref LLP 3000.009#5.2 — admitted work cannot run under a replacement declaration.
+// @ref LLP 3000.009#5.2 — live admitted work cannot run under a replacement declaration; terminal evidence stays immutable.
 pub(super) fn contract_stands(tx: &crate::store::Tx<'_>, schema: &Schema, run: &EffectRun, now: i64) -> Result<bool, RuntimeError> {
     // NULL is an explicit legacy bypass: pre-contract rows retain their
     // compatibility behavior rather than acquiring a guessed declaration.

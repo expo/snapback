@@ -625,19 +625,23 @@ unknown outcomes park with E_STEP_PARKED. Parked effects are excluded from
 lease expiry and reclaim. Policy-allowed cancellation may move parked work to
 failed/E_EFFECT_CANCELLED but never resumes it.
 
-New emits store a contract over the exact generic `Value` payload, effect name
-and full admitted work policy. Effect payloads have no typed declaration yet,
-so this makes no same-name typed-change safety claim; a future typed surface
-must replace the generic validator tag with its schema identity. A persisted
-NULL contract is the explicit legacy bypass. A legacy effect represented only
-in `schema.effects` recomputes the implicit admission policy, including its 4s
-initial backoff, rather than becoming an absent declaration. Strict HTTP claim, step and
-settlement open an immediate transaction, sample time and supervisor revision
-once, authenticate the current service, and compare that contract. A mismatch
-parks with E_EFFECT_GENERATION before lease validity is considered, clearing
-claim, lease and scheduling fields. Legacy unfenced claim/settle wire remains
-compatible. Existing direct core claim/settle methods retain their historical
-compatibility behavior and do not provide the strict HTTP authority boundary.
+New emits retain the current release as admission provenance and store a
+contract over the exact generic `Value` payload, effect name and full admitted
+work policy. Release is excluded from declaration and row-compatibility digests,
+so changing only the current release does not park older work. Effect payloads
+have no typed declaration yet, so this makes no same-name typed-change safety
+claim; a future typed surface must replace the generic validator tag with its
+schema identity. A persisted NULL contract is the explicit legacy bypass. A
+legacy effect represented only in `schema.effects` recomputes the implicit
+admission policy, including its 4s initial backoff, rather than becoming an
+absent declaration. Strict HTTP claim, step and settlement open an immediate
+transaction, sample time and supervisor revision once, authenticate the current
+service, and compare that contract. A mismatch returns E_EFFECT_GENERATION.
+Queued or running work parks before lease validity is considered, clearing
+claim, lease and scheduling fields; sent, satisfied, failed, cancelled and
+already parked evidence is not rewritten. Legacy unfenced claim/settle wire
+remains compatible. Existing direct core claim/settle methods retain their
+historical compatibility behavior and do not provide the strict HTTP authority boundary.
 Only a service may call `POST /effects/<id>/cancel`; cancellation cannot stop
 provider I/O already in flight.
 

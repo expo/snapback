@@ -37,17 +37,56 @@ fn answer_error(request: Request, error: snapback4_core::RuntimeError) {
     respond(request, status, json!({ "denied": refusal_json(&refusal) }));
 }
 
+fn field_type(field: &str, expected: &str) -> Refusal {
+    Refusal::new("E_INPUT", "input", format!("{field} must be {expected} when present"))
+}
+
+fn string_field<'a>(payload: &'a Json, field: &str) -> Result<Option<&'a str>, Refusal> {
+    match payload.get(field) {
+        None => Ok(None),
+        Some(value) => value.as_str().map(Some).ok_or_else(|| field_type(field, "a string")),
+    }
+}
+
+fn bool_field(payload: &Json, field: &str) -> Result<Option<bool>, Refusal> {
+    match payload.get(field) {
+        None => Ok(None),
+        Some(value) => value.as_bool().map(Some).ok_or_else(|| field_type(field, "a boolean")),
+    }
+}
+
+fn unsigned_field(payload: &Json, field: &str) -> Result<Option<u64>, Refusal> {
+    match payload.get(field) {
+        None => Ok(None),
+        Some(value) => value.as_u64().map(Some).ok_or_else(|| field_type(field, "a nonnegative integer")),
+    }
+}
+
+fn integer_field(payload: &Json, field: &str) -> Result<Option<i64>, Refusal> {
+    match payload.get(field) {
+        None => Ok(None),
+        Some(value) => value.as_i64().map(Some).ok_or_else(|| field_type(field, "an integer")),
+    }
+}
+
+enum StepOutcome {
+    Began(snapback4_core::EffectStep),
+    Completed(snapback4_core::EffectStep),
+    Parked,
+}
+
 pub(super) fn claim(request: Request, shared: &Shared, body: &str) {
     let payload: Json = match serde_json::from_str(if body.is_empty() { "{}" } else { body }) {
         Ok(Json::Object(fields)) => Json::Object(fields),
         _ => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "claim takes an object")) })),
     };
+    let effect = match string_field(&payload, "effect") { Ok(value) => value.map(str::to_owned), Err(refusal) => return respond(request, 400, json!({ "denied": refusal_json(&refusal) })) };
+    let limit = match unsigned_field(&payload, "limit") { Ok(value) => value.unwrap_or(1).clamp(1, 100) as usize, Err(refusal) => return respond(request, 400, json!({ "denied": refusal_json(&refusal) })) };
+    let lease_ms = match integer_field(&payload, "lease") { Ok(value) => value.unwrap_or(60).clamp(1, 900) * 1_000, Err(refusal) => return respond(request, 400, json!({ "denied": refusal_json(&refusal) })) };
+    let fenced = match bool_field(&payload, "fenced") { Ok(value) => value.unwrap_or(false), Err(refusal) => return respond(request, 400, json!({ "denied": refusal_json(&refusal) })) };
+    let wait = match unsigned_field(&payload, "wait") { Ok(value) => value.unwrap_or(0).min(25), Err(refusal) => return respond(request, 400, json!({ "denied": refusal_json(&refusal) })) };
     let token = match worker_token(&request) { Ok(token) => token, Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })) };
-    let effect = payload.get("effect").and_then(Json::as_str).map(str::to_owned);
-    let limit = payload.get("limit").and_then(Json::as_u64).unwrap_or(1).clamp(1, 100) as usize;
-    let lease_ms = payload.get("lease").and_then(Json::as_i64).unwrap_or(60).clamp(1, 900) * 1_000;
-    let fenced = payload.get("fenced").and_then(Json::as_bool).unwrap_or(false);
-    let deadline = Instant::now() + Duration::from_secs(payload.get("wait").and_then(Json::as_u64).unwrap_or(0).min(25));
+    let deadline = Instant::now() + Duration::from_secs(wait);
     loop {
         // @ref LLP 3000.009#5.2 — every long-poll turn rechecks service,
         // supervisor revision, declaration and claimability in one writer transaction.
@@ -87,16 +126,10 @@ pub(super) fn post(request: Request, shared: &Shared, path: &str, body: &str) {
         Ok(Json::Object(fields)) => Json::Object(fields),
         _ => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "effect settlement takes an object")) })),
     };
-    let service_token = match worker_token(&request) { Ok(token) => token, Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })) };
-
     if let Some(tail) = path.strip_prefix("/effects/").and_then(|tail| tail.split_once("/steps/")) {
         if let Some((name, verb)) = tail.1.rsplit_once('/') {
             let (Some(id), Some(name)) = (decode_id(tail.0), decode_id(name)) else {
                 return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "effect and step ids must be percent-encoded UTF-8")) }));
-            };
-            let lease = match single_header(&request, "x-snapback-effect-lease") {
-                Ok(Some(token)) if !token.trim().is_empty() => token.trim().to_owned(),
-                _ => return respond(request, 200, json!({ "denied": refusal_json(&Refusal::new("E_EFFECT_LEASE", "schema", "send exactly one nonempty effect claim token")) })),
             };
             let field = match verb { "begin" => Some("input"), "done" => Some("result"), _ => None };
             if field.is_some_and(|field| payload.get(field).is_none()) {
@@ -105,24 +138,39 @@ pub(super) fn post(request: Request, shared: &Shared, path: &str, body: &str) {
             if !matches!(verb, "begin" | "done" | "park") {
                 return answer_error(request, snapback4_core::RuntimeError::Input("step routes are begin, done or park".into()));
             }
+            let reconcile = if verb == "begin" {
+                match bool_field(&payload, "reconcile") { Ok(value) => value.unwrap_or(false), Err(refusal) => return respond(request, 400, json!({ "denied": refusal_json(&refusal) })) }
+            } else { false };
+            let error = if verb == "park" {
+                match string_field(&payload, "error") { Ok(value) => value.unwrap_or("the provider outcome is unknown").to_owned(), Err(refusal) => return respond(request, 400, json!({ "denied": refusal_json(&refusal) })) }
+            } else { String::new() };
+            let lease = match single_header(&request, "x-snapback-effect-lease") {
+                Ok(Some(token)) if !token.trim().is_empty() => token.trim().to_owned(),
+                _ => return respond(request, 200, json!({ "denied": refusal_json(&Refusal::new("E_EFFECT_LEASE", "schema", "send exactly one nonempty effect claim token")) })),
+            };
+            let service_token = match worker_token(&request) { Ok(token) => token, Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })) };
             let input = payload.get("input").unwrap_or(&Json::Null);
             let result = payload.get("result").unwrap_or(&Json::Null);
-            let reconcile = payload.get("reconcile").and_then(Json::as_bool).unwrap_or(false);
-            let error = payload.get("error").and_then(Json::as_str).unwrap_or("the provider outcome is unknown");
-            let outcome = {
+            let outcome: Result<StepOutcome, snapback4_core::RuntimeError> = {
                 let mut engine = lock(&shared.engine);
-                match verb {
-                    "begin" => engine.begin_effect_step_strict(&service_token, &id, &lease, &name, input, reconcile, || sample(shared)).map(|step| json!({ "step": step })),
-                    "done" => engine.complete_effect_step_strict(&service_token, &id, &lease, &name, result, || sample(shared)).map(|step| json!({ "ok": true, "step": step })),
-                    "park" => engine.park_effect_step_strict(&service_token, &id, &lease, &name, error, || sample(shared)).map(|()| json!({ "ok": true })),
-                    _ => Err(snapback4_core::RuntimeError::Input("step routes are begin, done or park".into())),
-                }
+                (|| Ok(match verb {
+                    "begin" => StepOutcome::Began(engine.begin_effect_step_strict(&service_token, &id, &lease, &name, input, reconcile, || sample(shared))?),
+                    "done" => StepOutcome::Completed(engine.complete_effect_step_strict(&service_token, &id, &lease, &name, result, || sample(shared))?),
+                    "park" => { engine.park_effect_step_strict(&service_token, &id, &lease, &name, &error, || sample(shared))?; StepOutcome::Parked }
+                    _ => unreachable!("step verb validated before taking the engine guard"),
+                }))()
             };
             shared.committed.notify_all();
-            return match outcome { Ok(answer) => respond(request, 200, answer), Err(error) => answer_error(request, error) };
+            return match outcome {
+                Ok(StepOutcome::Began(step)) => respond(request, 200, json!({ "step": step })),
+                Ok(StepOutcome::Completed(step)) => respond(request, 200, json!({ "ok": true, "step": step })),
+                Ok(StepOutcome::Parked) => respond(request, 200, json!({ "ok": true })),
+                Err(error) => answer_error(request, error),
+            };
         }
     }
 
+    let service_token = match worker_token(&request) { Ok(token) => token, Err(refusal) => return respond(request, 401, json!({ "denied": refusal_json(&refusal) })) };
     let (encoded_id, done) = if let Some(id) = path.strip_prefix("/effects/").and_then(|tail| tail.strip_suffix("/done")) { (id, true) }
         else if let Some(id) = path.strip_prefix("/effects/").and_then(|tail| tail.strip_suffix("/failed")) { (id, false) }
         else { return respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_EFFECT_UNKNOWN", "schema", "no effect settlement at this path")) })); };
@@ -138,7 +186,9 @@ pub(super) fn post(request: Request, shared: &Shared, path: &str, body: &str) {
         };
         snapback4_core::Settled::Done { result }
     } else {
-        snapback4_core::Settled::Failed { error: payload.get("error").and_then(Json::as_str).unwrap_or("the worker failed").to_owned(), retry: payload.get("retry").and_then(Json::as_bool).unwrap_or(true) }
+        let error = match string_field(&payload, "error") { Ok(value) => value.unwrap_or("the worker failed").to_owned(), Err(refusal) => return respond(request, 400, json!({ "denied": refusal_json(&refusal) })) };
+        let retry = match bool_field(&payload, "retry") { Ok(value) => value.unwrap_or(true), Err(refusal) => return respond(request, 400, json!({ "denied": refusal_json(&refusal) })) };
+        snapback4_core::Settled::Failed { error, retry }
     };
     let outcome = {
         let mut engine = lock(&shared.engine);

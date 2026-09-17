@@ -24,6 +24,11 @@ fn adopt(engine: &mut Engine, settings: &str, legacy: bool) {
     if legacy { schema.effect_specs.clear(); }
     engine.adopt(schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
 }
+fn outbox_snapshot(engine: &Engine, id: &str) -> Vec<rusqlite::types::Value> {
+    let mut statement = engine.store().conn().prepare("SELECT * FROM _outbox WHERE id = ?1").unwrap();
+    let columns = statement.column_count();
+    statement.query_row([id], |row| (0..columns).map(|column| row.get(column)).collect()).unwrap()
+}
 
 #[test]
 fn effect_policy_is_frozen_at_emission_and_cancellation_is_terminal() {
@@ -94,6 +99,59 @@ fn generation_drift_parks_before_stale_lease_for_settle_and_every_step_verb() {
         assert_eq!(row.0, "parked"); assert_eq!(row.1.as_deref(), Some("E_EFFECT_GENERATION"));
         assert!(row.2.is_some() && row.3 == Some(2_000)); assert_eq!((row.4, row.5, row.6), (None, None, None));
     }
+}
+
+#[test]
+fn generation_drift_refuses_terminal_states_without_rewriting_their_evidence() {
+    let mut engine = engine("retry 2");
+    let cases = [
+        (emit(&mut engine, "sent", 0), "sent", 0, Some("sent-result"), None, None),
+        (emit(&mut engine, "satisfied", 1), "satisfied", 0, Some("satisfied-result"), None, None),
+        (emit(&mut engine, "failed", 2), "failed", 0, None, Some("failed-error"), Some("E_EFFECT_ATTEMPTS")),
+        (emit(&mut engine, "cancelled", 3), "failed", 1, None, Some("cancelled-error"), Some("E_EFFECT_CANCELLED")),
+        (emit(&mut engine, "parked", 4), "parked", 0, None, Some("parked-error"), Some("E_STEP_PARKED")),
+    ];
+    for (index, (id, state, cancelled, result, error, code)) in cases.iter().enumerate() {
+        engine.store().conn().execute(
+            "UPDATE _outbox SET state = ?2, cancelled = ?3, result = ?4, error = ?5, error_code = ?6, settled_at = ?7, lease_until = ?8, claimed_by = ?9, lease_digest = ?10, next_at = ?11 WHERE id = ?1",
+            rusqlite::params![id, state, cancelled, result, error, code, 100 + index as i64, 200 + index as i64, format!("terminal-worker-{index}"), format!("terminal-lease-{index}"), 300 + index as i64],
+        ).unwrap();
+    }
+    let service = service(&engine);
+    adopt(&mut engine, "retry 3", false);
+
+    for (id, ..) in &cases {
+        let before = outbox_snapshot(&engine, id);
+        let error = engine.settle_effect_strict(
+            &service.token, id, Some("stale-lease"), Settled::Done { result: None }, || sample(1_000),
+        ).unwrap_err();
+        assert_eq!(error.code(), "E_EFFECT_GENERATION");
+        assert_eq!(outbox_snapshot(&engine, id), before, "terminal evidence changed for {id}");
+    }
+}
+
+#[test]
+fn release_is_admission_provenance_not_effect_contract_generation() {
+    let mut engine = engine("retry 2");
+    engine.store().set_meta("release", "A").unwrap();
+    let admitted_under_a = emit(&mut engine, "release-a", 0);
+    let contract_a: String = engine.store().conn().query_row(
+        "SELECT contract FROM _outbox WHERE id = ?1", [&admitted_under_a], |row| row.get(0),
+    ).unwrap();
+
+    engine.store().set_meta("release", "B").unwrap();
+    let service = service(&engine);
+    let claimed = engine.claim_effects_strict(&service.token, None, 1, 1_000, true, || sample(1)).unwrap();
+    assert_eq!(claimed.len(), 1);
+    assert_eq!(claimed[0].id, admitted_under_a);
+    assert_eq!(claimed[0].release.as_deref(), Some("A"));
+
+    let admitted_under_b = emit(&mut engine, "release-b", 2);
+    let (release_b, contract_b): (Option<String>, String) = engine.store().conn().query_row(
+        "SELECT release, contract FROM _outbox WHERE id = ?1", [&admitted_under_b], |row| Ok((row.get(0)?, row.get(1)?)),
+    ).unwrap();
+    assert_eq!(release_b.as_deref(), Some("B"));
+    assert_eq!(contract_b, contract_a, "release must not enter the effect compatibility contract");
 }
 
 #[test]

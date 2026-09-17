@@ -32148,3 +32148,60 @@ Native Sol authored and qualified every surviving Bwork2 change with no
 additional model/subagent delegation. The accidental wrong-model edit attempt
 was fully inverse-restored and contributes no surviving source. This provenance
 does not claim that no model work occurred.
+
+## 2026-09-17 — Bwork2 review-repair source erratum
+
+The Bwork2 source checkpoint incorrectly said that new SQLite emissions store
+no release and implemented that statement by writing NULL into `_outbox.release`.
+That confused admission provenance with declaration compatibility. The repair
+restores the current `_meta.release` on every newly admitted effect row while
+keeping release wholly outside the effect declaration and row-compatibility
+digests. The focused A→B regression records A on an A-admitted row, changes the
+current release to B without generation-parking that row, and records B on a
+new admission.
+
+Declaration drift still returns E_EFFECT_GENERATION before stale-lease refusal
+for queued and running work, but only those live states are generation-parked.
+Sent, satisfied, failed, cancelled and already parked rows retain every stored
+evidence field unchanged. Focused source snapshots compare the full terminal
+outbox rows before and after the refusal. The effect HTTP boundary now rejects
+wrong-typed present `effect`, `fenced`, `limit`, `lease`, `wait`, `retry`,
+`reconcile` and `error` fields before taking the engine mutex; omission alone
+selects a default. The malformed-body regressions retain the outbox row,
+attempt count and effect-step count. Step execution returns a typed host outcome
+from the engine guard, and only after that guard drops does the host construct
+the unchanged JSON/HTTP response.
+
+Native Codex gpt-5.6-sol authored this bounded review-repair pass. This is a
+source-only correction record, not a claim that no model work occurred. Per
+the commissioned phase, no Cargo or Node test, build, listener, network,
+provider, origin, root-inventory or commit command ran; the added checks remain
+unexecuted here. Advisory lease equality and legacy maintenance expiry
+precedence are inherited compatibility paths and remain out of scope. Bwork3
+was not touched.
+
+## 2026-09-17 — Bwork2 review-repair focused qualification
+
+The seven-file repair compiled and its requested serial locked checks passed
+with `CARGO_BUILD_JOBS=6`: `effect_policy` passed 9/9, the exact modified host
+HTTP regression passed 1/1, the SQLite core check passed, and the language guide
+passed 50/50. A subsequent host `effect_` selector passed seven selected tests:
+four unit tests and three existing clock integration tests. The focused rows
+therefore cover strict wrong-type rejection without outbox/attempt/step
+mutation, full terminal-row stability under generation refusal, running drift
+before stale-lease refusal, release A surviving current release B with an
+unchanged compatibility contract, and the existing successful step wire after
+response materialization moved outside the engine guard. Source review confirms
+the guard returns only `StepOutcome` or `RuntimeError`; its block contains no
+`json!`, response construction or HTTP write.
+
+The first `effect_policy` invocation found no ambient `cargo` and exited 127
+before compilation; repeating it with `/home/ccheever/.cargo/bin/cargo` passed.
+The broader `effect_` selector unintentionally exceeded this qualification's
+no-listener boundary because its name also selected three existing `clock`
+tests. Those tests opened and closed temporary loopback dev/serve listeners and
+passed 3/3; no external network or provider ran. This selector mistake caused
+no source repair and is retained here rather than recast as authorized evidence.
+No root inventory, full suite, PostgreSQL, provider, external network, origin,
+push or publication command ran. Native Codex gpt-5.6-sol authored and
+qualified this repair without model or subagent delegation.
