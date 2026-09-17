@@ -5,7 +5,7 @@
 **Date:** 2026-09-13
 **Systems:** Snapback 4 HTTP test harness
 **Author:** Codex / GPT-6
-**Resolution:** Fixed by `a44a8768e`: bounded test processes pass the complete Rust inventory at Darwin's 256-descriptor limit and cancellation leaves no scoped children behind.
+**Resolution:** Fixed by the delivered bounded artifact runner: the complete Rust inventory passes at Darwin's 256-descriptor limit and cancellation leaves no scoped children behind.
 **Related:** [LLP 3000](../../llp/3000-snapback4.explainer.md)
 
 ## Observation

@@ -5,7 +5,7 @@
 **Date:** 2026-09-13
 **Systems:** `snapback4/scripts/test.sh`, the simulator and development loop
 **Author:** Codex / GPT-6 Astra
-**Resolution:** Fixed by `a44a8768e`: the complete current suite passes inside the unchanged 60-second budget with every assertion and cancellation guarantee retained.
+**Resolution:** Fixed by the delivered bounded artifact runner: the complete current suite passes inside the unchanged 60-second budget with every assertion and cancellation guarantee retained.
 
 At `2063884c8fd40c672158d4b4e3187864192db11c`, the full suite completed with
 zero failed assertions in 72 seconds twice, including the publication
@@ -362,8 +362,7 @@ unchanged ceiling. Raw log SHA-256 values:
 `ebfbe74b4b73d29981f6d15729205399bd00329d7e9a575b22735aa61bb9e09e`
 and `2778bd2d2a75ce682d898be7f2971f83600cc0ae4a73f56b1a57e8ece970a6a2`.
 
-The final delivery rebase onto `e2467031d` maps that semantic checkpoint to
-`a44a8768e`. The intervening main commit adds benchmark probes, LLP text and
-`snapback4/JOURNAL.md`; the qualified Cargo, crate, package and script inputs
-are byte-identical to executed checkpoint `a58c4c3af`. No rerun is substituted
-for the two exact 50-second observations above.
+Subsequent delivery rebases added only benchmark, LLP, journal and issue
+records. Tree comparisons confirmed that the qualified Cargo, crate, package
+and script inputs remain byte-identical to executed checkpoint `a58c4c3af`.
+No rerun is substituted for the two exact 50-second observations above.
