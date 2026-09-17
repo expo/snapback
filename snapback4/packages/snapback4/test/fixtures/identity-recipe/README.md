@@ -239,16 +239,30 @@ part of the record.
 | Service revocation | Separate operator service revokes `service:worker` | Mint/recovery using the revoked worker credential refuses `E_AUTH` | PENDING; executable |
 | Expired issued family | Requeue, supported dev `clock advance +25h`, then fresh current claim; target lifetime one day, invocation 30 days, authorities still live | Recovery refuses `E_ACTION_AUTHORITY`; expired bearer returns `E_AUTH` | PENDING; executable; development-clock evidence only |
 | Receipt/default-diagnostic secrecy | Read-only `_action_steps`, binding/session tables and default `why` | Mint step has delivery metadata but no bearer; old bearer occurs nowhere; final bearer occurs only in protected `_requests.result`; default `why` contains none of the known secrets | PENDING; executable; `why --values` is intentionally sensitive and is not run |
-| After mint-step done / before action settlement | After the existing committed-mint cut, exact `/actions/<invocation>/steps/oidc.mint/done` succeeds with a terminal done receipt; its acknowledgement is cut and the second verified worker is killed | A third distinct worker replays completed steps and explicitly replaces the lost handoff in the original family/expiry; both earlier bearers fail, one final digest remains, token storage and provider-count assertions hold | PENDING actual; source executable in a separate sign-in mode |
+| After mint-step done / before action settlement | After the existing committed-mint cut, the recovered mint PID is recorded; only the exact encoded `/actions/<invocation>/steps/oidc.mint/done` in `await-step-done` can select the single cut. One joined read-only snapshot requires that exact `oidc.mint` row to be `done` with matching nonsecret mint metadata while the exact `completeOidc` request remains `running`, resultless and unsettled. The done request PID must equal the recovered mint PID and differ from the first killed worker before its acknowledgement is cut | A final mint worker must differ explicitly from both killed workers, replaces the lost handoff in the original family/expiry, both earlier bearers fail, one final digest remains, and token-storage/provider-count assertions hold. Any later done replay is forwarded normally; the helper source shows that completed-step replay can instead return the stored result and recover the mint outside the step callback, so another done request is not required | PENDING actual; repaired instrumentation is executable in a separate sign-in mode, not evidence of a reproduced helper/backend failure |
 | Legacy unpublished mint receipt | Old done `oidc.mint` receipt plus an existing real unbound Session, followed by the repaired helper whose step input includes `protocol: 'oidc-mint-bound/v1'` | `E_STEP_INPUT` before initial/recovery mint; zero new binding/family; old bearer remains live | PENDING root-engine witness; not seeded here because doing so through the public helper also requires a complete compatible private transaction/exchange record |
 | Production/release expiry | Wall clock only | Long-window issued-family expiry refusal | UNAVAILABLE in this bounded run; no fake clock or database edit is substituted |
 
 The two new crash-cut modes each use one independent Keycloak sign-in and
 require exactly one token-endpoint POST within that mode; a future combined
 run therefore has multiple provider exchanges overall. Their deterministic
-cut-plan tests are doubles, not actual evidence. The legacy-receipt row remains
+cut-plan tests are doubles, not actual evidence. The after-step selector first
+rejects unrelated modes, phases, routes and an already-selected cut before it
+resolves the completion invocation; the exact candidate latches selection
+before asynchronous custody checks. Synthetic negative observations cover a
+wrong invocation, missing/non-done step, mismatched metadata, a settled action,
+missing/wrong worker PIDs and the B-recovers/C-done/B-final false-positive
+sequence; A/B/B/C is the valid worker sequence. This robustness is
+qualification instrumentation, not a reproduced helper defect. The
+legacy-receipt row remains
 an explicit separate gap, not inferred from the direct first-binding or crash
 cases. Production long-window expiry likewise remains unavailable here.
+
+On Node 24.18.0, syntax checks of `qualify-b1c.mjs` and
+`crash-cut-plan.mjs` passed. The serial synthetic command over crash-cut plan,
+deadline sequence, proxy phase, loopback HTTP lifecycle and diagnostic secrecy
+passed 42/42; `git diff --check` passed. No qualification harness, actual
+engine/provider/process cut, external network, Cargo, install or full suite ran.
 
 ## B1d.2a managed organizations and invitations
 

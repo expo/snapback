@@ -13,7 +13,10 @@ import { setTimeout as delay } from "node:timers/promises";
 import { DatabaseSync } from "node:sqlite";
 import { authorizeWithKeycloak } from "./keycloak-browser.mjs";
 import { diagnosticStreamsAreSecretFree } from "./diagnostic-secrecy.mjs";
-import { appendCrashCutObservation, requireInitialMintCut, requireMintStepDoneCut } from "./crash-cut-plan.mjs";
+import {
+  appendCrashCutObservation, requireCrashCutWorkers, requireInitialMintCut,
+  requireMintStepDoneCut, requireMintStepDurableObservation, selectMintStepDoneCut,
+} from "./crash-cut-plan.mjs";
 import { proveDeadlineSequence } from "./deadline-sequence.mjs";
 import { captureEngineCustody, registerWorkerCustody, verifyWorkerCustody } from "./process-custody.mjs";
 import { abortProxyServer, closeExpectedProxy, createProxyPhase, stopOwnedChild, trackProxyExchange } from "./proxy-phase.mjs";
@@ -240,7 +243,8 @@ function boundedBody(request, limit = 2 * 1024 * 1024) {
 
 async function startFaultProxy(engine, mode, project, invocation) {
   const state = { phase: "initial", providerClosed: false, provider: [], mints: [], cuts: [], workers: new Map(),
-    bindingAbsentAtCut: false, exchangeDoneAtCut: false, initialMintRequest: null, stepDone: null };
+    bindingAbsentAtCut: false, exchangeDoneAtCut: false, initialMintRequest: null, stepDone: null,
+    stepDoneCutSelected: false, recoveredMintPid: null, stepDonePid: null, durableMintAtCut: null };
   const lifecycle = createProxyPhase(code => { instrumentFailureCode ??= code; });
   const exchanges = new Set();
   const register = async pid => {
@@ -323,14 +327,41 @@ async function startFaultProxy(engine, mode, project, invocation) {
             return;
           }
           if (state.phase === "recovery" && sent.binding?.replaceLostDelivery === true) {
+            state.recoveredMintPid = pid;
             state.phase = mode === "after-step" ? "await-step-done" : "done";
           } else if (state.phase === "final-recovery" && sent.binding?.replaceLostDelivery === true) state.phase = "done";
         }
       }
-      if (mode === "after-step" && request.url?.includes("/steps/oidc.mint/done")) {
+      const selectedInvocation = selectMintStepDoneCut({ getInvocation: invocation, mode, phase: state.phase,
+        path: request.url, selected: state.stepDoneCutSelected });
+      if (selectedInvocation !== null) {
+        const selectedPhase = state.phase;
+        state.stepDoneCutSelected = true;
+        state.phase = "cutting-step-done";
         const reply = JSON.parse(bytes.toString("utf8"));
-        requireMintStepDoneCut({ invocation: invocation(), phase: state.phase, path: request.url, upstreamOk: upstream.ok, reply }, assert);
+        requireMintStepDoneCut({ invocation: selectedInvocation, phase: selectedPhase, path: request.url, upstreamOk: upstream.ok, reply }, assert);
+        assert(Number.isInteger(state.recoveredMintPid) && pid === state.recoveredMintPid
+          && pid !== state.cuts[0]?.pid, "cut-recovered-worker-binding");
+        const recoveredMint = state.mints.at(-1)?.session;
+        assert(recoveredMint, "cut-recovered-mint-missing");
+        const db = database(project);
+        try {
+          const row = db.prepare(`SELECT r.id request_id, r.name request_name, r.state request_state,
+            r.result request_result, r.settled_at request_settled_at, s.invocation step_invocation,
+            s.name step_name, s.state step_state, s.result step_result
+            FROM _requests r LEFT JOIN _action_steps s
+              ON s.invocation = r.id AND s.name = 'oidc.mint' WHERE r.id = ?`).get(selectedInvocation);
+          state.durableMintAtCut = row && {
+            requestId: row.request_id, requestName: row.request_name, requestState: row.request_state,
+            requestResult: row.request_result, requestSettledAt: row.request_settled_at,
+            stepInvocation: row.step_invocation, stepName: row.step_name, stepState: row.step_state,
+            stepResult: row.step_result === null ? null : JSON.parse(row.step_result),
+          };
+        } finally { db.close(); }
+        requireMintStepDurableObservation({ invocation: selectedInvocation, observation: state.durableMintAtCut,
+          expected: recoveredMint }, assert);
         state.stepDone = reply.step;
+        state.stepDonePid = pid;
         await cutWorker(pid, registered, "after-mint-step-done-before-action-settlement");
         state.phase = "final-recovery";
         exchange.intentionalCut(); response.destroy(); return;
@@ -431,6 +462,10 @@ async function keycloakWitness(paths, scratch, config, mode = "primary") {
     assert(finalMint && engine.workerPids().has(finalMint.pid)
       && new Set([...proxy.state.cuts.map(cut => cut.pid), ...proxy.state.mints.map(mint => mint.pid)]).size === expectedCuts + 1,
     "worker-process-restart");
+    if (mode === "after-step") requireCrashCutWorkers({
+      firstKilledPid: proxy.state.cuts[0]?.pid, recoveredMintPid: proxy.state.recoveredMintPid,
+      donePid: proxy.state.stepDonePid, finalMintPid: finalMint?.pid,
+    }, assert);
     assert(finalMint.binding?.invocationId === completion.id && finalMint.binding?.intent === "identity-session/v1"
       && finalMint.binding?.replaceLostDelivery === true, "recovery-wire");
     if (mode !== "before-mint") {

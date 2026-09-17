@@ -32398,3 +32398,46 @@ engine, provider, crash, network, Rust/Cargo, install, publication or full
 suite ran in this source phase. The two new modes remain pending actual
 execution. Legacy unpublished receipts and production wall-clock expiry remain
 separate unqualified gaps.
+
+## 2026-09-17 — B1c after-step crash-cut instrument repair
+
+The two public source reviews of the source-pending crash modes both returned
+NOT READY. Native Sol HIGH repaired only the qualification instrument. The
+after-step path now records the recovered-mint PID and, before the second kill,
+requires the done request to come from that exact worker and not the first
+killed worker. The final mint PID must differ explicitly from both killed
+workers. Synthetic negative witnesses include the former false-positive shape
+B-recovers/C-done/B-final, missing and wrong PIDs, and the valid A/B/B/C shape.
+
+The second cut is selected only for the exact encoded invocation route in
+`await-step-done` and only once. Selection is latched synchronously before
+custody or database awaits; later done traffic is forwarded normally. During
+the first delta inspection the supervisor found that the selector resolved the
+completion-id getter for unrelated earlier proxy responses, before that id
+exists. No runtime command exposed that source bug. The selector now rejects
+the mode, phase, selected flag and non-done route before lazily resolving the
+invocation, with a synthetic throwing-getter witness for initial traffic and a
+positive exact-path resolution witness.
+
+Immediately before the second kill, one read-only joined SQLite query observes
+the exact `_action_steps` and `_requests` rows. It requires `oidc.mint` to be
+durably `done` with the recovered Session's nonsecret minted/principal/kind/
+expiry metadata, while the exact `completeOidc` request is still `running` with
+null result and `settled_at`. Synthetic negatives cover wrong invocation,
+missing or non-done step, mismatched metadata and a settled request. No private
+database or product/helper/protocol write was added.
+
+The helper source still permits the adjudicated no-second-done path: a completed
+step returns its stored result and `recoverMint` runs outside the callback.
+Therefore later done replay is permitted but not required, and this robust
+phase handling is instrumentation rather than a reproduced helper or backend
+failure. R4's actual source `1b2178f07`, binary `7342` and package `32c447`
+qualification remains historical evidence only for its existing rows. Both new
+crash modes and this repair remain PENDING actual qualification; all prior reds
+remain retained.
+
+Node 24.18.0 syntax checks of `qualify-b1c.mjs` and `crash-cut-plan.mjs`
+passed. The serial synthetic command over crash-cut plan, deadline sequence,
+proxy phase, loopback HTTP lifecycle and diagnostic secrecy passed 42/42;
+`git diff --check` passed. No qualification harness, actual engine, provider,
+process crash, external network, Rust/Cargo, install or full suite ran.
