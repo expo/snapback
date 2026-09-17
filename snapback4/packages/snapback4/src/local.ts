@@ -34,6 +34,8 @@ import {
 /** One JSON call into the device: `{ op, ... }` in, `{ ok } | { denied }` out. */
 export interface DeviceCore {
   readonly media?: MediaStorage;
+  /** Web recovery may acquire an orphan outbox without a backend change. */
+  onOutbox?(listener: () => void): () => void;
   /** Web hosts alone: committed unsent writes at pagehide/hidden, synchronously. */
   onSuspend?(flush: (entries: readonly PendingSend[], beginSend: () => boolean) => void): () => void;
   call(request: Record<string, unknown>): Promise<Record<string, unknown>>;
@@ -204,6 +206,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const aborter = new AbortController();
   const core = await options.device.open(storeName, backend);
   let stopSuspend: (() => void) | undefined;
+  let stopOutbox: (() => void) | undefined;
   let media: MediaCache | undefined;
   try {
   history = new WriteHistory({
@@ -1198,6 +1201,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       setAcquired(false);
       acquiredListeners.clear();
       stopSuspend?.();
+      stopOutbox?.();
       aborter.abort();
       if (retry) clearTimeout(retry);
       if (refreshTimer) clearTimeout(refreshTimer);
@@ -1236,12 +1240,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       exitDone = sendOnExit(entries, request.headers, () => (ordinarySending === undefined || ordinarySending === entries[0]?.id) && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend());
     });
   }
+  stopOutbox = core.onOutbox?.(() => { void flush(); });
   follow();
   void flush();
   scheduleRefresh();
   return client;
   } catch (error) {
     stopSuspend?.();
+    stopOutbox?.();
     aborter.abort();
     // Opening the device transfers its lifetime to this constructor. Until a
     // client is returned, every later startup failure must release it here.

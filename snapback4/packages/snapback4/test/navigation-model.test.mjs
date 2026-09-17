@@ -674,17 +674,161 @@ test("W5c a reloaded secondary tab recovers its terminal receipt by id", async t
   assert.equal(sent.state, "sent");
   await secondary.sync();
   await secondary.close();
+  // Force the surviving tab's adoption to finish before the reload. The
+  // receipt is already shared; neither poll timing nor a lookup retry helps.
+  await primary.sync();
   const reloaded = await f.open();
-  // A closed tab's receipts reach this store through orphan adoption, which
-  // runs with the first sync; a read before that legitimately misses them.
-  await reloaded.sync();
-  let receipt = await reloaded.write(sent.id);
-  for (let n = 0; n < 100 && !receipt; n++) { await new Promise(r => setTimeout(r, 20)); receipt = await reloaded.write(sent.id); }
+  const receipt = await reloaded.write(sent.id);
   assert.equal(receipt?.state, "sent");
   assert.equal(receipt.replayed, true);
   assert.equal("result" in receipt, false);
   assert.equal((await f.rows()).filter(row => row.body === "receipt survives tab store adoption").length, 1);
   await primary.close();
+});
+
+// Hold heartbeat replies until close: only the test's explicit sync can adopt.
+function quietChanges(url, init) {
+  if (!String(url).includes("/changes")) return fetch(url, init);
+  return new Promise((_, reject) => {
+    const abort = () => reject(new DOMException("closed", "AbortError"));
+    if (init.signal.aborted) abort(); else init.signal.addEventListener("abort", abort, { once: true });
+  });
+}
+
+for (const outcome of ["sent", "failed"]) test(`W11R1a: A adopts B before C opens (${outcome})`, async t => {
+  const f = await fixture(t), primary = await f.open(quietChanges), secondary = await f.open(quietChanges);
+  const source = [...f.persist.stores.keys()].find(n => n.includes(":tab-"));
+  const write = outcome === "sent"
+    ? await secondary.mutate(mark, { digit: 1 })
+    : await secondary.mutate({ kind: "mutation", name: "media.reject" }, { digit: 2 }, { id: mintId() });
+  assert.equal(write.state, outcome);
+  await secondary.sync(); await secondary.close();
+  await primary.sync();
+  assert.ok(!f.persist.stores.has(source), "A must finish deleting B before C opens");
+  assert.equal((await primary.write(write.id))?.state, outcome);
+  const replacement = await f.open(quietChanges);
+  const recovered = await replacement.write(write.id);
+  assert.equal(recovered?.state, outcome, "C must see the receipt even though A already adopted B");
+  assert.equal("result" in recovered, false);
+  if (outcome === "sent") { assert.equal(recovered.replayed, true); assert.equal((await f.audit()).total, 1); }
+  else assert.equal(recovered.why.code, "WRONG_DIGIT");
+  t.diagnostic(`forced_adoption_before_reopen=1 recovered_${outcome}=1 applications=${outcome === "sent" ? 1 : 0}`);
+});
+
+test("W11R1a: lock release after foreground retries recovers without a backend write", async t => {
+  const f = await fixture(t), primary = await f.open(quietChanges), secondary = await f.open(quietChanges);
+  const source = [...f.persist.stores.keys()].find(n => n.includes(":tab-"));
+  const sent = await secondary.mutate(mark, { digit: 1 });
+  assert.equal(sent.state, "sent"); await secondary.sync(); await secondary.close();
+  const release = deferred(), entered = deferred(), manager = navigator.locks, request = manager.request.bind(manager);
+  let misses = 0;
+  manager.request = (name, options, body) => request(name, options, lock => { if (name === source && !lock) misses++; return body(lock); });
+  const holding = request(source, { ifAvailable: true }, async lock => { assert.ok(lock); entered.resolve(); await release.promise; });
+  f.cleanup.push(async () => { release.resolve(); await holding; });
+  await entered.promise;
+  const replacement = await f.open(quietChanges);
+  assert.ok(misses > 0); assert.ok(f.persist.stores.has(source), "a held owner cannot be adopted");
+  assert.equal(await replacement.write(sent.id), undefined);
+  const foregroundMisses = misses;
+  // The foreground open (all eleven attempts on the old implementation) has
+  // finished. Release only now; no sync, mutation or change reply follows.
+  release.resolve(); await holding;
+  assert.ok(await until(() => !f.persist.stores.has(source), 5000), "the busy candidate remains a background responsibility");
+  assert.equal((await replacement.write(sent.id))?.state, "sent");
+  assert.equal((await f.audit()).total, 1);
+  t.diagnostic(`foreground_lock_misses=${foregroundMisses} post_release_backend_writes=0 applications=1`);
+});
+
+test("W11R1a: background outbox adoption keeps one sender and never takes a live owner", async t => {
+  const f = await fixture(t), sending = deferred(), release = deferred(), posts = [];
+  f.cleanup.push(() => release.resolve());
+  const transport = async (url, init) => {
+    if (String(url).includes("/m/")) { posts.push(JSON.parse(init.body)); sending.resolve(); await release.promise; }
+    return quietChanges(url, init);
+  };
+  const primary = await f.open(transport);
+  const secondary = await f.open((url, init) => String(url).includes("/m/") ? Promise.reject(new TypeError("offline")) : quietChanges(url, init));
+  const source = [...f.persist.stores.keys()].find(n => n.includes(":tab-"));
+  const pending = await secondary.mutate(mark, { digit: 1 });
+  assert.equal(pending.state, "pending");
+  const replacement = await f.open(transport);
+  await primary.sync(); await replacement.sync();
+  assert.equal(posts.length, 0); assert.equal(f.durable().length, 1);
+  assert.ok((await f.persist.load(source)).some(c => c.s === "o" && c.k === pending.id));
+  await secondary.close();
+  // No backend change or explicit sync wakes the adopters after the close.
+  assert.ok(await until(() => posts.length > 0, 5000)); await sending.promise;
+  assert.equal(posts.length, 1); assert.equal(f.durable().length, 1);
+  assert.ok(!f.persist.stores.has(source));
+  release.resolve();
+  assert.ok(await until(async () => (await f.audit())?.total === 1, 5000));
+  await primary.sync(); await replacement.sync();
+  assert.equal(posts.length, 1); assert.equal((await f.audit()).total, 1);
+  t.diagnostic("live_owner_adoptions=0 adopted_outbox_owners=1 posts=1 applications=1");
+});
+
+test("W11R1a: shared persistence failure leaves the source recoverable", async t => {
+  const f = await fixture(t), primary = await f.open(quietChanges), secondary = await f.open(quietChanges);
+  const sent = await secondary.mutate(mark, { digit: 1 });
+  assert.equal(sent.state, "sent"); await secondary.sync(); await secondary.close();
+  const source = [...f.persist.stores.keys()].find(n => n.includes(":tab-")), save = f.persist.save.bind(f.persist);
+  let blocked = true;
+  f.persist.save = (name, changes) => name.endsWith(":receipts") && blocked ? Promise.reject(new Error("shared commit failed")) : save(name, changes);
+  await primary.sync();
+  assert.ok(f.persist.stores.has(source));
+  assert.ok((await f.persist.load(source)).some(c => c.k === "client:write-history" && JSON.parse(c.v).some(w => w.id === sent.id)));
+  blocked = false;
+  assert.ok(await until(() => !f.persist.stores.has(source), 5000));
+  const replacement = await f.open(quietChanges);
+  assert.equal((await replacement.write(sent.id))?.state, "sent");
+  assert.equal((await f.audit()).total, 1);
+});
+
+test("W11R1a: the shared window is bounded, immutable and does not refresh on reads", async t => {
+  const f = await fixture(t), primary = await f.open(quietChanges), secondary = await f.open(quietChanges);
+  const source = f.cores.at(-1), ids = Array.from({ length: 256 }, () => mintId());
+  for (const [seq, id] of ids.entries()) await source.call({ op: "keep_write", value: JSON.stringify({ state: "sent", id, seq, replayed: true }) });
+  await secondary.close(); await primary.sync();
+  const sharedName = [...f.persist.stores.keys()].find(n => n.endsWith(":receipts"));
+  const history = async () => JSON.parse((await f.persist.load(sharedName)).find(c => c.k === "client:write-history").v);
+  assert.equal((await history()).length, 256);
+  const before = await f.persist.load(sharedName);
+  assert.equal((await primary.write(ids[0]))?.seq, 0);
+  assert.deepEqual(await f.persist.load(sharedName), before);
+  const another = await f.open(quietChanges), core = f.cores.at(-1), newest = mintId();
+  await core.call({ op: "keep_write", value: JSON.stringify({ state: "failed", id: ids[1], why: { code: "WRONG_DIGIT", family: "input", message: "must not replace" } }) });
+  await core.call({ op: "keep_write", value: JSON.stringify({ state: "sent", id: newest, seq: 999, result: "must not be shared" }) });
+  await another.close(); await primary.sync();
+  assert.equal((await history()).length, 256);
+  assert.equal(await primary.write(ids[0]), undefined);
+  assert.equal((await primary.write(ids[1]))?.state, "sent");
+  assert.equal((await primary.write(ids[1]))?.seq, 1);
+  const replacement = await f.open(quietChanges);
+  assert.deepEqual(await replacement.write(newest), { state: "sent", id: newest, seq: 999, replayed: true });
+  assert.equal((await f.persist.load(sharedName)).length, 1, "one bounded record; no per-id tombstones or outboxes");
+  t.diagnostic("shared_receipts=256 inserted_receipts=257 shared_records=1 evicted=1");
+});
+
+test("W11R1a: competing adopters serialize shared receipts without holding up an opener", async t => {
+  const f = await fixture(t), primary = await f.open(quietChanges), second = await f.open(quietChanges), third = await f.open(quietChanges);
+  const a = await second.mutate(mark, { digit: 1 }), b = await third.mutate(mark, { digit: 2 });
+  assert.equal(a.state, "sent"); assert.equal(b.state, "sent");
+  await second.sync(); await third.sync(); await second.close(); await third.close();
+  const entered = deferred(), release = deferred(), save = f.persist.save.bind(f.persist);
+  let blocked = false;
+  f.cleanup.push(() => release.resolve());
+  f.persist.save = async (name, changes) => {
+    if (name.endsWith(":receipts") && !blocked) { blocked = true; entered.resolve(); await release.promise; }
+    await save(name, changes);
+  };
+  const adopting = primary.sync();
+  await entered.promise;
+  const replacement = await f.open(quietChanges);
+  assert.equal((await f.persist.others(`${storeName(f)}:tab-`)).length, 3, "two sources stay intact while the receipt transaction is busy");
+  release.resolve(); await adopting;
+  assert.ok(await until(async () => (await replacement.write(a.id))?.state === "sent" && (await replacement.write(b.id))?.state === "sent", 5000));
+  assert.equal((await f.audit()).total, 2);
+  t.diagnostic("competing_adopters=2 shared_receipts=2 applications=2");
 });
 
 

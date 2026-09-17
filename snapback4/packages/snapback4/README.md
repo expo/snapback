@@ -57,6 +57,9 @@ the existing sections; the reference map below can wait.
    [The card](./CLIENT-AND-OPERATIONS.md#the-card) and [React](./CLIENT-AND-OPERATIONS.md#react).
    Show denied reads and failed writes, keep the session after a profile-write
    failure, and wait for a pending write's terminal outcome before submitting again.
+   Keep the mutation id for `client.write(id)` after reload. Adopted web tabs'
+   terminal receipts remain discoverable through a shared server/viewer window
+   of 256 receipts, whichever tab adopts the closed store; outboxes keep one owner.
 
 6. **Stop at the first working account screen.** Sign up, save a profile and
    avatar, and reopen with the kept session; a missing profile returns to

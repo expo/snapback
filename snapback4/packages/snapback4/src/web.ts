@@ -5,6 +5,8 @@
 // the store held opens its own, and the writes an orphaned tab left queued
 // are adopted by the next device that opens the store.
 
+import type { Write } from "./contract.ts";
+import { WRITE_HISTORY_LIMIT } from "./writes.ts";
 import type { BackendJson } from "./backend.ts";
 import type { DeviceCore, DeviceOpener } from "./local.ts";
 import type { PendingSend } from "./local-exit.ts";
@@ -59,6 +61,26 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       let device: WebDevice | undefined;
       let chain: Promise<unknown> = Promise.resolve();
       let closing: Promise<void> | undefined;
+      let orphanRetry: ReturnType<typeof setTimeout> | undefined;
+      const outboxListeners = new Set<() => void>();
+      const retryOrphans = () => {
+        if (closing || orphanRetry) return;
+        orphanRetry = setTimeout(() => {
+          orphanRetry = undefined;
+          chain = chain.then(async () => {
+            if (closing) return;
+            try { if (!device) await restore(); await recoverOrphans(); }
+            catch { discard(); retryOrphans(); }
+          });
+        }, 1000);
+        (orphanRetry as { unref?: () => void }).unref?.();
+      };
+      const recoverOrphans = async () => {
+        const retry = await adoptOrphans(device!, name, store.name, persist, settle, () => {
+          for (const notify of outboxListeners) notify();
+        });
+        if (retry) retryOrphans();
+      };
       // Committed outbox entries, mirrored from persisted changes, so a page
       // being hidden can send what IndexedDB already holds.
       const committed = new Map<string, { seq: number; id: string; op: string; args: unknown; new_ids: string[]; sent_seq?: number | null }>();
@@ -97,13 +119,15 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       };
       try {
         await restore(backend);
-        await adoptOrphans(device!, name, store.name, persist, settle);
+        await recoverOrphans();
       } catch (error) {
+        clearTimeout(orphanRetry);
         try { discard(); } finally { await store.release(); }
         throw new Error(refusalText(error));
       }
       const suspendListeners = new Set<() => void>();
       const core: DeviceCore = {
+        onOutbox(listener) { outboxListeners.add(listener); return () => { outboxListeners.delete(listener); }; },
         onSuspend(flush) {
           if (typeof window === "undefined" || typeof document === "undefined") return () => {};
           const page = window, doc = document;
@@ -170,7 +194,13 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
                 return reply;
               }
               if (!reply.denied && ["adopt", "observe_store", "apply"].includes(String(request.op))) await journal.recover(device!, settle, admissions);
-              if (!reply.denied && (request.op === "observe_store" || request.op === "apply")) await adoptOrphans(device!, name, store.name, persist, settle);
+              if (!reply.denied && (request.op === "observe_store" || request.op === "apply")) await recoverOrphans();
+              if (request.op === "meta" && request.key === "write-history" && !reply.denied) {
+                // Read through on every lookup: a sibling may have recovered a
+                // receipt after this client opened. Never copy it into this VM.
+                const shared = await receiptHistory(persist, name);
+                reply.ok = JSON.stringify([...new Map([...shared, ...terminalReceipts(reply.ok as string | null)].map(write => [write.id, write])).values()]);
+              }
               return reply;
             } catch (error) {
               discard();
@@ -181,6 +211,8 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           return answer;
         },
         close() {
+          clearTimeout(orphanRetry);
+          outboxListeners.clear();
           for (const stop of suspendListeners) stop();
           return closing ??= chain.then(async () => {
             try { discard(); } finally { await store.release(); }
@@ -302,21 +334,19 @@ function hold(locks: LockManager, name: string): Promise<(() => Promise<void>) |
 
 /** Writes an orphaned tab left queued are queued here, in their order,
  * and the orphan's store goes; its rows are the stream's to bring back. */
-async function adoptOrphans(device: WebDevice, name: string, own: string, persist: Persistence, settle: (extra?: Change[]) => Promise<void>): Promise<void> {
+async function adoptOrphans(device: WebDevice, name: string, own: string, persist: Persistence, settle: (extra?: Change[]) => Promise<void>, adopted: () => void): Promise<boolean> {
   const locks = lockManager();
-  if (!locks || !persist.others || !persist.remove) return;
+  if (!locks || !persist.others || !persist.remove) return false;
+  let retry = false;
   for (const orphan of new Set([...await persist.others(`${name}:tab-`), ...journalStores(`${name}:tab-`)])) {
     if (orphan === own) continue;
-    // A tab that just closed can still hold its lock for a moment. Its records
-    // and receipts are only reachable once it lets go, and nothing else would
-    // retry until the next apply, so wait briefly for a busy orphan.
-    let held = await hold(locks, orphan);
-    for (let wait = 0; !held && wait < 10; wait++) {
-      await new Promise(resume => setTimeout(resume, 20));
-      held = await hold(locks, orphan);
-    }
-    if (!held) continue;
+    // The lock is the ownership authority, even for a suspended/live tab.
+    // Never wait across its close in a foreground call. One background timer
+    // re-enumerates busy candidates until they can be claimed, or we close.
+    const held = await hold(locks, orphan);
+    if (!held) { retry = true; continue; }
     let destinationDirty = false;
+    let enqueued = false;
     try {
       // @ref LLP 3000.007#18.2 — orphan receipts retain their source store until ownership can be resolved.
       let saved = await persist.load(orphan);
@@ -325,7 +355,7 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
       if (journalStores(`${name}:tab-`).includes(orphan)) {
         // An evicted/unidentified store cannot establish the journal's owner.
         // Leave it intact for a later matching open; never guess from the key.
-        if (!saved.some(c => c.s === "m" && c.k === "device:store_id" && c.v) || !saved.some(c => c.s === "m" && c.k === "device:backend" && c.v)) continue;
+        if (!saved.some(c => c.s === "m" && c.k === "device:store_id" && c.v) || !saved.some(c => c.s === "m" && c.k === "device:backend" && c.v)) { retry = true; continue; }
         const sourceJournal = new AdmissionJournal(orphan, true);
         sourceJournal.load(saved);
         const sourceDevice = new WebDevice(null, JSON.stringify(saved.filter(c => c.s !== "j")));
@@ -347,6 +377,11 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
         } finally { sourceDevice.free(); }
         saved = await persist.load(orphan);
       }
+      // @ref LLP 3000.007#20.4 — terminal recovery has shared custody; only an outbox transfers exclusive ownership.
+      // Commit the shared receipt window BEFORE any source can be removed.
+      // A busy receipt writer leaves this whole source intact for the retry.
+      const history = saved.find(c => c.s === "m" && c.k === "client:write-history")?.v;
+      if (history && !await shareReceipts(persist, locks, name, history)) { retry = true; continue; }
       let source: string | null | undefined;
       for (const change of saved) if (change.s === "m" && change.k === "device:store_id") source = change.v;
       const latest = new Map<string, string | null>();
@@ -369,28 +404,55 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
           const reply = JSON.parse(device.call(JSON.stringify({ op: "enqueue", entry: { ...entry, seq: next.ok ?? entry.seq, predictable: false, predicted: [] } })));
           if (reply.denied) throw new Error(refusalText(JSON.stringify(reply)));
           existing.add(entry.id);
+          enqueued = true;
         }
         removed.push({ s: "o", k: entry.id, v: null });
       }
-      // A reloaded secondary tab gets a new store name. Its value-free terminal
-      // receipts must follow the outbox before the orphan store is removed.
-      for (const change of saved) if (change.s === "m" && change.k === "client:write-history" && change.v) {
-        destinationDirty = true;
-        const copied = JSON.parse(device.call(JSON.stringify({ op: "keep_write", value: change.v })));
-        if (copied.denied) throw new Error(refusalText(JSON.stringify(copied)));
-      }
       await settle(saved.filter(c => c.s === "j" && !entries.some(e => e.id === c.k && !removed.some(r => r.k === e.id))));
       destinationDirty = false;
-      if (unresolved || journalStores(`${name}:tab-`).includes(orphan)) await persist.save(orphan, removed);
+      if (enqueued) adopted();
+      if (unresolved || journalStores(`${name}:tab-`).includes(orphan)) { retry = true; await persist.save(orphan, removed); }
       else await persist.remove(orphan);
     } catch (error) {
       // A broken orphan stays intact and must not prevent opening healthy stores.
       // A destination commit failure still requires the caller to discard its VM.
       if (destinationDirty) throw error;
+      retry = true;
     } finally {
       await held();
     }
   }
+  return retry;
+}
+
+type TerminalReceipt = Exclude<Write, { state: "pending" }>;
+
+function terminalReceipts(text: string | null | undefined): TerminalReceipt[] {
+  if (!text) return [];
+  // Only value-free terminal records cross tab boundaries, never outbox data.
+  return (JSON.parse(text) as Write[]).flatMap(write => write.state === "sent"
+    ? [{ state: "sent", id: write.id, seq: write.seq, replayed: true } as TerminalReceipt]
+    : write.state === "failed" ? [{ state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: `write refused: ${write.why.code}` } } as TerminalReceipt] : []);
+}
+
+async function receiptHistory(persist: Persistence, name: string): Promise<TerminalReceipt[]> {
+  const shared = `${name}:receipts`;
+  const text = persist.read ? await persist.read(shared, "m", "client:write-history")
+    : (await persist.load(shared)).find(c => c.s === "m" && c.k === "client:write-history")?.v;
+  return terminalReceipts(text);
+}
+
+async function shareReceipts(persist: Persistence, locks: LockManager, name: string, text: string): Promise<boolean> {
+  const held = await hold(locks, `${name}:receipts`);
+  if (!held) return false;
+  try {
+    const kept = await receiptHistory(persist, name);
+    const ids = new Set(kept.map(write => write.id));
+    for (const write of terminalReceipts(text)) if (!ids.has(write.id)) { ids.add(write.id); kept.push(write); }
+    // Existing ids are immutable and do not become newer on repeated adoption.
+    await persist.save(`${name}:receipts`, [{ s: "m", k: "client:write-history", v: JSON.stringify(kept.slice(-WRITE_HISTORY_LIMIT)) }]);
+    return true;
+  } finally { await held(); }
 }
 
 // ----- persistence -----

@@ -25605,3 +25605,213 @@ plumbing changed. No sub-agent, clone, other machine, tag or publication.
 `git diff --check` passed. The journal's prior bytes were compared with HEAD
 before this single append; the final reference audit is recorded in the lane
 report, with the full command logs kept under `/tmp/w11-cards-*`.
+
+
+## 2026-09-16 — W11R1a: terminal receipts survive another tab's adoption
+
+Codex / gpt-6-astra, lane W11R1a. Base:
+`975bbf76e01a9418fe0073cfebb8f9dc999ada3b`. No commit, push, tag or
+publication. This entry is one append; all 1,439,958 preceding bytes remain
+identical to the base.
+
+The three initial deterministic regressions failed before the implementation:
+A adopts and deletes B before C opens, for both sent and failed outcomes;
+and a source lock stays held through the completed foreground open, then
+releases with no subsequent sync, change-poll reply or backend write. The
+first two returned undefined in C; the third never revisited the source.
+The real wasm device and backend run under controlled persistence and Web
+Locks. These are Node ordering models, not real-browser termination evidence.
+
+Terminal write history now has shared custody. Before an orphan can be
+removed, its value-free terminal receipts are committed under a separate
+nonwaiting Web Lock into one `${name}:receipts` record. The existing
+`WRITE_HISTORY_LIMIT` bounds it to 256 entries. Existing shared ids keep their
+outcome and position; successful reads neither copy nor refresh the window.
+Every opener and receipt lookup reads the shared window alongside its own
+bounded 256-entry device window (at most 512 distinct receipts per lookup).
+An adopter no longer copies terminal history into its private device. Shared
+persistence failure leaves the source intact. No pending state, arguments,
+predictions or historical result values enter the shared record.
+
+The store lock remains the only reliable ownership authority. There is no
+separate live/dead signal; a live or suspended owner's lock is never stolen.
+The eleven foreground attempts and their sleeps are gone: a pass takes one
+nonwaiting attempt per candidate. One one-second timer per opener re-enumerates
+busy candidates until they are claimable or the opener closes, with no growing
+candidate queue. A recovered outbox notifies ordinary client flushing even
+without a backend change. Outbox ownership and original mutation ids remain
+exclusive. The published writes card, README, linked client reference and
+RFC section 20.4 record the distinction.
+
+Measured controls: forced adoption recovers 1 sent and 1 failed receipt; the
+sent write applies exactly once, the failed write zero times. The delayed-release
+control records 4 foreground lock misses across separate passes, 0 subsequent
+backend writes and 1 application. The outbox control records 0 live-owner
+adoptions, 1 adopter, 1 POST and 1 application. Inserting 257 distinct recovered
+ids retains 256 receipts in 1 shared record and evicts 1; reads do not refresh
+it and a conflicting duplicate cannot change its shared outcome. Two competing
+adopters preserve 2 receipts for 2 applications. W5c now forces the survivor's
+adoption to complete before reopening, with no timing-based receipt retry loop.
+The two acquisition tests for destination windows now check that adoption leaves
+local history unchanged while the shared window holds 256 receipts.
+
+Commands below ran from `snapback4/` except the full script and reference audit,
+which run from the repository root. Every JavaScript command used:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+An initial package build lacked generated wasm; `bash scripts/build-wasm.sh`
+and `bun run --cwd packages/snapback4 build` generated it before the valid
+red/green runs. No dependency, lockfile or generated publication leaf changed.
+
+```sh
+node --test --test-name-pattern='W11R1a:' packages/snapback4/test/navigation-model.test.mjs
+```
+
+Before the fix (the first three regressions):
+
+```text
+ℹ tests 3
+ℹ pass 0
+ℹ fail 3
+```
+
+After the fix, before adding the four surrounding controls:
+
+```text
+ℹ tests 3
+ℹ pass 3
+ℹ fail 0
+```
+
+```sh
+node --test packages/snapback4/test/navigation-model.test.mjs
+```
+
+```text
+ℹ tests 55
+ℹ pass 55
+ℹ fail 0
+```
+
+```sh
+node --test packages/snapback4/test/navigation-model.test.mjs packages/snapback4/test/web-durability.test.mjs packages/snapback4/test/web-navigation.test.mjs packages/snapback4/test/store-reset-idb.test.mjs
+```
+
+```text
+ℹ tests 79
+ℹ pass 79
+ℹ fail 0
+```
+
+```sh
+node --test --test-name-pattern='W5R2a|W5c|W11R1a:' packages/snapback4/test/acquisition.test.mjs packages/snapback4/test/navigation-model.test.mjs
+```
+
+```text
+ℹ tests 17
+ℹ pass 17
+ℹ fail 0
+```
+
+```sh
+cargo test -p snapback4-lang --test guide
+```
+
+```text
+test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+```
+
+The full script did not pass. It ran the implementation but its client worker
+had already loaded the two old destination-capacity assertions before those
+tests were updated. Both corrections pass in the 17-test run and final full
+client run. Its other client failure was Chromium SIGABRT in the sandbox.
+Rust had 12 mocked-xcrun timeouts in `snapback4 --test witness`, 8 native-read
+fixture failures and 5 native-job fixture failures. The fixture failures name
+`Operation not permitted (os error 1)` while opening missing crate archives
+under the default Cargo registry cache. The script's per-target Rust summaries
+sum to 1,223 passed, 25 failed, 4 ignored; no failure is labelled pre-existing.
+
+```sh
+bash snapback4/scripts/test.sh
+```
+
+```text
+-- FAIL: cargo test (897 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (14 s)
+ℹ tests 492
+ℹ pass 489
+ℹ fail 3
+-- FAIL: client tests (69 s)
+== 2 failure(s) in 939 s
+   cargo test
+   client tests
+```
+
+The timing-sensitive witness rerun, and then its one remaining failure alone:
+
+```sh
+cargo test -p snapback4 --test witness -- --test-threads=1
+cargo test -p snapback4 --test witness driver::cli_restart_and_relaunch_keep_logs_and_terminate_only_launched_pids -- --exact
+```
+
+```text
+test result: FAILED. 19 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 88.89s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 9.59s
+```
+
+Native fixture retries used a writable temporary Cargo cache, fetched strictly
+from the fixture lock. The ordinary warm workspace built the test executables;
+only their child fixture builds used the temporary cache:
+
+```sh
+CARGO_HOME=/private/tmp/w11r1a-cargo-cache cargo fetch --locked --manifest-path native-fixtures/rescore/Cargo.toml
+cargo test -p snapback4-device --test native_reads --no-run --message-format=json
+cargo test -p snapback4-sim --test native --no-run --message-format=json
+CARGO_HOME=/private/tmp/w11r1a-cargo-cache /Users/ccheever/projects/snapback-w11r1a/snapback4/target/debug/deps/native_reads-b3b06dc295738225 --nocapture
+CARGO_HOME=/private/tmp/w11r1a-cargo-cache /Users/ccheever/projects/snapback-w11r1a/snapback4/target/debug/deps/native-3d25140fa7501473 --nocapture
+```
+
+```text
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.57s
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.75s
+```
+
+The required full client rerun, after the full script:
+
+```sh
+node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'
+```
+
+```text
+ℹ tests 492
+ℹ pass 491
+ℹ fail 1
+```
+
+Its only failure is `React hooks and reference-app lifetimes`, Chromium
+`signal=SIGABRT` under the sandbox. The lead must supply that outside-sandbox
+browser verification; this lane does not claim a green full battery. The full
+script's failures and isolated passes remain separate evidence. No failure was
+verified on a separate clean-base run, so none is claimed pre-existing.
+
+All requested implementation and deterministic controls are complete. No new
+or changed diagnostic text, E_/N_ code, language form, meter ceiling, serialized
+value form, existing corpus case, app caller, dependency or lockfile changed.
+No other lane's implementation file changed; the acquisition test and linked
+client reference are supporting updates to their former receipt-transfer
+contract. Every changed code file is below 1,500 lines (largest: `local.ts`,
+1,270). No sub-agent, clone or other machine was used. `git diff --check`
+passes. The final `./ref-check --verbose` result is recorded in the lane report;
+command logs are `/tmp/w11r1a-*.log`.
+
+What this taught: waiting longer for a tab lock changes who wins custody and
+cannot establish where a terminal receipt will be found. Persisting terminal
+history independently before deleting its source resolves that race; an
+independent retry obligation resolves the later release without weakening
+exclusive ownership of executable writes.

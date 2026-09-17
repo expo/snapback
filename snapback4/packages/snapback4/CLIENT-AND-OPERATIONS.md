@@ -392,10 +392,17 @@ outbox entry leaves. Reopen keeps that receipt window:
 recovered success has `replayed: true` and no historical result; recovered
 failure keeps its code and family with the message `write refused: CODE`.
 Refusals before durable admission, the online tier and mock remember outcomes
-only for that client lifetime, up to 256 terminal outcomes. A secondary web
-tab transfers its receipts when its closed store is adopted: destination
-receipts win id collisions and count as newest, so adopted receipts fill only
-spare capacity and cannot displace the destination's window. Rebuild the Expo native binary with this client
+only for that client lifetime, up to 256 terminal outcomes. Before deleting an
+adopted web tab's store, the host copies its value-free terminal receipts into
+a shared window for the same server and viewer, bounded to 256 receipts in
+recovery order. Existing shared ids keep their outcome and position. Every
+opener and `client.write(id)` reads that window alongside its own device's
+256 receipts; reads never copy or refresh it. A different tab winning adoption
+cannot hide the receipt from a reload. Outboxes remain exclusively owned:
+a held Web Lock is never taken, and a busy candidate is retried in the background
+until it becomes available or the adopter closes, without waiting for another
+backend write. Browser storage clearing or eviction from both receipt windows
+can still make an id unknown. Rebuild the Expo native binary with this client
 version: acquisition is a device protocol field, and an older module refuses
 startup with `E_DEVICE_VERSION`.
 
