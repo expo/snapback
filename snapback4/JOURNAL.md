@@ -28396,3 +28396,52 @@ toolchain at `/home/ccheever/.cargo/bin/cargo` passed. No source repair was
 needed. No root inventory, broad suite, PostgreSQL/provider/listener work,
 install, network, remote, model delegation, origin contact, push or publication
 ran.
+
+## 2026-09-17 — B1c consolidated proxy response-lifetime repair
+
+Root's initial Sol review found that the prior source removed a proof request
+from the active set when its async handler returned, immediately after
+`response.end`, rather than after the response's actual terminal event. It
+also began `server.close()` before the promised teardown-503 interval and
+could throw on drain timeout before bounded abort cleanup. This follow-on was
+authored through native Sol HIGH. A separate fresh Grok review reached its
+15-minute cap without an answer; that is no Grok verdict or approval.
+
+The qualification-only proxy now holds each request until both the forwarding
+handler and response are terminal. Successful `finish` completes the response;
+premature close, request abort or either-side error on a proof-origin request
+latches the fixed proof/request failure even after teardown begins. Only the
+registered post-commit mint reply cut marks its own close intentional.
+Controlled abort cancels each pending upstream fetch. The listener remains
+open during the bounded proof drain so new background/poll requests are
+classified as teardown and receive the fixed empty 503. Only after the proof
+drains does close begin. Every preexisting-failure, drain-timeout and close-
+timeout path runs bounded owned-server/socket/exchange abort cleanup before
+engine cleanup; the first failure remains authoritative. `clientError` records
+only a fixed category and destroys only the socket supplied by that server.
+
+The private qualification config now requires nonempty `expectedSubject`,
+adds it to the known-secret set and compares the actual trusted profile subject
+to it. Root must independently obtain the existing synthetic user's stable
+subject via a provider-side Keycloak admin read and put it in the private file
+before an actual run. The harness neither performs that lookup nor derives the
+expected subject from product output. The fixed issuer and independently
+pinned subject feed the unchanged shared principal derivation. No provider
+operation ran here.
+
+Raw-authority observation labels now append only after all raw assertions and
+clean owned-engine cleanup. The historical primary-positive/overall-negative
+record and zero historical raw cases are unchanged.
+
+Node 24.13.1 syntax checks passed for `qualify-b1c.mjs` and
+`proxy-phase.mjs`. The serial focused command over proxy phase, loopback HTTP
+lifecycle and diagnostic-secrecy tests passed 18/18. Its six actual Node HTTP
+doubles cover buffered response finish, premature close without an error,
+the one intentional cut, live teardown 503 during proof drain, drain-timeout
+abort/close, and preexisting-failure preservation. The earlier phase/child and
+two-stream secrecy doubles remain green. `git diff --check` passed. No actual
+provider, engine, process crash, raw authority case, external network, Cargo,
+install or full suite ran. The corrected source and independently pinned-
+subject assertion remain pending actual qualification; provider revocation,
+email chronology/boundaries, invitation, recovery and the other documented
+cuts remain unproved.

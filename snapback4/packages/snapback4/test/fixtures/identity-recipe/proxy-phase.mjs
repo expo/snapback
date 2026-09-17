@@ -3,6 +3,7 @@ const categories = new Set([
   "custody-revalidation",
   "custody-signal",
   "close-timeout",
+  "client-error",
   "drain-timeout",
   "protocol",
   "request",
@@ -72,6 +73,83 @@ export function createProxyPhase(onFailure) {
     },
     close() { phase = "closed"; },
   };
+}
+
+export function trackProxyExchange(lifecycle, request, response, onComplete = () => {}) {
+  const requestPhase = lifecycle.beginRequest();
+  const upstream = new AbortController();
+  let handlerDone = false;
+  let responseTerminal = false;
+  let intentionalCut = false;
+  let complete = false;
+  const finish = () => {
+    if (complete || !handlerDone || !responseTerminal) return;
+    complete = true;
+    lifecycle.finishRequest(requestPhase);
+    onComplete();
+  };
+  const premature = () => {
+    if (!intentionalCut) lifecycle.failRequest(requestPhase, "request");
+    responseTerminal = true;
+    upstream.abort();
+    finish();
+  };
+  request.once("aborted", premature);
+  request.once("error", premature);
+  response.once("error", premature);
+  response.once("finish", () => { responseTerminal = true; finish(); });
+  response.once("close", () => {
+    if (!response.writableFinished && !intentionalCut) premature();
+    else { responseTerminal = true; finish(); }
+  });
+  return {
+    requestPhase,
+    signal: upstream.signal,
+    handlerDone() { handlerDone = true; finish(); },
+    intentionalCut() {
+      intentionalCut = true;
+      responseTerminal = true;
+      upstream.abort();
+      finish();
+    },
+    abort() {
+      upstream.abort();
+      if (!response.destroyed) response.destroy();
+      premature();
+    },
+  };
+}
+
+function beginServerClose(server) {
+  return new Promise(resolve => {
+    try { server.close(() => resolve(true)); }
+    catch { resolve(false); }
+  });
+}
+
+export async function abortProxyServer(server, exchanges, milliseconds) {
+  const closed = beginServerClose(server);
+  for (const exchange of [...exchanges]) exchange.abort();
+  server.closeIdleConnections();
+  server.closeAllConnections();
+  return settlesWithin(closed, milliseconds);
+}
+
+export async function closeExpectedProxy({ server, lifecycle, exchanges, currentFailure, drainMilliseconds, closeMilliseconds }) {
+  lifecycle.beginExpectedTeardown();
+  if (!currentFailure() && !await lifecycle.waitForProofDrain(drainMilliseconds)) lifecycle.failProof("drain-timeout");
+  if (currentFailure()) {
+    await abortProxyServer(server, exchanges, closeMilliseconds);
+    lifecycle.close();
+    return currentFailure();
+  }
+  const closed = beginServerClose(server);
+  server.closeIdleConnections();
+  server.closeAllConnections();
+  if (!await settlesWithin(closed, closeMilliseconds)) lifecycle.failServer("close-timeout");
+  if (currentFailure()) await abortProxyServer(server, exchanges, closeMilliseconds);
+  lifecycle.close();
+  return currentFailure();
 }
 
 export async function stopOwnedChild(child, ownedChildren, milliseconds = 4_000) {

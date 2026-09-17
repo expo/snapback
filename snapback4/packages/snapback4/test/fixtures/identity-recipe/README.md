@@ -107,14 +107,17 @@ The proxy has an explicit fail-closed lifecycle. Requests accepted during the
 proof retain that classification through late socket and upstream outcomes,
 including outcomes observed after teardown starts. After the Keycloak
 assertions and two-stream diagnostic check, the harness checks the retained
-failure latch, stops admitting proof traffic, answers newly arriving
-background or polling traffic with a fixed empty 503, and allows already
-active proof requests up to 30 seconds to finish while the engine remains
-live. It then closes proxy connections before stopping the owned engine. A
-drain or close timeout is fatal. Proxy failures expose only a fixed
-phase/category code; exception text, paths, URLs, headers and bodies are not
-included. The response deliberately destroyed by the registered post-commit
-fault is the sole narrow expected proof cut.
+failure latch, changes new traffic to teardown traffic while keeping the
+listener open, answers it with a fixed empty 503, and allows already-active
+proof requests up to 30 seconds to finish while the engine remains live. A
+proof request remains active until both its forwarding handler and response
+finish; premature close, abort or error stays fatal after the transition. The
+single registered committed-mint reply cut is the only exception. Controlled
+abort cancels pending upstream fetches. The harness then closes owned proxy
+connections before stopping the owned engine, including after every drain or
+close failure. A drain or close timeout is fatal. Proxy failures expose only a
+fixed phase/category code; exception text, paths, URLs, headers and bodies are
+not included.
 
 The authority portion uses a separate disposable app without a generated
 handler. It drives the actual engine's service-authenticated action, step,
@@ -135,6 +138,14 @@ is deliberately retained after both success and failure for root-controlled
 evidence extraction and cleanup. Its engine databases contain protected action
 arguments and the legitimate final protected Session result: the directory is
 a private diagnostic workspace, never a public artifact.
+
+The private credential JSON must also contain nonempty `expectedSubject`.
+Before an actual run, root independently reads the existing synthetic user's
+stable Keycloak subject through the provider-side admin surface and writes it
+to that private file. The harness does not perform that lookup and does not
+derive the expected value from product output. It compares the returned
+trusted profile to this independently pinned subject in memory and treats the
+value as a known secret for default-diagnostic scanning.
 
 The command below is only the harness payload. Do not run it bare. The parent
 must place it inside an external ProcessCustody envelope with a hard five-minute
@@ -196,7 +207,7 @@ to exercise the corrected two-stream assertion.
 | Explicit committed-mint recovery | Generated helper's actual recovery request | Same invocation, `identity-session/v1`, fixed principal/kind/days, `replaceLostDelivery: true`; no unbound/new-family fallback | PENDING; executable; instrument is field-agnostic to the helper's durable `protocol` input |
 | Replacement authority | Public query plus read-only store | New bearer passes `identityWhoami`; old bearer returns `E_AUTH`; binding family equals the initial bearer's SHA-256 digest; one final live digest remains in that original family; original `expiresAt` unchanged | PENDING; executable |
 | Provider-independent exchange replay | Provider gate closes after the committed-mint cut | No provider fetch is attempted after the cut; token endpoint POST count remains one | PENDING; executable |
-| Derived own trusted profile | Recovered legitimate Session through actual `identityOwnProfileEligibility`, plus a fresh unrelated guest through `identityOwnProfile` | Profile principal matches the Session and exact shared issuer/subject derivation; fixed issuer and present subject bind it; proof expiry is five minutes from proof start; returned eligibility matches present-email, verified-true and strict current freshness; unrelated guest sees null | PENDING; executable selected integration assertions only; no provider revocation, email-change chronology, past/future boundary, invitation or recovery claim |
+| Derived own trusted profile | Recovered legitimate Session through actual `identityOwnProfileEligibility`, plus a fresh unrelated guest through `identityOwnProfile`; subject independently pinned in the private config before the run | Profile principal matches the Session and exact shared fixed-issuer/expected-subject derivation; proof expiry is five minutes from proof start; returned eligibility matches present-email, verified-true and strict current freshness; unrelated guest sees null | PENDING; executable selected integration assertions only after private `expectedSubject` setup; no provider revocation, email-change chronology, past/future boundary, invitation or recovery claim |
 | Explicit first binding with recovery flag | Direct actual-engine bound request with `replaceLostDelivery: true` and no prior binding | First binding is created and its bearer passes the public query | PENDING; executable authority-contract row; not a transport/crash witness |
 | Before-mint-commit HTTP fault | Actual generated helper request cut before core commit, followed by a new-process recovery | Recovery creates the first binding without provider replay | PENDING; not implemented in this bounded source checkpoint |
 | Stale claim | Explicit retry settlement followed by its declared backoff and a fresh actual claim | Old lease refuses `E_ACTION_LEASE`; no target mint | PENDING; executable; retry settlement, not timer expiry, makes the old lease stale |

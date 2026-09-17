@@ -14,7 +14,7 @@ import { DatabaseSync } from "node:sqlite";
 import { authorizeWithKeycloak } from "./keycloak-browser.mjs";
 import { diagnosticStreamsAreSecretFree } from "./diagnostic-secrecy.mjs";
 import { captureEngineCustody, registerWorkerCustody, verifyWorkerCustody } from "./process-custody.mjs";
-import { createProxyPhase, settlesWithin, stopOwnedChild } from "./proxy-phase.mjs";
+import { abortProxyServer, closeExpectedProxy, createProxyPhase, stopOwnedChild, trackProxyExchange } from "./proxy-phase.mjs";
 
 const fixture = dirname(fileURLToPath(import.meta.url));
 const enginePort = 38973;
@@ -70,7 +70,7 @@ async function readPrivateConfig() {
   const metadata = await stat(path);
   assert((metadata.mode & 0o077) === 0, "config-mode");
   const value = JSON.parse(await readFile(path, "utf8"));
-  for (const key of ["issuer", "clientId", "clientSecret", "redirectUri", "username", "password"]) {
+  for (const key of ["issuer", "clientId", "clientSecret", "redirectUri", "username", "password", "expectedSubject"]) {
     assert(typeof value[key] === "string" && value[key].length > 0, `config-${key}`);
     secrets.add(value[key]);
   }
@@ -239,6 +239,7 @@ function boundedBody(request, limit = 2 * 1024 * 1024) {
 async function startFaultProxy(engine) {
   const state = { phase: "initial", providerClosed: false, provider: [], mints: [], cuts: [], workers: new Map() };
   const lifecycle = createProxyPhase(code => { instrumentFailureCode ??= code; });
+  const exchanges = new Set();
   const register = async pid => {
     if (state.workers.has(pid)) return state.workers.get(pid);
     let registered;
@@ -249,14 +250,12 @@ async function startFaultProxy(engine) {
     return registered;
   };
   const server = createServer(async (request, response) => {
-    const requestPhase = lifecycle.beginRequest();
-    let intentionalCut = false;
-    const lateFailure = () => { if (!intentionalCut) lifecycle.failRequest(requestPhase, "request"); };
-    request.once("error", lateFailure);
-    response.once("error", lateFailure);
-    if (requestPhase.phase !== "proof") {
-      response.writeHead(503, { connection: "close", "content-length": "0" }).end();
-      lifecycle.finishRequest(requestPhase);
+    let exchange;
+    exchange = trackProxyExchange(lifecycle, request, response, () => exchanges.delete(exchange));
+    exchanges.add(exchange);
+    if (exchange.requestPhase.phase !== "proof") {
+      try { response.writeHead(503, { connection: "close", "content-length": "0" }).end(); }
+      finally { exchange.handlerDone(); }
       return;
     }
     try {
@@ -281,7 +280,9 @@ async function startFaultProxy(engine) {
         if (["host", "content-length", "connection", "x-snapback4-qualification-worker-pid"].includes(name) || value === undefined) continue;
         for (const item of Array.isArray(value) ? value : [value]) headers.append(name, item);
       }
-      const upstream = await fetch(`${engineUrl}${request.url}`, { method: request.method, headers, body: request.method === "GET" ? undefined : body });
+      const upstream = await fetch(`${engineUrl}${request.url}`, {
+        method: request.method, headers, body: request.method === "GET" ? undefined : body, signal: exchange.signal,
+      });
       const bytes = Buffer.from(await upstream.arrayBuffer());
       if (request.url === "/auth/session" && upstream.ok) {
         const sent = JSON.parse(body.toString("utf8"));
@@ -298,7 +299,7 @@ async function startFaultProxy(engine) {
             state.cuts.push({ cut: "after-core-mint-commit-before-worker-ack", pid });
             state.providerClosed = true;
             state.phase = "recovery";
-            intentionalCut = true;
+            exchange.intentionalCut();
             response.destroy();
             return;
           }
@@ -311,42 +312,29 @@ async function startFaultProxy(engine) {
       response.end(bytes);
     } catch (error) {
       const category = error?.proxyCategory ?? (error instanceof InstrumentFailure ? "protocol" : "request");
-      lifecycle.failRequest(requestPhase, category);
+      lifecycle.failRequest(exchange.requestPhase, category);
       if (!response.destroyed) response.destroy();
     } finally {
-      lifecycle.finishRequest(requestPhase);
+      exchange.handlerDone();
     }
   });
   try { await new Promise((resolvePromise, reject) => { server.once("error", reject); server.listen(proxyPort, "127.0.0.1", resolvePromise); }); }
   catch { fail("proxy-listen"); }
   server.on("error", () => lifecycle.failServer());
-  const closeServer = () => new Promise(resolvePromise => server.close(resolvePromise));
+  server.on("clientError", (_error, socket) => {
+    lifecycle.failServer("client-error");
+    socket.destroy();
+  });
   return {
     state,
     async closeExpected() {
-      if (instrumentFailureCode) fail(instrumentFailureCode);
-      lifecycle.beginExpectedTeardown();
-      const closed = closeServer();
-      server.closeIdleConnections();
-      if (!await lifecycle.waitForProofDrain(30_000)) {
-        lifecycle.failProof("drain-timeout");
-        fail(instrumentFailureCode);
-      }
-      if (instrumentFailureCode) fail(instrumentFailureCode);
-      server.closeAllConnections();
-      const didClose = await settlesWithin(closed, 2_000);
-      if (!didClose) {
-        lifecycle.failServer("close-timeout");
-        fail(instrumentFailureCode);
-      }
-      lifecycle.close();
-      if (instrumentFailureCode) fail(instrumentFailureCode);
+      const failure = await closeExpectedProxy({ server, lifecycle, exchanges,
+        currentFailure: () => instrumentFailureCode, drainMilliseconds: 30_000, closeMilliseconds: 2_000 });
+      if (failure) fail(failure);
     },
     async closeAbort() {
       lifecycle.beginExpectedTeardown();
-      const closed = closeServer();
-      server.closeAllConnections();
-      await settlesWithin(closed, 2_000);
+      await abortProxyServer(server, exchanges, 2_000);
       lifecycle.close();
     },
   };
@@ -430,7 +418,7 @@ async function keycloakWitness(paths, scratch, config) {
     const queriedAfter = Date.now();
     const profile = own.data?.profile;
     assert(profile && profile.principal === done.result.principal, "own-profile-principal");
-    assert(profile.issuer === config.issuer && typeof profile.subject === "string" && profile.subject.length > 0, "own-profile-provider-binding");
+    assert(profile.issuer === config.issuer && profile.subject === config.expectedSubject, "own-profile-provider-binding");
     assert(profile.principal === oidcPrincipal(profile.issuer, profile.subject), "own-profile-derived-principal");
     assert(profile.proofExpiresAt === profile.proofStartedAt + 300_000, "own-profile-proof-window");
     assert((profile.proofExpiresAt > queriedBefore) === (profile.proofExpiresAt > queriedAfter), "own-profile-freshness-boundary");
@@ -593,8 +581,6 @@ async function rawAuthorityWitness(paths, scratch) {
     assert(serviceReply.denied?.code === "E_AUTH", "service-revoke-refusal");
     await cancel(serviceRun);
 
-    observations.push("explicit-first-binding-with-recovery-flag", "stale-parked-cancelled-settled-deadline-refusals",
-      "admitting-issued-target-service-refusals", "issued-family-expiry-supported-dev-clock");
   } catch (error) {
     witnessError = error;
   } finally {
@@ -602,6 +588,8 @@ async function rawAuthorityWitness(paths, scratch) {
     catch (error) { witnessError ??= error; }
   }
   if (witnessError) throw witnessError;
+  observations.push("explicit-first-binding-with-recovery-flag", "stale-parked-cancelled-settled-deadline-refusals",
+    "admitting-issued-target-service-refusals", "issued-family-expiry-supported-dev-clock");
 }
 
 async function main() {
