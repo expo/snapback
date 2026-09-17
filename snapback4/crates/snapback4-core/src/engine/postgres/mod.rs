@@ -41,7 +41,7 @@ pub struct Stats {
 pub struct PostgresEngine {
     store: Store,
     schema: Schema,
-    programs: BTreeMap<String, Program>,
+    programs: crate::smallmap::SmallMap<String, Program>,
     ceilings: Ceilings,
     mode: WriteMode,
     retries: u64,
@@ -59,7 +59,7 @@ impl PostgresEngine {
     ) -> Result<Self, RuntimeError> {
         let name = namespace(name)?;
         schema.prepare_contribution_indexes();
-        let programs: BTreeMap<_, _> = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
+        let programs: crate::smallmap::SmallMap<_, _> = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         supported(&schema, &programs)?;
         let mut tx = client.transaction()?;
         tx.batch_execute(&format!("CREATE SCHEMA {name}; SET search_path = {name}, pg_catalog;"))?;
@@ -94,7 +94,7 @@ impl PostgresEngine {
         Self::attach(client, schema, programs)
     }
 
-    fn attach(mut client: Client, schema: Schema, programs: BTreeMap<String, Program>) -> Result<Self, RuntimeError> {
+    fn attach(mut client: Client, schema: Schema, programs: crate::smallmap::SmallMap<String, Program>) -> Result<Self, RuntimeError> {
         client.batch_execute("SET statement_timeout = '5s'; SET lock_timeout = '5s';")?;
         Ok(Self { store: Store::new(client), schema, programs, ceilings: Ceilings::default(), mode: WriteMode::Serialized, retries: 0, precharge: Metered::default() })
     }
@@ -102,7 +102,7 @@ impl PostgresEngine {
     pub fn schema(&self) -> &Schema {
         &self.schema
     }
-    pub fn programs(&self) -> &BTreeMap<String, Program> {
+    pub fn programs(&self) -> &crate::smallmap::SmallMap<String, Program> {
         &self.programs
     }
     pub fn generation(&self) -> u64 {
@@ -367,7 +367,7 @@ fn retry_transaction(error: &RuntimeError) -> bool {
         || (error.code() == &SqlState::UNIQUE_VIOLATION && error.constraint() == Some("_ops_pkey"))
 }
 
-fn supported(schema: &Schema, programs: &BTreeMap<String, Program>) -> Result<(), RuntimeError> {
+fn supported(schema: &Schema, programs: &crate::smallmap::SmallMap<String, Program>) -> Result<(), RuntimeError> {
     if let Some(issue) = crate::schema::validate(schema).first() {
         return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
     }

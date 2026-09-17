@@ -105,7 +105,7 @@ impl<'a> Binder<'a> {
                 ProgramKind::Query => (ir::ProgramKind::Query, Ty::Json),
                 _ => (ir::ProgramKind::Job, Ty::Null),
             };
-            return Some(BoundProgram { sources: binder.sources, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
+            return Some(BoundProgram { sources: binder.sources, program: Program { name: full_name, kind, args: args.into(), read_time_granularity_ms: None, body: Vec::new(), native: true }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
         }
         let mut body = setup::Body::default();
         let mut failed = false;
@@ -169,7 +169,7 @@ impl<'a> Binder<'a> {
             ProgramKind::Job => ir::ProgramKind::Job,
         };
         let ownership = body.ownership;
-        let program = Program { name: full_name, kind, args, read_time_granularity_ms: None, body: body.code, native: false };
+        let program = Program { name: full_name, kind, args: args.into(), read_time_granularity_ms: None, body: body.code, native: false };
         let presence = if kind == ir::ProgramKind::Mutation {
             Some(super::residency::presence_facts(&program, &ownership, &binder.presence_sources))
         } else { None };

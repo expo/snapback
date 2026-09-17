@@ -236,7 +236,7 @@ fn pending_metadata_reprediction_survives_updates_upserts_scans_and_offline_reop
     }
     let watermark = device.state().unwrap().0;
     for entry in &queued {
-        let typed = entry.args.as_object().unwrap().iter().map(|(name, value)| {
+        let typed: snapback4_core::smallmap::SmallMap<_, _> = entry.args.as_object().unwrap().iter().map(|(name, value)| {
             let value = match value {
                 serde_json::Value::String(value) if name == "person" => id(value),
                 serde_json::Value::String(value) => Value::String(value.clone()),

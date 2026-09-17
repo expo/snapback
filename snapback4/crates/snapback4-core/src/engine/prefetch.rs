@@ -3,7 +3,8 @@
 //! @ref LLP 3000.009#4.2 — speculative access must preserve every observation.
 use crate::{ir::*, rows::{PrefetchRequest, Rows}, schema::{RuleExpr, RuleTerm, Schema}, Value};
 use super::super::Context;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
+use crate::smallmap::SmallMap;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Key { Row(Vec<String>), Literal(Value), Viewer, Arg(String), Field(Box<Key>, String) }
@@ -12,10 +13,10 @@ enum Key { Row(Vec<String>), Literal(Value), Viewer, Arg(String), Field(Box<Key>
 struct Mark { read: Read, keys: Vec<Key>, probes: Vec<Mark> }
 
 #[derive(Default)]
-pub(in crate::engine) struct Plan { sites: BTreeMap<String, Vec<Mark>> }
+pub(in crate::engine) struct Plan { sites: SmallMap<String, Vec<Mark>> }
 
 #[derive(Clone, Default)]
-struct Env { keys: BTreeMap<String, Key>, pages: BTreeSet<String> }
+struct Env { keys: SmallMap<String, Key>, pages: BTreeSet<String> }
 
 fn total(expr: &Expr, env: &Env) -> Option<Key> {
     match expr {
@@ -40,7 +41,7 @@ fn scalar(value: &Value) -> bool { matches!(value, Value::Null | Value::Bool(_) 
 
 // Assign and Push can mutate aliases; repeated declarations can shadow them.
 // Conservative whole-program rejection keeps branch and helper flow honest.
-fn mutations(body: &[Stmt], writes: &mut BTreeMap<String, usize>, assigned: &mut BTreeSet<String>) {
+fn mutations(body: &[Stmt], writes: &mut SmallMap<String, usize>, assigned: &mut BTreeSet<String>) {
     for stmt in body {
         match stmt {
             Stmt::Const { name, .. } | Stmt::Let { name, .. } => { *writes.entry(name.clone()).or_default() += 1; }
@@ -70,7 +71,7 @@ fn mutations(body: &[Stmt], writes: &mut BTreeMap<String, usize>, assigned: &mut
         expressions(stmt, &mut |expr| block_mutations(expr, writes, assigned));
     }
 }
-fn block_mutations(expr: &Expr, writes: &mut BTreeMap<String, usize>, assigned: &mut BTreeSet<String>) {
+fn block_mutations(expr: &Expr, writes: &mut SmallMap<String, usize>, assigned: &mut BTreeSet<String>) {
     if let Expr::Block { body, .. } = expr { mutations(body, writes, assigned); }
     if let Expr::Builtin { builtin: Builtin::Divmod { remainder_sink }, .. } = expr { assigned.insert(remainder_sink.clone()); }
     if let Expr::Scan(scan) = expr {
@@ -80,7 +81,7 @@ fn block_mutations(expr: &Expr, writes: &mut BTreeMap<String, usize>, assigned: 
 }
 
 pub(super) fn plan(program: &Program) -> Plan {
-    let (mut writes, mut assigned) = (BTreeMap::new(), BTreeSet::new());
+    let (mut writes, mut assigned) = (SmallMap::new(), BTreeSet::new());
     mutations(&program.body, &mut writes, &mut assigned);
     assigned.extend(writes.iter().filter(|(_, n)| **n > 1).map(|(name, _)| name.clone()));
     let mut env = Env::default();
@@ -214,7 +215,7 @@ fn request(schema: &Schema, table: &str, index: &str, keys: Vec<Value>, requests
         requests.push(PrefetchRequest::Lookup { table: table.into(), index: index.into(), key: keys });
     }
 }
-fn probes(rule: &RuleExpr, schema: &Schema, pinned: &BTreeMap<String, Key>, out: &mut Vec<Mark>) {
+fn probes(rule: &RuleExpr, schema: &Schema, pinned: &SmallMap<String, Key>, out: &mut Vec<Mark>) {
     match rule {
         RuleExpr::Exists { table, index, key, provenance, .. } => {
             let keys = key.iter().map(|term| match term {
@@ -277,7 +278,7 @@ mod tests {
         Expr::Get(Read { site: site.into(), table: "items".into(), index: "byId".into(), key: vec![key], provenance: KeyProvenance::Shape })
     }
     fn program(body: Vec<Stmt>) -> Program {
-        Program { name: "p".into(), kind: ProgramKind::Query, args: BTreeMap::from([("arg".into(), ArgType::Id)]),
+        Program { name: "p".into(), kind: ProgramKind::Query, args: SmallMap::from([("arg".into(), ArgType::Id)]).into(),
             read_time_granularity_ms: None, body, native: false }
     }
     #[test]
@@ -349,7 +350,7 @@ mod write_walk_tests {
         let setup = vec![Stmt::Assign { name: "alias".into(), value: lit(Value::Id("changed".into())) }];
         let body = vec![Stmt::WriteTarget { target: target.clone(), patch: lit(Value::Null), upsert: false, result: None,
             condition: Some(WriteCondition { old: "current".into(), setup, value: lit(Value::Bool(true)) }) }];
-        let mut writes = BTreeMap::new();
+        let mut writes = SmallMap::new();
         let mut assigned = BTreeSet::new();
         mutations(&body, &mut writes, &mut assigned);
         assert!(assigned.contains("alias"));
@@ -364,7 +365,7 @@ mod write_walk_tests {
             take: Bound::Literal(10), after: None, before: None, range: None, filter: None, opaque_cursor: false,
             merge_site: None, provenance: KeyProvenance::Const };
         let make = |body| Program { name: "p".into(), kind: ProgramKind::Mutation,
-            args: BTreeMap::from([("alias".into(), ArgType::Id)]), read_time_granularity_ms: None,
+            args: SmallMap::from([("alias".into(), ArgType::Id)]), read_time_granularity_ms: None,
             body: vec![Stmt::For { binding: "row".into(), domain: LoopDomain::Page(scan.clone()), body }], native: false };
         assert!(plan(&make(body.clone())).sites.is_empty(), "setup assignment invalidates the argument alias before marking");
         let mut stable = body;

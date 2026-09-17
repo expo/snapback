@@ -54,7 +54,7 @@ pub(super) fn run<T: DeviceTx>(tx: &T, schema: &Schema, program: &Program, entry
     Ok((predicting.written.into_inner(), prediction.new_ids))
 }
 
-pub(super) fn replay<T: DeviceTx>(tx: &T, schema: &Schema, programs: &BTreeMap<String, Program>, watermark: u64) -> Result<(), RuntimeError> {
+pub(super) fn replay<T: DeviceTx>(tx: &T, schema: &Schema, programs: &SmallMap<String, Program>, watermark: u64) -> Result<(), RuntimeError> {
     for data in tx.outbox_entries()? {
         let mut entry: Queued = decoded(&data)?;
         if entry.sent_seq.is_some_and(|seq| seq <= watermark) {

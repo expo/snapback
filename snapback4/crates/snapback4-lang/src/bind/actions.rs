@@ -44,11 +44,11 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut Schema, programs: &mut Vec<Bo
                     result_type = Ty::Object(types);
                     Some(returns)
                 } else { None };
-                let spec = ActionSpec { returns, work: bind_work(&decl.work, &decl.site)? };
+                let spec = ActionSpec { returns: returns.map(Into::into), work: bind_work(&decl.work, &decl.site)? };
                 let condition = rule(&decl.rule)?;
                 // Admission is the only IR body: it cannot read, write or emit.
                 let body = vec![Stmt::Require { condition, code: "E_RULE".into(), site: Some(format!("actions.{name}")) }];
-                Ok((BoundProgram { sources: Default::default(), program: Program { name, kind: ProgramKind::Action, args, read_time_granularity_ms: None, body, native: false }, presence: None, module: module.into(), args: types, result: result_type, notes: Vec::new(), site: decl.site.clone() }, spec))
+                Ok((BoundProgram { sources: Default::default(), program: Program { name, kind: ProgramKind::Action, args: args.into(), read_time_granularity_ms: None, body, native: false }, presence: None, module: module.into(), args: types, result: result_type, notes: Vec::new(), site: decl.site.clone() }, spec))
             })();
             match result {
                 Ok((program, spec)) => {

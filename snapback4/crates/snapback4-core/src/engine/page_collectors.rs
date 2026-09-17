@@ -1,12 +1,12 @@
 //! Backward value flow for rejected page collectors. This does not grant
 //! cursor ownership: it only decides which loop exits can lose returned data.
 use crate::ir::*;
-use std::collections::BTreeSet;
+use crate::smallmap::SmallSet;
 
 // A demanded record field stays separate from its unused siblings through
 // aliases and assignments. An empty path demands the whole value.
-type Names = BTreeSet<(String, Vec<String>)>;
-type Paths = BTreeSet<String>;
+type Names = SmallSet<(String, Vec<String>)>;
+type Paths = SmallSet<String>;
 
 // `visited` lets the planner keep every loop this analysis never reached:
 // a registration is only dropped when the flow proves the loop auxiliary.
@@ -150,7 +150,7 @@ fn selected_names(value: &Expr, selected: &[String], live: &mut Names) {
     }
 }
 
-fn field_names(fields: &std::collections::BTreeMap<String, Expr>, selected: &[String], live: &mut Names) {
+fn field_names(fields: &crate::smallmap::SmallMap<String, Expr>, selected: &[String], live: &mut Names) {
     if let Some((name, rest)) = selected.split_first() {
         if let Some(value) = fields.get(name) { selected_names(value, rest, live); }
     } else {

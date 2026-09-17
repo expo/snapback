@@ -10,7 +10,7 @@ use std::sync::{Arc, Barrier, OnceLock};
 use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
 
 fn program() -> Program {
-    Program { name: "work".into(), kind: ProgramKind::Action, args: BTreeMap::new(), read_time_granularity_ms: None, native: false,
+    Program { name: "work".into(), kind: ProgramKind::Action, args: BTreeMap::new().into(), read_time_granularity_ms: None, native: false,
         body: vec![Stmt::Require { condition: Expr::Literal(Value::Bool(true)), code: "E_RULE".into(), site: None }] }
 }
 fn engine() -> Engine { Engine::memory(Schema::default(), [program()]).unwrap() }

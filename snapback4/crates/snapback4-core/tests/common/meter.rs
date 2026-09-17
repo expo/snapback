@@ -7,7 +7,7 @@ use snapback4_core::{Context, Engine};
 use std::collections::BTreeMap;
 
 pub fn program(name: &str, kind: ProgramKind, body: Vec<Stmt>) -> Program {
-    Program { name: name.into(), kind, args: BTreeMap::new(), read_time_granularity_ms: None, body, native: false }
+    Program { name: name.into(), kind, args: BTreeMap::new().into(), read_time_granularity_ms: None, body, native: false }
 }
 
 pub fn builtin(builtin: Builtin, args: Vec<Expr>) -> Expr { Expr::Builtin { builtin, args } }
@@ -17,16 +17,16 @@ pub fn context() -> Context { Context::new("alice", BTreeMap::new()).at(1) }
 
 pub fn schema() -> Schema {
     let mut table = Table {
-        defaults: BTreeMap::new(),
+        defaults: BTreeMap::new().into(),
         residency: Default::default(),
-        columns: BTreeMap::from([("id".into(), ColumnType::Id), ("bucket".into(), ColumnType::Int), ("body".into(), ColumnType::Text { max: 4000 })]),
-        indexes: BTreeMap::from([("byId".into(), Index::of(&["id"], true)), ("byBucket".into(), Index::of(&["bucket", "id"], false))]),
+        columns: BTreeMap::from([("id".into(), ColumnType::Id), ("bucket".into(), ColumnType::Int), ("body".into(), ColumnType::Text { max: 4000 })]).into(),
+        indexes: BTreeMap::from([("byId".into(), Index::of(&["id"], true)), ("byBucket".into(), Index::of(&["bucket", "id"], false))]).into(),
         rules: Rules { read: RuleExpr::Allow, insert: RuleExpr::Allow, update: RuleExpr::Allow, delete: RuleExpr::Allow },
         constraints: Vec::new(), leave: LeavePolicy::UntilRevoked, sync: Some(Sync { audience: Audience::Public, horizon: None }), expire: None,
     };
     let writes = table.clone();
     table.constraints.push(Constraint::Cap { by: vec!["bucket".into()], max: 128 });
-    Schema { tables: BTreeMap::from([("messages".into(), table), ("writes".into(), writes)]), ..Schema::default() }
+    Schema { tables: BTreeMap::from([("messages".into(), table), ("writes".into(), writes)]).into(), ..Schema::default() }
 }
 
 pub fn scan(take: u32) -> Scan {

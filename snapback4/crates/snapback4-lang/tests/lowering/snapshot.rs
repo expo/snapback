@@ -91,7 +91,7 @@ fn observe(schema: &snapback4_core::Schema, program: &Program, world: usize, ste
         &mut fresh
     };
     engine.set_ceilings(Ceilings { steps, ..Ceilings::default() });
-    let args = program.args.iter().map(|(name, kind)| (name.clone(), value(kind, world))).collect();
+    let args: snapback4_core::smallmap::SmallMap<_, _> = program.args.iter().map(|(name, kind)| (name.clone(), value(kind, world))).collect();
     let context = Context::new("A", args).at(1000).with_entropy(1).with_ids((0..2048).map(|n| format!("{n:026}")));
     match program.kind {
         ProgramKind::Mutation => match engine.mutate(&program.name, None, context) {

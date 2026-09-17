@@ -1,0 +1,192 @@
+{
+  "base": "70a663c22285dc3a5278ca9ac13db01bbe05446b",
+  "toolchain": {
+    "rustc": "1.97.0 (2d8144b78 2026-07-07)",
+    "wasm_bindgen": "0.2.127",
+    "node": "24.18.0"
+  },
+  "command": "bash target/d2/measure.sh LABEL (copy of scripts/measure-wasm.sh; isolated outputs, no metric append)",
+  "sizes": {
+    "g1-value-family": {
+      "wasm": {
+        "raw": 1862547,
+        "gzip": 517522,
+        "brotli": 393369
+      },
+      "glue": {
+        "raw": 11325,
+        "gzip": 3047,
+        "brotli": 2700
+      },
+      "wasmOpt": false
+    },
+    "g1-fields": {
+      "wasm": {
+        "raw": 1870785,
+        "gzip": 519201,
+        "brotli": 394538
+      },
+      "glue": {
+        "raw": 11325,
+        "gzip": 3047,
+        "brotli": 2700
+      },
+      "wasmOpt": false
+    },
+    "g3-plans": {
+      "wasm": {
+        "raw": 1690759,
+        "gzip": 491040,
+        "brotli": 377779
+      },
+      "glue": {
+        "raw": 11325,
+        "gzip": 3047,
+        "brotli": 2700
+      },
+      "wasmOpt": false
+    },
+    "g8-held-tables": {
+      "wasm": {
+        "raw": 1663533,
+        "gzip": 485032,
+        "brotli": 373101
+      },
+      "glue": {
+        "raw": 11325,
+        "gzip": 3047,
+        "brotli": 2700
+      },
+      "wasmOpt": false
+    },
+    "g6-index-sort": {
+      "wasm": {
+        "raw": 1660537,
+        "gzip": 485254,
+        "brotli": 373439
+      },
+      "glue": {
+        "raw": 11325,
+        "gzip": 3047,
+        "brotli": 2700
+      },
+      "wasmOpt": false
+    },
+    "g5-value-sort": {
+      "wasm": {
+        "raw": 1668861,
+        "gzip": 486696,
+        "brotli": 374761
+      },
+      "glue": {
+        "raw": 11325,
+        "gzip": 3047,
+        "brotli": 2700
+      },
+      "wasmOpt": false
+    },
+    "before": {
+      "wasm": {
+        "raw": 1891742,
+        "gzip": 520557,
+        "brotli": 394881
+      },
+      "glue": {
+        "raw": 11325,
+        "gzip": 3047,
+        "brotli": 2700
+      },
+      "wasmOpt": false
+    },
+    "g7-collector-outbox": {
+      "wasm": {
+        "raw": 1669251,
+        "gzip": 486783,
+        "brotli": 375333
+      },
+      "glue": {
+        "raw": 11325,
+        "gzip": 3047,
+        "brotli": 2700
+      },
+      "wasmOpt": false
+    },
+    "g4-device": {
+      "wasm": {
+        "raw": 1673480,
+        "gzip": 487284,
+        "brotli": 375360
+      },
+      "glue": {
+        "raw": 11325,
+        "gzip": 3047,
+        "brotli": 2700
+      },
+      "wasmOpt": false
+    },
+    "g2-schema-ir": {
+      "wasm": {
+        "raw": 1797995,
+        "gzip": 508542,
+        "brotli": 388098
+      },
+      "glue": {
+        "raw": 11325,
+        "gzip": 3047,
+        "brotli": 2700
+      },
+      "wasmOpt": false
+    }
+  },
+  "retained": [
+    "g1-value-family",
+    "g2-schema-ir",
+    "g3-plans",
+    "g4-device",
+    "g8-held-tables"
+  ],
+  "rejected": [
+    "g5-value-sort",
+    "g6-index-sort",
+    "g7-collector-outbox"
+  ],
+  "artifacts": {
+    "before/snapback4_device_bg.wasm": "13ad0d569d357527e008076892f16a2ddb1c7e3508aba64d3e5658e5ea5b9101",
+    "before/snapback4_device.js": "243c37b7b8f84a63c0bae1415c548c7b845624d27b90f98a97483cd0144645de",
+    "g8-held-tables/snapback4_device_bg.wasm": "b614ef73c4a20d394bdfc5e2d05e045eae26235a34c91bf4206c4c6f45b52b40",
+    "g8-held-tables/snapback4_device.js": "243c37b7b8f84a63c0bae1415c548c7b845624d27b90f98a97483cd0144645de"
+  },
+  "sdk": {
+    "at": "2026-09-17T08:45:42.884Z",
+    "sha": "70a663c22",
+    "tiers": {
+      "online": {
+        "raw": 33149,
+        "gzip": 9977,
+        "brotli": 8883
+      },
+      "local-first": {
+        "raw": 88213,
+        "gzip": 24866,
+        "brotli": 21771
+      }
+    },
+    "wasm": {
+      "raw": 1663533,
+      "gzip": 489220,
+      "brotli": 372804
+    },
+    "note": "Only SDK tiers use this script measurement. Its Node zlib wasm gzip differs from the shipped system gzip pipeline; the sizes table is authoritative for wasm. SDK source and glue bytes are unchanged."
+  },
+  "smallmap_named_shallow": {
+    "before": {
+      "bytes": 0,
+      "items": 0
+    },
+    "after": {
+      "bytes": 116729,
+      "items": 739
+    }
+  },
+  "census_note": "B-tree and sort name predicates overlap; totals are not disjoint attribution. Each B-tree item is charged once to its first resolvable key/value pair, with an explicit unresolved bucket."
+}

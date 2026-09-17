@@ -7,7 +7,7 @@ pub(super) const GROUPS: &str = "device:history:groups";
 pub(super) const STAGED_GROUPS: &str = "device:snapshot:groups";
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub(super) enum Membership { Held, Left }
-pub(super) type Groups = BTreeMap<String, BTreeMap<String, Membership>>;
+pub(super) type Groups = SmallMap<String, SmallMap<String, Membership>>;
 
 pub(super) fn load<T: DeviceTx>(tx: &T, key: &str) -> Result<Groups, RuntimeError> {
     tx.meta(key)?.map(|value| decoded(&value)).transpose().map(|value| value.unwrap_or_default())
@@ -52,7 +52,7 @@ pub(super) fn retained_group(schema: &Schema, groups: &Groups, name: &str, index
     let Some(index) = table.index(index) else { return Ok(false) };
     let columns = audience_prefix(table);
     if columns.is_empty() { return Ok(false); }
-    let pinned: BTreeMap<_, _> = index.components.iter().zip(prefix).filter_map(|(part, value)| part.column().map(|column| (column, value))).collect();
+    let pinned: SmallMap<_, _> = index.components.iter().zip(prefix).filter_map(|(part, value)| part.column().map(|column| (column, value))).collect();
     let Some(group) = columns.iter().map(|column| pinned.get(column).map(|value| (*value).clone())).collect::<Option<Vec<_>>>() else { return Ok(false) };
     Ok(is_left(groups, name, &key(&group)?))
 }

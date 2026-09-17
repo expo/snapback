@@ -8,7 +8,7 @@
 use crate::error::RuntimeError;
 use crate::value::Value;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use crate::smallmap::SmallMap;
 
 /// Unclaimed uploads older than this are forgotten by the sweep.
 pub const UNCLAIMED_TTL_MS: i64 = 60 * 60 * 1000;
@@ -155,7 +155,7 @@ impl Asset {
         let int = |value: Option<u64>| value.map(|v| Value::Int(v as i64)).unwrap_or(Value::Null);
         // Every fact is a key, null when the kind has none: `.duration` on
         // an image reads null, never a missing field.
-        let fields = BTreeMap::from([
+        let fields = SmallMap::from([
             ("id".to_owned(), Value::Id(self.id.clone())),
             ("type".to_owned(), Value::String(self.content_type.clone())),
             ("bytes".to_owned(), Value::Int(self.bytes as i64)),

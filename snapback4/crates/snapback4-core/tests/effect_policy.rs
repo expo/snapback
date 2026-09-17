@@ -9,7 +9,7 @@ fn engine(settings: &str) -> Engine {
     Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap()
 }
 fn emit(engine: &mut Engine, id: &str, at: i64) -> String {
-    engine.mutate("send", Some(id), Context::new("dev:alice", Default::default()).at(at)).unwrap();
+    engine.mutate("send", Some(id), Context::new("dev:alice", snapback4_core::smallmap::SmallMap::new()).at(at)).unwrap();
     engine.effects(Some("queued"), 100).unwrap().into_iter().find(|run| run.at == at).unwrap().id
 }
 

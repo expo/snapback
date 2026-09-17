@@ -1,0 +1,6 @@
+SORT n=10 mode=keys pairs=7 shared_ns=424 direct_ns=405 ratio=1.046
+SORT n=10 mode=total pairs=7 shared_ns=488 direct_ns=479 ratio=1.019
+SORT n=100 mode=keys pairs=7 shared_ns=14873 direct_ns=14122 ratio=1.053
+SORT n=100 mode=total pairs=7 shared_ns=4526 direct_ns=4409 ratio=1.027
+SORT n=1000 mode=keys pairs=7 shared_ns=226808 direct_ns=211739 ratio=1.071
+SORT n=1000 mode=total pairs=7 shared_ns=50112 direct_ns=43473 ratio=1.153

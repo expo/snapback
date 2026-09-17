@@ -19,6 +19,7 @@ pub mod maintain;
 pub mod partition;
 pub mod rows;
 pub mod schema;
+pub mod smallmap;
 #[cfg(feature = "sqlite")]
 pub mod store;
 pub mod successor;

@@ -13,7 +13,7 @@ fn early_helper_return_preserves_baseline_guards_and_charges() {
         for steps in [28, 34, 100] {
             let mut engine = Engine::memory(bound.schema.clone(), [program.clone()]).unwrap();
             engine.set_ceilings(Ceilings { steps, ..Ceilings::default() });
-            let outcome = engine.mutate("probe", None, Context::new("A", [("stop".into(), Value::Bool(stop))].into()).at(1000)).unwrap();
+            let outcome = engine.mutate("probe", None, Context::new("A", [("stop".into(), Value::Bool(stop))]).at(1000)).unwrap();
             println!("pick stop={stop} ceiling={steps}: {}", serde_json::to_string(&outcome).unwrap());
             if steps == 100 { assert!(matches!(outcome.state, WriteState::Sent { .. })); }
             measurements.push(outcome);

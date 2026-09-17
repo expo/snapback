@@ -2,6 +2,7 @@
 //! in `read.rs`, writes in `write.rs`; both are methods on `Runner`.
 
 use super::Context;
+use crate::smallmap::{SmallMap, SmallSet};
 use crate::error::{MeterKind, RuntimeError};
 use crate::ir::*;
 use crate::meter::{Cut, Meter};
@@ -42,8 +43,8 @@ pub struct Runner<'a> {
     pub(crate) schema: &'a Schema,
     pub(crate) context: Context,
     pub(crate) meter: Meter,
-    pub(crate) env: BTreeMap<String, Value>,
-    pub(crate) consts: BTreeSet<String>,
+    pub(crate) env: SmallMap<String, Value>,
+    pub(crate) consts: SmallSet<String>,
     /// Rows this transaction inserted, by (table, index, encoded key).
     pub(crate) created: BTreeMap<(String, String, String), usize>,
     /// Current facts owned by each row inserted in this execution. Distinct
@@ -51,8 +52,8 @@ pub struct Runner<'a> {
     pub(crate) created_rows: BTreeMap<(String, String), Vec<(String, String, String)>>,
     pub(crate) inserted: Vec<(String, Value)>,
     /// Tables read and tables written, for live subscriptions and commits.
-    pub(crate) read_tables: BTreeSet<String>,
-    pub(crate) written_tables: BTreeSet<String>,
+    pub(crate) read_tables: SmallSet<String>,
+    pub(crate) written_tables: SmallSet<String>,
     pub(crate) rows_written: u64,
     pub(crate) next_expiry: Option<i64>,
     /// Partition events, accumulated for the commit.
@@ -64,7 +65,7 @@ pub struct Runner<'a> {
     /// the program's `next`.
     pub(crate) page_depth: usize,
     pub(crate) page: Option<PagePosition>,
-    pub(crate) pages: BTreeMap<String, PagePosition>,
+    pub(crate) pages: SmallMap<String, PagePosition>,
     /// Loss from replaced executions cannot be repaired by a later page.
     pub(super) discarded_page_loss: bool,
     pub(super) page_owner: Option<String>,
@@ -98,7 +99,7 @@ pub struct Runner<'a> {
     pub(crate) seq: u64,
     pub(crate) statement_site: String,
     pub(crate) evaluating_write_condition: bool,
-    prediction_guards: BTreeSet<String>,
+    prediction_guards: SmallSet<String>,
     pub(super) discard_effects: bool,
     /// The prediction paid for an untaken presence arm the server may skip.
     pub(crate) charged_untaken: bool,
@@ -116,7 +117,7 @@ impl<'a> Runner<'a> {
     }
 
     pub fn new(tx: &'a dyn Rows, schema: &'a Schema, context: Context, meter: Meter, seq: u64) -> Self {
-        let mut env = BTreeMap::new();
+        let mut env = SmallMap::new();
         for (name, value) in &context.args {
             env.insert(name.clone(), value.clone());
         }
@@ -126,12 +127,12 @@ impl<'a> Runner<'a> {
             context,
             meter,
             env,
-            consts: BTreeSet::new(),
+            consts: SmallSet::new(),
             created: BTreeMap::new(),
             created_rows: BTreeMap::new(),
             inserted: Vec::new(),
-            read_tables: BTreeSet::new(),
-            written_tables: BTreeSet::new(),
+            read_tables: SmallSet::new(),
+            written_tables: SmallSet::new(),
             rows_written: 0,
             next_expiry: None,
             events: Vec::new(),
@@ -139,7 +140,7 @@ impl<'a> Runner<'a> {
             effect_presence: Default::default(),
             page_depth: 0,
             page: None,
-            pages: BTreeMap::new(),
+            pages: SmallMap::new(),
             discarded_page_loss: false,
             page_owner: None,
             page_plan: super::pages::Plan::default(),
@@ -154,7 +155,7 @@ impl<'a> Runner<'a> {
             seq,
             statement_site: String::new(),
             evaluating_write_condition: false,
-            prediction_guards: BTreeSet::new(),
+            prediction_guards: SmallSet::new(),
             discard_effects: false,
             charged_untaken: false,
             maintain_prepaid: false,
@@ -462,14 +463,14 @@ impl<'a> Runner<'a> {
             Expr::Shape { base, fields } => {
                 // @ref LLP 3000.007#5.3 — shaping a device row preserves its own pending metadata.
                 let base = self.expr(base)?;
-                let mut fields = fields.iter().map(|(key, value)| Ok((key.clone(), self.expr(value)?))).collect::<Result<BTreeMap<_, _>, RuntimeError>>()?;
+                let mut fields = fields.iter().map(|(key, value)| Ok((key.clone(), self.expr(value)?))).collect::<Result<SmallMap<_, _>, RuntimeError>>()?;
                 if base.as_object()?.get("pending") == Some(&Value::Bool(true)) { fields.insert("pending".into(), Value::Bool(true)); }
                 let value = Value::Row(fields.into());
                 self.meter.heap(value.heap_bytes())?;
                 Ok(value)
             }
             Expr::Object(values) => {
-                let fields = values.iter().map(|(key, value)| Ok((key.clone(), self.expr(value)?))).collect::<Result<BTreeMap<_, _>, RuntimeError>>()?;
+                let fields = values.iter().map(|(key, value)| Ok((key.clone(), self.expr(value)?))).collect::<Result<SmallMap<_, _>, RuntimeError>>()?;
                 let value = Value::Row(fields.into());
                 self.meter.heap(value.heap_bytes())?;
                 Ok(value)
@@ -810,7 +811,7 @@ fn into_array(value: Value) -> Result<Vec<Value>, RuntimeError> {
 
 /// Only side-effect-free leaves can be borrowed; storage/input evaluation
 /// remains in expr, and visiting a borrowed leaf costs the same steps.
-fn borrowed<'a>(env: &'a BTreeMap<String, Value>, expr: &'a Expr) -> Result<Option<(&'a Value, u64)>, RuntimeError> {
+fn borrowed<'a>(env: &'a SmallMap<String, Value>, expr: &'a Expr) -> Result<Option<(&'a Value, u64)>, RuntimeError> {
     match expr {
         Expr::Literal(value) => Ok(Some((value, 1))),
         Expr::Variable(name) => env.get(name).map(|value| Some((value, 1))).ok_or_else(|| RuntimeError::Input(format!("unknown variable {name}"))),

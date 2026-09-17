@@ -1,0 +1,6 @@
+SORT n=10 mode=outbox pairs=7 shared_ns=71 direct_ns=24 ratio=3.000
+SORT n=10 mode=collector pairs=7 shared_ns=364 direct_ns=311 ratio=1.170
+SORT n=100 mode=outbox pairs=7 shared_ns=1612 direct_ns=611 ratio=2.639
+SORT n=100 mode=collector pairs=7 shared_ns=5456 direct_ns=4875 ratio=1.119
+SORT n=1000 mode=outbox pairs=7 shared_ns=21835 direct_ns=7800 ratio=2.799
+SORT n=1000 mode=collector pairs=7 shared_ns=90073 direct_ns=78702 ratio=1.144

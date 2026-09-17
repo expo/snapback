@@ -85,7 +85,7 @@ fn a_server_page_pass_never_predicts_even_when_held_and_after_reopen() {
         let mut device = host.open("server-pass", None).unwrap();
         assert!(!device.queued().unwrap()[0].predictable);
         assert_eq!(device.query("one", "bob", &json!({"key":"own"}), 1000).unwrap().data.field("amount"), Ok(&Value::Int(7)));
-        let sent = engine.mutate("sweep", Some("sweep"), Context::new("bob", Default::default()).at(1000)).unwrap();
+        let sent = engine.mutate("sweep", Some("sweep"), Context::new("bob", snapback4_core::smallmap::SmallMap::new()).at(1000)).unwrap();
         let WriteState::Sent { seq, .. } = sent.state else { panic!("{sent:?}") };
         device.settle("sweep", Some(seq)).unwrap();
         let page = stream_page(&mut engine, "bob", device.state().unwrap().0);

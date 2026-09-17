@@ -111,7 +111,7 @@ fn r1p_condition_setup_retains_ten_steps() {
     let bound = compile("  if true and true:\n    return 1");
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     engine.set_ceilings(Ceilings { steps: 10, ..Ceilings::default() });
-    let outcome = engine.mutate("probe", None, Context::new("alice", [("p".into(), Value::Id("bob".into()))].into()).at(1)).unwrap();
+    let outcome = engine.mutate("probe", None, Context::new("alice", [("p".into(), Value::Id("bob".into()))]).at(1)).unwrap();
     println!("ten-step probe: {outcome:?}");
     assert!(matches!(outcome.state, WriteState::Sent { result: Value::Int(1), .. }));
     assert_eq!(outcome.metered.steps, 10);
@@ -126,7 +126,7 @@ fn r1p_two_conditions_keep_distinct_error_sites() {
         let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
         // A tiny heap ceiling cuts inside the selected condition's setup.
         engine.set_ceilings(Ceilings { heap_bytes: 40, ..Ceilings::default() });
-        let outcome = engine.mutate("probe", None, Context::new("alice", [("p".into(), Value::Id(p.into()))].into()).at(1)).unwrap();
+        let outcome = engine.mutate("probe", None, Context::new("alice", [("p".into(), Value::Id(p.into()))]).at(1)).unwrap();
         let WriteState::Failed { why, .. } = outcome.state else { panic!("{outcome:?}") };
         println!("condition p={p}: {why:?}");
         sites.push(why.site.unwrap());

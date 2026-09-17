@@ -5,7 +5,7 @@
 
 use crate::value::Value;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use crate::smallmap::SmallMap;
 
 fn is_zero(value: &u32) -> bool {
     *value == 0
@@ -20,7 +20,7 @@ pub struct Program {
     pub name: String,
     pub kind: ProgramKind,
     #[serde(default)]
-    pub args: BTreeMap<String, ArgType>,
+    pub args: SmallMap<String, ArgType>,
     #[serde(default)]
     pub read_time_granularity_ms: Option<u64>,
     pub body: Vec<Stmt>,
@@ -160,8 +160,8 @@ pub enum Expr {
     Input(Input),
     Field { base: Box<Expr>, name: String },
     Array(Vec<Expr>),
-    Object(BTreeMap<String, Expr>),
-    Shape { base: Box<Expr>, fields: BTreeMap<String, Expr> },
+    Object(SmallMap<String, Expr>),
+    Shape { base: Box<Expr>, fields: SmallMap<String, Expr> },
     Binary { op: BinaryOp, left: Box<Expr>, right: Box<Expr> },
     Unary { op: UnaryOp, value: Box<Expr> },
     Builtin { builtin: Builtin, args: Vec<Expr> },

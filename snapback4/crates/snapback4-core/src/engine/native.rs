@@ -16,7 +16,7 @@ use crate::value::Value;
 use crate::wire;
 use serde_json::{Value as Json, json};
 use sha2::{Digest, Sha256};
-use std::collections::BTreeMap;
+use crate::smallmap::SmallMap;
 use std::io::Write;
 use std::ops::Range;
 
@@ -386,7 +386,7 @@ fn write_bytes<'a>(store: &mut wasmi::Store<Host<'a>>, bytes: &[u8]) -> Result<(
 
 /// Run one chunk: instantiate the module, hand it the job's arguments and
 /// the state it returned last time, and collect what the chunk wrote.
-pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i64) -> ChunkOutcome {
+pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &SmallMap<String, Value>, state: Option<Json>, now: i64) -> ChunkOutcome {
     let ceilings = runner.meter.ceilings;
     let mut store = module.store(Host::new(Some(runner), job.to_owned(), false, ceilings, FUEL_PER_CHUNK));
     let step = (|| -> Result<Step, RuntimeError> {
@@ -451,7 +451,7 @@ pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &B
 /// the host built — a viewer's rules on the server, the device's words on a
 /// device — under the read meter, writes refused. Returns the value and the
 /// runner, whose flags say whether the read was complete.
-pub fn run_read<'a>(module: &Module, runner: Runner<'a>, name: &str, args: &BTreeMap<String, Value>, now: i64) -> (Result<Value, RuntimeError>, Runner<'a>) {
+pub fn run_read<'a>(module: &Module, runner: Runner<'a>, name: &str, args: &SmallMap<String, Value>, now: i64) -> (Result<Value, RuntimeError>, Runner<'a>) {
     let ceilings = runner.meter.ceilings;
     let mut store = module.store(Host::new(Some(runner), name.to_owned(), true, ceilings, FUEL_PER_READ));
     let value = (|| -> Result<Value, RuntimeError> {
@@ -680,7 +680,7 @@ fn dispatch(runner: &mut Runner<'_>, job: &str, op: &str, request: &Json) -> Res
             let id = text_field(request, "id", op)?;
             let table = table_of(runner.schema, table_name)?;
             let patch = request.get("patch").and_then(Json::as_object).ok_or_else(|| RuntimeError::Input("native update needs patch: {..}".into()))?;
-            let mut fields = BTreeMap::new();
+            let mut fields = SmallMap::new();
             for (name, value) in patch {
                 let kind = table.columns.get(name).ok_or_else(|| RuntimeError::Input(format!("{table_name}: undeclared column {name}")))?;
                 fields.insert(name.clone(), wire::column_from_json(kind, value).map_err(|why| RuntimeError::Input(format!("{table_name}.{name}: {why}")))?);

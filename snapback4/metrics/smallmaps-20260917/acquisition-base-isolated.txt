@@ -1,0 +1,13 @@
+
+running 1 test
+test following::calibration::w8b_wired_calibration_acquisition_on_server_and_both_stores ... W8b host=server cold_rows=139413 cold_bytes=17876585 snapshot_ms=5141.163
+W8b host=server following_rows=20 complete=true examined=82 probes=21
+W8b host=memory cold_rows=139413 apply_ms=12104.303
+W8b host=memory following_rows=20 complete=true examined=82 probes=21
+W8b host=memory following_rows=20 complete=true examined=82 probes=21
+W8b host=sqlite cold_rows=139413 apply_ms=23070.943
+W8b host=sqlite following_rows=20 complete=true examined=82 probes=21
+W8b host=sqlite following_rows=20 complete=true examined=82 probes=21
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 187 filtered out; finished in 100.17s

@@ -17,6 +17,7 @@ use snapback4_core::value::Value;
 use snapback4_core::{Context, QueryOutcome, wire};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
+use snapback4_core::smallmap::SmallMap;
 
 mod predictions;
 mod media;
@@ -150,7 +151,7 @@ const NATIVE_GENERATION: &str = "device:native:generation";
 pub struct Device<S: DeviceStore> {
     store: S,
     schema: Schema,
-    programs: BTreeMap<String, Program>,
+    programs: SmallMap<String, Program>,
     generation: u64,
     backend_identity: String,
     store_identity: Option<String>,
@@ -241,7 +242,7 @@ fn clear_native<S: DeviceStore>(store: &mut S) -> Result<(), RuntimeError> {
     tx.commit()
 }
 
-fn invalidate_native(metadata: &mut BTreeMap<String, String>) {
+fn invalidate_native(metadata: &mut SmallMap<String, String>) {
     metadata.insert(NATIVE.to_owned(), String::new());
     metadata.insert(NATIVE_DIGEST.to_owned(), String::new());
     metadata.insert(NATIVE_GENERATION.to_owned(), String::new());
@@ -269,7 +270,7 @@ impl<S: DeviceStore> Device<S> {
         let keep_acquired = keep_images && previous.as_ref().is_some_and(|old| old.schema.tables.len() == backend.schema.tables.len())
             && store.meta(ACQUIRED)? == Some(held.to_string());
         let backend_identity = store_identity::backend_identity(&backend);
-        let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string()), (BACKEND_IDENTITY.to_owned(), backend_identity.clone())]);
+        let mut metadata = SmallMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string()), (BACKEND_IDENTITY.to_owned(), backend_identity.clone())]);
         if reset {
             metadata.insert(WATERMARK.to_owned(), "0".into());
             metadata.insert(ACQUIRED.to_owned(), if keep_acquired { backend.generation.to_string() } else { String::new() });
@@ -359,10 +360,10 @@ impl<S: DeviceStore> Device<S> {
     /// keep it; a literal-default addition keeps the old images readable.
     /// A changed generation still requests a fresh snapshot.
     pub fn adopt(&mut self, backend: Backend) -> Result<(), RuntimeError> {
-        self.adopt_captured(backend, BTreeMap::new())
+        self.adopt_captured(backend, SmallMap::new())
     }
 
-    pub fn adopt_captured(&mut self, mut backend: Backend, mut expected: BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
+    pub fn adopt_captured(&mut self, mut backend: Backend, mut expected: SmallMap<String, Option<String>>) -> Result<(), RuntimeError> {
         backend.schema.prepare_contribution_indexes();
         let required = self.store.meta(BACKEND_REQUIRED)?;
         expected.entry(BACKEND_REQUIRED.into()).or_insert(required.clone());
@@ -380,7 +381,7 @@ impl<S: DeviceStore> Device<S> {
         let keep_acquired = keep_images && self.schema.tables.len() == backend.schema.tables.len()
             && self.store.meta(ACQUIRED)? == Some(self.generation.to_string());
         let backend_identity = store_identity::backend_identity(&backend);
-        let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string()), (BACKEND_IDENTITY.to_owned(), backend_identity.clone())]);
+        let mut metadata = SmallMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string()), (BACKEND_IDENTITY.to_owned(), backend_identity.clone())]);
         metadata.insert(BACKEND_REQUIRED.to_owned(), String::new());
         if reset {
             metadata.insert(WATERMARK.to_owned(), "0".into());
@@ -888,8 +889,8 @@ fn leave<T: DeviceTx>(tx: &T, schema: &Schema, table_name: &str, group: &[Value]
     }
 }
 
-fn typed_args(program: &Program, args: &serde_json::Value) -> Result<BTreeMap<String, Value>, RuntimeError> {
-    let mut typed = BTreeMap::new();
+fn typed_args(program: &Program, args: &serde_json::Value) -> Result<SmallMap<String, Value>, RuntimeError> {
+    let mut typed = SmallMap::new();
     if let serde_json::Value::Object(fields) = args {
         for (name, value) in fields {
             let kind = program.args.get(name).ok_or_else(|| RuntimeError::Input(format!("{} takes no argument {name}", program.name)))?;

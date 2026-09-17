@@ -44,7 +44,7 @@ impl Runner<'_> {
         }
         self.meter.heap(bytes)?;
         let fields = old.as_object()?.iter().filter(|(key, _)| !patch.as_object().expect("patch checked").contains_key(*key)).chain(patch.as_object()?.iter())
-            .map(|(key, value)| (key.clone(), value.clone())).collect::<std::collections::BTreeMap<_, _>>();
+            .map(|(key, value)| (key.clone(), value.clone())).collect::<crate::smallmap::SmallMap<_, _>>();
         Ok(Value::Row(fields.into()))
     }
 

@@ -58,7 +58,7 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, request: &Json) -> Json {
             "observe_store" => encoded(&device.observe_store(&parse::<StreamPage>(arg(request, "page")?)?)?)?,
             "begin_send" => json!({ "send_revision": device.begin_send()? }),
             "adopt" => {
-                let mut expected = std::collections::BTreeMap::new();
+                let mut expected = snapback4_core::smallmap::SmallMap::new();
                 for (field, key) in [("store_id", "device:store_id"), ("send_revision", "device:send_revision")] {
                     if let Some(value) = request.get(field) {
                         let value = if field == "send_revision" {

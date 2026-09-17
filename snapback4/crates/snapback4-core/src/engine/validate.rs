@@ -6,7 +6,7 @@ use crate::error::RuntimeError;
 use crate::ir::{ArgType, Program};
 use crate::schema::{ColumnType, Constraint, Schema, TextFormat, contains_system_principal};
 use crate::value::{I53_MAX, I53_MIN, Value, canonical_json};
-use std::collections::BTreeMap;
+use crate::smallmap::SmallMap;
 
 pub fn validate_row(schema: &Schema, table_name: &str, row: &Value) -> Result<(), RuntimeError> {
     let table = schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
@@ -114,7 +114,7 @@ fn fits(kind: &ColumnType, value: Option<&Value>) -> bool {
 
 /// Validate the arguments and fill each omitted optional with `null`, so
 /// a caller that leaves `c` out reads page one.
-pub fn validate_inputs(schema: &Schema, program: &Program, inputs: &mut BTreeMap<String, Value>) -> Result<(), RuntimeError> {
+pub fn validate_inputs(schema: &Schema, program: &Program, inputs: &mut SmallMap<String, Value>) -> Result<(), RuntimeError> {
     super::admission::check(schema, program)?;
     for (name, kind) in &program.args {
         if !inputs.contains_key(name) && (kind.is_optional() || matches!(kind, ArgType::Cursor)) {

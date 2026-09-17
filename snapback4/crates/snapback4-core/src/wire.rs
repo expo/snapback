@@ -5,11 +5,12 @@
 use crate::ir::ArgType;
 use crate::value::Value;
 use serde_json::{Map, Value as Json};
+#[cfg(test)]
 use std::collections::BTreeMap;
 
 /// Audience prefixes only, keyed by delivered-history table. An empty list
 /// means this principal currently holds none of that table’s groups.
-pub type HeldGroups = BTreeMap<String, Vec<Vec<Json>>>;
+pub type HeldGroups = crate::smallmap::SmallMap<String, Vec<Vec<Json>>>;
 
 /// Serialize a borrowed value directly in its plain wire form, without
 /// allocating an intermediate JSON tree. The tagged store form is unchanged.
@@ -85,7 +86,7 @@ fn asset_from_json(fields: &Map<String, Json>) -> Result<Value, String> {
 /// A stored row from plain JSON, typed by the table's columns.
 pub fn row_from_json(table: &crate::schema::Table, json: &Json) -> Result<Value, String> {
     let Json::Object(fields) = json else { return Err("a row is an object".into()) };
-    let mut out = BTreeMap::new();
+    let mut out = crate::smallmap::SmallMap::new();
     for (name, value) in fields {
         let Some(kind) = table.columns.get(name) else { return Err(format!("undeclared column {name}")) };
         out.insert(name.clone(), column_from_json(kind, value)?);
@@ -144,8 +145,8 @@ fn other_kind(json: &Json) -> &'static str {
 }
 
 /// The plain JSON of a map of typed values.
-pub fn map_to_json(values: &BTreeMap<String, Value>) -> Map<String, Json> {
-    values.iter().map(|(k, v)| (k.clone(), to_json(v))).collect()
+pub fn map_to_json<'a>(values: impl IntoIterator<Item = (&'a String, &'a Value)>) -> Map<String, Json> {
+    values.into_iter().map(|(k, v)| (k.clone(), to_json(v))).collect()
 }
 
 #[cfg(test)]

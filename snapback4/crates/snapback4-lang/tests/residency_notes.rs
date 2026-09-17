@@ -168,7 +168,7 @@ fn accumulated_recipient_list_fanout_is_located_and_has_a_concrete_rewrite() {
     assert_eq!(b.schema.operations["send"].predicts.as_deref(), Some("eligible"));
     let mut e = Engine::new(Store::memory().unwrap(), b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     e.seed([("members".into(), wire::row_from_json(&e.schema().tables["members"], &json!({"id":"m1", "room":"r", "principal":"bob"})).unwrap())]).unwrap();
-    let result = e.mutate("send", Some("send-1"), Context::new("alice", [("room".into(), snapback4_core::Value::Id("r".into()))].into())).unwrap();
+    let result = e.mutate("send", Some("send-1"), Context::new("alice", [("room".into(), snapback4_core::Value::Id("r".into()))])).unwrap();
     assert!(matches!(result.state, snapback4_core::WriteState::Sent { .. }));
 }
 
@@ -195,7 +195,7 @@ fn wide_matching_merge_note_is_conditional_when_the_read_completes() {
     let rows = [("members", json!({"id":"member", "roomId":"r", "principal":"alice"})),
         ("messages", json!({"id":"message", "roomId":"r", "body":"hello", "at":1}))];
     e.seed(rows.into_iter().map(|(table, row)| (table.into(), wire::row_from_json(&b.schema.tables[table], &row).unwrap()))).unwrap();
-    let read = e.query("searchAll", Context::new("alice", [("q".into(), snapback4_core::Value::String("hello".into())), ("c".into(), snapback4_core::Value::Null)].into())).unwrap();
+    let read = e.query("searchAll", Context::new("alice", [("q".into(), snapback4_core::Value::String("hello".into())), ("c".into(), snapback4_core::Value::Null)])).unwrap();
     assert!(read.complete);
     assert_eq!(read.data.as_array().unwrap().len(), 1);
     println!("wide merge measured: {} rows examined, complete={}", read.metered.examined, read.complete);
@@ -321,7 +321,7 @@ fn fanout_rewrite_lists_all_unpinned_rule_columns() {
     let b = clean(&fixed);
     let mut e = Engine::memory(b.schema.clone(), b.programs.into_iter().map(|p| p.program)).unwrap();
     e.seed([("rows".into(), wire::row_from_json(&b.schema.tables["rows"], &json!({"id":"a", "owner":"alice", "room":"room"})).unwrap())]).unwrap();
-    let result = e.mutate("inspect", None, Context::new("alice", [("room".into(), snapback4_core::Value::String("room".into()))].into())).unwrap();
+    let result = e.mutate("inspect", None, Context::new("alice", [("room".into(), snapback4_core::Value::String("room".into()))])).unwrap();
     assert!(matches!(result.state, snapback4_core::WriteState::Sent { result, .. } if result.as_array().unwrap().len() == 1));
 }
 
@@ -346,16 +346,16 @@ fn pinning_a_private_reader_admits_the_page_without_granting_authority() {
         ("follows".into(), wire::row_from_json(&b.schema.tables["follows"], &json!({"id":"f", "followerId":"bob", "followedId":"alice"})).unwrap()),
         ("feedEntries".into(), wire::row_from_json(&b.schema.tables["feedEntries"], &json!({"id":"entry", "readerId":"bob", "actorId":"alice", "eventId":"event"})).unwrap()),
     ]).unwrap();
-    let args = [("actorId".into(), snapback4_core::Value::Id("alice".into())), ("eventId".into(), snapback4_core::Value::Id("event".into()))].into();
+    let args: snapback4_core::smallmap::SmallMap<_, _> = [("actorId".into(), snapback4_core::Value::Id("alice".into())), ("eventId".into(), snapback4_core::Value::Id("event".into()))].into();
     let write = e.mutate("removeEvent", None, Context::new("alice", args)).unwrap();
     assert!(matches!(write.state, snapback4_core::WriteState::Sent { .. }));
     assert_eq!(write.metered.rows_written, 0, "uniform-false inboxes are unreadable to the actor");
     assert_eq!(e.store().rows("feedEntries").unwrap().len(), 1);
-    let args = [("readerId".into(), snapback4_core::Value::Id("bob".into())), ("eventId".into(), snapback4_core::Value::Id("event".into()))].into();
+    let args: snapback4_core::smallmap::SmallMap<_, _> = [("readerId".into(), snapback4_core::Value::Id("bob".into())), ("eventId".into(), snapback4_core::Value::Id("event".into()))].into();
     let write = e.mutate("byKey", None, Context::new("alice", args)).unwrap();
     assert!(matches!(write.state, snapback4_core::WriteState::Failed { why, .. } if why.code == "NOT_FOUND"));
     for (viewer, count) in [("alice", 0), ("bob", 1)] {
-        let read = e.query("own", Context::new(viewer, Default::default())).unwrap();
+        let read = e.query("own", Context::new(viewer, snapback4_core::smallmap::SmallMap::new())).unwrap();
         assert!(read.complete);
         assert_eq!(read.data.as_array().unwrap().len(), count);
     }
@@ -389,7 +389,7 @@ fn w10a_no_cursor_names_both_remedies_and_the_capped_control_is_silent() {
         assert!(b.notes.is_empty(), "{:?}", b.notes);
         let mut e = Engine::memory(b.schema.clone(), b.programs.into_iter().map(|p| p.program)).unwrap();
         e.seed((0..50).map(|i| ("typing".into(), wire::row_from_json(&b.schema.tables["typing"], &json!({"id":format!("t{i}"), "conversationId":"room", "principal":format!("p{i}")})).unwrap()))).unwrap();
-        let read = e.query("chat.typingNow", Context::new("alice", [("conversationId".into(), snapback4_core::Value::Id("room".into()))].into())).unwrap();
+        let read = e.query("chat.typingNow", Context::new("alice", [("conversationId".into(), snapback4_core::Value::Id("room".into()))])).unwrap();
         assert!(read.complete);
         assert_eq!(read.data.as_array().unwrap().len(), 50);
         println!("W10a remedy: notes=0, rows=50, complete=true");
@@ -402,15 +402,15 @@ fn capped_page_cursor_note_respects_default_examined_ceiling() {
     let b = clean(&source(9000, false));
     let mut e = Engine::memory(b.schema.clone(), b.programs.iter().map(|p| p.program.clone())).unwrap();
     e.seed((0..9000).map(|n| ("rows".into(), wire::row_from_json(&b.schema.tables["rows"], &json!({"id":format!("r{n:04}"), "owner":"alice"})).unwrap()))).unwrap();
-    let read = e.query("list", Context::new("alice", Default::default())).unwrap();
+    let read = e.query("list", Context::new("alice", snapback4_core::smallmap::SmallMap::new())).unwrap();
     println!("capped page: cap=9000 returned={} examined={} complete={} next={}", read.data.as_array().unwrap().len(), read.metered.examined, read.complete, read.next.is_some());
     assert!(!read.complete);
     assert!(read.next.is_none());
     let paged = clean(&source(9000, true));
     e.adopt(paged.schema, paged.programs.into_iter().map(|p| p.program)).unwrap();
-    let first = e.query("list", Context::new("alice", [("c".into(), snapback4_core::Value::Null)].into())).unwrap();
+    let first = e.query("list", Context::new("alice", [("c".into(), snapback4_core::Value::Null)])).unwrap();
     let next = first.next.clone().expect("a cursor can continue a meter-cut page");
-    let second = e.query("list", Context::new("alice", [("c".into(), snapback4_core::Value::String(next))].into())).unwrap();
+    let second = e.query("list", Context::new("alice", [("c".into(), snapback4_core::Value::String(next))])).unwrap();
     assert!(second.complete);
     assert_eq!(first.data.as_array().unwrap().len() + second.data.as_array().unwrap().len(), 9000);
     println!("capped continuation: first={} second={} total=9000", first.data.as_array().unwrap().len(), second.data.as_array().unwrap().len());

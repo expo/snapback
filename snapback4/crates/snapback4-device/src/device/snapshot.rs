@@ -34,7 +34,7 @@ pub(super) fn retain<T: DeviceTx>(tx: &T, schema: &Schema, held: Option<&wire::H
         }
     }
     let mut left = history::load(tx, history::GROUPS)?;
-    let held: BTreeMap<String, BTreeSet<String>> = held.into_iter().flat_map(|tables| tables.iter()).map(|(name, groups)| {
+    let held: SmallMap<String, BTreeSet<String>> = held.into_iter().flat_map(|tables| tables.iter()).map(|(name, groups)| {
         Ok((name.clone(), groups.iter().map(encoded).collect::<Result<_, RuntimeError>>()?))
     }).collect::<Result<_, RuntimeError>>()?;
     for (name, groups) in &held {

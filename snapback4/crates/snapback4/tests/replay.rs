@@ -260,7 +260,7 @@ fn release_engines_ignore_dev_suppression_and_delayed_dev_policy_is_refused() {
     let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
     let mut release = Engine::new_release(Store::open(&f.0.join(".snapback4/store.sqlite")).unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program), 1, None).unwrap();
     for engine in [&mut release, &mut Engine::attach_release(Store::open(&f.0.join(".snapback4/store.sqlite")).unwrap(), 1).unwrap()] {
-        let sent = engine.mutate("send", None, snapback4_core::Context::new("dev:alice", Default::default())).unwrap();
+        let sent = engine.mutate("send", None, snapback4_core::Context::new("dev:alice", snapback4_core::smallmap::SmallMap::new())).unwrap();
         assert!(matches!(sent.state, snapback4_core::WriteState::Sent { .. }));
     }
     assert_eq!(release.effects(None, 10).unwrap().len(), 2, "release transactions always emit");

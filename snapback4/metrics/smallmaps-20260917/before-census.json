@@ -1,0 +1,354 @@
+{
+  "btree_bytes": 505002,
+  "btree_items": 2712,
+  "sort_bytes": 107923,
+  "sort_items": 402,
+  "btree_pairs": {
+    "String, core::value::Value": [
+      41594,
+      177
+    ],
+    "(unresolved)": [
+      36309,
+      273
+    ],
+    "String, core::engine::pages::Origin": [
+      20801,
+      94
+    ],
+    "String, String": [
+      19915,
+      97
+    ],
+    "String, ()": [
+      17378,
+      95
+    ],
+    "String, core::engine::admission::Origin": [
+      17128,
+      82
+    ],
+    "String, core::engine::pages::prefetch::Key": [
+      16750,
+      73
+    ],
+    "(String, Vec<String>), ()": [
+      13603,
+      67
+    ],
+    "(String, String), core::value::Value": [
+      13489,
+      67
+    ],
+    "String, serde_json::value::Value": [
+      13236,
+      69
+    ],
+    "String, core::schema::ColumnType": [
+      12917,
+      56
+    ],
+    "String, core::ir::ArgType": [
+      11959,
+      74
+    ],
+    "&String, &core::ir::Expr": [
+      11833,
+      58
+    ],
+    "String, core::ir::Expr": [
+      11402,
+      69
+    ],
+    "String, core::schema::UniqueRefusal": [
+      11220,
+      60
+    ],
+    "(String, Vec<u8>), String": [
+      11136,
+      48
+    ],
+    "String, (String, String)": [
+      11022,
+      49
+    ],
+    "String, core::ir::Program": [
+      10840,
+      58
+    ],
+    "String, core::schema::Table": [
+      10763,
+      69
+    ],
+    "String, (u64, String)": [
+      10614,
+      57
+    ],
+    "String, core::schema::Index": [
+      10593,
+      45
+    ],
+    "String, core::maintain::CalendarKey": [
+      9775,
+      58
+    ],
+    "(String, String, String), usize": [
+      9042,
+      49
+    ],
+    "String, core::schema::Execution": [
+      8915,
+      52
+    ],
+    "(String, String), core::option::Option<String>": [
+      8892,
+      40
+    ],
+    "String, core::option::Option<i64>": [
+      8763,
+      62
+    ],
+    "String, core::schema::ColumnDefault": [
+      8651,
+      36
+    ],
+    "String, core::schema::routes::RouteSpec": [
+      8604,
+      49
+    ],
+    "String, core::schema::work::WorkSpec": [
+      8556,
+      49
+    ],
+    "&String, &core::value::Value": [
+      8449,
+      47
+    ],
+    "String, core::schema::work::ActionSpec": [
+      8439,
+      48
+    ],
+    "(String, String), Vec<(String, String, String)>": [
+      7900,
+      29
+    ],
+    "String, device::device::history::Membership": [
+      7820,
+      45
+    ],
+    "String, alloc::collections::btree::set::BTreeSet<String>": [
+      6684,
+      24
+    ],
+    "String, u64": [
+      6342,
+      40
+    ],
+    "String, alloc::collections::btree::map::BTreeMap<String, core::schema::UniqueRefusal>": [
+      5869,
+      39
+    ],
+    "&str, core::engine::presence::Proof": [
+      5847,
+      35
+    ],
+    "String, alloc::collections::btree::map::BTreeMap<String, core::option::Option<i64>>": [
+      5802,
+      24
+    ],
+    "String, core::engine::runner::PagePosition": [
+      5019,
+      35
+    ],
+    "String, usize": [
+      4880,
+      36
+    ],
+    "String, (bool, bool)": [
+      4694,
+      32
+    ],
+    "device::memory::Dirty, ()": [
+      4588,
+      32
+    ],
+    "&str, ()": [
+      4376,
+      31
+    ],
+    "(&str, &str), ()": [
+      4208,
+      28
+    ],
+    "String, Vec<Vec<serde_json::value::Value>>": [
+      4194,
+      28
+    ],
+    "String, Vec<core::engine::pages::prefetch::Mark>": [
+      2085,
+      10
+    ],
+    "String, alloc::collections::btree::map::BTreeMap<String, device::device::history::Membership>": [
+      1317,
+      9
+    ],
+    "String, core::option::Option<String>": [
+      537,
+      5
+    ],
+    "String, core::engine::admission::Binding": [
+      252,
+      3
+    ]
+  },
+  "sort_types": {
+    "(String, core::value::Value)": [
+      17936,
+      59
+    ],
+    "core::value::Value": [
+      9091,
+      31
+    ],
+    "(&String, &core::ir::Expr)": [
+      7277,
+      25
+    ],
+    "(String, core::engine::pages::Origin)": [
+      6632,
+      24
+    ],
+    "(String, core::ir::Program)": [
+      5231,
+      19
+    ],
+    "String": [
+      4782,
+      15
+    ],
+    "(u64, &String)": [
+      4640,
+      15
+    ],
+    "(String, String)": [
+      4547,
+      16
+    ],
+    "usize": [
+      4517,
+      16
+    ],
+    "(Vec<core::value::Value>, core::value::Value)": [
+      4349,
+      14
+    ],
+    "(&String, &core::value::Value)": [
+      4332,
+      16
+    ],
+    "&core::ir::Program": [
+      4330,
+      16
+    ],
+    "(u8, char)": [
+      4320,
+      15
+    ],
+    "(String, alloc::collections::btree::set::BTreeSet<String>)": [
+      4274,
+      14
+    ],
+    "(String, Vec<String>)": [
+      4110,
+      14
+    ],
+    "(String, core::engine::admission::Origin)": [
+      3947,
+      14
+    ],
+    "(String, core::engine::pages::prefetch::Key)": [
+      3726,
+      13
+    ],
+    "(String, serde_json::value::Value)": [
+      3628,
+      14
+    ],
+    "(unresolved)": [
+      1068,
+      16
+    ],
+    "<[(String, core::value::Value)]>::sort_by<<alloc::collections::btree::map::BTreeMap<String, core::value::Value> as core::iter::traits::collect::FromIterator<(String, core::value::Value)>>::from_iter<core::iter::adapters::GenericShunt<core::iter::adapters::map::Map<alloc::collections::btree::map::Iter<String, core::ir::Expr>, <core::engine::runner::Runner>::expr::{closure#2}>, core::result::Result<core::convert::Infallible, core::error::RuntimeError>>>::{closure#0}>::{closure#0}": [
+      342,
+      2
+    ],
+    "<[(String, alloc::collections::btree::set::BTreeSet<String>)]>::sort_by<<alloc::collections::btree::map::BTreeMap<String, alloc::collections::btree::set::BTreeSet<String>> as core::iter::traits::collect::FromIterator<(String, alloc::collections::btree::set::BTreeSet<String>)>>::from_iter<core::iter::adapters::GenericShunt<core::iter::adapters::map::Map<core::iter::adapters::flatten::FlatMap<core::option::IntoIter<&alloc::collections::btree::map::BTreeMap<String, Vec<Vec<serde_json::value::Value>>>>, alloc::collections::btree::map::Iter<String, Vec<Vec<serde_json::value::Value>>>, device::device::snapshot::retain<device::memory::MemoryTx>::{closure#2}>, device::device::snapshot::retain<device::memory::MemoryTx>::{closure#3}>, core::result::Result<core::convert::Infallible, core::error::RuntimeError>>>::{closure#0}>::{closure#0}": [
+      322,
+      2
+    ],
+    "<[(String, String)]>::sort_by<<alloc::collections::btree::map::BTreeMap<String, String> as core::iter::traits::collect::FromIterator<(String, String)>>::from_iter<core::iter::adapters::filter_map::FilterMap<alloc::collections::btree::map::IntoIter<String, core::engine::pages::Origin>, core::engine::pages::plan::{closure#0}>>::{closure#0}>::{closure#0}": [
+      322,
+      2
+    ],
+    "<[(Vec<core::value::Value>, core::value::Value)]>::sort_by<<core::engine::runner::Runner>::merge_with_words::{closure#6}>::{closure#0}": [
+      320,
+      2
+    ],
+    "<[core::value::Value]>::sort_by<<core::value::Value>::total_cmp>::{closure#0}": [
+      300,
+      2
+    ],
+    "<String as core::cmp::PartialOrd>::lt": [
+      298,
+      2
+    ],
+    "<(String, Vec<String>) as core::cmp::PartialOrd>::lt": [
+      296,
+      2
+    ],
+    "<[(u64, &String)]>::sort_by_key<u64, <device::memory::MemoryTx as device::store::DeviceTx>::outbox_entries::{closure#1}>::{closure#0}": [
+      290,
+      2
+    ],
+    "<[(&String, &core::ir::Expr)]>::sort_by<<alloc::collections::btree::map::BTreeMap<&String, &core::ir::Expr> as core::iter::traits::collect::FromIterator<(&String, &core::ir::Expr)>>::from_iter<core::iter::adapters::filter_map::FilterMap<core::iter::adapters::zip::Zip<core::slice::iter::Iter<core::schema::IndexComponent>, core::slice::iter::Iter<core::ir::Expr>>, core::engine::rules::upsert_absence::{closure#0}>>::{closure#0}>::{closure#0}": [
+      282,
+      2
+    ],
+    "<[(String, core::ir::Program)]>::sort_by<<alloc::collections::btree::map::BTreeMap<String, core::ir::Program> as core::iter::traits::collect::FromIterator<(String, core::ir::Program)>>::from_iter<core::iter::adapters::map::Map<alloc::vec::into_iter::IntoIter<core::ir::Program>, <device::device::Device<device::memory::MemoryStore>>::open_store::{closure#6}>>::{closure#0}>::{closure#0}": [
+      281,
+      2
+    ],
+    "<[(String, core::engine::admission::Origin)]>::sort_by<<alloc::collections::btree::map::BTreeMap<String, core::engine::admission::Origin> as core::iter::traits::collect::FromIterator<(String, core::engine::admission::Origin)>>::from_iter<core::iter::adapters::map::Map<alloc::collections::btree::map::Keys<String, core::ir::ArgType>, core::engine::admission::check_detail::{closure#2}>>::{closure#0}>::{closure#0}": [
+      281,
+      2
+    ],
+    "<[core::value::Value]>::sort_by<<core::engine::runner::Runner>::builtin::{closure#2}>::{closure#0}": [
+      280,
+      2
+    ],
+    "<[(String, serde_json::value::Value)]>::sort_by<<alloc::collections::btree::map::BTreeMap<String, serde_json::value::Value> as core::iter::traits::collect::FromIterator<(String, serde_json::value::Value)>>::from_iter<core::iter::adapters::map::Map<alloc::collections::btree::map::Iter<String, core::value::Value>, core::wire::map_to_json::{closure#0}>>::{closure#0}>::{closure#0}": [
+      269,
+      2
+    ],
+    "<[(String, core::engine::pages::Origin)]>::sort_by<<alloc::collections::btree::map::BTreeMap<String, core::engine::pages::Origin> as core::iter::traits::collect::FromIterator<(String, core::engine::pages::Origin)>>::from_iter<core::iter::adapters::filter_map::FilterMap<alloc::collections::btree::map::Iter<String, core::ir::Expr>, core::engine::pages::expression_origin::{closure#1}>>::{closure#0}>::{closure#0}": [
+      269,
+      2
+    ],
+    "<[(String, core::engine::pages::prefetch::Key)]>::sort_by<<alloc::collections::btree::map::BTreeMap<String, core::engine::pages::prefetch::Key> as core::iter::traits::collect::FromIterator<(String, core::engine::pages::prefetch::Key)>>::from_iter<core::iter::adapters::zip::Zip<alloc::vec::into_iter::IntoIter<String>, core::iter::adapters::cloned::Cloned<core::slice::iter::Iter<core::engine::pages::prefetch::Key>>>>::{closure#0}>::{closure#0}": [
+      269,
+      2
+    ],
+    "<[(u8, char)]>::sort_by_key<u8, <unicode_normalization::decompose::Decompositions<core::str::iter::Chars>>::sort_pending::{closure#0}>::{closure#0}": [
+      261,
+      2
+    ],
+    "<[&core::ir::Program]>::sort_by<device::device::store_identity::backend_identity::{closure#0}>::{closure#0}": [
+      252,
+      2
+    ],
+    "<[(&String, &core::value::Value)]>::sort_by<<alloc::collections::btree::map::BTreeMap<&String, &core::value::Value> as core::iter::traits::collect::FromIterator<(&String, &core::value::Value)>>::from_iter<core::iter::adapters::filter_map::FilterMap<core::iter::adapters::zip::Zip<core::slice::iter::Iter<core::schema::IndexComponent>, core::slice::iter::Iter<core::value::Value>>, device::device::history::retained_group::{closure#1}>>::{closure#0}>::{closure#0}": [
+      252,
+      2
+    ]
+  }
+}

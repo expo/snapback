@@ -8,7 +8,7 @@
 use snapback4_core::error::RuntimeError;
 use snapback4_core::rows::Rows;
 use snapback4_core::schema::Schema;
-use std::collections::BTreeMap;
+use snapback4_core::smallmap::SmallMap;
 
 pub trait DeviceStore {
     type Tx<'a>: DeviceTx
@@ -17,9 +17,9 @@ pub trait DeviceStore {
     /// Install the schema and the metadata in one step; `reset` drops the
     /// rows, the images and the staged snapshot (a new generation), never
     /// the outbox.
-    fn install(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool) -> Result<(), RuntimeError>;
+    fn install(&mut self, schema: &Schema, metadata: &SmallMap<String, String>, reset: bool) -> Result<(), RuntimeError>;
     /// Compare capture metadata inside the installation transaction.
-    fn install_checked(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
+    fn install_checked(&mut self, schema: &Schema, metadata: &SmallMap<String, String>, reset: bool, expected: &SmallMap<String, Option<String>>) -> Result<(), RuntimeError> {
         if !expected.is_empty() { return Err(RuntimeError::Store("this device store cannot check backend adoption captures".into())); }
         self.install(schema, metadata, reset)
     }

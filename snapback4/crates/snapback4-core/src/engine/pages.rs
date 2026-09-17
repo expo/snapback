@@ -3,16 +3,17 @@
 //! certificate or receipt machinery.
 use crate::ir::*;
 use crate::Value;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
+use crate::smallmap::SmallMap;
 
 #[derive(Clone, PartialEq, Eq)]
 enum Origin {
     Empty,
     Page(String, Option<String>),
-    Record(BTreeMap<String, Origin>),
+    Record(SmallMap<String, Origin>),
     Cursor(String),
 }
-type Bindings = BTreeMap<String, Origin>;
+type Bindings = SmallMap<String, Origin>;
 
 #[path = "page_collectors.rs"]
 mod collectors;
@@ -23,15 +24,15 @@ mod prefetch;
 
 #[derive(Default)]
 pub(super) struct Plan {
-    pub returns: BTreeMap<String, String>,
-    pub collectors: BTreeMap<String, String>,
+    pub returns: SmallMap<String, String>,
+    pub collectors: SmallMap<String, String>,
     pub prefetch: prefetch::Plan,
 }
 
 pub(super) fn plan(program: &Program, schema: &crate::schema::Schema, prefetch_enabled: bool) -> Plan {
     let prefetch = if prefetch_enabled { prefetch::plan(program).admit(schema) } else { prefetch::Plan::default() };
     if program.kind != ProgramKind::Query { return Plan { prefetch, ..Plan::default() }; }
-    let mut collectors = BTreeMap::new();
+    let mut collectors = SmallMap::new();
     let returns = returned_origins(program, false, &mut collectors).into_iter().filter_map(|(path, origin)| result_page(&origin).map(|(site, _)| (path, site.to_owned()))).collect();
     if !collectors.is_empty() {
         let flow = collectors::returned_collectors(program);
@@ -55,7 +56,7 @@ pub fn returned_page_sites(program: &Program) -> BTreeSet<String> {
     }
     let mut sites = BTreeSet::new();
     if program.kind == ProgramKind::Query {
-        for origin in returned_origins(program, true, &mut BTreeMap::new()).into_values() {
+        for origin in returned_origins(program, true, &mut SmallMap::new()).into_values() {
             collect(origin, &mut sites);
         }
     }
@@ -84,13 +85,13 @@ fn result_page(origin: &Origin) -> Option<(&str, Option<&str>)> {
     })
 }
 
-fn returned_origins(program: &Program, include_cursorless: bool, collectors: &mut BTreeMap<String, String>) -> BTreeMap<String, Origin> {
+fn returned_origins(program: &Program, include_cursorless: bool, collectors: &mut SmallMap<String, String>) -> SmallMap<String, Origin> {
     let mut bindings = program.args.iter().filter_map(|(name, kind)| {
         (matches!(kind, ArgType::Cursor)
             || matches!(kind, ArgType::Optional(inner) if matches!(inner.as_ref(), ArgType::Cursor)))
             .then(|| (name.clone(), Origin::Cursor(name.clone())))
     }).collect();
-    let mut returns = BTreeMap::new();
+    let mut returns = SmallMap::new();
     if origins(&program.body, &program.name, &mut bindings, &mut returns, collectors, include_cursorless) {
         returns.insert("fallthrough".into(), Origin::Empty);
     }
@@ -120,7 +121,7 @@ fn expression_origin(value: &Expr, bindings: &Bindings, include_cursorless: bool
                 if lane.source.is_some() {
                     local.remove(&lane.binding);
                 }
-                origins(&lane.setup, "", &mut local, &mut BTreeMap::new(), &mut BTreeMap::new(), include_cursorless);
+                origins(&lane.setup, "", &mut local, &mut SmallMap::new(), &mut SmallMap::new(), include_cursorless);
                 let next = scan_cursor(&lane.scan, &local);
                 if next.is_none() || (cursor.is_some() && next != cursor) {
                     return Some(Origin::Page(merge.site.clone(), None));
@@ -160,7 +161,7 @@ fn domain_origin(domain: &LoopDomain, bindings: &Bindings, include_cursorless: b
 
 // Count every collector write and reject early exits. Nested point shapes can
 // branch and write their own temporaries, but the outer collector gets one push.
-fn writes(body: &[Stmt], counts: &mut BTreeMap<String, usize>, nested_loop: bool) -> bool {
+fn writes(body: &[Stmt], counts: &mut SmallMap<String, usize>, nested_loop: bool) -> bool {
     let mut exits = false;
     for statement in body {
         match statement {
@@ -195,8 +196,8 @@ fn origins(
     body: &[Stmt],
     prefix: &str,
     bindings: &mut Bindings,
-    returns: &mut BTreeMap<String, Origin>,
-    collectors: &mut BTreeMap<String, String>,
+    returns: &mut SmallMap<String, Origin>,
+    collectors: &mut SmallMap<String, String>,
     include_cursorless: bool,
 ) -> bool {
     for (index, statement) in body.iter().enumerate() {
@@ -250,10 +251,10 @@ fn origins(
                 // Keep it visible to admission without inventing provenance.
                 let mut local = bindings.clone();
                 local.remove(binding);
-                let mut nested = BTreeMap::new();
+                let mut nested = SmallMap::new();
                 origins(body, &path, &mut local, &mut nested, collectors, include_cursorless);
                 returns.extend(nested.into_keys().map(|path| (path, Origin::Empty)));
-                let mut changed = BTreeMap::new();
+                let mut changed = SmallMap::new();
                 let exits = writes(body, &mut changed, false);
                 // @ref LLP 3000.007#19.2 — retain the rejected collector's page so execution distinguishes an untaken exit or exhausted loop from lost rows.
                 if exits && let Some(Origin::Page(site, _)) = &origin {

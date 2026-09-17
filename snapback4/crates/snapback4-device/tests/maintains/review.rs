@@ -94,7 +94,7 @@ fn subset<H: Host>(host: &mut H) {
     let mut device = host.open("subset",Some(backend)).unwrap();
     for (i,page) in snapshot_pages(&mut server,"alice",100).iter().enumerate() { device.apply(page,i==0).unwrap(); }
     for (op,input) in [("total",json!({"owner":"bob"})),("total",json!({"owner":"alice"})),("ownerGroups",json!({"owner":"alice","c":null})),("ownerGroups",json!({"owner":"bob","c":null})),("groups",json!({"c":null}))] {
-        let context = Context::new("alice",input.as_object().unwrap().iter().map(|(k,v)| (k.clone(), if k == "owner" { id(v.as_str().unwrap()) } else { Value::Null })).collect());
+        let context = Context::new("alice",input.as_object().unwrap().iter().map(|(k,v)| (k.clone(), if k == "owner" { id(v.as_str().unwrap()) } else { Value::Null })).collect::<snapback4_core::smallmap::SmallMap<_, _>>());
         let online = server.query(op,context).unwrap(); assert!(online.complete);
         let local = device.query(op,"alice",&input,0).unwrap();
         assert!(!local.complete,"{op} {input}: {local:?}");
@@ -294,7 +294,7 @@ fn fold_commits<H: Host>(host:&mut H) {
         let local=device.admit(entry);
         if overflow {assert!(local.is_err(),"{local:?}");} else {assert!(local.unwrap().predictable);}
         let program=server.program(op).unwrap();
-        let typed=program.args.iter().map(|(name,kind)|(name.clone(),snapback4_core::wire::from_json(kind,&input[name]).unwrap())).collect();
+        let typed=program.args.iter().map(|(name,kind)|(name.clone(),snapback4_core::wire::from_json(kind,&input[name]).unwrap())).collect::<snapback4_core::smallmap::SmallMap<_, _>>();
         let from=server.seq().unwrap();
         let out=server.mutate(op,Some(&write_id),Context::new("alice",typed).at(1).with_ids([format!("row{slot}")])).unwrap();
         assert_eq!(matches!(out.state,WriteState::Failed {..}),overflow,"{out:?}");

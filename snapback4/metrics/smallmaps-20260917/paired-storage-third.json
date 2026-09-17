@@ -1,0 +1,1244 @@
+{
+  "records": [
+    {
+      "at": "2026-09-17T09:22:12.160Z",
+      "binary": "/Users/ccheever/projects/snapback-diet-maps/snapback4/target/d2/before/snapback4",
+      "binarySha256": "e0f8ae0b119c55fb74d0c0ac42075e405c5545a27d94a6bcbfd55df8812da257",
+      "clientSha256": "b2460748009f3e49617fd41f951e0c40809817383334fac78a40437a3e6adbca",
+      "workloadSha256": "dd041b64e7ab48593ee9eef1dd60a4bf69df04d16170686251acbfee8e90c447",
+      "seedSha256": "6e7b2464cd07519673f4fef9a9736e048c6571ed942cef354819f682ffa5bc35",
+      "sha": "70a663c22285dc3a5278ca9ac13db01bbe05446b",
+      "dirty": true,
+      "node": "v24.18.0",
+      "host": "darwin-arm64 Apple M5 Max",
+      "transport": "loopback HTTP; dev personas; file-backed server SQLite WAL/NORMAL",
+      "groups": 4,
+      "messages": 100,
+      "members": 4,
+      "seeded": 420,
+      "seedMs": 113,
+      "rowsBytes": 110492,
+      "rowCount": 447,
+      "indexBytes": 49552,
+      "logBytes": 140698,
+      "logEvents": 557,
+      "fileBytes": 581632,
+      "logPerRows": 1.27,
+      "filePerRows": 5.26,
+      "measurements": {
+        "httpPoint": {
+          "samples": 20,
+          "p50Ms": 2.704,
+          "p95Ms": 3.493,
+          "maxMs": 3.945,
+          "complete": true
+        },
+        "httpThread": {
+          "samples": 20,
+          "p50Ms": 4.013,
+          "p95Ms": 4.641,
+          "maxMs": 5.333,
+          "complete": true,
+          "rows": 50
+        },
+        "httpNextPage": {
+          "samples": 20,
+          "p50Ms": 4.393,
+          "p95Ms": 6.004,
+          "maxMs": 6.367,
+          "complete": true,
+          "rows": 50
+        },
+        "httpInbox": {
+          "samples": 20,
+          "p50Ms": 3.291,
+          "p95Ms": 3.983,
+          "maxMs": 4.095,
+          "complete": true,
+          "rows": 4
+        },
+        "httpFeed": {
+          "samples": 20,
+          "p50Ms": 4.513,
+          "p95Ms": 6.495,
+          "maxMs": 9.16,
+          "complete": true,
+          "rows": 20
+        },
+        "httpSend": {
+          "samples": 20,
+          "p50Ms": 6.013,
+          "p95Ms": 14.39,
+          "maxMs": 14.474
+        },
+        "httpEdit": {
+          "samples": 20,
+          "p50Ms": 3.86,
+          "p95Ms": 10.037,
+          "maxMs": 32.465
+        }
+      },
+      "trial": 0,
+      "stage": "before",
+      "wall_s": 1.720596792
+    },
+    {
+      "at": "2026-09-17T09:22:14.030Z",
+      "binary": "/Users/ccheever/projects/snapback-diet-maps/snapback4/target/debug/snapback4",
+      "binarySha256": "d0a9c712d74e6422a4a7c547d052149e87bc7b0c9defa92a07423265d0962b12",
+      "clientSha256": "b2460748009f3e49617fd41f951e0c40809817383334fac78a40437a3e6adbca",
+      "workloadSha256": "dd041b64e7ab48593ee9eef1dd60a4bf69df04d16170686251acbfee8e90c447",
+      "seedSha256": "6e7b2464cd07519673f4fef9a9736e048c6571ed942cef354819f682ffa5bc35",
+      "sha": "70a663c22285dc3a5278ca9ac13db01bbe05446b",
+      "dirty": true,
+      "node": "v24.18.0",
+      "host": "darwin-arm64 Apple M5 Max",
+      "transport": "loopback HTTP; dev personas; file-backed server SQLite WAL/NORMAL",
+      "groups": 4,
+      "messages": 100,
+      "members": 4,
+      "seeded": 420,
+      "seedMs": 107,
+      "rowsBytes": 110492,
+      "rowCount": 447,
+      "indexBytes": 49552,
+      "logBytes": 140698,
+      "logEvents": 557,
+      "fileBytes": 581632,
+      "logPerRows": 1.27,
+      "filePerRows": 5.26,
+      "measurements": {
+        "httpPoint": {
+          "samples": 20,
+          "p50Ms": 2.849,
+          "p95Ms": 3.648,
+          "maxMs": 5.787,
+          "complete": true
+        },
+        "httpThread": {
+          "samples": 20,
+          "p50Ms": 3.899,
+          "p95Ms": 4.696,
+          "maxMs": 4.722,
+          "complete": true,
+          "rows": 50
+        },
+        "httpNextPage": {
+          "samples": 20,
+          "p50Ms": 4.101,
+          "p95Ms": 4.946,
+          "maxMs": 5.392,
+          "complete": true,
+          "rows": 50
+        },
+        "httpInbox": {
+          "samples": 20,
+          "p50Ms": 3.048,
+          "p95Ms": 3.939,
+          "maxMs": 4.269,
+          "complete": true,
+          "rows": 4
+        },
+        "httpFeed": {
+          "samples": 20,
+          "p50Ms": 3.957,
+          "p95Ms": 5.253,
+          "maxMs": 5.368,
+          "complete": true,
+          "rows": 20
+        },
+        "httpSend": {
+          "samples": 20,
+          "p50Ms": 7.985,
+          "p95Ms": 18.256,
+          "maxMs": 41.577
+        },
+        "httpEdit": {
+          "samples": 20,
+          "p50Ms": 3.742,
+          "p95Ms": 9.204,
+          "maxMs": 53.313
+        }
+      },
+      "trial": 0,
+      "stage": "after",
+      "wall_s": 1.5538787499999998
+    },
+    {
+      "at": "2026-09-17T09:22:15.319Z",
+      "binary": "/Users/ccheever/projects/snapback-diet-maps/snapback4/target/debug/snapback4",
+      "binarySha256": "d0a9c712d74e6422a4a7c547d052149e87bc7b0c9defa92a07423265d0962b12",
+      "clientSha256": "b2460748009f3e49617fd41f951e0c40809817383334fac78a40437a3e6adbca",
+      "workloadSha256": "dd041b64e7ab48593ee9eef1dd60a4bf69df04d16170686251acbfee8e90c447",
+      "seedSha256": "6e7b2464cd07519673f4fef9a9736e048c6571ed942cef354819f682ffa5bc35",
+      "sha": "70a663c22285dc3a5278ca9ac13db01bbe05446b",
+      "dirty": true,
+      "node": "v24.18.0",
+      "host": "darwin-arm64 Apple M5 Max",
+      "transport": "loopback HTTP; dev personas; file-backed server SQLite WAL/NORMAL",
+      "groups": 4,
+      "messages": 100,
+      "members": 4,
+      "seeded": 420,
+      "seedMs": 145,
+      "rowsBytes": 110492,
+      "rowCount": 447,
+      "indexBytes": 49552,
+      "logBytes": 140698,
+      "logEvents": 557,
+      "fileBytes": 581632,
+      "logPerRows": 1.27,
+      "filePerRows": 5.26,
+      "measurements": {
+        "httpPoint": {
+          "samples": 20,
+          "p50Ms": 2.661,
+          "p95Ms": 3.965,
+          "maxMs": 4.361,
+          "complete": true
+        },
+        "httpThread": {
+          "samples": 20,
+          "p50Ms": 4.161,
+          "p95Ms": 5.011,
+          "maxMs": 5.202,
+          "complete": true,
+          "rows": 50
+        },
+        "httpNextPage": {
+          "samples": 20,
+          "p50Ms": 4.474,
+          "p95Ms": 5.568,
+          "maxMs": 8.722,
+          "complete": true,
+          "rows": 50
+        },
+        "httpInbox": {
+          "samples": 20,
+          "p50Ms": 3.104,
+          "p95Ms": 3.516,
+          "maxMs": 3.612,
+          "complete": true,
+          "rows": 4
+        },
+        "httpFeed": {
+          "samples": 20,
+          "p50Ms": 3.961,
+          "p95Ms": 5.016,
+          "maxMs": 5.383,
+          "complete": true,
+          "rows": 20
+        },
+        "httpSend": {
+          "samples": 20,
+          "p50Ms": 5.654,
+          "p95Ms": 9.142,
+          "maxMs": 18.634
+        },
+        "httpEdit": {
+          "samples": 20,
+          "p50Ms": 3.417,
+          "p95Ms": 6.383,
+          "maxMs": 56.312
+        }
+      },
+      "trial": 1,
+      "stage": "after",
+      "wall_s": 1.528489833
+    },
+    {
+      "at": "2026-09-17T09:22:16.806Z",
+      "binary": "/Users/ccheever/projects/snapback-diet-maps/snapback4/target/d2/before/snapback4",
+      "binarySha256": "e0f8ae0b119c55fb74d0c0ac42075e405c5545a27d94a6bcbfd55df8812da257",
+      "clientSha256": "b2460748009f3e49617fd41f951e0c40809817383334fac78a40437a3e6adbca",
+      "workloadSha256": "dd041b64e7ab48593ee9eef1dd60a4bf69df04d16170686251acbfee8e90c447",
+      "seedSha256": "6e7b2464cd07519673f4fef9a9736e048c6571ed942cef354819f682ffa5bc35",
+      "sha": "70a663c22285dc3a5278ca9ac13db01bbe05446b",
+      "dirty": true,
+      "node": "v24.18.0",
+      "host": "darwin-arm64 Apple M5 Max",
+      "transport": "loopback HTTP; dev personas; file-backed server SQLite WAL/NORMAL",
+      "groups": 4,
+      "messages": 100,
+      "members": 4,
+      "seeded": 420,
+      "seedMs": 167,
+      "rowsBytes": 110492,
+      "rowCount": 447,
+      "indexBytes": 49552,
+      "logBytes": 140698,
+      "logEvents": 557,
+      "fileBytes": 581632,
+      "logPerRows": 1.27,
+      "filePerRows": 5.26,
+      "measurements": {
+        "httpPoint": {
+          "samples": 20,
+          "p50Ms": 2.576,
+          "p95Ms": 3.53,
+          "maxMs": 3.743,
+          "complete": true
+        },
+        "httpThread": {
+          "samples": 20,
+          "p50Ms": 3.906,
+          "p95Ms": 4.78,
+          "maxMs": 5.56,
+          "complete": true,
+          "rows": 50
+        },
+        "httpNextPage": {
+          "samples": 20,
+          "p50Ms": 3.93,
+          "p95Ms": 4.798,
+          "maxMs": 5.178,
+          "complete": true,
+          "rows": 50
+        },
+        "httpInbox": {
+          "samples": 20,
+          "p50Ms": 2.895,
+          "p95Ms": 3.425,
+          "maxMs": 3.513,
+          "complete": true,
+          "rows": 4
+        },
+        "httpFeed": {
+          "samples": 20,
+          "p50Ms": 4.26,
+          "p95Ms": 5.326,
+          "maxMs": 5.812,
+          "complete": true,
+          "rows": 20
+        },
+        "httpSend": {
+          "samples": 20,
+          "p50Ms": 4.972,
+          "p95Ms": 10.858,
+          "maxMs": 15.713
+        },
+        "httpEdit": {
+          "samples": 20,
+          "p50Ms": 4.889,
+          "p95Ms": 10.053,
+          "maxMs": 15.679
+        }
+      },
+      "trial": 1,
+      "stage": "before",
+      "wall_s": 1.218519917
+    },
+    {
+      "at": "2026-09-17T09:22:18.032Z",
+      "binary": "/Users/ccheever/projects/snapback-diet-maps/snapback4/target/d2/before/snapback4",
+      "binarySha256": "e0f8ae0b119c55fb74d0c0ac42075e405c5545a27d94a6bcbfd55df8812da257",
+      "clientSha256": "b2460748009f3e49617fd41f951e0c40809817383334fac78a40437a3e6adbca",
+      "workloadSha256": "dd041b64e7ab48593ee9eef1dd60a4bf69df04d16170686251acbfee8e90c447",
+      "seedSha256": "6e7b2464cd07519673f4fef9a9736e048c6571ed942cef354819f682ffa5bc35",
+      "sha": "70a663c22285dc3a5278ca9ac13db01bbe05446b",
+      "dirty": true,
+      "node": "v24.18.0",
+      "host": "darwin-arm64 Apple M5 Max",
+      "transport": "loopback HTTP; dev personas; file-backed server SQLite WAL/NORMAL",
+      "groups": 4,
+      "messages": 100,
+      "members": 4,
+      "seeded": 420,
+      "seedMs": 117,
+      "rowsBytes": 110492,
+      "rowCount": 447,
+      "indexBytes": 49552,
+      "logBytes": 140698,
+      "logEvents": 557,
+      "fileBytes": 581632,
+      "logPerRows": 1.27,
+      "filePerRows": 5.26,
+      "measurements": {
+        "httpPoint": {
+          "samples": 20,
+          "p50Ms": 2.612,
+          "p95Ms": 3.349,
+          "maxMs": 4.772,
+          "complete": true
+        },
+        "httpThread": {
+          "samples": 20,
+          "p50Ms": 3.709,
+          "p95Ms": 4.639,
+          "maxMs": 4.787,
+          "complete": true,
+          "rows": 50
+        },
+        "httpNextPage": {
+          "samples": 20,
+          "p50Ms": 4.437,
+          "p95Ms": 5.339,
+          "maxMs": 5.849,
+          "complete": true,
+          "rows": 50
+        },
+        "httpInbox": {
+          "samples": 20,
+          "p50Ms": 2.779,
+          "p95Ms": 3.307,
+          "maxMs": 3.505,
+          "complete": true,
+          "rows": 4
+        },
+        "httpFeed": {
+          "samples": 20,
+          "p50Ms": 4.583,
+          "p95Ms": 5.497,
+          "maxMs": 5.77,
+          "complete": true,
+          "rows": 20
+        },
+        "httpSend": {
+          "samples": 20,
+          "p50Ms": 6.428,
+          "p95Ms": 15.03,
+          "maxMs": 23.11
+        },
+        "httpEdit": {
+          "samples": 20,
+          "p50Ms": 3.651,
+          "p95Ms": 6.458,
+          "maxMs": 20.219
+        }
+      },
+      "trial": 2,
+      "stage": "before",
+      "wall_s": 1.2397468749999998
+    },
+    {
+      "at": "2026-09-17T09:22:19.160Z",
+      "binary": "/Users/ccheever/projects/snapback-diet-maps/snapback4/target/debug/snapback4",
+      "binarySha256": "d0a9c712d74e6422a4a7c547d052149e87bc7b0c9defa92a07423265d0962b12",
+      "clientSha256": "b2460748009f3e49617fd41f951e0c40809817383334fac78a40437a3e6adbca",
+      "workloadSha256": "dd041b64e7ab48593ee9eef1dd60a4bf69df04d16170686251acbfee8e90c447",
+      "seedSha256": "6e7b2464cd07519673f4fef9a9736e048c6571ed942cef354819f682ffa5bc35",
+      "sha": "70a663c22285dc3a5278ca9ac13db01bbe05446b",
+      "dirty": true,
+      "node": "v24.18.0",
+      "host": "darwin-arm64 Apple M5 Max",
+      "transport": "loopback HTTP; dev personas; file-backed server SQLite WAL/NORMAL",
+      "groups": 4,
+      "messages": 100,
+      "members": 4,
+      "seeded": 420,
+      "seedMs": 101,
+      "rowsBytes": 110492,
+      "rowCount": 447,
+      "indexBytes": 49552,
+      "logBytes": 140698,
+      "logEvents": 557,
+      "fileBytes": 581632,
+      "logPerRows": 1.27,
+      "filePerRows": 5.26,
+      "measurements": {
+        "httpPoint": {
+          "samples": 20,
+          "p50Ms": 2.801,
+          "p95Ms": 3.52,
+          "maxMs": 4.504,
+          "complete": true
+        },
+        "httpThread": {
+          "samples": 20,
+          "p50Ms": 4.182,
+          "p95Ms": 4.901,
+          "maxMs": 6.075,
+          "complete": true,
+          "rows": 50
+        },
+        "httpNextPage": {
+          "samples": 20,
+          "p50Ms": 3.272,
+          "p95Ms": 3.993,
+          "maxMs": 4.438,
+          "complete": true,
+          "rows": 50
+        },
+        "httpInbox": {
+          "samples": 20,
+          "p50Ms": 2.857,
+          "p95Ms": 3.736,
+          "maxMs": 6.08,
+          "complete": true,
+          "rows": 4
+        },
+        "httpFeed": {
+          "samples": 20,
+          "p50Ms": 3.474,
+          "p95Ms": 4.601,
+          "maxMs": 4.879,
+          "complete": true,
+          "rows": 20
+        },
+        "httpSend": {
+          "samples": 20,
+          "p50Ms": 6.442,
+          "p95Ms": 23.595,
+          "maxMs": 34.718
+        },
+        "httpEdit": {
+          "samples": 20,
+          "p50Ms": 3.469,
+          "p95Ms": 7.847,
+          "maxMs": 36.037
+        }
+      },
+      "trial": 2,
+      "stage": "after",
+      "wall_s": 1.1204785000000008
+    },
+    {
+      "at": "2026-09-17T09:22:20.311Z",
+      "binary": "/Users/ccheever/projects/snapback-diet-maps/snapback4/target/debug/snapback4",
+      "binarySha256": "d0a9c712d74e6422a4a7c547d052149e87bc7b0c9defa92a07423265d0962b12",
+      "clientSha256": "b2460748009f3e49617fd41f951e0c40809817383334fac78a40437a3e6adbca",
+      "workloadSha256": "dd041b64e7ab48593ee9eef1dd60a4bf69df04d16170686251acbfee8e90c447",
+      "seedSha256": "6e7b2464cd07519673f4fef9a9736e048c6571ed942cef354819f682ffa5bc35",
+      "sha": "70a663c22285dc3a5278ca9ac13db01bbe05446b",
+      "dirty": true,
+      "node": "v24.18.0",
+      "host": "darwin-arm64 Apple M5 Max",
+      "transport": "loopback HTTP; dev personas; file-backed server SQLite WAL/NORMAL",
+      "groups": 4,
+      "messages": 100,
+      "members": 4,
+      "seeded": 420,
+      "seedMs": 95,
+      "rowsBytes": 110492,
+      "rowCount": 447,
+      "indexBytes": 49552,
+      "logBytes": 140698,
+      "logEvents": 557,
+      "fileBytes": 581632,
+      "logPerRows": 1.27,
+      "filePerRows": 5.26,
+      "measurements": {
+        "httpPoint": {
+          "samples": 20,
+          "p50Ms": 2.887,
+          "p95Ms": 3.761,
+          "maxMs": 4.412,
+          "complete": true
+        },
+        "httpThread": {
+          "samples": 20,
+          "p50Ms": 4.206,
+          "p95Ms": 4.604,
+          "maxMs": 6.602,
+          "complete": true,
+          "rows": 50
+        },
+        "httpNextPage": {
+          "samples": 20,
+          "p50Ms": 4.226,
+          "p95Ms": 4.94,
+          "maxMs": 5.06,
+          "complete": true,
+          "rows": 50
+        },
+        "httpInbox": {
+          "samples": 20,
+          "p50Ms": 2.872,
+          "p95Ms": 3.573,
+          "maxMs": 3.872,
+          "complete": true,
+          "rows": 4
+        },
+        "httpFeed": {
+          "samples": 20,
+          "p50Ms": 3.754,
+          "p95Ms": 4.235,
+          "maxMs": 4.383,
+          "complete": true,
+          "rows": 20
+        },
+        "httpSend": {
+          "samples": 20,
+          "p50Ms": 5.69,
+          "p95Ms": 13.349,
+          "maxMs": 33.913
+        },
+        "httpEdit": {
+          "samples": 20,
+          "p50Ms": 3.681,
+          "p95Ms": 8.425,
+          "maxMs": 12.114
+        }
+      },
+      "trial": 3,
+      "stage": "after",
+      "wall_s": 1.1239510840000015
+    },
+    {
+      "at": "2026-09-17T09:22:21.740Z",
+      "binary": "/Users/ccheever/projects/snapback-diet-maps/snapback4/target/d2/before/snapback4",
+      "binarySha256": "e0f8ae0b119c55fb74d0c0ac42075e405c5545a27d94a6bcbfd55df8812da257",
+      "clientSha256": "b2460748009f3e49617fd41f951e0c40809817383334fac78a40437a3e6adbca",
+      "workloadSha256": "dd041b64e7ab48593ee9eef1dd60a4bf69df04d16170686251acbfee8e90c447",
+      "seedSha256": "6e7b2464cd07519673f4fef9a9736e048c6571ed942cef354819f682ffa5bc35",
+      "sha": "70a663c22285dc3a5278ca9ac13db01bbe05446b",
+      "dirty": true,
+      "node": "v24.18.0",
+      "host": "darwin-arm64 Apple M5 Max",
+      "transport": "loopback HTTP; dev personas; file-backed server SQLite WAL/NORMAL",
+      "groups": 4,
+      "messages": 100,
+      "members": 4,
+      "seeded": 420,
+      "seedMs": 110,
+      "rowsBytes": 110492,
+      "rowCount": 447,
+      "indexBytes": 49552,
+      "logBytes": 140698,
+      "logEvents": 557,
+      "fileBytes": 581632,
+      "logPerRows": 1.27,
+      "filePerRows": 5.26,
+      "measurements": {
+        "httpPoint": {
+          "samples": 20,
+          "p50Ms": 2.64,
+          "p95Ms": 3.816,
+          "maxMs": 4.814,
+          "complete": true
+        },
+        "httpThread": {
+          "samples": 20,
+          "p50Ms": 4.079,
+          "p95Ms": 4.427,
+          "maxMs": 4.747,
+          "complete": true,
+          "rows": 50
+        },
+        "httpNextPage": {
+          "samples": 20,
+          "p50Ms": 4.392,
+          "p95Ms": 6.395,
+          "maxMs": 7.053,
+          "complete": true,
+          "rows": 50
+        },
+        "httpInbox": {
+          "samples": 20,
+          "p50Ms": 3.14,
+          "p95Ms": 3.675,
+          "maxMs": 3.74,
+          "complete": true,
+          "rows": 4
+        },
+        "httpFeed": {
+          "samples": 20,
+          "p50Ms": 4.184,
+          "p95Ms": 4.964,
+          "maxMs": 4.967,
+          "complete": true,
+          "rows": 20
+        },
+        "httpSend": {
+          "samples": 20,
+          "p50Ms": 8.894,
+          "p95Ms": 37.599,
+          "maxMs": 56.6
+        },
+        "httpEdit": {
+          "samples": 20,
+          "p50Ms": 3.609,
+          "p95Ms": 27.815,
+          "maxMs": 53.697
+        }
+      },
+      "trial": 3,
+      "stage": "before",
+      "wall_s": 1.6248347909999996
+    },
+    {
+      "at": "2026-09-17T09:22:23.323Z",
+      "binary": "/Users/ccheever/projects/snapback-diet-maps/snapback4/target/d2/before/snapback4",
+      "binarySha256": "e0f8ae0b119c55fb74d0c0ac42075e405c5545a27d94a6bcbfd55df8812da257",
+      "clientSha256": "b2460748009f3e49617fd41f951e0c40809817383334fac78a40437a3e6adbca",
+      "workloadSha256": "dd041b64e7ab48593ee9eef1dd60a4bf69df04d16170686251acbfee8e90c447",
+      "seedSha256": "6e7b2464cd07519673f4fef9a9736e048c6571ed942cef354819f682ffa5bc35",
+      "sha": "70a663c22285dc3a5278ca9ac13db01bbe05446b",
+      "dirty": true,
+      "node": "v24.18.0",
+      "host": "darwin-arm64 Apple M5 Max",
+      "transport": "loopback HTTP; dev personas; file-backed server SQLite WAL/NORMAL",
+      "groups": 4,
+      "messages": 100,
+      "members": 4,
+      "seeded": 420,
+      "seedMs": 158,
+      "rowsBytes": 110492,
+      "rowCount": 447,
+      "indexBytes": 49552,
+      "logBytes": 140698,
+      "logEvents": 557,
+      "fileBytes": 581632,
+      "logPerRows": 1.27,
+      "filePerRows": 5.26,
+      "measurements": {
+        "httpPoint": {
+          "samples": 20,
+          "p50Ms": 3.004,
+          "p95Ms": 3.363,
+          "maxMs": 3.55,
+          "complete": true
+        },
+        "httpThread": {
+          "samples": 20,
+          "p50Ms": 4.49,
+          "p95Ms": 5.529,
+          "maxMs": 5.841,
+          "complete": true,
+          "rows": 50
+        },
+        "httpNextPage": {
+          "samples": 20,
+          "p50Ms": 4.48,
+          "p95Ms": 5.806,
+          "maxMs": 5.98,
+          "complete": true,
+          "rows": 50
+        },
+        "httpInbox": {
+          "samples": 20,
+          "p50Ms": 3.559,
+          "p95Ms": 4.221,
+          "maxMs": 5.266,
+          "complete": true,
+          "rows": 4
+        },
+        "httpFeed": {
+          "samples": 20,
+          "p50Ms": 4.42,
+          "p95Ms": 5.087,
+          "maxMs": 5.606,
+          "complete": true,
+          "rows": 20
+        },
+        "httpSend": {
+          "samples": 20,
+          "p50Ms": 5.991,
+          "p95Ms": 32.321,
+          "maxMs": 42.011
+        },
+        "httpEdit": {
+          "samples": 20,
+          "p50Ms": 3.168,
+          "p95Ms": 5.935,
+          "maxMs": 79.846
+        }
+      },
+      "trial": 4,
+      "stage": "before",
+      "wall_s": 1.513490375
+    },
+    {
+      "at": "2026-09-17T09:22:24.791Z",
+      "binary": "/Users/ccheever/projects/snapback-diet-maps/snapback4/target/debug/snapback4",
+      "binarySha256": "d0a9c712d74e6422a4a7c547d052149e87bc7b0c9defa92a07423265d0962b12",
+      "clientSha256": "b2460748009f3e49617fd41f951e0c40809817383334fac78a40437a3e6adbca",
+      "workloadSha256": "dd041b64e7ab48593ee9eef1dd60a4bf69df04d16170686251acbfee8e90c447",
+      "seedSha256": "6e7b2464cd07519673f4fef9a9736e048c6571ed942cef354819f682ffa5bc35",
+      "sha": "70a663c22285dc3a5278ca9ac13db01bbe05446b",
+      "dirty": true,
+      "node": "v24.18.0",
+      "host": "darwin-arm64 Apple M5 Max",
+      "transport": "loopback HTTP; dev personas; file-backed server SQLite WAL/NORMAL",
+      "groups": 4,
+      "messages": 100,
+      "members": 4,
+      "seeded": 420,
+      "seedMs": 114,
+      "rowsBytes": 110492,
+      "rowCount": 447,
+      "indexBytes": 49552,
+      "logBytes": 140698,
+      "logEvents": 557,
+      "fileBytes": 581632,
+      "logPerRows": 1.27,
+      "filePerRows": 5.26,
+      "measurements": {
+        "httpPoint": {
+          "samples": 20,
+          "p50Ms": 2.922,
+          "p95Ms": 3.675,
+          "maxMs": 4.535,
+          "complete": true
+        },
+        "httpThread": {
+          "samples": 20,
+          "p50Ms": 4.736,
+          "p95Ms": 7.288,
+          "maxMs": 12.595,
+          "complete": true,
+          "rows": 50
+        },
+        "httpNextPage": {
+          "samples": 20,
+          "p50Ms": 4.55,
+          "p95Ms": 5.66,
+          "maxMs": 6.523,
+          "complete": true,
+          "rows": 50
+        },
+        "httpInbox": {
+          "samples": 20,
+          "p50Ms": 3.072,
+          "p95Ms": 4.751,
+          "maxMs": 4.829,
+          "complete": true,
+          "rows": 4
+        },
+        "httpFeed": {
+          "samples": 20,
+          "p50Ms": 4.546,
+          "p95Ms": 5.209,
+          "maxMs": 5.264,
+          "complete": true,
+          "rows": 20
+        },
+        "httpSend": {
+          "samples": 20,
+          "p50Ms": 4.881,
+          "p95Ms": 51.91,
+          "maxMs": 116.575
+        },
+        "httpEdit": {
+          "samples": 20,
+          "p50Ms": 3.26,
+          "p95Ms": 4.242,
+          "maxMs": 17.927
+        }
+      },
+      "trial": 4,
+      "stage": "after",
+      "wall_s": 1.3653166250000002
+    },
+    {
+      "at": "2026-09-17T09:22:26.062Z",
+      "binary": "/Users/ccheever/projects/snapback-diet-maps/snapback4/target/debug/snapback4",
+      "binarySha256": "d0a9c712d74e6422a4a7c547d052149e87bc7b0c9defa92a07423265d0962b12",
+      "clientSha256": "b2460748009f3e49617fd41f951e0c40809817383334fac78a40437a3e6adbca",
+      "workloadSha256": "dd041b64e7ab48593ee9eef1dd60a4bf69df04d16170686251acbfee8e90c447",
+      "seedSha256": "6e7b2464cd07519673f4fef9a9736e048c6571ed942cef354819f682ffa5bc35",
+      "sha": "70a663c22285dc3a5278ca9ac13db01bbe05446b",
+      "dirty": true,
+      "node": "v24.18.0",
+      "host": "darwin-arm64 Apple M5 Max",
+      "transport": "loopback HTTP; dev personas; file-backed server SQLite WAL/NORMAL",
+      "groups": 4,
+      "messages": 100,
+      "members": 4,
+      "seeded": 420,
+      "seedMs": 126,
+      "rowsBytes": 110492,
+      "rowCount": 447,
+      "indexBytes": 49552,
+      "logBytes": 140698,
+      "logEvents": 557,
+      "fileBytes": 581632,
+      "logPerRows": 1.27,
+      "filePerRows": 5.26,
+      "measurements": {
+        "httpPoint": {
+          "samples": 20,
+          "p50Ms": 2.977,
+          "p95Ms": 3.709,
+          "maxMs": 5.069,
+          "complete": true
+        },
+        "httpThread": {
+          "samples": 20,
+          "p50Ms": 4.453,
+          "p95Ms": 5.5,
+          "maxMs": 5.889,
+          "complete": true,
+          "rows": 50
+        },
+        "httpNextPage": {
+          "samples": 20,
+          "p50Ms": 4.493,
+          "p95Ms": 5.454,
+          "maxMs": 5.6,
+          "complete": true,
+          "rows": 50
+        },
+        "httpInbox": {
+          "samples": 20,
+          "p50Ms": 3.052,
+          "p95Ms": 4.157,
+          "maxMs": 4.19,
+          "complete": true,
+          "rows": 4
+        },
+        "httpFeed": {
+          "samples": 20,
+          "p50Ms": 4.63,
+          "p95Ms": 6.026,
+          "maxMs": 6.552,
+          "complete": true,
+          "rows": 20
+        },
+        "httpSend": {
+          "samples": 20,
+          "p50Ms": 5.956,
+          "p95Ms": 12.692,
+          "maxMs": 19.336
+        },
+        "httpEdit": {
+          "samples": 20,
+          "p50Ms": 3.947,
+          "p95Ms": 5.763,
+          "maxMs": 15.254
+        }
+      },
+      "trial": 5,
+      "stage": "after",
+      "wall_s": 1.2453989579999991
+    },
+    {
+      "at": "2026-09-17T09:22:27.359Z",
+      "binary": "/Users/ccheever/projects/snapback-diet-maps/snapback4/target/d2/before/snapback4",
+      "binarySha256": "e0f8ae0b119c55fb74d0c0ac42075e405c5545a27d94a6bcbfd55df8812da257",
+      "clientSha256": "b2460748009f3e49617fd41f951e0c40809817383334fac78a40437a3e6adbca",
+      "workloadSha256": "dd041b64e7ab48593ee9eef1dd60a4bf69df04d16170686251acbfee8e90c447",
+      "seedSha256": "6e7b2464cd07519673f4fef9a9736e048c6571ed942cef354819f682ffa5bc35",
+      "sha": "70a663c22285dc3a5278ca9ac13db01bbe05446b",
+      "dirty": true,
+      "node": "v24.18.0",
+      "host": "darwin-arm64 Apple M5 Max",
+      "transport": "loopback HTTP; dev personas; file-backed server SQLite WAL/NORMAL",
+      "groups": 4,
+      "messages": 100,
+      "members": 4,
+      "seeded": 420,
+      "seedMs": 168,
+      "rowsBytes": 110492,
+      "rowCount": 447,
+      "indexBytes": 49552,
+      "logBytes": 140698,
+      "logEvents": 557,
+      "fileBytes": 581632,
+      "logPerRows": 1.27,
+      "filePerRows": 5.26,
+      "measurements": {
+        "httpPoint": {
+          "samples": 20,
+          "p50Ms": 2.764,
+          "p95Ms": 3.631,
+          "maxMs": 3.766,
+          "complete": true
+        },
+        "httpThread": {
+          "samples": 20,
+          "p50Ms": 4.343,
+          "p95Ms": 4.937,
+          "maxMs": 5.324,
+          "complete": true,
+          "rows": 50
+        },
+        "httpNextPage": {
+          "samples": 20,
+          "p50Ms": 4.357,
+          "p95Ms": 4.942,
+          "maxMs": 5.062,
+          "complete": true,
+          "rows": 50
+        },
+        "httpInbox": {
+          "samples": 20,
+          "p50Ms": 2.626,
+          "p95Ms": 3.136,
+          "maxMs": 3.373,
+          "complete": true,
+          "rows": 4
+        },
+        "httpFeed": {
+          "samples": 20,
+          "p50Ms": 4.291,
+          "p95Ms": 5,
+          "maxMs": 5.46,
+          "complete": true,
+          "rows": 20
+        },
+        "httpSend": {
+          "samples": 20,
+          "p50Ms": 5.691,
+          "p95Ms": 28.042,
+          "maxMs": 50.928
+        },
+        "httpEdit": {
+          "samples": 20,
+          "p50Ms": 3.127,
+          "p95Ms": 7.741,
+          "maxMs": 30.313
+        }
+      },
+      "trial": 5,
+      "stage": "before",
+      "wall_s": 1.347600625
+    },
+    {
+      "at": "2026-09-17T09:22:28.597Z",
+      "binary": "/Users/ccheever/projects/snapback-diet-maps/snapback4/target/d2/before/snapback4",
+      "binarySha256": "e0f8ae0b119c55fb74d0c0ac42075e405c5545a27d94a6bcbfd55df8812da257",
+      "clientSha256": "b2460748009f3e49617fd41f951e0c40809817383334fac78a40437a3e6adbca",
+      "workloadSha256": "dd041b64e7ab48593ee9eef1dd60a4bf69df04d16170686251acbfee8e90c447",
+      "seedSha256": "6e7b2464cd07519673f4fef9a9736e048c6571ed942cef354819f682ffa5bc35",
+      "sha": "70a663c22285dc3a5278ca9ac13db01bbe05446b",
+      "dirty": true,
+      "node": "v24.18.0",
+      "host": "darwin-arm64 Apple M5 Max",
+      "transport": "loopback HTTP; dev personas; file-backed server SQLite WAL/NORMAL",
+      "groups": 4,
+      "messages": 100,
+      "members": 4,
+      "seeded": 420,
+      "seedMs": 123,
+      "rowsBytes": 110492,
+      "rowCount": 447,
+      "indexBytes": 49552,
+      "logBytes": 140698,
+      "logEvents": 557,
+      "fileBytes": 581632,
+      "logPerRows": 1.27,
+      "filePerRows": 5.26,
+      "measurements": {
+        "httpPoint": {
+          "samples": 20,
+          "p50Ms": 3.052,
+          "p95Ms": 3.644,
+          "maxMs": 3.749,
+          "complete": true
+        },
+        "httpThread": {
+          "samples": 20,
+          "p50Ms": 4.145,
+          "p95Ms": 5.205,
+          "maxMs": 5.622,
+          "complete": true,
+          "rows": 50
+        },
+        "httpNextPage": {
+          "samples": 20,
+          "p50Ms": 4.097,
+          "p95Ms": 4.985,
+          "maxMs": 5.675,
+          "complete": true,
+          "rows": 50
+        },
+        "httpInbox": {
+          "samples": 20,
+          "p50Ms": 2.873,
+          "p95Ms": 3.539,
+          "maxMs": 3.898,
+          "complete": true,
+          "rows": 4
+        },
+        "httpFeed": {
+          "samples": 20,
+          "p50Ms": 4.219,
+          "p95Ms": 4.599,
+          "maxMs": 4.74,
+          "complete": true,
+          "rows": 20
+        },
+        "httpSend": {
+          "samples": 20,
+          "p50Ms": 4.519,
+          "p95Ms": 9.551,
+          "maxMs": 9.66
+        },
+        "httpEdit": {
+          "samples": 20,
+          "p50Ms": 4.51,
+          "p95Ms": 29.069,
+          "maxMs": 71.769
+        }
+      },
+      "trial": 6,
+      "stage": "before",
+      "wall_s": 1.1622072500000016
+    },
+    {
+      "at": "2026-09-17T09:22:30.045Z",
+      "binary": "/Users/ccheever/projects/snapback-diet-maps/snapback4/target/debug/snapback4",
+      "binarySha256": "d0a9c712d74e6422a4a7c547d052149e87bc7b0c9defa92a07423265d0962b12",
+      "clientSha256": "b2460748009f3e49617fd41f951e0c40809817383334fac78a40437a3e6adbca",
+      "workloadSha256": "dd041b64e7ab48593ee9eef1dd60a4bf69df04d16170686251acbfee8e90c447",
+      "seedSha256": "6e7b2464cd07519673f4fef9a9736e048c6571ed942cef354819f682ffa5bc35",
+      "sha": "70a663c22285dc3a5278ca9ac13db01bbe05446b",
+      "dirty": true,
+      "node": "v24.18.0",
+      "host": "darwin-arm64 Apple M5 Max",
+      "transport": "loopback HTTP; dev personas; file-backed server SQLite WAL/NORMAL",
+      "groups": 4,
+      "messages": 100,
+      "members": 4,
+      "seeded": 420,
+      "seedMs": 97,
+      "rowsBytes": 110492,
+      "rowCount": 447,
+      "indexBytes": 49552,
+      "logBytes": 140698,
+      "logEvents": 557,
+      "fileBytes": 581632,
+      "logPerRows": 1.27,
+      "filePerRows": 5.26,
+      "measurements": {
+        "httpPoint": {
+          "samples": 20,
+          "p50Ms": 2.592,
+          "p95Ms": 3.719,
+          "maxMs": 4.107,
+          "complete": true
+        },
+        "httpThread": {
+          "samples": 20,
+          "p50Ms": 3.929,
+          "p95Ms": 4.539,
+          "maxMs": 4.677,
+          "complete": true,
+          "rows": 50
+        },
+        "httpNextPage": {
+          "samples": 20,
+          "p50Ms": 4.111,
+          "p95Ms": 4.818,
+          "maxMs": 5.156,
+          "complete": true,
+          "rows": 50
+        },
+        "httpInbox": {
+          "samples": 20,
+          "p50Ms": 3.146,
+          "p95Ms": 3.697,
+          "maxMs": 4.118,
+          "complete": true,
+          "rows": 4
+        },
+        "httpFeed": {
+          "samples": 20,
+          "p50Ms": 4.082,
+          "p95Ms": 10.046,
+          "maxMs": 10.751,
+          "complete": true,
+          "rows": 20
+        },
+        "httpSend": {
+          "samples": 20,
+          "p50Ms": 4.259,
+          "p95Ms": 75.097,
+          "maxMs": 332.448
+        },
+        "httpEdit": {
+          "samples": 20,
+          "p50Ms": 3.277,
+          "p95Ms": 5.277,
+          "maxMs": 35.629
+        }
+      },
+      "trial": 6,
+      "stage": "after",
+      "wall_s": 1.991629249999999
+    }
+  ],
+  "medians": {
+    "before": {
+      "httpPoint": {
+        "p50Ms": 2.704,
+        "p95Ms": 3.53
+      },
+      "httpThread": {
+        "p50Ms": 4.079,
+        "p95Ms": 4.78
+      },
+      "httpNextPage": {
+        "p50Ms": 4.392,
+        "p95Ms": 5.339
+      },
+      "httpInbox": {
+        "p50Ms": 2.895,
+        "p95Ms": 3.539
+      },
+      "httpFeed": {
+        "p50Ms": 4.291,
+        "p95Ms": 5.087
+      },
+      "httpSend": {
+        "p50Ms": 5.991,
+        "p95Ms": 15.03
+      },
+      "httpEdit": {
+        "p50Ms": 3.651,
+        "p95Ms": 10.037
+      }
+    },
+    "after": {
+      "httpPoint": {
+        "p50Ms": 2.849,
+        "p95Ms": 3.709
+      },
+      "httpThread": {
+        "p50Ms": 4.182,
+        "p95Ms": 4.901
+      },
+      "httpNextPage": {
+        "p50Ms": 4.226,
+        "p95Ms": 4.946
+      },
+      "httpInbox": {
+        "p50Ms": 3.052,
+        "p95Ms": 3.736
+      },
+      "httpFeed": {
+        "p50Ms": 3.961,
+        "p95Ms": 5.209
+      },
+      "httpSend": {
+        "p50Ms": 5.69,
+        "p95Ms": 18.256
+      },
+      "httpEdit": {
+        "p50Ms": 3.469,
+        "p95Ms": 6.383
+      }
+    }
+  },
+  "ratios": {
+    "httpPoint": {
+      "p50Ms": 1.0536242603550297,
+      "p95Ms": 1.0507082152974505
+    },
+    "httpThread": {
+      "p50Ms": 1.0252512870801669,
+      "p95Ms": 1.0253138075313806
+    },
+    "httpNextPage": {
+      "p50Ms": 0.9622040072859744,
+      "p95Ms": 0.9263907098707622
+    },
+    "httpInbox": {
+      "p50Ms": 1.054231433506045,
+      "p95Ms": 1.055665442215315
+    },
+    "httpFeed": {
+      "p50Ms": 0.9230948496853879,
+      "p95Ms": 1.0239827010025555
+    },
+    "httpSend": {
+      "p50Ms": 0.9497579702887666,
+      "p95Ms": 1.214637391882901
+    },
+    "httpEdit": {
+      "p50Ms": 0.9501506436592715,
+      "p95Ms": 0.6359469961143768
+    }
+  }
+}

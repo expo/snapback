@@ -28,12 +28,12 @@ struct RejectPostAdoptTransactions {
 impl DeviceStore for RejectPostAdoptTransactions {
     type Tx<'a> = <MemoryStore as DeviceStore>::Tx<'a>;
 
-    fn install(&mut self, schema: &snapback4_core::schema::Schema, metadata: &BTreeMap<String, String>, reset: bool) -> Result<(), snapback4_core::error::RuntimeError> {
+    fn install(&mut self, schema: &snapback4_core::schema::Schema, metadata: &snapback4_core::smallmap::SmallMap<String, String>, reset: bool) -> Result<(), snapback4_core::error::RuntimeError> {
         self.inner.install(schema, metadata, reset)?;
         self.installs += 1;
         Ok(())
     }
-    fn install_checked(&mut self, schema: &snapback4_core::schema::Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>) -> Result<(), snapback4_core::error::RuntimeError> {
+    fn install_checked(&mut self, schema: &snapback4_core::schema::Schema, metadata: &snapback4_core::smallmap::SmallMap<String, String>, reset: bool, expected: &snapback4_core::smallmap::SmallMap<String, Option<String>>) -> Result<(), snapback4_core::error::RuntimeError> {
         self.inner.install_checked(schema, metadata, reset, expected)?;
         self.installs += 1;
         Ok(())

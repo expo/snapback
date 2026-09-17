@@ -81,7 +81,7 @@ fn route_responses_are_bounded_and_refusal_acknowledgement_is_unambiguous() {
     assert!(serde_json::from_value::<RouteResponse>(wire).is_err());
 }
 
-fn schema_with(route: RouteSpec) -> Schema { Schema { routes: BTreeMap::from([("billing".into(), route)]), ..Schema::default() } }
+fn schema_with(route: RouteSpec) -> Schema { Schema { routes: BTreeMap::from([("billing".into(), route)]).into(), ..Schema::default() } }
 fn engine() -> Engine { Engine::memory(schema_with(spec()), []).unwrap() }
 fn verified(engine: &mut Engine, body: &[u8], at: i64) -> snapback4_core::engine::actions::ActionRequest {
     engine.request_verified_route("billing", &spec().contract("billing"), &request(body), 0, at).unwrap().0
@@ -118,7 +118,7 @@ fn registry_claims_filter_names_and_preserve_group_lifetime_and_limit() {
 #[test]
 fn registry_claim_accepts_the_full_declared_route_name_with_its_private_prefix() {
     let name = "a".repeat(128);
-    let schema = Schema { routes: BTreeMap::from([(name.clone(), spec())]), ..Schema::default() };
+    let schema = Schema { routes: BTreeMap::from([(name.clone(), spec())]).into(), ..Schema::default() };
     assert!(schema::validate(&schema).is_empty());
     let mut engine = Engine::memory(schema, []).unwrap();
     let admitted = engine.request_verified_route(&name, &spec().contract(&name), &request(b"long-name"), 0, 0).unwrap().0;

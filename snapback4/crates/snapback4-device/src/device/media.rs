@@ -8,7 +8,7 @@ fn upload_key(viewer: &str, id: &str) -> String { format!("device:upload:{}", js
 fn home_key(id: &str) -> String { format!("device:media:{id}") }
 
 // @ref LLP 3000.007#8 — prediction uses the uploader's server facts, never argument facts
-pub(super) fn inputs<T: DeviceTx>(tx: &T, program: &Program, viewer: &str, args: &Json) -> Result<BTreeMap<String, Value>, RuntimeError> {
+pub(super) fn inputs<T: DeviceTx>(tx: &T, program: &Program, viewer: &str, args: &Json) -> Result<SmallMap<String, Value>, RuntimeError> {
     fn resolve<T: DeviceTx>(tx: &T, viewer: &str, kind: &ArgType, value: &mut Value) -> Result<(), RuntimeError> {
         match kind {
             ArgType::Optional(inner) if *value != Value::Null => resolve(tx, viewer, inner, value)?,
@@ -92,12 +92,12 @@ impl<S: DeviceStore> Device<S> {
         let (Some(name), Some(row), Some(column)) = (home["table"].as_str(), home["row"].as_str(), home["column"].as_str()) else { return Ok(Json::Null) };
         let Some(table) = self.schema.table(name) else { return Ok(Json::Null) };
         if table.sync.is_none() || table.columns.get(column).and_then(media_type) != Some(false) { return Ok(Json::Null); }
-        let program = Program { name: "device asset home".into(), kind: ProgramKind::Query, args: BTreeMap::new(), read_time_granularity_ms: None, native: false,
+        let program = Program { name: "device asset home".into(), kind: ProgramKind::Query, args: SmallMap::new(), read_time_granularity_ms: None, native: false,
             body: vec![Stmt::Return(Expr::Get(Read { site: "asset home".into(), table: name.into(), index: "byId".into(), key: vec![Expr::Literal(Value::Id(row.into()))], provenance: KeyProvenance::Const }))] };
         // Media is revoked even when textual delivered history is retained.
         let mut schema = self.schema.clone();
         schema.tables.get_mut(name).expect("home table").leave = LeavePolicy::UntilRevoked;
-        let read = local::query(&tx, &schema, &program, Context::new(viewer, BTreeMap::new()).at(now), Ceilings::default());
+        let read = local::query(&tx, &schema, &program, Context::new(viewer, SmallMap::new()).at(now), Ceilings::default());
         let Ok(read) = read else { return Ok(Json::Null) };
         if read.data.field("pending").ok() == Some(&Value::Bool(true)) { return Ok(Json::Null); }
         let Some(asset) = read.data.field(column).ok() else { return Ok(Json::Null) };

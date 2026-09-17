@@ -1,13 +1,13 @@
 //! Server work metadata does not alter the portable data-program IR.
 use crate::ir::{ArgType, Program};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use crate::smallmap::SmallMap;
 
 // @ref LLP 3000.009#5.1 — one declaration types the client, handler and durable settlement.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ActionSpec {
     /// None preserves legacy unknown JSON results. Some(empty) requires {}.
-    pub returns: Option<BTreeMap<String, ArgType>>,
+    pub returns: Option<SmallMap<String, ArgType>>,
     #[serde(default)]
     pub work: WorkSpec,
 }

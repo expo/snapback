@@ -56,7 +56,7 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
         };
         let computed = match super::maintains::keys(source, maintain) { Ok(keys) => keys, Err(d) => { diagnostics.push(d); continue; } };
         let filter = match maintain.filter.as_ref().map(|expr| super::maintains::predicate(source, expr)).transpose() { Ok(p) => p, Err(d) => { diagnostics.push(d); continue; } };
-        schema.maintains.push(core::Maintain { filter, computed, residency: schema.tables[&maintain.name].residency.clone(), kind, source: maintain.source.clone(), by: maintain.by.clone(), target: maintain.name.clone(), readable: None });
+        schema.maintains.push(core::Maintain { filter, computed: computed.into(), residency: schema.tables[&maintain.name].residency.clone(), kind, source: maintain.source.clone(), by: maintain.by.clone(), target: maintain.name.clone(), readable: None });
     }
     schema.prepare_contribution_indexes();
     for doc in &catalog.documents {
@@ -193,7 +193,7 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
     };
     let residency = core::Residency { online_only: decl.online_only, inferred: decl.sync.as_ref().is_some_and(|s| matches!(s.audience, SyncAudience::Inferred { .. })), inherited_from: None };
     let defaults = super::defaults::bind(info, diagnostics);
-    Table { columns, defaults, indexes, rules, constraints, leave, sync, expire, residency }
+    Table { columns: columns.into(), defaults: defaults.into(), indexes: indexes.into(), rules, constraints, leave, sync, expire, residency }
 }
 
 /// `expire at .column`: a `time` column (optional means "never" when null)

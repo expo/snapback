@@ -3,7 +3,7 @@ use super::{ActionSpec, WorkSpec};
 use crate::ir::{ArgType, Expr, Program, ProgramKind, Stmt};
 use crate::value::{Value, decode_bytes_hex, digest};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use crate::smallmap::SmallMap;
 
 pub const BODY_BYTES: usize = 64 * 1024;
 pub const HEADER_BYTES: usize = 16 * 1024;
@@ -40,7 +40,7 @@ impl RouteSpec {
     /// Even accidental insertion into the public program map cannot admit it.
     pub fn program(&self, name: &str) -> Program {
         Program { name: format!("{ACTION_PREFIX}{name}"), kind: ProgramKind::Action,
-            args: BTreeMap::from([("request".into(), ArgType::Json { max_bytes: ENVELOPE_BYTES })]),
+            args: SmallMap::from([("request".into(), ArgType::Json { max_bytes: ENVELOPE_BYTES })]),
             read_time_granularity_ms: None, native: false,
             body: vec![Stmt::Require { condition: Expr::Literal(Value::Bool(false)), code: "E_ROUTE_PRIVATE".into(), site: None }] }
     }

@@ -6,6 +6,7 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::cmp::Ordering;
+use crate::smallmap::SmallMap;
 use std::collections::BTreeMap;
 use thiserror::Error;
 
@@ -28,19 +29,20 @@ pub enum Value {
 // Row images are shared immutably (`Arc`) so a result, a page head and a
 // partition event can hold one copy; serialization is the plain map.
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub struct ObjectFields(std::sync::Arc<BTreeMap<String, Value>>);
+pub struct ObjectFields(std::sync::Arc<SmallMap<String, Value>>);
+impl From<SmallMap<String, Value>> for ObjectFields {
+    fn from(value: SmallMap<String, Value>) -> Self { Self(std::sync::Arc::new(value)) }
+}
 impl From<BTreeMap<String, Value>> for ObjectFields {
-    fn from(value: BTreeMap<String, Value>) -> Self {
-        Self(std::sync::Arc::new(value))
-    }
+    fn from(value: BTreeMap<String, Value>) -> Self { value.into_iter().collect() }
 }
 impl FromIterator<(String, Value)> for ObjectFields {
     fn from_iter<T: IntoIterator<Item = (String, Value)>>(iter: T) -> Self {
-        BTreeMap::from_iter(iter).into()
+        SmallMap::from_iter(iter).into()
     }
 }
 impl std::ops::Deref for ObjectFields {
-    type Target = BTreeMap<String, Value>;
+    type Target = SmallMap<String, Value>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
@@ -52,21 +54,21 @@ impl std::ops::DerefMut for ObjectFields {
 }
 impl IntoIterator for ObjectFields {
     type Item = (String, Value);
-    type IntoIter = std::collections::btree_map::IntoIter<String, Value>;
+    type IntoIter = std::vec::IntoIter<(String, Value)>;
     fn into_iter(self) -> Self::IntoIter {
         std::sync::Arc::unwrap_or_clone(self.0).into_iter()
     }
 }
 impl<'a> IntoIterator for &'a ObjectFields {
     type Item = (&'a String, &'a Value);
-    type IntoIter = std::collections::btree_map::Iter<'a, String, Value>;
+    type IntoIter = crate::smallmap::Iter<'a, String, Value>;
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter()
     }
 }
 impl<'a> IntoIterator for &'a mut ObjectFields {
     type Item = (&'a String, &'a mut Value);
-    type IntoIter = std::collections::btree_map::IterMut<'a, String, Value>;
+    type IntoIter = crate::smallmap::IterMut<'a, String, Value>;
     fn into_iter(self) -> Self::IntoIter {
         std::sync::Arc::make_mut(&mut self.0).iter_mut()
     }
@@ -78,7 +80,7 @@ impl Serialize for ObjectFields {
 }
 impl<'de> Deserialize<'de> for ObjectFields {
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        BTreeMap::deserialize(d).map(Into::into)
+        SmallMap::deserialize(d).map(Into::into)
     }
 }
 impl ObjectFields {
@@ -166,7 +168,7 @@ impl Value {
         }
     }
 
-    pub fn as_object(&self) -> Result<&BTreeMap<String, Value>, ValueError> {
+    pub fn as_object(&self) -> Result<&SmallMap<String, Value>, ValueError> {
         match self {
             Self::Row(value) | Self::Map(value) => Ok(value),
             other => Err(ValueError::Type {

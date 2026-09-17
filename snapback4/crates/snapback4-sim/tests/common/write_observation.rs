@@ -101,7 +101,7 @@ fn snapshot(e: &mut Engine, viewer: &str) -> Json {
 fn backend(e: &Engine) -> Backend {
     let mut programs: Vec<_> = e.programs().cloned().collect();
     for table in e.schema().tables.keys() {
-        programs.push(Program { name: format!("__observation_{table}"), kind: ProgramKind::Query, args: BTreeMap::new(), read_time_granularity_ms: None, native: false,
+        programs.push(Program { name: format!("__observation_{table}"), kind: ProgramKind::Query, args: BTreeMap::new().into(), read_time_granularity_ms: None, native: false,
             body: vec![Stmt::Return(Expr::Scan(Scan { site: "observation".into(), table: table.clone(), index: "byId".into(), prefix: vec![], order: Order::Asc, take: Bound::Literal(20_000), after: None, before: None, range: None, filter: None, opaque_cursor: false, merge_site: None, provenance: KeyProvenance::Const }))] });
     }
     Backend { generation: e.generation(), schema: e.schema().clone(), programs }
@@ -171,7 +171,7 @@ fn observe_lifecycle(e: &mut Engine, name: &str, viewer: &str, values: Json, op:
     let (sqlite_device, sqlite_before) = prepare(&mut sqlite, &backend, &initial, &entry, &query);
     let (memory_device, memory_before) = prepare(&mut memory, &backend, &initial, &entry, &query);
     let program = e.programs().find(|p| p.name == name).unwrap();
-    let args = values.as_object().unwrap().iter().map(|(k,v)| (k.clone(), wire::from_json(&program.args[k], v).unwrap())).collect();
+    let args: snapback4_core::smallmap::SmallMap<_, _> = values.as_object().unwrap().iter().map(|(k,v)| (k.clone(), wire::from_json(&program.args[k], v).unwrap())).collect();
     let context = Context::new(viewer, args).at(1000).with_ids(ids);
     let result = e.mutate(name, Some(op), context.clone()).unwrap();
     assert!(!result.replayed);

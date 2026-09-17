@@ -50,7 +50,7 @@ fn equality_controls_preserve_strings_comments_and_not_equal_and_refuse_triple_e
     let bound = compile(&[("schema.q".into(), source.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
-    assert_eq!(engine.query("q", Context::new("alice", Default::default())).unwrap().data, Value::Bool(true));
+    assert_eq!(engine.query("q", Context::new("alice", snapback4_core::smallmap::SmallMap::new())).unwrap().data, Value::Bool(true));
     let triple = compile(&[("schema.q".into(), "query q():\n  return 1 === 1\n".into())]);
     assert_eq!(triple.diagnostics.len(), 2, "{:?}", triple.diagnostics);
     assert_eq!(triple.diagnostics[0].to_string(), "schema.q:2:13 — E_QUARRY_SYNTAX: expected expression, got \"=\"\n  rewrite: fix this Quarry line and rerun snapback4 check\n  guide: language");
@@ -90,7 +90,7 @@ fn equality_recovery_preserves_an_independent_syntax_error() {
     let valid = compile(&[("schema.q".into(), source.replace("==", "=").replace("return :", "return yes"))]);
     assert!(valid.diagnostics.is_empty(), "{:?}", valid.diagnostics);
     let mut engine = snapback4_core::Engine::memory(valid.schema, valid.programs.into_iter().map(|p| p.program)).unwrap();
-    assert_eq!(engine.query("q", snapback4_core::Context::new("alice", Default::default())).unwrap().data, snapback4_core::Value::Bool(true));
+    assert_eq!(engine.query("q", snapback4_core::Context::new("alice", snapback4_core::smallmap::SmallMap::new())).unwrap().data, snapback4_core::Value::Bool(true));
 }
 
 #[test]

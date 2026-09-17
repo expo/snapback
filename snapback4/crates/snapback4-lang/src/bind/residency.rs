@@ -329,7 +329,7 @@ fn implies(update: &RuleExpr, read: &RuleExpr) -> bool {
 }
 
 // @ref LLP 3000.007#6.4 — compare facts with the last successful generation, never a failed edit.
-pub fn change_notes(bound: &Bound, previous: &BTreeMap<String, Execution>) -> Vec<Diagnostic> {
+pub fn change_notes(bound: &Bound, previous: &snapback4_core::smallmap::SmallMap<String, Execution>) -> Vec<Diagnostic> {
     let mut notes = Vec::new();
     for program in &bound.programs {
         let name = &program.program.name;

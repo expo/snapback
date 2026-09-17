@@ -8,7 +8,7 @@ use rusqlite::{OptionalExtension, params};
 use snapback4_core::error::RuntimeError;
 use snapback4_core::schema::Schema;
 use snapback4_core::store::{Store, Tx};
-use std::collections::BTreeMap;
+use snapback4_core::smallmap::SmallMap;
 use std::path::Path;
 
 /// Open (or create) the device's store at `path`, with its side tables.
@@ -25,10 +25,10 @@ pub fn open(path: &Path) -> Result<Store, RuntimeError> {
 
 impl DeviceStore for Store {
     type Tx<'a> = Tx<'a>;
-    fn install(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool) -> Result<(), RuntimeError> {
+    fn install(&mut self, schema: &Schema, metadata: &SmallMap<String, String>, reset: bool) -> Result<(), RuntimeError> {
         self.install_device(schema, metadata, reset)
     }
-    fn install_checked(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
+    fn install_checked(&mut self, schema: &Schema, metadata: &SmallMap<String, String>, reset: bool, expected: &SmallMap<String, Option<String>>) -> Result<(), RuntimeError> {
         self.install_device_checked(schema, metadata, reset, expected)
     }
     fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {

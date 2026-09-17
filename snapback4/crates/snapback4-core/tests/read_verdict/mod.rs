@@ -12,9 +12,9 @@ mod round2;
 mod round3;
 
 fn table() -> Table {
-    Table { residency: Default::default(), defaults: BTreeMap::new(),
-        columns: BTreeMap::from([("id".into(), ColumnType::Id), ("roomId".into(), ColumnType::Id), ("principal".into(), ColumnType::Principal), ("body".into(), ColumnType::Text { max: 100 })]),
-        indexes: BTreeMap::from([("byId".into(), Index::of(&["id"], true)), ("byRoom".into(), Index::of(&["roomId", "id"], false)), ("byRoomPrincipal".into(), Index::of(&["roomId", "principal"], true))]),
+    Table { residency: Default::default(), defaults: BTreeMap::new().into(),
+        columns: BTreeMap::from([("id".into(), ColumnType::Id), ("roomId".into(), ColumnType::Id), ("principal".into(), ColumnType::Principal), ("body".into(), ColumnType::Text { max: 100 })]).into(),
+        indexes: BTreeMap::from([("byId".into(), Index::of(&["id"], true)), ("byRoom".into(), Index::of(&["roomId", "id"], false)), ("byRoomPrincipal".into(), Index::of(&["roomId", "principal"], true))]).into(),
         rules: Rules { read: RuleExpr::Deny, insert: RuleExpr::Allow, update: RuleExpr::Allow, delete: RuleExpr::Allow },
         constraints: vec![], leave: Default::default(), sync: None, expire: None }
 }
@@ -37,7 +37,7 @@ fn observation(or: bool, admitted: bool, hidden: bool, words: bool, cut: Cut, re
     messages.rules.read = if or { RuleExpr::Not(Box::new(RuleExpr::Or(vec![p.clone(), second]))) } else { RuleExpr::And(vec![p.clone(), second]) };
     // AND: false/false or true/true; negated OR: false/false or true/true.
     if admitted && or { messages.rules.read = RuleExpr::Or(vec![p.clone(), RuleExpr::Not(Box::new(probe("permits")))]); }
-    let schema = Schema { tables: BTreeMap::from([("messages".into(), messages), ("secrets".into(), table()), ("permits".into(), table())]), ..Schema::default() };
+    let schema = Schema { tables: BTreeMap::from([("messages".into(), messages), ("secrets".into(), table()), ("permits".into(), table())]).into(), ..Schema::default() };
     let mut engine = Engine::memory(schema.clone(), []).unwrap();
     let mut seed = vec![("messages".into(), row("visible", "r", "author", "coffee"))];
     let first = if admitted && !or { true } else { hidden };
@@ -51,7 +51,7 @@ fn observation(or: bool, admitted: bool, hidden: bool, words: bool, cut: Cut, re
     let mut runner = Runner::new(&tx, &schema, Context::new("alice", BTreeMap::new()).at(100), meter, 0);
     let scan = scan(words);
     let expr = if words { Expr::Merge(Merge { site: "merge".into(), lanes: vec![MergeLane { setup: vec![], source: None, binding: String::new(), scan }] }) } else { Expr::Scan(scan) };
-    let program = Program { name: "read".into(), kind: ProgramKind::Query, args: BTreeMap::new(), read_time_granularity_ms: None, body: vec![Stmt::Return(expr)], native: false };
+    let program = Program { name: "read".into(), kind: ProgramKind::Query, args: BTreeMap::new().into(), read_time_granularity_ms: None, body: vec![Stmt::Return(expr)], native: false };
     let result = runner.run(&program).and_then(|data| { runner.charge_output(&data)?; Ok(data) });
     let (data, error) = match result { Ok(data) => (crate::wire::to_json(&data), Json::Null), Err(error) => (Json::Null, json!(error.refusal())) };
     json!({"data": data, "error": error, "complete": runner.meter.capped_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.beyond_horizon,
@@ -80,7 +80,7 @@ fn r1a_repeated_site_cannot_reuse_a_word_verdict_for_a_nested_read() {
         messages.indexes.insert("byWords".into(), Index { components: vec![IndexComponent::Column("roomId".into()), IndexComponent::WordPrefixes { fields: vec!["body".into()], contract: json!(crate::words::CONTRACT) }, IndexComponent::Column("id".into())], unique: false });
         let mut secrets = table();
         secrets.rules.read = if allowed { RuleExpr::Allow } else { RuleExpr::Deny };
-        let schema = Schema { tables: BTreeMap::from([("messages".into(), messages), ("secrets".into(), secrets), ("permits".into(), table())]), ..Schema::default() };
+        let schema = Schema { tables: BTreeMap::from([("messages".into(), messages), ("secrets".into(), secrets), ("permits".into(), table())]).into(), ..Schema::default() };
         let mut engine = Engine::memory(schema.clone(), []).unwrap();
         let mut seed = vec![("secrets".into(), row("secret", "r", "alice", "hidden")), ("permits".into(), row("permit", "r", "alice", "permit"))];
         for n in 0..words { seed.push(("messages".into(), row(&format!("m{n}"), "r", &format!("author{n}"), &format!("cof{n:02}")))); }
@@ -100,7 +100,7 @@ fn observe_read(schema: Schema, seed: Vec<(String, Value)>, expr: Expr, cut: Cut
     engine.seed(seed).unwrap();
     let tx = engine.store_mut().transaction().unwrap();
     let mut runner = Runner::new(&tx, &schema, Context::new("alice", BTreeMap::new()).at(100), Meter::new(Ceilings::default(), cut), 0);
-    let program = Program { name: "read".into(), kind: ProgramKind::Query, args: BTreeMap::new(), read_time_granularity_ms: None, body: vec![Stmt::Return(expr)], native: false };
+    let program = Program { name: "read".into(), kind: ProgramKind::Query, args: BTreeMap::new().into(), read_time_granularity_ms: None, body: vec![Stmt::Return(expr)], native: false };
     let result = runner.run(&program).and_then(|data| { runner.charge_output(&data)?; Ok(data) });
     let (data, error) = match result { Ok(data) => (crate::wire::to_json(&data), Json::Null), Err(error) => (Json::Null, json!(error.refusal())) };
     json!({"data":data,"error":error,"complete":runner.meter.capped_at.is_none() && !runner.non_uniform && !runner.page_overflow,"next":runner.next_cursor().unwrap(),"capped_at":runner.meter.capped_at,"metered":runner.meter.used,"tables":runner.read_tables,"nextExpiry":runner.next_expiry})
@@ -114,7 +114,7 @@ fn r1a_prefix_conjunction_denial_matches_with_cap_and_abort() {
             let mut messages = table();
             messages.rules.read = RuleExpr::And(vec![probe("permits"), RuleExpr::Eq(RuleTerm::Field("principal".into()), RuleTerm::Viewer)]);
             messages.indexes.insert("byWords".into(), Index { components: vec![IndexComponent::Column("roomId".into()), IndexComponent::WordPrefixes { fields: vec!["body".into()], contract: json!(crate::words::CONTRACT) }, IndexComponent::Column("id".into())], unique: false });
-            let schema = Schema { tables: BTreeMap::from([("messages".into(), messages), ("permits".into(), table())]), ..Schema::default() };
+            let schema = Schema { tables: BTreeMap::from([("messages".into(), messages), ("permits".into(), table())]).into(), ..Schema::default() };
             let mut seed = vec![("permits".into(), row("permit", "visible", "alice", "permit")), ("messages".into(), row("shown", "visible", "alice", "coffee")), ("messages".into(), row("private", "visible", "bob", "coffee"))];
             for n in 0..population { seed.push(("messages".into(), row(&format!("m{n}"), "r", &format!("other{n}"), &format!("cof{n:02}")))); }
             let hidden = scan(words);
@@ -138,7 +138,7 @@ fn r1a_per_row_rules_register_all_dependency_tables() {
         for hidden in [false, true] {
             let mut messages = table();
             messages.rules.read = RuleExpr::And(vec![probe("secrets"), probe("permits"), RuleExpr::Eq(RuleTerm::Field("principal".into()), RuleTerm::Viewer)]);
-            let schema = Schema { tables: BTreeMap::from([("messages".into(), messages), ("secrets".into(), table()), ("permits".into(), table())]), ..Schema::default() };
+            let schema = Schema { tables: BTreeMap::from([("messages".into(), messages), ("secrets".into(), table()), ("permits".into(), table())]).into(), ..Schema::default() };
             let mut seed = vec![("messages".into(), row("hidden", "r", "alice", "coffee"))];
             if hidden { seed.push(("secrets".into(), row("secret", "r", "alice", "hidden"))); }
             let expr = if point { Expr::Get(Read { site: "point".into(), table: "messages".into(), index: "byId".into(), key: vec![Expr::Literal(Value::Id("hidden".into()))], provenance: KeyProvenance::Const }) } else { Expr::Scan(Scan { index: "byId".into(), prefix: vec![], ..scan(false) }) };

@@ -1,0 +1,313 @@
+{
+  "records": [
+    {
+      "trial": 0,
+      "stage": "before",
+      "command": [
+        "target/d2/before/tests/device-995533f915d1acea",
+        "following::app::w6a_wired_following_sqlite",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 8.346027833,
+        "sqlite/5/p95_ms": 2.518,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 2.968,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 0,
+      "stage": "after",
+      "command": [
+        "target/d2/after/tests/device-995533f915d1acea",
+        "following::app::w6a_wired_following_sqlite",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 8.706977624999999,
+        "sqlite/5/p95_ms": 2.974,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 1.65,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 1,
+      "stage": "after",
+      "command": [
+        "target/d2/after/tests/device-995533f915d1acea",
+        "following::app::w6a_wired_following_sqlite",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 6.860152625000001,
+        "sqlite/5/p95_ms": 3.762,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 2.419,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 1,
+      "stage": "before",
+      "command": [
+        "target/d2/before/tests/device-995533f915d1acea",
+        "following::app::w6a_wired_following_sqlite",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 8.477704040999999,
+        "sqlite/5/p95_ms": 3.093,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 2.188,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 2,
+      "stage": "before",
+      "command": [
+        "target/d2/before/tests/device-995533f915d1acea",
+        "following::app::w6a_wired_following_sqlite",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 8.204783457999994,
+        "sqlite/5/p95_ms": 3.555,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 2.185,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 2,
+      "stage": "after",
+      "command": [
+        "target/d2/after/tests/device-995533f915d1acea",
+        "following::app::w6a_wired_following_sqlite",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 5.8952002920000055,
+        "sqlite/5/p95_ms": 2.23,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 2.195,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 3,
+      "stage": "after",
+      "command": [
+        "target/d2/after/tests/device-995533f915d1acea",
+        "following::app::w6a_wired_following_sqlite",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 6.426410417,
+        "sqlite/5/p95_ms": 4.351,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 3.215,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 3,
+      "stage": "before",
+      "command": [
+        "target/d2/before/tests/device-995533f915d1acea",
+        "following::app::w6a_wired_following_sqlite",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 11.156146750000005,
+        "sqlite/5/p95_ms": 50.39,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 4.44,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 4,
+      "stage": "before",
+      "command": [
+        "target/d2/before/tests/device-995533f915d1acea",
+        "following::app::w6a_wired_following_sqlite",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 8.929215208999992,
+        "sqlite/5/p95_ms": 3.053,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 14.417,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 4,
+      "stage": "after",
+      "command": [
+        "target/d2/after/tests/device-995533f915d1acea",
+        "following::app::w6a_wired_following_sqlite",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 5.87021883300001,
+        "sqlite/5/p95_ms": 2.28,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 3.821,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 5,
+      "stage": "after",
+      "command": [
+        "target/d2/after/tests/device-995533f915d1acea",
+        "following::app::w6a_wired_following_sqlite",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 8.279442040999996,
+        "sqlite/5/p95_ms": 3.954,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 1.696,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 5,
+      "stage": "before",
+      "command": [
+        "target/d2/before/tests/device-995533f915d1acea",
+        "following::app::w6a_wired_following_sqlite",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 7.920141959000006,
+        "sqlite/5/p95_ms": 3.308,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 6.776,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 6,
+      "stage": "before",
+      "command": [
+        "target/d2/before/tests/device-995533f915d1acea",
+        "following::app::w6a_wired_following_sqlite",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 7.495352125000011,
+        "sqlite/5/p95_ms": 2.651,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 2.724,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    },
+    {
+      "trial": 6,
+      "stage": "after",
+      "command": [
+        "target/d2/after/tests/device-995533f915d1acea",
+        "following::app::w6a_wired_following_sqlite",
+        "--exact",
+        "--nocapture",
+        "--test-threads=1"
+      ],
+      "measurements": {
+        "wall_s": 6.652585291999998,
+        "sqlite/5/p95_ms": 17.925,
+        "sqlite/5/cold_rows": 2600.0,
+        "sqlite/5/cold_bytes": 250482.0,
+        "sqlite/500/p95_ms": 1.789,
+        "sqlite/500/cold_rows": 3095.0,
+        "sqlite/500/cold_bytes": 335403.0
+      }
+    }
+  ],
+  "medians": {
+    "before": {
+      "wall_s": 8.346027833,
+      "sqlite/5/p95_ms": 3.093,
+      "sqlite/5/cold_rows": 2600.0,
+      "sqlite/5/cold_bytes": 250482.0,
+      "sqlite/500/p95_ms": 2.968,
+      "sqlite/500/cold_rows": 3095.0,
+      "sqlite/500/cold_bytes": 335403.0
+    },
+    "after": {
+      "wall_s": 6.652585291999998,
+      "sqlite/5/p95_ms": 3.762,
+      "sqlite/5/cold_rows": 2600.0,
+      "sqlite/5/cold_bytes": 250482.0,
+      "sqlite/500/p95_ms": 2.195,
+      "sqlite/500/cold_rows": 3095.0,
+      "sqlite/500/cold_bytes": 335403.0
+    }
+  },
+  "ratios": {
+    "wall_s": 0.7970959868712431,
+    "sqlite/5/p95_ms": 1.2162948593598448,
+    "sqlite/5/cold_rows": 1.0,
+    "sqlite/5/cold_bytes": 1.0,
+    "sqlite/500/p95_ms": 0.73955525606469,
+    "sqlite/500/cold_rows": 1.0,
+    "sqlite/500/cold_bytes": 1.0
+  }
+}

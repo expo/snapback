@@ -657,7 +657,7 @@ fn changed_default_that_still_fits_existing_groups_is_adoptable() {
         let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
         let mut e = Engine::open(Store::open(&p.store()).unwrap()).unwrap();
         e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
-        assert_eq!(e.query("all", snapback4_core::Context::new("alice", Default::default())).unwrap().data.as_array().unwrap()[0].field("flag").unwrap(), &snapback4_core::Value::Bool(true));
+        assert_eq!(e.query("all", snapback4_core::Context::new("alice", snapback4_core::smallmap::SmallMap::new())).unwrap().data.as_array().unwrap()[0].field("flag").unwrap(), &snapback4_core::Value::Bool(true));
     }
 }
 

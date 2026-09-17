@@ -6,7 +6,7 @@ use serde_json::json;
 use std::collections::BTreeMap;
 
 fn program(name: &str) -> Program {
-    Program { name: name.into(), kind: ProgramKind::Mutation, args: BTreeMap::from([("n".into(), ArgType::Int)]),
+    Program { name: name.into(), kind: ProgramKind::Mutation, args: BTreeMap::from([("n".into(), ArgType::Int)]).into(),
         read_time_granularity_ms: None, native: false, body: vec![Stmt::Return(Expr::Variable("n".into()))] }
 }
 fn context(n: i64) -> Context { Context::new("member:alice", BTreeMap::from([("n".into(), Value::Int(n))])).at(10) }
@@ -70,7 +70,7 @@ fn a_pre_binding_store_opens_legacy_receipts_replay_and_sessions_refresh() {
 
 fn action() -> Program {
     Program { name: "nullable".into(), kind: ProgramKind::Action,
-        args: BTreeMap::from([("required".into(), ArgType::Scalar), ("optional".into(), ArgType::Optional(Box::new(ArgType::Int)))]),
+        args: BTreeMap::from([("required".into(), ArgType::Scalar), ("optional".into(), ArgType::Optional(Box::new(ArgType::Int)))]).into(),
         read_time_granularity_ms: None, native: false,
         body: vec![Stmt::Require { condition: Expr::Literal(Value::Bool(true)), code: "E_RULE".into(), site: None }] }
 }
@@ -79,7 +79,7 @@ fn action() -> Program {
 fn action_replay_binds_raw_arguments_before_defaults_and_across_declarations() {
     let mut engine = Engine::memory(Schema::default(), [action()]).unwrap();
     for (id, raw) in [("omitted", json!({"required":null})), ("explicit", json!({"required":null,"optional":null}))] {
-        let args = raw.as_object().unwrap().keys().map(|key| (key.clone(), Value::Null)).collect();
+        let args: snapback4_core::smallmap::SmallMap<_, _> = raw.as_object().unwrap().keys().map(|key| (key.clone(), Value::Null)).collect();
         let context = Context::new("member:alice", args).with_wire_args(raw.clone());
         let (run, replayed) = engine.request_action("nullable", id, context.clone()).unwrap();
         assert!(!replayed);

@@ -1250,7 +1250,7 @@ fn sync_snapshot_encoding_preserves_plain_values_and_explicit_nulls() {
         Event { partition: "private-partition".into(), table: "items".into(), kind: EventKind::Put, id: "second".into(), data: Some(value) },
         Event { partition: "private-partition".into(), table: "items".into(), kind: EventKind::Del, id: "first".into(), data: None },
     ];
-    let held = Some(BTreeMap::from([("items".into(), vec![vec![json!("group"), json!(7)]])]));
+    let held = Some(snapback4_core::smallmap::SmallMap::from([("items".into(), vec![vec![json!("group"), json!(7)]])]));
     let acknowledged = BTreeMap::from([("write-id".into(), 8)]);
     let reply = SnapshotReply { store_id: "store-a".into(), acknowledged, events: SyncEvents::Snapshot(events), generation: 3, held, more: true, next: Some("opaque-cursor".into()), snapshot: true, watermark: 9 };
     let expected = json!({
@@ -1260,7 +1260,7 @@ fn sync_snapshot_encoding_preserves_plain_values_and_explicit_nulls() {
         ], "generation":3,"held":{"items":[["group",7]]},"more":true,"next":"opaque-cursor","snapshot":true,"store_id":"store-a","watermark":9
     });
     assert_eq!(serde_json::to_vec(&reply).unwrap(), serde_json::to_vec(&expected).unwrap());
-    for held in [None, Some(BTreeMap::new())] {
+    for held in [None, Some(snapback4_core::smallmap::SmallMap::new())] {
         let expected = json!({"acknowledged":{},"events":[],"generation":3,"held":held,"more":false,"next":null,"snapshot":true,"store_id":"store-a","watermark":9});
         let reply = SnapshotReply { store_id: "store-a".into(), acknowledged: BTreeMap::new(), events: SyncEvents::Snapshot(vec![]), generation: 3, held, more: false, next: None, snapshot: true, watermark: 9 };
         assert_eq!(serde_json::to_vec(&reply).unwrap(), serde_json::to_vec(&expected).unwrap());
@@ -1275,7 +1275,7 @@ fn sync_stream_encoding_preserves_sequences_scopes_and_empty_groups() {
         LogEvent { seq: u64::MAX, ord: 91, table: "items".into(), kind: "del".into(), id: "gone".into(), data: None },
         LogEvent { seq: u64::MAX, ord: 92, table: "items".into(), kind: "put".into(), id: "last".into(), data: Some(Value::Row(BTreeMap::from([("n".into(), Value::Int(2))]).into())) },
     ];
-    let reply = StreamReply { store_id: "store-a".into(), acknowledged: BTreeMap::from([("write-id".into(), u64::MAX)]), events: SyncEvents::Stream(events), generation: 4, joined: BTreeMap::from([("items".into(), vec![vec![json!("joined")]])]), more: true, snapshot: false, watermark: u64::MAX };
+    let reply = StreamReply { store_id: "store-a".into(), acknowledged: BTreeMap::from([("write-id".into(), u64::MAX)]), events: SyncEvents::Stream(events), generation: 4, joined: snapback4_core::smallmap::SmallMap::from([("items".into(), vec![vec![json!("joined")]])]), more: true, snapshot: false, watermark: u64::MAX };
     let expected = json!({
         "acknowledged":{"write-id":u64::MAX},"events":[
             {"data":["group",7],"id":"","kind":"scope","seq":0,"table":"items"},
@@ -1284,7 +1284,7 @@ fn sync_stream_encoding_preserves_sequences_scopes_and_empty_groups() {
         ],"generation":4,"joined":{"items":[["joined"]]},"more":true,"snapshot":false,"store_id":"store-a","watermark":u64::MAX
     });
     assert_eq!(serde_json::to_vec(&reply).unwrap(), serde_json::to_vec(&expected).unwrap());
-    let reply = StreamReply { store_id: "store-a".into(), acknowledged: BTreeMap::new(), events: SyncEvents::Stream(vec![]), generation: 4, joined: BTreeMap::new(), more: false, snapshot: false, watermark: 9 };
+    let reply = StreamReply { store_id: "store-a".into(), acknowledged: BTreeMap::new(), events: SyncEvents::Stream(vec![]), generation: 4, joined: snapback4_core::smallmap::SmallMap::new(), more: false, snapshot: false, watermark: 9 };
     let expected = json!({"acknowledged":{},"events":[],"generation":4,"joined":{},"more":false,"snapshot":false,"store_id":"store-a","watermark":9});
     assert_eq!(serde_json::to_vec(&reply).unwrap(), serde_json::to_vec(&expected).unwrap());
 }

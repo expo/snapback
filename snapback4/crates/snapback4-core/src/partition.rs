@@ -28,7 +28,9 @@ mod storage;
 pub use storage::{LogSpan, PartitionRows};
 use crate::value::{Value, canonical_json};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet};
+#[cfg(feature = "sqlite")]
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
 /// The partition every principal also holds. Principal partitions carry a
 /// tag (`p:<principal>`), so no principal's name can collide with it: a
@@ -459,7 +461,7 @@ pub fn append(tx: &dyn PartitionRows, seq: u64, events: &[Event]) -> Result<(), 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StreamPage {
     pub events: Vec<LogEvent>,
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    #[serde(default, skip_serializing_if = "crate::smallmap::SmallMap::is_empty")]
     pub joined: crate::wire::HeldGroups,
     /// The watermark after applying `events`.
     pub watermark: u64,
@@ -553,7 +555,7 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
         _ => false,
     });
     // A cursor from a replaced database is not evidence that this store reached it.
-    if watermark > head || (watermark == head && !expiring_audience) { return Ok(StreamPage { events: Vec::new(), watermark: head, more: false, joined: BTreeMap::new() }); }
+    if watermark > head || (watermark == head && !expiring_audience) { return Ok(StreamPage { events: Vec::new(), watermark: head, more: false, joined: crate::smallmap::SmallMap::new() }); }
     let held = intervals(tx, schema, principal, watermark)?;
     let mut spans = vec![(partition_of(principal), watermark.saturating_add(1), None, None), (PUBLIC.to_owned(), watermark.saturating_add(1), None, None)];
     for ((table, group), intervals) in &held {
@@ -681,8 +683,8 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, page: Vec<LogEvent>, he
 }
 
 /// What one principal holds, grouped by table, for tests and `why`.
-pub fn holdings(events: &[Event]) -> BTreeMap<String, BTreeSet<String>> {
-    let mut out: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+pub fn holdings(events: &[Event]) -> crate::smallmap::SmallMap<String, BTreeSet<String>> {
+    let mut out: crate::smallmap::SmallMap<String, BTreeSet<String>> = crate::smallmap::SmallMap::new();
     for event in events {
         match event.kind {
             EventKind::Put => {

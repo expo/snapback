@@ -52,7 +52,9 @@ use crate::value::Value;
 #[cfg(feature = "sqlite")]
 use runner::Runner;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, VecDeque};
+#[cfg(feature = "sqlite")]
+use std::collections::BTreeMap;
+use std::collections::VecDeque;
 
 /// Who is connected right now: what a server knows from the long polls it
 /// holds open, answered to a program's `connected[p]`. Only a server has
@@ -70,7 +72,7 @@ pub trait Presence: std::fmt::Debug + Send + Sync {
 pub struct Context {
     pub viewer: String,
     pub kind: String,
-    pub args: BTreeMap<String, Value>,
+    pub args: crate::smallmap::SmallMap<String, Value>,
     pub now: Option<i64>,
     pub read_time: Option<i64>,
     /// Digest only: the core resolves it in the admission transaction.
@@ -88,8 +90,8 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
-        Self { viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, session_digest: None, wire_args: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
+    pub fn new(viewer: impl Into<String>, args: impl Into<crate::smallmap::SmallMap<String, Value>>) -> Self {
+        Self { viewer: viewer.into(), kind: "user".into(), args: args.into(), now: None, read_time: None, session_digest: None, wire_args: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
     }
 
     #[cfg(feature = "sqlite")]
@@ -112,7 +114,7 @@ impl Context {
     }
 
     pub fn system() -> Self {
-        let mut context = Self::new(crate::SYSTEM_PRINCIPAL, BTreeMap::new());
+        let mut context = Self::new(crate::SYSTEM_PRINCIPAL, crate::smallmap::SmallMap::new());
         context.kind = "system".into();
         context
     }
@@ -217,7 +219,7 @@ pub struct AssetGrant {
 pub struct Engine {
     store: Store,
     schema: Schema,
-    programs: BTreeMap<String, Program>,
+    programs: crate::smallmap::SmallMap<String, Program>,
     ceilings: Ceilings,
     entropy: u64,
     generation: u64,
@@ -396,7 +398,7 @@ impl Engine {
         Ok(generation)
     }
 
-    fn activate(store: &mut Store, schema: &Schema, programs: &BTreeMap<String, Program>, release: Option<(u64, Option<u64>)>) -> Result<u64, RuntimeError> {
+    fn activate(store: &mut Store, schema: &Schema, programs: &crate::smallmap::SmallMap<String, Program>, release: Option<(u64, Option<u64>)>) -> Result<u64, RuntimeError> {
         for schedule in &schema.schedules {
             if schedule.every_ms == 0 || schedule.every_ms > i64::MAX as u64 || schedule.offset_ms >= schedule.every_ms {
                 return Err(RuntimeError::Schema(format!("schedule {} has an invalid period or offset", schedule.name)));

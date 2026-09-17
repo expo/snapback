@@ -1,7 +1,6 @@
 //! Browser MemoryStore and native/server SQLite use the same prepared keys.
 use snapback4_core::{rows::{Rows, MemoryRows, MAX_INDEX_KEY_BYTES, index_key}, schema::{Schema, ColumnType}, store::Store, value::{object, canonical_json}, Value};
 use snapback4_device::{memory::{MemoryStore, Change}, store::{DeviceStore, DeviceTx}};
-use std::collections::BTreeMap;
 
 fn schema() -> Schema {
     let mut bound = snapback4_lang::compile(&[("schema.q".into(), "table items:\n  text: text <=100\n  by byText: text\n  public 'test'\n  online only\n".into())]);
@@ -17,7 +16,7 @@ fn browser_device_refuses_the_same_key_as_server_without_partial_writes() {
     let schema = schema();
     let table = &schema.tables["items"];
     let mut browser = MemoryStore::new();
-    browser.install(&schema, &BTreeMap::new(), false).unwrap();
+    browser.install(&schema, &snapback4_core::smallmap::SmallMap::new(), false).unwrap();
     let mut server = Store::memory().unwrap();
     server.install(&schema).unwrap();
     let browser = browser.transaction().unwrap();
@@ -44,7 +43,7 @@ fn browser_can_rewrite_a_kept_legacy_violation_then_delete_it() {
     let table = &schema.tables["items"];
     let mut browser = MemoryStore::new();
     browser.load([Change { s: 'r', k: "[\"items\",\"r\"]".into(), v: Some(canonical_json(&row(6000))) }]).unwrap();
-    browser.install(&schema, &BTreeMap::new(), false).unwrap();
+    browser.install(&schema, &snapback4_core::smallmap::SmallMap::new(), false).unwrap();
     let tx = browser.transaction().unwrap();
     let mut old = row(6000);
     for n in [6000, 5000, 2000] {

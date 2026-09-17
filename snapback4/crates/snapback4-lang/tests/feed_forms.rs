@@ -117,7 +117,7 @@ fn filtered_merge_without_cursor_keeps_its_existing_incomplete_word() {
     assert!(bound.notes.iter().any(|note| note.code == "N_NO_CURSOR"));
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     engine.seed((0..3).map(|n| ("inbox".into(), object([("id", Value::Id(format!("r{n}"))), ("owner", Value::Id("dev:a".into())), ("at", Value::Int(n)), ("body", Value::String("live".into()))])))).unwrap();
-    let page = engine.query("page", Context::new("dev:a", Default::default())).unwrap();
+    let page = engine.query("page", Context::new("dev:a", snapback4_core::smallmap::SmallMap::new())).unwrap();
     assert_eq!(page.data.as_array().unwrap().len(), 2);
     assert!(!page.complete);
     assert!(page.next.is_none());
@@ -132,7 +132,7 @@ fn filtered_matching_merge_uses_the_same_predicate_and_bool_check() {
     assert!(bound.notes.is_empty(), "{:?}", bound.notes);
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     engine.seed(["hello removed", "hello live"].into_iter().enumerate().map(|(n, body)| ("items".into(), object([("id", Value::Id(format!("r{n}"))), ("owner", Value::Id("dev:a".into())), ("body", Value::String(body.into()))])))).unwrap();
-    let page = engine.query("page", Context::new("dev:a", Default::default())).unwrap();
+    let page = engine.query("page", Context::new("dev:a", snapback4_core::smallmap::SmallMap::new())).unwrap();
     assert!(page.complete);
     assert_eq!(page.data.as_array().unwrap()[0].field("body").unwrap(), &Value::String("hello live".into()));
     let bad = snapback4_lang::compile(&[("schema.q".into(), source.replace(".body != 'hello removed'", ".body"))]);

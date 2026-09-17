@@ -34,7 +34,7 @@ pub fn repost_helper_engine() -> Engine {
     engine
 }
 pub fn context(viewer: &str, values: &[(&str, Value)]) -> Context {
-    Context::new(viewer, values.iter().map(|(k, v)| ((*k).into(), v.clone())).collect()).at(100_000)
+    Context::new(viewer, values.iter().map(|(k, v)| ((*k).into(), v.clone())).collect::<snapback4_core::smallmap::SmallMap<_, _>>()).at(100_000)
 }
 pub fn mutate(engine: &mut Engine, op: &str, viewer: &str, values: &[(&str, Value)], now: i64) -> Value {
     let outcome = engine.mutate(&format!("social.{op}"), None, context(viewer, values).at(now)).unwrap();

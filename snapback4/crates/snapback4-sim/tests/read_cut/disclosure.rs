@@ -17,7 +17,7 @@ pub fn rows(hidden: usize) -> Vec<(String, Value)> {
 }
 
 pub fn context(q: &str) -> Context {
-    Context::new("dev:alice", [("q".into(), Value::String(q.into()))].into()).at(10000)
+    Context::new("dev:alice", [("q".into(), Value::String(q.into()))]).at(10000)
 }
 
 #[allow(dead_code)] // Shared with device tests, whose wire also carries coverage.

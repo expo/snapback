@@ -8,14 +8,14 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
 fn program() -> Program {
-    Program { name: "work".into(), kind: ProgramKind::Action, args: BTreeMap::new(), read_time_granularity_ms: None, native: false,
+    Program { name: "work".into(), kind: ProgramKind::Action, args: BTreeMap::new().into(), read_time_granularity_ms: None, native: false,
         body: vec![Stmt::Require { condition: Expr::Literal(Value::Bool(true)), code: "E_RULE".into(), site: None }] }
 }
 fn schema(policy: WorkPolicy) -> Schema {
     Schema { action_specs: BTreeMap::from([("work".into(), ActionSpec {
-        returns: Some(BTreeMap::from([("answer".into(), ArgType::Int), ("note".into(), ArgType::Optional(Box::new(ArgType::Text { max: 8, min: 0, format: None })))])),
+        returns: Some(BTreeMap::from([("answer".into(), ArgType::Int), ("note".into(), ArgType::Optional(Box::new(ArgType::Text { max: 8, min: 0, format: None })))]).into()),
         work: WorkSpec { secrets: vec![], policy },
-    })]), ..Schema::default() }
+    })]).into(), ..Schema::default() }
 }
 fn engine() -> Engine { Engine::memory(schema(WorkPolicy::default()), [program()]).unwrap() }
 fn admit(engine: &mut Engine, id: &str, at: i64) { engine.request_action("work", id, Context::new("dev:alice", BTreeMap::new()).at(at)).unwrap(); }
@@ -33,7 +33,7 @@ fn result_validation_is_terminal_and_uses_the_admitted_shape() {
     }
     let mut engine = engine(); admit(&mut engine, "x", 0); let lease = claim(&mut engine, 0);
     // A live old attempt validates against its admitted declaration, not this replacement.
-    let mut successor = schema(WorkPolicy::default()); successor.action_specs.get_mut("work").unwrap().returns = Some(BTreeMap::new());
+    let mut successor = schema(WorkPolicy::default()); successor.action_specs.get_mut("work").unwrap().returns = Some(BTreeMap::new().into());
     engine.adopt(successor, [program()]).unwrap();
     let run = engine.settle_action("x", "service:worker", &lease, ActionSettled::Done(json!({"answer":7})), 1).unwrap();
     assert_eq!(run.result, Some(json!({"answer":7,"note":null})));
@@ -56,7 +56,7 @@ fn media_results_validate_nested_facts_and_authoritative_byte_bounds() {
         ] {
             let mut declared = schema(WorkPolicy::default());
             let nested = ArgType::Optional(Box::new(ArgType::List { of: Some(Box::new(kind.clone())), max: 2 }));
-            declared.action_specs.get_mut("work").unwrap().returns = Some(BTreeMap::from([("media".into(), nested)]));
+            declared.action_specs.get_mut("work").unwrap().returns = Some(BTreeMap::from([("media".into(), nested)]).into());
             let mut engine = Engine::memory(declared, [program()]).unwrap();
             engine.store().record_asset(&Asset { id: "asset".into(), owner: "dev:alice".into(), kind: asset_kind, content_type: "image/png".into(), bytes, width: Some(1), height: Some(1), duration: None, created_at: 0, home: None, released_at: None }).unwrap();
             admit(&mut engine, "media", 0); let lease = claim(&mut engine, 0);

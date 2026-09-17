@@ -3,7 +3,7 @@
 use snapback4_core::{Engine, wire};
 use snapback4_core::schema::Execution;
 use snapback4_lang::{Bound, bind::residency};
-use std::collections::BTreeMap;
+use snapback4_core::smallmap::SmallMap;
 
 pub fn facts(bound: &Bound) -> String {
     let mut lines = vec!["residency (facts)".to_owned()];
@@ -18,7 +18,7 @@ pub fn facts(bound: &Bound) -> String {
     lines.join("\n")
 }
 
-pub fn previous(project: &crate::project::Project) -> BTreeMap<String, Execution> {
+pub fn previous(project: &crate::project::Project) -> SmallMap<String, Execution> {
     std::fs::read(project.generated_dir().join("residency.json")).ok().and_then(|bytes| serde_json::from_slice(&bytes).ok()).unwrap_or_default()
 }
 pub fn remember(project: &crate::project::Project, bound: &Bound) -> std::io::Result<()> {
@@ -36,11 +36,11 @@ pub fn personas(bound: &Bound, options: &super::Options) -> Vec<String> {
 // @ref LLP 3000.007#6.8 — cost-order the real cold snapshot, not stored table sizes or estimates.
 fn report(tx: &snapback4_core::store::Tx<'_>, schema: &snapback4_core::Schema, personas: &[String], verbose: bool) -> Result<String, snapback4_core::error::RuntimeError> {
     let mut counts = Vec::new();
-    let mut totals = BTreeMap::new();
+    let mut totals = SmallMap::new();
     let now = snapback4_core::now_ms();
     for persona in personas {
         let principal = if persona.contains(':') { persona.clone() } else { crate::project::persona_principal(persona) };
-        let mut tables: BTreeMap<String, (u64, u64)> = schema.synced().map(|(name, _, _)| (name.to_owned(), (0, 0))).collect();
+        let mut tables: SmallMap<String, (u64, u64)> = schema.synced().map(|(name, _, _)| (name.to_owned(), (0, 0))).collect();
         let mut cursor = None;
         loop {
             let page = snapback4_core::partition::snapshot_page(tx, schema, &principal, cursor, 2000, now)?;

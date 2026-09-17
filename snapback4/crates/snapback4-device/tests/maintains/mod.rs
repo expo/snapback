@@ -149,11 +149,11 @@ fn w6r1_rule_live_aggregate_prediction_on_both_stores() {
             let queued = device.admit(Queued { id:"act-write".into(), seq:1, op:"act".into(), args:json!({}), viewer:"bob".into(), now:100, new_ids:vec!["action".into()], predicted:vec![], predictable:true, sent_seq:None, observed_seq:None }).unwrap();
             assert_eq!(queued.predictable, !horizon, "{queued:?}");
             assert_eq!(queued.predicted.is_empty(), horizon);
-            let out = server.mutate("act", Some("act-write"), Context::new("bob", Default::default()).at(100).with_ids(["action".into()])).unwrap();
+            let out = server.mutate("act", Some("act-write"), Context::new("bob", snapback4_core::smallmap::SmallMap::new()).at(100).with_ids(["action".into()])).unwrap();
             assert!(matches!(out.state, WriteState::Sent { .. }));
             device.apply(&stream_page(&mut server, "bob", before), false).unwrap();
             // An unswept aggregate row cannot authorize a write after its only source expires.
-            let expired = server.mutate("act", Some("expired"), Context::new("bob", Default::default()).at(1000).with_ids(["late".into()])).unwrap();
+            let expired = server.mutate("act", Some("expired"), Context::new("bob", snapback4_core::smallmap::SmallMap::new()).at(1000).with_ids(["late".into()])).unwrap();
             assert!(matches!(expired.state, WriteState::Failed { .. }));
             println!("W6R1 host={} live rule horizon={horizon} source_rows=1 predicted={} confirmed=1 expired_refused=1", host.label(), !horizon);
             host.close(name, device);

@@ -9,7 +9,8 @@ use crate::schema::{Constraint, Schema};
 use crate::value::Value;
 use crate::error::RuntimeError;
 use crate::engine::rules::scan_visibility;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
+use crate::smallmap::SmallMap;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Origin {
@@ -85,7 +86,7 @@ pub fn check_detail(schema: &Schema, program: &Program) -> Result<(), Problem> {
             }
         }
         let nonuniform = scans.iter().find(|s| schema.table(&s.table).and_then(|t| t.index(&s.index)).is_some() && !scan_visibility(schema, s).uniform).map(|s| (*s).clone());
-        let mut bindings = BTreeMap::new();
+        let mut bindings = SmallMap::new();
         collect(&program.body, true, &mut bindings);
         let env = program.args.keys().map(|name| (name.clone(), if bindings.contains_key(name) { Origin::Unknown(vec![]) } else { Origin::Other })).collect();
         let mut flow = Flow { schema, program, nonuniform, env, error: None, bindings };
@@ -109,9 +110,9 @@ struct Flow<'a> {
     schema: &'a Schema,
     program: &'a Program,
     nonuniform: Option<Scan>,
-    env: BTreeMap<String, Origin>,
+    env: SmallMap<String, Origin>,
     error: Option<Problem>,
-    bindings: BTreeMap<String, Binding>,
+    bindings: SmallMap<String, Binding>,
 }
 
 impl Flow<'_> {
@@ -299,7 +300,7 @@ impl Flow<'_> {
     }
 }
 
-fn join_env(env: &mut BTreeMap<String, Origin>, other: BTreeMap<String, Origin>) {
+fn join_env(env: &mut SmallMap<String, Origin>, other: SmallMap<String, Origin>) {
     let keys: BTreeSet<_> = env.keys().chain(other.keys()).cloned().collect();
     for key in keys {
         let a = env.remove(&key).unwrap_or(Origin::Other);
@@ -340,7 +341,7 @@ impl Binding {
     }
 }
 
-fn collect(body: &[Stmt], top: bool, out: &mut BTreeMap<String, Binding>) {
+fn collect(body: &[Stmt], top: bool, out: &mut SmallMap<String, Binding>) {
     for stmt in body {
         match stmt {
             Stmt::Let { name, value }

@@ -10,7 +10,8 @@
 use crate::ir::{ArgType, KeyProvenance};
 use crate::value::{Value, digest};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
+use crate::smallmap::SmallMap;
 use std::fmt;
 
 mod work;
@@ -20,7 +21,7 @@ pub use routes::RouteSpec;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Schema {
-    pub tables: BTreeMap<String, Table>,
+    pub tables: SmallMap<String, Table>,
     #[serde(default)]
     pub maintains: Vec<Maintain>,
     #[serde(default, skip_serializing_if = "Auth::is_default")]
@@ -31,19 +32,19 @@ pub struct Schema {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub schedules: Vec<Schedule>,
     /// Compiled execution facts; absent on serialized conformance inputs.
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub operations: BTreeMap<String, Execution>,
+    #[serde(default, skip_serializing_if = "SmallMap::is_empty")]
+    pub operations: SmallMap<String, Execution>,
     /// Author refusals keyed by table and unique index; changing wording is not a physical index migration.
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub unique_refusals: BTreeMap<String, BTreeMap<String, UniqueRefusal>>,
+    #[serde(default, skip_serializing_if = "SmallMap::is_empty")]
+    pub unique_refusals: SmallMap<String, SmallMap<String, UniqueRefusal>>,
     /// Server work contracts; kept outside the interpreter/corpus IR.
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub action_specs: BTreeMap<String, ActionSpec>,
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub effect_specs: BTreeMap<String, WorkSpec>,
+    #[serde(default, skip_serializing_if = "SmallMap::is_empty")]
+    pub action_specs: SmallMap<String, ActionSpec>,
+    #[serde(default, skip_serializing_if = "SmallMap::is_empty")]
+    pub effect_specs: SmallMap<String, WorkSpec>,
     /// Only these paths publish application HTTP handlers.
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub routes: BTreeMap<String, RouteSpec>,
+    #[serde(default, skip_serializing_if = "SmallMap::is_empty")]
+    pub routes: SmallMap<String, RouteSpec>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -204,10 +205,10 @@ fn prove_probe_row_readable(rule: &RuleExpr, table: &str, index: &str, index_col
 pub struct Table {
     #[serde(default, skip_serializing_if = "Residency::is_default")]
     pub residency: Residency,
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub defaults: BTreeMap<String, ColumnDefault>,
-    pub columns: BTreeMap<String, ColumnType>,
-    pub indexes: BTreeMap<String, Index>,
+    #[serde(default, skip_serializing_if = "SmallMap::is_empty")]
+    pub defaults: SmallMap<String, ColumnDefault>,
+    pub columns: SmallMap<String, ColumnType>,
+    pub indexes: SmallMap<String, Index>,
     pub rules: Rules,
     #[serde(default)]
     pub constraints: Vec<Constraint>,
@@ -660,8 +661,8 @@ impl TextFormat {
 pub struct Maintain {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub filter: Option<crate::maintain::Predicate>,
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub computed: BTreeMap<String, crate::maintain::CalendarKey>,
+    #[serde(default, skip_serializing_if = "SmallMap::is_empty")]
+    pub computed: SmallMap<String, crate::maintain::CalendarKey>,
     #[serde(default, skip_serializing_if = "Residency::is_default")]
     pub residency: Residency,
     pub kind: MaintainKind,
@@ -694,13 +695,13 @@ impl Auth {
 pub const BY_ID: &str = "byId";
 
 /// A table with public rules, for fixtures and tests.
-pub fn public_table(columns: BTreeMap<String, ColumnType>, indexes: BTreeMap<String, Index>) -> Table {
+pub fn public_table(columns: impl Into<SmallMap<String, ColumnType>>, indexes: impl Into<SmallMap<String, Index>>) -> Table {
     let public = RuleExpr::Public { reason: "fixture".to_owned() };
     Table {
         residency: Residency::default(),
-        defaults: BTreeMap::new(),
-        columns,
-        indexes,
+        defaults: SmallMap::new(),
+        columns: columns.into(),
+        indexes: indexes.into(),
         rules: Rules { read: public.clone(), insert: public.clone(), update: public.clone(), delete: public },
         constraints: Vec::new(),
         leave: LeavePolicy::default(),
@@ -1291,12 +1292,12 @@ mod tests {
 
     fn target_sync_schema(content_optional: bool, audience_optional: bool) -> Schema {
         let optional_id = |optional| if optional { ColumnType::Optional(Box::new(ColumnType::Id)) } else { ColumnType::Id };
-        let mut audience = public_table(BTreeMap::from([("id".into(), ColumnType::Id), ("room".into(), optional_id(audience_optional)), ("principal".into(), ColumnType::Principal)]), BTreeMap::from([(BY_ID.into(), Index::of(&["id"], true)), ("byRoomPrincipal".into(), Index::of(&["room", "principal"], true)), ("byPrincipalRoom".into(), Index::of(&["principal", "room", "id"], false))]));
+        let mut audience = public_table(SmallMap::from([("id".into(), ColumnType::Id), ("room".into(), optional_id(audience_optional)), ("principal".into(), ColumnType::Principal)]), SmallMap::from([(BY_ID.into(), Index::of(&["id"], true)), ("byRoomPrincipal".into(), Index::of(&["room", "principal"], true)), ("byPrincipalRoom".into(), Index::of(&["principal", "room", "id"], false))]));
         audience.rules.insert = RuleExpr::Deny;
         audience.rules.update = RuleExpr::Deny;
-        let mut content = public_table(BTreeMap::from([("id".into(), ColumnType::Id), ("room".into(), optional_id(content_optional))]), BTreeMap::from([(BY_ID.into(), Index::of(&["id"], true)), ("byRoom".into(), Index::of(&["room", "id"], false))]));
+        let mut content = public_table(SmallMap::from([("id".into(), ColumnType::Id), ("room".into(), optional_id(content_optional))]), SmallMap::from([(BY_ID.into(), Index::of(&["id"], true)), ("byRoom".into(), Index::of(&["room", "id"], false))]));
         content.sync = Some(Sync { audience: Audience::Target { table: "memberships".into(), prefix: vec!["room".into()], principal: "principal".into() }, horizon: None });
-        Schema { tables: BTreeMap::from([("memberships".into(), audience), ("messages".into(), content)]), ..Schema::default() }
+        Schema { tables: SmallMap::from([("memberships".into(), audience), ("messages".into(), content)]), ..Schema::default() }
     }
 
     #[test]
