@@ -1,0 +1,14 @@
+{
+  "chat": {
+    "raw": 18472,
+    "gzip": 2911,
+    "brotli": 2515,
+    "sha256": "933600dbe764075ca5008b1fe3d5ac15ef4bd9759ae3f21f336b64cabde1f173"
+  },
+  "interview": {
+    "raw": 38635,
+    "gzip": 4270,
+    "brotli": 3679,
+    "sha256": "bbbb5815ec9f4dd2f964b7ab38f628880797b9dd89a03db1e5f70dbd6683c60d"
+  }
+}

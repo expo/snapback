@@ -10,7 +10,6 @@ use crate::rows::{Bounds, Dir};
 use crate::value::{I53_MAX, I53_MIN, Value};
 #[cfg(feature = "sqlite")]
 use crate::value::canonical_json;
-#[cfg(feature = "sqlite")]
 use std::collections::BTreeMap;
 
 impl Runner<'_> {
@@ -181,7 +180,7 @@ impl Runner<'_> {
             }
             return Ok(());
         }
-        let mut row = crate::smallmap::SmallMap::from([("id".to_owned(), Value::Id(id.clone())), ("value".to_owned(), Value::Int(next as i64))]);
+        let mut row = BTreeMap::from([("id".to_owned(), Value::Id(id.clone())), ("value".to_owned(), Value::Int(next as i64))]);
         for (field, value) in maintain.by.iter().zip(key) {
             row.insert(field.clone(), value);
         }

@@ -59,7 +59,7 @@ impl PostgresEngine {
     ) -> Result<Self, RuntimeError> {
         let name = namespace(name)?;
         schema.prepare_contribution_indexes();
-        let programs: crate::smallmap::SmallMap<_, _> = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
+        let programs: crate::smallmap::SmallMap<_, _> = crate::ir::program_map(programs.into_iter().collect());
         supported(&schema, &programs)?;
         let mut tx = client.transaction()?;
         tx.batch_execute(&format!("CREATE SCHEMA {name}; SET search_path = {name}, pg_catalog;"))?;

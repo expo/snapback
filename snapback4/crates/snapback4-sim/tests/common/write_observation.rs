@@ -171,7 +171,7 @@ fn observe_lifecycle(e: &mut Engine, name: &str, viewer: &str, values: Json, op:
     let (sqlite_device, sqlite_before) = prepare(&mut sqlite, &backend, &initial, &entry, &query);
     let (memory_device, memory_before) = prepare(&mut memory, &backend, &initial, &entry, &query);
     let program = e.programs().find(|p| p.name == name).unwrap();
-    let args: snapback4_core::smallmap::SmallMap<_, _> = values.as_object().unwrap().iter().map(|(k,v)| (k.clone(), wire::from_json(&program.args[k], v).unwrap())).collect();
+    let args = values.as_object().unwrap().iter().map(|(k,v)| (k.clone(), wire::from_json(&program.args[k], v).unwrap())).collect();
     let context = Context::new(viewer, args).at(1000).with_ids(ids);
     let result = e.mutate(name, Some(op), context.clone()).unwrap();
     assert!(!result.replayed);

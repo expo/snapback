@@ -49,7 +49,7 @@ impl Runner<'_> {
         let mut saved = Vec::new();
         for name in names {
             self.meter.heap(64)?; // Saved dependency slot, including vector growth.
-            let value = super::runner::variable(&self.env, self.filter_row.as_ref(), &name);
+            let value = self.env.get(&name);
             if let Some(value) = value { self.meter.heap(value.clone_heap_bytes())?; }
             let deps = self.effect_presence.variables.get(&name);
             if let Some(deps) = deps { self.meter.heap(super::presence::bytes(deps) + name.len() as u64 + 64)?; }
@@ -62,7 +62,7 @@ impl Runner<'_> {
         self.discard_effects = discard;
         for (name, value, deps) in saved {
             match deps { Some(deps) => { self.effect_presence.variables.insert(name.clone(), deps); } None => { self.effect_presence.variables.remove(&name); } }
-            match value { Some(value) => { self.set_variable(&name, value); } None => { self.env.remove(&name); } }
+            match value { Some(value) => { self.env.insert(name, value); } None => { self.env.remove(&name); } }
         }
         match result {
             Ok(_) => Ok(()),

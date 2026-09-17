@@ -2,7 +2,6 @@
 //! in `read.rs`, writes in `write.rs`; both are methods on `Runner`.
 
 use super::Context;
-use crate::smallmap::{SmallMap, SmallSet};
 use crate::error::{MeterKind, RuntimeError};
 use crate::ir::*;
 use crate::meter::{Cut, Meter};
@@ -43,8 +42,8 @@ pub struct Runner<'a> {
     pub(crate) schema: &'a Schema,
     pub(crate) context: Context,
     pub(crate) meter: Meter,
-    pub(crate) env: SmallMap<String, Value>,
-    pub(crate) consts: SmallSet<String>,
+    pub(crate) env: BTreeMap<String, Value>,
+    pub(crate) consts: BTreeSet<String>,
     /// Rows this transaction inserted, by (table, index, encoded key).
     pub(crate) created: BTreeMap<(String, String, String), usize>,
     /// Current facts owned by each row inserted in this execution. Distinct
@@ -52,8 +51,8 @@ pub struct Runner<'a> {
     pub(crate) created_rows: BTreeMap<(String, String), Vec<(String, String, String)>>,
     pub(crate) inserted: Vec<(String, Value)>,
     /// Tables read and tables written, for live subscriptions and commits.
-    pub(crate) read_tables: SmallSet<String>,
-    pub(crate) written_tables: SmallSet<String>,
+    pub(crate) read_tables: BTreeSet<String>,
+    pub(crate) written_tables: BTreeSet<String>,
     pub(crate) rows_written: u64,
     pub(crate) next_expiry: Option<i64>,
     /// Partition events, accumulated for the commit.
@@ -65,7 +64,7 @@ pub struct Runner<'a> {
     /// the program's `next`.
     pub(crate) page_depth: usize,
     pub(crate) page: Option<PagePosition>,
-    pub(crate) pages: SmallMap<String, PagePosition>,
+    pub(crate) pages: BTreeMap<String, PagePosition>,
     /// Loss from replaced executions cannot be repaired by a later page.
     pub(super) discarded_page_loss: bool,
     pub(super) page_owner: Option<String>,
@@ -90,7 +89,6 @@ pub struct Runner<'a> {
     pub(crate) missing_fact: Option<String>,
     /// Reads inside a where filter share the query's rule-probe budget.
     pub(crate) filter_depth: u32,
-    pub(crate) filter_row: Option<Value>,
     /// The program read `connected[p]` where no registry answers (a
     /// device): a query's result is not `complete`; the compiled execution
     /// fact excludes a mutation with this site from prediction.
@@ -100,7 +98,7 @@ pub struct Runner<'a> {
     pub(crate) seq: u64,
     pub(crate) statement_site: String,
     pub(crate) evaluating_write_condition: bool,
-    prediction_guards: SmallSet<String>,
+    prediction_guards: BTreeSet<String>,
     pub(super) discard_effects: bool,
     /// The prediction paid for an untaken presence arm the server may skip.
     pub(crate) charged_untaken: bool,
@@ -118,7 +116,7 @@ impl<'a> Runner<'a> {
     }
 
     pub fn new(tx: &'a dyn Rows, schema: &'a Schema, context: Context, meter: Meter, seq: u64) -> Self {
-        let mut env = SmallMap::new();
+        let mut env = BTreeMap::new();
         for (name, value) in &context.args {
             env.insert(name.clone(), value.clone());
         }
@@ -128,12 +126,12 @@ impl<'a> Runner<'a> {
             context,
             meter,
             env,
-            consts: SmallSet::new(),
+            consts: BTreeSet::new(),
             created: BTreeMap::new(),
             created_rows: BTreeMap::new(),
             inserted: Vec::new(),
-            read_tables: SmallSet::new(),
-            written_tables: SmallSet::new(),
+            read_tables: BTreeSet::new(),
+            written_tables: BTreeSet::new(),
             rows_written: 0,
             next_expiry: None,
             events: Vec::new(),
@@ -141,7 +139,7 @@ impl<'a> Runner<'a> {
             effect_presence: Default::default(),
             page_depth: 0,
             page: None,
-            pages: SmallMap::new(),
+            pages: BTreeMap::new(),
             discarded_page_loss: false,
             page_owner: None,
             page_plan: super::pages::Plan::default(),
@@ -152,12 +150,11 @@ impl<'a> Runner<'a> {
             beyond_horizon: false,
             missing_fact: None,
             filter_depth: 0,
-            filter_row: None,
             presence_unknown: false,
             seq,
             statement_site: String::new(),
             evaluating_write_condition: false,
-            prediction_guards: SmallSet::new(),
+            prediction_guards: BTreeSet::new(),
             discard_effects: false,
             charged_untaken: false,
             maintain_prepaid: false,
@@ -219,7 +216,7 @@ impl<'a> Runner<'a> {
                     let value = self.expr(value)?;
                     self.meter.heap(value.heap_bytes() + std::mem::size_of::<Value>() as u64)?;
                     self.push_presence_value(target)?;
-                    match self.variable_mut(target) {
+                    match self.env.get_mut(target) {
                         Some(Value::Array(values)) => values.push(value),
                         Some(other) => return Err(ValueError::Type { expected: "array", actual: other.kind() }.into()),
                         None => return Err(RuntimeError::Input(format!("unknown variable {target}"))),
@@ -341,19 +338,9 @@ impl<'a> Runner<'a> {
         Ok(Flow::Next)
     }
 
-    // @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — a per-row filter slot avoids shifting the authored environment, including nested filters.
-    fn variable_mut(&mut self, name: &str) -> Option<&mut Value> {
-        if name == "$filter" && self.filter_row.is_some() { self.filter_row.as_mut() } else { self.env.get_mut(name) }
-    }
-
-    pub(super) fn set_variable(&mut self, name: &str, value: Value) {
-        if name == "$filter" && self.filter_row.is_some() { self.filter_row = Some(value); }
-        else { self.env.insert(name.to_owned(), value); }
-    }
-
     fn bind(&mut self, name: &str, value: Value) {
         self.effect_presence.variables.remove(name);
-        self.set_variable(name, value);
+        self.env.insert(name.to_owned(), value);
     }
 
     fn domain(&mut self, domain: &LoopDomain) -> Result<Box<dyn Iterator<Item = Value>>, RuntimeError> {
@@ -374,7 +361,7 @@ impl<'a> Runner<'a> {
                 return Ok(Box::new((start..end).map(Value::Int)));
             }
             LoopDomain::ArgList { name, max } => {
-                let value = variable(&self.env, self.filter_row.as_ref(), name).ok_or_else(|| RuntimeError::Input(format!("missing arg {name}")))?;
+                let value = self.env.get(name).ok_or_else(|| RuntimeError::Input(format!("missing arg {name}")))?;
                 self.meter.heap(value.clone_heap_bytes())?;
                 let values = value.as_array()?.to_vec();
                 if values.len() > *max as usize {
@@ -439,13 +426,13 @@ impl<'a> Runner<'a> {
                 Ok(value.clone())
             }
             Expr::Variable(name) => {
-                let value = variable(&self.env, self.filter_row.as_ref(), name).ok_or_else(|| RuntimeError::Input(format!("unknown variable {name}")))?;
+                let value = self.env.get(name).ok_or_else(|| RuntimeError::Input(format!("unknown variable {name}")))?;
                 self.meter.heap(value.clone_heap_bytes())?;
                 Ok(value.clone())
             }
             Expr::Input(input) => self.input(*input),
             Expr::Field { base, name } => {
-                if let Some((base, steps)) = borrowed(&self.env, self.filter_row.as_ref(), base)? {
+                if let Some((base, steps)) = borrowed(&self.env, base)? {
                     self.meter.step(steps)?;
                     if *base == Value::Null { return Ok(Value::Null); }
                     let value = base.field(name)?;
@@ -475,14 +462,14 @@ impl<'a> Runner<'a> {
             Expr::Shape { base, fields } => {
                 // @ref LLP 3000.007#5.3 — shaping a device row preserves its own pending metadata.
                 let base = self.expr(base)?;
-                let mut fields = fields.iter().map(|(key, value)| Ok((key.clone(), self.expr(value)?))).collect::<Result<SmallMap<_, _>, RuntimeError>>()?;
+                let mut fields = fields.iter().map(|(key, value)| Ok((key.clone(), self.expr(value)?))).collect::<Result<BTreeMap<_, _>, RuntimeError>>()?;
                 if base.as_object()?.get("pending") == Some(&Value::Bool(true)) { fields.insert("pending".into(), Value::Bool(true)); }
                 let value = Value::Row(fields.into());
                 self.meter.heap(value.heap_bytes())?;
                 Ok(value)
             }
             Expr::Object(values) => {
-                let fields = values.iter().map(|(key, value)| Ok((key.clone(), self.expr(value)?))).collect::<Result<SmallMap<_, _>, RuntimeError>>()?;
+                let fields = values.iter().map(|(key, value)| Ok((key.clone(), self.expr(value)?))).collect::<Result<BTreeMap<_, _>, RuntimeError>>()?;
                 let value = Value::Row(fields.into());
                 self.meter.heap(value.heap_bytes())?;
                 Ok(value)
@@ -512,7 +499,7 @@ impl<'a> Runner<'a> {
                 // Inspect a held value without allocating a copy just to count
                 // it. Reads that need ownership still charge every actual clone.
                 if matches!(builtin, Builtin::Len | Builtin::Count | Builtin::CountCapped | Builtin::Sum) {
-                    if let Some((value, steps)) = borrowed(&self.env, self.filter_row.as_ref(), &args[0])? {
+                    if let Some((value, steps)) = borrowed(&self.env, &args[0])? {
                         self.meter.step(steps)?;
                         return scalar_builtin(builtin, value);
                     }
@@ -821,17 +808,13 @@ fn into_array(value: Value) -> Result<Vec<Value>, RuntimeError> {
     }
 }
 
-pub(super) fn variable<'a>(env: &'a SmallMap<String, Value>, filter: Option<&'a Value>, name: &str) -> Option<&'a Value> {
-    if name == "$filter" { filter.or_else(|| env.get(name)) } else { env.get(name) }
-}
-
 /// Only side-effect-free leaves can be borrowed; storage/input evaluation
 /// remains in expr, and visiting a borrowed leaf costs the same steps.
-fn borrowed<'a>(env: &'a SmallMap<String, Value>, filter: Option<&'a Value>, expr: &'a Expr) -> Result<Option<(&'a Value, u64)>, RuntimeError> {
+fn borrowed<'a>(env: &'a BTreeMap<String, Value>, expr: &'a Expr) -> Result<Option<(&'a Value, u64)>, RuntimeError> {
     match expr {
         Expr::Literal(value) => Ok(Some((value, 1))),
-        Expr::Variable(name) => variable(env, filter, name).map(|value| Some((value, 1))).ok_or_else(|| RuntimeError::Input(format!("unknown variable {name}"))),
-        Expr::Field { base, name } => match borrowed(env, filter, base)? {
+        Expr::Variable(name) => env.get(name).map(|value| Some((value, 1))).ok_or_else(|| RuntimeError::Input(format!("unknown variable {name}"))),
+        Expr::Field { base, name } => match borrowed(env, base)? {
             Some((value, steps)) => Ok(Some((if *value == Value::Null { value } else { value.field(name)? }, steps + 1))),
             None => Ok(None),
         },
@@ -844,7 +827,7 @@ fn scalar_builtin(builtin: &Builtin, value: &Value) -> Result<Value, RuntimeErro
         Builtin::Len => match value {
             Value::String(text) | Value::Id(text) => text.chars().count(),
             Value::Array(values) => values.len(),
-            Value::Row(_) | Value::Map(_) => value.as_object()?.len(),
+            Value::Row(values) | Value::Map(values) => values.len(),
             other => return Err(ValueError::Type { expected: "string, array, or map", actual: other.kind() }.into()),
         },
         Builtin::Count | Builtin::CountCapped => value.as_array()?.len(),

@@ -1,18 +1,12 @@
-//! Ordered maps for small collections, stored contiguously in key order.
-//! SmallMap/SmallSet are only for sizes bounded by authored schema or program
-//! text (columns, tables, arguments, locals, merge lanes, program sites), or
-//! a small fixed constant. Collections that grow with rows read or written,
-//! groups held or left, principals, pages, requests or time stay BTreeMap/
-//! BTreeSet, regardless of wasm byte cost. A runtime meter is not a bound on
-//! vector shifts. Server-provided schema/program text is still program text.
+//! Ordered maps for compiled, build-once structures whose size is fixed by
+//! authored schema or program text: schema maps, IR maps, and static plans
+//! and bookkeeping derived from them before a program runs. Runtime state
+//! never uses SmallMap/SmallSet: not row or map values, runner environments
+//! or constants, or bookkeeping inserted into while a program executes,
+//! whatever bounds its size. The explicit device exceptions are outer
+//! per-table history/held maps and dispatcher maps with fixed keys.
 //! Lookup is logarithmic; insertion shifts a suffix. Sorted input appends in
-//! linear time, but unsorted construction is quadratic: large, randomly
-//! mutated or range-scanned collections belong in a BTreeMap.
-//! The seven-pair release measurement with `(String, Value)` crossed over
-//! between 16 and 32 shuffled fields (1.07x BTreeMap at 32, 3.78x at 1024).
-//! Sorted input was faster through 4096 fields. See `tests/smallmap.rs`'s
-//! ignored `construction_crossover` measurement; these are workload figures,
-//! not a capacity limit or an automatic representation switch.
+//! linear time; activation sorts program names once before collecting.
 
 // @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — small maps share a compact representation on every host without changing ordered JSON.
 #[cfg(test)]

@@ -1,0 +1,12 @@
+{
+  "baseline": "70a663c22285dc3a5278ca9ac13db01bbe05446b",
+  "checkpoint": "1fd3617702a184817f7b6b9194137aa544170a8b",
+  "sha256": {
+    "before/device": "7d1d28bae2ed123b74714e24886ba2fc68d5a985212416743a1135a87d6c0273",
+    "before/clique": "7e6bf2410239bee6016684739f0040f9526854817cc98fe38119def7c39c26e9",
+    "after/device": "bd2c3c407c25be5595294df4035d3e57a0f1dadcd8c39992bc4a6b88630415f4",
+    "after/clique": "d23501fed34adcca957c91f48b488a26b3c9dbcefe7798392371b5c27a10b815",
+    "before/snapback4": "e0f8ae0b119c55fb74d0c0ac42075e405c5545a27d94a6bcbfd55df8812da257",
+    "after/snapback4": "7f00c17eb391f14e1b77ce1eba656d8d44a098c459cc89fde18badadd0f17695"
+  }
+}

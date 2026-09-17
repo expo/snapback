@@ -29,7 +29,7 @@ fn ascending_horizon_advice<H: Host>(host: &mut H) {
         assert_eq!(pending.len(), if predicts { 20 } else { 0 });
         assert_eq!(admitted.predictable, predicts);
         let from = server.seq().unwrap();
-        let result = server.mutate("copyArchive", Some("copy-write"), Context::new("bob", snapback4_core::smallmap::SmallMap::new()).at(1000).with_ids(new_ids)).unwrap();
+        let result = server.mutate("copyArchive", Some("copy-write"), Context::new("bob", Default::default()).at(1000).with_ids(new_ids)).unwrap();
         assert!(matches!(result.state, WriteState::Sent { .. }), "{result:?}");
         device.settle("copy-write", Some(server.seq().unwrap())).unwrap();
         device.apply(&stream_page(&mut server, "bob", from), false).unwrap();
@@ -187,7 +187,7 @@ fn covered<H: Host>(host: &mut H) {
         assert_eq!(pending.field("at"), Ok(&Value::Int(1000)));
         let result = sent(&mut server, "vote", 1);
         let WriteState::Sent { seq, result } = result.state else { panic!("{result:?}") };
-        let mut image = pending.as_object().unwrap().to_row(); image.remove("pending");
+        let mut image = pending.as_object().unwrap().clone(); image.remove("pending");
         assert_eq!(Value::Row(image.into()), result);
         device.settle("vote", Some(seq)).unwrap();
         device.apply(&stream_page(&mut server, "bob", device.state().unwrap().0), false).unwrap();

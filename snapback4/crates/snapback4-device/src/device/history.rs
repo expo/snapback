@@ -56,7 +56,7 @@ pub(super) fn retained_group(schema: &Schema, groups: &Groups, name: &str, index
     let Some(index) = table.index(index) else { return Ok(false) };
     let columns = audience_prefix(table);
     if columns.is_empty() { return Ok(false); }
-    let pinned: SmallMap<_, _> = index.components.iter().zip(prefix).filter_map(|(part, value)| part.column().map(|column| (column, value))).collect();
+    let pinned: BTreeMap<_, _> = index.components.iter().zip(prefix).filter_map(|(part, value)| part.column().map(|column| (column, value))).collect();
     let Some(group) = columns.iter().map(|column| pinned.get(column).map(|value| (*value).clone())).collect::<Option<Vec<_>>>() else { return Ok(false) };
     Ok(is_left(groups, name, &key(&group)?))
 }

@@ -135,8 +135,9 @@ fn ordering_hash_and_set_algebra_match_btree() {
 fn row_images_keep_sharing_order_and_meter_charges() {
     use snapback4_core::value::{Value, object};
     let Value::Row(original) = object([("b", Value::Int(2)), ("a", Value::Int(1))]) else { unreachable!() };
-    fn small_fields<T: std::ops::Deref<Target = SmallMap<String, Value>>>(_: &T) {}
-    small_fields(&original);
+    // Row images are runtime values; authored columns do not justify vector insertion.
+    fn tree_fields<T: std::ops::Deref<Target = BTreeMap<String, Value>>>(_: &T) {}
+    tree_fields(&original);
     let mut changed = original.clone();
     assert!(original.shares_image(&changed));
     changed.insert("a".into(), Value::Int(3));
@@ -151,10 +152,10 @@ fn row_images_keep_sharing_order_and_meter_charges() {
 #[ignore = "explicit map crossover measurement; use --release --ignored --nocapture"]
 fn construction_crossover() {
     use std::{hint::black_box, time::Instant};
-    use snapback4_core::Value;
+    use snapback4_core::ir::ArgType;
     for n in [8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096] {
         let mut seed = 7;
-        let sorted: Vec<_> = (0..n).map(|n| (format!("field{n:05}"), Value::Int(n as i64))).collect();
+        let sorted: Vec<_> = (0..n).map(|n| (format!("field{n:05}"), ArgType::Text { max: n as u32 + 1, min: 0, format: None })).collect();
         let mut shuffled = sorted.clone();
         for i in (1..n).rev() { shuffled.swap(i, next(&mut seed) as usize % (i + 1)); }
         for (order, entries) in [("sorted", &sorted), ("shuffled", &shuffled)] {

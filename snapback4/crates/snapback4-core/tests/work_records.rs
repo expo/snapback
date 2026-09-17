@@ -79,7 +79,7 @@ fn action() -> Program {
 fn action_replay_binds_raw_arguments_before_defaults_and_across_declarations() {
     let mut engine = Engine::memory(Schema::default(), [action()]).unwrap();
     for (id, raw) in [("omitted", json!({"required":null})), ("explicit", json!({"required":null,"optional":null}))] {
-        let args: snapback4_core::smallmap::SmallMap<_, _> = raw.as_object().unwrap().keys().map(|key| (key.clone(), Value::Null)).collect();
+        let args = raw.as_object().unwrap().keys().map(|key| (key.clone(), Value::Null)).collect();
         let context = Context::new("member:alice", args).with_wire_args(raw.clone());
         let (run, replayed) = engine.request_action("nullable", id, context.clone()).unwrap();
         assert!(!replayed);

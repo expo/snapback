@@ -30,6 +30,13 @@ pub struct Program {
     pub native: bool,
 }
 
+/// Index an installed backend once; wire program vectors need not be ordered.
+// @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — sort compiled program names before linear SmallMap construction, on every host.
+pub fn program_map(mut programs: Vec<Program>) -> SmallMap<String, Program> {
+    programs.sort_by(|a, b| a.name.cmp(&b.name));
+    programs.into_iter().map(|program| (program.name.clone(), program)).collect()
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProgramKind {
     Query,

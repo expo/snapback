@@ -34,7 +34,7 @@ pub fn repost_helper_engine() -> Engine {
     engine
 }
 pub fn context(viewer: &str, values: &[(&str, Value)]) -> Context {
-    Context::new(viewer, values.iter().map(|(k, v)| ((*k).into(), v.clone())).collect::<snapback4_core::smallmap::SmallMap<_, _>>()).at(100_000)
+    Context::new(viewer, values.iter().map(|(k, v)| ((*k).into(), v.clone())).collect()).at(100_000)
 }
 pub fn mutate(engine: &mut Engine, op: &str, viewer: &str, values: &[(&str, Value)], now: i64) -> Value {
     let outcome = engine.mutate(&format!("social.{op}"), None, context(viewer, values).at(now)).unwrap();
@@ -85,16 +85,19 @@ pub fn check_cards(page: &QueryOutcome) {
 pub fn measure(label: &str, count: usize, mut query: impl FnMut() -> QueryOutcome) -> (QueryOutcome, f64) {
     let mut times = Vec::new();
     let mut last = None;
+    let mut first_ms = 0.0;
     for n in 0..23 {
         let start = std::time::Instant::now();
         let page = query();
-        if n >= 3 { times.push(start.elapsed().as_secs_f64() * 1000.0); }
+        let elapsed = start.elapsed().as_secs_f64() * 1000.0;
+        if n == 0 { first_ms = elapsed; }
+        if n >= 3 { times.push(elapsed); }
         check_cards(&page);
         last = Some(page);
     }
     times.sort_by(f64::total_cmp);
     let page = last.unwrap();
-    println!("W6a host={label} follows={count} rows=20 complete=true examined={} probes={} index={} p95_ms={:.3}", page.metered.examined, page.metered.rule_probes, page.metered.index_entries, times[18]);
+    println!("W6a host={label} follows={count} rows=20 complete=true examined={} probes={} index={} first_ms={first_ms:.3} p50_ms={:.3} p95_ms={:.3}", page.metered.examined, page.metered.rule_probes, page.metered.index_entries, times[10], times[18]);
     (page, times[18])
 }
 pub fn remove(engine: &mut Engine) {

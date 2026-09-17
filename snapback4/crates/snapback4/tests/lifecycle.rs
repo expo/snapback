@@ -404,7 +404,7 @@ fn watcher_keeps_serving_after_a_refused_edit_and_a_parked_backfill() {
     host.until(|h| h.log().contains("schema adopted as generation 2"));
     let store = snapback4_core::Store::open(&dir.0.join(".snapback4/store.sqlite")).unwrap();
     let mut engine = snapback4_core::Engine::open(store).unwrap();
-    let id = engine.enqueue_job("backfillRepostEdges", snapback4_core::smallmap::SmallMap::new(), snapback4_core::now_ms()).unwrap();
+    let id = engine.enqueue_job("backfillRepostEdges", Default::default(), snapback4_core::now_ms()).unwrap();
     host.until(|h| h.log().contains("job backfillRepostEdges parked after 200 chunks"));
     let run = engine.jobs(5).unwrap().into_iter().find(|r| r.id == id).unwrap();
     assert_eq!(run.state, snapback4_core::JobState::Parked);
@@ -441,7 +441,7 @@ fn memory_and_sqlite_serialize_adoption_after_replay_then_run_the_backfill() {
         let adoption = std::thread::spawn(move || {
             let mut engine = adoption_engine.lock().unwrap();
             let generation = engine.adopt(after.schema, after.programs.into_iter().map(|p| p.program)).unwrap();
-            engine.enqueue_job("backfillRepostEdges", snapback4_core::smallmap::SmallMap::new(), snapback4_core::now_ms()).unwrap();
+            engine.enqueue_job("backfillRepostEdges", Default::default(), snapback4_core::now_ms()).unwrap();
             done_tx.send(generation).unwrap();
         });
         assert!(matches!(done_rx.recv_timeout(Duration::from_millis(20)), Err(mpsc::RecvTimeoutError::Timeout)));

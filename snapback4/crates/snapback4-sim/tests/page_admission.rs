@@ -92,7 +92,7 @@ fn w5_query_verdicts_charge_the_allowance_without_the_mutation_attempt() {
                 let rows = rows.into_iter().map(|(table, row)| (table.into(), wire::row_from_json(e.schema().table(table).unwrap(), &row).unwrap())).collect::<Vec<_>>();
                 e.seed(rows).unwrap();
                 e.set_ceilings(snapback4_core::meter::Ceilings { rule_probes: ceiling, ..e.ceilings() });
-                let page = e.query("page", Context::new("bob", []).at(1000)).unwrap();
+                let page = e.query("page", Context::new("bob", [].into()).at(1000)).unwrap();
                 assert_eq!(page.complete, ceiling >= 2);
                 assert_eq!(page.data.as_array().unwrap().len(), usize::from(allowed && ceiling >= 2));
                 assert_eq!(page.metered.rule_probes, 2);
@@ -127,7 +127,7 @@ fn refused_pair(base: &str, operation: &str, population: usize, expired: bool, c
         assert!(!b.programs.iter().any(|p| p.program.name == "pass"));
         assert_eq!(e.store().rows("items").unwrap(), before);
         assert!(e.effects(None, 10).unwrap().is_empty());
-        observations.push(json!({"check":errors,"readable":wire::to_json(&e.query("page", Context::new("bob", [("owner".into(), Value::Id("bob".into()))]).at(1000)).unwrap().data)}));
+        observations.push(json!({"check":errors,"readable":wire::to_json(&e.query("page", Context::new("bob", [("owner".into(), Value::Id("bob".into()))].into()).at(1000)).unwrap().data)}));
     }
     assert_eq!(observations[0], observations[1]);
 }

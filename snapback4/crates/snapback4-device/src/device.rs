@@ -189,7 +189,7 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
     }
     fn put(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> {
         predictions::remember(self.tx, table_name, row.field("id")?.as_str()?)?;
-        let mut fields = row.as_object()?.to_row();
+        let mut fields = row.as_object()?.clone();
         fields.insert("pending".to_owned(), Value::Bool(true));
         let pending = Value::Row(fields.into());
         self.written.borrow_mut().push(format!("{table_name}/{}", row.field("id")?.as_str()?));
@@ -305,7 +305,7 @@ impl<S: DeviceStore> Device<S> {
         Ok(Self {
             store,
             schema: backend.schema,
-            programs: backend.programs.into_iter().map(|p| (p.name.clone(), p)).collect(),
+            programs: snapback4_core::ir::program_map(backend.programs),
             generation: backend.generation,
             backend_identity,
             store_identity,
@@ -400,7 +400,7 @@ impl<S: DeviceStore> Device<S> {
             self.native_digest = None;
         }
         self.schema = backend.schema;
-        self.programs = backend.programs.into_iter().map(|p| (p.name.clone(), p)).collect();
+        self.programs = snapback4_core::ir::program_map(backend.programs);
         self.generation = backend.generation;
         self.backend_identity = backend_identity;
         self.store_identity = adopted_store;
@@ -889,8 +889,8 @@ fn leave<T: DeviceTx>(tx: &T, schema: &Schema, table_name: &str, group: &[Value]
     }
 }
 
-fn typed_args(program: &Program, args: &serde_json::Value) -> Result<SmallMap<String, Value>, RuntimeError> {
-    let mut typed = SmallMap::new();
+fn typed_args(program: &Program, args: &serde_json::Value) -> Result<BTreeMap<String, Value>, RuntimeError> {
+    let mut typed = BTreeMap::new();
     if let serde_json::Value::Object(fields) = args {
         for (name, value) in fields {
             let kind = program.args.get(name).ok_or_else(|| RuntimeError::Input(format!("{} takes no argument {name}", program.name)))?;

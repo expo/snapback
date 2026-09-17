@@ -5,7 +5,6 @@
 use crate::ir::ArgType;
 use crate::value::Value;
 use serde_json::{Map, Value as Json};
-#[cfg(test)]
 use std::collections::BTreeMap;
 
 /// Audience prefixes only, keyed by delivered-history table. An empty list
@@ -25,7 +24,7 @@ impl serde::Serialize for Plain<'_> {
             Value::String(value) | Value::Id(value) => serializer.serialize_str(value),
             Value::Bytes(value) => serializer.serialize_str(&crate::value::encode_bytes_hex(value)),
             Value::Array(values) => serializer.collect_seq(values.iter().map(Plain)),
-            Value::Row(_) | Value::Map(_) => serializer.collect_map(self.0.as_object().expect("object").iter().map(|(key, value)| (key, Plain(value)))),
+            Value::Row(fields) | Value::Map(fields) => serializer.collect_map(fields.iter().map(|(key, value)| (key, Plain(value)))),
         }
     }
 }
@@ -38,7 +37,7 @@ pub fn to_json(value: &Value) -> Json {
         Value::String(s) | Value::Id(s) => Json::String(s.clone()),
         Value::Bytes(bytes) => Json::String(crate::value::encode_bytes_hex(bytes)),
         Value::Array(items) => Json::Array(items.iter().map(to_json).collect()),
-        Value::Row(_) | Value::Map(_) => Json::Object(value.as_object().expect("object").iter().map(|(k, v)| (k.clone(), to_json(v))).collect()),
+        Value::Row(fields) | Value::Map(fields) => Json::Object(fields.iter().map(|(k, v)| (k.clone(), to_json(v))).collect()),
     }
 }
 
@@ -86,7 +85,7 @@ fn asset_from_json(fields: &Map<String, Json>) -> Result<Value, String> {
 /// A stored row from plain JSON, typed by the table's columns.
 pub fn row_from_json(table: &crate::schema::Table, json: &Json) -> Result<Value, String> {
     let Json::Object(fields) = json else { return Err("a row is an object".into()) };
-    let mut out = crate::smallmap::SmallMap::new();
+    let mut out = BTreeMap::new();
     for (name, value) in fields {
         let Some(kind) = table.columns.get(name) else { return Err(format!("undeclared column {name}")) };
         out.insert(name.clone(), column_from_json(kind, value)?);
@@ -145,8 +144,8 @@ fn other_kind(json: &Json) -> &'static str {
 }
 
 /// The plain JSON of a map of typed values.
-pub fn map_to_json<'a>(values: impl IntoIterator<Item = (&'a String, &'a Value)>) -> Map<String, Json> {
-    values.into_iter().map(|(k, v)| (k.clone(), to_json(v))).collect()
+pub fn map_to_json(values: &BTreeMap<String, Value>) -> Map<String, Json> {
+    values.iter().map(|(k, v)| (k.clone(), to_json(v))).collect()
 }
 
 #[cfg(test)]

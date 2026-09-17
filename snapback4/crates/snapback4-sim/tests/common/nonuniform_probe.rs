@@ -10,7 +10,7 @@ pub const EXAMINED_SWEEP: u64 = 82;
 
 pub const SOURCE: &str = "table permits:\n  owner: principal\n  unique byOwner: owner\n  public 'permits'\n  online only\ntable records:\n  owner: principal\n  body: text <=100\n  read <- exists permits[owner = .owner]\n  online only\ntable candidates:\n  record: records\n  body: text <=100\n  cap 32\n  public 'candidate identities are public'\n  sync public\nquery merged(c: cursor ?):\n  return merge candidates after c first 1 by byId where exists records[id = .record]:\n    []\nquery page(c: cursor ?):\n  return records[] after c first 1 by byId\nquery filtered(c: cursor ?):\n  return records[] after c first 1 by byId where true\nquery refuses(c: cursor ?):\n  page = records[] after c first 1 by byId\n  require false else STOP\n  return page\n";
 
-pub fn context() -> Context { Context::new("dev:reader", snapback4_core::smallmap::SmallMap::new()).at(300) }
+pub fn context() -> Context { Context::new("dev:reader", Default::default()).at(300) }
 pub fn rows(hidden: bool) -> Vec<(String, Value)> {
     let mut rows = vec![("permits".into(), object([("id", Value::Id("grant".into())), ("owner", Value::Id("dev:allowed".into()))]))];
     for n in 0..20 {

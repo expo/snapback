@@ -71,7 +71,7 @@ impl Runner<'_> {
     }
 
     fn prefix_verdict(&mut self, table: &Table, index: &Index, prefix: &[Value], rule: &crate::schema::RuleExpr, uniform: bool) -> Result<bool, RuntimeError> {
-        let probe_row = Value::Row(index.components.iter().zip(prefix).filter_map(|(part, value)| part.column().map(|name| (name.clone(), value.clone()))).collect::<crate::smallmap::SmallMap<_, _>>().into());
+        let probe_row = Value::Row(index.components.iter().zip(prefix).filter_map(|(part, value)| part.column().map(|name| (name.clone(), value.clone()))).collect::<std::collections::BTreeMap<_, _>>().into());
         let viewer = self.context.viewer.clone();
         let expiry = self.next_expiry;
         let verdict = rules::evaluate(rule, &viewer, None, &probe_row, false, &mut PrefixProbe { runner: self });
@@ -204,7 +204,7 @@ impl Runner<'_> {
         if !(crate::value::I53_MIN as i128..=crate::value::I53_MAX as i128).contains(&total) {
             return Err(super::maintains::aggregate_overflow(&maintain));
         }
-        let mut fields = row.as_object()?.to_row();
+        let mut fields = row.as_object()?.clone();
         fields.insert("value".into(), Value::Int(total as i64));
         Ok(Some(Value::Row(fields.into())))
     }
@@ -623,11 +623,11 @@ impl Runner<'_> {
                     let Some(row) = aggregate else { continue; };
                     last_rule_visible = Some(key.clone());
                     if let Some(filter) = &scan.filter {
-                        let prior = self.filter_row.replace(row.clone());
+                        let prior = self.env.insert("$filter".into(), row.clone());
                         self.filter_depth += 1;
                         let matched = self.expr(filter);
                         self.filter_depth -= 1;
-                        self.filter_row = prior;
+                        match prior { Some(value) => { self.env.insert("$filter".into(), value); }, None => { self.env.remove("$filter"); } }
                         let matched = matched?.as_bool()?;
                         self.meter.at(&scan.site);
                         if self.meter.capped_at.is_some() { capped = true; break 'outer; }
@@ -738,7 +738,7 @@ impl Runner<'_> {
             };
             for source_row in sources {
                 if lane.source.is_some() {
-                    self.set_variable(&lane.binding, source_row);
+                    self.env.insert(lane.binding.clone(), source_row);
                 }
                 self.statements(&lane.setup, &merge.site)?;
                 self.page_depth += 1;
@@ -827,7 +827,7 @@ impl Runner<'_> {
         for lane in &merge.lanes {
             let sources = match &lane.source { Some(source) => self.scan(source)?, None => vec![Value::Null] };
             for source_row in sources {
-                if lane.source.is_some() { self.set_variable(&lane.binding, source_row); }
+                if lane.source.is_some() { self.env.insert(lane.binding.clone(), source_row); }
                 let prefix = self.prefix_values(&lane.scan)?;
                 let definition = self.schema.table(&lane.scan.table).ok_or_else(|| RuntimeError::Schema("missing merge table".into()))?;
                 let index = definition.index(&lane.scan.index).ok_or_else(|| RuntimeError::Schema("missing merge index".into()))?;

@@ -265,10 +265,10 @@ fn run_store(case: &Case, postgres: bool) -> Verdict {
     let rows: Vec<_> = case.receipt.rows.iter().map(|row| {
         let mut value = row.row.clone();
         if let Some(table) = schema.table(&row.table)
-            && matches!(&value, Value::Row(_) | Value::Map(_))
+            && let Value::Row(fields) | Value::Map(fields) = &mut value
         {
             for (name, kind) in &table.columns {
-                if let Some(value) = match &mut value { Value::Row(fields) => fields.get_mut(name), Value::Map(fields) => fields.get_mut(name), _ => None } {
+                if let Some(value) = fields.get_mut(name) {
                     legacy_asset_ids(kind, value);
                 }
             }
@@ -392,15 +392,14 @@ fn card_expected(case: &Case, schema: &Schema, program: &Program) -> Result<Expe
 fn largest_array(value: &Value) -> usize {
     match value {
         Value::Array(values) => values.iter().map(largest_array).fold(values.len(), usize::max),
-        Value::Row(_) | Value::Map(_) => value.as_object().unwrap().values().map(largest_array).max().unwrap_or(0),
+        Value::Row(fields) | Value::Map(fields) => fields.values().map(largest_array).max().unwrap_or(0),
         _ => 0,
     }
 }
 
 fn result_ids<'a>(value: &'a Value, ids: &mut Vec<&'a str>) {
     match value {
-        Value::Row(_) | Value::Map(_) => {
-            let fields = value.as_object().unwrap();
+        Value::Row(fields) | Value::Map(fields) => {
             if let Some(Value::Id(id)) = fields.get("id") { ids.push(id); }
             else { fields.values().for_each(|value| result_ids(value, ids)); }
         }

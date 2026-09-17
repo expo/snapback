@@ -18,7 +18,7 @@ use crate::store::{Bounds, Dir};
 use crate::value::{Value, canonical_json, decode_bytes_hex, digest, encode_bytes_hex};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
-use crate::smallmap::SmallMap;
+use std::collections::BTreeMap;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -59,7 +59,7 @@ pub struct JobRun {
 
 struct Head {
     run: JobRun,
-    args: SmallMap<String, Value>,
+    args: BTreeMap<String, Value>,
     program_hash: String,
     cursor: Option<Vec<u8>>,
     upper: Option<Vec<u8>>,
@@ -87,14 +87,14 @@ fn read_head(row: &rusqlite::Row<'_>) -> rusqlite::Result<Head> {
             updated_at: row.get(11)?,
             error: row.get(12)?,
         },
-        args: args.as_object().map(|fields| fields.to_row()).unwrap_or_default(),
+        args: args.as_object().map(|fields| fields.clone()).unwrap_or_default(),
         program_hash: row.get(3)?,
         cursor: row.get::<_, Option<String>>(6)?.and_then(|hex| decode_bytes_hex(&hex)),
         upper: row.get::<_, Option<String>>(7)?.and_then(|hex| decode_bytes_hex(&hex)),
     })
 }
 
-fn insert_job(conn: &Connection, id: &str, name: &str, args: &SmallMap<String, Value>, program_hash: &str, now: i64) -> Result<(), RuntimeError> {
+fn insert_job(conn: &Connection, id: &str, name: &str, args: &BTreeMap<String, Value>, program_hash: &str, now: i64) -> Result<(), RuntimeError> {
     conn.execute(
         "INSERT INTO _jobs(id, name, args, program_hash, state, sweep, cursor, upper, chunks, rows_written, created_at, updated_at, error) VALUES (?1, ?2, ?3, ?4, 'queued', 0, NULL, NULL, 0, 0, ?5, ?5, NULL)",
         params![id, name, canonical_json(&Value::Map(args.clone().into())), program_hash, now],
@@ -169,8 +169,7 @@ fn sweep_chunk(runner: &mut Runner<'_>, scan: &Scan, cursor: Option<&[u8]>, uppe
 impl Engine {
     /// Queue a run of a job. Its arguments are validated now; it runs as
     /// the system principal when its turn comes (`run_job_chunk`).
-    pub fn enqueue_job(&mut self, name: &str, args: impl Into<SmallMap<String, Value>>, now: i64) -> Result<String, RuntimeError> {
-        let mut args = args.into();
+    pub fn enqueue_job(&mut self, name: &str, mut args: BTreeMap<String, Value>, now: i64) -> Result<String, RuntimeError> {
         let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
         if program.kind != ProgramKind::Job {
             return Err(RuntimeError::UnknownOp(format!("{name} is a {}, not a job", program.kind.word())));
@@ -189,7 +188,7 @@ impl Engine {
 
     /// Run a job to completion, here and now: enqueued, then every chunk
     /// in turn (behind whatever was queued first). For `snapback4 run`.
-    pub fn run_job(&mut self, name: &str, args: impl Into<SmallMap<String, Value>>, now: i64) -> Result<JobRun, RuntimeError> {
+    pub fn run_job(&mut self, name: &str, args: BTreeMap<String, Value>, now: i64) -> Result<JobRun, RuntimeError> {
         let id = self.enqueue_job(name, args, now)?;
         while let Some(run) = self.run_job_chunk(now)? {
             if run.id == id && matches!(run.state, JobState::Done | JobState::Parked) {
@@ -355,7 +354,7 @@ impl Engine {
                 tx.commit()?;
                 continue;
             };
-            let mut args = SmallMap::new();
+            let mut args = BTreeMap::new();
             if program.args.contains_key("periodStart") {
                 args.insert("periodStart".to_owned(), Value::Int(boundary - schedule.every_ms as i64));
             }

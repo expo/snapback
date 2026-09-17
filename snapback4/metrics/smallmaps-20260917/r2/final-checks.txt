@@ -1,0 +1,7 @@
+Checkpoint unchanged: 1fd3617702a184817f7b6b9194137aa544170a8b
+git diff --check: exit 0, no output
+Code cap: 1488 lines maximum (snapback4/crates/snapback4-device/tests/device.rs)
+Tested source identities: unchanged after family probes
+Original value/hot-path source identities: 14 files exactly match 70a663c22
+JOURNAL and metrics README: append-only against checkpoint
+ref-check: ok — 481 LLP docs, 9056 refs in 24195 files, 0 errors, 0 unchecked

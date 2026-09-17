@@ -44,7 +44,7 @@ impl Runner<'_> {
         }
         self.meter.heap(bytes)?;
         let fields = old.as_object()?.iter().filter(|(key, _)| !patch.as_object().expect("patch checked").contains_key(*key)).chain(patch.as_object()?.iter())
-            .map(|(key, value)| (key.clone(), value.clone())).collect::<crate::smallmap::SmallMap<_, _>>();
+            .map(|(key, value)| (key.clone(), value.clone())).collect::<std::collections::BTreeMap<_, _>>();
         Ok(Value::Row(fields.into()))
     }
 
@@ -152,7 +152,7 @@ impl Runner<'_> {
         } else {
             if !upsert { return Err(self.no_write_target()); }
             let id = if target.index == "byId" { key[0].clone() } else { Value::Id(self.context.mint()?) };
-            let mut fields = patch.as_object()?.to_row();
+            let mut fields = patch.as_object()?.clone();
             for (column, value) in index.columns().iter().zip(&key) { fields.entry(column.clone()).or_insert_with(|| value.clone()); }
             fields.insert("id".into(), id.clone());
             let row = Value::Row(fields.into());
@@ -168,7 +168,7 @@ impl Runner<'_> {
     // @ref LLP 3000.007#17 — ruling 17 (a), third pass: hidden immutable fields are ignored, never compared, on update and upsert.
     pub(super) fn ignore_hidden_immutable_patch(&self, table: &str, patch: Value, readable: bool) -> Result<Value, RuntimeError> {
         if readable { return Ok(patch); }
-        let mut fields = patch.as_object()?.to_row();
+        let mut fields = patch.as_object()?.clone();
         for constraint in &self.schema.tables[table].constraints {
             if let crate::schema::Constraint::Immutable { fields: immutable } = constraint {
                 for field in immutable { fields.remove(field); }

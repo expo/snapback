@@ -8,8 +8,7 @@
 use crate::ir::{Expr, IndexKeyExpr, Input, Merge, Scan};
 use crate::schema::{ColumnType, RuleExpr, RuleTerm, Schema, Table};
 use crate::value::Value;
-use std::collections::BTreeSet;
-use crate::smallmap::SmallMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Visibility {
@@ -22,7 +21,7 @@ pub struct Visibility {
 pub fn scan_visibility(schema: &Schema, scan: &Scan) -> Visibility {
     let Some(table) = schema.table(&scan.table) else { return Visibility::default() };
     let Some(index) = table.index(&scan.index) else { return Visibility::default() };
-    let pinned: SmallMap<&String, &Expr> = index.components.iter().zip(&scan.prefix).filter_map(|(component, key)| component.column().zip(key.scalar())).collect();
+    let pinned: BTreeMap<&String, &Expr> = index.components.iter().zip(&scan.prefix).filter_map(|(component, key)| component.column().zip(key.scalar())).collect();
     prefix_visibility(&scan.table, table, &table.rules.read, &pinned)
 }
 
@@ -63,7 +62,7 @@ fn conjuncts(rule: RuleExpr) -> Vec<RuleExpr> {
     match rule { RuleExpr::And(terms) => terms.into_iter().flat_map(conjuncts).collect(), rule => vec![rule] }
 }
 
-fn simplify_prefix(rule: &RuleExpr, name: &str, table: &Table, pinned: &SmallMap<&String, &Expr>) -> RuleExpr {
+fn simplify_prefix(rule: &RuleExpr, name: &str, table: &Table, pinned: &BTreeMap<&String, &Expr>) -> RuleExpr {
     if rule_true(rule, name, table, pinned) { return RuleExpr::Allow; }
     match rule {
         RuleExpr::And(terms) => RuleExpr::And(terms.iter().map(|term| simplify_prefix(term, name, table, pinned)).flat_map(conjuncts).filter(|term| !matches!(term, RuleExpr::Allow)).collect()),
@@ -99,7 +98,7 @@ pub fn lazy_merge(schema: &Schema, merge: &Merge) -> bool {
 
 /// The same analysis for an arbitrary pinned prefix (`sync` audiences and
 /// merge lanes use it too).
-pub fn prefix_visibility(table_name: &str, table: &Table, rule: &RuleExpr, pinned: &SmallMap<&String, &Expr>) -> Visibility {
+pub fn prefix_visibility(table_name: &str, table: &Table, rule: &RuleExpr, pinned: &BTreeMap<&String, &Expr>) -> Visibility {
     let decided_true = rule_true(rule, table_name, table, pinned);
     let used = deciding_fields(table_name, table, rule);
     Visibility { uniform: decided_true || used.iter().all(|field| pinned.contains_key(field)), decided_true }
@@ -151,7 +150,7 @@ fn pinned_term(term: &RuleTerm, expression: &Expr) -> bool {
     }
 }
 
-fn rule_true(rule: &RuleExpr, table_name: &str, table: &Table, pinned: &SmallMap<&String, &Expr>) -> bool {
+fn rule_true(rule: &RuleExpr, table_name: &str, table: &Table, pinned: &BTreeMap<&String, &Expr>) -> bool {
     match rule {
         RuleExpr::Allow | RuleExpr::Public { .. } => true,
         RuleExpr::Eq(left, right) => [(left, right), (right, left)].iter().any(|(field, value)| {

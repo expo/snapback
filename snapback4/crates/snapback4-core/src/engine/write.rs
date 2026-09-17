@@ -197,7 +197,7 @@ impl Runner<'_> {
         if !table.defaults.keys().any(|name| row.as_object().is_ok_and(|fields| !fields.contains_key(name))) {
             return Ok(row);
         }
-        let mut fields = row.as_object()?.to_row();
+        let mut fields = row.as_object()?.clone();
         for (name, default) in &table.defaults {
             if !fields.contains_key(name) {
                 let value = default.value(self.context.now.ok_or_else(|| RuntimeError::Input("write clock is not pinned".into()))?, &self.context.viewer);
@@ -225,7 +225,7 @@ impl Runner<'_> {
         if !table.columns.values().any(|kind| matches!(kind.required(), ColumnType::Image { .. } | ColumnType::Video { .. })) {
             return Ok(row);
         }
-        let mut fields = row.as_object()?.to_row();
+        let mut fields = row.as_object()?.clone();
         for (column, kind) in &table.columns {
             let (wanted, max) = match kind.required() {
                 ColumnType::Image { max, .. } => (AssetKind::Image, *max),
@@ -243,7 +243,7 @@ impl Runner<'_> {
             let Some(asset) = self.tx.asset(&id)? else {
                 if self.context.is_system() {
                     // A fixture's placeholder: keep it, in the asset shape.
-                    let mut map = fields.get(column).and_then(|value| value.as_object().ok()).map(|fields| fields.to_map()).unwrap_or_default();
+                    let mut map = fields.get(column).and_then(|value| value.as_object().ok()).cloned().unwrap_or_default();
                     for fact in crate::assets::FACTS {
                         map.entry(fact.to_owned()).or_insert(Value::Null);
                     }

@@ -1,0 +1,210 @@
+{
+  "btree_bytes": 268527,
+  "btree_items": 1487,
+  "sort_bytes": 77202,
+  "sort_items": 285,
+  "btree_pairs": {
+    "String, core::value::Value": [
+      41939,
+      180
+    ],
+    "(unresolved)": [
+      20453,
+      159
+    ],
+    "String, ()": [
+      19573,
+      105
+    ],
+    "(String, String), core::value::Value": [
+      13486,
+      67
+    ],
+    "String, (String, String)": [
+      13373,
+      70
+    ],
+    "String, serde_json::value::Value": [
+      12467,
+      64
+    ],
+    "&String, &core::ir::Expr": [
+      11833,
+      58
+    ],
+    "(String, Vec<u8>), String": [
+      11136,
+      48
+    ],
+    "String, (u64, String)": [
+      10614,
+      57
+    ],
+    "String, String": [
+      10215,
+      55
+    ],
+    "String, device::device::history::Membership": [
+      9998,
+      62
+    ],
+    "(String, String), Vec<(String, String, String)>": [
+      9683,
+      47
+    ],
+    "String, core::option::Option<i64>": [
+      9246,
+      70
+    ],
+    "(String, String, String), usize": [
+      9042,
+      49
+    ],
+    "(String, String), core::option::Option<String>": [
+      8892,
+      40
+    ],
+    "String, alloc::collections::btree::map::BTreeMap<String, core::option::Option<i64>>": [
+      8624,
+      45
+    ],
+    "&String, &core::value::Value": [
+      8449,
+      47
+    ],
+    "String, u64": [
+      6342,
+      40
+    ],
+    "&str, core::engine::presence::Proof": [
+      5847,
+      35
+    ],
+    "String, core::engine::runner::PagePosition": [
+      5019,
+      35
+    ],
+    "device::memory::Dirty, ()": [
+      4696,
+      33
+    ],
+    "String, (bool, bool)": [
+      4694,
+      32
+    ],
+    "&str, ()": [
+      4376,
+      31
+    ],
+    "String, usize": [
+      4322,
+      30
+    ],
+    "(&str, &str), ()": [
+      4208,
+      28
+    ]
+  },
+  "sort_types": {
+    "(String, core::value::Value)": [
+      17936,
+      59
+    ],
+    "core::value::Value": [
+      9091,
+      31
+    ],
+    "(&String, &core::ir::Expr)": [
+      7277,
+      25
+    ],
+    "(u64, &String)": [
+      4640,
+      15
+    ],
+    "String": [
+      4636,
+      15
+    ],
+    "usize": [
+      4517,
+      16
+    ],
+    "(Vec<core::value::Value>, core::value::Value)": [
+      4349,
+      14
+    ],
+    "(&String, &core::value::Value)": [
+      4332,
+      16
+    ],
+    "&core::ir::Program": [
+      4330,
+      16
+    ],
+    "(u8, char)": [
+      4320,
+      15
+    ],
+    "core::ir::Program": [
+      4010,
+      14
+    ],
+    "(String, serde_json::value::Value)": [
+      3628,
+      14
+    ],
+    "(unresolved)": [
+      732,
+      11
+    ],
+    "<[(String, core::value::Value)]>::sort_by<<alloc::collections::btree::map::BTreeMap<String, core::value::Value> as core::iter::traits::collect::FromIterator<(String, core::value::Value)>>::from_iter<core::iter::adapters::GenericShunt<core::iter::adapters::map::Map<core::smallmap::Iter<String, core::ir::Expr>, <core::engine::runner::Runner>::expr::{closure#2}>, core::result::Result<core::convert::Infallible, core::error::RuntimeError>>>::{closure#0}>::{closure#0}": [
+      342,
+      2
+    ],
+    "<[(Vec<core::value::Value>, core::value::Value)]>::sort_by<<core::engine::runner::Runner>::merge_with_words::{closure#6}>::{closure#0}": [
+      320,
+      2
+    ],
+    "<[core::value::Value]>::sort_by<<core::value::Value>::total_cmp>::{closure#0}": [
+      300,
+      2
+    ],
+    "<[(u64, &String)]>::sort_by_key<u64, <device::memory::MemoryTx as device::store::DeviceTx>::outbox_entries::{closure#1}>::{closure#0}": [
+      290,
+      2
+    ],
+    "<[(&String, &core::ir::Expr)]>::sort_by<<alloc::collections::btree::map::BTreeMap<&String, &core::ir::Expr> as core::iter::traits::collect::FromIterator<(&String, &core::ir::Expr)>>::from_iter<core::iter::adapters::filter_map::FilterMap<core::iter::adapters::zip::Zip<core::slice::iter::Iter<core::schema::IndexComponent>, core::slice::iter::Iter<core::ir::Expr>>, core::engine::rules::upsert_absence::{closure#0}>>::{closure#0}>::{closure#0}": [
+      282,
+      2
+    ],
+    "<[core::value::Value]>::sort_by<<core::engine::runner::Runner>::builtin::{closure#2}>::{closure#0}": [
+      280,
+      2
+    ],
+    "<[core::ir::Program]>::sort_by<core::ir::program_map::{closure#0}>::{closure#0}": [
+      278,
+      2
+    ],
+    "<String as core::cmp::PartialOrd>::lt": [
+      278,
+      2
+    ],
+    "<[(String, serde_json::value::Value)]>::sort_by<<alloc::collections::btree::map::BTreeMap<String, serde_json::value::Value> as core::iter::traits::collect::FromIterator<(String, serde_json::value::Value)>>::from_iter<core::iter::adapters::map::Map<alloc::collections::btree::map::Iter<String, core::value::Value>, core::wire::map_to_json::{closure#0}>>::{closure#0}>::{closure#0}": [
+      269,
+      2
+    ],
+    "<[(u8, char)]>::sort_by_key<u8, <unicode_normalization::decompose::Decompositions<core::str::iter::Chars>>::sort_pending::{closure#0}>::{closure#0}": [
+      261,
+      2
+    ],
+    "<[&core::ir::Program]>::sort_by<device::device::store_identity::backend_identity::{closure#0}>::{closure#0}": [
+      252,
+      2
+    ],
+    "<[(&String, &core::value::Value)]>::sort_by<<alloc::collections::btree::map::BTreeMap<&String, &core::value::Value> as core::iter::traits::collect::FromIterator<(&String, &core::value::Value)>>::from_iter<core::iter::adapters::filter_map::FilterMap<core::iter::adapters::zip::Zip<core::slice::iter::Iter<core::schema::IndexComponent>, core::slice::iter::Iter<core::value::Value>>, device::device::history::retained_group::{closure#1}>>::{closure#0}>::{closure#0}": [
+      252,
+      2
+    ]
+  }
+}

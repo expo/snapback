@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/Users/ccheever/projects/snapback-diet-maps/snapback4/target/d2/r2/probe_family.py", line 21, in <module>
+    subprocess.run(['cargo','test','-p','snapback4-sim','--test','clique','--no-run','--message-format=json'],stdout=log,stderr=err,check=True)
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 528, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['cargo', 'test', '-p', 'snapback4-sim', '--test', 'clique', '--no-run', '--message-format=json']' returned non-zero exit status 101.

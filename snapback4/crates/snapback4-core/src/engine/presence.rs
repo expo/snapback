@@ -1,9 +1,9 @@
 //! Grace belongs to effect admission, never to predicted rows.
 use super::runner::Runner;
 use crate::{error::RuntimeError, ir::Expr, value::Value};
-use crate::smallmap::SmallMap;
+use std::collections::BTreeMap;
 
-pub(super) type Dependencies = std::collections::BTreeMap<String, Option<i64>>;
+pub(super) type Dependencies = BTreeMap<String, Option<i64>>;
 pub(crate) type Emission = (String, String, Value, Dependencies);
 
 #[derive(Default)]
@@ -11,8 +11,8 @@ pub(super) struct EffectPresence {
     pub enabled: bool,
     pub reads: Dependencies,
     pub guard: Dependencies,
-    pub variables: SmallMap<String, Dependencies>,
-    guards: SmallMap<String, (bool, bool)>,
+    pub variables: BTreeMap<String, Dependencies>,
+    guards: BTreeMap<String, (bool, bool)>,
 }
 
 pub(super) fn bytes(deps: &Dependencies) -> u64 { deps.keys().map(|key| key.len() as u64 + 64).sum() }
@@ -21,7 +21,7 @@ impl Runner<'_> {
     pub(super) fn prepare_effect_presence(&mut self, program: &crate::ir::Program) -> Result<(), RuntimeError> {
         self.effect_presence.enabled = self.schema.operations.get(&program.name).is_some_and(|fact| fact.connected_effects_only);
         self.meter.at(&program.name);
-        if self.effect_presence.enabled { plan_guards(&program.body, &program.name, &mut SmallMap::new(), &mut self.effect_presence.guards, &mut self.meter)?; }
+        if self.effect_presence.enabled { plan_guards(&program.body, &program.name, &mut BTreeMap::new(), &mut self.effect_presence.guards, &mut self.meter)?; }
         Ok(())
     }
 
@@ -61,7 +61,7 @@ impl Runner<'_> {
 
     pub(super) fn bind_effect_value(&mut self, name: &str, value: Value) -> Result<(), RuntimeError> {
         let deps = self.value_presence()?;
-        self.set_variable(name, value);
+        self.env.insert(name.into(), value);
         if deps.is_empty() { self.effect_presence.variables.remove(name); }
         else {
             self.meter.heap(name.len() as u64 + 64)?;
@@ -117,7 +117,7 @@ impl Proof {
     }
 }
 
-type Proofs<'a> = SmallMap<&'a str, Proof>;
+type Proofs<'a> = BTreeMap<&'a str, Proof>;
 
 fn proof(expr: &Expr, env: &Proofs<'_>) -> Proof {
     use crate::ir::{BinaryOp as B, Builtin, UnaryOp};
@@ -164,7 +164,7 @@ fn copy_proofs<'a>(env: &Proofs<'a>, meter: &mut crate::meter::Meter) -> Result<
     Ok(env.clone())
 }
 
-fn plan_guards<'a>(body: &'a [crate::ir::Stmt], prefix: &str, env: &mut Proofs<'a>, guards: &mut SmallMap<String, (bool, bool)>, meter: &mut crate::meter::Meter) -> Result<(), RuntimeError> {
+fn plan_guards<'a>(body: &'a [crate::ir::Stmt], prefix: &str, env: &mut Proofs<'a>, guards: &mut BTreeMap<String, (bool, bool)>, meter: &mut crate::meter::Meter) -> Result<(), RuntimeError> {
     use crate::ir::Stmt;
     for (index, stmt) in body.iter().enumerate() {
         meter.heap(prefix.len() as u64 + 32)?;

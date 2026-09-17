@@ -409,7 +409,7 @@ fn w6r1_recipe_refuses_builtin_shadow_before_writing_then_delivers_follower_51()
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
         let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
         let name = |n: &str| snapback4_lang::recipe::prefixed_name(prefix, n);
-        let mutate = |engine: &mut Engine, op: &str, viewer: &str, args: std::collections::BTreeMap<String, QValue>| {
+        let mutate = |engine: &mut Engine, op: &str, viewer: &str, args| {
             let out = engine.mutate(&if prefix.is_empty() { format!("feed.{op}") } else { format!("helpers.{op}") }, None, Context::new(viewer, args).at(100)).unwrap();
             assert!(matches!(out.state, WriteState::Sent { .. }), "{:?}", out.state);
         };
@@ -417,7 +417,7 @@ fn w6r1_recipe_refuses_builtin_shadow_before_writing_then_delivers_follower_51()
         for n in 1..=51 { mutate(&mut engine, "follow", &format!("reader{n:02}"), [("authorId".into(), QValue::Id("author".into()))].into()); }
         assert_eq!(engine.store().rows(&name("authors")).unwrap()[0].field("shared").unwrap(), &QValue::Bool(true));
         mutate(&mut engine, "createPost", "author", [("postId".into(), QValue::Id("post51".into()))].into());
-        let read = engine.query(&format!("feed.{}", name("following")), Context::new("reader51", snapback4_core::smallmap::SmallMap::new())).unwrap();
+        let read = engine.query(&format!("feed.{}", name("following")), Context::new("reader51", Default::default())).unwrap();
         assert!(read.complete);
         assert_eq!(read.data.as_array().unwrap().len(), 1);
         assert_eq!(read.data.as_array().unwrap()[0].field("postId").unwrap(), &QValue::Id("post51".into()));
@@ -438,7 +438,7 @@ fn w6r1_prefixed_recipe_keeps_app_copy_and_deliver_helpers() {
     let bound = snapback4_lang::compile(&[("schema.q".into(), source.into()), ("feed.q".into(), feed)]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let mut engine = snapback4_core::Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
-    let read = engine.query("helpers", snapback4_core::Context::new("alice", snapback4_core::smallmap::SmallMap::new())).unwrap();
+    let read = engine.query("helpers", snapback4_core::Context::new("alice", Default::default())).unwrap();
     assert_eq!(snapback4_core::wire::to_json(&read.data), json!({"copy":11,"deliver":21}));
 }
 
@@ -453,12 +453,12 @@ fn w7a_prefixed_install_exposes_no_standalone_mutations() {
     let mut engine = snapback4_core::Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     engine.seed([("feedAuthors".into(), snapback4_core::value::object([("id", snapback4_core::Value::Id("attacker-author".into())), ("principal", snapback4_core::Value::Id("attacker".into())), ("shared", snapback4_core::Value::Bool(false))]))]).unwrap();
     for op in ["CreatePost", "Register", "Follow", "Unfollow", "Repost", "DeletePost", "Unrepost"] {
-        let out = engine.mutate(&format!("feed.feed{op}"), None, snapback4_core::Context::new("attacker", [("postId".into(), snapback4_core::Value::Id("ghost".into()))]));
+        let out = engine.mutate(&format!("feed.feed{op}"), None, snapback4_core::Context::new("attacker", [("postId".into(), snapback4_core::Value::Id("ghost".into()))].into()));
         assert!(out.is_err(), "standalone {op} is client-callable: {out:?}");
         if op == "CreatePost" { println!("W7a ghost call refused: {}", out.unwrap_err()); }
     }
     assert!(engine.store().rows("feedPosts").unwrap().is_empty());
-    assert!(engine.query("feed.feedFollowing", snapback4_core::Context::new("attacker", snapback4_core::smallmap::SmallMap::new())).unwrap().complete);
+    assert!(engine.query("feed.feedFollowing", snapback4_core::Context::new("attacker", Default::default())).unwrap().complete);
     let client = fs::read_to_string(dir.0.join("src/following.ts")).unwrap();
     assert!(!client.contains("client.mutate("), "{client}");
 }
@@ -526,7 +526,7 @@ fn w10b_sizing_carries_the_backfill_bound_and_refuses_incoherent_caps() {
                         ("actorId", id("author")), ("authorId", id("author")), ("repost", Value::Bool(false)), ("shared", Value::Bool(false)), ("at", Value::Int(n))])));
                 }
                 engine.seed(rows).unwrap();
-                let context = || Context::new("reader", [("authorId".into(), id("author"))]).at(2000);
+                let context = || Context::new("reader", [("authorId".into(), id("author"))].into()).at(2000);
                 let followed = engine.mutate("test.followForTest", None, context()).unwrap();
                 assert!(matches!(followed.state, WriteState::Sent { .. }), "{followed:?}");
                 let copied = engine.store().rows(&name("feed")).unwrap();
@@ -670,7 +670,7 @@ fn w10r1b_backfill_engine(followers: usize) -> snapback4_core::Engine {
 fn w10r1b_51st_follow_fits_the_write_ceiling_with_the_app_edge() {
     use snapback4_core::{Context, Value, WriteState};
     let mut e = w10r1b_backfill_engine(50);
-    let write = e.mutate("follow", None, Context::new("reader", [("author".into(), Value::Id("author".into()))]).at(2000)).unwrap();
+    let write = e.mutate("follow", None, Context::new("reader", [("author".into(), Value::Id("author".into()))].into()).at(2000)).unwrap();
     println!("W10R1b promotion: state={:?} examined={} index={} written={}", write.state, write.metered.examined, write.metered.index_entries, write.metered.rows_written);
     assert!(matches!(write.state, WriteState::Sent { .. }), "{write:?}");
     assert_eq!(e.store().rows("feedFollows").unwrap().len(), 51);
@@ -685,7 +685,7 @@ fn w10r1b_backfill_leaves_room_for_delete_and_replace_before_purge() {
     use snapback4_core::{Context, Value, WriteState};
     let mut e = w10r1b_backfill_engine(0);
     let mut run = |op: &str, viewer: &str, key: &str, value: &str| {
-        let write = e.mutate(op, None, Context::new(viewer, [(key.into(), Value::Id(value.into()))]).at(2000)).unwrap();
+        let write = e.mutate(op, None, Context::new(viewer, [(key.into(), Value::Id(value.into()))].into()).at(2000)).unwrap();
         println!("W10R1b {op}: state={:?} examined={} index={} written={}", write.state, write.metered.examined, write.metered.index_entries, write.metered.rows_written);
         assert!(matches!(write.state, WriteState::Sent { .. }), "{write:?}");
     };

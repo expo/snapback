@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/Users/ccheever/projects/snapback-diet-maps/snapback4/target/d2/r2/storage-pairs.py", line 1, in <module>
+    import os,json,subprocess,time,statistics
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/statistics.py", line 105, in <module>
+    import random
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/random.py", line 55, in <module>
+    from bisect import bisect as _bisect
+  File "/Users/ccheever/projects/snapback-diet-maps/snapback4/target/d2/r2/bisect.py", line 5, in <module>
+    label=sys.argv[1]
+IndexError: list index out of range

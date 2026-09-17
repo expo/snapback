@@ -52,9 +52,7 @@ use crate::value::Value;
 #[cfg(feature = "sqlite")]
 use runner::Runner;
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "sqlite")]
-use std::collections::BTreeMap;
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
 
 /// Who is connected right now: what a server knows from the long polls it
 /// holds open, answered to a program's `connected[p]`. Only a server has
@@ -72,7 +70,7 @@ pub trait Presence: std::fmt::Debug + Send + Sync {
 pub struct Context {
     pub viewer: String,
     pub kind: String,
-    pub args: crate::smallmap::SmallMap<String, Value>,
+    pub args: BTreeMap<String, Value>,
     pub now: Option<i64>,
     pub read_time: Option<i64>,
     /// Digest only: the core resolves it in the admission transaction.
@@ -90,8 +88,8 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new(viewer: impl Into<String>, args: impl Into<crate::smallmap::SmallMap<String, Value>>) -> Self {
-        Self { viewer: viewer.into(), kind: "user".into(), args: args.into(), now: None, read_time: None, session_digest: None, wire_args: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
+    pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
+        Self { viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, session_digest: None, wire_args: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
     }
 
     #[cfg(feature = "sqlite")]
@@ -114,7 +112,7 @@ impl Context {
     }
 
     pub fn system() -> Self {
-        let mut context = Self::new(crate::SYSTEM_PRINCIPAL, crate::smallmap::SmallMap::new());
+        let mut context = Self::new(crate::SYSTEM_PRINCIPAL, BTreeMap::new());
         context.kind = "system".into();
         context
     }
@@ -244,7 +242,7 @@ impl Engine {
         if let Some(issue) = issues.first() {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
         }
-        let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
+        let programs = crate::ir::program_map(programs.into_iter().collect());
         let generation = Self::activate(&mut store, &schema, &programs, None)?;
         let dev_effects = store.meta("release")?.is_none();
         Ok(Self { store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
@@ -271,7 +269,7 @@ impl Engine {
     pub fn new_release(mut store: Store, mut schema: Schema, programs: impl IntoIterator<Item = Program>, release: u64, expected_previous: Option<u64>) -> Result<Self, RuntimeError> {
         schema.prepare_contribution_indexes();
         if let Some(issue) = crate::schema::validate(&schema).first() { return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message))); }
-        let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
+        let programs = crate::ir::program_map(programs.into_iter().collect());
         let generation = Self::activate(&mut store, &schema, &programs, Some((release, expected_previous)))?;
         Ok(Self { store, schema, programs, generation, dev_effects: false, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
@@ -390,7 +388,7 @@ impl Engine {
         if let Some(issue) = issues.first() {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
         }
-        let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
+        let programs = crate::ir::program_map(programs.into_iter().collect());
         let generation = Self::activate(&mut self.store, &schema, &programs, None)?;
         self.schema = schema;
         self.programs = programs;

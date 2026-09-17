@@ -1,0 +1,77 @@
+    Blocking waiting for file lock on build directory
+   Compiling snapback4-core v0.2.27 (/Users/ccheever/projects/snapback-diet-maps/snapback4/crates/snapback4-core)
+warning: variant `Effect` is never constructed
+  --> crates/snapback4-core/src/engine/steps.rs:12:36
+   |
+12 | pub(crate) enum WorkKind { Action, Effect }
+   |                 --------           ^^^^^^
+   |                 |
+   |                 variant in this enum
+   |
+   = note: `WorkKind` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling snapback4-lang v0.2.27 (/Users/ccheever/projects/snapback-diet-maps/snapback4/crates/snapback4-lang)
+warning: `snapback4-core` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 16.64s
+     Running tests/corpus.rs (target/debug/deps/corpus-24a74a69bc55f4d8)
+
+running 18 tests
+test adapter::refusal_state_mapping_preserves_application_rejection_and_engine_refusal ... ok
+test adapter::receipt_specific_oracles_have_named_exclusions ... ok
+test adapter::expected_cursor_and_state_are_required_contract_fields ... ok
+test adapter::asset_exclusion_requires_an_argument_that_needs_uploaded_facts ... ok
+test adapter::capped_merge_cursor_oracle_keeps_the_frozen_absent_continuation ... ok
+test adapter::schema_and_program_regressions_cannot_turn_into_skips ... ok
+test adapter::receipt_freshness_does_not_claim_an_unpaginated_limit_is_complete ... ok
+test adapter::auxiliary_preview_and_lane_discovery_limits_do_not_truncate_the_outer_page ... ok
+test adapter::exhausted_underfilled_result_pages_end_despite_a_limited_preview ... ok
+test adapter::capped_cursor_oracles_continue_from_the_golden_last_visible_row ... ok
+test adapter::independent_effect_ids_replace_only_the_frozen_shared_supply_oracle ... ok
+test adapter::typed_schema_admission_is_compared_with_the_refusal_oracle ... ok
+test adapter::current_sb4_asset_references_use_server_metadata_before_mutation_evaluation ... ok
+test adapter::a_capped_partial_query_is_executed_and_static_prices_are_distinct_from_structure ... ok
+test adapter::implicit_old_store_keys_are_executed_through_explicit_sb4_indexes ... ok
+test adapter::translated_asset_clearing_deletion_and_metadata_reads_still_execute ... ok
+test adapter::state_and_next_are_checked_even_when_the_result_matches ... ok
+test corpus ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.58s
+
+     Running tests/meter.rs (target/debug/deps/meter-0c23cda627958887)
+
+running 8 tests
+test heap_meter_allows_the_ceiling_and_records_the_first_cut ... ok
+test scalar_inspection_borrows_large_values_but_still_charges_steps ... ok
+test measured_ir_programs ... ok
+test share_charges_its_recipient_workspace ... ok
+test sha256_charges_utf8_work_before_its_fixed_result_and_rolls_back ... ok
+test bindings_and_owned_variable_reads_charge_without_aliasing ... ok
+test allocating_builtins_charge_the_result_and_keep_their_values ... ok
+test heap_cut_stops_queries_and_rolls_back_mutations ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.27s
+
+     Running tests/ordered_identity.rs (target/debug/deps/ordered_identity-079fe18ef967ae67)
+
+running 1 test
+test corpus_and_reference_backends_keep_ordered_bytes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.75s
+
+     Running tests/smallmap.rs (target/debug/deps/smallmap-41dd856f56bfd664)
+
+running 10 tests
+test construction_crossover ... ignored, explicit map crossover measurement; use --release --ignored --nocapture
+test serde_sorts_and_last_duplicate_wins ... ok
+test equal_keys_preserve_the_btree_representative ... ok
+test row_images_keep_sharing_order_and_meter_charges ... ok
+test program_scale::installed_program_order_and_duplicate_identity_match_btree ... ok
+test program_scale::reversed_thousand_programs ... ok
+test dynamic_json_keys_stay_in_btrees ... ok
+test ordering_hash_and_set_algebra_match_btree ... ok
+test sets_match_order_and_serde ... ok
+test seeded_operations_match_btree ... ok
+
+test result: ok. 9 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.14s
+

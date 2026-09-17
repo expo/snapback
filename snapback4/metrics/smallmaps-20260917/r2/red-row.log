@@ -1,0 +1,31 @@
+warning: variant `Effect` is never constructed
+  --> crates/snapback4-core/src/engine/steps.rs:12:36
+   |
+12 | pub(crate) enum WorkKind { Action, Effect }
+   |                 --------           ^^^^^^
+   |                 |
+   |                 variant in this enum
+   |
+   = note: `WorkKind` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-core` (lib) generated 1 warning
+   Compiling snapback4-core v0.2.27 (/Users/ccheever/projects/snapback-diet-maps/snapback4/crates/snapback4-core)
+error[E0271]: type mismatch resolving `<SharedFields<SmallMap<String, Value>> as Deref>::Target == BTreeMap<String, Value>`
+   --> crates/snapback4-core/tests/smallmap.rs:140:17
+    |
+140 |     tree_fields(&original);
+    |     ----------- ^^^^^^^^^ expected `BTreeMap<String, Value>`, found `SmallMap<String, Value>`
+    |     |
+    |     required by a bound introduced by this call
+    |
+    = note: expected struct `std::collections::BTreeMap<std::string::String, snapback4_core::Value>`
+               found struct `snapback4_core::smallmap::SmallMap<std::string::String, snapback4_core::Value>`
+note: required by a bound in `tree_fields`
+   --> crates/snapback4-core/tests/smallmap.rs:139:39
+    |
+139 |     fn tree_fields<T: std::ops::Deref<Target = BTreeMap<String, Value>>>(_: &T) {}
+    |                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `tree_fields`
+
+For more information about this error, try `rustc --explain E0271`.
+error: could not compile `snapback4-core` (test "smallmap") due to 1 previous error

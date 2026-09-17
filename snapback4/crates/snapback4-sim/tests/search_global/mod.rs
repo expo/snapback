@@ -71,7 +71,7 @@ fn w7d_empty_batches_do_not_end_discovery_and_cursors_are_not_interchangeable() 
     let found = query(&mut engine, "searchChatBatch", chats.next.clone(), None, "cof");
     assert!(found.complete && found.next.is_some());
     assert_eq!(found.data.as_array().unwrap().len(), 20);
-    let error = engine.query("searchChatBatch", Context::new("dev:alice", [("q".into(), Value::String("cof".into())), ("c".into(), Value::String(chats.next.unwrap()))]).at(2000)).unwrap_err();
+    let error = engine.query("searchChatBatch", Context::new("dev:alice", [("q".into(), Value::String("cof".into())), ("c".into(), Value::String(chats.next.unwrap()))].into()).at(2000)).unwrap_err();
     assert!(error.to_string().contains("cursor"), "{error}");
 }
 
@@ -100,7 +100,7 @@ fn w7r1b_server_search_cursor_positions_and_descriptors() {
             assert_eq!(actual, expected, "{op} {name}");
         }
         for (name, token) in cursors::malformed(&bound.schema, &next) {
-            let error = engine.query(op, Context::new("dev:alice", [("q".into(), Value::String("cof".into())), ("c".into(), Value::String(token))]).at(2000)).unwrap_err();
+            let error = engine.query(op, Context::new("dev:alice", [("q".into(), Value::String("cof".into())), ("c".into(), Value::String(token))].into()).at(2000)).unwrap_err();
             assert_eq!(error.code, "E_INPUT", "{op} {name}: {error}");
             assert!(error.to_string().contains("cursor"));
         }

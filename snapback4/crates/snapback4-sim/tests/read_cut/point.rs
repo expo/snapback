@@ -20,7 +20,7 @@ pub fn rows() -> Vec<(String, Value)> {
 }
 
 pub fn context(count: i64, key: &str) -> Context {
-    Context::new("dev:reader", [("count".into(), Value::Int(count)), ("key".into(), Value::Id(key.into()))]).at(300)
+    Context::new("dev:reader", [("count".into(), Value::Int(count)), ("key".into(), Value::Id(key.into()))].into()).at(300)
 }
 
 pub fn wire(page: &QueryOutcome) -> serde_json::Value {

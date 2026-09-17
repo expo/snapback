@@ -218,7 +218,7 @@ fn removal_authority<H: crate::common::Host>(mut host: H) {
         assert_eq!(serde_json::to_value(&before).unwrap(), serde_json::to_value(&after).unwrap());
         attacker.apply(&stream_page(&mut engine, case::INTRUDER, seq), false).unwrap();
         assert!(attacker.queued().unwrap().is_empty());
-        let no_purge = engine.run_job("purgeRemoved", snapback4_core::smallmap::SmallMap::new(), 11).unwrap();
+        let no_purge = engine.run_job("purgeRemoved", Default::default(), 11).unwrap();
         assert_eq!(no_purge.rows_written, 0);
         victim.apply(&stream_page(&mut engine, case::PRIVATE, seq), false).unwrap();
         assert_eq!(victim.query("following", case::PRIVATE, &serde_json::json!({}), 10).unwrap().data, before.data);
@@ -231,7 +231,7 @@ fn removal_authority<H: crate::common::Host>(mut host: H) {
         assert!(removed.complete);
         assert_eq!(removed.data.as_array().unwrap().is_empty(), hidden);
         let seq = engine.seq().unwrap();
-        engine.run_job("purgeRemoved", snapback4_core::smallmap::SmallMap::new(), 14).unwrap();
+        engine.run_job("purgeRemoved", Default::default(), 14).unwrap();
         victim.apply(&stream_page(&mut engine, case::PRIVATE, seq), false).unwrap();
         let local = victim.query("following", case::PRIVATE, &serde_json::json!({}), 15).unwrap();
         assert!(local.complete);

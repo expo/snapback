@@ -6,6 +6,7 @@
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::cmp::Ordering;
+use std::collections::BTreeMap;
 use thiserror::Error;
 
 pub const I53_MAX: i64 = (1_i64 << 53) - 1;
@@ -21,11 +22,70 @@ pub enum Value {
     Bytes(#[serde(with = "bytes_hex")] Vec<u8>),
     Row(ObjectFields),
     Array(Vec<Value>),
-    Map(MapFields),
+    Map(ObjectFields),
 }
 
-mod fields;
-pub use fields::{ObjectFields, MapFields, Fields};
+// Row images are shared immutably (`Arc`) so a result, a page head and a
+// partition event can hold one copy; serialization is the plain map.
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct ObjectFields(std::sync::Arc<BTreeMap<String, Value>>);
+impl From<BTreeMap<String, Value>> for ObjectFields {
+    fn from(value: BTreeMap<String, Value>) -> Self {
+        Self(std::sync::Arc::new(value))
+    }
+}
+impl FromIterator<(String, Value)> for ObjectFields {
+    fn from_iter<T: IntoIterator<Item = (String, Value)>>(iter: T) -> Self {
+        BTreeMap::from_iter(iter).into()
+    }
+}
+impl std::ops::Deref for ObjectFields {
+    type Target = BTreeMap<String, Value>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl std::ops::DerefMut for ObjectFields {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        std::sync::Arc::make_mut(&mut self.0)
+    }
+}
+impl IntoIterator for ObjectFields {
+    type Item = (String, Value);
+    type IntoIter = std::collections::btree_map::IntoIter<String, Value>;
+    fn into_iter(self) -> Self::IntoIter {
+        std::sync::Arc::unwrap_or_clone(self.0).into_iter()
+    }
+}
+impl<'a> IntoIterator for &'a ObjectFields {
+    type Item = (&'a String, &'a Value);
+    type IntoIter = std::collections::btree_map::Iter<'a, String, Value>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+impl<'a> IntoIterator for &'a mut ObjectFields {
+    type Item = (&'a String, &'a mut Value);
+    type IntoIter = std::collections::btree_map::IterMut<'a, String, Value>;
+    fn into_iter(self) -> Self::IntoIter {
+        std::sync::Arc::make_mut(&mut self.0).iter_mut()
+    }
+}
+impl Serialize for ObjectFields {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        self.0.as_ref().serialize(s)
+    }
+}
+impl<'de> Deserialize<'de> for ObjectFields {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        BTreeMap::deserialize(d).map(Into::into)
+    }
+}
+impl ObjectFields {
+    pub fn shares_image(&self, other: &Self) -> bool {
+        std::sync::Arc::ptr_eq(&self.0, &other.0)
+    }
+}
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ValueError {
@@ -106,10 +166,9 @@ impl Value {
         }
     }
 
-    pub fn as_object(&self) -> Result<Fields<'_>, ValueError> {
+    pub fn as_object(&self) -> Result<&BTreeMap<String, Value>, ValueError> {
         match self {
-            Self::Row(value) => Ok(Fields::Row(value)),
-            Self::Map(value) => Ok(Fields::Map(value)),
+            Self::Row(value) | Self::Map(value) => Ok(value),
             other => Err(ValueError::Type {
                 expected: "row or map",
                 actual: other.kind(),
@@ -137,8 +196,8 @@ impl Value {
                 a.capacity() as u64 * std::mem::size_of::<Value>() as u64
                     + a.iter().map(Value::heap_bytes).sum::<u64>()
             }
-            Value::Row(_) | Value::Map(_) => {
-                40 + self.as_object().expect("object")
+            Value::Row(m) | Value::Map(m) => {
+                40 + m
                     .iter()
                     .map(|(k, v)| 80 + k.capacity() as u64 + v.heap_bytes())
                     .sum::<u64>()
@@ -148,12 +207,9 @@ impl Value {
     }
 
     pub fn field(&self, name: &str) -> Result<&Value, ValueError> {
-        let value = match self {
-            Self::Row(fields) => fields.get(name),
-            Self::Map(fields) => fields.get(name),
-            other => return Err(ValueError::Type { expected: "row or map", actual: other.kind() }),
-        };
-        value.ok_or_else(|| ValueError::MissingField(name.to_owned()))
+        self.as_object()?
+            .get(name)
+            .ok_or_else(|| ValueError::MissingField(name.to_owned()))
     }
 
     pub fn total_cmp(&self, other: &Self) -> Ordering {
@@ -179,9 +235,9 @@ impl Value {
             (Self::String(a), Self::String(b)) | (Self::Id(a), Self::Id(b)) => a.cmp(b),
             (Self::Bytes(a), Self::Bytes(b)) => a.cmp(b),
             (Self::Array(a), Self::Array(b)) => cmp_slices(a, b),
-            (Self::Row(_), Self::Row(_)) | (Self::Map(_), Self::Map(_)) => {
-                let left: Vec<_> = self.as_object().expect("object").iter().collect();
-                let right: Vec<_> = other.as_object().expect("object").iter().collect();
+            (Self::Row(a), Self::Row(b)) | (Self::Map(a), Self::Map(b)) => {
+                let left: Vec<_> = a.iter().collect();
+                let right: Vec<_> = b.iter().collect();
                 left.len().cmp(&right.len()).then_with(|| {
                     left.iter()
                         .zip(right.iter())
@@ -306,7 +362,7 @@ pub fn validate_identities(value: &Value) -> Result<(), ValueError> {
     match value {
         Value::Id(id) if !identity_fits(id) => Err(ValueError::Identity),
         Value::Array(v) => v.iter().try_for_each(validate_identities),
-        Value::Row(_) | Value::Map(_) => value.as_object().expect("object").values().try_for_each(validate_identities),
+        Value::Row(m) | Value::Map(m) => m.values().try_for_each(validate_identities),
         _ => Ok(()),
     }
 }

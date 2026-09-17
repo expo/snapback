@@ -67,7 +67,7 @@ query one(room: text <=30):
             assert!(matches!(sent.state, WriteState::Sent { .. }), "{sent:?}");
             if predicts {
                 let row = device.query("one", "bob", &input, 1000).unwrap().data;
-                let mut fields = row.as_object().unwrap().to_row(); fields.remove("pending");
+                let mut fields = row.as_object().unwrap().clone(); fields.remove("pending");
                 assert_eq!(Value::Row(fields.into()), server.store().rows("likes").unwrap()[0]);
             }
             host.close(room, device);
@@ -134,7 +134,7 @@ fn first_offline_upsert_predicts_only_when_absence_is_provable_on_both_stores() 
             let confirmed = server.query("one", context).unwrap().data;
             if predicts {
                 assert_eq!(pending.field("pending"), Ok(&Value::Bool(true)));
-                let mut image = pending.as_object().unwrap().to_row();
+                let mut image = pending.as_object().unwrap().clone();
                 image.remove("pending");
                 assert_eq!(Value::Row(image.into()), confirmed, "the row's application fields are identical to the server's");
             }
@@ -256,7 +256,7 @@ fn review_supplied_and_minted_ids_match_prediction_on_both_stores() {
             let sent = server.mutate("vote", Some("vote"), context).unwrap();
             assert!(matches!(sent.state, WriteState::Sent { .. }), "{} {case}: {sent:?}", host.label());
             if predicts {
-                let mut image = pending.as_object().unwrap().to_row(); image.remove("pending");
+                let mut image = pending.as_object().unwrap().clone(); image.remove("pending");
                 let confirmed = server.query("one", Context::new("bob", args(&[("postId", id("first"))])).at(1000)).unwrap().data;
                 assert_eq!(Value::Row(image.into()), confirmed, "{} {case}", host.label());
             }

@@ -1,0 +1,1519 @@
+== cargo build
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: variant `Effect` is never constructed
+  --> crates/snapback4-core/src/engine/steps.rs:12:36
+   |
+12 | pub(crate) enum WorkKind { Action, Effect }
+   |                 --------           ^^^^^^
+   |                 |
+   |                 variant in this enum
+   |
+   = note: `WorkKind` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+-- ok: cargo build (4 s)
+== wasm build
+warning: struct `Authority` is never constructed
+  --> crates/snapback4-core/src/authority.rs:12:12
+   |
+12 | pub struct Authority {
+   |            ^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `SessionRecord` is never constructed
+  --> crates/snapback4-core/src/authority.rs:19:19
+   |
+19 | pub(crate) struct SessionRecord {
+   |                   ^^^^^^^^^^^^^
+
+warning: struct `WorkRecord` is never constructed
+  --> crates/snapback4-core/src/authority.rs:28:19
+   |
+28 | pub(crate) struct WorkRecord {
+   |                   ^^^^^^^^^^
+
+warning: struct `AdmissionRecord` is never constructed
+  --> crates/snapback4-core/src/authority.rs:40:19
+   |
+40 | pub(crate) struct AdmissionRecord {
+   |                   ^^^^^^^^^^^^^^^
+
+warning: trait `AuthorityTransaction` is never used
+  --> crates/snapback4-core/src/authority.rs:48:18
+   |
+48 | pub(crate) trait AuthorityTransaction {
+   |                  ^^^^^^^^^^^^^^^^^^^^
+
+warning: enum `AdmissionStanding` is never used
+  --> crates/snapback4-core/src/authority.rs:67:17
+   |
+67 | pub(crate) enum AdmissionStanding {
+   |                 ^^^^^^^^^^^^^^^^^
+
+warning: function `admission_authority` is never used
+  --> crates/snapback4-core/src/authority.rs:76:15
+   |
+76 | pub(crate) fn admission_authority(
+   |               ^^^^^^^^^^^^^^^^^^^
+
+warning: function `family_authority_expiry` is never used
+   --> crates/snapback4-core/src/authority.rs:103:15
+    |
+103 | pub(crate) fn family_authority_expiry(
+    |               ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `work_authority_expiry` is never used
+   --> crates/snapback4-core/src/authority.rs:146:15
+    |
+146 | pub(crate) fn work_authority_expiry(
+    |               ^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `claim_window_is_live` is never used
+   --> crates/snapback4-core/src/authority.rs:166:4
+    |
+166 | fn claim_window_is_live(work: &WorkRecord, now: i64) -> bool {
+    |    ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `claim_is_owned` is never used
+   --> crates/snapback4-core/src/authority.rs:172:15
+    |
+172 | pub(crate) fn claim_is_owned(work: &WorkRecord, worker: &str, digest: &str) -> bool {
+    |               ^^^^^^^^^^^^^^
+
+warning: function `live_claim_authority` is never used
+   --> crates/snapback4-core/src/authority.rs:176:15
+    |
+176 | pub(crate) fn live_claim_authority(
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `held_claim_authority` is never used
+   --> crates/snapback4-core/src/authority.rs:187:15
+    |
+187 | pub(crate) fn held_claim_authority(
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `live_session` is never used
+   --> crates/snapback4-core/src/authority.rs:203:15
+    |
+203 | pub(crate) fn live_session(
+    |               ^^^^^^^^^^^^
+
+warning: function `live_service_session` is never used
+   --> crates/snapback4-core/src/authority.rs:220:15
+    |
+220 | pub(crate) fn live_service_session(
+    |               ^^^^^^^^^^^^^^^^^^^^
+
+warning: field `session_digest` is never read
+  --> crates/snapback4-core/src/engine/mod.rs:77:16
+   |
+70 | pub struct Context {
+   |            ------- field in this struct
+...
+77 |     pub(crate) session_digest: Option<String>,
+   |                ^^^^^^^^^^^^^^
+   |
+   = note: `Context` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+wasm 1751978 B raw, 500660 B gzip
+-- ok: wasm build (17 s)
+== package typecheck
+$ tsc -p tsconfig.json --noEmit
+-- ok: package typecheck (1 s)
+== package build
+$ tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/
+-- ok: package build (1 s)
+== chat app check
+check: ok — 5 tables (5 synced), 9 operations, no problems, 1 note, 8.3 ms
+note: schema.q:77:1 — N_NO_CURSOR: query inbox returns a page of 50 memberships rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — inbox(.., c: cursor ?): return memberships[..] after c last 50 by <index>; or declare `cap 50 by principal` on table memberships if that is the intended group limit; other metered work can still cut the read
+  guide: reads
+
+2 mutations eligible, but these reads queue without a row past a horizon: edit (messages by byId (schema.q:103:3), messages[messageId] (schema.q:101:9)), unsend (messages[messageId] (schema.q:107:9)) — snapback4 why <op>
+-- ok: chat app check (76 s)
+== cargo test
+warning: variant `Effect` is never constructed
+  --> crates/snapback4-core/src/engine/steps.rs:12:36
+   |
+12 | pub(crate) enum WorkKind { Action, Effect }
+   |                 --------           ^^^^^^
+   |                 |
+   |                 variant in this enum
+   |
+   = note: `WorkKind` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4-sim/tests/maintain_measurement.rs:100:21
+    |
+100 |                 let mut meter_sum = BTreeMap::<String, u64>::new();
+    |                     ----^^^^^^^^^
+    |                     |
+    |                     help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `meter_sum`
+   --> crates/snapback4-sim/tests/maintain_measurement.rs:100:21
+    |
+100 |                 let mut meter_sum = BTreeMap::<String, u64>::new();
+    |                     ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_meter_sum`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+  --> crates/snapback4-device/tests/native_reads.rs:96:9
+   |
+96 |     let mut post = |engine: &mut Engine, viewer: &str, summary: &str, provider: Value| mutate(engine, "writePost", viewer, &[("promp...
+   |         ----^^^^
+   |         |
+   |         help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+
+running 65 tests
+.................................................................
+test result: ok. 65 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.83s
+
+
+running 58 tests
+..........................................................
+test result: ok. 58 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.07s
+
+
+running 17 tests
+snapback4 dev: http://127.0.0.1:54516  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-clock-20076-action-expiry-dev/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-clock-20076-action-expiry-dev/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:54517  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-clock-20076-sweep/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-clock-20076-sweep/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4: schedule ticking fired
+snapback4: job tick done: 1 chunk, 0 rows written
+.snapback4 dev: http://127.0.0.1:54543  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-clock-20076-hold/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-clock-20076-hold/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:54547  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-clock-20076-hold/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-clock-20076-hold/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4: schedule ticking fired
+snapback4: job tick done: 1 chunk, 1 row written
+.snapback4 dev: http://127.0.0.1:54553  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-clock-20076-sync/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-clock-20076-sync/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4: schedule ticking fired
+snapback4: job tick done: 1 chunk, 1 row written
+.snapback4 dev: http://127.0.0.1:54568  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-clock-20076-presence/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-clock-20076-presence/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+.snapback4 dev: http://127.0.0.1:54587  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-clock-20076-action-live/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-clock-20076-action-live/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+.snapback4 dev: http://127.0.0.1:54607  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-clock-20076-effect-live/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-clock-20076-effect-live/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+..snapback4 dev: http://127.0.0.1:54617  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-clock-20076-effect-retry/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-clock-20076-effect-retry/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+.snapback4 dev: http://127.0.0.1:54629  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-clock-20076-grace-push/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-clock-20076-grace-push/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+.snapback4 dev: http://127.0.0.1:54645  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-clock-20076-grace-restart/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-clock-20076-grace-restart/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:54649  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-clock-20076-grace-restart/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-clock-20076-grace-restart/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:54655  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-clock-20076-grace-reconnect/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-clock-20076-grace-reconnect/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:54660  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-clock-20076-grace-reconnect/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-clock-20076-grace-reconnect/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+.snapback4 serve: http://127.0.0.1:54672  (release deployment/releases/1, generation 1, tokens only)
+.snapback4 dev: http://127.0.0.1:54685  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-clock-20076-offset/snapback/generated/api.ts)
+store: in memory — dies with this process
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 serve: http://127.0.0.1:54687  (release deployment/releases/1, generation 1, tokens only)
+snapback4: schedule ticking fired
+snapback4: job tick done: 1 chunk, 0 rows written
+.snapback4 dev: http://127.0.0.1:54722  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-clock-20076-effect-wall-dev/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-clock-20076-effect-wall-dev/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+.snapback4 serve: http://127.0.0.1:54784  (release deployment/releases/1, generation 1, tokens only)
+.snapback4 dev: http://127.0.0.1:54788  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-clock-20076-run/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-clock-20076-run/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+.snapback4 dev: http://127.0.0.1:54798  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-clock-20076-write-offset/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-clock-20076-write-offset/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+.snapback4: 1 effect lease expired; queued again
+snapback4 serve: http://127.0.0.1:55011  (release deployment/releases/1, generation 1, tokens only)
+snapback4: 1 effect lease expired; queued again
+.
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.48s
+
+
+running 27 tests
+...........................
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+
+running 31 tests
+..............................test w8b_residency_measures_the_wired_calibration_shape has been running for over 60 seconds
+.
+test result: ok. 31 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 122.59s
+
+
+running 19 tests
+...................
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.67s
+
+
+running 14 tests
+.snapback4 dev: http://127.0.0..snapback4 dev: http://127.0.0.1:57311  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-replay-39325-competing-port/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-replay-39325-competing-port/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: replay on — new effects suppressed; schedules held
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:57312  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-replay-39325-effects/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-replay-39325-effects/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:57320  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-replay-39325-competing-port/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-replay-39325-competing-port/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:57321  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-replay-39325-effects/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-replay-39325-effects/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+.snapback4 dev: http://127snapback4 dev: http://127.0.0.1:57325  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-replay-39325-competing-store/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-replay-39325-competing-store/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: replay on — new effects suppressed; schedules held
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+.0.0.1:57326  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-replay-39325-schedules/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-replay-39325-schedules/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:57328  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-replay-39325-competing-store/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-replay-39325-competing-store/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+..snapback4 dev: http://127.0.0.1:57331  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-replay-39325-release-policy/snapback/generated/api.ts)
+...snapback4 dev: http://127.0.0.1:57340  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-replay-39325-suppress-replay/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-replay-39325-suppress-replay/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: replay on — new effects suppressed; schedules held
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:57341  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-replay-39325-control-replay/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-replay-39325-control-replay/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:57482  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-replay-39325-suppress-replay/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-replay-39325-suppress-replay/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: replay on — new effects suppressed; schedules held
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:57487  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-replay-39325-suppress-normal/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-replay-39325-suppress-normal/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: replay on — new effects suppressed; schedules held
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:57488  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-replay-39325-control-normal/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-replay-39325-control-normal/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:57630  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-replay-39325-suppress-normal/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-replay-39325-suppress-normal/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+.snapback4 serve: http://127.0.0.1:57635  (release /private/tmp/snapback4-d2-r2/sb4-replay-39325-serve-policy/deployment/releases/1, generation 1, tokens only)
+...snapback4 dev: http://127.0.0.1:57645  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-replay-39325-w7c-tokens/snapback/generated/api.ts.snapback4 dev: http://127.0.0.1:57652  (schema: snapback/, types: /private/tmp/snapback4-d2-r2/sb4-replay-39325-schedules/snapback/generated/api.ts)
+store: /private/tmp/snapback4-d2-r2/sb4-replay-39325-schedules/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+.
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.49s
+
+
+running 20 tests
+....................
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 27.03s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+
+running 64 tests
+................................................................
+test result: ok. 64 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.49s
+
+
+running 9 tests
+.........
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.56s
+
+
+running 8 tests
+........
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+
+
+running 18 tests
+..................
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.53s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.41s
+
+
+running 8 tests
+........
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.78s
+
+
+running 1 test
+.
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.10s
+
+
+running 14 tests
+..............
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+
+running 4 tests
+....
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 10 tests
+i.........
+test result: ok. 9 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+
+running 6 tests
+......
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.76s
+
+
+running 6 tests
+......
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+
+
+running 188 tests
+................test following::calibration::w8b_wired_calibration_acquisition_on_server_and_both_stores has been running for over 60 seconds
+test following::following_scale_pages_match_on_both_device_stores has been running for over 60 seconds
+.............test following::removal::following_removal_reaches_every_reader_before_purge_on_both_stores has been running for over 60 seconds
+.......................................................... 87/188
+..................................test search_global::w7d_every_chat_word_search_measures_full_and_horizon_holdings_on_both_stores has been running for over 60 seconds
+..................................................... 174/188
+..............
+test result: ok. 188 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 565.09s
+
+
+running 90 tests
+....................................................................................... 87/90
+..test page_loss::generated_row_coverage_sqlite has been running for over 60 seconds
+.
+test result: ok. 90 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 97.57s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 7 tests
+.......
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+
+
+running 8 tests
+........
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.16s
+
+
+running 18 tests
+..................
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.51s
+
+
+running 7 tests
+.......
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.34s
+
+
+running 10 tests
+..........
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+
+running 10 tests
+..........
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 4 tests
+....
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 20 tests
+....................
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+
+running 7 tests
+.......
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+
+running 38 tests
+......................................
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.67s
+
+
+running 50 tests
+..................................................
+test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.07s
+
+
+running 3 tests
+..test baseline_golden_and_ownership_switch_agree_byte_for_byte has been running for over 60 seconds
+.
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 252.49s
+
+
+running 8 tests
+........
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+running 9 tests
+.........
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+
+running 9 tests
+.........
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.63s
+
+
+running 39 tests
+.......................................
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 26.13s
+
+
+running 9 tests
+.........
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.20s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 8 tests
+........
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+
+
+running 19 tests
+...................
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 17 tests
+.................
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 73.38s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+
+running 93 tests
+..............................i.test a_feed_read_costs_the_same_at_five_and_five_hundred_follows has been running for over 60 seconds
+test following::following_is_full_and_complete_at_the_envelope has been running for over 60 seconds
+.test following::following_removes_source_events_at_the_envelope has been running for over 60 seconds
+...................................................... 87/93
+.....test search_global::w7d_server_search_walks_every_membership_and_measures_the_wide_alternative has been running for over 60 seconds
+.
+test result: ok. 92 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 481.02s
+
+
+running 2 tests
+..
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.98s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+
+running 43 tests
+...........................................
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.02s
+
+
+running 6 tests
+......
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.37s
+
+
+running 2 tests
+ii
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 15 tests
+..............test hidden_filter_work_delete_has_one_observation_per_target_outcome has been running for over 60 seconds
+.
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 118.51s
+
+
+running 3 tests
+...
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.50s
+
+
+running 5 tests
+.....
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.99s
+
+
+running 12 tests
+.........i..
+test result: ok. 11 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 12.32s
+
+
+running 14 tests
+..............
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.13s
+
+
+running 17 tests
+.................
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+
+running 32 tests
+................................
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+
+
+running 11 tests
+...........
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+
+running 11 tests
+...........
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+
+
+running 10 tests
+..........
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+
+running 35 tests
+...................................
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.69s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+-- ok: cargo test (2057 s)
+== chat app typecheck
+$ tsc -p tsconfig.json --noEmit
+-- ok: chat app typecheck (1 s)
+== expo app typecheck
+$ tsc -p tsconfig.json --noEmit
+-- ok: expo app typecheck (1 s)
+== fixture wrapper tests
+✔ all combined, starter, checkpoint, spot and artifact manifest facts match (1175.00725ms)
+✔ scale hub facts come from the manifest, with the starter contribution removed (4746.949667ms)
+✔ two full CLI builds are byte-identical, and every output reference resolves (10475.835375ms)
+✔ sample-50 round trip preserves all verb intents, media, quotes, ids and timestamps (41.0595ms)
+✔ --scale 2 keeps registration order and drops actors and cascading dependencies (2306.3825ms)
+✔ grammar decodes JSON escapes and enforces schema variants and constraints (0.816416ms)
+✔ set-state retries, DM pair reuse and filtered quote chains retain their meaning (0.689875ms)
+✔ stats CLI verifies manifests and reports the selected dataset (5101.224041ms)
+✔ mismatches name the field and both values, and CLI failures exit 1 (153.053333ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 24138.376167
+-- ok: fixture wrapper tests (24 s)
+== client tests
+✔ W5R1x: terminal history is bounded independently of unresolved writes (3.284625ms)
+ℹ terminal=256 unresolved=300 memory=556 evicted=344
+✔ W5R1x wasm: durable receipts evict beyond 256 without growing metadata (10865.99725ms)
+ℹ writes=270 terminal=256 evicted=14 receipt_rows=1 receipt_bytes=19629 unresolved=1
+✔ W5R1x wasm: opener returns an offline unacquired client on network loss (1040.703583ms)
+✔ W5R1x wasm: replacement stays unacquired until the new catch-up completes (1048.741208ms)
+✔ W5R1x wasm: a restore halt keeps acquisition false across retries and reopen (2136.793083ms)
+✔ W5R1x process: durable receipts evict beyond 256 without growing metadata (8351.243208ms)
+ℹ writes=270 terminal=256 evicted=14 receipt_rows=1 receipt_bytes=19629 unresolved=1
+✔ W5R1x process: opener returns an offline unacquired client on network loss (1064.967ms)
+✔ W5R1x process: replacement stays unacquired until the new catch-up completes (1203.535208ms)
+✔ W5R1x process: a restore halt keeps acquisition false across retries and reopen (1112.08725ms)
+✔ wasm: schema alone is not acquisition; queued guarded writes survive offline reopen (2040.0695ms)
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ before acquisition write: {"state":"pending","id":"01M2R0J98EQZ3YQNHD1GJ9N86S","reason":"queued without a row: not acquired yet"}; durable queue: [{"args":{"body":"queued before acquisition"},"id":"01M2R0J98EQZ3YQNHD1GJ9N86S","new_ids":["01M2R0J98EQZ3YQNHD1GJ9N86T","01M2R0J98EQZ3YQNHD1GJ9N86V","01M2R0J98EQZ3YQNHD1GJ9N86W","01M2R0J98EQZ3YQNHD1GJ9N86X","01M2R0J98EQZ3YQNHD1GJ9N86Y","01M2R0J98EQZ3YQNHD1GJ9N86Z","01M2R0J98EQZ3YQNHD1GJ9N870","01M2R0J98EQZ3YQNHD1GJ9N871"],"now":1789659784462,"observed_seq":null,"op":"add","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:alice"}]
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+✔ wasm: snapshot and catch-up publish readiness together; later failures preserve acquired rows (4121.852917ms)
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+✔ wasm: a genuinely empty partition at sequence zero is acquired durably (1062.511292ms)
+✔ process: schema alone is not acquisition; queued guarded writes survive offline reopen (2108.71175ms)
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ before acquisition write: {"state":"pending","id":"01M2R0JGBGX3KMCR9H0RRRN45E","reason":"queued without a row: not acquired yet"}; durable queue: [{"args":{"body":"queued before acquisition"},"id":"01M2R0JGBGX3KMCR9H0RRRN45E","new_ids":["01M2R0JGBGX3KMCR9H0RRRN45F","01M2R0JGBGX3KMCR9H0RRRN45G","01M2R0JGBGX3KMCR9H0RRRN45H","01M2R0JGBGX3KMCR9H0RRRN45J","01M2R0JGBGX3KMCR9H0RRRN45K","01M2R0JGBGX3KMCR9H0RRRN45M","01M2R0JGBGX3KMCR9H0RRRN45N","01M2R0JGBGX3KMCR9H0RRRN45P"],"now":1789659791728,"observed_seq":null,"op":"add","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:alice"}]
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+✔ process: snapshot and catch-up publish readiness together; later failures preserve acquired rows (4404.782459ms)
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+ℹ unacquired answers: {"all":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"countAll":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"one":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}},"guarded":{"denied":{"code":"E_OFFLINE","family":"link","message":"the server is unreachable","retryable":true}}}
+✔ process: a genuinely empty partition at sequence zero is acquired durably (1243.262167ms)
+✔ W5c wasm: online reopen reports acquisition and a missing-row reason, then predicts (8841.934459ms)
+ℹ acquisition changes: [true,false]; before: 0 predicted rows; after: 1 predicted row
+✔ W5c wasm: pending writes recover by id through sent and failed, including settlement before reopen returns (2045.7615ms)
+ℹ recovered outcomes: sent=1 failed=1; server sends=3
+✔ W5c process: online reopen reports acquisition and a missing-row reason, then predicts (8914.171958ms)
+ℹ acquisition changes: [true,false]; before: 0 predicted rows; after: 1 predicted row
+✔ W5c process: pending writes recover by id through sent and failed, including settlement before reopen returns (2141.020166ms)
+ℹ recovered outcomes: sent=1 failed=1; server sends=3
+✔ W5R2a: two native owners recover 600 completions without stale pending memory (10176.226541ms)
+ℹ observed=600 durable=256 cached_pending=0 memory=0 outbox=0
+✔ W5R2a wasm: a sent queued id emits once beyond 256 other emissions (1199.453667ms)
+ℹ other_emissions=256 first_id_emissions=1 queued=2
+✔ W5R2a process: a sent queued id emits once beyond 256 other emissions (1276.986209ms)
+ℹ other_emissions=256 first_id_emissions=1 queued=2
+✔ W5 confirmation N3: another owner's durable receipt still notifies this client once (1137.788291ms)
+ℹ first_completion_emissions=1
+✔ W5R2a web: adopting 256 orphan receipts preserves 256 destination receipts (1522.739542ms)
+ℹ destination=256 orphan=256 surviving_destination=256 shared=256 view=511
+✔ W5R2a web: adopting 256 orphan receipts preserves 128 destination receipts (1487.050667ms)
+ℹ destination=128 orphan=256 surviving_destination=128 shared=256 view=383
+✔ online reconnect requires the authenticated GET /probe contract (4239.041833ms)
+✔ online pending writes emit their terminal outcome exactly once (557.158958ms)
+✔ online auth refusal settles writes that were queued behind the refused request (1.106917ms)
+✔ local pending writes emit their terminal outcome exactly once (66.533958ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ local reconnect requires the authenticated GET /probe contract (4037.44025ms)
+✔ local startup releases a device when initialization after the protocol probe fails (0.641459ms)
+✔ local sync shrinks response-bound pages at one cursor and exposes an indivisible refusal (2.869833ms)
+✔ local observations skip idle sync and rerun only after a changed page is applied (37.126667ms)
+✔ local generation adoption reruns observations whose dependencies changed (24.972334ms)
+✔ closing a pending watch prevents its response from scheduling expiry or rerunning dirty work (37.274709ms)
+✔ local auth invalidation notifies viewer listeners before session deletion can fail (2.698375ms)
+✔ local observations rerun when the device-reported visible lifetime expires (204.974458ms)
+✔ a refused device adopt keeps the previous backend active in JavaScript (1.025ms)
+✔ a failed native replacement falls back without a stale local answer and is retried (2.3825ms)
+✔ local prediction invalidation reruns only observations of written tables (12.607917ms)
+✔ online watches retain their changes watermark; bare tokens clear on refusal (111.815875ms)
+✔ wasm: pending metadata survives repeated profile/vote updates and offline replay (2943.012667ms)
+✔ wasm: no-op and nosync writes retire when the partition stream is empty (80.772ms)
+✔ wasm: a write already sending when a snapshot starts is correlated after catch-up (250.274083ms)
+✔ wasm: a sync started before admission finishes before that write can be sent (73.181625ms)
+✔ wasm: sync before a delayed write reply does not apply an increment twice (108.303167ms)
+✔ wasm: sync before a lost write reply does not apply an increment twice (113.000625ms)
+✔ wasm: background sync timestamps survive reconnect and unwraps beyond the horizon use the server (2453.725291ms)
+✔ wasm: population growth cannot mint new IDs during prediction replay (199.091958ms)
+✔ wasm: retry without observers, online-only routing and denied-watch recovery (450.997125ms)
+✔ wasm: a rejected guardedEdit restores confirmed and maintained rows under a later prediction (130.756ms)
+✔ wasm: a rejected guardedDelete restores confirmed and maintained rows under a later prediction (108.686166ms)
+✔ native: pending metadata survives repeated profile/vote updates and offline replay (2328.700917ms)
+✔ native: no-op and nosync writes retire when the partition stream is empty (107.560375ms)
+✔ native: a write already sending when a snapshot starts is correlated after catch-up (143.901084ms)
+✔ native: another client sending after sync capture cannot publish an uncorrelated page (1130.887667ms)
+✔ native: a sync started before admission finishes before that write can be sent (86.922875ms)
+✔ native: sync before a delayed write reply does not apply an increment twice (141.003584ms)
+✔ native: sync before a lost write reply does not apply an increment twice (151.623875ms)
+✔ native: background sync timestamps survive reconnect and unwraps beyond the horizon use the server (1304.335958ms)
+✔ native: population growth cannot mint new IDs during prediction replay (206.36775ms)
+✔ native: retry without observers, online-only routing and denied-watch recovery (740.29425ms)
+✔ native: a rejected guardedEdit restores confirmed and maintained rows under a later prediction (291.894916ms)
+✔ native: a rejected guardedDelete restores confirmed and maintained rows under a later prediction (128.325ms)
+✔ close aborts online posts and stops admission (32.798916ms)
+✔ device process failures reject opening and pending calls instead of leaving close waiting (59.705583ms)
+✔ device compatibility rejects old and malformed protocols before online or offline startup (49.464417ms)
+✔ device compatibility closes the core and preserves operational startup errors (0.713959ms)
+✔ device compatibility accepts the current core online and on an offline reopen (103.965ms)
+✔ online serialization failures retain the minted id without scheduling network retries (0.419291ms)
+✔ wasm: close waits for an applying acknowledgment and aborts sync (96.325167ms)
+✔ native: close waits for an applying acknowledgment and aborts sync (158.934042ms)
+✔ W7c dev exposes meters by default and explicitly for a real account (1813.495167ms)
+ℹ meter={"cut":null,"examined":1,"heapBytes":1124,"indexEntries":0,"outputBytes":195,"probes":0,"rowsWritten":0,"steps":5}
+✔ W7c serve ignores meters by default and explicitly for a real account (1771.97ms)
+✔ W6d online: caller id retries share pending writes and retained receipts (313.920167ms)
+ℹ tier=online posts=1 applied=1 terminal_events=1
+✔ W6d online: malformed caller ids fail locally (65.518583ms)
+✔ W6d online: input key order is immaterial and an evicted receipt never readmits on the same client (2210.392208ms)
+ℹ tier=online retained_receipts=256 known_id_readmissions=0 server_recovery_posts=1
+✔ W6d online: two client POSTs with the caller id apply once after a lost reply (404.948958ms)
+ℹ tier=online retry_posts=2 applied=1 historical_results=0
+✔ W6d web: caller id retries share pending writes and retained receipts (877.998583ms)
+ℹ tier=web posts=1 applied=1 terminal_events=1
+✔ W6d web: malformed caller ids fail locally (175.948333ms)
+✔ W6d web: input key order is immaterial and an evicted receipt never readmits on the same client (4374.069542ms)
+ℹ tier=web retained_receipts=256 known_id_readmissions=0 server_recovery_posts=1
+✔ W6d web: two client POSTs with the caller id apply once after a lost reply (201.613167ms)
+ℹ tier=web retry_posts=2 applied=1 historical_results=0
+✔ W6d web: reopen deduplicates the queued caller id before prediction (1073.492334ms)
+ℹ tier=web reopened_queued=1 predictions=1 posts=1 applied=1
+✔ W6d native: caller id retries share pending writes and retained receipts (1092.471875ms)
+ℹ tier=native posts=1 applied=1 terminal_events=1
+✔ W6d native: malformed caller ids fail locally (280.024791ms)
+✔ W6d native: input key order is immaterial and an evicted receipt never readmits on the same client (5059.756041ms)
+ℹ tier=native retained_receipts=256 known_id_readmissions=0 server_recovery_posts=1
+✔ W6d native: two client POSTs with the caller id apply once after a lost reply (139.815708ms)
+ℹ tier=native retry_posts=2 applied=1 historical_results=0
+✔ W6d native: reopen deduplicates the queued caller id before prediction (1092.906875ms)
+ℹ tier=native reopened_queued=1 predictions=1 posts=1 applied=1
+✔ W6b password character minimum and byte maximum through HTTP (3932.018208ms)
+ℹ HTTP: 7 characters refused at 7/14/28 bytes; 8 accepted at 8/16/32 bytes; 2 characters / 8 bytes refused; 512 characters / 1024 bytes accepted; 1025 bytes refused
+✔ W6b password character minimum and byte maximum through client (3096.525584ms)
+ℹ client: 7 characters refused at 7/14/28 bytes; 8 accepted at 8/16/32 bytes; 2 characters / 8 bytes refused; 512 characters / 1024 bytes accepted; 1025 bytes refused
+✔ W6b identity forms advertise and enforce the guest choice (935.148416ms)
+✔ sent results reach online, process-device and queued-write callers (1104.422875ms)
+✔ online: immediate lost first acknowledgement preserves the same-id replay receipt (343.130791ms)
+ℹ wire={"id":"01M2R0JCBTAF26QJR8VCR44QYW","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2R0JCBTAF26QJR8VCR44QYW","seq":3,"replayed":true}; result key=false
+✔ online: queued lost first acknowledgement preserves the same-id replay receipt (849.522708ms)
+ℹ wire={"id":"01M2R0JCPD2XZH7MSN0WDXQWDP","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2R0JCPD2XZH7MSN0WDXQWDP","seq":3,"replayed":true}; result key=false
+✔ process-device: immediate lost first acknowledgement preserves the same-id replay receipt (212.408292ms)
+ℹ wire={"id":"01M2R0JDKWW6GDX8W203A0WE7S","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2R0JDKWW6GDX8W203A0WE7S","seq":3,"replayed":true}; result key=false
+✔ process-device: queued lost first acknowledgement preserves the same-id replay receipt (1114.458542ms)
+ℹ wire={"id":"01M2R0JDS4MK04HN9HH5NFYQD2","replayed":true,"seq":3,"state":"sent"}; client={"state":"sent","id":"01M2R0JDS4MK04HN9HH5NFYQD2","seq":3,"replayed":true}; result key=false
+✔ write types require replay narrowing through mutate, onWrite and useMutation (775.245958ms)
+✔ ordinary media survives a process-device offline reopen; once never persists; home changes purge bytes (2353.359834ms)
+ℹ media: 68 B/image; maxBytes 136; 2 retained then 0 with keep:none; once bytes 0; deleted home bytes 0
+✔ dev loopback admits 200 sign-ins without minute limits; serve retains peer and email limits (1894.748875ms)
+ℹ identity: 200 guest sign-ins + 200 same-email attempts; dev E_RATE_LIMIT=0; serve peer 31 and email 11 refused; 1834 ms
+✔ id-only video predicts after offline reopen and its ordinary bytes are retained (2182.79375ms)
+ℹ video: 60 B retained; duration 1000 ms; id-only pending prediction agrees with sent.result after reopen
+✔ W7r1 hidden versus absent non-uniform reads under dev (194.379709ms)
+ℹ absent={"cut":null,"examined":0,"heapBytes":0,"indexEntries":0,"outputBytes":12,"probes":0,"rowsWritten":0,"steps":2} hidden={"cut":null,"examined":1,"heapBytes":0,"indexEntries":0,"outputBytes":12,"probes":0,"rowsWritten":0,"steps":2}
+✔ W7r1 hidden versus absent non-uniform reads under serve (289.495125ms)
+✔ W8R1a dev withholds hidden population cuts (1843.469333ms)
+ℹ hidden words=32,33 hidden rows=8193 identical full-response pairs=3
+✔ W8R1a serve withholds hidden population cuts (1801.50025ms)
+ℹ hidden words=32,33 hidden rows=8193 identical full-response pairs=3
+✔ W8R1a online remembered server cuts survive disconnection (941.214791ms)
+✔ W8R1a native remembered server cuts survive disconnection (1067.877166ms)
+✔ W8R1a web remembered server cuts survive disconnection (1041.728584ms)
+✔ W8a online read exposes meter, words and null cuts (1067.789042ms)
+✔ W8a native read exposes meter, words and null cuts (2239.308375ms)
+✔ W8a web read exposes meter, words and null cuts (1507.504375ms)
+✔ W8a dev refuses held queries with a rewrite (59.170166ms)
+✔ W8a serve refuses held queries with a rewrite (96.469458ms)
+✔ W8a native held horizon stays local online, including observe (119.819041ms)
+✔ W8a web held horizon stays local online, including observe (86.520208ms)
+▶ HTTP admission, encoding, slow readers and idle changes polls
+  ✔ the liveness probe requires credentials and has an explicit success body (352.140209ms)
+  ✔ catalog, generated API, native module, and change activity refuse anonymous callers (11.901083ms)
+  ✔ declared/chunked oversize, truncation and invalid UTF-8 do not execute a write (200.06475ms)
+  ✔ seed and upload retain their separate larger request ceilings (844.261458ms)
+  ✔ one-view assets finalize only after a complete non-range response (90.421875ms)
+  ✔ eight idle polls leave health/schema/query work free and commits wake subscribers (140.215792ms)
+  ✔ oversized sync JSON is refused and a smaller page remains valid (7811.758958ms)
+  ✔ Wasm and process clients acquire wide snapshots by shrinking the same cursor (20493.47875ms)
+  ✔ a paused large response releases the engine before network progress (585.608333ms)
+✔ HTTP admission, encoding, slow readers and idle changes polls (30583.433917ms)
+✔ managed-policy CLI operation inventory excludes actions and jobs (0.482167ms)
+✔ managed-policy CLI envelopes are kind-specific and fail closed (1.060375ms)
+✔ managed-policy scratch parent rejects Git directory and linked-worktree ancestors (6.856916ms)
+﹣ managed organization and invitation policy runs in the shared interpreter (0.06325ms) # set SNAPBACK4_B1D_MANAGED_BIN, SNAPBACK4_B1D_MANAGED_BIN_SHA256, SNAPBACK4_B1D_MANAGED_SCRATCH_PARENT to the pinned parent binary and a private scratch parent
+﹣ managed OIDC profile binding orders and expires trusted email evidence (0.323792ms) # set SNAPBACK4_IDENTITY_PROFILE_SCRATCH_PARENT to an existing private directory
+✔ OIDC helper runs a signed Authorization Code + S256 flow and persists no provider tokens (1212.667209ms)
+✔ callback, browser, authority, expiry and replay bindings fail closed before repeated effects (1586.3745ms)
+✔ openid-client rejects hostile ID tokens and an expired authorization code (1261.582417ms)
+✔ unknown signing-key rotation refreshes JWKS without weakening signature checks (353.519125ms)
+✔ persisted verification replays through provider outage without repeating exchange (567.696375ms)
+✔ protocol double: pre-token discovery failures reconcile with one total code POST (480.760666ms)
+✔ protocol double: v2 marker and discovery acknowledgements recover only from durable completed phases (277.543334ms)
+✔ protocol double: legacy completed exchanges replay, while unfinished exchanges without a valid marker park (962.36975ms)
+✔ protocol double: JWKS outage after code consumption parks without a second POST or mint (897.979042ms)
+✔ protocol double: unpublished unbound mint receipts refuse by input digest before initial or recovery mint (515.040208ms)
+✔ bound mint recovers losses before commit, after commit, and after completed metadata without extending expiry (583.047167ms)
+✔ a lost recovery reply is recovered only by the next explicit claim attempt (755.344042ms)
+✔ bound mint propagates terminal authority and binding refusals without an unbound or new-family fallback (657.843917ms)
+✔ a consumed code with a dropped token reply parks and is never posted twice (408.846541ms)
+✔ consumed-code uncertain OAuth and malformed responses park without a second token POST (674.698667ms)
+✔ unknown callback state is public refusal while malformed recipe data retains its internal diagnosis (550.843416ms)
+✔ invocation lifetime releases provider and private-core fetch and body stalls without late identity effects (2257.222042ms)
+✔ configuration refuses non-HTTPS production and non-literal-loopback development (0.458625ms)
+✔ Following recipe usage compiles against its generated API in fresh and Expo projects (10004.3975ms)
+✔ Search recipe helper compiles and walks two cursors without advancing a cut (1994.9705ms)
+✔ two devices converge through the partition stream (6925.59725ms)
+✔ queued writes flush in the order they were submitted (5078.339708ms)
+✔ a device restores its session on its own (202.981584ms)
+✔ an upload is placed once and served by the home row's read rule (246.097084ms)
+✔ reverification owns a fresh copy and does not touch sibling or live stores (46.085416ms)
+✔ ceremony counts final loop attributions, docs aliases and retractions once (0.44ms)
+✔ ceremony measures declared tables and maintains separately, exposing heuristic disagreements (9.080041ms)
+✔ ceremony unwraps native pages while refusing incomplete plausible answers (40.566833ms)
+✔ ceremony process execution succeeds and a stuck owned process times out (382.835375ms)
+✔ wasm: calendar endpoints, full aggregate pages past a source horizon, and rank (1598.216666ms)
+✔ process: calendar endpoints, full aggregate pages past a source horizon, and rank (455.496583ms)
+✔ launch arguments accept a binary, sample count and optional load (1.634ms)
+✔ launch CLI help and argument refusals do not sign (356.661458ms)
+✔ launch JSON reports per-variant percentiles over fresh files, with copy and signing outside the timer (8.452167ms)
+✔ a failed launch stops load workers, removes copies and refuses partial numbers (4.185292ms)
+✔ the optional CPU load worker starts and exits without signing in the test (141.028ms)
+✔ the native module follows the server, predicts, queues, and starts cold offline (5907.984083ms)
+✔ W6d: caller id reservations preserve synchronous journal custody without duplicate prediction (2421.734542ms)
+ℹ caller_id_journal_records=1 durable_entries=1 applied=1
+journal dedupe: retired=false; admissions=1; applications=1; sends=1; duplicates=0
+✔ pre-admission journal: committed admission dedupes a surviving journal (queued) (1150.270458ms)
+journal dedupe: retired=true; admissions=1; applications=1; sends=1; duplicates=0
+✔ pre-admission journal: committed admission dedupes a surviving journal (retired receipt) (317.476041ms)
+✔ pre-admission journal: prediction refusal is removed and a valid successor applies (250.547166ms)
+✔ pre-admission journal: validation refusal is removed and a valid successor applies (191.994ms)
+✔ pre-admission journal: a known refusal survives an IDB outage (107.216125ms)
+✔ pre-admission journal: persisted identity mismatch never sends a recovered write (277.719667ms)
+✔ pre-admission journal: server identity mismatch never sends a recovered write (213.594791ms)
+✔ pre-admission journal: offline then server identity mismatch never sends a recovered write (337.155084ms)
+✔ pre-admission journal: quota falls back to ordinary admission without throwing (163.137417ms)
+✔ pre-admission journal: accessor falls back to ordinary admission without throwing (124.751333ms)
+✔ pre-admission journal: disabled falls back to ordinary admission without throwing (138.073375ms)
+✔ pre-admission journal: arguments are captured before the caller changes them (142.269875ms)
+journal bounds: record bytes; captured=1; writes=2; bytes=56783; largestRecord=56637
+✔ pre-admission journal: record bytes bounds capture and ordinary admission still works (283.969416ms)
+journal bounds: journal bytes; captured=4; writes=5; bytes=227132; largestRecord=56637
+✔ pre-admission journal: journal bytes bounds capture and ordinary admission still works (473.580083ms)
+journal bounds: record count; captured=32; writes=33; bytes=25079; largestRecord=638
+✔ pre-admission journal: record count bounds capture and ordinary admission still works (1460.709333ms)
+✔ pre-admission journal: the next device adopts a closed tab's writes in order (266.854958ms)
+✔ pre-admission journal: a live tab's journal is never adopted (258.931541ms)
+✔ pre-admission journal: a failed save recovers the predecessor before a surviving page's next admission (105.1455ms)
+pre-admission journal: count=1; timing=same turn; applications=1; order=1; duplicates=0; replayMs=34; journalBytes=634
+✔ pre-admission journal: 1 unawaited writes survive same turn teardown (221.591375ms)
+pre-admission journal: count=1; timing=held save; applications=1; order=1; duplicates=0; replayMs=27; journalBytes=634
+✔ pre-admission journal: 1 unawaited writes survive held save teardown (182.352958ms)
+pre-admission journal: count=2; timing=same turn; applications=2; order=12; duplicates=0; replayMs=94; journalBytes=1268
+✔ pre-admission journal: 2 unawaited writes survive same turn teardown (337.351042ms)
+pre-admission journal: count=2; timing=held save; applications=2; order=12; duplicates=0; replayMs=35; journalBytes=1268
+✔ pre-admission journal: 2 unawaited writes survive held save teardown (167.811875ms)
+navigation model: writes=1; appliedBeforeAbort=false; exitRequests=1; beforeReopen=1; afterReopen=1; duplicates=0; replayMs=21
+✔ navigation model: 1 unawaited writes, ordinary aborted before delivery (114.837667ms)
+navigation model: writes=2; appliedBeforeAbort=false; exitRequests=1; beforeReopen=1; afterReopen=2; duplicates=0; replayMs=37
+✔ navigation model: 2 unawaited writes, ordinary aborted before delivery (178.532708ms)
+navigation model: writes=1; appliedBeforeAbort=true; exitRequests=1; beforeReopen=1; afterReopen=1; duplicates=0; replayMs=36
+✔ navigation model: 1 unawaited writes, ordinary applied with lost reply (147.335584ms)
+navigation model: writes=2; appliedBeforeAbort=true; exitRequests=1; beforeReopen=1; afterReopen=2; duplicates=0; replayMs=31
+✔ navigation model: 2 unawaited writes, ordinary applied with lost reply (132.739208ms)
+navigation model late commit: exitRequests=1; rows=1; state=pending
+✔ navigation model: admission finishing after pagehide sends only after its commit (4090.156542ms)
+navigation model slow sync: beforeFirstSync=1; sends=1
+✔ navigation model: reopen before slow first sync (same store) (1188.762209ms)
+✔ navigation model: reopen before slow first sync (different store) (1128.358166ms)
+✔ navigation model: reopen before slow first sync (missing store) (1118.681709ms)
+✔ navigation model: reopen before slow first sync (restored store) (1086.478083ms)
+W4R1 A: submissions=1,2,3; applications=3; order=123; duplicates=0
+✔ W4R1 A: deferred recovery allocates before an offline successor, then applies ABC (136.5175ms)
+✔ W4R1 B1: a matching orphan installs the destination backend before recovery (175.821916ms)
+✔ W4R1 B2: empty orphan cannot fail open or hide a healthy orphan (184.919292ms)
+✔ W4R1 B2: missing identity orphan cannot fail open or hide a healthy orphan (203.970833ms)
+✔ W4R1 B2: broken backend orphan cannot fail open or hide a healthy orphan (212.173542ms)
+W4R1 C: cancellation=localStorage; refusal={"code":"LOCKED","family":"rule","guide":"programs","message":"the program refused with LOCKED","rule":"LOCKED","site":"media.q:30:3"}
+✔ W4R1 C: known refusal with failed removal and localStorage cancellation (162.783917ms)
+W4R1 C: cancellation=IDB; refusal={"code":"LOCKED","family":"rule","guide":"programs","message":"the program refused with LOCKED","rule":"LOCKED","site":"media.q:30:3"}
+✔ W4R1 C: known refusal with failed removal and IDB cancellation (131.751292ms)
+W4R1 C: cancellation=neither; refusal={"code":"LOCKED","family":"rule","guide":"programs","message":"the program refused with LOCKED","rule":"LOCKED","site":"media.q:30:3"}
+✔ W4R1 C: known refusal with failed removal and neither cancellation (144.785291ms)
+✔ W4R1 C: an orphan journal does not settle against its stale authored condition (153.173041ms)
+✔ W4R1 D: single-context persistence supplies exclusive ownership without Web Locks (110.5495ms)
+✔ durable IndexedDB and custom persistence cannot silently open without ownership (0.4455ms)
+✔ custom persistence rejects arbitrary alternate before opening (0.398333ms)
+✔ custom persistence rejects unrecoverable alternate before opening (0.2085ms)
+✔ custom persistence rejects an inexact orphan claim before opening (84.352833ms)
+✔ W4R1 E: one malformed journal key does not hide a real closed tab journal (153.032709ms)
+W4R1 queued + orphan: applications=3; order=123; sends=3; duplicates=0
+✔ W4R1 missing: queued primary precedes two orphan journals with one application each (1118.654333ms)
+✔ W4R1 missing: before the first store identity mutation stays best-effort without throwing (181.381083ms)
+✔ W5c a reloaded secondary tab recovers its terminal receipt by id (132.423959ms)
+✔ W11R1a: A adopts B before C opens (sent) (330.05775ms)
+ℹ forced_adoption_before_reopen=1 recovered_sent=1 applications=1
+✔ W11R1a: A adopts B before C opens (failed) (188.373458ms)
+ℹ forced_adoption_before_reopen=1 recovered_failed=1 applications=0
+✔ W11R1a: lock release after foreground retries recovers without a backend write (235.466958ms)
+ℹ foreground_lock_misses=4 post_release_backend_writes=0 applications=1
+✔ W11R1a: background outbox adoption keeps one sender and never takes a live owner (5163.300583ms)
+ℹ live_owner_adoptions=0 adopted_outbox_owners=1 posts=1 applications=1
+✔ W11R1a: shared persistence failure leaves the source recoverable (1199.876667ms)
+✔ W11R1a: the shared window is bounded, immutable and does not refresh on reads (212.231833ms)
+ℹ shared_receipts=256 inserted_receipts=257 shared_records=1 evicted=1
+✔ W11R1a: competing adopters serialize shared receipts without holding up an opener (254.964541ms)
+ℹ competing_adopters=2 shared_receipts=2 applications=2
+✔ W6R1 web: two live tabs admit the same new caller ID and apply once (1127.760084ms)
+ℹ live_web_tabs=2 journal_records=2 posts=2 applications=1
+✔ W6R1 journal: caller ID stays fenced across replacement (offline reopen=false) (133.958ms)
+ℹ caller_id_replacement_posts=0 remaining_journal=0 offline_reopen=false
+✔ W6R1 journal: caller ID stays fenced across replacement (offline reopen=true) (1128.509ms)
+ℹ caller_id_replacement_posts=0 remaining_journal=0 offline_reopen=true
+✔ W6R1 journal: an evicted guarded caller ID survives failed admission persistence and reopen (3236.293166ms)
+ℹ evicting_writes=256 recovered_replay_candidates=1 replay_posts=1 duplicate_rows=0
+✔ README client card members are functions on both tiers, except device-only sync (169.196875ms)
+ℹ 16 README members; 1 device-only; 0 missing implementations
+✔ online session: rotation adopts the bearer before notification; revocation closes (1.621ms)
+✔ online token: rotation adopts the bearer before notification; revocation closes (0.607375ms)
+✔ online session: signOut clears the session and notifies once (0.368083ms)
+✔ online session: current refusal clears the session; an obsolete refusal retries the same write id (1.749ms)
+✔ online session: near-expiry rotates before a protected read; concurrent refreshes coalesce (0.374875ms)
+✔ online session: a refresh cannot change principal or resurrect a closed client (0.533458ms)
+✔ online assets revoke late credential-bound URLs across rotation, sign-out and close (184.82075ms)
+✔ mintId keeps burst and rollback ids monotonic without advancing their timestamp (194.219ms)
+✔ mintId refuses entropy-field exhaustion without poisoning a later millisecond (1.433542ms)
+✔ mintId does not publish timestamp state when secure entropy throws (0.8975ms)
+✔ dev: piped token stdout is one usable bearer, and server stdout carries its URL and optional dev token (1101.642042ms)
+ℹ token dev default: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev --days 1: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev --days=2 --service=worker: stdout 44 B; redeemed session queried as member:captured
+ℹ token dev --json: stdout 44 B; redeemed session queried as member:captured
+✔ serve: piped token stdout is one usable bearer, and server stdout carries its URL and optional dev token (231.372834ms)
+ℹ token serve default: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve --days 1: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve --days=2 --service=worker: stdout 44 B; redeemed session queried as member:captured
+ℹ token serve --json: stdout 44 B; redeemed session queried as member:captured
+✔ types prints a capturable generated path with its status on stderr (50.024125ms)
+✔ init keeps the local default and makes a compiled online starter without sync (74.267791ms)
+✔ Expo starter copies reference pins, parses configs, and carries both client tiers (82.774459ms)
+✔ Expo generated template typechecks against the reference toolchain (3796.606375ms)
+✔ check --fix repairs ambiguity then the cursor index in one run and preserves comments (96.38925ms)
+✔ check --fix leaves unmarked rewrites and prints the diagnostic (7.968542ms)
+✔ an elif and an ambiguous key are fixed together (45.377ms)
+✔ SQL reads chat views while dev writes in WAL, refuses raw access, and bounds rows (324.736458ms)
+ℹ SQL count of 205 messages with WAL writer held: 7.85 ms
+✔ SQL attaches to a release without source and never creates a missing store (99.623083ms)
+✔ check --fix repairs every remaining guessed spelling and the repaired program runs (65.491042ms)
+✔ check --cost describes expression ranges, filtered probes, pages and seeks (21.394084ms)
+✔ processDevice requires its directory synchronously before spawning (1.663208ms)
+✔ processDevice imports without Node builtins and opens with injected host functions (42.76525ms)
+✔ CLI and Node device share environment, platform-package and repository binary resolution (382.215208ms)
+✔ processDevice defaults to Node spawn and file writing in a new directory (82.523167ms)
+✔ W5c Expo starter waits for online acquisition and opens offline without syncing (59.765833ms)
+✔ dry-run signs before packing and proves the installed signed bytes (329.030292ms)
+✔ explicit signing identity resolves an ambiguous keychain without discovery (213.230917ms)
+✔ publish refuses missing identity before packing (140.166209ms)
+✔ publish refuses ambiguous identities before packing (67.244292ms)
+✔ publish refuses keychain failure before packing (80.255667ms)
+✔ publish refuses signing failure before packing (71.865458ms)
+✔ publish refuses verification failure before packing (58.206208ms)
+✔ publish refuses signature inspection failure before packing (69.025833ms)
+✔ publish refuses non Developer ID signature before packing (63.785625ms)
+✔ Accepted notarization records the submission and precedes packing (183.449ms)
+✔ notarization refuses {"notaryStatus":"Invalid"} with the log id (103.406917ms)
+✔ notarization refuses {"notaryStatus":"In Progress"} with the log id (116.8905ms)
+✔ notarization refuses {"notaryError":true,"notaryStatus":"Invalid"} with the log id (133.875459ms)
+✔ notarization refuses malformed responses and acceptance without a submission id (343.294625ms)
+✔ a red suite still refuses before signing (56.820292ms)
+✔ the installed digest still refuses tampering after signing (163.233209ms)
+✔ replacing Cargo output after verification cannot replace packed signed bytes (249.16275ms)
+✔ the installed consumer signature must verify even with a matching digest (184.668125ms)
+✔ publication resumes the exact staged pair despite a red current source (145.504208ms)
+✔ matching registry artifacts converge without republishing (114.559416ms)
+✔ publication refuses a registry artifact whose integrity differs (149.04325ms)
+✔ publication fails closed on non-404 registry errors (229.399958ms)
+✔ resume requires the stage's recorded source-suite qualification (176.258875ms)
+✔ an existing stage requires explicit resume instead of silently publishing stale bytes (188.81375ms)
+✖ React hooks and reference-app lifetimes (1966.81875ms)
+✔ README TypeScript examples compile and call every public function (7354.820667ms)
+ℹ 20 README blocks; 40 public functions; 7348.74 ms
+✔ R1a Queries lists matching merges over scope lanes (1.249292ms)
+✔ Expo Go README session store normalizes SecureStore keys and round-trips a session (12.180708ms)
+✔ W9a expiry client form drops deadlines locally and keeps null lifetimes (2.014375ms)
+✔ W10b typing guidance hides a short-lived row before the next answer (1.344667ms)
+✔ W10R1 typing renderer replaces deadlines on a live watch and cleans up on unmount (106.304792ms)
+ℹ live typing: answers=3 initial_deadline_ms=4500 extended_deadline_ms=7500 old_deadline_repaints=0 timers_after_unmount=0
+✔ rollback then deploy keeps immutable source identities and serving only attaches (437.104875ms)
+✔ a live release refuses deploy and rollback until the server stops (337.978916ms)
+✔ required pointer and ledger failures happen before database activation (310.818792ms)
+✔ data and doctor inspect persisted state despite destructive or broken source edits (339.435458ms)
+✔ serving edited release schema or programs refuses without adopting them (177.561375ms)
+✔ legacy pointer deployments upgrade through deploy, never implicit serving (265.237041ms)
+✔ local dev and run cannot reactivate source inside a deployed release (131.041792ms)
+✔ inspection of a new project does not initialize a store (20.812459ms)
+✔ check reports generated-type write failures and data refuses malformed limits (76.195917ms)
+✔ run says when a job ignores --as and executes as the system (53.882958ms)
+✔ stopped full-release restore preserves its recovery point and stays separate from the original (1724.043167ms)
+ℹ recovery point: release 1, generation 1, sequence 1; post-backup original writes excluded; queued effects never delivered
+✔ release serving repairs dangling legacy links and refuses an unexpected regular store file (121.822667ms)
+✔ server-run watches rerun on online-only commits and retain answers offline for the client lifetime (564.670709ms)
+✔ offline cold watches refuse E_OFFLINE, persisted local reads still work, server answers never persist (228.467208ms)
+✔ connected is server-run even with no ordinary tables and preserves its answer offline (284.670625ms)
+  alice notes: 2 rows, 106 bytes
+  bob notes: 2 rows, 106 bytes
+  alice counts: 1 rows, 63 bytes
+  bob counts: 1 rows, 63 bytes
+  alice total: 3 rows, 169 bytes
+  bob total: 3 rows, 169 bytes
+  total across personas: 6 rows, 338 bytes
+  maintain counts (measurement): 1 value rows in the fixture/store — N_MAINTAIN_SYNCED
+✔ clock advance expires presence on the server and a device (346.529792ms)
+ℹ presence device: advanced_ms=36000 before=1 after=0 wall_ms=12.17
+✔ presence effects residency is additive in check, why and generated artifacts (144.838833ms)
+✔ check sidecar, why and test residency print facts, changes and measured cold rows (109.63325ms)
+✔ dev compares residency with the served generation even when check advanced its sidecar (450.395417ms)
+R5 wasm online left: rows=25, complete=false; held: rows=26, complete=true
+R5 wasm watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+✔ R5 history wasm: retained history and independent held coverage (1207.583292ms)
+R1a wasm empty search: held=1, complete=true; left=0, complete=false
+✔ R1a empty search wasm: retained history and independent held coverage (465.044583ms)
+R1a wasm mixed: device=25, server=26, watch=26
+✔ R1a mixed reads wasm: retained history and independent held coverage (245.429459ms)
+R2 wasm mixed result: online left=0 held=26; offline left=25 held=25; separate left=25
+✔ R2 mixed result wasm: retained history and independent held coverage (244.472334ms)
+R5 process online left: rows=25, complete=false; held: rows=26, complete=true
+R5 process watch: rows=25, complete=false; offline left: rows=25; revoked server: rows=0
+✔ R5 history process: retained history and independent held coverage (268.284666ms)
+R1a process empty search: held=1, complete=true; left=0, complete=false
+✔ R1a empty search process: retained history and independent held coverage (270.891375ms)
+R1a process mixed: device=25, server=26, watch=26
+✔ R1a mixed reads process: retained history and independent held coverage (339.325708ms)
+R2 process mixed result: online left=0 held=26; offline left=25 held=25; separate left=25
+✔ R2 mixed result process: retained history and independent held coverage (334.305792ms)
+✔ HMAC sees exact non-UTF8 bytes; unsigned/wrong duplicates cannot admit or collect before or after success (4819.573375ms)
+✔ verifier exceptions and non-boolean results remain unavailable without durable admission (3174.621959ms)
+✔ canonical fixture payment: signed duplicates, out-of-order revisions and durable backlog acknowledgements (8414.070417ms)
+✔ a pending 503 is followed by a same-body retry collecting the settled response once (3074.766792ms)
+✔ an explicit 5xx Response retries the same invocation without duplicating its mutation (3280.920125ms)
+✔ actual worker crashes replay a completed step or reconcile uncertain provider acceptance (3853.069209ms)
+✔ bounded invalid responses are terminal; only application GiveUp acknowledges, never infrastructure or ParkStep (1875.846334ms)
+✔ session routes isolate identical bodies by principal and admitting session family (1111.144875ms)
+✔ logout while a session route waits revokes its context before any later write or response (1167.73975ms)
+✔ disconnect after admission does not undo route work or force a new invocation (1754.477084ms)
+✔ actual non-loopback peers reach declared routes, but not dev personas or old worker/core doors (1316.473666ms)
+✔ raw body and header bounds refuse before verification or private work admission (1445.762709ms)
+✔ 32 idle actions and 129 service routes still verify and complete the last route (3444.630167ms)
+✔ checker retains the actual absent directoryExists observation during concurrent recovery (6365.6595ms)
+✔ checker retains the actual absent fileExists observation during concurrent recovery (4327.987084ms)
+✔ checker retains the actual absent readFile observation during concurrent recovery (2347.69675ms)
+✔ check validates generated handler returns, arguments and declared secrets without executing the entry (12582.454833ms)
+✔ dev watches checked imports and configs outside snapback and keeps the last good worker through failed checks (21388.638792ms)
+✔ dev discovers generated server handlers, preserves read/write receipts and scopes and redacts secrets (1547.374583ms)
+✔ scheduled generated action runs under its declared service seat (1320.117584ms)
+✔ raw HTTP settlement validates declared results terminally and never reclaims them (170.037833ms)
+✔ cancellation and admitting-session revocation abort an in-flight context before later writes (1591.867959ms)
+✔ actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes (27789.179375ms)
+✔ parked action operator disposition records known provider acceptance without resuming original work (2892.789417ms)
+✔ serve uses the same generated contract and declared environment across a supervised restart (2328.610417ms)
+✔ route registries require exact own handlers and exact service members (1.944709ms)
+✔ route-only registries accept prototype names and need no dummy actions (8.023125ms)
+✔ requests preserve non-UTF8 bytes, duplicate headers and independent copies (118.974041ms)
+✔ request wire refuses noncanonical bytes, mismatched routes and unbounded headers (0.482167ms)
+✔ route handles reuse A2 authority and return exact buffered bytes and independent cookies (16.749083ms)
+✔ route contract and secret refusals precede the application handler (2.003458ms)
+✔ plain application GiveUp is a redacted bounded bare 204; infrastructure and ParkStep never acknowledge (4.912334ms)
+✔ an explicit 5xx response retries; invalid output is terminal (25.58175ms)
+✔ Response buffering enforces byte/header/status bounds without awaiting an uncooperative cancel (4.28725ms)
+✔ Response buffering refuses consumed/locked bodies and bounds stalled reads (7.61425ms)
+✔ empty response chunks cannot starve the byte buffer or deadline (10.688416ms)
+✔ an invocation cancellation aborts Response reading before settlement (10.169ms)
+✔ verification has only scoped secrets/signal and settles exact booleans, not truthiness (11.118125ms)
+✔ verifier exceptions/missing secrets/stale contracts are unavailable, without secret/fence disclosure (3.127459ms)
+✔ lost verification settlement never repeats the callback or disposition locally (1.012084ms)
+✔ all service routes share one poll and a hard four-callback batch cap (1.033958ms)
+✔ verifier deadlines use the server clock, suppress late settlement, and retain uncooperative callback slots (41.589417ms)
+✔ action authentication loss stops the verifier callback and both loops (1.046334ms)
+✔ verifier authentication loss aborts an in-flight A2 route context (0.706584ms)
+✔ runWorker aborts before calling its auth lifecycle hook, even when the hook throws (0.213334ms)
+✔ more than 128 verifiers rotate bounded chunks past empty groups in one poll loop (34.789416ms)
+✔ generated registry rejects missing, extra and inherited actions before any claim (1.860375ms)
+✔ declared registry and durable step names are safe for Object prototype keys (44.878542ms)
+✔ generation mismatch fails before handler or secret access (0.745ms)
+✔ ordinary ServerContext exposes no private identity mint authority (0.776834ms)
+✔ query and mutation preserve card receipts and use the delegated session (1.978333ms)
+✔ writeIdFor is a deterministic 128-bit Crockford identity across attempts (1.561875ms)
+✔ step records before I/O, coalesces concurrent calls and snapshots completed results (10.144375ms)
+✔ recorded outcome survives a lost acknowledgement without repeating the provider (30.126667ms)
+✔ lost action settlement does not run the handler twice in one claim (0.757042ms)
+✔ unrecorded provider acceptance reconciles through the same key (2.56125ms)
+✔ an uncertain provider without reconciliation parks instead of rerunning (47.196166ms)
+✔ unresolved reconciliation with ParkStep durably parks (15.651959ms)
+✔ unresolved reconciliation with GiveUp durably parks (1.214ms)
+✔ changed input after restart refuses before any provider call (64.654709ms)
+✔ an uncertain begin is never retried locally, even if application catches it (0.71075ms)
+✔ strict JSON refuses coercions and cycles before step admission or provider I/O (1.934083ms)
+✔ invalid step result fails terminally and is not silently coerced (0.589333ms)
+✔ missing step acknowledgement keeps the outcome uncertain (0.477958ms)
+✔ invalid action result is terminal (undefined) (0.307834ms)
+✔ invalid action result is terminal (object) (0.293959ms)
+✔ invalid action result is terminal (object) (0.253417ms)
+✔ invalid action result is terminal (string) (4.239458ms)
+✔ secrets are a frozen declared own-map and are redacted in recorded failures (0.538291ms)
+✔ missing or empty declared secret is a typed terminal refusal (undefined) (0.591292ms)
+✔ missing or empty declared secret is a typed terminal refusal () (0.28525ms)
+✔ cancellation aborts the signal, fences late database calls and stops polling (50.203708ms)
+✔ an actual Node worker stays alive when its handler awaits only cancellation (139.534042ms)
+✔ a deadline aborts cooperatively without waiting for status polling (27.091ms)
+✔ a claim past its deadline never enters the handler (0.511125ms)
+✔ deadline uses the server clock plus monotonic elapsed time (-3600000) (29.261458ms)
+✔ deadline uses the server clock plus monotonic elapsed time (3600000) (27.017625ms)
+✔ retryable step admission remains a retryable worker failure (1.789208ms)
+✔ a pending transport outcome remains uncertain when its context later aborts (11.539958ms)
+✔ lease refusal from status aborts context authority (17.011125ms)
+✔ unreachable status aborts the context with a retryable outcome (12.133ms)
+✔ handler completion aborts a hung status fetch and closes retained contexts (51.310042ms)
+✔ handler completion releases a hung status response body (14.523583ms)
+✔ legacy workers keep optional metadata, undefined result coercion and own handler lookup (0.573666ms)
+✔ worker error callback redacts messages and drops arbitrary error properties (0.222584ms)
+✔ generated 128-action registry opens one action poll beside verifier and effect polls (4.029375ms)
+✔ generated 129-action registry opens one action poll beside verifier and effect polls (2.709667ms)
+✔ generated 513-action registry opens one action poll beside verifier and effect polls (5.098958ms)
+✔ registry action chunks rotate across own handlers and preserve per-name session durations (3.5975ms)
+✔ single registry chunk retains configured long-poll wait and an empty registry finishes without a poll (0.476083ms)
+✔ registry action execution waits for its bounded batch, including callbacks that ignore shutdown (1.549083ms)
+✔ legacy action polling stays per-name (undefined) (0.295459ms)
+✔ legacy action polling stays per-name (false) (0.098541ms)
+✔ the default session store stays in memory and browser persistence is explicit (0.957ms)
+✔ the local client rotates near expiry and keeps every protected request on the current bearer (102.556ms)
+✔ a stale-token mutation refusal remains durable and retries after rotation (23.02425ms)
+✔ an online-only watch retries a stale-token refusal after rotation (12.147167ms)
+✔ a current-token sign-out cannot reclassify a stale write refusal (16.139ms)
+✔ an authenticated change-feed refusal signs the online client out (6.722209ms)
+✔ worker, effect inspection, and service-session calls always carry the service bearer (5.100875ms)
+✔ IndexedDB model: reset termination before-commit preserves one complete transaction (1051.141125ms)
+✔ IndexedDB model: reset termination after-commit preserves one complete transaction (84.30025ms)
+✔ R2 item 1: changes with a foreign identity returns before its production wait (457.389167ms)
+ℹ foreign identity wait=25: 4 ms
+✔ R2 item 1/4: wasm reconnect at equal head never republishes A as fresh (wait=25) (5167.270834ms)
+ℹ wasm: same-store restart syncs=0
+ℹ wasm: wait=25, replacement=2141 ms, stale fresh snapshots=0, idle syncs=0
+✔ R2 item 1/4: process reconnect at equal head never republishes A as fresh (wait=20) (4411.135875ms)
+ℹ process: same-store restart syncs=0
+ℹ process: wait=20, replacement=2225 ms, stale fresh snapshots=0, idle syncs=0
+✔ R2 item 4: wasm replacement while a snapshot after request is in flight (134.04875ms)
+ℹ wasm: A staged rows=2/5, B final rows=3, old rows=0
+✔ R2 item 4: process replacement while a snapshot after request is in flight (370.505833ms)
+ℹ process: A staged rows=2/5, B final rows=3, old rows=0
+✔ R2 item 3: restoring the same store at a lower head halts reads and retries (1368.40275ms)
+ℹ restore before/after heads=3/1, read={"denied":{"code":"E_STORE_RESTORE","family":"store","guide":"sync","message":"E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox"}}
+ℹ restore: old watermark preserved=3, retry syncs=0, offline reopen refuses=true, fresh device rows=1
+✔ R3 finding 5: server idle poll after populated maintain adoption stays healthy (446.839125ms)
+ℹ maintain: acquired=4, idle notice=4
+✔ R3 finding 5: wasm idle poll after populated maintain adoption stays healthy (467.828667ms)
+ℹ wasm: acquired=4, idle notice=4, restore=none
+✔ R3 finding 5: process idle poll after populated maintain adoption stays healthy (510.936375ms)
+ℹ process: acquired=4, idle notice=4, restore=none
+✔ R4: wasm a same-identity head below acquisition halts as a restore (1088.296209ms)
+ℹ wasm: lower head=0 below acquisition → E_STORE_RESTORE
+✔ R4: process a same-identity head below acquisition halts as a restore (1076.908709ms)
+ℹ process: lower head=0 below acquisition → E_STORE_RESTORE
+✔ R3 finding 5: concurrent commits and an older receipt retry keep the actual head (1483.27225ms)
+ℹ commits=1,2; replay=1; acquired=2; idle head=2
+✔ R2 item 2: getSnapshot is cleared and notified in the reset turn (1341.066083ms)
+✔ R4: a same-identity /changes head below acquisition persists the restore halt even when writes refill the head (5.222833ms)
+✔ finding 1: failed same-generation backend adoption survives retry and offline reopen (29.542958ms)
+✔ finding 2: delayed server answer cannot escape its incarnation (121.709417ms)
+✔ finding 2: delayed horizon answer cannot escape its incarnation (74.306542ms)
+✔ finding 2: delayed watch answer cannot escape its incarnation (14.53ms)
+✔ finding 2: changes observation drops freshness while a mutation holds the network queue (23.82575ms)
+✔ finding 3: orphan import retires foreign receipts and disables unknown predictions (8.580125ms)
+✔ finding 2: a delayed device read is retried before returning (116.545875ms)
+✔ orphan provenance survives an unidentified destination and resolves on sync (3.7625ms)
+✔ same-store orphan adoption preserves receipts, order and row IDs without predictions (2.505334ms)
+✔ replacement receipts use ordinary transport without replaying known writes (1003.814833ms)
+✔ replacement receipts use exit transport without replaying known writes (1006.781709ms)
+✔ finding 2: a rerun started by replacement observation cannot publish the old partition (8.371291ms)
+✔ wasm: persisted device reacquires after two backend replacements and preserves an unsent write (2222.299417ms)
+ℹ reset observed: A={"generation":1,"native":null,"watermark":3}, B={"generation":1,"native":null,"watermark":0}, local={"ok":{"denied":{"code":"E_PREDICT","family":"prediction","message":"E_PREDICT: this generation's partition has not completed acquisition; reconnect to acquire it"},"retained":false,"unknown":true}}, queue=[{"args":{"body":"unsent"},"id":"01M2R0HNVF7XGWQJZSF4DVCNSJ","new_ids":["01M2R0HNVG07F9CRNAKFG36CGA"],"now":1789659764592,"observed_seq":null,"op":"add","predictable":false,"predicted":[],"sent_seq":null,"seq":1,"viewer":"dev:alice"}], reply={"request":{"from":3,"limit":4000,"after":null,"stream":false,"pending":["01M2R0HNVF7XGWQJZSF4DVCNSJ"],"store_id":"f43b8634f7927d976d32a8da488f5799"},"reply":{"acknowledged":{},"events":[],"generation":1,"joined":{},"more":false,"snapshot":false,"store_id":"22a3ff4c92bbdec2d6f25f687abf9138","watermark":1}}
+ℹ reacquired: B rows=2, C rows=2, pending POSTs=1, resets=2
+✔ sync store identity survives a server restart; a live client detects an equal-watermark replacement (2125.855583ms)
+ℹ server: identity length=32, restart IDs=1, replacement IDs=2, equal watermark=3
+✔ wasm: a known receipt is not replayed to the replacement; an unknown receipt keeps its write ID (1120.97375ms)
+ℹ receipts across reset: known POSTs=0, unknown POSTs=1, duplicate replay=true
+✔ wasm: a replacement reloads backend programs even when the generation number repeats (1042.9425ms)
+{"boundary":232,"oldOrdinaryLineBytes":8171,"oldMaxIdLineBytes":31835,"postLineBytes":19,"postOrdinaryBodyBytes":6794,"postBodyBytes":30458}
+{"boundary":233,"oldOrdinaryLineBytes":8206,"oldMaxIdLineBytes":31972,"postLineBytes":19,"postOrdinaryBodyBytes":6823,"postBodyBytes":30589}
+{"boundary":256,"oldOrdinaryLineBytes":9011,"oldMaxIdLineBytes":35123,"postLineBytes":19,"postOrdinaryBodyBytes":7490,"postBodyBytes":33602}
+✔ sync request-line boundaries and a deliberate body ceiling (520.251209ms)
+{"store":"wasm","pendingBoundary":232,"writesAcknowledged":232,"terminalWrites":232,"snapshotCursors":5}
+{"store":"wasm","pendingBoundary":233,"writesAcknowledged":233,"terminalWrites":233,"snapshotCursors":5}
+{"store":"wasm","pendingBoundary":256,"writesAcknowledged":273,"terminalWrites":273,"snapshotCursors":5}
+✔ wasm: maximum pending ids, cursor batches and every terminal acknowledgement (14823.415166ms)
+{"store":"native","pendingBoundary":232,"writesAcknowledged":232,"terminalWrites":232,"snapshotCursors":5}
+{"store":"native","pendingBoundary":233,"writesAcknowledged":233,"terminalWrites":233,"snapshotCursors":5}
+{"store":"native","pendingBoundary":256,"writesAcknowledged":273,"terminalWrites":273,"snapshotCursors":5}
+✔ native: maximum pending ids, cursor batches and every terminal acknowledgement (11199.556208ms)
+{"store":"wasm","offsetMs":500,"requestStartMs":26707.094458,"cutMs":27208.933917,"rejectionMs":30711.045542,"notificationMs":30711.729375,"detectionMs":3502.7954580000005}
+{"store":"native","offsetMs":500,"requestStartMs":26753.200917,"cutMs":27255.066458,"rejectionMs":30754.70325,"notificationMs":30754.973083,"detectionMs":3499.9066249999996}
+{"store":"wasm","offsetMs":5000,"requestStartMs":26701.341417,"cutMs":31701.700958,"rejectionMs":34723.564208,"notificationMs":34723.997208,"detectionMs":3022.2962499999994}
+{"store":"native","offsetMs":5000,"requestStartMs":26755.274667,"cutMs":31756.554167,"rejectionMs":34776.581625,"notificationMs":34776.885708,"detectionMs":3020.331541000003}
+{"store":"wasm","offsetMs":15000,"requestStartMs":26710.406875,"cutMs":41714.113167,"rejectionMs":44763.473667,"notificationMs":44763.809417,"detectionMs":3049.6962499999936}
+{"store":"native","offsetMs":15000,"requestStartMs":26754.273917,"cutMs":41756.010875,"rejectionMs":44800.814917,"notificationMs":44801.155208,"detectionMs":3045.1443329999965}
+✔ idle polls detect packet silence at 0.5, 5 and 15 seconds on both stores (20240.329334ms)
+✔ healthy heartbeat polls, buffered native fetch and browser connectivity hints (11069.409916ms)
+✔ a streaming poll rechecks a revoked bearer before its final JSON (1129.337625ms)
+✔ failed admission cannot appear in later reads or hitchhike on the next saved call (721.501125ms)
+✔ failed snapshot publication and backend adoption preserve acknowledged state (32.729208ms)
+✔ recovery read failures block calls until durable state can be reopened (29.525584ms)
+✔ failed initial persistence frees the constructed Wasm device (1.555708ms)
+✔ successful calls keep incremental persistence without loading the store again (2.854083ms)
+✔ close drains accepted calls once and refuses later calls (1.92525ms)
+✔ W11R2: evicted journal has no retry timer or missing-store read (51.174ms)
+ℹ state=evicted retry_timers=0 orphan_loads=0
+✔ W11R2: unidentified journal has no retry timer or missing-store read (1.621667ms)
+ℹ state=unidentified retry_timers=0 orphan_loads=1
+✔ W11R2: receipt lookup never opens an absent shared database and sees later adoption (6.883833ms)
+ℹ empty_receipt_lookups=10 absent_database_opens=0 later_receipts=1
+✔ W11INT: custom claims recover on sync without borrowing unrelated Web Locks (false) (50.345709ms)
+ℹ custom_claim_recoveries=1 unrelated_lock_waits=0 foreign_claims=0 retry_timers=0
+✔ W11INT: custom claims recover on sync without borrowing unrelated Web Locks (true) (4.143458ms)
+ℹ custom_claim_recoveries=1 unrelated_lock_waits=0 foreign_claims=0 retry_timers=0
+✔ W11R2: a live sibling queues one cancellable lock wait without a timer (64.584333ms)
+ℹ live_sibling_waits=1 retry_timers=0 cancelled_waits=1
+✔ W11R2: persistent recovery failure exhausts three backoffs then a sync can recover (4.548375ms)
+ℹ failed_attempts=4 retry_delays_ms=1000,2000,4000 remaining_timers=0 signal_recoveries=1
+✔ W11R2: IndexedDB existence fallback aborts creation of missing stores (0.328125ms)
+stalled exit: applied=false; 2 writes; 1 exit request; 2 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1008 ms
+✔ stalled exit body recovers in order (not applied) (2114.463709ms)
+stalled exit: applied=true; 2 writes; 1 exit request; 2 ordered ordinary sends; 2 rows; 0 duplicates; recovery 1014 ms
+✔ stalled exit body recovers in order (already applied replay) (1194.041666ms)
+stalled exit close: 969 ms; 0 ordinary sends after close
+✔ close during a stalled exit body resolves promptly (1081.425083ms)
+✔ stalled exit wait stops immediately on close without cancelling delivery (0.430417ms)
+navigation: 2 durable writes; 1 exit request; 1 row before reopen; 2 rows after replay
+✔ pagehide sends committed writes synchronously and reopen is deduped by the server (1873.254541ms)
+✔ hidden flushes, visible does not, and close removes page hooks (1092.640083ms)
+✔ mutate waits for outbox persistence before the exit transport can see it (1098.900708ms)
+✔ IndexedDB save resolves on transaction completion, not request success (0.93475ms)
+✔ failed persistence discards the device before either transport can send an undurable admission (1079.155875ms)
+✔ an exit send invalidates an older sync receipt before the page resumes (1074.41825ms)
+keepalive: 64093 UTF-8 body bytes in 2 concurrent requests; ceiling 65536 bytes
+✔ keepalive counts UTF-8 bytes across clients and releases quota on failure (1.482167ms)
+✔ exit ordering survives reversed server processing (1.319166ms)
+✔ exit never bypasses an oversized or quota-blocked predecessor (2.973916ms)
+✔ exit overlaps only the same ordinary in-flight head (1073.474959ms)
+✔ ordinary flush waits for the exit request before replaying its head (1128.435708ms)
+✔ witness is inert without a launch; a fake container preserves receipts and gates reconnect (148.0555ms)
+✔ witness refuses malformed receipts, failed and overlapping steps, and missing signals (103.223292ms)
+✔ Expo package exports the witness and its types (0.838042ms)
+✔ receipt serialization cannot replace the witness envelope (0.474625ms)
+✔ a service mints sessions, the mutation reads presence, the worker settles what was emitted (4476.617209ms)
+✔ w10c dev worker prints its one-time token on stdout, outside captured diagnostics (888.332791ms)
+✔ actions run as the requesting viewer; client done/failed and replay reach both client tiers (313.1345ms)
+ℹ action round trip tier=online: 26.65 ms
+ℹ action round trip tier=device: 13.92 ms
+✔ actions pending then settled on retry, lease expiry, fencing, admission and worker authentication (2172.1955ms)
+ℹ pending wait: 1009.31 ms
+snapback4 worker: Error: E_AUTH: this is a worker's door: send a live service token (`snapback4 token --service <name>`)
+    at loop (file:///Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/dist/worker.js:158:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Promise.all (index 0)
+✔ actions retry a throwing handler and reauthenticate a waiting caller and worker (3438.648083ms)
+✔ actions are denied offline on both tiers without entering the device queue (1093.999ms)
+✔ chat's real TypeScript invite worker is supervised by dev, restarts and stops with it (1128.016542ms)
+✔ dev also starts a worker.mjs (243.647125ms)
+✔ dev also starts a worker.mts (244.313459ms)
+✔ a lost action settlement retries its lease; a non-JSON result fails once (1087.720291ms)
+✔ lost effect lease on the wire reports queued (1056.183708ms)
+✔ lost effect lease on the wire reports failed (8261.084542ms)
+✔ lost effect lease on the wire reports sent (1116.161875ms)
+✔ lost effect lease on the wire reports running (1115.392834ms)
+✔ lost effect lease reports queued after handler success (0.850292ms)
+✔ lost effect lease reports queued after handler failure (0.351375ms)
+✔ lost effect lease reports failed after handler success (0.696666ms)
+✔ lost effect lease reports failed after handler failure (0.3055ms)
+✔ lost effect lease reports sent after handler success (0.211917ms)
+✔ lost effect lease reports sent after handler failure (0.230667ms)
+✔ lost effect lease reports running after handler success (0.17725ms)
+✔ lost effect lease reports running after handler failure (0.155125ms)
+✔ lost effect lease reports unknown after handler success (0.172625ms)
+✔ lost effect lease reports unknown after handler failure (0.13875ms)
+✔ effect settlement still reports a refusal other than lease loss (0.75ms)
+✔ W7r1 runWorker and doctor observe suppressed presence effects (2067.877833ms)
+ℹ replay=true notes=1 handler_attempts=0 dependency_rows=0 claim_responses=2
+✔ W7r1 runWorker and doctor observe deferred presence effects (2087.886667ms)
+ℹ replay=false notes=1 handler_attempts=1 dependency_rows=0 claim_responses=3
+✔ admission binds logout-all, single logout and refresh families over HTTP (162.243834ms)
+✔ serve supervises a worker with an explicit environment, restart backoff and shutdown (1077.829916ms)
+✔ an action admitted by a delegated action session fails terminally after its parent settles (184.6735ms)
+✔ HTTP service-seat admission binds the service family and refuses work after its logout (174.042708ms)
+✔ dev replaces its supervised worker when the one-day session window ends (366.059459ms)
+✔ write authority: /m replay keeps only execution identity after hidden writes, dropped replies and revocation (329.671417ms)
+✔ write authority: the client sends a queued unheld upsert without planting a pending row (4154.205416ms)
+✔ write authority: check --cost prints the bounded uniform pass and its examined ceiling (292.65975ms)
+✔ write authority: a lost readable key-collision reply cannot recover its key after revocation (83.847792ms)
+✔ replay card: online keeps a lost response's same-id receipt and fresh result (316.032417ms)
+✔ replay card: local keeps a lost response's same-id receipt and fresh result (215.922541ms)
+✔ online sign-out revokes its bearer and clears the client even without a link (1.234208ms)
+✔ W6R1 A memory: already-open owners equal input, offline (1712.042875ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A memory: already-open owners equal input, in-flight send (1195.864167ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A memory: already-open owners conflicting input, offline (1123.231458ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A memory: already-open owners conflicting input, in-flight send (1143.587583ms)
+ℹ store=memory predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 B memory: evicted explicit row outcome reaches server replay (3125.087333ms)
+ℹ before_or_after_retry={"state":"pending","id":"01M2R0J0DAZ1JWDTWMPJWM9HVP","reason":"queued without a row: local data does not justify prediction"}
+ℹ store=memory evicting_writes=256 replay_posts=1 duplicate_rows=0
+✔ W6R1 B memory: evicted changed guard outcome reaches server replay (3389.919375ms)
+ℹ before_or_after_retry={"state":"pending","id":"01M2R0J3DZC2NVMYNH59MTSYNB","reason":"queued without a row: local data does not justify prediction"}
+ℹ store=memory evicting_writes=256 replay_posts=1 duplicate_rows=0
+✔ W6R1 A native: already-open owners equal input, offline (1177.419708ms)
+ℹ store=native predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A native: already-open owners equal input, in-flight send (1180.147292ms)
+ℹ store=native predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A native: already-open owners conflicting input, offline (116.821833ms)
+ℹ store=native predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 A native: already-open owners conflicting input, in-flight send (1137.883417ms)
+ℹ store=native predictions=1 queued=1 applied=1 conflicting_events=0
+✔ W6R1 B native: evicted explicit row outcome reaches server replay (4183.531166ms)
+ℹ before_or_after_retry={"state":"pending","id":"01M2R0JAATP7GYPRGAYEPYJQHY","reason":"queued without a row: local data does not justify prediction"}
+ℹ store=native evicting_writes=256 replay_posts=1 duplicate_rows=0
+✔ W6R1 B native: evicted changed guard outcome reaches server replay (4656.210041ms)
+ℹ before_or_after_retry={"state":"pending","id":"01M2R0JED71G9MCPK3VC2S76ER","reason":"queued without a row: local data does not justify prediction"}
+ℹ store=native evicting_writes=256 replay_posts=1 duplicate_rows=0
+✔ W6R1 principals online: one caller ID is independent per principal (36.016458ms)
+ℹ tier=online principals=2 applications=2 posts=2
+✔ W6R1 principals memory: one caller ID is independent per principal (190.213708ms)
+ℹ tier=memory principals=2 applications=2 posts=2
+✔ W6R1 principals native: one caller ID is independent per principal (275.457ms)
+ℹ tier=native principals=2 applications=2 posts=2
+✔ W6R1 online closed: retrying a sent ID cannot emit a contradictory failure (1.069417ms)
+✔ W6R1 online signed-out: retrying a sent ID cannot emit a contradictory failure (0.558208ms)
+✔ server write ids bind raw arguments and operation names across independent clients (69.378333ms)
+ℹ tests 542
+ℹ suites 0
+ℹ pass 539
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 2
+ℹ todo 0
+ℹ duration_ms 80700.041792
+
+✖ failing tests:
+
+test at packages/snapback4/test/react.test.mjs:16:1
+✖ React hooks and reference-app lifetimes (1966.81875ms)
+  browserType.launch: Target page, context or browser has been closed
+  Browser logs:
+  
+  <launching> /Users/ccheever/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/private/tmp/snapback4-d2-r2/playwright_chromiumdev_profile-W6yYvV --remote-debugging-pipe --no-startup-window
+  <launched> pid=14115
+  Call log:
+  [2m  - <launching> /Users/ccheever/Library/Caches/ms-playwright/chromium-1243/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing --disable-field-trial-config --disable-background-networking --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-back-forward-cache --disable-breakpad --disable-client-side-phishing-detection --disable-component-extensions-with-background-pages --disable-component-update --no-default-browser-check --disable-default-apps --disable-dev-shm-usage --disable-extensions --disable-features=AcceptCHFrame,AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,Translate,AutoDeElevate --allow-pre-commit-input --disable-hang-monitor --disable-ipc-flooding-protection --disable-popup-blocking --disable-prompt-on-repost --disable-renderer-backgrounding --force-color-profile=srgb --metrics-recording-only --no-first-run --password-store=basic --use-mock-keychain --no-service-autorun --export-tagged-pdf --disable-search-engine-choice-screen --unsafely-disable-devtools-self-xss-warnings --edge-skip-compat-layer-relaunch --enable-automation --enable-unsafe-swiftshader --headless --hide-scrollbars --mute-audio --blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4 --no-sandbox --user-data-dir=/private/tmp/snapback4-d2-r2/playwright_chromiumdev_profile-W6yYvV --remote-debugging-pipe --no-startup-window[22m
+  [2m  - <launched> pid=14115[22m
+  [2m  - [pid=14115] <gracefully close start>[22m
+  [2m  - [pid=14115] <kill>[22m
+  [2m  - [pid=14115] <will force kill>[22m
+  [2m  - [pid=14115] exception while trying to kill process: Error: kill EPERM[22m
+  [2m  - [pid=14115] <process did exit: exitCode=null, signal=SIGABRT>[22m
+  [2m  - [pid=14115] starting temporary directories cleanup[22m
+  [2m  - [pid=14115] finished temporary directories cleanup[22m
+  [2m  - [pid=14115] <gracefully close end>[22m
+  
+      at TestContext.<anonymous> (/Users/ccheever/projects/snapback-diet-maps/snapback4/packages/snapback4/test/react.test.mjs:74:30)
+-- FAIL: client tests (81 s)
+== 1 failure(s) in 2156 s
+   client tests

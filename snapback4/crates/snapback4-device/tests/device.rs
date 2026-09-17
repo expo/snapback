@@ -1256,7 +1256,7 @@ fn pending_metadata_survives_repeated_updates_and_an_offline_reopen_on_both_host
         // The server takes every write; the stream's images replace the marks.
         let watermark = state(&mut *device).0;
         for entry in queued.as_array().unwrap() {
-            let typed: snapback4_core::smallmap::SmallMap<_, _> = entry["args"].as_object().unwrap().iter().map(|(name, value)| {
+            let typed = entry["args"].as_object().unwrap().iter().map(|(name, value)| {
                 let value = match value {
                     serde_json::Value::String(value) if name == "person" => id(value),
                     serde_json::Value::String(value) => Value::String(value.clone()),
