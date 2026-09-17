@@ -28293,3 +28293,32 @@ run; no provider, engine, raw-authority, process-crash, mint, Cargo, install,
 full-suite, root-gate, network, remote or publication claim was added. The
 source matrix remains pending actual qualification and the historical command
 remains overall negative.
+
+## 2026-09-17 — B1c bounded profile and cleanup follow-on
+
+The prepared actual-engine Keycloak primary path now makes selected trusted-
+profile assertions before diagnostic inspection and teardown. Using only the
+recovered legitimate Session, it queries `identityOwnProfileEligibility` and
+requires a profile whose principal matches the returned Session, whose issuer
+matches the fixed configured issuer, whose subject is present, and whose
+principal matches the exact shared `oidcPrincipal` v1 SHA-256 derivation. It
+requires `proofExpiresAt = proofStartedAt + 300000` and checks the returned
+eligibility against the in-memory profile's present-email, verified-true and
+strictly-current proof conditions. It does not require an email to exist or
+claim that Keycloak verified one. A fresh unrelated actual guest must receive
+null from `identityOwnProfile`. Subject, optional email, principal and complete
+profile responses remain memory-only; sensitive comparison strings join the
+existing default-diagnostic secrecy set. The observation label
+`actual-keycloak-derived-own-profile` is appended only after clean proof and
+teardown.
+
+Two additional synthetic lifecycle checks cover a proof request that never
+drains and a nonresponsive exact owned child. The former returns its bounded
+drain refusal; the latter receives TERM then KILL, returns the bounded cleanup
+error and remains registered for outer custody. Node 24.13.1 syntax checks and
+the same focused serial proxy/secrecy command passed 12/12; `git diff --check`
+passed. No qualification harness, provider, engine, raw-authority path,
+network, Cargo, install or full suite ran. These are source-pending selected
+integration assertions, not actual-provider evidence and not provider-
+revocation, email-change/freshness-boundary, invitation or recovery proof. The
+historical command remains overall negative.

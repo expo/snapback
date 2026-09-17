@@ -49,6 +49,8 @@ const requireValue = name => {
 };
 const assert = (condition, code) => { if (!condition) fail(code); };
 const sha256 = value => createHash("sha256").update(value).digest("hex");
+const oidcPrincipal = (issuer, subject) => `oidc:${createHash("sha256")
+  .update("snapback4:oidc-principal:v1\0").update(issuer).update("\0").update(subject).digest("base64url")}`;
 const descendant = (parent, child) => {
   const tail = relative(parent, child);
   return tail !== "" && tail !== ".." && !tail.startsWith(`..${sep}`) && !isAbsolute(tail);
@@ -422,6 +424,25 @@ async function keycloakWitness(paths, scratch, config) {
     assert(live.data === done.result.principal, "new-token-public-query");
     assert(stale.denied?.code === "E_AUTH", "old-token-public-query");
 
+    stage = "keycloak-own-profile";
+    const queriedBefore = Date.now();
+    const own = (await http("/q/identityOwnProfileEligibility", { args: {} }, done.result.token)).value;
+    const queriedAfter = Date.now();
+    const profile = own.data?.profile;
+    assert(profile && profile.principal === done.result.principal, "own-profile-principal");
+    assert(profile.issuer === config.issuer && typeof profile.subject === "string" && profile.subject.length > 0, "own-profile-provider-binding");
+    assert(profile.principal === oidcPrincipal(profile.issuer, profile.subject), "own-profile-derived-principal");
+    assert(profile.proofExpiresAt === profile.proofStartedAt + 300_000, "own-profile-proof-window");
+    assert((profile.proofExpiresAt > queriedBefore) === (profile.proofExpiresAt > queriedAfter), "own-profile-freshness-boundary");
+    const expectedEligibility = profile.email !== null && profile.email !== undefined
+      && profile.emailVerified === true && profile.proofExpiresAt > queriedAfter;
+    assert(own.data.eligible === expectedEligibility, "own-profile-eligibility");
+    secrets.add(profile.subject); secrets.add(profile.principal);
+    if (typeof profile.email === "string" && profile.email) secrets.add(profile.email);
+    const unrelated = await guest();
+    const unrelatedProfile = (await http("/q/identityOwnProfile", { args: {} }, unrelated.token)).value;
+    assert(unrelatedProfile.data === null, "unrelated-own-profile");
+
     stage = "keycloak-read-only-family-inspection";
     const db = database(project);
     try {
@@ -454,7 +475,8 @@ async function keycloakWitness(paths, scratch, config) {
   }
   if (witnessError) throw witnessError;
   if (instrumentFailureCode) fail(instrumentFailureCode);
-  observations.push("actual-keycloak-generated-helper", "post-commit-lost-reply-process-crash", "same-family-same-expiry-old-token-invalid", "default-diagnostic-redaction");
+  observations.push("actual-keycloak-generated-helper", "post-commit-lost-reply-process-crash", "same-family-same-expiry-old-token-invalid",
+    "actual-keycloak-derived-own-profile", "default-diagnostic-redaction");
 }
 
 async function rawAuthorityWitness(paths, scratch) {

@@ -42,6 +42,13 @@ test("a request begun in proof remains fatal when it fails after transition", as
   assert.equal(failure, "proxy-proof-request");
 });
 
+test("drain wait times out while a proof request never finishes", async () => {
+  const phase = createProxyPhase(() => {});
+  phase.beginRequest();
+  phase.beginExpectedTeardown();
+  assert.equal(await phase.waitForProofDrain(5), false);
+});
+
 test("unknown error text cannot enter the diagnostic code", () => {
   let failure = null;
   const secret = "secret-message-and-url";
@@ -77,4 +84,16 @@ test("cleanup observes a synchronous signal exit after subscribing", async () =>
   await stopOwnedChild(child, owned, 20);
   assert.deepEqual(signals, ["SIGTERM"]);
   assert.equal(owned.size, 0);
+});
+
+test("nonresponsive owned child receives TERM then KILL and remains owned", async () => {
+  const child = new EventEmitter();
+  child.exitCode = null;
+  child.signalCode = null;
+  const signals = [];
+  child.kill = signal => { signals.push(signal); return true; };
+  const owned = new Set([child]);
+  await assert.rejects(stopOwnedChild(child, owned, 5), /owned-child-stop-timeout/);
+  assert.deepEqual(signals, ["SIGTERM", "SIGKILL"]);
+  assert.equal(owned.has(child), true);
 });
