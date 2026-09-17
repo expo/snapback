@@ -1,6 +1,6 @@
 # Snapback 4: Nullable sync groups can be readable online and absent on devices
 
-Status: Open
+Status: Closed
 Priority: P1
 Observed: 2026-09-16
 Baseline: `a0d48a4e6b660e2bfca3de3ef3470ef7787f3d15` (0.2.26)
@@ -16,3 +16,12 @@ Seed a membership for dev:alice with room:null and a message with room:null. Com
 ## Acceptance
 
 Make the supported contract consistent: reject nullable target-group keys with an actionable schema diagnostic, or support null keys throughout group logging/acquisition/revocation. Do not patch only one null filter. Validate both authored Quarry and raw core schemas. Preserve existing valid required-key schemas, add an online/device regression, and document the supported form.
+
+## Resolution — 2026-09-16
+
+Implemented in `f6b514c35` as part of the complete project review.
+
+Core schema validation and Quarry binding reject nullable target-audience group columns on both content and membership sides with E_SYNC and an actionable rewrite. Required group keys remain accepted; nullable direct-principal semantics are unchanged. Raw-schema and Quarry regressions pass.
+
+Integrated qualification and independent repair review are recorded in
+[the review index](../../llp/reviews/3000-complete-code-review-20260916.md).

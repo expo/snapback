@@ -112,3 +112,12 @@ start `client.asset("image")`, await `client.close()`, then fulfill the asset
 response with 13 bytes and Content-Type image/png. Baseline returned a usable
 blob URL with type image/png and bytes13. Revoke the probe's URL after checking.
 The regression added with the repair uses the same delayed-completion boundary.
+
+## Native artifact selection after repair
+
+The identical two-build probe was rerun against the CLI built from
+`f6b514c35` on the Linux verifier. Both checks succeeded. The first build's
+generated module matched `zzz_old.wasm`. After renaming and changing the
+function, the second module matched `aaa_new.wasm` and did **not** match the
+stale `zzz_old.wasm` still present in the target directory. This verifies the
+actual Cargo/check composition, in addition to compiler-message unit tests.

@@ -16,3 +16,10 @@ The unsafe ambiguity is treating a named service seat as an isolated credential 
 Document the current deployment-wide trust of service tokens next to token provisioning and server handlers. Decide whether partially trusted integrations are supported. If so, introduce separately scoped worker, verification, identity-administration and data-plane capabilities; enforce them on claim, cancellation, session mint/revoke and settlement with revocation tests. Preserve caller authority on delegated handler queries/mutations. Do not imply capability separation exists before implementing it.
 
 The immediate documentation clarification can land; the capability redesign remains open in LLP 3000.009's dated review section.
+
+## Partial repair — 2026-09-16
+
+`packages/snapback4/SERVER.md` now states the deployment-wide trust next to
+worker provisioning and service tokens. LLP 3000.009 §16 records the alternatives.
+The ticket remains open for the product decision and capability separation;
+no isolated-integration guarantee is claimed.

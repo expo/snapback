@@ -24796,3 +24796,51 @@ wrote the four commonest (`E_QUARRY_SYNTAX`, `E_QUARRY_UNKNOWN`, `E_QUARRY_PLACE
 and censused the rest — the list by card is in the W10R2 entry above. That census is
 wave 11's largest single item: until it is closed, `why <CODE>` answers about half of
 all refusals with a card opening rather than an explanation.
+
+## 2026-09-16 — complete code review, independent Grok/Muse reviews, and repairs
+
+Charlie requested a complete project review, independent Grok and Muse passes,
+tickets and architecture write-ups, then feasible repairs delivered to main.
+The reviewed baseline is `a0d48a4e6` (0.2.26). The
+[review index](../llp/reviews/3000-complete-code-review-20260916.md) preserves
+the received Grok, Muse (two passes), Sol and lead findings, coverage limits,
+executable probes and adjudications. Sixteen new tickets were recorded; eleven
+are repaired and closed, together with the existing acquisition fixture ticket.
+Five remain open for staged indivisible sync, physical work/privacy bounds,
+secure client entropy, worker capability separation and durable-record retention.
+The already-owned Postgres C3 repair is not duplicated.
+
+The architecture work extends LLPs 3000.000, 3000.001, 3000.002 and 3000.009
+instead of creating competing proposals. Focused component/protocol changes are
+supported by the evidence; a wholesale backend rewrite is not. LLPs 3000.005
+and 3000.007 now state the implemented native and browser recovery contracts.
+
+Repairs in `f6b514c35` and `7e0fc21da` bound native memory/table/bridge/log
+allocations, bind queued native continuations to exact wasm, select the current
+Cargo artifact, disambiguate generated Rust names, refuse nullable target sync
+groups, fence late asset completion, adapt wide snapshot pages, preserve client
+ID time, require exclusive recoverable browser ownership, and make publication
+resume converge exact qualified tarballs. Journal recovery uses the existing
+replay-candidate path so stale local refusals cannot permanently cancel a stranded
+intent. No new device protocol or higher server ceiling was introduced. Native
+legacy/changed-code runs park conservatively; custom persistence needs the
+documented claim/recovery contract. Secure entropy without Web Crypto remains
+explicitly unresolved.
+
+The clean first candidate's complete suite took 681 s: all 1,230 Rust tests
+passed (4 existing ignored), builds/typechecks/fixtures passed, and 507/508 client
+tests passed. The journal failure was repaired. The rebuilt follow-up passed
+512/513; its sole red was a new fixture missing initial backend setup. That
+test-only correction is `ebc9f1462`, followed by **513/513 client tests passing**.
+The affected guide suite is **37/37**. The actual native crate rename/build
+probe now selects new bytes over a stale lexicographically later artifact.
+Publisher mocks are **24/24**; no npm publication or version bump was performed.
+The existing 60-second suite-budget ticket remains open; neither the 681-second
+complete run nor its baseline qualifies that budget.
+
+A fresh Sol review found two repair gaps (resume gated by unrelated current
+source, undiscoverable custom alternates); both were fixed. Sol and Grok each
+returned no-material-finding verdicts on the final production repair. Their
+received reports and exact revision bindings are in the index. This verification
+uses the full Rust run plus affected-scope follow-ups; there was no new live
+Chromium/iOS or physical power-loss qualification.

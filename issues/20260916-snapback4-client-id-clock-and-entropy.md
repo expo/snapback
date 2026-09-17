@@ -17,3 +17,16 @@ Paths are relative to `snapback4/`: `packages/snapback4/src/client.ts:mintId`. `
 ## Acceptance
 
 Keep monotonic IDs by incrementing the entropy field within one logical millisecond rather than the time field for every mint; preserve rollback uniqueness. Establish secure entropy on every supported client, or fail clearly when unavailable. Test burst minting, backward clock, entropy exhaustion and unavailable crypto without relying on random collisions.
+
+## Partial repair — 2026-09-16
+
+The clock/ordering half is implemented in repair candidate `f6b514c35`: entropy
+increments at one logical millisecond, rollback stays monotonic, timestamp
+range and exhaustion are checked, and an RNG exception cannot poison state.
+Burst, rollback, exhaustion and RNG-failure regressions accompany it.
+
+This ticket stays open for the secure-entropy half. Hosts lacking Web Crypto
+still use the documented non-cryptographic fallback. Removing it without a
+qualified synchronous source for every supported client can break native app
+admission; an injected source or supported native bridge needs separate
+implementation and platform qualification. IDs are not capabilities.

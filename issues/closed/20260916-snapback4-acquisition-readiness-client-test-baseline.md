@@ -1,6 +1,6 @@
 # Snapback 4 acquisition readiness test fails on untouched main
 
-Status: Open
+Status: Closed
 Date: 2026-09-16
 Scope: `snapback4/packages/snapback4/test/acquisition.test.mjs:260`
 Severity: P3 (baseline test failure; product cause not established)
@@ -36,3 +36,12 @@ the partial-snapshot and acquired-row assertions on both device tiers.
 
 Logs retained for the integration run at
 `/home/ccheever/sb4-w9-tools/{test-integrated,client-baseline}.log` on `450b`.
+
+## Resolution — 2026-09-16
+
+Implemented in `f6b514c35` as part of the complete project review.
+
+The before-catchup outage fixture now blocks /probe and /q as well as /sync, preventing an online query from answering an observation asserted to be offline. The acquired-row and partial-snapshot assertions remain intact on both device tiers. The prior focused client run passed this regression.
+
+Integrated qualification and independent repair review are recorded in
+[the review index](../../llp/reviews/3000-complete-code-review-20260916.md).

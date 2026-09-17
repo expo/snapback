@@ -33,26 +33,28 @@ supply the validation listed below.
 
 | Finding | Evidence at review | Ticket |
 |---|---|---|
-| Late online asset success after close | Delayed-fetch probe returned a 13-byte blob URL after close | [asset lifecycle](../../issues/20260916-snapback4-online-asset-after-close.md) |
-| Native build chooses an old crate's wasm | Built zzz_old, renamed to aaa_new, changed behavior; check still copied zzz_old bytes | [artifact selection](../../issues/20260916-snapback4-native-build-selects-stale-artifact.md) |
-| Native fuel does not bound host allocation/logs | Three reviewers traced guest lengths allocated before range validation, no memory limiter, unbounded log retention | [native bounds](../../issues/20260916-snapback4-native-host-memory-bounds.md) |
-| Durable native state crosses code revisions | Declaration-only digest documented in LLP 3000.005 and traced in manual/scheduled admission | [continuation identity](../../issues/20260916-snapback4-native-job-continuation-code-identity.md) |
-| Fixed client snapshot page cannot recover from legal wide rows | Sol connected existing real-server oversized-page regression to hardcoded PAGE=4000 and terminal refusal | [snapshot recovery](../../issues/20260916-snapback4-snapshot-page-size-recovery.md) |
+| Late online asset success after close | Delayed-fetch probe returned a 13-byte blob URL after close | [asset lifecycle](../../issues/closed/20260916-snapback4-online-asset-after-close.md) |
+| Native build chooses an old crate's wasm | Built zzz_old, renamed to aaa_new, changed behavior; check still copied zzz_old bytes | [artifact selection](../../issues/closed/20260916-snapback4-native-build-selects-stale-artifact.md) |
+| Native fuel does not bound host allocation/logs | Three reviewers traced guest lengths allocated before range validation, no memory limiter, unbounded log retention | [native bounds](../../issues/closed/20260916-snapback4-native-host-memory-bounds.md) |
+| Durable native state crosses code revisions | Declaration-only digest documented in LLP 3000.005 and traced in manual/scheduled admission | [continuation identity](../../issues/closed/20260916-snapback4-native-job-continuation-code-identity.md) |
+| Fixed client snapshot page cannot recover from legal wide rows | Sol connected existing real-server oversized-page regression to hardcoded PAGE=4000 and terminal refusal | [snapshot recovery](../../issues/closed/20260916-snapback4-snapshot-page-size-recovery.md) |
 | Indivisible join/commit can exceed response bound | Lead probe: limit1 returned45 events /18006410 bytes, above16777216; Sol independently traced expansion | [sync progress](../../issues/20260916-snapback4-sync-indivisible-join-progress.md) |
 | Physical rule and membership-history work is unbounded | Complete history reconstruction and expired-sibling scans precede visible page/probe bounds | [physical work](../../issues/20260916-snapback4-physical-rule-probe-work.md) |
-| Browser store shared without exclusive owner | All three external reviewers traced no-Web-Locks branch, disabled journal and orphan adoption | [browser ownership](../../issues/20260916-snapback4-web-store-without-locks.md) |
+| Browser store shared without exclusive owner | All three external reviewers traced no-Web-Locks branch, disabled journal and orphan adoption | [browser ownership](../../issues/closed/20260916-snapback4-web-store-without-locks.md) |
 | Client IDs manufacture future milliseconds and use weak fallback | Muse/lead traced per-ID timestamp advance and Math.random fallback | [client IDs](../../issues/20260916-snapback4-client-id-clock-and-entropy.md) |
-| Rust normalization collides over valid names | Lead/Sol/Muse: fooBar/foo_bar, Self, underscore and namespace cases | [Rust emission](../../issues/20260916-snapback4-rust-codegen-identifier-collisions.md) |
-| Nullable target sync group readable online but absent in snapshot | Lead Rust probe: no diagnostics, online row, snapshot([],1) | [null group](../../issues/20260916-snapback4-null-sync-group.md) |
-| Partial npm publication cannot converge on rerun | Sol traced unconditional platform-then-client publication and immutable version retry | [publication](../../issues/20260916-snapback4-publication-cannot-resume.md) |
+| Rust normalization collides over valid names | Lead/Sol/Muse: fooBar/foo_bar, Self, underscore and namespace cases | [Rust emission](../../issues/closed/20260916-snapback4-rust-codegen-identifier-collisions.md) |
+| Nullable target sync group readable online but absent in snapshot | Lead Rust probe: no diagnostics, online row, snapshot([],1) | [null group](../../issues/closed/20260916-snapback4-null-sync-group.md) |
+| Partial npm publication cannot converge on rerun | Sol traced unconditional platform-then-client publication and immutable version retry | [publication](../../issues/closed/20260916-snapback4-publication-cannot-resume.md) |
 | Service credential trust is wider than row-rule seat names suggest | Grok/Sol paths plus supported service:worker tests and identity-admin endpoints | [trust model](../../issues/20260916-snapback4-service-worker-trust-boundary.md) |
 | Durable history/principals lack coordinated retirement | Lead/Sol histories/receipts plus Muse guest principal retention | [retention](../../issues/20260916-snapback4-durable-record-retention.md) |
-| Route authority test races a 50 ms fixture deadline | Untouched baseline failure, pending diagnosis | [route fixture](../../issues/20260916-snapback4-route-admission-test-deadline.md) |
+| Route authority test races its short fixture deadline | Untouched baseline failure; report route also hardcoded 1 ms | [route fixture](../../issues/closed/20260916-snapback4-route-admission-test-deadline.md) |
+
+The repair qualification also exposed [stale-refusal journal recovery](../../issues/closed/20260916-snapback4-journal-recovery-stale-refusal.md), recorded separately and repaired through the existing replay-admission path.
 
 Postgres mismatched-ID replay is already tracked in
 [the existing C3 ticket](../../issues/20260915-snapback4-postgres-replay-skips-the-id-binding.md).
 The baseline acquisition assertion is already tracked in
-[its existing ticket](../../issues/20260916-snapback4-acquisition-readiness-client-test-baseline.md).
+[its existing ticket](../../issues/closed/20260916-snapback4-acquisition-readiness-client-test-baseline.md).
 Those were not filed again. The Postgres binding repair was also observed in an active, independently supervised C3 lane on the fleet (dirty dedicated worktree); this review does not overwrite or duplicate that lane's work.
 
 ## Recommendations not accepted as new defects
@@ -76,7 +78,10 @@ implemented repairs. This review did not resurrect their historical claims:
 private file modes, dev origin fencing, session/KDF changes, upload staging,
 asset cache/range/once behavior, catalog authentication and server CSPRNG are
 present. Existing performance and witness tickets remain scoped to their own
-measurements.
+measurements. In particular, [the existing blocking-suite budget ticket](../../issues/20260913-snapback4-blocking-suite-over-60-seconds.md)
+remains open: the baseline's 705 seconds does not satisfy the adopted 60-second
+budget, even apart from its two assertion failures. No timing compliance is
+claimed by this review.
 
 ## Architecture write-ups
 
@@ -102,5 +107,75 @@ red: one route admission assertion (expected one request, got zero under a
 expected E_OFFLINE but got an online answer). Baseline logs were retained
 outside the repository; these are not attributed to review repairs.
 
-Repair implementation and final qualification will be recorded here before
-landing. Npm publication is not an action performed by this review.
+The first repair candidate is `f6b514c35ec4cffc7fe102a51e583fcfba28f636`.
+Its complete suite ran on a clean Linux checkout of that exact commit in
+681 seconds. All 1,230 Rust tests passed (4 existing ignored tests); builds,
+wasm, package/chat/Expo typechecks, chat compilation and fixture tests passed.
+Client tests passed 507/508. The one failure was the cancellation-journal
+ordering regression, which exposed eager recovery against stale rows before
+catch-up. This is a failed candidate test, not a green complete-suite claim.
+
+[The fresh Sol repair review](3000-code-review-20260916-repairs-sol.md)
+identified two additional material gaps: source-checkout failures could block
+exact-tarball resume, and custom persistence alternates could escape orphan
+discovery. Both were accepted for follow-up repair. [Grok's independent repair review](3000-code-review-20260916-repairs-grok.md)
+returned **NO MATERIAL FINDING REMAINS** for the same candidate without
+receiving Sol's findings. Sol's additional findings were still accepted and
+repaired; agreement is not required to act on a demonstrated defect.
+
+The production follow-up is `7e0fc21da8d7675b4a5ec2a418604b2135c438a9`.
+Its rebuilt client suite passed 512/513; the remaining failure was a new test
+fixture opening a never-initialized primary without a backend, before the
+intended malformed-orphan assertion. All original journal and stale-orphan
+regressions passed. The fixture-only correction is
+`ebc9f14621f05584b150444241c8706a9a7ec746`; production source is unchanged.
+[Sol's final review](3000-code-review-20260916-repairs-sol-followup.md)
+returned **NO MATERIAL FINDING REMAINS** for that exact commit.
+
+Npm publication is not an action performed by this review.
+
+## Delivered repair scope
+
+Sixteen new findings received filesystem tickets, including the journal ordering
+issue found during qualification. Eleven new tickets are repaired and closed;
+the pre-existing acquisition fixture ticket is also closed. Five new tickets
+remain open: indivisible sync progress, physical private-work bounds, secure
+client entropy (time/order fixed), worker capability separation (trust documented),
+and coordinated durable-record retention. The four architecture write-ups above
+cover their component and protocol alternatives. The existing Postgres C3 work
+is independently owned; the existing suite-budget ticket remains open.
+
+Compatibility changes are explicit: legacy or changed-code native job runs park
+before another chunk; built-in durable browser storage requires Web Locks;
+custom persistence supplies a validated exclusive claim/recovery contract;
+nullable target sync group columns now fail schema validation; publication reuse
+requires explicit `--resume`. No server ceiling was raised.
+
+## Final qualification
+
+| Check | Revision/content | Result |
+| --- | --- | --- |
+| Complete Rust workspace suite | `f6b514c35`; later runtime changes are comments only | 1,230 passed, 4 existing ignored |
+| Complete client suite | `ebc9f1462`, production built at `7e0fc21da` | 513 passed, 0 failed, 0 skipped, 66.93 s |
+| Package typecheck and build | `7e0fc21da` | Passed |
+| Affected guide suite | `7e0fc21da` | 37 passed |
+| Native crate rename probe | Actual CLI built at `f6b514c35` | New artifact selected; stale artifact rejected |
+| Publication | Mocked signing/registry suite, included in client run | 24 passed; no real npm commands against the registry |
+| Source size and authored Markdown targets | Final authored scope | No source file over 1,500 lines; no missing local Markdown targets |
+
+The complete blocking command at the first candidate was red on the journal
+case; after correcting that path, the entire affected client suite was rebuilt
+and rerun. The later test-only fix was followed by another complete client run.
+The expensive unchanged Rust suite was not repeated. This is the aggregate
+qualification of the final semantic change, not a claim that a final full
+`scripts/test.sh` invocation returned zero or met the 60-second budget.
+
+[Grok's production follow-up](3000-code-review-20260916-repairs-grok-followup.md)
+returned **NO MATERIAL FINDING REMAINS** for `7e0fc21da`. Its
+[final fixture follow-up](3000-code-review-20260916-repairs-grok-fixture.md)
+also cleared `ebc9f1462`; both Sol and Grok therefore reviewed the exact final
+production and test content with no material finding remaining.
+
+Detailed logs are retained in the ignored local run ledger's `logs/` directory
+and on the dedicated Linux verifier. Browser/Swift power-loss and live iOS
+qualification were not performed; publication validation here is mocked.
