@@ -305,7 +305,7 @@ contributions before testing deletions. The stale candidate implementation was
 therefore not replayed. The remaining failure was the enlarged current suite's
 execution shape, not that old product helper.
 
-Qualified code checkpoint `c4eb1047f0d0098a3994e916848300e5fbbca97a`
+Qualified code checkpoint `c4eb1047f9ac8ba3603fcb8bef76f6e71b010dd5`
 keeps Cargo's complete, dynamically discovered test-artifact inventory while
 building it once and running independent binaries through a bounded 24-process
 pool. Four scale-heavy artifacts are further expanded from their own `--list`
