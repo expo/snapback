@@ -32800,6 +32800,25 @@ Lead entry (Claude, orchestrating; lanes S5 and S5R1 were Codex `gpt-6-astra`, r
 
 **Qualification.** On `57bdc2cbcc`, outside the sandbox: `scripts/test.sh` red only on the clock flake fixed here (client 624 of 627, 0 failures), `witness/idb.mjs` and `witness/scale.mjs` exit 0, React 13/13, `--check-families --check-absent` ok (before W13c reached the lane). On the final merged tree: `bash snapback4/scripts/test.sh` at host load 30–38 → `== 1 failure(s) in 537 s`: cargo build, wasm build, the new release guard, typechecks, chat check and fixtures ok; `cargo test` ok (194 s, 0 failures); client tests 669 of 676 with 4 failures, all four `worker.test.mjs` "lost effect lease on the wire reports queued/failed/sent/running". Those four fail identically on unmodified `main` at `12c64165b0` in a clean detached worktree (`node --test --test-name-pattern='lost effect lease' packages/snapback4/test/worker.test.mjs`: 14 tests, 10 pass, 4 fail) — today's effect-lease change refuses with a newer message before the state-specific one the tests and `worker.ts` expect. S5 touches no effect code; ticketed as `issues/20260917-snapback4-worker-lost-effect-lease-tests-red-on-main.md` and left to that program. Targeted, by exit code: wasm build 0; release guard 0; clock ×3 0; `device_diet` under both policies 0; device `components` + `codec` 0; guide 0 (47 tests, the new pin among them); `wasm-absent`/`-budget`/`-families`/`-codec-census`/`device-diet` node tests 0; `attribute-wasm.mjs --check-absent` 0 ("server-only absence check: ok"); `cargo check -p snapback4-core --no-default-features` 0; `cargo test --workspace --no-run` 0; `./ref-check` 0. `--check-families` is red for the reason above and is not claimed.
 
+## 2026-09-17 — isolate shared Workroom custody recorder failures
+
+The warm Workroom runtime's source review found that a recorder exception
+could interrupt seeded process cleanup. Native Codex GPT-5.6 Sol (high)
+authored the shared-helper repair; root integrated its exact reviewed source
+and tests. Recording failure now latches one non-recursive uncertainty,
+cleanup retains the same identity/signalling policy, and failure on the last
+completion event also makes the receipt non-green. No process-discovery,
+timing, generic subtree-custody or application guarantee was broadened.
+
+Independent Node 24.13.1 execution on 450b: 20 deterministic tests passed,
+zero failed, one opt-in actual-Codex witness skipped. Both independent final
+source reviews, Sol xhigh and Grok 4.6 xhigh, are READY. The actual-Codex
+coverage from the prior runner revision remains historical, not rerun here.
+Exact source/test/log hashes, provenance, actual received reviews and claim
+limits are in `benchmarks/runs/2026-09-16-workroom-first/protocol/launcher-verification.md`.
+No publication or cold/control-cell score is claimed.
+
+
 
 ## 2026-09-17 — D3 / S1b: one reader for the IR again
 

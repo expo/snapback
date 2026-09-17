@@ -38,11 +38,26 @@ Lane W15a's device test `w15a_necessary_absence_server_fits_prediction_reservati
 ceiling). It lands `#[ignore]`d with this ticket's path when W15a lands; until then it is
 on branch `sb4/w15a`.
 
+## A second instance, in a different field (found by the same lane's review-fix session)
+
+The 50-member send of lane W15a's cost fixture
+(`crates/snapback4-sim/tests/grace_effects/presence_cost.q`: `require exists
+memberships[conversationId, viewer]`, an insert into `messages` whose rule probes
+`memberships`, a loop over `memberships[conversationId] first 50`, an absence-guarded emit per
+recipient) charges the server **3 rule probes** and device prediction **1**, on both stores, at
+the lane's base and after it (every other field: server 52 examined / 2 index entries / 1,356
+steps / 69,400 heap / 27 output / 1 row; prediction 52 / 2 / 1,367 / 69,843 / 27 / 1). It is
+not a presence reservation at all — a device answers some rule probes from its held group
+without charging them — but it is the same broken promise: a field in which the server can
+charge more than prediction reserved. The rule-probe ceiling is far from either number, so
+this one cannot bite in practice; it belongs in the same audit.
+
 ## Direction
 
 Find which reservation the server makes that prediction does not (the difference is six
 bytes for principals of three and five bytes — a per-principal term, not a constant) and
 make prediction reserve it; never lower a server charge to meet a smaller reservation
 without checking that the work is really not done. The acceptance is the ignored test
-turned on, plus the same comparison for a three-principal conjunction, an aliased guard and
+turned on, a decision on whether rule probes are meant to be inside the "server ≤ prediction"
+promise at all, plus the same comparison for a three-principal conjunction, an aliased guard and
 a nested guard.

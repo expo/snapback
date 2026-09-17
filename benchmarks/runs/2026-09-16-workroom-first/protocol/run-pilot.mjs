@@ -190,6 +190,7 @@ export class ProcessCustody {
     this.events = [];
     this.uncertainties = [];
     this._uncertaintyKeys = new Set();
+    this._recordFailureLatched = false;
     this.cleanupPromise = null;
     this.leader = null;
     this.leaderGroupVerified = false;
@@ -200,7 +201,19 @@ export class ProcessCustody {
   emit(event, detail = {}) {
     const entry = { at: this.now(), event, ...detail };
     this.events.push(entry);
-    this.record(entry);
+    try {
+      this.record(entry);
+    } catch (error) {
+      if (!this._recordFailureLatched) {
+        this._recordFailureLatched = true;
+        let message = 'record callback threw';
+        try { message = error instanceof Error ? error.message : String(error); }
+        catch { /* Keep recorder failure handling non-throwing even for an exotic thrown value. */ }
+        this.uncertainties.push({
+          at: entry.at, code: 'PILOT_CUSTODY_RECORD_FAILED', event: entry.event, message,
+        });
+      }
+    }
     return entry;
   }
 
@@ -688,10 +701,13 @@ export class ProcessCustody {
         reason: 'Actual-Codex ordinary exec-spawn/session coverage must pass before a cold cell.',
       },
     };
-    this.emit('custody-cleanup-complete', {
+    const completion = this.emit('custody-cleanup-complete', {
       reason, ok: receipt.ok, uncertaintyCount: receipt.uncertainties.length,
       survivorCount: receipt.survivors.length,
     });
+    receipt.ok = receipt.uncertainties.length === 0 && receipt.survivors.length === 0;
+    completion.ok = receipt.ok;
+    completion.uncertaintyCount = receipt.uncertainties.length;
     return receipt;
   }
 }
