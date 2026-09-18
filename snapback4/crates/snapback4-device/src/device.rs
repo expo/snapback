@@ -24,7 +24,9 @@ mod snapshot;
 mod history;
 mod boundary;
 mod store_identity;
+mod sync_metadata;
 pub use store_identity::StoreObservation;
+pub use sync_metadata::{SyncMetadata, SyncCapture};
 
 /// The compiled backend, as `GET /schema` sends it.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -39,6 +41,8 @@ pub struct Backend {
 #[derive(Clone, Debug, Serialize)]
 pub struct SyncState {
     pub acquired: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapshot_required: Option<bool>,
     pub backend_required: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub restore_refusal: Option<Refusal>,
@@ -138,6 +142,7 @@ const STORE_ID: &str = "device:store_id";
 const WATERMARK: &str = "device:watermark";
 const GENERATION: &str = "device:generation";
 const ACQUIRED: &str = "device:acquired-generation";
+const SNAPSHOT_REQUIRED: &str = "device:snapshot-required";
 const BACKEND: &str = "device:backend";
 const SEND_REVISION: &str = "device:send_revision";
 const SUBMISSION: &str = "device:submission";
@@ -282,6 +287,7 @@ impl<S: DeviceStore> Device<S> {
         let backend_identity = store_identity::backend_identity(&backend);
         let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string()), (BACKEND_IDENTITY.to_owned(), backend_identity.clone())]);
         if reset {
+            metadata.insert(SNAPSHOT_REQUIRED.to_owned(), String::new());
             metadata.insert(WATERMARK.to_owned(), "0".into());
             metadata.insert(ACQUIRED.to_owned(), if keep_acquired { backend.generation.to_string() } else { String::new() });
             invalidate_native(&mut metadata);
@@ -396,6 +402,7 @@ impl<S: DeviceStore> Device<S> {
         let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string()), (BACKEND_IDENTITY.to_owned(), backend_identity.clone())]);
         metadata.insert(BACKEND_REQUIRED.to_owned(), String::new());
         if reset {
+            metadata.insert(SNAPSHOT_REQUIRED.to_owned(), String::new());
             metadata.insert(WATERMARK.to_owned(), "0".into());
             metadata.insert(ACQUIRED.to_owned(), if keep_acquired { backend.generation.to_string() } else { String::new() });
             invalidate_native(&mut metadata);
@@ -455,7 +462,7 @@ impl<S: DeviceStore> Device<S> {
         let restore_refusal = tx.meta(store_identity::RESTORE_REFUSED)?.map(|_| store_identity::restore_error().refusal());
         // @ref LLP 3000.007#18.2 — expose acquisition for this healthy owner, never a superseded store's marker.
         let acquired = restore_refusal.is_none() && tx.meta(ACQUIRED)? == Some(self.generation.to_string());
-        let mut state = SyncState { acquired, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()).is_err(), restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, send_revision: meta_u64(&tx, SEND_REVISION)? };
+        let mut state = SyncState { acquired, snapshot_required: (tx.meta(SNAPSHOT_REQUIRED)?.as_deref() == Some("1")).then_some(true), backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()).is_err(), restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, send_revision: meta_u64(&tx, SEND_REVISION)? };
         state.acquired &= !state.backend_required;
         tx.rollback()?;
         Ok(state)
@@ -469,7 +476,7 @@ impl<S: DeviceStore> Device<S> {
         tx.base_clear()?;
         tx.staged_clear()?;
         tx.set_meta(WATERMARK, "0")?;
-        tx.delete_meta(&[ACQUIRED])?;
+        tx.delete_meta(&[ACQUIRED, SNAPSHOT_REQUIRED])?;
         tx.delete_meta(&[history::GROUPS, boundary::BOUNDARIES, boundary::REPORT])?;
         tx.delete_meta(&SNAPSHOT_KEYS)?;
         tx.commit()?;
@@ -519,6 +526,9 @@ impl<S: DeviceStore> Device<S> {
         }
         let mut touched = BTreeSet::new();
         let replacing = page.snapshot || page.snapshot_catchup;
+        if !replacing && tx.meta(SNAPSHOT_REQUIRED)?.as_deref() == Some("1") {
+            return Err(RuntimeError::Generation("snapshot recovery must finish before streaming".into()));
+        }
         if replacing {
             if page.snapshot && first {
                 tx.staged_clear()?;
@@ -583,6 +593,7 @@ impl<S: DeviceStore> Device<S> {
             boundary::Boundaries::load(&tx, true)?.save(&tx, false)?;
             tx.staged_clear()?;
             tx.delete_meta(&SNAPSHOT_KEYS)?;
+            tx.delete_meta(&[SNAPSHOT_REQUIRED])?;
         } else {
             let mut boundaries = boundary::Boundaries::editing(false);
             let mut markers = page.acquisitions.iter().peekable();
@@ -864,25 +875,8 @@ impl<S: DeviceStore> Device<S> {
     /// Unresolved writes live independently in the executable outbox.
     // @ref LLP 3000.007#20.4 — receipt retention cannot evict an unresolved durable write.
     pub fn keep_write(&mut self, value: &str) -> Result<(), RuntimeError> {
-        let parse = |text: &str| snapback4_core::json_codec::from_text::<serde_json::Value>(text).map_err(|e| RuntimeError::Store(e.to_string()));
-        let write = parse(value)?;
-        // A list is an adopted older window; a single receipt is a new local completion.
-        let adopting = write.is_array();
-        let incoming = if adopting { write.as_array().unwrap().clone() } else { vec![write] };
-        for entry in &incoming {
-            if entry.get("id").and_then(|id| id.as_str()).is_none() { return Err(RuntimeError::Store("write receipt requires an id".into())); }
-        }
         let tx = self.store.transaction()?;
-        let mut history = tx.meta("client:write-history")?.map(|text| parse(&text)).transpose()?.unwrap_or_else(|| serde_json::json!([]));
-        let entries = history.as_array_mut().ok_or_else(|| RuntimeError::Store("write history must be a list".into()))?;
-        let mut ids: std::collections::BTreeSet<String> = entries.iter().filter_map(|entry| entry["id"].as_str().map(str::to_owned)).collect();
-        let mut added = Vec::new();
-        for entry in incoming {
-            if ids.insert(entry["id"].as_str().unwrap().to_owned()) { added.push(entry); }
-        }
-        if adopting { entries.splice(..0, added); } else { entries.extend(added); }
-        if entries.len() > 256 { entries.drain(..entries.len() - 256); }
-        tx.set_meta("client:write-history", &history.to_string())?;
+        store_identity::keep_write(&tx, value)?;
         tx.commit()
     }
 

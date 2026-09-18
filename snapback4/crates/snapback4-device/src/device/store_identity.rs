@@ -81,13 +81,14 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<StoreObs
         tx.staged_clear()?;
         tx.set_meta(WATERMARK, "0")?;
         tx.set_meta(BACKEND_REQUIRED, page.store_id.as_deref().unwrap_or("legacy"))?;
-        tx.delete_meta(&[ACQUIRED, history::GROUPS, boundary::BOUNDARIES, boundary::REPORT])?;
+        tx.delete_meta(&[ACQUIRED, SNAPSHOT_REQUIRED, history::GROUPS, boundary::BOUNDARIES, boundary::REPORT])?;
         tx.delete_meta(&SNAPSHOT_KEYS)?;
         for data in tx.outbox_entries()? {
             let mut entry: Queued = decoded(&data)?;
             if let Some(seq) = entry.sent_seq.or(entry.observed_seq) {
                 // A receipt proves execution in the old store. It is not
                 // permission to execute that write in the replacement.
+                keep_write(tx, &serde_json::json!({ "state": "sent", "id": entry.id, "seq": seq, "replayed": true }).to_string())?;
                 retired.insert(entry.id.clone(), seq);
                 tx.outbox_delete(&entry.id)?;
             } else {
@@ -120,4 +121,27 @@ impl<S: DeviceStore> Device<S> {
         if observed.restore_refused { return Err(restore_error()); }
         Ok(observed)
     }
+}
+
+// Receipt retirement and its durable history share the fenced transaction.
+pub(super) fn keep_write<T: DeviceTx>(tx: &T, value: &str) -> Result<(), RuntimeError> {
+    let parse = |text: &str| snapback4_core::json_codec::from_text::<serde_json::Value>(text).map_err(|e| RuntimeError::Store(e.to_string()));
+    let write = parse(value)?;
+    // A list is an adopted older window; a single receipt is a new local completion.
+    let adopting = write.is_array();
+    let incoming = if adopting { write.as_array().unwrap().clone() } else { vec![write] };
+    for entry in &incoming {
+        if entry.get("id").and_then(|id| id.as_str()).is_none() { return Err(RuntimeError::Store("write receipt requires an id".into())); }
+    }
+    let mut history = tx.meta("client:write-history")?.map(|text| parse(&text)).transpose()?.unwrap_or_else(|| serde_json::json!([]));
+    let entries = history.as_array_mut().ok_or_else(|| RuntimeError::Store("write history must be a list".into()))?;
+    let mut ids: std::collections::BTreeSet<String> = entries.iter().filter_map(|entry| entry["id"].as_str().map(str::to_owned)).collect();
+    let mut added = Vec::new();
+    for entry in incoming {
+        if ids.insert(entry["id"].as_str().unwrap().to_owned()) { added.push(entry); }
+    }
+    if adopting { entries.splice(..0, added); } else { entries.extend(added); }
+    if entries.len() > 256 { entries.drain(..entries.len() - 256); }
+    tx.set_meta("client:write-history", &history.to_string())?;
+    Ok(())
 }

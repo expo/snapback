@@ -61,6 +61,11 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 json!({ "jobs": jobs, "reads": reads })
             }
             "sync_state" => encoded(&device.sync_state()?)?,
+            "sync_metadata" => {
+                let metadata = parse(take(&mut request, "metadata")?)?;
+                let capture = parse(take(&mut request, "capture")?)?;
+                json!({ "snapshot": device.sync_metadata(metadata, capture)? })
+            }
             "begin_send" => json!({ "send_revision": device.begin_send()? }),
             "adopt" => {
                 let mut expected = std::collections::BTreeMap::new();

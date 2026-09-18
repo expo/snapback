@@ -551,21 +551,22 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   async function syncRound(): Promise<boolean> {
     caughtUp = false;
     if (closed || sessionDead || partitionDenied?.code === "E_STORE_RESTORE") return false;
-    const state = (await call({ op: "state" })).ok as { watermark: number; generation: number } | undefined;
-    let watermark = state?.watermark ?? 0;
+    const state = (await call({ op: "sync_state" })).ok as { watermark: number; snapshot_required?: boolean } | undefined;
+    let watermark = state?.snapshot_required ? 0 : state?.watermark ?? 0;
     const touched = new Set<string>();
     let adoptedGeneration = false;
     let after: string | undefined;
     let catchingUp = false;
     let pageLimit = PAGE;
-    let overflow: Refusal | undefined;
+    let needsMetadata = false;
     try {
       for (let pages = 0; pages < 100_000; pages++) {
         let page: SyncPage;
         let pageRevision = credentialRevision;
         let requestedStore: string | null | undefined;
         let backendRequired = false;
-        const discovering = overflow !== undefined;
+        let metadataCapture: Record<string, unknown> | undefined;
+        const discovering = needsMetadata;
         const pageIncarnation = incarnation;
         try {
           const captured = await call({ op: "sync_state" });
@@ -574,17 +575,21 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (restore_refusal) { refuseRestore(restore_refusal); return false; }
           backendRequired = !!backend_required;
           requestedStore = store_id;
+          metadataCapture = { store_id: store_id ?? null, generation, send_revision, captured_watermark: capturedWatermark, from: watermark, stream: catchingUp, recover: pageLimit === 1 && (watermark > 0 || catchingUp) };
           const request = requestCredentials();
-          const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify(discovering ? { metadata: true } : { from: watermark, limit: pageLimit, after: after ?? null, stream: catchingUp, pending, ...(store_id ? { store_id } : {}) }), signal: aborter.signal });
+          const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify(discovering ? { metadata: true, from: watermark, stream: catchingUp, limit: pageLimit, generation, pending, recover: metadataCapture.recover, ...(store_id ? { store_id } : {}) } : { from: watermark, limit: pageLimit, after: after ?? null, stream: catchingUp, pending, ...(store_id ? { store_id } : {}) }), signal: aborter.signal });
           if (response.status >= 500) { setLink("offline"); return false; }
           page = (await response.json()) as SyncPage;
           if (!response.ok && !page.denied) { setLink("offline"); return false; }
           if (discovering && !page.denied) {
             if (page.metadata !== true || typeof page.store_id !== "string" || !page.store_id
-              || !Number.isSafeInteger(page.generation) || Number(page.generation) < 0
+              || (requestedStore != null && page.store_id !== requestedStore)
+              || !Number.isSafeInteger(page.generation) || Number(page.generation) < 1
               || !Number.isSafeInteger(page.watermark) || Number(page.watermark) < 0) return false;
-            // Discovery is an observation, never an empty stream page to apply.
-            page = { store_id: page.store_id, generation: page.generation, watermark: page.watermark, snapshot: false, events: [], more: false };
+            if (page.recovery !== undefined) {
+              const recovery = page.recovery as { from?: unknown; snapshot?: unknown } | null;
+              if (!metadataCapture.recover || !recovery || recovery.from !== watermark || typeof recovery.snapshot !== "boolean") return false;
+            }
           }
           page.send_revision = send_revision;
           page.requested_watermark = discovering ? capturedWatermark : watermark;
@@ -601,8 +606,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (responsePageTooLarge(denied) && !discovering) {
             // An error has no reset authority. Make a fresh authenticated
             // request whose metadata must pass the ordinary device fences.
-            overflow = denied;
+            needsMetadata = true;
             continue;
+          }
+          if (discovering) {
+            if (denied.code === "E_AUTH") await refusedSession(denied, pageRevision);
+            return false;
           }
           await refusedSession(page.denied, pageRevision);
           if (!denied.retryable) {
@@ -613,17 +622,32 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           return false;
         }
         if (pageIncarnation !== incarnation || pageRevision !== credentialRevision) return false;
+        if (discovering) {
+          // Metadata has its own fenced command: no fabricated stream page,
+          // identity observation, receipt retirement or row installation.
+          const checked = await call({ op: "sync_metadata", metadata: page, capture: metadataCapture });
+          if (checked.denied) { refuseRestore(checked.denied); return false; }
+          if ((checked.ok as { snapshot: boolean }).snapshot) {
+            observeIncarnation(storeIdentity, true);
+            await refreshAcquired();
+            watermark = 0; after = undefined; catchingUp = false; needsMetadata = false;
+            continue;
+          }
+          if (Number(page.generation) === generation && !backendRequired) {
+            // A bare refusal may shrink a page, but even at one it cannot
+            // authorize a snapshot or a durable partition refusal.
+            if (pageLimit === 1) return false;
+            pageLimit = Math.max(1, Math.floor(pageLimit / 2));
+            needsMetadata = false;
+            continue;
+          }
+        }
         // @ref LLP 3000.007#18.2 — sync identity retires the old partition before any read or outbox replay.
         let replacedStore = false;
         if (!discovering && typeof page.store_id === "string") observeIncarnation(page.store_id);
-        if (discovering || (typeof page.store_id === "string" && page.store_id !== requestedStore) || Number(page.watermark) < watermark) {
-          for (const entry of await queued()) {
-            const seq = entry.sent_seq ?? entry.observed_seq;
-            if (entry.sent_seq == null && seq != null) await history.keep({ state: "sent", id: entry.id, seq, replayed: true });
-          }
+        if (!discovering && ((typeof page.store_id === "string" && page.store_id !== requestedStore) || Number(page.watermark) < watermark)) {
           const observed = await call({ op: "observe_store", page });
           if (observed.denied) { refuseRestore(observed.denied); return false; }
-          if (discovering && typeof page.store_id === "string") observeIncarnation(page.store_id);
           const observation = observed.ok as { reset: boolean; backend_required?: boolean; send_revision: number; retired: Record<string, number> };
           page.send_revision = observation.send_revision;
           backendRequired = !!observation.backend_required;
@@ -636,6 +660,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             adoptedGeneration = true;
             for (const [id, sentSeq] of Object.entries(observation.retired)) {
               const receipt: Write = { state: "sent", id: id as Write["id"], seq: sentSeq, replayed: true };
+              await history.keep(receipt);
               settled.get(id)?.(receipt); settled.delete(id);
               emitWrite(receipt);
             }
@@ -644,7 +669,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             replacedStore = true;
           }
         }
-        if (typeof page.store_id === "string") storeIdentity = page.store_id;
+        if (!discovering && typeof page.store_id === "string") storeIdentity = page.store_id;
         if (link !== "online") setLink("online");
         partitionDenied = null;
         const pageGeneration = Number(page.generation ?? generation);
@@ -658,7 +683,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             backendRevision = request.revision;
             const nextBackend = await loadBackend(doFetch, base, request.headers, aborter.signal);
             if (closed || backendIncarnation !== incarnation || request.revision !== credentialRevision) return false;
-            const adopted = await call({ op: "adopt", backend: nextBackend, store_id: page.store_id ?? requestedStore ?? null, send_revision: page.send_revision, captured_watermark: page.captured_watermark });
+            if (discovering && nextBackend.generation !== pageGeneration) return false;
+            const adopted = await call({ op: "adopt", backend: nextBackend, store_id: discovering ? requestedStore ?? null : page.store_id ?? requestedStore ?? null, send_revision: page.send_revision, captured_watermark: page.captured_watermark });
             await refreshAcquired();
             if (adopted.denied) return false;
             incarnation++;
@@ -672,24 +698,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             if (error instanceof BackendAuthError) await refusedSession(error.denied, backendRevision);
             return false;
           }
-          watermark = 0; after = undefined; catchingUp = false; overflow = undefined; continue;
-        }
-        if (discovering) {
-          if (pageLimit > 1) {
-            // Preserve position and snapshot continuation while shrinking.
-            pageLimit = Math.max(1, Math.floor(pageLimit / 2));
-          } else if (watermark > 0 || catchingUp) {
-            // A whole commit cannot be split. Reacquire through the ordinary
-            // staged snapshot, retaining left history and acquisition markers.
-            watermark = 0; after = undefined; catchingUp = false;
-          } else {
-            // Even one snapshot row cannot fit: discovery cannot fix that.
-            partitionDenied = overflow!;
-            for (const watch of watches.values()) void rerun(watch);
-            return false;
-          }
-          overflow = undefined;
-          continue;
+          watermark = 0; after = undefined; catchingUp = false; needsMetadata = false; continue;
         }
         if (Number(page.watermark) < watermark || (catchingUp && page.snapshot) || (page.snapshot && page.more && !page.next)) return false;
         page.stage_snapshot = !!page.snapshot;

@@ -2,6 +2,107 @@
 use super::*;
 use serde_json::json;
 
+#[test]
+fn sync_metadata_recovery_fences_and_durable_acquisition_on_both_stores() {
+    on_both(|host| {
+        let (mut engine, backend) = compile(SOURCE);
+        engine.seed([("notes".into(), snapback4_core::value::object([("id", id("held")), ("body", Value::String("held".into()))]))]).unwrap();
+        let mut device = host.open("metadata", Some(backend.clone())).unwrap();
+        identified_pages(&mut engine, &mut *device, false);
+        let state = ok(device.call(json!({ "op": "sync_state" })));
+        let capture = json!({ "store_id": state["store_id"], "generation": state["generation"], "send_revision": state["send_revision"],
+            "captured_watermark": state["watermark"], "from": state["watermark"], "stream": false, "recover": true });
+        let metadata = json!({ "metadata": true, "store_id": state["store_id"], "generation": state["generation"], "watermark": state["watermark"] });
+        assert_eq!(ok(device.call(json!({ "op": "sync_metadata", "metadata": metadata, "capture": capture })))["snapshot"], false);
+        assert_eq!(ok(device.call(json!({ "op": "sync_state" }))), state, "generic metadata is read-only");
+        let mut decision = metadata.clone();
+        decision["recovery"] = json!({ "from": state["watermark"], "snapshot": true });
+        for field in ["store_id", "send_revision", "captured_watermark", "generation", "from", "stream", "recover"] {
+            let mut stale = capture.clone();
+            stale[field] = match field { "store_id" => json!("foreign"), "stream" => json!(true), "recover" => json!(false), _ => json!(99) };
+            let denied = device.call(json!({ "op": "sync_metadata", "metadata": decision, "capture": stale }));
+            assert_eq!(denied["denied"]["code"], "E_GENERATION", "{field}: {denied}");
+            assert_eq!(ok(device.call(json!({ "op": "sync_state" }))), state);
+            assert_eq!(rows(&query(&mut *device, "all", "alice", json!({}), 1)).len(), 1);
+        }
+        let mut wrong_position = decision.clone();
+        wrong_position["recovery"]["from"] = json!(0);
+        assert_eq!(device.call(json!({ "op": "sync_metadata", "metadata": wrong_position, "capture": capture }))["denied"]["code"], "E_GENERATION");
+        assert_eq!(ok(device.call(json!({ "op": "sync_metadata", "metadata": decision, "capture": capture })))["snapshot"], true);
+        let recovering = ok(device.call(json!({ "op": "sync_state" })));
+        assert_eq!(recovering["snapshot_required"], true);
+        assert_eq!(recovering["acquired"], false);
+        assert_eq!(recovering["watermark"], state["watermark"], "keep the restore watermark");
+        assert_eq!(recovering["send_revision"].as_u64().unwrap(), state["send_revision"].as_u64().unwrap() + 1);
+        let mut page = page_json(&stream_page(&mut engine, "alice", state["watermark"].as_u64().unwrap()));
+        page["store_id"] = state["store_id"].clone();
+        page["send_revision"] = state["send_revision"].clone();
+        assert_eq!(device.call(json!({ "op": "apply", "page": page }))["denied"]["code"], "E_GENERATION", "pre-recovery pages are fenced");
+        device.close();
+        let mut device = host.open("metadata", None).unwrap();
+        assert_eq!(ok(device.call(json!({ "op": "sync_state" }))), recovering, "restart persists across reopen");
+        page["send_revision"] = recovering["send_revision"].clone();
+        assert_eq!(device.call(json!({ "op": "apply", "page": page }))["denied"]["code"], "E_GENERATION", "ordinary streaming cannot discharge recovery");
+        identified_pages(&mut engine, &mut *device, true);
+        assert_eq!(ok(device.call(json!({ "op": "sync_state" })))["acquired"], false, "snapshot rows stay staged until catch-up");
+        page["snapshot_catchup"] = json!(true);
+        ok(device.call(json!({ "op": "apply", "page": page })));
+        let published = ok(device.call(json!({ "op": "sync_state" })));
+        assert_eq!(published["acquired"], true);
+        assert!(published["snapshot_required"].is_null());
+        assert_eq!(rows(&query(&mut *device, "all", "alice", json!({}), 1)).len(), 1);
+        device.close();
+    });
+}
+
+#[test]
+fn sync_metadata_restore_checks_the_capture_before_persisting_on_both_stores() {
+    for older in [false, true] { on_both(|host| {
+        let (mut engine, mut backend) = compile(SOURCE);
+        if older {
+            let (_, changed) = compile(&SOURCE.replace("first 100", "first 99"));
+            engine.adopt(changed.schema.clone(), changed.programs.clone()).unwrap();
+            backend = snapback4_device::device::Backend { generation: engine.generation(), ..changed };
+        }
+        engine.seed([("notes".into(), snapback4_core::value::object([("id", id("held")), ("body", Value::String("held".into()))]))]).unwrap();
+        let mut device = host.open("metadata-restore", Some(backend)).unwrap();
+        identified_pages(&mut engine, &mut *device, false);
+        let state = ok(device.call(json!({ "op": "sync_state" })));
+        let capture = json!({ "store_id": state["store_id"], "generation": state["generation"], "send_revision": state["send_revision"],
+            "captured_watermark": state["watermark"], "from": state["watermark"], "stream": false, "recover": false });
+        let metadata = json!({ "metadata": true, "store_id": state["store_id"], "generation": if older { 1 } else { state["generation"].as_u64().unwrap() }, "watermark": 0 });
+        let mut stale = capture.clone(); stale["send_revision"] = json!(0);
+        assert_eq!(device.call(json!({ "op": "sync_metadata", "metadata": metadata, "capture": stale }))["denied"]["code"], "E_GENERATION");
+        assert_eq!(ok(device.call(json!({ "op": "sync_state" }))), state);
+        assert_eq!(device.call(json!({ "op": "sync_metadata", "metadata": metadata, "capture": capture }))["denied"]["code"], "E_STORE_RESTORE");
+        device.close();
+        let mut device = host.open("metadata-restore", None).unwrap();
+        let restored = ok(device.call(json!({ "op": "sync_state" })));
+        assert_eq!(restored["restore_refusal"]["code"], "E_STORE_RESTORE");
+        assert_eq!(restored["watermark"], state["watermark"]);
+        device.close();
+    }); }
+}
+
+#[test]
+fn sync_metadata_cannot_identify_a_legacy_acquired_partition_on_both_stores() {
+    on_both(|host| {
+        let (mut engine, backend) = compile(SOURCE);
+        engine.seed([("notes".into(), snapback4_core::value::object([("id", id("held")), ("body", Value::String("held".into()))]))]).unwrap();
+        let mut device = host.open("legacy-metadata", Some(backend)).unwrap();
+        for (n, page) in snapshot_pages(&mut engine, "alice", 2).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
+        let state = ok(device.call(json!({ "op": "sync_state" })));
+        assert!(state["store_id"].is_null());
+        let capture = json!({ "store_id": null, "generation": state["generation"], "send_revision": state["send_revision"],
+            "captured_watermark": state["watermark"], "from": state["watermark"], "stream": false, "recover": false });
+        let metadata = json!({ "metadata": true, "store_id": "a-store", "generation": state["generation"], "watermark": 0 });
+        assert_eq!(device.call(json!({ "op": "sync_metadata", "metadata": metadata, "capture": capture }))["denied"]["code"], "E_GENERATION");
+        assert_eq!(ok(device.call(json!({ "op": "sync_state" }))), state);
+        assert_eq!(rows(&query(&mut *device, "all", "alice", json!({}), 1)).len(), 1);
+        device.close();
+    });
+}
+
 const SOURCE: &str = "table notes:\n  body: text <=100\n  public 'reset fixture'\n  insert <- allow\n  sync\nquery all():\n  return notes first 100 by byId\nmutation add(body: text <=100):\n  return insert notes { body }\n";
 
 fn same_store_restore(host: &mut dyn HostDyn, observe: &str) {
@@ -124,6 +225,11 @@ fn store_identity_resets_equal_watermarks_and_retires_only_known_receipts_on_bot
         assert_eq!(observation["reset"], true);
         assert_eq!(observation["retired"]["known-observed"], 3);
         assert_eq!(observation["retired"]["known-unstreamed"], 5);
+        let receipts = ok(device.call(json!({ "op": "meta", "key": "write-history" })));
+        let receipts: serde_json::Value = serde_json::from_str(receipts.as_str().unwrap()).unwrap();
+        for id in ["known-observed", "known-unstreamed"] {
+            assert!(receipts.as_array().unwrap().iter().any(|receipt| receipt["id"] == id), "retirement persists receipts before returning to its host");
+        }
         assert!(device.call(json!({ "op": "apply", "page": old_page }))["denied"].is_object(), "an old response cannot reset B back to A");
         assert_eq!(ok(device.call(json!({ "op": "sync_state" })))["store_id"], b_id);
         assert!(query(&mut *device, "all", "alice", json!({}), 1)["denied"].is_object());
