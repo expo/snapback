@@ -693,6 +693,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (applied.denied) { refuseRestore(applied.denied); return false; }
         const published = (applied.ok as { published?: boolean } | undefined)?.published !== false;
         publicationOutstanding = !published;
+        // Apply already committed. Its invalidations must reach finally even
+        // when the following metadata read fails.
+        for (const table of ((applied.ok as { touched?: string[] } | undefined)?.touched ?? [])) touched.add(table);
         if (published) {
           const publishedRead = await call({ op: "sync_state", capture: false });
           if (publishedRead.denied) return false;
@@ -702,7 +705,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           storeIdentity = publishedStore ?? undefined;
           watermark = publishedState?.watermark ?? watermark;
         }
-        for (const table of ((applied.ok as { touched?: string[] } | undefined)?.touched ?? [])) touched.add(table);
         if (page.snapshot && page.more && page.next) {
           after = page.next as string;
           continue;

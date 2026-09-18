@@ -67,16 +67,30 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
     let transfer_identity = tx.meta(deferred::IDENTITY)?;
     let receipt_identity = previous.as_ref().or(transfer_identity.as_ref());
     let private_identity = previous.is_none() && page.store_id.is_some() && transfer_identity == page.store_id;
+    let same_identity = page.store_id.is_some() && (!identity_changed || private_identity);
+    // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — private progress is restore evidence, never publication authority.
+    let transfer = deferred::cursor(tx)?.or(if tx.meta(SNAPSHOT_OWNER)?.is_some() { Some(meta_u64(tx, SNAPSHOT_THROUGH)?) } else { None });
+    let private_restore = if let Some(transfer) = transfer.filter(|cut| page.requested_watermark == Some(*cut)) {
+        // A delayed reply from an earlier private cut cannot accuse a healthy
+        // store of restore. Revision and published-capture checks ran above.
+        predictions::declaration(tx, page)?;
+        let floor = watermark.max(transfer).max(meta_u64(tx, deferred::IMAGES_AT)?).max(meta_u64(tx, SNAPSHOT_IMAGES_AT)?);
+        page.images_at.or((!page.more).then_some(page.watermark)).is_some_and(|head| head < floor)
+            || page.watermark < transfer
+    } else { false };
+    let published_restore = page.watermark < watermark
+        && page.requested_watermark.is_none_or(|requested| page.watermark < requested);
+    if same_identity && (published_restore || private_restore) {
+        tx.set_meta(RESTORE_REFUSED, "1")?;
+    }
+    // A halt belongs to the incarnation, even when rows are cleared, a
+    // backend is adopted, identity is omitted, or its head later refills.
+    if tx.meta(RESTORE_REFUSED)?.is_some() && (!identity_changed || private_identity) {
+        return Ok(StoreObservation { reset: false, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()), send_revision: revision, retired: BTreeMap::new(), restore_refused: true });
+    }
     let reset = (identity_changed && !private_identity && (receipt_identity.is_some() || tx.meta(ACQUIRED)?.is_some_and(|value| !value.is_empty()) || meta_u64(tx, WATERMARK)? > 0 || tx.meta(SNAPSHOT_OWNER)?.is_some()))
         || (!page.snapshot_catchup && page.store_id.is_none() && page.requested_watermark.is_some_and(|requested| page.watermark < requested) && page.captured_watermark == Some(watermark));
     let mut retired = BTreeMap::new();
-    // A matching identity with a lower head is a restore, not a new store.
-    // Persist the halt with the old watermark; neither retry nor adoption
-    // may silently turn the same identity into a fresh acquisition.
-    if !identity_changed && page.store_id.is_some() && page.watermark < watermark
-        && page.requested_watermark.is_none_or(|requested| page.watermark < requested) {
-        tx.set_meta(RESTORE_REFUSED, "1")?;
-    }
     if reset {
         // Replacement retires receipts of the old incarnation, including its
         // private transfer. A legacy rewind can retire only published effects.

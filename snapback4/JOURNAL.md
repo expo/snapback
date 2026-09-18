@@ -36920,3 +36920,59 @@ in this worktree. `ref-check --verbose`: 484 LLP docs, 9440 refs, zero errors.
 full verbatim final command output, incoming-source probes, mutation edits,
 compiler commands and source verification are preserved in
 `target/review-fix7/report.md`. No push, rebase or merge was performed.
+
+## 2026-09-18 — Repair B, review fix round 8: private restore evidence
+
+X1: same-incarnation restore detection now consumes validated private progress,
+not only the published watermark. Ordinary deferred effects retain their highest
+image head with the transfer cursor; snapshot staging retains the equivalent
+head with its through cut. A current echoed request reporting a head below this
+evidence commits E_STORE_RESTORE before returning. Published 5, private 10,
+images from 20 refuses both restored head 7 and refilled head 15. Healthy
+truncated pages at head 20 continue; obsolete request cuts and invalid pages
+cannot manufacture a halt. Private first identity already binds this evidence.
+
+The halt survives reopen, refill beyond the old head, row clearing and backend
+adoption. Inspection found a related escape through an identity-omitted legacy
+rewind: it can no longer clear an existing halt. Only a different named
+incarnation or complete device-store disposal ends it. The new head keys are
+consumed with their private images on publication or explicit image discard.
+
+All fourteen claims in grok-b8-03, -05 and -16 have individual dispositions in
+REPAIR-B-HANDOFF.md. The capped-dequeue allegation is disproved by an identical
+both-store regression on incoming 8c49c95cc: 257 writes, declared prefix 256,
+published excluded row value 3, dequeue and reopen still 3. Restore consumes the
+confirmed-base sidecar, not admission-time Queued.predicted metadata.
+
+Grok 16.4's cursor allegation is disproved by the next loop's native capture,
+but its failed post-publication state read exposed a real watch invalidation
+loss. Touched tables are now recorded immediately after successful apply, ahead
+of the fallible metadata read, so finally still reruns affected watches. The
+new client test fails at stale value 1 on incoming output, observes/notifies 2
+with the fix, and asserts request cursors 5,5,9.
+
+The handoff replaces the earlier durable-key table with a reader/authority
+column and an explicit invalidation-event column. Every publication key names
+its boundary; the two monotonic allocators deliberately last for the whole
+store. The audit also enumerated the previously omitted upload-facts cache:
+no incarnation/expiry invalidation exists. A native SQLite probe retained S's
+facts through T replacement, backend adoption, acquisition and reopen. This is
+recorded in issues/20260918-snapback4-upload-facts-cache-lacks-incarnation-invalidation.md;
+it does not demonstrate unauthorized server execution, which resolves assets
+independently. The remaining cache boundary prevents an unqualified claim that
+the whole lifetime class is closed.
+
+Verification: cargo test -p snapback4-device exited 0 (631 passed, 0 failed,
+3 existing ignored); cargo test -p snapback4-core exited 0 (160 passed, 0 failed);
+cargo test -p snapback4 exited 0 (265 passed, 0 failed). Fourteen new Rust cases
+cover seven scenarios on both stores, and the nine client/transport tests and
+strict TypeScript compilation pass. All ten Rust mutations and one client
+mutation fail their intended assertions with passing controls; their input
+hashes match final source/output. Both X1 tests fail on archived incoming
+8c49c95cc source; capped dequeue passes there. Old-wire probes remain 1/1/1.
+ref-check --verbose reports 484 LLP documents, 9441 refs, zero errors;
+git diff --check passes. Complete verbatim output of the three commands, exact
+mutation edits and commands, source hashes, assertion failures, controls and
+incoming-source evidence are retained in target/review-fix8/report.md. The
+memory witness is host drain/reopen, not browser termination or power loss.
+No push, rebase or merge was performed.

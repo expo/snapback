@@ -14,6 +14,7 @@ const META: &str = "device:deferred:meta:";
 // Its presence is slot occupancy; CURSOR is only the next request position.
 pub(super) const ACKS: &str = "device:deferred:acks";
 pub(super) const CURSOR: &str = "device:deferred:cursor";
+pub(super) const IMAGES_AT: &str = "device:deferred:images_at";
 
 pub(super) fn clear<T: DeviceTx>(tx: &T) -> Result<(), RuntimeError> { tx.delete_meta(&[PREFIX]) }
 pub(super) fn stage_identity<T: DeviceTx>(tx: &T, identity: Option<&str>) -> Result<(), RuntimeError> {
@@ -138,6 +139,9 @@ pub(super) fn stage<T: DeviceTx>(tx: &T, schema: &Schema, generation: u64, page:
     let mut acks: BTreeMap<String, u64> = tx.meta(ACKS)?.map(|v| decoded(&v)).transpose()?.unwrap_or_default();
     acks.extend(page.acknowledged.clone());
     tx.set_meta(ACKS, &encoded(&acks)?)?;
+    // The cursor is a log cut, not the head that produced these images.
+    // Retain the greatest validated head until this bundle is consumed.
+    tx.set_meta(IMAGES_AT, &meta_u64(tx, IMAGES_AT)?.max(page.images_at.unwrap_or(page.watermark)).to_string())?;
     tx.set_meta(CURSOR, &encoded(&page.watermark)?)
 }
 

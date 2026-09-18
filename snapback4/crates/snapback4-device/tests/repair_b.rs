@@ -481,3 +481,5 @@ mod round6;
 
 #[path = "repair_b/round7.rs"]
 mod round7;
+#[path = "repair_b/round8.rs"]
+mod round8;

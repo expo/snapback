@@ -174,9 +174,10 @@ const SNAPSHOT_OWNERS: &str = "device:snapshot:owners";
 const SNAPSHOT_WATERMARK: &str = "device:snapshot:watermark";
 const SNAPSHOT_SEND_REVISION: &str = "device:snapshot:send_revision";
 const SNAPSHOT_THROUGH: &str = "device:snapshot:through";
+const SNAPSHOT_IMAGES_AT: &str = "device:snapshot:images_at";
 const SNAPSHOT_NEXT: &str = "device:snapshot:next";
 const SNAPSHOT_ACKS: &str = "device:snapshot:acks";
-const SNAPSHOT_KEYS: [&str; 8] = [SNAPSHOT_ACKS, SNAPSHOT_NEXT, boundary::STAGED, SNAPSHOT_OWNER, SNAPSHOT_WATERMARK, SNAPSHOT_SEND_REVISION, SNAPSHOT_THROUGH, history::STAGED_GROUPS];
+const SNAPSHOT_KEYS: [&str; 9] = [SNAPSHOT_ACKS, SNAPSHOT_NEXT, boundary::STAGED, SNAPSHOT_OWNER, SNAPSHOT_WATERMARK, SNAPSHOT_SEND_REVISION, SNAPSHOT_THROUGH, SNAPSHOT_IMAGES_AT, history::STAGED_GROUPS];
 /// The app's native module (LLP 3000.005 §9), kept so a cold start offline
 /// answers native reads too: the bytes as hex, and the digest the server named.
 const NATIVE: &str = "device:native";
@@ -550,6 +551,8 @@ impl<S: DeviceStore> Device<S> {
     /// Apply one page atomically. A paged snapshot stages separately; its
     /// last page atomically replaces the confirmed partition and rebases
     /// every remaining prediction. Returns the tables touched.
+    /// Requests must use `sync_state().transfer_watermark`; an empty result
+    /// can mean private progress. `apply_publication` also reports publication.
     pub fn apply(&mut self, page: &StreamPage, first: bool) -> Result<Vec<String>, RuntimeError> {
         self.apply_publication(page, first).map(|(touched, _)| touched)
     }
@@ -632,7 +635,7 @@ impl<S: DeviceStore> Device<S> {
         if replacing {
             if page.snapshot && first {
                 tx.staged_clear()?;
-                tx.delete_meta(&[SNAPSHOT_ACKS])?;
+                tx.delete_meta(&[SNAPSHOT_ACKS, SNAPSHOT_IMAGES_AT])?;
                 snapshot::retain(&tx, &self.schema, page.held.as_ref())?;
                 boundary::retain(&tx, &self.schema)?;
                 tx.set_meta(SNAPSHOT_WATERMARK, &page.watermark.to_string())?;
@@ -656,6 +659,7 @@ impl<S: DeviceStore> Device<S> {
             snapshot::stage(&tx, &self.schema, page)?;
             history::events(&tx, &self.schema, &page.events, &page.joined, true)?;
             tx.set_meta(SNAPSHOT_THROUGH, &page.watermark.to_string())?;
+            tx.set_meta(SNAPSHOT_IMAGES_AT, &meta_u64(&tx, SNAPSHOT_IMAGES_AT)?.max(page.images_at.unwrap_or(page.watermark)).to_string())?;
             let mut acks: BTreeMap<String, u64> = tx.meta(SNAPSHOT_ACKS)?.map(|s| decoded(&s)).transpose()?.unwrap_or_default();
             acks.extend(page.acknowledged.clone());
             tx.set_meta(SNAPSHOT_ACKS, &encoded(&acks)?)?;

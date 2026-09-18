@@ -1,96 +1,169 @@
-# Repair B — round 7 handoff
+# Repair B — round 8 handoff
 
-Scope: base `27a8a4d66`, incoming HEAD `5a55e7717653fc2a37757267efba7b92ecdd29cb`,
+Incoming `8c49c95cc2eb99cfa6c04a8743eb4705551c42ca`, base `27a8a4d66`,
 branch `sb4/repair-b-defer-image-0bf8a4b5`. Local commit only; no push, rebase or merge.
+Round 7's dispositions remain recorded in the incoming commit and append-only journal.
 
-## Requested findings
+## Governing context
+
+Scope: private replica publication, incarnation restore detection, and client watch
+invalidation after publication. LLP 3000 §4 supplies the Snapback 4 fence;
+LLP 2000.000 §7 supplies the partition/prediction model;
+[LLP 3000.001, Repair B](../llp/3000.001-durable-replica-and-write-lifecycle.research.md#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes)
+and [LLP 3000.007 §18.2](../llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md#18.2)
+govern publication versus transfer and incarnation ownership. These are current
+LLPs, not foundation documents. The implementation retains the existing additive
+wire fields, publication transaction and legacy no-deferral behavior. The
+existing Repair B LLP is updated with this correction; no new design document
+or workflow gate is introduced. Orientation hand-off: none.
+
+## Findings and dispositions
+
+**X1 — fixed.** The deferred accumulator retains its maximum validated
+`images_at` alongside its cursor. Snapshot staging retains the equivalent head
+alongside `snapshot:through`. Restore detection compares a current, echoed
+private request with the maximum of published progress, private progress and
+its retained image head. The incoming `images_at` is the server head; a terminal
+page without that additive field supplies its head through its watermark. A
+truncated page's cut below an earlier image head is not itself a restore. An
+obsolete private-request echo cannot set the halt, and rejected pages never
+advance the retained evidence. A private first identity already owns its restore
+evidence before the identity becomes published.
+
+Both `observe_store` and `apply` commit `E_STORE_RESTORE` durably, before
+returning the refusal. Queries, sends, reopen, refill to 15 **or beyond the old
+head to 25**, row clearing and backend adoption cannot release it. Inspection
+also exposed a related reset escape: an identity-omitted legacy rewind could
+clear an existing halt. That path now preserves it; only a different named
+incarnation (or disposal of the entire device store) releases it.
+
+The protocol regressions publish at **5**, privately transfer to **10** using
+images at **20**, then exercise **7** and **15**, on memory and SQLite.
+They test preflight and direct apply, reopen before the first image-head restore
+observation, reopen after halt, refill, sends and queries. Snapshot coverage
+includes live catch-up, first private identity, and a preflight of the retained
+private cut after reopen; it does **not** claim that a reopened owner resumes
+another owner's snapshot. Incoming source fails both ordinary X1 regressions.
+
+Numbers below identify the three NOT-READY packets in `target/reviews-r8/`.
+Every claim has a disposition; verdict words alone are not treated as findings.
 
 | Finding | Disposition and evidence |
 | --- | --- |
-| **W1 — teardown outlives its persisted revision** | **Fixed at recovery.** `open_store` abandons the previous request capture and increments its revision atomically, without clearing deferred pages, published replay limits, outbox or rows. The next request captures the durable outbox. Advancing the revision also fences a surviving owner's delayed response. No capture means no extra metadata writes. `round7::teardown_loses_send_revision_after_durable_admission` persists the empty capture and q's admission, commits q on the real engine, then drops the memory device without draining the send-revision batch. Both present/omitted-wire forms and persisted/lost-revision controls give **1/1/1** through a second reopen. The same test on incoming source gives **1/2/2**. The existing live-capture test still proves same-owner capture reuse; it now proves abandonment and late-response refusal at reopen. |
-| **W2 — receipt arms omit restore** | **Disproved against the complete function and incoming source.** `settle` calls `predictions::restore` before `match seq`, hence before both `record_receipt` and `remove`; then it replays and commits. The review packet omitted that preceding line. `predictions::restore` uses the confirmed-base sidecar, not the removed entry's `predicted` list. No new withdraw helper is needed. `round7::receipt_arms_restore_before_replaying_relative_survivors` admits two relative writes, reopens, exercises both rejection and receipt, checks survivor counts/values, reopens again, and dequeues to the original base. It passes unchanged on incoming source on memory and SQLite. Separate mutations removing restore from each arm fail. |
-| **W3 — identity-free receipt becomes bound to no store** | **Fixed.** `record_receipt` leaves `receipt_store` absent without a real id. Missing outer identity and historical `Some({id: None})` both match as unbound; `bind_legacy_receipts` binds either on the first real identity. Known foreign identities remain immutable. The first-acquisition regression covers both encodings, terminal acknowledgement, exact value 1, empty outbox and reopen on both stores. A storage regression also binds through private identity and proves foreign receipts stay foreign. Incoming source fails the same first-acquisition test. Three separate receipt mutations fail. |
-| **W4 — snapshot skips current events / drops live ordinary slot** | **Disproved against full staging and incoming source.** Every replacement page first calls `snapshot::stage` and staged `history::events`; terminal publication installs that staging, its boundaries, history and accumulated acknowledgements. Applying events again would duplicate scope/history work. `replacing && transfer > watermark` refuses the alleged coexisting advanced ordinary slot before staging or publication. `round7::snapshot_catchup_installs_intermediate_and_terminal_events` checks a distinct intermediate row, terminal multirow update, receipts, privacy and reopen; `snapshot_cannot_discard_an_advanced_ordinary_slot` checks refusal, intact progress and successful ordinary drain. All pass on incoming source on both stores. Skipping intermediate staging, terminal staging, or the advanced-slot guard separately fails. |
-| **W5 — private identity escapes into published client state** | **Fixed.** Request identity still comes from `transfer_store_id`; closure identity and adoption comparison now come from native `store_id` at capture and after durable observation/publication. A page's identity alone no longer invalidates watches. Actual native replacement reset still invalidates and adopts immediately. The client regression holds published A while fetching private B, asserts unchanged watch value/notification/read counts during deferral, no spurious observation/adoption, then checks B's published value. The existing native A→A2→row-reset→B backend-adoption test also passes. Two mutations promoting a private identity fail. |
-| **W6 — false snapshot mode disables outstanding ordinary stream** | **Fixed with distinct modes.** `publicationOutstanding` derives from native transfer progress beyond published progress and unpublished apply results. It keeps HTTP `stream` enabled independently of `snapshot_catchup`, survives a round interruption via native cursor facts, and does not mark ordinary pages as snapshot-owned. Snapshot pagination still uses its continuation. The client regression reports explicit `snapshot_catchup:false`, defers, loses the next request, resumes from 7 with `stream:true`, publishes at 9, and checks both applies have `snapshot_catchup:false`. Removing stream mode, recovery from durable progress, or the ownership distinction each fails. |
-| **Reset test weakness** | **Strengthened.** `clear_rows_lifetime` asserts `device:watermark == "0"` in the same transaction as all private-key checks, then reopens with the same `Some(Backend)` used at setup. Zero is this implementation's reset representation, not an absent key. Removing that reset write fails. |
-| **Terminal-gap test weakness** | **Strengthened.** The storage regression now drives both live and snapshot terminal gaps with nonempty `committed_above` through `apply_publication`, asserts the protocol refusal, unchanged watermark and no private publication. The existing four-mode real-device test also covers live, direct/staged snapshot and catch-up, through reopen. Exempting live terminal gaps from validation fails. |
+| **03.1 — reset retains transfer/snapshot progress (High)** | **Disproved.** `clear_rows` calls `reset_publication`, which unconditionally calls `deferred::clear`, `predictions::reset` and `snapshot::clear`. The latter clears staged rows and every `SNAPSHOT_KEYS` entry. Only identity is restaged. Existing `clear_rows_consumes_all_private_progress` and `empty_cursor_and_reset_remove_all_publication_keys` assert committed state and reopen; the new head keys join these same explicit lifetimes. |
+| **03.2 — first identity fails owner check or escapes binding (High)** | **Disproved.** Private first observation stages identity without changing published `STORE_ID`; `require_owner` therefore compares `None` with durable `None`. Publication promotes identity and updates this owner's in-memory identity in the commit tail. Existing first/omitted-identity regressions cover publication. New `first_private_identity_already_owns_its_restore_evidence` additionally proves restore refusal before promotion. |
+| **03.3 — failed rejection cleanup lets capture double a write (Medium)** | **Disproved as stated.** A live capture is immutable at its send revision; new sends invalidate that revision, successful apply consumes it, matching rejection consumes it, and reopening atomically abandons it and advances revision. Failure to delete a capture does not give it newer-revision authority. Existing overlap, late-response, recovery, and `cleanup_failure_preserves_the_original_apply_and_observe_error` tests cover the boundaries. Replacing the primary failure with cleanup failure would regress round 7's accepted behavior. |
+| **03.4 — snapshot flag resends the old snapshot cut (Medium)** | **Disproved.** The client sends `from: transfer_watermark`; `snapshot_catchup` controls staging ownership and stream mode, not an alternate server cursor. Real snapshot catch-up writes `snapshot:through`, not the ordinary slot. `send_after_terminal_snapshot_drains_multiple_catchup_pages` advances each requested cut and publishes the terminal result on both stores; `interrupted snapshot catch-up resumes its durable mode` covers transport. |
+| **03.5 — crash after send commit leaves in-memory owner active (Medium)** | **Disproved.** Crash discards the process owner; reopening starts with `snapshot_owner: None`. In a surviving process, apply compares its owner against the durable owner and the snapshot send revision; `sync_state` also requires owner equality. No path authorizes snapshot continuation from the memory field alone. Paging-send and obsolete-owner tests remain green. |
+| **03.6 — compatibility `apply` callers refetch the published cut (Low)** | **No production counterexample.** `apply` remains the touched-table convenience API; requests use `sync_state().transfer_watermark`, as the real-engine `next` helper and the JSON client do. The dispatcher calls `apply_publication` and returns its boolean. Rust API documentation now states both requirements explicitly. The real-engine deferral/termination and HTTP/native cursor tests pass. |
+| **05.1 — `settle(None)` omits restore (High)** | **Disproved; accepted W2 evidence retained.** The complete function calls `predictions::restore` before `match seq`. `receipt_arms_restore_before_replaying_relative_survivors` passes on both stores; the previous incoming-source and per-arm mutation evidence remains under `target/review-fix7/`. |
+| **05.2 — dequeue restores admission images for an excluded write (High)** | **Disproved with new incoming-source evidence.** Restore reads the confirmed-base sidecar, never `Queued.predicted` or admission images. Publication consumes old bases, installs images, then remembers bases only for replayed writes. `capped_dequeue_keeps_the_published_image` declares 256 of 257 writes, publishes value 3 for the excluded row, dequeues its write, and still reads 3 through reopen. It passes on incoming `8c49c95cc` and HEAD, on both stores. Keeping the stale base sidecar makes the regression fail. |
+| **05.3 — an effects bundle can lack ACKS (Medium)** | **Disproved.** `deferred::stage` always writes ACKS, including `{}`, in the same transaction as effects and cursor. Identity alone is not an effects bundle. `pending_publication_reads_the_slot_not_request_progress` checks cursor-only, ACKS-only, committed cursor+ACKS, and publication. |
+| **16.1 — unpublished page never advances the next fetch (High)** | **Disproved.** Every loop iteration starts with native `sync_state`, then assigns the request cursor from `transfer_watermark` before fetching. It does not depend on the post-publication read. The native integration and ordinary-interruption tests assert advancing requests and final publication. |
+| **16.2 — snapshot continuation receives a published cut (High)** | **Disproved.** A nonterminal snapshot always returns `published:false` from native; the client also sets `stage_snapshot:true`. Pagination keeps the prior published request cut until terminal staging moves into catch-up. The alleged first-page `published:true` is not emitted by this implementation. Multi-page snapshot tests pass on both stores. |
+| **16.3 — adoption must compare private requested identity (Medium)** | **Disproved.** `store_id` on adopt is a compare-and-swap expectation for durable **published** `STORE_ID`, not an instruction to open a different database. The device is already open. Passing private identity would fail that comparison. `generation adoption compares published identity during private acquisition` explicitly asserts null and succeeds on its first attempt; the native A→A2→B test also passes. |
+| **16.4 — failed post-publication read loses progress (Medium)** | **Cursor allegation disproved, adjacent watch bug fixed.** The next round captures native progress before any request, but the fallible read previously ran before adding committed touched tables. A denial lost watch invalidation. The client now accumulates touched tables immediately after successful apply so `finally` reruns watches even if metadata inspection fails. New regression reproduces stale value 1 on incoming client output, reads/notifies value 2 with the fix, and asserts request cursors **5,5,9**. Reverting the ordering fails its watch assertion. |
+| **16.5 — omitted native identity clears a known store (Low)** | **Disproved for this native contract.** `SyncState.store_id` is serialized, including null before first publication. Once named, omission of wire identity does not erase native `STORE_ID`; generation and row resets preserve it, while actual replacement names the successor. The shell intentionally reflects native published identity. Existing omitted-wire-identity and private-identity watch tests pass. |
 
-## Remaining review packets
+## Durable keys: authority and explicit invalidation events
 
-Numbers below are `grok-b7-NN.finding`. No finding is inferred from a packet's verdict alone.
+This supersedes the round-3 table and its round-5/6/7 corrections. The third
+column names the semantic event, not just a clearing helper. “Store disposal”
+means destruction of the whole durable device store, not a row reset. An allocator
+may deliberately last that long: its old numeric value is superseded on each
+allocation, and resetting it earlier would reuse identities.
 
-| Finding | Disposition / concrete evidence |
+| Durable key/value | Reader and authority | What invalidates it |
+| --- | --- | --- |
+| `device:deferred:rows:*` (image, admission) | Private fold/install only | A later accepted effect supersedes that row's value; ordinary publication consumes the bundle; replacement publication, row clearing, changed-generation installation or incarnation replacement discards it. Deletion/recreation starts new admission provenance. |
+| `device:deferred:meta:*` | Private ordered metadata effects | Later accepted operations supersede each key; the same publication/discard events as private rows consume the bundle. |
+| `device:deferred:acks` | Private receipts, consumed only with effects | Publication consumes and acknowledges them; row clearing, changed-generation installation or incarnation replacement discards them without claiming publication. Always present for an effects bundle, even empty. |
+| `device:deferred:cursor` | Next request and private monotonic floor; never replay retirement | Next validated deferred page supersedes the cut; publication, row clearing, changed-generation installation or incarnation replacement consumes it. Recovery and sends preserve valid ordinary transfer. |
+| `device:deferred:images_at` **new** | Highest validated image head for restore detection | Publication consumes it with its bundle; row clearing, changed-generation installation or incarnation replacement discards its images and head together. Lower or omitted heads do not overwrite stronger evidence while staged. |
+| `device:deferred:identity` | Private transfer and execution-receipt binding | First publication promotes it and consumes private identity; a different incarnation replaces it. Row clearing and generation installation deliberately restage the known identity; sends/reopen preserve it. |
+| `device:declaration:capture` | Immutable request IDs, bounds and revision | Successful apply consumes it; matching echoed rejection releases it; a new send revision makes the old capture unusable and next request replaces it; open abandons it and advances revision; row clearing, changed-generation installation and incarnation replacement erase it. |
+| `device:declaration:first-capture` | No reader/writer; historical residue | Next capture cleanup, recovery, row clearing, changed-generation installation or incarnation replacement removes residue. |
+| `device:declaration:published` | Published replay exclusion | Next publication replaces it; image-dropping row reset, schema installation or incarnation replacement erases it. Literal-default evolution retaining images retains the exclusion for those images. |
+| `device:snapshot:through` | Private catch-up cut | Next accepted snapshot/catch-up page advances it; publication, row clearing, changed-generation installation, incarnation replacement or a send during snapshot pagination clears it. First accepted replacement page supersedes the old cut. Reopen does not grant its new owner authority over it. |
+| `device:snapshot:images_at` **new** | Private snapshot image head for restore detection | Same snapshot disposal events as `through`; a first replacement page explicitly starts fresh image-head evidence. |
+| `device:snapshot:owner` | Snapshot continuation/publication ownership | Snapshot restart replaces owner; publication, row clearing, changed-generation installation, incarnation replacement or paging send clears it. Reopen has no in-memory owner match, so it cannot continue the old owner's snapshot. |
+| `device:snapshot:owners` | Monotonic owner-token allocator, not acquisition | Each new snapshot allocation supersedes its numeric value; whole-store disposal ends the allocator. Row reset/reopen must not reuse tokens. |
+| `device:snapshot:watermark` | Original snapshot cut | First replacement page replaces it; publication, row clearing, changed-generation installation, incarnation replacement or paging send clears it. |
+| `device:snapshot:send_revision` | Snapshot's permitted send revision | A send during pagination discards the snapshot; a send during terminal catch-up explicitly rebinds this revision. Snapshot restart replaces it; publication and the named image/identity reset events clear it. |
+| `device:snapshot:next` | Exact continuation, or terminal empty sentinel | Each accepted snapshot page supersedes it; restart, publication, paging send, row clearing, changed-generation installation or incarnation replacement ends its validity. |
+| `device:snapshot:acks` | Private snapshot receipts | Accepted pages merge them; first replacement starts a new receipt set; publication consumes it; paging send and the named image/identity reset events discard it. |
+| Snapshot staging rows | Private replacement images | Later staged effects supersede each row; snapshot restart, publication, paging send, row clearing, changed-generation installation or incarnation replacement discards staging. |
+| `device:snapshot:boundaries:*` | Private acquisition boundaries | Validated markers update boundaries; first replacement reinitializes from retained published boundaries; publication consumes staging; paging send and the named image/identity reset events clear it. |
+| `device:snapshot:groups` | Private held/left groups | Accepted scope/join events supersede membership; snapshot restart rebuilds it; publication consumes it; paging send and the named image/identity reset events clear it. |
+| `device:store_id` | Published incarnation, owner/adoption CAS and receipt matching | Authenticated different-incarnation replacement supersedes it; whole-store disposal removes it. Row clearing and generation installation preserve incarnation. First publication promotes private identity. |
+| `device:send_revision` | Request/send invalidation token | New send, identity promotion/replacement, or recovery of an abandoned capture supersedes its value. Whole-store disposal ends the allocator; ordinary row reset does not reuse tokens. |
+| `device:watermark` | Published acquisition/replay progress | Next publication advances it; explicit row clearing, changed-generation installation or incarnation replacement sets zero. Private progress never overwrites it. |
+| `device:acquired-generation` | Read/prediction readiness | Row clearing or incarnation replacement erases it; changed-generation installation invalidates it unless literal-default evolution preserves all acquired tables, in which case it translates the marker. Terminal publication replaces it. Restore halt makes it unusable immediately. |
+| `device:generation` | Installed interpreter generation | Successful backend installation/adoption replaces it; whole-store disposal removes it. A changed value does not itself prove acquisition. |
+| `device:backend`, `device:backend-identity` | Installed schema/programs and owner validation | Successful backend installation/adoption replaces them, making prior interpreters obsolete; whole-store disposal removes them. |
+| `device:backend-required` | Durable replacement/adoption obligation | Successful checked backend installation clears the obligation; later incarnation replacement supersedes it. Neither private pages nor a matching generation satisfy it. |
+| `device:restore-refused` | Durable same-incarnation halt | **Only authenticated replacement by a different named incarnation or whole-store disposal.** Reopen, refill, omitted identity, row clearing and generation/backend adoption preserve it. |
+| `device:submission` | Inclusive monotonic submission allocator | Each admission supersedes its number; whole-store disposal ends the allocator. Entry retirement, row reset and incarnation replacement do not reuse numbers. |
+| `Queued.id`, `seq` | Durable write/submission identity | Receipt-covered retirement, explicit dequeue or terminal refusal removes the entry; whole-store disposal removes the outbox. Replay preserves both. |
+| `Queued.receipt_store`, `sent_seq` | Incarnation-bound execution evidence | Entry retirement/removal consumes it. First named identity binds previously anonymous receipts; known foreign bindings never rebind. Image reset preserves execution proof; replacement retires matching old-incarnation executions. |
+| `Queued.observed_seq` | Published-effect evidence | Dropping images clears it after preserving execution as `sent_seq`; entry removal consumes it. Image-preserving generation evolution retains it. |
+| `Queued.predictable`, `predicted` | Speculation metadata, never undo authority | Replay updates the write set or withdraws an ineligible prediction; incarnation replacement withdraws predictions; refusal/dequeue/retirement removes the entry. |
+| Confirmed-base sidecar | Base beneath the current overlay | Restore consumes it before publication, settlement, withdrawal or replay; a new prediction remembers a new base. Image-dropping reset/disposal clears it. Excluded writes leave no admission-time undo authority. |
+| `device:acquisition-boundaries:*` | Published coverage/admission | Scope loss removes/changes that group's boundary; accepted acquisition markers supersede it; replacement publication installs staged boundaries; image-dropping row/schema/incarnation resets clear it. |
+| `device:history:groups` | Published held/left membership | Scope/join changes membership; replacement publication installs staged membership; row clearing, changed-generation installation or incarnation replacement clears it. |
+| `device:acquisition-report` | Diagnostic report, no authorization | A later boundary report supersedes it; image-dropping row/schema/incarnation reset removes it. |
+| `device:media:*` | Revalidated home-row hint | Row edit/deletion or scope loss forgets it. Even if bytes remain after a reset, generation mismatch, missing/different row asset, revocation or expiry invalidates use on the next access. It is not an independent media grant. |
+| `device:upload:*` | Uploader/asset-keyed server facts for prediction, not execution or acquisition proof | A newer authenticated upload receipt for the same key replaces it; whole-store disposal removes it. There is no incarnation/asset-expiry invalidation in this cache; see audit limit below. |
+| `device:native`, `device:native:digest`, `device:native:generation` | Installed native module/owner identity | Changed-generation or replacement adoption invalidates it; module installation replaces it; invalid bytes/digest/generation on open discard the cache. Owner checks reject another owner's obsolete digest. |
+
+All publication keys now have a specific invalidation event; no publication row
+relies on an unspecified caller of reset. Two allocators intentionally belong to
+the entire durable store. This is a scoped lifetime audit, not proof that every
+possible lifetime bug is closed. In particular, enumerating neighboring device
+metadata found the **upload-facts cache has no incarnation/expiry invalidation**:
+`media::inputs` reads it by uploader and asset ID and prediction uses those facts;
+server execution still resolves/validates the asset independently. That is an
+explicit remaining audit boundary, not a claim that stale facts authorize a
+server write. A native SQLite probe retained S's facts through T replacement,
+adoption, acquisition and reopen; the [follow-up ticket](../issues/20260918-snapback4-upload-facts-cache-lacks-incarnation-invalidation.md)
+records the scope and reproduction. The prior table omitted this key. It prevents an unqualified
+“every lifetime is closed” conclusion.
+
+## Verification and mutation proof
+
+Fourteen new Rust cases (seven scenarios × two stores), plus one client
+regression. Mutation controls pass with identical test source; all ten Rust
+mutations and the client mutation compile and fail their intended assertions.
+Mutants are isolated copies with default native features and debug assertions,
+not replacements for branch files.
+
+| New regression | Mutation proving sensitivity |
 | --- | --- |
-| 01, 06, 12 | No findings. Core interval split, additive encoding, transaction hook and apply result are unchanged. |
-| 02's unverified questions | `SyncState` derives Serialize only and is not a persisted decode format. `predictions::reset` retains outbox entries and converts observed sequences to sent evidence when dropping images. Apply checks generation before staging; client adoption resets private transfer before restarting from native state. |
-| 03.1, 03.2, 03.4 | Previously disproved U3/U5/U4; retained. Publication clears all snapshot keys and owner, first identity stages before promotion, and `reset_publication` clears all private namespaces. Round 6 lifecycle tests plus the stronger reset assertions pass. |
-| 03.3 | No same-revision recapture: `capture` returns `current_capture`; a send changes revision and old response fails `observe`'s revision check before declaration/replay. The overlapping-capture and late-response tests remain green. Recovery is now a deliberate additional invalidation boundary under W1. |
-| **03.5 — cleanup hides apply error (Low)** | **Fixed.** Rejection cleanup is best effort in both `apply_publication` and `observe_store`; the original error is returned. A store wrapper lets the original transaction fail for overlap and refuses the cleanup transaction. Both APIs preserve the overlap error on both stores. Restoring either error-masking `?` fails. |
-| 04.1, 04.2 | Invalid terminal pages already fail shared validation before the replacing/deferring split. No second terminal predicate added. Both direct apply tests now cover the alleged live terminal case explicitly. |
-| 04.3 — missing touched tables | Disproved: `deferred::install(..., &mut touched)` inserts every row table and, for an occupied bundle, all schema tables (including metadata-only changes). `restore` restores the confirmed base; it does not install deferred effects. The HTTP/native counter-watch test observes final value 2. |
-| 04.4 — generation replacement livelock | Disproved: the client handles generation change with `adopt` before apply; the install reset clears private transfer, preserving outbox execution evidence, then the client restarts. `every_reset_clears_one_publication_state` and generation-adoption transport tests exercise this. Same-generation arbitrary replacement while an advanced slot exists is correctly refused; the new W4 test drains it. |
-| 04.5 — cursor below published watermark | No reachable writer: deferred staging requires `page.watermark >= requested >= published`; publication consumes the whole slot atomically; reset clears it. A clamp would hide corrupted progress. No extra predicate added for manually corrupted metadata. |
-| 05.1–3 | W2/W4 above. |
-| 05.4 — ACKS can be absent for empty receipts | Disproved: `deferred::stage` unconditionally writes `ACKS`, including `{}`. Identity or cursor alone is not an occupied effects bundle. The occupancy test now also commits ACKS and cursor together and asserts pending. |
-| 05.5 — debug-only cleanup assertion | No reachable leftover: both publication branches unconditionally clear the whole prefix inside the transaction before watermark/acks/replay, with failure rolling back. The assertion documents this postcondition; it is not the only cleanup mechanism. Runtime scanning is not added as protection against a hypothetical omitted deletion. Reset/publication lifecycle tests retain the durable checks. |
-| 07.1 — inherited admission overwritten | Disproved: `stage` installs inherited rows and metadata inside the savepoint **before** constructing `Recording`; the next put sees the inherited row as `old: Some`. A delete removes its admission and permits a fresh candidate. `later_qualifying_image_upgrades_admission_and_moves_keep_it` covers same-page, later-page and marker-only upgrades, moves and recreation, with reopen and immediate-apply controls on both stores. |
-| 07.2 — unrecorded outbox/base/staged writes | No reachable call: the recorded window calls only `events_recording` (rows, boundary/history/media metadata). Restore and inherited install execute before wrapping; acknowledgements execute after publication. No outbox/base/staged mutator is called through Recording. No extra recording machinery or panics added for unused trait methods. |
-| 07.3 — inherited metadata invisible to reads | Disproved by ordering: `install_metadata(tx)` runs before `Recording::new`, and recording writes also modify the real savepoint transaction before logging. Reads see both inherited and current effects. The multi-page boundary/history tests and prefix-fold tests pass. |
-| 08.1 — missing published declaration at replay | Disproved: publication calls `publish_declaration` before `replay` in the same transaction. Before any page publication, `(0,0)` correctly allows the admitted overlay. Cap/prefix and legacy-exclusion tests exercise this boundary. Falling back to an in-flight capture during private deferral would change the published overlay prematurely. |
-| 08.2 — foreign receipt sequence should retire | Rejected: another store's sequence number is not proof of inclusion in this store's log. Replacement binds/settles the old incarnation first; preserved foreign receipts must not acquire current authority merely because their number is below a watermark. Known/legacy foreign-receipt lifecycle tests remain green. The actual anonymous-binding error is W3. |
-| **08.3 — declaration consumes wrong revision (Medium)** | **Fixed.** Declaration lookup filters by the page's local send revision, or current revision if omitted. A late named response can still read its own capture, but another revision's un-echoed page falls back to published evidence. The new unit test covers both forms; removing the filter fails. |
-| **08.4 — bad checkpoint bounds / recovery (Medium)** | **Fixed bounds and recovery.** Bounds-only checkpoints now reject `through > bound`. Invalid persisted captures remain fail-closed during a live request; reopen abandons even undecodable capture bytes without parsing them, preserving private effects and published limits. New both-store recovery regression verifies this. Silently rebuilding a live response's declaration is deliberately avoided. Removing checkpoint validation or recovery invalidation fails. |
-| **08.5 — optional bound differs on rejection (Low)** | **Fixed.** `echo_matches` is shared by declaration validation and rejection; an omitted optional bound matches, a present one must equal the captured bound. Removing optional-bound acceptance on reject fails. |
-| 09.1–3 | W3 and the two requested test strengthenings above. The suggested private-vs-published receipt mismatch after `clear_rows` does not occur as claimed: `clear_rows` preserves a known STORE_ID; when identity is private only, published watermark is zero and no named-store image is yet being replayed as published. |
-| **09.4 — legacy fixture bypasses apply (Medium)** | **Strengthened.** The legacy no-capture/no-echo page now applies on a device whose `[100,150]` replay exclusion is already committed. Apply succeeds and preserves it. Erasing the fallback exclusion fails. |
-| **10.1 — occupancy lacks joint state** | **Strengthened.** Tests cursor-only, ACKS-only, then committed cursor+ACKS, publication, and terminal publication. The erroneous `ACKS && !cursor` mutant fails. |
-| **10.2 — reset only tests dirty state (Medium)** | **Strengthened.** Plant state and commit; reset in a new transaction; commit and reread every namespace and staged rows. Omitting committed-slot cleanup fails. |
-| **10.3 — no nonempty cursor assertion (Low)** | **Strengthened.** Assert committed cursor decodes to `Some(77)` before reset. An always-None cursor mutant fails. |
-| 11.1 — omitted identity unstages | Disproved: `stage_identity(None)` is explicitly a no-op. The omitted-identity publication test covers repeated omission and promotion from staging. |
-| 11.2 — stale private identity promoted over another store | Disproved: replacement calls `reset_publication`, which clears the whole deferred namespace before installing the replacement identity. The assumed S/T mismatch has no writer. Row-reset/private-incarnation lifecycle tests cover the reset/adopt/reopen sequence. |
-| 13.1, 13.2 | W5/W6 above. |
-| **13.3 — HTTP page cursor treated as published (Medium)** | **Fixed.** Removed the post-apply assignment from `page.watermark`; published progress refreshes from native only after publication. Each next request still reads native transfer progress. |
-| 13.4 — omitted published flag (Low) | Native dispatcher always emits the boolean returned by `apply_publication`; private returns carry false. Kept the existing old-native polarity `published !== false`. No wire/version change. The dispatcher storage test and transport regressions cover the actual contract. |
+| Private cursor/lower-head halt and refill | Remove private restore floor; separately discard the halt on reopen. |
+| Image head retained through reopen/refill | Omit ordinary image-head persistence; separately omit snapshot image-head persistence. |
+| Halt only released by a new named incarnation | Re-enable legacy identity-omitted rewind past the halt. |
+| Healthy paging, obsolete replies, publication disposal | Ignore the echoed private-request cut; separately leave snapshot head after publication. |
+| Capped dequeue retains published image | Keep the consumed confirmed-base sidecar so stale undo survives publication. |
+| First private identity owns restore evidence | Require an already-published identity for restore detection. |
+| Only validated pages advance restore evidence | Persist a preflight head before the page's effects validate. |
+| Watch invalidation after post-publication read failure | Move touched-table collection back after that fallible read. |
 
-## Verification artifacts
+Exact edits, compiler/test commands, source hashes, assertion failures, passing
+controls, incoming-source checks and **verbatim output of all three requested
+commands** are in [target/review-fix8/report.md](./target/review-fix8/report.md).
+The report retains raw logs as separate files. The persistence witness is the
+production memory host's drain/reopen boundary and native SQLite reopen, not a
+physical power-loss or browser-process-kill claim.
 
-The complete record is [target/review-fix7/report.md](./target/review-fix7/report.md):
-verbatim stdout/stderr for each requested command, exits, source hashes,
-mutation edits/compiler commands/assertion failures, passing controls, and
-incoming-source probes. Tests compile normal native features with repository
-profiles; isolated mutation builds preserve those features and debug assertions
-with optimization disabled. Mutated source never replaces branch files.
-
-W2/W4 were independently executed against source bytes archived from incoming
-HEAD, using the same current core/language dependencies (unchanged this round).
-Both receipt outcomes and both snapshot tests pass there. The teardown and
-anonymous-binding regressions fail there. This is evidence for the disproofs,
-not merely a green result on changed code.
-
-The persistence test is the production memory store's host-drain/reopen boundary;
-it is not a browser termination or physical-power-loss witness. The native
-transport tests exercise the process device; the focused shell tests inject
-native state to isolate publication, watch and request-mode behavior.
-
-## Final results
+Final results:
 
 | Command | Passed | Failed | Ignored | Exit |
 | --- | ---: | ---: | ---: | ---: |
-| `cargo test -p snapback4-device` | 617 | 0 | 3 | 0 |
+| `cargo test -p snapback4-device` | 631 | 0 | 3 | 0 |
 | `cargo test -p snapback4-core` | 160 | 0 | 0 | 0 |
 | `cargo test -p snapback4` | 265 | 0 | 0 | 0 |
 
-Verbatim results, without omitted targets or warning lines, are embedded in
-[target/review-fix7/report.md](./target/review-fix7/report.md) and retained as
-individual raw logs. Eight client/transport tests and TypeScript compilation
-pass. All **27 mutations** (21 Rust, six client) failed the intended regression
-assertions with passing controls and final-source hash verification. This includes
-the post-publication native-cursor regression for 13.3. `ref-check --verbose`
-reports 484 LLP docs, 9440 refs, zero errors; `git diff --check` passes.
-
-The first full run exposed needless absent-key deletion records; that production
-issue was corrected. The next exposed a fixture issuing a new request with its
-pre-reopen revision; it now captures the new owner and still checks rejection
-of the unchanged old reply. Final full runs supersede those incomplete runs,
-whose logs remain in the verification record. No push, rebase or merge.
+Strict TypeScript compilation and nine client/transport tests pass. All four
+old-wire probes remain **1/1/1**. Eleven mutation input hashes match final
+source/output. `ref-check --verbose`: 484 LLP docs, 9441 refs, zero errors;
+`git diff --check` passes.
