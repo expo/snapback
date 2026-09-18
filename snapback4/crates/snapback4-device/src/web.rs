@@ -18,6 +18,21 @@ fn refused(error: &snapback4_core::error::RuntimeError) -> JsError {
     JsError::new(&json!({ "denied": snapback4_core::json_codec::to_value(&error.refusal()).expect("a refusal is serializable") }).to_string())
 }
 
+// @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — refuse incompatible host NFC before opening or rebuilding word keys.
+fn guard_unicode() -> Result<(), JsError> {
+    let denied = || JsError::new(&json!({ "denied": { "code": "E_HOST_UNICODE", "family": "store", "message": "Host NFC normalization is unavailable or disagrees with the contract. Use a browser with standard String.prototype.normalize; the web device will not index text differently from the server." } }).to_string());
+    // Reflect.get rejects primitives; Object.getPrototypeOf boxes the empty string.
+    let prototype = js_sys::Object::get_prototype_of(&js_sys::JsString::from(""));
+    let normalize = js_sys::Reflect::get(&prototype, &JsValue::from_str("normalize")).map_err(|_| denied())?;
+    if !normalize.is_function() { return Err(denied()); }
+    let normalize: js_sys::Function = normalize.unchecked_into();
+    for (input, expected) in [("A\u{030A}", "\u{00C5}"), ("d\u{0323}\u{0307}", "\u{1E0D}\u{0307}"), ("\u{1E9B}\u{0323}", "\u{1E9B}\u{0323}"), ("\u{1100}\u{1161}", "\u{AC00}")] {
+        let actual = normalize.call1(&JsValue::from_str(input), &JsValue::from_str("NFC")).map_err(|_| denied())?;
+        if actual.as_string().as_deref() != Some(expected) { return Err(denied()); }
+    }
+    Ok(())
+}
+
 #[wasm_bindgen]
 impl WebDevice {
     /// Open on `backend` (`GET /schema`'s JSON text, or null to open on the
@@ -25,6 +40,7 @@ impl WebDevice {
     /// persisted, in order. Throws the refusal as JSON text.
     #[wasm_bindgen(constructor)]
     pub fn new(backend: Option<String>, kept: &str) -> Result<WebDevice, JsError> {
+        guard_unicode()?;
         let backend = match backend {
             Some(text) if !text.is_empty() && text != "null" => Some(snapback4_core::json_codec::from_text::<Backend>(&text).map_err(|e| JsError::new(&json!({ "denied": { "code": "E_INPUT", "family": "input", "message": e.to_string() } }).to_string()))?),
             _ => None,

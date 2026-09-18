@@ -1,4 +1,5 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_HOST_UNICODE", "family store — host NFC normalization is unavailable or disagrees with the contract. Use a browser with standard String.prototype.normalize; the web device will not index text differently from the server. guide search."),
     ("E_QUARRY_BOUND", "a boundless prefix needs a fitting schema cap, or a uniformly decided query loop or merge lane domain. Declare cap N by the pinned columns, or page with first N and a cursor; the rewrite names the missing bound or deciding columns. guide bounds."),
     ("E_INTERNAL", "an undefined compiler temporary reached the interpreter. The operation and site identify a compiler defect; recompile and report it if it persists. guide programs."),
     ("E_ROUTE_DECLARATION", "a route declaration has invalid syntax, authority, path, work policy or wait, or duplicates a route name or path. Use route name: post \"/hooks/name\", optional as service:<seat>, declared secrets and bounded work clauses. The located diagnostic gives the rewrite. guide routes."),

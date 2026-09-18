@@ -851,6 +851,7 @@ dependencies = [
 name = "snapback4-device"
 version = "0.2.28"
 dependencies = [
+ "js-sys",
  "rusqlite",
  "serde",
  "serde_json",

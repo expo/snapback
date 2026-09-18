@@ -33240,3 +33240,106 @@ For the plan's separate byte accounting, `node /tmp/sb4-s3/measure-client.mjs` i
 No out-of-scope repository file was changed. No failure is labelled pre-existing: the untouched base artifact used by the red index-call test was built at `614898e9a7eb6240fb2aef8cda3e08ae0f4acb0a`, but the React/browser restriction was not rerun on an untouched base checkout. One initial targeted Cargo invocation was mistakenly issued from the repository root and exited 101 before running any tests; it was corrected to `snapback4/`, and all builds and successful Cargo tests used that workspace.
 
 The remaining obligations are the author's ruling and outside-sandbox browser qualification. The 150,000 B gzip closure target is still missed; neither a byte win nor the same-version Node differential closes the diet. The two premises corrected by this lane are the plan's extension of normalization stability to lowercase, and the brief's roughly sixty-second warm suite estimate: this loaded run completed in 665 seconds.
+
+## 2026-09-18 - S3-R0: NFC-only host folding with an open-time guard
+
+Implemented the author's 2026-09-18 ruling on base `a04bae226060b66d417bb245fa405b5918478aec`: variant A, host NFC followed by Rust `to_lowercase`, retaining the ASCII fast path. `Builtin::Lower`, `nfc-lower-alnum-1`, ceilings, client contract, existing corpus and durable/wire forms are unchanged. The device's web feature directly selects the already locked `js-sys` dependency so `WebDevice::new` checks normalization before parsing the backend or loading kept rows. A missing/non-function method, an exception or any failed canary returns the constructor's JSON refusal envelope with `E_HOST_UNICODE`, family `store` (the existing `E_NATIVE_TOOLCHAIN` host-capability precedent). The message and `why` explain the standard-browser repair; the search card and README describe guarded browser normalization and Rust lowercase.
+
+The canaries are exactly the commissioned pairs: `A U+030A` -> `U+00C5`; `d U+0323 U+0307` -> `U+1E0D U+0307`; `U+1E9B U+0323` -> itself; `U+1100 U+1161` -> `U+AC00`. A native oracle proves all four against Rust's tables and pins `to_ascii_lowercase == to_lowercase` over all 16,384 ASCII pairs. Wasm tests count six host normalizations and zero host lowercasings, with no additional host calls for the ASCII pairs. Constructor tests cover deletion, a non-function, identity, a throwing function and each individual corrupted canary, with successful open/fold after restoration; invalid backend input confirms the host guard runs first. The existing loud fold-failure test remains. Page application and reopen assertions exclude the four constructor calls, so those canaries cannot masquerade as indexing evidence; persisted row text stays unchanged.
+
+One required implementation correction: `Reflect.get` cannot operate on a primitive empty `JsString`. The guard uses `Object.getPrototypeOf` on the empty string and `Reflect.get` on that object, checks `is_function`, then uses caught `Function::call1` calls so a throwing normalizer refuses without an abort. Local command `node -e 'try { Reflect.get("", "normalize"); } catch (error) { console.log(error.toString()); } console.log("prototype method:", typeof Reflect.get(Object.getPrototypeOf(""), "normalize"));'` printed `TypeError: Reflect.get called on non-object` and `prototype method: function`. Four canaries are a startup sanity check, not a proof over arbitrary host replacements or Unicode versions.
+
+Commands below ran from `snapback4/` unless marked root. Every Node command used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`. Toolchain: `rustc --version`: `rustc 1.97.0 (2d8144b78 2026-07-07)`; `wasm-bindgen --version`: `wasm-bindgen 0.2.127`; `wasm-opt --version`: `wasm-opt version 132`. Logs are `/tmp/s3-r0-*.log`.
+
+`bash scripts/build-wasm.sh`, before and after (wasm profile, `--no-default-features --features web`, wasm32-unknown-unknown, shipped gzip selection):
+
+```text
+wasm 1412828 B raw, 392551 B gzip (budget 452000: ok)
+wasm 1414924 B raw, 393588 B gzip (budget 452000: ok)
+```
+
+The combined change adds **2,096 raw / 1,037 gzip B**, outside the brief's roughly 100 B expectation; no budget is raised. `shasum -a 256 packages/snapback4/src/wasm/snapback4_device_bg.wasm` gives `84cd4c4adcf6adc899d340561d2a1302a323da76b5be00e0aba5894bde65b454`. The brief reverses the old 53 B comparison: the preceding S3 journal's A is 407,786 B and B is 407,839 B, so A was 53 B smaller, not larger, in that measurement (before the later witness/fast-path additions).
+
+`node scripts/attribute-wasm.mjs --check-families --check-absent` exited 0:
+
+```text
+       69166   3.69%  .rodata
+1875391 total attributed bytes
+serde family check: ok
+server-only absence check: ok
+```
+
+`twiggy top -n 1000000 --format json target/wasm-sym/wasm32-unknown-unknown/wasm/snapback4_device.wasm > /tmp/s3-r0-symbols.json`, followed by counting JSON rows whose `name` contains `unicode_normalization`, found **0 symbols**. The normalization tables remain absent. `bash scripts/check-release-guard.sh` exited 0: `release guard: ok (web-device-check refuses the wasm profile)`.
+
+`node witness/idb.mjs unicode --node` exited 0 and regenerated both Rust fixtures plus the shipped wasm. Node v24.18.0, V8 13.6.233.17-node.50, ICU 78.3, host Unicode 17.0, Rust/normalization Unicode 17.0.0: **20,034 normalization lines; 57,848 folds; 51,067 returned lowercase values; 6,781 expected input refusals; 0 differences**. No code-point/age disagreement required a stop. Its 4,000-row apply timing uses two warmups and seven samples: ASCII **93.952 ms median** (90.844, 93.952, 92.904, 117.901, 106.921, 111.632, 76.520); Unicode **77.118 ms median** (83.775, 77.118, 72.127, 74.242, 75.428, 78.620, 80.291). These are supplemental Node observations under shared load, not paired performance or Chromium claims.
+
+Regression proof, new tests against the unchanged base artifact and product code:
+
+- `node --test packages/snapback4/test/unicode.test.mjs` (exit 1):
+
+```text
+ℹ tests 11
+ℹ suites 0
+ℹ pass 1
+ℹ fail 10
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 124.861792
+```
+
+- `cargo test -p snapback4-lang --test guide host_unicode_refusal_explains_the_repair_and_search_contract` (exit 101):
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 47 filtered out; finished in 0.00s
+```
+
+Final targeted checks, all exit 0:
+
+- `cargo test -p snapback4-core --test unicode_fold`:
+
+```text
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+```
+
+- `cargo test -p snapback4-device --test unicode`:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.43s
+```
+
+- `cargo test -p snapback4-lang --test guide`:
+
+```text
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+```
+
+- `node --test packages/snapback4/test/unicode.test.mjs`:
+
+```text
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 101.162458
+```
+
+- `node --test packages/snapback4/test/unicode.test.mjs packages/snapback4/test/wasm-*.test.mjs`:
+
+```text
+ℹ tests 51
+ℹ suites 0
+ℹ pass 51
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 24915.169875
+```
+
+The full `bash snapback4/scripts/test.sh` and Chromium witness were **not run**, as this round explicitly assigns them to the lead outside the sandbox. No failure is claimed pre-existing. No commit, push, tag, publication, install, remote work or sub-agent was performed. Minimal supporting changes outside the brief's named files are the device Cargo manifest and workspace lockfile (one existing dependency edge) and language `diag.rs` (route the new code to `guide search`); no other lane's product surface changed. All changed source files remain below 1,500 lines (largest: guide tests, 1,127).
+
+Root `./ref-check --verbose` exited 0 after the documentation update: `ref-check: ok — 483 LLP docs, 9101 refs in 24291 files, 0 errors, 0 unchecked`. Root `git diff --check` exited 0 with no output. A byte-prefix comparison against `git show HEAD:snapback4/JOURNAL.md` confirms the journal is append-only.

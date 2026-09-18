@@ -987,6 +987,8 @@ id`) under a per-chat rule checks the rule per row and is never
 `complete` (`N_NEVER_COMPLETE`): use `searchGrouped` or `searchNewest` to search the viewer's
 chats, or read on the device (§4).
 
+The web device folds through the browser's normalization, keeps Rust lowercase, and refuses to open with `E_HOST_UNICODE` when the browser's NFC disagrees with the contract's startup canaries.
+
 `searchNewest` merges matching pages from the viewer's chats, ordered by
 `at` and `id`: each lane is one verdict when its scope decides the rule,
 and the page is complete when all lanes are complete and the page fits the

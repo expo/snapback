@@ -10,6 +10,18 @@ fn text(hex: &str) -> String {
 }
 
 #[test]
+fn host_nfc_canaries_match_native_tables_and_ascii_lowercase() {
+    for (input, expected) in [("A\u{030A}", "\u{00C5}"), ("d\u{0323}\u{0307}", "\u{1E0D}\u{0307}"), ("\u{1E9B}\u{0323}", "\u{1E9B}\u{0323}"), ("\u{1100}\u{1161}", "\u{AC00}")] {
+        assert_eq!(input.nfc().collect::<String>(), expected);
+        assert_eq!(snapback4_core::words::fold(input), expected.to_lowercase());
+    }
+    for a in 0..128_u8 { for b in 0..128_u8 {
+        let input = String::from_utf8(vec![a, b]).unwrap();
+        assert_eq!(input.to_ascii_lowercase(), input.to_lowercase());
+    } }
+}
+
+#[test]
 fn unicode_fold_fixture() {
     let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/unicode-17.0.0");
     let sources: serde_json::Value = serde_json::from_str(&fs::read_to_string(fixtures.join("sources.json")).unwrap()).unwrap();

@@ -3,9 +3,10 @@
 //! folded tokens, one index entry each; a query becomes folded terms, the
 //! first of which selects the index lanes (every word the term is a prefix
 //! of) and the rest of which every row must also carry. The contract is
-//! fixed and named; the pending web candidate delegates folding to its host:
-//! NFC normalization, Unicode lowercase, a boundary at every character
-//! that is neither a letter nor a digit (whitespace and punctuation alike).
+//! fixed and named: NFC normalization, Unicode lowercase, a boundary at
+//! every character that is neither a letter nor a digit. On the web only
+//! NFC comes from the guarded host: Unicode stability covers normalization
+//! of assigned characters, not case mappings, so lowercase stays Rust.
 
 #[cfg(not(all(target_arch = "wasm32", feature = "web")))]
 use unicode_normalization::UnicodeNormalization;
@@ -24,13 +25,13 @@ pub const MAX_TOKENS_PER_ROW: usize = 512;
 /// A query has at most this many terms; more is an input error, not a scan.
 pub const MAX_TERMS: usize = 8;
 
-// @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — web host folding candidate; landing awaits the author's ruling.
+// @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — host NFC with Rust lowercase; the web constructor guards normalization.
 /// NFC followed by locale-independent lowercase, before token boundaries.
 pub fn fold(text: &str) -> String {
     #[cfg(all(target_arch = "wasm32", feature = "web"))]
     {
         if text.is_ascii() { return text.to_ascii_lowercase(); }
-        String::from(js_sys::JsString::from(text).normalize("NFC").to_lower_case())
+        String::from(js_sys::JsString::from(text).normalize("NFC")).to_lowercase()
     }
     #[cfg(not(all(target_arch = "wasm32", feature = "web")))]
     { text.nfc().collect::<String>().to_lowercase() }
