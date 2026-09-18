@@ -1387,17 +1387,17 @@ fn sync_stream_encoding_preserves_sequences_scopes_and_empty_groups() {
         LogEvent { seq: u64::MAX, ord: 91, table: "items".into(), kind: "del".into(), id: "gone".into(), data: None },
         LogEvent { seq: u64::MAX, ord: 92, table: "items".into(), kind: "put".into(), id: "last".into(), data: Some(Value::Row(BTreeMap::from([("n".into(), Value::Int(2))]).into())) },
     ];
-    let reply = StreamReply { acquisitions: vec![], store_id: "store-a".into(), acknowledged: BTreeMap::from([("write-id".into(), u64::MAX)]), events: SyncEvents::Stream(events), generation: 4, joined: BTreeMap::from([("items".into(), vec![vec![json!("joined")]])]), more: true, snapshot: false, watermark: u64::MAX };
+    let reply = StreamReply { images_at: Some(u64::MAX), committed_above: BTreeMap::from([("ahead".into(), u64::MAX)]), acquisitions: vec![], store_id: "store-a".into(), acknowledged: BTreeMap::from([("write-id".into(), u64::MAX)]), events: SyncEvents::Stream(events), generation: 4, joined: BTreeMap::from([("items".into(), vec![vec![json!("joined")]])]), more: true, snapshot: false, watermark: u64::MAX };
     let expected = json!({
-        "acknowledged":{"write-id":u64::MAX},"events":[
+        "acknowledged":{"write-id":u64::MAX},"committed_above":{"ahead":u64::MAX},"events":[
             {"data":["group",7],"id":"","kind":"scope","seq":0,"table":"items"},
             {"data":null,"id":"gone","kind":"del","seq":u64::MAX,"table":"items"},
             {"data":{"n":2},"id":"last","kind":"put","seq":u64::MAX,"table":"items"}
-        ],"generation":4,"joined":{"items":[["joined"]]},"more":true,"snapshot":false,"store_id":"store-a","watermark":u64::MAX
+        ],"generation":4,"images_at":u64::MAX,"joined":{"items":[["joined"]]},"more":true,"snapshot":false,"store_id":"store-a","watermark":u64::MAX
     });
     assert_eq!(serde_json::to_vec(&reply).unwrap(), serde_json::to_vec(&expected).unwrap());
-    let reply = StreamReply { acquisitions: vec![], store_id: "store-a".into(), acknowledged: BTreeMap::new(), events: SyncEvents::Stream(vec![]), generation: 4, joined: BTreeMap::new(), more: false, snapshot: false, watermark: 9 };
-    let expected = json!({"acknowledged":{},"events":[],"generation":4,"joined":{},"more":false,"snapshot":false,"store_id":"store-a","watermark":9});
+    let reply = StreamReply { images_at: None, committed_above: BTreeMap::new(), acquisitions: vec![], store_id: "store-a".into(), acknowledged: BTreeMap::new(), events: SyncEvents::Stream(vec![]), generation: 4, joined: BTreeMap::new(), more: false, snapshot: false, watermark: 9 };
+    let expected = json!({"acknowledged":{},"committed_above":{},"events":[],"generation":4,"images_at":null,"joined":{},"more":false,"snapshot":false,"store_id":"store-a","watermark":9});
     assert_eq!(serde_json::to_vec(&reply).unwrap(), serde_json::to_vec(&expected).unwrap());
 }
 

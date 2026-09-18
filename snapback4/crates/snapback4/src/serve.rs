@@ -635,13 +635,15 @@ struct SnapshotReply {
 
 #[derive(serde::Serialize)]
 struct StreamReply {
-    images_at: Option<u64>,
-    committed_above: BTreeMap<String, u64>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     acquisitions: Vec<wire::Acquisition>,
     acknowledged: BTreeMap<String, u64>,
+    // Serialized order is alphabetical among the always-present fields, which
+    // is what the byte-exact encoding test compares against `json!`.
+    committed_above: BTreeMap<String, u64>,
     events: SyncEvents,
     generation: u64,
+    images_at: Option<u64>,
     joined: wire::HeldGroups,
     more: bool,
     snapshot: bool,
