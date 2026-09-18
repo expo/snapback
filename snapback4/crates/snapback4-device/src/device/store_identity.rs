@@ -84,7 +84,7 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<StoreObs
         tx.staged_clear()?;
         tx.set_meta(WATERMARK, "0")?;
         tx.set_meta(BACKEND_REQUIRED, page.store_id.as_deref().unwrap_or("legacy"))?;
-        tx.delete_meta(&[ACQUIRED, history::GROUPS, boundary::BOUNDARIES, boundary::REPORT])?;
+        tx.delete_meta(&[ACQUIRED, history::GROUPS, history::CLASSIFIED_GROUPS, boundary::BOUNDARIES, boundary::REPORT])?;
         tx.delete_meta(&SNAPSHOT_KEYS)?;
         for data in tx.outbox_entries()? {
             let mut entry: Queued = decoded(&data)?;

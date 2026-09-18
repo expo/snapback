@@ -83,13 +83,13 @@ export class AdmissionJournal {
   private transfers = new Map<string, Transfer>();
   private storeId: string | undefined;
   private sequence = 0;
-  constructor(private readonly name: string, private readonly exclusive: boolean) {}
+  constructor(private readonly name: string, private readonly exclusive: boolean, private readonly viewer: string) {}
 
   load(saved: Change[]): void {
     this.transfers.clear();
     this.storeId = undefined;
     this.remember(saved);
-    for (const record of records(this.name, this.exclusive)) this.sequence = Math.max(this.sequence, record.entry.seq);
+    for (const record of records(this.name, this.exclusive)) if (record.entry.viewer === this.viewer) this.sequence = Math.max(this.sequence, record.entry.seq);
   }
 
   remember(changes: Change[]): void {
@@ -152,10 +152,7 @@ export class AdmissionJournal {
   // Recovered, previously unadmitted writes keep their original store binding.
   // An authenticated reset has already withdrawn predictions before this runs.
   fence(device: WebDevice): void {
-    const reply = invoke(device, { op: "sync_state" });
-    if (reply.denied) throw reply;
-    const state = reply.ok;
-    if (historyOwnerRefusal({ denied: state?.restore_refusal })) throw { denied: state.restore_refusal };
+    const state = checkedSyncState(device);
     if (!state?.store_id) return;
     for (const [id, transfer] of this.transfers) if (transfer.recovered && transfer.storeId !== state.store_id) {
       const reply = invoke(device, { op: "dequeue", id });
@@ -165,12 +162,10 @@ export class AdmissionJournal {
 
   async recover(device: WebDevice, settle: (extra?: Change[]) => Promise<void>, live = new Set<string>()): Promise<void> {
     if (!this.exclusive) return;
-    const reply = invoke(device, { op: "sync_state" });
-    if (reply.denied) throw reply;
-    const state = reply.ok;
-    if (historyOwnerRefusal({ denied: state?.restore_refusal })) throw { denied: state.restore_refusal };
+    const state = checkedSyncState(device);
     if (!state?.store_id || state.restore_refusal || state.backend_required) return;
     for (const record of records(this.name, true)) {
+      if (record.entry.viewer !== this.viewer) continue;
       const id = record.entry.id;
       if (live.has(id)) continue;
       if (this.transfers.has(id)) { remove(record.key); continue; }
@@ -200,6 +195,14 @@ export class AdmissionJournal {
     if (next.denied) return next;
     return invoke(device, { op: "admit", entry: { ...entry as Entry, seq: next.ok } });
   }
+}
+
+/** Check both wire locations before any host recovery or journal side effect. */
+export function checkedSyncState(device: WebDevice) {
+  const reply = invoke(device, { op: "sync_state" });
+  if (reply.denied) throw reply;
+  if (historyOwnerRefusal({ denied: reply.ok?.restore_refusal })) throw { denied: reply.ok.restore_refusal };
+  return reply.ok;
 }
 
 /** Shared by constructor throws, call results and journal recovery. */

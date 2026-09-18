@@ -9,6 +9,28 @@ import ts from "typescript";
 const denied = { denied: { code: "SNAPBACK_HISTORY_OWNER", family: "structural", message: "preserve the original store" } };
 const healthyState = { store_id: "store", backend_required: false, send_revision: 1 };
 
+function modulesFor(WebDevice, globals) {
+  const context = vm.createContext({ console, TextEncoder, window: {}, URL, setTimeout, clearTimeout, ...globals });
+  const modules = new Map();
+  function load(file, extra = "") {
+    const url = new URL(`../src/${file}`, import.meta.url);
+    const source = readFileSync(url, "utf8").replaceAll("import.meta.url", JSON.stringify(url.href));
+    const compiled = ts.transpileModule(source + extra, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
+    const exports = {};
+    const require = name => {
+      if (name === "./wasm/snapback4_device.js") return { WebDevice };
+      if (name === "./writes.ts") return { WRITE_HISTORY_LIMIT: 100 };
+      if (modules.has(name)) return modules.get(name);
+      throw new Error(`unexpected import ${name}`);
+    };
+    vm.runInContext(`(function(exports, require) { ${compiled}\n})`, context)(exports, require);
+    return exports;
+  }
+  const journal = load("web-journal.ts"); modules.set("./web-journal.ts", journal);
+  const web = load("web.ts", "\nready = Promise.resolve();\nexport { adoptOrphans };\n");
+  return { journal, web };
+}
+
 function harness(phase, owner = "dev:bob") {
   const name = "history-host", orphan = `${name}:tab-foreign`, healthy = `${name}:tab-healthy`;
   const journalKey = `snapback4-admission:${encodeURIComponent(orphan)}:store:write`;
@@ -53,24 +75,10 @@ function harness(phase, owner = "dev:bob") {
     drain() { return "[]"; }
     free() { freed++; }
   }
-  const context = vm.createContext({ console, TextEncoder, window: {}, localStorage, URL });
-  const modules = new Map();
-  function load(file, extra = "") {
-    const url = new URL(`../src/${file}`, import.meta.url);
-    const source = readFileSync(url, "utf8").replaceAll("import.meta.url", JSON.stringify(url.href));
-    const compiled = ts.transpileModule(source + extra, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
-    const exports = {};
-    const require = name => {
-      if (name === "./wasm/snapback4_device.js") return { WebDevice };
-      if (name === "./writes.ts") return { WRITE_HISTORY_LIMIT: 100 };
-      if (modules.has(name)) return modules.get(name);
-      throw new Error(`unexpected import ${name}`);
-    };
-    vm.runInContext(`(function(exports, require) { ${compiled}\n})`, context)(exports, require);
-    return exports;
-  }
-  const journal = load("web-journal.ts"); modules.set("./web-journal.ts", journal);
-  const web = load("web.ts", "\nexport { adoptOrphans };\n");
+  const { journal, web } = modulesFor(WebDevice, { localStorage });
+  const journalLoads = [];
+  const loadJournal = journal.AdmissionJournal.prototype.load;
+  journal.AdmissionJournal.prototype.load = function (saved) { journalLoads.push(saved); return loadJournal.call(this, saved); };
   const persist = {
     others: async () => [...sources.keys()],
     claim: async name => ({ name, async release() { released.push(name); } }),
@@ -80,14 +88,14 @@ function harness(phase, owner = "dev:bob") {
   };
   const destination = { call(text) {
     const request = JSON.parse(text);
-    if (request.op === "sync_state") return JSON.stringify({ ok: healthyState });
+    if (request.op === "sync_state") return JSON.stringify(phase === "destination-denied" ? denied : { ok: { ...healthyState, ...(phase === "destination-restore" ? { restore_refusal: denied.denied } : {}) } });
     if (request.op === "backend") return JSON.stringify({ ok: {} });
     if (request.op === "queued") return JSON.stringify({ ok: [] });
     if (request.op === "next_submission") return JSON.stringify({ ok: 1 });
     if (request.op === "enqueue") { imported.push(request.entry.id); return JSON.stringify({ ok: null }); }
     throw new Error(`unexpected destination call ${request.op}`);
   } };
-  return { journal, sources, orphan, healthy, before, storage, journalKey, journalBefore, saves, removed, released, imported, calls,
+  return { journal, journalLoads, sources, orphan, healthy, before, storage, journalKey, journalBefore, saves, removed, released, imported, calls,
     get freed() { return freed; }, get constructed() { return constructed; },
     run: () => web.adoptOrphans(destination, name, name, "dev:bob", persist, async () => {}, () => {}, () => {}),
   };
@@ -106,6 +114,7 @@ for (const phase of ["constructor", "sync-state", "adopt", "recover-state", "rec
     assert.equal(f.freed, phase === "constructor" ? 0 : 1);
     if (["constructor", "sync-state", "adopt", "restore-refusal"].includes(phase)) assert.ok(!f.calls.includes("admit"));
     if (phase === "sync-state") assert.equal(f.calls.filter(op => op === "sync_state").length, 1, "refuse before invoking recover");
+    if (["constructor", "sync-state", "restore-refusal"].includes(phase)) assert.deepEqual(f.journalLoads, [], "source must refuse before journal load");
   });
 }
 
@@ -160,4 +169,137 @@ test("H10: unknown-owner replica without a journal stays intact", async () => {
   assert.equal(f.constructed, 0);
   assert.equal(JSON.stringify(f.sources.get(f.orphan)), f.before);
   assert.deepEqual(f.imported, ["healthy-write"]);
+});
+
+for (const phase of ["destination-denied", "destination-restore"]) {
+  test(`W2: ${phase} blocks all orphan side effects`, async () => {
+    const f = harness(phase);
+    await assert.rejects(f.run(), e => f.journal.historyOwnerRefusal(e));
+    assert.equal(JSON.stringify(f.sources.get(f.orphan)), f.before);
+    assert.equal(f.storage.get(f.journalKey), f.journalBefore);
+    assert.deepEqual(f.saves, []);
+    assert.deepEqual(f.removed, []);
+    assert.deepEqual(f.imported, []);
+    assert.deepEqual(f.released, []);
+    assert.equal(f.constructed, 0);
+  });
+}
+
+function restoreHarness(refusal, owner = "guest:old") {
+  const name = "primary";
+  const viewer = "password:new";
+  const key = `snapback4-admission:${name}:store:write`;
+  const entry = { id: "write", seq: 1, op: "send", args: { private: "payload" }, new_ids: [], viewer: owner, now: 1 };
+  const record = { key, storeId: "store", entry };
+  const storage = new Map([[key, JSON.stringify(record)]]);
+  const localStorage = {
+    get length() { return storage.size; }, key: n => [...storage.keys()][n],
+    getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v), removeItem: k => storage.delete(k),
+  };
+  const saved = [
+    { s: "m", k: "device:history-owner", v: owner },
+    { s: "m", k: "device:store_id", v: "store" },
+    { s: "o", k: "queued", v: JSON.stringify({ ...entry, id: "queued" }) },
+    { s: "j", k: "already-transferred", v: JSON.stringify({ key, storeId: "store", recovered: true }) },
+  ];
+  const before = JSON.stringify(saved), journalBefore = storage.get(key);
+  const effects = [], admitted = [], sent = [], calls = [], changes = [];
+  let freed = 0, released = 0;
+  class WebDevice {
+    constructor(_backend, kept, requested) {
+      assert.equal(requested, viewer);
+      assert.deepEqual(JSON.parse(kept), saved.filter(c => c.s !== "j"));
+      changes.push({ s: "m", k: "device:history-owner", v: viewer });
+    }
+    call(text) {
+      const request = JSON.parse(text); calls.push(request.op);
+      if (request.op === "sync_state") return JSON.stringify(refusal === "denied" ? denied : { ok: { ...healthyState, ...(refusal === "restore" ? { restore_refusal: denied.denied } : {}) } });
+      if (request.op === "queued") return JSON.stringify({ ok: [] });
+      if (request.op === "next_submission") return JSON.stringify({ ok: 2 });
+      if (request.op === "admit") { admitted.push(request.entry); return JSON.stringify({ ok: null }); }
+      if (request.op === "dequeue") { changes.push({ s: "o", k: request.id, v: null }); return JSON.stringify({ ok: null }); }
+      if (["apply", "begin_send"].includes(request.op)) return JSON.stringify({ ok: null });
+      throw new Error(`unexpected primary call ${request.op}`);
+    }
+    drain() { effects.push("drain"); return JSON.stringify(changes.splice(0)); }
+    free() { freed++; }
+  }
+  const page = new EventTarget(), doc = new EventTarget();
+  const { journal, web } = modulesFor(WebDevice, { localStorage, window: page, document: doc });
+  for (const method of ["load", "remember", "cleanup", "recover"]) {
+    const original = journal.AdmissionJournal.prototype[method];
+    journal.AdmissionJournal.prototype[method] = function (...args) { effects.push(method); return original.apply(this, args); };
+  }
+  const persist = {
+    claim: async name => ({ name, async release() { released++; } }),
+    load: async () => saved,
+    save: async (_name, changes) => {
+      effects.push("save");
+      for (const c of changes) {
+        const at = saved.findIndex(s => s.s === c.s && s.k === c.k);
+        if (at >= 0) saved.splice(at, 1);
+        if (c.v !== null) saved.push(c);
+      }
+    },
+  };
+  return { saved, before, storage, key, journalBefore, effects, admitted, sent, calls, journal,
+    get freed() { return freed; }, get released() { return released; },
+    open: () => web.webDevice({ persist }).open(name, {}, viewer),
+    suspend: core => { core.onSuspend(entries => sent.push(...entries)); page.dispatchEvent(new Event("pagehide")); },
+  };
+}
+
+for (const refusal of ["denied", "restore"]) {
+  test(`W1: primary ${refusal} refuses before journal load, mirror or persistence`, async () => {
+    const f = restoreHarness(refusal);
+    await assert.rejects(f.open(), /SNAPBACK_HISTORY_OWNER/);
+    assert.deepEqual(f.effects, [], "no journal or commit side effect before refusal");
+    assert.deepEqual(f.admitted, []);
+    assert.equal(JSON.stringify(f.saved), f.before);
+    assert.equal(f.storage.get(f.key), f.journalBefore);
+    assert.equal(f.freed, 1);
+    assert.equal(f.released, 1);
+  });
+}
+
+test("W1: permitted principal reset never recovers or sends the old journal/outbox", async () => {
+  const f = restoreHarness(null);
+  const core = await f.open();
+  try {
+    f.suspend(core);
+    await core.call({ op: "apply" }); // Later recovery must still ignore the old journal.
+    assert.deepEqual(f.admitted, []);
+    assert.deepEqual(f.sent, []);
+    assert.equal(f.storage.get(f.key), f.journalBefore);
+    assert.ok(!f.saved.some(c => c.s === "o" || c.s === "j"));
+  } finally { await core.close(); }
+});
+
+test("W1: matching principal still recovers its untransferred journal", async () => {
+  const f = restoreHarness(null, "password:new");
+  f.saved.splice(f.saved.findIndex(c => c.s === "j"), 1);
+  const core = await f.open();
+  try { assert.equal(f.admitted.length, 1); assert.equal(f.admitted[0].viewer, "password:new"); }
+  finally { await core.close(); }
+});
+
+for (const location of ["denied", "restore_refusal"]) {
+  test(`W2: journal recovery and fencing reject ${location} before side effects`, async () => {
+    const f = restoreHarness(null);
+    const journal = new f.journal.AdmissionJournal("primary", true, "guest:old");
+    const device = { call() { return JSON.stringify(location === "denied" ? denied : { ok: { ...healthyState, restore_refusal: denied.denied } }); } };
+    await assert.rejects(journal.recover(device, async () => { throw new Error("must not settle"); }), e => f.journal.historyOwnerRefusal(e));
+    assert.throws(() => journal.fence(device), e => f.journal.historyOwnerRefusal(e));
+    assert.equal(f.storage.get(f.key), f.journalBefore);
+  });
+}
+
+test("W2: an ordinary backend-restore halt remains inspectable and cannot recover", async () => {
+  const f = restoreHarness(null);
+  const journal = new f.journal.AdmissionJournal("primary", true, "guest:old");
+  const state = { ...healthyState, restore_refusal: { code: "E_STORE_RESTORE" } };
+  const device = { call() { return JSON.stringify({ ok: state }); } };
+  assert.equal(f.journal.checkedSyncState(device).restore_refusal.code, "E_STORE_RESTORE");
+  await journal.recover(device, async () => { throw new Error("must not settle"); });
+  assert.equal(f.storage.get(f.key), f.journalBefore);
 });

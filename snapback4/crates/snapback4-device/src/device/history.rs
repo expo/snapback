@@ -4,6 +4,9 @@ use super::*;
 use std::cell::Cell;
 
 pub(super) const GROUPS: &str = "device:history:groups";
+// Classification retained across literal-default adoption, which clears the
+// read/acquisition map. This is evidence for reuse, never read authority.
+pub(super) const CLASSIFIED_GROUPS: &str = "device:history:classified-groups";
 pub(super) const STAGED_GROUPS: &str = "device:snapshot:groups";
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub(super) enum Membership { Held, Left }
@@ -11,6 +14,14 @@ pub(super) type Groups = BTreeMap<String, BTreeMap<String, Membership>>;
 
 pub(super) fn load<T: DeviceTx>(tx: &T, key: &str) -> Result<Groups, RuntimeError> {
     tx.meta(key)?.map(|value| decoded(&value)).transpose().map(|value| value.unwrap_or_default())
+}
+
+pub(super) fn classified<T: DeviceTx>(tx: &T) -> Result<Groups, RuntimeError> {
+    let mut groups = load(tx, CLASSIFIED_GROUPS)?;
+    for (name, current) in load(tx, GROUPS)? {
+        groups.entry(name).or_default().extend(current);
+    }
+    Ok(groups)
 }
 
 fn key(group: &[Value]) -> Result<String, RuntimeError> {

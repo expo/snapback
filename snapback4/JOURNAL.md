@@ -36724,3 +36724,75 @@ final logs, and verbatim target results are in `target/repair-c-round3/`.
 No commit, push, rebase, merge, whole suite, wasm build, witness, release build,
 simulator suite or repository-root generator was run. The base remains
 `27a8a4d66`; artifact integration remains outside this authorized fix round.
+
+
+## 2026-09-17 — Repair C review, fix round 4
+
+W1/W2: primary restore checks the device before loading the admission journal,
+mirroring committed writes or draining/persisting changes. The current Rust
+constructor throws an owner refusal; the host now also handles the non-throwing
+restore-state representation before side effects. A permitted identity reset
+retires the prior principal's outbox and transfer markers in the reset's durable
+save, without recovering or deleting its synchronous journal. Journal recovery
+filters by its opening principal, including later recovery calls. Primary
+restore, orphan destination, orphan source, journal recovery and fencing all
+use one structural sync-state checker. Ordinary E_STORE_RESTORE remains an
+inspectable halt under its existing contract. Refused orphan sources are checked
+before loading their journal; a refused destination cannot start transfers.
+
+W3: literal-default adoption saves held/left classification separately from the
+read/acquisition map. That existing map still clears, added tables still require
+acquisition, and the watermark/boundary behavior is unchanged. Ownership scans
+merge saved classification with current membership, with current evidence taking
+precedence. Repeated literal additions and offline reopen preserve the evidence;
+replacement acquisition replaces it and store resets clear it. This metadata
+provides no read authority. Both-store/both-entry regressions cover held-only
+sign-in, added tables, repeated adoption, left-group refusal, later revocation
+and replacement acquisition.
+
+W4: the ownership scan overlays confirmed bases before classifying physical
+images. An absent base excludes a prediction-only insert. Non-null bases remain
+visible even beneath predicted deletions; a predicted relocation does not
+replace its confirmed classification. The reviewer's empty acquisition plus
+offline room/member/message creation now resets and rebinds on both stores and
+both entry points.
+
+W5: the cached-binding test now separates empty-store reset/rebind from retained
+history refusal. Empty adoption must also reset watermark/acquisition. The
+retained fixture has an actual delivered row, a left-group classification and a
+program-only generation change; foreign adoption must make no metadata write,
+keep the original binding/row, and render no row for the foreign viewer.
+
+The inherited same-owner orphan deletion is deliberately not repaired. It is
+tracked in [the orphan retained-history ticket](../issues/20260917-snapback4-orphan-recovery-deletes-retained-history.md),
+with the reviewer's real 25-row export reproduction, original log path and
+durable-custody direction. The supplied failure log is also copied under
+`target/repair-c-round4/inherited-orphan-probe.log`.
+
+All 18 mutation runs failed behaviorally, never by compilation error. W1's
+primary-check, reset-transfer and principal-filter removals cause 2, 1 and 1
+host failures. W2's destination, source, shared restore check, recovery call
+and fence call removals cause 1, 1, 4, 1 and 1. W3's saved evidence, repeated
+adoption, current-membership precedence, acquisition replacement and left-owner
+check mutations each cause four failures. W4's speculative-image, omitted
+confirmed-deletion and predicted-relocation mutations each cause four failures.
+W5's retained-owner-check bypass and omitted empty reset each cause two failures.
+Every mutated production source was restored byte-for-byte and its final hash
+checked against the recorded restoration hash. The exact commands, environment,
+raw negative logs and hashes are in `target/repair-c-round4/mutation-results.json`.
+
+Final requested verification (two build jobs/test threads, existing native
+fixture supplied to avoid a wasm/release build):
+
+- `cargo test -p snapback4-device`: exit 0; 635 passed, 0 failed, 3 ignored.
+- `cargo test -p snapback4-core`: exit 0; 159 passed, 0 failed, 0 ignored.
+- Source-host ownership/recovery tests: 21 passed, 0 failed.
+- `git diff --check`: clean; the existing `native_reads.rs:75` unused-mut warning remains.
+
+Full verbatim command outputs are `target/repair-c-round4/{device,core}.log`;
+every target's verbatim result line is in `verbatim-results.txt` there, alongside
+the per-finding `report.md` and `host-final.log`. The host tests use the actual
+TypeScript sources with a device boundary double; no wasm artifact was rebuilt
+or executed. The fixed tree retains the frozen 0.2.27 and prior ownership
+controls. No push, rebase, merge, whole suite, wasm build, witness, release build,
+simulator suite or repository-root generator was run.

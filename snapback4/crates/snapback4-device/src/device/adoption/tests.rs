@@ -25,16 +25,95 @@ fn cached_binding<S: DeviceStore>(store: S, adopt: bool) {
     let backend = backend(false);
     let mut device = Device::open_store(store, Some(backend.clone()), "guest:caller").unwrap();
     if adopt {
+        device.store.set_meta(WATERMARK, "17").unwrap();
+        device.store.set_meta(ACQUIRED, "1").unwrap();
         device
             .adopt_captured(backend, "password:caller", BTreeMap::new())
             .unwrap();
+        assert_eq!(
+            device.state().unwrap().0,
+            0,
+            "empty identity change must reset"
+        );
+        assert!(!device.sync_state().unwrap().acquired);
     }
     assert_eq!(
         Some(device.history_owner.as_str()),
         device.store.meta(HISTORY_OWNER).unwrap().as_deref()
     );
     device.sync_state().unwrap();
-    assert_eq!(device.store.meta(HISTORY_OWNER).unwrap().as_deref(), Some(if adopt { "password:caller" } else { "guest:caller" }));
+    assert_eq!(
+        device.store.meta(HISTORY_OWNER).unwrap().as_deref(),
+        Some(if adopt {
+            "password:caller"
+        } else {
+            "guest:caller"
+        })
+    );
+}
+
+fn cached_binding_retained<S: DeviceStore>(store: S) {
+    let source = "table notes:\n  owner: principal\n  body: text <=100\n  by byOwner: owner, id\n  read <- .owner = viewer\n  retain delivered-history\n  sync to .owner\nquery all():\n  return notes first 10 by byId\n";
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut backend = Backend {
+        schema: bound.schema,
+        programs: bound.programs.into_iter().map(|p| p.program).collect(),
+        generation: 1,
+    };
+    let mut device = Device::open_store(store, Some(backend.clone()), "guest:caller").unwrap();
+    let row = wire::row_from_json(
+        &backend.schema.tables["notes"],
+        &serde_json::json!({"id":"n1","owner":"guest:caller","body":"only copy"}),
+    )
+    .unwrap();
+    let tx = device.store.transaction().unwrap();
+    tx.put("notes", &backend.schema.tables["notes"], &row, None)
+        .unwrap();
+    tx.set_meta(
+        history::GROUPS,
+        r#"{"notes":{"[\"guest:caller\"]":"Left"}}"#,
+    )
+    .unwrap();
+    tx.set_meta(ACQUIRED, "1").unwrap();
+    let before = tx.meta_prefix("").unwrap();
+    tx.commit().unwrap();
+    let args = serde_json::json!({});
+    assert_eq!(
+        wire::to_json(
+            &device
+                .query("all", "guest:caller", &args, 100)
+                .unwrap()
+                .data
+        )
+        .as_array()
+        .unwrap()
+        .len(),
+        1
+    );
+    backend.generation = 2;
+    let result = device.adopt_captured(backend, "password:caller", BTreeMap::new());
+    // Check the durable state and the read as well as the refusal, so a blind
+    // owner overwrite/preserve cannot pass on an otherwise empty fixture.
+    let tx = device.store.read_transaction().unwrap();
+    assert_eq!(
+        tx.meta_prefix("").unwrap(),
+        before,
+        "refusal must make no metadata write"
+    );
+    assert_eq!(tx.stored_rows_after("notes", None, 10).unwrap(), vec![row]);
+    tx.rollback().unwrap();
+    assert_eq!(device.history_owner, "guest:caller");
+    let read = device.query("all", "password:caller", &args, 100);
+    assert!(
+        read.is_err()
+            || wire::to_json(&read.unwrap().data)
+                .as_array()
+                .unwrap()
+                .is_empty(),
+        "no retained row may render for the foreign viewer"
+    );
+    assert_eq!(result.unwrap_err().code(), "SNAPBACK_HISTORY_OWNER");
 }
 
 fn replacement_plan<S: DeviceStore>(mut store: S) {
@@ -199,6 +278,10 @@ fn cached_binding_memory_adopt() {
     cached_binding(MemoryStore::new(), true);
 }
 #[test]
+fn cached_binding_retained_memory_refuses() {
+    cached_binding_retained(MemoryStore::new());
+}
+#[test]
 fn replacement_plan_memory() {
     replacement_plan(MemoryStore::new());
 }
@@ -227,6 +310,11 @@ fn cached_binding_sqlite_open() {
 #[test]
 fn cached_binding_sqlite_adopt() {
     cached_binding(sqlite(), true);
+}
+#[cfg(feature = "native")]
+#[test]
+fn cached_binding_retained_sqlite_refuses() {
+    cached_binding_retained(sqlite());
 }
 #[cfg(feature = "native")]
 #[test]

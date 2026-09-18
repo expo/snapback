@@ -136,6 +136,8 @@ evidence or unclassified physical tables or confirmed images also refuse
 reuse: an incoming retention
 policy cannot establish what the old store retained. Genuinely empty history
 tables allow sign-in even when other, classified tables hold rows.
+Prediction-only inserts are not delivered history; confirmed copies beneath
+predicted updates or deletions still determine whether reuse is safe.
 Device reads trust delivered history only for
 that recorded principal; other readers undergo the ordinary read rule.
 
@@ -146,6 +148,8 @@ snapshot refreshes held groups while retaining left-group copies. Other
 schema changes keep the existing reset policy, including the established
 literal-default exception. The old native module and interrupted snapshot
 cannot publish under the new generation.
+Literal-default adoption retains classification evidence for ownership checks
+without changing its acquisition behavior or granting additional read authority.
 
 ## A restored backend store
 

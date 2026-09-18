@@ -445,7 +445,7 @@ impl<S: DeviceStore> Device<S> {
         tx.staged_clear()?;
         tx.set_meta(WATERMARK, "0")?;
         tx.delete_meta(&[ACQUIRED])?;
-        tx.delete_meta(&[history::GROUPS, boundary::BOUNDARIES, boundary::REPORT])?;
+        tx.delete_meta(&[history::GROUPS, history::CLASSIFIED_GROUPS, boundary::BOUNDARIES, boundary::REPORT])?;
         tx.delete_meta(&SNAPSHOT_KEYS)?;
         tx.commit()?;
         self.snapshot_owner = None;
@@ -561,6 +561,7 @@ impl<S: DeviceStore> Device<S> {
                 }
             }
             tx.set_meta(history::GROUPS, &encoded(&groups)?)?;
+            tx.delete_meta(&[history::CLASSIFIED_GROUPS])?;
             boundary::Boundaries::load(&tx, true)?.save(&tx, false)?;
             tx.staged_clear()?;
             tx.delete_meta(&SNAPSHOT_KEYS)?;

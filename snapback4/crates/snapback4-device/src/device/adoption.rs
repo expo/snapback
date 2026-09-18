@@ -47,7 +47,9 @@ pub(super) fn require_binding<T: DeviceTx>(tx: &T, viewer: &str) -> Result<(), R
 // A predicted deletion cannot hide the confirmed copy beneath it. Missing group
 // evidence is not proof that an old delivered copy can be reacquired.
 fn has_retained<T: DeviceTx>(tx: &T, previous: Option<&Schema>, incoming: &Schema) -> Result<bool, RuntimeError> {
-    let groups = history::load(tx, history::GROUPS)?;
+    let groups = history::classified(tx)?;
+    let bases: BTreeMap<_, _> = tx.base_entries()?.into_iter()
+        .map(|(name, id, image)| ((name, id), image)).collect();
     let retained = |name: &str, row: &Value| -> Result<bool, RuntimeError> {
         // Only the persisted schema can classify the old physical copy. An
         // incoming rename/drop/retention change supplies no evidence about it.
@@ -73,17 +75,20 @@ fn has_retained<T: DeviceTx>(tx: &T, previous: Option<&Schema>, incoming: &Schem
             }
             let finished = rows.len() < 256;
             for row in rows {
-                if retained(&name, &row)? {
+                let id = row.field("id")?.as_str()?.to_owned();
+                // A base (including absence) supersedes the predicted image.
+                // Non-null bases are classified below, including deleted rows.
+                if !bases.contains_key(&(name.clone(), id.clone())) && retained(&name, &row)? {
                     return Ok(true);
                 }
-                after = Some(row.field("id")?.as_str()?.to_owned());
+                after = Some(id);
             }
             if finished {
                 break;
             }
         }
     }
-    for (name, _, image) in tx.base_entries()? {
+    for ((name, _), image) in bases {
         if let Some(image) = image {
             if retained(&name, &decoded::<Value>(&image)?)? {
                 return Ok(true);
@@ -119,6 +124,7 @@ pub(super) fn plan<S: DeviceStore>(
         WATERMARK,
         HISTORY_OWNER,
         history::GROUPS,
+        history::CLASSIFIED_GROUPS,
         NATIVE_DIGEST,
         SNAPSHOT_OWNER,
         SNAPSHOT_NEXT,
@@ -176,6 +182,9 @@ pub(super) fn plan<S: DeviceStore>(
             .is_some_and(|old| old.schema.tables.len() == backend.schema.tables.len())
         && tx.meta(ACQUIRED)? == Some(held.to_string());
     let revision = meta_u64(&tx, SEND_REVISION)?;
+    let classification = if reset && keep_images && !program_only {
+        Some(encoded(&history::classified(&tx)?)?)
+    } else { None };
     tx.rollback()?;
     let mut metadata = BTreeMap::from([
         (BACKEND.to_owned(), encoded(backend)?),
@@ -208,6 +217,7 @@ pub(super) fn plan<S: DeviceStore>(
         invalidate_native(&mut metadata);
         if !program_only {
             metadata.insert(history::GROUPS.into(), "{}".into());
+            metadata.insert(history::CLASSIFIED_GROUPS.into(), classification.unwrap_or_else(|| "{}".into()));
         }
         metadata.insert(history::STAGED_GROUPS.into(), "{}".into());
         metadata.insert(boundary::STAGED.into(), "{}".into());
