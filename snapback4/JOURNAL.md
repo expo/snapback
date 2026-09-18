@@ -37129,3 +37129,49 @@ fix. Old-wire probes remain 1/1/1. Full verbatim results, mutations, incoming
 comparison, source hashes and initial failures are in target/review-fix11/report.md.
 Wasm was rebuilt for host-persistence tests; no browser-termination or physical
 power-loss claim. No push, rebase, merge or publication was performed.
+
+## 2026-09-18 — Repair B, review fix round 12: first installation is conditional
+
+BB1 was reproduced before fixing it. After the production empty-store open
+failed, another real owner installed generation 2 and persisted published 17,
+private 18 and image head 20. Resuming the generation-1 fallback installed the
+stale backend and reset those cuts to zero on SQLite and wasm memory; a lower
+same-incarnation head then allowed a mutation send. Controlled scheduling and
+HTTP make the interleaving deterministic; the stores, openers and device
+operations are production code. The intervening owner closes before fallback,
+so this includes the web host's exclusive-claim lifecycle. It is not a real
+browser termination or physical power-loss witness.
+
+The fallback now passes an explicit initial-backend envelope. Every host uses
+the shared decoder; the device opens whatever backend is present or atomically
+checks that it is still absent before installing. A kept open also compares
+the backend it read inside installation. Obsolete observations return
+E_GENERATION without overwriting the winning state. Legacy modules refuse the
+envelope rather than treating its condition as optional. No server wire field
+or durable key was added, and direct explicit backend installation retains its
+low-level semantics. The client inventory found no other two-step backend
+open/fallback path; web recovery holds a claim and opens kept state.
+
+Four overlap regressions on SQLite/wasm reject heads 15/19 through durable
+reopen/refill without sends or adoption; two head-20 controls still perform
+validated generation adoption. Four transaction-boundary injection cases cover
+absence and kept-backend comparison on memory/SQLite. C ABI and decoder
+controls cover the host envelope. All five mutations fail their intended
+assertions, and mutation hashes match the final source/compiler output. The
+compiled incoming client independently reproduces the overlap failures.
+
+Final verification: cargo test -p snapback4-device exits 0 (645 passed,
+0 failed, 3 existing ignored); cargo test -p snapback4-core exits 0 (160 passed,
+0 failed); cargo test -p snapback4 exits 0 (265 passed, 0 failed). The affected
+client/host batch passes 69 tests, strict TypeScript build/typecheck pass, and
+ref-check reports zero errors. The broader client-lifecycle run is not green:
+its missing observe_store mock and apply-only rejection expectation reproduce
+with the incoming client. Its additional timeout and retained handles are
+recorded separately in the filesystem follow-up, not claimed baseline-proven.
+The run was terminated to collect its output. The wasm build reports 488,235 B
+gzip (658 B above the incoming artifact) against the already-exceeded budget;
+no size qualification or publication is claimed. Full verbatim command results,
+mutations, source hashes and failures are in target/review-fix12/report.md.
+No push, rebase, merge or publication was performed.
+The final old-wire probe still reports server/device/reopened 1/1/1 in all four
+memory/SQLite fresh/abandoned variants.

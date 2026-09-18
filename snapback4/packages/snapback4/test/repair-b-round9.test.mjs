@@ -62,7 +62,7 @@ function held(signal) {
   });
 }
 
-test("round 9-11 client head observations and startup installation", { timeout: 60_000 }, async t => {
+test("round 9-12 client head observations and startup installation", { timeout: 60_000 }, async t => {
   const directory = mkdtempSync(join(tmpdir(), "sb4-r9-"));
   mkdirSync(join(directory, "snapback"));
   writeFileSync(join(directory, "snapback/schema.q"), source);
@@ -79,17 +79,18 @@ test("round 9-11 client head observations and startup installation", { timeout: 
   const backend = await (await fetch(`${url}/schema`, { headers: { "x-snapback-persona": "alice" } })).json();
   assert.equal(backend.generation, 1);
   let number = 0;
-  for (const tier of ["native", "wasm"]) for (const [mode, head, snapshot] of [["fresh", 25, false], ["startup-generation", 15, false], ["startup-generation", 19, false], ["startup-generation", 19, true], ["startup-generation-native", 15, false], ["startup-generation-native", 19, true], ["healthy-generation", 20, false], ["replacement-generation", 15, false], ["offline-generation", 0, false], ["startup", 7, false], ["startup", 15, false], ["startup", 15, true], ["probe", 15, false], ["changes", 7, false], ["generation", 15, false], ["generation", 15, true], ["snapshot-restart", 20, true], ["stale-send", 7, false], ["stale-published", 7, false], ["healthy", 20, false], ["private-overlap", 7, false], ["private-overlap", 15, false], ["private-generation", 15, false], ["private-generation-declaration", 15, false], ["late-evidence", 20, false], ["image-only", 20, false], ["late-first-evidence", 7, false], ["schema-overlap", 20, false], ["schema-preflight-gap", 20, false]]) {
-    const changedStartup = ["startup-generation", "startup-generation-native", "healthy-generation", "replacement-generation", "offline-generation"].includes(mode);
+  for (const tier of ["native", "wasm"]) for (const [mode, head, snapshot] of [["first-install-overlap", 15, false], ["first-install-overlap", 19, true], ["first-install-healthy", 20, false], ["fresh", 25, false], ["startup-generation", 15, false], ["startup-generation", 19, false], ["startup-generation", 19, true], ["startup-generation-native", 15, false], ["startup-generation-native", 19, true], ["healthy-generation", 20, false], ["replacement-generation", 15, false], ["offline-generation", 0, false], ["startup", 7, false], ["startup", 15, false], ["startup", 15, true], ["probe", 15, false], ["changes", 7, false], ["generation", 15, false], ["generation", 15, true], ["snapshot-restart", 20, true], ["stale-send", 7, false], ["stale-published", 7, false], ["healthy", 20, false], ["private-overlap", 7, false], ["private-overlap", 15, false], ["private-generation", 15, false], ["private-generation-declaration", 15, false], ["late-evidence", 20, false], ["image-only", 20, false], ["late-first-evidence", 7, false], ["schema-overlap", 20, false], ["schema-preflight-gap", 20, false]]) {
+    const firstInstallOverlap = mode.startsWith("first-install-");
+    const changedStartup = firstInstallOverlap || ["startup-generation", "startup-generation-native", "healthy-generation", "replacement-generation", "offline-generation"].includes(mode);
     if (tier === "wasm" && !changedStartup && mode !== "fresh") continue; // two simultaneous native owners exercise the overlap cases
     await t.test(`${tier}: ${mode} head ${head}, snapshot ${snapshot}`, async t => {
       const opener = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ binary, dir: join(directory, `device-${number++}`) });
       const published = changedStartup ? 17 : 5;
       let core, client, peer;
-      if (mode !== "fresh") core = await opener.open("fixture", changedStartup ? { ...backend, generation: 2 } : backend);
+      if (mode !== "fresh" && !firstInstallOverlap) core = await opener.open("fixture", changedStartup ? { ...backend, generation: 2 } : backend);
       t.after(async () => { await client?.close(); await core?.close(); await peer?.close(); });
       const polling = mode === "probe" || mode === "changes";
-      if (mode === "fresh") { /* The real opener must bootstrap an absent store. */ }
+      if (mode === "fresh" || firstInstallOverlap) { /* The real opener must bootstrap an absent store. */ }
       else if (!polling && mode !== "late-first-evidence") await seed(core, snapshot, true, published, changedStartup ? 18 : 10);
       else await ok(core, { op: "apply", page: await page(core, 5, { events: [put("a", 5), put("b", 0)] }) });
       if (mode === "late-first-evidence") await ok(core, { op: "admit", entry: { id: "q", seq: 1, op: "bump", args: {}, new_ids: [], predicted: [], viewer: "dev:alice", now: 1000, predictable: true } });
@@ -111,7 +112,24 @@ test("round 9-11 client head observations and startup installation", { timeout: 
         device: { open: async (_name, fetchedBackend) => {
           // Alias only the store name: forward the actual client backend into
           // the production opener, including changed-generation installation.
-          core = await opener.open("fixture", fetchedBackend);
+          try { core = await opener.open("fixture", fetchedBackend); }
+          catch (error) {
+            if (!firstInstallOverlap || fetchedBackend !== null) throw error;
+            assert.match(String(error), /E_AUTH.*this device has never synced/);
+            // Pause after the real empty open has failed/released ownership.
+            // A second real owner installs and persists evidence before the
+            // unchanged refusal reaches the client's fallback continuation.
+            peer = await opener.open("fixture", { ...backend, generation: 2 });
+            await seed(peer, snapshot, true, 17, 18);
+            const saved = await ok(peer, { op: "sync_state", capture: false });
+            assert.deepEqual([saved.generation, saved.watermark, saved.restore_watermark, saved.restore_images_at], [2, 17, 18, 20]);
+            await peer.close(); peer = undefined;
+            throw error;
+          }
+          if (firstInstallOverlap) {
+            const state = await ok(core, { op: "sync_state", capture: false });
+            t.diagnostic(`after fallback open: ${JSON.stringify({ generation: state.generation, published: state.watermark, private: state.restore_watermark, images: state.restore_images_at })}`);
+          }
           return { close: () => core.close(),
           ...(!polling && !generationMode && mode !== "snapshot-restart" && mode !== "startup-generation-native" ? { onSuspend: core.onSuspend?.bind(core) ?? (() => () => {}) } : {}),
           call: async request => {
@@ -200,7 +218,7 @@ test("round 9-11 client head observations and startup installation", { timeout: 
         const state = await ok(core, { op: "sync_state", capture: false });
         assert.deepEqual([state.generation, state.watermark, state.restore_watermark, state.restore_images_at], [2, 17, 18, 20]);
         assert.equal(state.restore_refusal, undefined);
-      } else if (["healthy-generation", "replacement-generation"].includes(mode)) {
+      } else if (["healthy-generation", "replacement-generation", "first-install-healthy"].includes(mode)) {
         const state = await ok(core, { op: "sync_state", capture: false });
         assert.equal(state.generation, 1, "a validated changed generation is actually installed");
         assert.equal(state.store_id, mode === "replacement-generation" ? "T" : "S");

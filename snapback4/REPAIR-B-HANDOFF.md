@@ -522,3 +522,72 @@ rerun passes. Old-wire probes still report server/device/reopened **1/1/1**
 in all four memory/SQLite fresh/abandoned variants. The wasm artifact was
 rebuilt for the new memory-host witnesses; no artifact is committed or
 published. No push, rebase or merge was performed.
+
+## Review fix round 12 — overlap at first installation
+
+**Overlap witness: reachable, confirmed before the fix.** The production
+client's first `open(name, null)` returned the real never-synced refusal.
+Before that refusal reached its fallback continuation, another production
+owner installed generation 2 and acquired published 17 / private 18 / image
+head 20, then closed. Resuming the generation-1 fallback changed the stored
+state to generation 1 / 0 / 0 / 0 on both SQLite and wasm memory. The subsequent
+same-incarnation head 15 (ordinary) or 19 (snapshot) permitted `begin_send`
+and an HTTP mutation. This is a defect, not merely hardening. The witness
+controls scheduling and HTTP replies; installation, acquisition, persistence,
+reopening and sends use the production implementations. The wasm host uses
+`memoryPersistence`, not a real IndexedDB browser or a power-loss simulation.
+The later compiled incoming `fb5c8804d` client reproduces these failures too.
+
+| Finding | Disposition at this revision |
+| --- | --- |
+| **BB1: expired emptiness observation authorizes destructive first installation** | **Fixed.** The fallback passes `{ initial_backend: backend }` through the existing host JSON boundary. The shared device opens the backend now present or checks the absence of `device:backend` in the installation transaction before installing. It never upgrades an obsolete absence observation into unconditional installation. A changed persisted generation reaches the existing head preflight and captured adoption. |
+| **Other client two-step backend-open/fallback paths** | `local.ts` is the only such path found in the Node/Expo/web client inventory. Node and Expo forward the input; web initial restore, failure recovery and orphan opening operate under an exclusive claim. No other expired-absence fallback was established. |
+| **Observation inside a kept-backend open** | Hardened as part of the same boundary: a kept open compares the exact backend read before installing it. Changes during the open return `E_GENERATION`. Both-store transaction-boundary injections qualify this comparison independently of SQLite's handle activation guard; they are not additional real-browser race claims. |
+| **Older device opening protocol** | The initial envelope has no ordinary backend generation/schema/program fields, so older modules reject it instead of ignoring the condition. CLI, wasm and C ABI share decoding and installation. Existing explicit low-level backend installation remains supported; callers of it still own their adoption/head-validation policy. |
+
+No new server wire field, durable metadata key, release operation or publication
+was added. The user supplied one new review finding, BB1; it was accepted on
+executable evidence. AA1's existing startup cases continue to pass. Earlier
+response-lifetime audit boundaries and the upload-facts ticket are unchanged.
+
+### New regressions and mutation proof
+
+| New regression / control | Mutation and result |
+| --- | --- |
+| First-install overlap, lower heads 15/19, ordinary/snapshot, SQLite and wasm memory (four cases); healthy head 20 actually adopts generation 1 (two cases) | `bb1-unconditional-fallback` restores the raw-backend fallback. All six cases fail: lower heads send after cuts are erased, and healthy controls skip validated adoption. The incoming client gives the same failures. Final cases preserve 2/17/18/20 before validation, keep `E_STORE_RESTORE` through two reopens/refill for lower heads, and perform validated healthy adoption. |
+| Initial absence checked inside installation, memory and SQLite | `bb1-no-absence-check` removes the initial-open expected backend. Both tests fail because the obsolete opening succeeds. |
+| Kept backend checked inside installation, memory and SQLite | `bb1-no-kept-backend-check` removes the kept-open expected backend. Both tests fail because the obsolete opening succeeds. |
+| C ABI fresh conditional install, followed by a stale conditional reopen | `bb1-ignore-initial-mode` decodes the envelope but treats it as unconditional. The test fails with generation 1 instead of preserved generation 2. |
+| First-install decoder accepts the envelope while a legacy backend decoder refuses it | `bb1-remove-initial-decoder` makes the new input undecodable and fails the fresh conditional-install control. |
+
+All five mutations fail their intended assertions. Their original-source hashes
+match final source/compiler output. Exact edits, commands, assertion output,
+incoming-client comparisons and verbatim output of all three Cargo commands
+are in [target/review-fix12/report.md](./target/review-fix12/report.md).
+
+### Additional verification boundaries
+
+The affected client/host batch passes **69 tests**, including the 47-case
+round-9–12 file, native end-to-end opening, transport and store reconnect.
+Strict TypeScript build/typecheck pass. The wider lifecycle sweep is **not
+green**: its mock does not handle `observe_store`, and its native send-overlap
+assertion expects an apply rejection after preflight has already rejected the
+reply. Both isolated failures reproduce with the compiled incoming client
+against the same final device. The broader file also timed out a pending-write
+case and retained handles; it was terminated to collect output. That timeout
+is not independently baseline-qualified. The bounded follow-up is
+[the lifecycle fixture ticket](../issues/20260918-snapback4-client-lifecycle-fixtures-lag-restore-preflight.md).
+
+The wasm build reports 488,235 B gzip, 658 B above the incoming round-11
+artifact; the already-open size-budget ticket remains, and no publication was
+attempted. This is no new size-budget qualification claim. No push, rebase or
+merge was performed.
+
+Final requested commands all exit 0: `cargo test -p snapback4-device`
+(**645 passed, 0 failed, 3 existing ignored**), `cargo test -p snapback4-core`
+(**160 passed, 0 failed**), and `cargo test -p snapback4`
+(**265 passed, 0 failed**). These are totals across each command's test binaries;
+the report preserves every individual result line and the complete command output.
+The old-wire probe still reports server/device/reopened **1/1/1** in all four
+memory/SQLite fresh/abandoned variants. Ref-check passes with 484 LLP documents,
+9,443 references, zero errors; `git diff --check` passes.

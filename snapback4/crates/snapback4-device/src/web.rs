@@ -4,7 +4,7 @@
 //! takes the changes to persist (IndexedDB, behind the call) — so a cold
 //! start with no network opens on what it holds.
 
-use crate::device::{Backend, Device};
+use crate::device::Device;
 use crate::memory::{Change, MemoryStore};
 use serde_json::json;
 use wasm_bindgen::prelude::*;
@@ -25,16 +25,13 @@ impl WebDevice {
     /// persisted, in order. Throws the refusal as JSON text.
     #[wasm_bindgen(constructor)]
     pub fn new(backend: Option<String>, kept: &str) -> Result<WebDevice, JsError> {
-        let backend = match backend {
-            Some(text) if !text.is_empty() && text != "null" => Some(snapback4_core::json_codec::from_text::<Backend>(&text).map_err(|e| JsError::new(&json!({ "denied": { "code": "E_INPUT", "family": "input", "message": e.to_string() } }).to_string()))?),
-            _ => None,
-        };
+        let opening = crate::opening::Opening::parse(backend.as_deref()).map_err(|e| refused(&e))?;
         let changes: Vec<Change> = if kept.is_empty() { Vec::new() } else { snapback4_core::json_codec::from_text(kept).map_err(|e| JsError::new(&json!({ "denied": { "code": "E_STORE", "family": "store", "message": format!("the kept changes do not parse: {e}") } }).to_string()))? };
         let mut store = MemoryStore::new();
         store.load(changes).map_err(|e| refused(&e))?;
         // What the open installed (the backend, the generation, a reset) is
         // the host's to keep too: the first drain carries it.
-        let device = Device::open_store(store, backend).map_err(|e| refused(&e))?;
+        let device = opening.open(store).map_err(|e| refused(&e))?;
         Ok(WebDevice { device })
     }
 

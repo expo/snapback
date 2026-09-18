@@ -59,11 +59,16 @@ export interface DeviceCore {
   close(): Promise<void>;
 }
 
+/** A first-install request must preserve a backend another owner installed. */
+export type DeviceOpening = BackendJson | { initial_backend: BackendJson };
+
 /** How a host opens its device: a store name the client derives from the
  * server and the viewer (the host decides where that lives), and the
- * backend the server sent — null to open on the one kept from last time. */
+ * backend the server sent — null to open on the one kept from last time,
+ * or { initial_backend } to install only if empty and otherwise open the kept
+ * backend. Hosts must preserve this envelope across their native boundary. */
 export interface DeviceOpener {
-  open(name: string, backend: BackendJson | null): Promise<DeviceCore>;
+  open(name: string, backend: DeviceOpening | null): Promise<DeviceCore>;
 }
 
 export interface LocalOptions {
@@ -236,11 +241,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const aborter = new AbortController();
   // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — startup must preserve the evidence until the server head has been validated.
   const core = await options.device.open(storeName, null).catch(error => {
-    // Only the device's explicit empty-store refusal permits first install.
+    // This refusal permits a conditional first-install request: another
+    // owner may have initialized the name since the failed open.
     // Store corruption, ownership and other open failures must not fall back.
     const message = error instanceof Error ? error.message : String(error);
     if (!backend || !message.includes("E_AUTH") || !message.includes("this device has never synced: the server must be reachable once to open")) throw error;
-    return options.device.open(storeName, backend);
+    return options.device.open(storeName, { initial_backend: backend });
   });
   let stopSuspend: (() => void) | undefined;
   let stopOutbox: (() => void) | undefined;

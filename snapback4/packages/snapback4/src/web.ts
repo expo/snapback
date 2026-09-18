@@ -7,8 +7,7 @@
 
 import type { Write } from "./contract.ts";
 import { WRITE_HISTORY_LIMIT } from "./writes.ts";
-import type { BackendJson } from "./backend.ts";
-import type { DeviceCore, DeviceOpener } from "./local.ts";
+import type { DeviceCore, DeviceOpener, DeviceOpening } from "./local.ts";
 import type { PendingSend } from "./local-exit.ts";
 import { AdmissionJournal, journalStores, writeRefusal } from "./web-journal.ts";
 import init, { WebDevice } from "./wasm/snapback4_device.js";
@@ -152,7 +151,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           if (changes.some(change => change.s === "o")) for (const notify of committedListeners) notify();
         }
       };
-      const restore = async (backend?: BackendJson | null): Promise<void> => {
+      const restore = async (backend?: DeviceOpening | null): Promise<void> => {
         const saved = await persist.load(store.name);
         device = new WebDevice(backend ? JSON.stringify(backend) : null, JSON.stringify(saved.filter(c => c.s !== "j")));
         journal.load(saved);

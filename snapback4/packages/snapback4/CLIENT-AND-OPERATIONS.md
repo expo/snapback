@@ -1309,8 +1309,13 @@ answering queries and predictions; the wasm the web runs is the same
 module over memory. A host opens its device with `open(name, backend)`
 and gives back one JSON call, `call({ op, ... })`, into the module
 (`backend` is `GET /schema`'s JSON, or null to open on the one the
-device kept, which is how a cold start with no network opens). The
-module speaks the same call over a C ABI
+device kept, which is how a cold start with no network opens). For first
+installation the client passes `{ initial_backend: backend }`: the module
+opens any backend now present, or checks that the store is still empty inside
+the installation transaction. Custom openers must forward that envelope
+unchanged. An older module rejects it; rebuild the native app when updating
+to this client. Generation changes use head validation and captured adoption
+with the persisted restore evidence intact. The module speaks the same call over a C ABI
 (`crates/snapback4-device/include/snapback4.h`: `sb4_open`, `sb4_call`,
 `sb4_free`, `sb4_close`) and, for a Rust host, through
 `snapback4_device::ffi::call`; `snapback4 device <store>` runs it as a

@@ -328,14 +328,23 @@ impl<S: DeviceStore> Device<S> {
     /// or, with none, for the backend kept from last time, so a device
     /// that starts with no network opens on what it holds. The schema is
     /// installed; a literal-default addition can keep older row images.
-    pub fn open_store(mut store: S, backend: Option<Backend>) -> Result<Self, RuntimeError> {
-        let mut backend = match backend {
-            Some(backend) => backend,
-            None => {
-                let kept = store.meta(BACKEND)?.ok_or_else(|| RuntimeError::Auth("this device has never synced: the server must be reachable once to open".into()))?;
-                snapback4_core::json_codec::from_text(&kept).map_err(|e| RuntimeError::Store(format!("the kept backend does not parse: {e}")))?
-            }
-        };
+    pub fn open_store(store: S, backend: Option<Backend>) -> Result<Self, RuntimeError> {
+        Self::open_store_mode(store, backend, false)
+    }
+
+    /// Open the kept backend, installing the supplied one only if still empty.
+    /// A concurrent installer may win; it must never lose its replica evidence.
+    pub fn open_store_initial(store: S, backend: Backend) -> Result<Self, RuntimeError> {
+        Self::open_store_mode(store, Some(backend), true)
+    }
+
+    fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeError> {
+        let kept = store.meta(BACKEND)?;
+        let expected = if initial || backend.is_none() { BTreeMap::from([(BACKEND.to_owned(), kept.clone())]) } else { BTreeMap::new() };
+        let mut backend = if backend.is_none() || (initial && kept.is_some()) {
+            let text = kept.as_ref().ok_or_else(|| RuntimeError::Auth("this device has never synced: the server must be reachable once to open".into()))?;
+            snapback4_core::json_codec::from_text(text).map_err(|e| RuntimeError::Store(format!("the kept backend does not parse: {e}")))?
+        } else { backend.unwrap() };
         backend.schema.prepare_contribution_indexes();
         let held = store.meta(GENERATION)?.and_then(|g| g.parse::<u64>().ok()).unwrap_or(0);
         let reset = held != 0 && held != backend.generation;
@@ -355,7 +364,8 @@ impl<S: DeviceStore> Device<S> {
             metadata.insert(boundary::STAGED.to_owned(), "{}".into());
             if !keep_acquired { metadata.insert(boundary::BOUNDARIES.to_owned(), "{}".into()); }
         }
-        store.install(&backend.schema, &metadata, reset && !keep_images)?;
+        // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — consume the kept-backend/absence observation inside installation's transaction.
+        store.install_checked(&backend.schema, &metadata, reset && !keep_images, &expected)?;
         // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — a recovered request cannot
         // reuse a declaration from before a teardown send whose host-persisted
         // revision was lost. Published replay evidence and private pages stay.
@@ -1060,6 +1070,9 @@ fn audience_prefix(table: &Table) -> Vec<String> {
 
 #[cfg(test)]
 mod publication_tests;
+
+#[cfg(test)]
+mod opening_tests;
 
 #[cfg(all(test, feature = "native"))]
 mod publication_round5;
