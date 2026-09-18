@@ -238,6 +238,7 @@ impl RuntimeError {
             Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE" | "E_ACTION_AUTHORITY") => refusal.guide = Some("actions".into()),
             Self::Structural { code, .. } if code.starts_with(concat!("E_", "ROUTE_")) => refusal.guide = Some("routes".into()),
             Self::Structural { code: "E_STORE_RESTORE", .. } => refusal.guide = Some("sync".into()),
+            Self::Structural { code: "E_SHAPE_EXCEEDS_METER", .. } => refusal.guide = Some("reads".into()),
             Self::Structural { code: "E_WRITE_ID_REUSE" | "E_ID_REUSED", message } => {
                 refusal.message = message.clone();
                 refusal.guide = Some("writes".into());

@@ -77,6 +77,8 @@ pub struct Runner<'a> {
     /// Read paths that actually stopped on a cap, including an inherited cap.
     pub(super) read_cuts: u64,
     pub(super) shape_positions: BTreeMap<String, super::shaping::ShapePosition>,
+    /// Evaluated input cursors of returned shape sources, keyed by read site.
+    pub(super) shape_cursors: BTreeMap<String, String>,
     /// Whether a scan ran whose read rule the prefix does not decide. Such a
     /// result is `capped` whatever the meter found (LLP 1001 §3): a page
     /// that was `complete` only when few hidden rows were walked would
@@ -156,6 +158,7 @@ impl<'a> Runner<'a> {
             page_plan: super::pages::Plan::default(),
             read_cuts: 0,
             shape_positions: BTreeMap::new(),
+            shape_cursors: BTreeMap::new(),
             non_uniform: false,
             page_overflow: false,
             word_cut_at: None,
@@ -275,11 +278,12 @@ impl<'a> Runner<'a> {
                         if matches!(domain, LoopDomain::LiteralRange { .. } | LoopDomain::ExpressionRange { .. }) { self.meter.step(1)?; }
                         self.bind(binding, value);
                         let cut_mark = self.read_cuts;
+                        let inherited_cap = self.meter.capped_at.is_some();
                         let lengths = shape.as_ref().map(|shape| self.shape_lengths(shape));
                         let flow = self.statements(body, &site);
                         if let Some(shape) = &shape
                             && self.shape_starved(cut_mark, &flow) {
-                            self.trim_shape(&site, shape, row_index, lengths.as_deref().unwrap());
+                            self.trim_shape(&site, shape, row_index, lengths.as_deref().unwrap(), inherited_cap);
                             break;
                         }
                         let flow = flow?;

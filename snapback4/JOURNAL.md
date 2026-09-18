@@ -38084,3 +38084,335 @@ bar: the one loop that repeats — guessing a root `snapback4` export and the
 bare-arguments wire body — was paid by six builders of seven, **every time
 self-attributed as agent error**. A calibration that reads builder
 self-assessment is reading a floor on Snapback's share, not a count of it.
+## 2026-09-18 — W13j: a returned shape's no-progress follow refuses (ruling 35)
+
+Base: `a8de12ed88202622dcb496ba2ac3abc356d46635`; left uncommitted for the lead.
+Implements LLP 3000.007#14, ruling 35, preserving the returned-shape refinement
+of LLP 3000.007#5.6. The runner records the already evaluated input cursor of
+an eligible returned shape's source read. At continuation publication, zero
+fully shaped rows, an inclusive candidate and a byte-identical consumed cursor
+refuse with `RuntimeError::Structural`, code `E_SHAPE_EXCEEDS_METER`. Canonical
+token equality binds the position, descriptor, scope and inclusivity. An unused
+cursor argument does not count as a follow. The common publication path covers
+the server and both device stores; cursor encoding, scanning, shape trimming,
+the shape mark, lane charging, device horizons, client and React are unchanged.
+No meter ceiling or serialized value form changed. The runtime refusal and
+compiler diagnostic route to the reads card; the code registry, card and README
+carry the explanation. The later `check --cost` note remains outside this lane.
+
+The old server-only residual is now
+`w13j_a_shape_that_cannot_finish_under_a_fresh_meter_refuses_the_follow` in the
+shared `common/shape_pages.rs` suite. Its original first-request assertions are
+retained. Both device stores include that suite. Added positive controls cover
+an advancing inclusive cursor, exclusive cursors, an unused matching cursor
+argument, and a bounded shape that completes. Eager and lazy merges and matching
+reads refuse the no-progress follow in both directions. Existing `[a,b,c]`,
+canonical inclusive-retry and grouped 9,000-row walks remain green.
+
+Measured on all three hosts: 9,000 detail rows under the unchanged 8,192-row
+ceiling; first request returns 0 rows and an inclusive cursor, with 8,193
+examined attempts and 0 index entries. Following that cursor now refuses. The
+bounded positive emits 1 row with count 3. All 9 W13j test executions passed in
+the complete suite. The modified code files remain below 1,500 lines (largest:
+`engine/read.rs`, 1,050; shared shape tests, 816).
+
+Before, there was no diagnostic: the follow returned an empty page,
+`complete: false`, `cut: 'meter'`, and its own cursor as `next`. After, the
+fixture's refusal message is exactly:
+
+```text
+E_SHAPE_EXCEEDS_METER: the returned shape at programs.feed.1 examines more than the 8,192-row meter on its own; bound it (`first N`/`last N`) or move it out of the returned shape
+```
+
+The initial red-test attempts could not link with the inherited Xcode SDK or
+with Command Line Tools' default 27.0 SDK: their linker reported unknown
+`arm64e.x1-macos` architecture, and no tests ran. A compile/run probe succeeded
+with the installed 26.5 SDK. Every successful test invocation below used:
+
+```sh
+export DEVELOPER_DIR=/Library/Developer/CommandLineTools
+export SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+Cargo and Node commands ran from `snapback4/`; the blocking script and
+`ref-check` ran from the repository root. Red regressions were executed before
+any engine edit; the docs/code-registration edits then present do not implement
+the refusal. Commands and verbatim summaries:
+
+```text
+$ cargo test -p snapback4-sim --test clique w13j -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 224 filtered out; finished in 0.36s
+```
+
+```text
+$ cargo test -p snapback4-device --test device w13j -- --nocapture
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 385 filtered out; finished in 0.07s
+```
+
+```text
+$ cargo test -p snapback4-sim --test clique merge_continuation
+test result: ok. 69 passed; 0 failed; 0 ignored; 0 measured; 158 filtered out; finished in 18.03s
+```
+
+```text
+$ cargo test -p snapback4-device --test device merge_continuation
+test result: ok. 138 passed; 0 failed; 0 ignored; 0 measured; 253 filtered out; finished in 11.54s
+```
+
+```text
+$ cargo test -p snapback4-lang --test guide
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+```
+
+```text
+$ cargo test -p snapback4 --bin snapback4
+test result: ok. 68 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.14s
+```
+
+```text
+$ target/debug/deps/clique-a17c933c77849929 w13j_a_shape_that_cannot_finish_under_a_fresh_meter_refuses_the_follow --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 226 filtered out; finished in 0.30s
+```
+
+```text
+$ target/debug/deps/device-b0fd6f59140801d2 w13j_a_shape_that_cannot_finish_under_a_fresh_meter_refuses_the_follow --nocapture
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 389 filtered out; finished in 0.13s
+```
+
+The full `bash snapback4/scripts/test.sh` run finished in 1,266 seconds, with
+host load 54.88 across 18 CPUs at the test launch. The Rust summaries total
+1,775 passed, 5 failed, 8 ignored; the 5 failures are the witness target
+(15 passed, 5 failed), whose fake simctl launch timed out or prevented the
+expected refusal. Lifecycle passed 20/20. Client tests total 722: 717 passed,
+2 failed, 3 skipped. The failures are Chromium aborting at launch in
+`react.test.mjs` and the wasm pending-write acknowledgement test timing out in
+`transport-http.test.mjs:172`. The wasm build measured 1,597,087 bytes raw and
+468,090 gzip; the informational 452,000-byte budget reports 16,090 bytes over.
+No same-base wasm size comparison is claimed.
+
+Verbatim blocking-suite group summaries and client totals:
+
+```text
+$ bash snapback4/scripts/test.sh
+-- ok: cargo build (227 s)
+-- ok: wasm build (48 s)
+-- ok: release guard (3 s)
+-- ok: package typecheck (3 s)
+-- ok: package build (2 s)
+-- ok: chat app check (2 s)
+-- FAIL: cargo test (885 s)
+-- ok: chat app typecheck (2 s)
+-- ok: expo app typecheck (6 s)
+-- ok: fixture wrapper tests (27 s)
+-- FAIL: client tests (972 s)
+== 2 failure(s) in 1266 s
+ℹ tests 722
+ℹ pass 717
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 3
+```
+
+Isolated reruns: Chromium again aborted with `SIGABRT`, before app checks.
+The witness target first remained red under load (14 passed, 6 failed), then
+passed all 20 after the full suite stopped. The exact wasm transport test still
+hit its 15-second settlement wait in both isolated attempts, including after the
+full suite stopped. That timeout remains unresolved and unclassified; no
+pre-existing product failure is claimed without an exact-base reproduction.
+The sandbox Chromium artifact is identified by the supplied lane instructions
+and this run's launch trace. The lead's outside-sandbox qualification remains
+necessary. No client, witness or timeout threshold was changed.
+
+```text
+$ cargo test -p snapback4 --test witness -- --test-threads=1
+witness-alone.log:
+test result: FAILED. 14 passed; 6 failed; 0 ignored; 0 measured; 0 filtered out; finished in 52.68s
+witness-final.log:
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 106.27s
+```
+
+```text
+$ node --test packages/snapback4/test/react.test.mjs
+react-alone.log:
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+```
+
+```text
+$ node --test --test-name-pattern='^wasm: maximum pending ids, cursor batches and every terminal acknowledgement$' packages/snapback4/test/transport-http.test.mjs
+transport-alone.log:
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+transport-final.log:
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+```
+
+The lesson is to detect lack of progress at publication using the source
+read's consumed cursor, while leaving successful inclusive retries alone. The
+additional glue outside the explicitly named files is one runtime refusal-to-card
+mapping in `snapback4-core/src/error.rs` and one compiler code-to-card mapping in
+`snapback4-lang/src/diag.rs`. No other lane's implementation files changed.
+Logs, including all initial SDK-link failures and full failure traces, are in
+`/tmp/w13j/`. The prior 2,220,632 journal bytes are preserved verbatim.
+
+Final root reference check:
+
+```text
+$ ./ref-check --verbose
+ref-check: ok — 485 LLP docs, 9116 refs in 24342 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passes; no commit, push, tag or publication was made.
+
+
+## 2026-09-18 — W13jR1: name the starved shape when an earlier read spent its meter
+
+Base: `a69cb6f771e01a6690e9afe36730701a02539938`; left uncommitted for the lead.
+The review found that `meter.capped_at` preserves the first exhaustion site,
+which can precede the returned shape. The refusal then called that earlier
+read the shape and claimed its cost was the shape's own. The runner now records
+one boolean on a trimmed shape position: whether the meter was already capped
+before that row's shape ran. At publication it selects the zero-finished-row
+shape whose source page owns the continuation, using the same predicate as
+before. An inherited cap names that source read and the earlier exhaustion
+site; a cap inside the shape keeps the existing own-cost message verbatim.
+The ruling 35 reference remains at the publication check (LLP 3000.007#14).
+
+Inclusive-candidate detection, token equality and the zero-finished-shape
+condition are unchanged. The source scan, shape mark, starvation detection,
+trimming positions, lane charges, device horizons, page planner, client,
+ceilings and serialized forms are unchanged. The reads card and the registered
+code's explanation gain the inherited case; the README's sentence remains
+accurate and is untouched. The additional runner/shaping state is private,
+not a wire or persisted value.
+
+The new shared test runs on the server, memory device and SQLite device.
+It uses the inherited-cap fixture's unconditional 9,000-row count, both range
+and list lane sources, and both eager and lazy merges. All 12 inherited-case
+executions preserve the first request: 0 returned rows, `complete: false`,
+`cut: 'meter'`, and an inclusive cursor at row `a`. Each follow refuses with
+the exact inherited diagnostic. The 12 positive controls bound the prelude
+count to 3 against the same 9,000 rows: both pages return their row and its
+2-row preview, without a meter cut or refusal, and the second has no `next`.
+The bounded prelude count itself is truncated, so the query correctly stays
+`complete: false`. The first post-fix test run mistakenly expected that
+control to be complete; its assertion was corrected to require incompleteness.
+No existing assertion was changed. The existing self-exhausting fixture's
+exact message and first-request assertions remain green on all three hosts.
+
+The inherited fixture before the fix, and the own-cost fixture both before
+and after, have this exact refusal message:
+
+```text
+E_SHAPE_EXCEEDS_METER: the returned shape at programs.feed.1 examines more than the 8,192-row meter on its own; bound it (`first N`/`last N`) or move it out of the returned shape
+```
+
+The inherited fixture after the fix:
+
+```text
+E_SHAPE_EXCEEDS_METER: the returned shape at programs.feed.0 cannot finish: the 8,192-row meter was spent at programs.feed.1 before it ran; bound that read (`first N`/`last N`) or move the shape out of the returned shape
+```
+
+Commands below ran from `snapback4/`, with the same environment for the
+base wasm build, red tests and final checks:
+
+```sh
+export DEVELOPER_DIR=/Library/Developer/CommandLineTools
+export SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+Regression commands and verbatim summaries (red before any engine edit;
+the intermediate failure is the new positive control's expectation above):
+
+```text
+$ cargo test -p snapback4-sim --test clique merge_continuation::shape_pages::w13j_inherited_exhaustion_names_the_blocked_shape_and_prior_read
+red before fix:
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 227 filtered out; finished in 0.21s
+intermediate positive-control expectation failure:
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 227 filtered out; finished in 0.31s
+green:
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 227 filtered out; finished in 1.41s
+```
+
+```text
+$ cargo test -p snapback4-device --test device w13j_inherited_exhaustion_names_the_blocked_shape_and_prior_read
+red before fix:
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 391 filtered out; finished in 0.09s
+green:
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 391 filtered out; finished in 1.29s
+```
+
+The four requested targets pass, 325 tests total:
+
+```text
+$ cargo test -p snapback4-sim --test clique merge_continuation
+test result: ok. 70 passed; 0 failed; 0 ignored; 0 measured; 158 filtered out; finished in 17.76s
+```
+
+```text
+$ cargo test -p snapback4-device --test device merge_continuation
+test result: ok. 140 passed; 0 failed; 0 ignored; 0 measured; 253 filtered out; finished in 9.25s
+```
+
+```text
+$ cargo test -p snapback4-lang --test guide
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+```
+
+```text
+$ cargo test -p snapback4 --bin snapback4
+test result: ok. 68 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.80s
+```
+
+Wasm measured by `bash scripts/build-wasm.sh` at the base and after the fix,
+with identical toolchain/environment: **+423 bytes raw, +81 bytes gzip**.
+Both builds exited 0; this base's budget is informational. The 452,000-byte
+gzip budget was already exceeded by 16,090 bytes at the exact base above;
+the final overage is 16,171. The budget file was not edited.
+
+```text
+$ bash scripts/build-wasm.sh (base)
+wasm 1597087 B raw, 468090 B gzip (budget 452000: OVER by 16090 B — issues/20260913-snapback4-wasm-device-diet.md)
+$ bash scripts/build-wasm.sh (after)
+wasm 1597510 B raw, 468171 B gzip (budget 452000: OVER by 16171 B — issues/20260913-snapback4-wasm-device-diet.md)
+```
+
+`./ref-check --verbose` ran from the repository root:
+
+```text
+ref-check: ok — 485 LLP docs, 9116 refs in 24343 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passes. Changed code files are at most 1,057 lines.
+The prior 2,228,901 journal bytes are preserved verbatim. Logs are in
+`/tmp/w13jr1/`, including both before-fix host failures and the intermediate
+positive-control failure. No pre-existing test failure is claimed. No
+out-of-scope file was edited; the pre-existing untracked lane brief is untouched.
+The round explicitly defers `bash snapback4/scripts/test.sh` to the lead at
+landing; it was not run. No commit, push, tag or publication was made.
+
+The lesson is that first-exhaustion attribution and the shape prevented from
+finishing are distinct facts. One bit recorded at the existing shape boundary
+preserves both without changing the meter or the no-progress decision.
+
+## 2026-09-18 — W13j lands: the wasm budget 410,000 → 411,000
+
+Lead entry (Claude, orchestrating). W13j's refusal path and its two diagnostic texts live in the engine the web
+device runs, so the device grew: `bash scripts/build-wasm.sh` on the tree W13j landed on measured 1,481,211 B raw /
+**410,412 B gzip** against the S3 landing's 409,621 (+791 B), 412 B over the 410,000 ratchet. Per the author's ruling
+of 2026-09-18 the budget is raised in this same commit, to the measured value rounded up to 1,000 B — `metrics/wasm-budget.json`
+now reads 411,000 with the reason in its `why` — and the reason is here and in the commit message. Nothing else in the
+landing touches the device's bytes; W13k, which deletes server-side code, lowers the budget again if its measurement
+allows.

@@ -1,6 +1,6 @@
 # Snapback 4: a returned shape that cannot finish under a fresh meter mints an inclusive `next` at its own row — a follow makes no progress
 
-Status: Open
+Status: Closed 2026-09-18 — landed on main from the reviewed tip `1e5fda7f68` (lane W13j; LLP 3000.007 §14 ruling 35, §20.22.7)
 Priority: P3 (a query that can never answer under the ceilings; today's behaviour is honest but loops when followed blindly)
 Date: 2026-09-17
 Systems: `snapback4-core` `engine/shaping.rs` (`trim_shape`: the inclusive first-row position), `engine/runner.rs` (the shape-loop interception), `cursor.rs` (the v3 inclusive token); `snapback4` `check --cost` (where the static note would live)
@@ -47,3 +47,11 @@ ruling has a fixture to change.
 ## Regression
 
 `w13h_a_shape_that_cannot_finish_under_a_fresh_meter_makes_no_progress` (server, `crates/snapback4-sim/tests/common/shape_pages.rs`): a first row whose returned shape alone exceeds the meter yields an empty page, `complete: false`, and — followed once — a `next` byte-identical to the request's own cursor. Under ruling (1) the second request refuses instead; under (2) `check` notes the query and the runtime pin stands.
+
+## Resolution (2026-09-18)
+
+Ruling 35 (LLP 3000.007 §14): a request that begins at an inclusive v3 cursor at position P, returns an empty page and
+would mint an inclusive `next` at the same P refuses with `E_SHAPE_EXCEEDS_METER`, naming the shape's read site and the
+meter, on the server and both device stores (lane W13j, reviewed at `1e5fda7f68`). The first request that drops the starved
+row is unchanged; a follow whose row finishes, and every exclusive-cursor follow, are unchanged. The `check --cost` note
+for a returned shape whose own bound exceeds the ceiling waits for the cost arithmetic (§14 ruling 35's second half).
