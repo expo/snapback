@@ -59,6 +59,7 @@ pub(super) fn run<T: DeviceTx>(tx: &T, schema: &Schema, program: &Program, entry
 // capture; writes admitted later must remain eligible on the published base.
 const CAPTURE: &str = "device:declaration:capture";
 const PUBLISHED: &str = "device:declaration:published";
+const PENDING_LIMIT: usize = 256;
 
 // (declared through, declaration complete, outbox upper bound at request time).
 pub(super) type Declaration = (u64, bool, u64);
@@ -69,15 +70,27 @@ pub(super) struct Capture {
     pub declaration: Declaration,
 }
 
+// The interval and declared IDs must be the same prefix, regardless of the
+// adapter's iteration order. Equal submission numbers cannot define a prefix.
+fn ordered_entries<T: DeviceTx>(tx: &T) -> Result<Vec<Queued>, RuntimeError> {
+    let mut entries = tx.outbox_entries()?.iter().map(|data| decoded::<Queued>(data)).collect::<Result<Vec<_>, _>>()?;
+    entries.sort_by_key(|entry| entry.seq);
+    if entries.windows(2).any(|pair| pair[0].seq >= pair[1].seq) {
+        return Err(RuntimeError::Store("outbox submission numbers must be unique".into()));
+    }
+    Ok(entries)
+}
+
 // All builders share the in-flight declaration. A poll/retry cannot widen it;
 // successful apply consumes it, and begin_send abandons obsolete requests.
 pub(super) fn capture<T: DeviceTx>(tx: &T) -> Result<Capture, RuntimeError> {
     if let Some(capture) = load_capture(tx)? { return Ok(capture); }
-    let entries = tx.outbox_entries()?.iter().map(|data| decoded::<Queued>(data)).collect::<Result<Vec<_>, _>>()?;
+    let entries = ordered_entries(tx)?;
     let capture = Capture {
-        ids: entries.iter().take(256).map(|q| q.id.clone()).collect(),
-        declaration: (entries.iter().take(256).last().map_or(0, |q| q.seq), entries.len() <= 256,
-            tx.outbox_max_seq()?.max(meta_u64(tx, SUBMISSION)?)),
+        ids: entries.iter().take(PENDING_LIMIT).map(|q| q.id.clone()).collect(),
+        declaration: (entries.iter().take(PENDING_LIMIT).last().map_or(0, |q| q.seq), entries.len() <= PENDING_LIMIT,
+            // SUBMISSION is the inclusive last assigned number, never the next.
+            entries.last().map_or(0, |q| q.seq).max(meta_u64(tx, SUBMISSION)?)),
     };
     tx.set_meta(CAPTURE, &encoded(&capture)?)?;
     Ok(capture)
@@ -89,8 +102,10 @@ fn load_capture<T: DeviceTx>(tx: &T) -> Result<Option<Capture>, RuntimeError> {
     let Some(data) = tx.meta(CAPTURE)?.filter(|s| !s.is_empty()) else { return Ok(None) };
     if let Ok(capture) = decoded::<Capture>(&data) { return Ok(Some(capture)); }
     let declaration: Declaration = decoded(&data)?;
-    let ids = tx.outbox_entries()?.iter().map(|data| decoded::<Queued>(data)).collect::<Result<Vec<_>, _>>()?
-        .into_iter().filter(|entry| entry.seq <= declaration.0).take(256).map(|entry| entry.id).collect();
+    let ids: Vec<_> = ordered_entries(tx)?.into_iter().filter(|entry| entry.seq <= declaration.0).map(|entry| entry.id).collect();
+    if ids.len() > PENDING_LIMIT {
+        return Err(RuntimeError::Store("checkpoint pending declaration exceeds its prefix limit".into()));
+    }
     Ok(Some(Capture { ids, declaration }))
 }
 
@@ -98,7 +113,14 @@ pub(super) fn declaration<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<Decl
     let capture = load_capture(tx)?;
     match (page.pending_through, page.pending_complete) {
         (Some(through), Some(complete)) => {
-            let bound = page.pending_bound.or_else(|| capture.as_ref().filter(|c| c.declaration.0 == through && c.declaration.1 == complete).map(|c| c.declaration.2));
+            if let Some(capture) = &capture {
+                let captured = capture.declaration;
+                if through != captured.0 || complete != captured.1 || page.pending_bound.is_some_and(|bound| bound != captured.2) {
+                    return Err(RuntimeError::Input("pending declaration echo differs from its request capture".into()));
+                }
+                return Ok(captured);
+            }
+            let bound = page.pending_bound;
             let bound = match bound {
                 Some(bound) if bound >= through => bound,
                 None if complete => through,
@@ -119,7 +141,20 @@ pub(super) fn clear_capture<T: DeviceTx>(tx: &T) -> Result<(), RuntimeError> {
 
 pub(super) fn reset<T: DeviceTx>(tx: &T, keep_images: bool) -> Result<(), RuntimeError> {
     clear_capture(tx)?;
-    if !keep_images { tx.delete_meta(&[PUBLISHED])?; }
+    if !keep_images {
+        tx.delete_meta(&[PUBLISHED])?;
+        for data in tx.outbox_entries()? {
+            let mut entry: Queued = decoded(&data)?;
+            if let Some(seq) = entry.observed_seq.take() {
+                // Dropping publication evidence must not turn a known execution
+                // into an unsent write that a later replacement could retry.
+                entry.sent_seq.get_or_insert(seq);
+                enqueue(tx, &entry)?;
+            }
+        }
+        // sent_seq proves execution, independently of our images. Keep it for
+        // at-most-once settlement; with watermark zero it cannot suppress replay.
+    }
     Ok(())
 }
 

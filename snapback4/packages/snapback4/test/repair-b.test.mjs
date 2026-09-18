@@ -210,3 +210,54 @@ test("interrupted snapshot catch-up resumes its durable mode", { timeout: 5000 }
     assert.equal(requests.length, 3);
   } finally { await client.close(); }
 });
+
+test("generation adoption compares published identity during private acquisition", { timeout: 5000 }, async () => {
+  const { createLocalClient: create } = await import(process.env.REPAIR_B_LOCAL ?? "../dist/local.js");
+  let generation = 1, staged = false, published = 0, adopted = 0, serverGeneration = 1;
+  const backend = () => ({ generation: serverGeneration, schema: { tables: {} }, programs: [] });
+  const core = { close: async () => {}, call: async request => {
+    switch (request.op) {
+      case "backend": return { ok: { ...backend(), generation } };
+      case "meta": return { ok: null };
+      case "state": return { ok: { watermark: published, generation } };
+      case "queued": return { ok: [] };
+      case "sync_state": return { ok: { acquired: published > 0, backend_required: false,
+        store_id: published ? "store" : null, transfer_store_id: staged || published ? "store" : null,
+        watermark: published, transfer_watermark: staged ? 5 : published, snapshot_catchup: staged,
+        generation, pending_ids: [], pending_through: 0, pending_complete: true, pending_bound: 0, send_revision: 0 } };
+      case "observe_store": return { ok: { reset: false, send_revision: 0, retired: {} } };
+      case "adopt":
+        assert.equal(request.store_id, null, "adoption must compare the published identity, not the private transfer");
+        assert.equal(request.send_revision, 0);
+        adopted++; generation = request.backend.generation; staged = false;
+        return { ok: null };
+      case "apply":
+        if (request.page.snapshot) { staged = true; return { ok: { touched: [], published: false } }; }
+        staged = false; published = request.page.watermark;
+        return { ok: { touched: [], published: true } };
+      case "set_meta": case "keep_write": return { ok: null };
+      case "next_submission": return { ok: 1 };
+      default: throw new Error(`unexpected device operation ${request.op}`);
+    }
+  } };
+  let requests = 0;
+  const client = await create({ url: "http://adopt-private.invalid", persona: "alice", device: { open: async () => core },
+    fetch: async (url, init) => {
+      const path = new URL(url).pathname;
+      if (path === "/schema") return Response.json(backend());
+      if (path === "/sync") {
+        requests++;
+        const request = JSON.parse(init.body);
+        if (requests === 2) serverGeneration = 2;
+        return Response.json({ snapshot: !request.stream, events: [], watermark: 5,
+          images_at: 5, store_id: "store", more: false, generation: serverGeneration });
+      }
+      throw new TypeError("background transport held");
+    },
+  });
+  try {
+    assert.equal(adopted, 1, "generation adoption must succeed on its first attempt");
+    assert.equal(published, 5);
+    assert.equal(requests, 4);
+  } finally { await client.close(); }
+});

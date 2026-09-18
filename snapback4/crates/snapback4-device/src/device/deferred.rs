@@ -28,6 +28,9 @@ pub(super) fn decode_cursor(value: Option<String>) -> Result<Option<u64>, Runtim
 
 pub(super) fn validate(page: &StreamPage) -> Result<(), RuntimeError> {
     boundary::validate_positions(page)?;
+    if !page.snapshot && !page.more && page.images_at.is_some_and(|head| head > page.watermark) {
+        return Err(RuntimeError::Input("terminal stream page has images beyond its watermark".into()));
+    }
     if page.acknowledged.values().any(|seq| *seq > page.watermark) {
         return Err(RuntimeError::Input("acknowledgement is beyond the applied watermark".into()));
     }
@@ -55,7 +58,7 @@ pub(super) fn should_defer<T: DeviceTx>(tx: &T, programs: &BTreeMap<String, Prog
 struct RowEffect {
     image: Option<Value>,
     // None means the row was already held in the published base. Otherwise
-    // recheck its first admission, not its final (possibly moved) index key.
+    // recheck its qualifying admission, not its final (possibly moved) key.
     admission: Option<Value>,
 }
 
@@ -114,7 +117,7 @@ pub(super) fn stage<T: DeviceTx>(tx: &T, schema: &Schema, generation: u64, page:
     install_rows(tx, schema, false, &mut BTreeSet::new())?;
     let inherited = rows(tx)?.into_iter().map(|(name, id, effect)| ((name, id), effect.admission)).collect();
     let recording = Recording::new(tx, inherited, metadata(tx)?.into_iter().collect());
-    events(&recording, schema, generation, page, &mut BTreeSet::new())?;
+    events_recording(&recording, schema, generation, page, &mut BTreeSet::new(), Some((&recording.admission, &recording.rows)))?;
     let mut row_delta = Vec::new();
     for ((name, id), present) in recording.rows.borrow().iter() {
         row_delta.push((format!("{ROWS}{}", encoded(&(name, id))?), encoded(&RowEffect {
@@ -159,13 +162,46 @@ pub(super) fn acknowledge<T: DeviceTx>(tx: &T, watermark: u64, current: &BTreeMa
     clear(tx)
 }
 
+type Admissions = RefCell<BTreeMap<(String, String), Option<Value>>>;
+type AdmissionRecording<'a> = (&'a Admissions, &'a RefCell<BTreeMap<(String, String), bool>>);
+
+fn upgrade_admission<T: DeviceTx>(tx: &T, name: &str, table: &Table, row: &Value, boundaries: &mut boundary::Boundaries, admissions: Option<AdmissionRecording<'_>>) -> Result<(), RuntimeError> {
+    if let Some((admissions, changed)) = admissions {
+        let key = (name.to_owned(), row.field("id")?.as_str()?.to_owned());
+        if let Some(Some(candidate)) = admissions.borrow_mut().get_mut(&key)
+            && !boundaries.accept(tx, name, table, candidate, false)?
+            && boundaries.accept(tx, name, table, row, false)? {
+            *candidate = row.clone();
+            // A marker-only page can change provenance without a row put.
+            // Persist that change in the same row delta as the final image.
+            changed.borrow_mut().insert(key, true);
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn events<T: DeviceTx>(tx: &T, schema: &Schema, generation: u64, page: &StreamPage, touched: &mut BTreeSet<String>) -> Result<(), RuntimeError> {
+    events_recording(tx, schema, generation, page, touched, None)
+}
+
+fn events_recording<T: DeviceTx>(tx: &T, schema: &Schema, generation: u64, page: &StreamPage, touched: &mut BTreeSet<String>, admissions: Option<AdmissionRecording<'_>>) -> Result<(), RuntimeError> {
     let mut boundaries = boundary::Boundaries::editing(false);
     let mut markers = page.acquisitions.iter().peekable();
     boundary::validate_positions(page)?;
     for position in 0..=page.events.len() {
         while markers.peek().is_some_and(|marker| marker.at == position) {
-            boundaries.marker(tx, schema, markers.next().unwrap(), false)?;
+            let marker = markers.next().unwrap();
+            boundaries.marker(tx, schema, marker, false)?;
+            // A boundary can complete after puts on this very page. Upgrade
+            // against that completed evidence before any subsequent move.
+            if marker.floor.is_some() && let Some((admissions, changed)) = admissions {
+                let keys: Vec<_> = admissions.borrow().keys().filter(|(name, _)| name == &marker.table).cloned().collect();
+                for (name, id) in keys {
+                    if let Some(row) = tx.get(&name, &id)? {
+                        upgrade_admission(tx, &name, schema.table(&name).expect("admitted table"), &row, &mut boundaries, Some((admissions, changed)))?;
+                    }
+                }
+            }
         }
         let Some(event) = page.events.get(position) else { break };
         touched.insert(event.table.clone());
@@ -180,6 +216,7 @@ pub(super) fn events<T: DeviceTx>(tx: &T, schema: &Schema, generation: u64, page
                 if !boundaries.accept(tx, &event.table, table, &row, old.is_some())? { continue; }
                 if let Some(old) = &old { media::forget(tx, table, old)?; }
                 tx.put(&event.table, table, &row, old.as_ref())?;
+                upgrade_admission(tx, &event.table, table, &row, &mut boundaries, admissions)?;
                 media::remember(tx, &event.table, table, &row, generation)?;
             }
             "del" => {

@@ -479,7 +479,11 @@ impl<S: DeviceStore> Device<S> {
         let revision = meta_u64(&tx, SEND_REVISION)?.checked_add(1).filter(|n| *n <= 9_007_199_254_740_991).ok_or_else(|| RuntimeError::Store("send revision overflow".into()))?;
         tx.set_meta(SEND_REVISION, &revision.to_string())?;
         predictions::clear_capture(&tx)?;
+        // Every staged snapshot page belongs to the captured send revision.
+        // Keep its private store identity for the receipt, but restart its rows.
+        snapshot::clear(&tx)?;
         tx.commit()?;
+        self.snapshot_owner = None;
         Ok(revision)
     }
 

@@ -136,8 +136,8 @@ fn resets<H: Host>(h: &mut H, kind: &str) {
             assert_eq!(d.query("one","dev:alice",&json!({"k":"old"}),100).unwrap().data,Value::Null);
         },
         "identity" => { d.settle("q2",Some(w+2)).unwrap(); let mut p=frame(w+1,vec![],vec![]); p.store_id=Some("replacement".into()); let observation=d.observe_store(&p).unwrap(); assert!(observation.reset);
-            assert!(observation.retired.is_empty());
-            assert_eq!(d.queued().unwrap().len(),2);
+            assert_eq!(observation.retired.get("q2"),Some(&(w+2)));
+            assert_eq!(d.queued().unwrap().len(),1);
             assert!(d.queued().unwrap().iter().all(|q| q.observed_seq.is_none())); },
         _ => unreachable!(),
     }
@@ -176,4 +176,62 @@ fn moved_private<H: Host>(h: &mut H) {
 }
 #[test] fn acquired_private_row_keeps_holding_after_moving_below_floor() {
     moved_private(&mut Memory::new()); moved_private(&mut Sqlite::new("moved-private"));
+}
+
+fn upgrade_evidence<H: Host>(h: &mut H, mode: usize, recreate: bool) {
+    let (mut e,b) = compile(&SOURCE.replace("RETAIN", ""));
+    e.seed([("posts".into(),object([("id",id("a")),("owner",id("dev:alice")),("n",Value::Int(10))]))]).unwrap();
+    let mut d = h.open("upgrade",Some(b.clone())).unwrap();
+    let mut control = h.open("upgrade-control",Some(b)).unwrap();
+    let initial = snapshot_pages(&mut e,"dev:alice",100).remove(0);
+    d.apply(&initial,true).unwrap(); control.apply(&initial,true).unwrap();
+    admit(&mut d);
+    let w = d.state().unwrap().0;
+    let floor = || snapback4_core::value::encode_bytes_hex(&snapback4_core::key::encode(&[id("dev:alice"),Value::Int(30),id("floor"),id("floor")]));
+    let first = if mode == 0 {
+        // Qualifies just before completion, then moves below it on this page.
+        frame(w+1,vec![row("x",5),row("x",35),row("x",4)],vec![marker(0,None),marker(2,Some(floor()))])
+    } else if mode == 1 {
+        frame(w+1,vec![row("x",5)],vec![marker(0,None),marker(1,Some(floor()))])
+    } else {
+        frame(w+1,vec![row("x",5),row("x",35)],vec![marker(0,None)])
+    };
+    let mut pages = vec![first];
+    if mode == 1 { pages.push(frame(w+2,vec![row("x",35),row("x",4)],vec![])); }
+    if mode == 2 {
+        pages.push(frame(w+2,vec![],vec![marker(0,Some(floor()))]));
+        pages.push(frame(w+3,vec![row("x",4)],vec![]));
+    }
+    let last = w+4;
+    if recreate {
+        // Deletion ends the hold; a recreation starts with fresh evidence.
+        pages.push(frame(last,vec![json!({"table":"posts","kind":"scope","id":"left","data":["dev:alice"]}),row("x",3)],vec![marker(1,None),marker(2,Some(floor()))]));
+    }
+    for p in &pages {
+        d.sync_state().unwrap(); d.apply(p,false).unwrap();
+        let mut direct=p.clone(); direct.images_at=Some(p.watermark); direct.committed_above.clear();
+        control.apply(&direct,false).unwrap();
+        h.close("upgrade",d); d=h.open("upgrade",None).unwrap();
+    }
+    h.close("upgrade",d); let mut d=h.open("upgrade",None).unwrap();
+    assert_eq!(d.state().unwrap().0,w);
+    d.settle("q",None).unwrap();
+    let mut finish=frame(last,vec![],vec![]);finish.more=false;finish.images_at=Some(last);finish.committed_above.clear();
+    d.apply(&finish,false).unwrap();
+    let result=d.query("one","dev:alice",&json!({"k":"x"}),100).unwrap().data;
+    if recreate { assert_eq!(result,Value::Null); }
+    else {
+        assert_eq!(result.field("n").unwrap(),&Value::Int(4));
+        assert_eq!(list(&mut d),list(&mut control));
+        assert_eq!(d.store().meta("device:media:image-x-4").unwrap(),control.store().meta("device:media:image-x-4").unwrap());
+    }
+}
+mod later_qualifying_image_upgrades_admission_and_moves_keep_it {
+    use super::*;
+    #[test] fn memory() { for mode in [0,1,2] { for recreate in [false,true] {
+        upgrade_evidence(&mut Memory::new(),mode,recreate);
+    } } }
+    #[test] fn sqlite() { for mode in [0,1,2] { for recreate in [false,true] {
+        upgrade_evidence(&mut Sqlite::new("upgrade-evidence"),mode,recreate);
+    } } }
 }

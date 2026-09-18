@@ -64,8 +64,10 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
         return Err(RuntimeError::Generation("another owner advanced acquisition during sync; retry sync".into()));
     }
     let identity_changed = page.store_id.as_ref().is_some_and(|id| previous.as_ref() != Some(id));
-    let private_identity = previous.is_none() && page.store_id.is_some() && tx.meta(deferred::IDENTITY)? == page.store_id;
-    let reset = (identity_changed && !private_identity && (previous.is_some() || tx.meta(ACQUIRED)?.is_some() || meta_u64(tx, WATERMARK)? > 0 || tx.meta(SNAPSHOT_OWNER)?.is_some()))
+    let transfer_identity = tx.meta(deferred::IDENTITY)?;
+    let receipt_identity = previous.as_ref().or(transfer_identity.as_ref());
+    let private_identity = previous.is_none() && page.store_id.is_some() && transfer_identity == page.store_id;
+    let reset = (identity_changed && !private_identity && (receipt_identity.is_some() || tx.meta(ACQUIRED)?.is_some_and(|value| !value.is_empty()) || meta_u64(tx, WATERMARK)? > 0 || tx.meta(SNAPSHOT_OWNER)?.is_some()))
         || (page.store_id.is_none() && page.requested_watermark.is_some_and(|requested| page.watermark < requested) && page.captured_watermark == Some(watermark));
     let mut retired = BTreeMap::new();
     // A matching identity with a lower head is a restore, not a new store.
@@ -76,20 +78,13 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
         tx.set_meta(RESTORE_REFUSED, "1")?;
     }
     if reset {
-        // Discarding private effects discards their retirement authority too.
-        // Only receipts already covered by the published base can retire here.
+        // Replacement retires receipts of the old incarnation, including its
+        // private transfer. A legacy rewind can retire only published effects.
         let private = deferred::cursor(tx)?.is_some() || tx.meta(SNAPSHOT_OWNER)?.is_some();
         predictions::bind_legacy_receipts(tx)?;
-        tx.delete_meta(&[RESTORE_REFUSED])?;
-        tx.clear_rows()?;
-        tx.base_clear()?;
-        reset_publication(tx, false)?;
-        tx.set_meta(WATERMARK, "0")?;
-        tx.set_meta(BACKEND_REQUIRED, page.store_id.as_deref().unwrap_or("legacy"))?;
-        tx.delete_meta(&[ACQUIRED, history::GROUPS, boundary::BOUNDARIES, boundary::REPORT])?;
         for data in tx.outbox_entries()? {
             let mut entry: Queued = decoded(&data)?;
-            if let Some(seq) = entry.sent_seq.or(entry.observed_seq).filter(|seq| predictions::receipt_matches(&entry, previous.as_deref()) && (!private || *seq <= watermark)) {
+            if let Some(seq) = entry.sent_seq.or(entry.observed_seq).filter(|seq| predictions::receipt_matches(&entry, receipt_identity.map(String::as_str)) && (identity_changed || !private || *seq <= watermark)) {
                 // A receipt proves execution in the old store. It is not
                 // permission to execute that write in the replacement.
                 retired.insert(entry.id.clone(), seq);
@@ -100,6 +95,14 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
                 predictions::enqueue(tx, &entry)?;
             }
         }
+        // Inspect receipts before dropping their observation authority.
+        tx.delete_meta(&[RESTORE_REFUSED])?;
+        tx.clear_rows()?;
+        tx.base_clear()?;
+        reset_publication(tx, false)?;
+        tx.set_meta(WATERMARK, "0")?;
+        tx.set_meta(BACKEND_REQUIRED, page.store_id.as_deref().unwrap_or("legacy"))?;
+        tx.delete_meta(&[ACQUIRED, history::GROUPS, boundary::BOUNDARIES, boundary::REPORT])?;
     }
     let adopt_identity = identity_changed && (publish_first || reset || previous.is_some());
     if adopt_identity {

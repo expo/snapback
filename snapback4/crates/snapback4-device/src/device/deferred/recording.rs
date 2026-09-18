@@ -20,8 +20,8 @@ impl<T: DeviceTx> Rows for Recording<'_, T> {
         let key = (name.into(), row.field("id")?.as_str()?.into());
         let changed = self.tx.put(name, table, row, old)?;
         // Presence is final presence, never a proxy for holding provenance.
-        // A newly admitted row keeps its first candidate across later moves;
-        // delete/recreate starts a fresh acquisition candidate.
+        // Start a candidate here; the applicator upgrades it when a later
+        // image qualifies against a completed boundary. Moves preserve it.
         if old.is_none() { self.admission.borrow_mut().insert(key.clone(), Some(row.clone())); }
         else { self.admission.borrow_mut().entry(key.clone()).or_insert(None); }
         self.rows.borrow_mut().insert(key, true);
@@ -30,6 +30,7 @@ impl<T: DeviceTx> Rows for Recording<'_, T> {
     fn delete(&self, name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> {
         let key = (name.into(), old.field("id")?.as_str()?.into());
         let changed = self.tx.delete(name, table, old)?;
+        self.admission.borrow_mut().remove(&key);
         self.rows.borrow_mut().insert(key, false);
         Ok(changed)
     }
@@ -81,6 +82,7 @@ mod tests {
         let tx = store.transaction().unwrap();
         // The delta must retain a deletion even if no matching key is live.
         let inherited = BTreeMap::from([("history:earlier".into(), Some("old".into()))]);
+        tx.savepoint("recording_test").unwrap();
         let recording = Recording::new(&tx, BTreeMap::new(), inherited);
         recording.delete_meta(&["history:"]).unwrap();
         recording.set_meta("history:new", "new").unwrap();
@@ -88,12 +90,16 @@ mod tests {
         assert_eq!(*recording.meta.borrow(), BTreeMap::from([
             ("history:".into(), None), ("history:new".into(), Some("new".into())), ("other:keep".into(), Some("kept".into())),
         ]));
+        tx.rollback_to("recording_test").unwrap();
+        assert!(tx.meta("history:new").unwrap().is_none());
+        assert!(tx.meta("other:keep").unwrap().is_none());
         tx.set_meta("history:earlier", "old").unwrap();
         for (key, value) in recording.meta.borrow().iter() {
             tx.set_meta(&format!("{META}{key}"), &encoded(value).unwrap()).unwrap();
         }
         install_metadata(&tx).unwrap();
         assert_eq!(tx.meta_prefix("history:").unwrap(), vec![("history:new".into(), "new".into())]);
+        assert_eq!(tx.meta("other:keep").unwrap().as_deref(), Some("kept"));
         tx.rollback().unwrap();
     }
     #[test]

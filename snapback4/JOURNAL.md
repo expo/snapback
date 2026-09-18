@@ -36600,3 +36600,93 @@ also passed. The first device run found the introduced null receipt-field byte
 change; the final run includes its correction and checkpoint-format regressions.
 The guest fixture SHA256 stayed
 `e18f1c343d88c2f1642be54d212c1eb9084ffdd51a8d3c0fcabd329c23616697`.
+
+## 2026-09-17 — Repair B, review fix round 3: resumption and capture authority
+
+Capture sorts decoded submission numbers before deriving both declared IDs and
+the replay interval, rejects duplicate numbers, and uses one pending limit in
+creation and bounds-only recovery. Recovery refuses an inconsistent over-cap
+prefix. A request capture also owns its echoed bounds; mismatches refuse.
+Dropping images invalidates observations of those images, retaining their
+sequence as send evidence. That independent execution proof survives a later
+replacement without allowing it to resend a known old-store execution.
+
+A send now abandons snapshot rows and their owner/cursor/revision keys in its
+revision-advancing transaction. It retains the private identity needed to bind
+the receipt. Transport keeps the published identity used by adoption separate
+from the identity used to continue a private transfer. An empty acquisition
+marker means no acquisition. Replacement recognizes a private incarnation even
+before the first published identity and retires its matching known receipts;
+only legacy rewind uses the published/private receipt cut. Foreign receipts
+still cannot retire from a replacement watermark.
+
+Deferred admission evidence upgrades when a later image qualifies against a
+completed boundary, including when completion follows puts on the same page.
+Marker-only pages persist evidence changes in the row delta. Later moves keep
+the evidence; deletion/recreation starts fresh. Tests reopen between private
+pages. Malformed terminal ordinary pages whose image head exceeds their cut now
+refuse before staging. The prefix-delta test rolls back its recording writes
+before installation, so it proves installation into absent keys.
+
+The per-finding dispositions, mutation scripts/logs and verbatim requested test
+outputs are local evidence under `target/review-fix3/`. The supervisor retains
+integration and the governing LLP update. This lane makes no push, rebase, merge,
+whole-suite, simulator, witness, repository-root-generator, Wasm-build or
+release-build claim. Device tests use the existing digest-checked rescore
+fixture; the command shim refuses an actual nested Wasm/release build.
+
+The publication lifecycle's durable-key table now names readers and the state
+each expects, not just writers and clearers:
+
+| Durable value | Readers and expected state; cross-state audit | Writer(s) | Clearer(s) |
+| --- | --- | --- | --- |
+| `device:deferred:rows:*` (image, admission) | `rows` → `stage`/`install_rows`: **private** folded rows and qualifying provenance. Savepoint replay is private; final installation consumes it only in publication. No published reader bypasses installation. | `deferred::stage` | `deferred::clear` |
+| `device:deferred:meta:*` | `metadata` → stage/`install_metadata`: **private** ordered metadata delta. Published boundary/history/media readers see it only during the private savepoint or publishing transaction. Prefix tombstones precede child writes. | `deferred::stage` | `deferred::clear` |
+| `device:deferred:acks` | stage merges; `acknowledge` consumes: **private** receipts until the effects publish. Reset never promotes this map to outbox observations. | `deferred::stage` | `deferred::clear` |
+| `device:deferred:cursor` | `sync_state` requests **private** progress; `apply_publication` validates transfer/drain; `publication_pending` reports unfinished work; `observe` classifies private rewind. It never authorizes replay retirement. | `deferred::stage` | `deferred::clear` |
+| `device:deferred:identity` | `sync_state` gives transport identity; `record_receipt` binds execution; `observe` compares occupied transfer/receipt identity: **private**. **R4/R5 fixed** paths that previously expected published state or ignored private occupancy. Replay still compares `STORE_ID`, because its retirement concerns published effects. | `deferred::stage_identity` | `deferred::clear`; deliberately retained by `begin_send` until replacement/publication |
+| `device:declaration:capture` (IDs and bounds) | `capture`/`load_capture`/`declaration`: immutable **request** state. It is not replay authority. **R1/G7.4 fixed** ordering/recovery and echo checks; status/retry cannot widen it. | `predictions::capture` | `predictions::clear_capture`: apply consumption, send abandonment, reset |
+| `device:declaration:first-capture` | No reader; removed second representation. | None | `predictions::clear_capture` removes checkpoint residue |
+| `device:declaration:published` | `replay_limit` → replay: **published** exclusion guard. Private capture is not read here. Retained only while the images it describes survive. | `predictions::publish_declaration` | `predictions::reset(false)` |
+| `device:snapshot:through` | `sync_state` advertises catch-up; apply checks requested/monotonic progress: **private**, never the published replay watermark. Snapshot catch-up advances this value, not the ordinary deferred cursor. | `Device::apply_publication` | `snapshot::clear` |
+| `device:snapshot:owner` | apply validates owner; `sync_state` selects resumable mode; `publication_pending` and `observe` recognize private occupancy. **R3 fixed:** a new send clears it before another request can advertise an invalid catch-up. | `Device::apply_publication` | `snapshot::clear` |
+| `device:snapshot:owners` | apply allocates the next private owner token; a monotonic allocator, neither publication nor acquisition evidence. | `Device::apply_publication` | No lifecycle clear; no token reuse |
+| `device:snapshot:watermark` | apply validates the original snapshot cut: **private**. No replay consumer. | First snapshot apply | `snapshot::clear` |
+| `device:snapshot:send_revision` | apply compares the **private** transfer's revision with current send state. **R3 fixed:** invalidation clears transfer keys in the revision-advancing transaction. | First snapshot apply | `snapshot::clear` |
+| `device:snapshot:next` | `snapshot::continuation` validates pages; `sync_state` interprets the terminal empty-string sentinel as catch-up mode: **private**. No publication authority. | `snapshot::continuation` | `snapshot::clear` |
+| `device:snapshot:acks` | apply accumulates and merges at publication: **private**. No early observation or retirement consumer. | `Device::apply_publication` | Snapshot initialization and `snapshot::clear` |
+| Snapshot staging rows | `snapshot::retain`/`stage`; publishing replacement scans: **private** rows. Visible queries never read staging. | `snapshot::retain`/`stage` | `snapshot::clear`, snapshot restart, resetting store installation |
+| `device:snapshot:boundaries:*` | snapshot acceptance and publishing `Boundaries::load(true)`: **private** acquisition evidence. | `boundary::retain`, snapshot boundary save | `snapshot::clear` and install-reset namespace deletion |
+| `device:snapshot:groups` | snapshot retain/stage/publication: **private** held/left groups. (`history::STAGED_GROUPS`.) | `snapshot::retain`, `history::events(..., true)` | `snapshot::clear` and install reset |
+| `device:store_id` | owner checks, state, adoption CAS, observation and replay: **published** identity. `record_receipt` falls back to private identity only for execution binding. `local.ts` now keeps this value separate from requested transfer identity (**R4**). `observe(..., true)` can temporarily set first identity inside apply; private returns undo it atomically. | `store_identity::observe` when publishing or resetting | Private first-publication undo; whole store disposal |
+| `device:send_revision` | request capture, observe/apply validation, adoption CAS: current invalidation revision, neither transfer cut nor base watermark. `begin_send` now invalidates snapshot state as it advances (**R3**). | `begin_send`, identity observation; private first-identity apply restores its original value | Whole store disposal |
+| `device:watermark` | state, request published capture, restore detection, replay/retirement: **published** progress. Transfer code reads distinct cursor/through values. | Publishing apply; reset/adoption writes zero | Reset writes zero |
+| `device:acquired-generation` | reads/prediction and `sync_state` test published acquisition for the active generation; adoption tests retained acquisition; observe tests occupied published state. **R4 fixed:** empty reset marker is absence, not occupancy. | Terminal publication; adoption/open preserve or invalidate | `clear_rows`, replacement; adoption/open may write empty |
+| `device:generation` | state, interpreter context, open/reset decisions: installed backend generation, **not** acquisition. | Backend install/adoption | Whole store disposal |
+| `device:backend` / `device:backend-identity` | offline open, backend access and owner validation: installed interpreter state. It can exist before any published identity or images. No acquisition inference. | Backend install/adoption | Whole store disposal |
+| `device:backend-required` | owner/read/native/adoption checks and sync transport: persisted replacement obligation. Neither private staging nor a matching generation discharges it. | Identity replacement | Successful backend install writes empty |
+| `device:restore-refused` | health checks and sync state: durable same-incarnation halt, unrelated to private transfer progress. | Restore observation | Different-incarnation reset; whole store disposal |
+| `device:submission` | capture bound and admission allocator: inclusive last-assigned number. No next-unused interpretation (**G7.3 documented**). | Admission | No lifecycle clear; numbers never reused |
+| `Queued.seq` and ID | capture/declaration, send order, replay order: durable submission identity. Capture explicitly establishes a sorted unique prefix (**R1**). | Admission/enqueue; replay/receipt updates preserve identity | Outbox retirement/removal |
+| `Queued.receipt_store` / `sent_seq` | `receipt_matches`, replay, reset and transport: incarnation-bound **execution** evidence; may precede publication. **R5 fixed:** replacement compares the previous published-or-private incarnation and retires its known executions. Unrelated receipts remain bound and cannot retire from a replacement's watermark. | `record_receipt` (also legacy binding); reset promotes discarded observations into send evidence without changing their incarnation | Outbox removal; image reset intentionally keeps send evidence |
+| `Queued.observed_seq` | replay, receipt settlement and reset: **published effect** evidence. **R2 fixed:** dropping images clears it after preserving its execution sequence as a send receipt; retaining images retains it even if acquisition watermark resets. Replacement inspects it before clearing. | `record_receipt(..., observed=true)` in publication | `predictions::reset(false)` or outbox removal |
+| `Queued.predictable` / `predicted` | replay eligibility/overlay reporting: speculative overlay metadata, not acknowledgement or base-undo authority. | Admission/replay; replacement withdraws prediction | Entry removal or withdrawal/update |
+| Confirmed base sidecar | `predictions::restore`; snapshot retain uses it to exclude speculative images: **published base beneath overlay**, never deferred transfer storage. | Prediction `remember` | Restore after consuming it; image reset |
+| `device:acquisition-boundaries:*`, `device:history:groups` | query/prediction and ordinary application read **published** evidence. Private folding uses the same applicator only inside a rolled-back savepoint and records the delta. Boundary completion and later image qualification update candidate provenance (**R6**). | Normal application/publication; reset/install | Reset or scope/namespace replacement |
+| `device:acquisition-report` | Diagnostics only; it cannot authorize row holding or publication. | Boundary validation | Image reset |
+| `device:media:*` | Media access treats these as hints and rechecks the current row, generation and lifetime. Private application records its mutations and publication installs them with row effects; rejected recreated rows forget their media. | `media::remember`, folded publication | `media::forget`; reset may leave harmless stale hints, which readers revalidate |
+| `device:native`, `device:native:digest`, `device:native:generation` | Open/module qualification, owner validation, native invocation: installed module identity, not acquisition. Adoption compares/invalidate these alongside published identity. | Native install | Adoption/replacement invalidation; invalid-cache cleanup |
+
+After these changes, no audited reader uses a transfer cursor or identity as published replay/adoption authority. The explicit conversions are snapshot/deferred publication, receipt execution binding, and replacement's comparison with the incarnation being discarded.
+
+Final verification for round 3: `cargo test -p snapback4-device` passed **562**,
+failed **0**, ignored **3** (existing); `cargo test -p snapback4-core` passed
+**160**, failed **0**, ignored **0**. The touched TypeScript module compiled and
+all three focused transport tests passed. Nineteen distinct behavioral mutations
+(18 Rust, one TypeScript) failed their intended regressions; repeat executions
+are counted once. The strengthened prefix test killed an installer mutation
+that the old test survived. An invalid compile-only mutation attempt was excluded
+and corrected to an assertion failure. All final source bytes were restored and
+hash-checked against the tested files. Full per-finding dispositions, the reader
+audit, mutation records and verbatim command output are in
+`target/review-fix3/report.md`.

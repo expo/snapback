@@ -92,23 +92,20 @@ fn foreign_receipt<H: Host>(h: &mut H, legacy: bool) {
     }
     let mut replacement = initial.clone(); replacement.store_id = Some("new".into()); replacement.watermark = receipt;
     let observation = d.observe_store(&replacement).unwrap();
-    assert!(observation.reset && observation.retired.is_empty());
+    assert!(observation.reset);
+    assert_eq!(observation.retired.get("q"), Some(&receipt), "replacement retires all known old-store executions");
     d.adopt(b).unwrap(); d.apply(&replacement, true).unwrap();
     assert_eq!(value(&mut d, "a"), Some(0));
-    let q = d.queued().unwrap();
-    assert_eq!(q.len(), 1, "replacement watermark cannot retire the old receipt");
-    assert_eq!((q[0].sent_seq, q[0].receipt_store.as_ref().and_then(|store| store.id.as_deref()), q[0].predictable), (Some(receipt), Some("old"), false));
+    assert!(d.queued().unwrap().is_empty());
     h.close("receipt", d);
     let mut d = h.open("receipt", None).unwrap();
-    d.withdraw(&[]).unwrap();
-    assert_eq!(d.queued().unwrap().len(), 1);
+    assert!(d.queued().unwrap().is_empty());
     let mut third = replacement; third.store_id = Some("third".into());
-    assert!(d.observe_store(&third).unwrap().retired.is_empty(), "a second replacement also lacks old receipt authority");
-    assert_eq!(d.queued().unwrap().len(), 1);
+    assert!(d.observe_store(&third).unwrap().retired.is_empty());
 }
 fn bound_receipt<H: Host>(h: &mut H) { foreign_receipt(h, false); }
 fn legacy_receipt<H: Host>(h: &mut H) { foreign_receipt(h, true); }
-stores!(replacement_watermarks_never_retire_preserved_receipts, bound_receipt);
+stores!(replacement_retires_receipts_of_discarded_private_effects, bound_receipt);
 stores!(replacement_binds_checkpoint_receipts_before_reset, legacy_receipt);
 
 fn resume_snapshot<H: Host>(h: &mut H) {

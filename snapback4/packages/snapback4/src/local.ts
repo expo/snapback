@@ -565,6 +565,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         let page: SyncPage;
         let pageRevision = credentialRevision;
         let requestedStore: string | null | undefined;
+        let publishedStore: string | null | undefined;
         let backendRequired = false;
         const pageIncarnation = incarnation;
         try {
@@ -574,6 +575,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (restore_refusal) { refuseRestore(restore_refusal); return false; }
           backendRequired = !!backend_required;
           requestedStore = transfer_store_id ?? store_id;
+          publishedStore = store_id;
           watermark = transfer_watermark ?? capturedWatermark;
           catchingUp = snapshot_catchup ?? catchingUp;
           const request = requestCredentials();
@@ -639,6 +641,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             for (const watch of watches.values()) void rerun(watch);
             watermark = 0; seq = 0; after = undefined; catchingUp = false;
             replacedStore = true;
+            publishedStore = typeof page.store_id === "string" ? page.store_id : publishedStore;
           }
         }
         if (typeof page.store_id === "string") storeIdentity = page.store_id;
@@ -655,7 +658,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             backendRevision = request.revision;
             const nextBackend = await loadBackend(doFetch, base, request.headers, aborter.signal);
             if (closed || backendIncarnation !== incarnation) return false;
-            const adopted = await call({ op: "adopt", backend: nextBackend, store_id: page.store_id ?? requestedStore ?? null, send_revision: page.send_revision });
+            const adopted = await call({ op: "adopt", backend: nextBackend, store_id: publishedStore ?? null, send_revision: page.send_revision });
             await refreshAcquired();
             if (adopted.denied) return false;
             incarnation++;

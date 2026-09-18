@@ -337,7 +337,7 @@ fn replacing<H: Host>(h: &mut H, catchup: bool) {
     let mut p=snapshot_pages(&mut e,"dev:alice",100).remove(0);
     p.stage_snapshot=catchup;
     if catchup { d.apply(&p,true).unwrap(); }
-    p.snapshot=!catchup; p.snapshot_catchup=catchup; p.stage_snapshot=false;
+    p.snapshot=!catchup; p.snapshot_catchup=catchup; p.stage_snapshot=false; p.more=catchup;
     p.images_at=Some(w+2); p.committed_above.insert("q".into(),w+2);
     p.events.iter_mut().find(|e| e.id=="a").unwrap().data=Some(json!({"id":"a","n":2}));
     let state=d.sync_state().unwrap();
@@ -347,7 +347,7 @@ fn replacing<H: Host>(h: &mut H, catchup: bool) {
     assert_eq!(d.state().unwrap().0,w);
     assert_eq!(value(&mut d,"a"),Some(1));
     assert!(d.queued().unwrap()[0].observed_seq.is_none());
-    p.snapshot=false; p.snapshot_catchup=true; p.watermark=w+2; p.images_at=Some(w+2); p.committed_above.clear(); p.acknowledged.insert("q".into(),w+2);
+    p.snapshot=false; p.snapshot_catchup=true; p.more=false; p.watermark=w+2; p.images_at=Some(w+2); p.committed_above.clear(); p.acknowledged.insert("q".into(),w+2);
     p.events.clear();
     d.apply(&p,false).unwrap();
     assert_eq!(value(&mut d,"a"),Some(2));
@@ -452,3 +452,6 @@ stores!(captures_follow_each_request_and_end_on_deferred_apply, capture_progress
 
 #[path = "repair_b/lifecycle.rs"]
 mod lifecycle;
+
+#[path = "repair_b/resumption.rs"]
+mod resumption;

@@ -85,3 +85,45 @@ fn checkpoint_capture_remains_readable_without_widening() {
     #[cfg(feature = "native")]
     with_sqlite(checkpoint_capture);
 }
+
+fn unordered_capture<S: DeviceStore>(mut store: S) {
+    let tx = store.transaction().unwrap();
+    // Adversarial adapter order: payload sequence is opposite its storage key.
+    for seq in 1..=257 {
+        let q: Queued = decoded(&format!(r#"{{"id":"q{seq}","seq":{seq},"op":"bump","args":{{}},"viewer":"alice","now":0}}"#)).unwrap();
+        tx.outbox_upsert(258-seq, &q.id, &encoded(&q).unwrap()).unwrap();
+    }
+    let capture = predictions::capture(&tx).unwrap();
+    assert_eq!(capture.declaration, (256, false, 257));
+    assert_eq!(capture.ids, (1..=256).map(|seq| format!("q{seq}")).collect::<Vec<_>>());
+    predictions::clear_capture(&tx).unwrap();
+    tx.set_meta("device:declaration:capture", "[256,false,257]").unwrap();
+    assert_eq!(predictions::capture(&tx).unwrap().ids, capture.ids, "checkpoint recovery is the same prefix");
+    tx.set_meta("device:declaration:capture", "[257,false,257]").unwrap();
+    assert!(predictions::capture(&tx).err().unwrap().to_string().contains("prefix limit"), "never truncate an inconsistent checkpoint into a different declared set");
+    tx.rollback().unwrap();
+}
+mod capture_orders_its_declared_prefix_and_checkpoint_recovery {
+    use super::*;
+    #[test] fn memory() { unordered_capture(MemoryStore::new()); }
+    #[cfg(feature = "native")]
+    #[test] fn sqlite() { with_sqlite(unordered_capture); }
+}
+
+fn capture_echo<S: DeviceStore>(mut store: S) {
+    let tx = store.transaction().unwrap();
+    tx.set_meta("device:declaration:capture", r#"{"ids":["q"],"declaration":[1,false,9]}"#).unwrap();
+    let mut page: StreamPage = decoded(r#"{"snapshot":false,"watermark":0,"more":false,"events":[],"pending_through":1,"pending_complete":false,"pending_bound":1}"#).unwrap();
+    assert!(predictions::declaration(&tx, &page).unwrap_err().to_string().contains("echo differs"));
+    page.pending_bound = None;
+    assert_eq!(predictions::declaration(&tx, &page).unwrap(), (1, false, 9));
+    page.pending_bound = Some(9);
+    assert_eq!(predictions::declaration(&tx, &page).unwrap(), (1, false, 9));
+    tx.rollback().unwrap();
+}
+mod echoed_bound_cannot_widen_the_captured_declaration {
+    use super::*;
+    #[test] fn memory() { capture_echo(MemoryStore::new()); }
+    #[cfg(feature = "native")]
+    #[test] fn sqlite() { with_sqlite(capture_echo); }
+}
