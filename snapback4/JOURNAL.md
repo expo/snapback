@@ -36861,3 +36861,62 @@ Full verbatim stdout/stderr, baseline and HEAD probes, mutation edits/commands,
 and source verification are preserved in target/review-fix6/report.md and its
 linked logs. No push, rebase or merge was performed; integration remains with
 the supervisor.
+
+## 2026-09-18 — Repair B, review fix round 7: lifetimes beyond a request
+
+W1: device open abandons a persisted request capture and advances its send
+revision in the same transaction. Published replay evidence, private pages,
+rows and outbox survive. Recovery cannot trust a teardown send's asynchronous
+host-persistence batch; recapture includes every durably admitted write and
+revision advancement fences surviving old responses. A store without a capture
+gets no extra capture-key writes. The real-engine memory persistence probe loses
+exactly the revision batch after durable admission and gives server/device/reopen
+1/1/1 with additive wire fields present or omitted, as do persisted controls.
+Incoming 5a55e7717 gives 1/2/2 on the identical lost-batch probe.
+
+W3: receipts with no advertised identity stay unbound, including historical
+`Some({id: None})`; the first real identity binds them. Known foreign receipts
+remain foreign. Both-store tests acquire and acknowledge after reopening either
+encoding, check value 1 and retirement, then reopen again. A separate storage
+probe covers private identity and preservation of a foreign binding.
+
+W5/W6: local.ts refreshes published identity and cursor from native state,
+uses transfer identity only for requests, and leaves watches unchanged while
+an identity is private. Actual durable resets still invalidate and adopt. HTTP
+stream mode now stays on for outstanding ordinary publication independently of
+snapshot ownership; an interrupted round recovers the mode from native transfer
+progress. Ordinary deferred pages never claim a staged snapshot owner. Client
+regressions cover private A/B watch behavior, explicit false snapshot mode,
+interruption/resumption, and change polling after another owner advances.
+
+W2 and W4 were disproved by running the new tests against archived incoming
+source, not just the fix. `settle` already restores the confirmed base before
+both receipt arms. Snapshot catch-up already stages each page's events before
+publication, and the advanced ordinary-slot guard refuses the alleged mixed
+publication. Regressions cover two relative survivors, rejection/receipt and
+withdrawal through reopen, a distinct intermediate snapshot row and terminal
+multirow update, plus intact ordinary drain after replacement refusal.
+
+Remaining accepted findings: revision-filter declaration lookup; shared optional
+bound echo matching; inverted checkpoint refusal; recovery from a malformed
+abandoned capture; original apply/observe errors preserved when rejection cleanup
+fails. Reset, live terminal refusal, legacy exclusion, slot occupancy, committed
+reset and nonempty cursor tests now assert their full boundaries. The complete
+per-packet dispositions and source evidence are in REPAIR-B-HANDOFF.md.
+The existing capture-lifetime and replacement fixtures now take fresh captures
+at reopen while retaining assertions that delayed old replies are rejected.
+Reference annotations now use the actual Repair B heading anchor; all references
+validate.
+
+Final requested commands: `cargo test -p snapback4-device` exited 0 (617 passed,
+0 failed, 3 existing ignored); `cargo test -p snapback4-core` exited 0 (160 passed,
+0 failed); `cargo test -p snapback4` exited 0 (265 passed, 0 failed). Eight focused
+TypeScript/native transport tests and strict TypeScript compilation pass.
+Twenty-one Rust and six client mutations failed their intended assertions with
+passing controls; every mutation input hash matches the final branch source or
+compiled TypeScript output. Mutants were compiled from copies, never installed
+in this worktree. `ref-check --verbose`: 484 LLP docs, 9440 refs, zero errors.
+`git diff --check` passes. The initial codec and stale-fixture failures, corrections,
+full verbatim final command output, incoming-source probes, mutation edits,
+compiler commands and source verification are preserved in
+`target/review-fix7/report.md`. No push, rebase or merge was performed.

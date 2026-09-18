@@ -18,20 +18,26 @@ fn live_cursor<S: DeviceStore>(store: S) {
 }
 #[test] fn live_cursor_precedes_terminal_snapshot_cut() { both(live_cursor, live_cursor); }
 
-fn terminal_guard<S: DeviceStore>(mut store: S) {
-    let tx = store.transaction().unwrap();
-    let p: StreamPage = decoded(r#"{"snapshot":true,"watermark":1,"images_at":2,"more":false,"committed_above":{"q":2},"events":[]}"#).unwrap();
-    assert!(deferred::validate(&p).unwrap_err().to_string().contains("terminal stream page"));
-    tx.rollback().unwrap();
+fn terminal_guard<S: DeviceStore>(store: S) {
+    let mut d = Device::open_store(store, Some(Backend { generation: 1, schema: Schema::default(), programs: vec![] })).unwrap();
+    for snapshot in [false, true] {
+        let mut p: StreamPage = decoded(r#"{"snapshot":true,"watermark":1,"images_at":2,"more":false,"committed_above":{"q":2},"events":[]}"#).unwrap();
+        p.snapshot = snapshot;
+        assert!(d.apply_publication(&p, true).unwrap_err().to_string().contains("terminal stream page"));
+        assert_eq!(d.state().unwrap().0, 0);
+        assert!(!d.publication_pending().unwrap());
+    }
 }
 #[test] fn terminal_gap_is_a_protocol_refusal() { both(terminal_guard, terminal_guard); }
 
-fn missing_declaration<S: DeviceStore>(mut store: S) {
-    let tx = store.transaction().unwrap();
+fn missing_declaration<S: DeviceStore>(store: S) {
+    let mut d = Device::open_store(store, Some(Backend { generation: 1, schema: Schema::default(), programs: vec![] })).unwrap();
+    let tx = d.store.transaction().unwrap();
     tx.set_meta("device:declaration:published", "[100,150]").unwrap();
+    tx.commit().unwrap();
     let p: StreamPage = decoded(r#"{"snapshot":false,"watermark":10,"more":false,"events":[]}"#).unwrap();
-    let declaration = predictions::declaration(&tx, &p).unwrap();
-    predictions::publish_declaration(&tx, declaration).unwrap();
+    assert!(d.apply_publication(&p, false).unwrap().1);
+    let tx = d.store.transaction().unwrap();
     assert_eq!(predictions::replay_limit(&tx).unwrap(), (100, 150), "legacy pages cannot erase the published exclusion band");
     tx.rollback().unwrap();
 }

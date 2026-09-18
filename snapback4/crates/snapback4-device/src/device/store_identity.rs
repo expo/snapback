@@ -127,7 +127,7 @@ impl<S: DeviceStore> Device<S> {
         let tx = self.store.transaction()?;
         let observed = match observe(&tx, page, false) {
             Ok(observed) => observed,
-            Err(error) => { tx.rollback()?; self.reject_sync_capture(page)?; return Err(error); }
+            Err(error) => { tx.rollback()?; let _ = self.reject_sync_capture(page); return Err(error); }
         };
         tx.commit()?;
         if observed.reset { self.snapshot_owner = None; }

@@ -141,9 +141,9 @@ pub struct Queued {
     pub observed_seq: Option<u64>,
 }
 
-/// Explicit origin, including a legacy server with no advertised identity.
-/// A missing outer field is an older, implicitly current receipt; replacement
-/// binds it before changing the store, so it can never remain implicitly current.
+/// A receipt binds only to an advertised incarnation. Missing outer or inner
+/// identity is unbound until the first real identity; replacement binds known
+/// legacy receipts before changing the store.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ReceiptStore {
     pub id: Option<String>,
@@ -342,6 +342,12 @@ impl<S: DeviceStore> Device<S> {
             if !keep_acquired { metadata.insert(boundary::BOUNDARIES.to_owned(), "{}".into()); }
         }
         store.install(&backend.schema, &metadata, reset && !keep_images)?;
+        // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — a recovered request cannot
+        // reuse a declaration from before a teardown send whose host-persisted
+        // revision was lost. Published replay evidence and private pages stay.
+        let tx = store.transaction()?;
+        predictions::abandon_capture(&tx)?;
+        tx.commit()?;
         let cached_digest = store.meta(NATIVE_DIGEST)?;
         let cached_module = store.meta(NATIVE)?;
         let cached_generation = store.meta(NATIVE_GENERATION)?;
@@ -550,7 +556,7 @@ impl<S: DeviceStore> Device<S> {
 
     pub fn apply_publication(&mut self, page: &StreamPage, first: bool) -> Result<(Vec<String>, bool), RuntimeError> {
         let result = self.apply_publication_inner(page, first);
-        if result.is_err() { self.reject_sync_capture(page)?; }
+        if result.is_err() { let _ = self.reject_sync_capture(page); }
         result
     }
 
@@ -1043,3 +1049,6 @@ mod publication_round5;
 
 #[cfg(all(test, feature = "native"))]
 mod publication_round6;
+
+#[cfg(all(test, feature = "native"))]
+mod publication_round7;

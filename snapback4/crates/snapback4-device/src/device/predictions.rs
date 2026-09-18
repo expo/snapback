@@ -123,6 +123,9 @@ fn load_capture<T: DeviceTx>(tx: &T) -> Result<Option<Capture>, RuntimeError> {
         return Ok(Some(capture));
     }
     let declaration: Declaration = decoded(&data)?;
+    if declaration.0 > declaration.2 {
+        return Err(RuntimeError::Store("checkpoint pending declaration has inverted bounds".into()));
+    }
     let ids: Vec<_> = ordered_entries(tx)?.into_iter().filter(|entry| entry.seq <= declaration.0).map(|entry| entry.id).collect();
     if ids.len() > PENDING_LIMIT {
         return Err(RuntimeError::Store("checkpoint pending declaration exceeds its prefix limit".into()));
@@ -131,12 +134,13 @@ fn load_capture<T: DeviceTx>(tx: &T) -> Result<Option<Capture>, RuntimeError> {
 }
 
 pub(super) fn declaration<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<Declaration, RuntimeError> {
-    let capture = load_capture(tx)?;
+    let revision = page.send_revision.unwrap_or(meta_u64(tx, SEND_REVISION)?);
+    let capture = load_capture(tx)?.filter(|capture| capture.send_revision == revision);
     match (page.pending_through, page.pending_complete) {
         (Some(through), Some(complete)) => {
             if let Some(capture) = &capture {
                 let captured = capture.declaration;
-                if through != captured.0 || complete != captured.1 || page.pending_bound.is_some_and(|bound| bound != captured.2) {
+                if !echo_matches(page, captured) {
                     return Err(RuntimeError::Input("pending declaration echo differs from its request capture".into()));
                 }
                 return Ok(captured);
@@ -162,8 +166,7 @@ pub(super) fn declaration<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<Decl
 pub(super) fn reject_capture<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<(), RuntimeError> {
     if let Some(capture) = load_capture(tx)?
         && page.send_revision.is_none_or(|revision| revision == capture.send_revision)
-        && (page.pending_through, page.pending_complete, page.pending_bound) ==
-            (Some(capture.declaration.0), Some(capture.declaration.1), Some(capture.declaration.2)) {
+        && echo_matches(page, capture.declaration) {
         clear_capture(tx)?;
     }
     Ok(())
@@ -173,6 +176,24 @@ pub(super) fn clear_capture<T: DeviceTx>(tx: &T) -> Result<(), RuntimeError> {
     // FIRST_CAPTURE no longer has a writer: it was a second, conflicting
     // representation of the request. Remove residue at the same boundary.
     tx.delete_meta(&[CAPTURE, "device:declaration:first-capture"])
+}
+
+pub(super) fn abandon_capture<T: DeviceTx>(tx: &T) -> Result<(), RuntimeError> {
+    if tx.meta(CAPTURE)?.is_some() {
+        // Fence a surviving owner's old response as well as recapturing the
+        // pending IDs. Host recovery cannot prove a teardown send persisted.
+        let revision = meta_u64(tx, SEND_REVISION)?.checked_add(1).filter(|n| *n <= 9_007_199_254_740_991).ok_or_else(|| RuntimeError::Store("send revision overflow".into()))?;
+        tx.set_meta(SEND_REVISION, &revision.to_string())?;
+        clear_capture(tx)?;
+    } else if tx.meta("device:declaration:first-capture")?.is_some() {
+        clear_capture(tx)?;
+    }
+    Ok(())
+}
+
+fn echo_matches(page: &StreamPage, captured: Declaration) -> bool {
+    page.pending_through == Some(captured.0) && page.pending_complete == Some(captured.1)
+        && page.pending_bound.is_none_or(|bound| bound == captured.2)
 }
 
 pub(super) fn reset<T: DeviceTx>(tx: &T, keep_images: bool) -> Result<(), RuntimeError> {
@@ -203,7 +224,7 @@ pub(super) fn replay_limit<T: DeviceTx>(tx: &T) -> Result<(u64, u64), RuntimeErr
     tx.meta(PUBLISHED)?.filter(|s| !s.is_empty()).map(|data| decoded(&data)).transpose().map(|v| v.unwrap_or((0, 0)))
 }
 
-// @ref LLP 3000.001#reliability-catchup — the publication decision and replay share eligibility, including the declaration guard.
+// @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — the publication decision and replay share eligibility, including the declaration guard.
 pub(super) fn replayable(entry: &Queued, programs: &BTreeMap<String, Program>, watermark: u64, declaration: (u64, u64), store: Option<&str>) -> bool {
     !(receipt_matches(entry, store) && entry.sent_seq.is_some_and(|seq| seq <= watermark))
         // An observation is written only with its published row effects. A
@@ -258,7 +279,7 @@ pub(super) fn replay<T: DeviceTx>(tx: &T, schema: &Schema, programs: &BTreeMap<S
 
 // Receipts and their incarnation are one outbox value, persisted together.
 pub(super) fn receipt_matches(entry: &Queued, store: Option<&str>) -> bool {
-    entry.receipt_store.as_ref().is_none_or(|receipt| receipt.id.as_deref() == store)
+    entry.receipt_store.as_ref().and_then(|receipt| receipt.id.as_deref()).is_none_or(|id| Some(id) == store)
 }
 
 pub(super) fn record_receipt<T: DeviceTx>(tx: &T, entry: &mut Queued, seq: u64, observed: bool) -> Result<(), RuntimeError> {
@@ -266,7 +287,7 @@ pub(super) fn record_receipt<T: DeviceTx>(tx: &T, entry: &mut Queued, seq: u64, 
     if (entry.sent_seq.is_some() || entry.observed_seq.is_some()) && !receipt_matches(entry, store.as_deref()) {
         return Ok(()); // A replacement cannot rebind a preserved old receipt.
     }
-    entry.receipt_store = Some(ReceiptStore { id: store });
+    entry.receipt_store = store.map(|id| ReceiptStore { id: Some(id) });
     if observed { entry.observed_seq = Some(seq); } else { entry.sent_seq = Some(seq); }
     enqueue(tx, entry)
 }
@@ -280,7 +301,7 @@ pub(super) fn remove<T: DeviceTx>(tx: &T, id: &str) -> Result<(), RuntimeError> 
 pub(super) fn bind_legacy_receipts<T: DeviceTx>(tx: &T) -> Result<(), RuntimeError> {
     for data in tx.outbox_entries()? {
         let mut entry: Queued = decoded(&data)?;
-        if entry.receipt_store.is_none() && let Some(seq) = entry.sent_seq.or(entry.observed_seq) {
+        if entry.receipt_store.as_ref().is_none_or(|receipt| receipt.id.is_none()) && let Some(seq) = entry.sent_seq.or(entry.observed_seq) {
             let observed = entry.sent_seq.is_none();
             record_receipt(tx, &mut entry, seq, observed)?;
         }

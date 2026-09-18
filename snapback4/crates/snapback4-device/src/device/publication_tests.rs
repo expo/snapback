@@ -23,12 +23,21 @@ fn cursor_and_recording<S: DeviceStore>(store: S) {
     tx.set_meta("device:declaration:published", "[1,9]").unwrap();
     for key in SNAPSHOT_KEYS { tx.set_meta(key, "88").unwrap(); }
     tx.staged_put("row", "table", "payload").unwrap();
+    tx.commit().unwrap();
+    let tx = device.store.transaction().unwrap();
+    assert_eq!(deferred::cursor(&tx).unwrap(), Some(77));
     reset_publication(&tx, false).unwrap();
     assert!(tx.meta_prefix("device:deferred:").unwrap().is_empty());
     assert!(tx.meta_prefix("device:declaration:").unwrap().is_empty());
     for key in SNAPSHOT_KEYS { assert!(tx.meta(key).unwrap().is_none(), "{key}"); }
     assert!(tx.staged_after("", 1).unwrap().is_empty());
     tx.commit().unwrap();
+    let tx = device.store.transaction().unwrap();
+    assert!(tx.meta_prefix("device:deferred:").unwrap().is_empty());
+    assert!(tx.meta_prefix("device:declaration:").unwrap().is_empty());
+    for key in SNAPSHOT_KEYS { assert!(tx.meta(key).unwrap().is_none(), "{key}"); }
+    assert!(tx.staged_after("", 1).unwrap().is_empty());
+    tx.rollback().unwrap();
 }
 
 #[test]
@@ -156,7 +165,9 @@ fn slot_occupancy<S: DeviceStore>(store: S) {
     tx.set_meta(deferred::ACKS, "{}").unwrap();
     tx.commit().unwrap();
     assert!(device.publication_pending().unwrap(), "a slot does not depend on its cursor");
-    let page = decoded(r#"{"snapshot":false,"watermark":12,"images_at":12,"more":true,"events":[]}"#).unwrap();
+    device.store.set_meta(deferred::CURSOR, "12").unwrap();
+    assert!(device.publication_pending().unwrap(), "the committed slot remains pending with its cursor");
+    let page = decoded(r#"{"snapshot":false,"requested_watermark":12,"watermark":12,"images_at":12,"more":true,"events":[]}"#).unwrap();
     assert!(device.apply_publication(&page, false).unwrap().1);
     assert!(!device.publication_pending().unwrap(), "published nonterminal pages have no private effects");
     let page = decoded(r#"{"snapshot":false,"watermark":13,"images_at":13,"more":false,"events":[]}"#).unwrap();

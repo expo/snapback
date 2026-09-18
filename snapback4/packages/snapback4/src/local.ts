@@ -559,6 +559,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     let adoptedGeneration = false;
     let after: string | undefined;
     let catchingUp = false;
+    let publicationOutstanding = false;
     let pageLimit = PAGE;
     try {
       for (let pages = 0; pages < 100_000; pages++) {
@@ -567,7 +568,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         let requestedStore: string | null | undefined;
         let publishedStore: string | null | undefined;
         let backendRequired = false;
-        const pageIncarnation = incarnation;
+        let pageIncarnation = incarnation;
         try {
           const captured = await call({ op: "sync_state" });
           if (captured.denied) return false;
@@ -576,10 +577,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           backendRequired = !!backend_required;
           requestedStore = transfer_store_id ?? store_id;
           publishedStore = store_id;
+          observeIncarnation(store_id ?? undefined);
+          storeIdentity = store_id ?? undefined;
+          pageIncarnation = incarnation;
           watermark = transfer_watermark ?? capturedWatermark;
           catchingUp = snapshot_catchup ?? catchingUp;
+          publicationOutstanding ||= watermark > capturedWatermark;
           const request = requestCredentials();
-          const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify({ from: watermark, limit: pageLimit, after: after ?? null, stream: catchingUp, pending, ...(requestedStore ? { store_id: requestedStore } : {}) }), signal: aborter.signal });
+          const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify({ from: watermark, limit: pageLimit, after: after ?? null, stream: catchingUp || (after === undefined && publicationOutstanding), pending, ...(requestedStore ? { store_id: requestedStore } : {}) }), signal: aborter.signal });
           if (response.status >= 500) { setLink("offline"); return false; }
           page = (await response.json()) as SyncPage;
           if (!response.ok && !page.denied) { setLink("offline"); return false; }
@@ -615,7 +620,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (pageIncarnation !== incarnation || pageRevision !== credentialRevision) return false;
         // @ref LLP 3000.007#18.2 — sync identity retires the old partition before any read or outbox replay.
         let replacedStore = false;
-        if (typeof page.store_id === "string") observeIncarnation(page.store_id);
         if ((typeof page.store_id === "string" && page.store_id !== requestedStore) || Number(page.watermark) < watermark) {
           for (const entry of await queued()) {
             const seq = entry.sent_seq ?? entry.observed_seq;
@@ -626,6 +630,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           const observation = observed.ok as { reset: boolean; backend_required?: boolean; send_revision: number; retired: Record<string, number> };
           page.send_revision = observation.send_revision;
           backendRequired = !!observation.backend_required;
+          // Observation may durably reset an old incarnation. Only native's
+          // published identity can authorize adoption or invalidate watches.
+          const observedRead = await call({ op: "sync_state", capture: false });
+          if (observedRead.denied) return false;
+          const observedState = observedRead.ok as { store_id?: string | null } | undefined;
+          publishedStore = observedState?.store_id;
+          observeIncarnation(publishedStore ?? undefined);
+          storeIdentity = publishedStore ?? undefined;
           if (observation.reset) {
             if (typeof page.store_id !== "string") observeIncarnation(undefined, true);
             page.captured_watermark = 0;
@@ -639,12 +651,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
               emitWrite(receipt);
             }
             for (const watch of watches.values()) void rerun(watch);
-            watermark = 0; seq = 0; after = undefined; catchingUp = false;
+            watermark = 0; seq = 0; after = undefined; catchingUp = false; publicationOutstanding = false;
             replacedStore = true;
-            publishedStore = typeof page.store_id === "string" ? page.store_id : publishedStore;
           }
         }
-        if (typeof page.store_id === "string") storeIdentity = page.store_id;
         if (link !== "online") setLink("online");
         partitionDenied = null;
         const pageGeneration = Number(page.generation ?? generation);
@@ -672,7 +682,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             if (error instanceof BackendAuthError) await refusedSession(error.denied, backendRevision);
             return false;
           }
-          watermark = 0; after = undefined; catchingUp = false; continue;
+          watermark = 0; after = undefined; catchingUp = false; publicationOutstanding = false; continue;
         }
         if (Number(page.watermark) < watermark || (catchingUp && page.snapshot) || (page.snapshot && page.more && !page.next)) return false;
         page.stage_snapshot = !!page.snapshot;
@@ -681,15 +691,25 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         const applied = await call({ op: "apply", page, first: !catchingUp && after === undefined });
         if (closed || applyingIncarnation !== incarnation) return false;
         if (applied.denied) { refuseRestore(applied.denied); return false; }
+        const published = (applied.ok as { published?: boolean } | undefined)?.published !== false;
+        publicationOutstanding = !published;
+        if (published) {
+          const publishedRead = await call({ op: "sync_state", capture: false });
+          if (publishedRead.denied) return false;
+          const publishedState = publishedRead.ok as { store_id?: string | null; watermark: number } | undefined;
+          publishedStore = publishedState?.store_id;
+          observeIncarnation(publishedStore ?? undefined);
+          storeIdentity = publishedStore ?? undefined;
+          watermark = publishedState?.watermark ?? watermark;
+        }
         for (const table of ((applied.ok as { touched?: string[] } | undefined)?.touched ?? [])) touched.add(table);
         if (page.snapshot && page.more && page.next) {
           after = page.next as string;
           continue;
         }
         after = undefined;
-        watermark = Number(page.watermark ?? watermark);
         if (page.snapshot) { catchingUp = true; continue; }
-        if (!page.more && (applied.ok as { published?: boolean } | undefined)?.published !== false) {
+        if (!page.more && published) {
           partitionCurrent = true;
           caughtUp = true;
           identityChecked = true;

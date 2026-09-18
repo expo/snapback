@@ -111,7 +111,7 @@ fn install_rows<T: DeviceTx>(tx: &T, schema: &Schema, gate: bool, touched: &mut 
     Ok(())
 }
 
-// @ref LLP 3000.001#reliability-catchup — fold in order without publishing authority or retiring predictions.
+// @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — fold in order without publishing authority or retiring predictions.
 pub(super) fn stage<T: DeviceTx>(tx: &T, schema: &Schema, generation: u64, page: &StreamPage) -> Result<(), RuntimeError> {
     tx.savepoint("deferred")?;
     predictions::restore(tx, schema)?;

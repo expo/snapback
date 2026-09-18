@@ -49,14 +49,17 @@ fn immutable_capture<H: Host>(h: &mut H) {
     let second = d.sync_state().unwrap();
     assert_eq!(second.pending_ids, ["A"], "status/retry must return the in-flight request's declaration");
     assert_eq!((second.pending_through, second.pending_bound), (1, 1));
+    d.apply(&first, false).unwrap();
+    assert_eq!((value(&mut d, "a"), value(&mut d, "b")), (Some(1), Some(1)));
+    let old = next(&mut e, &mut d, 100);
     h.close("repair", d);
     let mut d = h.open("repair", None).unwrap();
-    assert_eq!(d.sync_state().unwrap().pending_ids, ["A"]);
-    d.apply(&first, false).unwrap();
+    assert!(d.store().meta("device:declaration:capture").unwrap().is_none(), "recovery abandons the previous request");
+    assert!(d.apply(&old, false).unwrap_err().to_string().contains("overlapped"));
     assert_eq!((value(&mut d, "a"), value(&mut d, "b")), (Some(1), Some(1)));
     assert_eq!(d.sync_state().unwrap().pending_ids, ["A", "B"]);
 }
-stores!(un_echoed_response_keeps_its_request_capture_across_poll_and_reopen, immutable_capture);
+stores!(un_echoed_response_keeps_capture_while_live_and_is_fenced_after_reopen, immutable_capture);
 
 fn empty_capture<H: Host>(h: &mut H) {
     let (mut e, mut d) = setup(h);
