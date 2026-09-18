@@ -79,7 +79,7 @@ fn a_server_page_pass_never_predicts_even_when_held_and_after_reopen() {
         let mut device = host.open("server-pass", Some(backend)).unwrap();
         for (i, page) in snapshot_pages(&mut engine, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
         assert_eq!(device.predict("sweep", "bob", &json!({}), 1000, vec![], 1).unwrap_err().code(), "E_PREDICT");
-        let entry = Queued { id: "sweep".into(), seq: 1, op: "sweep".into(), args: json!({}), viewer: "bob".into(), now: 1000, new_ids: vec![], predicted: vec![], predictable: true, sent_seq: None, observed_seq: None };
+        let entry = Queued { id: "sweep".into(), seq: 1, op: "sweep".into(), args: json!({}), viewer: "bob".into(), now: 1000, new_ids: vec![], predicted: vec![], predictable: true, sent_seq: None, receipt_store: None, observed_seq: None };
         assert!(!device.admit(entry).unwrap().predictable);
         host.close("server-pass", device);
         let mut device = host.open("server-pass", None).unwrap();
@@ -113,7 +113,7 @@ fn named_receipt_after_revocation<H: Host>(host: &mut H, historical: bool) {
     let mut device = host.open("named-receipt", Some(backend)).unwrap();
     for (i, page) in snapshot_pages(&mut engine, "alice", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
     let entry = Queued { id: "lost".into(), seq: 1, op: "edit".into(), args: json!({"key":"lookup"}), viewer: "alice".into(), now: 1000,
-        new_ids: vec![], predicted: vec![], predictable: true, sent_seq: None, observed_seq: None };
+        new_ids: vec![], predicted: vec![], predictable: true, sent_seq: None, receipt_store: None, observed_seq: None };
     assert!(!device.admit(entry.clone()).unwrap().predictable);
     device.begin_send().unwrap();
     let request_context = context("alice", &[("key", Value::String("lookup".into()))]).at(1000);

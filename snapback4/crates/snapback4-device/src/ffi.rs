@@ -5,7 +5,7 @@
 
 #![allow(unsafe_code)]
 
-use crate::native::{Backend, Device};
+use crate::native::Device;
 use serde_json::{Value as Json, json};
 use std::any::Any;
 use std::cell::RefCell;
@@ -70,11 +70,8 @@ pub extern "C" fn sb4_open(path: *const c_char, backend: *const c_char) -> *mut 
     let _ = LAST_OPEN_REFUSAL.with(|last| last.borrow_mut().take());
     let opened = catch_unwind(AssertUnwindSafe(|| -> Result<Device, Json> {
         let path = c_text(path).ok_or_else(|| json!({ "denied": { "code": "E_INPUT", "family": "input", "message": "path is text" } }))?;
-        let backend = match c_text(backend) {
-            None | Some("") | Some("null") => None,
-            Some(text) => Some(serde_json::from_str::<Backend>(text).map_err(|error| json!({ "denied": { "code": "E_INPUT", "family": "input", "message": error.to_string() } }))?),
-        };
-        Device::open(std::path::Path::new(path), backend).map_err(|error| json!({ "denied": error.refusal() }))
+        let opening = crate::opening::Opening::parse(c_text(backend)).map_err(|error| json!({ "denied": error.refusal() }))?;
+        Device::open_with(std::path::Path::new(path), opening).map_err(|error| json!({ "denied": error.refusal() }))
     }));
     match opened {
         Ok(Ok(device)) => Box::into_raw(Box::new(device)),
@@ -127,6 +124,29 @@ pub extern "C" fn sb4_close(device: *mut Device) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::native::Backend;
+
+    #[test]
+    fn first_install_envelope_preserves_a_backend_installed_by_another_owner() {
+        let dir = std::env::temp_dir().join(format!("sb4-ffi-initial-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = CString::new(dir.join("device.sqlite").to_string_lossy().as_bytes()).unwrap();
+        let backend = |generation| json!({"generation":generation,"schema":{"tables":{}},"programs":[]});
+        let initial = CString::new(json!({"initial_backend":backend(2)}).to_string()).unwrap();
+        let device = sb4_open(path.as_ptr(), initial.as_ptr());
+        assert!(!device.is_null(), "the ABI accepts a fresh conditional install");
+        sb4_close(device);
+        let stale = CString::new(json!({"initial_backend":backend(1)}).to_string()).unwrap();
+        let device = sb4_open(path.as_ptr(), stale.as_ptr());
+        assert!(!device.is_null(), "the ABI opens the winner of an overlapping install");
+        let request = CString::new(r#"{"op":"state"}"#).unwrap();
+        let response = sb4_call(device, request.as_ptr());
+        let state: Json = serde_json::from_str(c_text(response).unwrap()).unwrap();
+        sb4_free(response);
+        sb4_close(device);
+        assert_eq!(state["ok"]["generation"], 2);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 
     #[test]
     fn an_unwinding_entry_point_panic_becomes_a_refusal() {

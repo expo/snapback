@@ -94,21 +94,28 @@ watermark counts as replacement only behind that request's own watermark,
 while its acquisition capture is still current.
 Reconnect verifies the backend identity before local answers become fresh;
 an unchanged store resumes its long poll without another sync. A matching
-`store_id` with a head below the device's watermark is a restore or shrink,
-not a replacement: `E_STORE_RESTORE` halts sync and refuses reads, including
-after an offline reopen. The old watermark and outbox remain in place.
-Stop that client and use a fresh device store and outbox for the restored
-backend; retry or backend adoption does not silently reacquire that identity.
-A lower poll or probe head invalidates freshness and requests sync confirmation.
-Only an authenticated sync reply with the matching identity and a head below
-that request's acquired watermark persists the refusal; a notification alone
-cannot halt a healthy client. Each native owner binds its interpreter and loaded
+`store_id` with a head below the device's published progress, private transfer
+progress, or retained private image head is a restore or shrink:
+`E_STORE_RESTORE` halts sync and refuses reads, including after an offline
+reopen. The old watermark and outbox remain in place. Stop that client and use
+a fresh device store and outbox for the restored backend; retry, refill or
+backend adoption does not silently reacquire that identity. Authenticated probe,
+change-feed and sync replies all reach the device's restore validator before
+replay, freshness or adoption decisions. The validator uses the progress and
+retained image head captured before each request. A later private advance
+cannot erase that evidence or falsely turn an older healthy response into a
+restore; obsolete healthy replies retry. Schema adoption also compares the
+progress captured before fetching that schema, atomically with installation.
+The JavaScript client requires a device module with this capture protocol. Each native owner binds its interpreter and loaded
 module digest to the adopted store identity. Another owner's replacement
 requires adoption and module reload before local reads or prediction resume.
 
 On the web, a failed save rejects the call and discards its uncommitted in-memory
 state. The next serialized call reopens the last persisted state; earlier
-durable writes survive. Failed startup releases the store lock. Runtime bytes
+durable writes survive. When a replacement or adoption save succeeds, existing
+answers and acquisition are invalidated even if later host recovery fails.
+Successful publication likewise preserves its affected-watch reruns before
+host recovery. Failed startup releases the store lock. Runtime bytes
 become the offline entry only after initialization and cache persistence; if
 that save fails, the same bytes may retry, while changing the initialized
 runtime requires reloading the page. The application still owns its offline
@@ -1330,8 +1337,13 @@ answering queries and predictions; the wasm the web runs is the same
 module over memory. A host opens its device with `open(name, backend)`
 and gives back one JSON call, `call({ op, ... })`, into the module
 (`backend` is `GET /schema`'s JSON, or null to open on the one the
-device kept, which is how a cold start with no network opens). The
-module speaks the same call over a C ABI
+device kept, which is how a cold start with no network opens). For first
+installation the client passes `{ initial_backend: backend }`: the module
+opens any backend now present, or checks that the store is still empty inside
+the installation transaction. Custom openers must forward that envelope
+unchanged. An older module rejects it; rebuild the native app when updating
+to this client. Generation changes use head validation and captured adoption
+with the persisted restore evidence intact. The module speaks the same call over a C ABI
 (`crates/snapback4-device/include/snapback4.h`: `sb4_open`, `sb4_call`,
 `sb4_free`, `sb4_close`) and, for a Rust host, through
 `snapback4_device::ffi::call`; `snapback4 device <store>` runs it as a

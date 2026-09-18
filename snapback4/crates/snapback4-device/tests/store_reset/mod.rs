@@ -118,8 +118,12 @@ fn store_identity_resets_equal_watermarks_and_retires_only_known_receipts_on_bot
         let b_id = b.store().meta("store_id").unwrap().unwrap();
         assert_ne!(a_id, b_id);
         let mut device = host.open("identities", Some(backend.clone())).unwrap();
+        // The next request belongs to the reopened owner. Recovery fences the
+        // old capture; keep old_page unchanged to test its delayed rejection.
+        let reopened = ok(device.call(json!({ "op": "sync_state" })));
+        assert_ne!(reopened["send_revision"], capture["send_revision"]);
         let mut page = page_json(&stream_page(&mut b, "alice", 4));
-        page["store_id"] = json!(b_id); page["send_revision"] = capture["send_revision"].clone();
+        page["store_id"] = json!(b_id); page["send_revision"] = reopened["send_revision"].clone();
         let observation = ok(device.call(json!({ "op": "observe_store", "page": page })));
         assert_eq!(observation["reset"], true);
         assert_eq!(observation["retired"]["known-observed"], 3);

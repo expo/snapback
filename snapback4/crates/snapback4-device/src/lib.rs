@@ -10,6 +10,7 @@
 pub mod call;
 pub mod device;
 pub mod memory;
+pub mod opening;
 pub mod store;
 
 #[cfg(feature = "native")]

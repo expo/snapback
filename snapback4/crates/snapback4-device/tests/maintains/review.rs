@@ -34,7 +34,7 @@ fn snapshot_at(server: &mut snapback4_core::Engine, now: i64) -> StreamPage {
     serde_json::from_value(json!({"snapshot":true,"events":events.iter().map(|e| json!({"table":e.table,"kind":e.kind,"id":e.id,"data":e.data.as_ref().map(snapback4_core::wire::to_json)})).collect::<Vec<_>>(),"watermark":watermark,"next":next,"held":held,"more":false,"generation":server.generation()})).unwrap()
 }
 fn queued(op: &str, input: serde_json::Value, seq: u64, now: i64) -> Queued {
-    Queued {id:format!("q{seq}"),seq,op:op.into(),args:input,viewer:"alice".into(),now,new_ids:vec![],predicted:vec![],predictable:true,sent_seq:None,observed_seq:None}
+    Queued {id:format!("q{seq}"),seq,op:op.into(),args:input,viewer:"alice".into(),now,new_ids:vec![],predicted:vec![],predictable:true,sent_seq: None, receipt_store: None,observed_seq:None}
 }
 fn history<H: Host>(host: &mut H) {
     for mode in ["partial", "witness", "whole"] {

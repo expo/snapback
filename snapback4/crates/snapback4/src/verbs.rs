@@ -914,16 +914,16 @@ pub fn device(options: &Options) -> i32 {
         return 2;
     };
     let backend = match options.positionals.get(1) {
-        Some(file) => match std::fs::read_to_string(file).map_err(|e| e.to_string()).and_then(|text| serde_json::from_str::<snapback4_device::native::Backend>(&text).map_err(|e| e.to_string())) {
-            Ok(backend) => Some(backend),
+        Some(file) => match std::fs::read_to_string(file).map_err(|e| e.to_string()).and_then(|text| snapback4_device::opening::Opening::parse(Some(&text)).map_err(|e| e.to_string())) {
+            Ok(backend) => backend,
             Err(error) => {
                 eprintln!("device: {file}: {error}");
                 return 2;
             }
         },
-        None => None,
+        None => snapback4_device::opening::Opening::Kept,
     };
-    let mut device = match snapback4_device::native::Device::open(Path::new(path), backend) {
+    let mut device = match snapback4_device::native::Device::open_with(Path::new(path), backend) {
         Ok(device) => device,
         Err(error) => {
             println!("{}", json!({ "denied": error.refusal() }));

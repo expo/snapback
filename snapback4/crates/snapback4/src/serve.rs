@@ -638,8 +638,14 @@ struct StreamReply {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     acquisitions: Vec<wire::Acquisition>,
     acknowledged: BTreeMap<String, u64>,
+    // Serialized order is alphabetical among the always-present fields, which
+    // is what the byte-exact encoding test compares against `json!`.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    committed_above: BTreeMap<String, u64>,
     events: SyncEvents,
     generation: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    images_at: Option<u64>,
     joined: wire::HeldGroups,
     more: bool,
     snapshot: bool,
@@ -1136,22 +1142,22 @@ fn handle(mut request: Request, shared: &Shared) {
                     match reader {
                         Ok(mut reader) => {
                             let generation = reader.generation();
-                            (reader.stream_at(&principal, from, limit, shared.now()).and_then(|page| reader.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))), generation)
+                            (reader.stream_at(&principal, from, limit, shared.now()).and_then(|page| reader.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| (page, acks))), generation)
                         }
                         Err(_) => {
                             let mut engine = lock(&shared.engine);
-                            (engine.stream_at(&principal, from, limit, shared.now()).and_then(|page| engine.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))), *lock(&shared.generation))
+                            (engine.stream_at(&principal, from, limit, shared.now()).and_then(|page| engine.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| (page, acks))), *lock(&shared.generation))
                         }
                     }
                 };
                 match outcome {
-                    Ok((page, acknowledged)) => {
+                    Ok((page, (acknowledged, committed_above))) => {
                         let mut overflow = json!({ "generation": generation, "store_id": store_id, "watermark": page.watermark });
                         // Whole commits cannot be split by lowering the stream limit.
                         // A snapshot pages their current rows individually instead.
                         if limit == 1 { overflow["snapshot"] = json!(true); }
                         respond_with_sync(request, 200, StreamReply {
-                            acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Stream(page.events), generation, store_id,
+                            images_at: page.images_at, committed_above, acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Stream(page.events), generation, store_id,
                             joined: page.joined, more: page.more, snapshot: false, watermark: page.watermark,
                         }, true, Some(overflow));
                     }

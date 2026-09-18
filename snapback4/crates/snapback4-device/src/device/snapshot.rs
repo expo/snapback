@@ -140,3 +140,9 @@ pub(super) fn continuation<T: DeviceTx>(tx: &T, page: &StreamPage, first: bool) 
     }
     Ok(())
 }
+
+/// Snapshot publication and every reset consume the same staging state.
+pub(super) fn clear<T: DeviceTx>(tx: &T) -> Result<(), RuntimeError> {
+    tx.staged_clear()?;
+    tx.delete_meta(&SNAPSHOT_KEYS)
+}

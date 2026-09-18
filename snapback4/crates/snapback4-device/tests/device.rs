@@ -115,7 +115,10 @@ fn rows(read: &serde_json::Value) -> &Vec<serde_json::Value> {
 }
 
 fn apply(device: &mut dyn AnyDevice, page: &snapback4_device::device::StreamPage, first: bool) -> serde_json::Value {
-    device.call(serde_json::json!({ "op": "apply", "page": page_json(page), "first": first }))
+    // Serialization-only apply fixture. The caller supplies the page and its
+    // receipts; this does not simulate a sync request or invent a declaration.
+    let page = page_json(page);
+    device.call(serde_json::json!({ "op": "apply", "page": page, "first": first }))
 }
 
 fn snapshot_pages_at(
@@ -161,7 +164,7 @@ fn stream_page_at(
 ) -> snapback4_device::device::StreamPage {
     let page = engine.stream_at(principal, watermark, 1_000, now).unwrap();
     serde_json::from_value(serde_json::json!({
-        "snapshot": false, "acquisitions": page.acquisitions,
+        "snapshot": false, "images_at": page.images_at, "acquisitions": page.acquisitions,
         "events": page.events.iter().map(|event| serde_json::json!({
             "table": event.table,
             "kind": event.kind,
@@ -901,7 +904,7 @@ fn withdrawing_one_prediction_replays_the_remaining_outbox() {
         let backend = snapback4_device::device::Backend { generation: engine.generation(), ..backend };
         let mut device = host.open("withdraw", Some(backend)).unwrap();
         for (index, page) in snapshot_pages(&mut engine, "dev:alice", 100).iter().enumerate() { ok(apply(&mut *device, page, index == 0)); }
-        let queue = |op: &str, seq: u64| Queued { id: format!("w{seq}"), seq, op: op.into(), args: serde_json::json!({}), new_ids: vec![], predicted: vec![], viewer: "dev:alice".into(), now: 2_000, predictable: true, sent_seq: None, observed_seq: None };
+        let queue = |op: &str, seq: u64| Queued { id: format!("w{seq}"), seq, op: op.into(), args: serde_json::json!({}), new_ids: vec![], predicted: vec![], viewer: "dev:alice".into(), now: 2_000, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None };
         let first = ok(device.call(serde_json::json!({ "op": "admit", "entry": queue("first", 1) })));
         ok(device.call(serde_json::json!({ "op": "admit", "entry": queue("later", 2) })));
         assert_eq!(query(&mut *device, "row", "dev:alice", serde_json::json!({ "id": "a" }), 2_000)["data"]["value"], 100, "{label}");

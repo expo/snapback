@@ -41,6 +41,8 @@ export interface AcquisitionMarker {
   floor?: string;
 }
 interface SyncPage extends Record<string, unknown> {
+  images_at?: number;
+  committed_above?: Record<string, number>;
   /** Cursor echoed by the server; the device validates snapshot continuity. */
   after?: string | null;
   acquisitions?: AcquisitionMarker[];
@@ -53,15 +55,26 @@ export interface DeviceCore {
   onOutbox?(listener: () => void): () => void;
   /** Web hosts alone: committed unsent writes at pagehide/hidden, synchronously. */
   onSuspend?(flush: (entries: readonly PendingSend[], beginSend: () => boolean) => void): () => void;
-  call(request: Record<string, unknown>): Promise<Record<string, unknown>>;
+  /** A host with fallible work after commit must synchronously expose the
+   * durable reply through committed before that work. Forward this callback
+   * through adapters. Hosts returning directly may omit it; the client also
+   * observes the returned reply. A failed save must never invoke it. The
+   * callback invalidates memory only; application delivery waits for call
+   * completion (including rejection) so it cannot reenter host bookkeeping. */
+  call(request: Record<string, unknown>, committed?: (reply: Record<string, unknown>) => void): Promise<Record<string, unknown>>;
   close(): Promise<void>;
 }
 
+/** A first-install request must preserve a backend another owner installed. */
+export type DeviceOpening = BackendJson | { initial_backend: BackendJson };
+
 /** How a host opens its device: a store name the client derives from the
  * server and the viewer (the host decides where that lives), and the
- * backend the server sent — null to open on the one kept from last time. */
+ * backend the server sent — null to open on the one kept from last time,
+ * or { initial_backend } to install only if empty and otherwise open the kept
+ * backend. Hosts must preserve this envelope across their native boundary. */
 export interface DeviceOpener {
-  open(name: string, backend: BackendJson | null): Promise<DeviceCore>;
+  open(name: string, backend: DeviceOpening | null): Promise<DeviceCore>;
 }
 
 export interface LocalOptions {
@@ -114,6 +127,11 @@ interface Queued {
 interface StoreCapture {
   backend_required?: boolean;
   store_id?: string | null;
+  transfer_store_id?: string | null;
+  transfer_watermark?: number;
+  restore_watermark?: number;
+  restore_images_at?: number;
+  adoption_capture?: Record<string, string | null>;
   watermark: number;
   send_revision: number;
   restore_refusal?: Refusal;
@@ -138,12 +156,12 @@ class BackendAuthError extends Error {
 async function requireSyncProtocol(core: DeviceCore): Promise<void> {
   // A JavaScript update can run inside an older Expo development build.
   // Probe without sending or changing an outbox entry, even when offline.
-  const reply = await core.call({ op: "sync_state" });
+  const reply = await core.call({ op: "sync_state", capture: false });
   const denied = reply?.denied as Refusal | undefined;
   if (denied && typeof denied.code === "string" && denied.code !== "E_OP") throw new Error(`createLocalClient: ${denied.code}: native startup failed: ${denied.message}`);
   const state = reply?.ok as Record<string, unknown> | undefined;
   const uint = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-  if (denied || !state || typeof state.backend_required !== "boolean" || typeof state.acquired !== "boolean" || !(state.store_id === null || typeof state.store_id === "string") || !uint(state.watermark) || !uint(state.generation) || !uint(state.send_revision) || !Array.isArray(state.pending_ids) || state.pending_ids.length > 256 || !state.pending_ids.every((id) => typeof id === "string" && id.length > 0)) {
+  if (denied || !state || typeof state.backend_required !== "boolean" || typeof state.acquired !== "boolean" || !(state.store_id === null || typeof state.store_id === "string") || !uint(state.watermark) || !uint(state.generation) || !uint(state.send_revision) || !uint(state.restore_watermark) || !uint(state.restore_images_at) || !state.adoption_capture || typeof state.adoption_capture !== "object" || Array.isArray(state.adoption_capture) || !Array.isArray(state.pending_ids) || state.pending_ids.length > 256 || !state.pending_ids.every((id) => typeof id === "string" && id.length > 0)) {
     throw new Error("createLocalClient: E_DEVICE_VERSION: the device lacks the sync receipt protocol this client speaks. Update the device to match the client: rebuild the app's native binary for snapback4-expo (reloading JavaScript does not update a native module), or serve the wasm this package version ships.");
   }
 }
@@ -206,9 +224,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const emitLocalFailure = (write: Extract<Write, { state: "failed" }>) => emitWrite(history.remember(write));
   const requestCredentials = () => ({ headers: { ...headers }, revision: credentialRevision });
 
-  // The device opens on the backend the server sends, or on the one it
-  // kept when the server is unreachable: a device that has synced once
-  // starts offline on what it holds. One store per server and viewer.
+  // Restore the kept backend before installing anything from the server.
+  // A generation change can erase the evidence needed to detect a restore;
+  // the ordinary sync preflight and captured adoption must run first.
+  // One store per server and viewer.
   const storeName = `snapback4-${encodeURIComponent(`${base}:${viewer}`)}`;
   let link: Link = "online";
   let generation = 0;
@@ -226,7 +245,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let closed = false;
   let closing: Promise<void> | undefined;
   const aborter = new AbortController();
-  const core = await options.device.open(storeName, backend);
+  // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — startup must preserve the evidence until the server head has been validated.
+  const core = await options.device.open(storeName, null).catch(error => {
+    // This refusal permits a conditional first-install request: another
+    // owner may have initialized the name since the failed open.
+    // Store corruption, ownership and other open failures must not fall back.
+    const message = error instanceof Error ? error.message : String(error);
+    if (!backend || !message.includes("E_AUTH") || !message.includes("this device has never synced: the server must be reachable once to open")) throw error;
+    return options.device.open(storeName, { initial_backend: backend });
+  });
   let stopSuspend: (() => void) | undefined;
   let stopOutbox: (() => void) | undefined;
   let media: MediaCache | undefined;
@@ -239,12 +266,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     },
   });
   await requireSyncProtocol(core);
-  if (backend) generation = Number(backend.generation ?? 0);
-  else {
-    const state = await call({ op: "state" });
-    generation = Number((state.ok as { generation?: number } | undefined)?.generation ?? 0);
-  }
-  if (!backend) backend = (await call({ op: "backend" })).ok as BackendJson;
+  const state = await call({ op: "state" });
+  generation = Number((state.ok as { generation?: number } | undefined)?.generation ?? 0);
+  if (!backend || Number(backend.generation ?? 0) !== generation) backend = (await call({ op: "backend" })).ok as BackendJson;
   media = new MediaCache(core, principal, retention);
   await media.open();
   // The app's native module (LLP 3000.005 §9): fetched once per digest and
@@ -319,7 +343,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let caughtUp = false;
   let identityChecked = false;
   let partitionCurrent = true;
-  const initialSync = (await call({ op: "sync_state" })).ok as { store_id?: string | null; restore_refusal?: Refusal };
+  const initialSync = (await call({ op: "sync_state", capture: false })).ok as { store_id?: string | null; restore_refusal?: Refusal };
   let storeIdentity = initialSync?.store_id ?? undefined;
   partitionDenied = initialSync?.restore_refusal ?? null;
   let incarnation = 0;
@@ -331,10 +355,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     for (const listener of acquiredListeners) listener(value);
   }
   // @ref LLP 3000.007#18.2 — acquisition belongs to the current store; a reconnect alone cannot bless an old partition.
-  async function refreshAcquired() {
+  async function refreshAcquired(afterAdoption = false) {
     const revision = incarnation;
-    const state = (await call({ op: "sync_state" })).ok as { acquired: boolean } | undefined;
-    if (revision === incarnation) setAcquired(!closed && !sessionDead && partitionCurrent && state?.acquired === true);
+    const state = (await call({ op: "sync_state", capture: false })).ok as { acquired: boolean } | undefined;
+    if (revision === incarnation) {
+      // Compatible widening may preserve native acquisition. Revalidate it
+      // only after the new backend is installed and this read succeeds.
+      if (afterAdoption && state?.acquired === true) partitionCurrent = true;
+      setAcquired(!closed && !sessionDead && partitionCurrent && state?.acquired === true);
+    }
   }
   await refreshAcquired();
   // A kept sent entry can disappear on the first catch-up, before a screen mounts.
@@ -343,13 +372,16 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (entry.sent_seq == null && seq != null) await history.keep({ state: "sent", id: entry.id, seq, replayed: true });
   }
   // @ref LLP 3000.007#18.2 — observation fences answers before queued sync can retire the partition.
-  function observeIncarnation(id?: string, force = false) {
+  function observeIncarnation(id?: string, force = false, delivery?: (() => void)[]) {
     if (!force && (id === undefined || id === storeIdentity)) return;
     storeIdentity = id;
     incarnation++;
     partitionCurrent = false;
-    setAcquired(false);
+    const wasAcquired = acquired;
+    acquired = false;
     caughtUp = false;
+    identityChecked = false;
+    seq = 0;
     lastSyncAt = 0;
     serverAnswers.clear();
     for (const watch of watches.values()) {
@@ -357,9 +389,16 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       watch.incarnation = incarnation;
       if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
       watch.expiryTimer = null;
-      notify(watch);
-      void rerun(watch);
     }
+    // Finish invalidating every answer before invoking application callbacks.
+    const deliver = () => {
+      if (wasAcquired) for (const listener of acquiredListeners) listener(false);
+      for (const watch of watches.values()) {
+        notify(watch);
+        void rerun(watch);
+      }
+    };
+    if (delivery) delivery.push(deliver); else deliver();
   }
 
   function refuseRestore(denied?: Refusal) {
@@ -369,32 +408,53 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     for (const watch of watches.values()) { watch.snapshot = { denied }; notify(watch); }
   }
 
-  // @ref LLP 3000.007#18.2 — /probe and /changes report the committed head: a same-identity head below the acquisition captured before the request is a restore, whatever later writes do to the head.
+  // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — the device validates head observations against private progress and retained image heads before replay or freshness decisions.
   async function witnessRestore(storeId: unknown, head: unknown, capture: StoreCapture): Promise<boolean> {
-    if (typeof storeId !== "string" || storeId !== storeIdentity || !(Number(head) < capture.watermark)) return false;
-    const observed = await call({ op: "observe_store", page: { snapshot: false, generation, events: [], watermark: Number(head), more: false, store_id: storeId,
-      requested_watermark: capture.watermark, captured_watermark: capture.watermark, send_revision: capture.send_revision } });
-    if (observed.denied) refuseRestore(observed.denied);
-    return partitionDenied?.code === "E_STORE_RESTORE";
+    if (!Number.isSafeInteger(head) || Number(head) < 0) return true;
+    if (typeof storeId !== "string" || storeId !== (capture.transfer_store_id ?? capture.store_id)) return false;
+    const observed = await call({ op: "observe_store", page: { snapshot: false, generation, events: [], watermark: head, more: false, store_id: storeId,
+      requested_watermark: capture.restore_watermark ?? capture.transfer_watermark ?? capture.watermark,
+      captured_restore_watermark: capture.restore_watermark, captured_restore_images_at: capture.restore_images_at,
+      captured_watermark: capture.watermark, send_revision: capture.send_revision } });
+    if (observed.denied) { refuseRestore(observed.denied); return true; }
+    return false;
   }
 
   async function captureStore(): Promise<StoreCapture | undefined> {
-    const reply = await call({ op: "sync_state" });
+    const reply = await call({ op: "sync_state", capture: false });
     if (reply.denied) return;
     const capture = reply.ok as StoreCapture;
     if (capture.restore_refusal) { refuseRestore(capture.restore_refusal); return; }
     return capture;
   }
 
-  async function call(request: Record<string, unknown>): Promise<{ ok?: unknown; denied?: Refusal }> {
-    const work = core.call(request);
+  async function call(request: Record<string, unknown>, committedTables?: Set<string>): Promise<{ ok?: unknown; denied?: Refusal }> {
+    let observed = false;
+    const delivery: (() => void)[] = [];
+    const deliver = () => { for (const notify of delivery.splice(0)) notify(); };
+    const committed = (result: { ok?: unknown; denied?: Refusal }) => {
+      if (observed) return;
+      observed = true;
+      // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — preserve publication invalidations before fallible post-commit work.
+      if (!result.denied && request.op === "apply") {
+        for (const table of (result.ok as { touched?: string[] } | undefined)?.touched ?? []) committedTables?.add(table);
+      }
+      // A committed replacement has already retired the client's partition.
+      // Fence it before even media reconciliation can fail; native identity
+      // is read separately and must never be a prerequisite for invalidation.
+      if (!result.denied && request.op === "observe_store" && (result.ok as { reset?: boolean } | undefined)?.reset) observeIncarnation(undefined, true, delivery);
+      if (!result.denied && request.op === "adopt") observeIncarnation(storeIdentity, true, delivery);
+    };
+    const work = core.call(request, committed);
     active.add(work);
     try {
       const result = (await work) as { ok?: unknown; denied?: Refusal };
+      committed(result);
+      deliver();
       if (!result.denied && ["apply", "observe_store", "adopt", "clear_rows", "admit", "settle"].includes(String(request.op))) await media?.reconcile();
       return result;
     }
-    finally { active.delete(work); }
+    finally { active.delete(work); deliver(); }
   }
 
   const offline = (): Refusal => ({ code: "E_OFFLINE", family: "link", message: "the server is unreachable", retryable: true });
@@ -566,28 +626,44 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     let adoptedGeneration = false;
     let after: string | undefined;
     let catchingUp = false;
+    let publicationOutstanding = false;
+    let restartingSnapshot = false;
     let pageLimit = PAGE;
     try {
       for (let pages = 0; pages < 100_000; pages++) {
         let page: SyncPage;
         let pageRevision = credentialRevision;
         let requestedStore: string | null | undefined;
+        let publishedStore: string | null | undefined;
         let backendRequired = false;
-        const pageIncarnation = incarnation;
+        let pageIncarnation = incarnation;
         try {
           const captured = await call({ op: "sync_state" });
           if (captured.denied) return false;
-          const { pending_ids: pending, send_revision, store_id, watermark: capturedWatermark, backend_required, restore_refusal } = captured.ok as { pending_ids: string[]; send_revision: number; store_id?: string | null; watermark: number; backend_required?: boolean; restore_refusal?: Refusal };
+          const { pending_ids: pending, send_revision, store_id, transfer_store_id, watermark: capturedWatermark, transfer_watermark, restore_watermark, restore_images_at, snapshot_catchup, pending_through, pending_complete, pending_bound, backend_required, restore_refusal } = captured.ok as { pending_ids: string[]; pending_through: number; pending_complete: boolean; pending_bound: number; transfer_watermark: number; restore_watermark?: number; restore_images_at?: number; snapshot_catchup?: boolean; send_revision: number; store_id?: string | null; transfer_store_id?: string | null; watermark: number; backend_required?: boolean; restore_refusal?: Refusal };
           if (restore_refusal) { refuseRestore(restore_refusal); return false; }
           backendRequired = !!backend_required;
-          requestedStore = store_id;
+          requestedStore = transfer_store_id ?? store_id;
+          publishedStore = store_id;
+          observeIncarnation(store_id ?? undefined);
+          storeIdentity = store_id ?? undefined;
+          pageIncarnation = incarnation;
+          const snapshotRequest = restartingSnapshot || after !== undefined;
+          watermark = snapshotRequest ? 0 : transfer_watermark ?? capturedWatermark;
+          catchingUp = !snapshotRequest && (snapshot_catchup ?? catchingUp);
+          publicationOutstanding ||= watermark > capturedWatermark;
           const request = requestCredentials();
-          const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify({ from: watermark, limit: pageLimit, after: after ?? null, stream: catchingUp, pending, ...(store_id ? { store_id } : {}) }), signal: aborter.signal });
+          const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify({ from: watermark, limit: pageLimit, after: after ?? null, stream: !snapshotRequest && (catchingUp || (after === undefined && publicationOutstanding)), pending, ...(requestedStore ? { store_id: requestedStore } : {}) }), signal: aborter.signal });
           if (response.status >= 500) { setLink("offline"); return false; }
           page = (await response.json()) as SyncPage;
           if (!response.ok && !page.denied) { setLink("offline"); return false; }
           page.send_revision = send_revision;
+          page.pending_through = pending_through;
+          page.pending_complete = pending_complete;
+          page.pending_bound = pending_bound;
           page.requested_watermark = watermark;
+          page.captured_restore_watermark = restore_watermark;
+          page.captured_restore_images_at = restore_images_at;
           page.captured_watermark = capturedWatermark;
           pageRevision = request.revision;
         } catch {
@@ -603,36 +679,45 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
         // @ref LLP 3000.007#18.2 — sync identity retires the old partition before any read or outbox replay.
         let replacedStore = false;
-        if (typeof page.store_id === "string") observeIncarnation(page.store_id);
-        if ((typeof page.store_id === "string" && page.store_id !== requestedStore) || Number(page.watermark) < watermark) {
-          for (const entry of await queued()) {
-            const seq = entry.sent_seq ?? entry.observed_seq;
-            if (entry.sent_seq == null && seq != null) await history.keep({ state: "sent", id: entry.id, seq, replayed: true });
+        let adoptionCapture: Record<string, string | null> | undefined;
+        {
+          // Validate every reply before adoption can discard private evidence.
+          if ((typeof page.store_id === "string" && page.store_id !== requestedStore) || Number(page.watermark) < watermark) {
+            for (const entry of await queued()) {
+              const seq = entry.sent_seq ?? entry.observed_seq;
+              if (entry.sent_seq == null && seq != null) await history.keep({ state: "sent", id: entry.id, seq, replayed: true });
+            }
           }
-          // Observation needs a page envelope, but a refusal has no row batch.
-          const observed = await call({ op: "observe_store", page: denied ? { ...page, snapshot: false, events: [], more: false } : page });
+          // An overflow watermark is an event cut, not proof of the server
+          // head. Preserve explicit image-head evidence if provided; never
+          // invent terminality for a refusal with no row batch.
+          const observed = await call({ op: "observe_store", page: denied ? { ...page, snapshot: false, events: [], more: true } : page });
           if (observed.denied) { refuseRestore(observed.denied); return false; }
-          const observation = observed.ok as { reset: boolean; backend_required?: boolean; send_revision: number; retired: Record<string, number> };
+          const observation = observed.ok as { reset: boolean; backend_required?: boolean; send_revision: number; retired: Record<string, number>; adoption_capture?: Record<string, string | null> };
           page.send_revision = observation.send_revision;
+          adoptionCapture = observation.adoption_capture;
           backendRequired = !!observation.backend_required;
           if (observation.reset) {
-            if (typeof page.store_id !== "string") observeIncarnation(undefined, true);
+            // call() already invalidated the retired incarnation synchronously.
+            // Discard this round's old cursors before inspecting the new store.
+            watermark = 0; after = undefined; catchingUp = false; publicationOutstanding = false;
             page.captured_watermark = 0;
-            serverAnswers.clear();
-            lastSyncAt = 0;
-            await call({ op: "set_meta", key: "syncedAt", value: "0" });
             adoptedGeneration = true;
+            replacedStore = true;
+            const observedRead = await call({ op: "sync_state", capture: false });
+            if (observedRead.denied) return false;
+            const observedState = observedRead.ok as { store_id?: string | null } | undefined;
+            publishedStore = observedState?.store_id;
+            storeIdentity = publishedStore ?? undefined;
+            await call({ op: "set_meta", key: "syncedAt", value: "0" });
             for (const [id, sentSeq] of Object.entries(observation.retired)) {
               const receipt: Write = { state: "sent", id: id as Write["id"], seq: sentSeq, replayed: true };
               settled.get(id)?.(receipt); settled.delete(id);
               emitWrite(receipt);
             }
             for (const watch of watches.values()) void rerun(watch);
-            watermark = 0; seq = 0; after = undefined; catchingUp = false;
-            replacedStore = true;
           }
         }
-        if (typeof page.store_id === "string") storeIdentity = page.store_id;
         if (link !== "online") setLink("online");
         if (!denied) partitionDenied = null;
         const pageGeneration = Number(page.generation ?? generation);
@@ -645,29 +730,28 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             const request = requestCredentials();
             backendRevision = request.revision;
             const nextBackend = await loadBackend(doFetch, base, request.headers, aborter.signal);
-            if (closed || backendIncarnation !== incarnation) return false;
-            const adopted = await call({ op: "adopt", backend: nextBackend, store_id: page.store_id ?? requestedStore ?? null, send_revision: page.send_revision });
-            await refreshAcquired();
+            if (closed || backendIncarnation !== incarnation || request.revision !== credentialRevision) return false;
+            const adopted = await call({ op: "adopt", backend: nextBackend, store_id: publishedStore ?? null, send_revision: page.send_revision, adoption_capture: adoptionCapture });
             if (adopted.denied) return false;
-            incarnation++;
-            serverAnswers.clear();
             backend = nextBackend;
             generation = Number(nextBackend.generation ?? pageGeneration);
             partitionDenied = null;
             nativeReady = false;
             adoptedGeneration = true;
+            await refreshAcquired(true);
             nativeReady = await installNative(aborter.signal);
           } catch (error) {
             if (error instanceof BackendAuthError) await refusedSession(error.denied, backendRevision);
             return false;
           }
-          watermark = 0; after = undefined; catchingUp = false; continue;
+          watermark = 0; after = undefined; catchingUp = false; publicationOutstanding = false; continue;
         }
         if (denied) {
           if (page.snapshot === true && pageLimit === 1 && (watermark > 0 || catchingUp)) {
             // Restart acquisition without applying the refusal's watermark.
             // Keep the reduced limit; snapshot rows can split a whole commit.
             watermark = 0; after = undefined; catchingUp = false;
+            restartingSnapshot = true;
             partitionDenied = null;
             continue;
           }
@@ -682,18 +766,30 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         page.stage_snapshot = !!page.snapshot;
         page.snapshot_catchup = catchingUp;
         const applyingIncarnation = incarnation;
-        const applied = await call({ op: "apply", page, first: !catchingUp && after === undefined });
+        const applied = await call({ op: "apply", page, first: !catchingUp && after === undefined }, touched);
         if (closed || applyingIncarnation !== incarnation) return false;
         if (applied.denied) { refuseRestore(applied.denied); return false; }
-        for (const table of ((applied.ok as { touched?: string[] } | undefined)?.touched ?? [])) touched.add(table);
+        restartingSnapshot = false;
+        const published = (applied.ok as { published?: boolean } | undefined)?.published !== false;
+        publicationOutstanding = !published;
+        // call() has already preserved committed tables for finally, even if
+        // its media reconciliation or the following metadata inspection fails.
+        if (published) {
+          const publishedRead = await call({ op: "sync_state", capture: false });
+          if (closed || applyingIncarnation !== incarnation || publishedRead.denied) return false;
+          const publishedState = publishedRead.ok as { store_id?: string | null; watermark: number } | undefined;
+          publishedStore = publishedState?.store_id;
+          observeIncarnation(publishedStore ?? undefined);
+          storeIdentity = publishedStore ?? undefined;
+          watermark = publishedState?.watermark ?? watermark;
+        }
         if (page.snapshot && page.more && page.next) {
           after = page.next as string;
           continue;
         }
         after = undefined;
-        watermark = Number(page.watermark ?? watermark);
         if (page.snapshot) { catchingUp = true; continue; }
-        if (!page.more) {
+        if (!page.more && published) {
           partitionCurrent = true;
           caughtUp = true;
           identityChecked = true;
@@ -734,7 +830,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       try { json = (await response.json()) as Record<string, unknown>; } catch {}
       if (closed) return;
       await refusedSession(json.denied ?? json.why, request.revision);
-      if (response.status === 200 && json.ok === true && !sessionDead && probeIncarnation === incarnation) {
+      if (response.status === 200 && json.ok === true && !sessionDead && probeIncarnation === incarnation && request.revision === credentialRevision) {
         // @ref LLP 3000.007#18.2 — verify identity before reconnect can bless cached local answers or resume a long poll.
         if (await witnessRestore(json.store_id, json.seq, capture)) return;
         if (typeof json.store_id === "string") observeIncarnation(json.store_id, json.store_id === storeIdentity && Number(json.seq) < Math.max(seq, capture.watermark));
@@ -764,9 +860,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (json.denied?.code === "E_AUTH") return false;
         throw new Error(`changes: HTTP ${response.status}`);
       }
-      if (closed || changeIncarnation !== incarnation) return false;
+      if (closed || changeIncarnation !== incarnation || request.revision !== credentialRevision) return false;
       const replaced = json.store_id !== undefined && json.store_id !== storeIdentity;
-      if (!replaced && await witnessRestore(json.store_id, json.seq, capture)) return false;
+      if (await witnessRestore(json.store_id, json.seq, capture)) return false;
       const shrank = json.seq < Math.max(seq, capture.watermark);
       if (replaced || shrank) observeIncarnation(json.store_id, shrank);
       const changed = replaced || shrank || json.seq > seq || (json.generation !== undefined && json.generation !== generation);
@@ -1093,7 +1189,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       await refusedSession(head.denied ?? head.why, request.revision);
       if (!response.ok || head.ok !== true || sessionDead || request.revision !== credentialRevision) return;
       if (await witnessRestore(head.store_id, head.seq, capture)) return;
-      if (head.store_id !== capture.store_id || !Number.isSafeInteger(head.seq) || head.seq < capture.watermark) return;
+      if (head.store_id !== capture.store_id) return;
       // A slow snapshot must not hold an unknown write behind acquisition.
       // Receipt settlement still runs in the ordinary network queue; these
       // sends retain their IDs and the first sync collects their effects.

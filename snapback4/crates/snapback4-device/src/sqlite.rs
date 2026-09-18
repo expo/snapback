@@ -26,10 +26,10 @@ pub fn open(path: &Path) -> Result<Store, RuntimeError> {
 impl DeviceStore for Store {
     type Tx<'a> = Tx<'a>;
     fn install(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool) -> Result<(), RuntimeError> {
-        self.install_device(schema, metadata, reset)
+        self.install_checked(schema, metadata, reset, &BTreeMap::new())
     }
     fn install_checked(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
-        self.install_device_checked(schema, metadata, reset, expected)
+        self.install_device_checked_with(schema, metadata, reset, expected, |tx| crate::device::reset_for_install(tx, metadata, reset))
     }
     fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
         Store::meta(self, key)
