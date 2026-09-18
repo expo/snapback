@@ -378,7 +378,8 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["R5 history", "R
     assert.equal(online.data.held.length, 26);
     assert.equal(online.complete, false);
     assert.equal(online.fresh, false);
-    assert.equal(online.since, undefined);
+    // A composed read is as of the last sync: its retained components are, and its server components are newer.
+    assert.ok(Number.isInteger(online.since) && online.since > 0 && online.since <= Date.now(), `since ${online.since}`);
     assert.equal(online.next, null);
     assert.ok(allRequests.includes("/q/both"));
     assert.ok(allAnswers.some((answer) => answer.name === "both" && answer.data?.left.length === 25 && answer.data?.held.length === 25 && answer.unknown === true && answer.retained === false));
@@ -390,7 +391,7 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["R5 history", "R
     assert.deepEqual(mixedWatch.getSnapshot().data, { left: expected("left", 1), held: expected("held", 0) });
     assert.equal(mixedWatch.getSnapshot().complete, false);
     assert.equal(mixedWatch.getSnapshot().fresh, false);
-    assert.equal(mixedWatch.getSnapshot().since, undefined);
+    assert.ok(Number.isInteger(mixedWatch.getSnapshot().since) && mixedWatch.getSnapshot().since <= Date.now(), 'a composed watch is as of the last sync');
     assert.equal(mixedWatch.getSnapshot().next, null);
     offline = true; await client.sync();
     const local = await client.query(both, {});
@@ -405,7 +406,7 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["R5 history", "R
     assert.deepEqual(mixedWatch.getSnapshot().data, { left: expected("left", 1), held: expected("held", 0) });
     assert.equal(mixedWatch.getSnapshot().complete, false);
     assert.equal(mixedWatch.getSnapshot().fresh, false);
-    assert.equal(mixedWatch.getSnapshot().since, undefined);
+    assert.ok(Number.isInteger(mixedWatch.getSnapshot().since) && mixedWatch.getSnapshot().since <= Date.now(), 'a composed watch is as of the last sync');
     assert.equal(mixedWatch.getSnapshot().next, null);
     assert.equal((await client.query(query, { room: "left" })).data.length, 25, "keep retained history in its own query");
     offline = true;

@@ -903,7 +903,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const data = { ...remote.read.data as Record<string, unknown> };
       for (const [field] of kept) data[field] = (second.outcome.data as Record<string, unknown>)[field];
       const expiries = [remote.nextExpiry, second.result.nextExpiry].filter((expiry): expiry is number => expiry !== null);
-      return { read: { data: data as R, complete: remote.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.read.cut ?? null, fresh: false, next: null }, tables, nextExpiry: expiries.length ? Math.min(...expiries) : null };
+      return { read: { data: data as R, complete: remote.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.read.cut ?? null, fresh: false, ...(lastSyncAt ? { since: lastSyncAt } : {}), next: null }, tables, nextExpiry: expiries.length ? Math.min(...expiries) : null };
     }
     if (wantsServer(outcome) && link === "online" && !await pending()) return server();
     return first.result;  }
