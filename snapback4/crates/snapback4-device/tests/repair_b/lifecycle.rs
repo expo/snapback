@@ -67,8 +67,8 @@ fn empty_capture<H: Host>(h: &mut H) {
     d.apply(&first, false).unwrap();
     assert_eq!(value(&mut d, "a"), Some(1));
     assert_eq!(d.sync_state().unwrap().pending_ids, ["later"]);
-    d.begin_send().unwrap(); // Abandons a request made obsolete by a send.
-    assert!(d.store().meta("device:declaration:capture").unwrap().is_none());
+    d.begin_send().unwrap(); // Its eventual rejection, not the send, consumes this request.
+    assert!(d.store().meta("device:declaration:capture").unwrap().is_some());
 }
 stores!(empty_capture_ends_when_its_response_applies, empty_capture);
 

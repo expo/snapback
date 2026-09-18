@@ -140,7 +140,7 @@ class BackendAuthError extends Error {
 async function requireSyncProtocol(core: DeviceCore): Promise<void> {
   // A JavaScript update can run inside an older Expo development build.
   // Probe without sending or changing an outbox entry, even when offline.
-  const reply = await core.call({ op: "sync_state" });
+  const reply = await core.call({ op: "sync_state", capture: false });
   const denied = reply?.denied as Refusal | undefined;
   if (denied && typeof denied.code === "string" && denied.code !== "E_OP") throw new Error(`createLocalClient: ${denied.code}: native startup failed: ${denied.message}`);
   const state = reply?.ok as Record<string, unknown> | undefined;
@@ -321,7 +321,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let caughtUp = false;
   let identityChecked = false;
   let partitionCurrent = true;
-  const initialSync = (await call({ op: "sync_state" })).ok as { store_id?: string | null; restore_refusal?: Refusal };
+  const initialSync = (await call({ op: "sync_state", capture: false })).ok as { store_id?: string | null; restore_refusal?: Refusal };
   let storeIdentity = initialSync?.store_id ?? undefined;
   partitionDenied = initialSync?.restore_refusal ?? null;
   let incarnation = 0;
@@ -335,7 +335,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   // @ref LLP 3000.007#18.2 — acquisition belongs to the current store; a reconnect alone cannot bless an old partition.
   async function refreshAcquired() {
     const revision = incarnation;
-    const state = (await call({ op: "sync_state" })).ok as { acquired: boolean } | undefined;
+    const state = (await call({ op: "sync_state", capture: false })).ok as { acquired: boolean } | undefined;
     if (revision === incarnation) setAcquired(!closed && !sessionDead && partitionCurrent && state?.acquired === true);
   }
   await refreshAcquired();
@@ -381,7 +381,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
 
   async function captureStore(): Promise<StoreCapture | undefined> {
-    const reply = await call({ op: "sync_state" });
+    const reply = await call({ op: "sync_state", capture: false });
     if (reply.denied) return;
     const capture = reply.ok as StoreCapture;
     if (capture.restore_refusal) { refuseRestore(capture.restore_refusal); return; }

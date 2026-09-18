@@ -22,6 +22,7 @@ fn stream_heads_and_receipt_intervals() {
     let page=e.stream("alice",before,1).unwrap();
     assert_eq!(page.images_at,Some(head)); assert!(page.more); assert_eq!(page.watermark,commits[0]);
     let pending=["a".into(),"b".into(),"uncommitted".into()];
+    assert!(e.acknowledged_at("alice", &pending, head, commits[0]).unwrap_err().to_string().contains("image head precedes"));
     let (covered,above)=e.acknowledged_at("alice",&pending,page.watermark,head).unwrap();
     assert_eq!(covered,BTreeMap::from([("a".into(),commits[0])]));
     assert_eq!(above,BTreeMap::from([("b".into(),commits[1])]));

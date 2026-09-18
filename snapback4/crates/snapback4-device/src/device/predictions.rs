@@ -82,25 +82,37 @@ fn ordered_entries<T: DeviceTx>(tx: &T) -> Result<Vec<Queued>, RuntimeError> {
 }
 
 // All builders share the in-flight declaration. A poll/retry cannot widen it;
-// successful apply consumes it, and begin_send abandons obsolete requests.
+// successful apply consumes it. Sends cannot erase a declaration in flight.
 pub(super) fn capture<T: DeviceTx>(tx: &T) -> Result<Capture, RuntimeError> {
     if let Some(capture) = load_capture(tx)? { return Ok(capture); }
+    let capture = pending_capture(tx)?;
+    tx.set_meta(CAPTURE, &encoded(&capture)?)?;
+    Ok(capture)
+}
+
+pub(super) fn pending_capture<T: DeviceTx>(tx: &T) -> Result<Capture, RuntimeError> {
+    if let Some(capture) = load_capture(tx)? { return Ok(capture); }
     let entries = ordered_entries(tx)?;
-    let capture = Capture {
+    Ok(Capture {
         ids: entries.iter().take(PENDING_LIMIT).map(|q| q.id.clone()).collect(),
         declaration: (entries.iter().take(PENDING_LIMIT).last().map_or(0, |q| q.seq), entries.len() <= PENDING_LIMIT,
             // SUBMISSION is the inclusive last assigned number, never the next.
             entries.last().map_or(0, |q| q.seq).max(meta_u64(tx, SUBMISSION)?)),
-    };
-    tx.set_meta(CAPTURE, &encoded(&capture)?)?;
-    Ok(capture)
+    })
 }
 
 // The checkpoint stored only bounds. Submission numbers never get reused,
 // so its still-unretired IDs can be recovered without widening that capture.
 fn load_capture<T: DeviceTx>(tx: &T) -> Result<Option<Capture>, RuntimeError> {
     let Some(data) = tx.meta(CAPTURE)?.filter(|s| !s.is_empty()) else { return Ok(None) };
-    if let Ok(capture) = decoded::<Capture>(&data) { return Ok(Some(capture)); }
+    if let Ok(capture) = decoded::<Capture>(&data) {
+        let ids: BTreeSet<_> = capture.ids.iter().collect();
+        if capture.ids.len() > PENDING_LIMIT || ids.len() != capture.ids.len() || capture.declaration.0 > capture.declaration.2
+            || ordered_entries(tx)?.iter().any(|q| q.seq <= capture.declaration.2 && ids.contains(&q.id) != (q.seq <= capture.declaration.0)) {
+            return Err(RuntimeError::Store("pending capture does not describe a bounded outbox prefix".into()));
+        }
+        return Ok(Some(capture));
+    }
     let declaration: Declaration = decoded(&data)?;
     let ids: Vec<_> = ordered_entries(tx)?.into_iter().filter(|entry| entry.seq <= declaration.0).map(|entry| entry.id).collect();
     if ids.len() > PENDING_LIMIT {
@@ -128,9 +140,23 @@ pub(super) fn declaration<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<Decl
             };
             Ok((through, complete, bound))
         }
-        (None, None) => Ok(capture.map_or((0, false, 0), |c| c.declaration)),
+        (None, None) => match capture {
+            Some(capture) => Ok(capture.declaration),
+            None => { let (through, bound) = replay_limit(tx)?; Ok((through, false, bound)) }
+        },
         _ => Err(RuntimeError::Input("incomplete local pending declaration capture".into())),
     }
+}
+
+// A rejected echoed request releases only its own declaration. An unrelated
+// stale response cannot erase a newer capture with different bounds.
+pub(super) fn reject_capture<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<(), RuntimeError> {
+    if let Some(capture) = load_capture(tx)?
+        && (page.pending_through, page.pending_complete, page.pending_bound) ==
+            (Some(capture.declaration.0), Some(capture.declaration.1), Some(capture.declaration.2)) {
+        clear_capture(tx)?;
+    }
+    Ok(())
 }
 
 pub(super) fn clear_capture<T: DeviceTx>(tx: &T) -> Result<(), RuntimeError> {

@@ -64,7 +64,7 @@ fn publication_result<S: DeviceStore>(store: S) {
     assert_eq!(response["ok"]["published"], false, "{response}");
     assert_eq!(transactions.get(), before + 1, "apply may not reopen a transaction after commit");
     let response = crate::call::call(&mut device, serde_json::json!({"op":"apply", "first":false,
-        "page":{"snapshot":false,"snapshot_catchup":true,"watermark":1,"images_at":1,"more":false,"events":[]}}));
+        "page":{"snapshot":false,"snapshot_catchup":true,"requested_watermark":1,"watermark":1,"images_at":1,"more":false,"events":[]}}));
     assert_eq!(response["ok"]["published"], true, "{response}");
     assert_eq!(transactions.get(), before + 2, "each apply supplies its result from its own transaction");
 }

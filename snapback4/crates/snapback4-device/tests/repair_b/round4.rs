@@ -49,7 +49,7 @@ fn replacement_disposes<H: Host>(h: &mut H) {
 }
 round4_stores!(replacement_discards_same_position_slot_and_its_receipts, replacement_disposes);
 
-fn incarnation_lifetime<H: Host>(h: &mut H) {
+fn incarnation_lifetime_case<H: Host>(h: &mut H, clear: bool) {
     for mode in ["adopt-keep", "adopt-drop", "open-keep", "open-drop"] {
         let name = format!("identity-{mode}");
         let (mut e, b) = compile(&format!("{SOURCE}\nquery stamp():\n  return 'A1'\n"));
@@ -72,6 +72,10 @@ fn incarnation_lifetime<H: Host>(h: &mut H) {
                 "store_id":state.store_id,"send_revision":state.send_revision}));
             assert!(response.get("denied").is_none(), "{response}");
         } else { h.close(&name, d); d = h.open(&name, Some(a2.clone())).unwrap(); }
+        if clear {
+            let response = snapback4_device::call::call(&mut d, json!({"op":"clear_rows"}));
+            assert!(response.get("denied").is_none(), "{response}");
+        }
         assert!(!d.publication_pending().unwrap(), "identity alone is not unpublished effects");
         h.close(&name, d);
         let mut d = h.open(&name, None).unwrap();
@@ -114,3 +118,7 @@ fn observed_identity<H: Host>(h: &mut H) {
     assert!(observed.reset && observed.backend_required, "an authenticated identity is known even before staging");
 }
 round4_stores!(observed_incarnation_is_known_before_first_apply, observed_identity);
+
+fn incarnation_lifetime<H: Host>(h: &mut H) { incarnation_lifetime_case(h, false); }
+fn row_reset_lifetime<H: Host>(h: &mut H) { incarnation_lifetime_case(h, true); }
+round4_stores!(row_reset_preserves_incarnation_and_retires_its_receipts, row_reset_lifetime);

@@ -60,7 +60,7 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 let (jobs, reads) = device.install_native(&bytes, text(&request, "digest")?, generation)?;
                 json!({ "jobs": jobs, "reads": reads })
             }
-            "sync_state" => encoded(&device.sync_state()?)?,
+            "sync_state" => encoded(&if request.get("capture").and_then(Json::as_bool) == Some(false) { device.sync_state_read()? } else { device.sync_state()? })?,
             "begin_send" => json!({ "send_revision": device.begin_send()? }),
             "adopt" => {
                 let mut expected = std::collections::BTreeMap::new();

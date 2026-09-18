@@ -147,25 +147,29 @@ fn tombstones<H: Host>(h: &mut H) {
     let (mut e, mut d) = setup(h);
     admit(&mut d, "pending", "bump", json!({"k":"a"}));
     let w = d.state().unwrap().0;
-    // Unknown-head compatibility path: these effects stay private until refusal.
+    // A known intersecting image holds these effects private until refusal.
     d.sync_state().unwrap();
-    let mut p: StreamPage = serde_json::from_value(json!({"snapshot":false,"events":[{"table":"counters","id":"a","kind":"del"}],"watermark":w+1,"more":true})).unwrap();
+    let mut p: StreamPage = serde_json::from_value(json!({"snapshot":false,"events":[{"table":"counters","id":"a","kind":"del"}],"watermark":w+1,"more":true,"images_at":w+10,"committed_above":{"pending":w+10}})).unwrap();
+    p.requested_watermark = Some(d.sync_state_read().unwrap().transfer_watermark);
     d.apply(&p, false).unwrap();
     assert_eq!(value(&mut d, "a"), Some(1));
     p.events = serde_json::from_value(json!([{"table":"counters","id":"a","kind":"put","data":{"id":"a","n":7}}])).unwrap();
     p.watermark += 1;
+    p.requested_watermark = Some(d.sync_state_read().unwrap().transfer_watermark);
     d.apply(&p, false).unwrap();
     assert_eq!(value(&mut d, "a"), Some(1));
     d.settle("pending", None).unwrap();
     assert_eq!(value(&mut d, "a"), Some(0));
-    p.events.clear(); p.more = false;
+    p.events.clear(); p.more = false; p.images_at = Some(p.watermark); p.committed_above.clear();
+    p.requested_watermark = Some(d.sync_state_read().unwrap().transfer_watermark);
     d.apply(&p, false).unwrap();
     assert_eq!(value(&mut d, "a"), Some(7));
     // A second deferred tombstone survives reopen and is actually installed.
     admit(&mut d, "pending2", "bump", json!({"k":"a"}));
     d.sync_state().unwrap();
     p.events = serde_json::from_value(json!([{"table":"counters","id":"a","kind":"del"}])).unwrap();
-    p.watermark += 1; p.more = true;
+    p.watermark += 1; p.more = true; p.images_at = Some(w+10); p.committed_above.insert("pending2".into(),w+10);
+    p.requested_watermark = Some(d.sync_state_read().unwrap().transfer_watermark);
     d.apply(&p, false).unwrap();
     h.close("repair", d);
     let mut d = h.open("repair", None).unwrap();
@@ -174,14 +178,15 @@ fn tombstones<H: Host>(h: &mut H) {
     assert_eq!(value(&mut d, "a"), Some(7));
     assert_eq!(d.state().unwrap().0, w + 2);
     assert_eq!(d.sync_state().unwrap().transfer_watermark, w + 3);
-    p.events.clear(); p.more = false;
+    p.events.clear(); p.more = false; p.images_at = Some(p.watermark); p.committed_above.clear();
+    p.requested_watermark = Some(d.sync_state_read().unwrap().transfer_watermark);
     d.apply(&p, false).unwrap();
     assert_eq!(value(&mut d, "a"), None);
     assert_eq!(d.query("ordered", "dev:alice", &json!({}), 100).unwrap().data.as_array().unwrap().len(), 1);
     // Avoid an unused Engine binding obscuring the real fixture's origin.
     assert_eq!(e.stream("dev:alice", 0, 100).unwrap().images_at, Some(w));
 }
-stores!(unknown_head_refusal_delete_recreate_and_reopen, tombstones);
+stores!(known_gap_refusal_delete_recreate_and_reopen, tombstones);
 
 fn cap_reentry<H: Host>(h: &mut H) {
     let (mut e, mut d) = setup(h);
@@ -272,7 +277,7 @@ fn legacy_terminal<H: Host>(h: &mut H) {
     bump(&mut e, "q", "a", "dev:alice");
     let mut p = next(&mut e, &mut d, 1);
     p.images_at = None; p.committed_above.clear();
-    assert!(d.apply(&p,false).unwrap().is_empty());
+    assert!(d.apply_publication(&p,false).unwrap().1);
     let mut p = next(&mut e, &mut d, 1);
     p.images_at = None; p.committed_above.clear();
     assert!(!p.more && p.acknowledged.contains_key("q"));
@@ -337,7 +342,8 @@ fn replacing<H: Host>(h: &mut H, catchup: bool) {
     let mut p=snapshot_pages(&mut e,"dev:alice",100).remove(0);
     p.stage_snapshot=catchup;
     if catchup { d.apply(&p,true).unwrap(); }
-    p.snapshot=!catchup; p.snapshot_catchup=catchup; p.stage_snapshot=false; p.more=catchup;
+    p.snapshot=!catchup; p.snapshot_catchup=catchup; p.stage_snapshot=false; p.more=true;
+    if !catchup { p.next=Some("next".into()); }
     p.images_at=Some(w+2); p.committed_above.insert("q".into(),w+2);
     p.events.iter_mut().find(|e| e.id=="a").unwrap().data=Some(json!({"id":"a","n":2}));
     let state=d.sync_state().unwrap();
@@ -347,6 +353,14 @@ fn replacing<H: Host>(h: &mut H, catchup: bool) {
     assert_eq!(d.state().unwrap().0,w);
     assert_eq!(value(&mut d,"a"),Some(1));
     assert!(d.queued().unwrap()[0].observed_seq.is_none());
+    if !catchup {
+        let mut terminal_snapshot = p.clone();
+        terminal_snapshot.after = p.next.clone(); terminal_snapshot.next = None; terminal_snapshot.more = false;
+        terminal_snapshot.images_at = Some(w); terminal_snapshot.committed_above.clear(); terminal_snapshot.events.clear();
+        terminal_snapshot.stage_snapshot = true;
+        d.apply(&terminal_snapshot, false).unwrap();
+    }
+    p.requested_watermark = Some(w);
     p.snapshot=false; p.snapshot_catchup=true; p.more=false; p.watermark=w+2; p.images_at=Some(w+2); p.committed_above.clear(); p.acknowledged.insert("q".into(),w+2);
     p.events.clear();
     d.apply(&p,false).unwrap();
@@ -362,7 +376,7 @@ fn folds<H: Host>(h: &mut H) {
     admit(&mut d,"q","bump",json!({"k":"a"}));
     let w=d.state().unwrap().0;
     d.sync_state().unwrap();
-    let make=|n,events| serde_json::from_value::<StreamPage>(json!({"snapshot":false,"events":events,"watermark":n,"more":true,"images_at":w+3,"committed_above":{"q":w+3}})).unwrap();
+    let make=|n,events| serde_json::from_value::<StreamPage>(json!({"snapshot":false,"requested_watermark":n-1,"events":events,"watermark":n,"more":true,"images_at":w+3,"committed_above":{"q":w+3}})).unwrap();
     let put=|k,n| json!({"table":"counters","kind":"put","id":k,"data":{"id":k,"n":n}});
     let p=make(w+1,vec![put("new",4),json!({"table":"counters","kind":"del","id":"b"}),put("b",5)]);
     assert!(d.apply(&p,false).unwrap().is_empty());
@@ -458,3 +472,6 @@ mod resumption;
 
 #[path = "repair_b/round4.rs"]
 mod round4;
+
+#[path = "repair_b/round5.rs"]
+mod round5;

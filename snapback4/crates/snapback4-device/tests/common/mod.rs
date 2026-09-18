@@ -71,7 +71,7 @@ pub fn snapshot_pages(engine: &mut Engine, principal: &str, limit: usize) -> Vec
 pub fn stream_page(engine: &mut Engine, principal: &str, watermark: u64) -> StreamPage {
     let page = engine.stream(principal, watermark, 1_000).unwrap();
     serde_json::from_value(serde_json::json!({
-        "snapshot": false, "images_at": page.images_at, "joined": page.joined, "acquisitions": page.acquisitions,
+        "snapshot": false, "requested_watermark": watermark, "images_at": page.images_at, "joined": page.joined, "acquisitions": page.acquisitions,
         "events": page.events.iter().map(|e| serde_json::json!({ "table": e.table, "kind": e.kind, "id": e.id, "data": e.data.as_ref().map(snapback4_core::wire::to_json) })).collect::<Vec<_>>(),
         "watermark": page.watermark, "more": page.more, "generation": engine.generation(),
     })).unwrap()

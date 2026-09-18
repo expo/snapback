@@ -107,7 +107,7 @@ fn member(person: &str) -> (String, Value) {
 fn stream_at(engine: &mut Engine, from: u64, now: i64) -> snapback4_device::device::StreamPage {
     let stream = engine.stream_at("dev:bob", from, 1_000, now).unwrap();
     serde_json::from_value(serde_json::json!({
-        "snapshot":false, "events":stream.events.iter().map(|e| serde_json::json!({"table":e.table,"kind":e.kind,"id":e.id,"data":e.data.as_ref().map(snapback4_core::wire::to_json)})).collect::<Vec<_>>(),
+        "snapshot":false, "requested_watermark":from, "events":stream.events.iter().map(|e| serde_json::json!({"table":e.table,"kind":e.kind,"id":e.id,"data":e.data.as_ref().map(snapback4_core::wire::to_json)})).collect::<Vec<_>>(),
         "acquisitions":stream.acquisitions,"joined":stream.joined,"watermark":stream.watermark,"more":stream.more,"generation":engine.generation()
     })).unwrap()
 }

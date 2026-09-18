@@ -180,6 +180,7 @@ fn retention<H: Host>(host: &mut H, horizon: bool) where H::Store: PhysicalRows 
                 let head = engine.seq().unwrap();
                 let mut page = stream(&mut engine, head, now);
                 page.snapshot_catchup = true;
+                page.requested_watermark = Some(head);
                 device.apply(&page, false).unwrap();
             }
         } else {
@@ -288,6 +289,7 @@ fn confirmed_only<H: Host>(host: &mut H) where H::Store: PhysicalRows {
     let mut catchup = stream(&mut engine, joined.watermark, 150);
     assert!(catchup.events.iter().any(|e| e.table == "messages" && e.kind == "del" && e.id == "m25"));
     catchup.snapshot_catchup = true;
+    catchup.requested_watermark = Some(joined.watermark);
     device.apply(&catchup, false).unwrap();
     assert_eq!(observation(&mut device, label, "confirmed/deletion", 150), (24, false));
     for (i, page) in snapshot(&mut engine, 150).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
@@ -438,6 +440,7 @@ fn removal_between_pages<H: Host>(host: &mut H) where H::Store: PhysicalRows {
     retained_answer(&mut device, false, 150);
     let mut catchup = stream(&mut engine, joined.watermark, 150);
     catchup.snapshot_catchup = true;
+    catchup.requested_watermark = Some(joined.watermark);
     device.apply(&catchup, false).unwrap();
     assert_eq!(observation(&mut device, host.label(), "removal-between-pages", 150), (25, false));
     retained_answer(&mut device, true, 150);

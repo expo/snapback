@@ -30,7 +30,7 @@ pub(super) fn decode_cursor(value: Option<String>) -> Result<Option<u64>, Runtim
 
 pub(super) fn validate(page: &StreamPage) -> Result<(), RuntimeError> {
     boundary::validate_positions(page)?;
-    if !page.snapshot && !page.more && page.images_at.is_some_and(|head| head > page.watermark) {
+    if !page.more && page.images_at.is_some_and(|head| head > page.watermark) {
         return Err(RuntimeError::Input("terminal stream page has images beyond its watermark".into()));
     }
     if page.acknowledged.values().any(|seq| *seq > page.watermark) {
@@ -43,7 +43,7 @@ pub(super) fn validate(page: &StreamPage) -> Result<(), RuntimeError> {
 }
 
 pub(super) fn should_defer<T: DeviceTx>(tx: &T, programs: &BTreeMap<String, Program>, page: &StreamPage, published: u64, declaration: predictions::Declaration) -> Result<bool, RuntimeError> {
-    if page.images_at.is_some_and(|head| head <= page.watermark) || (page.images_at.is_none() && !page.more) { return Ok(false); }
+    if page.images_at.is_some_and(|head| head <= page.watermark) || !page.more { return Ok(false); }
     // Exactly the replay eligibility this page would publish, evaluated before
     // its acknowledgements can remove a prediction from the visible overlay.
     let prospective = (declaration.0, declaration.2);
@@ -51,7 +51,7 @@ pub(super) fn should_defer<T: DeviceTx>(tx: &T, programs: &BTreeMap<String, Prog
     for data in tx.outbox_entries()? {
         let q: Queued = decoded(&data)?;
         if predictions::replayable(&q, programs, published, prospective, store.as_deref())
-            && (page.images_at.is_none() || page.committed_above.contains_key(&q.id)) { return Ok(true); }
+            && page.committed_above.contains_key(&q.id) { return Ok(true); }
     }
     Ok(false)
 }

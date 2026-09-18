@@ -13,10 +13,10 @@ fn send_restart<H: Host>(h: &mut H) {
     e.seed([("counters".into(), object([("id", id("a")), ("n", Value::Int(7))]))]).unwrap();
     let mut d = h.open("restart", Some(b)).unwrap();
     let mut p = snapshot_pages(&mut e, "dev:alice", 100).remove(0);
-    p.store_id = Some("store".into()); p.stage_snapshot = true;
+    p.store_id = Some("store".into()); p.stage_snapshot = true; p.more = true; p.next = Some("continuation".into());
     d.observe_store(&p).unwrap(); d.apply(&p, true).unwrap();
     let interrupted = d.sync_state().unwrap();
-    assert!(interrupted.snapshot_catchup);
+    assert!(!interrupted.snapshot_catchup);
     admit(&mut d, "q", "bump", json!({"k":"a"}));
     d.begin_send().unwrap();
     let seq = bump(&mut e, "q", "a", "dev:alice");
@@ -70,13 +70,13 @@ resumption_stores!(generation_adoption_compares_published_identity, private_adop
 fn private_replacement<H: Host>(h: &mut H) {
     let (_, b) = compile(SOURCE);
     let mut d = h.open("private-replace", Some(b.clone())).unwrap();
-    // Unacquired writes queue without a prediction, so this legacy partial
+    // Unacquired writes queue without a prediction, so this gap-bearing partial
     // page uses a restored predictable outbox entry to exercise private folding.
     let q = Queued { id:"q".into(), seq:1, op:"bump".into(), args:json!({"k":"a"}), new_ids:vec![],
         predicted:vec![], viewer:"dev:alice".into(), now:100, predictable:true,
         sent_seq:None, receipt_store:None, observed_seq:None };
     d.enqueue(&q).unwrap(); d.sync_state().unwrap();
-    let p: StreamPage = serde_json::from_value(json!({"snapshot":false,"store_id":"A","watermark":1,"more":true,
+    let p: StreamPage = serde_json::from_value(json!({"snapshot":false,"store_id":"A","watermark":1,"more":true,"images_at":2,"committed_above":{"q":2},
         "events":[{"table":"counters","kind":"put","id":"a","data":{"id":"a","n":7}}]})).unwrap();
     d.observe_store(&p).unwrap(); d.apply(&p, false).unwrap();
     assert!(d.publication_pending().unwrap());
@@ -88,7 +88,7 @@ fn private_replacement<H: Host>(h: &mut H) {
     assert_eq!(observation.retired.get("q"), Some(&2));
     assert!(d.queued().unwrap().is_empty());
     d.adopt(b).unwrap();
-    replacement.more = false;
+    replacement.more = false; replacement.images_at = Some(replacement.watermark); replacement.committed_above.clear();
     d.apply(&replacement, false).unwrap();
     assert_eq!(value(&mut d, "a"), None, "A's private row must never publish under B");
     h.close("private-replace", d);

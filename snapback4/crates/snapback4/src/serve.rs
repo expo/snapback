@@ -640,9 +640,11 @@ struct StreamReply {
     acknowledged: BTreeMap<String, u64>,
     // Serialized order is alphabetical among the always-present fields, which
     // is what the byte-exact encoding test compares against `json!`.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     committed_above: BTreeMap<String, u64>,
     events: SyncEvents,
     generation: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
     images_at: Option<u64>,
     joined: wire::HeldGroups,
     more: bool,

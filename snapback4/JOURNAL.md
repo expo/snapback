@@ -36751,3 +36751,58 @@ narrow shim which refuses actual nested Wasm/release builds; its SHA256 remains
 `e18f1c343d88c2f1642be54d212c1eb9084ffdd51a8d3c0fcabd329c23616697`.
 No push, rebase, merge, whole suite, simulator suite, witness, Wasm build, release
 build or repository-root generator ran. The supervisor retains integration.
+
+
+## 2026-09-17 — Repair B, review fix round 5: cursor, request and identity lifetimes
+
+The author corrected the legacy-wire rule: absent image-head/committed-ID fields
+mean no deferral. Old servers retain the original double-apply limitation; holding
+every replayable local write would wedge a live tail. LLP 3000.001 records the
+correction. Terminal snapshots now share ordinary pages' no-gap validation, and
+the deferral predicate independently excludes all terminal pages.
+
+Live transfer progress precedes a terminal snapshot cut. Sends abort only paging
+snapshots; terminal catch-up keeps its owner/cut and updates its send revision.
+Private continuations require their request cursor and compare against that floor;
+first replacements can start from zero. Snapshot catch-up cannot masquerade as an
+identity-free ordinary rewind. Apply observes first identity privately and promotes
+the page-or-staged identity only with publication. Row-only reset now preserves
+known private incarnation; a same-generation replacement must adopt its own backend
+and retire the discarded incarnation's receipts. Both-store dispatcher tests and
+an HTTP/native transport test exercise A→A2→row reset→B through reopens.
+
+Corrections to the round 3 durable-key table:
+
+| State | Corrected writers/readers/clearers |
+| --- | --- |
+| `device:declaration:capture` | Actual request preparation writes it; repeated request preparation returns it unchanged. Startup/readiness/identity polling uses `sync_state` with `capture:false`, a read transaction. Send does not erase it. Successful apply, a matching echoed rejection, or reset consumes it. Stored captures validate cap, uniqueness, interval and live prefix membership. |
+| `device:declaration:published` | A page lacking both capture and echo preserves the existing exclusion interval. Publication still installs its prospective declaration before replay. |
+| Snapshot owner/next/through/send revision | Send clears these only while NEXT is nonempty. NEXT="" survives with the new revision; the deferred live cursor takes precedence in request progress. |
+| `device:deferred:identity` / `device:store_id` | Observation ignores omitted identity. Publication uses the named page or preserved private identity before consuming the slot. Generation installation and row-only clearing preserve known incarnation; replacement settles its known receipts before disposal. |
+
+Dequeue now restores the base and replays survivors atomically. The core rejects
+inverted receipt cuts. The HTTP encoder omits absent/empty additive fields, with
+both populated and omitted forms checked by the CLI's byte-exact test. Review
+claims about inherited snapshot rows, rejected held-row media, recording reads,
+anonymous/foreign receipt ownership and empty acquisition markers were evaluated
+against their full callers; the evidence is in `REPAIR-B-HANDOFF.md`.
+
+Old synthetic fixtures now echo their actual private request positions, and those
+intended to defer use known image gaps instead of the corrected legacy behavior.
+The send-abort regression now constructs a snapshot still paging. These fixture
+changes retain their row, history, media and receipt assertions.
+
+Final verification: `cargo test -p snapback4-device` exited 0 (**593 passed,
+0 failed, 3 existing ignored**); `cargo test -p snapback4-core` exited 0 (**160
+passed, 0 failed**); `cargo test -p snapback4` exited 0 (**265 passed, 0 failed**).
+All five focused TypeScript/native transport tests passed, including the backend
+fetch and receipt assertions after row-only reset; strict TypeScript compilation
+passed. Twenty-eight distinct mutations compiled and failed their intended tests,
+with passing controls. They ran against copied source; the workspace source was
+never replaced, and all recorded source hashes match the final files. The normal
+Cargo runs use the repository test profile and no fixture shim; mutation controls
+and mutants use identical native features/debug assertions with optimization off.
+Per-finding dispositions, complete verbatim command results, mutation source edits,
+commands and logs are in `target/review-fix5/report.md`; the durable summary is
+`REPAIR-B-HANDOFF.md`. Only the requested crate suites and affected checks ran;
+no push, rebase or merge was performed.

@@ -759,6 +759,7 @@ impl Engine {
     /// The same receipt lookup split at the event cut and the image read head.
     pub fn acknowledged_at(&mut self, principal: &str, pending: &[String], through: u64, images_at: u64) -> Result<(BTreeMap<String, u64>, BTreeMap<String, u64>), RuntimeError> {
         use rusqlite::OptionalExtension;
+        if images_at < through { return Err(RuntimeError::Input("image head precedes the event watermark".into())); }
         if pending.len() > 256 || pending.iter().any(|id| id.len() > 128) { return Err(RuntimeError::Input("sync accepts at most 256 pending ids of at most 128 bytes".into())); }
         let tx = self.store.read_transaction()?;
         let mut acknowledged = BTreeMap::new();

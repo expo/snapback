@@ -73,7 +73,9 @@ fn presence_effects_send_predicts_identical_rows_on_both_stores() {
             backend.generation = engine.generation();
             let label = host.label();
             let mut device = host.open(&format!("presence-{}", connected.len()), Some(backend)).unwrap();
-            for (n, page) in snapshot_pages(&mut engine, "dev:alice", 10).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
+            let pages = snapshot_pages(&mut engine, "dev:alice", 10);
+            let from = pages.last().unwrap().watermark;
+            for (n, page) in pages.iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
             let online = query(&mut *device, "online", "dev:alice", serde_json::json!({"p":"dev:bob"}), 1000);
             assert_eq!(online["complete"], false, "presence queries remain unknown on {label}");
             ok(device.call(serde_json::json!({ "op": "admit", "entry": Queued { id: "send-write".into(), seq: 1, op: "send".into(), args: serde_json::json!({"roomId":"room", "body":"offline hello"}), new_ids: vec!["msg".into()], predicted: vec![], viewer: "dev:alice".into(), now: 1234, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None } })));
@@ -96,7 +98,7 @@ fn presence_effects_send_predicts_identical_rows_on_both_stores() {
             actual.sort();
             assert_eq!(actual, ["dev:bob", "dev:carol"]);
             ok(device.call(serde_json::json!({"op":"settle", "id":"send-write", "seq":seq})));
-            ok(apply(&mut *device, &stream_page(&mut engine, "dev:alice", 0), false));
+            ok(apply(&mut *device, &stream_page(&mut engine, "dev:alice", from), false));
             let confirmed = query(&mut *device, "message", "dev:alice", serde_json::json!({"id":"msg"}), 2000);
             assert_ne!(confirmed["data"]["pending"], true);
             println!("{label}, connected={}: predicted rows=1, identical server rows=1, notify={}", connected.len(), effects.len());

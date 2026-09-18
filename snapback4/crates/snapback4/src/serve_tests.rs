@@ -1397,7 +1397,7 @@ fn sync_stream_encoding_preserves_sequences_scopes_and_empty_groups() {
     });
     assert_eq!(serde_json::to_vec(&reply).unwrap(), serde_json::to_vec(&expected).unwrap());
     let reply = StreamReply { images_at: None, committed_above: BTreeMap::new(), acquisitions: vec![], store_id: "store-a".into(), acknowledged: BTreeMap::new(), events: SyncEvents::Stream(vec![]), generation: 4, joined: BTreeMap::new(), more: false, snapshot: false, watermark: 9 };
-    let expected = json!({"acknowledged":{},"committed_above":{},"events":[],"generation":4,"images_at":null,"joined":{},"more":false,"snapshot":false,"store_id":"store-a","watermark":9});
+    let expected = json!({"acknowledged":{},"events":[],"generation":4,"joined":{},"more":false,"snapshot":false,"store_id":"store-a","watermark":9});
     assert_eq!(serde_json::to_vec(&reply).unwrap(), serde_json::to_vec(&expected).unwrap());
 }
 

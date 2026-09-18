@@ -214,6 +214,7 @@ test("interrupted snapshot catch-up resumes its durable mode", { timeout: 5000 }
 test("generation adoption compares published identity during private acquisition", { timeout: 5000 }, async () => {
   const { createLocalClient: create } = await import(process.env.REPAIR_B_LOCAL ?? "../dist/local.js");
   let generation = 1, staged = false, published = 0, adopted = 0, serverGeneration = 1;
+  const stateReads = [];
   const backend = () => ({ generation: serverGeneration, schema: { tables: {} }, programs: [] });
   const core = { close: async () => {}, call: async request => {
     switch (request.op) {
@@ -221,7 +222,7 @@ test("generation adoption compares published identity during private acquisition
       case "meta": return { ok: null };
       case "state": return { ok: { watermark: published, generation } };
       case "queued": return { ok: [] };
-      case "sync_state": return { ok: { acquired: published > 0, backend_required: false,
+      case "sync_state": stateReads.push({ capture: request.capture, requested: false }); return { ok: { acquired: published > 0, backend_required: false,
         store_id: published ? "store" : null, transfer_store_id: staged || published ? "store" : null,
         watermark: published, transfer_watermark: staged ? 5 : published, snapshot_catchup: staged,
         generation, pending_ids: [], pending_through: 0, pending_complete: true, pending_bound: 0, send_revision: 0 } };
@@ -246,6 +247,7 @@ test("generation adoption compares published identity during private acquisition
       const path = new URL(url).pathname;
       if (path === "/schema") return Response.json(backend());
       if (path === "/sync") {
+        stateReads.at(-1).requested = true;
         requests++;
         const request = JSON.parse(init.body);
         if (requests === 2) serverGeneration = 2;
@@ -256,8 +258,85 @@ test("generation adoption compares published identity during private acquisition
     },
   });
   try {
+    assert.ok(stateReads.some(read => !read.requested));
+    assert.ok(stateReads.every(read => read.requested || read.capture === false), "every state read outside a sync request must be read-only");
     assert.equal(adopted, 1, "generation adoption must succeed on its first attempt");
     assert.equal(published, 5);
     assert.equal(requests, 4);
   } finally { await client.close(); }
+});
+
+test("row reset between A2 acquisition and B fetches B's backend and retires A's receipt", { timeout: 60_000 }, async t => {
+  const directory = mkdtempSync(join(tmpdir(), "sb4-repair-b-reset-"));
+  const servers = [];
+  let client, core, deviceName, switched = false, adoptedA2 = false, bSchemas = 0, schemaReads = 0, receipt;
+  t.after(async () => {
+    await client?.close(); await core?.close();
+    for (const { server, exited } of servers) { if (server.exitCode == null && server.signalCode == null) server.kill(); await exited; }
+    rmSync(directory, { recursive: true, force: true });
+  });
+  async function host(label) {
+    const cwd = join(directory, label); mkdirSync(join(cwd, "snapback"), { recursive: true });
+    writeFileSync(join(cwd, "snapback/schema.q"), `${source}\nquery stamp():\n  return '${label}'\n`);
+    const server = spawn(binary, ["dev", "--port", "0", "--no-watch", "--memory", "--hold-schedules"], { cwd, stdio: ["ignore", "pipe", "pipe"] });
+    const exited = once(server, "exit"); servers.push({ server, exited });
+    let log = ""; server.stderr.on("data", chunk => { log += chunk; });
+    return await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error(log)), 15_000);
+      server.once("exit", () => { clearTimeout(timer); reject(new Error(log)); });
+      server.stdout.on("data", chunk => { log += chunk; const address = log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; if (address) { clearTimeout(timer); resolve(address); } });
+    });
+  }
+  const a = await host("A1"), b = await host("B");
+  const headers = { "x-snapback-persona": "alice", "content-type": "application/json" };
+  async function post(base, path, body) {
+    const r = await fetch(`${base}${path}`, { method: "POST", headers, body: JSON.stringify(body) });
+    const result = await r.json(); assert.equal(r.status, 200, JSON.stringify(result)); return result;
+  }
+  await post(a, "/seed", [{ table: "counters", row: { id: "a", n: 0 } }]);
+  await post(b, "/seed", [{ table: "counters", row: { id: "a", n: 50 } }]);
+  const opener = processDevice({ binary, dir: join(directory, "devices") });
+  async function ok(request) { const reply = await core.call(request); assert.ok(!reply.denied, JSON.stringify(reply)); return reply.ok; }
+  client = await createLocalClient({ url: a, persona: "alice", waitSeconds: 1,
+    device: { open: async (name, backend) => {
+      deviceName = name; core = await opener.open(name, backend);
+      return { close: () => core.close(), call: async request => {
+        const reply = await core.call(request);
+        if (request.op === "adopt" && !switched && !reply.denied) adoptedA2 = true;
+        if (request.op === "apply" && request.page.snapshot && !switched && !reply.denied) {
+          assert.ok(adoptedA2); assert.equal(reply.ok.published, false);
+          await ok({ op: "admit", entry: { id: "old-a", seq: 0, op: "bump", args: {}, new_ids: [], predicted: [], viewer: "dev:alice", now: 1000, predictable: true } });
+          await ok({ op: "begin_send" });
+          receipt = (await post(a, "/m/bump", { id: "old-a", args: {} })).seq;
+          assert.ok(Number.isSafeInteger(receipt));
+          await ok({ op: "settle", id: "old-a", seq: receipt });
+          await ok({ op: "clear_rows" });
+          await core.close(); core = await opener.open(deviceName);
+          switched = true;
+        }
+        return reply;
+      } };
+    } },
+    fetch: async (input, init) => {
+      const path = new URL(input).pathname;
+      if (path === "/changes" || path === "/probe") throw new TypeError("fixture holds background polling");
+      const response = await fetch(`${switched ? b : a}${path}`, init);
+      if (path !== "/schema" && path !== "/sync") return response;
+      let body = await response.json();
+      if (path === "/schema") {
+        if (switched) bSchemas++;
+        else if (adoptedA2 || schemaReads++ > 0) body = JSON.parse(JSON.stringify(body).replaceAll('"A1"', '"A2"'));
+        body.generation = switched || schemaReads > 1 ? 2 : 1;
+      } else body.generation = 2;
+      return Response.json(body, { status: response.status });
+    },
+  });
+  assert.ok(switched);
+  assert.equal(bSchemas, 1, "same-generation replacement must fetch B's backend");
+  for (let reopen = 0; reopen < 3; reopen++) {
+    if (reopen) { await core.close(); core = await opener.open(deviceName); }
+    assert.deepEqual(await ok({ op: "queued" }), []);
+    assert.equal((await ok({ op: "query", name: "stamp", viewer: "dev:alice", args: {}, now: 1000 })).data, "B");
+    assert.equal((await ok({ op: "query", name: "counter", viewer: "dev:alice", args: {}, now: 1000 })).data.n, 50);
+  }
 });

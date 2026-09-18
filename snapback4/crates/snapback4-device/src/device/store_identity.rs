@@ -68,7 +68,7 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
     let receipt_identity = previous.as_ref().or(transfer_identity.as_ref());
     let private_identity = previous.is_none() && page.store_id.is_some() && transfer_identity == page.store_id;
     let reset = (identity_changed && !private_identity && (receipt_identity.is_some() || tx.meta(ACQUIRED)?.is_some_and(|value| !value.is_empty()) || meta_u64(tx, WATERMARK)? > 0 || tx.meta(SNAPSHOT_OWNER)?.is_some()))
-        || (page.store_id.is_none() && page.requested_watermark.is_some_and(|requested| page.watermark < requested) && page.captured_watermark == Some(watermark));
+        || (!page.snapshot_catchup && page.store_id.is_none() && page.requested_watermark.is_some_and(|requested| page.watermark < requested) && page.captured_watermark == Some(watermark));
     let mut retired = BTreeMap::new();
     // A matching identity with a lower head is a restore, not a new store.
     // Persist the halt with the old watermark; neither retry nor adoption
@@ -104,9 +104,10 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
         tx.set_meta(BACKEND_REQUIRED, page.store_id.as_deref().unwrap_or("legacy"))?;
         tx.delete_meta(&[ACQUIRED, history::GROUPS, boundary::BOUNDARIES, boundary::REPORT])?;
     }
-    let adopt_identity = identity_changed && (publish_first || reset || previous.is_some());
+    let incoming = page.store_id.as_ref().or(transfer_identity.as_ref());
+    let adopt_identity = incoming.is_some() && previous.as_ref() != incoming && (publish_first || reset || previous.is_some());
     if adopt_identity {
-        tx.set_meta(STORE_ID, page.store_id.as_deref().expect("changed identity"))?;
+        tx.set_meta(STORE_ID, incoming.expect("changed identity"))?;
     } else if previous.is_none() {
         // Observation may be followed by backend adoption without applying
         // this page. Remember its authenticated identity independently of rows.
@@ -124,7 +125,10 @@ impl<S: DeviceStore> Device<S> {
     /// or acquiring pages. A replacement is durable even if acquisition fails.
     pub fn observe_store(&mut self, page: &StreamPage) -> Result<StoreObservation, RuntimeError> {
         let tx = self.store.transaction()?;
-        let observed = observe(&tx, page, false)?;
+        let observed = match observe(&tx, page, false) {
+            Ok(observed) => observed,
+            Err(error) => { tx.rollback()?; self.reject_sync_capture(page)?; return Err(error); }
+        };
         tx.commit()?;
         if observed.reset { self.snapshot_owner = None; }
         if observed.restore_refused { return Err(restore_error()); }
