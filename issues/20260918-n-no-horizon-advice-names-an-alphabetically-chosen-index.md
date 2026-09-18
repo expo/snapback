@@ -157,6 +157,27 @@ and per persona. The builder never ran it. That is a third, softer finding: the
 note points at `check --residency` only from the code explanation, never from
 the emitted note itself.
 
+## This is isolated, not a pattern — checked
+
+I swept every `indexes.iter().find(...)` in `snapback4-lang` and
+`snapback4-core` looking for the same vacuous-predicate shape. They are fine,
+and the reason is worth stating so nobody re-derives it:
+
+- Most carry a substantive predicate — `columns() == by_group`
+  (`schema.rs:1264`), `name == index` (`program.rs:401,496,965`,
+  `schema.rs:289`) — so the first match is unique or the choice is forced.
+- The rest (`maintain.rs:100`, `engine/write.rs:368`, `write_target.rs:102`,
+  `partition.rs:484`, `inserts.rs:87`) select an index for a **scan**. If their
+  `by` is empty the predicate does go vacuous, but for a full scan every index
+  covers exactly the same rows, so an arbitrary pick is *correct*.
+- `residency.rs:145` names the index an aggregate source is read through for a
+  residency site. Descriptive, not prescriptive: no author is told to write it.
+
+Order is what distinguishes a horizon. `last N by <index>` selects *which* rows
+a device keeps, so the index is load-bearing in a way it is not for a scan.
+That is why `bind/mod.rs:216` is the only site where a vacuous predicate turns
+into wrong advice.
+
 ## Evidence
 
 - `~/clique-sb4-20260917-astra-cal12/lanes/astra-snapback4/snapback/social.q:1-13`
