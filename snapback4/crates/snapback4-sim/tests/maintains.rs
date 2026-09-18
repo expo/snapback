@@ -100,10 +100,10 @@ fn anchored_calendar_keys_match_on_server_memory_and_sqlite() {
             }
         }
     }
-    check(Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap(), &mut e, &page, &times);
+    check(Device::open_store(MemoryStore::new(), Some(backend.clone()), "a").unwrap(), &mut e, &page, &times);
     let dir = std::env::temp_dir().join(format!("sb4-anchor-device-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    check(Device::open(&dir.join("store.sqlite"), Some(backend)).unwrap(), &mut e, &page, &times);
+    check(Device::open(&dir.join("store.sqlite"), Some(backend), "a").unwrap(), &mut e, &page, &times);
     std::fs::remove_dir_all(dir).unwrap();
     println!("calendar: hosts=3 boundary_inputs={} offset_ms=28800000 period_ms=86400000", times.len());
 }

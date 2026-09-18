@@ -121,7 +121,7 @@ fn thousand_lane_merge_loads_boundaries_once() {
     engine.seed_at(seed, 1).unwrap();
     let counts = Rc::new(counting::Counts::default());
     let store = counting::Counted { store: snapback4_device::memory::MemoryStore::new(), counts: counts.clone() };
-    let mut device = Device::open_store(store, Some(backend)).unwrap();
+    let mut device = Device::open_store(store, Some(backend), "dev:bob").unwrap();
     for (i, p) in snapshot_pages(&mut engine, "dev:bob", 10000).iter().enumerate() { device.apply(p, i == 0).unwrap(); }
     counts.legacy.set(0); counts.boundary_loads.set(0); counts.lanes.set(0);
     let read = device.query("merged", "dev:bob", &serde_json::json!({"c":null}), 20_000).unwrap();

@@ -14,27 +14,35 @@ pub struct WebDevice {
     device: Device<MemoryStore>,
 }
 
-fn refused(error: &snapback4_core::error::RuntimeError) -> JsError {
-    JsError::new(&json!({ "denied": snapback4_core::json_codec::to_value(&error.refusal()).expect("a refusal is serializable") }).to_string())
+// A constructor refusal has the same structural envelope as a call result.
+// Hosts must not recover an authorization code from formatted Error text.
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = JSON, js_name = parse)]
+    fn refusal_value(text: &str) -> JsValue;
+}
+
+fn refused(error: &snapback4_core::error::RuntimeError) -> JsValue {
+    refusal_value(&json!({ "denied": snapback4_core::json_codec::to_value(&error.refusal()).expect("a refusal is serializable") }).to_string())
 }
 
 #[wasm_bindgen]
 impl WebDevice {
     /// Open on `backend` (`GET /schema`'s JSON text, or null to open on the
     /// backend kept) with `kept`: a JSON array of the changes the host
-    /// persisted, in order. Throws the refusal as JSON text.
+    /// persisted, in order. Throws the structured `{ denied: Refusal }` envelope.
     #[wasm_bindgen(constructor)]
-    pub fn new(backend: Option<String>, kept: &str) -> Result<WebDevice, JsError> {
+    pub fn new(backend: Option<String>, kept: &str, viewer: &str) -> Result<WebDevice, JsValue> {
         let backend = match backend {
-            Some(text) if !text.is_empty() && text != "null" => Some(snapback4_core::json_codec::from_text::<Backend>(&text).map_err(|e| JsError::new(&json!({ "denied": { "code": "E_INPUT", "family": "input", "message": e.to_string() } }).to_string()))?),
+            Some(text) if !text.is_empty() && text != "null" => Some(snapback4_core::json_codec::from_text::<Backend>(&text).map_err(|e| refused(&snapback4_core::error::RuntimeError::Input(e.to_string())))?),
             _ => None,
         };
-        let changes: Vec<Change> = if kept.is_empty() { Vec::new() } else { snapback4_core::json_codec::from_text(kept).map_err(|e| JsError::new(&json!({ "denied": { "code": "E_STORE", "family": "store", "message": format!("the kept changes do not parse: {e}") } }).to_string()))? };
+        let changes: Vec<Change> = if kept.is_empty() { Vec::new() } else { snapback4_core::json_codec::from_text(kept).map_err(|e| refused(&snapback4_core::error::RuntimeError::Store(format!("the kept changes do not parse: {e}"))))? };
         let mut store = MemoryStore::new();
         store.load(changes).map_err(|e| refused(&e))?;
         // What the open installed (the backend, the generation, a reset) is
         // the host's to keep too: the first drain carries it.
-        let device = Device::open_store(store, backend).map_err(|e| refused(&e))?;
+        let device = Device::open_store(store, backend, viewer).map_err(|e| refused(&e))?;
         Ok(WebDevice { device })
     }
 

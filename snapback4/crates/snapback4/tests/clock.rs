@@ -68,8 +68,8 @@ fn advancing_clock_expires_rows_and_fires_two_minute_schedule_on_server_and_both
     let stream = host.post("/sync", json!({"from":snapshot["watermark"], "stream":true}));
     assert!(!stream["events"].as_array().unwrap().is_empty(), "{stream}");
     let backend: Backend = serde_json::from_value(host.request("GET", "/schema", json!(null))).unwrap();
-    device_sync(Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap(), &snapshot, &stream, local_now);
-    device_sync(Device::open(&f.0.join("device.sqlite"), Some(backend)).unwrap(), &snapshot, &stream, local_now);
+    device_sync(Device::open_store(MemoryStore::new(), Some(backend.clone()), "dev:alice").unwrap(), &snapshot, &stream, local_now);
+    device_sync(Device::open(&f.0.join("device.sqlite"), Some(backend), "dev:alice").unwrap(), &snapshot, &stream, local_now);
     println!("clock: advanced_ms=185000 expiry_rows=1 schedule_runs=1 device_stores=2 wall_ms={}", start.elapsed().as_millis());
 }
 

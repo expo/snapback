@@ -58,7 +58,7 @@ function idbModel(t) {
 
 for (const fault of ["before-commit", "after-commit"]) test(`IndexedDB model: reset termination ${fault} preserves one complete transaction`, async t => {
   const model = idbModel(t), persist = indexedDbPersistence(), opener = webDevice({ wasm, persist }), name = `reset-${fault}`;
-  let core = await opener.open(name, backend);
+  let core = await opener.open(name, backend, "dev:alice");
   ok(await core.call({ op: "apply", first: true, page: page("A", events) }));
   for (const [i, id] of ["known", "unknown"].entries()) ok(await core.call({ op: "admit", entry: {
     id, seq: i + 1, op: "send", args: { conversationId: "c1", body: id }, new_ids: [id], viewer: "dev:alice", now: 10, predictable: true,
@@ -70,7 +70,7 @@ for (const fault of ["before-commit", "after-commit"]) test(`IndexedDB model: re
   model.interrupt(fault);
   await assert.rejects(core.call({ op: "observe_store", page: page("B", []) }), new RegExp(fault));
   // A new wasm device models losing all runtime state at termination.
-  await core.close(); core = await opener.open(name, null); t.after(() => core.close());
+  await core.close(); core = await opener.open(name, null, "dev:alice"); t.after(() => core.close());
   const after = await persist.load(name);
   if (fault === "before-commit") {
     assert.deepEqual(after, before);
@@ -86,9 +86,9 @@ for (const fault of ["before-commit", "after-commit"]) test(`IndexedDB model: re
   assert.equal(outbox[0].predictable, false); assert.deepEqual(outbox[0].predicted, []);
   assert.ok((await core.call({ op: "apply", first: true, page: page("B", []) })).denied);
   model.interrupt("before-commit");
-  await assert.rejects(core.call({ op: "adopt", backend }), /before-commit/);
+  await assert.rejects(core.call({ op: "adopt", viewer: "dev:alice", backend }), /before-commit/);
   assert.equal(ok(await core.call({ op: "sync_state" })).backend_required, true);
-  ok(await core.call({ op: "adopt", backend }));
+  ok(await core.call({ op: "adopt", viewer: "dev:alice", backend }));
   ok(await core.call({ op: "apply", first: true, page: page("B", []) }));
   assert.equal(ok(await core.call({ op: "sync_state" })).backend_required, false);
 });

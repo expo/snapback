@@ -178,6 +178,8 @@ pub enum PrefetchRequest {
 pub enum AcquiredBoundary { Whole, Key(Vec<u8>) }
 
 pub trait Rows {
+    /// Device-owned delivered history; server row sources have no such owner.
+    fn history_owner(&self) -> Option<&str> { None }
     /// The server-selected suffix of a device partition, independent of holdings.
     fn acquired_boundary(&self, _table: &str, _index: &str, _prefix: &[Value]) -> Result<Option<AcquiredBoundary>, RuntimeError> { Ok(None) }
     /// A device-only fact: this scan pins a delivered-history group it left.

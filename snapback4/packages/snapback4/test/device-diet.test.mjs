@@ -8,7 +8,7 @@ const literal = value => ({ Literal: value });
 const scan = { site: 'unbound', table: 'missing', index: 'byId', prefix: [], order: 'Asc', take: { Literal: 1 }, provenance: 'Const' };
 const program = (name, body, args = {}) => ({ name, kind: 'Query', body, args });
 function call(programs, name, args = {}) {
-  const device = new WebDevice(JSON.stringify({ generation: 1, schema: { tables: {} }, programs }), '[]');
+  const device = new WebDevice(JSON.stringify({ generation: 1, schema: { tables: {} }, programs }), '[]', 'dev:alice');
   try { return JSON.parse(device.call(JSON.stringify({ op: 'query', name, viewer: 'A', args, now: 1 }))); }
   finally { device.free(); }
 }

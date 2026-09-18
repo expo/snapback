@@ -46,6 +46,32 @@ impl DeviceStore for Store {
 }
 
 impl DeviceTx for Tx<'_> {
+    fn stored_tables(&self) -> Result<Vec<String>, RuntimeError> {
+        // Enumerate physical numbers, not catalog names: a rebuilt catalog can
+        // leave populated numbers unmapped or mapped to a name outside the schema.
+        self.conn().prepare_cached("SELECT DISTINCT r.t, c.name FROM r LEFT JOIN _catalog c ON c.num = r.t ORDER BY r.t")?
+            .query_map([], |row| row.get::<_, Option<String>>(1))?
+            .map(|name| name?.ok_or_else(|| RuntimeError::Store("physical rows have no trustworthy table catalog".into())))
+            .collect()
+    }
+    fn stored_rows_after(&self, table: &str, after: Option<&str>, limit: usize) -> Result<Vec<snapback4_core::value::Value>, RuntimeError> {
+        if limit == 0 {
+            return Err(RuntimeError::Input("physical row pages require a positive limit".into()));
+        }
+        let number: Option<i64> = self.conn().query_row("SELECT num FROM _catalog WHERE name = ?1", [table], |row| row.get(0)).optional()?;
+        let Some(number) = number else { return Ok(Vec::new()); };
+        let mut statement = self.conn().prepare_cached("SELECT id, data FROM r WHERE t = ?1 AND (?2 IS NULL OR id > ?2) ORDER BY id LIMIT ?3")?;
+        statement.query_map(params![number, after, limit as i64], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))?
+            .map(|entry| {
+                let (id, data) = entry?;
+                let value: snapback4_core::value::Value = snapback4_core::json_codec::from_text(&data).map_err(|e| RuntimeError::Store(e.to_string()))?;
+                if value.field("id")?.as_str()? != id {
+                    return Err(RuntimeError::Store("physical row identity does not match its image".into()));
+                }
+                Ok(value)
+            }).collect()
+    }
+
     fn commit(self) -> Result<(), RuntimeError> {
         Tx::commit(self)
     }

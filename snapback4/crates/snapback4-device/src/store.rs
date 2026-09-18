@@ -18,7 +18,11 @@ pub trait DeviceStore {
     /// rows, the images and the staged snapshot (a new generation), never
     /// the outbox.
     fn install(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool) -> Result<(), RuntimeError>;
-    /// Compare capture metadata inside the installation transaction.
+    /// Compare capture metadata inside the installation transaction, before
+    /// publishing the proposed metadata. `None` expects an absent key; it is
+    /// distinct from `Some("")`, so legacy stores need not contain newer keys.
+    /// The built-in stores return `E_GENERATION` if a captured value changed:
+    /// leave the old installation intact and replan against a fresh capture.
     fn install_checked(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
         if !expected.is_empty() { return Err(RuntimeError::Store("this device store cannot check backend adoption captures".into())); }
         self.install(schema, metadata, reset)
@@ -48,6 +52,16 @@ pub trait DeviceTx: Rows {
     fn meta_prefix(&self, prefix: &str) -> Result<Vec<(String, String)>, RuntimeError>;
     /// Delete exact keys, or every entry of a namespace ending in `:`.
     fn delete_meta(&self, keys: &[&str]) -> Result<(), RuntimeError>;
+    /// Names of every populated physical table, independent of the installed
+    /// schema or indexes. Missing/ambiguous catalog mappings must error.
+    fn stored_tables(&self) -> Result<Vec<String>, RuntimeError>;
+    /// Physical rows before schema installation; must work without indexes.
+    /// `None` starts before every id (including ""); `Some(id)` is exclusive.
+    /// Empty means this table has no more rows, even if other tables have rows.
+    /// Enumerate `stored_tables` first to validate the physical inventory;
+    /// absence under one name says nothing about rows under another name.
+    /// Zero limits and undecodable images must error.
+    fn stored_rows_after(&self, table: &str, after: Option<&str>, limit: usize) -> Result<Vec<snapback4_core::value::Value>, RuntimeError>;
     /// Every row and index entry goes.
     fn clear_rows(&self) -> Result<(), RuntimeError>;
 

@@ -124,7 +124,7 @@ fn component_frames_sqlite() {
     let host = Sqlite::new("component-frames");
     let path = host.path("frames");
     let (_, backend) = compile(SOURCE);
-    drop(snapback4_device::device::Device::open(&path, Some(backend)).unwrap());
+    drop(snapback4_device::device::Device::open(&path, Some(backend), "dev:bob").unwrap());
     frames(snapback4_core::Store::open(&path).unwrap());
 }
 

@@ -20,10 +20,10 @@ fn structural_admission_stays_on_the_server_and_native_device() {
         let sqlite = Sqlite::new("diet-admission");
         let request = json!({"op":"query","name":"answer","viewer":"A","now":1});
         let reply = if host == "memory" {
-            let mut device = Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap();
+            let mut device = Device::open_store(MemoryStore::new(), Some(backend.clone()), "dev:bob").unwrap();
             snapback4_device::call::call(&mut device, request)
         } else {
-            let mut device = Device::open(&sqlite.path("device"), Some(backend.clone())).unwrap();
+            let mut device = Device::open(&sqlite.path("device"), Some(backend.clone()), "dev:bob").unwrap();
             snapback4_device::call::call(&mut device, request)
         };
         // Restoring device admission under the check feature must fail this positive witness.

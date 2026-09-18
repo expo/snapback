@@ -89,7 +89,10 @@ pub fn context(principal: &str, pairs: &[(&str, Value)]) -> Context {
 /// named store; `close` gives it back so the next `open` finds what it kept.
 pub trait Host {
     type Store: BoundaryMetadata;
-    fn open(&mut self, name: &str, backend: Option<Backend>) -> Result<Device<Self::Store>, RuntimeError>;
+    fn open(&mut self, name: &str, backend: Option<Backend>) -> Result<Device<Self::Store>, RuntimeError> {
+        self.open_as(name, backend, "dev:bob")
+    }
+    fn open_as(&mut self, name: &str, backend: Option<Backend>, viewer: &str) -> Result<Device<Self::Store>, RuntimeError>;
     fn close(&mut self, name: &str, device: Device<Self::Store>);
     fn label(&self) -> &'static str;
 }
@@ -121,8 +124,8 @@ impl Drop for Sqlite {
 
 impl Host for Sqlite {
     type Store = snapback4_core::store::Store;
-    fn open(&mut self, name: &str, backend: Option<Backend>) -> Result<Device<Self::Store>, RuntimeError> {
-        Device::open(&self.path(name), backend)
+    fn open_as(&mut self, name: &str, backend: Option<Backend>, viewer: &str) -> Result<Device<Self::Store>, RuntimeError> {
+        Device::open(&self.path(name), backend, viewer)
     }
     fn close(&mut self, _name: &str, device: Device<Self::Store>) {
         drop(device);
@@ -143,6 +146,9 @@ impl Memory {
     pub fn new() -> Self {
         Self::default()
     }
+    pub fn remove_metadata(&mut self, name: &str, key: &str) {
+        self.kept.entry(name.to_owned()).or_default().push(Change { s: 'm', k: key.into(), v: None });
+    }
     /// What the host holds for one store, folded: the latest value per key.
     pub fn held(&self, name: &str) -> BTreeMap<(char, String), Option<String>> {
         let mut folded = BTreeMap::new();
@@ -155,10 +161,10 @@ impl Memory {
 
 impl Host for Memory {
     type Store = MemoryStore;
-    fn open(&mut self, name: &str, backend: Option<Backend>) -> Result<Device<Self::Store>, RuntimeError> {
+    fn open_as(&mut self, name: &str, backend: Option<Backend>, viewer: &str) -> Result<Device<Self::Store>, RuntimeError> {
         let mut store = MemoryStore::new();
         store.load(self.kept.get(name).cloned().unwrap_or_default())?;
-        Device::open_store(store, backend)
+        Device::open_store(store, backend, viewer)
     }
     fn close(&mut self, name: &str, device: Device<Self::Store>) {
         self.kept.entry(name.to_owned()).or_default().extend(device.store().drain());

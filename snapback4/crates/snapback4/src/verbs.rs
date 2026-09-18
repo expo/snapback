@@ -910,10 +910,14 @@ pub fn token(options: &Options) -> i32 {
 /// linker can still run it.
 pub fn device(options: &Options) -> i32 {
     let Some(path) = options.positionals.first() else {
-        eprintln!("usage: snapback4 device <store.sqlite> [backend.json]");
+        eprintln!("usage: snapback4 device <store.sqlite> <principal> [backend.json]");
         return 2;
     };
-    let backend = match options.positionals.get(1) {
+    let Some(viewer) = options.positionals.get(1) else {
+        eprintln!("device: opening a store requires its principal");
+        return 2;
+    };
+    let backend = match options.positionals.get(2) {
         Some(file) => match std::fs::read_to_string(file).map_err(|e| e.to_string()).and_then(|text| serde_json::from_str::<snapback4_device::native::Backend>(&text).map_err(|e| e.to_string())) {
             Ok(backend) => Some(backend),
             Err(error) => {
@@ -923,7 +927,7 @@ pub fn device(options: &Options) -> i32 {
         },
         None => None,
     };
-    let mut device = match snapback4_device::native::Device::open(Path::new(path), backend) {
+    let mut device = match snapback4_device::native::Device::open(Path::new(path), backend, viewer) {
         Ok(device) => device,
         Err(error) => {
             println!("{}", json!({ "denied": error.refusal() }));

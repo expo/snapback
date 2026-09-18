@@ -49,7 +49,7 @@ pub(super) fn run<T: DeviceTx>(tx: &T, schema: &Schema, program: &Program, entry
     // is then withdrawn): its entropy comes from the entry, never the clock.
     let entropy = entry.id.bytes().fold(entry.seq.wrapping_mul(0x9E37_79B9_7F4A_7C15), |acc, byte| (acc ^ u64::from(byte)).wrapping_mul(0x100_0000_01B3));
     let context = Context::new(&entry.viewer, media::inputs(tx, program, &entry.viewer, &entry.args)?).at(entry.now).with_generation(meta_u64(tx, GENERATION)?).with_ids(entry.new_ids.clone()).with_entropy(entropy | 1);
-    let predicting = Predicting { tx, schema, groups: history::load(tx, history::GROUPS)?, boundaries: boundary::Boundaries::load(tx, false)?, written: RefCell::new(Vec::new()) };
+    let predicting = Predicting { tx, schema, groups: history::load(tx, history::GROUPS)?, owner: tx.meta(store_identity::HISTORY_OWNER)?, boundaries: boundary::Boundaries::load(tx, false)?, written: RefCell::new(Vec::new()) };
     let prediction = local::predict(&predicting, schema, program, context, Ceilings::default())?;
     Ok((predicting.written.into_inner(), prediction.new_ids))
 }

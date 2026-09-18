@@ -21,7 +21,7 @@ fn scenario<H: Host>(host: &mut H, reopen_with_backend: bool) {
         host.close("defaults", device);
         device = host.open("defaults", Some(next)).unwrap();
     } else {
-        device.adopt(next).unwrap();
+        device.adopt(next, "dev:bob").unwrap();
     }
     // No post-adoption snapshot: these are the three images held before it.
     let read = device.query("all", "dev:alice", &serde_json::json!({}), 1000).unwrap();
@@ -101,7 +101,7 @@ fn audience_defaults<H: Host>(host: &mut H) {
         let pages = snapshot_pages(&mut engine, viewer, 100);
         let held = serde_json::to_value(&pages[0].held).unwrap();
         assert_eq!(held["messages"], if expected == 1 { serde_json::json!([["r"]]) } else { serde_json::json!([]) }, "{} {viewer}: held agrees with rule admission", host.label());
-        let mut device = host.open(viewer, Some(backend.clone())).unwrap();
+        let mut device = host.open_as(viewer, Some(backend.clone()), viewer).unwrap();
         for (i, page) in pages.iter().enumerate() { device.apply(page, i == 0).unwrap(); }
         assert_eq!(device.query("all", viewer, &serde_json::json!({"room":"r"}), 1000).unwrap().data.as_array().unwrap().len(), expected);
         let watermark = pages.last().unwrap().watermark;
@@ -113,7 +113,7 @@ fn audience_defaults<H: Host>(host: &mut H) {
         }
         host.close(viewer, device);
     }
-    let mut device = host.open("alice", None).unwrap();
+    let mut device = host.open_as("alice", None, "alice").unwrap();
     let watermark = engine.seq().unwrap();
     assert!(matches!(engine.mutate("leave", Some("leave"), context("alice", &[])).unwrap().state, snapback4_core::WriteState::Sent { .. }));
     let left = stream_page(&mut engine, "alice", watermark);

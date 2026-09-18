@@ -10,7 +10,7 @@ import { WRITE_HISTORY_LIMIT } from "./writes.ts";
 import type { BackendJson } from "./backend.ts";
 import type { DeviceCore, DeviceOpener } from "./local.ts";
 import type { PendingSend } from "./local-exit.ts";
-import { AdmissionJournal, journalStores, writeRefusal } from "./web-journal.ts";
+import { AdmissionJournal, journalStores, writeRefusal, historyOwnerRefusal } from "./web-journal.ts";
 import init, { WebDevice } from "./wasm/snapback4_device.js";
 
 /** One change the device reported: the store (`r` rows, `m` metadata, `o`
@@ -64,7 +64,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
   const persist = options.persist ?? indexedDbPersistence();
   if (typeof persist.claim !== "function") throw new Error("webDevice: custom persistence must provide an exclusive claim(name, alternate) ownership contract");
   return {
-    async open(name, backend) {
+    async open(name, backend, viewer) {
       ready ??= cachedWasm(options.wasm ?? new URL("./wasm/snapback4_device_bg.wasm", import.meta.url), persist)
         .catch((error) => { ready = null; throw error; });
       await ready;
@@ -120,7 +120,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         waiting.clear();
       };
       const recoverOrphans = async () => {
-        const retry = await adoptOrphans(device!, name, store.name, persist, settle, () => {
+        const retry = await adoptOrphans(device!, name, store.name, viewer, persist, settle, () => {
           for (const notify of outboxListeners) notify();
         }, waitForLock);
         if (retry) retryOrphans();
@@ -154,7 +154,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       };
       const restore = async (backend?: BackendJson | null): Promise<void> => {
         const saved = await persist.load(store.name);
-        device = new WebDevice(backend ? JSON.stringify(backend) : null, JSON.stringify(saved.filter(c => c.s !== "j")));
+        device = new WebDevice(backend ? JSON.stringify(backend) : null, JSON.stringify(saved.filter(c => c.s !== "j")), viewer);
         journal.load(saved);
         committed.clear();
         remember(saved);
@@ -323,6 +323,10 @@ async function initializeWasm(source: BufferSource | WebAssembly.Module, identit
 }
 
 function refusalText(error: unknown): string {
+  if (typeof error === "object" && error !== null && "denied" in error) {
+    const denied = error.denied as { code: string; message: string };
+    return `${denied.code}: ${denied.message}`;
+  }
   const text = String((error as Error)?.message ?? error);
   try {
     const parsed = JSON.parse(text) as { denied?: { code?: string; message?: string } };
@@ -394,7 +398,7 @@ function hold(locks: LockManager, name: string): Promise<(() => Promise<void>) |
 
 /** Writes an orphaned tab left queued are queued here, in their order,
  * and the orphan's store goes; its rows are the stream's to bring back. */
-async function adoptOrphans(device: WebDevice, name: string, own: string, persist: Persistence, settle: (extra?: Change[]) => Promise<void>, adopted: () => void, waitForLock: (name: string) => void): Promise<boolean> {
+async function adoptOrphans(device: WebDevice, name: string, own: string, viewer: string, persist: Persistence, settle: (extra?: Change[]) => Promise<void>, adopted: () => void, waitForLock: (name: string) => void): Promise<boolean> {
   if (!persist.others || !persist.remove) return false;
   let retry = false;
   const orphanPrefix = `${name}:tab-`;
@@ -414,31 +418,51 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
       // create it, without recovering the identity needed to admit its journal.
       if (!stores.has(orphan) && !await persist.has?.(orphan)) continue;
       let saved = await persist.load(orphan);
-      const state = JSON.parse(device.call(JSON.stringify({ op: "sync_state" }))).ok;
+      let savedOwner: string | null | undefined;
+      for (const change of saved) if (change.s === "m" && change.k === "device:history-owner") savedOwner = change.v;
+      if (savedOwner != null && savedOwner !== viewer) continue;
+      // Metadata-only shared receipts need no principal. Unbound replica data
+      // or queued writes must first be opened through the device's legacy rule.
+      if (savedOwner == null && saved.some(c => c.v !== null && ["r", "b", "o"].includes(c.s))) continue;
+      const destinationReply = JSON.parse(device.call(JSON.stringify({ op: "sync_state" })));
+      if (destinationReply.denied) throw destinationReply;
+      const state = destinationReply.ok;
       const destination = state?.store_id;
       if (journalStores(`${name}:tab-`).includes(orphan)) {
         // An evicted/unidentified store cannot establish the journal's owner.
         // Leave it intact for a later matching open; never guess from the key.
         if (!saved.some(c => c.s === "m" && c.k === "device:store_id" && c.v) || !saved.some(c => c.s === "m" && c.k === "device:backend" && c.v)) continue;
+        // A reset at construction cannot transfer a prior principal's journal.
+        // Unknown provenance is preserved as well; the orphan name is no proof.
+        if (savedOwner !== viewer) continue;
         const sourceJournal = new AdmissionJournal(orphan, true);
         sourceJournal.load(saved);
-        const sourceDevice = new WebDevice(null, JSON.stringify(saved.filter(c => c.s !== "j")));
+        let sourceDevice: WebDevice | undefined;
         try {
-          const sourceState = JSON.parse(sourceDevice.call(JSON.stringify({ op: "sync_state" }))).ok;
+          sourceDevice = new WebDevice(null, JSON.stringify(saved.filter(c => c.s !== "j")), viewer);
+          const sourceReply = JSON.parse(sourceDevice.call(JSON.stringify({ op: "sync_state" })));
+          if (sourceReply.denied) throw sourceReply;
+          const sourceState = sourceReply.ok;
+          if (historyOwnerRefusal({ denied: sourceState?.restore_refusal })) throw { denied: sourceState.restore_refusal };
           if (sourceState?.backend_required && !sourceState.restore_refusal && sourceState.store_id === destination && !state.backend_required && !state.restore_refusal) {
             // The destination has already authenticated and installed this store's backend.
             const backend = JSON.parse(device.call(JSON.stringify({ op: "backend" }))).ok;
-            const adopted = JSON.parse(sourceDevice.call(JSON.stringify({ op: "adopt", backend, store_id: destination, send_revision: sourceState.send_revision })));
-            if (adopted.denied) throw new Error(refusalText(JSON.stringify(adopted)));
+            const adopted = JSON.parse(sourceDevice.call(JSON.stringify({ op: "adopt", viewer, backend, store_id: destination, send_revision: sourceState.send_revision })));
+            if (adopted.denied) throw adopted;
             await persist.save(orphan, JSON.parse(sourceDevice.drain()));
           }
           await sourceJournal.recover(sourceDevice, async (extra = []) => {
-            const changes = [...JSON.parse(sourceDevice.drain()) as Change[], ...extra];
+            const changes = [...JSON.parse(sourceDevice!.drain()) as Change[], ...extra];
             await persist.save(orphan, changes);
             sourceJournal.remember(changes);
             sourceJournal.cleanup(new Map());
           });
-        } finally { sourceDevice.free(); }
+        } catch (error) {
+          // A foreign-owned orphan is preserved for its owner. Continue with
+          // this principal's other orphans without scheduling endless retries.
+          if (historyOwnerRefusal(error)) continue;
+          throw error;
+        } finally { sourceDevice?.free(); }
         saved = await persist.load(orphan);
       }
       // @ref LLP 3000.007#20.4 — terminal recovery has shared custody; only an outbox transfers exclusive ownership.

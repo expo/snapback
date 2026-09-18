@@ -44,7 +44,7 @@ fn a_thread_pages_locally_with_the_servers_cursors() {
     let mut server = snapback4_core::Engine::memory(schema.clone(), programs.values().cloned()).unwrap();
     server.seed(schema.tables.keys().flat_map(|name| rows.rows(name).into_iter().map(|row| (name.clone(), row)))).unwrap();
     let backend = snapback4_device::device::Backend { generation: server.generation(), schema, programs: programs.values().cloned().collect() };
-    let mut device = snapback4_device::device::Device::open_store(snapback4_device::memory::MemoryStore::new(), Some(backend)).unwrap();
+    let mut device = snapback4_device::device::Device::open_store(snapback4_device::memory::MemoryStore::new(), Some(backend), "dev:bob").unwrap();
     let page = server.snapshot_acquisition_page_at("dev:bob", None, 1000, 2_000).unwrap();
     assert!(page.next.is_none());
     let page = serde_json::from_value(serde_json::json!({"snapshot":true,"events":page.events.iter().map(|e| serde_json::json!({"table":e.table,"kind":e.kind.word(),"id":e.id,"data":e.data.as_ref().map(snapback4_core::wire::to_json)})).collect::<Vec<_>>(),"acquisitions":page.acquisitions,"held":page.held,"watermark":page.watermark,"more":false})).unwrap();

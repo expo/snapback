@@ -163,9 +163,9 @@ fn text_page_and_baseline_dispatch_agree_including_duplicate_keys_and_refusals()
         r#"{"op":"observe_store","page":{"snapshot":false,"events":[],"watermark":0,"more":false}}"#,
         r#"{"op":"apply"}"#, r#"{"op":"unknown"}"#, r#"[]"#,
     ] {
-        let mut direct = Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap();
-        let mut owned = Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap();
-        let mut owned_current = Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap();
+        let mut direct = Device::open_store(MemoryStore::new(), Some(backend.clone()), "dev:bob").unwrap();
+        let mut owned = Device::open_store(MemoryStore::new(), Some(backend.clone()), "dev:bob").unwrap();
+        let mut owned_current = Device::open_store(MemoryStore::new(), Some(backend.clone()), "dev:bob").unwrap();
         let expected = baseline_page_call(&mut owned, serde_json::from_str(text).unwrap());
         let actual = snapback4_device::call::call_text(&mut direct, text);
         assert_eq!(actual, expected, "{text}");
@@ -203,13 +203,13 @@ fn page_fast_path_keeps_json_validation_inside_unknown_fields() {
             let checked = codec::validate_text(&text).unwrap_err();
             assert_eq!(checked.to_string(), old.to_string());
             assert_eq!((checked.line(), checked.column()), (old.line(), old.column()));
-            let mut device = Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap();
+            let mut device = Device::open_store(MemoryStore::new(), Some(backend.clone()), "dev:bob").unwrap();
             assert_eq!(snapback4_device::call::call_text(&mut device, &text)["denied"]["code"], "E_INPUT", "{text}");
             assert_eq!(device.state().unwrap().0, 0);
         }
     }
     let text = format!(r#"{{"op":"apply","first":true,"page":{page},"unknown":[null,true,1.25,{{"text":"\u2603"}}]}}"#);
-    let mut device = Device::open_store(MemoryStore::new(), Some(backend)).unwrap();
+    let mut device = Device::open_store(MemoryStore::new(), Some(backend), "dev:bob").unwrap();
     assert_eq!(snapback4_device::call::call_text(&mut device, &text)["ok"]["touched"], json!(["notes"]));
     assert_eq!(device.state().unwrap().0, 1);
 }

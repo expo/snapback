@@ -155,15 +155,15 @@ function locks(t) {
 test("finding 3: orphan import retires foreign receipts and disables unknown predictions", async t => {
   locks(t);
   const persist = memoryPersistence(), opener = webDevice({ wasm, persist }), name = "orphan-review";
-  let primary = await opener.open(name, backend("B"));
+  let primary = await opener.open(name, backend("B"), "dev:alice");
   ok(await primary.call({ op: "apply", first: true, page: snapshot("B") })); await primary.close();
-  const orphan = await opener.open(`${name}:tab-old`, backend("A"));
+  const orphan = await opener.open(`${name}:tab-old`, backend("A"), "dev:alice");
   ok(await orphan.call({ op: "apply", first: true, page: snapshot("A") }));
   for (const [i, id] of ["known-observed", "known-sent", "unknown"].entries()) ok(await orphan.call({ op: "enqueue", entry: {
     id, seq: i + 1, op: "send", args: { conversationId: "c1", body: id }, new_ids: [id], predicted: [`messages/${id}`], predictable: true,
     ...(i === 0 ? { observed_seq: 11 } : i === 1 ? { sent_seq: 12 } : {}),
   } }));
-  await orphan.close(); primary = await opener.open(name, null); t.after(() => primary.close());
+  await orphan.close(); primary = await opener.open(name, null, "dev:alice"); t.after(() => primary.close());
   const queue = ok(await primary.call({ op: "queued" }));
   assert.deepEqual(queue.map(e => e.id), ["unknown"], "known A receipts must never enter B's sendable outbox");
   assert.equal(queue[0].predictable, false); assert.deepEqual(queue[0].predicted, []); assert.deepEqual(queue[0].new_ids, ["unknown"]);
@@ -182,18 +182,18 @@ test("finding 2: a delayed device read is retried before returning", async t => 
 test("orphan provenance survives an unidentified destination and resolves on sync", async t => {
   locks(t);
   const persist = memoryPersistence(), opener = webDevice({ wasm, persist }), name = "unidentified-orphan";
-  const orphan = await opener.open(`${name}:tab-A`, backend("A"));
+  const orphan = await opener.open(`${name}:tab-A`, backend("A"), "dev:alice");
   ok(await orphan.call({ op: "apply", first: true, page: snapshot("A") }));
   for (const [i, id] of ["known", "unknown"].entries()) ok(await orphan.call({ op: "enqueue", entry: {
     id, seq: i + 1, op: "send", args: { conversationId: "c1", body: id }, new_ids: [id], predictable: true, ...(i === 0 ? { observed_seq: 11 } : {}),
   } }));
   await orphan.close();
-  let primary = await opener.open(name, backend("B"));
+  let primary = await opener.open(name, backend("B"), "dev:alice");
   assert.deepEqual(ok(await primary.call({ op: "queued" })).map(e => e.id), ["unknown"]);
   const kept = await persist.load(`${name}:tab-A`);
   assert.equal(kept.find(c => c.k === "device:store_id").v, "A");
   assert.deepEqual(kept.filter(c => c.s === "o").map(c => c.k), ["known"]);
-  await primary.close(); primary = await opener.open(name, null);
+  await primary.close(); primary = await opener.open(name, null, "dev:alice");
   ok(await primary.call({ op: "apply", first: true, page: snapshot("B") }));
   assert.deepEqual(ok(await primary.call({ op: "queued" })).map(e => e.id), ["unknown"]);
   assert.deepEqual(await persist.load(`${name}:tab-A`), []);
@@ -203,13 +203,13 @@ test("orphan provenance survives an unidentified destination and resolves on syn
 test("same-store orphan adoption preserves receipts, order and row IDs without predictions", async t => {
   locks(t);
   const persist = memoryPersistence(), opener = webDevice({ wasm, persist }), name = "same-orphan";
-  const orphan = await opener.open(`${name}:tab-A`, backend("A"));
+  const orphan = await opener.open(`${name}:tab-A`, backend("A"), "dev:alice");
   ok(await orphan.call({ op: "apply", first: true, page: snapshot("A") }));
   for (const [i, id] of ["known", "unknown"].entries()) ok(await orphan.call({ op: "enqueue", entry: {
     id, seq: i + 1, op: "send", args: {}, new_ids: [id], predictable: true, ...(i === 0 ? { observed_seq: 11 } : {}),
   } }));
   await orphan.close();
-  const primary = await opener.open(name, backend("A")); t.after(() => primary.close());
+  const primary = await opener.open(name, backend("A"), "dev:alice"); t.after(() => primary.close());
   ok(await primary.call({ op: "apply", first: true, page: snapshot("A") }));
   const entries = ok(await primary.call({ op: "queued" }));
   // Unknowns may transfer before destination identification; the deferred

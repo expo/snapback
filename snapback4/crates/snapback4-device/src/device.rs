@@ -24,6 +24,7 @@ mod snapshot;
 mod history;
 mod boundary;
 mod store_identity;
+mod adoption;
 pub use store_identity::StoreObservation;
 
 /// The compiled backend, as `GET /schema` sends it.
@@ -161,6 +162,7 @@ pub struct Device<S: DeviceStore> {
     generation: u64,
     backend_identity: String,
     store_identity: Option<String>,
+    history_owner: String,
     snapshot_owner: Option<String>,
     /// The app's native module, once installed or reloaded from the store.
     #[cfg(feature = "wasm-host")]
@@ -174,11 +176,13 @@ struct Predicting<'a, T: DeviceTx> {
     tx: &'a T,
     schema: &'a Schema,
     groups: history::Groups,
+    owner: Option<String>,
     boundaries: boundary::Boundaries,
     written: RefCell<Vec<String>>,
 }
 
 impl<T: DeviceTx> Rows for Predicting<'_, T> {
+    fn history_owner(&self) -> Option<&str> { self.owner.as_deref() }
     fn acquired_boundary(&self, table: &str, index: &str, prefix: &[Value]) -> Result<Option<snapback4_core::rows::AcquiredBoundary>, RuntimeError> {
         boundary::read(&self.boundaries, self.schema, table, index, prefix)
     }
@@ -262,8 +266,11 @@ impl<S: DeviceStore> Device<S> {
     /// The device over an opened store, for the backend the server sent —
     /// or, with none, for the backend kept from last time, so a device
     /// that starts with no network opens on what it holds. The schema is
-    /// installed; a literal-default addition can keep older row images.
-    pub fn open_store(mut store: S, backend: Option<Backend>) -> Result<Self, RuntimeError> {
+    /// installed after checking the explicit principal against retained history.
+    pub fn open_store(mut store: S, backend: Option<Backend>, viewer: &str) -> Result<Self, RuntimeError> {
+        if viewer.is_empty() {
+            return Err(RuntimeError::Input("opening a device requires its principal".into()));
+        }
         let mut backend = match backend {
             Some(backend) => backend,
             None => {
@@ -272,25 +279,9 @@ impl<S: DeviceStore> Device<S> {
             }
         };
         backend.schema.prepare_contribution_indexes();
-        let held = store.meta(GENERATION)?.and_then(|g| g.parse::<u64>().ok()).unwrap_or(0);
-        let reset = held != 0 && held != backend.generation;
-        let previous = store.meta(BACKEND)?.and_then(|text| snapback4_core::json_codec::from_text::<Backend>(&text).ok());
-        let keep_images = reset && previous.as_ref()
-            .is_some_and(|old| snapback4_core::successor::keeps_literal_default_images(&old.schema, &backend.schema));
-        let keep_acquired = keep_images && previous.as_ref().is_some_and(|old| old.schema.tables.len() == backend.schema.tables.len())
-            && store.meta(ACQUIRED)? == Some(held.to_string());
+        let plan = adoption::plan(&mut store, &backend, viewer, adoption::Entry::Open, BTreeMap::new())?;
         let backend_identity = store_identity::backend_identity(&backend);
-        let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string()), (BACKEND_IDENTITY.to_owned(), backend_identity.clone())]);
-        if reset {
-            metadata.insert(WATERMARK.to_owned(), "0".into());
-            metadata.insert(ACQUIRED.to_owned(), if keep_acquired { backend.generation.to_string() } else { String::new() });
-            invalidate_native(&mut metadata);
-            metadata.insert(history::GROUPS.to_owned(), "{}".into());
-            metadata.insert(history::STAGED_GROUPS.to_owned(), "{}".into());
-            metadata.insert(boundary::STAGED.to_owned(), "{}".into());
-            if !keep_acquired { metadata.insert(boundary::BOUNDARIES.to_owned(), "{}".into()); }
-        }
-        store.install(&backend.schema, &metadata, reset && !keep_images)?;
+        let history_owner = plan.install(&mut store, &backend.schema)?;
         let cached_digest = store.meta(NATIVE_DIGEST)?;
         let cached_module = store.meta(NATIVE)?;
         let cached_generation = store.meta(NATIVE_GENERATION)?;
@@ -321,6 +312,7 @@ impl<S: DeviceStore> Device<S> {
             generation: backend.generation,
             backend_identity,
             store_identity,
+            history_owner,
             snapshot_owner: None,
             #[cfg(feature = "wasm-host")]
             native,
@@ -343,6 +335,7 @@ impl<S: DeviceStore> Device<S> {
             let module = snapback4_core::engine::native::Module::compile(bytes)?;
             let names = (module.jobs().to_vec(), module.reads().to_vec());
             let tx = self.store.transaction()?;
+            adoption::require_binding(&tx, &self.history_owner)?;
             store_identity::require_backend(&tx, &self.backend_identity, &self.store_identity)?;
             store_identity::require_healthy(&tx)?;
             if tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) {
@@ -369,50 +362,26 @@ impl<S: DeviceStore> Device<S> {
     }
 
     /// The backend changed (a new generation from `/schema`): adopt it and
-    /// keep it; a literal-default addition keeps the old images readable.
-    /// A changed generation still requests a fresh snapshot.
-    pub fn adopt(&mut self, backend: Backend) -> Result<(), RuntimeError> {
-        self.adopt_captured(backend, BTreeMap::new())
+    /// keep it for this principal. Program-only and literal-default changes
+    /// can keep images; a changed generation still requests a fresh snapshot.
+    pub fn adopt(&mut self, backend: Backend, viewer: &str) -> Result<(), RuntimeError> {
+        self.adopt_captured(backend, viewer, BTreeMap::new())
     }
 
-    pub fn adopt_captured(&mut self, mut backend: Backend, mut expected: BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
+    pub fn adopt_captured(&mut self, mut backend: Backend, viewer: &str, expected: BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
         backend.schema.prepare_contribution_indexes();
-        let required = self.store.meta(BACKEND_REQUIRED)?;
-        expected.entry(BACKEND_REQUIRED.into()).or_insert(required.clone());
-        expected.entry(STORE_ID.into()).or_insert(self.store.meta(STORE_ID)?);
-        expected.entry(SEND_REVISION.into()).or_insert(self.store.meta(SEND_REVISION)?);
-        let adopted_store = expected.get(STORE_ID).cloned().flatten();
-        let cached_native = self.store.meta(NATIVE_DIGEST)?;
-        expected.entry(NATIVE_DIGEST.into()).or_insert(cached_native.clone());
+        let plan = adoption::plan(&mut self.store, &backend, viewer, adoption::Entry::Adopt, expected)?;
+        let adopted_store = plan.expected.get(STORE_ID).cloned().flatten();
+        let cached_native = plan.expected.get(NATIVE_DIGEST).cloned().flatten();
         let obsolete_native = adopted_store != self.store_identity || cached_native.filter(|s| !s.is_empty()).as_deref() != self.native_digest.as_deref();
-        let replacement = required.as_ref().is_some_and(|value| !value.is_empty());
-        let reset = backend.generation != self.generation;
-        let keep_images = snapback4_core::successor::keeps_literal_default_images(&self.schema, &backend.schema);
-        // @ref LLP 3000.007#18.3 — literal-default-only evolution keeps already acquired images readable.
-        // The image predicate permits added tables; those require acquisition.
-        let keep_acquired = keep_images && self.schema.tables.len() == backend.schema.tables.len()
-            && self.store.meta(ACQUIRED)? == Some(self.generation.to_string());
         let backend_identity = store_identity::backend_identity(&backend);
-        let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string()), (BACKEND_IDENTITY.to_owned(), backend_identity.clone())]);
-        metadata.insert(BACKEND_REQUIRED.to_owned(), String::new());
-        if reset {
-            metadata.insert(WATERMARK.to_owned(), "0".into());
-            metadata.insert(ACQUIRED.to_owned(), if keep_acquired { backend.generation.to_string() } else { String::new() });
-            invalidate_native(&mut metadata);
-            metadata.insert(history::GROUPS.to_owned(), "{}".into());
-            metadata.insert(history::STAGED_GROUPS.to_owned(), "{}".into());
-            metadata.insert(boundary::STAGED.to_owned(), "{}".into());
-            if !keep_acquired { metadata.insert(boundary::BOUNDARIES.to_owned(), "{}".into()); }
-        }
-        if replacement { invalidate_native(&mut metadata); }
-        self.store.install_checked(&backend.schema, &metadata, reset && !keep_images, &expected)?;
-        if reset || replacement || obsolete_native {
+        let history_owner = plan.install(&mut self.store, &backend.schema)?;
+        if plan.invalidate_native || obsolete_native {
             #[cfg(feature = "wasm-host")]
-            {
-                self.native = None;
-            }
+            { self.native = None; }
             self.native_digest = None;
         }
+        self.history_owner = history_owner;
         self.schema = backend.schema;
         self.programs = backend.programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         self.generation = backend.generation;
@@ -455,7 +424,13 @@ impl<S: DeviceStore> Device<S> {
         let restore_refusal = tx.meta(store_identity::RESTORE_REFUSED)?.map(|_| store_identity::restore_error().refusal());
         // @ref LLP 3000.007#18.2 — expose acquisition for this healthy owner, never a superseded store's marker.
         let acquired = restore_refusal.is_none() && tx.meta(ACQUIRED)? == Some(self.generation.to_string());
-        let mut state = SyncState { acquired, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()).is_err(), restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, send_revision: meta_u64(&tx, SEND_REVISION)? };
+        adoption::require_binding(&tx, &self.history_owner)?;
+        let backend_obsolete = match store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()) {
+            Ok(()) => false,
+            Err(error) if error.code() == "SNAPBACK_HISTORY_OWNER" => return Err(error),
+            Err(_) => true,
+        };
+        let mut state = SyncState { acquired, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || backend_obsolete, restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, send_revision: meta_u64(&tx, SEND_REVISION)? };
         state.acquired &= !state.backend_required;
         tx.rollback()?;
         Ok(state)
@@ -482,6 +457,7 @@ impl<S: DeviceStore> Device<S> {
     /// every remaining prediction. Returns the tables touched.
     pub fn apply(&mut self, page: &StreamPage, first: bool) -> Result<Vec<String>, RuntimeError> {
         let tx = self.store.transaction()?;
+        adoption::require_binding(&tx, &self.history_owner)?;
         let first_identity = tx.meta(STORE_ID)?.is_none() && self.store_identity.is_none();
         let owner_store = if first_identity { page.store_id.clone() } else { self.store_identity.clone() };
         let observed = store_identity::observe(&tx, page)?;
@@ -494,7 +470,12 @@ impl<S: DeviceStore> Device<S> {
             self.snapshot_owner = None;
             return Err(RuntimeError::Generation("the backend store was replaced; reacquire its partition".into()));
         }
-        if observed.backend_required || store_identity::require_owner(&tx, &self.backend_identity, &owner_store, self.native_digest.as_deref()).is_err() {
+        let backend_obsolete = match store_identity::require_owner(&tx, &self.backend_identity, &owner_store, self.native_digest.as_deref()) {
+            Ok(()) => false,
+            Err(error) if error.code() == "SNAPBACK_HISTORY_OWNER" => return Err(error),
+            Err(_) => true,
+        };
+        if observed.backend_required || backend_obsolete {
             return Err(RuntimeError::Generation("the backend store requires backend adoption before acquisition".into()));
         }
         if page.generation.is_some_and(|g| g != self.generation) {
@@ -674,7 +655,7 @@ impl<S: DeviceStore> Device<S> {
             let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?;
             let context = Context::new(viewer, typed_args(&program, args)?).at(now).with_generation(self.generation);
             let tx = self.store.read_transaction()?;
-            if let Err(error) = store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()) {
+            if let Err(error) = adoption::require_binding(&tx, &self.history_owner).and_then(|()| store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())) {
                 unknown = true;
                 return Err(error.refusal());
             }
@@ -682,7 +663,7 @@ impl<S: DeviceStore> Device<S> {
                 unknown = matches!(&error, RuntimeError::Prediction(_));
                 return Err(error.refusal());
             }
-            let reading = history::Reading { tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, boundaries: boundary::Boundaries::load(&tx, false)?, retained: std::cell::Cell::new(false) };
+            let reading = history::Reading { tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, owner: tx.meta(store_identity::HISTORY_OWNER)?, boundaries: boundary::Boundaries::load(&tx, false)?, retained: std::cell::Cell::new(false) };
             let (result, coverage, history_only) = if program.native {
                 // A native read over the rows held (LLP 3000.005 §9); without
                 // the module the device does not know, and the host asks the
@@ -715,10 +696,11 @@ impl<S: DeviceStore> Device<S> {
     pub fn predict(&mut self, name: &str, viewer: &str, args: &serde_json::Value, now: i64, new_ids: Vec<String>, entropy: u64) -> Result<Predicted, RuntimeError> {
         let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?;
         let tx = self.store.transaction()?;
+        adoption::require_binding(&tx, &self.history_owner)?;
         store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
         require_acquired(&tx, &self.schema, &program)?;
         let context = Context::new(viewer, media::inputs(&tx, &program, viewer, args)?).at(now).with_generation(self.generation).with_ids(new_ids).with_entropy(entropy.max(1));
-        let predicting = Predicting { tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, boundaries: boundary::Boundaries::load(&tx, false)?, written: RefCell::new(Vec::new()) };
+        let predicting = Predicting { tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, owner: tx.meta(store_identity::HISTORY_OWNER)?, boundaries: boundary::Boundaries::load(&tx, false)?, written: RefCell::new(Vec::new()) };
         match local::predict(&predicting, &self.schema, &program, context, Ceilings::default()) {
             Ok(prediction) => {
                 let predicted = predicting.written.into_inner();
@@ -736,6 +718,7 @@ impl<S: DeviceStore> Device<S> {
     /// restores anything else.
     pub fn withdraw(&mut self, _predicted: &[String]) -> Result<(), RuntimeError> {
         let tx = self.store.transaction()?;
+        adoption::require_binding(&tx, &self.history_owner)?;
         store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
         let watermark = meta_u64(&tx, WATERMARK)?;
         predictions::restore(&tx, &self.schema)?;
@@ -756,6 +739,7 @@ impl<S: DeviceStore> Device<S> {
     /// window. Its prediction refusal cannot decide the server's replay outcome.
     pub fn admit_with_replay(&mut self, mut entry: Queued, replay_candidate: bool) -> Result<Queued, RuntimeError> {
         let tx = self.store.transaction()?;
+        adoption::require_binding(&tx, &self.history_owner)?;
         store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
         store_identity::require_healthy(&tx)?;
         // @ref LLP 3000#6-the-simulators-invariants — at-most-once admission compares under the store's writer transaction, before any speculative row or id changes.
@@ -803,6 +787,7 @@ impl<S: DeviceStore> Device<S> {
     /// survivors are replayed over the confirmed images.
     pub fn settle(&mut self, id: &str, seq: Option<u64>) -> Result<(), RuntimeError> {
         let tx = self.store.transaction()?;
+        adoption::require_binding(&tx, &self.history_owner)?;
         store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
         let watermark = meta_u64(&tx, WATERMARK)?;
         predictions::restore(&tx, &self.schema)?;

@@ -66,15 +66,16 @@ fn remember_open_refusal(refusal: Json) {
 /// empty (a cold start offline). Null when the store refuses: ask
 /// `sb4_open_reason` why.
 #[unsafe(no_mangle)]
-pub extern "C" fn sb4_open(path: *const c_char, backend: *const c_char) -> *mut Device {
+pub extern "C" fn sb4_open(path: *const c_char, backend: *const c_char, viewer: *const c_char) -> *mut Device {
     let _ = LAST_OPEN_REFUSAL.with(|last| last.borrow_mut().take());
     let opened = catch_unwind(AssertUnwindSafe(|| -> Result<Device, Json> {
         let path = c_text(path).ok_or_else(|| json!({ "denied": { "code": "E_INPUT", "family": "input", "message": "path is text" } }))?;
+        let viewer = c_text(viewer).filter(|v| !v.is_empty()).ok_or_else(|| json!({ "denied": { "code": "E_INPUT", "family": "input", "message": "opening a device requires its principal" } }))?;
         let backend = match c_text(backend) {
             None | Some("") | Some("null") => None,
             Some(text) => Some(serde_json::from_str::<Backend>(text).map_err(|error| json!({ "denied": { "code": "E_INPUT", "family": "input", "message": error.to_string() } }))?),
         };
-        Device::open(std::path::Path::new(path), backend).map_err(|error| json!({ "denied": error.refusal() }))
+        Device::open(std::path::Path::new(path), backend, viewer).map_err(|error| json!({ "denied": error.refusal() }))
     }));
     match opened {
         Ok(Ok(device)) => Box::into_raw(Box::new(device)),
@@ -84,10 +85,9 @@ pub extern "C" fn sb4_open(path: *const c_char, backend: *const c_char) -> *mut 
 }
 
 /// Take the refusal from the most recent failed `sb4_open` on this thread.
-/// The parameters remain for ABI compatibility and are deliberately not
-/// inspected: diagnosis must not mutate or contend for the store again.
+/// The open arguments are deliberately not inspected: diagnosis must not mutate or contend for the store again.
 #[unsafe(no_mangle)]
-pub extern "C" fn sb4_open_reason(_path: *const c_char, _backend: *const c_char) -> *mut c_char {
+pub extern "C" fn sb4_open_reason(_path: *const c_char, _backend: *const c_char, _viewer: *const c_char) -> *mut c_char {
     c_string(guarded_json("open reason", || LAST_OPEN_REFUSAL.with(|last| last.borrow_mut().take().unwrap_or_else(|| json!({ "denied": { "code": "E_INPUT", "family": "input", "message": "there is no failed sb4_open on this thread" } })))))
 }
 
@@ -144,20 +144,20 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let path = CString::new(dir.join("device.sqlite").to_string_lossy().as_bytes()).unwrap();
         let valid = CString::new(serde_json::to_string(&backend).unwrap()).unwrap();
-        let device = sb4_open(path.as_ptr(), valid.as_ptr());
+        let device = sb4_open(path.as_ptr(), valid.as_ptr(), c"dev:bob".as_ptr());
         assert!(!device.is_null());
         sb4_close(device);
 
         let invalid = CString::new("{").unwrap();
-        assert!(sb4_open(path.as_ptr(), invalid.as_ptr()).is_null());
+        assert!(sb4_open(path.as_ptr(), invalid.as_ptr(), c"dev:bob".as_ptr()).is_null());
         // Supplying valid arguments here proves diagnosis returns the
         // recorded failure rather than attempting another successful open.
-        let reason = sb4_open_reason(path.as_ptr(), valid.as_ptr());
+        let reason = sb4_open_reason(path.as_ptr(), valid.as_ptr(), c"dev:bob".as_ptr());
         assert!(!reason.is_null());
         let parsed: Json = serde_json::from_str(c_text(reason).unwrap()).unwrap();
         sb4_free(reason);
         assert_eq!(parsed["denied"]["code"], "E_INPUT");
-        let absent = sb4_open_reason(path.as_ptr(), valid.as_ptr());
+        let absent = sb4_open_reason(path.as_ptr(), valid.as_ptr(), c"dev:bob".as_ptr());
         let parsed: Json = serde_json::from_str(c_text(absent).unwrap()).unwrap();
         sb4_free(absent);
         assert_eq!(parsed["denied"]["message"], "there is no failed sb4_open on this thread");

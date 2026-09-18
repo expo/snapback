@@ -400,14 +400,14 @@ test("processDevice imports without Node builtins and opens with injected host f
       return { stdin: { write(text) { assert.deepEqual(JSON.parse(text), { op: "probe" }); queueMicrotask(() => receive('{"ok":42}\\n')); } },
         stdout: { on(event, listener) { receive = listener; queueMicrotask(() => receive('{"ok":true}\\n')); } }, kill() { killed++; } };
     } });
-    const core = await opener.open("alice", { fixture: true });
+    const core = await opener.open("alice", { fixture: true }, "dev:alice");
     assert.deepEqual(writes, [["devices/alice.sqlite.backend.json", '{"fixture":true}']]);
-    assert.deepEqual(spawns, [["host-cli", ["device", "devices/alice.sqlite", "devices/alice.sqlite.backend.json"]]]);
+    assert.deepEqual(spawns, [["host-cli", ["device", "devices/alice.sqlite", "dev:alice", "devices/alice.sqlite.backend.json"]]]);
     assert.deepEqual(await core.call({ op: "probe" }), { ok: 42 });
     await core.close();
-    const cold = await opener.open("alice", null);
+    const cold = await opener.open("alice", null, "dev:alice");
     assert.equal(writes.length, 1);
-    assert.deepEqual(spawns[1], ["host-cli", ["device", "devices/alice.sqlite"]]);
+    assert.deepEqual(spawns[1], ["host-cli", ["device", "devices/alice.sqlite", "dev:alice"]]);
     await cold.close();
     assert.equal(killed, 2);
   `], { encoding: "utf8", timeout: 5000 });
@@ -448,7 +448,7 @@ test("CLI and Node device share environment, platform-package and repository bin
         console.log(binary);
         return { stdin: { write() {} }, stdout: { on(event, receive) { queueMicrotask(() => receive('{"ok":true}\\n')); } }, kill() {} };
       }, writeFile: async () => {} });
-      await (await opener.open("alice", null)).close();
+      await (await opener.open("alice", null, "dev:alice")).close();
     `], { cwd: dir, env, encoding: "utf8", timeout: 5000 });
     assert.equal(device.status, 0, device.stderr);
     assert.equal(realpathSync(device.stdout.trim()), realpathSync(expected));
@@ -465,7 +465,8 @@ test("processDevice defaults to Node spawn and file writing in a new directory",
   writeFileSync(join(dir, "device"), `
     const fs = require("node:fs");
     const readline = require("node:readline");
-    const backend = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
+    require("node:assert/strict").equal(process.argv[3], "dev:alice");
+    const backend = JSON.parse(fs.readFileSync(process.argv[4], "utf8"));
     console.log(JSON.stringify({ ok: true }));
     readline.createInterface({ input: process.stdin }).on("line", line => {
       console.log(JSON.stringify({ ok: { backend, request: JSON.parse(line) } }));
@@ -476,7 +477,7 @@ test("processDevice defaults to Node spawn and file writing in a new directory",
     import { readFile } from "node:fs/promises";
     import { processDevice } from ${JSON.stringify(new URL("../dist/native.js", import.meta.url).href)};
     const backend = { fixture: true };
-    const core = await processDevice({ dir: "new/devices", binary: process.execPath }).open("alice", backend);
+    const core = await processDevice({ dir: "new/devices", binary: process.execPath }).open("alice", backend, "dev:alice");
     try {
       assert.deepEqual(await core.call({ op: "probe" }), { ok: { backend, request: { op: "probe" } } });
       assert.equal(await readFile("new/devices/alice.sqlite.backend.json", "utf8"), JSON.stringify(backend));

@@ -121,6 +121,32 @@ Change polls echo `store_id` and return immediately on a mismatch or a lower
 head. Reconnect probes carry the identity and head, checked before local
 freshness returns; a matching identity needs no extra sync.
 
+## Delivered-history ownership and adoption
+
+A device store records its acquiring principal as `device:history-owner`,
+paired with its backend store incarnation. Hosts pass that principal when
+opening or adopting a backend; rotating a bearer for the same principal
+keeps its history. A different principal resets a store with no retained
+left-group rows. If retained history exists, opening or adopting refuses
+`SNAPBACK_HISTORY_OWNER`: preserve the original store and open a different
+store for the new principal. A legacy store without an owner is bound only
+when it has no retained history; otherwise the same refusal protects its
+unknown owner's only copy. For a new or unknown owner, missing prior-schema
+evidence or unclassified physical tables or confirmed images also refuse
+reuse: an incoming retention
+policy cannot establish what the old store retained. Genuinely empty history
+tables allow sign-in even when other, classified tables hold rows.
+Device reads trust delivered history only for
+that recorded principal; other readers undergo the ordinary read rule.
+
+A changed, nonzero generation with a structurally identical whole schema,
+an unchanged owner, and no backend-replacement marker preserves images, the
+held/left map, and already-acquired boundaries. A replacement
+snapshot refreshes held groups while retaining left-group copies. Other
+schema changes keep the existing reset policy, including the established
+literal-default exception. The old native module and interrupted snapshot
+cannot publish under the new generation.
+
 ## A restored backend store
 
 A matching

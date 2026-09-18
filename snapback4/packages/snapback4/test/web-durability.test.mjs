@@ -28,11 +28,11 @@ async function fixture(t) {
     async save(store, changes) { if (store === name) { saves++; if (failSave) { failSave = false; throw new Error("save aborted"); } } return memory.save(store, changes); },
   };
   const opener = webDevice({ wasm, persist });
-  let core = await opener.open(name, backend);
+  let core = await opener.open(name, backend, "dev:alice");
   t.after(() => core.close());
   ok(await core.call(snapshot()));
   ok(await core.call({ op: "admit", entry: entry("earlier", 1) }));
-  return { get core() { return core; }, memory, name, failSave() { failSave = true; }, failLoad(value) { failLoad = value; }, stats() { return { loads, saves }; }, async reopen() { await core.close(); core = await opener.open(name); } };
+  return { get core() { return core; }, memory, name, failSave() { failSave = true; }, failLoad(value) { failLoad = value; }, stats() { return { loads, saves }; }, async reopen() { await core.close(); core = await opener.open(name, null, "dev:alice"); } };
 }
 
 test("failed admission cannot appear in later reads or hitchhike on the next saved call", async t => {
@@ -62,7 +62,7 @@ test("failed snapshot publication and backend adoption preserve acknowledged sta
   assert.deepEqual(await query(f.core), before);
   assert.equal(ok(await f.core.call({ op: "state" })).watermark, 1);
   f.failSave();
-  await assert.rejects(f.core.call({ op: "adopt", backend: { ...backend, generation: 2 } }), /save aborted/);
+  await assert.rejects(f.core.call({ op: "adopt", viewer: "dev:alice", backend: { ...backend, generation: 2 } }), /save aborted/);
   assert.equal(ok(await f.core.call({ op: "state" })).generation, 1);
   await f.reopen();
   assert.deepEqual(await query(f.core), before);
@@ -88,7 +88,7 @@ test("failed initial persistence frees the constructed Wasm device", async t => 
   WebDevice.prototype.free = function () { freed++; return free.call(this); };
   t.after(() => { WebDevice.prototype.free = free; });
   const opener = webDevice({ wasm, persist: { ...memory, async save(name, changes) { if (name === "failed-open") throw new Error("initial save aborted"); return memory.save(name, changes); } } });
-  await assert.rejects(opener.open("failed-open", backend), /initial save aborted/);
+  await assert.rejects(opener.open("failed-open", backend, "dev:alice"), /initial save aborted/);
   assert.equal(freed, 1);
 });
 
@@ -108,7 +108,7 @@ test("close drains accepted calls once and refuses later calls", async () => {
   const saved = new Promise(resolve => { started = resolve; });
   const barrier = new Promise(resolve => { release = resolve; });
   const opener = webDevice({ wasm, persist: { ...memory, async save(name, changes) { if (block) { block = false; started(); await barrier; } await memory.save(name, changes); } } });
-  const core = await opener.open("close-during-save", backend);
+  const core = await opener.open("close-during-save", backend, "dev:alice");
   block = true;
   const first = core.call({ op: "set_meta", key: "first", value: "saved" });
   await saved;
@@ -117,7 +117,7 @@ test("close drains accepted calls once and refuses later calls", async () => {
   await assert.rejects(core.call({ op: "state" }), /closed/);
   release();
   await Promise.all([first, second, closing, core.close()]);
-  const reopened = await opener.open("close-during-save");
+  const reopened = await opener.open("close-during-save", null, "dev:alice");
   try {
     assert.equal(ok(await reopened.call({ op: "meta", key: "first" })), "saved");
     assert.equal(ok(await reopened.call({ op: "meta", key: "second" })), "saved");
@@ -138,7 +138,7 @@ for (const state of ["evicted", "unidentified"]) test(`W11R2: ${state} journal h
   t.mock.method(globalThis, "clearTimeout", timer => timers.delete(timer));
   if (state === "unidentified") await memory.save(orphan, [{ s: "m", k: "client:marker", v: "unidentified" }]);
   const persist = { ...memory, async load(store) { if (store === orphan) loads++; return memory.load(store); } };
-  const core = await webDevice({ wasm, persist }).open(name, backend);
+  const core = await webDevice({ wasm, persist }).open(name, backend, "dev:alice");
   try {
     assert.equal(timers.size, 0, "an unresolved journal must wait for a signal, not poll for its lifetime");
     assert.equal(loads, state === "evicted" ? 0 : 1, "a read must not create an evicted journal's database");
@@ -156,7 +156,7 @@ test("W11R2: receipt lookup never opens an absent shared database and sees later
     async load(store) { if (store === `${name}:receipts`) opens++; return memory.load(store); },
     async read(store, s, k) { if (store === `${name}:receipts`) opens++; return memory.read(store, s, k); },
   };
-  const core = await webDevice({ wasm, persist }).open(name, backend);
+  const core = await webDevice({ wasm, persist }).open(name, backend, "dev:alice");
   try {
     for (let i = 0; i < 10; i++) assert.deepEqual(JSON.parse(ok(await core.call({ op: "meta", key: "write-history" }))), []);
     assert.equal(opens, 0, "ordinary receipt lookups must not open/create the shared database");
@@ -189,7 +189,7 @@ for (const unrelatedLocks of [false, true]) test(`W11INT: custom claims recover 
     async others(prefix) { return [...await memory.others(prefix), "unrelated"]; },
     async claim(requested, alternate) { if (requested === "unrelated") foreignClaims++; return memory.claim(requested, alternate); },
   };
-  const core = await webDevice({ wasm, persist }).open(name, backend);
+  const core = await webDevice({ wasm, persist }).open(name, backend, "dev:alice");
   try {
     assert.equal(await memory.has(orphan), true, "a busy provider claim keeps its source");
     assert.equal(waits, 0, "a free unrelated Web Lock cannot signal this provider's release");
@@ -216,7 +216,7 @@ test("W11R2: a live sibling queues one cancellable lock wait without a timer", a
   } } });
   memory.claim = indexedDbPersistence().claim;
   t.mock.method(globalThis, "setTimeout", () => { timers++; return { unref() {} }; });
-  const core = await webDevice({ wasm, persist: memory }).open(name, backend);
+  const core = await webDevice({ wasm, persist: memory }).open(name, backend, "dev:alice");
   try {
     for (let n = 0; n < 3; n++) ok(await core.call(snapshot()));
     assert.equal(waits, 1, "repeated syncs share one queued wait per lock");
@@ -237,7 +237,7 @@ test("W11R2: persistent recovery failure exhausts three backoffs then a sync can
     if (store === `${name}:receipts`) { attempts++; if (failed) throw new Error("persistent outage"); }
     return memory.save(store, changes);
   } };
-  const core = await webDevice({ wasm, persist }).open(name, backend);
+  const core = await webDevice({ wasm, persist }).open(name, backend, "dev:alice");
   try {
     for (let n = 0; n < 8 && timers.size; n++) {
       const timer = [...timers][0]; timers.delete(timer); timer.callback();

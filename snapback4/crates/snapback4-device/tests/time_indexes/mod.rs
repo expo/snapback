@@ -16,7 +16,7 @@ fn w13c2_time_keys_page_update_and_adopt_on_both_stores() {
         for (i,page) in snapshot_pages(&mut engine,"dev:alice",100).iter().enumerate() { device.apply(page,i==0).unwrap(); }
         let (_, next) = compile(SOURCE);
         engine.adopt(next.schema.clone(),next.programs.clone()).unwrap();
-        device.adopt(Backend { generation:engine.generation(),..next }).unwrap();
+        device.adopt(Backend { generation:engine.generation(),..next }, "dev:bob").unwrap();
         // Activation fences reads until this generation's acquisition completes.
         for (i,page) in snapshot_pages(&mut engine,"dev:alice",100).iter().enumerate() { device.apply(page,i==0).unwrap(); }
         // First read after activation uses the rebuilt index over held images.

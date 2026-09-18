@@ -102,7 +102,7 @@ async function fixture(t, release = false, schema = source) {
   await until(() => { if (server.exitCode != null) throw new Error(log); return url; });
   const native = processDevice({ binary, dir: join(dir, "devices"), spawn: (command, args) => spawn(command, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
   const cores = [];
-  const device = { async open(name, backend) { const core = await native.open(name, backend); cores.push(core); return core; } };
+  const device = { async open(name, backend, viewer) { const core = await native.open(name, backend, viewer); cores.push(core); return core; } };
   const post = async (path, body, persona = true) => (await fetch(url + path, { method: "POST", headers: persona ? { "x-snapback-persona": "alice" } : {}, body: JSON.stringify(body) })).json();
   const web = webDevice({ wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")), persist: memoryPersistence() });
   return { dir, url, device, web, cores, clients, post, log: () => log };

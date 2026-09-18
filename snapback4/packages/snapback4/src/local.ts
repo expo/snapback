@@ -59,9 +59,10 @@ export interface DeviceCore {
 
 /** How a host opens its device: a store name the client derives from the
  * server and the viewer (the host decides where that lives), and the
- * backend the server sent — null to open on the one kept from last time. */
+ * backend the server sent — null to open on the one kept from last time —
+ * and the principal whose delivered history this store owns. */
 export interface DeviceOpener {
-  open(name: string, backend: BackendJson | null): Promise<DeviceCore>;
+  open(name: string, backend: BackendJson | null, viewer: string): Promise<DeviceCore>;
 }
 
 export interface LocalOptions {
@@ -226,7 +227,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let closed = false;
   let closing: Promise<void> | undefined;
   const aborter = new AbortController();
-  const core = await options.device.open(storeName, backend);
+  const core = await options.device.open(storeName, backend, viewer);
   let stopSuspend: (() => void) | undefined;
   let stopOutbox: (() => void) | undefined;
   let media: MediaCache | undefined;
@@ -648,7 +649,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             backendRevision = request.revision;
             const nextBackend = await loadBackend(doFetch, base, request.headers, aborter.signal);
             if (closed || backendIncarnation !== incarnation) return false;
-            const adopted = await call({ op: "adopt", backend: nextBackend, store_id: page.store_id ?? requestedStore ?? null, send_revision: page.send_revision });
+            const adopted = await call({ op: "adopt", viewer, backend: nextBackend, store_id: page.store_id ?? requestedStore ?? null, send_revision: page.send_revision });
             await refreshAcquired();
             if (adopted.denied) return false;
             incarnation++;

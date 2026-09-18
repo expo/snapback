@@ -17,7 +17,7 @@ impl device::Device<Store> {
     /// backend the server sent — or, with none, for the backend kept from
     /// last time, so a device that starts with no network opens on what it
     /// holds.
-    pub fn open(path: &Path, backend: Option<Backend>) -> Result<Self, RuntimeError> {
-        Self::open_store(crate::sqlite::open(path)?, backend)
+    pub fn open(path: &Path, backend: Option<Backend>, viewer: &str) -> Result<Self, RuntimeError> {
+        Self::open_store(crate::sqlite::open(path)?, backend, viewer)
     }
 }

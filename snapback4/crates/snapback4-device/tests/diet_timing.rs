@@ -10,7 +10,7 @@ use std::time::Instant;
 fn diet_hot_paths() {
     let compiled = snapback4_lang::compile(&[("chat.q".into(), include_str!("../../../apps/chat/snapback/schema.q").into())]);
     let backend = Backend { generation: 1, schema: compiled.schema, programs: compiled.programs.into_iter().map(|p| p.program).collect() };
-    let fresh = Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap();
+    let fresh = Device::open_store(MemoryStore::new(), Some(backend.clone()), "dev:bob").unwrap();
     let mut kept = fresh.store().drain();
     for n in 0..100_000 {
         let id = format!("msg{n:06}");
@@ -22,7 +22,7 @@ fn diet_hot_paths() {
     let mut apply = Vec::new();
     let mut open = Vec::new();
     for _ in 0..7 {
-        let mut device = Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap();
+        let mut device = Device::open_store(MemoryStore::new(), Some(backend.clone()), "dev:bob").unwrap();
         let start = Instant::now();
         let reply = snapback4_device::call::call_text(&mut device, &request);
         assert!(reply.get("denied").is_none(), "{reply}");
@@ -31,7 +31,7 @@ fn diet_hot_paths() {
         let changes: Vec<Change> = snapback4_core::json_codec::from_text(&kept).unwrap();
         let mut store = MemoryStore::new();
         store.load(changes).unwrap();
-        let device = Device::open_store(store, None).unwrap();
+        let device = Device::open_store(store, None, "dev:bob").unwrap();
         open.push(start.elapsed().as_secs_f64() * 1000.0);
         assert!(!device.store().drain().iter().any(|c| c.s == 'r'));
     }

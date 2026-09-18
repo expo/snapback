@@ -75,7 +75,8 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                         expected.insert(key.to_owned(), value);
                     }
                 }
-                device.adopt_captured(parse::<Backend>(take(&mut request, "backend")?)?, expected)?;
+                let viewer = text(&request, "viewer")?.to_owned();
+                device.adopt_captured(parse::<Backend>(take(&mut request, "backend")?)?, &viewer, expected)?;
                 Json::Null
             }
             "apply" | "observe_store" => {

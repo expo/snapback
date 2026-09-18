@@ -116,7 +116,7 @@ const rawQuery = core => core.call({ op: "query", name: "thread", viewer: "dev:a
 
 test("wasm rejects a skipped snapshot page before accepting its completion", async t => {
   const persist = memoryPersistence(), opener = webDevice({ wasm, persist });
-  const core = await opener.open("skip", rawBackend); t.after(() => core.close());
+  const core = await opener.open("skip", rawBackend, "dev:alice"); t.after(() => core.close());
   const pages = [
     { after: null, next: "middle", more: true, events: [membership, message(12), message(11)], acquisitions: [marker(1)] },
     { after: "middle", next: "last", more: true, events: [message(10), message(9)] },
@@ -137,14 +137,14 @@ test("wasm rejects a skipped snapshot page before accepting its completion", asy
 
 for (const moved of [false, true]) test(`wasm retained reacquisition remains unknown after gap ${moved ? "move" : "deletion"}`, async t => {
   const persist = memoryPersistence(), opener = webDevice({ wasm, persist });
-  let core = await opener.open(`gap-${moved}`, rawBackend); t.after(() => core.close());
+  let core = await opener.open(`gap-${moved}`, rawBackend, "dev:alice"); t.after(() => core.close());
   ok(await core.call({ op: "apply", first: true, page: { snapshot: true, events: [membership, message(2), message(1)], acquisitions: [marker(1), marker(3, "whole")], watermark: 1, more: false } }));
   assert.equal(ok(await rawQuery(core)).complete, true);
   ok(await core.call({ op: "apply", page: { snapshot: false, events: [{ table: "messages", id: "scope", kind: "scope", data: ["c1"] }], watermark: 2, more: false } }));
   const rows = moved ? [message(6), message(5), message(4), message(3), message(1)] : [message(1)];
   ok(await core.call({ op: "apply", page: { snapshot: false, events: rows, acquisitions: [marker(0), marker(rows.length, "whole")], joined: { messages: [["c1"]] }, watermark: 4, more: false } }));
   assert.equal(ok(await rawQuery(core)).unknown, true);
-  await core.close(); core = await opener.open(`gap-${moved}`);
+  await core.close(); core = await opener.open(`gap-${moved}`, null, "dev:alice");
   const retained = ok(await rawQuery(core)); assert.equal(retained.unknown, true); assert.equal(retained.complete, false); assert.ok(ids(retained).includes("p2"));
   ok(await core.call({ op: "apply", first: true, page: { snapshot: true, held: { messages: [["c1"]] }, events: [membership, ...rows], acquisitions: [marker(1), marker(rows.length + 1, "whole")], watermark: 4, more: false } }));
   const refreshed = ok(await rawQuery(core)); assert.equal(refreshed.complete, true); assert.equal(refreshed.unknown, false); assert.deepEqual(ids(refreshed), rows.map(row => row.id));
@@ -198,7 +198,7 @@ async function reviewServer(t, source = reviewSource) {
     const result = await response.json(); assert.equal(response.status, 200, JSON.stringify(result)); assert.ok(!result.denied, JSON.stringify(result)); return result;
   };
   const backend = await (await fetch(`${url}/schema`, { headers: { "x-snapback-persona": "bob" } })).json();
-  const core = await webDevice({ wasm, persist: memoryPersistence() }).open(directory, backend); t.after(() => core.close());
+  const core = await webDevice({ wasm, persist: memoryPersistence() }).open(directory, backend, "dev:bob"); t.after(() => core.close());
   return { post, core };
 }
 for (const moved of [false, true]) for (const hidden of [false, true]) test(`wasm wire withholds a ${hidden ? "hidden" : "deleted"} floor's historical value${moved ? " with moved survivor (recheck)" : ""}`, { timeout: 720_000 }, async t => {

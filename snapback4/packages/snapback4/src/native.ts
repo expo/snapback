@@ -21,7 +21,7 @@ export function processDevice(options: ProcessDeviceOptions): DeviceOpener {
   if (!options || typeof options.dir !== "string" || options.dir.trim().length === 0) throw new Error("processDevice needs { dir }: the directory its stores live in");
   const { dir, binary: suppliedBinary, spawn: suppliedSpawn, writeFile: suppliedWriteFile } = options;
   return {
-    async open(name, backend) {
+    async open(name, backend, viewer) {
       const binary = suppliedBinary ?? (await import("./resolve-binary.ts")).resolveBinary();
       const spawn = suppliedSpawn ?? (await import("node:child_process")).spawn;
       const writeFile = suppliedWriteFile ?? (async (path: string, text: string) => {
@@ -31,7 +31,7 @@ export function processDevice(options: ProcessDeviceOptions): DeviceOpener {
         await writeFile(path, text);
       });
       const path = `${dir.replace(/\/$/, "")}/${name}.sqlite`;
-      const args = [ "device", path ];
+      const args = [ "device", path, viewer ];
       if (backend) {
         const file = `${path}.backend.json`;
         await writeFile(file, JSON.stringify(backend));

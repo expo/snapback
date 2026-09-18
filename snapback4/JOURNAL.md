@@ -36460,3 +36460,267 @@ Final root reference check:
 ./ref-check --verbose
 ref-check: ok — 483 LLP docs, 9081 refs in 24233 files, 0 errors, 0 unchecked
 ```
+
+
+## 2026-09-17 — Repair C: delivered-history ownership and program-only adoption
+
+Implemented the decided Repair C in LLP 3000.001 (reliability-retention),
+with C1 preceding C2. Device opening and captured adoption now take the
+principal explicitly. `device:history-owner` is reserved durably before
+acquisition and is checked together with backend/store incarnation on live
+handles. The delivered-history read shortcut requires the reading principal
+to match that recorded owner; foreign principals use ordinary read rules.
+Server reads and the system principal keep their existing behavior.
+
+A different or unknown owner with retained delivered-history images refuses
+with structural `SNAPBACK_HISTORY_OWNER`, before installation, and directs the
+opener to a different store. Inspection includes confirmed prediction bases;
+missing group evidence is treated conservatively as retained. A different
+owner without retained history resets and binds the new owner. A legacy store
+without retained history may bind the opener, but its reacquirable images are
+reset first if its prior schema supports delivered history: unknown provenance
+must not become trusted provenance merely by assigning the new owner. Legacy
+public/until-revoked-only stores keep their prior image lifecycle.
+
+One adoption plan now serves both entry points. A changed, nonzero generation
+with whole-schema equality, unchanged owner and no backend-replacement marker
+preserves images and the held/left map. Acquisition and its W13g boundaries
+survive under the existing same-table-count/acquired-generation condition.
+The old literal-default predicate remains an additional, unchanged alternative;
+its group-map reset and added-table acquisition behavior are explicitly tested.
+Native invalidation, logical expiry and until-revoked removal remain in place.
+Installation compares the captured identity/acquisition facts transactionally.
+
+The wasm, C, native process, Expo and client opener/adoption paths now pass the
+principal. `contract.ts` is unchanged. The previous
+`program_only_adoption_resets_retained_components_on_both_stores` limitation
+test is replaced by true program-body-only regressions. Adding an operation
+changes schema and is separately tested as a negative case.
+
+New `tests/history_owner.rs` executes nine scenarios across memory/SQLite and
+open/captured-adopt: exact 25 retained plus 26 server-held composition; real
+guest-to-password refusal and foreign reads; same-principal credential rotation;
+sign-in without retained history; legacy ownership; negative adoptions;
+literal-default lifecycle; prediction plus interrupted snapshot plus executable
+native module; and failed adoption preserving durable state. The native fixture
+loader is shared with existing native-read tests. The explicit
+`SNAPBACK4_TEST_NATIVE_FIXTURE` override reused the prebuilt rescore module;
+this lane launched no wasm/release build.
+
+Verification, serialized with two build jobs/test threads:
+
+- `cargo build`: passed, debug build.
+- `cargo test -p snapback4-device --no-fail-fast -- --test-threads=2`:
+  528 passed, 0 failed, 3 ignored across targets.
+- Final affected rerun (`--test history_owner --test native_reads`):
+  36 + 8 passed, 0 failed; covers the final empty-id ownership check,
+  same-generation credential rotation and shared native fixture loader.
+- `cargo test -p snapback4-core -- --test-threads=2`:
+  159 passed, 0 failed, 0 ignored across targets.
+- `bun run --cwd packages/snapback4 typecheck`: exits 2; both diagnostics
+  are TS2307 for absent `./wasm/snapback4_device.js`, in `src/web-journal.ts`
+  (5,32) and `src/web.ts` (14,33). The generated wasm directory is absent;
+  regeneration is intentionally left to integration, per the lane instruction.
+- `git diff --check`: clean. Every changed source is under 1,500 lines.
+
+No design contradiction was found. Legacy stores with retained history and
+unknown provenance intentionally require preserving that store rather than
+opening it as a guessed owner; recorded same-principal rotation and shared-path
+sign-in without retained history pass. No unrelated failure was repaired or
+claimed to be an origin/main failure. Simulator, full suite, witnesses, wasm,
+release and native mobile builds were not run. No commit, push, rebase or merge.
+The supervisor owns integration and artifact rebuilding. The detailed handoff
+and verbatim verification logs are in `target/repair-c-review.md` and
+`target/repair-c-verification/` (local review artifacts, not product files).
+
+## 2026-09-17 — Repair C review, fix round 1
+
+Corrected the two blind review families' findings in the uncommitted Lane C
+worktree at base `27a8a4d66`. This supersedes the preceding entry's statement
+that history ownership is checked together with backend/store incarnation:
+those are separate checks, and an absent or mismatched principal binding is
+never an obsolete-backend signal. Opening/adoption retains the three outcomes
+(match, reset without retained history, refuse and preserve retained history).
+Live sync state, acquisition and observation propagate `SNAPBACK_HISTORY_OWNER`
+before any replacement can erase data. Principal rebinding advances the sync
+revision in the same checked transaction, fencing delayed captures even at
+watermark zero and the same generation.
+
+Ownership inspection now checks both schemas, including an incoming schema
+when kept backend metadata is absent. Unknown provenance cannot be adopted as
+trusted history. SQLite inspects physical rows before trusting its catalog;
+uncatalogued rows, missing mappings and scan/decode uncertainty refuse reuse.
+Memory's physical scan validates row identity and includes empty IDs. A nonempty
+replacement marker independently triggers reset. Literal-default preservation
+keeps its existing exception to the replacement condition. Program-only
+watermark reset and native invalidation remain: replacement acquisition stages
+local confirmed left-group images before publishing the new partition, proved
+by the exact retained-row, prediction, interrupted-snapshot and native tests.
+An empty acquisition marker is no longer mistaken for completed acquisition on
+a fresh store's first identity observation.
+
+Host corrections carry the viewer through Swift and all open-reason signatures,
+keep diagnostics on the saved refusal without reopening, skip foreign-owned
+orphan journals without retrying them forever, and correct the process fixture's
+principal/backend argument positions. Empty-principal rejection is at the start
+of `open_store`; the guide spells all four program-only preservation conditions.
+
+The review was partly mistaken about existing behavior: this tree's reason
+helper already used a thread-local refusal; its orphan loop already caught the
+constructor error in an outer catch (and retried); SQL/decode errors already
+propagated, although the catalog join could hide physical rows; and adoption
+planning already rejected an empty principal. These facts did not substitute
+for the requested corrections. The literal-default predicate also rejects a
+retention-policy change on an existing table; both-schema scanning is still
+required and tested independently.
+
+The earlier test changes are behavioral, not all mechanical:
+`device_scenarios/mod.rs` now asserts preserved acquisition/data on an
+identical-schema generation; `codec/old_store.rs` allows and separately asserts
+the new owner metadata (now also the fencing revision) while preserving frozen
+old bytes; `search_merge/round2.rs` replaces the old loss limitation with the
+program-body-only lifetime regression and retains added-operation reset as a
+separate negative case in `history_owner.rs`.
+
+Mutation checks disabled H1, H2, H4 and H5 independently, and each of H3's sync
+and acquisition checks separately. Every selected regression failed (respectively
+5, 1, 4, 4, 4 and 4 failures for H1, H2, H3-sync, H3-acquire, H4, H5), with each
+source restored byte-for-byte after its run. Commands, raw failure logs and
+restoration hashes are in `target/repair-c-verification/mutation-results.json`.
+The per-finding explanation is `target/repair-c-round1-review.md`.
+
+A final M4 audit also covered a catalog that still names all old physical
+numbers but assigns the requested table an unused number. An empty first page
+cannot authorize reassignment when physical rows remain: SQLite conservatively
+refuses that ambiguity. The new regression passes along with all 60 ownership
+cases. Memory's direct named keys have no catalog ambiguity; an additional
+regression covers malformed images, mismatched image IDs, and an isolated empty
+physical ID before indexes are installed.
+
+Final requested verification, using two build jobs/test threads and the
+already-built native fixture (no wasm/release build):
+
+- `cargo test -p snapback4-device`: exit 0; 553 passed, 0 failed, 3 ignored across targets.
+- `cargo test -p snapback4-core`: exit 0; 159 passed, 0 failed, 0 ignored across targets.
+- `git diff --check`: clean. The device run reports an `unused_mut` warning
+  in `tests/native_reads.rs:75`; its three ignored tests remain ignored.
+
+Raw final logs, every target's verbatim result line, and the per-finding report
+are in `target/repair-c-verification/fix-round1-{device,core}.log` and
+`target/repair-c-round1-review.md`. No whole suite, witness, simulator suite,
+repository-root generator, wasm, release, package or mobile build was run.
+No commit, push, rebase or merge. Artifact/package integration remains with
+the integrating lane; no requested code finding is left open.
+
+## 2026-09-17 — Repair C review, fix round 2
+
+M8: both opening and live adoption now cache the owner returned by the plan's
+successful checked installation, taken from the exact installed metadata.
+The plan's metadata is private; neither caller assigns the cache from `viewer`.
+The normal plan still enforces C1's match/reset/refuse decision. Its current
+requested and recorded principals agree, so the old duplicate assignment was
+a drift risk, not a demonstrated production mismatch. A controlled mismatch
+probe makes the planner select another binding: all four memory/SQLite and
+open/adopt checks pass with the fix; restoring each former caller assignment
+fails its two affected checks. The production planner policy is restored.
+
+L3: adoption completion and its `BACKEND_REQUIRED` clear now live inside the
+plan alongside the replacement/keep decision. Explicit adoption completes the
+obligation; opening, including offline restart, retains it. The accepted
+literal-default replacement exception is unchanged. Direct plan regressions
+cover preserved versus reset images and pending versus completed adoption on
+both stores. Restoring the clear outside the plan fails both regressions.
+
+Checked installation compares raw captured values, including missing keys,
+before publishing proposed metadata. Frozen pre-change 0.2.27 record fixtures
+successfully open and adopt a literal-default generation in place on memory
+and SQLite, preserving the row, acquisition and queued write. An intervening
+captured-metadata change can newly refuse unchecked-era adoption with
+`E_GENERATION`; two regressions prove the pending obligation and old metadata
+survive and that fresh planning retries successfully. Mutating missing capture
+keys to empty strings fails both legacy regressions; bypassing CAS fails both
+stale-capture regressions. Trait documentation states absence and retry
+semantics. No CAS production change was required in this round.
+
+Each mutation restored the production sources byte-for-byte. Exact commands,
+raw logs and restoration hashes are in
+`target/repair-c-verification/round2-mutation-results.json`; the detailed report
+is `target/repair-c-round2-review.md`. An initial SQLite test-helper collision
+was corrected by using a separate in-memory SQLite connection per test; the
+recorded successful probe and negative runs use that isolated fixture.
+
+Final requested verification with two build jobs/test threads and the existing
+native fixture, with no wasm or release build:
+
+- `cargo test -p snapback4-device`: exit 0; 563 passed, 0 failed, 3 ignored.
+- `cargo test -p snapback4-core`: exit 0; 159 passed, 0 failed, 0 ignored.
+- `git diff --check`: clean. The existing `unused_mut` warning at
+  `tests/native_reads.rs:75` remains.
+
+Complete verbatim logs are
+`target/repair-c-verification/fix-round2-{device,core}.log`. No whole suite,
+witness, simulator suite, repository-root generator, commit, push, rebase or
+merge was run. No new design decision or LLP was needed.
+
+
+## 2026-09-17 — Repair C review, fix round 3
+
+H6/H7/H9: the ownership scan now enumerates populated physical tables, not
+schema-listed names. SQLite inventories physical numbers and refuses unmapped
+numbers; the common classifier refuses populated names missing from the
+persisted schema. Every physical row and non-null confirmed base needs that
+prior classification. The incoming schema cannot establish what an old store
+retained. Both available retention interpretations still apply. Missing-schema
+held/left tests now use separate fixtures and both refuse; an incoming group
+key cannot classify the old image without its prior schema.
+
+H8's reported empty-ID deletion did not reproduce: both supplied stores already
+included the empty ID on their first page. Four ownership controls pass with
+those original semantics restored. The ambiguous empty-string cursor has still
+been replaced by `None` for the first page and an exclusive `Some(id)` cursor;
+the one-row paging regression fails under the old semantics. Both stores refuse
+zero limits. A second-page regression protects history after 256 held rows.
+
+M9: catalog validity and per-table emptiness are separate. A valid empty table
+can return an empty page with other tables populated. Memory/SQLite parity and
+the independent sign-in controls pass. M10: replacement plans now assert their
+proposed, captured, returned and durable owner bindings, and restore both owner
+and acquisition metadata between branches. CAS retry and cache tests also read
+back the expected durable principal.
+
+H10: the web constructor throws a structured refusal envelope. Constructor,
+adoption, sync state and journal recovery use the shared structural history-owner
+check, without parsing formatted Error messages for authorization. Recovery
+cannot terminalize that refusal and consume the journal. Orphan transfer keeps
+foreign and unknown-owner replica data intact, including without a journal;
+metadata-only shared receipts still transfer. Ordered persisted changes use
+the last owner binding. Twelve source-host regressions preserve the denied
+source and journal while processing a healthy orphan.
+
+The reviewer's independent file is included verbatim: before, 2 passed and 11
+failed; after, 13 passed. Mutation evidence covers missing prior schema (8
+independent and 4 base-only failures), omitted mapped history (1), empty-ID
+omission (4), the original cursor collision (1), a skipped second page (4),
+schema-only enumeration (4), ignored unknown bases (4), permitted unclassified
+drop/rename copies (8), the original empty-table behavior (2 sign-in failures
+and 1 direct contract failure), wrong installed binding (2), and every new host
+boundary. Restoring only SQLite's old empty-page fallback leaves the sign-in
+controls green under the physical inventory; that surviving exploratory
+mutation is recorded, and the direct contract regression detects it. Every
+mutation restores its source files byte-for-byte and records restoration hashes.
+
+Final requested commands, with two build jobs/test threads and the existing
+native fixture supplied to prevent a wasm/release build:
+
+- `cargo test -p snapback4-device`: exit 0; 609 passed, 0 failed, 3 ignored.
+- `cargo test -p snapback4-core`: exit 0; 159 passed, 0 failed, 0 ignored.
+- `git diff --check`: clean; the existing `native_reads.rs:75` warning remains.
+
+The Rust web feature also compiles/tests on the native host (13 passed).
+Source-host tests use a device boundary double. Package typechecking is blocked
+by the absent generated wasm declarations; no wasm artifact was rebuilt or
+executed. The per-finding report, exact mutation commands, raw before/after and
+final logs, and verbatim target results are in `target/repair-c-round3/`.
+No commit, push, rebase, merge, whole suite, wasm build, witness, release build,
+simulator suite or repository-root generator was run. The base remains
+`27a8a4d66`; artifact integration remains outside this authorized fix round.

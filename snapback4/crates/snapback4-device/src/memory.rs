@@ -451,6 +451,30 @@ impl Rows for MemoryTx<'_> {
 }
 
 impl DeviceTx for MemoryTx<'_> {
+    fn stored_tables(&self) -> Result<Vec<String>, RuntimeError> {
+        let mut names = Vec::new();
+        for (name, _) in self.store.state.borrow().rows.keys() {
+            if names.last() != Some(name) { names.push(name.clone()); }
+        }
+        Ok(names)
+    }
+    fn stored_rows_after(&self, table: &str, after: Option<&str>, limit: usize) -> Result<Vec<Value>, RuntimeError> {
+        use std::ops::Bound::{Excluded, Included, Unbounded};
+        if limit == 0 {
+            return Err(RuntimeError::Input("physical row pages require a positive limit".into()));
+        }
+        let start = match after {
+            None => Included((table.to_owned(), String::new())),
+            Some(id) => Excluded((table.to_owned(), id.to_owned())),
+        };
+        self.store.state.borrow().rows.range((start, Unbounded))
+            .take_while(|((name, _), _)| name == table).take(limit).map(|((_, id), row)| {
+                if row.field("id")?.as_str()? != id {
+                    return Err(RuntimeError::Store("physical row identity does not match its image".into()));
+                }
+                Ok(row.clone())
+            }).collect()
+    }
     fn commit(self) -> Result<(), RuntimeError> {
         let state = self.store.state.borrow();
         let mut changes = self.store.changes.borrow_mut();

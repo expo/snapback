@@ -1048,7 +1048,7 @@ step.
   `columns`, positional `rows` (retaining every selected column), `limit`,
   `more`, `ruleFiltered: false`, and the same inspection header. For example:
   `snapback4 sql "SELECT conversationId, count(*) FROM messages GROUP BY conversationId"`.
-- **`snapback4 device <store.sqlite> [backend.json]`** runs the native
+- **`snapback4 device <store.sqlite> <principal> [backend.json]`** runs the native
   device over stdin/stdout, one JSON request and answer per line.
 - **`snapback4 --help`** lists every verb and its flags; `deploy`,
   `rollback` and `serve` are described in §6.
@@ -1309,7 +1309,7 @@ device kept, which is how a cold start with no network opens). The
 module speaks the same call over a C ABI
 (`crates/snapback4-device/include/snapback4.h`: `sb4_open`, `sb4_call`,
 `sb4_free`, `sb4_close`) and, for a Rust host, through
-`snapback4_device::ffi::call`; `snapback4 device <store>` runs it as a
+`snapback4_device::ffi::call`; `snapback4 device <store> <principal>` runs it as a
 process, one JSON line each way, which is how the Node tests drive the
 real module. Measured: 1.7 MB linked on iOS, SQLite included; 313 KB
 gzip as wasm.

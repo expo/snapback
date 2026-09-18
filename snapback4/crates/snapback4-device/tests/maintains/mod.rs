@@ -111,7 +111,7 @@ mutation leave(room: text <=30):
         server.seed([("members".into(),snapback4_core::value::object([("id",id("m")),("room",Value::String("room".into())),("principal",id("bob"))])),
             ("posts".into(),snapback4_core::value::object([("id",id("p")),("room",Value::String("room".into())),("at",Value::Int(-1)),("selected",Value::Bool(true))]))]).unwrap();
         assert_eq!(server.schema().tables["counts"].leave,snapback4_core::schema::LeavePolicy::UntilRevoked);
-        let mut device = host.open("leave",Some(backend)).unwrap();
+        let mut device = host.open_as("leave",Some(backend),"bob").unwrap();
         for (i,page) in snapshot_pages(&mut server,"bob",100).iter().enumerate() { device.apply(page,i==0).unwrap(); }
         let input=json!({"room":"room","c":null});
         assert_eq!(device.query("countsFor","bob",&input,1).unwrap().data.as_array().unwrap().len(),1);

@@ -204,28 +204,28 @@ try {
     const queued = async core => (await core.call({ op: "queued" })).ok.map(entry => entry.id);
     let core;
     try {
-      core = await opener.open(name, backend);
+      core = await opener.open(name, backend, "dev:alice");
       const entry = id => ({ id, seq: 1, op: "send", args: { conversationId: "c1", body: id } });
       await core.call({ op: "enqueue", entry: entry("acknowledged") });
       abort = store => store === name;
       const admissionRejected = await attempt(() => core.call({ op: "enqueue", entry: { ...entry("aborted"), seq: 2 } }));
       const liveQueued = await queued(core);
-      await core.close(); core = await opener.open(name);
+      await core.close(); core = await opener.open(name, null, "dev:alice");
       const reopenedQueued = await queued(core);
       await core.close(); core = null;
       const failedOpenName = "witness-failed-open", freeBefore = freed;
       abort = store => store === failedOpenName;
-      const initialRejected = await attempt(() => opener.open(failedOpenName, backend));
+      const initialRejected = await attempt(() => opener.open(failedOpenName, backend, "dev:alice"));
       const initialFreed = freed - freeBefore, initialUnlocked = await unlocked(failedOpenName);
       const base = "witness-adoption", orphan = `${base}:tab-orphan`;
-      core = await opener.open(orphan, backend);
+      core = await opener.open(orphan, backend, "dev:alice");
       await core.call({ op: "enqueue", entry: entry("orphan-write") });
       await core.close(); core = null;
       abort = (store, value) => store === base && value.s === "o";
-      const adoptionRejected = await attempt(() => opener.open(base, backend));
+      const adoptionRejected = await attempt(() => opener.open(base, backend, "dev:alice"));
       const orphanKept = (await persist.others(orphan)).includes(orphan);
       const adoptionUnlocked = await unlocked(base) && await unlocked(orphan);
-      core = await opener.open(base, backend);
+      core = await opener.open(base, backend, "dev:alice");
       const adopted = await queued(core);
       const orphanRemoved = !(await persist.others(orphan)).includes(orphan);
       return { admissionRejected, liveQueued, reopenedQueued, initialRejected, initialFreed, initialUnlocked, adoptionRejected, orphanKept, adoptionUnlocked, adopted, orphanRemoved };
@@ -270,7 +270,7 @@ try {
         if (this.transaction.db.name === "snapback4-wasm") this.transaction.abort();
         return request;
       };
-      try { await window.webDevice({ wasm: url }).open("runtime-install", {}); }
+      try { await window.webDevice({ wasm: url }).open("runtime-install", {}, "dev:alice"); }
       catch { rejected = true; }
       finally { window.fetch = fetchBefore; IDBObjectStore.prototype.put = putBefore; }
       const after = await persist.load("snapback4-wasm");
@@ -313,14 +313,14 @@ try {
     let firstError, secondError, core;
     window.fetch = input => String(input) === firstUrl ? Promise.resolve(new Response(bytes)) : String(input) === secondUrl ? Promise.resolve(new Response(incompatible)) : realFetch(input);
     try {
-      try { await window.webDevice({ wasm: firstUrl, persist: { ...persist, async save(name, changes) { if (name === "snapback4-wasm") throw new Error("injected runtime cache save failure"); await persist.save(name, changes); } } }).open("runtime-retry", backend); }
+      try { await window.webDevice({ wasm: firstUrl, persist: { ...persist, async save(name, changes) { if (name === "snapback4-wasm") throw new Error("injected runtime cache save failure"); await persist.save(name, changes); } } }).open("runtime-retry", backend, "dev:alice"); }
       catch (error) { firstError = String(error); }
-      try { core = await window.webDevice({ wasm: secondUrl }).open("runtime-retry", backend); }
+      try { core = await window.webDevice({ wasm: secondUrl }).open("runtime-retry", backend, "dev:alice"); }
       catch (error) { secondError = String(error); }
       await core?.close(); core = undefined;
       const cacheUnchanged = JSON.stringify(before) === JSON.stringify(await persist.load("snapback4-wasm"));
       // Retrying the original content should remain usable without a reload.
-      core = await window.webDevice({ wasm: firstUrl }).open("runtime-retry", backend);
+      core = await window.webDevice({ wasm: firstUrl }).open("runtime-retry", backend, "dev:alice");
       const sameContentRecovered = !!(await core.call({ op: "state" })).ok;
       return { sameExports, changedImport, firstError, secondError, cacheUnchanged, sameContentRecovered };
     } finally { await core?.close(); window.fetch = realFetch; }
@@ -331,7 +331,7 @@ try {
     let core, offlineFetches = 0, offlineSameContentRecovered = false;
     window.fetch = () => { offlineFetches++; return Promise.reject(new TypeError("offline after runtime retry")); };
     try {
-      core = await window.webDevice({ wasm: new URL("/retry-first.wasm", location.href) }).open("runtime-retry");
+      core = await window.webDevice({ wasm: new URL("/retry-first.wasm", location.href) }).open("runtime-retry", null, "dev:alice");
       offlineSameContentRecovered = !!(await core.call({ op: "state" })).ok;
     } catch { /* reported below */ }
     finally { await core?.close(); window.fetch = realFetch; }

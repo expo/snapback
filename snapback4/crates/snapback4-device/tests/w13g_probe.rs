@@ -474,7 +474,7 @@ fn refresh<H: Host>(host: &mut H) {
     assert_ne!(boundaries(&mut device), original, "refresh replaces the boundary at publication");
     let (_, mut successor) = compile(&public_source().replace("last 5 by byTime", "last 6 by byTime"));
     successor.generation = engine.adopt(successor.schema.clone(), successor.programs.clone()).unwrap();
-    device.adopt(successor).unwrap();
+    device.adopt(successor, "dev:bob").unwrap();
     assert_eq!(boundaries(&mut device).as_deref(), None);
     assert!(!device.sync_state().unwrap().acquired);
     for (i, page) in snapshot_pages(&mut engine, "dev:bob", 2).into_iter().enumerate() { device.apply(&page, i == 0).unwrap(); }

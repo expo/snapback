@@ -233,7 +233,11 @@ impl Runner<'_> {
     /// history stays readable; until-revoked content rechecks that audience.
     fn trust_synced_read(&self, table: &Table) -> bool {
         self.device && table.sync.as_ref().is_some_and(|sync| {
-            table.leave == crate::schema::LeavePolicy::DeliveredHistory || match &sync.audience {
+            // @ref LLP 3000.001#reliability-retention — a delivered copy is authority only for its acquiring principal.
+            if table.leave == crate::schema::LeavePolicy::DeliveredHistory {
+                return self.tx.history_owner() == Some(self.context.viewer.as_str());
+            }
+            match &sync.audience {
                 crate::schema::Audience::Target { table, .. } => self.schema.table(table).is_none_or(|target| target.expire.is_none()),
                 _ => true,
             }

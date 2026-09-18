@@ -3,7 +3,7 @@ use super::*;
 
 fn routes<S: DeviceStore>(store: S) {
     let backend = Backend { generation: 1, schema: Default::default(), programs: vec![] };
-    let mut device = Device::open_store(store, Some(backend)).unwrap();
+    let mut device = Device::open_store(store, Some(backend), "dev:bob").unwrap();
     for op in ["apply", "observe_store"] {
         for (fields, expected) in [("", 0), ("\"watermark\":99,", 1)] {
             let request = format!(r#"{{"op":"{op}","first":true,"page":{{{fields}"snapshot":true,"events":[],"watermark":1,"more":false,"generation":1}}}}"#);

@@ -10,6 +10,7 @@ pub struct CountedTx<'a> { tx: MemoryTx<'a>, counts: Rc<Counts> }
 impl DeviceStore for Counted {
     type Tx<'a> = CountedTx<'a>;
     fn install(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool) -> Result<(), RuntimeError> { self.store.install(schema, metadata, reset) }
+    fn install_checked(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> { self.store.install_checked(schema, metadata, reset, expected) }
     fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> { self.store.meta(key) }
     fn set_meta(&mut self, key: &str, value: &str) -> Result<(), RuntimeError> { self.store.set_meta(key, value) }
     fn transaction(&mut self) -> Result<Self::Tx<'_>, RuntimeError> { Ok(CountedTx { tx: self.store.transaction()?, counts: self.counts.clone() }) }
@@ -23,6 +24,8 @@ impl Rows for CountedTx<'_> {
     fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> { self.tx.delete(table_name, table, old) }
 }
 impl DeviceTx for CountedTx<'_> {
+    fn stored_tables(&self) -> Result<Vec<String>, RuntimeError> { self.tx.stored_tables() }
+    fn stored_rows_after(&self, table: &str, after: Option<&str>, limit: usize) -> Result<Vec<Value>, RuntimeError> { self.tx.stored_rows_after(table, after, limit) }
     fn commit(self) -> Result<(), RuntimeError> { self.tx.commit() }
     fn rollback(self) -> Result<(), RuntimeError> { self.tx.rollback() }
     fn savepoint(&self, name: &str) -> Result<(), RuntimeError> { self.tx.savepoint(name) }

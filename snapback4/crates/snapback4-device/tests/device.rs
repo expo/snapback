@@ -39,7 +39,10 @@ fn on_both(scenario: impl Fn(&mut dyn HostDyn)) {
 /// open, close, and the calls a test makes through one JSON dispatcher.
 pub trait HostDyn {
     fn label(&self) -> &'static str;
-    fn open(&mut self, name: &str, backend: Option<snapback4_device::device::Backend>) -> Result<Box<dyn AnyDevice + '_>, snapback4_core::error::RuntimeError>;
+    fn open(&mut self, name: &str, backend: Option<snapback4_device::device::Backend>) -> Result<Box<dyn AnyDevice + '_>, snapback4_core::error::RuntimeError> {
+        self.open_as(name, backend, "dev:bob")
+    }
+    fn open_as(&mut self, name: &str, backend: Option<snapback4_device::device::Backend>, viewer: &str) -> Result<Box<dyn AnyDevice + '_>, snapback4_core::error::RuntimeError>;
 }
 
 /// A device of either store, reached through the dispatcher and a few
@@ -89,8 +92,8 @@ impl<H: Host> HostDyn for H {
     fn label(&self) -> &'static str {
         Host::label(self)
     }
-    fn open(&mut self, name: &str, backend: Option<snapback4_device::device::Backend>) -> Result<Box<dyn AnyDevice + '_>, snapback4_core::error::RuntimeError> {
-        let device = Host::open(self, name, backend)?;
+    fn open_as(&mut self, name: &str, backend: Option<snapback4_device::device::Backend>, viewer: &str) -> Result<Box<dyn AnyDevice + '_>, snapback4_core::error::RuntimeError> {
+        let device = Host::open_as(self, name, backend, viewer)?;
         Ok(Box::new(Held { host: self, name: name.to_owned(), device: Some(device) }))
     }
 }
@@ -278,7 +281,7 @@ fn expiring_membership_revokes_until_revoked_rows_offline_and_on_catch_up() {
             generation: engine.generation(),
             ..backend
         };
-        let mut offline = host.open("expiry-offline", Some(backend.clone())).unwrap();
+        let mut offline = host.open_as("expiry-offline", Some(backend.clone()), "dev:alice").unwrap();
         for (index, page) in snapshot_pages_at(&mut engine, "dev:alice", 100, 5)
             .iter()
             .enumerate()
@@ -372,7 +375,7 @@ fn expiring_membership_revokes_until_revoked_rows_offline_and_on_catch_up() {
             "{label}: a commit at the expiry boundary was never authorized"
         );
 
-        let mut caught_up = host.open("expiry-catch-up", Some(backend.clone())).unwrap();
+        let mut caught_up = host.open_as("expiry-catch-up", Some(backend.clone()), "dev:alice").unwrap();
         ok(apply(&mut *caught_up, &catch_up, false));
         let caught_up_query = query(
             &mut *caught_up,
@@ -383,7 +386,7 @@ fn expiring_membership_revokes_until_revoked_rows_offline_and_on_catch_up() {
         );
         caught_up.close();
 
-        let mut empty_snapshot = host.open("expiry-empty-snapshot", Some(backend)).unwrap();
+        let mut empty_snapshot = host.open_as("expiry-empty-snapshot", Some(backend), "dev:alice").unwrap();
         for (index, page) in snapshot_pages_at(&mut engine, "dev:alice", 100, 20)
             .iter()
             .enumerate()
@@ -646,7 +649,7 @@ fn delivered_history_survives_membership_expiry_during_a_paged_snapshot() {
             generation: engine.generation(),
             ..backend
         };
-        let mut device = host.open("paged-history-expiry", Some(backend)).unwrap();
+        let mut device = host.open_as("paged-history-expiry", Some(backend), "dev:alice").unwrap();
 
         let (events, pinned_watermark, next) = engine
             .snapshot_page_at("dev:alice", None, 1, 9)

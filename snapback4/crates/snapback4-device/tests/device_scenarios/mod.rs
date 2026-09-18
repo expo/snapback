@@ -53,7 +53,7 @@ fn the_device_follows_the_server_and_answers_locally() {
         ok(device.call(serde_json::json!({ "op": "withdraw", "predicted": doomed["predicted"] })));
         assert!(rows(&query(&mut *device, "thread", "dev:bob", serde_json::json!({ "conversationId": "c1" }), 3_000)).iter().all(|m| m["id"] != "msgDOOM"), "{label}");
         // The rows survive a reopen; a cold start with no network opens on
-        // the backend it kept; a new generation clears them.
+        // the backend it kept; an identical-schema generation preserves them.
         device.close();
         let mut again = host.open("bob", Some(backend.clone())).unwrap();
         assert_eq!(state(&mut *again).0, page.watermark, "{label}");
@@ -67,10 +67,9 @@ fn the_device_follows_the_server_and_answers_locally() {
         moved.generation += 1;
         let mut fresh = host.open("bob", Some(moved)).unwrap();
         assert_eq!(state(&mut *fresh), (0, backend.generation + 1), "{label}");
-        let unacquired = query(&mut *fresh, "inbox", "dev:bob", serde_json::json!({}), 3_000);
-        assert_eq!(unacquired["denied"]["code"], "E_PREDICT", "{label}: a new generation has not acquired its partition");
-        assert_eq!(unacquired["unknown"], true);
-        assert!(unacquired.get("data").is_none());
+        let acquired = query(&mut *fresh, "inbox", "dev:bob", serde_json::json!({}), 3_000);
+        assert_eq!(rows(&acquired)[0]["count"], 121, "{label}: identical-schema adoption keeps acquisition");
+        assert_eq!(acquired["unknown"], false);
         fresh.close();
     });
 }

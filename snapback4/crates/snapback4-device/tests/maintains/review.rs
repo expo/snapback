@@ -150,7 +150,7 @@ fn cursor_case<H: Host>(host: &mut H, generation: bool, op: &str) {
     let owner = if generation {
         let (_,mut next) = compile(&RANK.replace("bucket(.at, 2m)","bucket(.at, 1m)"));
         next.generation = server.adopt(next.schema.clone(),next.programs.clone()).unwrap();
-        device.adopt(next).unwrap();
+        device.adopt(next, "dev:bob").unwrap();
         for (i,page) in snapshot_pages(&mut server,"alice",100).iter().enumerate() { device.apply(page,i==0).unwrap(); }
         "alice"
     } else { "bob" };

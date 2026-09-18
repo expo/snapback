@@ -152,7 +152,10 @@ export class AdmissionJournal {
   // Recovered, previously unadmitted writes keep their original store binding.
   // An authenticated reset has already withdrawn predictions before this runs.
   fence(device: WebDevice): void {
-    const state = invoke(device, { op: "sync_state" }).ok;
+    const reply = invoke(device, { op: "sync_state" });
+    if (reply.denied) throw reply;
+    const state = reply.ok;
+    if (historyOwnerRefusal({ denied: state?.restore_refusal })) throw { denied: state.restore_refusal };
     if (!state?.store_id) return;
     for (const [id, transfer] of this.transfers) if (transfer.recovered && transfer.storeId !== state.store_id) {
       const reply = invoke(device, { op: "dequeue", id });
@@ -162,7 +165,10 @@ export class AdmissionJournal {
 
   async recover(device: WebDevice, settle: (extra?: Change[]) => Promise<void>, live = new Set<string>()): Promise<void> {
     if (!this.exclusive) return;
-    const state = invoke(device, { op: "sync_state" }).ok;
+    const reply = invoke(device, { op: "sync_state" });
+    if (reply.denied) throw reply;
+    const state = reply.ok;
+    if (historyOwnerRefusal({ denied: state?.restore_refusal })) throw { denied: state.restore_refusal };
     if (!state?.store_id || state.restore_refusal || state.backend_required) return;
     for (const record of records(this.name, true)) {
       const id = record.entry.id;
@@ -183,7 +189,7 @@ export class AdmissionJournal {
       // local authored refusal cannot settle the intent. Replay admission keeps
       // a successful prediction, or rolls refusal back and lets the server decide.
       const reply = this.admit(device, { ...record.entry, replay_candidate: true });
-      if (reply.denied && !writeRefusal(reply)) throw new Error(JSON.stringify(reply));
+      if (reply.denied && !writeRefusal(reply)) throw reply;
       await settle(reply.denied ? this.refused(record) : [this.transfer(record, true)]);
     }
   }
@@ -196,7 +202,13 @@ export class AdmissionJournal {
   }
 }
 
+/** Shared by constructor throws, call results and journal recovery. */
+export function historyOwnerRefusal(value: unknown): boolean {
+  return typeof value === "object" && value !== null
+    && (value as { denied?: { code?: unknown } }).denied?.code === "SNAPBACK_HISTORY_OWNER";
+}
+
 export function writeRefusal(reply: Record<string, unknown>): boolean {
   const why = reply.denied as Refusal | undefined;
-  return !!why && !why.retryable && !["E_STORE", "E_STORE_RESTORE", "E_GENERATION", "E_PREDICT"].includes(why.code);
+  return !!why && !historyOwnerRefusal(reply) && !why.retryable && !["E_STORE", "E_STORE_RESTORE", "E_GENERATION", "E_PREDICT"].includes(why.code);
 }

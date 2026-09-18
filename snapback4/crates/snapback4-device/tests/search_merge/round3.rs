@@ -41,6 +41,6 @@ fn r3_admitted_hidden_words_sqlite() {
     let host = Sqlite::new("r3-words");
     let path = host.path("words");
     let (_, backend) = compile(SOURCE);
-    drop(snapback4_device::device::Device::open(&path, Some(backend)).unwrap());
+    drop(snapback4_device::device::Device::open(&path, Some(backend), "dev:bob").unwrap());
     admitted_words(snapback4_core::Store::open(&path).unwrap());
 }

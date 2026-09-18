@@ -84,14 +84,14 @@ fn equal_keys_and_cross_generation_cursor_on_both_devices() {
             engine.adopt(next.schema.clone(), next.programs.clone()).unwrap();
             assert_eq!(engine.generation(), generation + 1);
             next.generation = engine.generation();
-            ok(device.call(serde_json::json!({"op":"adopt", "backend":next})));
+            ok(device.call(serde_json::json!({"op":"adopt", "viewer": "dev:bob", "backend":next})));
             for (i, page) in snapshot_pages(&mut engine, "alice", 100).iter().enumerate() { ok(apply(&mut *device, page, i == 0)); }
             let second = query(&mut *device, "feed", "alice", serde_json::json!({"c":first["next"]}), 100_000);
             assert_eq!(rows(&second)[0]["id"], "y");
             let (_, mut changed) = compile(&next_source.replace("last 1 by", "first 1 by"));
             engine.adopt(changed.schema.clone(), changed.programs.clone()).unwrap();
             changed.generation = engine.generation();
-            ok(device.call(serde_json::json!({"op":"adopt", "backend":changed})));
+            ok(device.call(serde_json::json!({"op":"adopt", "viewer": "dev:bob", "backend":changed})));
             for (i, page) in snapshot_pages(&mut engine, "alice", 100).iter().enumerate() { ok(apply(&mut *device, page, i == 0)); }
             let refusal = device.call(serde_json::json!({"op":"query","name":"feed","viewer":"alice","args":{"c":first["next"]},"now":100_000}));
             assert_eq!(refusal["ok"]["denied"]["code"], "E_INPUT", "{refusal}");

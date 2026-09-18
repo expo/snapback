@@ -9,7 +9,7 @@ const page = { snapshot: true, events: [], watermark: 1, more: false, generation
 
 test('the shipped page codec validates unknown JSON values and accepts valid extensions', () => {
   const call = request => {
-    const device = new WebDevice(backend, '[]');
+    const device = new WebDevice(backend, '[]', 'dev:alice');
     try { return JSON.parse(device.call(request)); } finally { device.free(); }
   };
   assert.deepEqual(call(JSON.stringify({ op: 'apply', first: true, page, extra: [null, true, 1.25, '☃'] })), { ok: { touched: [] } });

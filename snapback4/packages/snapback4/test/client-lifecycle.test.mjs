@@ -1167,8 +1167,8 @@ test("close aborts online posts and stops admission", { timeout: 10_000 }, async
 
 test("device process failures reject opening and pending calls instead of leaving close waiting", { timeout: 3000 }, async () => {
   const opener = (script) => processDevice({ binary: process.execPath, dir: "unused", spawn: (command) => spawn(command, ["-e", script], { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async () => {} });
-  await assert.rejects(opener("process.exit(4)").open("unused", null), /exited/);
-  const core = await opener('process.stdout.write(JSON.stringify({ok:true}) + "\\n"); process.stdin.once("data", () => process.exit(5));').open("unused", null);
+  await assert.rejects(opener("process.exit(4)").open("unused", null, "dev:alice"), /exited/);
+  const core = await opener('process.stdout.write(JSON.stringify({ok:true}) + "\\n"); process.stdin.once("data", () => process.exit(5));').open("unused", null, "dev:alice");
   await assert.rejects(core.call({ op: "state" }), /exited/);
   await core.close();
   await assert.rejects(core.call({ op: "state" }), /closed|exited/);

@@ -25,9 +25,9 @@ public final class Snapback4Module: Module {
     // Open the device's store at `path` for the backend (`GET /schema`'s
     // JSON), or on the one it kept when `backend` is nil. Throws with the
     // module's refusal when it cannot open.
-    AsyncFunction("open") { (path: String, backend: String?) -> Int in
-      guard let device = sb4_open(path, backend) else {
-        let reason = sb4_open_reason(path, backend)
+    AsyncFunction("open") { (path: String, backend: String?, viewer: String) -> Int in
+      guard let device = sb4_open(path, backend, viewer) else {
+        let reason = sb4_open_reason(path, backend, viewer)
         let text = reason.map { String(cString: $0) } ?? "{\"denied\":{\"code\":\"E_STORE\",\"family\":\"store\",\"message\":\"the device did not open\"}}"
         sb4_free(reason)
         throw Snapback4OpenException(text)

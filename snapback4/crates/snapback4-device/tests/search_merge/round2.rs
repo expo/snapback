@@ -49,7 +49,7 @@ fn r2_n2_self_witness_plain_and_matching_sqlite_both_cuts() {
     let host = Sqlite::new("r2-self-witness");
     let path = host.path("self-witness");
     let (_, backend) = compile(SELF_WITNESS);
-    drop(snapback4_device::device::Device::open(&path, Some(backend)).unwrap());
+    drop(snapback4_device::device::Device::open(&path, Some(backend), "dev:bob").unwrap());
     self_witness_store(snapback4_core::Store::open(&path).unwrap());
 }
 
@@ -103,21 +103,5 @@ fn retained_point_hits_and_misses_on_both_stores() {
     }));
 }
 
-#[test]
-fn program_only_adoption_resets_retained_components_on_both_stores() {
-    on_both(|host| history_device(host, |device, engine| {
-        let before = query(device, "both", "dev:bob", serde_json::json!({}), 100);
-        assert_eq!(before["data"]["left"].as_array().unwrap().len(), 25);
-        let (_, mut backend) = compile(&format!("{HISTORY}\nquery adoptionMarker():\n  return true\n"));
-        backend.generation = engine.adopt(backend.schema.clone(), backend.programs.clone()).unwrap();
-        ok(device.call(serde_json::json!({"op": "adopt", "backend": backend})));
-        let unacquired = query(device, "both", "dev:bob", serde_json::json!({}), 100);
-        assert_eq!(unacquired["denied"]["code"], "E_PREDICT", "program adoption still requires acquisition");
-        for (n, page) in snapshot_pages(engine, "dev:bob", 100).iter().enumerate() { ok(apply(device, page, n == 0)); }
-        let after = query(device, "both", "dev:bob", serde_json::json!({}), 100);
-        assert_eq!(after["data"]["left"], serde_json::json!([]), "left history cannot be re-acquired after generation reset");
-        assert_eq!(after["data"]["held"], before["data"]["held"], "held rows are re-acquired");
-        assert_eq!(after["components"]["left"]["retained"], false, "the old left-group map is cleared");
-        assert_eq!(after["components"]["held"]["retained"], false);
-    }));
-}
+// The former program_only_adoption_resets_retained_components_on_both_stores
+// limitation is replaced by the four-way lifetime regression in history_owner.rs.

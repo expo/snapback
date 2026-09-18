@@ -57,7 +57,7 @@ test("the native module follows the server, predicts, queues, and starts cold of
     const gated = (input, init) => offline ? Promise.reject(new TypeError("offline")) : fetch(input, init);
     const alice = await createLocalClient({ url, persona: "alice", device: native, fetch: gated, waitSeconds: 2 });
     let bobCore;
-    const bobDevice = { open: async (name, backend) => (bobCore = await native.open(name, backend)) };
+    const bobDevice = { open: async (name, backend, viewer) => (bobCore = await native.open(name, backend, viewer)) };
     const bob = await createLocalClient({ url, persona: "bob", device: bobDevice, waitSeconds: 2 });
     open.push(alice, bob);
     // Bob's device holds the partition: the thread pages, the count is right.

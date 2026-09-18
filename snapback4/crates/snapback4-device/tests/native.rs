@@ -38,7 +38,7 @@ fn native_device_store_and_sidecars_are_owner_only() {
     std::fs::write(&path, []).unwrap();
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
 
-    let device = Device::open(&path, Some(backend)).unwrap();
+    let device = Device::open(&path, Some(backend), "dev:bob").unwrap();
     assert_eq!(std::fs::metadata(&host.dir).unwrap().permissions().mode() & 0o777, 0o700);
     for private in [
         path.clone(),
@@ -58,7 +58,7 @@ fn a_competing_sender_invalidates_a_stale_sync_and_a_failing_store_keeps_the_par
     let backend = snapback4_device::device::Backend { generation: engine.generation(), ..backend };
     let host = Sqlite::new("competing");
     let path = host.path("store");
-    let mut device = Device::open(&path, Some(backend)).unwrap();
+    let mut device = Device::open(&path, Some(backend), "dev:bob").unwrap();
     for (n, page) in snapshot_pages(&mut engine, "dev:alice", 100).iter().enumerate() {
         device.apply(page, n == 0).unwrap();
     }
@@ -67,7 +67,7 @@ fn a_competing_sender_invalidates_a_stale_sync_and_a_failing_store_keeps_the_par
     // its pending IDs. Its durable revision invalidates that response under
     // the same transaction that would replace confirmed rows.
     let captured = device.sync_state().unwrap();
-    let mut sender = Device::open(&path, None).unwrap();
+    let mut sender = Device::open(&path, None, "dev:bob").unwrap();
     sender.begin_send().unwrap();
     let mut stale = stream_page(&mut engine, "dev:alice", watermark);
     stale.send_revision = Some(captured.send_revision);
@@ -100,7 +100,7 @@ fn a_competing_sender_invalidates_a_stale_sync_and_a_failing_store_keeps_the_par
     device.apply(pages.last().unwrap(), false).unwrap();
     // A second device over the same store starts its own snapshot: the
     // superseded owner must restart.
-    let mut competing = Device::open(&path, None).unwrap();
+    let mut competing = Device::open(&path, None, "dev:bob").unwrap();
     device.apply(&pages[0], true).unwrap();
     competing.apply(&pages[0], true).unwrap();
     assert!(device.apply(&pages[1], false).is_err(), "the superseded snapshot owner must restart");
@@ -121,11 +121,11 @@ fn snapshot_catchup_publishes_one_consistent_base_before_replaying_writes() {
     let backend = snapback4_device::device::Backend { generation: engine.generation(), ..backend };
     let host = Sqlite::new("catchup");
     let path = host.path("store");
-    let mut device = Device::open(&path, Some(backend)).unwrap();
+    let mut device = Device::open(&path, Some(backend), "dev:bob").unwrap();
     for (n, page) in snapshot_pages(&mut engine, "dev:alice", 100).iter().enumerate() {
         device.apply(page, n == 0).unwrap();
     }
-    let mut sender = Device::open(&path, None).unwrap();
+    let mut sender = Device::open(&path, None, "dev:bob").unwrap();
     sender.admit(Queued { id: "pending-inc".into(), seq: 1, op: "inc".into(), args: serde_json::json!({ "id": "z" }), new_ids: vec![], predicted: vec![], viewer: "dev:alice".into(), now: 2, predictable: true, sent_seq: None, observed_seq: None }).unwrap();
     sender.begin_send().unwrap();
     let capture = device.sync_state().unwrap();
@@ -187,7 +187,7 @@ fn pending_metadata_reprediction_survives_updates_upserts_scans_and_offline_reop
     let dir = std::env::temp_dir().join(format!("sb4-pending-metadata-{}-{nonce}", std::process::id()));
     std::fs::create_dir(&dir).unwrap();
     let path = dir.join("device.sqlite");
-    let mut device = Device::open(&path, Some(backend)).unwrap();
+    let mut device = Device::open(&path, Some(backend), "dev:bob").unwrap();
     for (n, page) in snapshot_pages(&mut engine, "dev:alice", 10).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
     let commands = [
         ("profile", serde_json::json!({"person":"alice","name":"Offline Alice","bio":"Saved bio"})),
@@ -211,7 +211,7 @@ fn pending_metadata_reprediction_survives_updates_upserts_scans_and_offline_reop
     let queued = device.queued().unwrap();
     assert_eq!(queued.len(), commands.len());
     drop(device);
-    device = Device::open(&path, None).unwrap();
+    device = Device::open(&path, None, "dev:bob").unwrap();
     assert_eq!(device.queued().unwrap(), queued, "submission order, arguments and minted IDs survive offline reopen");
     // Match native hosts that explicitly predict their durable queue on open.
     for entry in &queued {
@@ -268,13 +268,13 @@ fn finding_4_delayed_legacy_page_does_not_erase_an_advanced_owners_history() {
     let (mut engine, _) = server();
     let (_, backend) = compile(&format!("{CHAT}\nquery retainedHistory(conversationId: conversations):\n  return messages[conversationId] last 50 by byConvTime\n"));
     let host = Sqlite::new("legacy-race");
-    let mut first = Device::open(&host.path("store"), Some(backend)).unwrap();
+    let mut first = Device::open(&host.path("store"), Some(backend), "dev:alice").unwrap();
     for (n, page) in snapshot_pages(&mut engine, "dev:alice", 500).iter().enumerate() { first.apply(page, n == 0).unwrap(); }
     let from = first.state().unwrap().0;
     engine.mutate("leave", Some("leave"), context("dev:alice", &[("conversationId", id("c1"))])).unwrap();
     first.apply(&stream_page(&mut engine, "dev:alice", from), false).unwrap();
     first.store().conn().execute("UPDATE _meta SET value = '10' WHERE key = 'device:watermark'", []).unwrap();
-    let mut second = Device::open(&host.path("store"), None).unwrap();
+    let mut second = Device::open(&host.path("store"), None, "dev:alice").unwrap();
     let capture = first.sync_state().unwrap();
     let page = |watermark| json!({ "snapshot": false, "events": [], "watermark": watermark, "more": false,
         "send_revision": capture.send_revision, "requested_watermark": capture.watermark, "captured_watermark": capture.watermark });
@@ -302,18 +302,18 @@ fn finding_1_another_owner_adopting_b_does_not_bless_this_owners_a_programs() {
     let (_, b) = compile(&source.replace("return 'A'", "return 'B'"));
     let host = Sqlite::new("adoption-owners");
     let path = host.path("store");
-    let mut owner = Device::open(&path, Some(a.clone())).unwrap();
+    let mut owner = Device::open(&path, Some(a.clone()), "dev:bob").unwrap();
     let page = |store| json!({ "snapshot": true, "events": [], "watermark": 0, "more": false, "store_id": store });
     assert!(call(&mut owner, json!({ "op": "apply", "page": page("A"), "first": true }))["ok"].is_object());
-    let mut reader = Device::open(&path, None).unwrap();
-    owner.adopt(a).unwrap();
+    let mut reader = Device::open(&path, None, "dev:bob").unwrap();
+    owner.adopt(a, "dev:bob").unwrap();
     assert!(!reader.sync_state().unwrap().backend_required, "same-store same-program adoption remains usable");
     owner.observe_store(&serde_json::from_value(page("B")).unwrap()).unwrap();
-    owner.adopt(b.clone()).unwrap();
+    owner.adopt(b.clone(), "dev:bob").unwrap();
     owner.apply(&serde_json::from_value(page("B")).unwrap(), true).unwrap();
     assert!(reader.sync_state().unwrap().backend_required, "this owner's A programs still need B's backend");
     assert!(reader.query("marker", "alice", &json!({}), 1).is_err());
     assert!(reader.apply(&serde_json::from_value(page("B")).unwrap(), true).is_err());
-    reader.adopt(b).unwrap();
+    reader.adopt(b, "dev:bob").unwrap();
     assert_eq!(reader.query("marker", "alice", &json!({}), 1).unwrap().data, Value::String("B".into()));
 }

@@ -54,15 +54,15 @@ async function fixture(t, tier) {
   await until(() => { if (server.exitCode != null) throw new Error(log); return url; });
   const native = processDevice({ dir: join(dir, "devices"), binary });
   const web = webDevice({ wasm, persist: memoryPersistence() });
-  const device = { async open(name, backend) {
+  const device = { async open(name, backend, viewer) {
     // Memory has one synchronous transaction owner. Two native-shaped clients
     // share its serialized host, as two native processes share SQLite.
     let core;
     if (tier === "memory") {
       let held = shared.get(name);
-      if (!held) { held = { core: await web.open(name, backend), owners: 0 }; shared.set(name, held); }
+      if (!held) { held = { core: await web.open(name, backend, viewer), owners: 0 }; shared.set(name, held); }
       held.owners++; core = held.core;
-    } else core = await native.open(name, backend);
+    } else core = await native.open(name, backend, viewer);
     const index = cores.length; cores.push(core); let closed = false;
     return { async call(request) {
       if (ordered && request.op === "admit" && index === 1) await firstAdmission.promise;

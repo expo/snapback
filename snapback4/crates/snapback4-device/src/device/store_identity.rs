@@ -1,5 +1,8 @@
-//! Acquisition and receipts belong to one database incarnation.
+//! Acquisition and receipts belong to one database incarnation. Delivered
+//! history additionally belongs to the principal that acquired it.
 use super::*;
+
+pub(super) const HISTORY_OWNER: &str = "device:history-owner";
 
 pub(super) const RESTORE_REFUSED: &str = "device:restore-refused";
 
@@ -64,7 +67,7 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<StoreObs
         return Err(RuntimeError::Generation("another owner advanced acquisition during sync; retry sync".into()));
     }
     let identity_changed = page.store_id.as_ref().is_some_and(|id| previous.as_ref() != Some(id));
-    let reset = (identity_changed && (previous.is_some() || tx.meta(ACQUIRED)?.is_some() || meta_u64(tx, WATERMARK)? > 0 || tx.meta(SNAPSHOT_OWNER)?.is_some()))
+    let reset = (identity_changed && (previous.is_some() || tx.meta(ACQUIRED)?.is_some_and(|value| !value.is_empty()) || meta_u64(tx, WATERMARK)? > 0 || tx.meta(SNAPSHOT_OWNER)?.is_some()))
         || (page.store_id.is_none() && page.requested_watermark.is_some_and(|requested| page.watermark < requested) && page.captured_watermark == Some(watermark));
     let mut retired = BTreeMap::new();
     // A matching identity with a lower head is a restore, not a new store.
@@ -112,6 +115,7 @@ impl<S: DeviceStore> Device<S> {
     /// or acquiring pages. A replacement is durable even if acquisition fails.
     pub fn observe_store(&mut self, page: &StreamPage) -> Result<StoreObservation, RuntimeError> {
         let tx = self.store.transaction()?;
+        adoption::require_binding(&tx, &self.history_owner)?;
         let first_identity = tx.meta(STORE_ID)?.is_none() && self.store_identity.is_none();
         let observed = observe(&tx, page)?;
         tx.commit()?;
@@ -119,5 +123,24 @@ impl<S: DeviceStore> Device<S> {
         if observed.reset { self.snapshot_owner = None; }
         if observed.restore_refused { return Err(restore_error()); }
         Ok(observed)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn history_binding_is_not_backend_incarnation() {
+        let mut store = crate::memory::MemoryStore::new();
+        let tx = store.transaction().unwrap();
+        tx.set_meta(BACKEND_IDENTITY, "backend").unwrap();
+        for owner in [None, Some("dev:someone-else")] {
+            if let Some(owner) = owner { tx.set_meta(HISTORY_OWNER, owner).unwrap(); }
+            require_backend(&tx, "backend", &None).unwrap();
+            require_owner(&tx, "backend", &None, None).unwrap();
+        }
+        tx.set_meta(BACKEND_IDENTITY, "new-backend").unwrap();
+        assert_eq!(require_owner(&tx, "backend", &None, None).unwrap_err().code(), "E_PREDICT");
+        tx.rollback().unwrap();
     }
 }

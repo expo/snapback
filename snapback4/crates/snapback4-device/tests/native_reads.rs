@@ -14,8 +14,9 @@ use snapback4_device::device::{Backend, Device};
 use snapback4_device::memory::MemoryStore;
 use snapback4_device::store::DeviceStore;
 use std::collections::BTreeMap;
-use std::path::PathBuf;
-use std::sync::OnceLock;
+#[path = "common/native_fixture.rs"]
+mod native_fixture;
+use native_fixture::module;
 
 const SCHEMA: &str = include_str!("../../../native-fixtures/rescore/schema.q");
 const NOW: i64 = 1_789_300_000_000;
@@ -52,28 +53,6 @@ impl DeviceStore for RejectPostAdoptTransactions {
     }
 }
 
-/// The fixture module, built once for wasm (see `snapback4-sim/tests/native.rs`).
-fn module() -> &'static [u8] {
-    static MODULE: OnceLock<Vec<u8>> = OnceLock::new();
-    MODULE.get_or_init(|| {
-        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..").canonicalize().expect("the snapback4 directory");
-        let fixture = root.join("native-fixtures/rescore");
-        let bound = snapback4_lang::compile(&[("schema.q".to_owned(), SCHEMA.to_owned())]);
-        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-        std::fs::write(fixture.join("src/schema.rs"), snapback4_lang::emit::rust(&bound)).expect("write the fixture's schema.rs");
-        let target = root.join("target/native-fixture");
-        let output = std::process::Command::new("cargo")
-            .args(["build", "--release", "--quiet", "--target", "wasm32-unknown-unknown", "--manifest-path"])
-            .arg(fixture.join("Cargo.toml"))
-            .arg("--target-dir")
-            .arg(&target)
-            .env_remove("CARGO_TARGET_DIR")
-            .output()
-            .expect("cargo on PATH");
-        assert!(output.status.success(), "the fixture did not build; is the target installed? `rustup target add wasm32-unknown-unknown`\n{}", String::from_utf8_lossy(&output.stderr));
-        std::fs::read(target.join("wasm32-unknown-unknown/release/sb4_fixture_rescore.wasm")).expect("the built module")
-    })
-}
 
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
@@ -139,7 +118,7 @@ fn the_same_module_answers_the_same_on_the_server_and_on_both_devices() {
     assert!(on_server.tables.iter().any(|t| t == "ranked") && on_server.tables.iter().any(|t| t == "seen"), "{:?}", on_server.tables);
     // Both devices, over the rows bob holds, with no server in the call.
     let digest = hex(&sha256(module()));
-    let mut memory = snapshotted(Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap(), &mut engine);
+    let mut memory = snapshotted(Device::open_store(MemoryStore::new(), Some(backend.clone()), "dev:bob").unwrap(), &mut engine);
     let mut host = Sqlite::new("native");
     let mut sqlite = snapshotted(Host::open(&mut host, "bob", Some(backend.clone())).unwrap(), &mut engine);
     let devices: Vec<(&str, &mut dyn AnyCall)> = vec![("memory", &mut memory), ("sqlite", &mut sqlite)];
@@ -173,14 +152,14 @@ fn a_device_keeps_the_module_across_a_reopen() {
     let (mut engine, backend, _) = server();
     let digest = hex(&sha256(module()));
     let kept = {
-        let mut device = snapshotted(Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap(), &mut engine);
+        let mut device = snapshotted(Device::open_store(MemoryStore::new(), Some(backend.clone()), "dev:bob").unwrap(), &mut engine);
         device.install_native(module(), &digest, backend.generation).unwrap();
         device.store().export()
     };
     // A cold start with no backend from the server: the kept one, and the kept module.
     let mut reopened = MemoryStore::new();
     reopened.load(kept).unwrap();
-    let mut device = Device::open_store(reopened, None).unwrap();
+    let mut device = Device::open_store(reopened, None, "dev:bob").unwrap();
     assert_eq!(device.native_digest(), Some(digest.as_str()));
     let read = call(&mut device, json!({ "op": "query", "name": "personalize", "viewer": "dev:bob", "args": { "first": 10 }, "now": NOW + 2_000 }));
     assert!(read["ok"]["denied"].is_null(), "{read}");
@@ -191,7 +170,7 @@ fn a_device_keeps_the_module_across_a_reopen() {
 fn native_cache_is_bound_to_its_digest_and_backend_generation() {
     let (_, backend, _) = server();
     let digest = hex(&sha256(module()));
-    let mut device = Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap();
+    let mut device = Device::open_store(MemoryStore::new(), Some(backend.clone()), "dev:bob").unwrap();
 
     let refused = device.install_native(module(), &"0".repeat(64), backend.generation).unwrap_err();
     assert_eq!(refused.code(), "E_NATIVE", "{refused}");
@@ -200,7 +179,7 @@ fn native_cache_is_bound_to_its_digest_and_backend_generation() {
     device.install_native(module(), &digest, backend.generation).unwrap();
     let mut next = backend.clone();
     next.generation += 1;
-    device.adopt(next).unwrap();
+    device.adopt(next, "dev:bob").unwrap();
     assert_eq!(device.native_digest(), None, "a new generation must not retain the old module");
     let stale = device.install_native(module(), &digest, backend.generation).unwrap_err();
     assert_eq!(stale.code(), "E_GENERATION", "an obsolete fetch must not repopulate the cleared cache");
@@ -208,19 +187,19 @@ fn native_cache_is_bound_to_its_digest_and_backend_generation() {
         let mut store = MemoryStore::new();
         store.load(device.store().export()).unwrap();
         store
-    }, None).unwrap();
+    }, None, "dev:bob").unwrap();
     assert_eq!(reopened.native_digest(), None, "the old digest must be removed from durable metadata");
 }
 
 #[test]
 fn a_bad_cached_module_is_removed_instead_of_advertised() {
     let (_, backend, _) = server();
-    let mut kept = Device::open_store(MemoryStore::new(), Some(backend)).unwrap().store().export();
+    let mut kept = Device::open_store(MemoryStore::new(), Some(backend), "dev:bob").unwrap().store().export();
     kept.push(snapback4_device::memory::Change { s: 'm', k: "device:native".into(), v: Some("00".into()) });
     kept.push(snapback4_device::memory::Change { s: 'm', k: "device:native:digest".into(), v: Some(hex(&sha256(&[0]))) });
     let mut store = MemoryStore::new();
     store.load(kept).unwrap();
-    let device = Device::open_store(store, None).unwrap();
+    let device = Device::open_store(store, None, "dev:bob").unwrap();
     assert_eq!(device.native_digest(), None);
     assert_eq!(device.store().meta("device:native").unwrap(), None);
     assert_eq!(device.store().meta("device:native:digest").unwrap(), None);
@@ -232,7 +211,7 @@ fn an_interrupted_adopt_and_a_legacy_cache_fail_closed_on_reopen() {
     let (_, backend, _) = server();
     let digest = hex(&sha256(module()));
     let kept = {
-        let mut device = Device::open_store(MemoryStore::new(), Some(backend.clone())).unwrap();
+        let mut device = Device::open_store(MemoryStore::new(), Some(backend.clone()), "dev:bob").unwrap();
         device.install_native(module(), &digest, backend.generation).unwrap();
         device.store().export()
     };
@@ -246,7 +225,7 @@ fn an_interrupted_adopt_and_a_legacy_cache_fail_closed_on_reopen() {
     interrupted.push(snapback4_device::memory::Change { s: 'm', k: "device:generation".into(), v: Some(next.generation.to_string()) });
     let mut store = MemoryStore::new();
     store.load(interrupted).unwrap();
-    let reopened = Device::open_store(store, None).unwrap();
+    let reopened = Device::open_store(store, None, "dev:bob").unwrap();
     assert_eq!(reopened.state().unwrap().1, next.generation);
     assert_eq!(reopened.native_digest(), None, "an old generation's valid module must not load");
 
@@ -255,7 +234,7 @@ fn an_interrupted_adopt_and_a_legacy_cache_fail_closed_on_reopen() {
     legacy.push(snapback4_device::memory::Change { s: 'm', k: "device:native:generation".into(), v: None });
     let mut store = MemoryStore::new();
     store.load(legacy).unwrap();
-    let reopened = Device::open_store(store, None).unwrap();
+    let reopened = Device::open_store(store, None, "dev:bob").unwrap();
     assert_eq!(reopened.native_digest(), None, "a pre-binding cache must be repaired from the server");
 }
 
@@ -264,12 +243,12 @@ fn adopt_needs_no_fallible_cache_cleanup_after_install() {
     let (_, backend, _) = server();
     let digest = hex(&sha256(module()));
     let store = RejectPostAdoptTransactions { inner: MemoryStore::new(), installs: 0 };
-    let mut device = Device::open_store(store, Some(backend.clone())).unwrap();
+    let mut device = Device::open_store(store, Some(backend.clone()), "dev:bob").unwrap();
     device.install_native(module(), &digest, backend.generation).unwrap();
     let mut next = backend;
     next.generation += 1;
 
-    device.adopt(next.clone()).unwrap();
+    device.adopt(next.clone(), "dev:bob").unwrap();
     assert_eq!(device.state().unwrap().1, next.generation);
     assert_eq!(device.native_digest(), None);
     for key in ["device:native", "device:native:digest", "device:native:generation"] {
@@ -318,7 +297,7 @@ fn finding_6_each_native_owner_is_bound_to_incarnation_and_module() {
     let digest_b = hex(&sha256(&b));
     let host = Sqlite::new("native-incarnation");
     let path = host.path("shared");
-    let mut first = Device::open(&path, Some(backend.clone())).unwrap();
+    let mut first = Device::open(&path, Some(backend.clone()), "dev:bob").unwrap();
     let acquire = |device: &mut Device<snapback4_core::store::Store>, engine: &mut Engine, store: &str| {
         for (n, mut page) in snapshot_pages(engine, "dev:bob", 1_000).into_iter().enumerate() {
             page.store_id = Some(store.into()); device.apply(&page, n == 0).unwrap();
@@ -326,14 +305,14 @@ fn finding_6_each_native_owner_is_bound_to_incarnation_and_module() {
     };
     acquire(&mut first, &mut engine, "A");
     first.install_native(a, &digest_a, backend.generation).unwrap();
-    let mut second = Device::open(&path, None).unwrap();
+    let mut second = Device::open(&path, None, "dev:bob").unwrap();
     let query = json!({ "first": 2 });
     assert!(second.query("personalize", "dev:bob", &query, NOW).unwrap().data.as_array().unwrap()[0].field("weight").is_ok());
-    first.adopt(backend.clone()).unwrap();
+    first.adopt(backend.clone(), "dev:bob").unwrap();
     assert!(!second.sync_state().unwrap().backend_required, "unchanged adoption stays usable");
     let page = serde_json::from_value(json!({ "snapshot": true, "events": [], "watermark": 0, "more": false, "store_id": "B" })).unwrap();
     first.observe_store(&page).unwrap();
-    first.adopt(backend.clone()).unwrap();
+    first.adopt(backend.clone(), "dev:bob").unwrap();
     first.install_native(&b, &digest_b, backend.generation).unwrap();
     acquire(&mut first, &mut engine, "B");
     assert!(first.query("personalize", "dev:bob", &query, NOW).unwrap().data.as_array().unwrap()[0].field("Weight").is_ok());
@@ -344,7 +323,7 @@ fn finding_6_each_native_owner_is_bound_to_incarnation_and_module() {
     assert_eq!(second.install_native(a, &digest_a, backend.generation).unwrap_err().code(), "E_PREDICT");
     assert_eq!(second.query("home", "dev:bob", &json!({"c": null}), NOW).unwrap_err().code, "E_PREDICT");
     assert_eq!(second.predict("markSeen", "dev:bob", &json!({"postId":"p"}), NOW, vec![], 1).unwrap_err().code(), "E_PREDICT");
-    second.adopt(backend.clone()).unwrap();
+    second.adopt(backend.clone(), "dev:bob").unwrap();
     assert!(second.sync_state().unwrap().backend_required, "adoption alone cannot bless A's loaded module");
     second.install_native(&b, &digest_b, backend.generation).unwrap();
     assert!(!second.sync_state().unwrap().backend_required);
@@ -352,17 +331,17 @@ fn finding_6_each_native_owner_is_bound_to_incarnation_and_module() {
     // The digest fence also works without an incarnation change.
     first.install_native(a, &digest_a, backend.generation).unwrap();
     assert_eq!(second.query("personalize", "dev:bob", &query, NOW).unwrap_err().code, "E_PREDICT");
-    second.adopt(backend.clone()).unwrap();
+    second.adopt(backend.clone(), "dev:bob").unwrap();
     second.install_native(a, &digest_a, backend.generation).unwrap();
     assert!(second.query("personalize", "dev:bob", &query, NOW).unwrap().data.as_array().unwrap()[0].field("weight").is_ok());
     // A new store with identical module bytes still invalidates the owner.
     let c = serde_json::from_value(json!({ "snapshot": true, "events": [], "watermark": 0, "more": false, "store_id": "C" })).unwrap();
-    first.observe_store(&c).unwrap(); first.adopt(backend.clone()).unwrap();
+    first.observe_store(&c).unwrap(); first.adopt(backend.clone(), "dev:bob").unwrap();
     first.install_native(a, &digest_a, backend.generation).unwrap();
     acquire(&mut first, &mut engine, "C");
     assert!(second.sync_state().unwrap().backend_required);
     assert_eq!(second.query("personalize", "dev:bob", &query, NOW).unwrap_err().code, "E_PREDICT");
-    second.adopt(backend.clone()).unwrap(); second.install_native(a, &digest_a, backend.generation).unwrap();
+    second.adopt(backend.clone(), "dev:bob").unwrap(); second.install_native(a, &digest_a, backend.generation).unwrap();
     assert!(!second.sync_state().unwrap().backend_required);
     assert!(second.query("personalize", "dev:bob", &query, NOW).is_ok());
     eprintln!("finding 6: owners=2, incarnations=3, module digests=2, stale executions=0");

@@ -7,7 +7,7 @@ import type { DeviceCore, DeviceOpener } from "snapback4/local";
 
 interface Snapback4Native {
   readonly documentDirectory: string;
-  open(path: string, backend: string | null): Promise<number>;
+  open(path: string, backend: string | null, viewer: string): Promise<number>;
   call(handle: number, request: string): Promise<string>;
   close(handle: number): void;
   readAsset(handle: number, id: string): Promise<string | null>;
@@ -31,9 +31,9 @@ export function documentDirectory(): string {
 }
 
 export const nativeDevice: DeviceOpener = {
-  async open(name, backend): Promise<DeviceCore> {
+  async open(name, backend, viewer): Promise<DeviceCore> {
     if (!native) throw new Error("snapback4-expo: the native module is not in this build (Expo Go loads no custom native code; make a development build)");
-    const handle = await native.open(`${native.documentDirectory.replace(/\/$/, "")}/${name}.sqlite`, backend ? JSON.stringify(backend) : null);
+    const handle = await native.open(`${native.documentDirectory.replace(/\/$/, "")}/${name}.sqlite`, backend ? JSON.stringify(backend) : null, viewer);
     return {
       media: {
         read: (id) => native.readAsset(handle, id),
