@@ -1,0 +1,500 @@
+{
+  "generated": "2026-09-18",
+  "generator": "benchmarks/scripts/score-trend.mjs",
+  "note": "Fitted across the whole series. A single run against its neighbour is noise; see the 2026-09-17 trend correction.",
+  "runs": [
+    {
+      "run": "2026-09-15-snapback4-clique-astra-0.2.16",
+      "date": "2026-09-15",
+      "version": "0.2.16",
+      "family": "astra",
+      "scores": {
+        "overall": 90,
+        "setup_and_docs": 96,
+        "data_modeling": 85,
+        "authorization": 88,
+        "queries_and_live": 91,
+        "writes_and_transactions": 96,
+        "offline_sync": 93,
+        "media_assets": 97,
+        "background_work": 91,
+        "client_integration": 88,
+        "diagnostics_dev_loop": 94,
+        "scale_and_limits": 88,
+        "operations": 88
+      }
+    },
+    {
+      "run": "2026-09-15-snapback4-clique-astra-0.2.19",
+      "date": "2026-09-15",
+      "version": "0.2.19",
+      "family": "astra",
+      "scores": {
+        "overall": 91,
+        "setup_and_docs": 92,
+        "data_modeling": 88,
+        "authorization": 97,
+        "queries_and_live": 89,
+        "writes_and_transactions": 95,
+        "offline_sync": 92,
+        "media_assets": 98,
+        "background_work": 93,
+        "client_integration": 90,
+        "diagnostics_dev_loop": 95,
+        "scale_and_limits": 91,
+        "operations": 89
+      }
+    },
+    {
+      "run": "2026-09-15-snapback4-clique-astra-0.2.21",
+      "date": "2026-09-15",
+      "version": "0.2.21",
+      "family": "astra",
+      "scores": {
+        "overall": 88,
+        "setup_and_docs": 90,
+        "data_modeling": 88,
+        "authorization": 91,
+        "queries_and_live": 84,
+        "writes_and_transactions": 92,
+        "offline_sync": 90,
+        "media_assets": 97,
+        "background_work": 95,
+        "client_integration": 89,
+        "diagnostics_dev_loop": 93,
+        "scale_and_limits": 85,
+        "operations": 88
+      }
+    },
+    {
+      "run": "2026-09-15-snapback4-clique-astra-0.2.22",
+      "date": "2026-09-15",
+      "version": "0.2.22",
+      "family": "astra",
+      "scores": {
+        "overall": 91,
+        "setup_and_docs": 90,
+        "data_modeling": 89,
+        "authorization": 96,
+        "queries_and_live": 91,
+        "writes_and_transactions": 94,
+        "offline_sync": 94,
+        "media_assets": 97,
+        "background_work": 94,
+        "client_integration": 90,
+        "diagnostics_dev_loop": 90,
+        "scale_and_limits": 84,
+        "operations": 89
+      }
+    },
+    {
+      "run": "2026-09-16-snapback4-clique-astra-0.2.23",
+      "date": "2026-09-16",
+      "version": "0.2.23",
+      "family": "astra",
+      "scores": {
+        "overall": 88,
+        "setup_and_docs": 92,
+        "data_modeling": 85,
+        "authorization": 95,
+        "queries_and_live": 82,
+        "writes_and_transactions": 91,
+        "offline_sync": 91,
+        "media_assets": 96,
+        "background_work": 92,
+        "client_integration": 87,
+        "diagnostics_dev_loop": 92,
+        "scale_and_limits": 79,
+        "operations": 83
+      }
+    },
+    {
+      "run": "2026-09-16-snapback4-clique-astra-0.2.24",
+      "date": "2026-09-16",
+      "version": "0.2.24",
+      "family": "astra",
+      "scores": {
+        "overall": 88,
+        "setup_and_docs": 90,
+        "data_modeling": 88,
+        "authorization": 95,
+        "queries_and_live": 78,
+        "writes_and_transactions": 95,
+        "offline_sync": 93,
+        "media_assets": 96,
+        "background_work": 92,
+        "client_integration": 88,
+        "diagnostics_dev_loop": 94,
+        "scale_and_limits": 80,
+        "operations": 86
+      }
+    },
+    {
+      "run": "2026-09-16-snapback4-clique-astra-0.2.25",
+      "date": "2026-09-16",
+      "version": "0.2.25",
+      "family": "astra",
+      "scores": {
+        "overall": 91,
+        "setup_and_docs": 85,
+        "data_modeling": 88,
+        "authorization": 96,
+        "queries_and_live": 86,
+        "writes_and_transactions": 95,
+        "offline_sync": 95,
+        "media_assets": 98,
+        "background_work": 96,
+        "client_integration": 89,
+        "diagnostics_dev_loop": 94,
+        "scale_and_limits": 87,
+        "operations": 88
+      }
+    },
+    {
+      "run": "2026-09-16-snapback4-clique-astra-0.2.26",
+      "date": "2026-09-16",
+      "version": "0.2.26",
+      "family": "astra",
+      "scores": {
+        "overall": 90,
+        "setup_and_docs": 89,
+        "data_modeling": 84,
+        "authorization": 97,
+        "queries_and_live": 82,
+        "writes_and_transactions": 96,
+        "offline_sync": 92,
+        "media_assets": 97,
+        "background_work": 95,
+        "client_integration": 88,
+        "diagnostics_dev_loop": 95,
+        "scale_and_limits": 83,
+        "operations": 88
+      }
+    },
+    {
+      "run": "2026-09-17-snapback4-clique-astra-0.2.27",
+      "date": "2026-09-17",
+      "version": "0.2.27",
+      "family": "astra",
+      "scores": {
+        "overall": 89,
+        "setup_and_docs": 92,
+        "data_modeling": 84,
+        "authorization": 95,
+        "queries_and_live": 83,
+        "writes_and_transactions": 94,
+        "offline_sync": 93,
+        "media_assets": 96,
+        "background_work": 86,
+        "client_integration": 89,
+        "diagnostics_dev_loop": 95,
+        "scale_and_limits": 85,
+        "operations": 84
+      }
+    },
+    {
+      "run": "2026-09-17-snapback4-clique-astra-0.2.28",
+      "date": "2026-09-17",
+      "version": "0.2.28",
+      "family": "astra",
+      "scores": {
+        "overall": 85,
+        "setup_and_docs": 88,
+        "data_modeling": 82,
+        "authorization": 95,
+        "queries_and_live": 81,
+        "writes_and_transactions": 94,
+        "offline_sync": 93,
+        "media_assets": 95,
+        "background_work": 91,
+        "client_integration": 88,
+        "diagnostics_dev_loop": 94,
+        "scale_and_limits": 65,
+        "operations": 85
+      }
+    }
+  ],
+  "categories": {
+    "overall": {
+      "series": [
+        90,
+        91,
+        88,
+        91,
+        88,
+        88,
+        91,
+        90,
+        89,
+        85
+      ],
+      "slope": -0.296969696969697,
+      "mean": 89.1,
+      "sd": 1.8138357147217052,
+      "first": 90.43636363636364,
+      "last": 87.76363636363637,
+      "drift": -2.672727272727273,
+      "beyondNoise": true
+    },
+    "setup_and_docs": {
+      "series": [
+        96,
+        92,
+        90,
+        90,
+        92,
+        90,
+        85,
+        89,
+        92,
+        88
+      ],
+      "slope": -0.5696969696969697,
+      "mean": 90.4,
+      "sd": 2.764054992217051,
+      "first": 92.96363636363637,
+      "last": 87.83636363636364,
+      "drift": -5.127272727272727,
+      "beyondNoise": true
+    },
+    "data_modeling": {
+      "series": [
+        85,
+        88,
+        88,
+        89,
+        85,
+        88,
+        88,
+        84,
+        84,
+        82
+      ],
+      "slope": -0.45454545454545453,
+      "mean": 86.1,
+      "sd": 2.2561028345356955,
+      "first": 88.14545454545454,
+      "last": 84.05454545454545,
+      "drift": -4.090909090909091,
+      "beyondNoise": true
+    },
+    "authorization": {
+      "series": [
+        88,
+        97,
+        91,
+        96,
+        95,
+        95,
+        96,
+        97,
+        95,
+        95
+      ],
+      "slope": 0.47878787878787876,
+      "mean": 94.5,
+      "sd": 2.692582403567252,
+      "first": 92.34545454545454,
+      "last": 96.65454545454546,
+      "drift": 4.309090909090909,
+      "beyondNoise": true
+    },
+    "queries_and_live": {
+      "series": [
+        91,
+        89,
+        84,
+        91,
+        82,
+        78,
+        86,
+        82,
+        83,
+        81
+      ],
+      "slope": -0.9757575757575757,
+      "mean": 84.7,
+      "sd": 4.196427051671457,
+      "first": 89.0909090909091,
+      "last": 80.30909090909091,
+      "drift": -8.781818181818181,
+      "beyondNoise": true
+    },
+    "writes_and_transactions": {
+      "series": [
+        96,
+        95,
+        92,
+        94,
+        91,
+        95,
+        95,
+        96,
+        94,
+        94
+      ],
+      "slope": 0.012121212121212121,
+      "mean": 94.2,
+      "sd": 1.5362291495737217,
+      "first": 94.14545454545456,
+      "last": 94.25454545454546,
+      "drift": 0.10909090909090909,
+      "beyondNoise": false
+    },
+    "offline_sync": {
+      "series": [
+        93,
+        92,
+        90,
+        94,
+        91,
+        93,
+        95,
+        92,
+        93,
+        93
+      ],
+      "slope": 0.13333333333333333,
+      "mean": 92.6,
+      "sd": 1.3564659966250534,
+      "first": 92,
+      "last": 93.2,
+      "drift": 1.2,
+      "beyondNoise": false
+    },
+    "media_assets": {
+      "series": [
+        97,
+        98,
+        97,
+        97,
+        96,
+        96,
+        98,
+        97,
+        96,
+        95
+      ],
+      "slope": -0.17575757575757575,
+      "mean": 96.7,
+      "sd": 0.8999999999999999,
+      "first": 97.4909090909091,
+      "last": 95.90909090909092,
+      "drift": -1.5818181818181818,
+      "beyondNoise": true
+    },
+    "background_work": {
+      "series": [
+        91,
+        93,
+        95,
+        94,
+        92,
+        92,
+        96,
+        95,
+        86,
+        91
+      ],
+      "slope": -0.2606060606060606,
+      "mean": 92.5,
+      "sd": 2.7294688127912363,
+      "first": 93.67272727272727,
+      "last": 91.32727272727273,
+      "drift": -2.3454545454545457,
+      "beyondNoise": false
+    },
+    "client_integration": {
+      "series": [
+        88,
+        90,
+        89,
+        90,
+        87,
+        88,
+        89,
+        88,
+        89,
+        88
+      ],
+      "slope": -0.08484848484848485,
+      "mean": 88.6,
+      "sd": 0.9165151389911679,
+      "first": 88.98181818181817,
+      "last": 88.2181818181818,
+      "drift": -0.7636363636363637,
+      "beyondNoise": false
+    },
+    "diagnostics_dev_loop": {
+      "series": [
+        94,
+        95,
+        93,
+        90,
+        92,
+        94,
+        94,
+        95,
+        95,
+        94
+      ],
+      "slope": 0.14545454545454545,
+      "mean": 93.6,
+      "sd": 1.4966629547095762,
+      "first": 92.94545454545454,
+      "last": 94.25454545454545,
+      "drift": 1.309090909090909,
+      "beyondNoise": false
+    },
+    "scale_and_limits": {
+      "series": [
+        88,
+        91,
+        85,
+        84,
+        79,
+        80,
+        87,
+        83,
+        85,
+        65
+      ],
+      "slope": -1.509090909090909,
+      "mean": 82.7,
+      "sd": 6.797793759742936,
+      "first": 89.4909090909091,
+      "last": 75.90909090909092,
+      "drift": -13.581818181818182,
+      "beyondNoise": true
+    },
+    "operations": {
+      "series": [
+        88,
+        89,
+        88,
+        89,
+        83,
+        86,
+        88,
+        88,
+        84,
+        85
+      ],
+      "slope": -0.37575757575757573,
+      "mean": 86.8,
+      "sd": 2.039607805437114,
+      "first": 88.49090909090908,
+      "last": 85.10909090909091,
+      "drift": -3.381818181818182,
+      "beyondNoise": true
+    }
+  },
+  "falling": [
+    "scale_and_limits",
+    "queries_and_live",
+    "setup_and_docs",
+    "data_modeling",
+    "operations",
+    "media_assets"
+  ]
+}

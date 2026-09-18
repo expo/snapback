@@ -1,0 +1,321 @@
+<title>Clique Calibration Trend</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ground:#F4F6F8; --surface:#FFFFFF; --raised:#EDF1F4;
+    --ink:#111820; --ink2:#54616E; --ink3:#8B96A1;
+    --rule:#DDE3E9; --rule2:#C9D2DA;
+    --falling:#B03A2E; --rising:#06699B; --flatc:#7A8794;
+    --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+    --ground:#0E1317; --surface:#161C22; --raised:#1D242B;
+    --ink:#E8EDF2; --ink2:#9AA7B4; --ink3:#69757F;
+    --rule:#242C34; --rule2:#333D46;
+    --falling:#DE6A53; --rising:#3B9FCE; --flatc:#7E8B97;
+  }}
+  :root[data-theme="dark"]{
+    --ground:#0E1317; --surface:#161C22; --raised:#1D242B;
+    --ink:#E8EDF2; --ink2:#9AA7B4; --ink3:#69757F;
+    --rule:#242C34; --rule2:#333D46;
+    --falling:#DE6A53; --rising:#3B9FCE; --flatc:#7E8B97;
+  }
+  body{background:var(--ground);color:var(--ink);font-family:var(--sans);line-height:1.5;
+       padding-inline:20px;padding-block:0;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:860px;margin-inline:auto;padding-block:40px 64px;display:flex;flex-direction:column;gap:40px}
+  h1{font-size:1.05rem;font-weight:600;margin:0;letter-spacing:.14em;text-transform:uppercase;color:var(--ink2)}
+  .sub{margin:6px 0 0;color:var(--ink3);font-size:.82rem;font-family:var(--mono)}
+
+  .verdict{display:flex;flex-direction:column;gap:18px}
+  .big{font-size:clamp(2.1rem,7vw,3.1rem);font-weight:600;line-height:1.05;margin:0;text-wrap:balance;
+       letter-spacing:-.02em}
+  .big em{font-style:normal;font-family:var(--mono);font-weight:500}
+  .big.falling em{color:var(--falling)} .big.rising em{color:var(--rising)} .big.flat em{color:var(--flatc)}
+  .lede{margin:0;max-width:62ch;color:var(--ink2)}
+
+  figure{margin:0;background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:18px 14px 8px}
+  #hero{width:100%;height:auto;display:block}
+  #hero .grid{stroke:var(--rule);stroke-width:1}
+  #hero .raw{stroke:var(--ink3);stroke-width:1.5;stroke-linejoin:round}
+  #hero .pt{fill:var(--ink3)} #hero .pt:last-of-type{fill:var(--ink)}
+  #hero .fit{stroke-width:2.5;stroke-linecap:round}
+  .falling #hero .fit,#hero.falling .fit{stroke:var(--falling)}
+  .tick,.vlabel,.fitlabel{font-family:var(--mono);font-size:10px;fill:var(--ink3)}
+  .fitlabel{font-size:11px;fill:var(--falling)}
+  .hit{fill:transparent;cursor:crosshair}
+  figcaption{font-family:var(--mono);font-size:.72rem;color:var(--ink3);padding:8px 4px 4px;
+             display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}
+  .key{display:inline-block;width:14px;height:2px;vertical-align:middle;margin-right:5px;background:var(--ink3)}
+  .key.fit{height:2.5px;background:var(--falling)}
+  #tip{position:fixed;pointer-events:none;opacity:0;transition:opacity .1s;background:var(--ink);
+       color:var(--ground);font-family:var(--mono);font-size:.72rem;padding:6px 9px;border-radius:3px;z-index:9}
+
+  h2{font-size:.78rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);
+     margin:0 0 14px;padding-bottom:8px;border-bottom:1px solid var(--rule)}
+  .grid-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1px;
+              background:var(--rule);border:1px solid var(--rule);border-radius:4px;overflow:hidden}
+  .card{background:var(--surface);padding:14px 14px 12px;display:flex;flex-direction:column;gap:8px;
+        border-left:3px solid transparent}
+  .card.falling{border-left-color:var(--falling)}
+  .card.rising{border-left-color:var(--rising)}
+  .card header{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .card h3{font-size:.87rem;font-weight:500;margin:0}
+  .drift{font-family:var(--mono);font-size:.87rem;font-variant-numeric:tabular-nums;color:var(--ink3)}
+  .card.falling .drift{color:var(--falling)} .card.rising .drift{color:var(--rising)}
+  .spark{width:100%;height:40px;display:block}
+  .spark .raw{stroke:var(--ink3);stroke-width:1.25;stroke-linejoin:round}
+  .spark .fit{stroke:var(--flatc);stroke-width:2;stroke-linecap:round}
+  .card.falling .spark .fit{stroke:var(--falling)} .card.rising .spark .fit{stroke:var(--rising)}
+  .spark .end{fill:var(--ink2)}
+  .range{margin:0;display:flex;justify-content:space-between;align-items:center;gap:8px;
+         font-family:var(--mono);font-size:.76rem;color:var(--ink2);font-variant-numeric:tabular-nums}
+  .badge{font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3)}
+  .card.falling .badge{color:var(--falling)} .card.rising .badge{color:var(--rising)}
+  .series{margin:0;font-family:var(--mono);font-size:.68rem;color:var(--ink3);
+          font-variant-numeric:tabular-nums;letter-spacing:.02em}
+
+  .callout{background:var(--raised);border:1px solid var(--rule);border-left:3px solid var(--falling);
+           border-radius:4px;padding:16px 18px}
+  .callout p{margin:0;max-width:62ch}
+  .callout p + p{margin-top:10px}
+  .callout strong{font-weight:600}
+  .callout .q{font-family:var(--mono);font-size:.82rem;color:var(--ink2)}
+
+  details{background:var(--surface);border:1px solid var(--rule);border-radius:4px}
+  summary{cursor:pointer;padding:12px 16px;font-size:.82rem;color:var(--ink2);font-weight:500}
+  summary:focus-visible{outline:2px solid var(--rising);outline-offset:-2px}
+  .tablewrap{overflow-x:auto;padding:0 16px 16px}
+  table{border-collapse:collapse;font-family:var(--mono);font-size:.72rem;width:100%;
+        font-variant-numeric:tabular-nums}
+  th,td{padding:4px 7px;text-align:right;border-bottom:1px solid var(--rule);white-space:nowrap}
+  th[scope=row]{text-align:left;font-weight:400;color:var(--ink2)}
+  thead th{color:var(--ink3);font-weight:500;border-bottom:1px solid var(--rule2)}
+  tr.falling th[scope=row]{color:var(--falling)} tr.rising th[scope=row]{color:var(--rising)}
+  td.n{color:var(--ink)}
+
+  footer{color:var(--ink3);font-size:.78rem;display:flex;flex-direction:column;gap:8px}
+  footer code{font-family:var(--mono);font-size:.92em;background:var(--raised);padding:2px 5px;border-radius:3px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Clique calibration trend</h1>
+    <p class="sub">10 Astra-medium runs · 0.2.16 → 0.2.28 · generated 2026-09-18</p>
+  </header>
+
+  <section class="verdict">
+    <p class="big falling">Overall is <em>falling</em>: 90.4 → 87.8 fitted, <em>−0.3</em> a run.</p>
+    <p class="lede">Read the fitted line, not the last pair. Adjacent runs move ±3 on this instrument with no surface change — which is how a decline was read as flat for twelve waves.</p>
+    <figure class="falling">
+      <svg id="hero" viewBox="0 0 720 260" role="img" aria-label="Overall score across 10 runs: 90, 91, 88, 91, 88, 88, 91, 90, 89, 85">
+      <line class="grid" x1="48" y1="206.5" x2="700" y2="206.5" />
+      <text class="tick" x="40" y="210.5" text-anchor="end">85</text><line class="grid" x1="48" y1="130" x2="700" y2="130" />
+      <text class="tick" x="40" y="134" text-anchor="end">88</text><line class="grid" x1="48" y1="53.5" x2="700" y2="53.5" />
+      <text class="tick" x="40" y="57.5" text-anchor="end">91</text>
+      <line class="fit" x1="48" y1="67.87272727272725" x2="700" y2="136.02727272727267" />
+      <polyline class="raw" points="48,79 120.44444444444444,53.5 192.88888888888889,130 265.3333333333333,53.5 337.77777777777777,130 410.22222222222223,130 482.66666666666663,53.5 555.1111111111111,79 627.5555555555555,104.5 700,206.5" fill="none" />
+      <circle class="pt" cx="48" cy="79" r="3.5" data-i="0" /><circle class="pt" cx="120.44444444444444" cy="53.5" r="3.5" data-i="1" /><circle class="pt" cx="192.88888888888889" cy="130" r="3.5" data-i="2" /><circle class="pt" cx="265.3333333333333" cy="53.5" r="3.5" data-i="3" /><circle class="pt" cx="337.77777777777777" cy="130" r="3.5" data-i="4" /><circle class="pt" cx="410.22222222222223" cy="130" r="3.5" data-i="5" /><circle class="pt" cx="482.66666666666663" cy="53.5" r="3.5" data-i="6" /><circle class="pt" cx="555.1111111111111" cy="79" r="3.5" data-i="7" /><circle class="pt" cx="627.5555555555555" cy="104.5" r="3.5" data-i="8" /><circle class="pt" cx="700" cy="206.5" r="5" data-i="9" /><text class="vlabel" x="48" y="254" text-anchor="middle">0.2.16</text><text class="vlabel" x="265.3333333333333" y="254" text-anchor="middle">0.2.22</text><text class="vlabel" x="482.66666666666663" y="254" text-anchor="middle">0.2.25</text><text class="vlabel" x="700" y="254" text-anchor="middle">0.2.28</text>
+      <text class="fitlabel" x="700" y="153.02727272727267" text-anchor="end">fitted 87.8</text>
+      <rect class="hit" x="30" y="18" width="36" height="224" data-i="0" data-v="0.2.16" data-s="90" data-d="2026-09-15" /><rect class="hit" x="102.44444444444444" y="18" width="36" height="224" data-i="1" data-v="0.2.19" data-s="91" data-d="2026-09-15" /><rect class="hit" x="174.88888888888889" y="18" width="36" height="224" data-i="2" data-v="0.2.21" data-s="88" data-d="2026-09-15" /><rect class="hit" x="247.33333333333331" y="18" width="36" height="224" data-i="3" data-v="0.2.22" data-s="91" data-d="2026-09-15" /><rect class="hit" x="319.77777777777777" y="18" width="36" height="224" data-i="4" data-v="0.2.23" data-s="88" data-d="2026-09-16" /><rect class="hit" x="392.22222222222223" y="18" width="36" height="224" data-i="5" data-v="0.2.24" data-s="88" data-d="2026-09-16" /><rect class="hit" x="464.66666666666663" y="18" width="36" height="224" data-i="6" data-v="0.2.25" data-s="91" data-d="2026-09-16" /><rect class="hit" x="537.1111111111111" y="18" width="36" height="224" data-i="7" data-v="0.2.26" data-s="90" data-d="2026-09-16" /><rect class="hit" x="609.5555555555555" y="18" width="36" height="224" data-i="8" data-v="0.2.27" data-s="89" data-d="2026-09-17" /><rect class="hit" x="682" y="18" width="36" height="224" data-i="9" data-v="0.2.28" data-s="85" data-d="2026-09-17" />
+    </svg>
+      <figcaption><span><span class="key raw"></span>overall score, per run &nbsp; <span class="key fit"></span>fitted trend</span><span>drift −2.7 · sd 1.81 · mean 89.1</span></figcaption>
+    </figure>
+  </section>
+
+  <section class="callout">
+    <p class="q">“The error was comparing neighbours instead of fitting the series.”</p>
+    <p>Found on 2026-09-17, by hand, in the prose of one run record. <strong>setup_and_docs</strong> went 85 → 89 → 92 across three runs and was reported repeatedly as the programme’s success. Fitted across all 10 runs it is 93 → 88 — a local recovery inside a falling line. This page exists so that fit is never done by hand again.</p>
+  </section>
+
+  <section>
+    <h2>6 categories falling beyond their own noise</h2>
+    <div class="grid-cards"><article class="card falling">
+        <header>
+          <h3>scale and limits</h3>
+          <span class="drift">−13.6</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="88, 91, 85, 84, 79, 80, 87, 83, 85, 65">
+      <polyline class="raw" points="5,8.461538461538463 20.555555555555557,5 36.111111111111114,11.923076923076922 51.666666666666664,13.076923076923078 67.22222222222223,18.846153846153847 82.77777777777779,17.692307692307693 98.33333333333333,9.615384615384617 113.88888888888889,14.230769230769232 129.44444444444446,11.923076923076922 145,35" fill="none" />
+      <polyline class="fit" points="5,6.741258741258733 145,22.4125874125874" fill="none" />
+      <circle class="end" cx="145" cy="35" r="3" />
+    </svg>
+        <p class="range"><span>89 → 76</span><span class="badge">falling</span></p>
+        <p class="series">88 91 85 84 79 80 87 83 85 65</p>
+      </article><article class="card falling">
+        <header>
+          <h3>queries and live</h3>
+          <span class="drift">−8.8</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="91, 89, 84, 91, 82, 78, 86, 82, 83, 81">
+      <polyline class="raw" points="5,5 20.555555555555557,9.615384615384617 36.111111111111114,21.153846153846153 51.666666666666664,5 67.22222222222223,25.76923076923077 82.77777777777779,35 98.33333333333333,16.538461538461537 113.88888888888889,25.76923076923077 129.44444444444446,23.461538461538463 145,28.076923076923073" fill="none" />
+      <polyline class="fit" points="5,9.4055944055944 145,29.671328671328663" fill="none" />
+      <circle class="end" cx="145" cy="28.076923076923073" r="3" />
+    </svg>
+        <p class="range"><span>89 → 80</span><span class="badge">falling</span></p>
+        <p class="series">91 89 84 91 82 78 86 82 83 81</p>
+      </article><article class="card falling">
+        <header>
+          <h3>setup and docs</h3>
+          <span class="drift">−5.1</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="96, 92, 90, 90, 92, 90, 85, 89, 92, 88">
+      <polyline class="raw" points="5,5 20.555555555555557,15.90909090909091 36.111111111111114,21.363636363636363 51.666666666666664,21.363636363636363 67.22222222222223,15.90909090909091 82.77777777777779,21.363636363636363 98.33333333333333,35 113.88888888888889,24.09090909090909 129.44444444444446,15.90909090909091 145,26.81818181818182" fill="none" />
+      <polyline class="fit" points="5,13.280991735537176 145,27.264462809917337" fill="none" />
+      <circle class="end" cx="145" cy="26.81818181818182" r="3" />
+    </svg>
+        <p class="range"><span>93 → 88</span><span class="badge">falling</span></p>
+        <p class="series">96 92 90 90 92 90 85 89 92 88</p>
+      </article><article class="card falling">
+        <header>
+          <h3>data modeling</h3>
+          <span class="drift">−4.1</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="85, 88, 88, 89, 85, 88, 88, 84, 84, 82">
+      <polyline class="raw" points="5,22.142857142857142 20.555555555555557,9.285714285714288 36.111111111111114,9.285714285714288 51.666666666666664,5 67.22222222222223,22.142857142857142 82.77777777777779,9.285714285714288 98.33333333333333,9.285714285714288 113.88888888888889,26.42857142857143 129.44444444444446,26.42857142857143 145,35" fill="none" />
+      <polyline class="fit" points="5,8.66233766233768 145,26.194805194805227" fill="none" />
+      <circle class="end" cx="145" cy="35" r="3" />
+    </svg>
+        <p class="range"><span>88 → 84</span><span class="badge">falling</span></p>
+        <p class="series">85 88 88 89 85 88 88 84 84 82</p>
+      </article><article class="card falling">
+        <header>
+          <h3>operations</h3>
+          <span class="drift">−3.4</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="88, 89, 88, 89, 83, 86, 88, 88, 84, 85">
+      <polyline class="raw" points="5,10 20.555555555555557,5 36.111111111111114,10 51.666666666666664,5 67.22222222222223,35 82.77777777777779,20 98.33333333333333,10 113.88888888888889,10 129.44444444444446,30 145,25.000000000000004" fill="none" />
+      <polyline class="fit" points="5,7.545454545454575 145,24.454545454545453" fill="none" />
+      <circle class="end" cx="145" cy="25.000000000000004" r="3" />
+    </svg>
+        <p class="range"><span>88 → 85</span><span class="badge">falling</span></p>
+        <p class="series">88 89 88 89 83 86 88 88 84 85</p>
+      </article><article class="card flat">
+        <header>
+          <h3>background work</h3>
+          <span class="drift">−2.3</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="91, 93, 95, 94, 92, 92, 96, 95, 86, 91">
+      <polyline class="raw" points="5,20 20.555555555555557,14.000000000000002 36.111111111111114,7.999999999999999 51.666666666666664,10.999999999999998 67.22222222222223,17 82.77777777777779,17 98.33333333333333,5 113.88888888888889,7.999999999999999 129.44444444444446,35 145,20" fill="none" />
+      <polyline class="fit" points="5,11.981818181818184 145,19.018181818181816" fill="none" />
+      <circle class="end" cx="145" cy="20" r="3" />
+    </svg>
+        <p class="range"><span>94 → 91</span><span class="badge">flat</span></p>
+        <p class="series">91 93 95 94 92 92 96 95 86 91</p>
+      </article><article class="card falling">
+        <header>
+          <h3>media assets</h3>
+          <span class="drift">−1.6</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="97, 98, 97, 97, 96, 96, 98, 97, 96, 95">
+      <polyline class="raw" points="5,15.000000000000002 20.555555555555557,5 36.111111111111114,15.000000000000002 51.666666666666664,15.000000000000002 67.22222222222223,25.000000000000004 82.77777777777779,25.000000000000004 98.33333333333333,5 113.88888888888889,15.000000000000002 129.44444444444446,25.000000000000004 145,35" fill="none" />
+      <polyline class="fit" points="5,10.090909090909008 145,25.90909090909079" fill="none" />
+      <circle class="end" cx="145" cy="35" r="3" />
+    </svg>
+        <p class="range"><span>97 → 96</span><span class="badge">falling</span></p>
+        <p class="series">97 98 97 97 96 96 98 97 96 95</p>
+      </article><article class="card flat">
+        <header>
+          <h3>client integration</h3>
+          <span class="drift">−0.8</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="88, 90, 89, 90, 87, 88, 89, 88, 89, 88">
+      <polyline class="raw" points="5,25.000000000000004 20.555555555555557,5 36.111111111111114,15.000000000000002 51.666666666666664,5 67.22222222222223,35 82.77777777777779,25.000000000000004 98.33333333333333,15.000000000000002 113.88888888888889,25.000000000000004 129.44444444444446,15.000000000000002 145,25.000000000000004" fill="none" />
+      <polyline class="fit" points="5,15.1818181818183 145,22.81818181818195" fill="none" />
+      <circle class="end" cx="145" cy="25.000000000000004" r="3" />
+    </svg>
+        <p class="range"><span>89 → 88</span><span class="badge">flat</span></p>
+        <p class="series">88 90 89 90 87 88 89 88 89 88</p>
+      </article><article class="card flat">
+        <header>
+          <h3>writes and transactions</h3>
+          <span class="drift">+0.1</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="96, 95, 92, 94, 91, 95, 95, 96, 94, 94">
+      <polyline class="raw" points="5,5 20.555555555555557,10.999999999999998 36.111111111111114,29 51.666666666666664,17 67.22222222222223,35 82.77777777777779,10.999999999999998 98.33333333333333,10.999999999999998 113.88888888888889,5 129.44444444444446,17 145,17" fill="none" />
+      <polyline class="fit" points="5,16.12727272727267 145,15.472727272727214" fill="none" />
+      <circle class="end" cx="145" cy="17" r="3" />
+    </svg>
+        <p class="range"><span>94 → 94</span><span class="badge">flat</span></p>
+        <p class="series">96 95 92 94 91 95 95 96 94 94</p>
+      </article><article class="card flat">
+        <header>
+          <h3>offline sync</h3>
+          <span class="drift">+1.2</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="93, 92, 90, 94, 91, 93, 95, 92, 93, 93">
+      <polyline class="raw" points="5,17 20.555555555555557,23 36.111111111111114,35 51.666666666666664,10.999999999999998 67.22222222222223,29 82.77777777777779,17 98.33333333333333,5 113.88888888888889,23 129.44444444444446,17 145,17" fill="none" />
+      <polyline class="fit" points="5,23 145,15.799999999999983" fill="none" />
+      <circle class="end" cx="145" cy="17" r="3" />
+    </svg>
+        <p class="range"><span>92 → 93</span><span class="badge">flat</span></p>
+        <p class="series">93 92 90 94 91 93 95 92 93 93</p>
+      </article><article class="card flat">
+        <header>
+          <h3>diagnostics dev loop</h3>
+          <span class="drift">+1.3</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="94, 95, 93, 90, 92, 94, 94, 95, 95, 94">
+      <polyline class="raw" points="5,10.999999999999998 20.555555555555557,5 36.111111111111114,17 51.666666666666664,35 67.22222222222223,23 82.77777777777779,10.999999999999998 98.33333333333333,10.999999999999998 113.88888888888889,5 129.44444444444446,5 145,10.999999999999998" fill="none" />
+      <polyline class="fit" points="5,17.32727272727277 145,9.472727272727298" fill="none" />
+      <circle class="end" cx="145" cy="10.999999999999998" r="3" />
+    </svg>
+        <p class="range"><span>93 → 94</span><span class="badge">flat</span></p>
+        <p class="series">94 95 93 90 92 94 94 95 95 94</p>
+      </article><article class="card rising">
+        <header>
+          <h3>authorization</h3>
+          <span class="drift">+4.3</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="88, 97, 91, 96, 95, 95, 96, 97, 95, 95">
+      <polyline class="raw" points="5,35 20.555555555555557,5 36.111111111111114,25.000000000000004 51.666666666666664,8.333333333333336 67.22222222222223,11.666666666666666 82.77777777777779,11.666666666666666 98.33333333333333,8.333333333333336 113.88888888888889,5 129.44444444444446,11.666666666666666 145,11.666666666666666" fill="none" />
+      <polyline class="fit" points="5,20.515151515151523 145,6.151515151515145" fill="none" />
+      <circle class="end" cx="145" cy="11.666666666666666" r="3" />
+    </svg>
+        <p class="range"><span>92 → 97</span><span class="badge">rising</span></p>
+        <p class="series">88 97 91 96 95 95 96 97 95 95</p>
+      </article></div>
+  </section>
+
+  <details>
+    <summary>All scores, as a table</summary>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th scope="col">category</th><th scope="col">0.2.16</th><th scope="col">0.2.19</th><th scope="col">0.2.21</th><th scope="col">0.2.22</th><th scope="col">0.2.23</th><th scope="col">0.2.24</th><th scope="col">0.2.25</th><th scope="col">0.2.26</th><th scope="col">0.2.27</th><th scope="col">0.2.28</th><th scope="col">/run</th><th scope="col">drift</th><th scope="col">sd</th><th scope="col">fit</th></tr></thead>
+        <tbody><tr class="falling"><th scope="row">scale and limits</th><td>88</td><td>91</td><td>85</td><td>84</td><td>79</td><td>80</td><td>87</td><td>83</td><td>85</td><td>65</td><td class="n">−1.5</td><td class="n">−13.6</td><td class="n">6.80</td><td>falling</td></tr><tr class="falling"><th scope="row">queries and live</th><td>91</td><td>89</td><td>84</td><td>91</td><td>82</td><td>78</td><td>86</td><td>82</td><td>83</td><td>81</td><td class="n">−1.0</td><td class="n">−8.8</td><td class="n">4.20</td><td>falling</td></tr><tr class="falling"><th scope="row">setup and docs</th><td>96</td><td>92</td><td>90</td><td>90</td><td>92</td><td>90</td><td>85</td><td>89</td><td>92</td><td>88</td><td class="n">−0.6</td><td class="n">−5.1</td><td class="n">2.76</td><td>falling</td></tr><tr class="falling"><th scope="row">data modeling</th><td>85</td><td>88</td><td>88</td><td>89</td><td>85</td><td>88</td><td>88</td><td>84</td><td>84</td><td>82</td><td class="n">−0.5</td><td class="n">−4.1</td><td class="n">2.26</td><td>falling</td></tr><tr class="falling"><th scope="row">operations</th><td>88</td><td>89</td><td>88</td><td>89</td><td>83</td><td>86</td><td>88</td><td>88</td><td>84</td><td>85</td><td class="n">−0.4</td><td class="n">−3.4</td><td class="n">2.04</td><td>falling</td></tr><tr class="flat"><th scope="row">background work</th><td>91</td><td>93</td><td>95</td><td>94</td><td>92</td><td>92</td><td>96</td><td>95</td><td>86</td><td>91</td><td class="n">−0.3</td><td class="n">−2.3</td><td class="n">2.73</td><td>flat</td></tr><tr class="falling"><th scope="row">media assets</th><td>97</td><td>98</td><td>97</td><td>97</td><td>96</td><td>96</td><td>98</td><td>97</td><td>96</td><td>95</td><td class="n">−0.2</td><td class="n">−1.6</td><td class="n">0.90</td><td>falling</td></tr><tr class="flat"><th scope="row">client integration</th><td>88</td><td>90</td><td>89</td><td>90</td><td>87</td><td>88</td><td>89</td><td>88</td><td>89</td><td>88</td><td class="n">−0.1</td><td class="n">−0.8</td><td class="n">0.92</td><td>flat</td></tr><tr class="flat"><th scope="row">writes and transactions</th><td>96</td><td>95</td><td>92</td><td>94</td><td>91</td><td>95</td><td>95</td><td>96</td><td>94</td><td>94</td><td class="n">+0.0</td><td class="n">+0.1</td><td class="n">1.54</td><td>flat</td></tr><tr class="flat"><th scope="row">offline sync</th><td>93</td><td>92</td><td>90</td><td>94</td><td>91</td><td>93</td><td>95</td><td>92</td><td>93</td><td>93</td><td class="n">+0.1</td><td class="n">+1.2</td><td class="n">1.36</td><td>flat</td></tr><tr class="flat"><th scope="row">diagnostics dev loop</th><td>94</td><td>95</td><td>93</td><td>90</td><td>92</td><td>94</td><td>94</td><td>95</td><td>95</td><td>94</td><td class="n">+0.1</td><td class="n">+1.3</td><td class="n">1.50</td><td>flat</td></tr><tr class="rising"><th scope="row">authorization</th><td>88</td><td>97</td><td>91</td><td>96</td><td>95</td><td>95</td><td>96</td><td>97</td><td>95</td><td>95</td><td class="n">+0.5</td><td class="n">+4.3</td><td class="n">2.69</td><td>rising</td></tr><tr class="falling"><th scope="row">overall</th><td>90</td><td>91</td><td>88</td><td>91</td><td>88</td><td>88</td><td>91</td><td>90</td><td>89</td><td>85</td><td class="n">−0.3</td><td class="n">−2.7</td><td class="n">1.81</td><td>falling</td></tr></tbody>
+      </table>
+    </div>
+  </details>
+
+  <footer>
+    <p>A category is called <strong>falling</strong> or <strong>rising</strong> only when its drift across the series exceeds one standard deviation of that series — the bar the original correction set. Everything else reads flat. Nothing here says <em>why</em>; it says where to look.</p>
+    <p>N = 1 per version. Calibration runs, read for shape — not a ranking, and not a magnitude claim about any backend.</p>
+    <p>Regenerate with <code>node benchmarks/scripts/score-trend.mjs</code> after every calibration.</p>
+  </footer>
+</div>
+<div id="tip" role="status"></div>
+
+<script>
+(function () {
+  var runs = [{"v":"0.2.16","d":"2026-09-15","s":90},{"v":"0.2.19","d":"2026-09-15","s":91},{"v":"0.2.21","d":"2026-09-15","s":88},{"v":"0.2.22","d":"2026-09-15","s":91},{"v":"0.2.23","d":"2026-09-16","s":88},{"v":"0.2.24","d":"2026-09-16","s":88},{"v":"0.2.25","d":"2026-09-16","s":91},{"v":"0.2.26","d":"2026-09-16","s":90},{"v":"0.2.27","d":"2026-09-17","s":89},{"v":"0.2.28","d":"2026-09-17","s":85}];
+  var hero = document.getElementById("hero"), tip = document.getElementById("tip");
+  if (!hero || !tip) return;
+  function show(e, i) {
+    var r = runs[i];
+    tip.textContent = r.v + "  ·  " + r.s + "  ·  " + r.d;
+    tip.style.opacity = "1";
+    var pad = 14;
+    var x = Math.min(e.clientX + pad, window.innerWidth - tip.offsetWidth - 8);
+    tip.style.left = Math.max(8, x) + "px";
+    tip.style.top = Math.max(8, e.clientY - tip.offsetHeight - pad) + "px";
+  }
+  hero.querySelectorAll(".hit").forEach(function (h) {
+    var i = +h.dataset.i;
+    h.addEventListener("mousemove", function (e) { show(e, i); });
+    h.addEventListener("mouseenter", function (e) { show(e, i); });
+  });
+  hero.addEventListener("mouseleave", function () { tip.style.opacity = "0"; });
+})();
+</script>
