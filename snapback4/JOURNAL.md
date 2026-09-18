@@ -37590,3 +37590,28 @@ ref-check: ok — 484 LLP docs, 9115 refs in 24335 files, 0 errors, 0 unchecked
 
 `git diff --check` passes. The journal preserves all 2,200,770 prior bytes and
 adds exactly one dated entry. HEAD remains the base above; there is no commit.
+
+## 2026-09-18 — 0.2.29 verified from the registry: the horizon repair and ruling 32 are in the pin
+
+The wave 13 lead published 0.2.29 (`snapback4`, `snapback4-darwin-arm64`, then `snapback4-expo`
+0.2.20) from main `1b3d97f61f`, after the derived-data lead landed the one red its gate would
+have refused on (`faa9a8f501`: the README examples test, `runGeneratedEffects` without a
+block). Both packages were fetched back with `npm pack` and the probes that found the
+defects re-run unchanged (`benchmarks/runs/2026-09-17-snapback4-derived-probes/`, "Published
+0.2.29"):
+
+- horizon: device pages equal the server's on the public feed and in the chat thread; the
+  device holds nothing beyond its horizon after likes on old posts (0.2.28: two rows, and a
+  page answered from them).
+- presence: alice's `push(bob)` while bob's only client holds a live poll — 0.2.28 records
+  nothing (`doctor` prints no effects line; grader finding d-05); 0.2.29 records `effects 1
+  queued, 1 deferred (next at …, +5s)`.
+
+Two traps met on the way and recorded: the Xcode license became unaccepted mid-day (the
+`/usr/bin` git and python3 shims refuse; `DEVELOPER_DIR=/Library/Developer/CommandLineTools`
+restores them; `xcodebuild`, and so the xcframework leg, waits for the license), and
+`node --test` on the package tests must run from `snapback4/` (TypeScript's default
+`typeRoots` follow `process.cwd()`; from the repository root the README examples test fails
+on `@types/node`). A probe that pipes `node … | tail` shows nothing until node exits, and an
+online client's subscription keeps node alive: give a probe a hard timeout and an explicit
+`process.exit`.

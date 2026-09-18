@@ -1,0 +1,2 @@
+alice push(bob) while bob holds a poll: sent seq 1
+doctor: effects   1 queued, 1 deferred (next at 1789720034998, +5s)

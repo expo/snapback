@@ -1,0 +1,4 @@
+server page 2                      m09 m08 m07
+server page 3                      m06 m05 m04
+page 2: device EQUALS server
+page 3: device EQUALS server
