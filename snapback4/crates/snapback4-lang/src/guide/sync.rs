@@ -117,6 +117,14 @@ most), each applied in its own transaction. `POST /sync` takes JSON
 Oversize bodies, including chunked ones, return HTTP 413 `E_INPUT`; malformed
 fields return HTTP 400 `E_INPUT`. Continue snapshots with `after: next`;
 `stream: true` follows the log even from zero. There is no GET sync route.
+An HTTP response above 16 MiB becomes `E_BOUND`, keeping `generation`,
+`store_id` and `watermark` from that page. The client checks identity before
+shrinking its limit; a refusal's watermark is never applied as delivered data.
+At limit 1 an oversized stream reply adds `snapshot: true`, instructing the
+client to restart at `from: 0, after: null, stream: false` with the reduced
+limit and finish snapshot catch-up before publication. Commits stay whole in
+the stream; snapshots page their current rows separately. A snapshot row that
+cannot fit at limit 1 remains refused, without another snapshot instruction.
 A changed sync `store_id` (echoed from the previous reply), or a reply behind
 its own requested watermark without one while that capture is still current, discards the old partition and held/left history and
 requires acquisition again, keeping unsent writes without their predicted

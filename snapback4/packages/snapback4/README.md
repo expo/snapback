@@ -1455,6 +1455,11 @@ the newest N per group stay on the device, the rest are online and a
 local read past them says `complete: false`). A snapshot arrives in pages
 of 2,000 events, each staged in its own transaction and published
 together with the last, so a device never shows half a snapshot.
+An oversized sync reply keeps `generation` and `store_id` with its `E_BOUND`
+refusal; the client adopts a changed identity before reducing the page limit.
+If a whole stream commit still exceeds 16 MiB at limit 1, the refusal adds
+`snapshot: true`: the client restarts a paged snapshot and catches up before
+publishing it. A snapshot row that cannot fit at limit 1 remains refused.
 Suppression is reader-dependent, even for an uncapped `sync public` table.
 Eligible mutations that require whole-partition coverage can suppress this
 advice. An absent note does not certify bounded acquisition or a safe

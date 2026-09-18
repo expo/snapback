@@ -652,13 +652,20 @@ pub(crate) fn respond(request: Request, status: u16, body: impl serde::Serialize
 }
 
 fn respond_with_cors(request: Request, status: u16, body: impl serde::Serialize, allow_origin: bool) {
+    respond_with_sync(request, status, body, allow_origin, None)
+}
+
+fn respond_with_sync(request: Request, status: u16, body: impl serde::Serialize, allow_origin: bool, sync_overflow: Option<Json>) {
     let mut bytes = JsonBuffer(Vec::new());
     let encoded = serde_json::to_writer(&mut bytes, &body);
     drop(body);
     let status = if encoded.is_err() {
         bytes.0.clear();
         let refusal = Refusal::new("E_BOUND", "bound", "the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values").guide("reads");
-        serde_json::to_writer(&mut bytes, &json!({ "denied": refusal_json(&refusal) })).expect("the fixed HTTP refusal fits the response ceiling");
+        // @ref LLP 3000.007.001#3.11 — generation discovery survives an undeliverable row page.
+        let mut reply = sync_overflow.unwrap_or_else(|| json!({}));
+        reply["denied"] = refusal_json(&refusal);
+        serde_json::to_writer(&mut bytes, &reply).expect("the fixed HTTP refusal and sync identity fit the response ceiling");
         200
     } else { status };
     let capacity = bytes.0.len() + 512;
@@ -1115,10 +1122,11 @@ fn handle(mut request: Request, shared: &Shared) {
                     Ok((page, acknowledged)) => {
                         let next = page.next.map(|next| next.encode());
                         let (events, watermark, held) = (page.events, page.watermark, page.held);
-                        respond(request, 200, SnapshotReply {
+                        let overflow = json!({ "generation": generation, "store_id": store_id, "watermark": watermark });
+                        respond_with_sync(request, 200, SnapshotReply {
                             acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Snapshot(events), generation, store_id,
                             held, more: next.is_some(), next, after, snapshot: true, watermark,
-                        });
+                        }, true, Some(overflow));
                     }
                     Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else if refusal.code == "E_INPUT" { 400 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
                 }
@@ -1138,10 +1146,14 @@ fn handle(mut request: Request, shared: &Shared) {
                 };
                 match outcome {
                     Ok((page, acknowledged)) => {
-                        respond(request, 200, StreamReply {
+                        let mut overflow = json!({ "generation": generation, "store_id": store_id, "watermark": page.watermark });
+                        // Whole commits cannot be split by lowering the stream limit.
+                        // A snapshot pages their current rows individually instead.
+                        if limit == 1 { overflow["snapshot"] = json!(true); }
+                        respond_with_sync(request, 200, StreamReply {
                             acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Stream(page.events), generation, store_id,
                             joined: page.joined, more: page.more, snapshot: false, watermark: page.watermark,
-                        });
+                        }, true, Some(overflow));
                     }
                     Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
                 }

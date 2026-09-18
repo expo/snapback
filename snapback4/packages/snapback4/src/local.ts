@@ -539,6 +539,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
   // ----- the stream -----
 
+  async function refusePartition(denied: Refusal, revision: number) {
+    await refusedSession(denied, revision);
+    if (!denied.retryable) {
+      if (!partitionDenied) console.error(`snapback4: the server refused the partition: ${denied.code}: ${denied.message}`);
+      partitionDenied = denied;
+      for (const watch of watches.values()) void rerun(watch);
+    }
+  }
+
   let syncing: Promise<boolean> | null = null;
   function syncOnce(): Promise<boolean> {
     if (partitionDenied?.code === "E_STORE_RESTORE") return Promise.resolve(false);
@@ -585,25 +594,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           setLink("offline");
           return false;
         }
-        if (closed) return false;
-        if (page.denied) {
-          const denied = page.denied as Refusal;
-          if (pageIncarnation !== incarnation || pageRevision !== credentialRevision) return false;
-          if (responsePageTooLarge(denied) && pageLimit > 1) {
-            // Retry this exact stream position with a smaller page. Keep the
-            // reduced limit for the round so every following wide page fits.
-            pageLimit = Math.max(1, Math.floor(pageLimit / 2));
-            continue;
-          }
-          await refusedSession(page.denied, pageRevision);
-          if (!denied.retryable) {
-            if (!partitionDenied) console.error(`snapback4: the server refused the partition: ${denied.code}: ${denied.message}`);
-            partitionDenied = denied;
-            for (const watch of watches.values()) void rerun(watch);
-          }
+        if (closed || pageIncarnation !== incarnation || pageRevision !== credentialRevision) return false;
+        const denied = page.denied as Refusal | undefined;
+        // @ref LLP 3000.007.001#3.11 — adopt an oversized reply's identity before shrinking or retrying its position.
+        if (denied && !responsePageTooLarge(denied)) {
+          await refusePartition(denied, pageRevision);
           return false;
         }
-        if (pageIncarnation !== incarnation || pageRevision !== credentialRevision) return false;
         // @ref LLP 3000.007#18.2 — sync identity retires the old partition before any read or outbox replay.
         let replacedStore = false;
         if (typeof page.store_id === "string") observeIncarnation(page.store_id);
@@ -612,7 +609,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             const seq = entry.sent_seq ?? entry.observed_seq;
             if (entry.sent_seq == null && seq != null) await history.keep({ state: "sent", id: entry.id, seq, replayed: true });
           }
-          const observed = await call({ op: "observe_store", page });
+          // Observation needs a page envelope, but a refusal has no row batch.
+          const observed = await call({ op: "observe_store", page: denied ? { ...page, snapshot: false, events: [], more: false } : page });
           if (observed.denied) { refuseRestore(observed.denied); return false; }
           const observation = observed.ok as { reset: boolean; backend_required?: boolean; send_revision: number; retired: Record<string, number> };
           page.send_revision = observation.send_revision;
@@ -636,7 +634,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
         if (typeof page.store_id === "string") storeIdentity = page.store_id;
         if (link !== "online") setLink("online");
-        partitionDenied = null;
+        if (!denied) partitionDenied = null;
         const pageGeneration = Number(page.generation ?? generation);
         if (pageGeneration !== generation || replacedStore || backendRequired) {
           // Generation counters restart with a new store. Reload the backend
@@ -655,6 +653,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             serverAnswers.clear();
             backend = nextBackend;
             generation = Number(nextBackend.generation ?? pageGeneration);
+            partitionDenied = null;
             nativeReady = false;
             adoptedGeneration = true;
             nativeReady = await installNative(aborter.signal);
@@ -663,6 +662,21 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             return false;
           }
           watermark = 0; after = undefined; catchingUp = false; continue;
+        }
+        if (denied) {
+          if (page.snapshot === true && pageLimit === 1 && (watermark > 0 || catchingUp)) {
+            // Restart acquisition without applying the refusal's watermark.
+            // Keep the reduced limit; snapshot rows can split a whole commit.
+            watermark = 0; after = undefined; catchingUp = false;
+            partitionDenied = null;
+            continue;
+          }
+          if (pageLimit > 1) {
+            pageLimit = Math.max(1, Math.floor(pageLimit / 2));
+            continue;
+          }
+          await refusePartition(denied, pageRevision);
+          return false;
         }
         if (Number(page.watermark) < watermark || (catchingUp && page.snapshot) || (page.snapshot && page.more && !page.next)) return false;
         page.stage_snapshot = !!page.snapshot;

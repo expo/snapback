@@ -39509,3 +39509,175 @@ ref-check: ok — 485 LLP docs, 9115 refs in 24352 files, 0 errors, 0 unchecked
 This entry preserves all 2,245,276 earlier journal bytes (SHA-256
 `8dbed07a15be93003e00add097dca55702c39cdc9da9f133c2273d4d317ca3f1`). Reference and whitespace checks
 run again after this append. All changed code files are below 1,500 lines.
+
+
+## 2026-09-18 — MC0: generation discovery survives an oversized sync page
+
+Base: `0f34b023a3a811a9e5482f8e06572f25953c399c`. Implemented in the lane
+working tree; no commit, push, tag or publication. The lead owns landing.
+The ticket is closed at
+`issues/closed/20260917-snapback4-oversized-sync-page-hides-generation.md`.
+
+The bounded HTTP encoder now preserves a sync page's `generation`, `store_id`
+and `watermark` in its E_BOUND replacement body. The client observes identity
+and adopts a changed backend before reducing its page limit. An identity-only
+refusal can reach the device's existing guarded store observation, but is never
+applied as a row page and cannot advance the delivered watermark. A changed
+store at the same generation follows that same replacement/adoption path.
+
+For part 3 I chose `snapshot: true` alongside `denied`, only when an oversized
+stream response was requested at limit 1. The client restarts acquisition with
+`from: 0, after: null, stream: false`, keeping the reduced limit and the normal
+staged snapshot/catch-up publication. I rejected a new `snapshot_required`
+field and a new error code: the existing snapshot word and E_BOUND are enough.
+Splitting commits or raising the ceiling would violate the lane's constraints.
+An oversized snapshot row at limit 1 remains refused; it cannot restart forever.
+No new diagnostic code, value serialization, meter ceiling or request field was
+introduced. The README, sync card and LLP 3000.007 §18.2 record the protocol.
+
+Verified rather than assumed: a real SQLite HTTP host rematerializes a single
+commit of 44 initially narrow rows after they have been widened in later
+commits to 400,000 body bytes apiece. That is **17,600,000 body bytes**, above
+the unchanged **16,777,216-byte** response ceiling. No lowered ceiling or
+checked-in 16 MiB fixture was used. The actual refusals remain below 1,000
+bytes. The stream limit sequence is **4000, 2000, 1000, 500, 250, 125, 62, 31,
+15, 7, 3, 1**; the same-generation recovery reaches watermark **13** from **1**.
+The real client loop runs on both wasm and SQLite process devices. A legacy
+setup suppresses only the new snapshot instruction on genuine oversized
+responses, proving the device is stuck at limit **1**, watermark **1**, with
+E_BOUND. It then forwards replies unchanged after the backend advances from
+generation **1** to **2**. Both devices request `/schema` before any smaller
+page and finish acquisition with a fresh read. Separate cases prove both
+same-generation snapshot recovery and same-generation store replacement.
+A test-side call guard refuses any attempt to apply a denied page.
+
+The first test fixture parked `/changes` without response bytes. Its four-second
+watchdog correctly started reconnects, making the first fixed run report
+`ℹ pass 7`, `ℹ fail 4`. I corrected the fixture to emit whitespace heartbeat
+frames and reran the identical corrected regression against restored base
+runtime sources, then against the fix. This is transport scheduling control;
+all `/sync` bodies are real server responses, with only the explicitly named
+legacy setup suppressing the new recovery instruction.
+
+All Node/Bun commands used the required runtime:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+From `snapback4/`, the corrected regression command and its verbatim summaries,
+base first, then fixed (nine cases and two containing tests):
+
+```text
+$ node --test --test-concurrency=2 packages/snapback4/test/sync-overflow.test.mjs
+ℹ tests 11
+ℹ pass 0
+ℹ fail 11
+ℹ duration_ms 107410.547959
+ℹ tests 11
+ℹ pass 11
+ℹ fail 0
+ℹ duration_ms 89147.841958
+```
+
+The published-card check:
+
+```text
+$ cargo test -p snapback4-lang --test guide
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+```
+
+The requested complete client run, base first, then fixed. Every base pass is
+retained; the fixed run adds the 11 regression results and the two transport
+cases that timed out at base. The only remaining failure is Chromium SIGABRT.
+
+```text
+$ node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'
+ℹ tests 809
+ℹ pass 792
+ℹ fail 14
+ℹ cancelled 0
+ℹ skipped 3
+ℹ duration_ms 593405.552083
+ℹ tests 809
+ℹ pass 805
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 3
+ℹ duration_ms 283106.095916
+```
+
+From the repository root, the full blocking suite used its existing serial-client
+switch to reduce contention. Shell tracing made the separate phase logs visible.
+Every category except the sandbox Chromium witness passed; the zero-failure bar
+is not claimed. The lead still needs the outside-sandbox browser run.
+
+```text
+$ SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 bash -x snapback4/scripts/test.sh
+-- ok: cargo test (347 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (7 s)
+ℹ tests 809
+ℹ pass 805
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 3
+-- FAIL: client tests (583 s)
+== 1 failure(s) in 592 s
+```
+
+The suite also printed `wasm 1481402 B raw, 410459 B gzip (budget 411000: ok)`,
+identical to the base build. An earlier optional baseline invocation,
+`bash snapback4/scripts/test.sh`, was interrupted after about 15 minutes without
+a final summary; it is not used as qualification. The complete base client
+command above and the corrected base regression both finished independently.
+
+The three unrelated base client failures were rechecked alone on base runtime
+sources at the exact base commit above. At load **17.65** across **18** CPUs,
+the two transport cases still timed out; both passed in both final full client
+runs. No transport code was changed to make them pass. Chromium also failed
+alone on both base and fixed with `signal=SIGABRT`:
+
+```text
+$ node --test --test-concurrency=1 --test-name-pattern='maximum pending ids' packages/snapback4/test/transport-http.test.mjs
+ℹ tests 2
+ℹ pass 0
+ℹ fail 2
+$ node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+```
+
+Reference validation before this append:
+
+```text
+$ ./ref-check --verbose
+ref-check: ok — 485 LLP docs, 9124 refs in 24399 files, 0 errors, 0 unchecked
+```
+
+The supplementary root `node scripts/caps.mjs` reports `2 violations`: the
+working set is **63/59** and the unrelated
+`crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs` is **1504** lines
+by that check. The cap script, rule file, working-set entries and that source
+file are unchanged from the exact base (verified against its tree). This lane's
+changed source files are **1341**, **1353**, **212** and **210** lines; none
+exceeds 1,500. No out-of-scope code was touched; the covering LLP gained the
+protocol record and a pointer to the closed ticket.
+
+Nothing in the ticket's direction proved wrong. The request-side generation
+mismatch response before materialization remains unbuilt as explicitly directed;
+it could avoid building a rejected page, while this fix already makes recovery
+independent of delivering it. All three requested implementation parts and their
+red/green proofs are complete. The existing refusal text is unchanged, before
+and after, verbatim:
+
+```text
+the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+```
+
+This single append preserves all **2,335,746** earlier journal bytes, SHA-256
+`b27a93cda6702fd8210bdab5e2e8d829ce41661c527922d716784bfc15fdd51b`.
+Reference validation and whitespace checks run again after this append.
