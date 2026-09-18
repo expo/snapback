@@ -48,10 +48,16 @@ pub struct StoreObservation {
 
 // @ref LLP 3000.007#18.2 — replacement discards the old partition, never an unsent write or a known receipt.
 pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<StoreObservation, RuntimeError> {
+    observe_identity(tx, page.store_id.as_deref(), page.watermark, page.send_revision, page.captured_watermark, page.requested_watermark)
+}
+
+// Metadata can observe identity without fabricating a partition page.
+pub(super) fn observe_identity<T: DeviceTx>(tx: &T, store_id: Option<&str>, head: u64, send_revision: Option<u64>,
+    captured_watermark: Option<u64>, requested_watermark: Option<u64>) -> Result<StoreObservation, RuntimeError> {
     let mut revision = meta_u64(tx, SEND_REVISION)?;
     let previous = tx.meta(STORE_ID)?;
-    if page.send_revision.is_some_and(|expected| expected != revision) {
-        let message = if page.store_id.is_some() && page.store_id != previous {
+    if send_revision.is_some_and(|expected| expected != revision) {
+        let message = if store_id.is_some() && store_id != previous.as_deref() {
             "the backend store was replaced during sync; retry sync"
         } else {
             "a mutation send overlapped the sync response; retry sync"
@@ -60,18 +66,18 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<StoreObs
     }
     let watermark = meta_u64(tx, WATERMARK)?;
     // A response belongs to its request, not to a newer owner's acquisition.
-    if page.captured_watermark.is_some_and(|expected| expected != watermark) {
+    if captured_watermark.is_some_and(|expected| expected != watermark) {
         return Err(RuntimeError::Generation("another owner advanced acquisition during sync; retry sync".into()));
     }
-    let identity_changed = page.store_id.as_ref().is_some_and(|id| previous.as_ref() != Some(id));
+    let identity_changed = store_id.is_some_and(|id| previous.as_deref() != Some(id));
     let reset = (identity_changed && (previous.is_some() || tx.meta(ACQUIRED)?.is_some() || meta_u64(tx, WATERMARK)? > 0 || tx.meta(SNAPSHOT_OWNER)?.is_some()))
-        || (page.store_id.is_none() && page.requested_watermark.is_some_and(|requested| page.watermark < requested) && page.captured_watermark == Some(watermark));
+        || (store_id.is_none() && requested_watermark.is_some_and(|requested| head < requested) && captured_watermark == Some(watermark));
     let mut retired = BTreeMap::new();
     // A matching identity with a lower head is a restore, not a new store.
     // Persist the halt with the old watermark; neither retry nor adoption
     // may silently turn the same identity into a fresh acquisition.
-    if !identity_changed && page.store_id.is_some() && page.watermark < watermark
-        && page.requested_watermark.is_none_or(|requested| page.watermark < requested) {
+    if !identity_changed && store_id.is_some() && head < watermark
+        && requested_watermark.is_none_or(|requested| head < requested) {
         tx.set_meta(RESTORE_REFUSED, "1")?;
     }
     if reset {
@@ -80,7 +86,7 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<StoreObs
         tx.base_clear()?;
         tx.staged_clear()?;
         tx.set_meta(WATERMARK, "0")?;
-        tx.set_meta(BACKEND_REQUIRED, page.store_id.as_deref().unwrap_or("legacy"))?;
+        tx.set_meta(BACKEND_REQUIRED, store_id.unwrap_or("legacy"))?;
         tx.delete_meta(&[ACQUIRED, SNAPSHOT_REQUIRED, history::GROUPS, boundary::BOUNDARIES, boundary::REPORT])?;
         tx.delete_meta(&SNAPSHOT_KEYS)?;
         retired = retire_known(tx)?;
@@ -92,7 +98,7 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<StoreObs
         }
     }
     if identity_changed {
-        tx.set_meta(STORE_ID, page.store_id.as_deref().expect("changed identity"))?;
+        tx.set_meta(STORE_ID, store_id.expect("changed identity"))?;
     }
     if reset || identity_changed {
         revision = revision.checked_add(1).filter(|n| *n <= 9_007_199_254_740_991).ok_or_else(|| RuntimeError::Store("send revision overflow".into()))?;

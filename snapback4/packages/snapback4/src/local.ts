@@ -391,7 +391,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     active.add(work);
     try {
       const result = (await work) as { ok?: unknown; denied?: Refusal };
-      if (!result.denied && ["apply", "observe_store", "adopt", "clear_rows", "admit", "settle"].includes(String(request.op))) await media?.reconcile();
+      const metadataReset = request.op === "sync_metadata" && (result.ok as { reset?: boolean } | undefined)?.reset === true;
+      if (!result.denied && (metadataReset || ["apply", "observe_store", "adopt", "clear_rows", "admit", "settle"].includes(String(request.op)))) await media?.reconcile();
       return result;
     }
     finally { active.delete(work); }
@@ -609,21 +610,16 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (restore_refusal) { refuseRestore(restore_refusal); return false; }
           backendRequired = !!backend_required;
           requestedStore = store_id;
-          metadataCapture = { store_id: store_id ?? null, generation, send_revision, captured_watermark: capturedWatermark, from: watermark, stream: catchingUp, recover: pageLimit === 1 && (watermark > 0 || catchingUp) };
+          metadataCapture = { store_id: store_id ?? null, generation, send_revision, captured_watermark: capturedWatermark, from: watermark, after: after ?? null, stream: catchingUp, recover: !backendRequired && pageLimit === 1 && after === undefined && watermark === capturedWatermark && (watermark > 0 || catchingUp) };
           const request = requestCredentials();
-          const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify(discovering ? { metadata: true, from: watermark, stream: catchingUp, limit: pageLimit, generation, pending, recover: metadataCapture.recover, ...(store_id ? { store_id } : {}) } : { from: watermark, limit: pageLimit, after: after ?? null, stream: catchingUp, pending, ...(store_id ? { store_id } : {}) }), signal: aborter.signal });
+          const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify(discovering ? { metadata: true, from: watermark, after: after ?? null, stream: catchingUp, limit: pageLimit, generation, pending, recover: metadataCapture.recover, ...(store_id ? { store_id } : {}) } : { from: watermark, limit: pageLimit, after: after ?? null, stream: catchingUp, pending, ...(store_id ? { store_id } : {}) }), signal: aborter.signal });
           if (response.status >= 500) { setLink("offline"); return false; }
           page = (await response.json()) as SyncPage;
           if (!response.ok && !page.denied) { setLink("offline"); return false; }
           if (discovering && !page.denied) {
             if (page.metadata !== true || typeof page.store_id !== "string" || !page.store_id
-              || (requestedStore != null && page.store_id !== requestedStore)
               || !Number.isSafeInteger(page.generation) || Number(page.generation) < 1
               || !Number.isSafeInteger(page.watermark) || Number(page.watermark) < 0) return false;
-            if (page.recovery !== undefined) {
-              const recovery = page.recovery as { from?: unknown; snapshot?: unknown } | null;
-              if (!metadataCapture.recover || !recovery || recovery.from !== watermark || typeof recovery.snapshot !== "boolean") return false;
-            }
           }
           page.send_revision = send_revision;
           page.requested_watermark = discovering ? capturedWatermark : watermark;
@@ -640,7 +636,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (responsePageTooLarge(denied) && !discovering) {
             // An error has no reset authority. Make a fresh authenticated
             // request whose metadata must pass the ordinary device fences.
-            needsMetadata = true;
+            if (!requestedStore) {
+              if (pageLimit === 1) return false;
+              pageLimit = Math.max(1, Math.floor(pageLimit / 2));
+            } else needsMetadata = true;
             continue;
           }
           if (discovering) {
@@ -657,22 +656,37 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
         if (pageIncarnation !== incarnation || pageRevision !== credentialRevision) return false;
         if (discovering) {
-          // Metadata has its own fenced command: no fabricated stream page,
-          // identity observation or row installation. Only a measured grant
-          // can retire known receipts in the fenced recovery transaction.
+          // The device validates the whole capture, observes replacement, and
+          // accepts only a measured grant at the confirmed position. Adoption
+          // takes precedence and always starts a fresh request.
+          // Fence cached answers immediately on authenticated replacement,
+          // including while the device's observation is still queued.
+          observeIncarnation(page.store_id as string);
           const checked = await call({ op: "sync_metadata", metadata: page, capture: metadataCapture });
-          if (checked.denied) { refuseRestore(checked.denied); return false; }
-          const recovery = checked.ok as { snapshot: boolean; retired: Record<string, number> };
+          if (checked.denied) {
+            if (checked.denied.code === "E_STORE_RESTORE") refuseRestore(checked.denied);
+            return false;
+          }
+          const recovery = checked.ok as { snapshot: boolean; retired: Record<string, number>; reset: boolean; backend_required: boolean; send_revision: number };
+          page.send_revision = recovery.send_revision;
+          if (recovery.reset) {
+            requestedStore = page.store_id as string;
+            page.captured_watermark = 0;
+            seq = 0;
+            await call({ op: "set_meta", key: "syncedAt", value: "0" });
+            await publishRetired(recovery.retired);
+            await refreshAcquired();
+          }
+          if (Number(page.generation) !== generation || backendRequired || recovery.backend_required) {
+            if (!await adoptBackend(page, requestedStore ?? null, Number(page.generation))) return false;
+            watermark = 0; after = undefined; catchingUp = false; needsMetadata = false;
+            continue;
+          }
           if (recovery.snapshot) {
             observeIncarnation(storeIdentity, true);
             await call({ op: "set_meta", key: "syncedAt", value: "0" });
             await publishRetired(recovery.retired);
             await refreshAcquired();
-            watermark = 0; after = undefined; catchingUp = false; needsMetadata = false;
-            continue;
-          }
-          if (Number(page.generation) !== generation || backendRequired) {
-            if (!await adoptBackend(page, requestedStore ?? null, Number(page.generation))) return false;
             watermark = 0; after = undefined; catchingUp = false; needsMetadata = false;
             continue;
           }

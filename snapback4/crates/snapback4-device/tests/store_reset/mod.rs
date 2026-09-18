@@ -21,7 +21,8 @@ fn sync_metadata_recovery_fences_and_durable_acquisition_on_both_stores() {
         assert_eq!(ok(device.call(json!({ "op": "sync_metadata", "metadata": metadata, "capture": capture })))["snapshot"], false);
         assert_eq!(ok(device.call(json!({ "op": "sync_state" }))), state, "generic metadata is read-only");
         let mut decision = metadata.clone();
-        decision["recovery"] = json!({ "from": state["watermark"], "snapshot": true });
+        decision["watermark"] = json!(state["watermark"].as_u64().unwrap() + 1);
+        decision["recovery"] = json!({ "from": state["watermark"], "snapshot": true, "store_id": state["store_id"], "generation": state["generation"] });
         for field in ["store_id", "send_revision", "captured_watermark", "generation", "from", "stream", "recover"] {
             let mut stale = capture.clone();
             stale[field] = match field { "store_id" => json!("foreign"), "stream" => json!(true), "recover" => json!(false), _ => json!(99) };

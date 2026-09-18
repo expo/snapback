@@ -32,6 +32,8 @@ mod changes;
 
 #[path = "serve_sync_metadata.rs"]
 mod sync_metadata;
+#[path = "serve_sync_stream.rs"]
+mod sync_stream;
 
 #[path = "serve_maintenance.rs"]
 mod maintenance;
@@ -1096,6 +1098,14 @@ fn handle(mut request: Request, shared: &Shared) {
                 _ => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "sync needs { from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes")) })),
             };
             if input.metadata { return sync_metadata::serve(request, shared, &principal, input); }
+            // Ordinary streaming and recovery count the same reply in the same
+            // catalog-bound read transaction, including acknowledgements.
+            if input.from != 0 || input.stream {
+                return match sync_metadata::stream(shared, &principal, &input) {
+                    Ok(reply) => respond(request, 200, reply),
+                    Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })); }
+                };
+            }
             let SyncRequest { from, limit, mut after, stream, pending, store_id: requested_store, .. } = input;
             let store_id = match lock(&shared.engine).store().meta("store_id") {
                 Ok(Some(id)) => id,
@@ -1129,29 +1139,6 @@ fn handle(mut request: Request, shared: &Shared) {
                         });
                     }
                     Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else if refusal.code == "E_INPUT" { 400 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
-                }
-            } else {
-                let (outcome, generation) = {
-                    let reader = { lock(&shared.engine).reader() };
-                    match reader {
-                        Ok(mut reader) => {
-                            let generation = reader.generation();
-                            (reader.stream_at(&principal, from, limit, shared.now()).and_then(|page| reader.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))), generation)
-                        }
-                        Err(_) => {
-                            let mut engine = lock(&shared.engine);
-                            (engine.stream_at(&principal, from, limit, shared.now()).and_then(|page| engine.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))), *lock(&shared.generation))
-                        }
-                    }
-                };
-                match outcome {
-                    Ok((page, acknowledged)) => {
-                        respond(request, 200, StreamReply {
-                            acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Stream(page.events), generation, store_id,
-                            joined: page.joined, more: page.more, snapshot: false, watermark: page.watermark,
-                        });
-                    }
-                    Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
                 }
             }
         }

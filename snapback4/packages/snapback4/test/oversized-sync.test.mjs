@@ -1,4 +1,7 @@
 // Whole-commit overflow through the real HTTP server, client, and both stores.
+// Limits: serializer/current-image early stopping is not an end-to-end traversal
+// bound. Cross-generation cases still use the existing program-only adoption
+// policy for retained history; this recovery change does not repair that policy.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -61,7 +64,7 @@ async function fixture(t, tier) {
   writeFileSync(join(dir, 'snapback/schema.q'), source);
   const child = spawn(binary, ['dev', '--port', '0', ...(process.env.SB4_FILE_SERVER ? [] : ['--fresh'])], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
   const exit = once(child, 'exit');
-  let log = '', url, client, core, offline = false, intercept, backendRequired = false, snapshotRequired = false;
+  let log = '', url, client, core, knownStore, offline = false, intercept, interceptDevice, backendRequired = false, snapshotRequired = false;
   child.stdout.on('data', b => { log += b; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
   child.stderr.on('data', b => { log += b; });
   t.after(async () => {
@@ -70,7 +73,7 @@ async function fixture(t, tier) {
     await exit; rmSync(dir, { recursive: true, force: true });
   });
   await until(() => { assert.equal(child.exitCode, null, log); return url; }, 'server startup');
-  const post = async (path, body) => fetch(url + path, { method: 'POST', headers: { 'x-snapback-persona': 'alice' }, body: JSON.stringify(body) }).then(r => r.json());
+  const post = async (path, body) => fetch(url + path, { method: 'POST', headers: { 'x-snapback-persona': 'alice' }, body: JSON.stringify(body?.metadata ? { store_id: knownStore, ...body } : body) }).then(r => r.json());
   const seed = async rows => assert.equal((await post('/seed', rows)).seeded, rows.length);
   await seed([
     { table: 'held', row: { id: 'p1', body: 'first' } },
@@ -83,7 +86,7 @@ async function fixture(t, tier) {
   const openClient = () => createLocalClient({ url, persona: 'alice', waitSeconds: 1,
     device: { open: async (...args) => {
       core = await opener.open(...args);
-      return { close: () => core.close(), call: async request => { calls.push(request); const result = await core.call(request); if (request.op === 'sync_state' && result.ok) { if (backendRequired) result.ok.backend_required = true; if (snapshotRequired) result.ok.snapshot_required = true; } return result; } };
+      return { close: () => core.close(), call: async request => { calls.push(request); const result = await interceptDevice?.(request, () => core.call(request)) ?? await core.call(request); if (request.op === 'sync_state' && result.ok) { if (backendRequired) result.ok.backend_required = true; if (snapshotRequired) result.ok.snapshot_required = true; } return result; } };
     } },
     fetch: async (input, init) => {
       if (offline) throw new TypeError('offline fixture');
@@ -95,6 +98,7 @@ async function fixture(t, tier) {
       if (path !== '/sync') return response;
       requests.push(body);
       const page = await response.clone().json(); replies.push(page);
+      if (typeof page.store_id === 'string') knownStore = page.store_id;
       return response;
     },
   });
@@ -107,6 +111,7 @@ async function fixture(t, tier) {
   return { get client() { return client; }, get core() { return core; }, requests, replies, calls, before, seed, post, dir, url,
     reopen: async () => { await client.close(); client = await openClient(); },
     intercept: handler => { intercept = handler; },
+    interceptDevice: handler => { interceptDevice = handler; },
     requireBackend: () => { backendRequired = true; },
     requireSnapshot: () => { snapshotRequired = true; },
     online: () => { offline = false; requests.length = 0; replies.length = 0; calls.length = 0; },
@@ -139,12 +144,13 @@ for (const tier of ['wasm', 'process']) for (const changed of [true, false]) tes
   assert.deepEqual(Object.keys(metadata).sort(), ['generation', 'metadata', 'store_id', 'watermark']);
   assert.ok(JSON.stringify(metadata).length < 200);
   const recovery = await f.post('/sync', { metadata: true, recover: true, store_id: metadata.store_id, generation: metadata.generation, from: f.before.watermark, limit: 1 });
-  assert.deepEqual(recovery.recovery, { from: f.before.watermark, snapshot: true });
+  assert.deepEqual(recovery.recovery, { from: f.before.watermark, snapshot: true, store_id: metadata.store_id, generation: metadata.generation });
   assert.deepEqual(Object.keys(recovery).sort(), ['generation', 'metadata', 'recovery', 'store_id', 'watermark']);
   assert.ok(JSON.stringify(recovery).length < 300, 'recovery reveals no rows or historical keys');
   const caughtUp = await f.post('/sync', { metadata: true, recover: true, store_id: metadata.store_id, generation: metadata.generation, from: metadata.watermark, limit: 1 });
-  assert.deepEqual(caughtUp.recovery, { from: metadata.watermark, snapshot: false }, 'the same store only grants recovery at an oversized position');
-  assert.equal((await f.post('/sync', { metadata: true, store_id: 'another-store' })).denied?.code, 'E_INPUT');
+  assert.equal(caughtUp.recovery, undefined, 'the tip has no pending commit to measure');
+  assert.equal((await f.post('/sync', { metadata: true, store_id: 'another-store' })).store_id, metadata.store_id, 'a named foreign capture observes the current store without a recovery grant');
+  assert.equal((await f.post('/sync', { metadata: true, store_id: undefined })).denied?.code, 'E_INPUT');
   const unauthenticated = await fetch(f.url + '/sync', { method: 'POST', body: '{"metadata":true}' });
   assert.equal(unauthenticated.status, 401);
   assert.equal((await unauthenticated.json()).store_id, undefined);
@@ -224,7 +230,7 @@ for (const tier of ['wasm', 'process']) for (const restore of [true, false]) tes
   assert.equal(after.acquired, true);
   assert.ok(f.calls.every(r => r.op !== 'adopt' && r.op !== 'observe_store' && r.op !== 'apply'));
 });
-for (const tier of ['wasm', 'process']) for (const fault of ['unchanged', 'generic', 'foreign']) test(`${tier}: ${fault} metadata after bare refusals preserves held rows outside the horizon`, async t => {
+for (const tier of ['wasm', 'process']) for (const fault of ['unchanged', 'generic']) test(`${tier}: ${fault} metadata after bare refusals preserves held rows outside the horizon`, async t => {
   const f = await fixture(t, tier);
   await f.seed([{ table: 'held', row: { id: 'p3', body: 'third' } }]);
   f.online(); await f.client.sync();
@@ -346,7 +352,7 @@ for (const tier of ['wasm', 'process']) test(`${tier}: G2 measured reset retires
   const queued = (await f.core.call({ op: 'queued' })).ok;
   assert.deepEqual(queued.map(r => r.id), ['known-receipt', 'unknown-receipt']);
   const stale = await f.core.call({ op: 'sync_metadata', metadata: { metadata: true, store_id: capture.store_id,
-    generation: capture.generation, watermark: capture.watermark, recovery: { from: capture.watermark, snapshot: true } },
+    generation: capture.generation, watermark: capture.watermark, recovery: { from: capture.watermark, snapshot: true, store_id: capture.store_id, generation: capture.generation } },
     capture: { ...capture, captured_watermark: capture.watermark, from: capture.watermark, stream: false, recover: true, send_revision: capture.send_revision + 1 } });
   assert.equal(stale.denied?.code, 'E_GENERATION');
   assert.deepEqual((await f.core.call({ op: 'queued' })).ok, queued);
@@ -362,7 +368,7 @@ for (const tier of ['wasm', 'process']) test(`${tier}: G2 measured reset retires
       throw new TypeError('interrupt before snapshot');
     }
     const metadata = await send().then(r => r.json());
-    if (request.recover) metadata.recovery = { from: request.from, snapshot: true };
+    if (request.recover) metadata.recovery = { from: request.from, snapshot: true, store_id: metadata.store_id, generation: metadata.generation };
     return Response.json(metadata);
   });
   f.online(); await f.client.sync();
@@ -433,7 +439,7 @@ for (const tier of ['wasm', 'process']) test(`${tier}: catch-up recovery rejects
   const capture = { store_id: state.store_id, generation: state.generation, send_revision: state.send_revision,
     captured_watermark: state.watermark, from: page.watermark, stream: true, recover: true };
   const metadata = { metadata: true, store_id: state.store_id, generation: state.generation, watermark: page.watermark + 1,
-    recovery: { from: page.watermark, snapshot: true } };
+    recovery: { from: page.watermark, snapshot: true, store_id: state.store_id, generation: state.generation } };
   const recover = capture => f.core.call({ op: 'sync_metadata', capture, metadata });
   const advanced = { snapshot: false, events: [], store_id: state.store_id, generation: state.generation,
     watermark: page.watermark + 1, more: true, snapshot_catchup: true };
@@ -490,4 +496,78 @@ for (const tier of ['wasm', 'process']) test(`${tier}: G3 lower successor metada
   assert.ok(f.calls.some(r => r.op === 'adopt'));
   assert.ok(f.calls.some(r => r.op === 'apply' && r.page.snapshot));
   assert.ok(f.calls.every(r => r.op !== 'apply' || !r.page.metadata));
+});
+
+for (const tier of ['wasm', 'process']) test(`${tier}: R3 discovery preserves the snapshot continuation position`, async t => {
+  const f = await fixture(t, tier);
+  f.requireSnapshot();
+  let next;
+  f.intercept(async (path, request, send) => {
+    if (path !== '/sync') return;
+    if (request.metadata) {
+      assert.equal(request.after, next, 'discovery names the exact refused continuation');
+      assert.equal(request.recover, false);
+      const metadata = await send().then(r => r.json());
+      assert.equal(metadata.recovery, undefined);
+      return Response.json(metadata);
+    }
+    if (request.after) return Response.json(bound);
+    const page = await f.post('/sync', { ...request, limit: 1 });
+    next = page.next;
+    assert.ok(next);
+    return Response.json(page);
+  });
+  f.online(); await f.client.sync();
+  assert.ok(f.requests.some(r => r.metadata && r.after === next));
+  assert.equal((await f.core.call({ op: 'sync_state' })).ok.snapshot_required, undefined);
+});
+
+for (const tier of ['wasm', 'process']) test(`${tier}: R3 stale metadata denial leaves normal reads and retry available`, async t => {
+  const f = await fixture(t, tier);
+  let denied = false;
+  f.intercept(async (path, request, send) => {
+    if (path !== '/sync') return;
+    if (!request.metadata) return Response.json(bound);
+    const reply = await send();
+    assert.ok(!(await f.core.call({ op: 'begin_send' })).denied);
+    denied = true;
+    return reply;
+  });
+  f.online(); await f.client.sync();
+  assert.ok(denied);
+  assert.equal((await f.core.call({ op: 'sync_state' })).ok.restore_refusal, undefined);
+  assert.equal((await f.client.query({ kind: 'query', name: 'retained' }, {})).data?.[0]?.body, 'keep this delivered history');
+  f.intercept(undefined);
+  await f.client.sync();
+  assert.equal((await f.core.call({ op: 'sync_state' })).ok.acquired, true);
+});
+
+for (const tier of ['wasm', 'process']) test(`${tier}: R3 a foreign metadata identity is observed before adoption and row acquisition`, async t => {
+  const f = await fixture(t, tier);
+  f.intercept(async (path, request, send) => {
+    if (path === '/schema') throw new TypeError('stop after durable replacement observation');
+    if (path !== '/sync') return;
+    if (!request.metadata) return Response.json(bound);
+    const metadata = await send().then(r => r.json());
+    return Response.json({ ...metadata, store_id: 'replacement-store', generation: 1, watermark: 0 });
+  });
+  let started, release;
+  const waiting = new Promise(resolve => { started = resolve; });
+  const gate = new Promise(resolve => { release = resolve; });
+  f.interceptDevice(async (request, send) => {
+    if (request.op === 'sync_metadata') { started(); await gate; }
+    return send();
+  });
+  f.online();
+  const syncing = f.client.sync();
+  await waiting;
+  try { assert.equal(f.client.acquired, false, 'replacement fences cached answers before durable observation finishes'); }
+  finally { release(); }
+  await syncing;
+  const after = (await f.core.call({ op: 'sync_state' })).ok;
+  assert.equal(after.store_id, 'replacement-store');
+  assert.equal(after.backend_required, true);
+  assert.equal(after.acquired, false);
+  assert.equal(after.watermark, 0);
+  assert.ok(f.calls.every(r => r.op !== 'apply'), 'identity observation never installs metadata as rows');
 });
