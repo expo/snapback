@@ -213,9 +213,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const emitLocalFailure = (write: Extract<Write, { state: "failed" }>) => emitWrite(history.remember(write));
   const requestCredentials = () => ({ headers: { ...headers }, revision: credentialRevision });
 
-  // The device opens on the backend the server sends, or on the one it
-  // kept when the server is unreachable: a device that has synced once
-  // starts offline on what it holds. One store per server and viewer.
+  // Restore the kept backend before installing anything from the server.
+  // A generation change can erase the evidence needed to detect a restore;
+  // the ordinary sync preflight and captured adoption must run first.
+  // One store per server and viewer.
   const storeName = `snapback4-${encodeURIComponent(`${base}:${viewer}`)}`;
   let link: Link = "online";
   let generation = 0;
@@ -233,7 +234,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let closed = false;
   let closing: Promise<void> | undefined;
   const aborter = new AbortController();
-  const core = await options.device.open(storeName, backend);
+  // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — startup must preserve the evidence until the server head has been validated.
+  const core = await options.device.open(storeName, null).catch(error => {
+    // Only the device's explicit empty-store refusal permits first install.
+    // Store corruption, ownership and other open failures must not fall back.
+    const message = error instanceof Error ? error.message : String(error);
+    if (!backend || !message.includes("E_AUTH") || !message.includes("this device has never synced: the server must be reachable once to open")) throw error;
+    return options.device.open(storeName, backend);
+  });
   let stopSuspend: (() => void) | undefined;
   let stopOutbox: (() => void) | undefined;
   let media: MediaCache | undefined;
@@ -246,12 +254,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     },
   });
   await requireSyncProtocol(core);
-  if (backend) generation = Number(backend.generation ?? 0);
-  else {
-    const state = await call({ op: "state" });
-    generation = Number((state.ok as { generation?: number } | undefined)?.generation ?? 0);
-  }
-  if (!backend) backend = (await call({ op: "backend" })).ok as BackendJson;
+  const state = await call({ op: "state" });
+  generation = Number((state.ok as { generation?: number } | undefined)?.generation ?? 0);
+  if (!backend || Number(backend.generation ?? 0) !== generation) backend = (await call({ op: "backend" })).ok as BackendJson;
   media = new MediaCache(core, principal, retention);
   await media.open();
   // The app's native module (LLP 3000.005 §9): fetched once per digest and

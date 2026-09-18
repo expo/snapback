@@ -441,3 +441,84 @@ reports 484 LLP documents, 9441 references and zero errors. `git diff --check`
 passes. The first full device run's legacy-cursor refusal and the initial
 first-evidence test-fixture correction remain in the evidence record.
 No push, rebase, merge, Wasm build or publication was performed.
+
+
+## Round 11 — startup must preserve evidence before validating the server head
+
+Incoming HEAD `ee1252d73b0aeb74758aa5d624e087bc1a61dcd6`, requested base
+`27a8a4d66`. This round changes the client and process opener; device/store
+algorithms and HTTP wire fields are unchanged.
+
+### Findings and dispositions
+
+| Finding | Disposition and evidence |
+| --- | --- |
+| **AA1 (P1): changed-generation startup erases restore evidence before head validation** | **Confirmed and fixed.** `createLocalClient` first opens the kept backend with `null`. Only the device's explicit empty-store `E_AUTH` permits installing the fetched backend. The shell takes the installed generation and, on mismatch, the kept backend. Existing sync preflight validates the server identity/head before captured adoption can reset evidence. The corrected tests fail against the incoming client: same-incarnation heads 15/19 permit mutation sends or adoption after destructive opening. Final tests preserve generation 2 / published 17 / private 18 / image head 20, persist `E_STORE_RESTORE`, and block sends, reads and refill through two reopens. |
+| **Round-9 opener bypasses production installation** | **Confirmed and corrected throughout the file.** The shared opener now receives `(_name, fetchedBackend)` and calls the real `opener.open("fixture", fetchedBackend)` on each client open. Only the store name is aliased to the seeded fixture. The unconditional preopen with `null` was removed. Thus every previous scenario, including generation, polling and two-owner overlap, traverses actual opening. The remaining explicit `null` opens are peer attachment and the deliberate offline/durable-reopen checks; they do not stand in for the client opener. |
+| **Response-path audit was too narrow** | **Accepted.** It started after the destructive open and thus certified observations over already-erased evidence. The widened inventory below includes evidence consumers before a request capture, not just response checks. |
+| **Native opening can lose its typed refusal when exit precedes stdout** | **Found during verification and fixed.** The existing native end-to-end test failed with `native device exited (1)` during the newly exercised empty-store open. Waiting for `close` lets stdout finish before transport failure is reported. A controlled child emits exit, then the typed refusal, then close; reverting to exit kills that regression. The full native lifecycle test now passes. |
+
+No additional Grok packet was supplied this round. AA1 and the harness/audit
+findings were evaluated against the incoming source and executable witnesses;
+no finding was rejected on its source. Z1's implementation is unchanged and
+its corrected client cases pass. This report does not turn the absence of a
+new deferral, release/effect-loss or atomicity counterexample into a proof that
+those entire classes are closed.
+
+### Widened audit: evidence consumption from opening through response and reset
+
+This adds to the round-10 captured/current-state inventory above. That table
+alone was insufficient: validation cannot protect evidence a previous action
+has already discarded.
+
+| Boundary / consumer | Evidence and action at this revision | Established scope / remaining dependency |
+| --- | --- | --- |
+| Initial `/schema` fetch | Fetches backend metadata without installing it. Constructor credentials are established first. | Fetching does not attest the store head; it cannot authorize discarding persisted restore evidence. |
+| Existing-store startup open | Calls the production opener with `null`, preserving kept generation/backend, published watermark, private cut, retained image heads and halt. Native opening abandons only the old request declaration. | SQLite and wasm memory ordinary/snapshot witnesses inspect these values after refusal and reopen. Both startup replay and direct initial sync are covered. |
+| Initial empty-store open failure | Only `E_AUTH` with the device's exact never-synced message permits a second open with the fetched backend; operational, other auth and corrupt-store failures propagate. | Real first-install controls on both hosts; targeted error tests distinguish code and message. The absence observation and installation are separate opener attempts, with no atomic absence receipt. Concurrent creation between these attempts is not qualified by these tests. |
+| Process refusal delivery | Process `close`, after stdio closes, terminates the response stream; `exit` alone does not discard pending stdout. | Deterministic exit-before-refusal witness plus the production native lifecycle test. |
+| Startup shell generation / routing | Read installed device generation; if it differs from `/schema`, use the kept backend. | Healthy-generation control proves actual adoption from 2 to 1; trusting fetched generation instead fails that control. |
+| Startup head observation | Capture persisted published/private cuts, image head, send revision and incarnation before `/probe` or `/sync`; native observation validates them. | Same-incarnation heads 15 and 19 halt; head 20 and a different incarnation at 15 remain valid controls. Native no-suspend startup goes directly through sync preflight. |
+| Generation installation | After successful preflight, carry its raw metadata map through `/schema` into `adopt` / `install_checked`. | Round-10 capture/CAS remains the installation guard. Existing private-advance and post-preflight overlap cases now also use the corrected opener. |
+| `reset_publication` during client startup/adoption | Existing persisted startup no longer enters a changed-generation reset. A validated adoption can reset in the install transaction. | No new durable key or alternative restore floor; the original private evidence survives until validation. |
+| Direct low-level `Device::open_store(Some(backend))`, direct uncaptured `adopt`, and web orphan adoption | These APIs can still install caller-supplied backends; direct calls do not implement the client's preceding head-validation protocol. | Explicit audit boundary. This fix qualifies `createLocalClient` startup, not arbitrary direct host installation as authenticated head evidence. |
+| Identity replacement / legacy rewind / explicit clear | Existing native transaction owns receipt retirement, rows, publication reset, incarnation and sticky-halt decisions. | No change this round; full device suite and old-wire probes run. Explicit low-level clear is not a server-head observation. |
+| Later response consumers | Round-10 rows still apply: declaration and cursor guards, snapshot owner, receipt settlement, native-module refresh, successful query responses, acquired/freshness reads and assets. | Their previously recorded current-state dependencies remain. The upload-facts cache ticket remains open and out of scope. |
+
+The test harness controls HTTP replies and timing. SQLite's optional no-op
+suspend hook selects the web early-replay branch; wasm uses its real suspend
+hook. The native-startup variants omit that hook to exercise direct initial
+sync. Calls, installation, queries, outbox decisions, restore validation and
+persistence are production implementations. The wasm witness uses
+`webDevice` with `memoryPersistence`, not IndexedDB termination or power loss.
+
+### Regressions, mutations and controls
+
+| Regression / control | Mutation evidence |
+| --- | --- |
+| Generation 2 / published 17 / private 18 / images 20; generation-1 same-incarnation heads 15/19; ordinary and snapshot; early-replay and direct-sync startup; both stores | `aa1-install-before-restore` restores the destructive ordering and fails all ten new negative cases. Archived incoming `local.ts` also fails all ten against the corrected harness. Both require no sends/adoption and a durable halt through reopen/refill. |
+| Image head is evidence even with head 19 above published 17/private 18 | `aa1-probe-omits-image-evidence` kills the early-replay regressions; `aa1-sync-omits-image-evidence` kills direct-sync snapshot cases. |
+| A healthy changed generation is actually installed, on both stores | `aa1-trust-fetched-generation` fails the generation-1 assertion. Head-20 and replacement-identity controls pass unmodified; replacement retires the old known receipt with zero sends. |
+| Empty-store bootstrap remains usable on both stores | `aa1-disable-first-install` fails both fresh-store cases with the typed empty-store refusal. Offline reopen retains all four evidence values and performs no adoption/send. |
+| Nonempty/operational failures cannot authorize install | Removing the code or exact empty-store-message guard independently causes a second open and fails the original-error/one-attempt assertion. |
+| Refusal stdout arriving after process exit | `aa1-native-exit-loses-refusal` fails the required `E_AUTH` assertion with generic process-exit error. |
+
+All eight mutations fail their intended tests with passing controls. Exact
+edits, commands, compiler-output and test hashes, assertion failures,
+incoming-source comparison and verbatim output of all three requested Cargo
+commands are retained in [target/review-fix11/report.md](./target/review-fix11/report.md).
+The first native lifecycle failures and initial mistaken replacement-send
+expectation are retained there too, rather than omitted from the record.
+
+
+Final results: `cargo test -p snapback4-device` exits 0 (**639 passed,
+0 failed, 3 existing ignored**); `cargo test -p snapback4-core` exits 0
+(**160 passed, 0 failed**); `cargo test -p snapback4` exits 0 (**265 passed,
+0 failed**). The 45 client/transport tests, 4 compatibility/process-lifecycle
+checks, 4 process-opener tests, strict TypeScript build/typecheck and native
+end-to-end lifecycle pass. The session/reconnect batch has 19 passing cases;
+its one initial native-opener failure is repaired and its dedicated final
+rerun passes. Old-wire probes still report server/device/reopened **1/1/1**
+in all four memory/SQLite fresh/abandoned variants. The wasm artifact was
+rebuilt for the new memory-host witnesses; no artifact is committed or
+published. No push, rebase or merge was performed.

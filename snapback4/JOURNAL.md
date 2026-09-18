@@ -37088,3 +37088,44 @@ corrects that, and the full suite then passes. Its failure remains recorded.
 Verbatim output of all three commands, all mutations/commands/hashes and
 controls are in target/review-fix10/report.md. No push, rebase, merge, Wasm
 build or publication was performed.
+
+
+## 2026-09-18 — Repair B, review fix round 11: startup precedes response validation
+
+AA1 was confirmed. Startup installed the fetched generation before the first
+head observation, clearing the very published/private cuts and retained image
+head needed to recognize a same-incarnation restore. The client now opens the
+kept backend first and uses the installed generation until sync preflight and
+captured adoption validate a change. Only the explicit never-synced refusal
+permits first installation. The process adapter also waits for stdio close so
+an exit cannot hide that typed refusal before its last stdout event.
+
+The round-9 shared opener now forwards the actual backend into the production
+opener in every scenario. Previously it returned a fixture already reopened
+with null and therefore bypassed changed-generation opening. New SQLite and
+wasm-memory witnesses start at generation 2 / published 17 / private 18 /
+images 20 and reject generation-1 heads 15/19 with zero sends/adoptions and a
+durable halt through reopen/refill. Healthy generation change, replacement,
+first-install, offline and nonempty-store-failure controls pass. The compiled
+incoming ee1252d73 client fails all ten new negative cases against this
+corrected harness. All eight mutations fail their intended tests with passing
+controls and final-source/test hashes.
+
+The previous audit's response-only scope was too narrow. REPAIR-B-HANDOFF.md
+now includes opening, installation and reset consumers of the same evidence,
+and retains explicit unqualified boundaries for direct low-level installation,
+separate empty-store/first-install attempts and the round-10 current-state
+dependencies. This is not whole-lifetime closure. The upload-facts ticket is
+unchanged. No new durable metadata or server wire field was added.
+
+Verification: cargo test -p snapback4-device exits 0 (639 passed, 0 failed,
+3 existing ignored); cargo test -p snapback4-core exits 0 (160 passed,
+0 failed); cargo test -p snapback4 exits 0 (265 passed, 0 failed). The
+45 client/transport tests, 4 compatibility/process-lifecycle checks,
+4 process-opener tests, strict TypeScript build/typecheck and the native
+lifecycle pass. Session/reconnect cases passed; their initial native-opener
+failure is retained and its dedicated final rerun passes after the close-event
+fix. Old-wire probes remain 1/1/1. Full verbatim results, mutations, incoming
+comparison, source hashes and initial failures are in target/review-fix11/report.md.
+Wasm was rebuilt for host-persistence tests; no browser-termination or physical
+power-loss claim. No push, rebase, merge or publication was performed.

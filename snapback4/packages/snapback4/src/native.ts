@@ -10,7 +10,7 @@ export type { DeviceCore, DeviceOpener } from "./local.ts";
 export interface ProcessDeviceOptions {
   readonly dir: string;
   readonly binary?: string;
-  readonly spawn?: (command: string, args: string[]) => { stdin: { write(text: string): unknown }; stdout: { on(event: "data", listener: (chunk: unknown) => void): unknown }; on?(event: "exit" | "error", listener: (...args: unknown[]) => void): unknown; kill(): unknown };
+  readonly spawn?: (command: string, args: string[]) => { stdin: { write(text: string): unknown }; stdout: { on(event: "data", listener: (chunk: unknown) => void): unknown }; on?(event: "close" | "error", listener: (...args: unknown[]) => void): unknown; kill(): unknown };
   readonly writeFile?: (path: string, text: string) => Promise<void>;
 }
 
@@ -50,7 +50,9 @@ export function processDevice(options: ProcessDeviceOptions): DeviceOpener {
       };
       const exited = new Promise<void>((resolve) => {
         if (!child.on) { resolve(); return; }
-        child.on("exit", (code, signal) => { fail(new Error(`native device exited (${signal ?? code})`)); resolve(); });
+        // exit may precede the last stdout data event. Opening must receive
+        // the typed refusal (including an empty store) before transport fails.
+        child.on("close", (code, signal) => { fail(new Error(`native device exited (${signal ?? code})`)); resolve(); });
         child.on("error", (error) => { fail(error instanceof Error ? error : new Error(String(error))); resolve(); });
       });
       child.stdout.on("data", (chunk) => {
