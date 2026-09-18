@@ -102,17 +102,14 @@ fn cached_binding_retained<S: DeviceStore>(store: S) {
         "refusal must make no metadata write"
     );
     assert_eq!(tx.stored_rows_after("notes", None, 10).unwrap(), vec![row]);
+    assert_eq!(tx.meta(HISTORY_OWNER).unwrap().as_deref(), Some("guest:caller"));
     tx.rollback().unwrap();
     assert_eq!(device.history_owner, "guest:caller");
-    let read = device.query("all", "password:caller", &args, 100);
-    assert!(
-        read.is_err()
-            || wire::to_json(&read.unwrap().data)
-                .as_array()
-                .unwrap()
-                .is_empty(),
-        "no retained row may render for the foreign viewer"
-    );
+    let owner_read = device.query("all", "guest:caller", &args, 100).unwrap();
+    assert_eq!(wire::to_json(&owner_read.data).as_array().unwrap().len(), 1);
+    let foreign_read = device.query("all", "password:caller", &args, 100).unwrap();
+    assert!(wire::to_json(&foreign_read.data).as_array().unwrap().is_empty(),
+        "the foreign viewer must fall through to ordinary read rules");
     assert_eq!(result.unwrap_err().code(), "SNAPBACK_HISTORY_OWNER");
 }
 
@@ -141,6 +138,10 @@ fn replacement_plan<S: DeviceStore>(mut store: S) {
         .unwrap();
     tx.commit().unwrap();
     for literal in [true, false] {
+        let tx = store.read_transaction().unwrap();
+        assert_eq!(tx.stored_rows_after("notes", None, 10).unwrap(), vec![row.clone()],
+            "each keep/reset control starts with a physical row");
+        tx.rollback().unwrap();
         let backend = backend(literal);
         let open = plan(
             &mut store,

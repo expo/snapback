@@ -425,11 +425,7 @@ impl<S: DeviceStore> Device<S> {
         // @ref LLP 3000.007#18.2 — expose acquisition for this healthy owner, never a superseded store's marker.
         let acquired = restore_refusal.is_none() && tx.meta(ACQUIRED)? == Some(self.generation.to_string());
         adoption::require_binding(&tx, &self.history_owner)?;
-        let backend_obsolete = match store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()) {
-            Ok(()) => false,
-            Err(error) if error.code() == "SNAPBACK_HISTORY_OWNER" => return Err(error),
-            Err(_) => true,
-        };
+        let backend_obsolete = store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()).is_err();
         let mut state = SyncState { acquired, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || backend_obsolete, restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, send_revision: meta_u64(&tx, SEND_REVISION)? };
         state.acquired &= !state.backend_required;
         tx.rollback()?;
@@ -470,11 +466,7 @@ impl<S: DeviceStore> Device<S> {
             self.snapshot_owner = None;
             return Err(RuntimeError::Generation("the backend store was replaced; reacquire its partition".into()));
         }
-        let backend_obsolete = match store_identity::require_owner(&tx, &self.backend_identity, &owner_store, self.native_digest.as_deref()) {
-            Ok(()) => false,
-            Err(error) if error.code() == "SNAPBACK_HISTORY_OWNER" => return Err(error),
-            Err(_) => true,
-        };
+        let backend_obsolete = store_identity::require_owner(&tx, &self.backend_identity, &owner_store, self.native_digest.as_deref()).is_err();
         if observed.backend_required || backend_obsolete {
             return Err(RuntimeError::Generation("the backend store requires backend adoption before acquisition".into()));
         }

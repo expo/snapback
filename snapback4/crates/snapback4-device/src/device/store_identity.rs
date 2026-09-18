@@ -67,6 +67,8 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<StoreObs
         return Err(RuntimeError::Generation("another owner advanced acquisition during sync; retry sync".into()));
     }
     let identity_changed = page.store_id.as_ref().is_some_and(|id| previous.as_ref() != Some(id));
+    // Adoption writes an empty ACQUIRED value for a never-acquired generation.
+    // That sentinel alone is not evidence of an old partition to retire.
     let reset = (identity_changed && (previous.is_some() || tx.meta(ACQUIRED)?.is_some_and(|value| !value.is_empty()) || meta_u64(tx, WATERMARK)? > 0 || tx.meta(SNAPSHOT_OWNER)?.is_some()))
         || (page.store_id.is_none() && page.requested_watermark.is_some_and(|requested| page.watermark < requested) && page.captured_watermark == Some(watermark));
     let mut retired = BTreeMap::new();
@@ -130,7 +132,7 @@ impl<S: DeviceStore> Device<S> {
 mod tests {
     use super::*;
     #[test]
-    fn history_binding_is_not_backend_incarnation() {
+    fn backend_identity_checks_ignore_history_owner() {
         let mut store = crate::memory::MemoryStore::new();
         let tx = store.transaction().unwrap();
         tx.set_meta(BACKEND_IDENTITY, "backend").unwrap();

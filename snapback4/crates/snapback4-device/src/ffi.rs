@@ -70,7 +70,7 @@ pub extern "C" fn sb4_open(path: *const c_char, backend: *const c_char, viewer: 
     let _ = LAST_OPEN_REFUSAL.with(|last| last.borrow_mut().take());
     let opened = catch_unwind(AssertUnwindSafe(|| -> Result<Device, Json> {
         let path = c_text(path).ok_or_else(|| json!({ "denied": { "code": "E_INPUT", "family": "input", "message": "path is text" } }))?;
-        let viewer = c_text(viewer).filter(|v| !v.is_empty()).ok_or_else(|| json!({ "denied": { "code": "E_INPUT", "family": "input", "message": "opening a device requires its principal" } }))?;
+        let viewer = c_text(viewer).ok_or_else(|| json!({ "denied": { "code": "E_INPUT", "family": "input", "message": "principal is text" } }))?;
         let backend = match c_text(backend) {
             None | Some("") | Some("null") => None,
             Some(text) => Some(serde_json::from_str::<Backend>(text).map_err(|error| json!({ "denied": { "code": "E_INPUT", "family": "input", "message": error.to_string() } }))?),

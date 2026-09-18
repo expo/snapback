@@ -89,7 +89,8 @@ export class AdmissionJournal {
     this.transfers.clear();
     this.storeId = undefined;
     this.remember(saved);
-    for (const record of records(this.name, this.exclusive)) if (record.entry.viewer === this.viewer) this.sequence = Math.max(this.sequence, record.entry.seq);
+    // The journal namespace is shared across principals; only replay is filtered.
+    for (const record of records(this.name, this.exclusive)) this.sequence = Math.max(this.sequence, record.entry.seq);
   }
 
   remember(changes: Change[]): void {

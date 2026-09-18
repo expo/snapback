@@ -36796,3 +36796,73 @@ TypeScript sources with a device boundary double; no wasm artifact was rebuilt
 or executed. The fixed tree retains the frozen 0.2.27 and prior ownership
 controls. No push, rebase, merge, whole suite, wasm build, witness, release build,
 simulator suite or repository-root generator was run.
+
+
+## 2026-09-17 — Repair C review, fix round 5
+
+X1: primary web restore now distinguishes a missing/deleted history-owner binding
+from a known principal change after the device admits the store. A legacy
+committed outbox entry whose recorded viewer matches the opener survives, along
+with its recovered-transfer incarnation fence. Successful admission need not
+leave a synchronous journal copy. Foreign/unlabelled legacy payloads retire from
+the active outbox instead of sending under this viewer. Known principal reset
+keeps round 4's retirement behavior. Outbox tombstones no longer cause dequeue.
+The Rust adoption and first-binding policy is unchanged.
+
+The source-host upgrade regression starts with a committed offline write and no
+localStorage recovery copy, then checks the exact persisted payload, device
+queue, pagehide transport, installed binding and second open. Controls cover an
+absent binding, a deleted binding at the end of an ordered change stream, foreign
+and unlabelled entries, recovered-transfer fences, and old outbox tombstones.
+Replacing only the restore custody block with its round-4 implementation causes
+both upgrade cases to fail with “upgrade deleted the only copy of a committed
+offline write”: exit 1, zero passed, two failed. The production source was
+restored byte-for-byte and matching SHA-256 hashes recorded. The fixed source-host
+file passes all 27 tests. These are actual TypeScript sources with a device
+boundary double, not a wasm/IndexedDB witness.
+
+All eleven Grok packets were considered against the complete source. Small
+accepted changes remove unreachable history-owner cases from backend identity
+checks, require successful owner/foreign reads after refused adoption, assert
+the durable binding and the physical starting row in both replacement controls,
+clarify the identity test's name and ACQUIRED's empty sentinel, let the device
+validate an empty textual FFI principal, keep journal capture order monotonic
+across its shared namespace, and clarify ownership precedence and row-free
+refusals in the sync guide. No additional TypeScript row-classification refusal
+was added; it would duplicate Rust's policy and reject valid held-only sign-in.
+Unknown physical tables remain fail-closed; catalog uniqueness is already
+enforced; native invalidation and empty-principal adoption already use the shared
+planner. The detailed disposition of every Medium/Low is in
+`target/repair-c-round5/review-dispositions.md`.
+
+The requested policy inventory is in `target/repair-c-round5/host-decisions.md`.
+TypeScript independently decides restore custody, orphan admissibility and
+source retirement, journal record eligibility/deduplication/incarnation fencing,
+transfer-marker collection, terminal-versus-retryable refusal, committed-send
+eligibility, early replay, replica observation/adoption/freshness, read authority
+fallback/composition, write-id/receipt reuse, and media retention. It also owns
+session continuity and local lifecycle/transport refusals. Most semantic policy
+can move to device commands: start with a Rust-owned open/adopt disposition and
+executable outbox projection, then source inspection, recovery/import, send and
+settlement outcomes. Bind their actions to persistence acknowledgements and
+source/destination captures. The host must still supply browser locks, synchronous
+journal and IDB I/O, actual save/removal outcomes, HTTP/session facts, page events
+and runtime compatibility checks. Source deletion additionally needs proven
+custody of retained rows. This is future protocol work, not implemented here.
+
+The inherited same-owner orphan-deletion ticket remains unchanged. Automatic
+legacy-orphan recovery stays deferred with that custody repair; this round does
+not route new sources into the existing deletion path. Evidence, exact mutation
+command/environment/hashes, raw logs and the final report are retained under
+`target/repair-c-round5/`.
+
+Final requested verification (existing native fixture supplied, two build jobs/test threads):
+
+- `cargo test -p snapback4-device`: exit 0; 635 passed, 0 failed, 3 ignored.
+- `cargo test -p snapback4-core`: exit 0; 159 passed, 0 failed, 0 ignored.
+- Source-host ownership/recovery tests: 27 passed, 0 failed.
+- `git diff --check`: clean; existing `native_reads.rs:75` unused-mut warning remains.
+
+Full verbatim logs are `target/repair-c-round5/{device,core}.log`; each target's exact result line is also in `verbatim-results.txt`. No push, rebase, merge,
+whole suite, wasm build, witness, release build, simulator suite or repository-root
+generator was run.

@@ -206,18 +206,23 @@ function restoreHarness(refusal, owner = "guest:old") {
   const effects = [], admitted = [], sent = [], calls = [], changes = [];
   let freed = 0, released = 0;
   class WebDevice {
+    queued = new Map();
     constructor(_backend, kept, requested) {
       assert.equal(requested, viewer);
-      assert.deepEqual(JSON.parse(kept), saved.filter(c => c.s !== "j"));
+      assert.equal(kept, JSON.stringify(saved.filter(c => c.s !== "j")));
+      for (const c of JSON.parse(kept)) if (c.s === "o") {
+        if (c.v === null) this.queued.delete(c.k);
+        else this.queued.set(c.k, JSON.parse(c.v));
+      }
       changes.push({ s: "m", k: "device:history-owner", v: viewer });
     }
     call(text) {
       const request = JSON.parse(text); calls.push(request.op);
       if (request.op === "sync_state") return JSON.stringify(refusal === "denied" ? denied : { ok: { ...healthyState, ...(refusal === "restore" ? { restore_refusal: denied.denied } : {}) } });
-      if (request.op === "queued") return JSON.stringify({ ok: [] });
+      if (request.op === "queued") return JSON.stringify({ ok: [...this.queued.values()] });
       if (request.op === "next_submission") return JSON.stringify({ ok: 2 });
       if (request.op === "admit") { admitted.push(request.entry); return JSON.stringify({ ok: null }); }
-      if (request.op === "dequeue") { changes.push({ s: "o", k: request.id, v: null }); return JSON.stringify({ ok: null }); }
+      if (request.op === "dequeue") { this.queued.delete(request.id); changes.push({ s: "o", k: request.id, v: null }); return JSON.stringify({ ok: null }); }
       if (["apply", "begin_send"].includes(request.op)) return JSON.stringify({ ok: null });
       throw new Error(`unexpected primary call ${request.op}`);
     }
@@ -236,8 +241,7 @@ function restoreHarness(refusal, owner = "guest:old") {
     save: async (_name, changes) => {
       effects.push("save");
       for (const c of changes) {
-        const at = saved.findIndex(s => s.s === c.s && s.k === c.k);
-        if (at >= 0) saved.splice(at, 1);
+        for (let at = saved.length - 1; at >= 0; at--) if (saved[at].s === c.s && saved[at].k === c.k) saved.splice(at, 1);
         if (c.v !== null) saved.push(c);
       }
     },
@@ -281,6 +285,84 @@ test("W1: matching principal still recovers its untransferred journal", async ()
   const core = await f.open();
   try { assert.equal(f.admitted.length, 1); assert.equal(f.admitted[0].viewer, "password:new"); }
   finally { await core.close(); }
+});
+
+for (const binding of ["absent", "deleted"]) {
+  test(`X1: legacy ${binding} binding preserves the only committed offline write across upgrade`, async () => {
+    const f = restoreHarness(null, "password:new");
+    if (binding === "absent") f.saved.splice(f.saved.findIndex(c => c.k === "device:history-owner"), 1);
+    else f.saved.push({ s: "m", k: "device:history-owner", v: null });
+    f.saved.splice(f.saved.findIndex(c => c.s === "j"), 1);
+    f.storage.clear(); // Successful admission already removed the synchronous copy.
+    const original = f.saved.find(c => c.s === "o").v;
+    for (let reopen = 0; reopen < 2; reopen++) {
+      const core = await f.open();
+      try {
+        assert.equal(f.saved.find(c => c.s === "o")?.v, original, "upgrade deleted the only copy of a committed offline write");
+        assert.equal((await core.call({ op: "queued" })).ok[0].id, "queued");
+        f.suspend(core);
+        assert.equal(f.sent.at(-1).id, "queued", "the persisted write remains eligible for transport");
+        assert.equal(f.saved.find(c => c.k === "device:history-owner").v, "password:new");
+        assert.equal(f.storage.size, 0);
+        assert.deepEqual(f.admitted, [], "committed writes are not admitted a second time");
+        assert.ok(!f.calls.includes("dequeue"));
+      } finally { await core.close(); }
+    }
+  });
+}
+
+test("X1: legacy first binding fences foreign and unlabelled outbox entries", async () => {
+  const f = restoreHarness(null, "password:new");
+  f.saved.splice(f.saved.findIndex(c => c.k === "device:history-owner"), 1);
+  f.saved.splice(f.saved.findIndex(c => c.s === "j"), 1);
+  f.storage.clear();
+  const own = JSON.parse(f.saved.find(c => c.s === "o").v);
+  for (const [id, viewer] of [["foreign", "guest:old"], ["unlabelled", undefined]]) {
+    f.saved.push({ s: "o", k: id, v: JSON.stringify({ ...own, id, viewer }) });
+  }
+  const core = await f.open();
+  try {
+    assert.deepEqual(Array.from((await core.call({ op: "queued" })).ok, e => e.id), ["queued"]);
+    f.suspend(core);
+    assert.deepEqual(f.sent.map(e => e.id), ["queued"]);
+    assert.deepEqual(f.saved.filter(c => c.s === "o").map(c => c.k), ["queued"]);
+  } finally { await core.close(); }
+});
+
+test("X1: a legacy owned write keeps its recovered transfer fence", async () => {
+  const f = restoreHarness(null, "password:new");
+  f.saved.splice(f.saved.findIndex(c => c.k === "device:history-owner"), 1);
+  const transfer = f.saved.find(c => c.s === "j");
+  transfer.k = "queued";
+  transfer.v = JSON.stringify({ key: f.key, storeId: "previous-incarnation", recovered: true });
+  f.storage.clear();
+  const core = await f.open();
+  try {
+    assert.ok(f.saved.some(c => c.s === "o" && c.k === "queued"));
+    assert.equal(f.saved.find(c => c.s === "j")?.v, transfer.v);
+    await core.call({ op: "apply" });
+    assert.ok(!f.saved.some(c => c.s === "o"), "a recovered intent cannot cross backend incarnations");
+  } finally { await core.close(); }
+});
+
+test("X1: retired outbox tombstones need no device dequeue", async () => {
+  const f = restoreHarness(null);
+  f.saved.find(c => c.s === "o").v = null;
+  const core = await f.open();
+  try { assert.ok(!f.calls.includes("dequeue")); }
+  finally { await core.close(); }
+});
+
+test("journal capture order advances past other principals without replaying them", () => {
+  const f = restoreHarness(null);
+  const prior = JSON.parse(f.storage.get(f.key));
+  prior.entry.seq = 10;
+  f.storage.set(f.key, JSON.stringify(prior));
+  const journal = new f.journal.AdmissionJournal("primary", true, "password:new");
+  journal.load(f.saved.filter(c => c.s !== "j"));
+  const captured = journal.capture({ entry: { ...prior.entry, id: "new", seq: 1, viewer: "password:new" } });
+  assert.equal(captured.entry.seq, 11);
+  assert.equal(f.storage.get(f.key), JSON.stringify(prior));
 });
 
 for (const location of ["denied", "restore_refusal"]) {

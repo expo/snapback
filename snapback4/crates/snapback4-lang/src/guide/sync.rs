@@ -126,8 +126,11 @@ freshness returns; a matching identity needs no extra sync.
 A device store records its acquiring principal as `device:history-owner`,
 paired with its backend store incarnation. Hosts pass that principal when
 opening or adopting a backend; rotating a bearer for the same principal
-keeps its history. A different principal resets a store with no retained
-left-group rows. If retained history exists, opening or adopting refuses
+keeps its history. A different principal resets a store only when its physical
+inventory proves there is no retained history that cannot be reacquired.
+Confirmed delivered-history rows require positive held-group evidence to allow
+that reset; missing classification does not establish emptiness.
+If retained history exists, opening or adopting refuses
 `SNAPBACK_HISTORY_OWNER`: preserve the original store and open a different
 store for the new principal. A legacy store without an owner is bound only
 when it has no retained history; otherwise the same refusal protects its
@@ -140,11 +143,17 @@ Prediction-only inserts are not delivered history; confirmed copies beneath
 predicted updates or deletions still determine whether reuse is safe.
 Device reads trust delivered history only for
 that recorded principal; other readers undergo the ordinary read rule.
+Ownership is decided before replacement, program-only or literal-default
+preservation. A refusal returns no stored row body to the opener.
+Legacy first binding is distinct from a known principal change: the web host
+preserves committed queued writes whose recorded viewer matches the opener,
+even when successful admission has already removed their synchronous journal.
 
 A changed, nonzero generation with a structurally identical whole schema,
 an unchanged owner, and no backend-replacement marker preserves images, the
 held/left map, and already-acquired boundaries. A replacement
-snapshot refreshes held groups while retaining left-group copies. Other
+snapshot for that same recorded principal refreshes held groups while retaining
+left-group copies. Other
 schema changes keep the existing reset policy, including the established
 literal-default exception. The old native module and interrupted snapshot
 cannot publish under the new generation.

@@ -156,11 +156,19 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         const saved = await persist.load(store.name);
         device = new WebDevice(backend ? JSON.stringify(backend) : null, JSON.stringify(saved.filter(c => c.s !== "j")), viewer);
         checkedSyncState(device);
-        const sameOwner = savedHistoryOwner(saved) === viewer;
+        const savedOwner = savedHistoryOwner(saved);
+        const sameOwner = savedOwner === viewer;
+        // @ref LLP 3000.001#reliability-retention — first binding is not a principal reset.
+        // The device has admitted this legacy store. Its committed writes carry
+        // their own viewer; retain matching writes and their transfer fences.
+        const legacyWrites = new Map<string, string | null>();
+        if (savedOwner == null) for (const c of saved) if (c.s === "o") legacyWrites.set(c.k, c.v);
+        const legacyOwned = new Set([...legacyWrites].filter(([, value]) => value !== null && JSON.parse(value).viewer === viewer).map(([id]) => id));
         // A permitted identity reset cannot recover the previous principal's
         // journal, transfer markers or committed payloads under this viewer.
-        const owned = sameOwner ? saved : saved.filter(c => c.s !== "o" && c.s !== "j");
-        const retired = sameOwner ? [] : saved.filter(c => c.s === "o" || c.s === "j").map(c => ({ ...c, v: null }));
+        const owns = (c: Change) => (c.s !== "o" && c.s !== "j") || sameOwner || legacyOwned.has(c.k);
+        const owned = saved.filter(owns);
+        const retired = saved.filter(c => !owns(c) && c.v !== null).map(c => ({ ...c, v: null }));
         for (const change of retired) if (change.s === "o") {
           const reply = JSON.parse(device.call(JSON.stringify({ op: "dequeue", id: change.k })));
           if (reply.denied) throw reply;
