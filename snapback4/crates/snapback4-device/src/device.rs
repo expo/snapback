@@ -300,8 +300,9 @@ pub(crate) fn reset_for_install<T: DeviceTx>(tx: &T, metadata: &BTreeMap<String,
     Ok(())
 }
 
-// One lifecycle boundary for every private publication key. Retaining images
-// retains their published replay guard; every transfer belongs to one generation.
+// One lifecycle boundary for every private publication key: deferred cursor,
+// effects/receipts, request capture, snapshot keys and staged rows always clear.
+// keep_images controls only published replay evidence, never private progress.
 fn reset_publication<T: DeviceTx>(tx: &T, keep_images: bool) -> Result<(), RuntimeError> {
     deferred::clear(tx)?;
     predictions::reset(tx, keep_images)?;
@@ -608,7 +609,9 @@ impl<S: DeviceStore> Device<S> {
         let first_replacement = page.snapshot && first;
         let from_ok = first_replacement || match page.requested_watermark {
             Some(from) => from == requested,
-            None => transfer == watermark && requested == transfer,
+            // Snapshot ownership/continuation and its own monotonic floor still
+            // fence catch-up. Only an advanced ordinary slot requires an echo.
+            None => transfer == watermark,
         };
         if !from_ok || page.watermark < requested {
             return Err(RuntimeError::Generation("obsolete deferred transfer page; retry sync".into()));
@@ -652,7 +655,7 @@ impl<S: DeviceStore> Device<S> {
             tx.set_meta(SNAPSHOT_ACKS, &encoded(&acks)?)?;
             // Paged snapshots read different server transactions. Keep every
             // image private until log catch-up repairs intervening commits.
-            if defer || page.more || (page.snapshot && page.stage_snapshot) {
+            if page.more || (page.snapshot && page.stage_snapshot) {
                 predictions::clear_capture(&tx)?;
                 tx.commit()?;
                 self.snapshot_owner = owner;
@@ -1037,3 +1040,6 @@ mod publication_tests;
 
 #[cfg(all(test, feature = "native"))]
 mod publication_round5;
+
+#[cfg(all(test, feature = "native"))]
+mod publication_round6;

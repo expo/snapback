@@ -68,6 +68,8 @@ pub(super) type Declaration = (u64, bool, u64);
 pub(super) struct Capture {
     pub ids: Vec<String>,
     pub declaration: Declaration,
+    #[serde(default)]
+    pub send_revision: u64,
 }
 
 // The interval and declared IDs must be the same prefix, regardless of the
@@ -81,24 +83,31 @@ fn ordered_entries<T: DeviceTx>(tx: &T) -> Result<Vec<Queued>, RuntimeError> {
     Ok(entries)
 }
 
-// All builders share the in-flight declaration. A poll/retry cannot widen it;
-// successful apply consumes it. Sends cannot erase a declaration in flight.
+// Reuse belongs to one send revision. An abandoned fetch has no response to
+// reject; the next request after a send must declare the newly sent writes.
+// The old capture stays durable until then, so late responses remain fenced.
 pub(super) fn capture<T: DeviceTx>(tx: &T) -> Result<Capture, RuntimeError> {
-    if let Some(capture) = load_capture(tx)? { return Ok(capture); }
+    if let Some(capture) = current_capture(tx)? { return Ok(capture); }
     let capture = pending_capture(tx)?;
     tx.set_meta(CAPTURE, &encoded(&capture)?)?;
     Ok(capture)
 }
 
 pub(super) fn pending_capture<T: DeviceTx>(tx: &T) -> Result<Capture, RuntimeError> {
-    if let Some(capture) = load_capture(tx)? { return Ok(capture); }
+    if let Some(capture) = current_capture(tx)? { return Ok(capture); }
     let entries = ordered_entries(tx)?;
     Ok(Capture {
         ids: entries.iter().take(PENDING_LIMIT).map(|q| q.id.clone()).collect(),
         declaration: (entries.iter().take(PENDING_LIMIT).last().map_or(0, |q| q.seq), entries.len() <= PENDING_LIMIT,
             // SUBMISSION is the inclusive last assigned number, never the next.
             entries.last().map_or(0, |q| q.seq).max(meta_u64(tx, SUBMISSION)?)),
+        send_revision: meta_u64(tx, SEND_REVISION)?,
     })
+}
+
+fn current_capture<T: DeviceTx>(tx: &T) -> Result<Option<Capture>, RuntimeError> {
+    let revision = meta_u64(tx, SEND_REVISION)?;
+    Ok(load_capture(tx)?.filter(|capture| capture.send_revision == revision))
 }
 
 // The checkpoint stored only bounds. Submission numbers never get reused,
@@ -118,7 +127,7 @@ fn load_capture<T: DeviceTx>(tx: &T) -> Result<Option<Capture>, RuntimeError> {
     if ids.len() > PENDING_LIMIT {
         return Err(RuntimeError::Store("checkpoint pending declaration exceeds its prefix limit".into()));
     }
-    Ok(Some(Capture { ids, declaration }))
+    Ok(Some(Capture { ids, declaration, send_revision: 0 }))
 }
 
 pub(super) fn declaration<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<Declaration, RuntimeError> {
@@ -152,6 +161,7 @@ pub(super) fn declaration<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<Decl
 // stale response cannot erase a newer capture with different bounds.
 pub(super) fn reject_capture<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<(), RuntimeError> {
     if let Some(capture) = load_capture(tx)?
+        && page.send_revision.is_none_or(|revision| revision == capture.send_revision)
         && (page.pending_through, page.pending_complete, page.pending_bound) ==
             (Some(capture.declaration.0), Some(capture.declaration.1), Some(capture.declaration.2)) {
         clear_capture(tx)?;

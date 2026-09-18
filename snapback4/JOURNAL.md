@@ -36806,3 +36806,58 @@ Per-finding dispositions, complete verbatim command results, mutation source edi
 commands and logs are in `target/review-fix5/report.md`; the durable summary is
 `REPAIR-B-HANDOFF.md`. Only the requested crate suites and affected checks ran;
 no push, rebase or merge was performed.
+
+
+## 2026-09-18 — Repair B, review fix round 6: abandoned request revisions
+
+U1: durable declarations now carry the send revision at capture. Repeated
+requests at that revision preserve the declaration; the next request under a
+new revision replaces an abandoned one. Send itself and read-only inspection
+do not erase the old bytes. A late rejected response must match the capture's
+revision as well as its bounds before consuming it. The new memory/SQLite
+regressions cover a fetch that never returns after an ordinary deferral, both
+mutation receipts received, reopen before retry, final value 3, and a late
+response with the same declaration bounds but a different revision.
+
+The old-wire question was measured with the identical terminal-page probe on
+base 27a8a4d66 and incoming HEAD a3c0a367d, then with this fix. Both additive
+wire fields are absent. On memory and SQLite, base gives server/device/reopen
+1/1/1; incoming HEAD gives 1/2/2; the fix gives 1/1/1. Fresh-request controls
+give 1/1/1 on both revisions. This was a lane regression, distinct from the
+old server's original truncated-page limitation. The base source was archived
+and its core/language/device crates rebuilt; source bytes and probe identity
+were checked against git. LLP 3000.001 records the corrected distinction.
+
+U2: validation is the single terminal-page rule: any known image head beyond
+the watermark refuses, including a snapshot. Deleted the separate terminal
+shortcut in should_defer and the redundant defer stay-private reason on the
+replacement path. The tests now assert protocol refusal and unchanged durable
+state for ordinary, direct/staged snapshot, and snapshot-catchup pages.
+The missing-requested-watermark condition also now accepts snapshot catch-up
+when no ordinary deferred cursor is ahead, while retaining the snapshot's own
+monotonic floor, owner, continuation and revision checks.
+
+U3–U5 were checked against their complete callers. Snapshot publication already
+clears every snapshot key and its in-memory owner; filtering out an equal cut
+would incorrectly skip required catch-up. clear_rows already has one complete
+publication reset, including cursor and snapshot disposal; the flag controls
+published image evidence only. First identity is authenticated privately before
+publication and checked against the adopted backend owner, then promoted with
+its images. New tests cover all three lifetimes on both stores through reopen,
+and counterfactual mutations fail their assertions. REPAIR-B-HANDOFF.md contains
+the per-finding evidence and exact durable-key correction to the round 3 table.
+
+All 12 distinct mutations compiled and failed their intended regressions with
+passing controls. The stale-capture mutant independently reproduced device 4
+after deferral and device 2 on the omitted-fields terminal page, on both stores.
+Mutations ran against copied source, and their recorded source hashes match the
+final branch files. No mutated source was installed in this worktree.
+
+Final requested commands, using normal Cargo test profiles and fixtures:
+cargo test -p snapback4-device exited 0 (608 passed, 0 failed, 3 existing ignored);
+cargo test -p snapback4-core exited 0 (160 passed, 0 failed);
+cargo test -p snapback4 exited 0 (265 passed, 0 failed).
+Full verbatim stdout/stderr, baseline and HEAD probes, mutation edits/commands,
+and source verification are preserved in target/review-fix6/report.md and its
+linked logs. No push, rebase or merge was performed; integration remains with
+the supervisor.

@@ -43,7 +43,7 @@ pub(super) fn validate(page: &StreamPage) -> Result<(), RuntimeError> {
 }
 
 pub(super) fn should_defer<T: DeviceTx>(tx: &T, programs: &BTreeMap<String, Program>, page: &StreamPage, published: u64, declaration: predictions::Declaration) -> Result<bool, RuntimeError> {
-    if page.images_at.is_some_and(|head| head <= page.watermark) || !page.more { return Ok(false); }
+    if page.images_at.is_some_and(|head| head <= page.watermark) { return Ok(false); }
     // Exactly the replay eligibility this page would publish, evaluated before
     // its acknowledgements can remove a prediction from the visible overlay.
     let prospective = (declaration.0, declaration.2);

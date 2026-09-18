@@ -100,9 +100,7 @@ fn catchup_floor<H: Host>(h: &mut H) {
     let error = d.apply(&p, false).unwrap_err();
     assert!(error.to_string().contains("obsolete deferred transfer page"), "{error}");
     let mut p = next(&mut e, &mut d, 100); p.snapshot_catchup = true;
-    let from = p.requested_watermark.take();
-    assert!(d.apply(&p, false).unwrap_err().to_string().contains("obsolete deferred transfer page"));
-    p.requested_watermark = from;
+    p.requested_watermark = None;
     assert!(d.apply_publication(&p, false).unwrap().1);
 }
 both!(snapshot_catchup_uses_its_own_request_floor, catchup_floor);
@@ -150,9 +148,11 @@ fn capture_lifetime<H: Host>(h: &mut H) {
     let p = next(&mut e, &mut d, 100);
     let captured = d.store().meta("device:declaration:capture").unwrap();
     admit(&mut d, "later", "bump", json!({"k":"b"}));
+    assert_eq!(d.sync_state().unwrap().pending_ids, vec!["q"], "same-revision requests reuse their declaration");
     d.begin_send().unwrap();
     assert_eq!(d.store().meta("device:declaration:capture").unwrap(), captured, "send cannot erase an in-flight declaration");
-    assert_eq!(d.sync_state().unwrap().pending_ids, vec!["q"], "polls cannot widen an in-flight declaration");
+    assert_eq!(d.sync_state_read().unwrap().pending_ids, vec!["q", "later"]);
+    assert_eq!(d.store().meta("device:declaration:capture").unwrap(), captured, "inspection does not replace an old capture");
     assert!(d.apply(&p, false).unwrap_err().to_string().contains("overlapped"));
     assert!(d.store().meta("device:declaration:capture").unwrap().is_none(), "rejection consumes that request capture");
     assert_eq!(d.sync_state_read().unwrap().pending_ids, vec!["q", "later"]);
@@ -161,7 +161,7 @@ fn capture_lifetime<H: Host>(h: &mut H) {
     d.apply(&p, false).unwrap();
     assert_eq!((value(&mut d, "a"), value(&mut d, "b")), (Some(1), Some(1)));
 }
-both!(capture_survives_send_and_polls_until_its_reply_is_rejected, capture_lifetime);
+both!(capture_survives_send_and_inspection_until_its_reply_is_rejected, capture_lifetime);
 
 fn dequeue_rebase<H: Host>(h: &mut H) {
     let (_, mut d) = setup(h);

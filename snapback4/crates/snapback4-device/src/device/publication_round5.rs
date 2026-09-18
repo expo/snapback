@@ -20,16 +20,11 @@ fn live_cursor<S: DeviceStore>(store: S) {
 
 fn terminal_guard<S: DeviceStore>(mut store: S) {
     let tx = store.transaction().unwrap();
-    let compiled = snapback4_lang::compile(&[("schema.q".into(), "mutation bump():\n  return 1\n".into())]);
-    assert!(compiled.diagnostics.is_empty());
-    let programs = compiled.programs.into_iter().map(|p| (p.program.name.clone(), p.program)).collect();
-    let q: Queued = decoded(r#"{"id":"q","seq":1,"op":"bump","args":{},"viewer":"alice","now":0,"predictable":true}"#).unwrap();
-    predictions::enqueue(&tx, &q).unwrap();
     let p: StreamPage = decoded(r#"{"snapshot":true,"watermark":1,"images_at":2,"more":false,"committed_above":{"q":2},"events":[]}"#).unwrap();
-    assert!(!deferred::should_defer(&tx, &programs, &p, 0, (1, true, 1)).unwrap(), "terminal pages never defer even before validation");
+    assert!(deferred::validate(&p).unwrap_err().to_string().contains("terminal stream page"));
     tx.rollback().unwrap();
 }
-#[test] fn terminal_guard_is_independent_of_validation() { both(terminal_guard, terminal_guard); }
+#[test] fn terminal_gap_is_a_protocol_refusal() { both(terminal_guard, terminal_guard); }
 
 fn missing_declaration<S: DeviceStore>(mut store: S) {
     let tx = store.transaction().unwrap();
