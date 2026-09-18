@@ -419,11 +419,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     return capture;
   }
 
-  async function call(request: Record<string, unknown>): Promise<{ ok?: unknown; denied?: Refusal }> {
+  async function call(request: Record<string, unknown>, committedTables?: Set<string>): Promise<{ ok?: unknown; denied?: Refusal }> {
     const work = core.call(request);
     active.add(work);
     try {
       const result = (await work) as { ok?: unknown; denied?: Refusal };
+      // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — preserve publication invalidations before fallible post-commit work.
+      if (!result.denied && request.op === "apply") {
+        for (const table of (result.ok as { touched?: string[] } | undefined)?.touched ?? []) committedTables?.add(table);
+      }
       // A committed replacement has already retired the client's partition.
       // Fence it before even media reconciliation can fail; native identity
       // is read separately and must never be a prerequisite for invalidation.
@@ -725,14 +729,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         page.stage_snapshot = !!page.snapshot;
         page.snapshot_catchup = catchingUp;
         const applyingIncarnation = incarnation;
-        const applied = await call({ op: "apply", page, first: !catchingUp && after === undefined });
+        const applied = await call({ op: "apply", page, first: !catchingUp && after === undefined }, touched);
         if (closed || applyingIncarnation !== incarnation) return false;
         if (applied.denied) { refuseRestore(applied.denied); return false; }
         const published = (applied.ok as { published?: boolean } | undefined)?.published !== false;
         publicationOutstanding = !published;
-        // Apply already committed. Its invalidations must reach finally even
-        // when the following metadata read fails.
-        for (const table of ((applied.ok as { touched?: string[] } | undefined)?.touched ?? [])) touched.add(table);
+        // call() has already preserved committed tables for finally, even if
+        // its media reconciliation or the following metadata inspection fails.
         if (published) {
           const publishedRead = await call({ op: "sync_state", capture: false });
           if (closed || applyingIncarnation !== incarnation || publishedRead.denied) return false;

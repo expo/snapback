@@ -227,6 +227,101 @@ test("FF1 adoption control: compatible widening revalidates acquired images befo
   assert.equal(read.fresh, false);
 });
 
+for (const mode of ["snapshot", "stream"]) for (const failMedia of [false, true]) {
+  test(`HH1: ${mode} publication preserves watch invalidation with ${failMedia ? "failed" : "healthy"} media lookup`, async t => {
+    const persist = memoryPersistence(), opener = webDevice({ wasm, persist });
+    const url = `http://publication.test/${encodeURIComponent(t.name)}`;
+    const photo = { id: "photo", type: "image/png", bytes: 1, width: 1, height: 1 };
+    const image = body => {
+      const rows = events("A");
+      Object.assign(rows.at(-1).data, { body, photo });
+      return rows;
+    };
+    let core, client, offline = false, updating = false, staged = false, failHome = false;
+    let failures = 0, queryCalls = 0;
+    const requests = [], publications = [], clients = [];
+    const fetcher = async (input, init = {}) => {
+      if (offline) throw new TypeError("offline");
+      const path = new URL(input).pathname.slice(new URL(url).pathname.length);
+      if (path === "/schema") return Response.json(original);
+      if (path === "/sync") {
+        const request = JSON.parse(init.body); requests.push(request);
+        const base = { store_id: "A", generation: 1, more: false };
+        if (request.from === 0 && !request.stream) return Response.json({ ...base, snapshot: true, events: image("A"), watermark: 10 });
+        if (updating && request.from === 10) {
+          staged = mode === "snapshot";
+          return Response.json({ ...base, snapshot: staged, events: image("updated"), watermark: 11, images_at: 11 });
+        }
+        return Response.json({ ...base, snapshot: false, events: [], watermark: updating ? 11 : 10, images_at: updating ? 11 : 10 });
+      }
+      if (path === "/changes") return new Promise((resolve) => {
+        const abort = () => resolve(Response.json({ seq: updating ? 11 : 10, store_id: "A" }));
+        if (init.signal.aborted) abort(); else init.signal.addEventListener("abort", abort, { once: true });
+      });
+      if (path === "/assets/photo") return new Response(new Uint8Array([1]), { headers: { "content-type": "image/png", "accept-ranges": "bytes" } });
+      assert.fail(`unexpected transport request: ${path}`);
+    };
+    async function open() {
+      client = await createLocalClient({ url, persona: "alice", assets: { keep: "viewed", maxBytes: 100 }, fetch: fetcher,
+        device: { async open(...args) {
+          const opened = core = await opener.open(...args);
+          return { ...opened, async call(request) {
+            if (request.op === "asset_home" && failHome) {
+              failHome = false; failures++;
+              return { denied: { code: "E_STORE", family: "store", message: "injected post-publication asset_home failure" } };
+            }
+            if (request.op === "query") queryCalls++;
+            const reply = await opened.call(request);
+            if (request.op === "apply" && updating && !reply.denied) {
+              publications.push(structuredClone(reply.ok));
+              if (reply.ok.published && publications.filter(p => p.published).length === 1) failHome = failMedia;
+            }
+            return reply;
+          } };
+        } },
+      });
+      clients.push(client);
+    }
+    t.after(async () => { for (const c of clients) await c.close(); });
+    await open();
+    const held = { ...thread, held: true }, watch = client.observe(held, args), notices = [];
+    watch.subscribe(() => notices.push(structuredClone(watch.getSnapshot())));
+    await until(() => watch.getSnapshot().fresh);
+    assert.equal(watch.getSnapshot().data[0].body, "A");
+    const asset = await client.asset("photo");
+    assert.ok("url" in asset, JSON.stringify(asset)); asset.revoke();
+    assert.equal(JSON.parse(ok(await core.call({ op: "meta", key: "media:manifest" }))).length, 1, "real viewed-media retention primes reconciliation");
+    notices.length = 0; updating = true;
+    if (failMedia) await assert.rejects(client.sync(), /injected post-publication asset_home failure/);
+    else await client.sync();
+    const native = ok(await core.call({ op: "sync_state", capture: false }));
+    assert.equal(native.watermark, 11);
+    assert.equal(native.acquired, true);
+    assert.equal(ok(await core.call({ op: "query", name: "thread", viewer: "dev:alice", args, now: Date.now() })).data[0].body, "updated");
+    assert.equal(failures, failMedia ? 1 : 0, "only the post-publication media read fails");
+    assert.equal(staged, mode === "snapshot");
+    assert.deepEqual(publications.map(p => p.published), mode === "snapshot" ? [false, true] : [true]);
+    assert.ok(publications.at(-1).touched.includes("messages"));
+    // Drain scheduled reads, then retry from the already committed watermark.
+    // An empty healthy retry cannot recover a lost touched-table notification.
+    for (let i = 0; i < 20; i++) await tick();
+    const beforeRetry = structuredClone(watch.getSnapshot()), notifiedBeforeRetry = structuredClone(notices);
+    const retryAt = requests.length;
+    await client.sync();
+    for (let i = 0; i < 20; i++) await tick();
+    assert.equal(requests[retryAt].from, 11);
+    assert.equal(requests[retryAt].after, null);
+    const afterRetry = structuredClone(watch.getSnapshot());
+    const readsBeforeClose = queryCalls;
+    offline = true; await client.close(); await open();
+    assert.equal((await client.query(held, args)).data[0].body, "updated", "offline reopen confirms durable publication");
+    assert.equal(beforeRetry.data[0].body, "updated", "committed publication must rerun its watch even when reconciliation fails");
+    assert.ok(notifiedBeforeRetry.some(read => read.data?.[0]?.body === "updated"), "publication must notify before a healthy retry");
+    assert.equal(afterRetry.data[0].body, "updated");
+    assert.ok(readsBeforeClose >= 2, "the watch was actually reevaluated");
+  });
+}
+
 
 test("R4: a same-identity /changes head below acquisition persists the restore halt even when writes refill the head", async t => {
   const f = await fixture(t), op = { kind: "query", name: "marker" };

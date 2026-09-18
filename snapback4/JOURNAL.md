@@ -37288,3 +37288,52 @@ Final verification: device **645 passed, 0 failed, 3 existing ignored**; core **
 ```
 
 The final suite holds source/test hashes unchanged, and its compiled client and wasm match the mutation inputs. Ref-check: 484 LLP documents, 9443 references, zero errors. Full verbatim crate/script results, mutation edits, hashes and controls are in `target/review-fix14/report.md`. No push, rebase, merge or publication was performed.
+
+
+## 2026-09-18 — Repair B, fix round 15: publication invalidation precedes media reconciliation
+
+HH1 predates the lane. The unchanged round-14 client and the compiled base
+`27a8a4d66` client both leave a watched message at A after the real device
+publishes `updated` at watermark 11 and one media `asset_home` lookup fails.
+Both snapshot/catch-up and ordinary-stream variants reproduce; healthy controls
+pass. Base-client isolation uses the current production wasm, with exact base
+source and a matching fresh TypeScript compilation, not a full-base runtime.
+
+The wrapper now copies successful apply's native touched tables into the sync
+round's invalidation set before reconciliation. The existing finally reruns
+those watches even when media or later inspection fails. Four regressions prime
+real media retention and verify publication, notifications, retry from 11 and
+offline reopen. Moving collection back below reconciliation fails both fault
+cases while the two healthy controls pass. The restored reset-review file
+passes all 23 cases. Final source, test, compiled-client and wasm hashes match
+the mutation inputs after the complete suite rebuild.
+
+The previous inventory omitted apply and overstated its media qualification.
+REPAIR-B-HANDOFF.md now derives the invalidation inventory from device commits,
+opening and host persistence. It names four code-inspected remaining gaps:
+admission and settlement before media failure, host work after successful
+persistence but before returning the result, and recovered predictions without
+table invalidation. They are recorded in
+issues/20260918-snapback4-remaining-commit-invalidation-gaps.md, not presented as
+new reproduced counterexamples or a claim of complete class closure. Direct
+raw-device resets, thrown watch evaluations and callback delivery remain
+explicit limits. The upload-facts ticket stays separate.
+
+All three requested crates pass: device **645 passed, 0 failed, 3 existing
+ignored**; core **160 passed, 0 failed**; CLI **265 passed, 0 failed**. Each Cargo
+command exits 0. The full `bash snapback4/scripts/test.sh` exits 1 solely for
+the known `worker.runGeneratedEffects` README coverage failure. Client totals:
+**803 tests, 799 passed, 1 failed, 3 skipped, 0 cancelled**. No additional failure
+requires a base comparison. The script selected serial client files at host
+load 108.13 across 10 CPUs. Verbatim final result:
+
+```text
+-- FAIL: client tests (673 s)
+== 1 failure(s) in 716 s
+   client tests
+```
+
+Full verbatim crate/script outputs, base-client comparison, mutation patch,
+controls and artifact hashes are in `target/review-fix15/report.md`. Ref-check
+reports 484 LLP docs, 9444 refs and zero errors; `git diff --check` passes. No
+push, rebase, merge or publication was performed.
