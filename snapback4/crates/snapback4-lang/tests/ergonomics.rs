@@ -302,3 +302,20 @@ fn enum_text_helpers_storage_indexes_and_wire_keep_the_same_domain() {
     engine.mutate("put", None, context()).unwrap();
     assert_eq!(engine.query("get", context()).unwrap().data.field("label").unwrap(), &value);
 }
+
+/// A scalar already *is* the value, so the repair is to drop the field access, not to
+/// go and find a row. `int has no fields` was the most frequent compile error of the
+/// 0.2.28 calibration — 20 of its 32 `E_QUARRY_TYPE` — on a full group-key `maintain`
+/// lookup the builder had written `.value` on. The old rewrite, "read a row or an
+/// object before selecting a field", pointed away from the fix.
+#[test]
+fn w16h_a_scalar_field_access_is_told_to_drop_the_field_not_to_read_a_row() {
+    let source = "query q():\n  n = 1\n  return n.value\n";
+    let bound = bind("schema.q", source);
+    let diagnostic = &bound.diagnostics[0];
+    assert_eq!(diagnostic.message, "int has no fields");
+    assert_eq!(diagnostic.rewrite, "this is already a value — remove `.value`");
+    // An id is the one case where a row read really is what is missing: it keeps the
+    // older advice, so this change narrows the generic arm rather than replacing it.
+    clean("schema.q", &source.replace("n.value", "n"));
+}
