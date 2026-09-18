@@ -22,25 +22,39 @@ const runsDir = join(root, "benchmarks/runs");
 /** Least squares over equally spaced points. Returns slope per run and the fitted endpoints. */
 function fit(values) {
   const n = values.length;
-  if (n < 2) return null;
+  if (n < 3) return null;
   const meanX = (n - 1) / 2;
   const meanY = values.reduce((a, b) => a + b, 0) / n;
-  let num = 0, den = 0;
-  for (let i = 0; i < n; i++) { num += (i - meanX) * (values[i] - meanY); den += (i - meanX) ** 2; }
-  const slope = num / den;
+  let num = 0, sxx = 0;
+  for (let i = 0; i < n; i++) { num += (i - meanX) * (values[i] - meanY); sxx += (i - meanX) ** 2; }
+  const slope = num / sxx;
   const intercept = meanY - slope * meanX;
-  const sd = Math.sqrt(values.reduce((a, v) => a + (v - meanY) ** 2, 0) / n);
+  // The bar is the slope against ITS OWN standard error, from the residual
+  // spread about the fitted line. The series' spread about its MEAN was the
+  // earlier bar and it is not a test: it folds the trend into its own noise
+  // estimate, and it passes anything on a low-variance series — 97 → 96 beat it.
+  const rss = values.reduce((a, v, i) => a + (v - (intercept + slope * i)) ** 2, 0);
+  const residualSd = Math.sqrt(rss / (n - 2));
+  const se = residualSd / Math.sqrt(sxx);
+  const t = se ? Math.abs(slope) / se : 0;
   return {
     slope,
     mean: meanY,
-    sd,
+    sd: Math.sqrt(values.reduce((a, v) => a + (v - meanY) ** 2, 0) / n),
+    residualSd,
+    se,
+    t,
     first: intercept,
     last: intercept + slope * (n - 1),
     drift: slope * (n - 1),
-    // A drift bigger than one standard deviation is the correction's own bar for
-    // "this is the series moving, not the noise".
-    beyondNoise: Math.abs(slope * (n - 1)) > sd,
+    beyondNoise: t > 2,
   };
+}
+
+/** Thirteen categories are tested at once; say what that costs. */
+function multiplicityThreshold(k) {
+  // Bonferroni at 0.05 over k tests, read off the t table for df ~10.
+  return k >= 13 ? 3.5 : k >= 8 ? 3.2 : k >= 4 ? 2.9 : 2.0;
 }
 
 /** A run record's scores live in a fenced JSON block in <run>/<family>/FINAL.md. */
@@ -140,7 +154,11 @@ const fragile = categories
   .filter(c => trends[c].beyondNoise && (!trends[c].robust || !trends[c].windowStable))
   .sort((a, b) => trends[a].drift - trends[b].drift);
 
+const tThreshold = multiplicityThreshold(categories.length);
+const survivesMultiplicity = categories.filter(c => trends[c].t > tThreshold && c !== "overall");
+
 const report = {
+  multiplicity: { tested: categories.length, threshold: tThreshold, survives: survivesMultiplicity },
   generated: new Date().toISOString().slice(0, 10),
   generator: "benchmarks/scripts/score-trend.mjs",
   note: "Fitted across the whole series. A single run against its neighbour is noise; see the 2026-09-17 trend correction.",
@@ -168,12 +186,14 @@ lines.push(`\`${trends.overall.series.join(", ")}\``);
 lines.push("");
 lines.push("Read the fit, not the last pair. Adjacent runs move ±3 on this instrument with no surface change; that is why a decline was read as flat for twelve waves.");
 lines.push("");
-lines.push("| category | series | fitted | /run | drift | |");
-lines.push("|---|---|---|---:|---:|---|");
+lines.push(`Thirteen categories are tested at once. At |t| > 2 a result is nominally significant; correcting for testing ${categories.length} of them needs |t| > ${tThreshold}, and **${survivesMultiplicity.length === 0 ? "nothing reaches it" : survivesMultiplicity.join(", ") + " reaches it"}**.`);
+lines.push("");
+lines.push("| category | series | fitted | /run | drift | \\|t\\| | |");
+lines.push("|---|---|---|---:|---:|---:|---|");
 for (const c of ["overall", ...categories.filter(x => x !== "overall").sort((a, b) => trends[a].drift - trends[b].drift)]) {
   const t = trends[c];
   const name = c === "overall" ? "**overall**" : c;
-  lines.push(`| ${name} | ${t.series.join(" ")} | ${t.first.toFixed(0)} → ${t.last.toFixed(0)} | ${sign(t.slope)} | ${sign(t.drift)} | ${arrow(t)} |`);
+  lines.push(`| ${name} | ${t.series.join(" ")} | ${t.first.toFixed(0)} → ${t.last.toFixed(0)} | ${sign(t.slope)} | ${sign(t.drift)} | ${t.t.toFixed(2)} | ${arrow(t)} |`);
 }
 lines.push("");
 if (fragile.length) {
@@ -210,6 +230,7 @@ writeFileSync(join(root, "benchmarks/TREND.html"), page(report));
 if (process.argv.includes("--check")) {
   console.log(`score-trend: ${n} runs, overall ${arrow(o)} (${sign(o.slope)}/run), ${falling.length} categor${falling.length === 1 ? "y" : "ies"} falling beyond noise`);
   if (falling.length) console.log(`  ${falling.map(c => `${c} ${sign(trends[c].drift)}`).join(", ")}`);
+  console.log(`  multiplicity: ${categories.length} tested, |t| > ${tThreshold} needed, ${survivesMultiplicity.length} survive`);
 } else {
   console.log(`score-trend: wrote benchmarks/TREND.json, TREND.md and TREND.html from ${n} runs`);
 }

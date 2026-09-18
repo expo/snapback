@@ -1,4 +1,9 @@
 {
+  "multiplicity": {
+    "tested": 13,
+    "threshold": 3.5,
+    "survives": []
+  },
   "generated": "2026-09-18",
   "generator": "benchmarks/scripts/score-trend.mjs",
   "note": "Fitted across the whole series. A single run against its neighbour is noise; see the 2026-09-17 trend correction.",
@@ -275,14 +280,15 @@
       "slope": 0.08391608391608392,
       "mean": 88.5,
       "sd": 2.140872096444188,
+      "residualSd": 2.3236395372993415,
+      "se": 0.19431249972031475,
+      "t": 0.4318614810517553,
       "first": 88.03846153846153,
       "last": 88.96153846153845,
       "drift": 0.9230769230769231,
       "beyondNoise": false,
-      "robust": false,
-      "restsOn": [
-        "0.2.28"
-      ],
+      "robust": true,
+      "restsOn": [],
       "windows": [
         {
           "from": "0.2.9",
@@ -297,12 +303,12 @@
         {
           "from": "0.2.16",
           "drift": -2.672727272727273,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.19",
           "drift": -2.6666666666666665,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.21",
@@ -312,7 +318,7 @@
         {
           "from": "0.2.22",
           "drift": -3,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.23",
@@ -322,7 +328,7 @@
         {
           "from": "0.2.24",
           "drift": -3.2,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.25",
@@ -354,21 +360,20 @@
       "slope": 0.506993006993007,
       "mean": 88.41666666666667,
       "sd": 5.1065045666178435,
+      "residualSd": 5.255089662980772,
+      "se": 0.43945267425385265,
+      "t": 1.1536919370301504,
       "first": 85.62820512820514,
       "last": 91.20512820512822,
       "drift": 5.576923076923077,
-      "beyondNoise": true,
-      "robust": false,
-      "restsOn": [
-        "0.2.9",
-        "0.2.12",
-        "0.2.27"
-      ],
+      "beyondNoise": false,
+      "robust": true,
+      "restsOn": [],
       "windows": [
         {
           "from": "0.2.9",
           "drift": 5.576923076923077,
-          "verdict": "rising"
+          "verdict": "flat"
         },
         {
           "from": "0.2.12",
@@ -383,7 +388,7 @@
         {
           "from": "0.2.19",
           "drift": -2.533333333333333,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.21",
@@ -408,12 +413,11 @@
         {
           "from": "0.2.25",
           "drift": 3.5999999999999996,
-          "verdict": "rising"
+          "verdict": "flat"
         }
       ],
       "windowStable": false,
       "windowVerdicts": [
-        "rising",
         "flat",
         "falling"
       ]
@@ -436,12 +440,17 @@
       "slope": -0.42657342657342656,
       "mean": 86.5,
       "sd": 2.254624876411447,
+      "residualSd": 1.870267921422516,
+      "se": 0.15639966058621485,
+      "t": 2.727457495588868,
       "first": 88.84615384615384,
       "last": 84.15384615384615,
       "drift": -4.6923076923076925,
       "beyondNoise": true,
-      "robust": true,
-      "restsOn": [],
+      "robust": false,
+      "restsOn": [
+        "0.2.28"
+      ],
       "windows": [
         {
           "from": "0.2.9",
@@ -476,7 +485,7 @@
         {
           "from": "0.2.23",
           "drift": -4.428571428571429,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.24",
@@ -489,9 +498,10 @@
           "verdict": "falling"
         }
       ],
-      "windowStable": true,
+      "windowStable": false,
       "windowVerdicts": [
-        "falling"
+        "falling",
+        "flat"
       ]
     },
     "authorization": {
@@ -512,12 +522,21 @@
       "slope": 0.42657342657342656,
       "mean": 94.16666666666667,
       "sd": 2.640496586292477,
+      "residualSd": 2.4009516372823434,
+      "se": 0.20077766230908023,
+      "t": 2.124606002816951,
       "first": 91.82051282051283,
       "last": 96.51282051282053,
       "drift": 4.6923076923076925,
       "beyondNoise": true,
-      "robust": true,
-      "restsOn": [],
+      "robust": false,
+      "restsOn": [
+        "0.2.9",
+        "0.2.16",
+        "0.2.21",
+        "0.2.25",
+        "0.2.26"
+      ],
       "windows": [
         {
           "from": "0.2.9",
@@ -527,12 +546,12 @@
         {
           "from": "0.2.12",
           "drift": 3.8181818181818183,
-          "verdict": "rising"
+          "verdict": "flat"
         },
         {
           "from": "0.2.16",
           "drift": 4.309090909090909,
-          "verdict": "rising"
+          "verdict": "flat"
         },
         {
           "from": "0.2.19",
@@ -542,7 +561,7 @@
         {
           "from": "0.2.21",
           "drift": 2.5,
-          "verdict": "rising"
+          "verdict": "flat"
         },
         {
           "from": "0.2.22",
@@ -562,14 +581,13 @@
         {
           "from": "0.2.25",
           "drift": -1.5,
-          "verdict": "falling"
+          "verdict": "flat"
         }
       ],
       "windowStable": false,
       "windowVerdicts": [
         "rising",
-        "flat",
-        "falling"
+        "flat"
       ]
     },
     "queries_and_live": {
@@ -590,14 +608,15 @@
       "slope": -0.0034965034965034965,
       "mean": 83.41666666666667,
       "sd": 4.940619619260546,
+      "residualSd": 5.412161475925478,
+      "se": 0.45258767911108644,
+      "t": 0.007725582595113662,
       "first": 83.43589743589745,
       "last": 83.39743589743591,
       "drift": -0.038461538461538464,
       "beyondNoise": false,
-      "robust": false,
-      "restsOn": [
-        "0.2.9"
-      ],
+      "robust": true,
+      "restsOn": [],
       "windows": [
         {
           "from": "0.2.9",
@@ -607,7 +626,7 @@
         {
           "from": "0.2.12",
           "drift": -5.181818181818182,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.16",
@@ -617,17 +636,17 @@
         {
           "from": "0.2.19",
           "drift": -6.533333333333333,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.21",
           "drift": -4.416666666666666,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.22",
           "drift": -5.142857142857142,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.23",
@@ -669,6 +688,9 @@
       "slope": 0.02097902097902098,
       "mean": 94.16666666666667,
       "sd": 1.404358295529393,
+      "residualSd": 1.5363505330402156,
+      "se": 0.12847608578250153,
+      "t": 0.16329125261907945,
       "first": 94.05128205128206,
       "last": 94.28205128205128,
       "drift": 0.23076923076923078,
@@ -699,34 +721,32 @@
         {
           "from": "0.2.21",
           "drift": 2.4166666666666665,
-          "verdict": "rising"
+          "verdict": "flat"
         },
         {
           "from": "0.2.22",
           "drift": 1.5,
-          "verdict": "rising"
+          "verdict": "flat"
         },
         {
           "from": "0.2.23",
           "drift": 1.8571428571428572,
-          "verdict": "rising"
+          "verdict": "flat"
         },
         {
           "from": "0.2.24",
           "drift": -1.2,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.25",
           "drift": -1.5,
-          "verdict": "falling"
+          "verdict": "flat"
         }
       ],
-      "windowStable": false,
+      "windowStable": true,
       "windowVerdicts": [
-        "flat",
-        "rising",
-        "falling"
+        "flat"
       ]
     },
     "offline_sync": {
@@ -747,12 +767,17 @@
       "slope": 0.5664335664335665,
       "mean": 91.5,
       "sd": 3.2015621187164243,
+      "residualSd": 2.777028648013577,
+      "se": 0.23222680184621475,
+      "t": 2.4391395047014,
       "first": 88.38461538461539,
       "last": 94.61538461538461,
       "drift": 6.230769230769231,
       "beyondNoise": true,
-      "robust": true,
-      "restsOn": [],
+      "robust": false,
+      "restsOn": [
+        "0.2.9"
+      ],
       "windows": [
         {
           "from": "0.2.9",
@@ -762,7 +787,7 @@
         {
           "from": "0.2.12",
           "drift": 2.1818181818181817,
-          "verdict": "rising"
+          "verdict": "flat"
         },
         {
           "from": "0.2.16",
@@ -772,12 +797,12 @@
         {
           "from": "0.2.19",
           "drift": 1.7333333333333334,
-          "verdict": "rising"
+          "verdict": "flat"
         },
         {
           "from": "0.2.21",
           "drift": 1.75,
-          "verdict": "rising"
+          "verdict": "flat"
         },
         {
           "from": "0.2.22",
@@ -797,14 +822,13 @@
         {
           "from": "0.2.25",
           "drift": -1.5,
-          "verdict": "falling"
+          "verdict": "flat"
         }
       ],
       "windowStable": false,
       "windowVerdicts": [
         "rising",
-        "flat",
-        "falling"
+        "flat"
       ]
     },
     "media_assets": {
@@ -825,46 +849,45 @@
       "slope": -0.08391608391608392,
       "mean": 96.66666666666667,
       "sd": 0.8498365855987975,
+      "residualSd": 0.8751956158296071,
+      "se": 0.07318753409307444,
+      "t": 1.1465898524380629,
       "first": 97.12820512820514,
       "last": 96.20512820512822,
       "drift": -0.9230769230769231,
-      "beyondNoise": true,
-      "robust": false,
-      "restsOn": [
-        "0.2.19",
-        "0.2.27",
-        "0.2.28"
-      ],
+      "beyondNoise": false,
+      "robust": true,
+      "restsOn": [],
       "windows": [
         {
           "from": "0.2.9",
           "drift": -0.9230769230769231,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.12",
           "drift": -1.4545454545454546,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.16",
           "drift": -1.5818181818181818,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.19",
           "drift": -1.7333333333333334,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.21",
           "drift": -1.1666666666666665,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.22",
           "drift": -1.0714285714285714,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.23",
@@ -874,17 +897,16 @@
         {
           "from": "0.2.24",
           "drift": -1.6,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.25",
           "drift": -3,
-          "verdict": "falling"
+          "verdict": "flat"
         }
       ],
-      "windowStable": false,
+      "windowStable": true,
       "windowVerdicts": [
-        "falling",
         "flat"
       ]
     },
@@ -906,14 +928,15 @@
       "slope": -0.027972027972027972,
       "mean": 92.16666666666667,
       "sd": 2.793842435706702,
+      "residualSd": 3.0586725642797816,
+      "se": 0.25577904931068673,
+      "t": 0.10936012174340062,
       "first": 92.32051282051283,
       "last": 92.01282051282053,
       "drift": -0.3076923076923077,
       "beyondNoise": false,
-      "robust": false,
-      "restsOn": [
-        "0.2.27"
-      ],
+      "robust": true,
+      "restsOn": [],
       "windows": [
         {
           "from": "0.2.9",
@@ -933,38 +956,37 @@
         {
           "from": "0.2.19",
           "drift": -3.8666666666666667,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.21",
           "drift": -4.583333333333333,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.22",
           "drift": -3.8571428571428577,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.23",
           "drift": -3.428571428571429,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.24",
           "drift": -4.8,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.25",
           "drift": -7.199999999999999,
-          "verdict": "falling"
+          "verdict": "flat"
         }
       ],
-      "windowStable": false,
+      "windowStable": true,
       "windowVerdicts": [
-        "flat",
-        "falling"
+        "flat"
       ]
     },
     "client_integration": {
@@ -985,12 +1007,23 @@
       "slope": -0.17832167832167833,
       "mean": 88.91666666666667,
       "sd": 1.114924013354971,
+      "residualSd": 1.018305645150997,
+      "se": 0.08515499595026371,
+      "t": 2.094083574683396,
       "first": 89.8974358974359,
       "last": 87.93589743589743,
       "drift": -1.9615384615384617,
       "beyondNoise": true,
-      "robust": true,
-      "restsOn": [],
+      "robust": false,
+      "restsOn": [
+        "0.2.9",
+        "0.2.12",
+        "0.2.19",
+        "0.2.21",
+        "0.2.22",
+        "0.2.26",
+        "0.2.28"
+      ],
       "windows": [
         {
           "from": "0.2.9",
@@ -1000,7 +1033,7 @@
         {
           "from": "0.2.12",
           "drift": -1.7272727272727273,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.16",
@@ -1010,7 +1043,7 @@
         {
           "from": "0.2.19",
           "drift": -1.3333333333333333,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.21",
@@ -1025,7 +1058,7 @@
         {
           "from": "0.2.23",
           "drift": 1,
-          "verdict": "rising"
+          "verdict": "flat"
         },
         {
           "from": "0.2.24",
@@ -1035,14 +1068,13 @@
         {
           "from": "0.2.25",
           "drift": -0.6000000000000001,
-          "verdict": "falling"
+          "verdict": "flat"
         }
       ],
       "windowStable": false,
       "windowVerdicts": [
         "falling",
-        "flat",
-        "rising"
+        "flat"
       ]
     },
     "diagnostics_dev_loop": {
@@ -1063,12 +1095,18 @@
       "slope": 0.7902097902097902,
       "mean": 91.83333333333333,
       "sd": 4.65176191231762,
+      "residualSd": 4.127625956563412,
+      "se": 0.3451694226474028,
+      "t": 2.2893389111613303,
       "first": 87.48717948717949,
       "last": 96.17948717948718,
       "drift": 8.692307692307692,
       "beyondNoise": true,
-      "robust": true,
-      "restsOn": [],
+      "robust": false,
+      "restsOn": [
+        "0.2.9",
+        "0.2.12"
+      ],
       "windows": [
         {
           "from": "0.2.9",
@@ -1078,7 +1116,7 @@
         {
           "from": "0.2.12",
           "drift": 8.181818181818182,
-          "verdict": "rising"
+          "verdict": "flat"
         },
         {
           "from": "0.2.16",
@@ -1088,7 +1126,7 @@
         {
           "from": "0.2.19",
           "drift": 1.8666666666666667,
-          "verdict": "rising"
+          "verdict": "flat"
         },
         {
           "from": "0.2.21",
@@ -1103,7 +1141,7 @@
         {
           "from": "0.2.23",
           "drift": 2,
-          "verdict": "rising"
+          "verdict": "flat"
         },
         {
           "from": "0.2.24",
@@ -1140,19 +1178,24 @@
       "slope": -0.9475524475524476,
       "mean": 82.91666666666667,
       "sd": 6.277716322216402,
+      "residualSd": 5.869610805013484,
+      "se": 0.4908415137543814,
+      "t": 1.9304651725660795,
       "first": 88.12820512820514,
       "last": 77.70512820512822,
       "drift": -10.423076923076923,
-      "beyondNoise": true,
+      "beyondNoise": false,
       "robust": false,
       "restsOn": [
-        "0.2.28"
+        "0.2.9",
+        "0.2.25",
+        "0.2.27"
       ],
       "windows": [
         {
           "from": "0.2.9",
           "drift": -10.423076923076923,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.12",
@@ -1172,31 +1215,32 @@
         {
           "from": "0.2.21",
           "drift": -9.666666666666666,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.22",
           "drift": -9,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.23",
           "drift": -8.428571428571429,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.24",
           "drift": -12.8,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.25",
           "drift": -19.200000000000003,
-          "verdict": "falling"
+          "verdict": "flat"
         }
       ],
-      "windowStable": true,
+      "windowStable": false,
       "windowVerdicts": [
+        "flat",
         "falling"
       ]
     },
@@ -1218,39 +1262,40 @@
       "slope": -0.23076923076923078,
       "mean": 86.83333333333333,
       "sd": 1.8633899812498247,
+      "residualSd": 1.8452989473600767,
+      "se": 0.15431165008043593,
+      "t": 1.4954751028126576,
       "first": 88.1025641025641,
       "last": 85.56410256410257,
       "drift": -2.5384615384615388,
-      "beyondNoise": true,
-      "robust": false,
-      "restsOn": [
-        "0.2.27"
-      ],
+      "beyondNoise": false,
+      "robust": true,
+      "restsOn": [],
       "windows": [
         {
           "from": "0.2.9",
           "drift": -2.5384615384615388,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.12",
           "drift": -2.909090909090909,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.16",
           "drift": -3.381818181818182,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.19",
           "drift": -3.3333333333333335,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.21",
           "drift": -2.4166666666666665,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.22",
@@ -1265,31 +1310,25 @@
         {
           "from": "0.2.24",
           "drift": -2.4,
-          "verdict": "falling"
+          "verdict": "flat"
         },
         {
           "from": "0.2.25",
           "drift": -3.9000000000000004,
-          "verdict": "falling"
+          "verdict": "flat"
         }
       ],
-      "windowStable": false,
+      "windowStable": true,
       "windowVerdicts": [
-        "falling",
         "flat"
       ]
     }
   },
-  "falling": [
-    "data_modeling"
-  ],
+  "falling": [],
   "fragile": [
-    "scale_and_limits",
-    "operations",
+    "data_modeling",
     "client_integration",
-    "media_assets",
     "authorization",
-    "setup_and_docs",
     "offline_sync",
     "diagnostics_dev_loop"
   ]
