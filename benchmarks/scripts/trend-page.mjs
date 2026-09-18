@@ -7,6 +7,7 @@ const sign = v => (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(1);
 /** A category's direction, by the correction's own bar: drift larger than the series' own sd. */
 function state(t) {
   if (!t.beyondNoise) return "flat";
+  if (!t.robust) return "fragile";
   return t.slope < 0 ? "falling" : "rising";
 }
 
@@ -64,6 +65,7 @@ export function page(report) {
   const n = runs.length;
   const order = Object.keys(categories).filter(c => c !== "overall").sort((a, b) => categories[a].drift - categories[b].drift);
   const dir = state(overall);
+  const fragile = report.fragile ?? [];
 
   const cards = order.map(c => {
     const t = categories[c];
@@ -74,7 +76,7 @@ export function page(report) {
           <span class="drift">${sign(t.drift)}</span>
         </header>
         ${sparkline(t)}
-        <p class="range"><span>${t.first.toFixed(0)} → ${t.last.toFixed(0)}</span><span class="badge">${s}</span></p>
+        <p class="range"><span>${t.first.toFixed(0)} → ${t.last.toFixed(0)}</span><span class="badge">${s === "fragile" ? `rests on ${esc(t.restsOn.join("/"))}` : s}</span></p>
         <p class="series">${t.series.join(" ")}</p>
       </article>`;
   }).join("");
@@ -126,15 +128,21 @@ export function page(report) {
   #hero .grid{stroke:var(--rule);stroke-width:1}
   #hero .raw{stroke:var(--ink3);stroke-width:1.5;stroke-linejoin:round}
   #hero .pt{fill:var(--ink3)} #hero .pt:last-of-type{fill:var(--ink)}
-  #hero .fit{stroke-width:2.5;stroke-linecap:round}
-  .falling #hero .fit,#hero.falling .fit{stroke:var(--falling)}
+  #hero .fit{stroke-width:2.5;stroke-linecap:round;stroke:var(--flatc)}
+  figure.falling #hero .fit{stroke:var(--falling)}
+  figure.rising #hero .fit{stroke:var(--rising)}
+  figure.fragile #hero .fit{stroke:var(--flatc);stroke-dasharray:6 4}
   .tick,.vlabel,.fitlabel{font-family:var(--mono);font-size:10px;fill:var(--ink3)}
-  .fitlabel{font-size:11px;fill:var(--falling)}
+  .fitlabel{font-size:11px;fill:var(--flatc)}
+  figure.falling .fitlabel{fill:var(--falling)}
+  figure.rising .fitlabel{fill:var(--rising)}
   .hit{fill:transparent;cursor:crosshair}
   figcaption{font-family:var(--mono);font-size:.72rem;color:var(--ink3);padding:8px 4px 4px;
              display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}
   .key{display:inline-block;width:14px;height:2px;vertical-align:middle;margin-right:5px;background:var(--ink3)}
-  .key.fit{height:2.5px;background:var(--falling)}
+  .key.fit{height:2.5px;background:var(--flatc)}
+  figure.falling .key.fit{background:var(--falling)}
+  figure.rising .key.fit{background:var(--rising)}
   #tip{position:fixed;pointer-events:none;opacity:0;transition:opacity .1s;background:var(--ink);
        color:var(--ground);font-family:var(--mono);font-size:.72rem;padding:6px 9px;border-radius:3px;z-index:9}
 
@@ -146,6 +154,12 @@ export function page(report) {
         border-left:3px solid transparent}
   .card.falling{border-left-color:var(--falling)}
   .card.rising{border-left-color:var(--rising)}
+  .card.fragile{border-left-color:var(--flatc);border-left-style:dashed}
+  .card.fragile .drift,.card.fragile .badge{color:var(--flatc)}
+  .card.fragile .spark .fit{stroke:var(--flatc);stroke-dasharray:4 3}
+  .fragile-note{margin:10px 4px 2px;font-size:.76rem;color:var(--ink2);max-width:60ch;
+                border-top:1px solid var(--rule);padding-top:10px}
+  .big.fragile em{color:var(--flatc)}
   .card header{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
   .card h3{font-size:.87rem;font-weight:500;margin:0}
   .drift{font-family:var(--mono);font-size:.87rem;font-variant-numeric:tabular-nums;color:var(--ink3)}
@@ -193,11 +207,12 @@ export function page(report) {
   </header>
 
   <section class="verdict">
-    <p class="big ${dir}">Overall is <em>${dir}</em>: ${overall.first.toFixed(1)} → ${overall.last.toFixed(1)} fitted, <em>${sign(overall.slope)}</em> a run.</p>
-    <p class="lede">Read the fitted line, not the last pair. Adjacent runs move ±3 on this instrument with no surface change — which is how a decline was read as flat for twelve waves.</p>
+    <p class="big falling">${falling.length} categor${falling.length === 1 ? "y is" : "ies are"} <em>falling</em> — and the overall score is not the evidence.</p>
+    <p class="lede">${falling.length} categories decline beyond their own noise <strong>and hold when any single run is removed</strong>. Overall fits at ${sign(overall.slope)} a run, ${overall.first.toFixed(1)} → ${overall.last.toFixed(1)}${dir === "fragile" ? `, but that verdict flips without ${esc(overall.restsOn.join(" or "))} — one run, on a host the record says was loaded. Treat the headline number as unproven and the categories as the finding.` : "."}</p>
     <figure class="${dir}">
       ${hero(overall, runs)}
       <figcaption><span><span class="key raw"></span>overall score, per run &nbsp; <span class="key fit"></span>fitted trend</span><span>drift ${sign(overall.drift)} · sd ${overall.sd.toFixed(2)} · mean ${overall.mean.toFixed(1)}</span></figcaption>
+      ${dir === "fragile" ? `<p class="fragile-note">This line's verdict rests on <strong>${esc(overall.restsOn.join(" / "))}</strong>: drop that run and the fit is ${sign(overall.slope)} → flat. The category verdicts below do not.</p>` : ""}
     </figure>
   </section>
 
@@ -207,7 +222,7 @@ export function page(report) {
   </section>
 
   <section>
-    <h2>${falling.length} categor${falling.length === 1 ? "y" : "ies"} falling beyond their own noise</h2>
+    <h2>Every category, sorted by drift — ${falling.length} falling, robust to dropping any run</h2>
     <div class="grid-cards">${cards}</div>
   </section>
 
@@ -222,7 +237,7 @@ export function page(report) {
   </details>
 
   <footer>
-    <p>A category is called <strong>falling</strong> or <strong>rising</strong> only when its drift across the series exceeds one standard deviation of that series — the bar the original correction set. Everything else reads flat. Nothing here says <em>why</em>; it says where to look.</p>
+    <p>A category is called <strong>falling</strong> or <strong>rising</strong> only when two things hold: its drift across the series exceeds one standard deviation of that series — the bar the original correction set — <em>and</em> the verdict survives leaving any single run out. A verdict that flips when one run is removed is marked <strong>rests on one run</strong> and is not counted. Everything else reads flat. Nothing here says <em>why</em>; it says where to look.</p>
     <p>N = 1 per version. Calibration runs, read for shape — not a ranking, and not a magnitude claim about any backend.</p>
     <p>Regenerate with <code>node benchmarks/scripts/score-trend.mjs</code> after every calibration.</p>
   </footer>

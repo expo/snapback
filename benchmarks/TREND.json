@@ -234,7 +234,11 @@
       "first": 90.43636363636364,
       "last": 87.76363636363637,
       "drift": -2.672727272727273,
-      "beyondNoise": true
+      "beyondNoise": true,
+      "robust": false,
+      "restsOn": [
+        "0.2.28"
+      ]
     },
     "setup_and_docs": {
       "series": [
@@ -255,7 +259,9 @@
       "first": 92.96363636363637,
       "last": 87.83636363636364,
       "drift": -5.127272727272727,
-      "beyondNoise": true
+      "beyondNoise": true,
+      "robust": true,
+      "restsOn": []
     },
     "data_modeling": {
       "series": [
@@ -276,7 +282,9 @@
       "first": 88.14545454545454,
       "last": 84.05454545454545,
       "drift": -4.090909090909091,
-      "beyondNoise": true
+      "beyondNoise": true,
+      "robust": true,
+      "restsOn": []
     },
     "authorization": {
       "series": [
@@ -297,7 +305,11 @@
       "first": 92.34545454545454,
       "last": 96.65454545454546,
       "drift": 4.309090909090909,
-      "beyondNoise": true
+      "beyondNoise": true,
+      "robust": false,
+      "restsOn": [
+        "0.2.16"
+      ]
     },
     "queries_and_live": {
       "series": [
@@ -318,7 +330,9 @@
       "first": 89.0909090909091,
       "last": 80.30909090909091,
       "drift": -8.781818181818181,
-      "beyondNoise": true
+      "beyondNoise": true,
+      "robust": true,
+      "restsOn": []
     },
     "writes_and_transactions": {
       "series": [
@@ -339,7 +353,9 @@
       "first": 94.14545454545456,
       "last": 94.25454545454546,
       "drift": 0.10909090909090909,
-      "beyondNoise": false
+      "beyondNoise": false,
+      "robust": true,
+      "restsOn": []
     },
     "offline_sync": {
       "series": [
@@ -360,7 +376,13 @@
       "first": 92,
       "last": 93.2,
       "drift": 1.2,
-      "beyondNoise": false
+      "beyondNoise": false,
+      "robust": false,
+      "restsOn": [
+        "0.2.16",
+        "0.2.22",
+        "0.2.26"
+      ]
     },
     "media_assets": {
       "series": [
@@ -381,7 +403,9 @@
       "first": 97.4909090909091,
       "last": 95.90909090909092,
       "drift": -1.5818181818181818,
-      "beyondNoise": true
+      "beyondNoise": true,
+      "robust": true,
+      "restsOn": []
     },
     "background_work": {
       "series": [
@@ -402,7 +426,13 @@
       "first": 93.67272727272727,
       "last": 91.32727272727273,
       "drift": -2.3454545454545457,
-      "beyondNoise": false
+      "beyondNoise": false,
+      "robust": false,
+      "restsOn": [
+        "0.2.16",
+        "0.2.25",
+        "0.2.26"
+      ]
     },
     "client_integration": {
       "series": [
@@ -423,7 +453,13 @@
       "first": 88.98181818181817,
       "last": 88.2181818181818,
       "drift": -0.7636363636363637,
-      "beyondNoise": false
+      "beyondNoise": false,
+      "robust": false,
+      "restsOn": [
+        "0.2.16",
+        "0.2.23",
+        "0.2.27"
+      ]
     },
     "diagnostics_dev_loop": {
       "series": [
@@ -444,7 +480,13 @@
       "first": 92.94545454545454,
       "last": 94.25454545454545,
       "drift": 1.309090909090909,
-      "beyondNoise": false
+      "beyondNoise": false,
+      "robust": false,
+      "restsOn": [
+        "0.2.16",
+        "0.2.19",
+        "0.2.21"
+      ]
     },
     "scale_and_limits": {
       "series": [
@@ -465,7 +507,9 @@
       "first": 89.4909090909091,
       "last": 75.90909090909092,
       "drift": -13.581818181818182,
-      "beyondNoise": true
+      "beyondNoise": true,
+      "robust": true,
+      "restsOn": []
     },
     "operations": {
       "series": [
@@ -486,7 +530,9 @@
       "first": 88.49090909090908,
       "last": 85.10909090909091,
       "drift": -3.381818181818182,
-      "beyondNoise": true
+      "beyondNoise": true,
+      "robust": true,
+      "restsOn": []
     }
   },
   "falling": [
@@ -496,5 +542,9 @@
     "data_modeling",
     "operations",
     "media_assets"
+  ],
+  "fragile": [
+    "overall",
+    "authorization"
   ]
 }

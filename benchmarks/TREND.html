@@ -40,15 +40,21 @@
   #hero .grid{stroke:var(--rule);stroke-width:1}
   #hero .raw{stroke:var(--ink3);stroke-width:1.5;stroke-linejoin:round}
   #hero .pt{fill:var(--ink3)} #hero .pt:last-of-type{fill:var(--ink)}
-  #hero .fit{stroke-width:2.5;stroke-linecap:round}
-  .falling #hero .fit,#hero.falling .fit{stroke:var(--falling)}
+  #hero .fit{stroke-width:2.5;stroke-linecap:round;stroke:var(--flatc)}
+  figure.falling #hero .fit{stroke:var(--falling)}
+  figure.rising #hero .fit{stroke:var(--rising)}
+  figure.fragile #hero .fit{stroke:var(--flatc);stroke-dasharray:6 4}
   .tick,.vlabel,.fitlabel{font-family:var(--mono);font-size:10px;fill:var(--ink3)}
-  .fitlabel{font-size:11px;fill:var(--falling)}
+  .fitlabel{font-size:11px;fill:var(--flatc)}
+  figure.falling .fitlabel{fill:var(--falling)}
+  figure.rising .fitlabel{fill:var(--rising)}
   .hit{fill:transparent;cursor:crosshair}
   figcaption{font-family:var(--mono);font-size:.72rem;color:var(--ink3);padding:8px 4px 4px;
              display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}
   .key{display:inline-block;width:14px;height:2px;vertical-align:middle;margin-right:5px;background:var(--ink3)}
-  .key.fit{height:2.5px;background:var(--falling)}
+  .key.fit{height:2.5px;background:var(--flatc)}
+  figure.falling .key.fit{background:var(--falling)}
+  figure.rising .key.fit{background:var(--rising)}
   #tip{position:fixed;pointer-events:none;opacity:0;transition:opacity .1s;background:var(--ink);
        color:var(--ground);font-family:var(--mono);font-size:.72rem;padding:6px 9px;border-radius:3px;z-index:9}
 
@@ -60,6 +66,12 @@
         border-left:3px solid transparent}
   .card.falling{border-left-color:var(--falling)}
   .card.rising{border-left-color:var(--rising)}
+  .card.fragile{border-left-color:var(--flatc);border-left-style:dashed}
+  .card.fragile .drift,.card.fragile .badge{color:var(--flatc)}
+  .card.fragile .spark .fit{stroke:var(--flatc);stroke-dasharray:4 3}
+  .fragile-note{margin:10px 4px 2px;font-size:.76rem;color:var(--ink2);max-width:60ch;
+                border-top:1px solid var(--rule);padding-top:10px}
+  .big.fragile em{color:var(--flatc)}
   .card header{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
   .card h3{font-size:.87rem;font-weight:500;margin:0}
   .drift{font-family:var(--mono);font-size:.87rem;font-variant-numeric:tabular-nums;color:var(--ink3)}
@@ -107,9 +119,9 @@
   </header>
 
   <section class="verdict">
-    <p class="big falling">Overall is <em>falling</em>: 90.4 → 87.8 fitted, <em>−0.3</em> a run.</p>
-    <p class="lede">Read the fitted line, not the last pair. Adjacent runs move ±3 on this instrument with no surface change — which is how a decline was read as flat for twelve waves.</p>
-    <figure class="falling">
+    <p class="big falling">6 categories are <em>falling</em> — and the overall score is not the evidence.</p>
+    <p class="lede">6 categories decline beyond their own noise <strong>and hold when any single run is removed</strong>. Overall fits at −0.3 a run, 90.4 → 87.8, but that verdict flips without 0.2.28 — one run, on a host the record says was loaded. Treat the headline number as unproven and the categories as the finding.</p>
+    <figure class="fragile">
       <svg id="hero" viewBox="0 0 720 260" role="img" aria-label="Overall score across 10 runs: 90, 91, 88, 91, 88, 88, 91, 90, 89, 85">
       <line class="grid" x1="48" y1="206.5" x2="700" y2="206.5" />
       <text class="tick" x="40" y="210.5" text-anchor="end">85</text><line class="grid" x1="48" y1="130" x2="700" y2="130" />
@@ -122,6 +134,7 @@
       <rect class="hit" x="30" y="18" width="36" height="224" data-i="0" data-v="0.2.16" data-s="90" data-d="2026-09-15" /><rect class="hit" x="102.44444444444444" y="18" width="36" height="224" data-i="1" data-v="0.2.19" data-s="91" data-d="2026-09-15" /><rect class="hit" x="174.88888888888889" y="18" width="36" height="224" data-i="2" data-v="0.2.21" data-s="88" data-d="2026-09-15" /><rect class="hit" x="247.33333333333331" y="18" width="36" height="224" data-i="3" data-v="0.2.22" data-s="91" data-d="2026-09-15" /><rect class="hit" x="319.77777777777777" y="18" width="36" height="224" data-i="4" data-v="0.2.23" data-s="88" data-d="2026-09-16" /><rect class="hit" x="392.22222222222223" y="18" width="36" height="224" data-i="5" data-v="0.2.24" data-s="88" data-d="2026-09-16" /><rect class="hit" x="464.66666666666663" y="18" width="36" height="224" data-i="6" data-v="0.2.25" data-s="91" data-d="2026-09-16" /><rect class="hit" x="537.1111111111111" y="18" width="36" height="224" data-i="7" data-v="0.2.26" data-s="90" data-d="2026-09-16" /><rect class="hit" x="609.5555555555555" y="18" width="36" height="224" data-i="8" data-v="0.2.27" data-s="89" data-d="2026-09-17" /><rect class="hit" x="682" y="18" width="36" height="224" data-i="9" data-v="0.2.28" data-s="85" data-d="2026-09-17" />
     </svg>
       <figcaption><span><span class="key raw"></span>overall score, per run &nbsp; <span class="key fit"></span>fitted trend</span><span>drift −2.7 · sd 1.81 · mean 89.1</span></figcaption>
+      <p class="fragile-note">This line's verdict rests on <strong>0.2.28</strong>: drop that run and the fit is −0.3 → flat. The category verdicts below do not.</p>
     </figure>
   </section>
 
@@ -131,7 +144,7 @@
   </section>
 
   <section>
-    <h2>6 categories falling beyond their own noise</h2>
+    <h2>Every category, sorted by drift — 6 falling, robust to dropping any run</h2>
     <div class="grid-cards"><article class="card falling">
         <header>
           <h3>scale and limits</h3>
@@ -264,7 +277,7 @@
     </svg>
         <p class="range"><span>93 → 94</span><span class="badge">flat</span></p>
         <p class="series">94 95 93 90 92 94 94 95 95 94</p>
-      </article><article class="card rising">
+      </article><article class="card fragile">
         <header>
           <h3>authorization</h3>
           <span class="drift">+4.3</span>
@@ -274,7 +287,7 @@
       <polyline class="fit" points="5,20.515151515151523 145,6.151515151515145" fill="none" />
       <circle class="end" cx="145" cy="11.666666666666666" r="3" />
     </svg>
-        <p class="range"><span>92 → 97</span><span class="badge">rising</span></p>
+        <p class="range"><span>92 → 97</span><span class="badge">rests on 0.2.16</span></p>
         <p class="series">88 97 91 96 95 95 96 97 95 95</p>
       </article></div>
   </section>
@@ -284,13 +297,13 @@
     <div class="tablewrap">
       <table>
         <thead><tr><th scope="col">category</th><th scope="col">0.2.16</th><th scope="col">0.2.19</th><th scope="col">0.2.21</th><th scope="col">0.2.22</th><th scope="col">0.2.23</th><th scope="col">0.2.24</th><th scope="col">0.2.25</th><th scope="col">0.2.26</th><th scope="col">0.2.27</th><th scope="col">0.2.28</th><th scope="col">/run</th><th scope="col">drift</th><th scope="col">sd</th><th scope="col">fit</th></tr></thead>
-        <tbody><tr class="falling"><th scope="row">scale and limits</th><td>88</td><td>91</td><td>85</td><td>84</td><td>79</td><td>80</td><td>87</td><td>83</td><td>85</td><td>65</td><td class="n">−1.5</td><td class="n">−13.6</td><td class="n">6.80</td><td>falling</td></tr><tr class="falling"><th scope="row">queries and live</th><td>91</td><td>89</td><td>84</td><td>91</td><td>82</td><td>78</td><td>86</td><td>82</td><td>83</td><td>81</td><td class="n">−1.0</td><td class="n">−8.8</td><td class="n">4.20</td><td>falling</td></tr><tr class="falling"><th scope="row">setup and docs</th><td>96</td><td>92</td><td>90</td><td>90</td><td>92</td><td>90</td><td>85</td><td>89</td><td>92</td><td>88</td><td class="n">−0.6</td><td class="n">−5.1</td><td class="n">2.76</td><td>falling</td></tr><tr class="falling"><th scope="row">data modeling</th><td>85</td><td>88</td><td>88</td><td>89</td><td>85</td><td>88</td><td>88</td><td>84</td><td>84</td><td>82</td><td class="n">−0.5</td><td class="n">−4.1</td><td class="n">2.26</td><td>falling</td></tr><tr class="falling"><th scope="row">operations</th><td>88</td><td>89</td><td>88</td><td>89</td><td>83</td><td>86</td><td>88</td><td>88</td><td>84</td><td>85</td><td class="n">−0.4</td><td class="n">−3.4</td><td class="n">2.04</td><td>falling</td></tr><tr class="flat"><th scope="row">background work</th><td>91</td><td>93</td><td>95</td><td>94</td><td>92</td><td>92</td><td>96</td><td>95</td><td>86</td><td>91</td><td class="n">−0.3</td><td class="n">−2.3</td><td class="n">2.73</td><td>flat</td></tr><tr class="falling"><th scope="row">media assets</th><td>97</td><td>98</td><td>97</td><td>97</td><td>96</td><td>96</td><td>98</td><td>97</td><td>96</td><td>95</td><td class="n">−0.2</td><td class="n">−1.6</td><td class="n">0.90</td><td>falling</td></tr><tr class="flat"><th scope="row">client integration</th><td>88</td><td>90</td><td>89</td><td>90</td><td>87</td><td>88</td><td>89</td><td>88</td><td>89</td><td>88</td><td class="n">−0.1</td><td class="n">−0.8</td><td class="n">0.92</td><td>flat</td></tr><tr class="flat"><th scope="row">writes and transactions</th><td>96</td><td>95</td><td>92</td><td>94</td><td>91</td><td>95</td><td>95</td><td>96</td><td>94</td><td>94</td><td class="n">+0.0</td><td class="n">+0.1</td><td class="n">1.54</td><td>flat</td></tr><tr class="flat"><th scope="row">offline sync</th><td>93</td><td>92</td><td>90</td><td>94</td><td>91</td><td>93</td><td>95</td><td>92</td><td>93</td><td>93</td><td class="n">+0.1</td><td class="n">+1.2</td><td class="n">1.36</td><td>flat</td></tr><tr class="flat"><th scope="row">diagnostics dev loop</th><td>94</td><td>95</td><td>93</td><td>90</td><td>92</td><td>94</td><td>94</td><td>95</td><td>95</td><td>94</td><td class="n">+0.1</td><td class="n">+1.3</td><td class="n">1.50</td><td>flat</td></tr><tr class="rising"><th scope="row">authorization</th><td>88</td><td>97</td><td>91</td><td>96</td><td>95</td><td>95</td><td>96</td><td>97</td><td>95</td><td>95</td><td class="n">+0.5</td><td class="n">+4.3</td><td class="n">2.69</td><td>rising</td></tr><tr class="falling"><th scope="row">overall</th><td>90</td><td>91</td><td>88</td><td>91</td><td>88</td><td>88</td><td>91</td><td>90</td><td>89</td><td>85</td><td class="n">−0.3</td><td class="n">−2.7</td><td class="n">1.81</td><td>falling</td></tr></tbody>
+        <tbody><tr class="falling"><th scope="row">scale and limits</th><td>88</td><td>91</td><td>85</td><td>84</td><td>79</td><td>80</td><td>87</td><td>83</td><td>85</td><td>65</td><td class="n">−1.5</td><td class="n">−13.6</td><td class="n">6.80</td><td>falling</td></tr><tr class="falling"><th scope="row">queries and live</th><td>91</td><td>89</td><td>84</td><td>91</td><td>82</td><td>78</td><td>86</td><td>82</td><td>83</td><td>81</td><td class="n">−1.0</td><td class="n">−8.8</td><td class="n">4.20</td><td>falling</td></tr><tr class="falling"><th scope="row">setup and docs</th><td>96</td><td>92</td><td>90</td><td>90</td><td>92</td><td>90</td><td>85</td><td>89</td><td>92</td><td>88</td><td class="n">−0.6</td><td class="n">−5.1</td><td class="n">2.76</td><td>falling</td></tr><tr class="falling"><th scope="row">data modeling</th><td>85</td><td>88</td><td>88</td><td>89</td><td>85</td><td>88</td><td>88</td><td>84</td><td>84</td><td>82</td><td class="n">−0.5</td><td class="n">−4.1</td><td class="n">2.26</td><td>falling</td></tr><tr class="falling"><th scope="row">operations</th><td>88</td><td>89</td><td>88</td><td>89</td><td>83</td><td>86</td><td>88</td><td>88</td><td>84</td><td>85</td><td class="n">−0.4</td><td class="n">−3.4</td><td class="n">2.04</td><td>falling</td></tr><tr class="flat"><th scope="row">background work</th><td>91</td><td>93</td><td>95</td><td>94</td><td>92</td><td>92</td><td>96</td><td>95</td><td>86</td><td>91</td><td class="n">−0.3</td><td class="n">−2.3</td><td class="n">2.73</td><td>flat</td></tr><tr class="falling"><th scope="row">media assets</th><td>97</td><td>98</td><td>97</td><td>97</td><td>96</td><td>96</td><td>98</td><td>97</td><td>96</td><td>95</td><td class="n">−0.2</td><td class="n">−1.6</td><td class="n">0.90</td><td>falling</td></tr><tr class="flat"><th scope="row">client integration</th><td>88</td><td>90</td><td>89</td><td>90</td><td>87</td><td>88</td><td>89</td><td>88</td><td>89</td><td>88</td><td class="n">−0.1</td><td class="n">−0.8</td><td class="n">0.92</td><td>flat</td></tr><tr class="flat"><th scope="row">writes and transactions</th><td>96</td><td>95</td><td>92</td><td>94</td><td>91</td><td>95</td><td>95</td><td>96</td><td>94</td><td>94</td><td class="n">+0.0</td><td class="n">+0.1</td><td class="n">1.54</td><td>flat</td></tr><tr class="flat"><th scope="row">offline sync</th><td>93</td><td>92</td><td>90</td><td>94</td><td>91</td><td>93</td><td>95</td><td>92</td><td>93</td><td>93</td><td class="n">+0.1</td><td class="n">+1.2</td><td class="n">1.36</td><td>flat</td></tr><tr class="flat"><th scope="row">diagnostics dev loop</th><td>94</td><td>95</td><td>93</td><td>90</td><td>92</td><td>94</td><td>94</td><td>95</td><td>95</td><td>94</td><td class="n">+0.1</td><td class="n">+1.3</td><td class="n">1.50</td><td>flat</td></tr><tr class="fragile"><th scope="row">authorization</th><td>88</td><td>97</td><td>91</td><td>96</td><td>95</td><td>95</td><td>96</td><td>97</td><td>95</td><td>95</td><td class="n">+0.5</td><td class="n">+4.3</td><td class="n">2.69</td><td>fragile</td></tr><tr class="fragile"><th scope="row">overall</th><td>90</td><td>91</td><td>88</td><td>91</td><td>88</td><td>88</td><td>91</td><td>90</td><td>89</td><td>85</td><td class="n">−0.3</td><td class="n">−2.7</td><td class="n">1.81</td><td>fragile</td></tr></tbody>
       </table>
     </div>
   </details>
 
   <footer>
-    <p>A category is called <strong>falling</strong> or <strong>rising</strong> only when its drift across the series exceeds one standard deviation of that series — the bar the original correction set. Everything else reads flat. Nothing here says <em>why</em>; it says where to look.</p>
+    <p>A category is called <strong>falling</strong> or <strong>rising</strong> only when two things hold: its drift across the series exceeds one standard deviation of that series — the bar the original correction set — <em>and</em> the verdict survives leaving any single run out. A verdict that flips when one run is removed is marked <strong>rests on one run</strong> and is not counted. Everything else reads flat. Nothing here says <em>why</em>; it says where to look.</p>
     <p>N = 1 per version. Calibration runs, read for shape — not a ranking, and not a magnitude claim about any backend.</p>
     <p>Regenerate with <code>node benchmarks/scripts/score-trend.mjs</code> after every calibration.</p>
   </footer>

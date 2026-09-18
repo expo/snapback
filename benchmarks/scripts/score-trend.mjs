@@ -77,11 +77,34 @@ if (runs.length < 2) { console.error(`score-trend: found ${runs.length} runs; ne
 const categories = [...new Set(runs.flatMap(r => Object.keys(r.scores)))]
   .filter(c => runs.every(r => typeof r.scores[c] === "number"));
 
+/** The verdict a series earns: its direction, or "flat" when the drift is inside its own noise. */
+function verdict(t) { return !t || !t.beyondNoise ? "flat" : t.slope < 0 ? "falling" : "rising"; }
+
+// A page about not being fooled by one run must not itself be fooled by one run.
+// Leave each run out in turn: if the verdict flips without it, the verdict rests
+// on that run and says so. This is general, not a patch for any particular run.
+function robustness(series, versions) {
+  const full = verdict(fit(series));
+  const rests = [];
+  for (let i = 0; i < series.length; i++) {
+    const without = series.filter((_, j) => j !== i);
+    if (verdict(fit(without)) !== full) rests.push(versions[i]);
+  }
+  return { robust: rests.length === 0, restsOn: rests };
+}
+
+const versions = runs.map(r => r.version);
 const trends = {};
-for (const c of categories) trends[c] = { series: runs.map(r => r.scores[c]), ...fit(runs.map(r => r.scores[c])) };
+for (const c of categories) {
+  const series = runs.map(r => r.scores[c]);
+  trends[c] = { series, ...fit(series), ...robustness(series, versions) };
+}
 
 const falling = categories
-  .filter(c => c !== "overall" && trends[c].slope < 0 && trends[c].beyondNoise)
+  .filter(c => c !== "overall" && trends[c].slope < 0 && trends[c].beyondNoise && trends[c].robust)
+  .sort((a, b) => trends[a].drift - trends[b].drift);
+const fragile = categories
+  .filter(c => trends[c].beyondNoise && !trends[c].robust)
   .sort((a, b) => trends[a].drift - trends[b].drift);
 
 const report = {
@@ -91,6 +114,7 @@ const report = {
   runs: runs.map(({ run, date, version, family, scores }) => ({ run, date, version, family, scores })),
   categories: trends,
   falling,
+  fragile,
 };
 
 writeFileSync(join(root, "benchmarks/TREND.json"), JSON.stringify(report, null, 2) + "\n");
@@ -98,7 +122,7 @@ writeFileSync(join(root, "benchmarks/TREND.json"), JSON.stringify(report, null, 
 const n = runs.length;
 const o = trends.overall;
 const sign = v => (v >= 0 ? "+" : "") + v.toFixed(1);
-const arrow = t => (!t.beyondNoise ? "flat" : t.slope < 0 ? "falling" : "rising");
+const arrow = t => (!t.beyondNoise ? "flat" : !t.robust ? "rests on one run" : t.slope < 0 ? "falling" : "rising");
 
 const lines = [];
 lines.push("# Calibration trend");
@@ -119,8 +143,14 @@ for (const c of ["overall", ...categories.filter(x => x !== "overall").sort((a, 
   lines.push(`| ${name} | ${t.series.join(" ")} | ${t.first.toFixed(0)} → ${t.last.toFixed(0)} | ${sign(t.slope)} | ${sign(t.drift)} | ${arrow(t)} |`);
 }
 lines.push("");
+if (fragile.length) {
+  lines.push("## Verdicts that rest on a single run");
+  lines.push("");
+  for (const c of fragile) lines.push(`- **${c}** reads ${trends[c].slope < 0 ? "falling" : "rising"} at ${sign(trends[c].drift)}, but the verdict flips without ${trends[c].restsOn.join(" or ")}. Treat it as unproven until another run lands.`);
+  lines.push("");
+}
 if (falling.length) {
-  lines.push(`## Falling beyond the noise: ${falling.length}`);
+  lines.push(`## Falling beyond the noise, and robust to any single run: ${falling.length}`);
   lines.push("");
   for (const c of falling) lines.push(`- **${c}** ${trends[c].first.toFixed(0)} → ${trends[c].last.toFixed(0)} (${sign(trends[c].drift)} over ${n} runs, sd ${trends[c].sd.toFixed(2)})`);
   lines.push("");
