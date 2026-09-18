@@ -40687,3 +40687,56 @@ Final verification for this entry: `cargo test -p snapback4-device` passes
 `bash snapback4/scripts/test.sh` reports `1 failure(s) in 235 s`: **wasm build**
 only. All tests and README coverage pass. The report links the four complete,
 verbatim transcripts and retains the earlier stale-expectation run separately.
+
+## 2026-09-18 — Repair B lands: a confirmed image may not carry a write the acknowledgements do not
+
+A sync page's events are cut at its watermark while its images are read at the
+server's log head, so a relative update committed in between sat inside the image
+and outside the acknowledgement, and replay applied it twice: a counter read 3
+against a server that never held above 2.
+
+The page now carries `images_at`, the server reports `committed_above` from the
+same lookup that builds `acknowledged`, and a page whose images contain one of
+this device's own replayable writes publishes **nothing** — row effects, non-row
+effects, acknowledgements and the published watermark defer together into a
+durable slot while a separate transfer cursor advances. The first page without
+that property installs the accumulation, applies itself, moves the published
+watermark, applies the accumulated and current acknowledgements, and replays. It
+terminates by construction: `stream` raises `next` to `head` when `more` is
+false, so a final page always has `watermark == images_at` and cannot defer.
+
+Two proposed mechanisms were refused by the implementation lane before this one,
+each with an executed counterexample on both stores, and both are kept as
+regressions. Deferring per row by each entry's recorded write set fails because a
+page can change what a replay writes. Deferring images while the watermark and
+acknowledgements still advance fails because a prediction then retires before its
+effect reaches the base. A third refusal found the 256 pending-id cap, which
+drops acknowledgements silently and replays a write over its own effect
+permanently — a pre-existing defect reproduced on main with no repair applied,
+now guarded here by not replaying what could not be declared, and ticketed for
+declaration pagination.
+
+Seventeen review rounds across two model families found no counterexample to the
+mechanism. What they did find, over and over, was one fact with two
+representations, or a lifetime not bound to one request, one incarnation or one
+publication. The rule that closed the second class is worth keeping: *nothing
+fallible may run between an authoritative commit and the invalidation it
+implies.* Both families returned READY on the final round.
+
+Integration onto main was not free. Upstream's indivisible-commit snapshot
+recovery deadlocked against the lane's refusal to replace while deferred effects
+remained — the required drain is impossible for a commit that cannot stream — so
+a replacement now atomically disposes of the deferred slot and its
+acknowledgements instead of refusing, which is the branch the lane's own first
+review had offered. The client's snapshot continuations request `from: 0` with
+their `after` token, and overflow observation no longer turns an event cut into
+false, durable restore evidence.
+
+The wasm budget rises from 411,000 to 434,000 B gzip under the 2026-09-18
+ratchet ruling. Measured 433,908 B against main's 410,459. Attributed by ordered
+ablation: deferred slot and recording 10,824 B; capture/declaration 6,889 B;
+restore evidence 1,654 B; wasm opening 1,218 B; shared remainder 5,550 B. 2,686 B
+were reclaimed before raising. The remaining 23,449 B is about 21.3% of the
+diet's recovered bytes and is tracked in
+`issues/20260918-snapback4-repair-b-device-bytes.md`.
+
