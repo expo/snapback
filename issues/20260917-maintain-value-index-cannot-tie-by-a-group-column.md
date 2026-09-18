@@ -75,3 +75,29 @@ form that needs no maintain table at all: with ruling 29 (built, W13c) and rulin
 `by byHourLikes: hour(.at), likeCount, at, id` — whose ties are whatever the author writes.
 Option 2 is declined (it makes an id order meaningful that the cards call opaque); option 3
 is what ships until one of the other two does.
+
+## Ruling (the author, 2026-09-18; LLP 3000.007 §14 ruling 39)
+
+**Not option 1.** The value index is not widened. The author ruled for
+**LLP 3000.007.001 (maintained columns), now Accepted and to be built** — the
+fourth path this ticket's disposition named. As a column of the row it
+describes, `likeCount: count likes by postId` makes the ranking an ordinary
+index on the parent, `by byLikes: likeCount, at, id`, whose ties are whatever
+the author writes. "Equal scores, newest first" becomes expressible without any
+new index rule.
+
+So this limit is **retired with the form, not relaxed within it**. Option 1
+would have restated the index rule as a longer rule; the accepted design deletes
+a concept and §20.20's caveats with it. Option 2 stays declined. Option 3 is
+what has shipped, and is what three consecutive builders answered by hand-keeping
+a `posts.score` with `update <- allow`.
+
+This ticket stays **open** until the maintained-columns first build lands, since
+until then option 3 is still what ships and the handwritten score is still the
+paved answer. It closes when a maintained ranking can tie newest-first, not when
+the design is accepted.
+
+Prerequisites, unchanged by acceptance: gate 5 is the lane's milestone zero, and
+`issues/20260917-snapback4-oversized-sync-page-hides-generation.md` is a
+prerequisite of the first build (§3.11) and is still open. Gates 1 and 2 are
+measured and pass.
