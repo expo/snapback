@@ -1,0 +1,1656 @@
+{
+ "at": "2026-09-18T08:14:35.968Z",
+ "run": 1,
+ "version": "0.2.29",
+ "model": "gpt-6-astra",
+ "effort": "medium",
+ "lane": "/Users/ccheever/projects/snapback-boundsbar-after/runs/run-1",
+ "packet": {
+  "bounds-brief.md": "2946a03a321511aedd7640e2c4298694d99f2b6ffcca44b61d16a96edf7269ba",
+  "bounds.mjs": "43404e0a4787a4d592a04560cb93302c86cf5a7ca6961e59d1328b87ddd236b6",
+  "bounds-seed.mjs": "c86c923e8bbbaf37d18d542c59f7fa704fe9c298238d764796a087fb32989606",
+  "bounds-metrics.mjs": "1929aa8face38d5875940d9752ae7436733d7140c2b7205bcd4707dbee876589",
+  "bounds-probes.mjs": "bbe1e646107dece3bfd8e8baac4bfaf616119854571c586ce2de433ee7ff7a74",
+  "ceremony-metrics.mjs": "b28f07761b4ad821d3ce16e466034c7bcc41547acac662aacccf02ab35ce2828",
+  "ceremony-process.mjs": "59b725fe8317c6a5124dd9b04a4dda9c955727ffc5e00df5df85ac4ee5948f1d",
+  "run.mjs": "45347dc802b62e8ccf9d9c5cb8f1b28d4fe3a283c7c24d3d085517ed44bf1e00"
+ },
+ "node": "v24.18.0",
+ "limitSeconds": 3600,
+ "host": {
+  "name": "Charlies-MacBook-Pro-M5Max-Black.local",
+  "platform": "darwin",
+  "arch": "arm64",
+  "cpus": 18,
+  "cpu": "Apple M5 Max",
+  "sharedAndLoaded": true
+ },
+ "loadAverages": [
+  {
+   "phase": "start",
+   "at": "2026-09-18T08:14:35.969Z",
+   "values": [
+    51.71484375,
+    34.10498046875,
+    34.18994140625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-18T08:15:05.972Z",
+   "values": [
+    51.76953125,
+    35.7099609375,
+    34.76220703125
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-18T08:15:35.978Z",
+   "values": [
+    57.94189453125,
+    38.8720703125,
+    35.9482421875
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-18T08:16:05.980Z",
+   "values": [
+    59.17138671875,
+    40.8720703125,
+    36.7666015625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-18T08:16:35.983Z",
+   "values": [
+    56.57080078125,
+    42.0361328125,
+    37.33251953125
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-18T08:17:05.984Z",
+   "values": [
+    74.49560546875,
+    47.18310546875,
+    39.3251953125
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-18T08:17:35.984Z",
+   "values": [
+    61.8115234375,
+    46.7421875,
+    39.4384765625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-18T08:18:05.986Z",
+   "values": [
+    57.146484375,
+    47.0126953125,
+    39.7861328125
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-18T08:18:35.987Z",
+   "values": [
+    62.68017578125,
+    49.2451171875,
+    40.806640625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-18T08:19:05.990Z",
+   "values": [
+    74.0087890625,
+    53.07861328125,
+    42.4765625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-18T08:19:36.011Z",
+   "values": [
+    71.501953125,
+    54.46728515625,
+    43.39208984375
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-18T08:20:06.013Z",
+   "values": [
+    57.36328125,
+    52.60498046875,
+    43.09619140625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-18T08:20:36.018Z",
+   "values": [
+    53.70361328125,
+    52.18994140625,
+    43.27490234375
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-18T08:21:06.019Z",
+   "values": [
+    60.4169921875,
+    53.86865234375,
+    44.18505859375
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-18T08:21:36.021Z",
+   "values": [
+    64.9560546875,
+    55.45703125,
+    45.087890625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-18T08:22:06.023Z",
+   "values": [
+    60.5732421875,
+    55.095703125,
+    45.30322265625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-18T08:22:36.023Z",
+   "values": [
+    62.052734375,
+    55.9619140625,
+    45.95556640625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-18T08:23:06.025Z",
+   "values": [
+    59.4404296875,
+    55.91357421875,
+    46.28466796875
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-18T08:23:36.026Z",
+   "values": [
+    63.7734375,
+    57.3828125,
+    47.15478515625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-18T08:24:06.027Z",
+   "values": [
+    67.5517578125,
+    58.970703125,
+    48.0869140625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-18T08:24:36.028Z",
+   "values": [
+    70.470703125,
+    60.56591796875,
+    49.04541015625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-18T08:25:06.030Z",
+   "values": [
+    70.2216796875,
+    61.31005859375,
+    49.70556640625
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-18T08:25:36.031Z",
+   "values": [
+    69.7255859375,
+    62.06884765625,
+    50.38330078125
+   ]
+  },
+  {
+   "phase": "running",
+   "at": "2026-09-18T08:26:06.033Z",
+   "values": [
+    70.0244140625,
+    62.7783203125,
+    50.97802734375
+   ]
+  },
+  {
+   "phase": "finish",
+   "at": "2026-09-18T08:26:30.499Z",
+   "values": [
+    70.40087890625,
+    63.37548828125,
+    51.5302734375
+   ]
+  }
+ ],
+ "green": true,
+ "measurementComplete": true,
+ "installSeconds": 2.728,
+ "installedBefore": {
+  "version": "0.2.29",
+  "platformVersion": "0.2.29",
+  "binarySha256": "fede2fce31ac4c3524b2e9dc9e491a839c11b3fd35972f99169768e61195be55",
+  "readmeSha256": "d54f748d0974de565979af063ecda71f0d07d2254d82767f40da6c21174c2287",
+  "files": {
+   "snapback4/CLIENT-AND-OPERATIONS.md": "94373c62199c0f1c6fa85bb4ecf82566b1a340adc578a3038518b57f4cc4a6ba",
+   "snapback4/README.md": "d54f748d0974de565979af063ecda71f0d07d2254d82767f40da6c21174c2287",
+   "snapback4/SERVER.md": "bcb5e1c8eaf84a91cc039147323aeb6edda524863af44c401b95dbd62d8116fc",
+   "snapback4/bin/snapback4.js": "ab3143f12e619767a15f84f3d2c5be28f334ff8e74661154f110146dcc8cb28e",
+   "snapback4/dist/actions.d.ts": "ce305ccf3689b611e0600ce876ffee64869c3f82619d16c794c6ba90b4467107",
+   "snapback4/dist/actions.js": "6c956c2f35f0284919f72b912855efc36660a310143c1aaadc41e6e63ee77851",
+   "snapback4/dist/assets.d.ts": "f84ce3015b7c47f3dd87afd5bac0e3f7be619d0cc1b2ae449c0b1ed9bea20db1",
+   "snapback4/dist/assets.js": "a10aace0f780ec74566edae5af6376064a72fd4b0a00145709f4783c67cc2305",
+   "snapback4/dist/auth.d.ts": "0d3dd55be6ac341fa3049f09b9675835ea86b760694f9031795750eaec076e39",
+   "snapback4/dist/auth.js": "f6241d44c661801ac4eb777f054e32559531792de84706ad0282ddc514cc4b89",
+   "snapback4/dist/backend.d.ts": "d4dc5d213915fbb2d4e4f25109175035be7aa77d2916c568afe86c44ec8d0a7b",
+   "snapback4/dist/backend.js": "8299ad97953f8961afa8f6c26ef6d702901c24700ff635da6cc20995fc4e16c5",
+   "snapback4/dist/changes.d.ts": "4cab767f3840003572ca46f66a5258b7d3503a8b225c9739cea67592fd66f616",
+   "snapback4/dist/changes.js": "38fc0963871207ec9559340c432d035e244a422ca74a225e50bbe62946a70193",
+   "snapback4/dist/client.d.ts": "96f37c6164dd317da5cf0186ec785039ea2e83d2546d5f72096f9bf514ad0e0d",
+   "snapback4/dist/client.js": "186fd2bf1f554e66c8cb158f2d3e9ed7182da106a10f43371c3182b05f49120d",
+   "snapback4/dist/contract.d.ts": "f99b0b94ebe781fd2e3c294a578a515d3f6352ddeaaabbb449e2cde230e6bc0a",
+   "snapback4/dist/contract.js": "f6cf12bf9fb92092db3e1da11839efa019592fbc0f71a9c0e4b54920be58432e",
+   "snapback4/dist/identity-principal.d.ts": "b958416ddbb9c7dcb5c012a01d65e9db0b34f7bb16772a61256cea8f00dc292a",
+   "snapback4/dist/identity-principal.js": "a35f603cda2ce1425866918789e7ac393b7c5f554d0c0f80a72b8474a6a64fb3",
+   "snapback4/dist/identity-runtime.d.ts": "0300728d25d5756351abaf52a6eddd05ac793e362508b2024dd9dafc277ffc06",
+   "snapback4/dist/identity-runtime.js": "42813b8fe7a9161a18f5c5adf28ab8814d087af2f1a2df9d161e8749d80d05b8",
+   "snapback4/dist/identity.d.ts": "0076ca49161229651dfbaf5b0481afca547960ff3ceb73a3484b39c3a1873c88",
+   "snapback4/dist/identity.js": "8274f2498c5a2f92f731a686a847d2e49828d7e7a072da3654522964d699ac33",
+   "snapback4/dist/local-assets.d.ts": "f5222340dc8d735039259884a374163e0a24a958357d41ba7d4b0ea6151c3e99",
+   "snapback4/dist/local-assets.js": "eedc7b4830b021ba3f10eb641c90c122e8a2b176fbff4a52a24b64599e8a69a4",
+   "snapback4/dist/local-exit.d.ts": "0e1ceb6f03b174137fb04529f90c1e3a88da26c5be41a588723d493245408944",
+   "snapback4/dist/local-exit.js": "90bbbe7eedd320379cd43d4a9958734817aba2ba7a10d6c7df361f07236c8f8e",
+   "snapback4/dist/local.d.ts": "853d8fd8bcf4b301c03005220b05e4fa626c6012edde136f4274de1f881daf93",
+   "snapback4/dist/local.js": "6212e0d672677e22daae9c73f670fff350a9070bbd9167557525f8ef03454c14",
+   "snapback4/dist/mock.d.ts": "de0143199a5d2f0ca5c3a54fb82429a124dee9bc43240224b57763acb0718283",
+   "snapback4/dist/mock.js": "d261283da91dbf377c7eb78cd17dc04421a4a759c467b21c1ea9e8ac06545843",
+   "snapback4/dist/native.d.ts": "145c523a9dc33a289ae0a8b166e73a9e30ccb1173df1ab651ae49601e8955fe5",
+   "snapback4/dist/native.js": "6ebf24ff26e0d3799b8a06eef5f4997497da6312a7478af7afea3ded2ffa746d",
+   "snapback4/dist/react.d.ts": "c7cc3cf7a1ae8636fba37dcd4f61a86931e096f4844e9b05c8d3bc5c1d9d3eb6",
+   "snapback4/dist/react.js": "66c25ffdb083eaa11908d29422f0be00944d598f161b6a024d566cfc08f889be",
+   "snapback4/dist/resolve-binary.d.ts": "59826e051e70ec698baa25150b475ae41c34e9f40aba5314ee0f0ee242558662",
+   "snapback4/dist/resolve-binary.js": "670be36d22fc4eb9576b4930d9984327a83ec2152cd22e3e82a1a64bdbc08d32",
+   "snapback4/dist/server-context.d.ts": "91cbb79b036e82b999f3fa47ec999419ef357c4837bd7bd632620793b0e84b54",
+   "snapback4/dist/server-context.js": "0e74f724bd6c3992af4da135918975f134ab1863d0d4415f708224bce689fb1e",
+   "snapback4/dist/server-effect-context.d.ts": "dff3ac2a5ea63874564f76b205a51ff3a5b34e05a81d5f6239128337510ebd7e",
+   "snapback4/dist/server-effect-context.js": "9f68bf4a26c7e908d0fa7586925ef199011280d88539126747cf2de9e5893096",
+   "snapback4/dist/server-json.d.ts": "bd03145d453c385c8f7e856d49f1441975485d56102cab348a28bb2d0cc18040",
+   "snapback4/dist/server-json.js": "1e4acc80035d8704411ee0540548be36ffdd7220f009ae39890f5004c4fd8c6d",
+   "snapback4/dist/server-lifetime.d.ts": "5b4715d6bb19e064c6ccbdb7476b4b45c67c575217688d79a97cbfc6529263b5",
+   "snapback4/dist/server-lifetime.js": "d9f355b440a5a0563cb4292086b4b7ea08eb93ad9c4b77751836e8dd7d3a27d4",
+   "snapback4/dist/server-private.d.ts": "68988cd0dbfdcdf95722ff94124b64e70f5ea661d48c03517dd34cf983cf35ad",
+   "snapback4/dist/server-private.js": "4fe7b6215d386d3e8e435ffc414da65d50352da51e1edef129eeb1ecb8683764",
+   "snapback4/dist/server-routes.d.ts": "25139e1db2ab9d306d7bc0426e7736c0b81faa06a58188d97df20aeca0990ec5",
+   "snapback4/dist/server-routes.js": "da1c584ba69689dc051aca95dbe5bab449f0bb3ea470dc9b1fd0dfa54d2b5d6f",
+   "snapback4/dist/server-steps.d.ts": "e6db4bc63900f730a61f6d6d0c1baee2a8eb09a0d4b03fc05dd078afd0ead22a",
+   "snapback4/dist/server-steps.js": "a6afd5cf18580e3c101d8c6d5ee56e97b8f9f7069f14f7293f864a2ca7e8d2bc",
+   "snapback4/dist/server-verify.d.ts": "0ed6ea09fae341c3fac4014144b391949b0655eca9df8e8398e447684bc2b49b",
+   "snapback4/dist/server-verify.js": "e00ba3aecb9d6b5a8fcec618a429cb60f50ba8beda664b254fe68a72ecaf26ea",
+   "snapback4/dist/server.d.ts": "c784f4d720d78898b16084b63376353bc5327a9e8e96129e2ae53eb53cba1518",
+   "snapback4/dist/server.js": "4b619af1b5c29ce7ba057896a39ea3675531dcd5a30d77930eb2d43a96d3a17d",
+   "snapback4/dist/wasm/snapback4_device.d.ts": "a8a2121a30d82e5ba3fb886503cd411d6bbc10874d06512e59524afdec11ac3a",
+   "snapback4/dist/wasm/snapback4_device.js": "243c37b7b8f84a63c0bae1415c548c7b845624d27b90f98a97483cd0144645de",
+   "snapback4/dist/wasm/snapback4_device_bg.wasm": "278d389957cc1895469de31b70a33ddfc82a842559dc60478fd6560dcc7b6fbc",
+   "snapback4/dist/wasm/snapback4_device_bg.wasm.d.ts": "106851e130519176f76b81bf51a50994118639634da43ec4cd337d69dc65be1c",
+   "snapback4/dist/web-journal.d.ts": "8e633d7667219dabf65d68bea101112a66323518ace5d924ca8e7d96f98bac8a",
+   "snapback4/dist/web-journal.js": "ad70145d020ddc365af39d03392d6366a354696496844fc36fae7dd229e20eb5",
+   "snapback4/dist/web.d.ts": "09b8d60e56bedd4ec03468bacd780a926c84c3281a420fd652b98152bd1931a7",
+   "snapback4/dist/web.js": "0fbcd4a63cca6e5ffa1546185398106a983f00c46b0cec06795850fe221c0388",
+   "snapback4/dist/worker.d.ts": "26e726fc63cf127272f8ad3e375cc2f475191d2699d5ab5eb647fdc10233de94",
+   "snapback4/dist/worker.js": "4be60317cdd4664909b502206a9fc51b17364faf9d440927c6298e6ad215194d",
+   "snapback4/dist/writes.d.ts": "c9fa0e262328d502ac3a0aa4c1e6fa2d3825f72ab5e27f0e98c3e3e0b2e678ff",
+   "snapback4/dist/writes.js": "a193bde3dab85450a63a82a1668f04c3d66bb72205d475c4bebe1ca95e7949eb",
+   "snapback4/package.json": "e7350b92dbe85396508787b2a9d72fc629ab01ea8e96b63464cc9b2ad1f8ace3",
+   "snapback4-darwin-arm64/THIRD-PARTY-NOTICES": "d84e3606f01a2c5ccd214cb3459fb1d0f798a9a6e1f2f50f49097f834209ff10",
+   "snapback4-darwin-arm64/package.json": "9c49a96a002ff256542b275fdd50a648c778fec37d04dd37ca8f51db734e136b",
+   "snapback4-darwin-arm64/snapback4": "fede2fce31ac4c3524b2e9dc9e491a839c11b3fd35972f99169768e61195be55"
+  },
+  "packageLockSha256": "7e84da70978c67a85330683162dccb46eb1edd1d7ae07fedec6cbfd8e9a0d306"
+ },
+ "invocation": {
+  "command": "/Users/ccheever/.volta/bin/codex",
+  "args": [
+   "exec",
+   "--dangerously-bypass-approvals-and-sandbox",
+   "--skip-git-repo-check",
+   "--json",
+   "--color",
+   "never",
+   "-m",
+   "gpt-6-astra",
+   "-c",
+   "model_reasoning_effort=medium",
+   "-C",
+   "/Users/ccheever/projects/snapback-boundsbar-after/runs/run-1",
+   "-o",
+   "/Users/ccheever/projects/snapback-boundsbar-after/runs/run-1/FINAL.md",
+   "-"
+  ]
+ },
+ "agentPid": 64309,
+ "agentWallSeconds": 642.187,
+ "wallSeconds": 644.933,
+ "exitCode": 0,
+ "exitSignal": null,
+ "timedOut": false,
+ "agentError": null,
+ "installedAfter": {
+  "version": "0.2.29",
+  "platformVersion": "0.2.29",
+  "binarySha256": "fede2fce31ac4c3524b2e9dc9e491a839c11b3fd35972f99169768e61195be55",
+  "readmeSha256": "d54f748d0974de565979af063ecda71f0d07d2254d82767f40da6c21174c2287",
+  "files": {
+   "snapback4/CLIENT-AND-OPERATIONS.md": "94373c62199c0f1c6fa85bb4ecf82566b1a340adc578a3038518b57f4cc4a6ba",
+   "snapback4/README.md": "d54f748d0974de565979af063ecda71f0d07d2254d82767f40da6c21174c2287",
+   "snapback4/SERVER.md": "bcb5e1c8eaf84a91cc039147323aeb6edda524863af44c401b95dbd62d8116fc",
+   "snapback4/bin/snapback4.js": "ab3143f12e619767a15f84f3d2c5be28f334ff8e74661154f110146dcc8cb28e",
+   "snapback4/dist/actions.d.ts": "ce305ccf3689b611e0600ce876ffee64869c3f82619d16c794c6ba90b4467107",
+   "snapback4/dist/actions.js": "6c956c2f35f0284919f72b912855efc36660a310143c1aaadc41e6e63ee77851",
+   "snapback4/dist/assets.d.ts": "f84ce3015b7c47f3dd87afd5bac0e3f7be619d0cc1b2ae449c0b1ed9bea20db1",
+   "snapback4/dist/assets.js": "a10aace0f780ec74566edae5af6376064a72fd4b0a00145709f4783c67cc2305",
+   "snapback4/dist/auth.d.ts": "0d3dd55be6ac341fa3049f09b9675835ea86b760694f9031795750eaec076e39",
+   "snapback4/dist/auth.js": "f6241d44c661801ac4eb777f054e32559531792de84706ad0282ddc514cc4b89",
+   "snapback4/dist/backend.d.ts": "d4dc5d213915fbb2d4e4f25109175035be7aa77d2916c568afe86c44ec8d0a7b",
+   "snapback4/dist/backend.js": "8299ad97953f8961afa8f6c26ef6d702901c24700ff635da6cc20995fc4e16c5",
+   "snapback4/dist/changes.d.ts": "4cab767f3840003572ca46f66a5258b7d3503a8b225c9739cea67592fd66f616",
+   "snapback4/dist/changes.js": "38fc0963871207ec9559340c432d035e244a422ca74a225e50bbe62946a70193",
+   "snapback4/dist/client.d.ts": "96f37c6164dd317da5cf0186ec785039ea2e83d2546d5f72096f9bf514ad0e0d",
+   "snapback4/dist/client.js": "186fd2bf1f554e66c8cb158f2d3e9ed7182da106a10f43371c3182b05f49120d",
+   "snapback4/dist/contract.d.ts": "f99b0b94ebe781fd2e3c294a578a515d3f6352ddeaaabbb449e2cde230e6bc0a",
+   "snapback4/dist/contract.js": "f6cf12bf9fb92092db3e1da11839efa019592fbc0f71a9c0e4b54920be58432e",
+   "snapback4/dist/identity-principal.d.ts": "b958416ddbb9c7dcb5c012a01d65e9db0b34f7bb16772a61256cea8f00dc292a",
+   "snapback4/dist/identity-principal.js": "a35f603cda2ce1425866918789e7ac393b7c5f554d0c0f80a72b8474a6a64fb3",
+   "snapback4/dist/identity-runtime.d.ts": "0300728d25d5756351abaf52a6eddd05ac793e362508b2024dd9dafc277ffc06",
+   "snapback4/dist/identity-runtime.js": "42813b8fe7a9161a18f5c5adf28ab8814d087af2f1a2df9d161e8749d80d05b8",
+   "snapback4/dist/identity.d.ts": "0076ca49161229651dfbaf5b0481afca547960ff3ceb73a3484b39c3a1873c88",
+   "snapback4/dist/identity.js": "8274f2498c5a2f92f731a686a847d2e49828d7e7a072da3654522964d699ac33",
+   "snapback4/dist/local-assets.d.ts": "f5222340dc8d735039259884a374163e0a24a958357d41ba7d4b0ea6151c3e99",
+   "snapback4/dist/local-assets.js": "eedc7b4830b021ba3f10eb641c90c122e8a2b176fbff4a52a24b64599e8a69a4",
+   "snapback4/dist/local-exit.d.ts": "0e1ceb6f03b174137fb04529f90c1e3a88da26c5be41a588723d493245408944",
+   "snapback4/dist/local-exit.js": "90bbbe7eedd320379cd43d4a9958734817aba2ba7a10d6c7df361f07236c8f8e",
+   "snapback4/dist/local.d.ts": "853d8fd8bcf4b301c03005220b05e4fa626c6012edde136f4274de1f881daf93",
+   "snapback4/dist/local.js": "6212e0d672677e22daae9c73f670fff350a9070bbd9167557525f8ef03454c14",
+   "snapback4/dist/mock.d.ts": "de0143199a5d2f0ca5c3a54fb82429a124dee9bc43240224b57763acb0718283",
+   "snapback4/dist/mock.js": "d261283da91dbf377c7eb78cd17dc04421a4a759c467b21c1ea9e8ac06545843",
+   "snapback4/dist/native.d.ts": "145c523a9dc33a289ae0a8b166e73a9e30ccb1173df1ab651ae49601e8955fe5",
+   "snapback4/dist/native.js": "6ebf24ff26e0d3799b8a06eef5f4997497da6312a7478af7afea3ded2ffa746d",
+   "snapback4/dist/react.d.ts": "c7cc3cf7a1ae8636fba37dcd4f61a86931e096f4844e9b05c8d3bc5c1d9d3eb6",
+   "snapback4/dist/react.js": "66c25ffdb083eaa11908d29422f0be00944d598f161b6a024d566cfc08f889be",
+   "snapback4/dist/resolve-binary.d.ts": "59826e051e70ec698baa25150b475ae41c34e9f40aba5314ee0f0ee242558662",
+   "snapback4/dist/resolve-binary.js": "670be36d22fc4eb9576b4930d9984327a83ec2152cd22e3e82a1a64bdbc08d32",
+   "snapback4/dist/server-context.d.ts": "91cbb79b036e82b999f3fa47ec999419ef357c4837bd7bd632620793b0e84b54",
+   "snapback4/dist/server-context.js": "0e74f724bd6c3992af4da135918975f134ab1863d0d4415f708224bce689fb1e",
+   "snapback4/dist/server-effect-context.d.ts": "dff3ac2a5ea63874564f76b205a51ff3a5b34e05a81d5f6239128337510ebd7e",
+   "snapback4/dist/server-effect-context.js": "9f68bf4a26c7e908d0fa7586925ef199011280d88539126747cf2de9e5893096",
+   "snapback4/dist/server-json.d.ts": "bd03145d453c385c8f7e856d49f1441975485d56102cab348a28bb2d0cc18040",
+   "snapback4/dist/server-json.js": "1e4acc80035d8704411ee0540548be36ffdd7220f009ae39890f5004c4fd8c6d",
+   "snapback4/dist/server-lifetime.d.ts": "5b4715d6bb19e064c6ccbdb7476b4b45c67c575217688d79a97cbfc6529263b5",
+   "snapback4/dist/server-lifetime.js": "d9f355b440a5a0563cb4292086b4b7ea08eb93ad9c4b77751836e8dd7d3a27d4",
+   "snapback4/dist/server-private.d.ts": "68988cd0dbfdcdf95722ff94124b64e70f5ea661d48c03517dd34cf983cf35ad",
+   "snapback4/dist/server-private.js": "4fe7b6215d386d3e8e435ffc414da65d50352da51e1edef129eeb1ecb8683764",
+   "snapback4/dist/server-routes.d.ts": "25139e1db2ab9d306d7bc0426e7736c0b81faa06a58188d97df20aeca0990ec5",
+   "snapback4/dist/server-routes.js": "da1c584ba69689dc051aca95dbe5bab449f0bb3ea470dc9b1fd0dfa54d2b5d6f",
+   "snapback4/dist/server-steps.d.ts": "e6db4bc63900f730a61f6d6d0c1baee2a8eb09a0d4b03fc05dd078afd0ead22a",
+   "snapback4/dist/server-steps.js": "a6afd5cf18580e3c101d8c6d5ee56e97b8f9f7069f14f7293f864a2ca7e8d2bc",
+   "snapback4/dist/server-verify.d.ts": "0ed6ea09fae341c3fac4014144b391949b0655eca9df8e8398e447684bc2b49b",
+   "snapback4/dist/server-verify.js": "e00ba3aecb9d6b5a8fcec618a429cb60f50ba8beda664b254fe68a72ecaf26ea",
+   "snapback4/dist/server.d.ts": "c784f4d720d78898b16084b63376353bc5327a9e8e96129e2ae53eb53cba1518",
+   "snapback4/dist/server.js": "4b619af1b5c29ce7ba057896a39ea3675531dcd5a30d77930eb2d43a96d3a17d",
+   "snapback4/dist/wasm/snapback4_device.d.ts": "a8a2121a30d82e5ba3fb886503cd411d6bbc10874d06512e59524afdec11ac3a",
+   "snapback4/dist/wasm/snapback4_device.js": "243c37b7b8f84a63c0bae1415c548c7b845624d27b90f98a97483cd0144645de",
+   "snapback4/dist/wasm/snapback4_device_bg.wasm": "278d389957cc1895469de31b70a33ddfc82a842559dc60478fd6560dcc7b6fbc",
+   "snapback4/dist/wasm/snapback4_device_bg.wasm.d.ts": "106851e130519176f76b81bf51a50994118639634da43ec4cd337d69dc65be1c",
+   "snapback4/dist/web-journal.d.ts": "8e633d7667219dabf65d68bea101112a66323518ace5d924ca8e7d96f98bac8a",
+   "snapback4/dist/web-journal.js": "ad70145d020ddc365af39d03392d6366a354696496844fc36fae7dd229e20eb5",
+   "snapback4/dist/web.d.ts": "09b8d60e56bedd4ec03468bacd780a926c84c3281a420fd652b98152bd1931a7",
+   "snapback4/dist/web.js": "0fbcd4a63cca6e5ffa1546185398106a983f00c46b0cec06795850fe221c0388",
+   "snapback4/dist/worker.d.ts": "26e726fc63cf127272f8ad3e375cc2f475191d2699d5ab5eb647fdc10233de94",
+   "snapback4/dist/worker.js": "4be60317cdd4664909b502206a9fc51b17364faf9d440927c6298e6ad215194d",
+   "snapback4/dist/writes.d.ts": "c9fa0e262328d502ac3a0aa4c1e6fa2d3825f72ab5e27f0e98c3e3e0b2e678ff",
+   "snapback4/dist/writes.js": "a193bde3dab85450a63a82a1668f04c3d66bb72205d475c4bebe1ca95e7949eb",
+   "snapback4/package.json": "e7350b92dbe85396508787b2a9d72fc629ab01ea8e96b63464cc9b2ad1f8ace3",
+   "snapback4-darwin-arm64/THIRD-PARTY-NOTICES": "d84e3606f01a2c5ccd214cb3459fb1d0f798a9a6e1f2f50f49097f834209ff10",
+   "snapback4-darwin-arm64/package.json": "9c49a96a002ff256542b275fdd50a648c778fec37d04dd37ca8f51db734e136b",
+   "snapback4-darwin-arm64/snapback4": "fede2fce31ac4c3524b2e9dc9e491a839c11b3fd35972f99169768e61195be55"
+  },
+  "packageLockSha256": "7e84da70978c67a85330683162dccb46eb1edd1d7ae07fedec6cbfd8e9a0d306"
+ },
+ "pinUnchanged": true,
+ "reportedGreen": true,
+ "agentSeconds": 609,
+ "builderSeedSeconds": 14.127,
+ "milestones": [
+  {
+   "name": "first-check",
+   "at": 1789719418,
+   "seconds": 130
+  },
+  {
+   "name": "seed",
+   "at": 1789719634,
+   "seconds": 346
+  },
+  {
+   "name": "search",
+   "at": 1789719637,
+   "seconds": 349
+  },
+  {
+   "name": "following",
+   "at": 1789719655,
+   "seconds": 367
+  },
+  {
+   "name": "roster-unread",
+   "at": 1789719658,
+   "seconds": 370
+  },
+  {
+   "name": "trending",
+   "at": 1789719659,
+   "seconds": 371
+  },
+  {
+   "name": "seed",
+   "at": 1789719750,
+   "seconds": 462
+  },
+  {
+   "name": "search",
+   "at": 1789719753,
+   "seconds": 465
+  },
+  {
+   "name": "following",
+   "at": 1789719769,
+   "seconds": 481
+  },
+  {
+   "name": "seed",
+   "at": 1789719814,
+   "seconds": 526
+  },
+  {
+   "name": "search",
+   "at": 1789719818,
+   "seconds": 530
+  },
+  {
+   "name": "following",
+   "at": 1789719830,
+   "seconds": 542
+  },
+  {
+   "name": "roster-unread",
+   "at": 1789719836,
+   "seconds": 548
+  },
+  {
+   "name": "trending",
+   "at": 1789719836,
+   "seconds": 548
+  }
+ ],
+ "correctionLoops": {
+  "byAttribution": {
+   "snapback4-defect": 0,
+   "docs": 0,
+   "agent-error": 3,
+   "environment": 0,
+   "ambiguous": 0
+  },
+  "snapbackAttributed": 0,
+  "total": 3,
+  "loops": [
+   {
+    "id": 1,
+    "attribution": "agent-error",
+    "line": "loop=1 attribution=agent-error command=\"Node transport probe\" failure=\"Guessed root package export, then a background server exited with its shell; bare mutation arguments returned E_INPUT\" resolution=\"Use direct HTTP envelopes with args and keep server owned by the acceptance process\""
+   },
+   {
+    "id": 2,
+    "attribution": "agent-error",
+    "line": "loop=2 attribution=agent-error command=\"SNAPBACK_URL=http://127.0.0.1:4419 npm run seed:hub\" failure=\"Probe server already contained one follow; seedMessages and seedMembers committed before seedFollows refused E_RULE for the duplicate\" resolution=\"Acceptance always owns a fresh in-memory server. Failed probe seed elapsed was not instrumented; successful fresh seeds record precise duration. Probe process group 88320 stopped.\""
+   },
+   {
+    "id": 3,
+    "attribution": "agent-error",
+    "line": "loop=3 attribution=agent-error command=\"npm run acceptance\" failure=\"New import-closure assertion failed: members[roomId] resolved to byId, not the room prefix\" resolution=\"Name byRoomPrincipal explicitly in the closure existence probe; rerun check and full fresh acceptance\""
+   }
+  ],
+  "malformed": []
+ },
+ "schemaShape": {
+  "tables": 5,
+  "tableNames": [
+   "members",
+   "messages",
+   "follows",
+   "posts",
+   "likes"
+  ],
+  "maintains": 1,
+  "maintainNames": [
+   "unreadTotals"
+  ],
+  "tablesIncludingMaintains": 6,
+  "workTablesHeuristic": {
+   "count": 0,
+   "names": []
+  },
+  "workTablesReported": {
+   "count": 0,
+   "names": []
+  },
+  "perPrincipalCountersHeuristic": [
+   "unreadTotals"
+  ],
+  "perPrincipalCountersReported": [
+   "members",
+   "unreadTotals"
+  ],
+  "publicPerPrincipalCounterLines": {
+   "count": 0,
+   "lines": []
+  },
+  "quarryLines": 147,
+  "quarryCodeLines": 127,
+  "operations": 12,
+  "operationsByKind": {
+   "query": 5,
+   "mutation": 7,
+   "job": 0
+  },
+  "operationNames": [
+   {
+    "kind": "query",
+    "name": "search",
+    "path": "snapback/schema.q",
+    "line": 59
+   },
+   {
+    "kind": "query",
+    "name": "following",
+    "path": "snapback/schema.q",
+    "line": 62
+   },
+   {
+    "kind": "query",
+    "name": "roster",
+    "path": "snapback/schema.q",
+    "line": 67
+   },
+   {
+    "kind": "query",
+    "name": "unread",
+    "path": "snapback/schema.q",
+    "line": 70
+   },
+   {
+    "kind": "query",
+    "name": "trending",
+    "path": "snapback/schema.q",
+    "line": 73
+   },
+   {
+    "kind": "mutation",
+    "name": "post",
+    "path": "snapback/schema.q",
+    "line": 81
+   },
+   {
+    "kind": "mutation",
+    "name": "like",
+    "path": "snapback/schema.q",
+    "line": 92
+   },
+   {
+    "kind": "mutation",
+    "name": "seedMessages",
+    "path": "snapback/schema.q",
+    "line": 101
+   },
+   {
+    "kind": "mutation",
+    "name": "seedMembers",
+    "path": "snapback/schema.q",
+    "line": 113
+   },
+   {
+    "kind": "mutation",
+    "name": "seedFollows",
+    "path": "snapback/schema.q",
+    "line": 123
+   },
+   {
+    "kind": "mutation",
+    "name": "seedPosts",
+    "path": "snapback/schema.q",
+    "line": 131
+   },
+   {
+    "kind": "mutation",
+    "name": "seedLikes",
+    "path": "snapback/schema.q",
+    "line": 141
+   }
+  ],
+  "auxiliaryOperationsReported": [
+   "seedMessages",
+   "seedMembers",
+   "seedFollows",
+   "seedPosts",
+   "seedLikes"
+  ],
+  "reportingError": null
+ },
+ "quarryLines": {
+  "search": 50,
+  "following": 49,
+  "rosterUnread": 53,
+  "trending": 67
+ },
+ "numericLiterals": [
+  {
+   "file": "snapback/schema.q",
+   "line": 19,
+   "token": "4000"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 25,
+   "token": "256"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 39,
+   "token": "4000"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 59,
+   "token": "100"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 60,
+   "token": "256"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 75,
+   "token": "1"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 78,
+   "token": "4000"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 79,
+   "token": "0"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 79,
+   "token": "1"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 79,
+   "token": "0"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 81,
+   "token": "4000"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 89,
+   "token": "1"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 98,
+   "token": "1"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 101,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 101,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 101,
+   "token": "4000"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 101,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 101,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 101,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 103,
+   "token": "0"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 115,
+   "token": "0"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 119,
+   "token": "256"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 123,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 123,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 125,
+   "token": "0"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 131,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 131,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 131,
+   "token": "4000"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 131,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 131,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 133,
+   "token": "0"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 141,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 141,
+   "token": "128"
+  },
+  {
+   "file": "snapback/schema.q",
+   "line": 143,
+   "token": "0"
+  }
+ ],
+ "notes": {},
+ "checkFiles": [
+  "evidence/checks/001.log",
+  "evidence/checks/002.log",
+  "evidence/checks/003.log"
+ ],
+ "cardsRead": {
+  "search": {
+   "lookups": 1,
+   "lines": 242
+  },
+  "language": {
+   "lookups": 2,
+   "lines": 677
+  },
+  "reads": {
+   "lookups": 2,
+   "lines": 275
+  },
+  "personas": {
+   "lookups": 2,
+   "lines": 188
+  },
+  "feeds": {
+   "lookups": 1,
+   "lines": 109
+  },
+  "types": {
+   "lookups": 1,
+   "lines": 104
+  },
+  "writes": {
+   "lookups": 1,
+   "lines": 255
+  },
+  "index": {
+   "lookups": 1,
+   "lines": 2
+  },
+  "why-E_INPUT": {
+   "lookups": 1,
+   "lines": 10
+  },
+  "why-E_RULE": {
+   "lookups": 1,
+   "lines": 10
+  }
+ },
+ "boundVocabulary": {
+  "runLog": {
+   "bound": 0,
+   "cap": 0,
+   "ceiling": 0,
+   "meter": 0,
+   "complete": 2,
+   "incomplete": 0,
+   "cursor": 1,
+   "cut": 0,
+   "batch": 0,
+   "horizon": 0,
+   "lanes": 0,
+   "N_WIDE_MERGE": 0,
+   "N_NO_CURSOR": 0,
+   "N_NEVER_COMPLETE": 0,
+   "N_SPARSE_FILTER": 0,
+   "E_STRUCTURAL_FANOUT": 0,
+   "E_BOUND": 0
+  },
+  "finalReport": {
+   "bound": 1,
+   "cap": 1,
+   "ceiling": 2,
+   "meter": 1,
+   "complete": 2,
+   "incomplete": 0,
+   "cursor": 0,
+   "cut": 3,
+   "batch": 0,
+   "horizon": 0,
+   "lanes": 2,
+   "N_WIDE_MERGE": 0,
+   "N_NO_CURSOR": 0,
+   "N_NEVER_COMPLETE": 0,
+   "N_SPARSE_FILTER": 0,
+   "E_STRUCTURAL_FANOUT": 0,
+   "E_BOUND": 0
+  },
+  "total": {
+   "bound": 1,
+   "cap": 1,
+   "ceiling": 2,
+   "meter": 1,
+   "complete": 4,
+   "incomplete": 0,
+   "cursor": 1,
+   "cut": 3,
+   "batch": 0,
+   "horizon": 0,
+   "lanes": 2,
+   "N_WIDE_MERGE": 0,
+   "N_NO_CURSOR": 0,
+   "N_NEVER_COMPLETE": 0,
+   "N_SPARSE_FILTER": 0,
+   "E_STRUCTURAL_FANOUT": 0,
+   "E_BOUND": 0
+  }
+ },
+ "searchProtocol": "one-cursor",
+ "protocol": {
+  "kind": "one-cursor",
+  "operations": [
+   "search"
+  ],
+  "cursorArgs": [
+   "c"
+  ]
+ },
+ "followingShape": "merge-on-read",
+ "tables": 5,
+ "tablesIncludingMaintains": 6,
+ "jobs": 0,
+ "publicDerivedRules": {
+  "count": 2,
+  "lines": [
+   {
+    "table": "posts",
+    "file": "snapback/schema.q",
+    "line": 47,
+    "text": "public 'Posts and their exact like scores are public'"
+   },
+   {
+    "table": "posts",
+    "file": "snapback/schema.q",
+    "line": 49,
+    "text": "update <- allow"
+   }
+  ],
+  "declaredColumns": [
+   {
+    "table": "members",
+    "column": "unread"
+   },
+   {
+    "table": "unreadTotals",
+    "column": "value"
+   },
+   {
+    "table": "posts",
+    "column": "negativeAt"
+   },
+   {
+    "table": "posts",
+    "column": "negativeLikes"
+   }
+  ]
+ },
+ "measurementErrors": [],
+ "verify": {
+  "directory": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-ie1eEU",
+  "acceptanceDirectory": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-F6ZrKe",
+  "probeDirectory": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-loopbar-verify-kutJwp",
+  "check": {
+   "ok": true,
+   "status": 0,
+   "timedOut": false,
+   "error": null,
+   "tail": "check: ok \u2014 6 tables (0 synced), 12 operations, no problems, 2.5 ms\n7 mutations never predict: like (reads online-only table posts), post (writes online-only table posts), seedFollows (writes online-only table follows), seedLikes (reads online-only table posts), seedMembers (reads online-only table messages), seedMessages (reads online-only table members), seedPosts (writes online-only table posts) \u2014 snapback4 why <op>\n"
+  },
+  "acceptance": {
+   "ok": true,
+   "status": 0,
+   "timedOut": false,
+   "error": null,
+   "tail": "\n> acceptance\n> node acceptance.mjs\n\nseeded seedMessages: 99390\nseeded seedMembers: 1349\nseeded seedFollows: 1411\nseeded seedPosts: 50000\nseeded seedLikes: 98\n{\"seedCounts\":{\"chats\":1300,\"members\":1349,\"messages\":99390,\"authors\":1000,\"follows\":1411,\"posts\":50000,\"likes\":98},\"seedSeconds\":11.97961325}\nsearch hub: 99090 messages\nsearch sparse: 5 messages\nsearch outsider: 200 messages\nPASS search\nfollowing small: 250 posts\nfollowing wide: 25000 posts\nfollowing celebrity: 250 posts\nPASS following\nPASS roster-unread\nPASS trending\n{\n  \"seedSeconds\": 11.97961325,\n  \"totalSeconds\": 36.157443167,\n  \"means\": {\n    \"following\": {\n      \"small\": 5.908443766666096,\n      \"wide\": 8.263110449999779,\n      \"celebrity\": 3.521531883332985\n    },\n    \"post\": {\n      \"a000000\": 3.3132311666663252,\n      \"a000001\": 3.1998680333332836\n    }\n  },\n  \"queries\": 1412,\n  \"ratios\": {\n    \"wideToSmall\": 1.3985256992066337,\n    \"celebrityToSmall\": 0.5960168231100975,\n    \"popularToQuietPost\": 1.0354274401794477\n  }\n}\nALL FOUR TASKS PASSED\n"
+  },
+  "probes": {
+   "ok": true,
+   "checks": [
+    {
+     "name": "search-hub",
+     "ok": true,
+     "seconds": 0.5924524169999641
+    },
+    {
+     "name": "search-sparse",
+     "ok": true,
+     "seconds": 0.040974000000045634
+    },
+    {
+     "name": "following-small",
+     "ok": true,
+     "seconds": 0.328765832999954
+    },
+    {
+     "name": "following-wide",
+     "ok": true,
+     "seconds": 12.665198708999903
+    },
+    {
+     "name": "following-celebrity",
+     "ok": true,
+     "seconds": 0.19470637499995064
+    },
+    {
+     "name": "roster-unread",
+     "ok": true,
+     "seconds": 0.012772957999957726
+    },
+    {
+     "name": "trending",
+     "ok": true,
+     "seconds": 0.0780817500000121
+    },
+    {
+     "name": "post-acknowledgement",
+     "ok": true,
+     "seconds": 0.3435801660000579
+    }
+   ],
+   "runtimeBounds": "see top-level runtimeBounds",
+   "evidence": {
+    "search-hub": {
+     "groups": 1000,
+     "messages": 99090,
+     "answerExact": true
+    },
+    "search-sparse": {
+     "groups": 5,
+     "messages": 5,
+     "answerExact": true
+    },
+    "following": {
+     "small": {
+      "samples": 60,
+      "p50": 2.621374999987893,
+      "p95": 5.418167000054382,
+      "rows": 250,
+      "firstPages": {
+       "requests": 60,
+       "examined": 6900,
+       "indexEntries": 0,
+       "complete": true,
+       "cut": [
+        null
+       ],
+       "next": true,
+       "pages": {
+        "count": 60,
+        "first": [
+         {
+          "operation": "following",
+          "examined": 115,
+          "indexEntries": 0,
+          "complete": true,
+          "cut": null,
+          "next": true
+         }
+        ],
+        "last": [
+         {
+          "operation": "following",
+          "examined": 115,
+          "indexEntries": 0,
+          "complete": true,
+          "cut": null,
+          "next": true
+         }
+        ],
+        "trimmed": "full per-request trace kept in the local run directory"
+       }
+      }
+     },
+     "wide": {
+      "samples": 60,
+      "p50": 6.92995800008066,
+      "p95": 12.024209000053816,
+      "rows": 25000,
+      "firstPages": {
+       "requests": 60,
+       "examined": 92400,
+       "indexEntries": 0,
+       "complete": true,
+       "cut": [
+        null
+       ],
+       "next": true,
+       "pages": {
+        "count": 60,
+        "first": [
+         {
+          "operation": "following",
+          "examined": 1540,
+          "indexEntries": 0,
+          "complete": true,
+          "cut": null,
+          "next": true
+         }
+        ],
+        "last": [
+         {
+          "operation": "following",
+          "examined": 1540,
+          "indexEntries": 0,
+          "complete": true,
+          "cut": null,
+          "next": true
+         }
+        ],
+        "trimmed": "full per-request trace kept in the local run directory"
+       }
+      }
+     },
+     "celebrity": {
+      "samples": 60,
+      "p50": 2.4502080000238493,
+      "p95": 3.3288330000359565,
+      "rows": 250,
+      "firstPages": {
+       "requests": 60,
+       "examined": 6900,
+       "indexEntries": 0,
+       "complete": true,
+       "cut": [
+        null
+       ],
+       "next": true,
+       "pages": {
+        "count": 60,
+        "first": [
+         {
+          "operation": "following",
+          "examined": 115,
+          "indexEntries": 0,
+          "complete": true,
+          "cut": null,
+          "next": true
+         }
+        ],
+        "last": [
+         {
+          "operation": "following",
+          "examined": 115,
+          "indexEntries": 0,
+          "complete": true,
+          "cut": null,
+          "next": true
+         }
+        ],
+        "trimmed": "full per-request trace kept in the local run directory"
+       }
+      }
+     },
+     "ratios": {
+      "wideOverSmall": {
+       "p50": 2.643634733722824,
+       "p95": 2.219239274081646
+      },
+      "celebrityOverSmall": {
+       "p50": 0.934703352261758,
+       "p95": 0.6143836098079932
+      }
+     }
+    },
+    "rosterUnread": {
+     "members": 50,
+     "total": 50000
+    },
+    "trending": {
+     "before": [
+      {
+       "key": "p000000",
+       "likes": 12,
+       "at": 1789668000000
+      },
+      {
+       "key": "p000001",
+       "likes": 11,
+       "at": 1789667997840
+      },
+      {
+       "key": "p000002",
+       "likes": 10,
+       "at": 1789667995680
+      },
+      {
+       "key": "p000003",
+       "likes": 9,
+       "at": 1789667993520
+      },
+      {
+       "key": "p000004",
+       "likes": 8,
+       "at": 1789667991360
+      },
+      {
+       "key": "p000005",
+       "likes": 7,
+       "at": 1789667989200
+      },
+      {
+       "key": "p000006",
+       "likes": 6,
+       "at": 1789667987040
+      },
+      {
+       "key": "p000007",
+       "likes": 5,
+       "at": 1789667984880
+      },
+      {
+       "key": "p000008",
+       "likes": 4,
+       "at": 1789667982720
+      },
+      {
+       "key": "p000009",
+       "likes": 3,
+       "at": 1789667980560
+      }
+     ],
+     "after": [
+      {
+       "key": "p000011",
+       "likes": 21,
+       "at": 1789667976240
+      },
+      {
+       "key": "p000000",
+       "likes": 12,
+       "at": 1789668000000
+      },
+      {
+       "key": "p000001",
+       "likes": 11,
+       "at": 1789667997840
+      },
+      {
+       "key": "p000002",
+       "likes": 10,
+       "at": 1789667995680
+      },
+      {
+       "key": "p000003",
+       "likes": 9,
+       "at": 1789667993520
+      },
+      {
+       "key": "p000004",
+       "likes": 8,
+       "at": 1789667991360
+      },
+      {
+       "key": "p000005",
+       "likes": 7,
+       "at": 1789667989200
+      },
+      {
+       "key": "p000006",
+       "likes": 6,
+       "at": 1789667987040
+      },
+      {
+       "key": "p000007",
+       "likes": 5,
+       "at": 1789667984880
+      },
+      {
+       "key": "p000008",
+       "likes": 4,
+       "at": 1789667982720
+      }
+     ],
+     "afterUnlike": [
+      {
+       "key": "p000011",
+       "likes": 20,
+       "at": 1789667976240
+      },
+      {
+       "key": "p000000",
+       "likes": 12,
+       "at": 1789668000000
+      },
+      {
+       "key": "p000001",
+       "likes": 11,
+       "at": 1789667997840
+      },
+      {
+       "key": "p000002",
+       "likes": 10,
+       "at": 1789667995680
+      },
+      {
+       "key": "p000003",
+       "likes": 9,
+       "at": 1789667993520
+      },
+      {
+       "key": "p000004",
+       "likes": 8,
+       "at": 1789667991360
+      },
+      {
+       "key": "p000005",
+       "likes": 7,
+       "at": 1789667989200
+      },
+      {
+       "key": "p000006",
+       "likes": 6,
+       "at": 1789667987040
+      },
+      {
+       "key": "p000007",
+       "likes": 5,
+       "at": 1789667984880
+      },
+      {
+       "key": "p000008",
+       "likes": 4,
+       "at": 1789667982720
+      }
+     ]
+    },
+    "postAcknowledgement": {
+     "celebrity": {
+      "samples": 60,
+      "p50": 2.2440829999977723,
+      "p95": 3.965042000054382
+     },
+     "small": {
+      "samples": 60,
+      "p50": 2.3355410000076517,
+      "p95": 5.522791999974288
+     },
+     "ratio": {
+      "p50": 0.9608407645125563,
+      "p95": 0.71794157738927
+     }
+    }
+   },
+   "seedCounts": {
+    "chats": 1300,
+    "members": 1349,
+    "messages": 99390,
+    "authors": 1000,
+    "follows": 1411,
+    "posts": 50000,
+    "likes": 98
+   },
+   "seedSeconds": 13.146568499999935
+  },
+  "ok": true
+ },
+ "verificationSeconds": 69.553,
+ "runtimeBounds": {
+  "search-hub": {
+   "requests": 50,
+   "examined": 100139,
+   "indexEntries": 2000,
+   "complete": true,
+   "cut": [
+    null
+   ],
+   "next": true,
+   "pages": {
+    "count": 50,
+    "first": [
+     {
+      "operation": "search",
+      "examined": 2021,
+      "indexEntries": 40,
+      "complete": true,
+      "cut": null,
+      "next": true
+     }
+    ],
+    "last": [
+     {
+      "operation": "search",
+      "examined": 2000,
+      "indexEntries": 40,
+      "complete": true,
+      "cut": null,
+      "next": false
+     }
+    ],
+    "trimmed": "full per-request trace kept in the local run directory"
+   }
+  },
+  "search-sparse": {
+   "requests": 5,
+   "examined": 109,
+   "indexEntries": 105,
+   "complete": true,
+   "cut": [
+    null
+   ],
+   "next": true,
+   "pages": {
+    "count": 5,
+    "first": [
+     {
+      "operation": "search",
+      "examined": 26,
+      "indexEntries": 25,
+      "complete": true,
+      "cut": null,
+      "next": true
+     }
+    ],
+    "last": [
+     {
+      "operation": "search",
+      "examined": 20,
+      "indexEntries": 20,
+      "complete": true,
+      "cut": null,
+      "next": false
+     }
+    ],
+    "trimmed": "full per-request trace kept in the local run directory"
+   }
+  },
+  "following-small": {
+   "requests": 13,
+   "examined": 1195,
+   "indexEntries": 0,
+   "complete": true,
+   "cut": [
+    null
+   ],
+   "next": true,
+   "pages": {
+    "count": 13,
+    "first": [
+     {
+      "operation": "following",
+      "examined": 115,
+      "indexEntries": 0,
+      "complete": true,
+      "cut": null,
+      "next": true
+     }
+    ],
+    "last": [
+     {
+      "operation": "following",
+      "examined": 15,
+      "indexEntries": 0,
+      "complete": true,
+      "cut": null,
+      "next": false
+     }
+    ],
+    "trimmed": "full per-request trace kept in the local run directory"
+   }
+  },
+  "following-wide": {
+   "requests": 1250,
+   "examined": 1899000,
+   "indexEntries": 0,
+   "complete": true,
+   "cut": [
+    null
+   ],
+   "next": true,
+   "pages": {
+    "count": 1250,
+    "first": [
+     {
+      "operation": "following",
+      "examined": 1540,
+      "indexEntries": 0,
+      "complete": true,
+      "cut": null,
+      "next": true
+     }
+    ],
+    "last": [
+     {
+      "operation": "following",
+      "examined": 520,
+      "indexEntries": 0,
+      "complete": true,
+      "cut": null,
+      "next": false
+     }
+    ],
+    "trimmed": "full per-request trace kept in the local run directory"
+   }
+  },
+  "following-celebrity": {
+   "requests": 13,
+   "examined": 1195,
+   "indexEntries": 0,
+   "complete": true,
+   "cut": [
+    null
+   ],
+   "next": true,
+   "pages": {
+    "count": 13,
+    "first": [
+     {
+      "operation": "following",
+      "examined": 115,
+      "indexEntries": 0,
+      "complete": true,
+      "cut": null,
+      "next": true
+     }
+    ],
+    "last": [
+     {
+      "operation": "following",
+      "examined": 15,
+      "indexEntries": 0,
+      "complete": true,
+      "cut": null,
+      "next": false
+     }
+    ],
+    "trimmed": "full per-request trace kept in the local run directory"
+   }
+  },
+  "rosterUnread": {
+   "requests": 4,
+   "examined": 53,
+   "indexEntries": 0,
+   "complete": true,
+   "cut": [
+    null
+   ],
+   "next": true,
+   "pages": {
+    "count": 4,
+    "first": [
+     {
+      "operation": "roster",
+      "examined": 21,
+      "indexEntries": 0,
+      "complete": true,
+      "cut": null,
+      "next": true
+     }
+    ],
+    "last": [
+     {
+      "operation": "unread",
+      "examined": 1,
+      "indexEntries": 0,
+      "complete": true,
+      "cut": null,
+      "next": false
+     }
+    ],
+    "trimmed": "full per-request trace kept in the local run directory"
+   }
+  },
+  "trending": {
+   "requests": 3,
+   "examined": 102,
+   "indexEntries": 0,
+   "complete": true,
+   "cut": [
+    null
+   ],
+   "next": true,
+   "pages": {
+    "count": 3,
+    "first": [
+     {
+      "operation": "trending",
+      "examined": 34,
+      "indexEntries": 0,
+      "complete": true,
+      "cut": null,
+      "next": true
+     }
+    ],
+    "last": [
+     {
+      "operation": "trending",
+      "examined": 34,
+      "indexEntries": 0,
+      "complete": true,
+      "cut": null,
+      "next": true
+     }
+    ],
+    "trimmed": "full per-request trace kept in the local run directory"
+   }
+  }
+ },
+ "seedSeconds": 13.146568499999935,
+ "loopBarComparison": {
+  "wallAtMost1200": true,
+  "snapbackAttributedAtMost1": true
+ },
+ "totalSeconds": 714.531
+}

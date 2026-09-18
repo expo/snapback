@@ -1,0 +1,160 @@
+check: ok — 6 tables (0 synced), 12 operations, no problems, 1 note, 3.9 ms
+note: schema.q:26:1 — N_MAINTAIN_DELTA: maintain messageCounts may disclose the delta of a hidden messages row: insert/delete and a potentially wider update rule affect this readable target; filter/key/value dependencies: roomId
+  rewrite: treat the maintain as a declared read channel; restrict its read rule or the source update rule if the delta is private
+  guide: rules
+
+7 mutations never predict: importFollow (writes online-only table follows), importLike (reads online-only table posts), importMember (writes online-only table members), importMessages (reads online-only maintain messageCounts), importPosts (writes online-only table posts), like (reads online-only table posts), post (writes online-only table posts) — snapback4 why <op>
+residency (facts)
+  follows: online only (no sync line)
+  likes: online only (no sync line)
+  members: online only (no sync line)
+  messageCounts: online only (no sync line)
+  messages: online only (no sync line); cap 512 by roomId
+  posts: online only (no sync line)
+operations (facts)
+  following: runs: server
+    Server: scan follows by byPair: online only (site schema.q:64:29 (follows[viewer]))
+      rewrite: sync follows to its read-rule audience, or read a compact synced projection
+    Server: scan posts by byAuthorTime: online only (site schema.q:64:5 (posts[f.followedId]))
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+  importFollow: predicts: never; queued without a row
+    Server: write follows by byId: online only (site schema.q:111:3 (insert follows))
+      rewrite: sync follows to its read-rule audience, or read a compact synced projection
+  importLike: predicts: never; queued without a row
+    Server: point posts by byKey: online only (site schema.q:90:7 (posts[key = postKey]))
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+    Server: point likes by byPostPrincipal: online only (site schema.q:91:20 (likes[postKey, principal]))
+      rewrite: sync likes to its read-rule audience, or read a compact synced projection
+    Server: write target posts by byId: online only (site schema.q:94:5)
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+    Server: point likes by byPostPrincipal: online only (site schema.q:96:5 (delete likes))
+      rewrite: sync likes to its read-rule audience, or read a compact synced projection
+    Server: write target posts by byId: online only (site schema.q:97:5)
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+    Server: write likes by byId: online only (site schema.q:93:5 (insert likes))
+      rewrite: sync likes to its read-rule audience, or read a compact synced projection
+    Server: write posts by byId: online only (site schema.q:94:5 (update posts))
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+    Server: write posts by byId: online only (site schema.q:97:5 (update posts))
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+    Server: write likes by byId: online only (site schema.q:96:5 (delete likes))
+      rewrite: sync likes to its read-rule audience, or read a compact synced projection
+  importMember: predicts: never; queued without a row
+    Server: write members by byId: online only (site schema.q:106:3 (insert members))
+      rewrite: sync members to its read-rule audience, or read a compact synced projection
+  importMessages: predicts: never; queued without a row
+    Server: point messageCounts by byGroup: online only (site schema.q:122:23 (messageCounts[roomId] by byGroup))
+      rewrite: remove `online only` from maintain messageCounts to inherit its source's sync, or read a compact synced projection
+    Server: write messages by byId: online only (site schema.q:123:5 (insert messages))
+      rewrite: sync messages to its read-rule audience, or read a compact synced projection
+  importPosts: predicts: never; queued without a row
+    Server: write posts by byId: online only (site schema.q:83:10 (insert posts))
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+  like: predicts: never; queued without a row
+    Server: point posts by byKey: online only (site schema.q:90:7 (posts[key = postKey]))
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+    Server: point likes by byPostPrincipal: online only (site schema.q:91:20 (likes[postKey, principal]))
+      rewrite: sync likes to its read-rule audience, or read a compact synced projection
+    Server: write target posts by byId: online only (site schema.q:94:5)
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+    Server: point likes by byPostPrincipal: online only (site schema.q:96:5 (delete likes))
+      rewrite: sync likes to its read-rule audience, or read a compact synced projection
+    Server: write target posts by byId: online only (site schema.q:97:5)
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+    Server: write likes by byId: online only (site schema.q:93:5 (insert likes))
+      rewrite: sync likes to its read-rule audience, or read a compact synced projection
+    Server: write posts by byId: online only (site schema.q:94:5 (update posts))
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+    Server: write posts by byId: online only (site schema.q:97:5 (update posts))
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+    Server: write likes by byId: online only (site schema.q:96:5 (delete likes))
+      rewrite: sync likes to its read-rule audience, or read a compact synced projection
+  post: predicts: never; queued without a row
+    Server: write posts by byId: online only (site schema.q:83:10 (insert posts))
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+  roster: runs: server
+    Server: point members by byRoomPrincipal: online only (site schema.q:68:18 (members[roomId, viewer]))
+      rewrite: sync members to its read-rule audience, or read a compact synced projection
+    Server: scan members by byRoomPrincipal: online only (site schema.q:69:10 (members[roomId]))
+      rewrite: sync members to its read-rule audience, or read a compact synced projection
+  search: runs: server
+    Server: scan messages by byRoomWords: online only (site schema.q:60:76 (messages[.roomId]))
+      rewrite: sync messages to its read-rule audience, or read a compact synced projection
+    Server: scan members by byPrincipalRoom: online only (site schema.q:60:10 (members[viewer]))
+      rewrite: sync members to its read-rule audience, or read a compact synced projection
+    Server: scan messages by byRoomWords: online only (site schema.q:60:126 (messages[.roomId]))
+      rewrite: sync messages to its read-rule audience, or read a compact synced projection
+  trending: runs: server
+    Server: scan posts by byHourRank: online only (site schema.q:79:5 (posts[h]))
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+  unread: runs: server
+    Server: scan members by byPrincipalRoom: online only (site schema.q:73:12 (members[viewer]))
+      rewrite: sync members to its read-rule audience, or read a compact synced projection
+    Server: point messageCounts by byGroup: online only (site schema.q:74:25 (messageCounts[m.roomId] by byGroup))
+      rewrite: remove `online only` from maintain messageCounts to inherit its source's sync, or read a compact synced projection
+residency (measurements): not measured — no dev store; use check --residency --fixture <fixture-directory> --as <principal>
+  query search:
+    scan messages.byRoomWords first 1 — rule uniform over the prefix: one verdict
+      exists: first match, no page overflow or cursor
+    scan members.byPrincipalRoom first 20 — rule decided by the prefix: no probes
+      sort/group/sum/count consume this page, not the whole population
+      filter over ≤ examined ceiling (8192)
+      probe × examined
+    scan messages.byRoomWords first 512 — rule uniform over the prefix: one verdict
+      sort/group/sum/count consume this page, not the whole population
+  query following:
+    merge posts: lanes ≤ meter
+    scan follows.byPair rows ≤ meter (8,192 examined) — rule decided by the prefix: no probes
+      sort/group/sum/count consume this page, not the whole population
+    scan posts.byAuthorTime first 20 — rule decided by the prefix: no probes
+      sort/group/sum/count consume this page, not the whole population
+  query roster:
+    point members.byRoomPrincipal — one row, one rule check
+    scan members.byRoomPrincipal first 20 — rule uniform over the prefix: one verdict
+      sort/group/sum/count consume this page, not the whole population
+  query unread:
+    scan members.byPrincipalRoom rows ≤ meter (8,192 examined) — rule decided by the prefix: no probes
+      sort/group/sum/count consume this page, not the whole population
+    point messageCounts.byGroup — one row, one rule check
+  query trending:
+    merge posts: up to 25 lanes
+    scan posts.byHourRank first 10 — rule decided by the prefix: no probes
+      sort/group/sum/count consume this page, not the whole population
+      filter over ≤ examined ceiling (8192)
+  mutation post:
+    no explicit reads
+    insert posts
+  mutation like:
+    point posts.byKey — one row, one rule check
+    point likes.byPostPrincipal — one row, one rule check
+    write target posts.byId — engine-private lookup; the update rule decides
+    point likes.byPostPrincipal — one row, one rule check
+    write target posts.byId — engine-private lookup; the update rule decides
+    insert likes
+    update posts
+    delete likes
+    update posts
+  mutation importMember:
+    no explicit reads
+    insert members
+  mutation importFollow:
+    no explicit reads
+    insert follows
+  mutation importMessages:
+    range: steps ≤ meter
+    point messageCounts.byGroup — one row, one rule check
+    insert messages
+  mutation importPosts:
+    range: steps ≤ meter
+    no explicit reads
+    insert posts
+  mutation importLike:
+    point posts.byKey — one row, one rule check
+    point likes.byPostPrincipal — one row, one rule check
+    write target posts.byId — engine-private lookup; the update rule decides
+    point likes.byPostPrincipal — one row, one rule check
+    write target posts.byId — engine-private lookup; the update rule decides
+    insert likes
+    update posts
+    delete likes
+    update posts

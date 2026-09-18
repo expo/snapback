@@ -1,0 +1,146 @@
+check: ok — 6 tables (0 synced), 12 operations, no problems, 14.3 ms
+7 mutations never predict: like (reads online-only table posts), post (writes online-only table posts), seedFollows (writes online-only table follows), seedLikes (reads online-only table posts), seedMembers (reads online-only table messages), seedMessages (reads online-only table members), seedPosts (writes online-only table posts) — snapback4 why <op>
+residency (facts)
+  follows: online only (no sync line)
+  likes: online only (no sync line)
+  members: online only (no sync line)
+  messages: online only (no sync line); cap 256 by roomId
+  posts: online only (no sync line)
+  unreadTotals: online only (no sync line)
+operations (facts)
+  following: runs: server
+    Server: scan follows by byPair: online only (site schema.q:64:29 (follows[viewer]))
+      rewrite: sync follows to its read-rule audience, or read a compact synced projection
+    Server: scan posts by byAuthorTime: online only (site schema.q:64:5 (posts[f.followedId]))
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+  like: predicts: never; queued without a row
+    Server: point posts by byKey: online only (site schema.q:86:7 (posts[key = postKey]))
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+    Server: point likes by byPair: online only (site schema.q:87:17 (likes[postKey, principal]))
+      rewrite: sync likes to its read-rule audience, or read a compact synced projection
+    Server: write target posts by byId: online only (site schema.q:89:5)
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+    Server: point likes by byPair: online only (site schema.q:95:18 (likes[postKey, viewer]))
+      rewrite: sync likes to its read-rule audience, or read a compact synced projection
+    Server: point posts by byKey: online only (site schema.q:96:9 (posts[key = postKey]))
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+    Server: point likes by byPair: online only (site schema.q:97:5 (delete likes))
+      rewrite: sync likes to its read-rule audience, or read a compact synced projection
+    Server: write target posts by byId: online only (site schema.q:98:5)
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+    Server: write likes by byId: online only (site schema.q:88:5 (insert likes))
+      rewrite: sync likes to its read-rule audience, or read a compact synced projection
+    Server: write posts by byId: online only (site schema.q:89:5 (update posts))
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+    Server: write posts by byId: online only (site schema.q:98:5 (update posts))
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+    Server: write likes by byId: online only (site schema.q:97:5 (delete likes))
+      rewrite: sync likes to its read-rule audience, or read a compact synced projection
+  post: predicts: never; queued without a row
+    Server: write posts by byId: online only (site schema.q:79:10 (insert posts))
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+  roster: runs: server
+    Server: scan members by byRoomPrincipal: online only (site schema.q:68:10 (members[roomId]))
+      rewrite: sync members to its read-rule audience, or read a compact synced projection
+  search: runs: server
+    Server: scan members by byPrincipalRoom: online only (site schema.q:60:10 (members[viewer]))
+      rewrite: sync members to its read-rule audience, or read a compact synced projection
+    Server: scan messages by byRoomWords: online only (site schema.q:60:82 (messages[.roomId]))
+      rewrite: sync messages to its read-rule audience, or read a compact synced projection
+  seedFollows: predicts: never; queued without a row
+    Server: write follows by byId: online only (site schema.q:128:5 (insert follows))
+      rewrite: sync follows to its read-rule audience, or read a compact synced projection
+  seedLikes: predicts: never; queued without a row
+    Server: point posts by byKey: online only (site schema.q:86:7 (posts[key = postKey]))
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+    Server: point likes by byPair: online only (site schema.q:87:17 (likes[postKey, principal]))
+      rewrite: sync likes to its read-rule audience, or read a compact synced projection
+    Server: write target posts by byId: online only (site schema.q:89:5)
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+    Server: write likes by byId: online only (site schema.q:88:5 (insert likes))
+      rewrite: sync likes to its read-rule audience, or read a compact synced projection
+    Server: write posts by byId: online only (site schema.q:89:5 (update posts))
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+  seedMembers: predicts: never; queued without a row
+    Server: scan messages by byRoomOrdinal: online only (site schema.q:119:14 (messages[roomId]))
+      rewrite: sync messages to its read-rule audience, or read a compact synced projection
+    Server: write members by byId: online only (site schema.q:120:5 (insert members))
+      rewrite: sync members to its read-rule audience, or read a compact synced projection
+    Server: author marked this mutation : server (site schema.q:113:1)
+      rewrite: remove : server to allow prediction when every site is held
+  seedMessages: predicts: never; queued without a row
+    Server: point members by byId: online only (site schema.q:106:24 (members[roomId]))
+      rewrite: sync members to its read-rule audience, or read a compact synced projection
+    Server: write messages by byId: online only (site schema.q:110:5 (insert messages))
+      rewrite: sync messages to its read-rule audience, or read a compact synced projection
+  seedPosts: predicts: never; queued without a row
+    Server: write posts by byId: online only (site schema.q:79:10 (insert posts))
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+  trending: runs: server
+    Server: scan posts by byRank: online only (site schema.q:75:5 (posts[h]))
+      rewrite: sync posts to its read-rule audience, or read a compact synced projection
+  unread: runs: server
+    Server: point unreadTotals by byGroup: online only (site schema.q:71:19 (unreadTotals[viewer] by byGroup))
+      rewrite: remove `online only` from maintain unreadTotals to inherit its source's sync, or read a compact synced projection
+residency (measurements): not measured — no dev store; use check --residency --fixture <fixture-directory> --as <principal>
+  query search:
+    scan members.byPrincipalRoom first 20 — rule decided by the prefix: no probes
+      sort/group/sum/count consume this page, not the whole population
+    scan messages.byRoomWords first 256 — rule uniform over the prefix: one verdict
+      sort/group/sum/count consume this page, not the whole population
+  query following:
+    merge posts: lanes ≤ meter
+    scan follows.byPair rows ≤ meter (8,192 examined) — rule decided by the prefix: no probes
+      sort/group/sum/count consume this page, not the whole population
+    scan posts.byAuthorTime first 20 — rule decided by the prefix: no probes
+      sort/group/sum/count consume this page, not the whole population
+  query roster:
+    scan members.byRoomPrincipal first 20 — rule uniform over the prefix: one verdict
+      sort/group/sum/count consume this page, not the whole population
+  query unread:
+    point unreadTotals.byGroup — one row, one rule check
+  query trending:
+    merge posts: up to 25 lanes
+    scan posts.byRank first 10 — rule decided by the prefix: no probes
+      sort/group/sum/count consume this page, not the whole population
+      filter over ≤ examined ceiling (8192)
+  mutation post:
+    no explicit reads
+    insert posts
+  mutation like:
+    point posts.byKey — one row, one rule check
+    point likes.byPair — one row, one rule check
+    write target posts.byId — engine-private lookup; the update rule decides
+    point likes.byPair — one row, one rule check
+    point posts.byKey — one row, one rule check
+    point likes.byPair — one row, one rule check
+    write target posts.byId — engine-private lookup; the update rule decides
+    insert likes
+    update posts
+    delete likes
+    update posts
+  mutation seedMessages:
+    range: steps ≤ meter
+    point members.byId — one row, one rule check
+    insert messages
+  mutation seedMembers:
+    range: steps ≤ meter
+    prefix seek messages.byRoomOrdinal first 256 — rule uniform over the prefix: one verdict
+      sort/group/sum/count consume this page, not the whole population
+    a pass over the first 256 rows of messages[$roomId3] by byRoomOrdinal; examined ceiling 8192
+    insert members
+  mutation seedFollows:
+    range: steps ≤ meter
+    no explicit reads
+    insert follows
+  mutation seedPosts:
+    range: steps ≤ meter
+    no explicit reads
+    insert posts
+  mutation seedLikes:
+    range: steps ≤ meter
+    point posts.byKey — one row, one rule check
+    point likes.byPair — one row, one rule check
+    write target posts.byId — engine-private lookup; the update rule decides
+    insert likes
+    update posts

@@ -1,0 +1,13 @@
+{"phase":"start","run":1,"lane":"/Users/ccheever/projects/snapback-boundsbar-after/runs/run-1"}
+{"phase":"agent","run":1,"lane":"/Users/ccheever/projects/snapback-boundsbar-after/runs/run-1"}
+{"phase":"verify","run":1,"reportedGreen":true,"wallSeconds":644.933}
+{"phase":"complete","run":1,"green":true,"measurementComplete":true}
+{"phase":"start","run":2,"lane":"/Users/ccheever/projects/snapback-boundsbar-after/runs/run-2"}
+{"phase":"agent","run":2,"lane":"/Users/ccheever/projects/snapback-boundsbar-after/runs/run-2"}
+{"phase":"verify","run":2,"reportedGreen":true,"wallSeconds":497.719}
+{"phase":"complete","run":2,"green":true,"measurementComplete":true}
+{"phase":"start","run":3,"lane":"/Users/ccheever/projects/snapback-boundsbar-after/runs/run-3"}
+{"phase":"agent","run":3,"lane":"/Users/ccheever/projects/snapback-boundsbar-after/runs/run-3"}
+{"phase":"verify","run":3,"reportedGreen":true,"wallSeconds":465.335}
+{"phase":"complete","run":3,"green":true,"measurementComplete":true}
+bounds bar: 3 passed; 0 failed; 3 runs
