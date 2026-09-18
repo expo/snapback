@@ -34,7 +34,15 @@ fn baseline_golden_and_ownership_switch_agree_byte_for_byte(part: usize, count: 
     let mut admissions = 0;
     let mut executions = 0;
     for (name, record) in &enabled {
-        if digest(&record.ir) != golden[name] { differences.push(format!("{name}: baseline IR")); }
+        // W13h adds serialized marks only for canonical returned query shapes.
+        // Keep the historical statement bytes under the original golden, and
+        // still compare the entire marked IR between ownership-on/off below.
+        let mut program: snapback4_core::ir::Program = serde_json::from_str(&record.ir).unwrap();
+        let baseline_ir = if program.returned_shapes.is_empty() { record.ir.clone() } else {
+            program.returned_shapes.clear();
+            serde_json::to_string(&program).unwrap()
+        };
+        if digest(&baseline_ir) != golden[name] { differences.push(format!("{name}: baseline IR")); }
         let control = &disabled[name];
         if record.ir.as_bytes() != control.ir.as_bytes() { differences.push(format!("{name}: disabled IR")); }
         if record.admission != control.admission { differences.push(format!("{name}: disabled admission")); }

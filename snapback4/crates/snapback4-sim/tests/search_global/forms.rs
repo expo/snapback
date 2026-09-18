@@ -83,13 +83,18 @@ fn w13e_grouped_cut_continues_through_9000_memberships() {
             if pages == 1 {
                 assert_eq!((page.complete, page.cut), (false, Some(ReadCut::Meter)));
                 assert!(page.next.is_some(), "the cut must continue");
-                assert_eq!(page.data.as_array().unwrap().len(), 1);
-            } else { assert!(page.complete && page.cut.is_none() && page.next.is_none()); }
+                assert_eq!(page.data.as_array().unwrap().len(), 0);
+                assert_eq!(page.metered.examined, 8194);
+            } else {
+                assert!(page.complete && page.cut.is_none() && page.next.is_none());
+                assert_eq!(page.data.as_array().unwrap().len(), 3);
+                assert_eq!(page.metered.examined, 906);
+            }
             for row in page.data.as_array().unwrap() {
                 let room = row.field("roomId").unwrap().as_str().unwrap().to_owned();
                 let hits = row.field("hits").unwrap().as_array().unwrap();
-                // Shaping runs after membership discovery: a cut can starve this preview.
-                assert_eq!(hits.len(), if pages == 1 { 0 } else { 1 });
+                // The canonical returned shape retries a starved preview on the next request.
+                assert_eq!(hits.len(), 1);
                 if let Some(hit) = hits.first() { assert_eq!(hit.field("id").unwrap().as_str().unwrap(), format!("{room}-hit")); }
                 assert!(rooms.insert(room), "no duplicated chat");
             }
@@ -98,6 +103,7 @@ fn w13e_grouped_cut_continues_through_9000_memberships() {
         }
         assert_eq!(pages, 2);
         assert_eq!(rooms, ["r8100", "r8500", "r8999"].map(String::from).into());
+        assert_eq!(total, 9100);
         println!("W13e grouped9000 requests={pages} groups={} examined_total={total}", rooms.len());
     });
 }

@@ -1,6 +1,6 @@
 # Snapback 4: a meter-cut filtered page emits a row whose nested shape read was starved, and `next` positions past it — the preview is empty and never refilled
 
-Status: Open
+Status: Closed 2026-09-17 — landed on main from the reviewed tip `e8d3a8b858` (lane W13h; LLP 3000.007 §20.22.7, §5.6)
 Priority: P2 (a wrong answer inside an honestly incomplete page, in the search card's recommended form; the continuation cannot repair it)
 Date: 2026-09-17
 Systems: `snapback4-core` `engine/read.rs` (`scan_prepared`: the returned row's shape evaluation under a cut meter; `record_page`'s position for a cut filtered page, §5.6)
@@ -54,3 +54,12 @@ server and both device stores.
 - LLP 3000.007 §5.6 (the filtered page's cut position), §20.22.4 and the search card's grouped form
 - LLP 3000.007.000 §5 (the descoped hook discharge — a "starved shape read" was one of the
   contributions its covering invariant missed; this ticket fixes the page, not the hook)
+
+## Resolution (2026-09-17)
+
+Landed on main 2026-09-17 (reviewed at `e8d3a8b858`): a row whose returned shape the meter starved is not on the page — it and
+every later row are dropped and `next` positions before the first unfinished rule-visible row (exclusive after a finished
+predecessor, else an inclusive v3 token at that row); the 9,000-membership grouped walk returns no chat without its hits.
+The ownership analysis that decides when a shaped page's rewind is published went through five blind rounds; its
+invariant is recorded in the journal and §5.6. The residual — a shape that cannot finish under any fresh meter — is
+`issues/20260917-snapback4-a-returned-shape-that-cannot-finish-under-a-fresh-meter-makes-no-progress.md`.

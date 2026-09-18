@@ -23,6 +23,7 @@ mod memory {
         fixture(snapback4_device::memory::MemoryStore::new(), source, rows, check);
     }
     mod cases { include!("../../../snapback4-sim/tests/common/merge_continuation.rs"); }
+    mod shape_pages { include!("../../../snapback4-sim/tests/common/shape_pages.rs"); }
 }
 
 mod sqlite {
@@ -32,4 +33,5 @@ mod sqlite {
         fixture(snapback4_core::Store::memory().unwrap(), source, rows, check);
     }
     mod cases { include!("../../../snapback4-sim/tests/common/merge_continuation.rs"); }
+    mod shape_pages { include!("../../../snapback4-sim/tests/common/shape_pages.rs"); }
 }

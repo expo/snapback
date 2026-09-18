@@ -278,7 +278,7 @@ mod tests {
     }
     fn program(body: Vec<Stmt>) -> Program {
         Program { name: "p".into(), kind: ProgramKind::Query, args: BTreeMap::from([("arg".into(), ArgType::Id)]),
-            read_time_granularity_ms: None, body, native: false }
+            read_time_granularity_ms: None, body, native: false, returned_shapes: Default::default() }
     }
     #[test]
     fn total_aliases_are_marked_but_assignments_reads_arithmetic_and_filters_are_not() {
@@ -365,7 +365,7 @@ mod write_walk_tests {
             merge_site: None, provenance: KeyProvenance::Const };
         let make = |body| Program { name: "p".into(), kind: ProgramKind::Mutation,
             args: BTreeMap::from([("alias".into(), ArgType::Id)]), read_time_granularity_ms: None,
-            body: vec![Stmt::For { binding: "row".into(), domain: LoopDomain::Page(scan.clone()), body }], native: false };
+            body: vec![Stmt::For { binding: "row".into(), domain: LoopDomain::Page(scan.clone()), body }], native: false, returned_shapes: Default::default() };
         assert!(plan(&make(body.clone())).sites.is_empty(), "setup assignment invalidates the argument alias before marking");
         let mut stable = body;
         if let Stmt::WriteTarget { condition: Some(condition), .. } = &mut stable[0] { condition.setup.clear(); }

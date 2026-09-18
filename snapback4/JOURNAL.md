@@ -36491,3 +36491,1102 @@ Learned: the first gate-2 measurement counted rows *sent*, because that is what 
 `/sync` client can see; the re-measurement had to count rows *held*, which needed the real
 device and a way to look inside it. `memoryPersistence()` exposes its stores for exactly
 this. Measure the claim at the layer the claim is about.
+## 2026-09-17 — W13h: a cut page drops unfinished returned shapes
+
+Base: `12c64165b04168362d93810ea791a11aad7ee12d`. The supplied P2 ticket
+correctly locates the defect in the runner's shape loop, after source-page
+materialization. The page plan now identifies the returned one-to-one
+collectors, and `record_page` retains their source positions under the heap
+meter. A failed read charge, or a read that stops on an inherited cap, marks
+the current shape unfinished. The runner drops that row and every later row;
+a pure shape can still finish after a discovery cut. The continuation uses
+the last fully computed row's exclusive position, or an inclusive position
+at the first unfinished visible row when there is no predecessor. The latter
+is a v3 cursor with the existing typed values, descriptor and optional scope;
+ordinary exclusive v1/v2 bytes are unchanged. The shared store bounds honor
+that inclusive start without changing the scan's exclusive batch frontier.
+The original positions survive successive shapes that remove index columns.
+
+The same repair applies after a merge's drain: 70 raw emissions become 69
+fully computed rows when the last shape is starved; the next request begins
+with `m02-0600`, after `m03-0600`, and returns the remaining 51 of 120 unique
+matches. When every shape is starved after the drain cut, there are zero
+fully computed emissions and no merge candidate, as LLP 3000.007.000 §3
+requires. An opening/word-cut merge gains no candidate. A cursorless returned
+page drops unfinished shapes without inventing a cursor. A nested page keeps
+its existing incomplete-answer behavior. There is no client or hook change.
+
+The 9,000-membership fixture uses hit chats 4,100, 8,500 and 8,950, with five
+hits in each and one miss in every other chat. Before the fix, request 1:
+1 group, incomplete, meter cut, next present, 8,194 examined, 8,194 index
+entries, `r04100.hits = []`; request 2: 2 groups, complete, no next, 821
+examined, 815 index entries. After: request 1 has 0 groups with the same
+cut, next and counters; request 2 has all 3 groups, each with exactly its
+newest 3 hits, complete with no next, 4,918 examined and 4,909 index entries.
+Server, SQLite device and memory device agree. Both walks take 2 requests;
+examined work increases from 9,015 to 13,112 because discovery must revisit
+the unfinished chat, while the 8,192 ceiling is unchanged. No chat is duplicated.
+The exact-shape-boundary fixture changes `[a,b,c]` to `[a]` at 8,193 examined;
+its next page starts `[b,c]`, in both directions.
+
+The final seven shared regressions were run against the exact base source:
+server 2 passed / 5 failed; devices 4 passed / 10 failed. Predicate and nested
+page controls were green before and after. The wider continuation suites
+then passed 26 server and 52 device tests, the guide suite 46, and the cursor
+codec test 1. A source comparison found discovery, frontier advancement,
+predicate evaluation and the device horizon block in `scan_prepared`
+byte-identical to base. Meter ceilings, the value model, the existing
+conformance cases and `react.tsx` are unchanged.
+
+This base does not contain W13e's grouped search card or its defect disclosure;
+it still carries the two-cursor recipe. The search card gains the grouped
+form and its measured repaired walk, while the reads card, README and the two
+governing LLP sections state the shape exception. No disclosure sentence
+could be removed. What this taught: a source traversal's safe discovery
+position is too far forward once a later shape can fail, and the first row
+requires an inclusive position rather than an invented predecessor key.
+
+Final review added an eighth control: an unused shape of the same materialized
+source must not rewind a raw page returned intact. The initial implementation
+failed that control (0 passed / 1 failed), repeating `a` instead of continuing
+to `b`. Reusing the existing backward collector flow to retain only returned
+shapes made it pass (1 passed / 0 failed). The seven-case before/after figures
+above precede this extra ownership control. This also avoids retaining source
+positions for a shape whose output does not flow to the result.
+
+Final qualification: `cargo test -p snapback4-sim --test clique w13h --
+--nocapture` passed 8; the device equivalent passed 16. The continuation
+suites passed 27 server / 54 device, guide 46 and cursor codec 1. An initial
+card edit interrupted an existing horizon fixture's text replacement before
+`query searchHeld`; placing the new grouped example after that query fixed
+it, and the targeted full/horizon fixture passed 1. No horizon code changed.
+The final `bash snapback4/scripts/test.sh` took 219 seconds: all Rust targets
+(75 binaries, 549 executions), native/wasm builds, typechecks and fixture tests
+passed. Client shards total 653 passed, 5 failed, 3 skipped. The five failures
+are Chromium SIGABRT in the sandbox and four effect-lease wire text assertions;
+both were reproduced on the base above (React 0 passed / 1 failed; isolated
+worker assertions 0 passed / 4 failed). The browser `usePage` control therefore
+could not reach its assertions. The final wasm report was 1,754,924 bytes raw,
+508,637 gzip, 41,637 above the unchanged informational 467,000-byte budget;
+this entry makes no base-size comparison. `ref-check --verbose` reports zero
+errors and zero unchecked references; `git diff --check` is clean. All changed
+code files are below 1,500 lines (largest 1,034). The ticket's Systems header
+still attributes shape evaluation to `scan_prepared`; its corrected Fix
+section and the implementation place it in the later runner phase instead.
+
+## 2026-09-17 — W13hR1: a rewind belongs to the returned shape
+
+Base: `c871e2d1fbf0626862fc89c09e02124433409df4`. The review's used
+auxiliary, raw-plus-shaped record and conditional raw return all repeated
+`a`: the shape rewound the shared source position although the returned raw
+page still contained it. The page plan now retains shape lineage separately
+from the source read site, through aliases, record fields and successive
+shapes. Each return path selects its own lineage; a raw page anywhere among
+that return's page fields takes precedence. `trim_shape` truncates the
+unfinished collector and records its position under the shape loop's entry,
+leaving the source `PagePosition` untouched. At `Return`, only the selected
+shape lineage can supply the rewind (the earliest unfinished position when
+successive shapes were cut). A used auxiliary is truncated too, so its count
+can be zero alongside the intact raw page; the answer remains incomplete.
+
+The phase changed is post-materialization shaping and return-position
+selection. `scan_prepared`, including its scan frontier, predicate evaluation
+and device horizon handling, is byte-identical to the base. The other runtime
+change is lane admission: `charge_lane` uses `read_capped` for inherited caps
+and `read_charge` for its step charge, so both eager and lazy range/list lanes
+register stopped work. An owning page materialized before later work exhausts
+the meter now drops its unfinished merge preview and retries that row. The
+fresh request computes both preview rows and advances normally. Auditing the
+other merge exits found no second omission: empty domains need no lane read,
+existence returns already have their witness, and stopped prefix verdicts,
+word discovery and lane scans already record read cuts. The lazy opening and
+refill checks also use `read_capped`.
+
+Five new shared regressions failed with the base runtime, before either fix:
+server `test result: FAILED. 9 passed; 5 failed; 0 ignored; 0 measured; 157 filtered out; finished in 1.83s`;
+devices `test result: FAILED. 16 passed; 10 failed; 0 ignored; 0 measured; 271 filtered out; finished in 1.22s`.
+After the fixes, the same `cargo test -p snapback4-sim --test clique w13h -- --nocapture`
+reports `test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 157 filtered out; finished in 1.90s`;
+`cargo test -p snapback4-device --test device w13h -- --nocapture` reports
+`test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 271 filtered out; finished in 1.22s`.
+The used-summary, raw-plus-shaped and conditional raw returns walk `[a]`, `[b]`
+on all three hosts. The conditional shaped return walks `[]`, `[a]`, `[b]`;
+list and range merge previews do the same, on both eager and lazy paths.
+The existing returned-shape and unused-auxiliary controls remain green.
+
+C2c now asserts that the unfinished merge row is absent, without following its
+unfinishable continuation. The new server-only test
+`w13h_a_shape_that_cannot_finish_under_a_fresh_meter_makes_no_progress`
+pins the residual: zero rows, `complete: false`, meter cut, then zero rows
+again and a continuation byte-identical to the request's cursor. It passed
+before and after this round. No refusal or cost note is added; that policy
+choice remains the author's. No diagnostic text changes.
+
+The grouped 9,000-membership walk is unchanged from the base, on all three
+hosts: page 1 has 0 groups, `complete=false cut="meter" next=yes examined=8194
+idx=8194 previews=[]`; page 2 has 3 groups, `complete=true cut=null next=no
+examined=4918 idx=4909`, with previews
+`[["r04100",["r04100-m4","r04100-m3","r04100-m2"]],["r08500",["r08500-m4","r08500-m3","r08500-m2"]],["r08950",["r08950-m4","r08950-m3","r08950-m2"]]]`.
+Total examined remains 13,112 in 2 requests. The drain control still emits
+69 completed rows, ending at `m03-0600`, before returning the remaining 51;
+the all-starved drain still emits 0 and has no continuation.
+
+LLP 3000.007 §5.6, the README and the reads card now qualify the cut promise:
+`complete: false` on every host, `cut: 'meter'` on the device or uniform
+server read, `cut: null` for non-uniform server reads. The search card already
+states that boundary; its uniform-merge and measured-fixture claims need no
+change. The same documents now state that the raw returned page keeps its
+position. What this taught: sharing the source site is enough to identify a
+page's ordering, but not enough to select a shaped output's continuation.
+
+Further targeted checks, all from `snapback4/`:
+`cargo test -p snapback4-sim --test clique merge_continuation -- --nocapture`:
+`test result: ok. 33 passed; 0 failed; 0 ignored; 0 measured; 138 filtered out; finished in 4.53s`.
+`cargo test -p snapback4-device --test device merge_continuation -- --nocapture`:
+`test result: ok. 64 passed; 0 failed; 0 ignored; 0 measured; 233 filtered out; finished in 1.89s`.
+`cargo test -p snapback4-device --test codec`:
+`test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s`.
+`cargo test -p snapback4-lang --test guide`:
+`test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s`.
+
+The suite's rebuilt head device is exactly 512,431 B gzip, 1,774,639 B raw.
+The unchanged informational budget is 467,000 B (45,431 B over). The earlier
+508,637 B is W13h's recorded head, not a measured `12c64165b0` baseline;
+that older base's separate measurement belongs to the lead and was not
+supplied in this round. This entry makes no comparison with that base.
+
+Full qualification used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` then
+`bash snapback4/scripts/test.sh` at the repository root. Its verbatim summaries:
+`-- rust inventory: 75 test binaries, 565 executions; at most 18 concurrent processes`;
+`-- ok: cargo test (498 s)`; fixtures `ℹ tests 9`, `ℹ pass 9`, `ℹ fail 0`;
+clients `ℹ tests 661`, `ℹ pass 652`, `ℹ fail 6`, `ℹ cancelled 0`, `ℹ skipped 3`;
+`-- FAIL: client tests (559 s)`; `== 1 failure(s) in 600 s`.
+Native/wasm builds, every typecheck and the package/chat checks passed. All
+20 lifecycle tests passed. The suite chose serial client files at a host
+load of 21.42 across 18 CPUs.
+
+One client failure was a timing race: the W5c process acquisition test
+observed `sent` where it expected `pending`. Its isolated rerun,
+`node --test --test-name-pattern='^W5c process: pending writes recover by id through sent and failed, including settlement before reopen returns$' packages/snapback4/test/acquisition.test.mjs`,
+passed: `ℹ tests 1`, `ℹ pass 1`, `ℹ fail 0`.
+The other five failures were reproduced against the exact base runtime
+`c871e2d1fbf0626862fc89c09e02124433409df4`: temporarily restoring the four
+changed engine sources and the reads card from that commit, building
+`cargo build -p snapback4 --quiet`, and running
+`node --test --test-name-pattern='^lost effect lease on the wire reports' packages/snapback4/test/worker.test.mjs`
+(`ℹ tests 4`, `ℹ pass 0`, `ℹ fail 4`) and
+`node --test packages/snapback4/test/react.test.mjs`
+(`ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`, Chromium SIGABRT).
+Every working file was restored byte-for-byte and the working binary rebuilt.
+The brief's expectation that `6d893cac8f` removes the worker reds is contradicted
+by this checkout: that commit is already an ancestor, but all four old-message
+assertions still fail. The actual message on both base and this round is
+`E_EFFECT_LEASE: effect effect-0000000000000001-0000000000000000 is not held by this live claim; claim it first and use its current token`.
+No worker, acquisition or browser code was changed.
+
+The extra root `node scripts/caps.mjs` check reports `2 violations.`:
+61 working-set entries against 59, and the Snapback 1 file
+`crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs` at 1,504 lines
+by that check's newline-count convention. Both offending inputs were verified
+identical to `c871e2d1fbf0626862fc89c09e02124433409df4`; they were not changed.
+Every changed code file is below 1,500 lines (largest: `read.rs`, 992).
+No out-of-scope file was touched. No commit, push, tag or publication was made.
+Final `./ref-check --verbose`:
+`ref-check: ok — 483 LLP docs, 9092 refs in 24260 files, 0 errors, 0 unchecked`.
+`git diff --check` is clean; the restored working native build exits 0.
+
+## 2026-09-17 — W13hR2: a conditional value keeps its page identity
+
+Base: `8a6ac3e8929258a8098fae1a31764d3e36fd8007`. The remaining High
+reproduced: joining the raw page with its shaped collector discarded their
+common page origin because the lineages differed. The record then selected
+only its shaped sibling's rewind, repeating `a` on the raw arm. A standalone
+conditional lost its continuation even without exhaustion, and that uncut
+answer also became incomplete.
+
+Chose the brief's static fallback to keep this final round in the page planner,
+without assignment tracking or another runner state. A page origin now has
+either a known lineage (empty for raw) or an explicit ambiguous marker. A
+branch join preserves a common source site and cursor while marking differing
+lineages ambiguous; it does not union them. Record fields join recursively.
+A branch value that may carry a page but has no common identity remains an
+unknown origin, so record analysis cannot silently ignore it and select a
+sibling's continuation. Conditional scalar/cursor fields do not acquire that
+marker or interfere with the page owner.
+
+An ambiguous returned page selects the raw position. The plan removes shapes
+of that page from the trimming set, including preceding and successive shapes
+that flow to returns. With no trim and no rewind, an unfinished preview stays
+in the incomplete answer rather than dropping a row that the cursor would
+skip. The marker survives aliases, record-field selection and later shaping.
+An identical-lineage conditional still trims and rewinds; separate
+statement-level returns retain their existing raw-versus-shaped selection
+when there is no ambiguous value. The runner, shaping executor, read path
+(including `scan_prepared`, predicates and the device horizon), meter, client
+and `react.tsx` are unchanged. No serialized value or existing corpus case
+changed, and no diagnostic or note was added or reworded.
+
+Nine new shared tests cover the two arms of the record and standalone forms,
+with and without exhaustion, a conditional record followed by field selection,
+successive shapes, the identical-lineage control, a conditional cursor field,
+and an independent no-exhaustion regression. The final tests ran against the
+exact base runtime by temporarily restoring its sole changed engine file;
+the fixed file was then restored byte-for-byte before qualification. Commands
+below ran from `snapback4/`:
+
+`cargo test -p snapback4-sim --test clique w13h -- --nocapture`
+before: `test result: FAILED. 16 passed; 7 failed; 0 ignored; 0 measured; 157 filtered out; finished in 2.93s`
+after: `test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 157 filtered out; finished in 4.31s`.
+`cargo test -p snapback4-device --test device w13h -- --nocapture`
+before: `test result: FAILED. 30 passed; 14 failed; 0 ignored; 0 measured; 271 filtered out; finished in 1.98s`
+after: `test result: ok. 44 passed; 0 failed; 0 ignored; 0 measured; 271 filtered out; finished in 1.54s`.
+`cargo test -p snapback4-sim --test clique merge_continuation -- --nocapture`:
+`test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 138 filtered out; finished in 4.34s`.
+`cargo test -p snapback4-device --test device merge_continuation -- --nocapture`:
+`test result: ok. 82 passed; 0 failed; 0 ignored; 0 measured; 233 filtered out; finished in 2.81s`.
+`cargo test -p snapback4-lang --test guide`:
+`test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s`.
+
+Server, SQLite device and memory device agree: both requested forms, on both
+arms, walk `[a]`, `[b]` in 2 requests, with 0 duplicates and 0 skipped rows.
+The exhausted first request examines 8,193 and keeps its row; a returned shape
+has 0 preview rows. It reports incomplete with a meter cut and has `next`;
+its follow examines 3, a returned shape has 2 preview rows, and the answer
+is complete with no `next`. Without exhaustion the
+same two requests examine 4 and 3 and both are complete. The separate pure
+no-exhaustion conditional also keeps `next` on its non-final page. The
+identical-lineage control still walks `[]`, `[a]`, `[b]`. The grouped 9,000
+fixture is unchanged: 0 groups at 8,194 examined, then all 3 groups at 4,918
+examined, 13,112 total in 2 requests. What this taught: page identity and shape
+lineage need different join rules, and preserving only the identity is safe
+only when trimming follows the same conservative decision as the cursor.
+
+Full qualification at the repository root used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` then
+`bash snapback4/scripts/test.sh`. Verbatim summaries:
+`-- rust inventory: 75 test binaries, 592 executions; at most 18 concurrent processes`;
+`-- ok: cargo test (440 s)`; fixtures `ℹ tests 9`, `ℹ pass 9`, `ℹ fail 0`;
+clients `ℹ tests 661`, `ℹ pass 653`, `ℹ fail 5`, `ℹ cancelled 0`, `ℹ skipped 3`;
+`-- FAIL: client tests (506 s)`; `== 1 failure(s) in 558 s`.
+All 20 lifecycle tests passed. Builds, native/wasm, package/chat/Expo
+typechecks and the chat check passed. The host load was 39.74 across 18 CPUs;
+the suite selected serial client files. The rebuilt working-tree device is
+1,776,157 B raw and 513,469 B gzip, 46,469 B above the unchanged informational
+467,000 B budget. This is the measured final artifact, not a new base-size
+comparison.
+
+The five client failures were verified before editing the engine against
+`8a6ac3e8929258a8098fae1a31764d3e36fd8007`, after
+`cargo build -p snapback4 --quiet`, with Node 24 on PATH:
+`node --test --test-name-pattern='^lost effect lease on the wire reports' packages/snapback4/test/worker.test.mjs`
+reported `ℹ tests 4`, `ℹ pass 0`, `ℹ fail 4`;
+`node --test packages/snapback4/test/react.test.mjs`
+reported `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1` (Chromium SIGABRT).
+The full run's failures are exactly those four lease-message assertions and
+the same browser abort. No new failure surfaced; no worker or browser change
+was attempted.
+
+The README, reads card and the existing LLP 3000.007 §5.6 now state the
+conditional fallback. No brief/code contradiction remains in the reported
+conditional cases; the static fallback deliberately leaves the unfinished
+preview visible as the brief permits. All changed code files are below 1,500
+lines (largest: the shared test fixture, 389). No other-lane file was touched.
+No commit, push, tag or publication was made.
+Final `./ref-check --verbose`:
+`ref-check: ok — 483 LLP docs, 9093 refs in 24261 files, 0 errors, 0 unchecked`.
+`git diff --check` is clean; the journal preserves the base as an exact prefix,
+and the production source matches the bytes qualified by the full suite.
+
+## 2026-09-17 — W13hR3: page provenance has a conservative floor
+
+Base: `30ccb3f19000c231447312d6d9a21ea07c77ecb1`. The loop-carried
+conditional repeated `a` when returned beside its shape, and lost `next` when
+returned alone. Joining a page with an empty or null arm lost its owner;
+an unknown record field also suppressed the known sibling's continuation.
+
+The invariant is: no analysis path deletes a binding that may carry a page;
+every loss of precision keeps the owner, publishes the raw position and
+disables trimming for that page. The planner now joins loop entries and body
+exits to a fixpoint, including `continue` backedges and `break` exits. Each
+return inside a loop retains the join of its origins across iterations;
+a return does not become a path to the statement after the loop. Identical
+page/site/cursor lineages stay precise; different lineages, or a page joined
+with an empty arm in either order, keep the site with ambiguous lineage.
+Different page-carrying values widen to `Unknown`. Unknown fields clear a
+returned record's lineages and disable trimming for every known sibling site.
+A unique known sibling retains ownership; zero or two known sites cannot
+choose a continuation. Unknown aliases and field access remain unknown.
+
+The audit extended beyond the reported loop deletion: appending to an array
+retains or weakens its provenance, and array construction, value-carrying
+builtins and expression blocks no longer silently erase it. Expression and
+builtin matches enumerate their variants so a new form must choose a rule.
+Assignments record a proved page-less replacement explicitly. The same-lineage
+conditional still trims and rewinds, including after a loop. The runtime,
+`scan_prepared`, predicate execution, device horizon, ceilings, serialized
+values, existing corpus cases and client are unchanged. No diagnostic or note
+was introduced or reworded. The README, reads card and LLP 3000.007 §5.6 state
+the fallback and its unique-owner limit.
+
+Eleven shared regressions run on the server, memory device and SQLite device.
+They cover both arms with and without exhaustion: loop-carried records and
+standalone pages, break/continue/return paths, a temporary requiring multiple
+backedges, empty and null arms in both orders, an omitted statement arm, an
+unknown field beside an identical-lineage join, aliases and field access,
+array construction/appending/selection/iteration, an unknown loop-carried
+record and a temporary joined from two different pages. In the two-page case,
+returning one known sibling site keeps that site's raw continuation; returning
+two known sites publishes none because no single site owns the answer.
+
+The regressions were run with `pages.rs` restored byte-for-byte from the base,
+then with the final planner restored. Commands below run from `snapback4/`.
+
+`cargo test -p snapback4-sim --test clique w13h -- --nocapture`
+before: `test result: FAILED. 23 passed; 11 failed; 0 ignored; 0 measured; 157 filtered out; finished in 3.26s`
+after: `test result: ok. 34 passed; 0 failed; 0 ignored; 0 measured; 157 filtered out; finished in 5.72s`.
+`cargo test -p snapback4-device --test device w13h -- --nocapture`
+before: `test result: FAILED. 44 passed; 22 failed; 0 ignored; 0 measured; 271 filtered out; finished in 1.84s`
+after: `test result: ok. 66 passed; 0 failed; 0 ignored; 0 measured; 271 filtered out; finished in 3.59s`.
+`cargo test -p snapback4-sim --test clique merge_continuation -- --nocapture`:
+`test result: ok. 53 passed; 0 failed; 0 ignored; 0 measured; 138 filtered out; finished in 6.23s`.
+`cargo test -p snapback4-device --test device merge_continuation -- --nocapture`:
+`test result: ok. 104 passed; 0 failed; 0 ignored; 0 measured; 233 filtered out; finished in 4.34s`.
+`cargo test -p snapback4-lang --test guide`:
+`test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s`.
+
+The loop record and standalone page walk `[a]`, `[b]` in 2 requests on all
+3 hosts and both arms: 0 duplicates, 0 skipped rows, and `next` on the first
+request. With exhaustion, examined is 8,193 then 3; without exhaustion,
+4 then 3. When the shape is returned, its preview has 0 rows on the exhausted first request,
+then 2; its containing row remains present. The empty and null arms retain
+the same continuation even when that selected field has no page rows.
+The same-lineage control still walks `[]`, `[a]`, `[b]`. The 9,000-membership
+fixture is unchanged: 0 groups at 8,194 examined, then all 3 at 4,918,
+13,112 total in 2 requests. What this taught: a missing binding is a claim
+that no page can be there. Loss of precision must be represented as a value
+in the analysis, and its cursor decision and trim decision must agree.
+
+The first full run's candidate wasm is 1,776,427 B raw and 513,529 B gzip
+(the `gzip -9 -c` measurement printed by `scripts/build-wasm.sh`), 46,529 B
+over the unchanged informational 467,000 B budget. This is the measured
+candidate artifact, not a newly measured baseline comparison.
+
+Before changing the engine, `cargo build -p snapback4 --quiet` and Node 24
+qualified the known failure baseline at
+`30ccb3f19000c231447312d6d9a21ea07c77ecb1`:
+`node --test --test-name-pattern='^lost effect lease on the wire reports' packages/snapback4/test/worker.test.mjs`
+reported `ℹ tests 4`, `ℹ pass 0`, `ℹ fail 4`;
+`node --test packages/snapback4/test/react.test.mjs`
+reported `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1` with Chromium SIGABRT.
+The brief's `issues/20260917-snapback4-worker-lost-effect-lease-tests-red-on-main.md`
+is absent from this worktree; these claims rely on the direct base reproduction.
+
+The first full run, with Node 24 on PATH and
+`bash snapback4/scripts/test.sh` at the repository root, reported
+`-- rust inventory: 75 test binaries, 625 executions; at most 18 concurrent processes`,
+`-- FAIL: cargo test (367 s)`, `-- FAIL: client tests (77 s)`,
+`== 2 failure(s) in 406 s`. The client group reported `ℹ tests 627`,
+`ℹ pass 615`, `ℹ fail 9`, `ℹ skipped 3`; the seven other client shards
+passed 34 tests, for 661 total, 649 passed, 9 failed and 3 skipped.
+Fixtures passed 9/9; builds and all typechecks passed.
+
+That run caught two product regressions in the initial candidate: an append
+kept a cursor identity for a modified page, and an accumulator could acquire
+ownership across repeated executions of a page site. The unchanged corpus
+reported `test result: FAILED. 17 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.82s`
+(`composite-pushed-page-no-next`); the existing server helper suite reported
+`test result: FAILED. 42 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.58s`,
+and the device helper suite
+`test result: FAILED. 88 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 28.51s`.
+The fix stays inside the conservative floor: every append of or to possible
+page content becomes `Unknown`, including appends across executions of one
+site. It keeps the content visible to sibling analysis without inventing an
+owner for the appended collection. A proved one-to-one shape still supplies
+its page origin after its loop. No corpus case or existing oracle changed.
+
+After that correction, and before the final whole-suite run:
+`cargo test -p snapback4-core --test corpus -- --nocapture`:
+`corpus (Rust server only; no TypeScript/replica conformance claim): 212 passed, 83 skipped, 0 failed`;
+`test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.80s`.
+`cargo test -p snapback4-sim --test helper_pages`:
+`test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.05s`.
+`cargo test -p snapback4-device --test helper_pages`:
+`test result: ok. 90 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 30.14s`.
+The W13h, merge-continuation and guide summaries above are the reruns of the
+corrected planner. The first run's three witness failures and the extra HTTP
+and transport client timeouts are rerun separately; the worker/browser
+baseline is recorded above.
+
+`cargo test -p snapback4 --test witness -- --test-threads=1` reran the
+witness binary on its own and reported
+`test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 48.88s`.
+These are failed-under-load/passed-on-rerun observations, not an unverified
+claim that the timing failures predate this branch.
+
+With Node 24 on PATH,
+`node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'`
+reported `ℹ tests 661`, `ℹ pass 653`, `ℹ fail 5`, `ℹ cancelled 0`,
+`ℹ skipped 3`, `ℹ duration_ms 225884.127541`. The HTTP and transport timing
+failures cleared; the remaining five are exactly the four lease assertions
+and Chromium abort reproduced on the base. No worker or browser code changed.
+
+The corrected head's final full-suite build measures 1,776,360 B raw and
+513,536 B gzip, 46,536 B over the unchanged informational budget. This
+replaces the first candidate's measurement above as the head artifact.
+The suite observed host load 24.80 across 18 CPUs and selected serial
+client files.
+
+The final `bash snapback4/scripts/test.sh` run (repository root, after
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`) reported:
+`-- rust inventory: 75 test binaries, 625 executions; at most 18 concurrent processes`;
+`-- ok: cargo test (216 s)`;
+fixtures `ℹ tests 9`, `ℹ pass 9`, `ℹ fail 0`;
+clients `ℹ tests 661`, `ℹ pass 653`, `ℹ fail 5`, `ℹ cancelled 0`, `ℹ skipped 3`;
+`-- FAIL: client tests (433 s)`;
+`== 1 failure(s) in 473 s`.
+All builds and package/chat/Expo typechecks passed. The Rust corpus,
+collector oracles, lifecycle and witness tests pass in this final full run.
+Only the four baseline lease-message assertions and the same Chromium SIGABRT
+remain. The HTTP/transport/witness timing failures did not recur.
+
+No requested implementation was omitted. No out-of-scope file was changed,
+no existing corpus or test oracle was changed, and no diagnostic text changed.
+The only brief/checkout discrepancy found is the missing worker issue file
+noted above; its four failures were independently verified on the named base.
+All changed code files remain under 1,500 lines (largest: the shared fixture,
+526). The journal retains its base as an exact prefix and has one new dated
+entry. No commit, push, tag or publication was made; the pre-existing untracked
+lane briefs are preserved.
+Final `./ref-check --verbose`:
+`ref-check: ok — 483 LLP docs, 9094 refs in 24262 files, 0 errors, 0 unchecked`.
+`git diff --check` is clean; the planner is byte-identical to the source
+qualified by the final full suite.
+
+## 2026-09-17 — W13hR4: collector payloads and structural page joins
+
+Base: `31ec7136e19052b52912a382cc372649239294c3`. The collector-wrapped
+raw page and conditional raw/shaped payload reproduced the inclusive rewind:
+`a` was returned twice. A conditional over a whole record versus null or an
+empty list lost its continuation. The fixes stay in the page planner; no
+runtime, meter ceiling, serialized value, existing corpus case or client
+implementation changes.
+
+The invariant is: *no operation deletes a page-carrying binding, and no operation strengthens one beyond what it proves about the payload; every loss of precision keeps a unique known owner, publishes the raw position and disables trimming for that page.*
+
+Collector promotion now proves its payload separately from cardinality. At
+the push site, the converged incoming bindings are evaluated through the
+iteration's statement prefix. The item's own value is covered by the domain
+lineage; aliases and fields preserve any other incoming page. New reads
+computed inside that iteration are nested work, covered by the shape's own
+trim and rewind. If the payload still may carry an incoming page, promotion
+leaves the loop join's result in place. This handles a raw page, a conditional
+raw/shaped payload and a raw page embedded in an item shape, while retaining
+item copies, item shapes with nested reads, and aliases of those items.
+The proof-only bindings never replace the ordinary origin analysis.
+
+A record joined with `Empty` now joins each field against an empty binding
+map. Other structural mismatches retain one known site with ambiguous lineage:
+records versus pages, and page-carrying values versus cursors. Field selection
+from a structurally ambiguous page keeps its ambiguity. Different sites have
+no single owner. `Unknown` remains absorbing across alternative values: it
+can represent accumulated executions, not just unknown structure. A separate
+known sibling in a returned record still supplies ownership and disables
+trimming, as before. A record containing only unknown page content likewise
+cannot borrow ownership from its other conditional arm; a positive control
+returns a separate known sibling and advances normally.
+
+That execution distinction was checked against the unchanged helper oracle.
+The first candidate recovered a site from `Unknown` joined with a known
+alternative; the oracle caught an accumulator across two page executions
+incorrectly acquiring the final execution's continuation. Server helper tests
+reported `test result: FAILED. 42 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.24s`;
+devices reported `test result: FAILED. 88 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.79s`.
+Keeping the accumulated `Unknown` unowned fixed it without changing that
+oracle. A focused additional regression caught the same overreach through an
+unknown-only record alternative:
+`cargo test -p snapback4-sim --test clique w13h_structural_join -- --nocapture`
+reported `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 199 filtered out; finished in 0.01s`
+on that intermediate candidate. The final join requires a known owner on each
+page-carrying alternative, including records. This is the limit on the brief's
+“unique site”: a single source-code
+site does not establish a single execution owner (LLP 3000.007 §19.2).
+The fallback in §5.6, the package README and reads card now explain payload
+proof and whole-record joins. No diagnostic or note was added or reworded.
+
+The operation audit below names lines in the final
+`crates/snapback4-core/src/engine/pages.rs`. “Lost” means a page-carrying
+runtime value becomes invisible to the analysis, not an intentional scalar
+replacement or projection that does not transport that value. `Unknown`
+keeps possible page content visible, but cannot invent an execution owner.
+
+| Origin operation | Line(s) | Can page-carrying content be lost? | Can it become precise lineage? |
+|---|---|---|---|
+| Argument initialization | 223–230 | No: program inputs have no read-site provenance; cursor arguments initialize cursor aliases. | No page lineage is created. |
+| Scan and merge construction | 237–267 | No: each materialized page names its read site; merge lane cursor disagreement keeps the site with no shared cursor. | Only a newly read raw page gets `Some(empty)`; no transported origin is strengthened. |
+| Page domains | 309–317 | No: direct page domains create their site; derived domains use the expression's origin. | Only a new direct raw page; derived domains copy existing precision. |
+| Assignment | 365–372 | No: every replacement is explicit, and only a proved page-less value becomes `Empty`. | Only the expression's proved origin; no stale binding is reused. |
+| `if` join | 158–215, 387–402 | No: live alternatives join; record fields join with missing fields as `Empty`; unknown content stays visible. | Never: identical origins stay identical, structural/same-site mismatches become ambiguous, unknown or multiple sites cannot acquire an owner. |
+| Loop entry, backedge and exit | 403–452 | No: entry (zero iterations), continuing/backedge and breaking paths join to a fixpoint. | No: joins do not restore precision; promotion is checked separately. |
+| `break` and `continue` | 475–476 | No: complete binding maps enter the corresponding exit sets. | No: only joins, and the exited path does not fall through. |
+| `return` in a loop | 381–386, 435–447 | No: the return site's origins join across iterations, separately from the loop's surviving paths. | No: a return cannot become a backedge or an after-loop binding. |
+| Loop item | 428–439 | No: a raw storage row has no embedded read-site page; a shaped/ambiguous/container item remains `Unknown`. | No: overwriting the iteration variable does not retain a previous alias. |
+| Collector promotion | 417–427, 453–473 | No: a page-carrying payload outside the item fails the proof and keeps its joined result. | Yes, only for an initially empty target with one unconditional push, no exits, and the payload proof; ambiguous domain lineage remains ambiguous. |
+| Push/append | 373–380 | No: any page-carrying old or added value makes the target `Unknown`. | Never: an append may combine sites or executions; cardinality alone grants no owner. |
+| Alias | 269 | No: copies the whole origin, including `Unknown` and ambiguous lineage. | No: exact copy only. |
+| Field access | 278–283 | No: selects the record field; unknown structure stays unknown and structurally ambiguous page ownership stays ambiguous. | No: no new shape path is added. |
+| Record and row-shape construction | 270–277 | No: all transported fields retain their origins; a row shape copies its declared fields and scalar pending metadata, not its base's other fields. | No: records preserve structure only. |
+| Arrays | 284–287 | No: any contained page becomes visible as `Unknown`; scalar/empty arrays are page-less. | Never: wrapping or mixing values proves no page cardinality. |
+| Transporting builtins | 288–295 | No: slice/concat/group/selectors/min/max/sort propagate possible page content as `Unknown`. | Never: their changed structure does not prove an intact page. |
+| Scalar expressions and builtins | 296–306 | No: literals, input/scalar operations, point rows and scalar reductions do not transport read-site pages. | No lineage is created. |
+| Expression blocks | 299–303 | No: analyze the block's local assignments/loops before its resulting expression. | Only the ordinary expression/collector rules, never the block wrapper. |
+| `result_page` / `collect` | 100–127 | No: visits returned record values; unknown siblings clear shapes while one known page site/cursor owns the result. No unique owner means no continuation. | Never: raw/ambiguous/unknown content clears the returned shape set. |
+| `ambiguous_pages` | 129–147, 63–72 | No: visits every field even after an unknown sibling, then disables trimming for all affected known sites. | Never: it only removes trimming eligibility. |
+| Returned-site diagnostic collection | 79–95 | No: visits all known page and record origins, including cursorless pages; unknown content cannot fabricate a site. | No runtime lineage or cursor mutation. |
+| Helper inlining | 338–341, 299–303, 475–476 | No: lowered helper bodies follow the same loop/block rules; their local breaks do not exit the outer shape. | Only the same proved collector rule; no helper-specific promotion. |
+| Collector payload proof | 20–27, 453–467 | No runtime binding changes: only the probe treats the current item and newly computed nested reads as covered; external pages survive aliases, joins and prefix work. | Grants eligibility only after proving no external page payload; does not publish its probe origins. |
+| Assertions and write/effect statements | 477–478 | No: they replace no result binding; reads they evaluate retain ordinary runtime completeness accounting. | No origin promotion. |
+| Fallthrough | 231–234, 481 | No: only a live fallthrough yields the runtime's page-less result; prior returns retain their own maps. | No: inserts `Empty` only. |
+
+The join arms are exhaustive: equality preserves its proof; equal site/cursor
+pages with differing lineages become ambiguous; page/empty becomes ambiguous;
+record/record joins fields; record/empty joins fields with absence; an unknown
+alternative stays unknown because it has no single execution owner; other
+page-carrying pairs collect their known sites (one becomes ambiguous, several
+become unknown); remaining page-less pairs become empty. Neither new branch
+can manufacture a precise lineage.
+
+Nine shared tests cover the new collector/record cases and positive controls;
+all previous W13h assertions retain their meanings. The final test source ran
+with `pages.rs` restored byte-for-byte from the base, then with the final
+planner restored byte-for-byte. All commands below run from `snapback4/`.
+One initial Cargo invocation mistakenly ran at the repository root and exited
+101 without running tests; none of the evidence below comes from that invocation.
+
+`cargo test -p snapback4-sim --test clique w13h -- --nocapture`
+before: `test result: FAILED. 36 passed; 7 failed; 0 ignored; 0 measured; 157 filtered out; finished in 4.49s`
+after: `test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 157 filtered out; finished in 6.09s`
+
+`cargo test -p snapback4-device --test device w13h -- --nocapture`
+before: `test result: FAILED. 70 passed; 14 failed; 0 ignored; 0 measured; 271 filtered out; finished in 2.99s`
+after: `test result: ok. 84 passed; 0 failed; 0 ignored; 0 measured; 271 filtered out; finished in 3.64s`
+
+`cargo test -p snapback4-sim --test clique merge_continuation -- --nocapture`
+after: `test result: ok. 62 passed; 0 failed; 0 ignored; 0 measured; 138 filtered out; finished in 6.81s`
+
+`cargo test -p snapback4-device --test device merge_continuation -- --nocapture`
+after: `test result: ok. 122 passed; 0 failed; 0 ignored; 0 measured; 233 filtered out; finished in 4.70s`
+
+`cargo test -p snapback4-sim --test helper_pages`
+after: `test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.94s`
+
+`cargo test -p snapback4-device --test helper_pages`
+after: `test result: ok. 90 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.75s`
+
+`cargo test -p snapback4-lang --test guide`
+after: `test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s`
+
+The additional corpus check before the final structural-join guard,
+`cargo test -p snapback4-core --test corpus -- --nocapture`, reported
+`corpus (Rust server only; no TypeScript/replica conformance claim): 212 passed, 83 skipped, 0 failed`;
+`test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.99s`;
+the final full suite below checks the unchanged corpus again.
+
+Measurements on the server, SQLite device and memory device agree. The raw
+collector payload and conditional raw/shaped payload walk `[a]`, `[b]` in
+2 requests, with 0 duplicates and 0 skipped rows; the embedded payload itself
+is asserted, not just its known sibling. The first request has `next`, the
+second has none. Under exhaustion, examined is 8,193 then 3; without it,
+4 then 3. The record-level null/empty forms, both operand orders, direct and
+assigned returns, keep `next` on the non-final page, and the selected record
+arm emits `a` then `b`. The other arms keep their authored null/empty result.
+Their examined counts are the same 8,193/3 or 4/3. Incomplete previews retain
+0 detail rows in their containing row on the cut request, then 2 on the follow.
+
+The genuine item/shape/alias collectors still trim and rewind when the
+returned shape is starved: `[]`, `[a]`, `[b]`, 3 requests, 0 duplicate rows
+and 0 skipped rows. Uncut controls and the raw-item collector walk `[a]`,
+`[b]` in 2 requests. The 9,000-membership fixture stays at 0 groups with
+8,194 examined, then all 3 groups with 4,918 examined: 13,112 total in
+2 requests on all 3 hosts. No ceiling changed.
+
+The full suite's candidate wasm is 1,780,139 B raw and 514,778 B gzip
+(`gzip -9 -c`, as printed by `scripts/build-wasm.sh`), 47,778 B above the
+unchanged informational 467,000 B budget. This measures the final working
+tree's device, not a new comparison against the base's artifact.
+
+Before changing production code, `cargo build -p snapback4 --quiet` exited 0
+on `31ec7136e19052b52912a382cc372649239294c3`. With
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`,
+`node --test --test-name-pattern='^lost effect lease on the wire reports' packages/snapback4/test/worker.test.mjs`
+reported `ℹ tests 4`, `ℹ pass 0`, `ℹ fail 4`;
+`node --test packages/snapback4/test/react.test.mjs`
+reported `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1` (Chromium SIGABRT in the sandbox).
+The worker's actual diagnostic on the base is:
+`E_EFFECT_LEASE: effect effect-0000000000000001-0000000000000000 is not held by this live claim; claim it first and use its current token`.
+Those four assertions expect the older `/is running and not claimed by this worker/`
+text. No worker or browser change was made. The lane introduces no diagnostic,
+so there is no requested before/after diagnostic wording change.
+
+Final whole-suite qualification used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` then
+`bash snapback4/scripts/test.sh` at the repository root. Verbatim summaries:
+`-- rust inventory: 75 test binaries, 652 executions; at most 18 concurrent processes`;
+`-- ok: cargo test (286 s)`;
+fixtures `ℹ tests 9`, `ℹ pass 9`, `ℹ fail 0`;
+main client group `ℹ tests 627`, `ℹ pass 618`, `ℹ fail 6`, `ℹ cancelled 0`, `ℹ skipped 3`;
+`-- FAIL: client tests (60 s)`;
+`== 1 failure(s) in 317 s`.
+The seven other client shards reported, in log order:
+`ℹ tests 3`, `ℹ pass 3`, `ℹ fail 0`;
+`ℹ tests 7`, `ℹ pass 7`, `ℹ fail 0`;
+`ℹ tests 6`, `ℹ pass 5`, `ℹ fail 1`;
+`ℹ tests 6`, `ℹ pass 6`, `ℹ fail 0`;
+`ℹ tests 3`, `ℹ pass 3`, `ℹ fail 0`;
+`ℹ tests 6`, `ℹ pass 6`, `ℹ fail 0`;
+`ℹ tests 3`, `ℹ pass 3`, `ℹ fail 0`.
+Across client shards that is 661 tests, 651 passed, 7 failed, 3 skipped.
+All native/wasm builds, package/chat/Expo typechecks and fixture tests passed;
+all 20 lifecycle and all 20 witness tests passed. Host load at client launch
+was 16.42 across 18 CPUs, so the suite used its normal concurrent client files.
+
+The two additional client failures cleared when rerun individually, with
+Node 24 on PATH, from `snapback4/`:
+`node --test --test-name-pattern='^W5c process: pending writes recover by id through sent and failed, including settlement before reopen returns$' packages/snapback4/test/acquisition.test.mjs`
+reported `ℹ tests 1`, `ℹ pass 1`, `ℹ fail 0`;
+`node --test --test-name-pattern='^invocation lifetime releases provider and private-core fetch and body stalls without late identity effects$' packages/snapback4/test/identity.test.mjs`
+reported `ℹ tests 1`, `ℹ pass 1`, `ℹ fail 0`.
+These are failed-under-concurrency/passed-alone observations, not a claim
+that they were verified failing on the base. The remaining five failures
+match the base reproduction above, including the verbatim lease diagnostic.
+No change was made to those tests or their product implementations.
+
+What this taught: cardinality and transported payload provenance are separate
+proofs. A unique source-code site also differs from a single execution owner;
+conservative joins must preserve the latter without recovering it from an
+accumulation. Both requested defects are fixed; no requested implementation
+or test class was omitted. No out-of-scope file was changed. The final source
+files have 482 (`pages.rs`), 644 (shared tests), and 278 (reads card) lines,
+all under 1,500. The four pre-existing untracked lane briefs are preserved.
+No commit, push, tag or publication was made.
+
+Final `./ref-check --verbose`:
+`ref-check: ok — 483 LLP docs, 9095 refs in 24263 files, 0 errors, 0 unchecked`.
+`git diff --check` is clean. The journal preserves the base as an exact prefix
+with one dated entry appended, and the planner is byte-identical to the
+source qualified by the final targeted and whole-suite runs.
+
+## 2026-09-17 — W13hR5: descope to the binder's returned shape
+
+Base: `6f23122e7315b9aa630575f649c0d720434bcf79`, on
+`sb4/w13h-landing`. This entry supersedes the R1–R4 ownership claims and R4
+operation audit above; those entries remain untouched as history. The lead's
+ruling is to stop proving ownership. `pages.rs` restores the origin analysis
+from `40adcfb3e0`: `Origin` has only Empty, Page(site, cursor), Record and Cursor;
+there are no lineage values, joins, Unknown, Exits, payload probes, ambiguous
+page sets or loop fixpoint in that file. From `returned_page_sites` through
+the end, its bytes match main exactly. Main's separate rejected-collector
+backward liveness analysis is unchanged, including its bounded name-set loop;
+“no fixpoint anywhere” is therefore true of the removed origin analysis, not
+literally of every pre-existing planner helper in this checkout.
+
+The syntactic rule replaces the audit table: a query's **top-level**
+`return <base> { ... }` can be marked. The base must lower to an inline Scan
+or Merge, or be a variable with exactly one definition in the whole lowered
+body, that definition a Scan or Merge, exactly one use (this shape's domain),
+and no reassignment. The binder first selects only explicit top-level Return
+AST nodes whose immediate expression is Shape and whose base is Read, Merge
+or Name. A finite census of runtime names counts every definition and use,
+including expressions, conditions, nested bodies, helper expansion, scan
+filters/bounds and merge setup. It neither joins values nor follows backedges.
+Assigned shapes, nested record/conditional shapes, helper returns, collector
+payloads, aliases of read variables and reassignments are unmarked. A helper
+*inside the fields of a canonical returned shape* remains allowed.
+
+The mark is `Program.returned_shapes`, a side table from the lowered loop's
+runtime path to its read site. This keeps Stmt::For and every loop consumer
+unchanged; it needs only empty-field additions at other Program constructors.
+Serde defaults the map and omits it when empty, so unmarked IR has no new
+serialized field. Marks survive serialization to a device. The planner adds
+only marked loops to Plan.shapes and gives the immediately following Return
+of that loop's collector its shape-owned position. All other returns use
+main's ownership. The inclusive v3 cursor, shape positions, drain candidate,
+qualified cut promise, record_page literal and charge_lane/read_capped runtime
+are unchanged from the base; no meter ceiling, value form or existing corpus
+case changed.
+
+The brief says “const-bound read”; Quarry's existing spelling is `page = read`,
+which lowers to Let, with single definition/use enforced by the census. There
+is no new const keyword. The census accepts the IR Const variant too. The
+brief also asks every non-canonical form to keep next and skip no row, while
+requiring main's origin analysis. Main cannot infer an owner for a standalone
+loop-written page, page-or-empty, or structural record conditional; a Return
+inside a loop has no owner either. Those forms now keep their row/value and
+report incomplete with no next, even uncut. The tests and docs state this
+limit instead of reinstating provenance analysis. Where main has an owner,
+the non-canonical walk is [a], [b], not [], [a], [b]: zero duplicates and zero
+skipped rows, the same exclusive position as main. On a meter cut the preview
+is empty or partial, the row stays, and complete is false. The nested re-scan
+collector also remains incomplete on its first uncut page because its separate
+non-final nested read is unowned; its final page is complete.
+
+Before changing production code, the typed helper composition was compiled
+into the server test binary from this exact base. Its actual Quarry signature
+is `fn wrap(previous: json <=100000 ?, payload: json <=100000):`; its body
+returns `{ previous, payload }`, and the query rebinds
+`wrapped = wrap(wrapped, page)` inside `range(0, 1)` before returning
+`{ page, wrapped }`. After the printed “entering compile and plan” marker,
+the base ran until the explicit 600-second timeout. The runner killed only
+its recorded child PID. It produced no Rust summary because it never finished:
+
+```
+test merge_continuation::shape_pages::w13h_finite_helper_composition_terminates has been running for over 60 seconds
+termination regression: TIMEOUT after 600 s; 0 completed, 1 hung
+```
+
+The red command was `cargo test -p snapback4-sim --test clique --no-run`,
+then Python `subprocess.Popen(['target/debug/deps/clique-b7c2c755649ac7a0',
+'w13h_finite_helper_composition_terminates', '--nocapture'])` and
+`p.wait(timeout=600)`. An initial untyped transcription was refused by the
+existing parser; it was corrected before the bounded hang measurement. The
+new test is green on all three hosts after the descope. No existing test was
+deleted; names that claimed trimming, payload proof or ownership were changed.
+
+The following table records each changed expectation or renamed test. Names
+below have the common `w13h_` prefix. Other existing tests retain their
+expectations, including canonical grouped/boundary/drain/inherited-cap and
+cursorless positives, predicate and nested-page controls, and the conditional,
+loop-sibling, null-sibling, alias and container cases that already kept rows.
+
+| Test after R5 | Expectation relative to rounds 1–4 |
+|---|---|
+| successive_shapes_keep_partial_rows_on_direct_eager_and_lazy_pages | Former first-shape retry test: successive assigned shapes now retain a and its partial preview; next returns b, both directions and all three read strategies. |
+| used_auxiliary_summary_does_not_rewind_the_returned_raw_page | Raw walk unchanged; now explicitly asserts the untrimmed auxiliary count is 1. |
+| raw_page_returned_beside_its_shape_keeps_its_own_position | Raw walk unchanged; now explicitly asserts the shaped sibling retains one row. |
+| conditional_return_keeps_the_raw_position_for_both_arms | Both arms now walk a then b; the shaped arm no longer trims/rewinds. |
+| conditional_same_shape_keeps_partial_rows_without_rewind | Identical conditional arms no longer qualify; keep a with empty preview, then b. |
+| loop_carried_page_keeps_partial_rows_without_an_owner | Standalone loop-carried result retains a, is incomplete and has no next. |
+| loop_exits_keep_main_ownership_without_trimming | Break/continue with a known sibling keep the raw walk; the return inside the loop has no owner. |
+| multiple_backedges_keep_the_sibling_raw_position | Assertions unchanged; renamed because no origin fixpoint remains. |
+| loop_same_shape_keeps_partial_rows_without_an_owner | No trim, no rewind; the loop-written standalone result has no owner. |
+| page_or_empty_in_either_order_keeps_rows_without_an_owner | Both arms retain their authored value with no next and incomplete. |
+| collector_wrapping_raw_page_keeps_main_position | Assertions unchanged; renamed to remove the deleted payload-proof claim. |
+| collector_wrapping_conditional_page_keeps_main_position | Assertions unchanged; renamed to remove the deleted payload-proof claim. |
+| collector_shape_embedding_raw_page_keeps_main_position | Assertions unchanged; renamed to remove the deleted payload-proof claim. |
+| item_and_alias_collectors_keep_partial_rows_without_rewind | Item, shape and alias collectors retain a with its starved preview, then b. |
+| record_or_null_keeps_its_value_without_an_owner | Both orders and direct/assigned forms retain the authored value; no next, incomplete. |
+| record_or_empty_keeps_its_value_without_an_owner | Same main behavior for an empty-array alternative. |
+| record_or_page_keeps_its_value_without_an_owner | Same main behavior for raw and shaped page alternatives. |
+| record_or_cursor_keeps_its_value_without_an_owner | Same main behavior for a cursor alternative. |
+
+New shared tests cover the terminating helper composition, the canonical
+single-definition read over direct/eager/lazy pages, the explicit inline read,
+the nested re-scan collector and a helper-contained returned shape. The new
+binder test exercises positive marks and negative assigned/aliased/reassigned,
+raw-carrying, record, conditional, helper and collector forms, including serde
+round trips and absence of the new field on unmarked programs.
+
+The W13e search card's separate fixture now measures 8,194 + 906 = **9,100**
+examined in two requests per host: zero groups on the cut request, then all
+three chats with their hits. The older W13h fixture is unchanged at
+8,194 + 4,918 = **13,112** examined; its earlier first matching chat is revisited
+by the inclusive retry. The [a,b,c] boundary retains only a at **8,193** examined
+then returns b,c in both directions. Drain keeps **69** fully shaped emissions,
+ending m03-0600, and returns the other **51** of **120** unique rows next. The
+all-starved drain returns **0** rows and no next. No ceiling changed.
+
+What this taught: the fixed syntactic boundary is enough for the canonical
+screen while terminating on finite helper composition. Main's more limited
+continuation inference is an explicit tradeoff, not a new ownership theorem.
+The README, reads card, search walk table and LLP 3000.007 §5.6 now describe
+that boundary. The journal stays append-only; the prior audit is superseded
+here rather than rewritten.
+
+The additional `cargo test -p snapback4-lang --test lowering` first reported
+`test result: FAILED. 3 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 90.36s`.
+Every difference was a baseline IR hash: canonical queries now serialize the
+new mark. The minimal change in `tests/lowering.rs` removes only the new side
+table for the historical golden comparison. Unmarked programs still compare
+their original serialized bytes; the full marked IR, admission and observed
+execution remain compared between the presence ownership-on/off binders. No
+golden or source-census file changed. The rerun reports
+`test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 82.42s`.
+
+Targeted commands below run from `snapback4/`. These are the final targeted
+results; the whole suite later recompiles the final test-source comments too.
+
+`cargo test -p snapback4-sim --test clique w13h -- --nocapture`:
+
+```
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 177 filtered out; finished in 10.03s
+```
+
+`cargo test -p snapback4-device --test device w13h -- --nocapture`:
+
+```
+test result: ok. 94 passed; 0 failed; 0 ignored; 0 measured; 291 filtered out; finished in 5.71s
+```
+
+`cargo test -p snapback4-sim --test clique search_global -- --nocapture`:
+
+```
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 209 filtered out; finished in 60.73s
+```
+
+`cargo test -p snapback4-device --test device search_global -- --nocapture`:
+
+```
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 337 filtered out; finished in 127.04s
+```
+
+`cargo test -p snapback4-sim --test clique merge_continuation -- --nocapture`:
+
+```
+test result: ok. 67 passed; 0 failed; 0 ignored; 0 measured; 158 filtered out; finished in 11.80s
+```
+
+`cargo test -p snapback4-device --test device merge_continuation -- --nocapture`:
+
+```
+test result: ok. 132 passed; 0 failed; 0 ignored; 0 measured; 253 filtered out; finished in 7.22s
+```
+
+`cargo test -p snapback4-sim --test helper_pages -- --nocapture`:
+
+```
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.80s
+```
+
+`cargo test -p snapback4-device --test helper_pages -- --nocapture`:
+
+```
+test result: ok. 90 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 38.69s
+```
+
+`cargo test -p snapback4-core --test corpus -- --nocapture`:
+
+```
+corpus (Rust server only; no TypeScript/replica conformance claim): 212 passed, 83 skipped, 0 failed
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.48s
+```
+
+`cargo test -p snapback4-lang --test guide -- --nocapture`:
+
+```
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+```
+
+`cargo test -p snapback4-lang --test feed_forms w13h -- --nocapture`:
+
+```
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+```
+
+`cargo test -p snapback4-sim --test clique w13h_finite_helper_composition_terminates -- --nocapture`:
+
+```
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 224 filtered out; finished in 0.02s
+```
+
+The walks, verbatim from the server log (both device stores assert the same
+values):
+
+```
+W13e grouped9000 request=1 groups=0 complete=false cut=Some(Meter) next=true examined=8194
+W13e grouped9000 request=2 groups=3 complete=true cut=None next=false examined=906
+W13e grouped9000 requests=2 groups=3 examined_total=9100
+W13h grouped device=false request 1: groups=0 complete=false cut="meter" next=yes examined=8194 idx=8194 previews=[]
+W13h grouped device=false request 2: groups=3 complete=true cut=null next=no examined=4918 idx=4909 previews=[["r04100",["r04100-m4","r04100-m3","r04100-m2"]],["r08500",["r08500-m4","r08500-m3","r08500-m2"]],["r08950",["r08950-m4","r08950-m3","r08950-m2"]]]
+```
+
+The first whole-suite run used Node 24.18.0 on PATH and
+`bash snapback4/scripts/test.sh` from the repository root. During that run
+the machine's default Xcode selection began refusing Git, Python and cc with
+the unaccepted-license message. The Rust test artifact build therefore failed
+at linking (cc exit 69), before it could run the Rust inventory. The native
+and wasm product builds had already passed. No machine setting or license
+was changed; the rerun scopes `DEVELOPER_DIR=/Library/Developer/CommandLineTools`
+to the command, where the installed compiler works. The first run's summaries:
+
+```
+-- ok: cargo build (25 s)
+-- ok: wasm build (21 s)
+-- ok: release guard (4 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- FAIL: Cargo test artifact build
+-- FAIL: cargo test (188 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+-- ok: fixture wrapper tests (9 s)
+ℹ tests 722
+ℹ pass 717
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 3
+-- FAIL: client tests (621 s)
+== 2 failure(s) in 676 s
+```
+
+The README TypeScript failure was rerun alone with Node 24 and that scoped
+toolchain setting, from snapback4/:
+`node --test --test-name-pattern='^README TypeScript examples compile and call every public function$' packages/snapback4/test/readme-examples.test.mjs`.
+It failed identically with the head README and with the exact README restored
+from `6f23122e7315b9aa630575f649c0d720434bcf79`. Before the base-input run,
+Git verified every other TypeScript source, test source, Expo source and
+published document this test consumes unchanged against that base. The
+README's fenced TypeScript blocks also compare byte-for-byte before any
+restoration. The current README was restored in a finally block. No worker
+implementation, worker example or README TypeScript block was edited.
+Both runs report the same missing call verbatim:
+
+`worker.runGeneratedEffects needs a call in a README ts/tsx block`
+
+Head isolated summary:
+
+```
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+```
+
+Exact-base inputs summary:
+
+```
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+```
+
+Additional files touched outside the planner/binder/shape-test/doc scope were
+minimal consequences of the Program side table. They only initialize an empty
+map: core `src/engine/prefetch.rs` (test constructors), `src/schema/routes.rs`,
+`tests/action_context.rs`, `tests/bound_session.rs`, `tests/common/meter.rs`,
+`tests/corpus.rs`, `tests/read_verdict/mod.rs`, `tests/read_verdict/round2.rs`,
+`tests/work_records.rs`; device `src/device/media.rs`; lang `src/bind/actions.rs`
+and `tests/components.rs`; sim `tests/common/write_observation.rs`.
+Lang `tests/lowering.rs` has the golden-comparison accommodation described
+above. These files were not reformatted and none of their behavior changed.
+The requested new tests use the existing shared server/device suite and the
+existing language feed_forms suite. The largest changed code file is 978
+lines (bind/program.rs); the new syntactic census module is 116 lines.
+
+No parser form, diagnostic text, diagnostic code or note was added or reworded,
+so there is no before/after diagnostic wording change. No meter ceiling,
+serialized value form, existing corpus case, client or hook was changed.
+No requested implementation was omitted. The main-ownership and const-spelling
+limits above are the brief/checkout contradictions. No commit, push, tag,
+publication, other-machine run, repository clone or sub-agent was used. The
+five supplied untracked lane briefs remain untouched.
+
+The final head wasm is **1,595,051 bytes raw / 467,476 bytes gzip**, measured
+by the required build script and independently with
+`gzip -9 -c snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm | wc -c`.
+The informational 452,000-byte budget reports **15,476 bytes over**. R4's
+514,778-byte journal number predates the rebase; it is not a measured
+same-parent baseline, so the numerical decrease is not attributed solely to
+this change. Both whole-suite wasm builds report the same head size.
+
+The completed whole-suite rerun used this exact command at the repository root:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+export DEVELOPER_DIR=/Library/Developer/CommandLineTools
+bash snapback4/scripts/test.sh
+```
+
+All 710 Rust target executions passed: **1772 tests passed,
+0 failed, 8 ignored**, plus the workspace doctests (zero tests).
+The lifecycle suite passed all 20 and the isolated witness suite passed all 20.
+The test runner's final verbatim group/client-shard summaries follow; the
+client shards total 722 tests, 717 passed, 2 failed and 3 skipped. The only
+failed group is client tests: the documented sandbox Chromium SIGABRT and
+the exact-base-input README omission verified above. No timing red remained
+and no test was reclassified as pre-existing without evidence. The Chromium
+artifact is identified by the supplied lane rule, not claimed as a personally
+executed exact-base reproduction.
+
+```
+-- ok: cargo build (3 s)
+-- ok: wasm build (2 s)
+-- ok: release guard (2 s)
+-- ok: package typecheck (0 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- rust target: snapback4::witness (78.5 s): test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 76.85s
+-- ok: cargo test (1168 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+-- ok: fixture wrapper tests (21 s)
+ℹ tests 7
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ tests 3
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ tests 6
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ tests 6
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ tests 3
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ tests 6
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ tests 3
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ tests 688
+ℹ pass 683
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 3
+-- FAIL: client tests (151 s)
+== 1 failure(s) in 1178 s
+```
+
+Full logs for this session are `/tmp/w13hr5/full-suite.log` and
+`/tmp/w13hr5/full-suite-clt.log`; targeted logs are beside them. The full
+rerun took 1,178 seconds under shared-host load; the slowest ordinary target
+was hidden-delete observation at 772.20 seconds, which passed.
+
+Final root `./ref-check --verbose`:
+
+```
+ref-check: ok — 484 LLP docs, 9115 refs in 24335 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passes. The journal preserves all 2,200,770 prior bytes and
+adds exactly one dated entry. HEAD remains the base above; there is no commit.

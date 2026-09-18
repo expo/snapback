@@ -51,7 +51,7 @@ fn inline_cross_read_aggregate_has_no_plan() {
     assert!(bound.schema.operations["q"].components.is_empty());
 }
 
-fn query(body: Vec<Stmt>) -> Program { Program { name: "q".into(), kind: ProgramKind::Query, args: Default::default(), body, native: false, read_time_granularity_ms: None } }
+fn query(body: Vec<Stmt>) -> Program { Program { name: "q".into(), kind: ProgramKind::Query, args: Default::default(), body, native: false, returned_shapes: Default::default(), read_time_granularity_ms: None } }
 fn record(value: Expr) -> Stmt { Stmt::Return(Expr::Object(BTreeMap::from([("a".into(), value), ("b".into(), lit(Value::Int(2)))]))) }
 fn plan(program: &Program) -> Vec<Component> { residency::execution(&Schema::default(), program).components }
 

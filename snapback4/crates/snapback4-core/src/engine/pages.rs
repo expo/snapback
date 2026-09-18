@@ -23,9 +23,21 @@ mod collectors;
 mod prefetch;
 
 
+#[derive(Clone)]
+pub(super) struct Shape {
+    pub page: String,
+    pub targets: Vec<String>,
+}
+
+pub(super) struct ReturnedPage {
+    pub page: String,
+    pub shapes: BTreeSet<String>,
+}
+
 #[derive(Default)]
 pub(super) struct Plan {
-    pub returns: BTreeMap<String, String>,
+    pub returns: BTreeMap<String, ReturnedPage>,
+    pub shapes: BTreeMap<String, Shape>,
     pub collectors: BTreeMap<String, String>,
     #[cfg(feature = "postgres")]
     pub prefetch: prefetch::Plan,
@@ -38,12 +50,23 @@ pub(super) fn plan(program: &Program, schema: &crate::schema::Schema, prefetch_e
     let prefetch = if prefetch_enabled { prefetch::plan(program).admit(schema) } else { prefetch::Plan::default() };
     if program.kind != ProgramKind::Query { return Plan { #[cfg(feature = "postgres")] prefetch, ..Plan::default() }; }
     let mut collectors = BTreeMap::new();
-    let returns = returned_origins(program, false, &mut collectors).into_iter().filter_map(|(path, origin)| result_page(&origin).map(|(site, _)| (path, site.to_owned()))).collect();
+    let mut returns = returned_origins(program, false, &mut collectors).into_iter().filter_map(|(path, origin)|
+        result_page(&origin).map(|(site, _)| (path, ReturnedPage { page: site.to_owned(), shapes: BTreeSet::new() }))).collect::<BTreeMap<_, _>>();
+    let mut shapes = BTreeMap::new();
+    // @ref LLP 3000.007#5.6 — only the binder's returned shape can trim and select a rewind; ordinary origins stay main's.
+    for (index, pair) in program.body.windows(2).enumerate() {
+        let path = format!("{}:{}", program.name, index + 1);
+        let Some(page) = program.returned_shapes.get(&path) else { continue; };
+        let [Stmt::For { body, .. }, Stmt::Return(Expr::Variable(target))] = pair else { continue; };
+        if !matches!(body.last(), Some(Stmt::Push { target: pushed, .. }) if pushed == target) { continue; }
+        shapes.insert(path.clone(), Shape { page: page.clone(), targets: vec![target.clone()] });
+        returns.insert(format!("{}:{}", program.name, index + 2), ReturnedPage { page: page.clone(), shapes: BTreeSet::from([path]) });
+    }
     if !collectors.is_empty() {
         let flow = collectors::returned_collectors(program);
         collectors.retain(|path, _| flow.returned.contains(path) || !flow.visited.contains(path));
     }
-    Plan { returns, collectors, #[cfg(feature = "postgres")] prefetch }
+    Plan { returns, collectors, shapes, #[cfg(feature = "postgres")] prefetch }
 }
 
 /// Read sites whose pages flow to a query return, including cursorless pages.

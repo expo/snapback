@@ -217,7 +217,7 @@ elements in order. Empty domains give an empty complete page, and duplicate
 lanes still return each row once. Lane descriptors are heap-charged and
 iteration and scans remain metered. A non-uniform answer, an opening cut or a
 word-limit cut withholds `next`. A uniform lazy merge cut while draining
-established heads carries `next` after its last emitted row, with
+established heads carries `next` after its last emitted row (its last fully computed row when the merge is the query's returned shape expression, §5.6), with
 `complete: false, cut: 'meter'`.
 `check --cost` prints `lanes ≤ meter` for an unknown width. Literal bounds,
 the same expression plus literal offsets, and a list's `<=N` bound supply a
@@ -236,7 +236,7 @@ suffix does not already end in `id`, so equal ordering values never skip rows.
 An older merge token missing that id is refused; restart the walk. Tokens whose
 suffix already ends in `id` keep their encoding, as do direct-page tokens.
 A uniform lazy merge cut while draining established lane heads carries `next`
-after its last emitted row, with `complete: false, cut: 'meter'`.
+after its last emitted row (its last fully computed row when the merge is the query's returned shape expression, §5.6), with `complete: false, cut: 'meter'`.
 An opening cut or word-limit cut has no continuation. A non-uniform answer
 withholds a merge's `next` even when that read ran after the merge.
 `t[prefix, col >= start, col < end]` seeks on the first unpinned index column;
@@ -254,5 +254,22 @@ generation. Reusing one under another prefix or after adoption is refused;
 ordinary writes keep it valid, and rows can move between pages.
 A filled direct page positions `next` after its last returned row. A meter-cut direct page
 positions after its last rule-visible examined row, even if the filter rejected
-it, never after a hidden row. A non-uniform page stays incomplete; a cut in a
+it, never after a hidden row.
+The rule applies only to a query's top-level returned shape expression,
+`return <base> { ... }`: the base is an inline scan or merge, or a variable
+with exactly one definition, that definition a read, no reassignment and no
+other use anywhere in the program. The binder marks that lowered loop; only
+that loop drops a row whose shape the meter starved and every later row.
+`next` reaches the unfinished row first. A preceding fully computed row
+supplies its exclusive position; otherwise the first unfinished rule-visible
+row supplies an inclusive position — provided the page's own materialization was
+not cut: a drain-cut merge with no fully computed emission, an opening cut or a
+word-limit cut retains no continuation. A shaped collector that is not the returned
+expression keeps today's behavior: its empty or partial shape stays on the page,
+with the existing continuation ownership and position, without trimming or rewind.
+This includes assigned shapes, records, conditionals, helpers, aliases and
+collector payloads; some such compositions have no continuation owner.
+The answer stays `complete: false` on a meter cut, with `cut: 'meter'` on
+devices and uniform server reads; non-uniform server reads keep `cut: null`.
+A non-uniform page stays incomplete; a cut in a
 hidden run with no rule-visible row ends on an empty capped page."##;

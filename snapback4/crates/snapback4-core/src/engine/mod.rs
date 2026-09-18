@@ -23,6 +23,7 @@ pub mod prediction;
 #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
 pub mod admission;
 mod pages;
+mod shaping;
 pub use pages::returned_page_sites;
 pub mod read;
 pub mod rules;

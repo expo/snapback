@@ -501,6 +501,23 @@ statement or expression), at most eight levels deep. A table-typed helper parame
 when its caller can; a query's diagnostic names the write at the call site.
 A helper's `return` ends only that call, including inside a page's shape;
 the page keeps its continuation and completeness.
+The rule applies only to a query's top-level returned shape expression,
+`return <base> { ... }`: the base is an inline scan or merge, or a variable
+with exactly one definition, that definition a read, no reassignment and no
+other use anywhere in the program. The binder marks that lowered loop; only
+that loop drops a row whose shape the meter starved and every later row.
+`next` reaches the unfinished row first. A preceding fully computed row
+supplies its exclusive position; otherwise the first unfinished rule-visible
+row supplies an inclusive position — provided the page's own materialization was
+not cut: a drain-cut merge with no fully computed emission, an opening cut or a
+word-limit cut retains no continuation. A shaped collector that is not the returned
+expression keeps today's behavior: its empty or partial shape stays on the page,
+with the existing continuation ownership and position, without trimming or rewind.
+This includes assigned shapes, records, conditionals, helpers, aliases and
+collector payloads; some such compositions have no continuation owner.
+The answer stays `complete: false` on a meter cut, with `cut: 'meter'` on
+devices and uniform server reads; non-uniform server reads keep `cut: null`.
+A nested page's cut still makes the answer incomplete.
 A collector building a returned value makes the query incomplete if it exits
 with rows still unconsumed, even on a short final page.
 Every page with more rows needs its own returned
@@ -578,7 +595,7 @@ charged to that chunk's meter. Writes belong inside a chunk.
   widths, equal expressions plus literal offsets, and list bounds are static.
   A non-uniform answer, an opening cut or a word-limit cut has no `next`.
   A uniform lazy merge cut while draining established heads carries `next`
-  after its last emitted row, with `complete: false, cut: 'meter'`.
+  after its last emitted row (its last fully computed row when the merge is the query's returned shape expression, §5.6), with `complete: false, cut: 'meter'`.
   Lanes computed from `now` move between pages:
   the cursor remains valid, but newly appearing rows before it are skipped;
   uniform lanes with a non-nullable unique index or an index ending in
@@ -609,10 +626,18 @@ charged to that chunk's meter. Writes belong inside a chunk.
   `where exists (messages[.roomId] matching q)`. A lone next-column comparison
   lowers to a seek with N_SEEK. A full direct page's cursor is after its last result;
   a cut direct page continues after the last rule-visible examined row, including a
-  filter rejection, never a hidden row. Non-uniform ranges stay incomplete.
+  filter rejection, never a hidden row. The drop-and-retry rule applies only to
+  the returned shape expression described under Shapes and helpers: a top-level
+  `return <base> { ... }` over an inline read or a single-definition, single-use
+  read variable. A starved row and every later row are dropped; `next` reaches
+  that unfinished row first. Other shaped collectors keep their empty or partial
+  shapes and today's continuation behavior, without trimming or rewind.
+  The answer stays `complete: false` on a meter cut. Devices and uniform server
+  reads expose `cut: 'meter'`; non-uniform server reads keep `cut: null`.
+  Non-uniform ranges stay incomplete.
   Merged pages return no `next` for a non-uniform answer, an opening cut or a
   word-limit cut. A uniform lazy merge cut while draining established heads
-  carries `next` after its last emitted row, with `complete: false, cut: 'meter'`.
+  carries `next` after its last emitted row (its last fully computed row when the merge is the query's returned shape expression, §5.6), with `complete: false, cut: 'meter'`.
   Its position appends the row id unless the ordering suffix already ends in
   `id`, so equal ordering values never skip rows. Following a cut page keeps
   the aggregate incomplete in `usePage`.
@@ -1002,7 +1027,7 @@ operator results name it in `word_cut_at`, separately from a meter cut in `cappe
 Merged pages withhold `next` for a non-uniform answer, an opening cut or a
 word-limit cut, including a non-uniform read within budget or after the merge,
 so cursor presence cannot reveal hidden-row costs. A uniform lazy merge cut
-while draining established heads carries `next` after its last emitted row;
+while draining established heads carries `next` after its last emitted row (its last fully computed row when the merge is the query's returned shape expression, §5.6);
 the page stays `complete: false, cut: 'meter'`.
 Reads inside `where` use their own rules and search terms. An empty
 matching result past a device horizon is incomplete too, so a held group

@@ -138,3 +138,36 @@ fn filtered_matching_merge_uses_the_same_predicate_and_bool_check() {
     let bad = snapback4_lang::compile(&[("schema.q".into(), source.replace(".body != 'hello removed'", ".body"))]);
     assert!(bad.diagnostics.iter().any(|d| d.code == "E_QUARRY_TYPE" && d.message.starts_with("where needs a bool predicate")));
 }
+
+#[test]
+fn w13h_only_canonical_returned_shapes_are_marked_and_round_trip() {
+    let table = "table msgs:\n  lane: int\n  by byLane: lane, id\n  public 'fixture'\n  sync public\n";
+    let read = "msgs[0] after c first 1 by byLane";
+    let shape = "{ id }";
+    for (tail, marked) in [
+        (format!("  return {read} {shape}"), true),
+        (format!("  page = {read}\n  return page {shape}"), true),
+        (format!("  page = {read}\n  alias = page\n  return alias {shape}"), false),
+        (format!("  page = {read}\n  ignored = page\n  return page {shape}"), false),
+        (format!("  page = {read}\n  page = {read}\n  return page {shape}"), false),
+        (format!("  page = {read}\n  return page {{ id, raw: page }}"), false),
+        (format!("  page = {read} {shape}\n  return page"), false),
+        (format!("  return {{ page: {read} {shape} }}"), false),
+        (format!("  return {read} {shape} if viewer = 'dev:a' else []"), false),
+        (format!("  if viewer = 'dev:a':\n    return {read} {shape}\n  return []"), false),
+        (format!("  bag = []\n  for i in range(0, 1):\n    bag = bag + [{read} {shape}]\n  return bag"), false),
+    ] {
+        let source = format!("{table}query feed(c: cursor ?):\n{tail}\n");
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+        assert!(bound.diagnostics.is_empty(), "{tail}: {:?}", bound.diagnostics);
+        let program = &bound.programs[0].program;
+        assert_eq!(program.returned_shapes.len(), usize::from(marked), "{tail}");
+        let json = serde_json::to_string(program).unwrap();
+        assert_eq!(json.contains("\"returned_shapes\""), marked, "unmarked IR has no new serialized field: {tail}");
+        assert_eq!(*program, serde_json::from_str(&json).unwrap());
+    }
+    let source = format!("{table}fn shaped(c: cursor ?):\n  return {read} {shape}\nquery feed(c: cursor ?):\n  return shaped(c)\n");
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.programs[0].program.returned_shapes.is_empty(), "a helper's shape is not the query's returned shape expression");
+}

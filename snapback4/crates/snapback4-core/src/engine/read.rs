@@ -363,7 +363,7 @@ impl Runner<'_> {
     fn scan_words(&mut self, scan: &Scan) -> Result<Vec<Value>, RuntimeError> {
         let Some((merge, word)) = self.word_lanes(scan)? else {
             if self.page_depth == 0 && scan.opaque_cursor {
-                self.record_page(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: scan.prefix.len(), prefix: None, merge: true, interrupted: false, next: None });
+                self.record_page(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: scan.prefix.len(), prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next: None }, std::iter::empty())?;
             }
             return Ok(Vec::new());
         };
@@ -510,13 +510,16 @@ impl Runner<'_> {
                 let suffix = if scan.merge_site.is_some() || index.word_component().is_some() { Self::merge_suffix(table, index, scan.prefix.len()) }
                     else { Self::cursor_suffix(table, index, scan.prefix.len()) };
                 let values = decode_cursor_for(self.schema, &token, &scan.table, &scan.index, scan.order, &suffix).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
+                let position = decode_cursor(self.schema, &token).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
                 if scan.merge_site.is_none() && let Some(prefix) = prefix {
                     let expected = CursorScope { generation: self.context.generation, prefix: prefix.to_vec() };
-                    if decode_cursor(self.schema, &token).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?.scope.as_ref() != Some(&expected) {
+                    if position.scope.as_ref() != Some(&expected) {
                         return Err(RuntimeError::Input(format!("cursor: {}", crate::cursor::CursorError::Scope)));
                     }
                 }
-                bounds.after = Some(values);
+                if position.inclusive {
+                    bounds.at_or_after = Some(values);
+                } else { bounds.after = Some(values); }
             }
             Some(Value::Array(values)) if !scan.opaque_cursor => bounds.after = Some(values),
             Some(value) if !scan.opaque_cursor => bounds.after = Some(vec![value]),
@@ -731,16 +734,18 @@ impl Runner<'_> {
             let position = if visible.len() == take { keys.last() } else { last_rule_visible.as_ref().or_else(|| keys.last()) };
             let continues = if capped || self.non_uniform || self.word_cut_at.is_some() { position.is_some() } else { has_more };
             let next = if continues { position.and_then(|key| crate::key::decode(key)).map(|values| values.into_iter().take(components).skip(prefix.len()).collect()) } else { None };
-            self.record_page(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: prefix.len(), prefix: (scan.merge_site.is_none() && word.is_none()).then(|| prefix.clone()), merge: scan.merge_site.is_some() || word.is_some(), interrupted: false, next });
+            self.record_page(scan.site.clone(), PagePosition { table: scan.table.clone(), index: scan.index.clone(), order: scan.order, prefix_len: prefix.len(), prefix: (scan.merge_site.is_none() && word.is_none()).then(|| prefix.clone()), merge: scan.merge_site.is_some() || word.is_some(), interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next }, visible.iter())?;
         }
         Ok((visible, keys))
     }
 
     // @ref LLP 3000.007#19.2 — loss is monotone across executions; only the last execution at an owned site carries next.
-    fn record_page(&mut self, site: String, page: PagePosition) {
+    fn record_page<'r>(&mut self, site: String, mut page: PagePosition, rows: impl Iterator<Item = &'r Value>) -> Result<(), RuntimeError> {
+        self.record_shape_positions(&site, &mut page, rows)?;
         if let Some(previous) = self.pages.insert(site, page) {
             self.discarded_page_loss |= previous.interrupted || previous.next.is_some();
         }
+        Ok(())
     }
 
     /// Check every page: another result field's owner cannot carry this one's
@@ -762,7 +767,7 @@ impl Runner<'_> {
         let table = self.schema.table(&page.table).expect("scanned table");
         let index = table.index(&page.index).expect("scanned index");
         let suffix = if page.merge { Self::merge_suffix(table, index, page.prefix_len) } else { Self::cursor_suffix(table, index, page.prefix_len) };
-        encode_cursor(self.schema, &CursorPosition { table: page.table.clone(), index: page.index.clone(), order: page.order, suffix, values: values.clone(), scope: page.prefix.as_ref().map(|prefix| CursorScope { generation: self.context.generation, prefix: prefix.clone() }) })
+        encode_cursor(self.schema, &CursorPosition { table: page.table.clone(), index: page.index.clone(), order: page.order, suffix, values: values.clone(), inclusive: page.inclusive, scope: page.prefix.as_ref().map(|prefix| CursorScope { generation: self.context.generation, prefix: prefix.clone() }) })
             .map(Some)
             .map_err(|error| RuntimeError::Input(format!("cursor: {error}")))
     }
@@ -861,7 +866,7 @@ impl Runner<'_> {
         if self.page_depth == 0 && first.scan.opaque_cursor {
             let continues = has_more && self.meter.capped_at.is_none() && self.word_cut_at.is_none();
             let next = if continues { candidates.last().map(|(key, _)| key.clone()) } else { None };
-            self.record_page(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, prefix: None, merge: true, interrupted: false, next });
+            self.record_page(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next }, candidates.iter().map(|(_, row)| row))?;
         }
         Ok(candidates.into_iter().map(|(_, row)| row).collect())
     }
@@ -879,8 +884,8 @@ impl Runner<'_> {
             self.meter.at(site);
             // Range/list iteration allocates no source rows. Its steps and
             // retained lane descriptors are metered even for empty lanes.
-            if self.meter.capped_at.is_some() { return Ok(false); }
-            return self.meter.charge(MeterKind::Steps, 1);
+            if self.read_capped() { return Ok(false); }
+            return self.read_charge(MeterKind::Steps, 1);
         }
         Ok(true)
     }
@@ -932,7 +937,7 @@ impl Runner<'_> {
                     // Discovery retains one bounded descriptor per lane, never a materialized range.
                     if lane.source.as_ref().is_some_and(|source| source.scan().is_none()) {
                         // Include the vector's geometric spare capacity and owned keys.
-                        let positions = [&bounds.after, &bounds.before].into_iter().flatten().map(|values| {
+                        let positions = [&bounds.after, &bounds.at_or_after, &bounds.before].into_iter().flatten().map(|values| {
                             values.capacity() as u64 * std::mem::size_of::<Value>() as u64 + values.iter().map(Value::heap_bytes).sum::<u64>()
                         }).sum::<u64>();
                         let seeks = [&bounds.gt, &bounds.gte, &bounds.lt, &bounds.lte].into_iter().flatten().map(Value::heap_bytes).sum::<u64>();
@@ -990,7 +995,7 @@ impl Runner<'_> {
         if depth == 0 {
             if first.scan.opaque_cursor {
                 let continues = self.word_cut_at.is_none() && ((has_more && !self.read_capped()) || (opened_all && drain_cut && !page.is_empty()));
-                self.record_page(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, prefix: None, merge: true, interrupted: false, next: if continues { last } else { None } });
+                self.record_page(merge.site.clone(), PagePosition { table: first.scan.table.clone(), index: first.scan.index.clone(), order, prefix_len, prefix: None, merge: true, interrupted: false, inclusive: false, shape_positions: Vec::new(), shape_resume: super::shaping::Resume::Never, next: if continues { last } else { None } }, page.iter())?;
             } else if has_more { self.page_overflow = true; self.components.note(|frame| frame.overflow = true); }
         }
         Ok(page)

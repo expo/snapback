@@ -24,6 +24,10 @@ pub struct Program {
     #[serde(default)]
     pub read_time_granularity_ms: Option<u64>,
     pub body: Vec<Stmt>,
+    /// Binder-marked top-level returned shape loop paths and their source read sites.
+    /// Empty for all other programs, preserving their serialized form.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub returned_shapes: BTreeMap<String, String>,
     /// A job whose body is the app's own wasm module, run by the engine's
     /// native host one chunk per commit (LLP 3000.005). The body is empty.
     #[serde(default, skip_serializing_if = "is_false")]

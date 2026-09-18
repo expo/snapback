@@ -13,6 +13,7 @@ use snapback4_core::value::Value;
 use std::collections::BTreeMap;
 
 mod control;
+mod returned_shapes;
 mod diagnostics;
 mod expr;
 mod reads;
@@ -109,9 +110,10 @@ impl<'a> Binder<'a> {
                 ProgramKind::Query => (ir::ProgramKind::Query, Ty::Json),
                 _ => (ir::ProgramKind::Job, Ty::Null),
             };
-            return Some(BoundProgram { sources: binder.sources, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
+            return Some(BoundProgram { sources: binder.sources, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
         }
         let mut body = setup::Body::default();
+        let mut shape_candidates = Vec::new();
         let mut failed = false;
         let count = decl.body.len();
         let arguments = binder.scopes.clone();
@@ -136,6 +138,10 @@ impl<'a> Binder<'a> {
             }
             match binder.statement(statement, &mut body, index + 1 == count) {
                 Ok(()) => {
+                    if decl.kind == ProgramKind::Query && let S::Return { value: A::Shape { base, .. }, .. } = statement
+                        && matches!(base.as_ref(), A::Read(_) | A::Merge(_) | A::Name { .. }) {
+                        shape_candidates.push(body.len().saturating_sub(2));
+                    }
                     // Binding a chunk prefix may hoist setup statements. The
                     // chunk itself is the final statement emitted for this
                     // declaration, so validate that scan directly instead of
@@ -173,7 +179,8 @@ impl<'a> Binder<'a> {
             ProgramKind::Job => ir::ProgramKind::Job,
         };
         let ownership = body.ownership;
-        let program = Program { name: full_name, kind, args, read_time_granularity_ms: None, body: body.code, native: false };
+        let returned_shapes = returned_shapes::marks(&body.code, &full_name, &shape_candidates);
+        let program = Program { name: full_name, kind, args, read_time_granularity_ms: None, body: body.code, native: false, returned_shapes };
         let presence = if kind == ir::ProgramKind::Mutation {
             Some(super::residency::presence_facts(&program, &ownership, &binder.presence_sources))
         } else { None };

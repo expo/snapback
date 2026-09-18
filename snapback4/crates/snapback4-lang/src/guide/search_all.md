@@ -42,8 +42,9 @@ query searchNewest(q: text <=100, c: cursor ?):
 **Grouped.** Pass `c: read.next` to continue. A meter-cut filtered page
 positions after its last rule-visible examined membership and carries `next`,
 so an empty cut page can still lead to later matching chats. Each group shows
-up to three hits; on a meter-cut page, the nested preview can be empty or
-partial, and following `next` does not refill that earlier preview. Use
+up to three hits. A chat whose preview the cut starved is not on the page:
+it is dropped with every later chat, and `next` reaches it first, so the next
+request shapes it with a fresh meter (§5.6). Use
 `inRoom` above for more in that chat. This is the grouped
 search screen, not an enumeration of every message in every chat.
 
@@ -126,12 +127,12 @@ grouped returns all three chats exactly once in two requests on all three
 hosts. The first page is meter-cut with `next`; the second finishes complete.
 | Host | Request 1: groups / examined / next | Request 2: groups / examined / next |
 |---|---|---|
-| Server | 1 / 8,194 / yes | 2 / 813 / no |
-| SQLite device | 1 / 8,194 / yes | 2 / 813 / no |
-| Memory device | 1 / 8,194 / yes | 2 / 813 / no |
+| Server | 0 / 8,194 / yes | 3 / 906 / no |
+| SQLite device | 0 / 8,194 / yes | 3 / 906 / no |
+| Memory device | 0 / 8,194 / yes | 3 / 906 / no |
 
-Total: 9,007 examined per host. The cut page's first chat has an empty
-`hits` preview: the meter was exhausted before shaping. The second page has
-both remaining chats and their hits; its cursor does not refill the first
-chat's preview. The grouped continuation covers chat discovery, not all
-nested work starved by a cut.
+Total: 9,100 examined per host. The cut page shows no chat whose `hits`
+preview the meter starved: that chat is dropped, `next` reaches it first, and
+the second page shapes it with a fresh meter and returns every chat with its
+hits — the dropped chat's discovery is paid twice, which is the cost of never
+showing a row the read could not finish (LLP 3000.007 §5.6).
