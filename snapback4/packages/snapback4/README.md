@@ -628,7 +628,10 @@ charged to that chunk's meter. Writes belong inside a chunk.
   parenthesize the inner read, or move the modifier before `where`.
   `check --fix` adds parentheses to preserve the inner modifier, as in
   `where exists (messages[.roomId] matching q)`. A lone next-column comparison
-  lowers to a seek with N_SEEK. A full direct page's cursor is after its last result;
+  lowers to a seek with N_SEEK. Returning `group(page, 'roomId')` or `sort(page, 'at')`,
+  directly, through a once-bound variable or nested as `group(sort(page, 'at'), 'roomId')`,
+  carries the source page's `next` and `complete`/`cut` class on the server and both device stores.
+  A full direct page's cursor is after its last result;
   a cut direct page continues after the last rule-visible examined row, including a
   filter rejection, never a hidden row. The drop-and-retry rule applies only to
   the returned shape expression described under Shapes and helpers: a top-level

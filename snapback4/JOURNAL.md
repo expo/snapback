@@ -38207,6 +38207,123 @@ $ bash snapback4/scripts/test.sh
 -- ok: fixture wrapper tests (27 s)
 -- FAIL: client tests (972 s)
 == 2 failure(s) in 1266 s
+
+## 2026-09-18 — W13i: row-preserving helpers carry the page's continuation
+
+Implemented LLP 3000.007 §14 ruling 34 from base
+`a8de12ed88202622dcb496ba2ac3abc356d46635`. `expression_origin` now carries a
+page origin through `Group` and `Sort`, recursively, so returning the helper
+inline, through a once-bound page or through a once-bound result publishes
+that source page's continuation. The cursorless diagnostic walk retains its
+existing triggers: no new code or note, and no new N_NO_CURSOR on an existing
+grouped summary. The runtime change is eight added lines in `pages.rs`.
+The reads card and package README each gain one sentence. No scan execution,
+runner return, shape mark, device horizon, client, meter ceiling or serialized
+form was changed.
+
+Eight shared cases run against the server and both actual device stores (24
+case executions). Devices acquire the fixture through real snapshot pages.
+They cover inline and once-bound group/sort/nested group-sort, the original
+six-query probe through completion, a filtered meter-cut frontier, dropping
+helpers, unrelated values, array concatenation, and unchanged shape marking
+and cursor-note triggers. `first(page, 5)` is not Quarry's existing spelling:
+the control uses `first(page)`, with `slice(page, 0, 5)` for five elements.
+Array Concat has no Quarry function spelling, so its control binds two page
+operands and exercises the existing IR builtin. A wrapped inner shape remains
+unmarked and keeps its unfinished row; the separate marked returned shape
+still drops it and supplies a continuation.
+
+Measured on every host: each of group, sort and nested group-sort walks 45
+memberships in three requests, 20 + 20 + 5 rows, with 45 distinct IDs and no
+gaps. Group returns first-seen `{ key, items }` groups: 7, 8 and 2 groups on
+those pages. `next` is present, present, absent; all three pages are complete
+with null cut. Reverse sorting changes each page's row order while the cursor
+continues in the source index order. The original merged probe walks all 10
+messages as 4 + 4 + 2; its direct room walk returns 5 as 4 + 1. The 8,200-row
+filtered control cuts and then finishes under the unchanged examined ceiling.
+
+The red records below were run before the core edit, after correcting the
+probe test harness to supply roomId only to groupedDirect. Commands ran from
+`snapback4/` with these command-scoped toolchain settings:
+
+```sh
+export DEVELOPER_DIR=/Library/Developer/CommandLineTools
+export SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+The initial base `cargo build -p snapback4`, without explicit SDKROOT, failed
+at linking because the cached Xcode SDK named the unknown architecture
+`arm64e.x1-macos`. Pinning the Command Line Tools SDK made the same base build
+pass; no machine setting was changed. The base binary is retained at
+`/tmp/w13i/snapback4-before`.
+
+`cargo test -p snapback4-sim --test clique row_preserving_pages -- --nocapture`
+
+Before:
+
+```
+test result: FAILED. 3 passed; 5 failed; 0 ignored; 0 measured; 225 filtered out; finished in 1.89s
+```
+
+After:
+
+```
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 225 filtered out; finished in 2.02s
+```
+
+`cargo test -p snapback4-device --test device row_preserving_pages -- --nocapture`
+
+Before:
+
+```
+test result: FAILED. 6 passed; 10 failed; 0 ignored; 0 measured; 385 filtered out; finished in 4.04s
+```
+
+After:
+
+```
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 385 filtered out; finished in 2.92s
+```
+
+`cargo test -p snapback4-sim --test clique`
+
+```
+test result: ok. 232 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 161.29s
+```
+
+`cargo test -p snapback4-device --test device`
+
+```
+test result: ok. 399 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 282.06s
+```
+
+`cargo test -p snapback4-lang --test guide`
+
+```
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+```
+
+The complete command, from the repository root, was
+`bash snapback4/scripts/test.sh`. Its summaries, verbatim:
+
+```
+-- ok: cargo build (4 s)
+-- ok: wasm build (43 s)
+-- ok: release guard (7 s)
+-- ok: package typecheck (4 s)
+-- ok: package build (2 s)
+-- ok: chat app check (0 s)
+-- rust inventory: 78 test binaries, 734 executions; at most 18 concurrent processes
+-- ok: cargo test (1041 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (2 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+-- ok: fixture wrapper tests (14 s)
 ℹ tests 722
 ℹ pass 717
 ℹ fail 2
@@ -38235,6 +38352,32 @@ test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fin
 ```text
 $ node --test packages/snapback4/test/react.test.mjs
 react-alone.log:
+-- FAIL: client tests (1019 s)
+== 1 failure(s) in 1101 s
+```
+
+All Rust inventory executions passed, including 20 lifecycle tests and 20
+witness tests. The client failures were Chromium's sandbox SIGABRT at launch
+and a native transport acknowledgment timeout. The timeout was rerun alone
+after the full suite, with the same built code:
+
+`node --test --test-name-pattern='^native: maximum pending ids, cursor batches and every terminal acknowledgement$' packages/snapback4/test/transport-http.test.mjs`
+
+```
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+```
+
+That rerun acknowledged 232, 233 and 273 writes for its three boundaries, with
+five snapshot cursors each, in 9,817.677875 ms. It is a cleared timing red,
+not a claimed pre-existing product failure.
+
+`node --test packages/snapback4/test/react.test.mjs` still failed alone:
+
+```
 ℹ tests 1
 ℹ pass 0
 ℹ fail 1
@@ -38416,3 +38559,261 @@ of 2026-09-18 the budget is raised in this same commit, to the measured value ro
 now reads 411,000 with the reason in its `why` — and the reason is here and in the commit message. Nothing else in the
 landing touches the device's bytes; W13k, which deletes server-side code, lowers the budget again if its measurement
 allows.
+It aborts at `chromium.launch`, before any page loads, with
+`browserType.launch: Target page, context or browser has been closed` and
+`signal=SIGABRT`. This test launches neither a backend nor a wasm device.
+Its source inputs were verified unchanged against the exact base above:
+
+```sh
+git diff --exit-code a8de12ed88202622dcb496ba2ac3abc356d46635 -- packages/snapback4/src packages/snapback4/test/react.test.mjs packages/snapback4/package.json apps witness/lib.mjs package.json bun.lock
+```
+
+That diff is empty. This is the sandbox artifact named in the lane brief;
+the lead's outside-sandbox browser rerun remains necessary. The README
+TypeScript examples passed in this run; no inherited README failure is
+claimed. The full suite took 1,101 s, with reported starting host load 53.42
+across 18 CPUs. Its wasm build measured 1,595,188 B raw and 467,489 B gzip;
+the unchanged 452,000 B report-only budget prints an overrun of 15,489 B.
+This is one current-build measurement, not a measured size delta.
+
+The original HTTP probe was run before and after with
+`SB=/Users/ccheever/projects/snapback-w13i/snapback4/target/debug/snapback4 node measure.mjs`
+from `benchmarks/runs/2026-09-17-snapback4-bounds-probes/group-drops-next/`.
+Its pages (terminal padding omitted here; raw logs retained), before:
+
+```
+10 messages in 2 rooms; page size 4; more rows remain after every first page
+  plain          complete=true  cut=null  next=PRESENT  top-level items=4
+  grouped        complete=false cut=null  next=absent   top-level items=2
+  groupedDirect  complete=false cut=null  next=absent   top-level items=1
+  both           complete=true  cut=null  next=PRESENT  top-level items=4
+  sorted         complete=false cut=null  next=absent   top-level items=4
+  shaped         complete=true  cut=null  next=PRESENT  top-level items=4
+```
+
+After:
+
+```
+10 messages in 2 rooms; page size 4; more rows remain after every first page
+  plain          complete=true  cut=null  next=PRESENT  top-level items=4
+  grouped        complete=true  cut=null  next=PRESENT  top-level items=2
+  groupedDirect  complete=true  cut=null  next=PRESENT  top-level items=1
+  both           complete=true  cut=null  next=PRESENT  top-level items=4
+  sorted         complete=true  cut=null  next=PRESENT  top-level items=4
+  shaped         complete=true  cut=null  next=PRESENT  top-level items=4
+```
+
+The probe's CLI check stayed free of diagnostics and notes. Before:
+
+```
+check: ok — 2 tables (0 synced), 6 operations, no problems, 6.3 ms
+```
+
+After:
+
+```
+check: ok — 2 tables (0 synced), 6 operations, no problems, 8.2 ms
+```
+
+What this taught: grouping can reduce the top-level item count without losing
+any source row. Continuation ownership follows the source page through these
+two helpers; it cannot be inferred from the number of returned groups or from
+the last row after sorting. The device returns the same grouping and page
+class through the existing answer contract, so usePage needs no change.
+
+Logs are retained under `/tmp/w13i/`, including `red-sim-verified.log`,
+`red-device-verified.log`, `green-sim.log`, `green-device.log`, `clique.log`,
+`device.log`, `guide.log`, `full-suite.log`, `react-isolated.log`,
+`transport-isolated.log`, and the two probe/check pairs. No out-of-scope file
+remains changed. The probe's generated files were removed. No commit, push,
+tag or publication was made. The original 2,220,632 journal bytes are preserved.
+
+## 2026-09-18 — W13iR1: diagnostic sites include the runtime's helper-carried page
+
+Repaired the W13i review finding from base `ca330a18072d6372f1ba466432e7b9d09a75655f`.
+`returned_page_sites` now unions the existing cursorless traversal with the
+cursor-bearing origins selected by the runtime's own `result_page` rule.
+The runtime plan and `expression_origin` are unchanged. LLP 3000.007 §14
+ruling 34 remains the governing decision (its existing code annotation stays);
+§19.2's ownership rule and §5.6's shape fence are unchanged. The extra walk
+uses the runtime selection, not every origin inside a record: two distinct
+helper-carried pages in one record still supply no single owner.
+
+The core change is five added lines and a two-line contract clarification.
+The shared simulator/device cases add four tests: exact grouped, sorted and
+nested site sets for inline input, a once-bound page and a once-bound helper
+result; unrelated values, min/max and ambiguous-record controls. Each positive
+case includes an unused cursor page, which must not enter the site set.
+The existing runtime negative-control test now also executes `min(page, page)`
+and `max(page, page)` on the server and both device stores. The original
+cursor-note assertions are retained and strengthened to pin the full note-code
+list (`N_NO_HORIZON`, `N_NO_CURSOR`) and explicitly require empty diagnostic
+site sets for cursorless grouped and sorted pages. No diagnostic text, code,
+note trigger or published Quarry form changed; no README or card edit is needed.
+
+The three requested observations below are copied verbatim from the regression
+logs. For group/sort, `page` is the cursor-bearing membership read
+`members[viewer] after c first 20 by byPrincipalRoom`; the inline case embeds
+that read in the helper after an unused page at `programs.feed.0`.
+The unrelated-value case binds `other` to a literal array.
+
+Before:
+
+```
+W13iR1 group(page, 'roomId')/inline: sites={}; expected={"programs.feed.1"}
+W13iR1 sort(page, '-id')/inline: sites={}; expected={"programs.feed.1"}
+W13iR1 group(other, 'roomId'): sites={}
+```
+
+After:
+
+```
+W13iR1 group(page, 'roomId')/inline: sites={"programs.feed.1"}; expected={"programs.feed.1"}
+W13iR1 sort(page, '-id')/inline: sites={"programs.feed.1"}; expected={"programs.feed.1"}
+W13iR1 group(other, 'roomId'): sites={}
+```
+
+The red run failed only the three new positive site-set tests (group, sort,
+nested group/sort). All nine existing/control tests passed, including min/max
+and the explicit cursorless helper controls. The green run passes all twelve;
+the same cases pass twenty-four times across the two device stores.
+
+Commands below ran from `snapback4/` with these command-scoped settings:
+
+```sh
+export DEVELOPER_DIR=/Library/Developer/CommandLineTools
+export SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+`cargo test -p snapback4-sim --test clique row_preserving_pages -- --nocapture`
+
+Before:
+
+```
+test result: FAILED. 9 passed; 3 failed; 0 ignored; 0 measured; 225 filtered out; finished in 0.87s
+```
+
+After:
+
+```
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 225 filtered out; finished in 0.47s
+```
+
+`cargo test -p snapback4-device --test device row_preserving_pages`
+
+```
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 385 filtered out; finished in 2.08s
+```
+
+`cargo test -p snapback4-lang --test guide`
+
+```
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+```
+
+`cargo test -p snapback4-lang --test residency_notes (before the production edit)`
+
+```
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.50s
+```
+
+`cargo test -p snapback4-lang --test residency_notes (after the production edit)`
+
+```
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.44s
+```
+
+`cargo test -p snapback4-lang`
+
+```
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 10 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.16s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.87s
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 100.80s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.81s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.08s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.97s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+`cargo test -p snapback4-core`
+
+```
+test result: ok. 65 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.41s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.39s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.02s
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.83s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+`cargo test -p snapback4 --bin snapback4`
+
+```
+test result: ok. 68 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.59s
+```
+
+The complete language-crate run totals 291 passed, 0 failed,
+1 ignored; the core run totals 159 passed, 0 failed,
+0 ignored. No full `scripts/test.sh` run this round, as the review
+brief explicitly assigns it to the lead at landing. No pre-existing test
+failure is claimed, and none of the final checks failed.
+
+`/usr/bin/time -p bash scripts/build-wasm.sh` (exit 0):
+
+```
+wasm 1595242 B raw, 467504 B gzip (budget 452000: OVER by 15504 B — issues/20260913-snapback4-wasm-device-diet.md)
+real 27.53
+user 27.87
+sys 1.76
+```
+
+Unlike the brief's description, this base already tracks
+`metrics/wasm-budget.json`; it was neither edited nor raised. The over-budget
+number above is this build's report-only result, not a claim of a regression
+or a base-verified pre-existing failure. No before/after size comparison was
+requested or made.
+
+`./ref-check --verbose` from the repository root:
+
+```
+ref-check: ok — 485 LLP docs, 9116 refs in 24346 files, 0 errors, 0 unchecked
+```
+
+What this taught: preserving a note's trigger does not require omitting a
+runtime-owned page from diagnostic provenance. The cursorless walk can stay
+unchanged while the runtime's selected origins are unioned in; applying the
+runtime selector also prevents the diagnostic repair from inventing ownership
+for a record containing two helper-carried pages.
+
+Only `crates/snapback4-core/src/engine/pages.rs`,
+`crates/snapback4-sim/tests/common/row_preserving_pages.rs` and this journal
+changed. The shared tests are imported by the device suite; no device production
+code changed. No out-of-scope file was touched. The pre-existing untracked
+`LANE-BRIEF-W13I.md` remains untouched. No commit, push, tag or publication.
+The original 2,229,615 journal bytes are preserved. Logs are under
+`/tmp/w13ir1/`: `red-sim.log`, `green-sim.log`, `device.log`, `guide.log`,
+`before-residency-notes.log`, `after-residency-notes.log`, `lang.log`, `core.log`,
+`bin.log`, `wasm.log` and `ref-check.log`.

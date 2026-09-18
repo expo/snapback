@@ -23,6 +23,7 @@ mod guide_examples;
 mod prefix_reads;
 mod lane_domains;
 mod time_indexes;
+mod row_preserving_pages;
 
 use common::*;
 use snapback4_core::engine::WriteState;

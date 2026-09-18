@@ -252,6 +252,9 @@ reaches the range's end, including without a cursor; a meter cut is incomplete.
 Direct table and maintain page cursors bind the evaluated prefix and active
 generation. Reusing one under another prefix or after adoption is refused;
 ordinary writes keep it valid, and rows can move between pages.
+Returning `group(page, 'roomId')` or `sort(page, 'at')`, directly, through a
+once-bound variable or nested as `group(sort(page, 'at'), 'roomId')`, carries
+the source page's `next` and `complete`/`cut` class on the server and both device stores.
 A filled direct page positions `next` after its last returned row. A meter-cut direct page
 positions after its last rule-visible examined row, even if the filter rejected
 it, never after a hidden row.
