@@ -37241,3 +37241,50 @@ Wasm remains 1,686,925 B raw / 488,235 B gzip: **+658 B over round 11**
 The same note is appended to issues/20260913-snapback4-wasm-device-diet.md;
 that ticket stays open, with no budget change or size qualification claimed.
 No push, rebase, merge or publication was performed.
+
+## 2026-09-18 — Repair B, fix round 14: client invalidation precedes post-commit work
+
+FF1 reproduces with the compiled incoming client and the real wasm device:
+replacement commits B with backend-required true and acquisition false, but
+one denied post-reset sync-state read leaves the A watch fresh and sends no
+notification. The client now invalidates at the successful device-call
+boundary, before even the wrapper's media reconciliation can fail. It clears
+all watch snapshots and expiry timers, remembered server answers, acquisition,
+currentness/freshness flags, cached identity and poll position before invoking
+application listeners. Round-local cursors are discarded before inspection;
+retry recaptures B and its zero transfer position from native state.
+
+The requested state audit found the analogous successful-adoption ordering:
+a thrown readiness read could bypass its incarnation advance. Successful
+adoption now fences answers at the same boundary. A compatibility control
+caught an overly conservative intermediate fix: literal-default widening
+must keep native-acquired images readable offline. A successful readiness
+inspection can revalidate that preserved acquisition after the new backend is
+installed; a failed inspection cannot. Both operations have post-commit media
+failure regressions, and every failure regression has a healthy retry.
+
+The complete client-state inventory and per-finding dispositions are appended
+to REPAIR-B-HANDOFF.md. They distinguish immediate read/identity/cursor fences
+from later fallible receipt/media cleanup and retain the earlier native-module,
+mutation-response and upload-facts audit boundaries. A proposed newer-change
+probe was rejected because it actually delivered an obsolete pre-adoption
+poll; its healthy control failed too. The probe/extra guard was removed, with
+its output retained. It is not counted as a finding or mutation proof.
+
+All seven final compiled-client mutations fail their intended assertions;
+the restored reset file passes 19 cases. Source, test, compiled-client and
+wasm hashes match the final mutation inputs. The initial FF1/adoption failures
+and the intermediate compatibility failure remain in target/review-fix14/.
+No native/server semantics, other repaired round-13 fixtures, wire fields,
+or durable metadata keys changed. The source and existing test file are the
+only implementation edits.
+
+Final verification: device **645 passed, 0 failed, 3 existing ignored**; core **160 passed, 0 failed**; CLI **265 passed, 0 failed**. All three Cargo commands exit 0. Final `bash snapback4/scripts/test.sh` exits 1 in 255 s with every step passing except the known `worker.runGeneratedEffects` README coverage failure. Client shards total **799 tests, 795 passed, 1 failed, 3 skipped, 0 cancelled**. Verbatim final script result:
+
+```text
+-- FAIL: client tests (222 s)
+== 1 failure(s) in 255 s
+   client tests
+```
+
+The final suite holds source/test hashes unchanged, and its compiled client and wasm match the mutation inputs. Ref-check: 484 LLP documents, 9443 references, zero errors. Full verbatim crate/script results, mutation edits, hashes and controls are in `target/review-fix14/report.md`. No push, rebase, merge or publication was performed.

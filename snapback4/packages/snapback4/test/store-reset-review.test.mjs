@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { setImmediate as tick } from "node:timers/promises";
 import { createLocalClient } from "../dist/local.js";
 import { webDevice, memoryPersistence } from "../dist/web.js";
+import { MediaCache } from "../dist/local-assets.js";
 
 const wasm = readFileSync(new URL("../dist/wasm/snapback4_device_bg.wasm", import.meta.url));
 const original = JSON.parse(readFileSync(new URL("./chat-schema.json", import.meta.url), "utf8"));
@@ -23,18 +24,20 @@ const snapshot = (store, count = 1) => ({ snapshot: true, store_id: store, gener
 
 async function fixture(t, count = 1) {
   const persist = memoryPersistence();
-  let store = "A", offline = false, schemaFailures = 0, core, client, changes;
+  let store = "A", generation = 1, marker = "A", offline = false, schemaFailures = 0, core, client, changes;
+  let schema = original.schema;
   let queryGate, localGate, mutationGate, localStarts = 0, queryStarts = 0, schemaCalls = 0, mutationStarts = 0, syncStarts = 0;
-  const reads = [], clients = [], sends = [];
-  let adopting;
+  const reads = [], clients = [], sends = [], syncRequests = [];
+  let adopting, committed, resetReadFailure, failNextResetRead = false, failureOp = "observe_store";
   const fetcher = async (input, init = {}) => {
     if (offline && !init.keepalive) throw new TypeError("offline");
     const path = new URL(input).pathname;
-    if (path === "/schema") { schemaCalls++; if (schemaFailures-- > 0) throw new TypeError("schema interrupted"); return Response.json(backend(store)); }
+    if (path === "/schema") { schemaCalls++; if (schemaFailures-- > 0) throw new TypeError("schema interrupted"); return Response.json({ ...backend(marker), schema, generation }); }
     if (path === "/sync") {
       syncStarts++;
       const request = JSON.parse(init.body);
-      return Response.json(request.from === 0 && !request.stream ? snapshot(store, count) : { snapshot: false, store_id: store, generation: 1, events: [], watermark: 10, more: false });
+      syncRequests.push(request);
+      return Response.json(request.from === 0 && !request.stream ? { ...snapshot(store, count), generation } : { snapshot: false, store_id: store, generation, events: [], watermark: 10, more: false });
     }
     if (path === "/changes") {
       const current = changes = gate();
@@ -43,7 +46,7 @@ async function fixture(t, count = 1) {
       try { return Response.json(await current.promise); } finally { init.signal?.removeEventListener("abort", abort); }
     }
     if (path.startsWith("/q/")) {
-      const captured = store; queryStarts++;
+      const captured = marker; queryStarts++;
       if (queryGate) await queryGate.promise;
       reads.push(captured);
       return Response.json({ data: captured, complete: true, tables: ["messages"] });
@@ -55,8 +58,15 @@ async function fixture(t, count = 1) {
   async function open() {
     const opener = webDevice({ wasm, persist });
     client = await createLocalClient({ url: `http://reset.test/${encodeURIComponent(t.name)}`, persona: "alice", device: { async open(...a) { const opened = core = await opener.open(...a); return { ...opened, async call(request) {
+      if (request.op === "sync_state" && failNextResetRead) {
+        failNextResetRead = false;
+        resetReadFailure();
+        return { denied: { code: "E_STORE", family: "store", message: "injected post-reset read failure" } };
+      }
       if (request.op === "adopt") adopting?.();
       const reply = await opened.call(request);
+      if (!reply.denied) committed?.(request, reply.ok);
+      if (request.op === failureOp && !reply.denied && (failureOp === "adopt" || reply.ok?.reset) && resetReadFailure) failNextResetRead = true;
       if (request.op === "query" && localGate) { localStarts++; await localGate.promise; }
       return reply;
     } }; } }, fetch: (input, init) => fetcher(String(input).replace(`/${encodeURIComponent(t.name)}`, ""), init) });
@@ -64,9 +74,16 @@ async function fixture(t, count = 1) {
   }
   t.after(async () => { queryGate?.resolve(); localGate?.resolve(); mutationGate?.resolve(); for (const c of clients) await c.close(); });
   await open();
-  return { get client() { return client; }, get core() { return core; }, open, persist, reads, sends,
-    replace() { store = "B"; }, offline(v) { offline = v; }, failSchema(n) { schemaFailures = n; },
+  return { get client() { return client; }, get core() { return core; }, open, persist, reads, sends, syncRequests,
+    replace() { store = marker = "B"; }, updateBackend() { generation++; marker = "A2"; }, offline(v) { offline = v; }, failSchema(n) { schemaFailures = n; },
+    widenBackend() {
+      generation++; marker = "A2"; schema = structuredClone(schema);
+      schema.tables.conversations.columns.tag = { Text: { max: 20 } };
+      schema.tables.conversations.defaults = { tag: { Literal: { String: "default" } } };
+    },
     onAdopt(callback) { adopting = callback; },
+    onCommit(callback) { committed = callback; },
+    failReadAfterReset(callback, op = "observe_store") { resetReadFailure = callback; failureOp = op; },
     stats() { return { queryStarts, localStarts, schemaCalls, mutationStarts, syncStarts }; },
     holdLocal() { return localGate = gate(); },
     holdQueries() { return queryGate = gate(); }, holdMutation() { return mutationGate = gate(); },
@@ -88,6 +105,128 @@ test("R2 item 2: getSnapshot is cleared after validated reset and before backend
   await until(() => watch.getSnapshot().data === "B");
   assert.equal(watch.getSnapshot().fresh, true);
 });
+
+test("FF1: committed reset invalidates watches and acquisition before a denied sync_state read", async t => {
+  const f = await fixture(t), watch = f.client.observe({ kind: "query", name: "marker" }, {});
+  const notices = [], acquisition = [];
+  watch.subscribe(() => notices.push(structuredClone(watch.getSnapshot())));
+  f.client.onAcquired(value => acquisition.push(value));
+  await until(() => watch.getSnapshot().fresh);
+  assert.equal(watch.getSnapshot().data, "A");
+  assert.equal(f.client.acquired, true);
+  const remote = { kind: "query", name: "remote", runs: "server" };
+  assert.equal((await f.client.query(remote, {})).data, "A", "prime a remembered server answer too");
+  notices.length = 0; acquisition.length = 0;
+  let atFailure, adoptions = 0;
+  f.onAdopt(() => adoptions++);
+  f.failReadAfterReset(() => { atFailure = {
+    snapshot: structuredClone(watch.getSnapshot()), notices: structuredClone(notices),
+    acquired: f.client.acquired, acquisition: [...acquisition],
+  }; });
+  f.replace(); await f.client.sync();
+  const state = ok(await f.core.call({ op: "sync_state", capture: false }));
+  assert.equal(state.store_id, "B", "the real device committed replacement before the injected failure");
+  assert.equal(state.backend_required, true);
+  assert.equal(state.acquired, false);
+  assert.equal(adoptions, 0, "the failed round never reaches adoption");
+  assert.ok(atFailure, "the post-reset read was actually denied");
+  assert.deepEqual(atFailure.notices[0], { loading: true }, "committed reset must notify before any fallible read");
+  assert.ok(atFailure.notices.every(read => read.data !== "A"), "retired answers cannot reappear");
+  assert.notEqual(atFailure.snapshot.data, "A");
+  assert.equal(atFailure.acquired, false);
+  assert.deepEqual(atFailure.acquisition, [false]);
+  assert.equal(f.client.acquired, false, "failed inspection cannot retain retired acquisition");
+  f.offline(true);
+  assert.equal((await f.client.query(remote, {})).denied?.code, "E_OFFLINE", "the retired server cache is empty even when identity inspection failed");
+  f.offline(false);
+  const retryAt = f.syncRequests.length;
+  await f.client.sync();
+  assert.equal(f.syncRequests[retryAt].store_id, "B", "retry captures identity from the device");
+  assert.equal(f.syncRequests[retryAt].from, 0, "retry discards A's stream cursor");
+  assert.equal(f.syncRequests[retryAt].after, null, "retry discards A's snapshot continuation");
+  await until(() => watch.getSnapshot().data === "B" && watch.getSnapshot().fresh);
+  assert.equal(f.client.acquired, true, "a healthy retry reacquires B");
+  assert.ok(adoptions > 0);
+  assert.deepEqual(acquisition, [false, true]);
+  assert.ok(notices.every(read => read.data !== "A"));
+});
+
+for (const op of ["observe_store", "adopt"]) test(`FF1 boundary: ${op} invalidates before fallible media reconciliation`, async t => {
+  const f = await fixture(t), watch = f.client.observe({ kind: "query", name: "marker" }, {}), notices = [];
+  watch.subscribe(() => notices.push(structuredClone(watch.getSnapshot())));
+  await until(() => watch.getSnapshot().fresh);
+  assert.equal(watch.getSnapshot().data, "A");
+  assert.equal(f.client.acquired, true);
+  notices.length = 0;
+  let fail = false, atFailure;
+  f.onCommit((request, result) => { if (request.op === op && (op === "adopt" || result.reset)) fail = true; });
+  const reconcile = MediaCache.prototype.reconcile;
+  t.mock.method(MediaCache.prototype, "reconcile", function () {
+    if (fail) {
+      fail = false;
+      atFailure = { notices: structuredClone(notices), acquired: f.client.acquired };
+      throw new Error("injected media reconciliation failure");
+    }
+    return reconcile.call(this);
+  });
+  if (op === "adopt") f.updateBackend(); else f.replace();
+  if (op === "adopt") await f.client.sync();
+  else await assert.rejects(f.client.sync(), /injected media reconciliation failure/);
+  const state = ok(await f.core.call({ op: "sync_state", capture: false }));
+  assert.equal(state.store_id, op === "adopt" ? "A" : "B");
+  assert.equal(state.generation, op === "adopt" ? 2 : 1);
+  assert.equal(state.acquired, false, "the device committed the invalidating operation");
+  assert.ok(atFailure, "media reconciliation actually failed after commit");
+  assert.deepEqual(atFailure.notices[0], { loading: true }, "invalidation precedes fallible post-commit housekeeping");
+  assert.equal(atFailure.acquired, false);
+  f.onCommit(() => {});
+  await f.client.sync();
+  await until(() => watch.getSnapshot().data === (op === "adopt" ? "A2" : "B") && watch.getSnapshot().fresh);
+  assert.equal(f.client.acquired, true);
+  assert.ok(notices.every(read => read.data !== "A"));
+});
+
+test("FF1 adoption audit: committed generation invalidates before a thrown sync_state read", async t => {
+  const f = await fixture(t), watch = f.client.observe({ kind: "query", name: "marker" }, {}), notices = [];
+  watch.subscribe(() => notices.push(structuredClone(watch.getSnapshot())));
+  await until(() => watch.getSnapshot().fresh);
+  assert.equal(watch.getSnapshot().data, "A");
+  assert.equal(f.client.acquired, true);
+  notices.length = 0;
+  let atFailure;
+  f.failReadAfterReset(() => {
+    atFailure = { notices: structuredClone(notices), acquired: f.client.acquired };
+    throw new Error("injected post-adoption read failure");
+  }, "adopt");
+  f.updateBackend(); await f.client.sync();
+  const state = ok(await f.core.call({ op: "sync_state", capture: false }));
+  assert.equal(state.generation, 2, "the real device committed adoption");
+  assert.equal(state.acquired, false);
+  assert.ok(atFailure, "the post-adoption read actually failed");
+  assert.deepEqual(atFailure.notices[0], { loading: true }, "adoption must invalidate before its readiness read");
+  assert.equal(atFailure.acquired, false);
+  f.failReadAfterReset(() => {}, "unused");
+  await f.client.sync();
+  await until(() => watch.getSnapshot().data === "A2" && watch.getSnapshot().fresh);
+  assert.equal(f.client.acquired, true);
+  assert.ok(notices.every(read => read.data !== "A"));
+});
+
+test("FF1 adoption control: compatible widening revalidates acquired images before interrupted catch-up", async t => {
+  const f = await fixture(t);
+  assert.equal(f.client.acquired, true);
+  f.widenBackend(); f.onAdopt(() => f.offline(true));
+  await f.client.sync();
+  const state = ok(await f.core.call({ op: "sync_state", capture: false }));
+  assert.equal(state.generation, 2);
+  assert.equal(state.acquired, true, "literal-default widening preserves native acquisition");
+  assert.equal(f.client.link(), "offline");
+  assert.equal(f.client.acquired, true, "the successful readiness read revalidates retained acquisition");
+  const read = await f.client.query({ kind: "query", name: "marker" }, {});
+  assert.equal(read.data, "A2", "the adopted interpreter remains readable offline");
+  assert.equal(read.fresh, false);
+});
+
 
 test("R4: a same-identity /changes head below acquisition persists the restore halt even when writes refill the head", async t => {
   const f = await fixture(t), op = { kind: "query", name: "marker" };

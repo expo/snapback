@@ -610,3 +610,83 @@ also reproduced at base `27a8a4d66`. Client tests report **790 passed, 1 failed,
 3 skipped, 0 cancelled**. The report links both complete verbatim suite logs.
 The **488,235 B gzip / +658 B over round 11** measurement is now also recorded
 in the existing [size-budget ticket](../issues/20260913-snapback4-wasm-device-diet.md).
+
+## Fix round 14 — invalidate the client at the successful commit boundary
+
+Orientation: this change is confined to the local client's observation and
+readiness lifecycle. LLP 3000 §7 supplies the single Rust authority; LLP
+3000.001's Repair B and LLP 3000.007 §18.2 govern replacement, private progress
+and read fencing. Those three are in `llp/current/`, not `foundation/`.
+The published client guide's literal-default widening rule still applies.
+No new design document, server field, native metadata or device operation is
+introduced. Documentation hand-off: update the existing Repair B section and
+append this inventory and the journal; no new LLP is needed.
+
+| Finding | Established disposition |
+| --- | --- |
+| **FF1 (P1): a committed reset followed by a denied `sync_state` read leaves A fresh and acquired** | **Confirmed and fixed.** The incoming compiled client fails the new assertion with no loading notification, although the real wasm device has committed B, `backend_required: true`, `acquired: false`. Successful `observe_store` with `reset: true` now invalidates inside `call()`, immediately after its native result and before media reconciliation or metadata inspection. Native identity is learned separately; failure cannot preserve A. |
+| **Adjacent adoption ordering found by the requested audit** | **Confirmed and fixed.** Installing generation 2 followed by a thrown readiness read leaves the old watch unnotified in the pre-fix ordering. Successful `adopt` now uses the same immediate invalidation boundary. Backend/generation bookkeeping precedes its readiness read. A successful read may revalidate acquisition preserved by compatible literal-default widening; a denied or thrown read cannot. |
+| **Fallible media reconciliation in the common device-call wrapper** | **Confirmed and fixed for both invalidating operations.** It formerly ran after native success but before the caller could invalidate. Injecting a reconciliation exception after real reset/adoption catches that ordering. The new fence runs first. This does not claim that media cleanup itself cannot fail. |
+
+The only supplied new reviewer finding was FF1; it is accepted on reproduction,
+not reviewer identity. No new review text is invented or attributed to Grok.
+No new image-deferral, private-authority or transaction-boundary counterexample
+is established here.
+
+### Client-state invalidation inventory
+
+“Before fallible work” below means after the device successfully returns the
+committed operation. A native/host failure that hides whether a commit happened
+is a separate recovery boundary. The tests use the production wasm device and
+memory persistence with controlled HTTP and injected host failures; they do
+not claim real-browser termination or physical power-loss coverage.
+
+| Client state | Authoritative invalidator and action | Fallible work between success and invalidation? / qualification |
+| --- | --- | --- |
+| Watch `snapshot`, including `data`, `fresh`, `complete`, `next` and `since` | Successful native replacement/adoption advances `incarnation`, replaces every snapshot with loading, clears expiry timers, then notifies and reruns. `/probe` and `/changes` replacement observation and durable restore refusal use the same fence. | **No** after acknowledged replacement/adoption. All snapshots are changed before any application listener runs. FF1 and both media-failure regressions inspect notifications before the injected fault; existing delayed-read/watch cases verify A is never republished. |
+| Watch `running`, `dirty`, dependency tables and outstanding local/server answers | Running evaluations retain their original incarnation. `runLocal`, `query`, `server()` and `rerun` compare it before return, caching or notification. An invalidated running watch becomes dirty and reruns; dependency tables are replaced by that result. | No await before the revision changes. Work may finish later but cannot publish the retired revision. Dependencies are scheduling information, not authority for returning an old snapshot. |
+| `acquired`, `partitionCurrent`, `caughtUp`, `identityChecked` | All become false in the same synchronous fence. Native readiness is reread with an incarnation check; terminal publication restores currentness/freshness. Successful post-adoption inspection can revalidate native acquisition retained by literal-default widening. | **No** before invalidation. Positive revalidation is deliberately fallible and occurs afterward. The denied/thrown cases require false; healthy retry requires true; the compatible-widening control requires true plus a current-generation offline answer after catch-up is interrupted. |
+| `serverAnswers` (also cached server continuations), `lastSyncAt` | The fence clears the whole answer map and zeroes the freshness timestamp. No old `since` or `next` is carried into the new watch snapshot. | **No.** FF1 primes a separate A server-cache key, fails inspection, goes offline and requires `E_OFFLINE` instead of recovering A. Persistence of `syncedAt = 0` happens later and can fail; memory is already invalid, and native acquisition/identity remain authoritative. |
+| Cached `storeIdentity` | Successful replacement makes it unknown immediately. Only a successful native inspection repopulates published identity; transfer identity is used for request routing, never copied into published identity. Same-store backend adoption keeps its identity while invalidating answers. | **No** before discarding a replaced identity. Reads afterward may fail. FF1's next request must recapture B from native state. The durable device identity, not the page's unaudited identity, remains the source for adoption. |
+| Global poll `seq` | The incarnation fence zeroes it immediately. Terminal sync installs the validated published watermark. A pending change request carries the earlier incarnation and is rejected after a reset. | **No.** A higher old poll cursor cannot survive the fence. `/changes` has no independent cached cursor in `changes.ts`; it receives the client's current argument on each call. |
+| Round-local `watermark`, snapshot `after`, `catchingUp`, `publicationOutstanding`; page request captures | Replacement resets round cursors before the post-reset native read. If media throws before returning to the round, the round unwinds and these locals die. Each subsequent page/round obtains native transfer/published progress and send revision again. | Media reconciliation can fail before the local assignments, but there is no continuation that uses those abandoned locals. FF1 requires retry `store_id: B`, `from: 0`, `after: null`. Durable staged/deferred progress remains device-owned. |
+| Cached `backend`, `generation`, `nativeReady` and in-flight native installation | Replacement/adoption immediately fences local partition use through `partitionCurrent = false`. Successful adoption installs the new cached backend/generation and clears native readiness before readiness inspection/installation. | No fallible work before the **use fence**. These descriptions are not blanked: they can still guide current-server routing. A failed media step can delay their refresh, so retry must perform captured adoption again. Existing native-module request lifetime/digest-generation checks remain the earlier audit's boundary; this round does not establish all native-install overlaps. |
+| `partitionDenied` / restore halt | An `E_STORE_RESTORE` response sets the refusal and uses the same incarnation fence; native sticky halt is the authority. Captures reload it on reopen. | No follow-up native read is required to invalidate on the returned restore refusal. Successful ordinary sync clears a non-sticky shell refusal; the existing sticky-restore tests pass. |
+| Pending mutation IDs, submission counter, `WriteHistory`, settlement listeners | These have write/receipt lifetime, not read-incarnation lifetime. Unknown writes preserve IDs across replacement; native reset removes predictions and retires known receipts. `MutationIds` preserves reuse guards; durable history is reread. | Intentionally not all cleared. Receipt notifications and history persistence can still involve fallible work; this inventory does not prove completion delivery after every lost response. Existing replacement ordinary/exit transport tests require no replay of known writes. Mutation-response/settlement request provenance remains an explicit earlier-audit boundary. |
+| Media manifests, bytes and live asset handles | `MediaCache.reconcile()` checks current homes, drops invalid entries and revokes handles. Asset reads recheck homes; session end clears media. | **Yes:** media's own reconciliation and storage removal remain fallible and can run later. The new tests establish that such failure cannot preserve query watches/acquisition. They do not establish that every issued asset handle is immediately revoked. Upload-facts lifetime remains separately ticketed. |
+| Session/credential revision, link, close state, work queues/listeners | These belong to client/session lifetime. Session end marks dead and changes credentials before persistence; close marks closed and stops listeners/timers before awaiting work. Network queues serialize sync/settlement; in-flight read publication checks incarnation and client availability. | They intentionally survive store replacement. External listener exceptions can interrupt notification delivery; internal answer/flag invalidation now completes before those callbacks. No new all-session or callback-exception claim is made. |
+
+### Mutation proof
+
+The final compiled client and the unchanged real wasm artifact are the subjects.
+Each mutant is derived independently from the final bytes; exact patches, SHA-256 inputs,
+commands, exit statuses and assertion output are retained under
+[target/review-fix14/](./target/review-fix14/report.md).
+
+| Mutation | Required observed failure |
+| --- | --- |
+| Move reset invalidation below its `sync_state` read | FF1 fails: missing loading notification before denied inspection. |
+| Move adoption invalidation below its readiness read | Adoption regression fails: missing loading notification before thrown inspection. |
+| Move both invalidations below media reconciliation | Both reset and adoption media regressions fail before retry. |
+| Retain `acquired` | FF1 fails because the flag is still true after native reset. |
+| Retain `serverAnswers` | FF1's offline read recovers A instead of `E_OFFLINE`. |
+| Retain watch snapshots | FF1's first notification still contains A instead of loading. |
+| Never revalidate compatible native acquisition | Compatible-widening control fails with client false while native acquisition remains true. |
+
+All seven mutants exit 1 at these assertions; the restored reset file passes
+all 19 cases. The initial FF1 and adoption reproductions and the intermediate
+compatible-widening failure are preserved, rather than silently discarded.
+
+### Final verification
+
+`cargo test -p snapback4-device`: exit 0, **645 passed, 0 failed, 3 existing ignored**. `cargo test -p snapback4-core`: exit 0, **160 passed, 0 failed**. `cargo test -p snapback4`: exit 0, **265 passed, 0 failed**.
+
+The final `bash snapback4/scripts/test.sh` exits **1 in 255 s**, solely for the known `worker.runGeneratedEffects` README coverage failure. Every other step passes. Its eight client processes total **799 tests: 795 passed, 1 failed, 3 skipped, 0 cancelled**. Verbatim final lines:
+
+```text
+-- FAIL: client tests (222 s)
+== 1 failure(s) in 255 s
+   client tests
+```
+
+All four final mutation input hashes match after the full-script rebuild. The [qualification report](./target/review-fix14/report.md) preserves every crate result line, complete stdout/stderr logs, final-script hashes and the preliminary failures. Ref-check reports zero errors; `git diff --check` passes. No push, rebase, merge or publication was performed.

@@ -349,10 +349,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     for (const listener of acquiredListeners) listener(value);
   }
   // @ref LLP 3000.007#18.2 — acquisition belongs to the current store; a reconnect alone cannot bless an old partition.
-  async function refreshAcquired() {
+  async function refreshAcquired(afterAdoption = false) {
     const revision = incarnation;
     const state = (await call({ op: "sync_state", capture: false })).ok as { acquired: boolean } | undefined;
-    if (revision === incarnation) setAcquired(!closed && !sessionDead && partitionCurrent && state?.acquired === true);
+    if (revision === incarnation) {
+      // Compatible widening may preserve native acquisition. Revalidate it
+      // only after the new backend is installed and this read succeeds.
+      if (afterAdoption && state?.acquired === true) partitionCurrent = true;
+      setAcquired(!closed && !sessionDead && partitionCurrent && state?.acquired === true);
+    }
   }
   await refreshAcquired();
   // A kept sent entry can disappear on the first catch-up, before a screen mounts.
@@ -366,8 +371,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     storeIdentity = id;
     incarnation++;
     partitionCurrent = false;
-    setAcquired(false);
+    const wasAcquired = acquired;
+    acquired = false;
     caughtUp = false;
+    identityChecked = false;
+    seq = 0;
     lastSyncAt = 0;
     serverAnswers.clear();
     for (const watch of watches.values()) {
@@ -375,6 +383,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       watch.incarnation = incarnation;
       if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
       watch.expiryTimer = null;
+    }
+    // Finish invalidating every answer before invoking application callbacks.
+    if (wasAcquired) for (const listener of acquiredListeners) listener(false);
+    for (const watch of watches.values()) {
       notify(watch);
       void rerun(watch);
     }
@@ -412,6 +424,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     active.add(work);
     try {
       const result = (await work) as { ok?: unknown; denied?: Refusal };
+      // A committed replacement has already retired the client's partition.
+      // Fence it before even media reconciliation can fail; native identity
+      // is read separately and must never be a prerequisite for invalidation.
+      if (!result.denied && request.op === "observe_store" && (result.ok as { reset?: boolean } | undefined)?.reset) observeIncarnation(undefined, true);
+      if (!result.denied && request.op === "adopt") observeIncarnation(storeIdentity, true);
       if (!result.denied && ["apply", "observe_store", "adopt", "clear_rows", "admit", "settle"].includes(String(request.op))) await media?.reconcile();
       return result;
     }
@@ -657,27 +674,24 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           adoptionCapture = observation.adoption_capture;
           backendRequired = !!observation.backend_required;
           if (observation.reset) {
-            // Only a durable native replacement changes published identity.
+            // call() already invalidated the retired incarnation synchronously.
+            // Discard this round's old cursors before inspecting the new store.
+            watermark = 0; after = undefined; catchingUp = false; publicationOutstanding = false;
+            page.captured_watermark = 0;
+            adoptedGeneration = true;
+            replacedStore = true;
             const observedRead = await call({ op: "sync_state", capture: false });
             if (observedRead.denied) return false;
             const observedState = observedRead.ok as { store_id?: string | null } | undefined;
             publishedStore = observedState?.store_id;
-            observeIncarnation(publishedStore ?? undefined);
             storeIdentity = publishedStore ?? undefined;
-            if (typeof page.store_id !== "string") observeIncarnation(undefined, true);
-            page.captured_watermark = 0;
-            serverAnswers.clear();
-            lastSyncAt = 0;
             await call({ op: "set_meta", key: "syncedAt", value: "0" });
-            adoptedGeneration = true;
             for (const [id, sentSeq] of Object.entries(observation.retired)) {
               const receipt: Write = { state: "sent", id: id as Write["id"], seq: sentSeq, replayed: true };
               settled.get(id)?.(receipt); settled.delete(id);
               emitWrite(receipt);
             }
             for (const watch of watches.values()) void rerun(watch);
-            watermark = 0; seq = 0; after = undefined; catchingUp = false; publicationOutstanding = false;
-            replacedStore = true;
           }
         }
         if (link !== "online") setLink("online");
@@ -694,14 +708,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             const nextBackend = await loadBackend(doFetch, base, request.headers, aborter.signal);
             if (closed || backendIncarnation !== incarnation || request.revision !== credentialRevision) return false;
             const adopted = await call({ op: "adopt", backend: nextBackend, store_id: publishedStore ?? null, send_revision: page.send_revision, adoption_capture: adoptionCapture });
-            await refreshAcquired();
             if (adopted.denied) return false;
-            incarnation++;
-            serverAnswers.clear();
             backend = nextBackend;
             generation = Number(nextBackend.generation ?? pageGeneration);
             nativeReady = false;
             adoptedGeneration = true;
+            await refreshAcquired(true);
             nativeReady = await installNative(aborter.signal);
           } catch (error) {
             if (error instanceof BackendAuthError) await refusedSession(error.denied, backendRevision);
