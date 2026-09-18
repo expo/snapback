@@ -76,6 +76,7 @@ impl DevWorker {
     pub(crate) fn start_source(project: &Project, shared: Arc<Shared>, url: String, source: PathBuf, explicit_env: bool) -> Result<Self, String> {
         let source = source.canonicalize().map_err(|e| format!("worker {}: {e}", source.display()))?;
         if !source.is_file() { return Err(format!("worker {} is not a file", source.display())); }
+        warn_if_esm_entry_is_not_declared(&source);
         validate_environment(&lock(&shared.bound).schema)?;
         let node = node();
         let version = command(&node).arg("--version").output().map_err(|e| format!("worker needs Node 24: {e}"))?;
@@ -188,6 +189,40 @@ impl Drop for DevWorker {
         self.stop_child();
         self.record_status("stopped");
     }
+}
+
+/// `init` scopes ESM to what it generates — `snapback/generated/package.json`
+/// is `{"type":"module"}` — and deliberately leaves the application's own module
+/// type alone (@ref LLP 3000.007#20.2). The documented worker entry,
+/// `snapback/server.ts`, sits one directory *above* that island, so in a project
+/// that does not declare `"type": "module"` Node reads it as CommonJS and the
+/// guide's own ESM example fails to load. Say which repair fixes it before Node
+/// says it eight frames deep; a 0.2.28 calibration builder spent seven restarts
+/// and an untyped stack trace arriving at `server.mts` unaided.
+///
+/// Advisory, not a refusal: Node still gets its attempt, so a loader or a
+/// future type-stripping default cannot be locked out by this heuristic.
+fn warn_if_esm_entry_is_not_declared(source: &std::path::Path) {
+    // `.mts` and `.mjs` are ES modules whatever any package.json says.
+    if !matches!(source.extension().and_then(|e| e.to_str()), Some("ts" | "js")) { return; }
+    let Ok(text) = std::fs::read_to_string(source) else { return };
+    if !text.lines().any(|line| line.starts_with("import ") || line.starts_with("export ")) { return; }
+    // Node resolves the *nearest* package.json walking up from the file.
+    let declares_module = source.ancestors().skip(1).find_map(|dir| {
+        let package = dir.join("package.json");
+        std::fs::read_to_string(&package).ok().map(|text| {
+            serde_json::from_str::<serde_json::Value>(&text).ok().is_some_and(|v| v["type"] == "module")
+        })
+    });
+    // No package.json at all fails the same way: CommonJS is Node's default.
+    if declares_module == Some(true) { return; }
+    // Name the rename by file, not by absolute path: it is a rename in place, and the
+    // repair should read the way the author would perform it.
+    let renamed = source.with_extension("mts");
+    let renamed = renamed.file_name().unwrap_or(renamed.as_os_str()).to_string_lossy().into_owned();
+    let reason = if declares_module.is_some() { "the nearest package.json does not declare them" } else { "no package.json above it declares them" };
+    eprintln!("snapback4 worker: {} uses ES modules but {reason}, so Node will read it as CommonJS", source.display());
+    eprintln!("snapback4 worker:   rewrite: rename it to {renamed} — or declare \"type\": \"module\" for it");
 }
 
 fn command(node: &std::path::Path) -> Command {

@@ -59,7 +59,7 @@ fn withheld<H: Host>(host: &mut H, hidden: bool) {
         })), "the floor must be a delivered current key");
         device.apply(&page, false).unwrap();
         let local = group_page(&mut device);
-        assert_eq!(local.0["data"], serde_json::json!([{"id":"p3","at":3000}])); assert!(local.1);
+        assert_eq!(local.0["data"], serde_json::json!([{"id":"p3","at":3000},{"id":"p1","at":100}])); assert!(!local.1);
         payloads.push(serde_json::to_string(&(page_json(&page), local)).unwrap());
     }
     assert_eq!(payloads[0], payloads[1]);
@@ -126,6 +126,9 @@ fn thousand_lane_merge_loads_boundaries_once() {
     counts.legacy.set(0); counts.boundary_loads.set(0); counts.lanes.set(0);
     let read = device.query("merged", "dev:bob", &serde_json::json!({"c":null}), 20_000).unwrap();
     println!("1000-lane merge: lanes={} whole-map-parses={} boundary-namespace-loads={}", counts.lanes.get(), counts.legacy.get(), counts.boundary_loads.get());
+    let server = engine.query("merged", context("dev:bob", &[("c", Value::Null)]).at(20_000)).unwrap();
+    println!("1000-lane merge probes: server={} device={} server-examined={} device-examined={}", server.metered.rule_probes, read.metered.rule_probes, server.metered.examined, read.metered.examined);
+    assert_eq!((server.metered.rule_probes, read.metered.rule_probes), (1001, 0));
     assert!(read.complete); assert_eq!(read.data.as_array().unwrap().len(), 1);
     assert_eq!(counts.lanes.get(), 1001); assert_eq!(counts.legacy.get(), 0); assert_eq!(counts.boundary_loads.get(), 1);
     counts.boundary_loads.set(0); device.store().store.drain();
@@ -147,15 +150,24 @@ fn thousand_lane_merge_loads_boundaries_once() {
     println!("ordinary stream: namespace-loads=0 boundary-writes=0; one changed group: namespace-loads=0 boundary-writes={writes}");
 }
 
-#[test]
-fn no_delivered_selected_key_leaves_acquisition_unknown() {
+fn deleted_selection<H: Host>(host: &mut H) {
     let (mut engine, backend) = compile(&source().replace("last 5 by", "last 2 by"));
     engine.seed_at([group_post(1), group_post(2), group_post(3)], 1).unwrap();
-    let mut host = Memory::new(); let mut device = acquire(&mut host, &mut engine, backend, "none-delivered");
+    let mut device = acquire(host, &mut engine, backend, "none-delivered");
     let from = device.sync_state().unwrap().watermark;
     engine.seed_at([member("dev:bob")], 2).unwrap();
     for p in ["p2", "p3"] { engine.mutate("remove", Some(p), context("dev:alice", &[("p",id(p))]).at(3)).unwrap(); }
     let stream = stream_at(&mut engine, from, 4);
-    assert_eq!(stream.acquisitions.len(), 1); assert!(stream.acquisitions[0].floor.is_none());
-    device.apply(&stream, false).unwrap(); assert!(group_page(&mut device).1);
+    assert_eq!(stream.acquisitions.len(), 2); assert_eq!(stream.acquisitions[1].floor.as_deref(), Some("whole"));
+    device.apply(&stream, false).unwrap();
+    let (page, unknown) = group_page(&mut device);
+    assert_eq!(page["data"], serde_json::json!([{"id":"p1","at":1000}]));
+    assert_eq!(page["complete"], true); assert!(!unknown);
+}
+
+mod current;
+
+#[test]
+fn deleted_historical_selection_acquires_remaining_current_row() {
+    deleted_selection(&mut Sqlite::new("w13k-deleted")); deleted_selection(&mut Memory::new());
 }

@@ -942,6 +942,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       // A composed operation must never recover a remembered whole server answer.
       serverAnswers.delete(key);
       let failed = false;
+      const composedSince = lastSyncAt;
       const remote = await server(() => { failed = true; return first.result; }, false);
       if (!("data" in remote.read)) return remote;
       const second = await local();
@@ -955,7 +956,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const data = { ...remote.read.data as Record<string, unknown> };
       for (const [field] of kept) data[field] = (second.outcome.data as Record<string, unknown>)[field];
       const expiries = [remote.nextExpiry, second.result.nextExpiry].filter((expiry): expiry is number => expiry !== null);
-      return { read: { data: data as R, complete: remote.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.read.cut ?? null, fresh: false, next: null }, tables, nextExpiry: expiries.length ? Math.min(...expiries) : null };
+      return { read: { data: data as R, complete: remote.read.complete && kept.every(([, c]) => c.complete !== false), cut: remote.read.cut ?? null, fresh: false, ...(composedSince ? { since: composedSince } : {}), next: null }, tables, nextExpiry: expiries.length ? Math.min(...expiries) : null };
     }
     if (wantsServer(outcome) && link === "online" && !await pending()) return server();
     return first.result;  }

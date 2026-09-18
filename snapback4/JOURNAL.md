@@ -37629,6 +37629,81 @@ Final server unit result: `CARGO_BUILD_JOBS=1 DEVELOPER_DIR=/Library/Developer/C
 
 Correction to the preceding HEAD sentence: final `git rev-parse --short HEAD` reports **c85fc4957**, not the older `875b0f691` copied from the prior session's start entry. I did not run any Git mutation command in this resumed session. The final append-only check compares against the actual current HEAD journal and passes; protected paths remain untouched.
 
+## 2026-09-17 — S3 host Unicode candidate and the evidence for a ruling (not landed)
+
+Built on `sb4/diet-s3-host-unicode`, base `614898e9a7eb6240fb2aef8cda3e08ae0f4acb0a`. This is the commissioned candidate of LLP 3000.002's proposed device representation and codec redesign, not an adopted exception to LLP 3000's one-implementation ruling. Nothing was committed, pushed, tagged or published. The published search card, package README, explainer, client contract, ceilings, existing conformance cases and durable/wire formats are unchanged.
+
+Production changes are small: an optional, wasm-target-only `js-sys` dependency in core's existing `web` feature; `words::fold` calls `JsString::normalize("NFC").to_lower_case()` only under `cfg(all(target_arch = "wasm32", feature = "web"))`; pure ASCII uses `to_ascii_lowercase()` without crossing to the host. Every other build retains the original Rust `nfc().collect::<String>().to_lowercase()` expression. `unicode-normalization` remains a dependency. `Builtin::Lower` was measured on the host and restored byte-for-byte to its original Rust implementation. A small `WebDevice.word_fold` diagnostic export calls the exact helper used by `tokens`; final candidate measurements include this witness hook. It is not a client-contract addition. No unsafe code, inline-JS snippet, fallback tokenizer or feature flag beyond the existing web selection was added.
+
+### Corpus and runnable witness
+
+Vendored Unicode 17.0.0 NormalizationTest, UnicodeData, SpecialCasing and DerivedAge, matching locked `unicode-normalization` 0.1.25. The unmodified input files and upstream license live under `crates/snapback4-core/tests/fixtures/unicode-17.0.0/`; `sources.json` records URLs and SHA-256, which the test verifies. NormalizationTest SHA-256 is `5019ffd530751a741900c849c0e010332f142a3612234639bd200b82138a87db`. The native test asserts all five columns of all 20,034 normalization lines, then folds the distinct inputs plus all 1,488 lowercase mappings, all 119 SpecialCasing entries, sigma contexts, locale-insensitive dotted/dotless I, astral letters, scalar edge text and all 16,384 ASCII pairs. It writes 57,848 Rust-oracle cases to the generated fixture `target/unicode-fold.json`; both normalization and Rust standard-library Unicode versions are recorded (both 17.0.0 here). The device test generates the compiled word-indexed backend and exercises positive search, absence, reopening and lowercase values on both native stores.
+
+One command for the lead, from `snapback4/` with Node 24 on PATH: `node witness/idb.mjs unicode`. It generates both native fixtures, builds the shipped wasm, and loads the actual glue/device in the existing Chromium machinery. It compares raw folds through the shared helper and `lower` through real interpreter queries, reports every differing input/expected/actual code point with Age, and measures 4,000-row page application on ASCII and Unicode word-indexed fixtures. Unknown options, absent tools, failed builds, failed launches and differences fail loudly. It prints browser and V8 versions; ICU/Unicode are explicitly unknown when Chromium/CDP does not expose them, and the Node process's versions are never substituted. An unknown older version leaves the age-confinement verdict unknown. The stability classification applies to NFC, not a promised guarantee for lowercase. `--node` is an explicitly labelled supplemental host, not browser evidence. `--artifact /path/device.js` consumes retained measurement bytes; `--timing-only` permits old artifacts without the diagnostic export. Nothing appends to metrics.
+
+`node witness/idb.mjs unicode --node --artifact /tmp/sb4-s3/b-fast.js` ran actual wasm on Node v24.18.0, V8 13.6.233.17-node.50, ICU 78.3, Unicode 17.0: **57,848 folds, 51,067 returned lowercase values, 6,781 expected text-boundary refusals, zero differences**. Controls still exercise raw folding; their query refusals are derived by Rust's argument validator and checked explicitly, not silently skipped. The step-C artifact also ran 51,067 lowercase queries and four successful lowercase-writing predictions, with 6,781 expected input refusals and zero differences (`node /tmp/sb4-s3/c-lower.mjs`). These same-version Node observations are not cross-version promises.
+
+`node witness/idb.mjs unicode --artifact /tmp/sb4-s3/b-fast.js` failed to launch the selected `chromium-1243` Google Chrome for Testing: `signal=SIGABRT`, cleanup `kill EPERM`, exit 1. There is no Chromium difference count or ICU/Unicode version observation, and no claim that its difference set is empty or confined to newly assigned characters. The lead must run the one-command browser witness outside the sandbox.
+
+### Measurements
+
+Every Node/Bun command used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`. Rust 1.97.0 (2d8144b78 2026-07-07), wasm-bindgen 0.2.127, wasm-opt 132, Brotli 1.2.0. The temporary `/tmp/sb4-s3/measure.sh` copies the shipped `scripts/measure-wasm.sh` pipeline, removes its metric append and repeated attribution call, and retains each artifact under `/tmp/sb4-s3/`. Exact commands: `S3_STEP=base bash /tmp/sb4-s3/measure.sh`, then the same command with `a`, `b`, `c`, `b-no-fast`, and `b-fast`. Each uses `cargo build -p snapback4-device --no-default-features --features web --profile wasm --target wasm32-unknown-unknown --quiet`, `wasm-bindgen --target web`, the shipped gzip-based choice of `wasm-opt -Os --enable-bulk-memory --enable-nontrapping-float-to-int`, `gzip -9`, and `brotli -c -q 11`. None selected wasm-opt. Compression is measured before copying, preserving the shipped filename in the gzip header. No `metrics/wasm.jsonl` or budget edits.
+
+| Build | Wasm raw B | gzip B | brotli B | Glue raw/gzip/brotli B |
+|---|---:|---:|---:|---|
+| Clean base | 1,599,360 | 466,618 | 362,604 | 11,325 / 3,047 / 2,700 |
+| A: host NFC only | 1,480,554 | 407,786 | 312,200 | 12,253 / 3,232 / 2,861 |
+| B: host NFC + tokenizer lowercase | 1,480,638 | 407,839 | 311,887 | 12,419 / 3,266 / 2,896 |
+| C: B + host Builtin::Lower | 1,470,995 | 403,532 | 308,460 | 12,419 / 3,266 / 2,896 |
+| B + witness hook, no ASCII fast path | 1,480,878 | 407,959 | 312,294 | 13,406 / 3,394 / 2,994 |
+| Final B + witness hook + ASCII fast path | 1,481,052 | 408,070 | 312,290 | 13,406 / 3,394 / 2,994 |
+
+NFC-only saves 118,806 B raw / 58,832 B gzip on this base, rather than the lead's earlier probe's 122,089 / 60,005. B adds 53 B gzip to A: moving the tokenizer's lowercase cannot remove tables still retained by `Builtin::Lower`. C saves another 9,643 B raw / 4,307 B gzip over B, but changes returned and predicted values. The final candidate saves 118,308 B raw / 58,548 B gzip; including glue, gzip saving is 58,201 B. The final wasm SHA-256 is `adb6c6d0130b5ef74fa40a4af808a486629b758948bc49f4c4b3412b601f14a6`.
+
+`node scripts/attribute-wasm.mjs --check-families` reports `1948230 total attributed bytes`, `.rodata` 70,774 B and `serde family check: ok` on the symbol-bearing pre-bindgen build. `twiggy top -n 1000000 --format json target/wasm-sym/wasm32-unknown-unknown/wasm/snapback4_device.wasm` contains zero `unicode_normalization` symbols; the only normalization call site is cfg-excluded on the web. `twiggy paths --regex -d 6 -r 12 target/wasm-sym/wasm32-unknown-unknown/wasm/snapback4_device.wasm 'unicode_data::(alphabetic|n|grapheme_extend|case_ignorable)|<str>::to_lowercase'` identifies the remaining owners: `<str>::to_lowercase` (3,232 B shallow) is retained by `Runner::builtin`; conversion lookup/to_lower (400/143 B), case-ignorable (350), lowercase/uppercase (231 each) and titlecase (`lt`, 234) support it and sigma handling. Alphabetic/numeric lookup (350 B each) and `char::is_alphanumeric` (88 B) serve tokenizer boundaries and MentionTokens. Grapheme-extend lookup (350 B) is retained by `char::escape_debug_ext` and character Debug formatting, not a lexer. Whitespace/control classification also remains for Trim, mention parsing, text validation and URL schema validation. `.rodata` is a merged segment, not a Unicode-only byte count; the lookup sizes are code, not exact table sizes.
+
+Timing command, from `snapback4/`: `for step in b-fast b-no-fast b-no-fast b-fast b-fast b-no-fast; do node witness/idb.mjs unicode --node --timing-only --artifact /tmp/sb4-s3/$step.js; done`. Each run uses two warmups and seven measured applications of 4,000 rows, verifies all 4,000 kept rows, and excludes device construction/drain from the timed call. Three alternating pairs, medians in milliseconds:
+
+| Pair | ASCII fast | ASCII no-fast | Unicode fast | Unicode no-fast |
+|---|---:|---:|---:|---:|
+| 1 (fast first) | 70.518 | 76.875 | 74.393 | 70.734 |
+| 2 (no-fast first) | 72.689 | 75.938 | 78.284 | 77.207 |
+| 3 (fast first) | 80.741 | 93.015 | 72.223 | 84.799 |
+
+Pooled 21-sample medians: ASCII 77.640 → 72.106 ms (7.1% faster); Unicode 73.815 → 74.393 ms (0.8% slower). ASCII fast samples span 61.448–147.469 ms; no-fast 71.345–106.515 ms. This is noisy, supplemental Node/wasm evidence, not a Chromium timing result. The fast path costs 174 raw / 111 gzip B relative to the same witness build without it (brotli is 4 B smaller). All ASCII pairs match and bypass both host calls.
+
+### Semantics, recommendation, and pending documentation
+
+Recommend **A (host NFC only)** as the smallest defensible exception if the author wants these bytes; it saves slightly more gzip than B before the witness/fast-path additions and retains one lowercase implementation. The requested B candidate remains in this branch for the ruling; C is measured and removed. [Unicode's stability policy](https://www.unicode.org/policies/stability_policy.html) guarantees normalization for strings assigned in both versions, but explicitly permits changes to case mappings. The plan's implication that the entire NFC-plus-lowercase difference set must be confined to newly assigned code points is too strong. Same-version default lowercase and final sigma agree in the witness; that does not extend the NFC stability guarantee to future case mappings.
+
+A host/server folding disagreement can produce a local search miss, a local hit absent from the server's result, or a local word key the server would not generate. Query and row folding both happen locally; that does not guarantee agreement with server equivalence classes. MemoryStore's index entries are never persisted or sent: reopening rebuilds them from original kept row text. The row text and outbox operation/arguments are unchanged, and the authoritative server re-executes mutations with Rust. Thus the index difference itself is memory-only, not an authoritative write or a format migration. It can affect local reads and speculative work that reads those indexes; application decisions made from those reads are not guaranteed identical. C additionally changes a query's returned string and a prediction's locally written string, which is why the extra 4,307 B does not justify treating it as mere index representation.
+
+**Pending draft for the search card and README, not applied:** “On a web device, NFC normalization and lowercase in the word index follow the host's Unicode version; letter/digit boundaries still use Rust's Unicode tables, and local matches can differ from native devices and the server when their Unicode behavior differs.” If the author selects the recommended NFC-only step, narrow this sentence to normalization; lowercase then remains Rust everywhere.
+
+**Pending draft for LLP 3000 §7, not applied:** “2026-09-17 — proposed exception for web word-index folding (author ruling pending): permit the web-only tokenizer to use the host's NFC normalization and default locale-independent lowercase, with an ASCII fast path and a pinned native/browser differential witness. The interpreter, native tokenizer, character classification and `Builtin::Lower` remain Rust. Word keys are rebuilt locally and no durable or wire format changes. This accepts possible host-version differences in local word matching; NFC stability is not a promise of case-mapping stability. Landing awaits the author's choice between NFC-only (recommended) and NFC-plus-lowercase, and the Chromium witness.”
+
+### Verification
+
+Logs and retained measurement artifacts are under `/tmp/sb4-s3/`. Commands run from `snapback4/` unless stated otherwise.
+
+- `cargo test -p snapback4-core --test unicode_fold -- --nocapture`: `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s` on the initial oracle; the final witness reran it after adding explicit text-admission expectations: `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s`.
+- `cargo test -p snapback4-core --features web --test unicode_fold -- --nocapture`: `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s`. Selecting web on a native target still uses the original Rust path.
+- `cargo test -p snapback4-device --test unicode -- --nocapture`: `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s` in the final witness run (both native stores). The first fixture correctly failed compilation of its Quarry because `lower(text <=4000)` can have bound 12000; the mutation input was corrected to <=1000, without changing the product.
+- With the old Rust fold restored temporarily behind the same witness export, `node --test packages/snapback4/test/unicode.test.mjs`: `ℹ tests 2`, `ℹ pass 0`, `ℹ fail 2` (host invocation absent; expected host refusal absent). Restored production candidate: `ℹ tests 3`, `ℹ pass 3`, `ℹ fail 0`, after adding the actual page/reopen case.
+- `S3_WASM_MODULE=/tmp/sb4-s3/base.js node --test --test-name-pattern='page apply' packages/snapback4/test/unicode.test.mjs`: `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1` against the untouched base artifact. This fails on the real index path's missing host call, without requiring the new witness export. `node --test packages/snapback4/test/unicode.test.mjs` on the final artifact is green as above; the kept original text and no row rewrite on reopening are asserted.
+- `node --check witness/unicode.mjs` and `node --check witness/lib.mjs`: exit 0.
+
+- Root command `bash snapback4/scripts/test.sh` finished, exit 1: `-- ok: cargo build (47 s)`, `-- ok: wasm build (27 s)`, `-- ok: package typecheck (2 s)`, `-- ok: package build (2 s)`, `-- ok: chat app check (1 s)`, `-- ok: cargo test (512 s)`, `-- ok: chat app typecheck (1 s)`, `-- ok: expo app typecheck (1 s)`, `-- ok: fixture wrapper tests (9 s)`, `-- FAIL: client tests (584 s)`, `== 1 failure(s) in 665 s`. Fixture wrappers: `ℹ tests 9`, `ℹ pass 9`, `ℹ fail 0`. Client summary: `ℹ tests 615`, `ℹ pass 611`, `ℹ fail 1`, `ℹ skipped 3`, `ℹ duration_ms 583991.51725`. The single failure is React's Chromium launch (`signal=SIGABRT`); every Rust target, including the existing device scenarios and corpus, passed. This is a completed red suite, not a pass or an interrupted run.
+- Isolated rerun `node --test packages/snapback4/test/react.test.mjs`: `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`, `ℹ duration_ms 824.0245`, again Chromium `signal=SIGABRT`. This is the environment artifact named in the brief; no product behavior was weakened.
+- Existing acquisition/reopen command `node witness/idb.mjs`: exit 1 at Chromium launch, `signal=SIGABRT`; no browser acquisition/reopen measurements. The new Unicode verb fails at the same environmental boundary.
+- Root `./ref-check --verbose`: `ref-check: ok — 483 LLP docs, 9076 refs in 24220 files, 0 errors, 0 unchecked` before the journal append; rerun after the append. Root `git diff --check` passes. Every changed source file is below 1,500 lines.
+
+For the plan's separate byte accounting, `node /tmp/sb4-s3/measure-client.mjs` is the existing `scripts/measure-client.mjs` with only root resolution fixed for the temporary location and its metric append removed: online SDK 33,199 raw / 9,980 gzip / 8,888 brotli B; local-first SDK **including its bundled glue** 90,615 / 25,458 / 22,277 B. Do not add standalone glue again to that SDK total. This script's optional wasm report uses Node zlib and says 409,817 gzip B for the same bytes; the staged comparison above consistently uses the shipped system `gzip -9` pipeline (Apple gzip 479), 408,070 B. The word-witness backend fixture is 1,738 raw / 703 gzip / 608 brotli B, measured with `node --input-type=module -e 'import{readFileSync}from"node:fs";import{gzipSync,brotliCompressSync,constants}from"node:zlib";const b=readFileSync("target/unicode-device.json");console.log(JSON.stringify({fixtureBackend:{raw:b.length,gzip:gzipSync(b,{level:9}).length,brotli:brotliCompressSync(b,{params:{[constants.BROTLI_PARAM_QUALITY]:11}}).length}}))'`. This is a generated witness backend, not a measured chat HTTP backend or a cold network transfer. Actual cold-transfer bytes, Chromium acquisition and fresh-realm offline reopen remain unqualified because Chromium cannot launch here. The ordinary and Unicode browser commands are both ready for the lead.
+
+No out-of-scope repository file was changed. No failure is labelled pre-existing: the untouched base artifact used by the red index-call test was built at `614898e9a7eb6240fb2aef8cda3e08ae0f4acb0a`, but the React/browser restriction was not rerun on an untouched base checkout. One initial targeted Cargo invocation was mistakenly issued from the repository root and exited 101 before running any tests; it was corrected to `snapback4/`, and all builds and successful Cargo tests used that workspace.
+
+The remaining obligations are the author's ruling and outside-sandbox browser qualification. The 150,000 B gzip closure target is still missed; neither a byte win nor the same-version Node differential closes the diet. The two premises corrected by this lane are the plan's extension of normalization stability to lowercase, and the brief's roughly sixty-second warm suite estimate: this loaded run completed in 665 seconds.
+
 ## 2026-09-18 — oversized-sync fix round: F1/F2 reproduction
 
 At c1606fd5e on sb4/mc-prereq-51b7a134, both blind reviews identify recovery authority missing from the metadata fallback. Read the Snapback 4 fence, rules, sync card, LLP 3000 and scoped LLP 3000.007 §18.2 / W13g constraints with llp-orient. No LLP or NOT-DOING edits; no commit, push, tag or publication. One Cargo job at a time. Added real-client regressions on wasm-memory and process-SQLite: acquire p1/p2 under horizon 2, stream p3, then repeated bare E_BOUND with valid unchanged metadata; separately return another store's well-shaped metadata. Product source is unchanged for the red run. Recovery must gain request-position-specific server evidence, and discovery must never enter the page identity-retirement path.
@@ -37733,3 +37808,1918 @@ For a matching contention comparison, built the HEAD metadata handler into `/tmp
 File-backed serving no longer holds the global engine mutex while materializing/counting. Its largest observed writer delay is 24.27 ms, compared with 1171.34 ms before; three writers normally serialize with each other. The cost of measurement remains real (about 0.58/1.01 seconds at these sizes in this unoptimized build), but it no longer stalls file-backed writers for that duration. A file-reader open failure refuses rather than reverting to the long mutex window.
 
 Remaining contention limitation: dev --fresh is an in-memory server and still uses the locked fallback. The current-image stop is not an end-to-end latency bound: historical-log reads/sorts and join enumeration retain their existing behavior. Memory writer medians were 770/1703 ms after versus 877/1167 ms before in this run. This round does not claim that mode's total writer contention is solved. The final server test will establish the narrower, deterministic claim that the enlarged 192-row commit fetches only 42 current images. No timing assertion or new operational ceiling was introduced.
+## 2026-09-18 — 0.2.29 verified from the registry: the horizon repair and ruling 32 are in the pin
+
+The wave 13 lead published 0.2.29 (`snapback4`, `snapback4-darwin-arm64`, then `snapback4-expo`
+0.2.20) from main `1b3d97f61f`, after the derived-data lead landed the one red its gate would
+have refused on (`faa9a8f501`: the README examples test, `runGeneratedEffects` without a
+block). Both packages were fetched back with `npm pack` and the probes that found the
+defects re-run unchanged (`benchmarks/runs/2026-09-17-snapback4-derived-probes/`, "Published
+0.2.29"):
+
+- horizon: device pages equal the server's on the public feed and in the chat thread; the
+  device holds nothing beyond its horizon after likes on old posts (0.2.28: two rows, and a
+  page answered from them).
+- presence: alice's `push(bob)` while bob's only client holds a live poll — 0.2.28 records
+  nothing (`doctor` prints no effects line; grader finding d-05); 0.2.29 records `effects 1
+  queued, 1 deferred (next at …, +5s)`.
+
+Two traps met on the way and recorded: the Xcode license became unaccepted mid-day (the
+`/usr/bin` git and python3 shims refuse; `DEVELOPER_DIR=/Library/Developer/CommandLineTools`
+restores them; `xcodebuild`, and so the xcframework leg, waits for the license), and
+`node --test` on the package tests must run from `snapback4/` (TypeScript's default
+`typeRoots` follow `process.cwd()`; from the repository root the README examples test fails
+on `@types/node`). A probe that pipes `node … | tail` shows nothing until node exits, and an
+online client's subscription keeps node alive: give a probe a hard timeout and an explicit
+`process.exit`.
+
+
+
+
+## 2026-09-18 - S3-R0: NFC-only host folding with an open-time guard
+
+Implemented the author's 2026-09-18 ruling on base `a04bae226060b66d417bb245fa405b5918478aec`: variant A, host NFC followed by Rust `to_lowercase`, retaining the ASCII fast path. `Builtin::Lower`, `nfc-lower-alnum-1`, ceilings, client contract, existing corpus and durable/wire forms are unchanged. The device's web feature directly selects the already locked `js-sys` dependency so `WebDevice::new` checks normalization before parsing the backend or loading kept rows. A missing/non-function method, an exception or any failed canary returns the constructor's JSON refusal envelope with `E_HOST_UNICODE`, family `store` (the existing `E_NATIVE_TOOLCHAIN` host-capability precedent). The message and `why` explain the standard-browser repair; the search card and README describe guarded browser normalization and Rust lowercase.
+
+The canaries are exactly the commissioned pairs: `A U+030A` -> `U+00C5`; `d U+0323 U+0307` -> `U+1E0D U+0307`; `U+1E9B U+0323` -> itself; `U+1100 U+1161` -> `U+AC00`. A native oracle proves all four against Rust's tables and pins `to_ascii_lowercase == to_lowercase` over all 16,384 ASCII pairs. Wasm tests count six host normalizations and zero host lowercasings, with no additional host calls for the ASCII pairs. Constructor tests cover deletion, a non-function, identity, a throwing function and each individual corrupted canary, with successful open/fold after restoration; invalid backend input confirms the host guard runs first. The existing loud fold-failure test remains. Page application and reopen assertions exclude the four constructor calls, so those canaries cannot masquerade as indexing evidence; persisted row text stays unchanged.
+
+One required implementation correction: `Reflect.get` cannot operate on a primitive empty `JsString`. The guard uses `Object.getPrototypeOf` on the empty string and `Reflect.get` on that object, checks `is_function`, then uses caught `Function::call1` calls so a throwing normalizer refuses without an abort. Local command `node -e 'try { Reflect.get("", "normalize"); } catch (error) { console.log(error.toString()); } console.log("prototype method:", typeof Reflect.get(Object.getPrototypeOf(""), "normalize"));'` printed `TypeError: Reflect.get called on non-object` and `prototype method: function`. Four canaries are a startup sanity check, not a proof over arbitrary host replacements or Unicode versions.
+
+Commands below ran from `snapback4/` unless marked root. Every Node command used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`. Toolchain: `rustc --version`: `rustc 1.97.0 (2d8144b78 2026-07-07)`; `wasm-bindgen --version`: `wasm-bindgen 0.2.127`; `wasm-opt --version`: `wasm-opt version 132`. Logs are `/tmp/s3-r0-*.log`.
+
+`bash scripts/build-wasm.sh`, before and after (wasm profile, `--no-default-features --features web`, wasm32-unknown-unknown, shipped gzip selection):
+
+```text
+wasm 1412828 B raw, 392551 B gzip (budget 452000: ok)
+wasm 1414924 B raw, 393588 B gzip (budget 452000: ok)
+```
+
+The combined change adds **2,096 raw / 1,037 gzip B**, outside the brief's roughly 100 B expectation; no budget is raised. `shasum -a 256 packages/snapback4/src/wasm/snapback4_device_bg.wasm` gives `84cd4c4adcf6adc899d340561d2a1302a323da76b5be00e0aba5894bde65b454`. The brief reverses the old 53 B comparison: the preceding S3 journal's A is 407,786 B and B is 407,839 B, so A was 53 B smaller, not larger, in that measurement (before the later witness/fast-path additions).
+
+`node scripts/attribute-wasm.mjs --check-families --check-absent` exited 0:
+
+```text
+       69166   3.69%  .rodata
+1875391 total attributed bytes
+serde family check: ok
+server-only absence check: ok
+```
+
+`twiggy top -n 1000000 --format json target/wasm-sym/wasm32-unknown-unknown/wasm/snapback4_device.wasm > /tmp/s3-r0-symbols.json`, followed by counting JSON rows whose `name` contains `unicode_normalization`, found **0 symbols**. The normalization tables remain absent. `bash scripts/check-release-guard.sh` exited 0: `release guard: ok (web-device-check refuses the wasm profile)`.
+
+`node witness/idb.mjs unicode --node` exited 0 and regenerated both Rust fixtures plus the shipped wasm. Node v24.18.0, V8 13.6.233.17-node.50, ICU 78.3, host Unicode 17.0, Rust/normalization Unicode 17.0.0: **20,034 normalization lines; 57,848 folds; 51,067 returned lowercase values; 6,781 expected input refusals; 0 differences**. No code-point/age disagreement required a stop. Its 4,000-row apply timing uses two warmups and seven samples: ASCII **93.952 ms median** (90.844, 93.952, 92.904, 117.901, 106.921, 111.632, 76.520); Unicode **77.118 ms median** (83.775, 77.118, 72.127, 74.242, 75.428, 78.620, 80.291). These are supplemental Node observations under shared load, not paired performance or Chromium claims.
+
+Regression proof, new tests against the unchanged base artifact and product code:
+
+- `node --test packages/snapback4/test/unicode.test.mjs` (exit 1):
+
+```text
+ℹ tests 11
+ℹ suites 0
+ℹ pass 1
+ℹ fail 10
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 124.861792
+```
+
+- `cargo test -p snapback4-lang --test guide host_unicode_refusal_explains_the_repair_and_search_contract` (exit 101):
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 47 filtered out; finished in 0.00s
+```
+
+Final targeted checks, all exit 0:
+
+- `cargo test -p snapback4-core --test unicode_fold`:
+
+```text
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+```
+
+- `cargo test -p snapback4-device --test unicode`:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.43s
+```
+
+- `cargo test -p snapback4-lang --test guide`:
+
+```text
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+```
+
+- `node --test packages/snapback4/test/unicode.test.mjs`:
+
+```text
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 101.162458
+```
+
+- `node --test packages/snapback4/test/unicode.test.mjs packages/snapback4/test/wasm-*.test.mjs`:
+
+```text
+ℹ tests 51
+ℹ suites 0
+ℹ pass 51
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 24915.169875
+```
+
+The full `bash snapback4/scripts/test.sh` and Chromium witness were **not run**, as this round explicitly assigns them to the lead outside the sandbox. No failure is claimed pre-existing. No commit, push, tag, publication, install, remote work or sub-agent was performed. Minimal supporting changes outside the brief's named files are the device Cargo manifest and workspace lockfile (one existing dependency edge) and language `diag.rs` (route the new code to `guide search`); no other lane's product surface changed. All changed source files remain below 1,500 lines (largest: guide tests, 1,127).
+
+Root `./ref-check --verbose` exited 0 after the documentation update: `ref-check: ok — 483 LLP docs, 9101 refs in 24291 files, 0 errors, 0 unchecked`. Root `git diff --check` exited 0 with no output. A byte-prefix comparison against `git show HEAD:snapback4/JOURNAL.md` confirms the journal is append-only.
+
+## 2026-09-18 — S3-R1: unordered NFC canary, composed-read timestamp capture and table absence
+
+Base: `7235fa6273311e778d39a5f82c80f4b07f642ed3`. Read the two blind S3-r1 reviews (Sol and Grok) and implemented the four dispositions in the commissioned fix lane. The second NFC input is now `d U+0307 U+0323`, deliberately unordered, with expected `U+1E0D U+0307` in the web constructor, native oracle and JS matrix. The new adjacent-pair normalizer produces `U+1E0B U+0323` for that input and passed the old constructor; the corrected constructor refuses it with `E_HOST_UNICODE`, then opens and folds successfully after restoration. Composed reads capture `lastSyncAt` immediately before the server call and retain that bound across a later completed sync. The retained-history fixture delays the `/q/both` response on both device stores, completes another sync, and checks exact composed rows, metadata and the earlier timestamp. The artifact absence check now refuses any `unicode_normalization` symbol, including a synthetic generic owner with a crate hash, while retaining its positive device-accounting checks.
+
+The boundary stays at open, and `word_fold` stays the witness export. The module comment and LLP state that deleting normalization, making it non-callable or making it throw after open causes a JavaScript exception on the next non-ASCII fold. One premise in disposition 4 needs qualification: an arbitrary callable replacement can return wrong text without throwing, because it is not revalidated. The documentation says this explicitly; no per-fold guard was added. The ratchet's reason is review-visible in the diff, commit message and journal by design, not machine-judged prose. The README and sync card now say that the composed timestamp is captured before the server request; the composition LLP records why an in-flight sync must not advance it. No contract, ceiling, durable/wire format or existing corpus case changed.
+
+All commands below ran from `snapback4/` except the named root checks. Before every Node/Bun invocation: `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`. `bun run --cwd packages/snapback4 build` exited 0 both for the base client and the restored fixed client.
+
+Regression evidence against the base implementation:
+
+- `node --test packages/snapback4/test/unicode.test.mjs packages/snapback4/test/wasm-absent.test.mjs` exited 1 against the unchanged wasm and absence checker, with the new tests. The failures were the no-reordering stub, the corrected second-canary corruption probe and the normalization-symbol refusal.
+
+```text
+ℹ tests 14
+ℹ suites 0
+ℹ pass 11
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 146.167667
+```
+
+- `node --test --test-concurrency=2 --test-name-pattern='R2 sync during reply' packages/snapback4/test/retained-history.test.mjs` exited 1 after rebuilding `local.ts` from the exact base source with `bun run --cwd packages/snapback4 build`; both failures were the timestamp assertion. The fixed source was then restored and rebuilt.
+
+```text
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 634.877958
+```
+
+The same focused command after the fix exited 0:
+
+```text
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 747.24425
+```
+
+An initial test-only mistake called this scenario `R2 concurrent sync`: the existing fixture routes every scenario containing `current` to `/q/three`, so the new `/q/both` delay was never entered. That focused run timed out at 60 seconds and was interrupted in cleanup; a broader attempt was also interrupted at this new scenario after its first four tests passed. Renaming it `R2 sync during reply` corrected the fixture; these interrupted attempts are not product or environment failures, and produced no final count summary.
+
+Final requested targeted checks, all exit 0:
+
+- `cargo test -p snapback4-core --test unicode_fold`:
+
+```text
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+```
+
+- `cargo test -p snapback4-device --test unicode`:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+```
+
+- `cargo test -p snapback4-lang --test guide`:
+
+```text
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+```
+
+- `node --test packages/snapback4/test/unicode.test.mjs packages/snapback4/test/wasm-*.test.mjs`:
+
+```text
+ℹ tests 52
+ℹ suites 0
+ℹ pass 52
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4587.269541
+```
+
+- `node --test --test-concurrency=2 packages/snapback4/test/retained-history.test.mjs`:
+
+```text
+ℹ tests 44
+ℹ suites 0
+ℹ pass 44
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 22880.277667
+```
+
+`bash scripts/build-wasm.sh` exited 0:
+
+```text
+wasm 1478760 B raw, 409621 B gzip (budget 410000: ok)
+```
+
+The gzip is **1 B** above the lead-reported base measurement of 409,620 B and **379 B** below the unchanged 410,000 B budget. No budget increase.
+
+`node scripts/attribute-wasm.mjs --check-families --check-absent` exited 0:
+
+```text
+1945323 total attributed bytes
+serde family check: ok
+server-only and Unicode-table absence check: ok
+```
+
+The absence check passed with **0 forbidden symbols**, now including the entire normalization crate name. Root `./ref-check --verbose` exited 0:
+
+```text
+ref-check: ok — 485 LLP docs, 9118 refs in 24351 files, 0 errors, 0 unchecked
+```
+
+Root `git diff --check` exited 0 with no output. All changed source files remain below 1,500 lines; `local.ts` is the largest at 1,339 lines. The journal is append-only.
+
+`bash scripts/test.sh` was **not run**: this lane explicitly assigns the full suite to the lead. Lead-provided outside-sandbox evidence on the base (cited, not rerun here): `cargo build --workspace`, `scripts/build-wasm.sh` (409,620 B gzip, budget 410,000 ok), the package build, `witness/idb.mjs`, `witness/idb.mjs unicode` in Chromium, `witness/scale.mjs`, React **13/13**, and the Unicode/wasm Node tests all exited 0. The lead stopped that full-suite attempt to free the host for another session's publish and owns its rerun before landing.
+
+No requested fix remains unimplemented and no failure is claimed pre-existing. Minimal supporting documentation beyond the named product files: the composition LLP, README and sync card clarify the captured timestamp. No other lane's product files were touched. No commit, push, tag, publication, install, remote work or sub-agent was performed.
+
+## 2026-09-18 — the author's four diet rulings land: S3 guarded and NFC-only, the budget ratchet, `since` on composed reads, the target re-set
+
+Lead entry (Claude, orchestrating; lanes S3-R0 and S3-R1 were Codex `gpt-6-astra` at high; reviews Codex `gpt-5.6-sol` and Grok `grok-4.6`, both xhigh, blind and read-only). The author ruled this morning on the four questions LLP 3000 §7 gathered: S3 yes with a guard; the budget becomes a blocking ratchet; the 150,000 target is retired and S6 deferred; composed reads carry `since`. This entry records how the landing was built and judged.
+
+**What landed.** S3 as the candidate lane's own recommendation, variant A: the web build takes NFC — and only NFC, because Unicode's stability policy covers normalization of assigned characters and not case mappings — from the browser's `normalize`; lowercase stays Rust's; the ASCII fast path is unchanged; the tokenizer contract string does not change because the tokens do not. `WebDevice::new` first checks that `normalize` is a function and that four canaries normalize to the contract's NFC, refusing with the new `E_HOST_UNICODE` otherwise, never falling back to another tokenizer. Two ruling commits ride with it: `scripts/build-wasm.sh` fails above `metrics/wasm-budget.json` (410,000 at this landing, from a report-only 452,000 that `main` had overrun by 15,476 overnight), and a composed read reports `since: lastSyncAt`, captured before its server read is issued. The docs record all four rulings.
+
+**Review.** Round 1 on `7235fa6273`: both READY WITH CHANGES, and both found the same defect in the lead's own guard design: the "canonical reordering" canary `d U+0323 U+0307` was already in canonical order (classes 220 then 230), so a host that composes without reordering would have opened. The input is now `d U+0307 U+0323`, a stub that composes without reordering is refused, and the native oracle proves the pair against the Rust tables. Sol alone found that the composed read took `since` after awaiting the server reply, so a sync completing meanwhile could make it newer than the server component; it is captured before the read, and a test completes a sync during a delayed reply. Grok alone asked that the instruments notice the NFC tables returning (`--check-absent` now fails on the crate's symbols) and that the boundary be stated: the guard runs at open; a page that removes or replaces `normalize` afterwards gets a JavaScript exception from the next fold, or wrong local keys from a silently wrong replacement, never a fallback. Round 2 on `0abb5b7e25`: Grok READY, Sol READY WITH CHANGES on one Low — the table matcher matched any symbol containing the crate's words — which the lead fixed by hand with a negative test row (`3a815d07ef`). Records: `llp/reviews/3000.002-device-diet-host-unicode{,-round-2}.{sol,grok}.md`, verbatim.
+
+**Outside the sandbox, on `7235fa6273` (the last commit before the fix round; the fix round changes the canary input, `since` capture, the matcher and docs):** `cargo build --workspace`, `scripts/build-wasm.sh` (409,620 B gzip), the package build, `witness/idb.mjs` exit 0, `witness/idb.mjs unicode` in Chromium exit 0 (the differential over the Unicode 17 test files through the shipped wasm), `witness/scale.mjs` exit 0, React 13 of 13, the unicode and wasm node tests exit 0. The full suite ran on `0abb5b7e25`: `== 1 failure(s) in 1022 s` at host load 55–67 with sixteen other suite processes on the machine: every build step, the release guard, typechecks, fixtures and the client tests ok (748 tests, 745 passed, 3 skipped, 0 failed); `cargo test` red on one target, `snapback4::witness driver::cli_rejects_milestone_appended_after_done`, where `xcrun simctl list devices booted --json` timed out (`E_WITNESS_TIMEOUT`) — the simulator driver, nothing this landing touches — and it passed alone on the same commit eleven minutes later (1 passed). The lane's Node differential at the fix round: 57,848 folds, 0 differences. The fix round's own targeted runs (unicode_fold, device unicode, guide, the unicode/wasm/retained-history node tests, `--check-families --check-absent`) were green, and the lead's matcher fix re-ran the absence tests and the artifact check.
+
+**Coordination.** The wave-13 session published snapback4 0.2.29 this morning; this landing waited for its suite gate (the lead stopped its own suite run to free the host) and rebased over the bump. Journal conflicts where another session inserts entries mid-file are resolved as `main`'s text plus this branch's appended entries, after checking every heading and paragraph of the merge base survives in `main`'s version.
+
+## 2026-09-18 — W16H: the note was right, the advice was not
+
+The twelfth Astra-medium calibration scored 85 with `scale_and_limits` at 65 on
+a 54,982 ms cold first feed. Measuring it (`0f4ff08e98`) ruled out acquisition
+volume and left one table: `follows`, `sync public`, no horizon, ~1.7 MB of a
+6.7 MB cold acquisition for one persona.
+
+Detection was not the problem, and I want that on the record because the
+temptation is to read this entry as "the diagnostics are noisy". They are the
+opposite. That builder declared 17 `sync` lines, 12 unhorizoned, and `check`
+emitted exactly **one** `N_NO_HORIZON` — on the table that mattered, on every
+check they ran from first to last. The suppression rules did their job exactly.
+
+What the one correct note said was `rewrite: sync public last 500 by byPair`.
+`byPair` is `follower, target`: no time order, so that horizon keeps the 500
+alphabetically-highest pairs. For `sync public` the group prefix is empty, so
+`columns().starts_with(&prefix)` held vacuously for every index and the
+`BTreeMap` returned whichever name sorted first. Renaming `byTargetTime` to
+`aaTime` — changing nothing else — changed the recommendation, which is now
+pinned as `w16h_horizon_advice_does_not_depend_on_index_name_order`. I ran that
+test against the base first and watched it fail with
+`left: "sync public last 500 by byPair"` / `right: "sync public last 500 by
+aaTime"` before trusting it; a regression test that has never failed is not
+evidence.
+
+The part that decided the ranking: applying the note's own rewrite verbatim
+gives `check: ok — no problems` and the note disappears, and the semantically
+correct horizon gives the identical verdict. Static compilation cannot tell the
+two apart — both are well-formed — so there is no downstream gate, and the
+advice string is the only place in the toolchain where this can be decided. A
+builder who follows it is paid a green check for making the app worse. That is
+a better reason to ignore diagnostics than noise ever was.
+
+Built: an index qualifies as a horizon only if the column after the prefix is
+minted in time order — a `time` column or `id`. Admitting `id` is load-bearing,
+not a convenience: it is what keeps `sync to members[.conversationId] last 500
+by byConversation` correct, the paved horizon in the corpus. For `follows` every
+index leads with a `principal`, so nothing qualifies and the advice falls to the
+branch that says to add the ordered index first — a branch that already existed
+and was, before this, unreachable for any table with any index at all.
+
+Two smaller ones travelled with it. The builder wrote `cap 1000 by follower` on
+that table: they had already tried to bound it, and the cap is over `follower`
+while the sync group is the public partition, so it bounds nothing a device
+acquires. Capped and uncapped schemas produced byte-identical notes, which reads
+from the author's chair as advice that has not noticed what they did; the note
+now names the cap and says what it does not bound. And every note now names
+`check --residency`, which already reports acquired bytes per table per persona
+— the ranking the note itself cannot carry, and which no builder in the
+programme has been observed to run.
+
+Separately, `schedule … every 30s` answered "a period is a number and m, h or
+d". But `s` is a real Quarry unit — work durations take `s m h d`
+(`parser/actions.rs`), route waits take `ms s` (`parser/routes.rs`) — so naming
+the valid set alone reads as "`s` is not a unit" and hides the actual rule: a
+schedule cannot fire more often than once a minute. That floor lives in the next
+branch, which a sub-minute unit returns before reaching. The message now states
+it, modelled on the route-wait message, which already states its range and was
+the best of the three.
+
+Verified rather than assumed: the new test fails at `a8de12ed88` and passes
+after; all 40 `residency_notes` tests pass; the cal12 builder's real table now
+yields `by byAt: at, id  -- then: sync public last 500 by byAt`, identical under
+the rename, checked against a built binary and not by reading the source; a
+valid `every 1m` schedule still parses past that line; `ref-check --verbose` is
+ok at 9,116 refs.
+
+Two of my own errors, caught before they cost anything. I wrote an `@ref` to
+LLP 3000.007 §20.23 when §20.22 was the last section — the reference was to a
+section I had invented, and `ref-check` would have refused it in CI. The repair
+was to write §20.23, not to delete the annotation: what qualifies as a horizon
+index is exactly the kind of decision the corpus exists to hold. And I passed
+`&&Index` where a closure wanted `&Index`; method calls auto-deref and closure
+arguments do not.
+
+One claim I am not making. I started to write that three consecutive builders
+ignored this note. cal10 and cal11 have no `follows` table at all, so that was
+false, and I removed it before it reached the ticket. What is true is narrower:
+one note, one table, the right one, ignored — and the advice attached to it
+would have made the app worse if taken.
+
+## 2026-09-18 — W16H/2: the worker entry sits one directory outside the ESM island
+
+The 0.2.28 builder wrote, of this: "the conventional worker entry and Node module
+mode produced avoidable setup loops", and in the diary, "**agent mistakes, not
+demonstrated backend defects**". They took the blame. The log does not support
+that, and `setup_and_docs` — 96 → 88 fitted over ten runs — is the category it
+lands in.
+
+`evidence/backend.log:175-195`, seven times: `snapback4 worker: .../server.ts`,
+then Node's `Failed to load the ES module`, `SyntaxError: Cannot use import
+statement outside a module`, eight frames of `cjs/loader`, and
+`exited exit status: 1; restarting in 250 ms`.
+
+`init` is right in intent and I want that recorded before the defect: it does
+**not** force the application to ESM. It preserves the project's module type
+(`inherited_package_type`) and gives the code it generates its own island —
+`snapback/generated/package.json` is literally `{"type":"module"}`
+(`project.rs:280`, `@ref §20.2`). The island is `snapback/generated/`. The
+documented author entry is `snapback/server.ts`, one directory above it, so it
+inherits the project's type while the generated code beside it does not. The
+guide's example for that very file is ESM (`guide/actions.rs:35`,
+`guide/routes.rs:36`), and `"type": "module"` appears nowhere in the guide, the
+README or SERVER.md.
+
+`dev` already gates the entry twice and gates it well — `E_SERVER_TOOLCHAIN`
+names `bun add --dev typescript @types/node`, `E_SERVER_TYPECHECK` prints the
+compiler's own line — and forty lines further into the builder's log,
+`E_AUTH: this is a worker's door: send a live service token (`snapback4 token
+--service <name>`)`. Typecheck cannot see module resolution, though, so the file
+passes every gate and then fails to load. At that seam Snapback said
+`exited {status}; restarting in {} ms` and forwarded Node's trace.
+
+Built: before spawning, if the entry is `.ts`/`.js`, carries a top-level
+`import`/`export`, and no `package.json` above it declares `"type": "module"`,
+name the repair.
+
+```
+snapback4 worker: …/snapback/server.ts uses ES modules but the nearest package.json
+  does not declare them, so Node will read it as CommonJS
+snapback4 worker:   rewrite: rename it to server.mts — or declare "type": "module" for it
+```
+
+Advisory, not a refusal: Node still gets its attempt, so a loader or a future
+type-stripping default cannot be locked out by a heuristic of mine.
+
+Verified by running it, on a probe reproducing the builder's configuration
+exactly — root `"type": "commonjs"`, `snapback/generated/package.json` present,
+their own `tsconfig.json`, an ESM `server.ts`. It reproduces their failure
+verbatim, and the advice now precedes the trace. Both negative controls are
+silent: `server.mts` (the fix they reached unaided), and `server.ts` in a
+`"type": "module"` project. `cargo test -p snapback4`: 265 tests, 10 binaries,
+0 failures.
+
+Two judgements worth stating. The first message I wrote spelled the rename as a
+full absolute path; in a lane whose entire subject is that advice must be
+usable, shipping that would have been self-refuting, so it names the file the
+way the author would perform the rename. And I did **not** change the guide's
+documented example to `server.mts`, which is the change that would actually have
+saved this builder: it moves a paved spelling across the corpus, and with the
+remove-vs-document question unruled and cal13 in flight, that belongs in a blind
+round rather than in a unilateral edit. It is recommendation 1 of the ticket,
+left open on purpose.
+
+The wider point, and the reason this sits beside §20.23. The builder blamed
+themselves. The wave-13 session independently found the same shape in the bounds
+bar: the one loop that repeats — guessing a root `snapback4` export and the
+bare-arguments wire body — was paid by six builders of seven, **every time
+self-attributed as agent error**. A calibration that reads builder
+self-assessment is reading a floor on Snapback's share, not a count of it.
+## 2026-09-18 — W13j: a returned shape's no-progress follow refuses (ruling 35)
+
+Base: `a8de12ed88202622dcb496ba2ac3abc356d46635`; left uncommitted for the lead.
+Implements LLP 3000.007#14, ruling 35, preserving the returned-shape refinement
+of LLP 3000.007#5.6. The runner records the already evaluated input cursor of
+an eligible returned shape's source read. At continuation publication, zero
+fully shaped rows, an inclusive candidate and a byte-identical consumed cursor
+refuse with `RuntimeError::Structural`, code `E_SHAPE_EXCEEDS_METER`. Canonical
+token equality binds the position, descriptor, scope and inclusivity. An unused
+cursor argument does not count as a follow. The common publication path covers
+the server and both device stores; cursor encoding, scanning, shape trimming,
+the shape mark, lane charging, device horizons, client and React are unchanged.
+No meter ceiling or serialized value form changed. The runtime refusal and
+compiler diagnostic route to the reads card; the code registry, card and README
+carry the explanation. The later `check --cost` note remains outside this lane.
+
+The old server-only residual is now
+`w13j_a_shape_that_cannot_finish_under_a_fresh_meter_refuses_the_follow` in the
+shared `common/shape_pages.rs` suite. Its original first-request assertions are
+retained. Both device stores include that suite. Added positive controls cover
+an advancing inclusive cursor, exclusive cursors, an unused matching cursor
+argument, and a bounded shape that completes. Eager and lazy merges and matching
+reads refuse the no-progress follow in both directions. Existing `[a,b,c]`,
+canonical inclusive-retry and grouped 9,000-row walks remain green.
+
+Measured on all three hosts: 9,000 detail rows under the unchanged 8,192-row
+ceiling; first request returns 0 rows and an inclusive cursor, with 8,193
+examined attempts and 0 index entries. Following that cursor now refuses. The
+bounded positive emits 1 row with count 3. All 9 W13j test executions passed in
+the complete suite. The modified code files remain below 1,500 lines (largest:
+`engine/read.rs`, 1,050; shared shape tests, 816).
+
+Before, there was no diagnostic: the follow returned an empty page,
+`complete: false`, `cut: 'meter'`, and its own cursor as `next`. After, the
+fixture's refusal message is exactly:
+
+```text
+E_SHAPE_EXCEEDS_METER: the returned shape at programs.feed.1 examines more than the 8,192-row meter on its own; bound it (`first N`/`last N`) or move it out of the returned shape
+```
+
+The initial red-test attempts could not link with the inherited Xcode SDK or
+with Command Line Tools' default 27.0 SDK: their linker reported unknown
+`arm64e.x1-macos` architecture, and no tests ran. A compile/run probe succeeded
+with the installed 26.5 SDK. Every successful test invocation below used:
+
+```sh
+export DEVELOPER_DIR=/Library/Developer/CommandLineTools
+export SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+Cargo and Node commands ran from `snapback4/`; the blocking script and
+`ref-check` ran from the repository root. Red regressions were executed before
+any engine edit; the docs/code-registration edits then present do not implement
+the refusal. Commands and verbatim summaries:
+
+```text
+$ cargo test -p snapback4-sim --test clique w13j -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 224 filtered out; finished in 0.36s
+```
+
+```text
+$ cargo test -p snapback4-device --test device w13j -- --nocapture
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 385 filtered out; finished in 0.07s
+```
+
+```text
+$ cargo test -p snapback4-sim --test clique merge_continuation
+test result: ok. 69 passed; 0 failed; 0 ignored; 0 measured; 158 filtered out; finished in 18.03s
+```
+
+```text
+$ cargo test -p snapback4-device --test device merge_continuation
+test result: ok. 138 passed; 0 failed; 0 ignored; 0 measured; 253 filtered out; finished in 11.54s
+```
+
+```text
+$ cargo test -p snapback4-lang --test guide
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+```
+
+```text
+$ cargo test -p snapback4 --bin snapback4
+test result: ok. 68 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.14s
+```
+
+```text
+$ target/debug/deps/clique-a17c933c77849929 w13j_a_shape_that_cannot_finish_under_a_fresh_meter_refuses_the_follow --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 226 filtered out; finished in 0.30s
+```
+
+```text
+$ target/debug/deps/device-b0fd6f59140801d2 w13j_a_shape_that_cannot_finish_under_a_fresh_meter_refuses_the_follow --nocapture
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 389 filtered out; finished in 0.13s
+```
+
+The full `bash snapback4/scripts/test.sh` run finished in 1,266 seconds, with
+host load 54.88 across 18 CPUs at the test launch. The Rust summaries total
+1,775 passed, 5 failed, 8 ignored; the 5 failures are the witness target
+(15 passed, 5 failed), whose fake simctl launch timed out or prevented the
+expected refusal. Lifecycle passed 20/20. Client tests total 722: 717 passed,
+2 failed, 3 skipped. The failures are Chromium aborting at launch in
+`react.test.mjs` and the wasm pending-write acknowledgement test timing out in
+`transport-http.test.mjs:172`. The wasm build measured 1,597,087 bytes raw and
+468,090 gzip; the informational 452,000-byte budget reports 16,090 bytes over.
+No same-base wasm size comparison is claimed.
+
+Verbatim blocking-suite group summaries and client totals:
+
+```text
+$ bash snapback4/scripts/test.sh
+-- ok: cargo build (227 s)
+-- ok: wasm build (48 s)
+-- ok: release guard (3 s)
+-- ok: package typecheck (3 s)
+-- ok: package build (2 s)
+-- ok: chat app check (2 s)
+-- FAIL: cargo test (885 s)
+-- ok: chat app typecheck (2 s)
+-- ok: expo app typecheck (6 s)
+-- ok: fixture wrapper tests (27 s)
+-- FAIL: client tests (972 s)
+== 2 failure(s) in 1266 s
+
+## 2026-09-18 — W13i: row-preserving helpers carry the page's continuation
+
+Implemented LLP 3000.007 §14 ruling 34 from base
+`a8de12ed88202622dcb496ba2ac3abc356d46635`. `expression_origin` now carries a
+page origin through `Group` and `Sort`, recursively, so returning the helper
+inline, through a once-bound page or through a once-bound result publishes
+that source page's continuation. The cursorless diagnostic walk retains its
+existing triggers: no new code or note, and no new N_NO_CURSOR on an existing
+grouped summary. The runtime change is eight added lines in `pages.rs`.
+The reads card and package README each gain one sentence. No scan execution,
+runner return, shape mark, device horizon, client, meter ceiling or serialized
+form was changed.
+
+Eight shared cases run against the server and both actual device stores (24
+case executions). Devices acquire the fixture through real snapshot pages.
+They cover inline and once-bound group/sort/nested group-sort, the original
+six-query probe through completion, a filtered meter-cut frontier, dropping
+helpers, unrelated values, array concatenation, and unchanged shape marking
+and cursor-note triggers. `first(page, 5)` is not Quarry's existing spelling:
+the control uses `first(page)`, with `slice(page, 0, 5)` for five elements.
+Array Concat has no Quarry function spelling, so its control binds two page
+operands and exercises the existing IR builtin. A wrapped inner shape remains
+unmarked and keeps its unfinished row; the separate marked returned shape
+still drops it and supplies a continuation.
+
+Measured on every host: each of group, sort and nested group-sort walks 45
+memberships in three requests, 20 + 20 + 5 rows, with 45 distinct IDs and no
+gaps. Group returns first-seen `{ key, items }` groups: 7, 8 and 2 groups on
+those pages. `next` is present, present, absent; all three pages are complete
+with null cut. Reverse sorting changes each page's row order while the cursor
+continues in the source index order. The original merged probe walks all 10
+messages as 4 + 4 + 2; its direct room walk returns 5 as 4 + 1. The 8,200-row
+filtered control cuts and then finishes under the unchanged examined ceiling.
+
+The red records below were run before the core edit, after correcting the
+probe test harness to supply roomId only to groupedDirect. Commands ran from
+`snapback4/` with these command-scoped toolchain settings:
+
+```sh
+export DEVELOPER_DIR=/Library/Developer/CommandLineTools
+export SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+The initial base `cargo build -p snapback4`, without explicit SDKROOT, failed
+at linking because the cached Xcode SDK named the unknown architecture
+`arm64e.x1-macos`. Pinning the Command Line Tools SDK made the same base build
+pass; no machine setting was changed. The base binary is retained at
+`/tmp/w13i/snapback4-before`.
+
+`cargo test -p snapback4-sim --test clique row_preserving_pages -- --nocapture`
+
+Before:
+
+```
+test result: FAILED. 3 passed; 5 failed; 0 ignored; 0 measured; 225 filtered out; finished in 1.89s
+```
+
+After:
+
+```
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 225 filtered out; finished in 2.02s
+```
+
+`cargo test -p snapback4-device --test device row_preserving_pages -- --nocapture`
+
+Before:
+
+```
+test result: FAILED. 6 passed; 10 failed; 0 ignored; 0 measured; 385 filtered out; finished in 4.04s
+```
+
+After:
+
+```
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 385 filtered out; finished in 2.92s
+```
+
+`cargo test -p snapback4-sim --test clique`
+
+```
+test result: ok. 232 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 161.29s
+```
+
+`cargo test -p snapback4-device --test device`
+
+```
+test result: ok. 399 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 282.06s
+```
+
+`cargo test -p snapback4-lang --test guide`
+
+```
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+```
+
+The complete command, from the repository root, was
+`bash snapback4/scripts/test.sh`. Its summaries, verbatim:
+
+```
+-- ok: cargo build (4 s)
+-- ok: wasm build (43 s)
+-- ok: release guard (7 s)
+-- ok: package typecheck (4 s)
+-- ok: package build (2 s)
+-- ok: chat app check (0 s)
+-- rust inventory: 78 test binaries, 734 executions; at most 18 concurrent processes
+-- ok: cargo test (1041 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (2 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+-- ok: fixture wrapper tests (14 s)
+ℹ tests 722
+ℹ pass 717
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 3
+```
+
+Isolated reruns: Chromium again aborted with `SIGABRT`, before app checks.
+The witness target first remained red under load (14 passed, 6 failed), then
+passed all 20 after the full suite stopped. The exact wasm transport test still
+hit its 15-second settlement wait in both isolated attempts, including after the
+full suite stopped. That timeout remains unresolved and unclassified; no
+pre-existing product failure is claimed without an exact-base reproduction.
+The sandbox Chromium artifact is identified by the supplied lane instructions
+and this run's launch trace. The lead's outside-sandbox qualification remains
+necessary. No client, witness or timeout threshold was changed.
+
+```text
+$ cargo test -p snapback4 --test witness -- --test-threads=1
+witness-alone.log:
+test result: FAILED. 14 passed; 6 failed; 0 ignored; 0 measured; 0 filtered out; finished in 52.68s
+witness-final.log:
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 106.27s
+```
+
+```text
+$ node --test packages/snapback4/test/react.test.mjs
+react-alone.log:
+-- FAIL: client tests (1019 s)
+== 1 failure(s) in 1101 s
+```
+
+All Rust inventory executions passed, including 20 lifecycle tests and 20
+witness tests. The client failures were Chromium's sandbox SIGABRT at launch
+and a native transport acknowledgment timeout. The timeout was rerun alone
+after the full suite, with the same built code:
+
+`node --test --test-name-pattern='^native: maximum pending ids, cursor batches and every terminal acknowledgement$' packages/snapback4/test/transport-http.test.mjs`
+
+```
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+```
+
+That rerun acknowledged 232, 233 and 273 writes for its three boundaries, with
+five snapshot cursors each, in 9,817.677875 ms. It is a cleared timing red,
+not a claimed pre-existing product failure.
+
+`node --test packages/snapback4/test/react.test.mjs` still failed alone:
+
+```
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+```
+
+```text
+$ node --test --test-name-pattern='^wasm: maximum pending ids, cursor batches and every terminal acknowledgement$' packages/snapback4/test/transport-http.test.mjs
+transport-alone.log:
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+transport-final.log:
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+```
+
+The lesson is to detect lack of progress at publication using the source
+read's consumed cursor, while leaving successful inclusive retries alone. The
+additional glue outside the explicitly named files is one runtime refusal-to-card
+mapping in `snapback4-core/src/error.rs` and one compiler code-to-card mapping in
+`snapback4-lang/src/diag.rs`. No other lane's implementation files changed.
+Logs, including all initial SDK-link failures and full failure traces, are in
+`/tmp/w13j/`. The prior 2,220,632 journal bytes are preserved verbatim.
+
+Final root reference check:
+
+```text
+$ ./ref-check --verbose
+ref-check: ok — 485 LLP docs, 9116 refs in 24342 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passes; no commit, push, tag or publication was made.
+
+
+## 2026-09-18 — W13jR1: name the starved shape when an earlier read spent its meter
+
+Base: `a69cb6f771e01a6690e9afe36730701a02539938`; left uncommitted for the lead.
+The review found that `meter.capped_at` preserves the first exhaustion site,
+which can precede the returned shape. The refusal then called that earlier
+read the shape and claimed its cost was the shape's own. The runner now records
+one boolean on a trimmed shape position: whether the meter was already capped
+before that row's shape ran. At publication it selects the zero-finished-row
+shape whose source page owns the continuation, using the same predicate as
+before. An inherited cap names that source read and the earlier exhaustion
+site; a cap inside the shape keeps the existing own-cost message verbatim.
+The ruling 35 reference remains at the publication check (LLP 3000.007#14).
+
+Inclusive-candidate detection, token equality and the zero-finished-shape
+condition are unchanged. The source scan, shape mark, starvation detection,
+trimming positions, lane charges, device horizons, page planner, client,
+ceilings and serialized forms are unchanged. The reads card and the registered
+code's explanation gain the inherited case; the README's sentence remains
+accurate and is untouched. The additional runner/shaping state is private,
+not a wire or persisted value.
+
+The new shared test runs on the server, memory device and SQLite device.
+It uses the inherited-cap fixture's unconditional 9,000-row count, both range
+and list lane sources, and both eager and lazy merges. All 12 inherited-case
+executions preserve the first request: 0 returned rows, `complete: false`,
+`cut: 'meter'`, and an inclusive cursor at row `a`. Each follow refuses with
+the exact inherited diagnostic. The 12 positive controls bound the prelude
+count to 3 against the same 9,000 rows: both pages return their row and its
+2-row preview, without a meter cut or refusal, and the second has no `next`.
+The bounded prelude count itself is truncated, so the query correctly stays
+`complete: false`. The first post-fix test run mistakenly expected that
+control to be complete; its assertion was corrected to require incompleteness.
+No existing assertion was changed. The existing self-exhausting fixture's
+exact message and first-request assertions remain green on all three hosts.
+
+The inherited fixture before the fix, and the own-cost fixture both before
+and after, have this exact refusal message:
+
+```text
+E_SHAPE_EXCEEDS_METER: the returned shape at programs.feed.1 examines more than the 8,192-row meter on its own; bound it (`first N`/`last N`) or move it out of the returned shape
+```
+
+The inherited fixture after the fix:
+
+```text
+E_SHAPE_EXCEEDS_METER: the returned shape at programs.feed.0 cannot finish: the 8,192-row meter was spent at programs.feed.1 before it ran; bound that read (`first N`/`last N`) or move the shape out of the returned shape
+```
+
+Commands below ran from `snapback4/`, with the same environment for the
+base wasm build, red tests and final checks:
+
+```sh
+export DEVELOPER_DIR=/Library/Developer/CommandLineTools
+export SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+Regression commands and verbatim summaries (red before any engine edit;
+the intermediate failure is the new positive control's expectation above):
+
+```text
+$ cargo test -p snapback4-sim --test clique merge_continuation::shape_pages::w13j_inherited_exhaustion_names_the_blocked_shape_and_prior_read
+red before fix:
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 227 filtered out; finished in 0.21s
+intermediate positive-control expectation failure:
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 227 filtered out; finished in 0.31s
+green:
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 227 filtered out; finished in 1.41s
+```
+
+```text
+$ cargo test -p snapback4-device --test device w13j_inherited_exhaustion_names_the_blocked_shape_and_prior_read
+red before fix:
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 391 filtered out; finished in 0.09s
+green:
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 391 filtered out; finished in 1.29s
+```
+
+The four requested targets pass, 325 tests total:
+
+```text
+$ cargo test -p snapback4-sim --test clique merge_continuation
+test result: ok. 70 passed; 0 failed; 0 ignored; 0 measured; 158 filtered out; finished in 17.76s
+```
+
+```text
+$ cargo test -p snapback4-device --test device merge_continuation
+test result: ok. 140 passed; 0 failed; 0 ignored; 0 measured; 253 filtered out; finished in 9.25s
+```
+
+```text
+$ cargo test -p snapback4-lang --test guide
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+```
+
+```text
+$ cargo test -p snapback4 --bin snapback4
+test result: ok. 68 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.80s
+```
+
+Wasm measured by `bash scripts/build-wasm.sh` at the base and after the fix,
+with identical toolchain/environment: **+423 bytes raw, +81 bytes gzip**.
+Both builds exited 0; this base's budget is informational. The 452,000-byte
+gzip budget was already exceeded by 16,090 bytes at the exact base above;
+the final overage is 16,171. The budget file was not edited.
+
+```text
+$ bash scripts/build-wasm.sh (base)
+wasm 1597087 B raw, 468090 B gzip (budget 452000: OVER by 16090 B — issues/20260913-snapback4-wasm-device-diet.md)
+$ bash scripts/build-wasm.sh (after)
+wasm 1597510 B raw, 468171 B gzip (budget 452000: OVER by 16171 B — issues/20260913-snapback4-wasm-device-diet.md)
+```
+
+`./ref-check --verbose` ran from the repository root:
+
+```text
+ref-check: ok — 485 LLP docs, 9116 refs in 24343 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passes. Changed code files are at most 1,057 lines.
+The prior 2,228,901 journal bytes are preserved verbatim. Logs are in
+`/tmp/w13jr1/`, including both before-fix host failures and the intermediate
+positive-control failure. No pre-existing test failure is claimed. No
+out-of-scope file was edited; the pre-existing untracked lane brief is untouched.
+The round explicitly defers `bash snapback4/scripts/test.sh` to the lead at
+landing; it was not run. No commit, push, tag or publication was made.
+
+The lesson is that first-exhaustion attribution and the shape prevented from
+finishing are distinct facts. One bit recorded at the existing shape boundary
+preserves both without changing the meter or the no-progress decision.
+
+## 2026-09-18 — W13j lands: the wasm budget 410,000 → 411,000
+
+Lead entry (Claude, orchestrating). W13j's refusal path and its two diagnostic texts live in the engine the web
+device runs, so the device grew: `bash scripts/build-wasm.sh` on the tree W13j landed on measured 1,481,211 B raw /
+**410,412 B gzip** against the S3 landing's 409,621 (+791 B), 412 B over the 410,000 ratchet. Per the author's ruling
+of 2026-09-18 the budget is raised in this same commit, to the measured value rounded up to 1,000 B — `metrics/wasm-budget.json`
+now reads 411,000 with the reason in its `why` — and the reason is here and in the commit message. Nothing else in the
+landing touches the device's bytes; W13k, which deletes server-side code, lowers the budget again if its measurement
+allows.
+It aborts at `chromium.launch`, before any page loads, with
+`browserType.launch: Target page, context or browser has been closed` and
+`signal=SIGABRT`. This test launches neither a backend nor a wasm device.
+Its source inputs were verified unchanged against the exact base above:
+
+```sh
+git diff --exit-code a8de12ed88202622dcb496ba2ac3abc356d46635 -- packages/snapback4/src packages/snapback4/test/react.test.mjs packages/snapback4/package.json apps witness/lib.mjs package.json bun.lock
+```
+
+That diff is empty. This is the sandbox artifact named in the lane brief;
+the lead's outside-sandbox browser rerun remains necessary. The README
+TypeScript examples passed in this run; no inherited README failure is
+claimed. The full suite took 1,101 s, with reported starting host load 53.42
+across 18 CPUs. Its wasm build measured 1,595,188 B raw and 467,489 B gzip;
+the unchanged 452,000 B report-only budget prints an overrun of 15,489 B.
+This is one current-build measurement, not a measured size delta.
+
+The original HTTP probe was run before and after with
+`SB=/Users/ccheever/projects/snapback-w13i/snapback4/target/debug/snapback4 node measure.mjs`
+from `benchmarks/runs/2026-09-17-snapback4-bounds-probes/group-drops-next/`.
+Its pages (terminal padding omitted here; raw logs retained), before:
+
+```
+10 messages in 2 rooms; page size 4; more rows remain after every first page
+  plain          complete=true  cut=null  next=PRESENT  top-level items=4
+  grouped        complete=false cut=null  next=absent   top-level items=2
+  groupedDirect  complete=false cut=null  next=absent   top-level items=1
+  both           complete=true  cut=null  next=PRESENT  top-level items=4
+  sorted         complete=false cut=null  next=absent   top-level items=4
+  shaped         complete=true  cut=null  next=PRESENT  top-level items=4
+```
+
+After:
+
+```
+10 messages in 2 rooms; page size 4; more rows remain after every first page
+  plain          complete=true  cut=null  next=PRESENT  top-level items=4
+  grouped        complete=true  cut=null  next=PRESENT  top-level items=2
+  groupedDirect  complete=true  cut=null  next=PRESENT  top-level items=1
+  both           complete=true  cut=null  next=PRESENT  top-level items=4
+  sorted         complete=true  cut=null  next=PRESENT  top-level items=4
+  shaped         complete=true  cut=null  next=PRESENT  top-level items=4
+```
+
+The probe's CLI check stayed free of diagnostics and notes. Before:
+
+```
+check: ok — 2 tables (0 synced), 6 operations, no problems, 6.3 ms
+```
+
+After:
+
+```
+check: ok — 2 tables (0 synced), 6 operations, no problems, 8.2 ms
+```
+
+What this taught: grouping can reduce the top-level item count without losing
+any source row. Continuation ownership follows the source page through these
+two helpers; it cannot be inferred from the number of returned groups or from
+the last row after sorting. The device returns the same grouping and page
+class through the existing answer contract, so usePage needs no change.
+
+Logs are retained under `/tmp/w13i/`, including `red-sim-verified.log`,
+`red-device-verified.log`, `green-sim.log`, `green-device.log`, `clique.log`,
+`device.log`, `guide.log`, `full-suite.log`, `react-isolated.log`,
+`transport-isolated.log`, and the two probe/check pairs. No out-of-scope file
+remains changed. The probe's generated files were removed. No commit, push,
+tag or publication was made. The original 2,220,632 journal bytes are preserved.
+
+## 2026-09-18 — W13iR1: diagnostic sites include the runtime's helper-carried page
+
+Repaired the W13i review finding from base `ca330a18072d6372f1ba466432e7b9d09a75655f`.
+`returned_page_sites` now unions the existing cursorless traversal with the
+cursor-bearing origins selected by the runtime's own `result_page` rule.
+The runtime plan and `expression_origin` are unchanged. LLP 3000.007 §14
+ruling 34 remains the governing decision (its existing code annotation stays);
+§19.2's ownership rule and §5.6's shape fence are unchanged. The extra walk
+uses the runtime selection, not every origin inside a record: two distinct
+helper-carried pages in one record still supply no single owner.
+
+The core change is five added lines and a two-line contract clarification.
+The shared simulator/device cases add four tests: exact grouped, sorted and
+nested site sets for inline input, a once-bound page and a once-bound helper
+result; unrelated values, min/max and ambiguous-record controls. Each positive
+case includes an unused cursor page, which must not enter the site set.
+The existing runtime negative-control test now also executes `min(page, page)`
+and `max(page, page)` on the server and both device stores. The original
+cursor-note assertions are retained and strengthened to pin the full note-code
+list (`N_NO_HORIZON`, `N_NO_CURSOR`) and explicitly require empty diagnostic
+site sets for cursorless grouped and sorted pages. No diagnostic text, code,
+note trigger or published Quarry form changed; no README or card edit is needed.
+
+The three requested observations below are copied verbatim from the regression
+logs. For group/sort, `page` is the cursor-bearing membership read
+`members[viewer] after c first 20 by byPrincipalRoom`; the inline case embeds
+that read in the helper after an unused page at `programs.feed.0`.
+The unrelated-value case binds `other` to a literal array.
+
+Before:
+
+```
+W13iR1 group(page, 'roomId')/inline: sites={}; expected={"programs.feed.1"}
+W13iR1 sort(page, '-id')/inline: sites={}; expected={"programs.feed.1"}
+W13iR1 group(other, 'roomId'): sites={}
+```
+
+After:
+
+```
+W13iR1 group(page, 'roomId')/inline: sites={"programs.feed.1"}; expected={"programs.feed.1"}
+W13iR1 sort(page, '-id')/inline: sites={"programs.feed.1"}; expected={"programs.feed.1"}
+W13iR1 group(other, 'roomId'): sites={}
+```
+
+The red run failed only the three new positive site-set tests (group, sort,
+nested group/sort). All nine existing/control tests passed, including min/max
+and the explicit cursorless helper controls. The green run passes all twelve;
+the same cases pass twenty-four times across the two device stores.
+
+Commands below ran from `snapback4/` with these command-scoped settings:
+
+```sh
+export DEVELOPER_DIR=/Library/Developer/CommandLineTools
+export SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+`cargo test -p snapback4-sim --test clique row_preserving_pages -- --nocapture`
+
+Before:
+
+```
+test result: FAILED. 9 passed; 3 failed; 0 ignored; 0 measured; 225 filtered out; finished in 0.87s
+```
+
+After:
+
+```
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 225 filtered out; finished in 0.47s
+```
+
+`cargo test -p snapback4-device --test device row_preserving_pages`
+
+```
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 385 filtered out; finished in 2.08s
+```
+
+`cargo test -p snapback4-lang --test guide`
+
+```
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+```
+
+`cargo test -p snapback4-lang --test residency_notes (before the production edit)`
+
+```
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.50s
+```
+
+`cargo test -p snapback4-lang --test residency_notes (after the production edit)`
+
+```
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.44s
+```
+
+`cargo test -p snapback4-lang`
+
+```
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 10 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.16s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.87s
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 100.80s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.81s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.08s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.97s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+`cargo test -p snapback4-core`
+
+```
+test result: ok. 65 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.41s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.39s
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.02s
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.83s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+`cargo test -p snapback4 --bin snapback4`
+
+```
+test result: ok. 68 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.59s
+```
+
+The complete language-crate run totals 291 passed, 0 failed,
+1 ignored; the core run totals 159 passed, 0 failed,
+0 ignored. No full `scripts/test.sh` run this round, as the review
+brief explicitly assigns it to the lead at landing. No pre-existing test
+failure is claimed, and none of the final checks failed.
+
+`/usr/bin/time -p bash scripts/build-wasm.sh` (exit 0):
+
+```
+wasm 1595242 B raw, 467504 B gzip (budget 452000: OVER by 15504 B — issues/20260913-snapback4-wasm-device-diet.md)
+real 27.53
+user 27.87
+sys 1.76
+```
+
+Unlike the brief's description, this base already tracks
+`metrics/wasm-budget.json`; it was neither edited nor raised. The over-budget
+number above is this build's report-only result, not a claim of a regression
+or a base-verified pre-existing failure. No before/after size comparison was
+requested or made.
+
+`./ref-check --verbose` from the repository root:
+
+```
+ref-check: ok — 485 LLP docs, 9116 refs in 24346 files, 0 errors, 0 unchecked
+```
+
+What this taught: preserving a note's trigger does not require omitting a
+runtime-owned page from diagnostic provenance. The cursorless walk can stay
+unchanged while the runtime's selected origins are unioned in; applying the
+runtime selector also prevents the diagnostic repair from inventing ownership
+for a record containing two helper-carried pages.
+
+Only `crates/snapback4-core/src/engine/pages.rs`,
+`crates/snapback4-sim/tests/common/row_preserving_pages.rs` and this journal
+changed. The shared tests are imported by the device suite; no device production
+code changed. No out-of-scope file was touched. The pre-existing untracked
+`LANE-BRIEF-W13I.md` remains untouched. No commit, push, tag or publication.
+The original 2,229,615 journal bytes are preserved. Logs are under
+`/tmp/w13ir1/`: `red-sim.log`, `green-sim.log`, `device.log`, `guide.log`,
+`before-residency-notes.log`, `after-residency-notes.log`, `lang.log`, `core.log`,
+`bin.log`, `wasm.log` and `ref-check.log`.
+
+## 2026-09-18 — W13k: acquire the current readable rows (ruling 36)
+
+Implemented the revision-3 lane design on base
+`629ae76ec813ad06ec4cfb777a654e30733d23d9`. An acquiring, currently open join
+now scans the current group in descending order at the serving transaction's
+fixed clock, applies the joining principal's server read rule, and stops at N
+readable rows without looking past the Nth. The full Nth key is the floor;
+fewer rows, including zero, produce `whole`. Horizonless joins acquire every
+current readable row. Closed joins acquire nothing, including uniformly
+readable rows with retained history. Continuous renewals expand no rows; an
+expired predecessor's scope still precedes its replacement acquisition.
+
+The cold snapshot shares that walk and principal read check; live aggregates
+still use the system runner. Log puts are normalized before join expansion so
+that an acquired image is checked and delivered once. Removed the historical
+completion proof, unselected walk, delivered-set tracking, both storage methods
+and implementations, and the old row-log index (dropped when existing SQLite
+and Postgres stores open). Updated the published sync card, package README,
+and the RFC's law, W13g history, and newest revision-history entry. No wire,
+value encoding, meter ceiling, device implementation, or existing corpus case
+changed.
+
+The rewritten two-worlds tests retain payload and marker equality. Added the
+Rust-constructed mixed-readable schema pair, deletion pair, 1,000 hidden rows,
+empty readable group, current horizonless acquisition and closed private/public
+joins, duplicate puts across ordinary and staged pages, subsequent deletion,
+group move, expiry, below-floor update, and stable snapshot/stream floor equality.
+Both native device stores and wasm are covered. Descending horizonless order
+also required the existing paged-snapshot retention test to retain `n3` first
+instead of `n1`.
+
+What this taught us: choosing readable rows directly removes the historical
+proof entirely. Physical work can still vary with hidden rows, but the wire
+and boundary do not. The public explicit-audience form is admitted by the core
+and still rejected by Quarry: the native tests construct that schema in Rust;
+the public wasm test exercises the corresponding constructed backend and
+scope/put application, not an HTTP-authored public-subset program. Private
+wasm tests use the real HTTP server. The design's collision example lists
+`[collision, p2]`; its descending-order law yields `[p2, collision]` because
+those keys are 2,000 and 1,500, with the specified floor 1,500. The implementation
+follows that law. There are no other known design contradictions.
+
+Measured numbers (the probe run below prints these values):
+
+```
+GROUP stream: stored=100 horizon=2 delivered=2 physical-rows=2 read-rule-probes=2 content-scans=1
+GROUP snapshot: delivered=2 physical-rows=2 read-rule-probes=2 content-scans=1
+1000-lane merge: lanes=1001 whole-map-parses=0 boundary-namespace-loads=1
+1000-lane merge probes: server=1001 device=0 server-examined=1000 device-examined=1000
+ordinary stream: namespace-loads=0 boundary-writes=0; one changed group: namespace-loads=0 boundary-writes=1
+persisted boundaries: groups=1000 horizon=500 raw-keys=114000 hex-floors=228000 total-metadata-bytes=356000; sqlite and memory have identical values
+empty groups: groups=5000 first-limit=1 subsequent-limit=32 pages=158 max-acquisition-bytes=114369
+```
+
+Horizonless acquisition delivers 26 rows while open and zero when closed before
+serving, for private and public read rules on both native stores. The wasm
+artifact remains 1,595,051 bytes raw / 467,476 bytes gzip; the full suite reports
+the existing 452,000-byte budget advisory (15,476 bytes over). No device
+production source changed.
+
+All Cargo commands below ran from `snapback4/`; all JavaScript commands used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` first. Logs are in
+`/private/tmp/w13k/`. Red-before results were obtained before the implementation
+change at the base above, or with the preserved binary built from that base.
+An initial public fixture attempted the Quarry-rejected spelling; it was
+corrected to a Rust-constructed schema and rerun before changing production
+code. Only the corrected semantic failures below count as regression evidence.
+
+Red before:
+
+```
+$ cargo test -p snapback4-device --test w13g_probe --test retained_history --no-fail-fast
+test result: FAILED. 22 passed; 26 failed; 0 ignored; 0 measured; 0 filtered out; finished in 20.16s
+```
+
+```
+$ cargo test -p snapback4-device --test retained_history horizonless_join -- --nocapture
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 18 filtered out; finished in 1.68s
+```
+
+```
+$ cargo test -p snapback4-core --test rows acquisition_selects -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.50s
+```
+
+```
+$ node --test packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 20
+ℹ pass 6
+ℹ fail 14
+```
+
+```
+$ SNAPBACK4_BIN=/private/tmp/w13k/snapback4-base node --test --test-name-pattern='wasm current selection fills' packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 5
+ℹ pass 0
+ℹ fail 5
+```
+
+Green after (device summaries are device, native_reads, retained_history, then w13g_probe):
+
+```
+$ cargo test -p snapback4-device --test w13g_probe --test retained_history --test native_reads --test device
+test result: ok. 383 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 292.68s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.90s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.44s
+test result: ok. 49 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.68s
+```
+
+```
+$ cargo test -p snapback4-core --lib --test rows
+test result: ok. 65 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.62s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+```
+
+```
+$ cargo test -p snapback4-sim --test device
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+```
+
+```
+$ cargo check -p snapback4-core --features postgres
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 28s
+```
+
+```
+$ node --test --test-concurrency=2 packages/snapback4/test/horizon-boundary.test.mjs packages/snapback4/test/retained-history.test.mjs
+ℹ tests 71
+ℹ pass 71
+ℹ fail 0
+ℹ skipped 0
+```
+
+```
+$ cargo test -p snapback4-device --test w13g_probe --test retained_history --no-fail-fast -- --nocapture
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.19s
+test result: ok. 49 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.84s
+```
+
+Full blocking suite (from the repository root):
+
+```
+$ export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+$ bash snapback4/scripts/test.sh
+-- ok: cargo test (1083 s)
+ℹ tests 731
+ℹ pass 725
+ℹ fail 3
+ℹ skipped 3
+-- FAIL: client tests (985 s)
+== 1 failure(s) in 1122 s
+   client tests
+```
+
+Every other step passed, including builds, compiled guide and README examples,
+Rust targets and witness tests, release guard, package/chat/Expo typechecks,
+and the nine fixture-wrapper tests. The host reported load 60.08 across 18
+CPUs. Client failures were Chromium SIGABRT in the React test and the wasm
+and native maximum-pending-ID transport timeouts. Both transport cases also
+failed when rerun alone on the changed binary; all three failures reproduced
+using the preserved binary built from exact base
+`629ae76ec813ad06ec4cfb777a654e30733d23d9`. They are base-reproduced failures,
+not assumed load flakes. The lead can rerun outside the sandbox.
+
+Base verification commands (each produced `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`):
+
+```
+SNAPBACK4_BIN=/private/tmp/w13k/snapback4-base node --test packages/snapback4/test/react.test.mjs
+SNAPBACK4_BIN=/private/tmp/w13k/snapback4-base node --test --test-name-pattern='wasm: maximum pending ids' packages/snapback4/test/transport-http.test.mjs
+SNAPBACK4_BIN=/private/tmp/w13k/snapback4-base node --test --test-name-pattern='native: maximum pending ids' packages/snapback4/test/transport-http.test.mjs
+```
+
+The corresponding changed-binary transport reruns used the same commands without
+`SNAPBACK4_BIN`; each also produced one failure. Full evidence is in
+`full-suite.log`, `react-base.log`, `transport-base.log`,
+`transport-native-base.log`, `transport-alone.log`, and
+`transport-native-alone.log` under the log directory above.
+
+No diagnostic text or code changed. No out-of-scope file was changed. The supplied
+`LANE-DESIGN.md` is left untouched. This entry preserves all 2,220,632 prior journal
+bytes (SHA-256 `309d999d7c673d40ab578b5032a16ff4047976982fb011e57542016eaa1c695e`).
+Final reference and whitespace checks run after this append. No commit, push,
+tag, or publication was made.
+
+
+## 2026-09-18 — W13kR1: renewal preserves the undelivered acquisition; cross-host witnesses
+
+Addressed the two verified review findings on base
+`e93b7eec9ad6a045dd078cdd1f720ebff42b426b`. Expiry-tracking spans remain
+separate, but a grant retains its acquisition obligation through contiguous
+live renewals. Starting at the join's own nonempty span, each edge must end in
+a join, match the next span's start sequence, and commit before the preceding
+expiry (or follow a span with no expiry). The chain must end open and unexpired
+at serve time. Scope and expiry gaps break it. Renewal joins still expand no
+content. A replacement's expired-predecessor scope precedes acquisition whenever
+that replacement's chain is live, including when its renewal is on another raw
+page. Edge commit times are fetched together for the joined groups, including
+edges outside the current page. A same-commit grant/revocation acquires nothing.
+
+The first fix passed the reported regressions; an added exact-expiry control
+found one more composition within the same finding: the synthetic predecessor
+at a watermark can have zero width and the replacement's start sequence. It
+must not mask the replacement's own span. The chain lookup now skips that
+zero-width span. The controls also cover two successive renewals, no expiry,
+a scope followed by a same-sequence rejoin, an already expired terminal span,
+and same-commit grant/revocation. What we learned: a span's lifetime tracks log
+authority at each commit; closing that span for a renewal does not settle an
+undelivered acquisition, and the watermark's synthetic predecessor is not a
+new grant.
+
+The cold, gap and revoke/rejoin witnesses run both with a horizon and without
+one, with both joins on one catch-up page and split across pages. The cold
+witness starts with no snapshot. The gap witness first proves the device holds
+the row deleted during the gap, then requires its removal, the ordered scope,
+replacement rows, marker and local completeness. Both native stores and wasm
+apply the same Rust-generated server pages. Expiring audience memberships sync
+to the viewer so the device's independent expiry read check has its authority.
+The existing snapshot-first continuous-renewal test remains unchanged and green.
+
+Extracted the existing Rust mixed-readable fixture without weakening its
+server assertions. Its actual stream and paginated snapshot pages now reach
+SQLite, MemoryStore and wasm: 0, 1 and 1,000 hidden rows, a deleted historical
+candidate, and empty readable groups with 0 or 1,000 hidden rows. Each host
+checks the rows, persisted floor and completeness: at the Nth readable key is
+complete; below it is incomplete and unknown; an empty readable group is whole.
+The two-worlds wire and local-observation equalities remain. Quarry refuses the
+mixed public read rule, so the fixture constructs that schema in Rust after
+installing the admitted public schema; it does not relax schema admission.
+The wasm suite invokes a Rust test exporter into a private temporary directory;
+there is no checked-in generated fixture, new script, or production export API.
+
+Parameterised the existing wasm duplicate/change witness over ordinary and
+`retain delivered-history` tables. Added ordinary/staged witnesses in which
+an acquired row moves below the floor before its insert and two later writes
+are streamed. All three puts carry that same current below-floor image, leave
+one stored row, and preserve the original persisted floor. The retained staged
+combination is now explicitly exercised. Updated the README and sync card to
+state that renewal preserves an acquisition not yet delivered. No diagnostic,
+wire/value encoding, meter ceiling, selection walk, device implementation,
+existing corpus case, or RFC section changed. The specified floors and earlier
+W13k deletions stand. No out-of-scope file was touched; no commit was made.
+
+Measurements: wasm is 1,595,051 bytes raw and 467,476 bytes gzip on both the
+base and final builds, a 0-byte delta in each. The existing budget advisory is
+15,476 bytes above 452,000; it is unchanged, not a new build failure. There are
+13 renewal scenarios per host (26 native tests and 13 wasm tests), 12 generated
+mixed fixtures per host, and 4 below-floor duplicate scenarios (retained/plain
+crossed with staged/ordinary), each applying 3 duplicate puts to 1 stored row.
+Horizon acquisition delivers 2 content rows; horizonless cold acquisition
+delivers all 3; the replacement after gap deletion delivers 2. Renewal itself
+adds 0 content rows and 0 markers. The cold/gap streams use 1 or 2 pages;
+the split revoke/rejoin stream uses 4. The marker pair exists only for a
+horizoned table; horizonless acquisition retains its existing marker-free wire.
+
+All Cargo commands ran from `snapback4/`. JavaScript and wasm commands used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` first. Logs are in
+`/private/tmp/w13kr1/`. Base regression evidence below was collected with the
+exact base `partition.rs`, before the fix (and restored temporarily for the
+additional chain control). Initial fixture-setup corrections are not counted
+as regression evidence. The mixed-readable and retained duplicate additions
+are coverage repairs and pass on the base as well as after the fix; no false
+red claim is made for them.
+
+Red-before and green-after commands and verbatim summary lines:
+
+Base:
+```
+$ cargo test -p snapback4-device --test w13g_probe renewal_review -- --nocapture
+test result: FAILED. 2 passed; 26 failed; 0 ignored; 0 measured; 49 filtered out; finished in 1.39s
+```
+
+Final:
+```
+$ cargo test -p snapback4-device --test w13g_probe renewal_review -- --nocapture
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 49 filtered out; finished in 2.39s
+```
+
+Base:
+```
+$ cargo test -p snapback4-core --test rows renewal_chains_stop -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.02s
+```
+
+Base:
+```
+$ node --test --test-concurrency=2 --test-name-pattern='wasm review|retained=true' packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 21
+ℹ pass 8
+ℹ fail 13
+ℹ skipped 0
+```
+
+The first fix's additional core edge-case run reported `test result: FAILED. 7 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s`. This was our incomplete first fix, not a pre-existing or environmental failure; the zero-width predecessor correction resolved it.
+
+Final requested checks (device, native_reads, retained_history, w13g_probe summaries in that order):
+
+
+```
+$ cargo test -p snapback4-device --test w13g_probe --test retained_history --test native_reads --test device
+test result: ok. 383 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 195.02s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.90s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.29s
+test result: ok. 77 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.10s
+```
+
+
+```
+$ cargo test -p snapback4-core --lib --test rows
+test result: ok. 65 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.29s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+```
+
+
+```
+$ node --test --test-concurrency=2 packages/snapback4/test/horizon-boundary.test.mjs packages/snapback4/test/retained-history.test.mjs
+ℹ tests 92
+ℹ pass 92
+ℹ fail 0
+ℹ skipped 0
+```
+
+
+```
+$ cargo test -p snapback4-lang --test guide
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+```
+
+The full requested device command was repeated after the zero-width correction; the earlier run also passed (383/8/20/77, with 2 ignored in device).
+
+```
+$ cargo check -p snapback4-core --features postgres
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.37s
+```
+
+```
+$ bash scripts/build-wasm.sh
+wasm 1595051 B raw, 467476 B gzip (budget 452000: OVER by 15476 B — issues/20260913-snapback4-wasm-device-diet.md)
+```
+
+```
+$ ./ref-check --verbose
+ref-check: ok — 485 LLP docs, 9115 refs in 24350 files, 0 errors, 0 unchecked
+```
+
+Per-test before/after lines for every added regression (the two native hosts
+are listed separately). Native lines are verbatim; wasm lines omit duration
+only. The export helper and added coverage tests are also shown as pass/pass.
+
+```
+test renewal_review::cold_horizon_split::memory ... FAILED
+test renewal_review::cold_horizon_split::memory ... ok
+test renewal_review::cold_horizon_split::sqlite ... FAILED
+test renewal_review::cold_horizon_split::sqlite ... ok
+test renewal_review::cold_horizon_together::memory ... FAILED
+test renewal_review::cold_horizon_together::memory ... ok
+test renewal_review::cold_horizon_together::sqlite ... FAILED
+test renewal_review::cold_horizon_together::sqlite ... ok
+test renewal_review::cold_horizonless_split::memory ... FAILED
+test renewal_review::cold_horizonless_split::memory ... ok
+test renewal_review::cold_horizonless_split::sqlite ... FAILED
+test renewal_review::cold_horizonless_split::sqlite ... ok
+test renewal_review::cold_horizonless_together::memory ... FAILED
+test renewal_review::cold_horizonless_together::memory ... ok
+test renewal_review::cold_horizonless_together::sqlite ... FAILED
+test renewal_review::cold_horizonless_together::sqlite ... ok
+test renewal_review::export_wire_fixtures ... ok
+test renewal_review::export_wire_fixtures ... ok
+test renewal_review::gap_horizon_split::memory ... FAILED
+test renewal_review::gap_horizon_split::memory ... ok
+test renewal_review::gap_horizon_split::sqlite ... FAILED
+test renewal_review::gap_horizon_split::sqlite ... ok
+test renewal_review::gap_horizon_together::memory ... FAILED
+test renewal_review::gap_horizon_together::memory ... ok
+test renewal_review::gap_horizon_together::sqlite ... FAILED
+test renewal_review::gap_horizon_together::sqlite ... ok
+test renewal_review::gap_horizonless_split::memory ... FAILED
+test renewal_review::gap_horizonless_split::memory ... ok
+test renewal_review::gap_horizonless_split::sqlite ... FAILED
+test renewal_review::gap_horizonless_split::sqlite ... ok
+test renewal_review::gap_horizonless_together::memory ... FAILED
+test renewal_review::gap_horizonless_together::memory ... ok
+test renewal_review::gap_horizonless_together::sqlite ... FAILED
+test renewal_review::gap_horizonless_together::sqlite ... ok
+test renewal_review::mixed_readable_pages_reach_both_stores ... ok
+test renewal_review::mixed_readable_pages_reach_both_stores ... ok
+test renewal_review::revoke_horizon_split::memory ... FAILED
+test renewal_review::revoke_horizon_split::memory ... ok
+test renewal_review::revoke_horizon_split::sqlite ... FAILED
+test renewal_review::revoke_horizon_split::sqlite ... ok
+test renewal_review::revoke_horizon_together::memory ... FAILED
+test renewal_review::revoke_horizon_together::memory ... ok
+test renewal_review::revoke_horizon_together::sqlite ... FAILED
+test renewal_review::revoke_horizon_together::sqlite ... ok
+test renewal_review::revoke_horizonless_split::memory ... FAILED
+test renewal_review::revoke_horizonless_split::memory ... ok
+test renewal_review::revoke_horizonless_split::sqlite ... FAILED
+test renewal_review::revoke_horizonless_split::sqlite ... ok
+test renewal_review::revoke_horizonless_together::memory ... FAILED
+test renewal_review::revoke_horizonless_together::memory ... ok
+test renewal_review::revoke_horizonless_together::sqlite ... FAILED
+test renewal_review::revoke_horizonless_together::sqlite ... ok
+test renewal_review::unlimited_horizon_split::memory ... FAILED
+test renewal_review::unlimited_horizon_split::memory ... ok
+test renewal_review::unlimited_horizon_split::sqlite ... FAILED
+test renewal_review::unlimited_horizon_split::sqlite ... ok
+test renewal_chains_stop_at_expiry_scope_and_same_commit_revocation ... FAILED
+test renewal_chains_stop_at_expiry_scope_and_same_commit_revocation ... ok
+```
+
+```
+✔ wasm current acquisition survives paged duplicates and later row changes staged=false retained=true
+✔ wasm current acquisition survives paged duplicates and later row changes staged=false retained=true
+✔ wasm current acquisition survives paged duplicates and later row changes staged=true retained=true
+✔ wasm current acquisition survives paged duplicates and later row changes staged=true retained=true
+✖ wasm review renewal cold horizon=false split=false
+✔ wasm review renewal cold horizon=false split=false
+✖ wasm review renewal cold horizon=false split=true
+✔ wasm review renewal cold horizon=false split=true
+✖ wasm review renewal cold horizon=true split=false
+✔ wasm review renewal cold horizon=true split=false
+✖ wasm review renewal cold horizon=true split=true
+✔ wasm review renewal cold horizon=true split=true
+✖ wasm review renewal gap horizon=false split=false
+✔ wasm review renewal gap horizon=false split=false
+✖ wasm review renewal gap horizon=false split=true
+✔ wasm review renewal gap horizon=false split=true
+✖ wasm review renewal gap horizon=true split=false
+✔ wasm review renewal gap horizon=true split=false
+✖ wasm review renewal gap horizon=true split=true
+✔ wasm review renewal gap horizon=true split=true
+✖ wasm review renewal revoke horizon=false split=false
+✔ wasm review renewal revoke horizon=false split=false
+✖ wasm review renewal revoke horizon=false split=true
+✔ wasm review renewal revoke horizon=false split=true
+✖ wasm review renewal revoke horizon=true split=false
+✔ wasm review renewal revoke horizon=true split=false
+✖ wasm review renewal revoke horizon=true split=true
+✔ wasm review renewal revoke horizon=true split=true
+✖ wasm review renewal unlimited horizon=true split=true
+✔ wasm review renewal unlimited horizon=true split=true
+✔ wasm review mixed-readable generated pages snapshot=false
+✔ wasm review mixed-readable generated pages snapshot=false
+✔ wasm review mixed-readable generated pages snapshot=true
+✔ wasm review mixed-readable generated pages snapshot=true
+✔ wasm review duplicate below the floor retained=false staged=false
+✔ wasm review duplicate below the floor retained=false staged=false
+✔ wasm review duplicate below the floor retained=false staged=true
+✔ wasm review duplicate below the floor retained=false staged=true
+✔ wasm review duplicate below the floor retained=true staged=false
+✔ wasm review duplicate below the floor retained=true staged=false
+✔ wasm review duplicate below the floor retained=true staged=true
+✔ wasm review duplicate below the floor retained=true staged=true
+```
+
+`bash snapback4/scripts/test.sh` was not run in this review round, as explicitly
+instructed; the lead runs it at landing. Nothing else requested remains undone.
+No test failure is claimed pre-existing. No diagnostic text changed, so there
+are no before/after diagnostic strings. `git diff --check` passed and all
+changed code files remain below 1,500 lines. The lane documents were present
+untracked on entry and remain untouched.
+
+This entry preserves all 2,229,641 prior journal bytes (SHA-256
+`b2cffaf4f39187bf6992da3286889e23b786d7fef7154c430e56cb962d19527e`).
+
+Matching focused final reruns, to pair the exact base commands above:
+
+```
+$ cargo test -p snapback4-core --test rows renewal_chains_stop -- --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 1.01s
+```
+
+```
+$ node --test --test-concurrency=2 --test-name-pattern='wasm review|retained=true' packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 21
+ℹ pass 21
+ℹ fail 0
+ℹ skipped 0
+```
+
+
+## 2026-09-18 — W13kR2: same-commit joins carry (seq, ord)
+
+Fixed the second review's High on base
+`0f2e290bc271bf3c5796616689b752af0912d758`: joins sharing a commit were
+mistaken for each other. Each interval now records the ordinal of its opening
+join and the full `(seq, ord)` of its closing transition. The synthetic
+watermark predecessor has no opening ordinal, so it can precede a real join
+but cannot be selected as that join's own span. A real zero-width grant span
+remains the start of its chain when it ends in a continuous renewal. Chain
+edges match the next join's exact position and must precede expiry; scope and
+expiry gaps break them. Only the immediate predecessor ending at the served
+join's `(seq, ord)` decides whether it is a renewal or needs an expiry scope.
+The first join in each live chain acquires once, and renewals acquire nothing.
+The retained `joined` metadata also matches the surviving join's ordinal, so
+several joins in one commit do not repeat the held group.
+
+Added shared generated-page fixtures for grant/renewal, grant/revoke/rejoin,
+grant/two renewals, and a same-commit renewal followed by a distinct-commit
+renewal. Each runs with and without a horizon, together and paginated, and with
+and without delivered-history retention: 32 fixtures, 64 native tests across
+SQLite and MemoryStore, and 32 wasm tests. The first three use successive
+transitions in commit 2 at time 500; the grant's expiry is 1000 and its renewal
+extends to 2000 (3000 for a second renewal). Catch-up runs at 1600 from watermark
+1 after the posts were seeded. Revoke/rejoin uses a real insert/delete/insert
+mutation; renewal uses successive upserts in one `seed_at` batch. A later
+member put provides a real page boundary, and changes expiry again only in
+the distinct-commit-renewal case. Same-commit transitions stay indivisible even
+at raw limit 1; pagination yields 2 pages versus 1 together.
+
+Each fixture checks acquisition rows and their exact sequence/ordinal, one
+marker pair with the expected floor for a horizon, scope before the rejoin's
+rows, persisted boundaries, and local completeness. Retained rejoin now has
+no first acquisition to survive scope and turn the second boundary unknown.
+The wasm horizonless read also follows its cursor to the third row. Horizon
+acquisition delivers 2 content rows, with 1 beginning marker and 1 completion;
+horizonless acquisition delivers 3 content rows and 0 markers. Renewals deliver
+0 extra content rows and 0 markers. The existing single-join-per-commit controls
+and all prior assertions remain. The source fixture includes exact-position
+observations only in test data; no wire field was added.
+
+What we learned: zero width in commit sequence space does not mean a span has
+no identity or acquisition obligation. Event ordinals distinguish a grant, its
+renewals and a scope even within one transaction; a synthetic predecessor must
+be distinguished by the absence of an opening join, not by width. Updated the
+chain annotation and the README/sync-card sentence to state the same-commit
+rule. Selection, floors, device implementation, ceilings, value/wire forms,
+existing corpus cases, the earlier deletions and the RFC text are unchanged.
+No out-of-scope file was changed, and no commit, push, tag or publication was
+made. No diagnostic code or diagnostic text changed.
+
+Wasm was measured by `bash scripts/build-wasm.sh` on the base and after the fix:
+1,595,051 bytes raw and 467,476 bytes gzip in both builds, delta 0/0 bytes. The
+build's 452,000-byte budget advisory remains 15,476 bytes over in both runs.
+This is measured on the named base, not attributed to an unverified predecessor.
+
+All commands below ran from `snapback4/`, except `./ref-check --verbose` and
+`git diff --check` at the repository root. Node, wasm and reference commands
+used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` first. Logs
+are `/private/tmp/w13kr2-*.log`. Every new composition was red before production
+code changed and green after. No unrelated test failure occurred. Per this
+round's explicit instruction, the full `scripts/test.sh` was not run; the lead
+runs it at landing.
+
+Regression evidence, before then after for each composition:
+
+`grant_renew` (16 tests: both stores, both horizons, both page sizes, both retention policies):
+
+```
+$ cargo test -p snapback4-device --test w13g_probe renewal_review::same_commit::grant_renew::
+test result: FAILED. 0 passed; 16 failed; 0 ignored; 0 measured; 125 filtered out; finished in 0.37s
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 125 filtered out; finished in 0.44s
+```
+
+`grant_revoke_rejoin` (16 tests: both stores, both horizons, both page sizes, both retention policies):
+
+```
+$ cargo test -p snapback4-device --test w13g_probe renewal_review::same_commit::grant_revoke_rejoin::
+test result: FAILED. 0 passed; 16 failed; 0 ignored; 0 measured; 125 filtered out; finished in 0.35s
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 125 filtered out; finished in 0.98s
+```
+
+`grant_renew_twice` (16 tests: both stores, both horizons, both page sizes, both retention policies):
+
+```
+$ cargo test -p snapback4-device --test w13g_probe renewal_review::same_commit::grant_renew_twice::
+test result: FAILED. 0 passed; 16 failed; 0 ignored; 0 measured; 125 filtered out; finished in 0.40s
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 125 filtered out; finished in 0.48s
+```
+
+`grant_renew_later` (16 tests: both stores, both horizons, both page sizes, both retention policies):
+
+```
+$ cargo test -p snapback4-device --test w13g_probe renewal_review::same_commit::grant_renew_later::
+test result: FAILED. 0 passed; 16 failed; 0 ignored; 0 measured; 125 filtered out; finished in 0.49s
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 125 filtered out; finished in 0.37s
+```
+
+Wasm `renew` (8 tests):
+
+```
+$ node --test --test-concurrency=2 --test-name-pattern='wasm review same-commit renew ' packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 8
+ℹ pass 0
+ℹ fail 8
+ℹ tests 8
+ℹ pass 8
+ℹ fail 0
+```
+
+Wasm `rejoin` (8 tests):
+
+```
+$ node --test --test-concurrency=2 --test-name-pattern='wasm review same-commit rejoin ' packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 8
+ℹ pass 0
+ℹ fail 8
+ℹ tests 8
+ℹ pass 8
+ℹ fail 0
+```
+
+Wasm `twice` (8 tests):
+
+```
+$ node --test --test-concurrency=2 --test-name-pattern='wasm review same-commit twice ' packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 8
+ℹ pass 0
+ℹ fail 8
+ℹ tests 8
+ℹ pass 8
+ℹ fail 0
+```
+
+Wasm `later` (8 tests):
+
+```
+$ node --test --test-concurrency=2 --test-name-pattern='wasm review same-commit later ' packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 8
+ℹ pass 0
+ℹ fail 8
+ℹ tests 8
+ℹ pass 8
+ℹ fail 0
+```
+
+The combined native regression command, before then after:
+
+```
+$ cargo test -p snapback4-device --test w13g_probe renewal_review::same_commit::
+test result: FAILED. 0 passed; 64 failed; 0 ignored; 0 measured; 77 filtered out; finished in 1.40s
+test result: ok. 64 passed; 0 failed; 0 ignored; 0 measured; 77 filtered out; finished in 2.25s
+```
+
+Final requested checks (device, native_reads, retained_history, then w13g_probe):
+
+```
+$ cargo test -p snapback4-device --test w13g_probe --test retained_history --test native_reads --test device
+test result: ok. 383 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 207.59s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.02s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.31s
+test result: ok. 141 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.17s
+```
+
+```
+$ cargo test -p snapback4-core --lib --test rows
+test result: ok. 65 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.35s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+```
+
+```
+$ cargo check -p snapback4-core --features postgres
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 8.70s
+```
+
+```
+$ node --test --test-concurrency=2 packages/snapback4/test/horizon-boundary.test.mjs packages/snapback4/test/retained-history.test.mjs
+ℹ tests 124
+ℹ pass 124
+ℹ fail 0
+ℹ skipped 0
+ℹ duration_ms 146671.241041
+```
+
+```
+$ cargo test -p snapback4-lang --test guide
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+```
+
+```
+$ cargo build -p snapback4
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 31.52s
+```
+
+Wasm build output, identical before and after:
+
+```
+$ bash scripts/build-wasm.sh
+wasm 1595051 B raw, 467476 B gzip (budget 452000: OVER by 15476 B — issues/20260913-snapback4-wasm-device-diet.md)
+wasm 1595051 B raw, 467476 B gzip (budget 452000: OVER by 15476 B — issues/20260913-snapback4-wasm-device-diet.md)
+```
+
+Reference validation before this append:
+
+```
+$ ./ref-check --verbose
+ref-check: ok — 485 LLP docs, 9115 refs in 24352 files, 0 errors, 0 unchecked
+```
+
+This entry preserves all 2,245,276 earlier journal bytes (SHA-256
+`8dbed07a15be93003e00add097dca55702c39cdc9da9f133c2273d4d317ca3f1`). Reference and whitespace checks
+run again after this append. All changed code files are below 1,500 lines.
+
+## 2026-09-18 — oversized-sync merge integration: orientation and composition
+
+Integrating the in-progress merge of origin/main into sb4/mc-prereq-51b7a134 (HEAD 1cbeebf90; prior recovery commits c2789d0c1 and 2e490e3e9). Read b1edab634, the Snapback 4 fence, rules, sync card, LLP 3000 §7 and LLP 3000.007 §18.2 through llp-orient. User explicitly requires semantic re-verification, one Cargo job at a time, no commit or push, and a resolved/staged result. No ceiling, rule, card vocabulary or disclosure-boundary change.
+
+The journal append conflict retains every entry from both sides byte-for-byte, sorting only the conflicted entries by date (stable order within a day). The partition composition retains Main's (seq, ord) renewal edges, live-chain acquisition and serve-time readable selection. Ordinary historical puts are re-materialized and rule-checked immediately before inspection/retention; acquired rows use the already-checked selected image. Inspection can abort the whole page with None without fetching the rest of the ordinary current images. Acquisition marker positions count only emitted events. Main's retired historical completion proof stays deleted; the lane's Option<StreamPage> and overflow stop survive. Verification and any fixes will be appended below.
+
+## 2026-09-18 — second-round final checks and external integration state
+
+Final server `/tmp/f188-round2-server.log`: 70 passed, no failures or ignores, including exact early-stop (42/192 current images) and stale-reader rejection. Final affected device `/tmp/f188-round2-device-final.log`: 13 passed, no failures or ignores. Full device package earlier: 590 passed, no failures, 3 existing ignores. Final combined JS `/tmp/f188-round2-final-js.log`: 205 passed of 208; HTTP-bounds parent hit its unchanged 60-second timeout and cancelled two children. Its isolated, unchanged rerun `/tmp/f188-round2-http-isolated.log` passed 10/10 in 39.3 seconds. The combined run plus that rerun establishes 208 distinct affected JS tests passing, including all 48 recovery, 20 W13g horizon, 42 retained-history, 56 lifecycle, 44 reset/HTTP tests. Package typecheck/build and earlier ref-check passed.
+
+No commit, push, tag, merge, rebase or publication command was issued by this session. At final inspection, another process had committed the tested delta as 1cbeebf90 at 03:42:34 -0700, attempted/aborted a rebase, and started an origin/main merge. The shared tree has conflicts in JOURNAL.md and partition.rs and broad incoming changes including protected paths. Those integration changes are not covered by this session's qualification. The 2e490e3e9..1cbeebf90 delta itself preserves the original journal prefix and does not touch llp/** or NOT-DOING.md. Preserved that exact source and patch under /tmp/f188-round2-tested; saved the observed merge stages separately under /tmp/f188-round2-preserved. This final journal supplement is written to the preserved source to avoid racing the ongoing parent integration.
+
+G1-G3 implementation items are resolved in the tested delta. The alleged G1 stage_snapshot route did not reproduce: existing backendRequired adoption already continued. Its metadata-side clearing of an existing partition refusal did reproduce on both stores and is fixed by the exhaustive discovery arm. G2 now shares transactional receipt retirement with observation and publishes host history only after the fence. G3 is same-generation-only restore detection, with obsolete generation rejected first. Current server commit cursors remain global across adoption; the real adoption fixtures assert that. Staged catch-up leases are reachable, established by apply, and consumed/re-established correctly. In-memory dev measurement contention remains open in issues/20260918-snapback4-in-memory-sync-measurement-writer-contention.md; file-backed contention is removed from materialization/counting. Existing single-row wire refusal and program-only-generation retained-history behavior are unchanged. No independent blind-review verdict is claimed.
+
+Follow-up observation: the other process resolved the unmerged paths while the evidence copy was being saved. The integration remains outside this qualification. This supplement is also appended to the live journal after that resolution, without altering any integration code.
+
+## 2026-09-18 — merge composition staged; focused regression coverage
+
+All unmerged index entries are cleared. Added a store-read counter and a regression proving ordinary current-image fetching stops at the second inspected readable event: a moved row delivers its current value, a now-hidden row is skipped, and only three of 100 current rows may be fetched. Extended the existing renewal-chain regression to compare normal and inspected pages byte-for-byte and abort inspection at every emitted position, including scope events. Main's separate selection counter still requires exactly N acquired rows and N read-rule probes, with no second fetch.
+
+Package typecheck passed. The first core test compilation is in progress. A whole-merge whitespace check reports inherited trailing whitespace in Main's W13i/W13k review transcripts and the upstream Unicode SpecialCasing fixture's final blank line; these evidence/fixture bytes are preserved. The conflict-resolution and added-test diff passes its scoped whitespace check.
+
+## 2026-09-18 — merge core verification green
+
+`CARGO_BUILD_JOBS=1 cargo test -p snapback4-core --lib --test rows` passed: **65 unit tests + 8 row/storage tests = 73 passed, zero failures/ignores** (`/tmp/f188-merge-core.log`). This includes b1edab634's mixed readable acquisition, snapshot/stream equality, retired row-log index removal and renewal/expiry/scope regression, with the added inspection/abort assertions. The full device package is running next (`/tmp/f188-merge-device.log`); all Cargo invocations remain serialized.
+
+## 2026-09-18 — full merged device package green
+
+`CARGO_BUILD_JOBS=1 cargo test -p snapback4-device --no-fail-fast` passed: **730 tests, zero failures, 3 existing ignores**, including **142 W13g/W13k**, **20 retained-history**, **418 main device**, **90 helper-page** and **8 native-read** tests (`/tmp/f188-merge-device.log`). The new current-image counter regression passed both independently and in the full package. No product or fixture failure has required a fix so far. Next: fresh CLI/wasm artifacts and the real-client suites.
+
+Count correction: summing the actual 15 target summaries gives **722 passed**, not the mistakenly transcribed 730 above. The zero failures, 3 ignores and per-suite counts above are correct; `/tmp/f188-merge-device.log` is authoritative.
+
+## 2026-09-18 — merged wasm budget red and codec composition repair
+
+The fresh CLI build passed. `scripts/build-wasm.sh` produced **414,708 B gzip**, **3,708 B over the unchanged 411,000 B budget** (`/tmp/f188-merge-wasm.log`). The recovery dispatch used `json!(MetadataObservation)`, bypassing Main's single serializer-family diet. Changed that response to the dispatcher's existing `encoded` helper, as other typed responses already do: the JSON fields, validation and durable effects are unchanged. Re-measuring before drawing a size conclusion; no budget change.
+
+The shared-codec repair measures **414,285 B gzip** (423 B smaller), still **3,285 B over** (`/tmp/f188-merge-wasm-codec.log`). Read LLP 3000.002's single-family rationale. A second bounded size experiment prevents inlining of the shared receipt retirement/history helpers; retain it only if measurement supports it. No behavior, wire, rule, disclosure or budget change is proposed.
+
+The non-inlining experiment did not help (414,286 B gzip); reverted both attributes. A follow-up optimizer check found `wasm-opt` absent from this machine's PATH. The existing build script silently skips its optional `-Os` step when absent. Installing Binaryen to exercise that existing step, without modifying the build script or budget. The server unit suite is running serially while this tool prerequisite is installed.
+
+## 2026-09-18 — size experiments bounded; semantic verification continues
+
+Server unit tests passed **70/70**, including the exact wire-ceiling prefix stop and stale-reader adoption checks (`/tmp/f188-merge-server.log`). Binaryen 132 is now installed. Its existing optional `-Os` step made the compressed artifact larger (485,903 B), so the unchanged build script retains the smaller unoptimized output. A third candidate reused primitive JSON decoders for the small recovery envelopes; it measured **412,871 B gzip**, still 1,871 B over, and would need extra handling to preserve derived serde's positional-array acceptance. Reverted that parser experiment in full rather than retaining a changed input contract without solving the gate.
+
+The only retained codec change is the existing `encoded` response helper (414,285 B measured before the other experiments). The wasm gate remains red against the unchanged 411,000 B ceiling. Three bounded repair experiments have not brought it under; following rules/RULES.md's three-round limit, stop this size loop and report the unresolved gate. Continue all requested semantic suites against the rebuilt conservative composition. No acquisition/readability/reset fence was weakened to save bytes.
+
+## 2026-09-18 — final artifacts and client verification start
+
+Rebuilt the conservative final source: CLI build and JS package build pass. (One CLI build command was initially issued from the repository root and refused because that workspace excludes `snapback4`; rerun from `snapback4/` passed.) Final wasm output is **1,496,678 B raw / 414,285 B gzip**, still **3,285 B over 411,000**, with Binaryen available; the script correctly keeps the smaller non-optimized output (`/tmp/f188-merge-wasm-final.log`). The artifacts are generated despite that size-gate exit and are being used for semantic verification; no green size qualification is claimed.
+
+Running the complete oversized-sync, horizon-boundary, retained-history and all four store-reset JS suites, at two independent Node processes and no concurrent external Cargo command. Horizon's existing Rust fixture export invokes Cargo on its own, serialized with the other Rust work. Logs are `/tmp/f188-merge-js-<suite>.log`.
+
+All four enlarged-commit real-client cases passed on the final artifacts (same/new generation × wasm/process). The unresolved fixed-budget overage is recorded in the existing `issues/20260913-snapback4-wasm-device-diet.md` rather than duplicating its tracker. Remaining recovery and surrounding client suites are still running.
+
+## 2026-09-18 — final recovery, retained-history and replacement clients green
+
+Final real-client results: oversized-sync **48/48**, including all four enlarged-commit cases and every requested earlier recovery case; retained-history **44/44**; store-reset **4/4**, review **14/14**, reconnect **12/12**, IndexedDB transaction model **2/2** (**32/32** replacement tests). No failures or skips. The horizon suite is still running its existing Rust-generated fixture exporter; no parallel Cargo command is active.
+
+## 2026-09-18 — surrounding semantic verification complete
+
+The final horizon-boundary client suite passed **82/82**, including **32 same-commit wasm compositions**; all seven client files together passed **206/206**, zero skips/failures. Native W13g/W13k included **64 same-commit** cases and **92 total renewal-fixture** cases in its 142 tests. After the response encoder adjustment, device unit/codec targets passed **4 + 11 = 15/15**. The Clique simulator passed **239**, zero failed, **1 existing ignore**; guide tests passed **48/48**. Logs: `/tmp/f188-merge-{codec,sim,guide}.log` and `/tmp/f188-merge-js-*.log`. Postgres feature compilation is the last running check.
+
+The merged partition source has not changed since the full device-package run. The subsequent one-line recovery-response codec adjustment is covered by the 15 unit/codec tests and all final real-client tests; the 722-test device-package result predates only that adjustment. Both original journal append sets (34 entries) were rechecked against HEAD/MERGE_HEAD and are preserved verbatim. The complete merge carries inherited whitespace warnings in Main's review transcripts and Unicode fixture; this resolution's scoped whitespace checks pass.
+
+## 2026-09-18 — merge qualification disposition and staged handoff
+
+Postgres feature compile check passed (`/tmp/f188-merge-postgres.log`). All requested semantic suites pass: core 65 + 8; device package 722 (3 existing ignores, including W13g/W13k 142 and retained-history 20); server 70; final codec recheck 15; client recovery 48, horizon 82, retained-history 44 and replacement 32; Clique 239 (1 existing ignore); guide 48. Package typecheck/build and CLI builds pass. No semantic-test red needed repair.
+
+One unresolved gate: wasm **414,285 B gzip > 411,000 B**, by **3,285 B**. The original codec mismatch was repaired (423 B saved); the three bounded size experiments and preserved semantics are recorded above and in the existing wasm-diet issue. No ceiling, rule, card vocabulary or disclosure boundary was changed. Generated artifacts are for test execution, not publication qualification.
+
+Final resolution: partition composes unchanged renewal edges/live-chain selection with current-readable ordinary materialization and abortable inspection; markers use emitted-event positions and no partial commit is returned. Journal keeps all 34 parent append entries in date order, verbatim. Added regressions prove actual current-image reads stop and inspection retains/aborts renewal acquisitions correctly. The response codec now follows Main's existing shared encoder. HEAD remains `1cbeebf9060fe74c7be8c2035a29bce978af24a3`, MERGE_HEAD/origin/main remain `b88f5d6c9f997c9d38834046071236ea61393552`. Leave all resolution, test and evidence updates staged with the merge in progress; no commit or push.

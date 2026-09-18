@@ -1,0 +1,6 @@
+device page 3                      rows: p06(0) p05(0) p04(1) | next: true | {"complete":true,"cut":null,"fresh":true}
+server page 1                      p12 p11 p10
+server page 2                      p09 p08 p07
+server page 3                      p06 p05 p04
+page 2: device EQUALS server
+page 3: device EQUALS server

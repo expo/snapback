@@ -159,3 +159,23 @@ export function record(line) {
   const path = join(root, "metrics/witness.jsonl");
   writeFileSync(path, `${readFileSync(path, "utf8")}${JSON.stringify(line)}\n`);
 }
+
+/** Unicode-only witness: the same Chromium selection, without an HTTP backend.
+ * The shipped glue and device are loaded into a fresh browser realm. */
+export async function launchUnicode({ glue, bytes }) {
+  const require = createRequire(join(root, 'package.json'));
+  const { chromium } = require('playwright-core');
+  const executablePath = chromiumExecutable();
+  const browser = await chromium.launch({ executablePath, headless: true });
+  try {
+    const page = await browser.newPage();
+    const cdp = await page.context().newCDPSession(page);
+    const version = await cdp.send('Browser.getVersion');
+    await page.evaluate(async ({ glue, bytes }) => {
+      const runtime = await import(`data:text/javascript;base64,${glue}`);
+      runtime.initSync({ module: Uint8Array.from(atob(bytes), c => c.charCodeAt(0)) });
+      globalThis.unicodeRuntime = runtime;
+    }, { glue, bytes });
+    return { page, version: { ...version, executablePath, icu: null, unicode: null, reason: 'Chromium/CDP exposes V8 and browser versions, not ICU or Unicode versions' }, close: () => browser.close() };
+  } catch (error) { await browser.close(); throw error; }
+}

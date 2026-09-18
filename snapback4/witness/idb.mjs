@@ -7,6 +7,12 @@
 import assert from "node:assert/strict";
 import { launch } from "./lib.mjs";
 
+if (process.argv[2] === 'unicode') {
+  await (await import('./unicode.mjs')).unicodeWitness(process.argv.slice(3));
+  process.exit(process.exitCode ?? 0);
+}
+if (process.argv.length > 2) throw new Error(`unknown IndexedDB witness verb: ${process.argv[2]}`);
+
 const witness = await launch({ extraSource: `table secrets:
   photo: image <=100000 once
   read <- allow

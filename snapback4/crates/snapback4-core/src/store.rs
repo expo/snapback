@@ -130,7 +130,7 @@ impl Store {
              CREATE TABLE IF NOT EXISTS _commits (seq INTEGER PRIMARY KEY, at INTEGER NOT NULL, program TEXT NOT NULL, principal TEXT NOT NULL, kind TEXT NOT NULL, touched TEXT NOT NULL, writes INTEGER NOT NULL);
              CREATE TABLE IF NOT EXISTS _log (partition TEXT NOT NULL, seq INTEGER NOT NULL, ord INTEGER NOT NULL, t TEXT NOT NULL, kind TEXT NOT NULL, id TEXT NOT NULL, data TEXT, PRIMARY KEY (partition, seq, ord)) WITHOUT ROWID;
              DROP INDEX IF EXISTS _log_row_seq;
-             CREATE INDEX IF NOT EXISTS _log_row_seq_kind ON _log(t, id, seq, kind);
+             DROP INDEX IF EXISTS _log_row_seq_kind;
              CREATE TABLE IF NOT EXISTS _ops (principal TEXT NOT NULL, id TEXT NOT NULL, seq INTEGER NOT NULL, outcome TEXT NOT NULL, PRIMARY KEY (principal, id)) WITHOUT ROWID;
              CREATE TABLE IF NOT EXISTS _principals (id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT, created_at INTEGER NOT NULL);
              CREATE TABLE IF NOT EXISTS _sessions (token_digest TEXT PRIMARY KEY, principal TEXT NOT NULL, kind TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL);
@@ -557,16 +557,6 @@ impl Tx<'_> {
              JOIN _commits c ON c.seq = l.seq
              WHERE (json_extract(span.value, '$[3]') IS NULL OR c.at < json_extract(span.value, '$[3]')) AND l.seq > ?2 AND (?3 IS NULL OR l.seq = ?3) ORDER BY l.seq, l.ord LIMIT ?4",
             &[&spans, &(after.min(i64::MAX as u64) as i64), &only_seq.map(|s| s.min(i64::MAX as u64) as i64), &(limit.min(i64::MAX as usize) as i64)])
-    }
-
-    /// The row images that existed when a membership began, excluding later
-    /// updates and rows created after the member had already left.
-    pub fn group_at(&self, partition: &str, seq: u64) -> Result<Vec<LogEvent>, RuntimeError> {
-        self.log_rows(
-            "SELECT seq, ord, t, kind, id, data FROM (
-               SELECT seq, ord, t, kind, id, data, ROW_NUMBER() OVER (PARTITION BY t, id ORDER BY seq DESC, ord DESC) AS position
-               FROM _log WHERE partition = ?1 AND seq <= ?2 AND kind IN ('put', 'del')
-             ) WHERE position = 1 AND kind = 'put'", &[&partition, &(seq.min(i64::MAX as u64) as i64)])
     }
 
     fn log_rows(&self, sql: &str, params: &[&dyn rusqlite::ToSql]) -> Result<Vec<LogEvent>, RuntimeError> {

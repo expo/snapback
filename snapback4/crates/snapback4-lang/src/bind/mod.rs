@@ -213,7 +213,27 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         if prefix == ["id"] || table.constraints.iter().any(|c| matches!(c, snapback4_core::schema::Constraint::Cap { by, .. } if *by == prefix)) {
             continue;
         }
-        let ordered = table.indexes.iter().find(|(index_name, index)| *index_name != "byId" && index.columns().starts_with(&prefix) && index.columns().len() > prefix.len()).map(|(index_name, _)| index_name.clone());
+        // @ref LLP 3000.007#20.23 — a horizon decides *which* rows a device keeps, so the
+        // index must order the group by when its rows were minted. Any other index is
+        // well-formed: it compiles, silences this note, and leaves residency arbitrary,
+        // and no later check can tell the two apart. `id` qualifies by construction —
+        // ids carry 48 bits of milliseconds and sort in mint order (core `ids.rs`).
+        // `find` hands the predicate `&(&String, &Index)`, so its `index` binds as
+        // `&&Index`: method calls auto-deref, a closure argument does not.
+        let orders_by_mint_time = |index: &&snapback4_core::schema::Index| {
+            index.columns().get(prefix.len()).is_some_and(|column| {
+                column.as_str() == "id"
+                    || table.columns.get(column.as_str()) == Some(&snapback4_core::schema::ColumnType::Time)
+            })
+        };
+        let ordered = table.indexes.iter().find(|(index_name, index)| *index_name != "byId" && index.columns().starts_with(&prefix) && index.columns().len() > prefix.len() && orders_by_mint_time(index)).map(|(index_name, _)| index_name.clone());
+        // A `cap` over columns that are not the sync group bounds rows per group, not
+        // what a device acquires. An author who wrote one has already tried to bound
+        // this table and will read an unqualified note as not having noticed.
+        let unbounding_cap = table.constraints.iter().find_map(|c| match c {
+            snapback4_core::schema::Constraint::Cap { by, max } if *by != prefix => Some((by.join(", "), *max)),
+            _ => None,
+        });
         let site = catalog.site_for(&format!("tables.{name}"));
         let rewrite = match ordered {
             Some(ref index) => format!("{} last 500 by {index}", sync.line()),
@@ -223,7 +243,12 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         let rewrite = if affected.is_empty() { rewrite } else {
             format!("a horizon would cost these mutations their prediction: {}; keep `{}`", affected.join(", "), sync.line())
         };
-        notes.push(Diagnostic::new(&site, "N_NO_HORIZON", format!("table {name}: `{}` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start", sync.line()), rewrite).guide("sync"));
+        let mut message = format!("table {name}: `{}` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start", sync.line());
+        if let Some((by, max)) = unbounding_cap {
+            message.push_str(&format!("; `cap {max} by {by}` bounds the rows per {by}, not what a device acquires — `{}` delivers every {by}'s rows to every device", sync.line()));
+        }
+        message.push_str("; measure what it costs with `check --residency`");
+        notes.push(Diagnostic::new(&site, "N_NO_HORIZON", message, rewrite).guide("sync"));
     }
     for bound in programs {
         // Follow the same return/alias/shape provenance as continuations.

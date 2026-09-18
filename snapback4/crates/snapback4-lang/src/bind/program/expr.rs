@@ -97,7 +97,7 @@ impl Binder<'_> {
             A::If { then, condition, otherwise, .. } => {
                 let (cond, cond_ty) = self.expr(condition, out)?;
                 if !cond_ty.is_bool() {
-                    return Err(type_error(condition.site(), format!("a conditional value needs a bool condition, got {}", cond_ty.name()), "compare the value: `x if ttl != null else y`"));
+                    return Err(type_error(condition.site(), format!("a conditional value needs a bool condition, got {}", cond_ty.name()), super::control::bool_condition_rewrite(&cond_ty, "x if ttl {} else y")));
                 }
                 // Each arm binds under its narrowing and runs only when taken.
                 let temp = self.temp("if");
@@ -255,6 +255,16 @@ impl Binder<'_> {
                 "type" => Ty::Text(64),
                 _ => return Err(unknown(site, format!("assets have no field {name}"), "id, width, height, bytes, type, duration")),
             },
+            // A scalar already *is* the value, so the repair is to drop the field access,
+            // not to go and find a row. `int has no fields` was the most frequent compile
+            // error of the 0.2.28 calibration — 20 of its 32 E_QUARRY_TYPE — and the
+            // generic advice pointed away from the fix: a full group-key `maintain`
+            // lookup is its count, and the author had written `.value` on it.
+            // `Ty::Id` keeps the old advice: an id is exactly the case where a row read
+            // is what is missing.
+            other @ (Ty::Bool | Ty::Int | Ty::Time | Ty::Decimal(_) | Ty::Money(..) | Ty::Text(_) | Ty::Principal | Ty::Enum(_)) => {
+                return Err(type_error(site, format!("{} has no fields", other.name()), format!("this is already a value — remove `.{name}`")));
+            }
             other => return Err(type_error(site, format!("{} has no fields", other.name()), "read a row or an object before selecting a field")),
         };
         let result_ty = if ty.is_optional() { field_ty.optional() } else { field_ty };

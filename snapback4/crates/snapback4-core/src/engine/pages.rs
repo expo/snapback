@@ -70,8 +70,8 @@ pub(super) fn plan(program: &Program, schema: &crate::schema::Schema, prefetch_e
 }
 
 /// Read sites whose pages flow to a query return, including cursorless pages.
-/// Diagnostics use the same alias/shape analysis as continuation ownership;
-/// adding a note must not change the runtime's opaque-cursor-only plan.
+/// Diagnostics retain the legacy cursorless traversal and add runtime-owned
+/// cursor pages; cursorless helpers do not gain note triggers.
 pub fn returned_page_sites(program: &Program) -> BTreeSet<String> {
     fn collect(origin: Origin, sites: &mut BTreeSet<String>) {
         match origin {
@@ -86,6 +86,11 @@ pub fn returned_page_sites(program: &Program) -> BTreeSet<String> {
     if program.kind == ProgramKind::Query {
         for origin in returned_origins(program, true, &mut BTreeMap::new()).into_values() {
             collect(origin, &mut sites);
+        }
+        for origin in returned_origins(program, false, &mut BTreeMap::new()).into_values() {
+            if let Some((site, _)) = result_page(&origin) {
+                sites.insert(site.to_owned());
+            }
         }
     }
     sites
@@ -159,6 +164,14 @@ fn expression_origin(value: &Expr, bindings: &Bindings, include_cursorless: bool
             Some(Origin::Page(merge.site.clone(), cursor))
         }
         Expr::Variable(name) => bindings.get(name).cloned(),
+        // @ref LLP 3000.007#14 — ruling 34: a row-preserving helper carries the page's continuation.
+        // The cursorless diagnostic walk keeps its existing note triggers.
+        Expr::Builtin { builtin: Builtin::Group { .. } | Builtin::Sort { .. }, args } if !include_cursorless => {
+            match args.first().and_then(|value| expression_origin(value, bindings, include_cursorless)) {
+                Some(origin @ Origin::Page(_, _)) => Some(origin),
+                _ => None,
+            }
+        }
         Expr::Object(fields) | Expr::Shape { fields, .. } => Some(Origin::Record(
             fields
                 .iter()

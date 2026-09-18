@@ -9,6 +9,8 @@ pub(super) struct ShapePosition {
     pub rows: usize,
     pub next: Option<Vec<Value>>,
     pub inclusive: bool,
+    /// The meter was already capped before this row's shape ran.
+    pub inherited_cap: bool,
 }
 
 impl Runner<'_> {
@@ -44,7 +46,7 @@ impl Runner<'_> {
     }
 
     // @ref LLP 3000.007#5.6 — a cut page never shows a row it could not finish; the continuation reaches it first
-    pub(super) fn trim_shape(&mut self, site: &str, shape: &Shape, index: usize, lengths: &[usize]) {
+    pub(super) fn trim_shape(&mut self, site: &str, shape: &Shape, index: usize, lengths: &[usize], inherited_cap: bool) {
         for (target, length) in shape.targets.iter().zip(lengths) {
             if let Some(Value::Array(values)) = self.env.get_mut(target) { values.truncate(*length); }
         }
@@ -55,7 +57,7 @@ impl Runner<'_> {
                 _ => page.shape_positions.get(index.saturating_sub(1)).cloned(),
             };
             let inclusive = index == 0 && next.is_some();
-            self.shape_positions.insert(site.to_owned(), ShapePosition { rows: index, next, inclusive });
+            self.shape_positions.insert(site.to_owned(), ShapePosition { rows: index, next, inclusive, inherited_cap });
         }
     }
 }

@@ -1,5 +1,6 @@
-// Both byte-reporting scripts refuse an absent or corrupt budget; overruns
-// remain report-only until the author rules on a blocking gate.
+// Both byte-reporting scripts refuse an absent or corrupt budget. This helper
+// only reports; build-wasm.sh fails on an overrun (the budget is a ratchet, author
+// ruling 2026-09-18) while measure-wasm.sh records `over` and keeps measuring.
 import { readFileSync } from 'node:fs';
 const file = process.argv[2] ?? new URL('../metrics/wasm-budget.json', import.meta.url);
 try {

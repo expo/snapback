@@ -474,3 +474,28 @@ fn empty_rejoin<H: Host>(host: &mut H) {
 fn empty_rejoin_sqlite() { empty_rejoin(&mut Sqlite::new("empty")); }
 #[test]
 fn empty_rejoin_memory() { empty_rejoin(&mut Memory::new()); }
+
+fn current_join<H: Host>(host: &mut H) where H::Store: PhysicalRows {
+    for public in [false, true] { for leave in [false, true] {
+        let (mut engine, mut backend, from) = fixture(false, Value::Null);
+        if public {
+            // Public subset sync is admitted by the core but not yet by Quarry.
+            // Construct it directly without changing the authoring surface.
+            backend.schema.tables.get_mut("messages").unwrap().rules.read = snapback4_core::schema::RuleExpr::Allow;
+            backend.generation = engine.adopt(backend.schema.clone(), backend.programs.clone()).unwrap();
+        }
+        if leave { write(&mut engine, "leave", "leave", 150, &[]); }
+        let page = stream(&mut engine, from, 160);
+        let puts = page.events.iter().filter(|e| e.table == "messages" && e.kind == "put").count();
+        assert_eq!(puts, if leave { 0 } else { 26 }, "public={public} leave={leave}");
+        assert!(page.acquisitions.iter().all(|a| a.table != "messages"), "a horizonless acquisition needs no floor");
+        let mut device = host.open(&format!("current-{public}-{leave}"), Some(backend)).unwrap();
+        device.apply(&page, false).unwrap();
+        assert_eq!(device.store().message_count(), puts);
+        println!("{} horizonless current join: public={public} left={leave} rows={puts}", host.label());
+    } }
+}
+#[test]
+fn horizonless_join_and_closed_private_or_public_join_sqlite() { current_join(&mut Sqlite::new("w13k-history")); }
+#[test]
+fn horizonless_join_and_closed_private_or_public_join_memory() { current_join(&mut Memory::new()); }

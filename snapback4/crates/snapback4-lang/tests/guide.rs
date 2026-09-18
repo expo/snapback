@@ -1111,3 +1111,17 @@ fn w14b_digest_recipes_are_complete_and_share_the_period_helper() {
         assert!(!text.contains("exactly once across restarts") && !text.contains("exactly once per\nboundary"));
     }
 }
+
+#[test]
+fn host_unicode_refusal_explains_the_repair_and_search_contract() {
+    let why = explain_code("E_HOST_UNICODE").unwrap();
+    assert!(why.contains("family store"));
+    assert!(why.contains("standard String.prototype.normalize"));
+    assert!(why.contains("will not index text differently from the server"));
+    assert_eq!(snapback4_lang::diag::guide_for("E_HOST_UNICODE"), "search");
+    for text in [card("search").unwrap(), README] {
+        assert!(text.contains("browser's normalization"));
+        assert!(text.contains("refuses to open"));
+        assert!(text.contains("E_HOST_UNICODE"));
+    }
+}

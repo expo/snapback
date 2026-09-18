@@ -252,6 +252,9 @@ reaches the range's end, including without a cursor; a meter cut is incomplete.
 Direct table and maintain page cursors bind the evaluated prefix and active
 generation. Reusing one under another prefix or after adoption is refused;
 ordinary writes keep it valid, and rows can move between pages.
+Returning `group(page, 'roomId')` or `sort(page, 'at')`, directly, through a
+once-bound variable or nested as `group(sort(page, 'at'), 'roomId')`, carries
+the source page's `next` and `complete`/`cut` class on the server and both device stores.
 A filled direct page positions `next` after its last returned row. A meter-cut direct page
 positions after its last rule-visible examined row, even if the filter rejected
 it, never after a hidden row.
@@ -264,7 +267,14 @@ that loop drops a row whose shape the meter starved and every later row.
 supplies its exclusive position; otherwise the first unfinished rule-visible
 row supplies an inclusive position — provided the page's own materialization was
 not cut: a drain-cut merge with no fully computed emission, an opening cut or a
-word-limit cut retains no continuation. A shaped collector that is not the returned
+word-limit cut retains no continuation. Following an inclusive cursor that again
+starves the same first row's returned shape refuses with E_SHAPE_EXCEEDS_METER
+instead of returning an empty page with the same `next`: the message names the
+read site and ceiling (8,192 examined rows); bound it (`first N`/`last N`) or
+move it out of the returned shape. If an earlier read spent the meter, the
+refusal names the shape's source read and that earlier read; bound the earlier
+read or move the shape out of the returned shape.
+A shaped collector that is not the returned
 expression keeps today's behavior: its empty or partial shape stays on the page,
 with the existing continuation ownership and position, without trimming or rewind.
 This includes assigned shapes, records, conditionals, helpers, aliases and

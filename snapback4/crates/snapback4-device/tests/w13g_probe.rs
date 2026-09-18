@@ -157,30 +157,32 @@ fn wire_witness<H: Host>(host: &mut H) {
         let stream = stream_at(&mut engine, before, 4);
         let floor = stream.acquisitions.last().unwrap().floor.as_ref().unwrap();
         let expected = snapback4_core::rows::index_key(backend.schema.tables["posts"].index("byTime").unwrap(), &object([
-            ("id", id("p3")), ("group", Value::String("g".into())), ("at", Value::Int(3000)),
-        ]), "p3");
+            ("id", id("p1")), ("group", Value::String("g".into())), ("at", Value::Int(times[0])),
+        ]), "p1");
         assert_eq!(*floor, snapback4_core::value::encode_bytes_hex(&expected));
         assert_eq!(stream.acquisitions.last().unwrap().at, 2, "floor precedes the later put");
         device.apply(&stream, false).unwrap();
         let page = group_page(&mut device);
-        assert_eq!(page.0["data"], serde_json::json!([{"id":"p3","at":3000}]));
-        assert!(page.1);
-        // Both worlds narrow to p3's delivered current key.
+        assert_eq!(page.0["data"], serde_json::json!([{"id":"p3","at":3000},{"id":"p1","at":times[0]}]));
+        assert!(!page.1);
+        // A held row updates without moving either world's floor.
         engine.mutate("move", Some("move-p1"), context("dev:bob", &[("p", id("p1")), ("at", Value::Int(1_000))]).at(4)).unwrap();
         device.apply(&stream_at(&mut engine, stream.watermark, 4), false).unwrap();
         let page = group_page(&mut device);
-        assert_eq!(page.0["complete"], false);
-        assert_eq!(page.0["data"].as_array().unwrap().len(), 1);
+        assert_eq!(page.0["complete"], true);
+        assert_eq!(page.0["data"].as_array().unwrap().len(), 2);
         let payload = page_json(&stream);
         println!("{} acquired boundary at={} wire={payload}", host.label(), times[1]);
         payload
     });
-    assert_eq!(payloads[0]["events"], payloads[1]["events"], "current images still coincide");
-    assert_eq!(payloads[0], payloads[1]);
+    for (payload, at) in payloads.iter().zip([1000, 700]) {
+        assert_eq!(payload["events"][1]["data"]["at"], at, "each world delivers its current p1 image");
+    }
+    assert_ne!(payloads[0], payloads[1], "these worlds have different current readable states");
 }
 
 #[test]
-fn join_selection_narrows_to_identical_delivered_current_keys() {
+fn join_selection_delivers_each_worlds_current_readable_keys() {
     wire_witness(&mut Sqlite::new("w13g-wire")); wire_witness(&mut Memory::new());
 }
 
@@ -316,6 +318,7 @@ fn renewal<H: Host>(host: &mut H) {
     engine.mutate("renew", Some("continuous"), context("dev:bob", &[("t",Value::Int(2000))]).at(500)).unwrap();
     let page = stream_at(&mut engine, from, 500);
     assert!(page.acquisitions.is_empty(), "a continuous renewal does not reset the floor");
+    assert_eq!(page.events.iter().filter(|e| e.table == "posts" && e.kind == "put").count(), 2, "only the two ordinary puts expand; the renewal contributes none");
     device.apply(&page, false).unwrap();
     assert_eq!(boundaries(&mut device), original);
     assert!(group_page(&mut device).0["complete"].as_bool().unwrap());
@@ -502,3 +505,6 @@ fn empty_join_publishes_whole_and_invalidates_coverage() { empty_join(&mut Sqlit
 
 #[path = "w13g_review/mod.rs"]
 mod review;
+
+#[path = "w13g_review/renewal.rs"]
+mod renewal_review;

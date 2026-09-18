@@ -302,3 +302,42 @@ fn enum_text_helpers_storage_indexes_and_wire_keep_the_same_domain() {
     engine.mutate("put", None, context()).unwrap();
     assert_eq!(engine.query("get", context()).unwrap().data.field("label").unwrap(), &value);
 }
+
+/// A scalar already *is* the value, so the repair is to drop the field access, not to
+/// go and find a row. `int has no fields` was the most frequent compile error of the
+/// 0.2.28 calibration — 20 of its 32 `E_QUARRY_TYPE` — on a full group-key `maintain`
+/// lookup the builder had written `.value` on. The old rewrite, "read a row or an
+/// object before selecting a field", pointed away from the fix.
+#[test]
+fn w16h_a_scalar_field_access_is_told_to_drop_the_field_not_to_read_a_row() {
+    let source = "query q():\n  n = 1\n  return n.value\n";
+    let bound = bind("schema.q", source);
+    let diagnostic = &bound.diagnostics[0];
+    assert_eq!(diagnostic.message, "int has no fields");
+    assert_eq!(diagnostic.rewrite, "this is already a value — remove `.value`");
+    // An id is the one case where a row read really is what is missing: it keeps the
+    // older advice, so this change narrows the generic arm rather than replacing it.
+    clean("schema.q", &source.replace("n.value", "n"));
+}
+
+/// `x != null` is the right repair for most optionals and a trap for `bool ?`: it is
+/// also true when the value is `false`, so an author who follows it gets a condition
+/// that compiles, passes `check`, and silently inverts their intent on every
+/// explicitly-false row. Both spellings compiled green before this, so the rewrite was
+/// the only place the difference could be caught. The 0.2.28 calibration hit the class
+/// six times.
+#[test]
+fn w16h_a_bool_optional_condition_is_not_told_to_compare_against_null() {
+    let schema = "table prefs:\n  owner: principal\n  muted: bool ?\n  nickname: text <=40 ?\n  unique byOwner: owner\n  public 'p'\n  insert <- .owner = viewer\n  sync public last 500 by byOwner\n";
+    let query = |field: &str| format!("{schema}query q(who: principal):\n  p = prefs[who] ! else NOT_FOUND\n  if p.{field}:\n    return 1\n  return 0\n");
+
+    let optional_bool = bind("schema.q", &query("muted"));
+    assert_eq!(optional_bool.diagnostics[0].message, "if needs a bool condition, got bool ?");
+    assert_eq!(optional_bool.diagnostics[0].rewrite, "compare the value: `if x = true:` — `x != null` is also true when x is false");
+
+    // Every other optional keeps the advice that is correct for it.
+    let optional_text = bind("schema.q", &query("nickname"));
+    assert_eq!(optional_text.diagnostics[0].rewrite, "compare the value: `if x != null:`");
+
+    clean("schema.q", &query("muted").replace("if p.muted:", "if p.muted = true:"));
+}

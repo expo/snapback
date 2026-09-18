@@ -510,7 +510,11 @@ that loop drops a row whose shape the meter starved and every later row.
 supplies its exclusive position; otherwise the first unfinished rule-visible
 row supplies an inclusive position — provided the page's own materialization was
 not cut: a drain-cut merge with no fully computed emission, an opening cut or a
-word-limit cut retains no continuation. A shaped collector that is not the returned
+word-limit cut retains no continuation. Following an inclusive cursor that again
+starves the same first row's returned shape refuses with E_SHAPE_EXCEEDS_METER
+instead of returning an empty page with the same `next`: the message names the
+read site and ceiling (8,192 examined rows); bound it (`first N`/`last N`) or
+move it out of the returned shape. A shaped collector that is not the returned
 expression keeps today's behavior: its empty or partial shape stays on the page,
 with the existing continuation ownership and position, without trimming or rewind.
 This includes assigned shapes, records, conditionals, helpers, aliases and
@@ -624,7 +628,10 @@ charged to that chunk's meter. Writes belong inside a chunk.
   parenthesize the inner read, or move the modifier before `where`.
   `check --fix` adds parentheses to preserve the inner modifier, as in
   `where exists (messages[.roomId] matching q)`. A lone next-column comparison
-  lowers to a seek with N_SEEK. A full direct page's cursor is after its last result;
+  lowers to a seek with N_SEEK. Returning `group(page, 'roomId')` or `sort(page, 'at')`,
+  directly, through a once-bound variable or nested as `group(sort(page, 'at'), 'roomId')`,
+  carries the source page's `next` and `complete`/`cut` class on the server and both device stores.
+  A full direct page's cursor is after its last result;
   a cut direct page continues after the last rule-visible examined row, including a
   filter rejection, never a hidden row. The drop-and-retry rule applies only to
   the returned shape expression described under Shapes and helpers: a top-level
@@ -1012,6 +1019,8 @@ id`) under a per-chat rule checks the rule per row and is never
 `complete` (`N_NEVER_COMPLETE`): use `searchGrouped` or `searchNewest` to search the viewer's
 chats, or read on the device (§4).
 
+The web device folds through the browser's normalization, keeps Rust lowercase, and refuses to open with `E_HOST_UNICODE` when the browser's NFC disagrees with the contract's startup canaries.
+
 `searchNewest` merges matching pages from the viewer's chats, ordered by
 `at` and `id`: each lane is one verdict when its scope decides the rule,
 and the page is complete when all lanes are complete and the page fits the
@@ -1375,8 +1384,8 @@ has the matching grant, or that the mutation created the referenced group;
 `.principal = viewer` alone is a self-grant and fails `check`. Audience group
 and recipient columns must be immutable or guarded on update. This also covers
 insert-if-absent and upsert. The horizon `last N by index` bounds what a device acquires per group;
-the server carries each group's delivered selected boundary key (or `whole` for fewer
-than N selected rows, including an empty group) in additive acquisition metadata.
+the server carries each group's Nth delivered readable key (or `whole` for fewer
+than N readable rows, including an empty group) in additive acquisition metadata.
 Descending pages on that index are complete while they stay at or above the
 boundary by key. Crossing it returns the known suffix with `complete: false`
 and unknown coverage, and the online client asks the server. A never-acquired
@@ -1390,14 +1399,22 @@ acquisition, and staged snapshots publish it with their rows only after catch-up
 `acquisitions: [{ at, table, index, group, floor? }]`: markers apply before
 `events[at]`, or after all events when `at` equals their count. Missing `floor`
 begins acquisition; a completion supplies `whole` or the hex-encoded index key.
-A keyed completion starts at the oldest current readable selected key delivered
-by that acquisition. It narrows upward if an unselected, current readable row
-with no write after the join has a key at or above that boundary: that row was not acquired.
-Only row puts and deletes count as writes; membership joins and scopes do not.
-If no delivered key proves a complete suffix, the group stays unknown. Selection
-is at the join commit; its historical floor never decides completion or appears
-on the wire. `whole` proves the same claim without a lower bound, including when
-every selected row has since disappeared or become unreadable.
+An acquiring join selects the group's current readable rows when the stream
+serves it, newest first on the horizon index. The floor is the full key of the
+Nth delivered row, including its id tie-breaker; `whole` means the walk reached
+the group's end with fewer than N readable rows, including none. Expired and
+unreadable rows do not consume horizon slots. A cold snapshot uses the same
+readable-row selection; at a stable state and clock its floor matches the join's.
+Without a horizon an acquiring join delivers every current readable row.
+A continuous renewal expands no rows and preserves the original grant's acquisition
+if it has not yet been delivered. Contiguous renewals committed before the preceding
+grant expires keep that membership open; a revocation or expiry gap breaks the chain.
+Within one commit, a grant followed by continuous renewals acquires once at the
+grant; a revoked grant acquires nothing, and a rejoin starts a new chain.
+A join whose membership is already closed when served acquires nothing, even for
+publicly readable retained history.
+A row written after the join may arrive in the acquisition and again as a later
+put; applying it twice replaces the same row by id. A later deletion still deletes.
 Snapshot replies echo `after`; the device checks every
 continuation and requires the terminal page before catch-up publishes coverage.
 Unsolicited completions are ignored and reported in `device:acquisition-report`.
@@ -1420,8 +1437,8 @@ keeps ordinary coverage and fallback. `check --residency` names the proven
 components. The second local observation supplies every component that would
 stay local as its own query; the one server reply supplies those that need it.
 The composed read is `complete` only when the server answer and
-every locally kept component are complete; it reports `fresh: false`, no `since`,
-and no continuation. Offline or after a failed request, the whole local
+every locally kept component are complete; it reports `fresh: false` with `since`
+(the last sync's time captured before the server request, which the locally kept components are as of) and no continuation. Offline or after a failed request, the whole local
 answer stands.
 Composition is never entered while a predictable write is unobserved; the whole local answer stands until it settles.
 Every other shape keeps the separate-query recipe: keep a

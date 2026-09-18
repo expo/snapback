@@ -20,7 +20,7 @@ sqlite = ["dep:rusqlite", "dep:argon2"]
 # Evaluation-only server adapter; not linked into the CLI or device builds.
 postgres = ["sqlite", "dep:postgres"]
 # The browser device mints additional prediction ids through Web Crypto.
-web = ["getrandom/wasm_js"]
+web = ["getrandom/wasm_js", "dep:js-sys"]
 # Exercise the web-only engine choices in native device differentials.
 web-device-check = []
 
@@ -43,3 +43,6 @@ serde_json = { version = "1", features = ["unbounded_depth"] }
 
 [dev-dependencies]
 snapback4-lang = { path = "../snapback4-lang" }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys = { version = "=0.3.104", optional = true }

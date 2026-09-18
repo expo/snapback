@@ -57,6 +57,8 @@ or digit). The columns before it are the search's scope; the columns
 after it order the page and end in `id`, so a cursor continues it. A
 words index serves `matching` and nothing else, and cannot be unique.
 
+The web device folds through the browser's normalization, keeps Rust lowercase, and refuses to open with `E_HOST_UNICODE` when the browser's NFC disagrees with the contract's startup canaries.
+
 Indexed tokens and query terms are both truncated to 64 Unicode characters
 after folding (at most 256 UTF-8 bytes). Longer terms therefore search with
 that truncated prefix. The full composite word entry, including scope,

@@ -119,7 +119,7 @@ export function checkFamilies(families) {
   if (unexpected.length) refuse('unexpected serde reader/writer; content buffers come from #[serde(untagged)], #[serde(tag = …)] or #[serde(flatten)] on Deserialize types (LLP 3000.002#proposed-device-representation-and-codec-redesign):\n' + unexpected.map(([type, found]) => `${type}: ${[...found.keys()].join(', ')}`).join('\n'));
 }
 
-// @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — server-only code must not return to the web artifact.
+// @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — server-only code and Rust NFC tables must not return to the web artifact.
 export function checkAbsent(rows, retainingPath) {
   if (!rows.length) refuse('cannot check absent code in an empty census');
   // Match module segments regardless of mounting. Fully inlined or renamed logic
@@ -127,13 +127,16 @@ export function checkAbsent(rows, retainingPath) {
   // Only the core's namespace: a client module or a dependency that happens to be
   // called prefetch or admission is not server engine code.
   const forbidden = /snapback4_core(?:\[[0-9a-f]+\])?::(?:[A-Za-z0-9_]+::)*(?:(?:prefetch|admission|log_events)::|partition::(?:[A-Za-z0-9_]+::)*(?:row_changed|put|del|scope|join)(?=$|::|[<> ]))/;
-  const unexpected = rows.filter(row => forbidden.test(clean(row.name)));
+  // The NFC tables left the web artifact with S3: the crate's own path, at any mount, is forbidden;
+  // a symbol that merely contains the words (another crate's `unicode_normalization_cache`) is not.
+  const tables = /(?:^|[<(, ]|::)unicode_normalization(?:\[[0-9a-f]+\])?::/;
+  const unexpected = rows.filter(row => forbidden.test(clean(row.name)) || tables.test(row.name));
   const failures = unexpected.map(row => {
     const path = retainingPath(row.name);
     if (!path?.trim()) refuse(`no retaining path returned for ${row.name}`);
     return `${row.name} (${row.shallow_size} B)\n${path}`;
   });
-  if (failures.length) refuse(`server-only code retained in the web artifact:\n${failures.join('\n')}`);
+  if (failures.length) refuse(`forbidden code retained in the web artifact:\n${failures.join('\n')}`);
 }
 
 function retainingPath(artifact, name) {
@@ -195,7 +198,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   }
   if (args.includes('--check-absent')) {
     checkAbsent(kept, name => retainingPath(path.join(root, 'target/wasm-sym/wasm32-unknown-unknown/wasm/snapback4_device.wasm'), name));
-    lines.push('server-only absence check: ok');
+    lines.push('server-only and Unicode-table absence check: ok');
   }
   console.log(lines.join('\n'));
 } catch (error) { console.error(`attribute-wasm: ${error.message}`); process.exitCode = 1; }

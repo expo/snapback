@@ -78,6 +78,35 @@ The same weakness exists for a non-empty prefix, where `len() > prefix.len()`
 admits any index with one more column whatever its type; it is merely less
 visible there, because the grouping is at least correct.
 
+### Applying the advice turns the check green and silences the note
+
+This is the part that matters, and it is why item 1 is ranked HIGH rather than
+MEDIUM. Applying the note's own rewrite verbatim:
+
+```
+  sync public last 500 by byPair
+→ check: ok — 1 tables (1 synced), 1 operations, no problems, 15.6 ms
+```
+
+No problems. The note is gone. The builder has a green check and a residency
+set of 500 alphabetically-arbitrary follow rows.
+
+And the semantically correct horizon — adding `by byAt: at, id` and declaring
+`sync public last 500 by byAt` — produces the **identical** verdict:
+
+```
+→ check: ok — 1 tables (1 synced), 1 operations, no problems, 1.5 ms
+```
+
+Static compilation cannot tell "the 500 most recent follows" from "500
+arbitrary follows"; both are well-formed. Only a measurement against real data
+(`check --residency`) would ever show the difference, and nothing prompts the
+author to take one once the note has gone quiet.
+
+**So the rewrite string is the only point in the entire toolchain where this
+can be gotten right.** There is no downstream gate to catch a bad horizon. That
+is the argument for fixing it at the source rather than adding a check later.
+
 ### Smallest change
 
 An index qualifies as a horizon only if the column immediately after the prefix

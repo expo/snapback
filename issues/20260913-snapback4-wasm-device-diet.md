@@ -170,3 +170,38 @@ author. With S3 ruled in, and S4a and S2 revived, the device would be near
 ticket's 150,000 needs the S6 decision: a compact shared execution
 representation, or a web device that does less. This ticket stays open for
 that decision.
+
+## 2026-09-18 rulings: S3 landed, the budget is a ratchet, the target is re-set
+
+S3 landed on the author's ruling — NFC only from the browser, guarded at
+open — and the device is 409,620 B gzip (from 520,557 when this ticket was
+filed). `scripts/build-wasm.sh` now fails above `metrics/wasm-budget.json`
+(410,000); a landing that needs bytes raises it in the same commit with the
+reason. The 150,000 target is retired as a finding: no representation work
+reaches it, and the S6 decision is deferred. This ticket stays open as the
+ratchet's home and for S6; S2 (−19,897) and S4a (−34,781) wait on branches.
+
+## 2026-09-18 — oversized-sync merge qualification exceeds the fixed budget
+
+The resolved `sb4/mc-prereq-51b7a134` merge of `b88f5d6c9` into `1cbeebf90`
+(recovery commits `c2789d0c1`, `2e490e3e9`, `1cbeebf90`) builds a device of
+**1,496,678 B raw / 414,285 B gzip**, against the unchanged **411,000 B**
+ceiling: **3,285 B over**. Reproduce from `snapback4/` with
+`CARGO_BUILD_JOBS=1 bash scripts/build-wasm.sh`; the script exits 1 after
+producing the artifact. This is a merged-tree measurement, not an isolated
+attribution to one parent. See the dated merge entries in `snapback4/JOURNAL.md`
+and `/tmp/f188-merge-wasm-final.log`.
+
+The recovery reply now uses the existing shared `encoded` helper; this saves
+423 B compared with the initial 414,708 B merge build and preserves its JSON.
+Preventing receipt-helper inlining did not help and was reverted. Binaryen 132's
+existing optional `-Os` step increases gzip, so the script keeps the smaller
+artifact. A primitive-decoder experiment reached 412,871 B, still over, and
+would require additional positional-array parity work; it was reverted.
+The three-round repair loop stopped with all original typed-envelope parsing,
+authorization, acquisition and recovery fences intact. No budget, rule, card
+vocabulary or disclosure boundary was changed.
+
+Remaining work: reduce at least 3,285 B without weakening those semantics,
+then rerun the wasm size gate and affected device/client recovery checks.
+The present semantic test passes do not constitute a green size qualification.

@@ -1,0 +1,2 @@
+alice push(bob) while bob holds a poll: sent seq 1
+doctor: (doctor prints no effects line: nothing was recorded)

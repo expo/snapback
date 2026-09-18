@@ -6,8 +6,83 @@ fn ctx(cursor: Option<String>) -> Context {
     Context::new("dev:alice", [("c".into(), cursor.map(Value::String).unwrap_or(Value::Null)), ("q".into(), Value::String("cof".into()))].into()).at(100_000)
 }
 
+#[test]
+fn w13j_a_shape_that_cannot_finish_under_a_fresh_meter_refuses_the_follow() {
+    let source = "table items:\n  lane: int\n  by byLane: lane, id\n  public 'fixture'\n  sync public\nquery feed(c: cursor ?):\n  return items[0] after c first 1 by byLane { id, n: count(items[1] first 9000 by byLane) }\n";
+    let rows = std::iter::once(("a".to_owned(), 0)).chain((0..9000).map(|n| (format!("x{n:05}"), 1)))
+        .map(|(id, lane)| ("items".into(), object([("id", Value::Id(id)), ("lane", Value::Int(lane))]))).collect();
+    with_fixture(source, rows, |q| {
+        let first = q("feed", Context::new("dev:alice", [("c".into(), Value::Null)].into())).unwrap();
+        assert!(first.data.as_array().unwrap().is_empty());
+        assert_eq!((first.complete, first.cut), (false, Some(ReadCut::Meter)));
+        let cursor = first.next.expect("retry the first unfinished row");
+        assert!(decode_cursor(&Schema::default(), &cursor).unwrap().inclusive);
+        println!("W13j device={DEVICE}: first examined={} index_entries={} capped_at={:?}", first.metered.examined, first.metered.index_entries, first.capped_at);
+        let refusal = q("feed", Context::new("dev:alice", [("c".into(), Value::String(cursor))].into())).unwrap_err();
+        assert_eq!(refusal.code, "E_SHAPE_EXCEEDS_METER");
+        assert_eq!(refusal.message, "E_SHAPE_EXCEEDS_METER: the returned shape at programs.feed.1 examines more than the 8,192-row meter on its own; bound it (`first N`/`last N`) or move it out of the returned shape");
+        assert_eq!(refusal.guide.as_deref(), Some("reads"));
+    });
+}
+
 fn ids(page: &QueryOutcome) -> Vec<String> {
     page.data.as_array().unwrap().iter().map(|row| row.field("id").unwrap().as_str().unwrap().to_owned()).collect()
+}
+
+#[test]
+fn w13j_exclusive_or_advancing_inclusive_follows_and_finished_shapes_still_answer() {
+    let source = "table items:\n  lane: int\n  by byLane: lane, id\n  public 'fixture'\n  sync public\nquery feed(c: cursor ?, spare: cursor ?):\n  return items[0] after c first 1 by byLane { id, n: count(items[1] first 9000 by byLane) }\nquery bounded(c: cursor ?):\n  return items[0] after c first 1 by byLane { id, n: count(items[1] first 3 by byLane) }\n";
+    let rows = std::iter::once(("a".to_owned(), 0)).chain((0..9000).map(|n| (format!("x{n:05}"), 1)))
+        .map(|(id, lane)| ("items".into(), object([("id", Value::Id(id)), ("lane", Value::Int(lane))]))).collect();
+    with_fixture(source, rows, |q| {
+        let first = q("feed", Context::new("dev:alice", [("c".into(), Value::Null)].into())).unwrap();
+        let next = first.next.unwrap();
+        let position = decode_cursor(&Schema::default(), &next).unwrap();
+        for inclusive in [false, true] {
+            let mut earlier = position.clone();
+            earlier.values = vec![Value::Id("0".into())];
+            earlier.inclusive = inclusive;
+            let cursor = snapback4_core::cursor::encode_cursor(&Schema::default(), &earlier).unwrap();
+            let page = q("feed", Context::new("dev:alice", [("c".into(), Value::String(cursor)), ("spare".into(), Value::String(next.clone()))].into())).unwrap();
+            assert!(page.data.as_array().unwrap().is_empty());
+            assert_eq!((page.complete, page.cut, page.next), (false, Some(ReadCut::Meter), Some(next.clone())));
+        }
+        let mut exclusive = position;
+        exclusive.inclusive = false;
+        let cursor = snapback4_core::cursor::encode_cursor(&Schema::default(), &exclusive).unwrap();
+        let end = q("feed", Context::new("dev:alice", [("c".into(), Value::String(cursor))].into())).unwrap();
+        assert!(end.data.as_array().unwrap().is_empty() && end.complete && end.next.is_none());
+        let bounded = q("bounded", Context::new("dev:alice", [("c".into(), Value::String(next))].into())).unwrap();
+        assert_eq!(ids(&bounded), ["a"]);
+        assert_eq!(bounded.data.as_array().unwrap()[0].field("n").unwrap(), &Value::Int(3));
+        assert!(bounded.complete && bounded.next.is_none());
+    });
+}
+
+#[test]
+fn w13j_unfinishable_merge_shapes_refuse_in_both_directions() {
+    for direction in ["first", "last"] { for owner in ["lazy", "eager", "words"] {
+        let mut source = format!("{}{}{}query feed(c: cursor ?, q: text <=100):\n", table("msgs"), table("copy"), table("extra"));
+        if owner == "words" {
+            source = source.replace("  by byLane: lane, at, id", "  by byLane: lane, at, id\n  by byWords: lane, words(body), at, id");
+            source.push_str(&format!("  page = msgs[0] matching q after c {direction} 1 by byWords\n"));
+        } else {
+            source.push_str(&format!("  page = merge msgs after c {direction} 1 by byLane:\n    [0]\n    {}[1]\n", if owner == "eager" { "copy" } else { "" }));
+        }
+        source.push_str("  return page { id, n: count(extra[0] first 9000 by byLane) }\n");
+        let mut rows = vec![row("a", 0, 0, "coffee")];
+        rows.extend((0..9000).map(|n| extra(n, 0)));
+        with_fixture(&source, rows, |q| {
+            let first = q("feed", ctx(None)).unwrap();
+            assert!(ids(&first).is_empty());
+            assert_eq!((first.complete, first.cut), (false, Some(ReadCut::Meter)));
+            let next = first.next.expect("inclusive shape retry");
+            assert!(decode_cursor(&Schema::default(), &next).unwrap().inclusive);
+            let refusal = q("feed", ctx(Some(next))).unwrap_err();
+            assert_eq!(refusal.code, "E_SHAPE_EXCEEDS_METER", "{owner} {direction}");
+            assert_eq!(refusal.guide.as_deref(), Some("reads"));
+        });
+    } }
 }
 
 fn table(name: &str) -> String {
@@ -429,6 +504,41 @@ fn w13h_inherited_cap_cuts_range_merge_shapes() { inherited_lane_cap("range(1, 2
 
 #[test]
 fn w13h_inherited_cap_cuts_list_merge_shapes() { inherited_lane_cap("[1]"); }
+
+#[test]
+fn w13j_inherited_exhaustion_names_the_blocked_shape_and_prior_read() {
+    for domain in ["range(1, 2)", "[1]"] { for eager in [true, false] { for bound in [9000, 3] {
+        let details = if eager { table("extra").replace("lane, at, id", "lane, at") } else { table("extra") };
+        let source = format!("{}{}fn preview():\n  return merge extra first 2 by byLane:\n    [lane] for lane in {domain}\nquery feed(c: cursor ?, q: text <=100):\n  page = msgs[0] after c first 1 by byLane\n  spent = count(extra[0] first {bound} by byLane)\n  return page {{ id, preview: preview() }}\n", table("msgs"), details);
+        let mut rows = vec![row("a", 0, 0, ""), row("b", 0, 1, "")];
+        rows.extend((0..9000).map(|n| extra(n, 0)));
+        rows.extend((0..2).map(|n| extra(n, 1)));
+        with_fixture(&source, rows, |q| {
+            let first = q("feed", ctx(None)).unwrap();
+            if bound == 9000 {
+                assert_eq!((first.complete, first.cut), (false, Some(ReadCut::Meter)));
+                assert!(ids(&first).is_empty());
+                let cursor = first.next.expect("retry a's skipped lanes");
+                let position = decode_cursor(&Schema::default(), &cursor).unwrap();
+                assert!(position.inclusive);
+                assert_eq!(position.values, [Value::Int(0), Value::Id("a".into())]);
+                let refusal = q("feed", ctx(Some(cursor))).unwrap_err();
+                assert_eq!(refusal.code, "E_SHAPE_EXCEEDS_METER");
+                assert_eq!(refusal.message, "E_SHAPE_EXCEEDS_METER: the returned shape at programs.feed.0 cannot finish: the 8,192-row meter was spent at programs.feed.1 before it ran; bound that read (`first N`/`last N`) or move the shape out of the returned shape");
+                assert_eq!(refusal.guide.as_deref(), Some("reads"));
+            } else {
+                // The truncated prelude count stays incomplete, but no longer starves either shape.
+                assert_eq!((first.complete, first.cut), (false, None));
+                assert_eq!(ids(&first), ["a"]);
+                assert_eq!(first.data.as_array().unwrap()[0].field("preview").unwrap().as_array().unwrap().len(), 2);
+                let second = q("feed", ctx(Some(first.next.expect("the bounded prelude leaves room for a's shape")))).unwrap();
+                assert_eq!(ids(&second), ["b"]);
+                assert_eq!(second.data.as_array().unwrap()[0].field("preview").unwrap().as_array().unwrap().len(), 2);
+                assert!(!second.complete && second.cut.is_none() && second.next.is_none());
+            }
+        });
+    } } }
+}
 
 const LOOP_SELECTED: &str = "  selected = page if q = 'raw' else ignored\n  for i in range(0, 1):\n    selected = page if q = 'raw' else ignored\n";
 

@@ -835,6 +835,7 @@ version = "0.2.29"
 dependencies = [
  "argon2",
  "getrandom 0.3.4",
+ "js-sys",
  "postgres",
  "rusqlite",
  "serde",
@@ -850,6 +851,7 @@ dependencies = [
 name = "snapback4-device"
 version = "0.2.29"
 dependencies = [
+ "js-sys",
  "rusqlite",
  "serde",
  "serde_json",

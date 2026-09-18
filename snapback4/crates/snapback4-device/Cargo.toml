@@ -18,7 +18,7 @@ native = ["snapback4-core/sqlite", "dep:rusqlite", "wasm-host"]
 # The web keeps its wasm without the host: with it the device's wasm is
 # 647,583 B gzip against 312,924 (measured 2026-09-13); a web device answers
 # a native read by saying it has no module, and the client asks the server.
-web = ["dep:wasm-bindgen", "snapback4-core/web"]
+web = ["dep:wasm-bindgen", "dep:js-sys", "snapback4-core/web"]
 web-device-check = ["snapback4-core/web-device-check"]
 
 [dependencies]
@@ -27,6 +27,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = { version = "0.10", optional = true }
 wasm-bindgen = { version = "=0.2.127", optional = true }
+js-sys = { version = "=0.3.104", optional = true }
 rusqlite = { version = "0.40.2", features = ["bundled"], optional = true }
 
 [dev-dependencies]

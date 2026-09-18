@@ -61,8 +61,8 @@ group column to be non-optional: `null` cannot name a device partition, so
 `sync to participants[.threadId]` requires both copies of `threadId`.
 checks also cover insert-if-absent and upsert. The horizon
 `last N by index` bounds what a device acquires per group. The server sends
-an acquisition boundary: a safe suffix starting at a delivered selected key,
-or `whole` when fewer than N rows were selected, including an empty group.
+an acquisition boundary: a suffix starting at the Nth delivered readable key,
+or `whole` when fewer than N readable rows exist, including an empty group.
 A descending page on that index is complete while it stays at or above that
 boundary by key; crossing it returns only the known suffix with `complete: false`
 and unknown coverage, so the online client asks the server. Without a boundary
@@ -77,14 +77,22 @@ acquisition and publish with staged snapshot rows only after catch-up. The addit
 `events[at]` (or at the end): missing `floor` begins acquisition; completion
 carries `whole` or the hex-encoded index key. A completion without a matching
 begin is ignored and reported in device metadata (`device:acquisition-report`).
-A keyed completion starts at the oldest current readable selected key delivered
-by that acquisition. It narrows upward if an unselected, current readable row
-with no write after the join has a key at or above that boundary: that row was not acquired.
-Only row puts and deletes count as writes; membership joins and scopes do not.
-If no delivered key proves a complete suffix, the group stays unknown. Selection
-is at the join commit; its historical floor never decides completion or appears
-on the wire. `whole` proves the same claim without a lower bound, including when
-every selected row has since disappeared or become unreadable.
+An acquiring join selects the group's current readable rows when the stream
+serves it, newest first on the horizon index. The floor is the full key of the
+Nth delivered row, including its id tie-breaker; `whole` means the walk reached
+the group's end with fewer than N readable rows, including none. Expired and
+unreadable rows do not consume horizon slots. A cold snapshot uses the same
+readable-row selection; at a stable state and clock its floor matches the join's.
+Without a horizon an acquiring join delivers every current readable row.
+A continuous renewal expands no rows and preserves the original grant's acquisition
+if it has not yet been delivered. Contiguous renewals committed before the preceding
+grant expires keep that membership open; a revocation or expiry gap breaks the chain.
+Within one commit, a grant followed by continuous renewals acquires once at the
+grant; a revoked grant acquires nothing, and a rejoin starts a new chain.
+A join whose membership is already closed when served acquires nothing, even for
+publicly readable retained history.
+A row written after the join may arrive in the acquisition and again as a later
+put; applying it twice replaces the same row by id. A later deletion still deletes.
 Snapshot replies echo `after`; the device checks every
 continuation and requires the terminal page before catch-up publishes coverage.
 Empty groups consume page room too, so even a page with no rows can continue.
@@ -160,8 +168,8 @@ keeps ordinary coverage and fallback. `check --residency` names the proven
 components. The second local observation supplies every component that would
 stay local as its own query; the one server reply supplies those that need it.
 The composed read is `complete` only when the server answer and
-every locally kept component are complete; it reports `fresh: false`, no `since`,
-and no continuation. Offline or after a failed request, the whole local
+every locally kept component are complete; it reports `fresh: false` with `since`
+(the last sync's time captured before the server request, which the locally kept components are as of) and no continuation. Offline or after a failed request, the whole local
 answer stands.
 Composition is never entered while a predictable write is unobserved; the whole local answer stands until it settles.
 Every other shape keeps the separate-query recipe: keep a

@@ -496,6 +496,7 @@ impl Runner<'_> {
 
     /// The bounds of a scan: the cursor position and any value range.
     fn bounds(&mut self, scan: &Scan, table: &Table, index: &Index, prefix: Option<&[Value]>) -> Result<Bounds, RuntimeError> {
+        self.record_shape_cursor(&scan.site, None);
         let mut bounds = Bounds::default();
         let after = scan.after.as_deref().map(|value| self.expr(value)).transpose()?;
         let before = scan.before.as_deref().map(|value| self.expr(value)).transpose()?;
@@ -520,6 +521,7 @@ impl Runner<'_> {
                 if position.inclusive {
                     bounds.at_or_after = Some(values);
                 } else { bounds.after = Some(values); }
+                self.record_shape_cursor(&scan.site, Some(token));
             }
             Some(Value::Array(values)) if !scan.opaque_cursor => bounds.after = Some(values),
             Some(value) if !scan.opaque_cursor => bounds.after = Some(vec![value]),
@@ -754,10 +756,46 @@ impl Runner<'_> {
         self.discarded_page_loss || self.pages.iter().any(|(site, page)| page.interrupted || (page.next.is_some() && self.page_owner.as_ref() != Some(site)))
     }
 
-    // @ref LLP 3000.007.000#3 — publish merge candidates using the final answer's class, without deleting raw position-loss evidence.
+    fn record_shape_cursor(&mut self, site: &str, token: Option<String>) {
+        if self.page_depth != 0 || !self.page_plan.shapes.values().any(|shape| shape.page == site) { return; }
+        // Retain the already evaluated token, without evaluating its expression
+        // again or confusing an unused cursor argument with the page's input.
+        if let Some(token) = token { self.shape_cursors.insert(site.to_owned(), token); }
+        else { self.shape_cursors.remove(site); }
+    }
+
     pub(super) fn outcome_next_cursor(&self) -> Result<Option<String>, RuntimeError> {
+        // @ref LLP 3000.007.000#3 — publish merge candidates using the final answer's class, without deleting raw position-loss evidence.
         if self.non_uniform && self.page.as_ref().is_some_and(|page| page.merge) { return Ok(None); }
-        self.next_cursor()
+        let next = self.next_cursor()?;
+        // @ref LLP 3000.007#14 — ruling 35: a follow that cannot progress refuses
+        if let (Some(token), Some(page), Some(owner), Some((kind, site))) = (&next, &self.page, &self.page_owner, &self.meter.capped_at)
+            && page.inclusive && self.shape_cursors.get(owner) == Some(token)
+            && let Some((_, position)) = self.shape_positions.iter().find(|(shape, position)| position.rows == 0 && self.page_plan.shapes.get(*shape).is_some_and(|shape| shape.page == *owner)) {
+            // Zero fully shaped rows means the returned page is empty. Canonical
+            // token equality also binds inclusivity, descriptor, scope and position.
+            let (verb, ceiling, unit) = match kind {
+                MeterKind::Examined => ("examines", self.meter.ceilings.examined, "row"),
+                MeterKind::IndexEntries => ("visits", self.meter.ceilings.index_entries, "index-entry"),
+                MeterKind::RuleProbes => ("uses", self.meter.ceilings.rule_probes, "rule-probe"),
+                MeterKind::Steps => ("uses", self.meter.ceilings.steps, "step"),
+                MeterKind::HeapBytes => ("uses", self.meter.ceilings.heap_bytes, "heap-byte"),
+                MeterKind::OutputBytes => ("uses", self.meter.ceilings.output_bytes, "output-byte"),
+                MeterKind::RowsWritten => ("writes", self.meter.ceilings.rows_written, "written-row"),
+            };
+            let mut ceiling = ceiling.to_string();
+            let digits = ceiling.len();
+            for i in (1..digits).rev() { if (digits - i) % 3 == 0 { ceiling.insert(i, ','); } }
+            // A cap inherited by this shape names its source read, not the
+            // unrelated first exhaustion site retained by the meter.
+            let message = if position.inherited_cap {
+                format!("the returned shape at {owner} cannot finish: the {ceiling}-{unit} meter was spent at {site} before it ran; bound that read (`first N`/`last N`) or move the shape out of the returned shape")
+            } else {
+                format!("the returned shape at {site} {verb} more than the {ceiling}-{unit} meter on its own; bound it (`first N`/`last N`) or move it out of the returned shape")
+            };
+            return Err(RuntimeError::Structural { code: "E_SHAPE_EXCEEDS_METER", message });
+        }
+        Ok(next)
     }
 
     /// Encode the raw candidate; loss accounting never uses publication eligibility.
@@ -800,11 +838,13 @@ impl Runner<'_> {
         };
         // A merge's cursor names the merge's own scope; it is checked before
         // lane discovery so an empty discovery cannot admit a foreign token.
+        self.record_shape_cursor(&merge.site, None);
         if first.scan.opaque_cursor
             && let Some(after) = first.scan.after.as_deref()
             && let Value::String(token) = self.expr(after)?
         {
             decode_cursor_for(self.schema, &token, &first.scan.table, &first.scan.index, order, &suffix).map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
+            self.record_shape_cursor(&merge.site, Some(token));
         }
         let mut candidates: Vec<(Vec<Value>, Value)> = Vec::new();
         let mut seen = BTreeSet::new();
@@ -907,12 +947,14 @@ impl Runner<'_> {
             if key.len() < suffix_len { key.push(row.field("id").cloned().unwrap_or(Value::Null)); }
             key
         };
+        self.record_shape_cursor(&merge.site, None);
         if first.scan.opaque_cursor
             && let Some(after) = first.scan.after.as_deref()
             && let Value::String(token) = self.expr(after)?
         {
             decode_cursor_for(self.schema, &token, &first.scan.table, &first.scan.index, order, &suffix)
                 .map_err(|error| RuntimeError::Input(format!("cursor: {error}")))?;
+            self.record_shape_cursor(&merge.site, Some(token));
         }
         let key_of = |row: &Value| merge_key(row);
         let depth = self.page_depth;
