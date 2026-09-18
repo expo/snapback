@@ -170,3 +170,13 @@ author. With S3 ruled in, and S4a and S2 revived, the device would be near
 ticket's 150,000 needs the S6 decision: a compact shared execution
 representation, or a web device that does less. This ticket stays open for
 that decision.
+
+## 2026-09-18 rulings: S3 landed, the budget is a ratchet, the target is re-set
+
+S3 landed on the author's ruling — NFC only from the browser, guarded at
+open — and the device is 409,620 B gzip (from 520,557 when this ticket was
+filed). `scripts/build-wasm.sh` now fails above `metrics/wasm-budget.json`
+(410,000); a landing that needs bytes raises it in the same commit with the
+reason. The 150,000 target is retired as a finding: no representation work
+reaches it, and the S6 decision is deferred. This ticket stays open as the
+ratchet's home and for S6; S2 (−19,897) and S4a (−34,781) wait on branches.
