@@ -345,6 +345,31 @@ to `snapback/schema.q` unedited, and run.
 
 Run: `SB=<published binary> node measure.mjs` in a project holding the extracted block.
 
+## Published 0.2.29 (2026-09-18): the two fixes, pasted blind from the registry
+
+`snapback4-darwin-arm64@0.2.29` and `snapback4@0.2.29` were fetched with `npm pack` and the
+probes re-run unchanged:
+
+- **The horizon repair is in the pin.** `horizon-gap/` pages `p09 p08 p07`, `p06 p05 p04(1)` —
+  the server's pages; `horizon-gap-group/` `m09 m08 m07`, `m06 m05 m04*`; `growth.mjs`: the
+  device holds `p08…p12` after two likes on old posts, nothing beyond its horizon
+  (`RESULT-0.2.29.txt`, `GROWTH-0.2.29.txt`).
+- **`presence-d05/` — ruling 32 is in the pin.** bob's only client is an online client
+  holding a live query's change poll; alice runs `push(bob)`, whose body is
+  `if not exists connected[p]: emit notify { to: p }`; the server is stopped and `snapback4
+  doctor` read:
+
+```
+published 0.2.28:  alice push(bob) while bob holds a poll: sent seq 1
+                   doctor: (doctor prints no effects line: nothing was recorded)
+published 0.2.29:  alice push(bob) while bob holds a poll: sent seq 1
+                   doctor: effects   1 queued, 1 deferred (next at 1789720034998, +5s)
+```
+
+  That is grader finding d-05 of the 0.2.27 record, reproduced on 0.2.28 and closed on
+  0.2.29: the push a held poll used to swallow is recorded at commit and deferred five
+  seconds, to be cancelled by bob's next poll or delivered if none comes.
+
 ## What this record does not show
 
 A device store was run only in `horizon-gap/` (elsewhere the residency facts are the compiler's); no wall-clock claim is
