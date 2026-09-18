@@ -1,0 +1,139 @@
+{
+  "reportVersion": 1,
+  "lane": "astra-snapback4",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "/Users/ccheever/clique-sb4-20260918-astra-cal13/instrument/schema/social-messenger/assertions.json",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#E12",
+      "note": "Fresh user with known activity: API and the six UI tiles show posts 3, likes received 4, reposts received 1, replies received 4, followers 2, following 1, matching the seeded content (likes and replies on own posts, including a self-reply, counted)."
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#E2 (m8 m8-a02-insights-like-refresh); trace.md#E12",
+      "note": "Harness: likes 2 -> 3 after refresh. Grader: 4 -> 5 after sm-insights-refresh."
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#E12",
+      "note": "A post created today counts in the last day row, whose Unix-day ordinal equals floor(asOf/86400000) (UTC)."
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md#E12",
+      "note": "7 day rows rendered; 6 zero days shown as 0."
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md#E11",
+      "note": "Isolated instance (port 49365): the post with 3 likes ranks first."
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md#E11",
+      "note": "A post with 4 likes, aged past 24 h via the platform dev clock (/dev/clock/advance 25 h), is absent."
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "trace.md#E11",
+      "note": "1-like tie ranks newer before older; a heavily liked reply and 4 reposts do not affect ranking."
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#E8",
+      "note": "Isolated instance (port 49364), real 2-minute periods, all clients closed. Period 1 logged exactly one digest per active user with correct counts: A 1/1/3/2, B 1/0/0/0, C 0/0/5/3, E 0/0/1/1 (newFollowers/newPostsInFollowing/unreadMessages/unreadChats)."
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#E8",
+      "note": "Persona D (no activity) got no digest in any period."
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#E8",
+      "note": "Periods 2 and 4 (no new activity) emitted no digest."
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#E8",
+      "note": "Period 3: backend restarted 60 s before the boundary and again 8 s after it. Exactly one digest for A (unread 1/1). Server sent-effects list shows 5 digest effects, 5 distinct (user, periodEnd)."
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md#E8",
+      "note": "Traffic in C/E's private DM and in a group A had been removed from never reached A's counts; a tombstoned message was excluded."
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#E2 (m8 m8-a13-same-account-message-live)",
+      "note": "visibleMs 603."
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#E2 (m8 m8-a14-cross-device-read-state)",
+      "note": "clearVisibleMs 871."
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#E2 (m8 m8-a15-dual-offline-convergence)",
+      "note": "Web warm-offline on two Alice contexts; flush 263/421 ms; no duplicates."
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#E2 (m8 m8-a16-dual-offline-receipts)"
+    },
+    "m8-a17": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#E21",
+      "note": "No iOS-simulator durable-queue artifact exists. Harness summaries record ios-simulator-m8 pass:null not-recorded; artifacts/m8-ios is a Hermes export only. The lane's process-device replica proof is builder evidence, not the frozen simulator artifact. Not passed."
+    },
+    "m8-a18": {
+      "result": "fail",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md#E21",
+      "note": "No iOS-simulator durable-queue artifact exists. Harness summaries record ios-simulator-m8 pass:null not-recorded; artifacts/m8-ios is a Hermes export only. The lane's process-device replica proof is builder evidence, not the frozen simulator artifact. Not passed."
+    }
+  }
+}
