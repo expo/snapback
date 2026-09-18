@@ -576,7 +576,7 @@ reply. Both isolated failures reproduce with the compiled incoming client
 against the same final device. The broader file also timed out a pending-write
 case and retained handles; it was terminated to collect output. That timeout
 is not independently baseline-qualified. The bounded follow-up is
-[the lifecycle fixture ticket](../issues/20260918-snapback4-client-lifecycle-fixtures-lag-restore-preflight.md).
+[the lifecycle fixture ticket](../issues/closed/20260918-snapback4-client-lifecycle-fixtures-lag-restore-preflight.md), resolved in round 13 below.
 
 The wasm build reports 488,235 B gzip, 658 B above the incoming round-11
 artifact; the already-open size-budget ticket remains, and no publication was
@@ -591,3 +591,22 @@ the report preserves every individual result line and the complete command outpu
 The old-wire probe still reports server/device/reopened **1/1/1** in all four
 memory/SQLite fresh/abandoned variants. Ref-check passes with 484 LLP documents,
 9,443 references, zero errors; `git diff --check` passes.
+
+## Fix round 13 — complete-suite disposition
+
+The lifecycle follow-up is closed. Its mock implements `observe_store`, the
+native overlap witness checks preflight rejection with healthy-apply and
+no-stale-publication controls, and failure cleanup releases held requests and
+device calls. Removing the mock operation reproduces the pending-write timeout;
+restoring it passes, without production changes. All 56 lifecycle cases now
+finish normally. The full run also exposed stale acquisition, codec and
+recovery assertions and a baseline transport timing failure; their fixture
+repairs and individual base comparisons are in the
+[round-13 report](./target/review-fix13/report.md).
+
+Final `bash snapback4/scripts/test.sh` exits **1 in 579 s**, with every step
+passing except the known `worker.runGeneratedEffects` README coverage failure,
+also reproduced at base `27a8a4d66`. Client tests report **790 passed, 1 failed,
+3 skipped, 0 cancelled**. The report links both complete verbatim suite logs.
+The **488,235 B gzip / +658 B over round 11** measurement is now also recorded
+in the existing [size-budget ticket](../issues/20260913-snapback4-wasm-device-diet.md).

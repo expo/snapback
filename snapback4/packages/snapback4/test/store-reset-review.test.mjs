@@ -26,7 +26,7 @@ async function fixture(t, count = 1) {
   let store = "A", offline = false, schemaFailures = 0, core, client, changes;
   let queryGate, localGate, mutationGate, localStarts = 0, queryStarts = 0, schemaCalls = 0, mutationStarts = 0, syncStarts = 0;
   const reads = [], clients = [], sends = [];
-  let observing;
+  let adopting;
   const fetcher = async (input, init = {}) => {
     if (offline && !init.keepalive) throw new TypeError("offline");
     const path = new URL(input).pathname;
@@ -55,7 +55,7 @@ async function fixture(t, count = 1) {
   async function open() {
     const opener = webDevice({ wasm, persist });
     client = await createLocalClient({ url: `http://reset.test/${encodeURIComponent(t.name)}`, persona: "alice", device: { async open(...a) { const opened = core = await opener.open(...a); return { ...opened, async call(request) {
-      if (request.op === "observe_store") observing?.();
+      if (request.op === "adopt") adopting?.();
       const reply = await opened.call(request);
       if (request.op === "query" && localGate) { localStarts++; await localGate.promise; }
       return reply;
@@ -66,7 +66,7 @@ async function fixture(t, count = 1) {
   await open();
   return { get client() { return client; }, get core() { return core; }, open, persist, reads, sends,
     replace() { store = "B"; }, offline(v) { offline = v; }, failSchema(n) { schemaFailures = n; },
-    onObserve(callback) { observing = callback; },
+    onAdopt(callback) { adopting = callback; },
     stats() { return { queryStarts, localStarts, schemaCalls, mutationStarts, syncStarts }; },
     holdLocal() { return localGate = gate(); },
     holdQueries() { return queryGate = gate(); }, holdMutation() { return mutationGate = gate(); },
@@ -74,15 +74,17 @@ async function fixture(t, count = 1) {
   };
 }
 
-test("R2 item 2: getSnapshot is cleared and notified in the reset turn", async t => {
+test("R2 item 2: getSnapshot is cleared after validated reset and before backend adoption", async t => {
   const f = await fixture(t), watch = f.client.observe({ kind: "query", name: "marker" }, {}), notices = [];
-  watch.subscribe(() => notices.push(watch.getSnapshot()));
+  watch.subscribe(() => notices.push(structuredClone(watch.getSnapshot())));
   await until(() => watch.getSnapshot().fresh);
   assert.equal(watch.getSnapshot().data, "A");
+  notices.length = 0;
   let during;
-  f.onObserve(() => { during = watch.getSnapshot(); assert.deepEqual(during, { loading: true }); assert.deepEqual(notices.at(-1), during); });
+  f.onAdopt(() => { during ??= structuredClone(notices); });
   f.replace(); await f.client.sync();
-  assert.deepEqual(during, { loading: true });
+  assert.deepEqual(during?.[0], { loading: true }, "validated reset notifies loading before adoption can start");
+  assert.ok(during.every(read => read.data !== "A"), "the retired answer cannot be republished during adoption");
   await until(() => watch.getSnapshot().data === "B");
   assert.equal(watch.getSnapshot().fresh, true);
 });

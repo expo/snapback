@@ -170,3 +170,13 @@ author. With S3 ruled in, and S4a and S2 revived, the device would be near
 ticket's 150,000 needs the S6 decision: a compact shared execution
 representation, or a web device that does less. This ticket stays open for
 that decision.
+
+## 2026-09-18 Repair B lane, round 12 delta recorded in round 13
+
+The round-12 device is 488,235 B gzip, **+658 B** over round 11's
+487,577 B. Round 13's full blocking-suite build reproduces 1,686,925 B raw /
+488,235 B gzip: **36,235 B over** the current 452,000 B report-only budget
+in `snapback4/metrics/wasm-budget.json`. Round 13 changes test fixtures only;
+this records the lane's existing growth, without changing the budget or
+claiming size qualification. The full build output is retained in
+`snapback4/target/review-fix13/full-suite.log`. This ticket remains open.

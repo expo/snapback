@@ -37175,3 +37175,69 @@ mutations, source hashes and failures are in target/review-fix12/report.md.
 No push, rebase, merge or publication was performed.
 The final old-wire probe still reports server/device/reopened 1/1/1 in all four
 memory/SQLite fresh/abandoned variants.
+
+
+## 2026-09-18 — Repair B, fix round 13: lifecycle fixtures and the complete suite
+
+The lifecycle fixture now handles `observe_store`, and a successful reconnect
+probe supplies its `seq` head. The shared-native-store overlap witness asserts
+the real `E_GENERATION` preflight refusal, no apply, no published-watermark
+advance and exactly one pending prediction. Healthy startup and a fresh capture
+still reach apply; the fresh capture confirms the value once. Its unrelated
+changes poll is held so the deliberate sync interleaving owns the assertion.
+Production head validation and all production source remain unchanged.
+
+Removing the mock's observe-store implementation reproduces the pending-write
+timeout; the repaired isolated test passes in 75 ms. This is a fixture exception
+in settlement/sync, not a production hang. Clients register failure cleanup,
+held fake fetches honor abort, and device query/settlement gates release before
+cleanup awaits close. Injected failures in all three waits exit normally with
+status 1. The original timeout also now exits normally. The lifecycle follow-up
+moves to issues/closed/20260918-snapback4-client-lifecycle-fixtures-lag-restore-preflight.md.
+
+The first complete `bash snapback4/scripts/test.sh` run exited 1 in 720 s:
+all steps passed except client tests, which reported nine failures. Six stale
+assertions do not reproduce at base `27a8a4d66`: acquisition's inherited-default
+expectation on wasm/process, the codec's old apply-result shape, reset-before-
+commit equality, failed-admission persistence equality, and reset notification
+before validation. The acquisition tests now require the retained old generation
+until validated adoption; their healthy controls still require new defaults and
+outbox drainage. Codec checks include `published: true`. Recovery tests compare
+all durable records exactly while checking abandoned capture invalidation,
+send-revision advancement and the journal's replacement capture. Reset notices
+are copied when delivered and must start with loading before backend adoption;
+the retired answer cannot be republished.
+
+The other three first-run failures reproduce at base: the known README coverage
+gap for `worker.runGeneratedEffects` and the wasm/native maximum-pending-ID
+fixture timeouts. Those queues were making steady progress, not hanging. Each
+232/233/256-ID case now owns a server, and its inner replay wait is 30 s within
+the unchanged 40 s test deadline, with ten seconds reserved for setup/cleanup.
+Every receipt, cursor batch, exactly-once terminal event and drained outbox is
+still asserted. All six cases pass in the final full run. Base qualification
+rebuilt native, wasm and TypeScript from an archive; all 1,058 tracked blobs were
+verified against `27a8a4d66`. Only temporary compilation caches were removed;
+the source, rebuilt artifacts, hashes and logs remain.
+
+Final `bash snapback4/scripts/test.sh`: exit 1. Every step passed except the
+known, separately ticketed README coverage test, which is also red at base.
+Client result: 794 tests, 790 passed, 1 failed, 3 skipped, 0 cancelled; all 56
+lifecycle cases completed normally. Verbatim final script result:
+
+```text
+-- FAIL: client tests (564 s)
+== 1 failure(s) in 579 s
+   client tests
+```
+
+The suite chose serial client files automatically for host load 34.20 across
+10 CPUs. No check was bypassed. Complete verbatim outputs of both full runs,
+the failure-by-failure base comparison, cleanup probes and final fixture hashes
+are in `target/review-fix13/report.md` and its linked logs. `git diff --check`
+passes. This is the requested full-suite result, not an all-green claim.
+
+Wasm remains 1,686,925 B raw / 488,235 B gzip: **+658 B over round 11**
+(487,577 B), and **36,235 B over** the current 452,000 B report-only budget.
+The same note is appended to issues/20260913-snapback4-wasm-device-diet.md;
+that ticket stays open, with no budget change or size qualification claimed.
+No push, rebase, merge or publication was performed.

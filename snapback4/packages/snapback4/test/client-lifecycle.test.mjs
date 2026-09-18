@@ -33,7 +33,7 @@ async function held(gate, signal) {
   signal?.throwIfAborted();
   let abort;
   try {
-    await Promise.race([gate.promise, new Promise((_, reject) => {
+    return await Promise.race([gate.promise, new Promise((_, reject) => {
       abort = () => reject(signal.reason);
       signal?.addEventListener("abort", abort, { once: true });
     })]);
@@ -59,6 +59,7 @@ function emptyDevice(overrides = {}) {
       if (request.op === "meta") return { ok: null };
       if (request.op === "state") return { ok: { watermark: 0, generation: 1 } };
       if (request.op === "backend") return { ok: emptyBackend };
+      if (request.op === "observe_store") return { ok: { reset: false, backend_required: false, send_revision: request.page.send_revision, retired: {}, adoption_capture: {} } };
       if (request.op === "apply") return { ok: { touched: [] } };
       if (request.op === "query") return { ok: { data: [], complete: true, tables: [], unknown: false, nextExpiry: null } };
       if (request.op === "queued") return { ok: [] };
@@ -70,7 +71,7 @@ function emptyDevice(overrides = {}) {
   return { opener: { open: async () => core }, core, closed: () => closed };
 }
 
-test("online reconnect requires the authenticated GET /probe contract", { timeout: 10_000 }, async () => {
+test("online reconnect requires the authenticated GET /probe contract", { timeout: 10_000 }, async (t) => {
   const probes = [];
   const recoveredChanges = deferred();
   let recovered = false;
@@ -79,7 +80,7 @@ test("online reconnect requires the authenticated GET /probe contract", { timeou
     if (path === "/probe") {
       assert.equal(init?.method ?? "GET", "GET");
       const gate = deferred(); probes.push(gate);
-      return await gate.promise;
+      return await held(gate, init?.signal);
     }
     if (!recovered) return Response.json({}, { status: 503 });
     if (path === "/changes") {
@@ -88,6 +89,7 @@ test("online reconnect requires the authenticated GET /probe contract", { timeou
     }
     return Response.json({ data: [], complete: true, seq: 0, tables: [], viewer: "dev:alice" });
   } });
+  t.after(() => client.close());
   const observed = client.observe(query("read"), {});
   const unsubscribe = observed.subscribe(() => {});
   await until(() => client.link() === "offline", "failed request must take the online client offline");
@@ -99,12 +101,12 @@ test("online reconnect requires the authenticated GET /probe contract", { timeou
   await until(() => probes.length === 3, "client did not retry after an invalid 200 probe");
   assert.equal(client.link(), "offline", "a 200 without ok:true cannot claim recovery");
   recovered = true;
-  probes[2].resolve(Response.json({ ok: true }));
+  probes[2].resolve(Response.json({ ok: true, seq: 0 }));
   await until(() => client.link() === "online", "valid probe did not restore the link");
   unsubscribe(); observed.close(); await client.close();
 });
 
-test("online pending writes emit their terminal outcome exactly once", { timeout: 5000 }, async () => {
+test("online pending writes emit their terminal outcome exactly once", { timeout: 5000 }, async (t) => {
   let attempts = 0;
   const terminal = [];
   const client = createClient({ url: "http://write.invalid", persona: "alice", fetch: async (input) => {
@@ -112,6 +114,7 @@ test("online pending writes emit their terminal outcome exactly once", { timeout
     attempts++;
     return attempts === 1 ? Response.json({}, { status: 503 }) : Response.json({ state: "sent", seq: 7, result: { saved: true } });
   } });
+  t.after(() => client.close());
   const unsubscribe = client.onWrite((write) => terminal.push(write));
   const admitted = await client.mutate(send, { conversationId: "c1", body: "queued" });
   assert.equal(admitted.state, "pending");
@@ -122,14 +125,15 @@ test("online pending writes emit their terminal outcome exactly once", { timeout
   unsubscribe(); await client.close();
 });
 
-test("online auth refusal settles writes that were queued behind the refused request", { timeout: 5000 }, async () => {
+test("online auth refusal settles writes that were queued behind the refused request", { timeout: 5000 }, async (t) => {
   const reply = deferred();
   const terminal = [];
   let requests = 0;
-  const client = createClient({ url: "http://auth-tail.invalid", persona: "alice", fetch: async () => {
+  const client = createClient({ url: "http://auth-tail.invalid", persona: "alice", fetch: async (_input, init) => {
     requests++;
-    return reply.promise;
+    return held(reply, init?.signal);
   } });
+  t.after(() => client.close());
   client.onWrite((write) => terminal.push(write));
   const first = client.mutate(send, { n: 1 });
   const tail = client.mutate(send, { n: 2 });
@@ -145,7 +149,7 @@ test("online auth refusal settles writes that were queued behind the refused req
   await client.close();
 });
 
-test("local pending writes emit their terminal outcome exactly once", { timeout: 5000 }, async () => {
+test("local pending writes emit their terminal outcome exactly once", { timeout: 5000 }, async (t) => {
   const queued = [], reply = deferred(), probe = deferred();
   const device = emptyDevice({ call: async (request) => {
     if (request.op === "backend") return { ok: emptyBackend };
@@ -157,12 +161,13 @@ test("local pending writes emit their terminal outcome exactly once", { timeout:
   const client = await createLocalClient({ url: "http://write.invalid", persona: "alice", device: device.opener, fetch: async (input, init) => {
     const path = new URL(input).pathname;
     if (path === "/schema") throw new TypeError("offline at open");
-    if (path === "/m/send") return await reply.promise;
+    if (path === "/m/send") return await held(reply, init?.signal);
     if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 7, more: false, generation: 1, acknowledged: [] });
     if (path === "/probe") { await held(probe, init?.signal); return Response.json({ ok: true }); }
     if (path === "/changes") { await held(probe, init?.signal); return Response.json({ seq: 7, tables: [], generation: 1 }); }
     throw new Error(`unexpected request ${path}`);
   } });
+  t.after(() => client.close());
   const terminal = [];
   const unsubscribe = client.onWrite((write) => terminal.push(write));
   const admitted = await client.mutate(send, { conversationId: "c1", body: "queued" });
@@ -175,7 +180,7 @@ test("local pending writes emit their terminal outcome exactly once", { timeout:
   unsubscribe(); await client.close();
 });
 
-test("local reconnect requires the authenticated GET /probe contract", { timeout: 12_000 }, async () => {
+test("local reconnect requires the authenticated GET /probe contract", { timeout: 12_000 }, async (t) => {
   const device = emptyDevice();
   const probes = [], firstChange = deferred(), laterChange = deferred();
   let changes = 0;
@@ -187,18 +192,19 @@ test("local reconnect requires the authenticated GET /probe contract", { timeout
       if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 0, more: false, generation: 1, acknowledged: [] });
       if (path === "/changes") {
         changes++;
-        if (changes === 1) return await firstChange.promise;
+        if (changes === 1) return await held(firstChange, init?.signal);
         await held(laterChange, init?.signal);
         return Response.json({ seq: 0, tables: [], generation: 1 });
       }
       if (path === "/probe") {
         assert.equal(init?.method ?? "GET", "GET");
         const gate = deferred(); probes.push(gate);
-        return await gate.promise;
+        return await held(gate, init?.signal);
       }
       throw new Error(`unexpected request ${path}`);
     },
   });
+  t.after(() => client.close());
   firstChange.resolve(Promise.reject(new TypeError("offline")));
   await until(() => client.link() === "offline", "failed changes request must take the local client offline");
   await until(() => probes.length === 1, "local client did not probe", 5000);
@@ -208,7 +214,7 @@ test("local reconnect requires the authenticated GET /probe contract", { timeout
   probes[1].resolve(Response.json({ ok: "yes" }));
   await until(() => probes.length === 3, "local client did not retry after an invalid 200 probe", 5000);
   assert.equal(client.link(), "offline");
-  probes[2].resolve(Response.json({ ok: true }));
+  probes[2].resolve(Response.json({ ok: true, seq: 0 }));
   await until(() => client.link() === "online", "valid local probe did not restore the link");
   await client.close();
   assert.equal(device.closed(), 1);
@@ -254,7 +260,7 @@ test("local sync shrinks response-bound pages at one cursor and exposes an indiv
   }
 });
 
-test("local observations skip idle sync and rerun only after a changed page is applied", { timeout: 5000 }, async () => {
+test("local observations skip idle sync and rerun only after a changed page is applied", { timeout: 5000 }, async (t) => {
   const changes = [], log = [];
   let syncs = 0;
   const device = emptyDevice({ call: async (request) => {
@@ -269,6 +275,7 @@ test("local observations skip idle sync and rerun only after a changed page is a
     if (path === "/changes") { const gate = deferred(); changes.push(gate); await held(gate, init?.signal); return gate.answer; }
     throw new Error(`unexpected request ${path}`);
   } });
+  t.after(() => client.close());
   log.length = 0;
   const observed = client.observe(query("read"), {});
   const unsubscribe = observed.subscribe(() => {});
@@ -283,7 +290,7 @@ test("local observations skip idle sync and rerun only after a changed page is a
   unsubscribe(); observed.close(); await client.close();
 });
 
-test("local generation adoption reruns observations whose dependencies changed", { timeout: 5000 }, async () => {
+test("local generation adoption reruns observations whose dependencies changed", { timeout: 5000 }, async (t) => {
   const backend = (generation, table) => ({
     generation,
     schema: { tables: { [table]: { columns: {}, indexes: {}, sync: { audience: "public" } } } },
@@ -310,6 +317,7 @@ test("local generation adoption reruns observations whose dependencies changed",
     if (path === "/changes") { await held(change, init?.signal); return Response.json({ seq: 0, tables: [], generation: serverGeneration }); }
     throw new Error(`unexpected request ${path}`);
   } });
+  t.after(() => client.close());
   const observed = client.observe(query("read"), {});
   const unsubscribe = observed.subscribe(() => {});
   await until(() => observed.getSnapshot().data?.[0] === "old", "the generation-one observation did not run");
@@ -320,7 +328,7 @@ test("local generation adoption reruns observations whose dependencies changed",
   unsubscribe(); observed.close(); await client.close();
 });
 
-test("closing a pending watch prevents its response from scheduling expiry or rerunning dirty work", { timeout: 5000 }, async () => {
+test("closing a pending watch prevents its response from scheduling expiry or rerunning dirty work", { timeout: 5000 }, async (t) => {
   const realSetTimeout = globalThis.setTimeout;
   const realClearTimeout = globalThis.clearTimeout;
   const longTimers = [];
@@ -335,10 +343,11 @@ test("closing a pending watch prevents its response from scheduling expiry or re
       let queries = 0;
       const client = createClient({ url: "http://closed-online-watch.invalid", persona: "alice", waitSeconds: 0, fetch: async (input, init) => {
         const path = new URL(input).pathname;
-        if (path === "/q/read") { queries++; return queryReply.promise; }
+        if (path === "/q/read") { queries++; return held(queryReply, init?.signal); }
         if (path === "/changes") { const gate = deferred(); changes.push(gate); await held(gate, init?.signal); return gate.answer; }
         throw new Error(`unexpected request ${path}`);
       } });
+      t.after(() => client.close());
       const observed = client.observe(query("read"), {});
       const unsubscribe = observed.subscribe(() => {});
       await until(() => queries === 1 && changes.length === 1, "the online watch did not enter its query and poll");
@@ -370,6 +379,7 @@ test("closing a pending watch prevents its response from scheduling expiry or re
         if (path === "/changes") { await held(change, init?.signal); return Response.json({ seq: 0, tables: [], generation: 1 }); }
         throw new Error(`unexpected request ${path}`);
       } });
+      t.after(() => { queryReply.resolve({ ok: { data: [], complete: true, tables: [] } }); return client.close(); });
       const observed = client.observe(query("read"), {});
       const unsubscribe = observed.subscribe(() => {});
       await until(() => queries === 1, "the local watch did not enter its query");
@@ -388,7 +398,7 @@ test("closing a pending watch prevents its response from scheduling expiry or re
   }
 });
 
-test("local auth invalidation notifies viewer listeners before session deletion can fail", { timeout: 5000 }, async () => {
+test("local auth invalidation notifies viewer listeners before session deletion can fail", { timeout: 5000 }, async (t) => {
   const change = deferred();
   const session = { principal: "user:1", kind: "user", token: "token", expiresAt: Date.now() + 100_000 };
   const sessionStore = {
@@ -409,6 +419,7 @@ test("local auth invalidation notifies viewer listeners before session deletion 
     if (path === "/changes") { await held(change, init?.signal); return Response.json({ seq: 0, tables: [], generation: 1 }); }
     throw new Error(`unexpected request ${path}`);
   } });
+  t.after(() => client.close());
   const viewers = [];
   client.onViewer((viewer) => viewers.push(viewer));
   const read = await client.query(query("read"), {});
@@ -419,7 +430,7 @@ test("local auth invalidation notifies viewer listeners before session deletion 
   await client.close();
 });
 
-test("local observations rerun when the device-reported visible lifetime expires", { timeout: 5000 }, async () => {
+test("local observations rerun when the device-reported visible lifetime expires", { timeout: 5000 }, async (t) => {
   const change = deferred();
   let queries = 0, expiresAt = 0;
   const device = emptyDevice({ call: async (request) => {
@@ -435,6 +446,7 @@ test("local observations rerun when the device-reported visible lifetime expires
     if (path === "/changes") { await held(change, init?.signal); return Response.json({ seq: 0, tables: [], generation: 1 }); }
     throw new Error(`unexpected request ${path}`);
   } });
+  t.after(() => client.close());
   expiresAt = Date.now() + 80;
   const observed = client.observe(query("read"), {});
   const unsubscribe = observed.subscribe(() => {});
@@ -452,7 +464,7 @@ test("local observations rerun when the device-reported visible lifetime expires
   await client.close();
 });
 
-test("a refused device adopt keeps the previous backend active in JavaScript", { timeout: 5000 }, async () => {
+test("a refused device adopt keeps the previous backend active in JavaScript", { timeout: 5000 }, async (t) => {
   const oldBackend = {
     generation: 1,
     schema: { tables: { rows: { columns: {}, indexes: {}, sync: { audience: "public" } } } },
@@ -472,6 +484,7 @@ test("a refused device adopt keeps the previous backend active in JavaScript", {
     if (path === "/changes") { await held(changePoll, init?.signal); return Response.json({ seq: 0, tables: [], generation: serverGeneration }); }
     throw new Error(`unexpected request ${path}`);
   } });
+  t.after(() => client.close());
   serverGeneration = 2;
   await client.sync();
   const write = client.mutate(mutation("change"), {});
@@ -481,7 +494,7 @@ test("a refused device adopt keeps the previous backend active in JavaScript", {
   assert.equal((await write).state, "pending");
 });
 
-test("a failed native replacement falls back without a stale local answer and is retried", { timeout: 5000 }, async () => {
+test("a failed native replacement falls back without a stale local answer and is retried", { timeout: 5000 }, async (t) => {
   const oldBackend = {
     generation: 1,
     schema: { tables: {} },
@@ -520,6 +533,7 @@ test("a failed native replacement falls back without a stale local answer and is
     if (path === "/q/nativeRead") { serverQueries++; return Response.json({ data: ["server-new"], complete: true, tables: [] }); }
     throw new Error(`unexpected request ${path}`);
   } });
+  t.after(() => client.close());
 
   serverGeneration = 2;
   await client.sync();
@@ -534,7 +548,7 @@ test("a failed native replacement falls back without a stale local answer and is
   await client.close();
 });
 
-test("local prediction invalidation reruns only observations of written tables", { timeout: 5000 }, async () => {
+test("local prediction invalidation reruns only observations of written tables", { timeout: 5000 }, async (t) => {
   const backend = {
     generation: 1,
     schema: { tables: {
@@ -563,6 +577,7 @@ test("local prediction invalidation reruns only observations of written tables",
     if (path === "/changes") { await held(change, init?.signal); return Response.json({ seq: 0, tables: [], generation: 1 }); }
     throw new Error(`unexpected request ${path}`);
   } });
+  t.after(() => client.close());
   const a = client.observe(query("readA"), {}), b = client.observe(query("readB"), {});
   const ua = a.subscribe(() => {}), ub = b.subscribe(() => {});
   await until(() => runs.readA === 1 && runs.readB === 1, "initial observations did not run");
@@ -641,7 +656,7 @@ mutation increment(counterId: counters):
   return null
 `;
 
-async function fixture(t, additions = "") {
+async function fixture(t, additions = "", releases = []) {
   const directory = mkdtempSync(join(tmpdir(), "sb4-client-lifecycle-"));
   mkdirSync(join(directory, "snapback"));
   writeFileSync(join(directory, "snapback/schema.q"), readFileSync(join(root, "apps/chat/snapback/schema.q"), "utf8") + extra + additions);
@@ -652,6 +667,7 @@ async function fixture(t, additions = "") {
   child.stderr.on("data", (data) => { log += data; });
   const clients = new Set(), children = new Set();
   t.after(async () => {
+    for (const gate of releases) gate.resolve();
     await Promise.allSettled([...clients].map((client) => client.close()));
     for (const device of children) if (device.exitCode == null && device.signalCode == null) device.kill("SIGTERM");
     if (child.exitCode == null && child.signalCode == null) child.kill("SIGTERM");
@@ -860,15 +876,19 @@ for (const tier of ["wasm", "native"]) {
     await f.seed([{ table: "counters", row: { id: "counter", value: 0 } }]);
     const entered = deferred(), release = deferred(), committed = deferred();
     let holdSync = false, refuseSync = false;
-    const applyRefusals = [];
+    const preflights = [], applies = [];
+    let observerCore;
     const observer = await f.open(tier, { name: "shared", wrapNative: (core) => ({
       async call(request) {
+        observerCore = core;
         const result = await core.call(request);
-        if (request.op === "apply" && result.denied) applyRefusals.push(result.denied);
+        if (request.op === "observe_store") preflights.push(result);
+        if (request.op === "apply") applies.push(result);
         return result;
       },
       close: () => core.close(),
     }), fetch: async (input, init) => {
+      if (new URL(input).pathname === "/changes") await held(deferred(), init.signal);
       if (new URL(input).pathname === "/sync" && holdSync) { holdSync = false; entered.resolve(); await held(release, init.signal); }
       return fetch(input, init);
     } });
@@ -881,17 +901,30 @@ for (const tier of ["wasm", "native"]) {
       }
       return fetch(input, init);
     } });
+    assert.ok(applies.some(result => result.ok), "a healthy startup response reaches apply");
+    const published = (await observerCore.call({ op: "state" })).ok.watermark;
+    preflights.length = 0; applies.length = 0;
     holdSync = true; refuseSync = true;
-    const sync = observer.sync().then(() => null, (error) => error);
+    const sync = observer.sync();
     await entered.promise;
     const counter = query("counter"), counterArgs = { counterId: "counter" };
     const write = sender.mutate(mutation("increment"), counterArgs);
     await committed.promise;
     release.resolve();
-    const error = await sync;
-    assert.ok(applyRefusals.length > 0, `the device's transaction rejects the stale send revision (${error?.message ?? "no error"})`);
-    assert.equal((await observer.query(counter, counterArgs)).data.value, 1, "the prediction is retained once after rejecting the stale page");
+    await sync;
+    const refused = preflights.filter(result => result.denied);
+    assert.equal(refused.length, 1, "the overlapping send invalidates the sync capture at preflight");
+    assert.equal(refused[0].denied.code, "E_GENERATION");
+    assert.match(refused[0].denied.message, /mutation send overlapped/);
+    assert.deepEqual(applies, [], "preflight rejects the stale capture before apply");
+    assert.equal((await observerCore.call({ op: "state" })).ok.watermark, published, "a refused page cannot advance the published watermark");
+    const retained = await observer.query(counter, counterArgs);
+    assert.equal(retained.data.value, 1, "the prediction is retained once after rejecting the stale page");
+    assert.equal(retained.data.pending, true, "the stale reply cannot publish a confirmed value");
+    preflights.length = 0;
     await observer.sync();
+    assert.ok(preflights.some(result => result.ok), "a fresh capture passes preflight");
+    assert.ok(applies.some(result => result.ok), "the correlated healthy response still reaches apply");
     const confirmed = await observer.query(counter, counterArgs);
     assert.equal(confirmed.data.value, 1);
     assert.equal(confirmed.data.pending, undefined);
@@ -1165,10 +1198,11 @@ test("close aborts online posts and stops admission", { timeout: 10_000 }, async
   assert.equal((await f.server.query(thread, args)).data.length, 2);
 });
 
-test("device process failures reject opening and pending calls instead of leaving close waiting", { timeout: 3000 }, async () => {
+test("device process failures reject opening and pending calls instead of leaving close waiting", { timeout: 3000 }, async (t) => {
   const opener = (script) => processDevice({ binary: process.execPath, dir: "unused", spawn: (command) => spawn(command, ["-e", script], { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async () => {} });
   await assert.rejects(opener("process.exit(4)").open("unused", null), /exited/);
   const core = await opener('process.stdout.write(JSON.stringify({ok:true}) + "\\n"); process.stdin.once("data", () => process.exit(5));').open("unused", null);
+  t.after(() => core.close());
   await assert.rejects(core.call({ op: "state" }), /exited/);
   await core.close();
   await assert.rejects(core.call({ op: "state" }), /closed|exited/);
@@ -1236,9 +1270,10 @@ test("device compatibility accepts the current core online and on an offline reo
   assert.equal(restored.data.length, 2); assert.equal(restored.fresh, false);
 });
 
-test("online serialization failures retain the minted id without scheduling network retries", async () => {
+test("online serialization failures retain the minted id without scheduling network retries", async (t) => {
   let requests = 0;
   const client = createClient({ url: "http://invalid", persona: "alice", fetch: async () => { requests++; throw Error("should not send"); } });
+  t.after(() => client.close());
   const circular = {}; circular.self = circular;
   const result = await client.mutate(send, circular);
   assert.equal(result.state, "failed");
@@ -1251,8 +1286,8 @@ test("online serialization failures retain the minted id without scheduling netw
 
 for (const tier of ["wasm", "native"]) {
   test(`${tier}: close waits for an applying acknowledgment and aborts sync`, { timeout: 10_000 }, async (t) => {
-    const f = await fixture(t);
     const entered = deferred(), release = deferred();
+    const f = await fixture(t, "", [release]);
     let storeClosed = false;
     const wrapNative = (core) => ({
       async call(request) {

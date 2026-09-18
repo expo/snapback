@@ -73,7 +73,12 @@ for (const fault of ["before-commit", "after-commit"]) test(`IndexedDB model: re
   await core.close(); core = await opener.open(name, null); t.after(() => core.close());
   const after = await persist.load(name);
   if (fault === "before-commit") {
-    assert.deepEqual(after, before);
+    // Recovery abandons the previous owner's request capture and fences its
+    // replies. Every other durable record still belongs to the old transaction.
+    const expected = new Map(before.map(({ s, k, v }) => [`${s} ${k}`, v]));
+    assert.ok(expected.delete("m device:declaration:capture"));
+    expected.set("m device:send_revision", String(Number(expected.get("m device:send_revision") ?? 0) + 1));
+    assert.deepEqual(new Map(after.map(({ s, k, v }) => [`${s} ${k}`, v])), expected);
     ok(await core.call({ op: "observe_store", page: page("B", []) }));
   }
   const reset = await persist.load(name);
