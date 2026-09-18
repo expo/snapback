@@ -81,9 +81,21 @@ visible there, because the grouping is at least correct.
 ### Smallest change
 
 An index qualifies as a horizon only if the column immediately after the prefix
-is a `time` column. If none qualifies, fall through to the branch that already
-exists and is already right — the one that tells the author to add the index
-first:
+is minted in time order — that is, a `time` column **or** `id`. Ids qualify by
+construction: `crates/snapback4-core/src/ids.rs:1-4` — "48 bits of milliseconds,
+80 bits of entropy, spelled as 26 Crockford base32 digits so ids sort as text in
+the order they were minted".
+
+Admitting `id` is not a convenience; it is what keeps the blessed horizon in the
+test corpus correct. `by byConversation: conversationId, id` under
+`sync to members[.conversationId] last 500 by byConversation` selects the 500
+most recently minted reactions in that conversation, which is exactly what it
+should mean. A rule that admitted only `time` would condemn it wrongly.
+
+For `follows` every index leads with a `principal` (`byPair` → `follower`,
+`byTarget` and `byTargetTime` → `target`), so under this rule none qualify and
+the table falls through to the branch that already exists and is already right —
+the one that tells the author to add the index first:
 
 ```
 by byAt: at, id  -- then: sync public last 500 by byAt
