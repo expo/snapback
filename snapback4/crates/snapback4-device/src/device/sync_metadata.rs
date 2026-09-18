@@ -24,9 +24,15 @@ pub struct SyncCapture {
     recover: bool,
 }
 
+#[derive(Serialize)]
+pub struct MetadataObservation {
+    snapshot: bool,
+    retired: BTreeMap<String, u64>,
+}
+
 impl<S: DeviceStore> Device<S> {
     // @ref LLP 3000.007#18.2 — request-local fences precede all durable recovery effects.
-    pub fn sync_metadata(&mut self, metadata: SyncMetadata, capture: SyncCapture) -> Result<bool, RuntimeError> {
+    pub fn sync_metadata(&mut self, metadata: SyncMetadata, capture: SyncCapture) -> Result<MetadataObservation, RuntimeError> {
         let tx = self.store.transaction()?;
         store_identity::require_healthy(&tx)?;
         if !metadata.metadata || metadata.store_id.is_empty() || metadata.generation == 0
@@ -38,20 +44,26 @@ impl<S: DeviceStore> Device<S> {
             || meta_u64(&tx, WATERMARK)? != capture.captured_watermark {
             return Err(RuntimeError::Generation("sync metadata does not match its device capture; retry sync".into()));
         }
-        if metadata.watermark < capture.captured_watermark {
+        if metadata.generation < capture.generation {
+            return Err(RuntimeError::Generation("sync metadata generation is obsolete; retry sync".into()));
+        }
+        // Cursors currently span generations (MAX(_commits.seq)); metadata
+        // from another generation still cannot establish a same-epoch rewind.
+        if metadata.generation == capture.generation && metadata.watermark < capture.captured_watermark {
             tx.set_meta(store_identity::RESTORE_REFUSED, "1")?;
             tx.commit()?;
             return Err(store_identity::restore_error());
         }
-        if metadata.generation < capture.generation {
-            return Err(RuntimeError::Generation("sync metadata generation is obsolete; retry sync".into()));
-        }
+        let mut retired = BTreeMap::new();
         let snapshot = metadata.recovery.as_ref().is_some_and(|decision| decision.snapshot);
         if snapshot {
             if capture.store_id.as_ref() != Some(&metadata.store_id) || !capture.recover || !(capture.from > 0 || capture.stream) || capture.from > metadata.watermark
                 || metadata.generation != capture.generation || metadata.recovery.as_ref().unwrap().from != capture.from {
                 return Err(RuntimeError::Generation("snapshot recovery does not match its requested position".into()));
             }
+            // stream=true is staged catch-up only: apply(first snapshot)
+            // established this lease and its through-position. Success retires
+            // it; the next from-zero snapshot creates the next lease.
             if (!capture.stream && capture.from != capture.captured_watermark)
                 || (capture.stream && (self.snapshot_owner.is_none() || self.snapshot_owner != tx.meta(SNAPSHOT_OWNER)?
                     || meta_u64(&tx, SNAPSHOT_THROUGH)? != capture.from)) {
@@ -60,6 +72,7 @@ impl<S: DeviceStore> Device<S> {
             store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
             let revision = capture.send_revision.checked_add(1).filter(|n| *n <= 9_007_199_254_740_991)
                 .ok_or_else(|| RuntimeError::Store("send revision overflow".into()))?;
+            retired = store_identity::retire_known(&tx)?;
             // Keep confirmed rows/history and the restore watermark. Persist the
             // obligation before any snapshot request, including across reopen.
             tx.set_meta(SNAPSHOT_REQUIRED, "1")?;
@@ -70,6 +83,6 @@ impl<S: DeviceStore> Device<S> {
         }
         tx.commit()?;
         if snapshot { self.snapshot_owner = None; }
-        Ok(snapshot)
+        Ok(MetadataObservation { snapshot, retired })
     }
 }

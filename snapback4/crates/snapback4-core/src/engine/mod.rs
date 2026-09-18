@@ -754,15 +754,21 @@ impl Engine {
     /// a stream page. Devices suppress those overlays before the mutation
     /// response arrives, but keep retrying for its complete result.
     pub fn acknowledged(&mut self, principal: &str, pending: &[String], through: u64) -> Result<BTreeMap<String, u64>, RuntimeError> {
+        let tx = self.store.read_transaction()?;
+        let acknowledged = Self::acknowledged_in(&tx, principal, pending, through)?;
+        tx.rollback()?;
+        Ok(acknowledged)
+    }
+
+    /// Reuse the caller's read snapshot when sizing a complete sync reply.
+    pub fn acknowledged_in(tx: &crate::store::Tx<'_>, principal: &str, pending: &[String], through: u64) -> Result<BTreeMap<String, u64>, RuntimeError> {
         use rusqlite::OptionalExtension;
         if pending.len() > 256 || pending.iter().any(|id| id.len() > 128) { return Err(RuntimeError::Input("sync accepts at most 256 pending ids of at most 128 bytes".into())); }
-        let tx = self.store.read_transaction()?;
         let mut acknowledged = BTreeMap::new();
         for id in pending {
             let seq: Option<i64> = tx.conn().query_row("SELECT seq FROM _ops WHERE principal = ?1 AND id = ?2 AND seq <= ?3", rusqlite::params![principal, id, through.min(i64::MAX as u64) as i64], |row| row.get(0)).optional()?;
             if let Some(seq) = seq { acknowledged.insert(id.clone(), u64::try_from(seq).map_err(|_| RuntimeError::Store("negative stored operation sequence".into()))?); }
         }
-        tx.rollback()?;
         Ok(acknowledged)
     }
 

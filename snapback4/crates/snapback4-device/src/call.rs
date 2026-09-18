@@ -64,7 +64,7 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
             "sync_metadata" => {
                 let metadata = parse(take(&mut request, "metadata")?)?;
                 let capture = parse(take(&mut request, "capture")?)?;
-                json!({ "snapshot": device.sync_metadata(metadata, capture)? })
+                json!(device.sync_metadata(metadata, capture)?)
             }
             "begin_send" => json!({ "send_revision": device.begin_send()? }),
             "adopt" => {

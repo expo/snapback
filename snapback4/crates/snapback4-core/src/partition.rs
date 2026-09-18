@@ -600,6 +600,14 @@ fn intervals(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermark
 
 #[cfg(feature = "sqlite")]
 pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermark: u64, limit: usize, now: i64) -> Result<StreamPage, RuntimeError> {
+    Ok(stream_inspected(tx, schema, principal, watermark, limit, now, |_| Ok(true))?.expect("ordinary streaming visits every event"))
+}
+
+/// Inspect each currently readable wire event before retaining its image.
+/// A false result abandons the whole page; no partial commit can escape.
+#[cfg(feature = "sqlite")]
+pub fn stream_inspected(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermark: u64, limit: usize, now: i64,
+    mut inspect: impl FnMut(&LogEvent) -> Result<bool, RuntimeError>) -> Result<Option<StreamPage>, RuntimeError> {
     let limit = limit.max(1);
     let head = tx.next_seq()?.saturating_sub(1);
     let expiring_audience = schema.synced().any(|(_, _, sync)| match &sync.audience {
@@ -607,7 +615,7 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
         _ => false,
     });
     // A cursor from a replaced database is not evidence that this store reached it.
-    if watermark > head || (watermark == head && !expiring_audience) { return Ok(StreamPage { acquisitions: Vec::new(), events: Vec::new(), watermark: head, more: false, joined: BTreeMap::new() }); }
+    if watermark > head || (watermark == head && !expiring_audience) { return Ok(Some(StreamPage { acquisitions: Vec::new(), events: Vec::new(), watermark: head, more: false, joined: BTreeMap::new() })); }
     let held = intervals(tx, schema, principal, watermark)?;
     let mut spans = vec![(partition_of(principal), watermark.saturating_add(1), None, None), (PUBLIC.to_owned(), watermark.saturating_add(1), None, None)];
     for ((table, group), intervals) in &held {
@@ -702,9 +710,10 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
             }
             if event.data.is_none() { event.kind = "del".into(); }
         }
+        if !inspect(&event)? { return Ok(None); }
         events.push(event);
     }
-    Ok(StreamPage { acquisitions: published, events, watermark: next, more, joined })
+    Ok(Some(StreamPage { acquisitions: published, events, watermark: next, more, joined }))
 }
 
 #[cfg(feature = "sqlite")]

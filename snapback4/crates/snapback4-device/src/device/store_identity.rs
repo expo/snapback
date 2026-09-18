@@ -83,19 +83,12 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<StoreObs
         tx.set_meta(BACKEND_REQUIRED, page.store_id.as_deref().unwrap_or("legacy"))?;
         tx.delete_meta(&[ACQUIRED, SNAPSHOT_REQUIRED, history::GROUPS, boundary::BOUNDARIES, boundary::REPORT])?;
         tx.delete_meta(&SNAPSHOT_KEYS)?;
+        retired = retire_known(tx)?;
         for data in tx.outbox_entries()? {
             let mut entry: Queued = decoded(&data)?;
-            if let Some(seq) = entry.sent_seq.or(entry.observed_seq) {
-                // A receipt proves execution in the old store. It is not
-                // permission to execute that write in the replacement.
-                keep_write(tx, &serde_json::json!({ "state": "sent", "id": entry.id, "seq": seq, "replayed": true }).to_string())?;
-                retired.insert(entry.id.clone(), seq);
-                tx.outbox_delete(&entry.id)?;
-            } else {
-                entry.predictable = false;
-                entry.predicted.clear();
-                predictions::enqueue(tx, &entry)?;
-            }
+            entry.predictable = false;
+            entry.predicted.clear();
+            predictions::enqueue(tx, &entry)?;
         }
     }
     if identity_changed {
@@ -121,6 +114,21 @@ impl<S: DeviceStore> Device<S> {
         if observed.restore_refused { return Err(restore_error()); }
         Ok(observed)
     }
+}
+
+// Both identity replacement and measured recovery retire only known writes.
+// Call after capture/owner checks, in the transaction that fences acquisition.
+pub(super) fn retire_known<T: DeviceTx>(tx: &T) -> Result<BTreeMap<String, u64>, RuntimeError> {
+    let mut retired = BTreeMap::new();
+    for data in tx.outbox_entries()? {
+        let entry: Queued = decoded(&data)?;
+        if let Some(seq) = entry.sent_seq.or(entry.observed_seq) {
+            keep_write(tx, &serde_json::json!({ "state": "sent", "id": entry.id, "seq": seq, "replayed": true }).to_string())?;
+            retired.insert(entry.id.clone(), seq);
+            tx.outbox_delete(&entry.id)?;
+        }
+    }
+    Ok(retired)
 }
 
 // Receipt retirement and its durable history share the fenced transaction.

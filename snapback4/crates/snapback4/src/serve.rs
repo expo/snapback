@@ -599,6 +599,13 @@ struct SyncEvent<'a> {
     table: &'a str,
 }
 
+impl<'a> From<&'a snapback4_core::store::LogEvent> for SyncEvent<'a> {
+    fn from(event: &'a snapback4_core::store::LogEvent) -> Self {
+        Self { data: event.data.as_ref().map(wire::Plain), id: &event.id,
+            kind: &event.kind, seq: Some(event.seq), table: &event.table }
+    }
+}
+
 // Own the reply so `respond` drops its rows after encoding, before socket I/O.
 enum SyncEvents {
     Snapshot(Vec<snapback4_core::partition::Event>),
@@ -612,10 +619,7 @@ impl serde::Serialize for SyncEvents {
                 data: event.data.as_ref().map(wire::Plain), id: &event.id,
                 kind: event.kind.word(), seq: None, table: &event.table,
             })),
-            Self::Stream(events) => serializer.collect_seq(events.iter().map(|event| SyncEvent {
-                data: event.data.as_ref().map(wire::Plain), id: &event.id,
-                kind: &event.kind, seq: Some(event.seq), table: &event.table,
-            })),
+            Self::Stream(events) => serializer.collect_seq(events.iter().map(SyncEvent::from)),
         }
     }
 }

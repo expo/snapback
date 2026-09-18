@@ -548,6 +548,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     void result.finally(() => { if (syncing === result) syncing = null; }).catch(() => {});
     return result;
   }
+  async function publishRetired(retired: Record<string, number>) {
+    for (const [id, sentSeq] of Object.entries(retired)) {
+      const receipt: Write = { state: "sent", id: id as Write["id"], seq: sentSeq, replayed: true };
+      await history.keep(receipt);
+      settled.get(id)?.(receipt); settled.delete(id);
+      emitWrite(receipt);
+    }
+  }
+
   async function syncRound(): Promise<boolean> {
     caughtUp = false;
     if (closed || sessionDead || partitionDenied?.code === "E_STORE_RESTORE") return false;
@@ -559,6 +568,31 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     let catchingUp = false;
     let pageLimit = PAGE;
     let needsMetadata = false;
+    async function adoptBackend(page: SyncPage, store_id: unknown, expectedGeneration?: number): Promise<boolean> {
+      let backendRevision = credentialRevision;
+      const backendIncarnation = incarnation;
+      try {
+        const request = requestCredentials();
+        backendRevision = request.revision;
+        const nextBackend = await loadBackend(doFetch, base, request.headers, aborter.signal);
+        if (closed || backendIncarnation !== incarnation || request.revision !== credentialRevision) return false;
+        if (expectedGeneration !== undefined && nextBackend.generation !== expectedGeneration) return false;
+        const adopted = await call({ op: "adopt", backend: nextBackend, store_id, send_revision: page.send_revision, captured_watermark: page.captured_watermark });
+        await refreshAcquired();
+        if (adopted.denied) return false;
+        incarnation++;
+        serverAnswers.clear();
+        backend = nextBackend;
+        generation = Number(nextBackend.generation ?? page.generation ?? generation);
+        nativeReady = false;
+        adoptedGeneration = true;
+        nativeReady = await installNative(aborter.signal);
+      } catch (error) {
+        if (error instanceof BackendAuthError) await refusedSession(error.denied, backendRevision);
+        return false;
+      }
+      return true;
+    }
     try {
       for (let pages = 0; pages < 100_000; pages++) {
         let page: SyncPage;
@@ -624,28 +658,36 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (pageIncarnation !== incarnation || pageRevision !== credentialRevision) return false;
         if (discovering) {
           // Metadata has its own fenced command: no fabricated stream page,
-          // identity observation, receipt retirement or row installation.
+          // identity observation or row installation. Only a measured grant
+          // can retire known receipts in the fenced recovery transaction.
           const checked = await call({ op: "sync_metadata", metadata: page, capture: metadataCapture });
           if (checked.denied) { refuseRestore(checked.denied); return false; }
-          if ((checked.ok as { snapshot: boolean }).snapshot) {
+          const recovery = checked.ok as { snapshot: boolean; retired: Record<string, number> };
+          if (recovery.snapshot) {
             observeIncarnation(storeIdentity, true);
+            await call({ op: "set_meta", key: "syncedAt", value: "0" });
+            await publishRetired(recovery.retired);
             await refreshAcquired();
             watermark = 0; after = undefined; catchingUp = false; needsMetadata = false;
             continue;
           }
-          if (Number(page.generation) === generation && !backendRequired) {
-            // A bare refusal may shrink a page, but even at one it cannot
-            // authorize a snapshot or a durable partition refusal.
-            if (pageLimit === 1) return false;
-            pageLimit = Math.max(1, Math.floor(pageLimit / 2));
-            needsMetadata = false;
+          if (Number(page.generation) !== generation || backendRequired) {
+            if (!await adoptBackend(page, requestedStore ?? null, Number(page.generation))) return false;
+            watermark = 0; after = undefined; catchingUp = false; needsMetadata = false;
             continue;
           }
+          // A bare refusal may shrink a page, but even at one it cannot
+          // authorize a snapshot or a durable partition refusal. Every
+          // metadata outcome ends here, before the stream install path.
+          if (pageLimit === 1) return false;
+          pageLimit = Math.max(1, Math.floor(pageLimit / 2));
+          needsMetadata = false;
+          continue;
         }
         // @ref LLP 3000.007#18.2 — sync identity retires the old partition before any read or outbox replay.
         let replacedStore = false;
-        if (!discovering && typeof page.store_id === "string") observeIncarnation(page.store_id);
-        if (!discovering && ((typeof page.store_id === "string" && page.store_id !== requestedStore) || Number(page.watermark) < watermark)) {
+        if (typeof page.store_id === "string") observeIncarnation(page.store_id);
+        if ((typeof page.store_id === "string" && page.store_id !== requestedStore) || Number(page.watermark) < watermark) {
           const observed = await call({ op: "observe_store", page });
           if (observed.denied) { refuseRestore(observed.denied); return false; }
           const observation = observed.ok as { reset: boolean; backend_required?: boolean; send_revision: number; retired: Record<string, number> };
@@ -658,46 +700,20 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             lastSyncAt = 0;
             await call({ op: "set_meta", key: "syncedAt", value: "0" });
             adoptedGeneration = true;
-            for (const [id, sentSeq] of Object.entries(observation.retired)) {
-              const receipt: Write = { state: "sent", id: id as Write["id"], seq: sentSeq, replayed: true };
-              await history.keep(receipt);
-              settled.get(id)?.(receipt); settled.delete(id);
-              emitWrite(receipt);
-            }
+            await publishRetired(observation.retired);
             for (const watch of watches.values()) void rerun(watch);
             watermark = 0; seq = 0; after = undefined; catchingUp = false;
             replacedStore = true;
           }
         }
-        if (!discovering && typeof page.store_id === "string") storeIdentity = page.store_id;
+        if (typeof page.store_id === "string") storeIdentity = page.store_id;
         if (link !== "online") setLink("online");
         partitionDenied = null;
         const pageGeneration = Number(page.generation ?? generation);
         if (pageGeneration !== generation || replacedStore || backendRequired) {
           // Generation counters restart with a new store. Reload the backend
           // even when its number matches, then acquire its current partition.
-          let backendRevision = credentialRevision;
-          const backendIncarnation = incarnation;
-          try {
-            const request = requestCredentials();
-            backendRevision = request.revision;
-            const nextBackend = await loadBackend(doFetch, base, request.headers, aborter.signal);
-            if (closed || backendIncarnation !== incarnation || request.revision !== credentialRevision) return false;
-            if (discovering && nextBackend.generation !== pageGeneration) return false;
-            const adopted = await call({ op: "adopt", backend: nextBackend, store_id: discovering ? requestedStore ?? null : page.store_id ?? requestedStore ?? null, send_revision: page.send_revision, captured_watermark: page.captured_watermark });
-            await refreshAcquired();
-            if (adopted.denied) return false;
-            incarnation++;
-            serverAnswers.clear();
-            backend = nextBackend;
-            generation = Number(nextBackend.generation ?? pageGeneration);
-            nativeReady = false;
-            adoptedGeneration = true;
-            nativeReady = await installNative(aborter.signal);
-          } catch (error) {
-            if (error instanceof BackendAuthError) await refusedSession(error.denied, backendRevision);
-            return false;
-          }
+          if (!await adoptBackend(page, page.store_id ?? requestedStore ?? null)) return false;
           watermark = 0; after = undefined; catchingUp = false; needsMetadata = false; continue;
         }
         if (Number(page.watermark) < watermark || (catchingUp && page.snapshot) || (page.snapshot && page.more && !page.next)) return false;

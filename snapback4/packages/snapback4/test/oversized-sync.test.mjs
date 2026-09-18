@@ -59,9 +59,9 @@ async function fixture(t, tier) {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-oversized-'));
   mkdirSync(join(dir, 'snapback'));
   writeFileSync(join(dir, 'snapback/schema.q'), source);
-  const child = spawn(binary, ['dev', '--port', '0', '--fresh'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(binary, ['dev', '--port', '0', ...(process.env.SB4_FILE_SERVER ? [] : ['--fresh'])], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
   const exit = once(child, 'exit');
-  let log = '', url, client, core, offline = false, intercept;
+  let log = '', url, client, core, offline = false, intercept, backendRequired = false, snapshotRequired = false;
   child.stdout.on('data', b => { log += b; url ??= log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0]; });
   child.stderr.on('data', b => { log += b; });
   t.after(async () => {
@@ -83,7 +83,7 @@ async function fixture(t, tier) {
   const openClient = () => createLocalClient({ url, persona: 'alice', waitSeconds: 1,
     device: { open: async (...args) => {
       core = await opener.open(...args);
-      return { close: () => core.close(), call: async request => { calls.push(request); return core.call(request); } };
+      return { close: () => core.close(), call: async request => { calls.push(request); const result = await core.call(request); if (request.op === 'sync_state' && result.ok) { if (backendRequired) result.ok.backend_required = true; if (snapshotRequired) result.ok.snapshot_required = true; } return result; } };
     } },
     fetch: async (input, init) => {
       if (offline) throw new TypeError('offline fixture');
@@ -107,10 +107,14 @@ async function fixture(t, tier) {
   return { get client() { return client; }, get core() { return core; }, requests, replies, calls, before, seed, post, dir, url,
     reopen: async () => { await client.close(); client = await openClient(); },
     intercept: handler => { intercept = handler; },
+    requireBackend: () => { backendRequired = true; },
+    requireSnapshot: () => { snapshotRequired = true; },
     online: () => { offline = false; requests.length = 0; replies.length = 0; calls.length = 0; },
     adopt: async () => {
+      const head = (await post('/sync', { metadata: true })).watermark;
       writeFileSync(join(dir, 'snapback/schema.q'), source.replace('return 1', 'return 2'));
       await until(async () => (await fetch(url + '/schema', { headers: { 'x-snapback-persona': 'alice' } }).then(r => r.json())).generation > before.generation, 'generation change');
+      assert.equal((await post('/sync', { metadata: true })).watermark, head, 'program adoption preserves the global commit cursor');
     },
   };
 }
@@ -199,7 +203,7 @@ for (const tier of ['wasm', 'process']) test(`${tier}: many ordinary commits rec
 });
 
 const bound = { denied: { code: 'E_BOUND', family: 'bound', message: 'the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values' } };
-for (const tier of ['wasm', 'process']) for (const restore of [true, false]) test(`${tier}: older-generation metadata ${restore ? 'still detects a same-store restore' : 'cannot adopt a stale generation'}`, async t => {
+for (const tier of ['wasm', 'process']) for (const restore of [true, false]) test(`${tier}: older-generation metadata ${restore ? 'with a lower head stays obsolete' : 'cannot adopt a stale generation'}`, async t => {
   const f = await fixture(t, tier);
   await f.adopt();
   f.online(); await f.client.sync();
@@ -216,8 +220,8 @@ for (const tier of ['wasm', 'process']) for (const restore of [true, false]) tes
   assert.equal(after.store_id, before.store_id);
   assert.equal(after.watermark, before.watermark);
   assert.equal(after.generation, before.generation);
-  assert.equal(after.restore_refusal?.code, restore ? 'E_STORE_RESTORE' : undefined);
-  assert.equal(after.acquired, !restore);
+  assert.equal(after.restore_refusal, undefined);
+  assert.equal(after.acquired, true);
   assert.ok(f.calls.every(r => r.op !== 'adopt' && r.op !== 'observe_store' && r.op !== 'apply'));
 });
 for (const tier of ['wasm', 'process']) for (const fault of ['unchanged', 'generic', 'foreign']) test(`${tier}: ${fault} metadata after bare refusals preserves held rows outside the horizon`, async t => {
@@ -283,4 +287,207 @@ for (const tier of ['wasm', 'process']) for (const fault of ['send', 'watermark'
   assert.equal(retained.ok.data[0].body, 'keep this delivered history');
   assert.ok(f.calls.every(r => r.op !== 'apply'), 'metadata is never a stream page');
   assert.ok(f.calls.every(r => r.op !== 'observe_store' && r.op !== 'keep_write'), 'metadata cannot retire identity or receipts');
+});
+
+for (const tier of ['wasm', 'process']) test(`${tier}: G1 backend-required discovery cannot install metadata`, async t => {
+  const f = await fixture(t, tier);
+  f.requireBackend();
+  const before = (await f.core.call({ op: 'sync_state' })).ok;
+  assert.ok(before.watermark > 0);
+  let discoveries = 0;
+  // Inject one refusal, then leave only discovery available. Adoption may run,
+  // but its next request must be a fresh ordinary page, never this metadata.
+  let first = true;
+  const metadataHandler = async (path, request, send) => {
+    if (path !== '/sync') return;
+    if (!request.metadata) {
+      if (first) { first = false; return Response.json(bound); }
+      throw new TypeError('stop before the ordinary acquisition');
+    }
+    discoveries++;
+    return Response.json({ ...await send().then(r => r.json()), snapshot: true, events: [], commits: [], more: false });
+  };
+  f.intercept(metadataHandler);
+  f.online(); await f.client.sync();
+  assert.equal(discoveries, 1);
+  assert.ok(f.calls.some(r => r.op === 'sync_metadata'));
+  assert.ok(f.calls.every(r => r.op !== 'apply'), 'metadata must never enter row installation, including with backend_required');
+  const after = (await f.core.call({ op: 'sync_state' })).ok;
+  assert.equal(after.watermark, before.watermark);
+  assert.equal((await f.core.call({ op: 'query', name: 'retained', viewer: 'dev:alice', args: {}, now: Date.now() })).ok.data[0].body, 'keep this delivered history');
+});
+
+for (const tier of ['wasm', 'process']) for (const change of [-1, 1]) test(`${tier}: G3 ${change < 0 ? 'obsolete' : 'successor'} generation with a lower head does not restore-refuse`, async t => {
+  const f = await fixture(t, tier);
+  await f.adopt(); f.online(); await f.client.sync();
+  const before = (await f.core.call({ op: 'sync_state' })).ok;
+  const capture = { store_id: before.store_id, generation: before.generation, send_revision: before.send_revision,
+    captured_watermark: before.watermark, from: before.watermark, stream: false, recover: false };
+  const result = await f.core.call({ op: 'sync_metadata', capture, metadata: {
+    metadata: true, store_id: before.store_id, generation: before.generation + change, watermark: 0,
+  } });
+  assert.equal(result.denied?.code, change < 0 ? 'E_GENERATION' : undefined, JSON.stringify(result));
+  assert.deepEqual((await f.core.call({ op: 'sync_state' })).ok, before, 'different-generation metadata cannot persist a restore halt');
+  await f.reopen();
+  assert.equal((await f.core.call({ op: 'sync_state' })).ok.restore_refusal, undefined);
+  await f.client.sync();
+  assert.equal(f.client.acquired, true);
+});
+
+for (const tier of ['wasm', 'process']) test(`${tier}: G2 measured reset retires known receipts after the fence`, async t => {
+  const f = await fixture(t, tier);
+  await f.seed([{ table: 'held', row: { id: 'unseen-write', body: 'committed' } }]);
+  for (const [index, id] of ['known-receipt', 'unknown-receipt'].entries()) {
+    const admitted = await f.core.call({ op: 'admit', entry: { id, seq: index + 1, op: 'leave', args: {}, viewer: 'dev:alice', now: Date.now(), predictable: false } });
+    assert.ok(!admitted.denied, JSON.stringify(admitted));
+  }
+  assert.ok(!(await f.core.call({ op: 'settle', id: 'known-receipt', seq: f.before.watermark + 1 })).denied);
+  const capture = (await f.core.call({ op: 'sync_state' })).ok;
+  const queued = (await f.core.call({ op: 'queued' })).ok;
+  assert.deepEqual(queued.map(r => r.id), ['known-receipt', 'unknown-receipt']);
+  const stale = await f.core.call({ op: 'sync_metadata', metadata: { metadata: true, store_id: capture.store_id,
+    generation: capture.generation, watermark: capture.watermark, recovery: { from: capture.watermark, snapshot: true } },
+    capture: { ...capture, captured_watermark: capture.watermark, from: capture.watermark, stream: false, recover: true, send_revision: capture.send_revision + 1 } });
+  assert.equal(stale.denied?.code, 'E_GENERATION');
+  assert.deepEqual((await f.core.call({ op: 'queued' })).ok, queued);
+  assert.deepEqual(JSON.parse((await f.core.call({ op: 'meta', key: 'write-history' })).ok ?? '[]'), []);
+  let resetState, history, queue;
+  f.intercept(async (path, request, send) => {
+    if (path !== '/sync') return;
+    if (!request.metadata) {
+      if (request.from > 0) return Response.json(bound);
+      resetState = (await f.core.call({ op: 'sync_state' })).ok;
+      history = JSON.parse((await f.core.call({ op: 'meta', key: 'write-history' })).ok ?? '[]');
+      queue = (await f.core.call({ op: 'queued' })).ok;
+      throw new TypeError('interrupt before snapshot');
+    }
+    const metadata = await send().then(r => r.json());
+    if (request.recover) metadata.recovery = { from: request.from, snapshot: true };
+    return Response.json(metadata);
+  });
+  f.online(); await f.client.sync();
+  assert.equal(resetState?.snapshot_required, true);
+  assert.ok(history.some(r => r.id === 'known-receipt'), 'the fenced reset must durably preserve the known receipt before requesting a snapshot');
+  assert.deepEqual(queue.map(r => r.id), ['unknown-receipt']);
+  assert.ok(f.calls.findIndex(r => r.op === 'keep_write') > f.calls.findLastIndex(r => r.op === 'sync_metadata'), 'host receipt publication follows the device fence');
+  await f.reopen();
+  assert.ok(JSON.parse((await f.core.call({ op: 'meta', key: 'write-history' })).ok).some(r => r.id === 'known-receipt'));
+});
+
+if (process.env.SB4_CONTENTION) test('metadata measurement writer contention', { timeout: 240000 }, async t => {
+  const f = await fixture(t, 'process');
+  for (const count of [48, 192]) {
+    const from = (await f.post('/sync', { metadata: true })).watermark;
+    const rows = Array.from({ length: count }, (_, i) => ({ table: 'items', row: { id: `measure-${count}-${i}`, body: 'small' } }));
+    await f.seed(rows);
+    for (let i = 0; i < count; i += 4) await f.seed(rows.slice(i, i + 4).map(({ table, row }) => ({ table, row: { ...row, body: 'x'.repeat(400000) } })));
+    const metadata = await f.post('/sync', { metadata: true });
+    const request = { metadata: true, recover: true, store_id: metadata.store_id, generation: metadata.generation, from, limit: 1 };
+    const baseline = [], samples = [];
+    const write = async id => { const start = performance.now(); await f.seed([{ table: 'held', row: { id, body: 'writer' } }]); return performance.now() - start; };
+    for (let n = 0; n < 5; n++) baseline.push(await write(`baseline-${count}-${n}`));
+    for (let n = 0; n < 5; n++) {
+      const start = performance.now();
+      const measuring = f.post('/sync', request).then(reply => { assert.equal(reply.recovery?.snapshot, true); return performance.now() - start; });
+      await pause(5);
+      const writers = Promise.all(Array.from({ length: 3 }, (_, i) => write(`concurrent-${count}-${n}-${i}`)));
+      samples.push({ measurementMs: await measuring, writerMs: await writers });
+    }
+    t.diagnostic(JSON.stringify({ count, materializedBytes: count * 400000, baselineWriterMs: baseline, samples }));
+  }
+});
+
+for (const tier of ['wasm', 'process']) test(`${tier}: first overflow during staged catch-up owns a lease and can restart`, { timeout: 120000 }, async t => {
+  const f = await fixture(t, tier);
+  let enlarged = false;
+  f.requireSnapshot();
+  f.intercept(async (path, request, send) => {
+    if (path !== '/sync' || request.metadata || request.from !== 0 || request.stream || enlarged) return;
+    const page = await send();
+    enlarged = true;
+    // The first snapshot precedes the indivisible commit; the first catch-up
+    // therefore overflows after apply established its private snapshot lease.
+    const rows = Array.from({ length: 48 }, (_, i) => ({ table: 'items', row: { id: `catchup-${String(i).padStart(2, '0')}`, body: 'small' } }));
+    await f.seed(rows);
+    for (let i = 0; i < rows.length; i += 4) await f.seed(rows.slice(i, i + 4).map(({ table, row }) => ({ table, row: { ...row, body: 'x'.repeat(400000) } })));
+    return page;
+  });
+  f.online(); await f.client.sync();
+  const state = (await f.core.call({ op: 'sync_state' })).ok;
+  assert.equal(state.acquired, true);
+  assert.equal(state.snapshot_required, undefined);
+  assert.equal(state.watermark, (await f.post('/sync', { metadata: true })).watermark);
+  assert.ok(f.requests.some(r => r.metadata && r.stream && r.recover));
+  assert.ok(f.replies.some(r => r.recovery?.snapshot === true));
+  assert.ok(f.calls.some(r => r.op === 'sync_metadata' && r.capture.stream && r.metadata.recovery?.snapshot));
+  assert.equal((await f.client.query({ kind: 'query', name: 'retained' }, {})).data[0].body, 'keep this delivered history');
+});
+
+for (const tier of ['wasm', 'process']) test(`${tier}: catch-up recovery rejects advanced positions and retires each lease once`, async t => {
+  const f = await fixture(t, tier);
+  const state = (await f.core.call({ op: 'sync_state' })).ok;
+  let page = await f.post('/sync', { from: 0, limit: 100 });
+  assert.equal(page.more, false);
+  const stage = async () => assert.ok(!(await f.core.call({ op: 'apply', page: { ...page, stage_snapshot: true }, first: true })).denied);
+  await stage();
+  const capture = { store_id: state.store_id, generation: state.generation, send_revision: state.send_revision,
+    captured_watermark: state.watermark, from: page.watermark, stream: true, recover: true };
+  const metadata = { metadata: true, store_id: state.store_id, generation: state.generation, watermark: page.watermark + 1,
+    recovery: { from: page.watermark, snapshot: true } };
+  const recover = capture => f.core.call({ op: 'sync_metadata', capture, metadata });
+  const advanced = { snapshot: false, events: [], store_id: state.store_id, generation: state.generation,
+    watermark: page.watermark + 1, more: true, snapshot_catchup: true };
+  assert.ok(!(await f.core.call({ op: 'apply', page: advanced })).denied);
+  assert.equal((await recover(capture)).denied?.code, 'E_GENERATION');
+  await stage();
+  assert.equal((await recover(capture)).ok?.snapshot, true);
+  assert.equal((await recover(capture)).denied?.code, 'E_GENERATION', 'old capture cannot reuse the retired lease');
+  const current = (await f.core.call({ op: 'sync_state' })).ok;
+  capture.send_revision = current.send_revision;
+  assert.equal((await recover(capture)).denied?.code, 'E_GENERATION', 'current revision alone cannot create a lease');
+  await stage();
+  assert.equal((await recover(capture)).ok?.snapshot, true, 'a new first snapshot establishes the next lease');
+});
+
+for (const tier of ['wasm', 'process']) test(`${tier}: G1 backend-required metadata cannot clear an existing partition refusal`, async t => {
+  const f = await fixture(t, tier);
+  const refusal = { code: 'E_INPUT', family: 'input', message: 'partition unavailable', retryable: false };
+  f.intercept(path => path === '/sync' ? Response.json({ denied: refusal }) : undefined);
+  f.online(); await f.client.sync();
+  assert.equal((await f.client.query({ kind: 'query', name: 'heldRows' }, {})).denied?.code, refusal.code);
+  f.requireBackend();
+  f.intercept(async (path, request, send) => {
+    if (path === '/schema') throw new TypeError('backend temporarily unavailable');
+    if (path !== '/sync') return;
+    if (!request.metadata) return Response.json(bound);
+    return send();
+  });
+  f.online(); await f.client.sync();
+  assert.ok(f.calls.some(r => r.op === 'sync_metadata'));
+  assert.ok(f.calls.every(r => r.op !== 'apply'));
+  assert.equal((await f.client.query({ kind: 'query', name: 'heldRows' }, {})).denied?.code, refusal.code,
+    'metadata and an unsuccessful adoption cannot bless a refused partition');
+});
+
+for (const tier of ['wasm', 'process']) test(`${tier}: G3 lower successor metadata adopts then acquires real pages`, async t => {
+  const f = await fixture(t, tier);
+  await f.adopt();
+  let discovered = false;
+  f.intercept(async (path, request, send) => {
+    if (path !== '/sync') return;
+    if (request.metadata) {
+      discovered = true;
+      return Response.json({ ...await send().then(r => r.json()), watermark: 0 });
+    }
+    if (!discovered) return Response.json(bound);
+  });
+  f.online(); await f.client.sync();
+  const state = (await f.core.call({ op: 'sync_state' })).ok;
+  assert.equal(state.generation, 2);
+  assert.equal(state.restore_refusal, undefined);
+  assert.equal(state.acquired, true);
+  assert.equal(state.watermark, (await f.post('/sync', { metadata: true })).watermark);
+  assert.ok(f.calls.some(r => r.op === 'adopt'));
+  assert.ok(f.calls.some(r => r.op === 'apply' && r.page.snapshot));
+  assert.ok(f.calls.every(r => r.op !== 'apply' || !r.page.metadata));
 });

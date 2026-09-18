@@ -9,6 +9,11 @@ fn sync_metadata_recovery_fences_and_durable_acquisition_on_both_stores() {
         engine.seed([("notes".into(), snapback4_core::value::object([("id", id("held")), ("body", Value::String("held".into()))]))]).unwrap();
         let mut device = host.open("metadata", Some(backend.clone())).unwrap();
         identified_pages(&mut engine, &mut *device, false);
+        for (n, id) in ["known", "unknown"].iter().enumerate() {
+            ok(device.call(json!({ "op": "admit", "entry": { "id": id, "seq": n + 1, "op": "add", "args": { "body": id }, "viewer": "alice", "now": 1, "predictable": false } })));
+        }
+        ok(device.call(json!({ "op": "settle", "id": "known", "seq": 2 })));
+        assert_eq!(ok(device.call(json!({ "op": "queued" }))).as_array().unwrap().len(), 2);
         let state = ok(device.call(json!({ "op": "sync_state" })));
         let capture = json!({ "store_id": state["store_id"], "generation": state["generation"], "send_revision": state["send_revision"],
             "captured_watermark": state["watermark"], "from": state["watermark"], "stream": false, "recover": true });
@@ -23,12 +28,20 @@ fn sync_metadata_recovery_fences_and_durable_acquisition_on_both_stores() {
             let denied = device.call(json!({ "op": "sync_metadata", "metadata": decision, "capture": stale }));
             assert_eq!(denied["denied"]["code"], "E_GENERATION", "{field}: {denied}");
             assert_eq!(ok(device.call(json!({ "op": "sync_state" }))), state);
+            assert_eq!(ok(device.call(json!({ "op": "queued" }))).as_array().unwrap().len(), 2, "a stale capture cannot retire either receipt");
+            assert!(ok(device.call(json!({ "op": "meta", "key": "write-history" }))).is_null(), "no receipt history before the fence");
             assert_eq!(rows(&query(&mut *device, "all", "alice", json!({}), 1)).len(), 1);
         }
         let mut wrong_position = decision.clone();
         wrong_position["recovery"]["from"] = json!(0);
         assert_eq!(device.call(json!({ "op": "sync_metadata", "metadata": wrong_position, "capture": capture }))["denied"]["code"], "E_GENERATION");
         assert_eq!(ok(device.call(json!({ "op": "sync_metadata", "metadata": decision, "capture": capture })))["snapshot"], true);
+        let receipts = ok(device.call(json!({ "op": "meta", "key": "write-history" })));
+        let receipts: serde_json::Value = serde_json::from_str(receipts.as_str().unwrap()).unwrap();
+        assert_eq!(receipts[0]["id"], "known", "recovery persists known receipts in the fenced transaction");
+        let queue = ok(device.call(json!({ "op": "queued" })));
+        assert_eq!(queue.as_array().unwrap().len(), 1);
+        assert_eq!(queue[0]["id"], "unknown");
         let recovering = ok(device.call(json!({ "op": "sync_state" })));
         assert_eq!(recovering["snapshot_required"], true);
         assert_eq!(recovering["acquired"], false);
@@ -74,11 +87,11 @@ fn sync_metadata_restore_checks_the_capture_before_persisting_on_both_stores() {
         let mut stale = capture.clone(); stale["send_revision"] = json!(0);
         assert_eq!(device.call(json!({ "op": "sync_metadata", "metadata": metadata, "capture": stale }))["denied"]["code"], "E_GENERATION");
         assert_eq!(ok(device.call(json!({ "op": "sync_state" }))), state);
-        assert_eq!(device.call(json!({ "op": "sync_metadata", "metadata": metadata, "capture": capture }))["denied"]["code"], "E_STORE_RESTORE");
+        assert_eq!(device.call(json!({ "op": "sync_metadata", "metadata": metadata, "capture": capture }))["denied"]["code"], if older { "E_GENERATION" } else { "E_STORE_RESTORE" });
         device.close();
         let mut device = host.open("metadata-restore", None).unwrap();
         let restored = ok(device.call(json!({ "op": "sync_state" })));
-        assert_eq!(restored["restore_refusal"]["code"], "E_STORE_RESTORE");
+        assert_eq!(restored["restore_refusal"]["code"], if older { json!(null) } else { json!("E_STORE_RESTORE") });
         assert_eq!(restored["watermark"], state["watermark"]);
         device.close();
     }); }
