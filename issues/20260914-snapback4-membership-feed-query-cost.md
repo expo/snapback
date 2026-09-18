@@ -1,6 +1,6 @@
 # Snapback 4: requalify and reduce membership-feed query cost
 
-Status: Open — fixed 0.2.29 comparison confirms large-feed gap; single-decode candidate deferred because control losses repeat
+Status: Open — fixed 0.2.29 comparison confirms large-feed gap; author shelved the single-decode candidate after repeated control losses
 Priority: P1
 Systems: Snapback 4 online membership feeds, query execution
 Implementation owner: Snapback 4 core lead (LLP 3000 decision 4)
@@ -362,11 +362,12 @@ Five-group first-thread C8 p50/p95/rate worsen in five of six pairs. The
 causal memory benefit or penalty is established. Both batches and all
 162 median / 556 paired losses remain recorded separately.
 
-Default disposition: defer/shelve this candidate. Accepting this targeted
-heavy-feed/point-read tradeoff needs an explicit core-owner decision.
-No runtime patch or third timing batch is adopted here. Investigate the
-persistent controls and remaining per-lane scan/materialization work; the
-bounded goal of landing one verified improvement remains outstanding.
+Author disposition on 2026-09-18: **"Keep it shelved (Recommended)"**.
+The adoption request is closed; the reviewed two-file patch and all
+measurements remain preserved. No runtime patch or third timing batch is
+adopted here. The persistent controls and remaining per-lane
+scan/materialization work remain open investigation areas; the bounded
+goal of landing one verified improvement remains outstanding.
 
 The fixed warm-loopback protocol and the complete losses, memory readings,
 source/binary bindings, failures and reviews are in the benchmark README

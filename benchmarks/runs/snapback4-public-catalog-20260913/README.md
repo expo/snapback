@@ -4182,7 +4182,9 @@ these limits and losses; integration and publication are separate facts.
 ### Fixed 0.2.29 comparison and single-decode candidate, 2026-09-18
 
 Comparison and both A/B batches are complete. The candidate remains
-unlanded; default disposition is defer/shelve because control losses repeat.
+unlanded. On 2026-09-18 the author chose **"Keep it shelved (Recommended)"**
+after reviewing the repeated point-read losses. This closes the adoption
+request for this candidate; the broader feed-cost issue stays open.
 
 The release pin is 0.2.29, published at source
 `1b3d97f61fd4ee20ad2f2b71c32108dce6af210d`. The production build uses
@@ -4377,10 +4379,9 @@ or penalty, and the first batch's increases remain recorded.
 
 The heavy-feed gain is repeatable in this protocol, but the persistent
 point-read regression prevents recommending this as a general read-speed
-improvement. Default disposition is to leave the candidate unlanded. A
-core-owner decision to accept the specific heavy-feed/point-read tradeoff
-must be explicit. No third timing batch or another tuned runtime variant
-is part of this decision round.
+improvement. The author accepted the recommendation to shelve this
+candidate. No third timing batch or another tuned runtime variant is part
+of this decision round.
 Independent confirmation evidence review is ready for scoped reporting.
 It verifies all 152 public originals, 42 stage launch/exit joins, 24 physical
 proofs, live same-session restoration and process-owned memory observations.
@@ -4395,10 +4396,11 @@ qualification, original failures, both calculations, reconciliation,
 all-case contrasts, memory observations and independent reviews. Private
 credentials, logs and database exports remain excluded; non-exported
 build/test logs and private proof hashes are producer attestations.
-The performance lane has not adopted any core change. The two-file
-proposal can be reviewed separately under the one-owner rule in
-`snapback4/AGENTS.md` / `snapback4/NOT-DOING.md`. Correctness qualification
-cannot resolve the measured performance tradeoff. The broader feed-cost
+The performance lane has not adopted any core change. The two-file patch
+and its qualification records remain preserved in the local run archive;
+the author's shelving decision grants no exception to the one-owner rule
+in `snapback4/AGENTS.md` / `snapback4/NOT-DOING.md`. Correctness qualification
+does not resolve the measured performance tradeoff. The broader feed-cost
 issue stays open: investigate per-lane scan and row-materialization work,
 and explain persistent control losses before claiming a general speedup.
 The bounded goal's performance landing remains outstanding.
