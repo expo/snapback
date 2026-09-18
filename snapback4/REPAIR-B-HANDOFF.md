@@ -742,21 +742,21 @@ clearing an incarnation's snapshots synchronously.
 | First installation, kept-backend open and opening recovery (`open_store*`, `install_checked`, abandoned-capture recovery, invalid native-cache deletion) | A new client loads installed backend/generation, native readiness, outbox/history, identity and acquisition. No returned client's watch exists yet. Abandoned request captures are fenced durably. | Startup reads, protocol check and media open can fail; construction rejects and closes ownership. No old live snapshot is retained by that failed constructor. Direct explicit backend installation and another native owner remain outside an automatic cross-client notification contract. |
 | `sync_state` with capture, rejected-capture cleanup, `begin_send` | Request evidence/send revision and snapshot ownership become obsolete. The next request recaptures native state; these commits do not publish rows or advance published freshness. | Returned revision/capture is consumed before send; failed calls prevent that send. No watch invalidation is implied by private request bookkeeping. Opening fences abandoned captures. |
 | `observe_store`, successful non-reset observation | Private identity/evidence and adoption capture change; no visible row change. Caller consumes the returned send revision/capture. | Media can fail before those values reach the round; the round unwinds and retry recaptures. No published watch change is lost. |
-| `observe_store`, committed reset | Incarnation, every watch snapshot/expiry, remembered server answers, acquired/current/freshness flags, identity, poll seq and freshness time are fenced synchronously. Round cursors are discarded or die on unwind. | No native read or media await precedes the fence after success. FF1 qualifies denied inspection and reset media failure. Application callbacks occur after internal clearing but can interrupt notification delivery. |
+| `observe_store`, committed reset | Incarnation, every watch snapshot/expiry, remembered server answers, acquired/current/freshness flags, identity, poll seq and freshness time are fenced synchronously. Round cursors are discarded or die on unwind. | No host bookkeeping/recovery, native read or media await precedes the fence after persisted success. FF1 and II1 qualify it. Application callbacks run after internal clearing and host completion/unwind, but can interrupt notification delivery. |
 | `observe_store` or `apply`, committed restore halt returning `E_STORE_RESTORE` | Shell refusal is set; incarnation fence clears old reads and publishes denied watches; sync/replay stops. | No media reconciliation runs for a denied call. Callers handle the returned refusal without another fallible device operation. Losing the result inside the host is a separate gap below. |
 | `apply`, private snapshot/deferred-page commit (`published: false`) | Durable transfer cuts, images, acknowledgements and capture change, while published rows/watermark remain unchanged. No watch update is implied by the private image. | Media may fail; retry obtains durable private progress. Native's touched set is preserved regardless of result flag; the staged witness returns no touched tables. |
-| **`apply`, successful publication**: ordinary events, staged snapshot catch-up, deferred-image release, tombstones/leave, coverage, receipt retirement and prediction replay | **Native touched tables are copied into the round's invalidation set; finally reruns intersecting/unknown-dependency watches.** This recomputes data, pending flags, coverage, cursors and expiry. Published identity/progress and positive acquisition/freshness are then read from native state. | **HH1 fixed:** no media call, metadata read or application callback lies before recording the set. Reconciliation/read/persistence may fail afterward; finally still owns the rerun. Healthy/failing media witnesses cover snapshot and ordinary publication, retry at 11 and offline reopen. This does not clear every same-incarnation snapshot immediately or promise that a later query cannot fail. |
+| **`apply`, successful publication**: ordinary events, staged snapshot catch-up, deferred-image release, tombstones/leave, coverage, receipt retirement and prediction replay | **Native touched tables are copied into the round's invalidation set; finally reruns intersecting/unknown-dependency watches.** This recomputes data, pending flags, coverage, cursors and expiry. Published identity/progress and positive acquisition/freshness are then read from native state. | **HH1 and II1 fixed:** no host recovery, media call, metadata read or application callback lies before recording the set. Reconciliation/read/persistence may fail afterward; finally still owns the rerun. Healthy/failing media witnesses cover snapshot and ordinary publication, retry at 11 and offline reopen. This does not clear every same-incarnation snapshot immediately or promise that a later query cannot fail. |
 | `apply`, replacement reset committed but returning `E_GENERATION` | The device has retired rows/acquisition; an existing client would need the full reset fence. | The low-level apply arm can commit reset then deny. `local.ts` only special-cases `E_STORE_RESTORE` on denied apply. Normal local sync preflights replacement and echoes revision/watermark; no live-client bypass of those fences is reproduced here. This low-level reset arm has no standalone client notification and remains explicitly unqualified. |
-| `adopt`, including compatible widening and same-number replacement | Full incarnation/use fence first; caller updates backend/generation and native readiness. Successful readiness inspection may revalidate retained acquisition. | No fallible operation before the fence after success. Round-14 adoption-media, failed-read and widening controls qualify this. Failed media can delay cached backend refresh; retry still owns adoption. |
-| `admit`, durable outbox insertion plus prediction | Predicted table watches should rerun; IDs/submission and pending state follow the committed entry. | **B15-A open:** media reconciliation precedes `mutate`'s `rerunTables`. A failure reports unknown admission and can leave a committed prediction unseen. This was not covered by FF1 or HH1. |
-| `settle`, server receipt or refusal with base restoration and survivor replay | Prediction watches should rerun; terminal write listeners/promises should resolve from durable receipts. | **B15-B open:** media precedes returning success; refusal rerun happens later. Removing the rejected entry can remove the retry opportunity. The sent arm also awaits sync before completion delivery. No unconditional completion/watch-delivery guarantee is established. |
+| `adopt`, including compatible widening and same-number replacement | Full incarnation/use fence first; caller updates backend/generation and native readiness. Successful readiness inspection may revalidate retained acquisition. | The durable-reply hook fences before host recovery; application delivery waits for host completion/unwind. Round-14 adoption-media, failed-read and widening controls remain green. Failed media can delay cached backend refresh; retry still owns adoption. |
+| `admit`, durable outbox insertion plus prediction | Predicted table watches should rerun; IDs/submission and pending state follow the committed entry. | **B15-A dismissed by round-16 review.** The round-15 inspection hypothesis is withdrawn; no accepted regression or repair is claimed. |
+| `settle`, server receipt or refusal with base restoration and survivor replay | Prediction watches should rerun; terminal write listeners/promises should resolve from durable receipts. | **B15-B dismissed by round-16 review.** The round-15 inspection hypothesis is withdrawn; terminal delivery still depends on its documented receipt/listener path, not a new unconditional guarantee. |
 | `keep_write` / receipt eviction | Durable write history supersedes any in-memory outcome; `WriteHistory.keep` deletes its transient copy after successful save and `read` reads through durable history. | No further local I/O before cache deletion after acknowledged save. Settlement and listener delivery remain later and fallible; persisted receipt is not proof that every live listener was notified. Host receipt sharing can also fail before return. |
 | `install_native` | Installed module/digest replace the device cache; client updates native readiness only if generation/digest still match. | No reconciliation or readiness reread after the successful result before the guarded readiness return. Existing request-provenance/native-install overlap limitations remain; this row is not an overlap qualification. |
 | `upload_facts` | Future prediction inputs use the new authenticated uploader facts, read from native metadata. No existing watch is changed by the metadata write alone. | No client cache invalidation required for this write; missing incarnation/expiry invalidation of old facts remains in the existing upload-facts ticket. |
 | `set_meta`, media manifest/bytes removal and saved `syncedAt` | Freshness memory is assigned separately; media entries/handles are reconciled against their current homes. These records are hints/custody, not independent row grants. | Media home lookup, storage removal and manifest saving remain fallible. An issued asset handle is not guaranteed immediately revoked; HH1 qualifies query reruns despite that failure, not asset cleanup completion. |
 | Low-level `clear_rows`, `predict`, `withdraw`, `enqueue`, `dequeue` | Clearing/overlays can change reads; queue-only changes change write custody. `createLocalClient` does not invoke these directly. | No generic device-to-watch notification exists for external direct calls. The string in the media reconciliation operation list does not make `clear_rows` a supported client reset path. Callers using raw device operations own notification/reopen. Host uses are separately listed below. |
-| Web admission-journal recovery, import/fencing of orphan outboxes | Recovery can admit a prediction; orphan import disables predictions and signals `onOutbox` to flush. Foreign receipt retirement and transfer markers govern replay custody. | **B15-D open:** journal recovery can commit predictions while returning the enclosing apply/adopt/admit's original result; it does not union recovered predicted tables into watch invalidation or emit its own watch event. Orphan import has no row prediction, but queue/listener delivery and cleanup can fail. |
-| **Host persistence succeeds before `DeviceCore.call` resolves**, all durable operations | The successful native result must reach the above client fences/sets. | **B15-C open:** web `settle` saves then updates journals/listeners; apply/observe/adopt subsequently await journal recovery, and apply/observe await orphan enumeration. These can throw after a committed save and hide the result. Process/C ABI transport loss likewise leaves an indeterminate outcome. HH1 begins after this boundary; it does not close it. |
+| Web admission-journal recovery, import/fencing of orphan outboxes | Recovery can admit a prediction; orphan import disables predictions and signals `onOutbox` to flush. Foreign receipt retirement and transfer markers govern replay custody. | **B15-D confirmed pre-existing, out of scope.** A failed admission save leaves a synchronous journal; the next sync recovers its prediction but an enclosing empty publication has no touched tables, leaving the watch stale. Reproduces at base. [Focused ticket](../issues/20260918-snapback4-recovered-prediction-watch-invalidation.md). Orphan import disables prediction. |
+| **Host persistence succeeds before `DeviceCore.call` resolves**, all durable operations | The successful native result must reach the above client fences/sets. | **B15-C / II1 fixed in round 16 for successful reset/adoption/publication.** Web `settle` exposes the durable reply immediately after save and before journal bookkeeping/listeners/recovery. Local state is fenced or touched tables recorded synchronously; application notification waits for host completion or rejection. Failed saves never signal success. Hosts returning directly use the returned result. Native result serialization/transport/decoding (and Expo trace logging before return), plus adapters dropping the observer, remain outside this qualification; denied-only results are still handled on return. |
 
 Additional delivery limits: `rerun` evaluates asynchronously and keeps the prior
 snapshot until completion. A thrown query has no guaranteed retry; subscriber
@@ -768,10 +768,11 @@ answers remain stale offline fallbacks, while incarnation fences clear them.
 Ordinary publications do not promise an atomic whole-server snapshot. No new
 all-lifetime closure claim is made.
 
-B15-A/B/C/D are concrete code-inspected remaining gaps, **not newly reproduced
-counterexamples**. Their repair and targeted failure witnesses are tracked in
-[the follow-up ticket](../issues/20260918-snapback4-remaining-commit-invalidation-gaps.md).
-This distinguishes actual HH1 mutation proof from the broader audit's limits.
+The four round-15 hypotheses were adjudicated in round 16: **A/B dismissed,
+C confirmed as lane regression II1 and fixed, D confirmed pre-existing and
+separately ticketed without a fix here**. The [closed triage record](../issues/closed/20260918-snapback4-remaining-commit-invalidation-gaps.md)
+retains the original hypotheses and the review dispositions. The author relayed
+the dismissals without detailed rationales; no rationale is invented here.
 
 ### Mutation and verification evidence
 
@@ -802,3 +803,104 @@ No additional failure needs base comparison. Verbatim final script lines:
 
 Ref-check passes with zero errors. All four final artifact hashes match the
 mutation inputs after the full script. No push, rebase, merge or publication.
+
+
+## Fix round 16 — persisted results reach invalidation before host recovery
+
+**II1 is a regression introduced by this lane.** The exact same replacement
+invariant passes on saved base `27a8a4d66`'s compiled client and wasm device,
+fails on incoming `66da3c0ad`'s client and device, and passes on the fix. With
+one `persist.others()` failure after the save containing `device:store_id = B`,
+incoming HEAD keeps watch A fresh and acquisition true without any notification;
+the device is B, watermark 0, acquired false, backend-required true. All
+subjects' healthy controls, explicit retries to B, and offline reopen pass.
+The tests complete retry/reopen before asserting the captured failing invariant.
+
+### Fix and observer custody
+
+Web `settle` exposes the native reply synchronously immediately after successful
+persistence. The client consumes it once, clearing replacement/adoption state
+or recording publication touched tables before `remember`, journal cleanup,
+committed listeners, journal recovery or orphan enumeration. Hosts without
+post-commit work retain the returned-result path. Failed saves never signal a
+commit; a read-only result still reaches the observer exactly once.
+
+Internal invalidation has no application callbacks. Pending notification/rerun
+work is delivered as the host call finishes, **including rejection**, and before
+client media reconciliation. This prevents a reentrant mutation from capturing
+the journal's old store identity while host bookkeeping is unfinished. Listener
+exceptions can still interrupt delivery after all internal state is cleared.
+Adapters over a host with this callback must forward it; simply waiting for and
+returning its result cannot preserve the earlier persistence boundary.
+
+### Inventory rule statement
+
+**The rule does not hold unconditionally at every boundary in the inventory.**
+For supported successful `observe_store` reset, `adopt`, and `apply` publication,
+there is now no fallible host or client housekeeping between acknowledged
+persistence and the internal fence/invalidation obligation. This includes the
+host step that II1 exposed; media cleanup and positive revalidation remain later.
+
+The remaining confirmed exception is **B15-D recovered predictions**, which have
+no independently propagated touched tables and reproduce at base; the focused
+ticket retains the reviewer's reproduction. Additional explicit limits from
+the inventory remain: direct raw-device mutation has no client watch protocol;
+low-level `apply` can reset and return `E_GENERATION`; denied-only restore-halt
+results still depend on reaching their caller (the new success observer does
+not fence a hidden denial); native result serialization, process/C ABI transport and JSON decoding can lose
+a result before JavaScript observes it (Expo also logs before parsing when
+tracing is enabled); and an adapter that drops the callback loses its early
+boundary. Those paths
+are not claimed qualified by II1. Asynchronous query evaluation and subscriber
+exceptions can prevent delivery after a recorded invalidation; retained asset
+handles and the separately ticketed upload-facts cache are not new row grants.
+
+B15-A and B15-B are **dismissed by review**, not open defects or additional fixes.
+The original four-item audit ticket is closed with these dispositions; B15-D
+continues in [its new ticket](../issues/20260918-snapback4-recovered-prediction-watch-invalidation.md).
+
+### Regression and mutation evidence
+
+The real-wasm invariant additionally injects one failure in journal `remember`
+and `recover` after the replacement save. These fail on incoming HEAD and pass
+on base and the fix. Snapshot and ordinary-stream publication witnesses inject
+host orphan-enumeration failure after the real publication, require the watch
+to update before retry, and verify retry from watermark 11 and offline reopen.
+The existing FF1 and media-failure controls remain in the same test file.
+
+| Subject | Result |
+| --- | --- |
+| Saved base client **and device**, identical four II1 cases | 4 pass |
+| Incoming HEAD client/device, identical four II1 cases | 1 healthy pass; 3 fault cases fail at retained A |
+| Client mutation: omit the host observer | 5 pass; 3 replacement and 2 publication fault cases fail |
+| Host mutation: move observer below `remember` | 3 pass; `remember` fault fails at retained A |
+| Host mutation: omit the observer | 1 healthy pass; 3 replacement fault cases fail |
+| Restored source, both affected files | 30 pass |
+
+Exact mutations, commands/exits, input hashes, base-source/artifact checks and
+full outputs are retained in [the round-16 report](./target/review-fix16/report.md).
+The first fixture omitted the legitimate server fallback during reacquisition;
+its retry failures are fixture-development evidence, not II1 proof. The final
+transport supports that fallback on all compared subjects. An empty test-name
+filter was rejected by Node in the first restored-control invocation; the
+corrected control is recorded separately, not counted as a product failure.
+
+
+Final verification: device **645 passed, 0 failed, 3 existing ignored**; core
+**160 passed, 0 failed**; CLI **265 passed, 0 failed**. Each Cargo command exits
+0. The full `bash snapback4/scripts/test.sh` exits 1 solely for the known
+`worker.runGeneratedEffects` README coverage assertion, already reproduced on
+base in round 13. Client totals: **810 tests, 806 passed, 1 failed, 3 skipped,
+0 cancelled**. Verbatim final script lines:
+
+```text
+-- FAIL: client tests (487 s)
+== 1 failure(s) in 497 s
+   client tests
+```
+
+The round-16 report includes **every verbatim crate `test result:` line**, every
+script step result and the complete final client failure; all raw logs remain
+linked there. All source/test/compiled-client/wasm mutation input hashes match
+after the full script. Ref-check reports zero errors; `git diff --check` passes.
+No push, rebase, merge or publication was performed.

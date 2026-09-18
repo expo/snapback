@@ -112,7 +112,10 @@ requires adoption and module reload before local reads or prediction resume.
 
 On the web, a failed save rejects the call and discards its uncommitted in-memory
 state. The next serialized call reopens the last persisted state; earlier
-durable writes survive. Failed startup releases the store lock. Runtime bytes
+durable writes survive. When a replacement or adoption save succeeds, existing
+answers and acquisition are invalidated even if later host recovery fails.
+Successful publication likewise preserves its affected-watch reruns before
+host recovery. Failed startup releases the store lock. Runtime bytes
 become the offline entry only after initialization and cache persistence; if
 that save fails, the same bytes may retry, while changing the initialized
 runtime requires reloading the page. The application still owns its offline

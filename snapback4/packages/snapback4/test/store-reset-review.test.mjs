@@ -227,8 +227,9 @@ test("FF1 adoption control: compatible widening revalidates acquired images befo
   assert.equal(read.fresh, false);
 });
 
-for (const mode of ["snapshot", "stream"]) for (const failMedia of [false, true]) {
-  test(`HH1: ${mode} publication preserves watch invalidation with ${failMedia ? "failed" : "healthy"} media lookup`, async t => {
+for (const mode of ["snapshot", "stream"]) for (const failure of ["healthy", "media", "host"]) {
+  test(`HH1/II1: ${mode} publication preserves watch invalidation with ${failure} recovery`, async t => {
+    const failMedia = failure === "media";
     const persist = memoryPersistence(), opener = webDevice({ wasm, persist });
     const url = `http://publication.test/${encodeURIComponent(t.name)}`;
     const photo = { id: "photo", type: "image/png", bytes: 1, width: 1, height: 1 };
@@ -240,6 +241,14 @@ for (const mode of ["snapshot", "stream"]) for (const failMedia of [false, true]
     let core, client, offline = false, updating = false, staged = false, failHome = false;
     let failures = 0, queryCalls = 0;
     const requests = [], publications = [], clients = [];
+    const others = persist.others;
+    persist.others = async prefix => {
+      if (failure === "host" && publications.some(p => p.published) && !failures) {
+        failures++;
+        throw new Error("injected post-publication orphan enumeration failure");
+      }
+      return others(prefix);
+    };
     const fetcher = async (input, init = {}) => {
       if (offline) throw new TypeError("offline");
       const path = new URL(input).pathname.slice(new URL(url).pathname.length);
@@ -265,18 +274,19 @@ for (const mode of ["snapshot", "stream"]) for (const failMedia of [false, true]
       client = await createLocalClient({ url, persona: "alice", assets: { keep: "viewed", maxBytes: 100 }, fetch: fetcher,
         device: { async open(...args) {
           const opened = core = await opener.open(...args);
-          return { ...opened, async call(request) {
+          return { ...opened, async call(request, committed) {
             if (request.op === "asset_home" && failHome) {
               failHome = false; failures++;
               return { denied: { code: "E_STORE", family: "store", message: "injected post-publication asset_home failure" } };
             }
             if (request.op === "query") queryCalls++;
-            const reply = await opened.call(request);
-            if (request.op === "apply" && updating && !reply.denied) {
-              publications.push(structuredClone(reply.ok));
-              if (reply.ok.published && publications.filter(p => p.published).length === 1) failHome = failMedia;
-            }
-            return reply;
+            return opened.call(request, reply => {
+              committed?.(reply);
+              if (request.op === "apply" && updating && !reply.denied) {
+                publications.push(structuredClone(reply.ok));
+                if (reply.ok.published && publications.filter(p => p.published).length === 1) failHome = failMedia;
+              }
+            });
           } };
         } },
       });
@@ -293,12 +303,13 @@ for (const mode of ["snapshot", "stream"]) for (const failMedia of [false, true]
     assert.equal(JSON.parse(ok(await core.call({ op: "meta", key: "media:manifest" }))).length, 1, "real viewed-media retention primes reconciliation");
     notices.length = 0; updating = true;
     if (failMedia) await assert.rejects(client.sync(), /injected post-publication asset_home failure/);
+    else if (failure === "host") await assert.rejects(client.sync(), /injected post-publication orphan enumeration failure/);
     else await client.sync();
     const native = ok(await core.call({ op: "sync_state", capture: false }));
     assert.equal(native.watermark, 11);
     assert.equal(native.acquired, true);
     assert.equal(ok(await core.call({ op: "query", name: "thread", viewer: "dev:alice", args, now: Date.now() })).data[0].body, "updated");
-    assert.equal(failures, failMedia ? 1 : 0, "only the post-publication media read fails");
+    assert.equal(failures, failure === "healthy" ? 0 : 1, "only the selected post-publication operation fails");
     assert.equal(staged, mode === "snapshot");
     assert.deepEqual(publications.map(p => p.published), mode === "snapshot" ? [false, true] : [true]);
     assert.ok(publications.at(-1).touched.includes("messages"));

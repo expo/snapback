@@ -140,10 +140,12 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         device = undefined;
         previous?.free();
       };
-      const settle = async (extra: Change[] = []): Promise<void> => {
+      const settle = async (extra: Change[] = [], committedReply?: () => void): Promise<void> => {
         const changes = [...JSON.parse(device!.drain()) as Change[], ...journal.cleanup(committed), ...extra];
+        if (changes.length) await persist.save(store.name, changes);
+        // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — the durable result reaches invalidation before any fallible host bookkeeping or recovery.
+        committedReply?.();
         if (changes.length) {
-          await persist.save(store.name, changes);
           remember(changes);
           journal.cleanup(committed);
           // An unawaited mutate may finish admission after pagehide. Recheck
@@ -215,7 +217,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           async write(id, hex) { await persist.save(`snapback4-media:${store.name}`, [{ s: "a", k: id, v: hex }]); },
           async remove(id) { await persist.save(`snapback4-media:${store.name}`, [{ s: "a", k: id, v: null }]); },
         },
-        call(request) {
+        call(request, committedReply) {
           if (closing) return Promise.reject(new Error("the device is closed"));
           const admission = request.op === "admit" ? journal.capture(request) : undefined;
           if (admission) { request = { ...request, entry: admission.entry }; admissions.add(admission.entry.id); }
@@ -229,7 +231,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
               const reply = request.op === "admit" ? journal.admit(device!, request.entry) : JSON.parse(device!.call(JSON.stringify(request))) as Record<string, unknown>;
               if (!reply.denied && (request.op === "observe_store" || request.op === "apply")) journal.fence(device!);
               try {
-                await settle(!admission ? [] : !reply.denied ? [journal.transfer(admission, false)] : writeRefusal(reply) ? journal.refused(admission) : []);
+                await settle(!admission ? [] : !reply.denied ? [journal.transfer(admission, false)] : writeRefusal(reply) ? journal.refused(admission) : [], () => committedReply?.(reply));
               } catch (error) {
                 if (!admission || !writeRefusal(reply)) throw error;
                 // The refusal is known even when both cancellation stores fail.

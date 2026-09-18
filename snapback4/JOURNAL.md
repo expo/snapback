@@ -37337,3 +37337,66 @@ Full verbatim crate/script outputs, base-client comparison, mutation patch,
 controls and artifact hashes are in `target/review-fix15/report.md`. Ref-check
 reports 484 LLP docs, 9444 refs and zero errors; `git diff --check` passes. No
 push, rebase, merge or publication was performed.
+
+
+## 2026-09-18 — Repair B, fix round 16: host persistence exposes its committed result
+
+II1 is this lane's regression. The identical invariant passes on the saved
+base `27a8a4d66` client and wasm device, fails on incoming `66da3c0ad`, and
+passes on the fix. One failed orphan enumeration after persistence saved B
+left incoming HEAD's watch at A with freshness and acquisition true and no
+notification, while native state was B, watermark 0, acquisition false and
+backend-required true. Healthy controls, explicit retries and offline reopen
+reach B on all three subjects. Additional failure points in journal `remember`
+and `recover` have the same base/HEAD/fixed disposition.
+
+The web host now exposes the durable reply immediately after a successful
+save, before journal bookkeeping, listeners or recovery. The local client
+consumes it once to clear reset/adoption state or preserve apply's touched
+tables. A failed save does not signal a commit. Internal invalidation is
+synchronous; application callbacks run after the host finishes or unwinds,
+before client media reconciliation or surfacing the failure. A callback that
+submits another mutation therefore cannot capture the journal's old identity
+while host bookkeeping is unfinished. Hosts returning directly still use the
+returned result; adapters over this web host must forward the observer.
+
+The updated handoff inventory does not claim universal closure: recovered
+predictions remain the confirmed pre-existing exception, and it explicitly
+names raw-device operations, reset-then-denial, lost denied-only results,
+native serialization/transport/decoding (including Expo tracing before return),
+and adapters dropping the hook as unqualified boundaries. Query evaluation and
+subscriber exceptions remain delivery limits after internal invalidation.
+Round-16 review dismissed B15-A/B. B15-C is II1, fixed here; B15-D is continued
+without implementation in issues/20260918-snapback4-recovered-prediction-watch-invalidation.md,
+with the reviewer's failed-admission-save/surviving-journal/empty-publication
+reproduction. The four-item triage ticket moves to issues/closed/ with those
+dispositions; no dismissal rationale was supplied or invented.
+
+The client-without-hook mutant fails three replacement and two publication
+fault cases while five controls pass. The host-without-hook mutant fails all
+three replacement faults while its healthy control passes. Moving the host
+hook below journal bookkeeping fails that fault specifically. Restored code
+passes all 30 tests in the two affected files. The proof compares the full
+saved base client/device, with 1,058 source blobs matching base, all 30 rebuilt
+JavaScript modules matching saved artifacts, and the qualified base wasm hash.
+Initial fixture fallback mistakes and an invalid empty Node test filter remain
+recorded as development errors, not product counterexamples.
+
+All requested crate commands exit 0: device **645 passed, 0 failed, 3 existing
+ignored**; core **160 passed, 0 failed**; CLI **265 passed, 0 failed**. The full
+`bash snapback4/scripts/test.sh` exits 1 solely for the known README coverage
+failure for `worker.runGeneratedEffects` (already established at base in round
+13). Client totals: **810 tests, 806 passed, 1 failed, 3 skipped, 0 cancelled**.
+Verbatim final result:
+
+```text
+-- FAIL: client tests (487 s)
+== 1 failure(s) in 497 s
+   client tests
+```
+
+`target/review-fix16/report.md` contains every verbatim crate result line, all
+script step results and the final client failure, with full logs, comparison,
+mutations and hashes linked. The full suite rebuilt the same compiled-client
+and wasm bytes used by the mutations; all source/test hashes also match.
+Ref-check and `git diff --check` pass. No push, rebase, merge or publication.

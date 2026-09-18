@@ -55,7 +55,13 @@ export interface DeviceCore {
   onOutbox?(listener: () => void): () => void;
   /** Web hosts alone: committed unsent writes at pagehide/hidden, synchronously. */
   onSuspend?(flush: (entries: readonly PendingSend[], beginSend: () => boolean) => void): () => void;
-  call(request: Record<string, unknown>): Promise<Record<string, unknown>>;
+  /** A host with fallible work after commit must synchronously expose the
+   * durable reply through committed before that work. Forward this callback
+   * through adapters. Hosts returning directly may omit it; the client also
+   * observes the returned reply. A failed save must never invoke it. The
+   * callback invalidates memory only; application delivery waits for call
+   * completion (including rejection) so it cannot reenter host bookkeeping. */
+  call(request: Record<string, unknown>, committed?: (reply: Record<string, unknown>) => void): Promise<Record<string, unknown>>;
   close(): Promise<void>;
 }
 
@@ -366,7 +372,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (entry.sent_seq == null && seq != null) await history.keep({ state: "sent", id: entry.id, seq, replayed: true });
   }
   // @ref LLP 3000.007#18.2 — observation fences answers before queued sync can retire the partition.
-  function observeIncarnation(id?: string, force = false) {
+  function observeIncarnation(id?: string, force = false, delivery?: (() => void)[]) {
     if (!force && (id === undefined || id === storeIdentity)) return;
     storeIdentity = id;
     incarnation++;
@@ -385,11 +391,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       watch.expiryTimer = null;
     }
     // Finish invalidating every answer before invoking application callbacks.
-    if (wasAcquired) for (const listener of acquiredListeners) listener(false);
-    for (const watch of watches.values()) {
-      notify(watch);
-      void rerun(watch);
-    }
+    const deliver = () => {
+      if (wasAcquired) for (const listener of acquiredListeners) listener(false);
+      for (const watch of watches.values()) {
+        notify(watch);
+        void rerun(watch);
+      }
+    };
+    if (delivery) delivery.push(deliver); else deliver();
   }
 
   function refuseRestore(denied?: Refusal) {
@@ -420,10 +429,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
 
   async function call(request: Record<string, unknown>, committedTables?: Set<string>): Promise<{ ok?: unknown; denied?: Refusal }> {
-    const work = core.call(request);
-    active.add(work);
-    try {
-      const result = (await work) as { ok?: unknown; denied?: Refusal };
+    let observed = false;
+    const delivery: (() => void)[] = [];
+    const deliver = () => { for (const notify of delivery.splice(0)) notify(); };
+    const committed = (result: { ok?: unknown; denied?: Refusal }) => {
+      if (observed) return;
+      observed = true;
       // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — preserve publication invalidations before fallible post-commit work.
       if (!result.denied && request.op === "apply") {
         for (const table of (result.ok as { touched?: string[] } | undefined)?.touched ?? []) committedTables?.add(table);
@@ -431,12 +442,19 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       // A committed replacement has already retired the client's partition.
       // Fence it before even media reconciliation can fail; native identity
       // is read separately and must never be a prerequisite for invalidation.
-      if (!result.denied && request.op === "observe_store" && (result.ok as { reset?: boolean } | undefined)?.reset) observeIncarnation(undefined, true);
-      if (!result.denied && request.op === "adopt") observeIncarnation(storeIdentity, true);
+      if (!result.denied && request.op === "observe_store" && (result.ok as { reset?: boolean } | undefined)?.reset) observeIncarnation(undefined, true, delivery);
+      if (!result.denied && request.op === "adopt") observeIncarnation(storeIdentity, true, delivery);
+    };
+    const work = core.call(request, committed);
+    active.add(work);
+    try {
+      const result = (await work) as { ok?: unknown; denied?: Refusal };
+      committed(result);
+      deliver();
       if (!result.denied && ["apply", "observe_store", "adopt", "clear_rows", "admit", "settle"].includes(String(request.op))) await media?.reconcile();
       return result;
     }
-    finally { active.delete(work); }
+    finally { active.delete(work); deliver(); }
   }
 
   const offline = (): Refusal => ({ code: "E_OFFLINE", family: "link", message: "the server is unreachable", retryable: true });

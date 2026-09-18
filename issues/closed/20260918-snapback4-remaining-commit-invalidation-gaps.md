@@ -1,6 +1,6 @@
 # Snapback 4 remaining commit-to-client invalidation gaps
 
-Status: Open
+Status: Closed — adjudicated in Repair B round 16
 Scope: Snapback 4 local client, web host, prediction/watch delivery
 Reported: 2026-09-18, Repair B round 15 commit-boundary audit
 
@@ -45,3 +45,19 @@ watch notification and healthy retry, and reopen offline. Keep an identical
 no-failure control and a mutation that restores the lost-invalidation ordering.
 Do not turn unrelated media cleanup into a requirement for remembering row
 invalidation. The upload-facts lifetime issue remains separately tracked.
+
+## Round 16 reviewer disposition
+
+The author relayed the review adjudication on 2026-09-18:
+
+| Item | Disposition |
+| --- | --- |
+| B15-A, admission/media | Dismissed by review. The previous code-inspection hypothesis is withdrawn; no accepted regression or fix is claimed. |
+| B15-B, settlement/media | Dismissed by review. The previous code-inspection hypothesis is withdrawn; no accepted regression or fix is claimed. |
+| B15-C, hidden committed host result | Confirmed lane regression II1. Fixed by exposing the persisted result synchronously to the client fence before host bookkeeping/recovery. Base, incoming HEAD, fixed HEAD and ordering mutations are recorded in the round-16 handoff. |
+| B15-D, recovered prediction | Confirmed pre-existing at base, out of this lane's scope. Continued in [the focused recovery ticket](../20260918-snapback4-recovered-prediction-watch-invalidation.md). |
+
+This closes the four-item triage record, not the recovered-prediction defect.
+The original hypotheses above remain as the audit history, superseded by these
+review dispositions. The user supplied the dismissals, not detailed dismissal
+rationales; none are invented here.
