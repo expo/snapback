@@ -10,7 +10,7 @@ const denied = { denied: { code: "SNAPBACK_HISTORY_OWNER", family: "structural",
 const healthyState = { store_id: "store", backend_required: false, send_revision: 1 };
 
 function modulesFor(WebDevice, globals) {
-  const context = vm.createContext({ console, TextEncoder, window: {}, URL, setTimeout, clearTimeout, ...globals });
+  const context = vm.createContext({ console, TextEncoder, window: {}, URL, AbortController, Response, crypto: globalThis.crypto, setTimeout, clearTimeout, ...globals });
   const modules = new Map();
   function load(file, extra = "") {
     const url = new URL(`../src/${file}`, import.meta.url);
@@ -19,8 +19,10 @@ function modulesFor(WebDevice, globals) {
     const exports = {};
     const require = name => {
       if (name === "./wasm/snapback4_device.js") return { WebDevice };
-      if (name === "./writes.ts") return { WRITE_HISTORY_LIMIT: 100 };
       if (modules.has(name)) return modules.get(name);
+      if (name.startsWith("./") && name.endsWith(".ts")) {
+        const exports = load(name.slice(2)); modules.set(name, exports); return exports;
+      }
       throw new Error(`unexpected import ${name}`);
     };
     vm.runInContext(`(function(exports, require) { ${compiled}\n})`, context)(exports, require);
@@ -28,7 +30,7 @@ function modulesFor(WebDevice, globals) {
   }
   const journal = load("web-journal.ts"); modules.set("./web-journal.ts", journal);
   const web = load("web.ts", "\nready = Promise.resolve();\nexport { adoptOrphans };\n");
-  return { journal, web };
+  return { journal, web, get local() { return load("local.ts"); } };
 }
 
 function harness(phase, owner = "dev:bob") {
@@ -185,7 +187,7 @@ for (const phase of ["destination-denied", "destination-restore"]) {
   });
 }
 
-function restoreHarness(refusal, owner = "guest:old") {
+function restoreHarness(refusal, owner = "guest:old", projection) {
   const name = "primary";
   const viewer = "password:new";
   const key = `snapback4-admission:${name}:store:write`;
@@ -204,10 +206,12 @@ function restoreHarness(refusal, owner = "guest:old") {
   ];
   const before = JSON.stringify(saved), journalBefore = storage.get(key);
   const effects = [], admitted = [], sent = [], calls = [], changes = [];
+  let activeDevice;
   let freed = 0, released = 0;
   class WebDevice {
     queued = new Map();
     constructor(_backend, kept, requested) {
+      activeDevice = this;
       assert.equal(requested, viewer);
       assert.equal(kept, JSON.stringify(saved.filter(c => c.s !== "j")));
       for (const c of JSON.parse(kept)) if (c.s === "o") {
@@ -219,11 +223,17 @@ function restoreHarness(refusal, owner = "guest:old") {
     call(text) {
       const request = JSON.parse(text); calls.push(request.op);
       if (request.op === "sync_state") return JSON.stringify(refusal === "denied" ? denied : { ok: { ...healthyState, ...(refusal === "restore" ? { restore_refusal: denied.denied } : {}) } });
-      if (request.op === "queued") return JSON.stringify({ ok: [...this.queued.values()] });
+      if (request.op === "queued") return JSON.stringify({ ok: [...this.queued.values()].filter(e => projection ? projection.has(e.id) : e.viewer === viewer) });
       if (request.op === "next_submission") return JSON.stringify({ ok: 2 });
       if (request.op === "admit") { admitted.push(request.entry); return JSON.stringify({ ok: null }); }
       if (request.op === "dequeue") { this.queued.delete(request.id); changes.push({ s: "o", k: request.id, v: null }); return JSON.stringify({ ok: null }); }
-      if (["apply", "begin_send"].includes(request.op)) return JSON.stringify({ ok: null });
+      if (request.op === "begin_send") {
+        // The old unqualified call fenced sync without rechecking the captured
+        // write. Keep that behavior in the double so a missing ID leaks visibly.
+        if (!request.ids) return JSON.stringify({ ok: null });
+        return JSON.stringify(request.ids.every(id => projection ? projection.has(id) : this.queued.get(id)?.viewer === viewer) ? { ok: null } : denied);
+      }
+      if (request.op === "apply") return JSON.stringify({ ok: null });
       throw new Error(`unexpected primary call ${request.op}`);
     }
     drain() { effects.push("drain"); return JSON.stringify(changes.splice(0)); }
@@ -249,7 +259,8 @@ function restoreHarness(refusal, owner = "guest:old") {
   return { saved, before, storage, key, journalBefore, effects, admitted, sent, calls, journal,
     get freed() { return freed; }, get released() { return released; },
     open: () => web.webDevice({ persist }).open(name, {}, viewer),
-    suspend: core => { core.onSuspend(entries => sent.push(...entries)); page.dispatchEvent(new Event("pagehide")); },
+    suspend: (core, beforeSend = () => {}) => { core.onSuspend((entries, beginSend) => { beforeSend(); if (beginSend()) sent.push(...entries); }); page.dispatchEvent(new Event("pagehide")); },
+    get device() { return activeDevice; },
   };
 }
 
@@ -351,6 +362,91 @@ test("X1: retired outbox tombstones need no device dequeue", async () => {
   const core = await f.open();
   try { assert.ok(!f.calls.includes("dequeue")); }
   finally { await core.close(); }
+});
+
+test("Y1: restore consumes the device projection even when saved viewer labels suggest otherwise", async () => {
+  // Opaque device disposition: tests delegation, not a second host predicate.
+  const f = restoreHarness(null, "guest:old", new Set(["queued"]));
+  f.storage.clear();
+  const original = f.saved.find(c => c.s === "o").v;
+  const core = await f.open();
+  try {
+    assert.equal(f.saved.find(c => c.s === "o")?.v, original);
+    f.suspend(core);
+    assert.deepEqual(f.sent.map(e => e.id), ["queued"]);
+  } finally { await core.close(); }
+});
+
+test("Y1: a matching saved owner cannot override an excluded device write", async () => {
+  const f = restoreHarness(null, "password:new", new Set());
+  f.storage.clear();
+  const core = await f.open();
+  try {
+    f.suspend(core);
+    assert.deepEqual(f.sent, []);
+    assert.ok(!f.saved.some(c => c.s === "o"));
+  } finally { await core.close(); }
+});
+
+for (const afterCapture of [false, true]) test(`Y1: pagehide rechecks device ownership ${afterCapture ? "after" : "before"} queue capture`, async () => {
+  const projection = new Set(["queued"]);
+  const f = restoreHarness(null, "password:new", projection);
+  f.storage.clear();
+  const core = await f.open();
+  try {
+    if (!afterCapture) projection.clear();
+    f.suspend(core, () => projection.clear());
+    assert.deepEqual(f.sent, [], "stale committed arguments must never reach transport");
+  } finally { await core.close(); }
+});
+
+for (const superseded of [false, true]) test(`Y1: shared sender ${superseded ? "fences a superseded" : "sends the matching"} device entry with current credentials`, { timeout: 3000 }, async () => {
+  const { local } = modulesFor(class {}, {});
+  const backend = { generation: 1, schema: { tables: {} }, programs: [{ name: "send", kind: "Mutation", args: {}, body: [] }] };
+  const entry = { id: "owned", seq: 1, op: "send", args: { private: "device-approved" }, new_ids: [], predicted: [] };
+  const sent = [], requests = [];
+  let entries = [entry], attempted;
+  const started = new Promise(resolve => { attempted = resolve; });
+  const core = {
+    async call(request) {
+      requests.push(request);
+      switch (request.op) {
+        case "sync_state": return { ok: { acquired: false, backend_required: false, store_id: null, watermark: 0, generation: 1, send_revision: 0, pending_ids: entries.map(e => e.id) } };
+        case "state": return { ok: { watermark: 0, generation: 1 } };
+        case "backend": return { ok: backend };
+        case "queued": return { ok: entries };
+        case "next_submission": return { ok: 2 };
+        case "meta": return { ok: null };
+        case "apply": return { ok: { touched: [] } };
+        case "begin_send": attempted(); return superseded && request.ids?.includes("owned") ? denied : { ok: { send_revision: 1 } };
+        case "settle": entries = []; return { ok: null };
+        default: return { ok: null };
+      }
+    },
+    async close() {},
+  };
+  const client = await local.createLocalClient({
+    url: "https://outbox.invalid", persona: "bob", device: { open: async () => core },
+    fetch: async (url, init = {}) => {
+      const path = new URL(url).pathname;
+      if (path === "/schema") return Response.json(backend);
+      if (path === "/sync") return Response.json({ snapshot: false, events: [], watermark: 0, generation: 1, more: false });
+      if (path === "/changes") return new Promise((_, reject) => { init.signal?.throwIfAborted(); init.signal?.addEventListener("abort", () => reject(init.signal.reason), { once: true }); });
+      if (path === "/m/send") { sent.push({ body: JSON.parse(init.body), headers: init.headers }); return Response.json({ state: "sent", id: "owned", seq: 1 }); }
+      throw new Error(`unexpected request ${path}`);
+    },
+  });
+  try {
+    await started;
+    await new Promise(resolve => setTimeout(resolve, 20));
+    if (superseded) assert.deepEqual(sent, [], "captured arguments crossed the device's send refusal");
+    else {
+      assert.equal(sent.length, 1);
+      assert.deepEqual(sent[0].body, { id: "owned", args: entry.args, newIds: [] });
+      assert.equal(sent[0].headers["x-snapback-persona"], "bob");
+    }
+    assert.deepEqual(Array.from(requests.find(r => r.op === "begin_send").ids ?? []), ["owned"]);
+  } finally { await client.close(); }
 });
 
 test("journal capture order advances past other principals without replaying them", () => {

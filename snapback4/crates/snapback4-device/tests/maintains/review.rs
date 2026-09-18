@@ -41,7 +41,7 @@ fn history<H: Host>(host: &mut H) {
         let text = if mode == "whole" { HISTORY.replace("sync last 1 by byOwner","sync") } else { HISTORY.to_owned() };
         let (mut server, backend) = compile(&text);
         server.seed([history_row("a",1,1,3000),history_row("b",-1,2,1000),history_row("c",2,3,3000)]).unwrap();
-        let mut device = host.open(mode,Some(backend)).unwrap();
+        let mut device = host.open_as(mode, Some(backend), "alice").unwrap();
         device.apply(&snapshot_at(&mut server,500),true).unwrap();
         if mode == "witness" {
             // A delivered positive witness is enough even with a horizon.
@@ -266,7 +266,7 @@ query sources(c: cursor ?):
 fn fold_commits<H: Host>(host:&mut H) {
     use std::collections::BTreeMap;
     let (mut server,backend)=compile(FOLD);
-    let mut device=host.open("fold",Some(backend)).unwrap();
+    let mut device=host.open_as("fold", Some(backend), "alice").unwrap();
     for (i,page) in snapshot_pages(&mut server,"alice",100).iter().enumerate() {device.apply(page,i==0).unwrap();}
     let max=snapback4_core::value::I53_MAX;
     let mut edits=Vec::new();
@@ -327,7 +327,7 @@ fn fold_commits<H: Host>(host:&mut H) {
 
 fn cursor_mutation<H: Host>(host:&mut H) {
     let (mut server,backend)=ranked();
-    let mut device=host.open("mutation-cursor",Some(backend)).unwrap();
+    let mut device=host.open_as("mutation-cursor", Some(backend), "alice").unwrap();
     for (i,page) in snapshot_pages(&mut server,"alice",100).iter().enumerate() {device.apply(page,i==0).unwrap();}
     let first=device.query("groups","alice",&json!({"owner":"alice","c":null}),0).unwrap();
     let token=first.next.unwrap();

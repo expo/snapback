@@ -11,7 +11,7 @@ fn scenario<H: Host>(mut host: H) {
         let mut devices = Vec::new();
         for viewer in [case::READER, case::NEW_READER] {
             let name = format!("{at_cap}-{viewer}");
-            let mut device = host.open(&name, Some(backend.clone())).unwrap();
+            let mut device = host.open_as(&name, Some(backend.clone()), viewer).unwrap();
             for (n, page) in snapshot_pages(&mut engine, viewer, 1000).iter().enumerate() {
                 assert!(page.events.iter().all(|e| e.table != "pullCounts"));
                 assert!(page.events.iter().filter(|e| e.table == "pulls").all(|e| e.data.as_ref().unwrap()["readerId"] == viewer));
@@ -45,7 +45,7 @@ fn scenario<H: Host>(mut host: H) {
         }
         for (viewer, name, device) in devices {
             host.close(&name, device);
-            let mut device = host.open(&name, None).unwrap();
+            let mut device = host.open_as(&name, None, viewer).unwrap();
             let local = device.query("following", viewer, &serde_json::json!({}), 10).unwrap();
             assert!(local.complete);
             assert_eq!(local.data, engine.query("following", context(viewer, &[]).at(10)).unwrap().data);

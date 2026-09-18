@@ -49,11 +49,32 @@ Successful write/receipt recovery can therefore cause permanent local data loss
 even when every identity check passes. Foreign-owner refusal does not address
 this same-owner case.
 
+## Second symptom: valid legacy orphan writes remain stranded
+
+The round-5 GPT-family review independently reconfirmed the 25-row deletion
+and reproduced a second symptom: an orphan with no `device:history-owner`, a
+committed write whose recorded viewer matches the opener, and no synchronous
+journal copy is skipped before device construction. `adoptOrphans` excludes
+every unbound source containing a live `r`, `b` or `o` cell. The write remains
+in its source, is never imported, and cannot reach the sender automatically.
+Primary-store legacy first binding preserves the same valid write.
+
+Evidence: `snapback4/target/reviews-final/gpt-family-review.txt`, Part 2,
+findings 2 and 3. This is a false recovery exclusion, not loss of the source.
+The author explicitly defers it in Repair C fix round 6: letting more sources
+enter the current removal path would widen the irreversible-history defect.
+Both symptoms remain open; the executable-outbox ownership fix does not change
+orphan inspection, source-removal criteria, or claim custody of retained rows.
+
 ## Direction
 
 Before removing an orphan, establish whether it holds retained history. If it
 does, or that cannot be ruled out, preserve the source until its retained copies
 have durable custody elsewhere. Cover empty and held-only orphan controls,
 same-owner left-group recovery, interrupted transfer, and unknown provenance.
-Receipt recovery alone must not authorize deleting the database. Do not expand
-Repair C fix round 4 into this inherited lifecycle repair.
+Receipt recovery alone must not authorize deleting the database. After that
+custody repair, consult the device when inspecting legacy orphan sources and
+recover matching committed writes without requiring a journal copy. Cover the
+same source with retained rows, foreign/unlabelled writes, and interrupted
+transfer; an unresolved source must stay intact. Do not expand Repair C fix
+round 6 into either deferred recovery repair.

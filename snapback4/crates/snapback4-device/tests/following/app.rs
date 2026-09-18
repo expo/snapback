@@ -106,7 +106,7 @@ fn w7a_wired_mutations_predict_or_queue_offline_on_both_stores() {
         app::mutate(&mut engine, "register", "alice", &[], 1);
         app::mutate(&mut engine, "createPost", "alice", &[("postId", app::id("held-post")), ("body", Value::String("held card".into()))], 2);
         let backend = Backend { generation: engine.generation(), schema: bound.schema, programs: bound.programs.into_iter().map(|p| p.program).collect() };
-        let mut device = host.open("w7a-predict", Some(backend.clone())).unwrap();
+        let mut device = host.open_as("w7a-predict", Some(backend.clone()), "bob").unwrap();
         for (n, page) in snapshot_pages(&mut engine, "bob", 100).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
         for (n, (op, args, table)) in [
             ("saveProfile", serde_json::json!({"name":"Bob"}), "profiles"),

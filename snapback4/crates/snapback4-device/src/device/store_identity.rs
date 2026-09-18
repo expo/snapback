@@ -143,6 +143,7 @@ mod tests {
         }
         tx.set_meta(BACKEND_IDENTITY, "new-backend").unwrap();
         assert_eq!(require_owner(&tx, "backend", &None, None).unwrap_err().code(), "E_PREDICT");
+        assert_eq!(tx.meta(HISTORY_OWNER).unwrap().as_deref(), Some("dev:someone-else"));
         tx.rollback().unwrap();
     }
 }

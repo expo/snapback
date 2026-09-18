@@ -113,7 +113,7 @@ fn following_removal_reaches_every_reader_before_purge(host: &mut dyn HostDyn) {
         let label = host.label();
         for (n, viewer) in viewers.iter().enumerate() {
             let store = format!("removal-{followers}-{viewer}");
-            let mut device = host.open(&store, Some(backend.clone())).unwrap();
+            let mut device = host.open_as(&store, Some(backend.clone()), viewer).unwrap();
             for (i, page) in snapshots[n].iter().enumerate() { ok(apply(&mut *device, page, i == 0)); }
             let local = query(&mut *device, "following", viewer, serde_json::json!({}), 10);
             assert_eq!(local["complete"], true);
@@ -205,8 +205,8 @@ fn removal_authority<H: crate::common::Host>(mut host: H) {
         case::seed_authority(&mut engine, hidden);
         let attacker_store = format!("attacker-{hidden}");
         let victim_store = format!("victim-{hidden}");
-        let mut attacker = host.open(&attacker_store, Some(backend.clone())).unwrap();
-        let mut victim = host.open(&victim_store, Some(backend)).unwrap();
+        let mut attacker = host.open_as(&attacker_store, Some(backend.clone()), case::INTRUDER).unwrap();
+        let mut victim = host.open_as(&victim_store, Some(backend), case::PRIVATE).unwrap();
         for (viewer, device) in [(case::INTRUDER, &mut attacker), (case::PRIVATE, &mut victim)] {
             for (i, page) in snapshot_pages(&mut engine, viewer, 1000).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
         }
@@ -218,7 +218,7 @@ fn removal_authority<H: crate::common::Host>(mut host: H) {
         let refused = attacker.admit(entry).unwrap_err().refusal();
         assert_eq!(refused.code, "E_RULE", "a held source proves the attacker is not its author");
         host.close(&attacker_store, attacker);
-        let mut attacker = host.open(&attacker_store, None).unwrap();
+        let mut attacker = host.open_as(&attacker_store, None, case::INTRUDER).unwrap();
         let seq = engine.seq().unwrap();
         let result = engine.mutate("forgeRemoval", Some("forge"), context(case::INTRUDER, &[("eventId", world::id("new-post")), ("markerId", world::id("new-post")), ("actorId", world::id(case::INTRUDER))]).at(10)).unwrap();
         victim.apply(&stream_page(&mut engine, case::PRIVATE, seq), false).unwrap();

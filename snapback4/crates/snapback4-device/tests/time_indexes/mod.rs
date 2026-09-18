@@ -12,11 +12,11 @@ fn w13c2_time_keys_page_update_and_adopt_on_both_stores() {
         let base = SOURCE.split("query buckets").next().unwrap().lines().filter(|line| !line.contains("by byBucket:")).collect::<Vec<_>>().join("\n") + "\n";
         let (mut engine, backend) = compile(&base);
         engine.seed(fixture::seed()).unwrap();
-        let mut device = host.open("time-keys",Some(backend)).unwrap();
+        let mut device = host.open_as("time-keys", Some(backend), "dev:alice").unwrap();
         for (i,page) in snapshot_pages(&mut engine,"dev:alice",100).iter().enumerate() { device.apply(page,i==0).unwrap(); }
         let (_, next) = compile(SOURCE);
         engine.adopt(next.schema.clone(),next.programs.clone()).unwrap();
-        device.adopt(Backend { generation:engine.generation(),..next }, "dev:bob").unwrap();
+        device.adopt(Backend { generation:engine.generation(),..next }, "dev:alice").unwrap();
         // Activation fences reads until this generation's acquisition completes.
         for (i,page) in snapshot_pages(&mut engine,"dev:alice",100).iter().enumerate() { device.apply(page,i==0).unwrap(); }
         // First read after activation uses the rebuilt index over held images.
@@ -43,7 +43,7 @@ fn w13c2_time_keys_page_update_and_adopt_on_both_stores() {
 fn w13c2_daily_unique_predicts_on_both_stores_under_the_clock() {
     fn scenario<H: Host>(host: &mut H) {
         let (mut engine,backend)=compile(SOURCE);
-        let mut device=host.open("daily",Some(backend)).unwrap();
+        let mut device=host.open_as("daily", Some(backend), "dev:alice").unwrap();
         for (i,page) in snapshot_pages(&mut engine,"dev:alice",100).iter().enumerate() { device.apply(page,i==0).unwrap(); }
         for (seq,now,allowed) in [(1,86_399_999,true),(2,86_399_999,false),(3,86_400_000,true)] {
             let result=device.admit(Queued { id:format!("daily{seq}"),seq,op:"checkin".into(),args:json!({}),new_ids:vec![format!("checkin{seq}")],predicted:vec![],viewer:"dev:alice".into(),now,predictable:true,sent_seq:None,observed_seq:None });

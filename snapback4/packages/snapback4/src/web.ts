@@ -128,6 +128,11 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
       // Committed outbox entries, mirrored from persisted changes, so a page
       // being hidden can send what IndexedDB already holds.
       const committed = new Map<string, { seq: number; id: string; op: string; args: unknown; new_ids: string[]; sent_seq?: number | null }>();
+      const executableIds = (): Set<string> => {
+        const reply = JSON.parse(device!.call(JSON.stringify({ op: "queued" })));
+        if (reply.denied) throw reply;
+        return new Set((reply.ok as { id: string }[]).map(entry => entry.id));
+      };
       const committedListeners = new Set<() => void>();
       const remember = (changes: Change[]) => {
         journal.remember(changes);
@@ -158,15 +163,11 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
         checkedSyncState(device);
         const savedOwner = savedHistoryOwner(saved);
         const sameOwner = savedOwner === viewer;
-        // @ref LLP 3000.001#reliability-retention — first binding is not a principal reset.
-        // The device has admitted this legacy store. Its committed writes carry
-        // their own viewer; retain matching writes and their transfer fences.
-        const legacyWrites = new Map<string, string | null>();
-        if (savedOwner == null) for (const c of saved) if (c.s === "o") legacyWrites.set(c.k, c.v);
-        const legacyOwned = new Set([...legacyWrites].filter(([, value]) => value !== null && JSON.parse(value).viewer === viewer).map(([id]) => id));
-        // A permitted identity reset cannot recover the previous principal's
-        // journal, transfer markers or committed payloads under this viewer.
-        const owns = (c: Change) => (c.s !== "o" && c.s !== "j") || sameOwner || legacyOwned.has(c.k);
+        // @ref LLP 3000.001#reliability-retention — the device decides executable outbox ownership for every host.
+        // Keep the admitted projection and its transfer fences. The host only
+        // retires excluded persisted payloads; it never classifies their viewer.
+        const executable = executableIds();
+        const owns = (c: Change) => (c.s !== "o" && c.s !== "j") || (c.s === "j" && sameOwner) || executable.has(c.k);
         const owned = saved.filter(owns);
         const retired = saved.filter(c => !owns(c) && c.v !== null).map(c => ({ ...c, v: null }));
         for (const change of retired) if (change.s === "o") {
@@ -195,12 +196,12 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           if (typeof window === "undefined" || typeof document === "undefined") return () => {};
           const page = window, doc = document;
           let suspended = false;
-          const beginSend = () => {
+          const beginSend = (id: string) => {
             if (closing || !device) return false;
             // Invalidate any sync already in flight, including a bfcache page's
             // snapshot. The synchronous VM call precedes the oldest write's send;
             // its metadata is persisted in order behind any current IDB save.
-            const started = JSON.parse(device.call(JSON.stringify({ op: "begin_send" })));
+            const started = JSON.parse(device.call(JSON.stringify({ op: "begin_send", ids: [id] })));
             if (started.denied) return false;
             // A failed save discards the device like a failed call; the next call reopens it.
             chain = chain.then(async () => { if (device) await settle(); }).catch(() => discard());
@@ -208,9 +209,12 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
           };
           const dispatch = () => {
             if (!suspended || closing || !device) return;
-            const entries: PendingSend[] = [...committed.values()].filter(e => e.sent_seq == null).sort((a, b) => a.seq - b.seq)
+            let executable: Set<string>;
+            try { executable = executableIds(); } catch { return; }
+            const entries: PendingSend[] = [...committed.values()].filter(e => e.sent_seq == null && executable.has(e.id)).sort((a, b) => a.seq - b.seq)
               .map(e => ({ id: e.id, op: e.op, args: e.args, newIds: e.new_ids }));
-            if (entries.length) flush(entries, beginSend);
+            const head = entries[0];
+            if (head) flush(entries, () => beginSend(head.id));
           };
           const suspend = () => { suspended = true; dispatch(); };
           const resume = () => { suspended = false; };
@@ -342,13 +346,13 @@ async function initializeWasm(source: BufferSource | WebAssembly.Module, identit
 
 function refusalText(error: unknown): string {
   if (typeof error === "object" && error !== null && "denied" in error) {
-    const denied = error.denied as { code: string; message: string };
-    return `${denied.code}: ${denied.message}`;
+    const denied = error.denied as { code?: string; message?: string } | null;
+    if (denied && typeof denied.code === "string") return `${denied.code}: ${denied.message ?? "device refused"}`;
   }
   const text = String((error as Error)?.message ?? error);
   try {
     const parsed = JSON.parse(text) as { denied?: { code?: string; message?: string } };
-    if (parsed.denied) return `${parsed.denied.code}: ${parsed.denied.message}`;
+    if (parsed.denied && typeof parsed.denied.code === "string") return `${parsed.denied.code}: ${parsed.denied.message ?? "device refused"}`;
   } catch {
     // not a refusal
   }

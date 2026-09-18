@@ -55,8 +55,8 @@ pub(super) fn run<T: DeviceTx>(tx: &T, schema: &Schema, program: &Program, entry
 }
 
 pub(super) fn replay<T: DeviceTx>(tx: &T, schema: &Schema, programs: &BTreeMap<String, Program>, watermark: u64) -> Result<(), RuntimeError> {
-    for data in tx.outbox_entries()? {
-        let mut entry: Queued = decoded(&data)?;
+    let viewer = tx.meta(store_identity::HISTORY_OWNER)?.unwrap_or_default();
+    for mut entry in outbox::entries(tx, &viewer)? {
         if entry.sent_seq.is_some_and(|seq| seq <= watermark) {
             tx.outbox_delete(&entry.id)?;
             continue;

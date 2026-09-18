@@ -14,7 +14,7 @@ fn ascending_horizon_advice<H: Host>(host: &mut H) {
         ("advice", if advice.starts_with("sync ") { advice.as_str() } else { "sync public" }, true)] {
         let (mut server, backend) = compile(&SOURCE.replacen("sync public", sync, 1));
         for n in 0..25 { seed(&mut server, "archive", json!({"id":format!("a{n:02}"), "at":n})); }
-        let mut device = host.open(mode, Some(backend)).unwrap();
+        let mut device = host.open_as(mode, Some(backend), "bob").unwrap();
         for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
         let acquired = device.query("archives", "bob", &json!({}), 1000).unwrap().data.as_array().unwrap().len();
         assert_eq!(acquired, 25, "every existing row was acquired, even under last 500");
@@ -60,7 +60,7 @@ fn horizon_guard_rewrite_restores_the_pending_message_on_both_stores() {
             let (mut server, backend) = compile(&source);
             seed(&mut server, "members", json!({"id":"member", "conversationId":"room", "principal":"bob"}));
             let name = if guarded { "guarded" } else { "rewritten" };
-            let mut device = host.open(name, Some(backend)).unwrap();
+            let mut device = host.open_as(name, Some(backend), "bob").unwrap();
             for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
             let input = json!({"messageId":"message", "conversationId":"room", "body":"hello"});
             let entry = Queued { id: "write".into(), seq: 1, op: "send".into(), args: input.clone(), viewer: "bob".into(), now: 1000,
@@ -177,7 +177,7 @@ fn covered<H: Host>(host: &mut H) {
             .replace("{ on: true }", "{}");
         if case == "public-cap" { source = source.replace("read <- .principal = viewer", "read <- public"); }
         let (mut server, backend) = compile(&source);
-        let mut device = host.open(case, Some(backend)).unwrap();
+        let mut device = host.open_as(case, Some(backend), "bob").unwrap();
         for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
         let entry = device.admit(queued("vote", 1)).unwrap();
         assert!(entry.predictable, "{case}: {entry:?}");
@@ -205,7 +205,7 @@ fn defaulted_insert_rule_refusal_matches_server_on_both_stores() {
     fn run<H: Host>(host: &mut H) {
         let source = LIKES.replace("on: bool", "on: bool default false").replace("insert <- .principal = viewer", "insert <- .principal = viewer and .on = true").replace("{ on: true }", "{}");
         let (mut server, backend) = compile(&source);
-        let mut device = host.open("refused", Some(backend)).unwrap();
+        let mut device = host.open_as("refused", Some(backend), "bob").unwrap();
         for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
         let error = device.admit(queued("vote", 1)).unwrap_err().refusal();
         let result = sent(&mut server, "vote", 1);
@@ -224,7 +224,7 @@ fn pending_delete_then_upsert_replays_in_order_on_both_stores() {
         let source = format!("{}\nmutation clear(postId: text <=30):\n  delete likes[postId, viewer]\n", LIKES.replace("  update <-", "  delete <- .principal = viewer\n  update <-"));
         let (mut server, backend) = compile(&source);
         seed(&mut server, "likes", json!({"id":"old","postId":"first","principal":"bob","on":false}));
-        let mut device = host.open("ordered", Some(backend)).unwrap();
+        let mut device = host.open_as("ordered", Some(backend), "bob").unwrap();
         for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
         assert!(device.admit(queued("clear", 1)).unwrap().predictable);
         assert_eq!(device.query("one", "bob", &json!({"postId":"first"}), 1000).unwrap().data, Value::Null);
@@ -233,7 +233,7 @@ fn pending_delete_then_upsert_replays_in_order_on_both_stores() {
         let pending = device.query("one", "bob", &entry.args, 1000).unwrap();
         assert_eq!(pending.data.field("id"), Ok(&id("new-2")));
         host.close("ordered", device);
-        let mut device = host.open("ordered", None).unwrap();
+        let mut device = host.open_as("ordered", None, "bob").unwrap();
         assert_eq!(device.query("one", "bob", &entry.args, 1000).unwrap(), pending);
         for (op, n) in [("clear", 1), ("vote", 2)] {
             let result = sent(&mut server, op, n);
@@ -273,7 +273,7 @@ query roster(postId: text <=30):
 fn left_group<H: Host>(host: &mut H, replay: bool) {
     let (mut server, backend) = compile(MEMBERS);
     seed(&mut server, "members", json!({"id":"member","room":"first","principal":"bob","on":false}));
-    let mut device = host.open("left", Some(backend)).unwrap();
+    let mut device = host.open_as("left", Some(backend), "bob").unwrap();
     for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
     if replay { assert!(device.admit(queued("vote", 1)).unwrap().predictable); }
     assert!(matches!(sent(&mut server, "leave", 2).state, WriteState::Sent { .. }));
@@ -290,7 +290,7 @@ fn left_group<H: Host>(host: &mut H, replay: bool) {
     assert!(!entry.predictable, "{entry:?}");
     assert!(entry.predicted.is_empty());
     host.close("left", device);
-    let mut device = host.open("left", None).unwrap();
+    let mut device = host.open_as("left", None, "bob").unwrap();
     assert_eq!(device.queued().unwrap(), vec![entry]);
     assert_eq!(device.query("one", "bob", &json!({"postId":"first"}), 1000).unwrap().data, Value::Null);
     assert!(matches!(sent(&mut server, "vote", 1).state, WriteState::Failed { why, .. } if why.code == "NOT_FOUND"));

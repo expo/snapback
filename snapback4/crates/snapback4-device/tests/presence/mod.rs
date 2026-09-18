@@ -72,7 +72,7 @@ fn presence_effects_send_predicts_identical_rows_on_both_stores() {
             engine.seed(["dev:alice", "dev:bob", "dev:carol"].iter().enumerate().map(|(n, p)| ("members".into(), snapback4_core::value::object([("id", id(&format!("m{n}"))), ("roomId", id("room")), ("principal", id(p))])))).unwrap();
             backend.generation = engine.generation();
             let label = host.label();
-            let mut device = host.open(&format!("presence-{}", connected.len()), Some(backend)).unwrap();
+            let mut device = host.open_as(&format!("presence-{}", connected.len()), Some(backend), "dev:alice").unwrap();
             for (n, page) in snapshot_pages(&mut engine, "dev:alice", 10).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
             let online = query(&mut *device, "online", "dev:alice", serde_json::json!({"p":"dev:bob"}), 1000);
             assert_eq!(online["complete"], false, "presence queries remain unknown on {label}");
@@ -114,7 +114,7 @@ fn r1p_effect_ids_do_not_displace_rows_or_replay_ids_on_both_stores() {
             let (mut engine, backend) = compile(&source);
             engine.set_presence(Some(std::sync::Arc::new(Online(vec!["bob".into(); count]))));
             let label = host.label();
-            let mut device = host.open(&format!("r1p-ids-{count}"), Some(backend)).unwrap();
+            let mut device = host.open_as(&format!("r1p-ids-{count}"), Some(backend), "alice").unwrap();
             // A device predicts only after acquiring its generation's partition.
             for (n, page) in snapshot_pages(&mut engine, "alice", 10).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
             let predicted = ok(device.call(serde_json::json!({"op":"predict", "name":"probe", "viewer":"alice", "args":{"p":"bob"}, "now":1, "newIds":["A","B","C","D","E"]})));
@@ -125,7 +125,7 @@ fn r1p_effect_ids_do_not_displace_rows_or_replay_ids_on_both_stores() {
             // the row supply, without any dropped effect ids in the queue.
             ok(apply(&mut *device, &stream_page(&mut engine, "alice", 0), false));
             device.close();
-            let mut device = host.open(&format!("r1p-ids-{count}"), None).unwrap();
+            let mut device = host.open_as(&format!("r1p-ids-{count}"), None, "alice").unwrap();
             assert_eq!(ok(device.call(serde_json::json!({"op":"queued"})))[0]["new_ids"], serde_json::json!(["A", "B"]));
             let sent = engine.mutate("probe", Some("write"), context("alice", &[("p", id("bob"))]).at(1).with_ids(["A","B","C","D","E"].map(str::to_owned))).unwrap();
             let WriteState::Sent { result, .. } = &sent.state else { panic!("{sent:?}") };

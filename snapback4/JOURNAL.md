@@ -36866,3 +36866,64 @@ Final requested verification (existing native fixture supplied, two build jobs/t
 Full verbatim logs are `target/repair-c-round5/{device,core}.log`; each target's exact result line is also in `verbatim-results.txt`. No push, rebase, merge,
 whole suite, wasm build, witness, release build, simulator suite or repository-root
 generator was run.
+
+## 2026-09-17 — Repair C fix round 6: executable outbox ownership in the device
+
+Y1 moved the executable-outbox decision to one Rust predicate: the recorded
+queued viewer must match the device's opening principal, and the durable binding
+must still agree. Queue projection, sync pending IDs, prediction replay and
+admission/import consume that rule. `begin_send` now rechecks the host's captured
+write IDs in the transaction that advances its revision; refused entries do not
+advance it. Both the shared sender and web pagehide path supply their captured
+ID. Web restore consumes the device projection to retain matching payloads and
+transfer fences, replacing its independent queued-viewer test. Matching legacy
+writes and matching entries across an allowed principal change survive. Foreign
+native entries remain durable behind the fence; web retains its existing
+retirement persistence behavior for excluded entries.
+
+Seventeen new Rust cases cover both stores and open/adopt, mixed legacy queues,
+matching writes across a known principal change, foreign predictions, exact
+payload preservation, refused send batches, offline reopen and a superseded
+native handle. Six new source-host cases exercise the actual TypeScript sources
+with device-boundary doubles, including ordinary HTTP sender credentials and
+pagehide capture races. Existing write fixtures now explicitly open/reopen/adopt
+as their submitting principal, including the shared paired-observation helper;
+the frozen 0.2.27 codec texts remain byte-for-byte unchanged. The codec tests now
+also assert that unlabelled durable entries are preserved but cannot execute.
+
+Eight mutations failed behavioral assertions: permit every outbox owner, omit
+per-ID send authorization, replay the raw queue, omit the live binding check,
+mark an ownership read refusal unknown, restore the independent web ownership
+rule, omit ordinary sender IDs, and omit pagehide IDs. Each mutation restored
+its file byte-for-byte; commands, negative logs and before/restored SHA-256 hashes
+are under `target/repair-c-round6/`. Both web mutations were rerun after the final
+pagehide head capture refinement. No wasm/IndexedDB/native-app witness is claimed.
+
+Accepted Medium/Low findings keep a history-owner read refusal structural with
+`unknown=false`, preserve useful text for malformed web refusal envelopes, and
+assert backend identity checks leave the durable history-owner unchanged. The
+supplied GPT review and twelve Grok packets have individual dispositions in
+`target/repair-c-round6/review-dispositions.md`. The current sync guide and
+LLP 3000.001 record the shared outbox rule. Broader host policy migration remains
+future work.
+
+The existing open ticket
+`issues/20260917-snapback4-orphan-recovery-deletes-retained-history.md` now also
+records valid legacy orphan writes stranded before device inspection. It retains
+the original 25 unreacquirable rows lost by same-owner source deletion. Both
+symptoms remain deferred; orphan inspection and source removal were not changed.
+
+Final verification used two build jobs/test threads and the existing native fixture:
+
+- `cargo test -p snapback4-device`: exit 0; 652 passed, 0 failed, 3 ignored.
+- `cargo test -p snapback4-core`: exit 0; 159 passed, 0 failed, 0 ignored.
+- Source-host ownership/recovery tests: exit 0; 33 passed, 0 failed.
+- `git diff --check`: clean; existing `native_reads.rs:75` unused-mut warning remains.
+- Package typecheck: exit 2 solely for two missing generated wasm declarations
+  (`web.ts` and `web-journal.ts`). Its optional-head capture error was fixed;
+  the lane's restrictions preclude generating the missing wasm artifact.
+
+Full verbatim logs are `target/repair-c-round6/{device,core}.log`; exact per-target
+result lines are in `verbatim-results.txt`. Earlier fixture failures are retained
+separately. No push, rebase, merge, whole suite, wasm build, witness, release build,
+simulator suite or repository-root generator was run.

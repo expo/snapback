@@ -145,9 +145,13 @@ Device reads trust delivered history only for
 that recorded principal; other readers undergo the ordinary read rule.
 Ownership is decided before replacement, program-only or literal-default
 preservation. A refusal returns no stored row body to the opener.
-Legacy first binding is distinct from a known principal change: the web host
-preserves committed queued writes whose recorded viewer matches the opener,
-even when successful admission has already removed their synchronous journal.
+The device exposes and executes only queued writes whose recorded viewer matches
+its opening principal. This applies to legacy first binding and same-store
+principal changes on every host, including prediction replay and pending sync
+IDs. Both send paths ask the device to authorize their captured write IDs before
+transport. Matching committed writes survive without a synchronous journal;
+foreign or unlabelled writes stay fenced. Web restore consumes that device
+decision when retiring excluded persisted payloads and keeping transfer fences.
 
 A changed, nonzero generation with a structurally identical whole schema,
 an unchanged owner, and no backend-replacement marker preserves images, the

@@ -30,10 +30,29 @@ fn kept(changes: &[Change], key: &str) -> String { changes.iter().find(|c| c.k =
 fn record(changes: &[Change], store: char) -> &Change { changes.iter().find(|c| c.s == store).unwrap() }
 fn fixture_backend(changes: &[Change]) -> Backend { serde_json::from_str(&kept(changes, "device:backend")).unwrap() }
 
-fn answers<S: DeviceStore>(device: &mut Device<S>) {
+trait FrozenOutbox {
+    fn raw_outbox(&self) -> Vec<String>;
+}
+impl FrozenOutbox for MemoryStore {
+    fn raw_outbox(&self) -> Vec<String> { self.export().into_iter().filter(|c| c.s == 'o').map(|c| c.v.unwrap()).collect() }
+}
+impl FrozenOutbox for snapback4_core::Store {
+    fn raw_outbox(&self) -> Vec<String> {
+        self.conn().prepare("SELECT entry FROM _device_outbox ORDER BY seq").unwrap()
+            .query_map([], |r| r.get(0)).unwrap().collect::<Result<_, _>>().unwrap()
+    }
+}
+
+fn fenced_old_outbox<S: DeviceStore + FrozenOutbox>(device: &mut Device<S>) {
+    assert!(device.queued().unwrap().is_empty(), "the frozen unlabelled write is not executable");
+    assert_eq!(device.store().raw_outbox(), vec![record(&changes(), 'o').v.clone().unwrap()], "the frozen bytes stay intact behind the ownership fence");
+    assert_eq!(device.begin_send().unwrap_err().code(), "E_INPUT");
+}
+
+fn answers<S: DeviceStore + FrozenOutbox>(device: &mut Device<S>) {
     let answer = device.query("all", "alice", &json!({}), 0).unwrap();
     assert_eq!(snapback4_core::wire::to_json(&answer.data), json!([{"id":"n1","body":"kept"}]));
-    assert_eq!(device.queued().unwrap(), vec![serde_json::from_str::<Queued>(record(&changes(), 'o').v.as_deref().unwrap()).unwrap()]);
+    fenced_old_outbox(device);
 }
 
 #[test]
@@ -104,7 +123,9 @@ fn newly_written_records_decode_with_the_old_plain_serde_apis() {
     // Exercise the device writers as well as MemoryTx's record envelope: the
     // staged image and queued entry come from production's private derives.
     let mut device = Device::open_store(MemoryStore::new(), Some(backend), "dev:bob").unwrap();
-    device.enqueue(&queued).unwrap();
+    assert_eq!(device.enqueue(&queued).unwrap_err().code(), "E_INPUT");
+    let owned = Queued { viewer: "dev:bob".into(), ..queued };
+    device.enqueue(&owned).unwrap();
     let page = json!({"snapshot":true,"events":[{"table":"notes","kind":"put","id":"n1","data":{"id":"n1","body":"kept"}}],"watermark":1,"more":true,"next":"next","generation":1});
     let result = snapback4_device::call::call_text(&mut device, &json!({"op":"apply","page":page,"first":true}).to_string());
     assert!(result.get("ok").is_some(), "{result}");
@@ -112,7 +133,13 @@ fn newly_written_records_decode_with_the_old_plain_serde_apis() {
     for kind in ['o', 's'] {
         let written = record(&emitted, kind);
         let plain: Change = serde_json::from_str(&codec::to_text(written).unwrap()).unwrap();
-        assert_eq!(&plain, record(&old, kind));
+        let mut expected = record(&old, kind).clone();
+        if kind == 'o' {
+            // The frozen raw encoding above remains byte-for-byte checked.
+            // New admission requires an owner, and changes only that field.
+            expected.v = expected.v.map(|text| text.replace("\"viewer\":\"\"", "\"viewer\":\"dev:bob\""));
+        }
+        assert_eq!(plain, expected);
     }
     assert_eq!(kept(&emitted, "device:backend"), kept(&old, "device:backend"));
 }
@@ -165,7 +192,7 @@ fn old_sqlite_fixture(path: &Path) -> snapback4_core::store::Store {
 // Start from the frozen pre-change records, not an open through today's Device.
 // The expected map must accept absent owner/revision/snapshot/marker keys even
 // while SQLite projects the schema in the same installation transaction.
-fn old_in_place_adoption<S: DeviceStore>(store: S, reopen: bool) {
+fn old_in_place_adoption<S: DeviceStore + FrozenOutbox>(store: S, reopen: bool) {
     for key in ["device:history-owner", "device:send_revision", "device:backend-required", "device:snapshot:owner", "device:snapshot:next"] {
         assert_eq!(store.meta(key).unwrap(), None, "the fixture predates {key}");
     }
@@ -185,7 +212,7 @@ fn old_in_place_adoption<S: DeviceStore>(store: S, reopen: bool) {
     assert_eq!(device.state().unwrap().1, 2);
     let answer = device.query("all", "dev:bob", &json!({}), 0).unwrap();
     assert_eq!(snapback4_core::wire::to_json(&answer.data), json!([{"id":"n1","body":"kept","flag":false}]));
-    assert_eq!(device.queued().unwrap(), vec![serde_json::from_str::<Queued>(record(&changes(), 'o').v.as_deref().unwrap()).unwrap()]);
+    fenced_old_outbox(&mut device);
 }
 
 #[test]

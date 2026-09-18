@@ -40,7 +40,7 @@ fn maintains_predict_new_groups_and_omit_online_side_effects_on_both_stores() {
             let text = if horizon { SOURCE.replace("  sync\n", "  sync last 1 by byAuthor\n") } else { SOURCE.into() };
             let (mut server, backend) = compile(&text);
             let name = if horizon { "horizon" } else { "whole" };
-            let mut device = host.open(name, Some(backend)).unwrap();
+            let mut device = host.open_as(name, Some(backend), "bob").unwrap();
             for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
             for at in [-9_007_199_254_740_991_i64, -86_400_001, -1, 0, 1, 86_400_000, 1_709_164_800_000, 1_710_057_600_000, 9_007_199_254_740_991] {
                 let actual = device.query("calendar", "bob", &json!({"at":at}), 0).unwrap().data;
@@ -66,7 +66,7 @@ fn maintains_queue_unknown_bases_and_unheld_source_images_on_both_stores() {
     fn run<H: Host>(host: &mut H, text: &str) {
         let (mut server, backend) = compile(text);
         server.mutate("add", None, Context::new("bob", args(&[("selected",Value::Bool(true)),("at",Value::Int(0))])).at(1).with_ids(["held".into()])).unwrap();
-        let mut device = host.open("unknown", Some(backend)).unwrap();
+        let mut device = host.open_as("unknown", Some(backend), "bob").unwrap();
         for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page,i==0).unwrap(); }
         for (n, op, row) in [(1,"transfer","held"),(2,"patch","missing")] {
             let entry = device.admit(Queued { id:format!("q{n}"), seq:n, op:op.into(), args:json!({"row":row}), viewer:"bob".into(), now:2, new_ids:vec![], predicted:vec![], predictable:true, sent_seq:None, observed_seq:None }).unwrap();
@@ -143,7 +143,7 @@ fn w6r1_rule_live_aggregate_prediction_on_both_stores() {
             let (mut server, backend) = compile(&source);
             server.seed([("sessions".into(), snapback4_core::value::object([("id", Value::Id("s".into())), ("owner", Value::Id("bob".into())), ("expiresAt", Value::Int(1000))]))]).unwrap();
             let name = if horizon { "rule-live-horizon" } else { "rule-live-whole" };
-            let mut device = host.open(name, Some(backend)).unwrap();
+            let mut device = host.open_as(name, Some(backend), "bob").unwrap();
             for (i, page) in crate::snapshot_pages_at(&mut server, "bob", 100, 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
             let before = server.seq().unwrap();
             let queued = device.admit(Queued { id:"act-write".into(), seq:1, op:"act".into(), args:json!({}), viewer:"bob".into(), now:100, new_ids:vec!["action".into()], predicted:vec![], predictable:true, sent_seq:None, observed_seq:None }).unwrap();

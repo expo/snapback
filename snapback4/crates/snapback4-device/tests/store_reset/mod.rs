@@ -42,7 +42,7 @@ fn replaced(host: &mut dyn HostDyn) {
     for n in 0..3 {
         a.seed([("notes".into(), snapback4_core::value::object([("id", id(&format!("old-{n}"))), ("body", Value::String("old".into()))]))]).unwrap();
     }
-    let mut device = host.open("reset", Some(backend.clone())).unwrap();
+    let mut device = host.open_as("reset", Some(backend.clone()), "alice").unwrap();
     for (n, page) in snapshot_pages(&mut a, "alice", 2).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
     let watermark = state(&mut *device).0;
     assert_eq!(watermark, 3);
@@ -50,7 +50,7 @@ fn replaced(host: &mut dyn HostDyn) {
     device.close();
     let (mut b, replacement) = compile(SOURCE);
     assert_eq!(replacement.generation, backend.generation);
-    let mut device = host.open("reset", Some(replacement)).unwrap();
+    let mut device = host.open_as("reset", Some(replacement), "alice").unwrap();
     let page = stream_page(&mut b, "alice", watermark);
     let mut wire = page_json(&page); wire["requested_watermark"] = json!(watermark); wire["captured_watermark"] = json!(watermark);
     let result = device.call(json!({ "op": "apply", "page": wire }));
@@ -59,7 +59,7 @@ fn replaced(host: &mut dyn HostDyn) {
     assert!(read["denied"].is_object(), "old partition must lose acquisition when the server watermark regresses: {read}");
     assert_eq!(state(&mut *device).0, 0);
     assert_eq!(ok(device.call(json!({ "op": "queued" })))[0]["id"], "unsent");
-    ok(device.call(json!({ "op": "adopt", "viewer": "dev:bob", "backend": backend })));
+    ok(device.call(json!({ "op": "adopt", "viewer": "alice", "backend": backend })));
     for (n, page) in snapshot_pages(&mut b, "alice", 2).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
     assert_eq!(rows(&query(&mut *device, "all", "alice", json!({}), 1)).len(), 0, "old predictions are discarded too");
     device.close();
@@ -86,7 +86,7 @@ fn store_identity_resets_equal_watermarks_and_retires_only_known_receipts_on_bot
         let (mut a, backend) = compile(SOURCE);
         a.seed([("notes".into(), snapback4_core::value::object([("id", id("old")), ("body", Value::String("A".into()))]))]).unwrap();
         let a_id = a.store().meta("store_id").unwrap().unwrap();
-        let mut device = host.open("identities", Some(backend.clone())).unwrap();
+        let mut device = host.open_as("identities", Some(backend.clone()), "alice").unwrap();
         identified_pages(&mut a, &mut *device, false);
         for (n, name) in ["known-sent", "known-observed", "unknown-receipt", "unsent"].iter().enumerate() {
             ok(device.call(json!({ "op": "admit", "entry": { "id": name, "seq": n + 1, "op": "add", "args": { "body": name }, "viewer": "alice", "now": 1, "predictable": true } })));
@@ -117,7 +117,7 @@ fn store_identity_resets_equal_watermarks_and_retires_only_known_receipts_on_bot
         for n in 0..4 { b.seed([("notes".into(), snapback4_core::value::object([("id", id(&format!("B-{n}"))), ("body", Value::String("B".into()))]))]).unwrap(); }
         let b_id = b.store().meta("store_id").unwrap().unwrap();
         assert_ne!(a_id, b_id);
-        let mut device = host.open("identities", Some(backend.clone())).unwrap();
+        let mut device = host.open_as("identities", Some(backend.clone()), "alice").unwrap();
         let mut page = page_json(&stream_page(&mut b, "alice", 4));
         page["store_id"] = json!(b_id); page["send_revision"] = capture["send_revision"].clone();
         let observation = ok(device.call(json!({ "op": "observe_store", "page": page })));
@@ -130,10 +130,10 @@ fn store_identity_resets_equal_watermarks_and_retires_only_known_receipts_on_bot
         let queue = ok(device.call(json!({ "op": "queued" })));
         assert_eq!(queue.as_array().unwrap().iter().map(|e| e["id"].as_str().unwrap()).collect::<Vec<_>>(), ["unknown-receipt", "unsent"]);
         assert!(queue.as_array().unwrap().iter().all(|e| e["predicted"] == json!([]) && e["predictable"] == false));
-        ok(device.call(json!({ "op": "adopt", "viewer": "dev:bob", "backend": backend })));
+        ok(device.call(json!({ "op": "adopt", "viewer": "alice", "backend": backend })));
         // Crash during acquisition: even staged rows remain unavailable.
         identified_pages(&mut b, &mut *device, true); device.close();
-        let mut device = host.open("identities", None).unwrap();
+        let mut device = host.open_as("identities", None, "alice").unwrap();
         assert!(query(&mut *device, "all", "alice", json!({}), 1)["denied"].is_object());
         identified_pages(&mut b, &mut *device, false);
         assert_eq!(rows(&query(&mut *device, "all", "alice", json!({}), 1)).len(), 4);
@@ -151,11 +151,11 @@ fn store_identity_resets_equal_watermarks_and_retires_only_known_receipts_on_bot
         assert_eq!(ok(device.call(json!({ "op": "queued" }))), json!([]));
         device.close();
         let (mut c, _) = compile(SOURCE);
-        let mut device = host.open("identities", Some(backend)).unwrap();
+        let mut device = host.open_as("identities", Some(backend), "alice").unwrap();
         let mut page = page_json(&stream_page(&mut c, "alice", 6)); page["store_id"] = json!(c.store().meta("store_id").unwrap().unwrap());
         assert!(device.call(json!({ "op": "apply", "page": page }))["denied"].is_object());
         let backend = ok(device.call(json!({ "op": "backend" })));
-        ok(device.call(json!({ "op": "adopt", "viewer": "dev:bob", "backend": backend })));
+        ok(device.call(json!({ "op": "adopt", "viewer": "alice", "backend": backend })));
         identified_pages(&mut c, &mut *device, false);
         assert_eq!(rows(&query(&mut *device, "all", "alice", json!({}), 1)).len(), 0);
         device.close();

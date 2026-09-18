@@ -56,7 +56,7 @@ query one(room: text <=30):
             let (mut server, backend) = compile(source);
             let member = wire::row_from_json(&server.schema().tables["members"], &json!({"id":"member","room":"held","principal":"bob"})).unwrap();
             server.seed([("members".into(), member)]).unwrap();
-            let mut device = host.open(room, Some(backend)).unwrap();
+            let mut device = host.open_as(room, Some(backend), "bob").unwrap();
             for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
             let input = json!({"room":room});
             let queued = device.admit(Queued { id: "vote".into(), seq: 1, op: "vote".into(), args: input.clone(), viewer: "bob".into(), now: 1000, new_ids: vec!["like".into()], predicted: vec![], predictable: true, sent_seq: None, observed_seq: None }).unwrap();
@@ -115,7 +115,7 @@ fn first_offline_upsert_predicts_only_when_absence_is_provable_on_both_stores() 
                 assert_eq!(lines.lines().next().unwrap(), "  vote: predicts: eligible", "{case}");
                 assert_eq!(snapback4_lang::bind::residency::prediction_summary(&bound), None);
             }
-            let mut device = host.open(case, Some(backend)).unwrap();
+            let mut device = host.open_as(case, Some(backend), "bob").unwrap();
             for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
             let input = json!({"postId":"first"});
             let entry = Queued { id: "vote".into(), seq: 1, op: "vote".into(), args: input.clone(), viewer: "bob".into(), now: 1000, new_ids: vec!["like".into()], predicted: vec![], predictable: true, sent_seq: None, observed_seq: None };
@@ -125,7 +125,7 @@ fn first_offline_upsert_predicts_only_when_absence_is_provable_on_both_stores() 
             let pending = device.query("one", "bob", &input, 1000).unwrap().data;
             assert_eq!(pending != Value::Null, predicts, "{case}");
             host.close(case, device);
-            let mut device = host.open(case, None).unwrap();
+            let mut device = host.open_as(case, None, "bob").unwrap();
             assert_eq!(device.queued().unwrap(), vec![queued]);
             assert_eq!(device.query("one", "bob", &input, 1000).unwrap().data, pending);
             let context = Context::new("bob", args(&[("postId", Value::String("first".into()))])).at(1000).with_ids(["like".into()]);
@@ -191,7 +191,7 @@ fn insert_if_absent_matches_its_reported_absence_proof_on_both_stores() {
             let lines = snapback4_lang::bind::residency::operation_lines("vote", &bound.schema.operations["vote"]);
             assert_eq!(lines.lines().next().unwrap(), if predicts { "  vote: predicts: eligible" } else { "  vote: predicts: inserts queue without a row — insert if absent into likes cannot prove absence" }, "{case}");
             let (mut server, backend) = compile(&source);
-            let mut device = host.open(case, Some(backend)).unwrap();
+            let mut device = host.open_as(case, Some(backend), "bob").unwrap();
             for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
             let queued = device.admit(Queued { id: "vote".into(), seq: 1, op: "vote".into(), args: json!({"postId":"first"}), viewer: "bob".into(), now: 1000,
                 new_ids: vec!["like".into()], predicted: vec![], predictable: true, sent_seq: None, observed_seq: None }).unwrap();
@@ -236,7 +236,7 @@ fn review_supplied_and_minted_ids_match_prediction_on_both_stores() {
             let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
             assert!(bound.diagnostics.is_empty(), "{case}: {:?}", bound.diagnostics);
             let (mut server, backend) = compile(&source);
-            let mut device = host.open(case, Some(backend)).unwrap();
+            let mut device = host.open_as(case, Some(backend), "bob").unwrap();
             for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
             let input = json!({"id":"chosen", "postId":"first", "allowed":true});
             let queued = device.admit(Queued { id: "vote".into(), seq: 1, op: "vote".into(), args: input.clone(), viewer: "bob".into(), now: 1000,

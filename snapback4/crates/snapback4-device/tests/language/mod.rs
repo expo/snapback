@@ -5,7 +5,7 @@ fn defaults_predict_on_both_stores_with_the_explicit_write_clock() {
     on_both(|host| {
         let (mut engine, backend) = compile("table notes:\n  owner: principal default viewer\n  at: time default now\n  count: int default 0\n  by byOwner: owner, id\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  sync to .owner\nmutation add():\n  return insert notes {}\nquery get(note: notes):\n  return notes[note]\n");
         let label = host.label();
-        let mut device = host.open("defaults", Some(backend)).unwrap();
+        let mut device = host.open_as("defaults", Some(backend), "dev:alice").unwrap();
         for (n, page) in snapshot_pages(&mut engine, "dev:alice", 10).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
         ok(device.call(serde_json::json!({ "op": "admit", "entry": Queued { id: "default-write".into(), seq: 1, op: "add".into(), args: serde_json::json!({}), new_ids: vec!["note".into()], predicted: vec![], viewer: "dev:alice".into(), now: 1234, predictable: true, sent_seq: None, observed_seq: None } })));
         let predicted = query(&mut *device, "get", "dev:alice", serde_json::json!({"note":"note"}), 2000);
@@ -37,7 +37,7 @@ fn shapes_preserve_pending_through_spreads_and_projection_on_both_stores() {
     on_both(|host| {
         let label = host.label();
         let (mut engine, backend) = compile(source);
-        let mut device = host.open("shapes", Some(backend)).unwrap();
+        let mut device = host.open_as("shapes", Some(backend), "dev:alice").unwrap();
         for (n, page) in snapshot_pages(&mut engine, "dev:alice", 10).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
         ok(device.call(serde_json::json!({ "op": "admit", "entry": Queued { id: "shape-write".into(), seq: 1, op: "add".into(), args: serde_json::json!({}), new_ids: vec!["note".into()], predicted: vec![], viewer: "dev:alice".into(), now: 100, predictable: true, sent_seq: None, observed_seq: None } })));
         let check = |device: &mut dyn AnyDevice, pending: bool| {
@@ -52,7 +52,7 @@ fn shapes_preserve_pending_through_spreads_and_projection_on_both_stores() {
         };
         check(&mut *device, true);
         device.close();
-        let mut device = host.open("shapes", None).unwrap();
+        let mut device = host.open_as("shapes", None, "dev:alice").unwrap();
         check(&mut *device, true);
         let sent = engine.mutate("add", Some("shape-write"), context("dev:alice", &[]).at(100).with_ids(["note".into()])).unwrap();
         let WriteState::Sent { seq, .. } = sent.state else { panic!("{:?}", sent.state) };

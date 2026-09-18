@@ -43,7 +43,7 @@ fn receipt_history_adoption_fills_only_spare_capacity_on_both_stores() {
 fn caller_id_admission_compares_before_prediction_on_both_stores() {
     on_both(|host| {
         let (mut engine, backend) = server();
-        let mut device = host.open("write-identity", Some(backend)).unwrap();
+        let mut device = host.open_as("write-identity", Some(backend), "dev:alice").unwrap();
         for (n, page) in snapshot_pages(&mut engine, "dev:alice", 4000).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
         let entry = json!({ "id":"01ARZ3NDEKTSV4RRFFQ69G5FAV", "seq":1, "op":"send", "args":{"conversationId":"c1", "body":"first"},
             "viewer":"dev:alice", "now":2000, "new_ids":["original-row"], "predicted":[], "predictable":true });
@@ -71,7 +71,7 @@ fn caller_id_admission_compares_before_prediction_on_both_stores() {
 fn caller_id_replay_candidate_rolls_back_partial_predictions_on_both_stores() {
     on_both(|host| {
         let (mut engine, backend) = compile("table records:\n  n: int\n  public 'admission rollback'\n  insert <- allow\n  sync public\nmutation record(allowed: bool):\n  insert records { n: 1 }\n  require allowed else LOCKED\nquery records():\n  return records[] first 10 by byId\n");
-        let mut device = host.open("replay-rollback", Some(backend)).unwrap();
+        let mut device = host.open_as("replay-rollback", Some(backend), "alice").unwrap();
         for (n, page) in snapshot_pages(&mut engine, "alice", 4000).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
         let mut entry = json!({"id":"replay", "seq":1, "op":"record", "args":{"allowed":false}, "viewer":"alice", "now":1,
             "new_ids":["rolled-back"], "predictable":true, "predicted":[]});

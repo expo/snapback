@@ -1030,7 +1030,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (!(await queued()).some((current) => current.id === entry.id && current.sent_seq == null)) return { ok: true as const, retired: true as const };
           ordinarySending = entry.id;
           try {
-            const started = await call({ op: "begin_send" });
+            const started = await call({ op: "begin_send", ids: [entry.id] });
             if (started.denied) return { ok: false as const };
             const response = await post(`/m/${entry.op}`, { id: entry.id, args: entry.args, newIds: entry.new_ids });
             if (response.ok) {

@@ -19,6 +19,7 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 
 mod predictions;
+mod outbox;
 mod media;
 mod snapshot;
 mod history;
@@ -399,12 +400,7 @@ impl<S: DeviceStore> Device<S> {
     /// Persist before starting a POST, so another owner of the store
     /// cannot apply an older sync response that omitted the write being sent.
     pub fn begin_send(&mut self) -> Result<u64, RuntimeError> {
-        let tx = self.store.transaction()?;
-        store_identity::require_healthy(&tx)?;
-        let revision = meta_u64(&tx, SEND_REVISION)?.checked_add(1).filter(|n| *n <= 9_007_199_254_740_991).ok_or_else(|| RuntimeError::Store("send revision overflow".into()))?;
-        tx.set_meta(SEND_REVISION, &revision.to_string())?;
-        tx.commit()?;
-        Ok(revision)
+        self.begin_send_checked(None)
     }
 
     /// What a sync request is made from: the watermark, the generation,
@@ -412,8 +408,7 @@ impl<S: DeviceStore> Device<S> {
     pub fn sync_state(&mut self) -> Result<SyncState, RuntimeError> {
         let tx = self.store.read_transaction()?;
         let mut pending_ids = Vec::new();
-        for entry in tx.outbox_entries()? {
-            let queued: Queued = decoded(&entry)?;
+        for queued in outbox::entries(&tx, &self.history_owner)? {
             if queued.sent_seq.is_none() {
                 pending_ids.push(queued.id);
                 if pending_ids.len() == 256 {
@@ -648,7 +643,8 @@ impl<S: DeviceStore> Device<S> {
             let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?;
             let context = Context::new(viewer, typed_args(&program, args)?).at(now).with_generation(self.generation);
             let tx = self.store.read_transaction()?;
-            if let Err(error) = adoption::require_binding(&tx, &self.history_owner).and_then(|()| store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())) {
+            adoption::require_binding(&tx, &self.history_owner).map_err(|error| error.refusal())?;
+            if let Err(error) = store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()) {
                 unknown = true;
                 return Err(error.refusal());
             }
@@ -741,9 +737,11 @@ impl<S: DeviceStore> Device<S> {
             if original.op != entry.op || original.args != entry.args || original.viewer != entry.viewer {
                 return Err(RuntimeError::Structural { code: "E_WRITE_ID_REUSE", message: "write id already belongs to a different operation or arguments; retry the original input or use a new id".into() });
             }
+            outbox::require(&original, &self.history_owner)?;
             tx.rollback()?;
             return Ok(original);
         }
+        outbox::require(&entry, &self.history_owner)?;
         let program = self.programs.get(&entry.op);
         match program {
             Some(program) if program.kind == snapback4_core::ProgramKind::Action && !replay_candidate => return Err(RuntimeError::UnknownOp("an action cannot enter the device outbox; call client.act".into())),
@@ -802,14 +800,17 @@ impl<S: DeviceStore> Device<S> {
     pub fn enqueue(&mut self, entry: &Queued) -> Result<(), RuntimeError> {
         if self.programs.get(&entry.op).is_some_and(|p| p.kind == snapback4_core::ProgramKind::Action) { return Err(RuntimeError::UnknownOp("an action cannot enter the device outbox; call client.act".into())); }
         let tx = self.store.transaction()?;
+        adoption::require_binding(&tx, &self.history_owner)?;
+        outbox::require(entry, &self.history_owner)?;
         tx.outbox_insert(entry.seq, &entry.id, &encoded(entry)?)?;
         tx.commit()
     }
 
-    /// Every queued write in submission order.
+    /// Executable writes for this opening principal, in submission order.
+    /// Foreign/unlabelled durable entries stay fenced, including legacy stores.
     pub fn queued(&mut self) -> Result<Vec<Queued>, RuntimeError> {
         let tx = self.store.read_transaction()?;
-        let entries = tx.outbox_entries()?.iter().map(|entry| decoded(entry)).collect::<Result<Vec<Queued>, _>>()?;
+        let entries = outbox::entries(&tx, &self.history_owner)?;
         tx.rollback()?;
         Ok(entries)
     }

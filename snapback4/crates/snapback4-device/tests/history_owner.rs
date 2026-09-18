@@ -767,3 +767,6 @@ mod round3;
 
 #[path = "history_owner/round4.rs"]
 mod round4;
+
+#[path = "history_owner/round6.rs"]
+mod round6;

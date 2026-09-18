@@ -82,7 +82,7 @@ fn w9r1b_hidden_unique_collisions_queue_and_settle_on_both_stores() {
                     ("profiles".into(), snapback4_core::wire::row_from_json(&backend.schema.tables["profiles"], &row).unwrap())
                 })).unwrap();
                 let label = host.label();
-                let mut device = host.open(&format!("hidden-{name}-{handle}"), Some(backend)).unwrap();
+                let mut device = host.open_as(&format!("hidden-{name}-{handle}"), Some(backend), "bob").unwrap();
                 for (n, page) in snapshot_pages(&mut engine, "bob", 10).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
                 let input = if name == "rename" { json!({"profile":"p3", "handle":handle}) } else { json!({"handle":handle}) };
                 let entry = Queued { id: "write".into(), seq: 1, op: name.into(), args: input, viewer: "bob".into(), now: 100, new_ids: vec!["p2".into()], predicted: vec![], predictable: true, sent_seq: None, observed_seq: None };

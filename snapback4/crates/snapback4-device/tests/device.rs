@@ -901,7 +901,7 @@ fn withdrawing_one_prediction_replays_the_remaining_outbox() {
             ("items".into(), snapback4_core::value::object([("id", id("b")), ("group", Value::String("g".into())), ("value", Value::Int(20))])),
         ]).unwrap();
         let backend = snapback4_device::device::Backend { generation: engine.generation(), ..backend };
-        let mut device = host.open("withdraw", Some(backend)).unwrap();
+        let mut device = host.open_as("withdraw", Some(backend), "dev:alice").unwrap();
         for (index, page) in snapshot_pages(&mut engine, "dev:alice", 100).iter().enumerate() { ok(apply(&mut *device, page, index == 0)); }
         let queue = |op: &str, seq: u64| Queued { id: format!("w{seq}"), seq, op: op.into(), args: serde_json::json!({}), new_ids: vec![], predicted: vec![], viewer: "dev:alice".into(), now: 2_000, predictable: true, sent_seq: None, observed_seq: None };
         let first = ok(device.call(serde_json::json!({ "op": "admit", "entry": queue("first", 1) })));

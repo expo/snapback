@@ -7,7 +7,7 @@ mod f;
 
 fn run<H: Host>(host: &mut H) {
     let (mut server, backend) = compile(&f::source(true)); f::fixture(&mut server);
-    let mut device = host.open("w14a-lanes", Some(backend)).unwrap();
+    let mut device = host.open_as("w14a-lanes", Some(backend), "bob").unwrap();
     for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
     let read = device.query("trending", "bob", &json!({"c":null}), f::NOW).unwrap();
     assert!(read.complete); assert_eq!(f::scored(&f::rows(&read.data)), f::oracle(&server, f::NOW));

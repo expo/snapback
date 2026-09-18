@@ -76,13 +76,13 @@ fn a_server_page_pass_never_predicts_even_when_held_and_after_reopen() {
         let source = format!("{SOURCE}\nmutation sweep(): server\n  for row in counters['bob'] first 1 by byOwner:\n    update counters[row] {{amount: 0}}\n  return null\n");
         let (mut engine, backend) = compile(&source);
         engine.seed([("counters".into(), snapback4_core::value::object([("id", id("own")), ("key", Value::String("own".into())), ("owner", id("bob")), ("amount", Value::Int(7))]))]).unwrap();
-        let mut device = host.open("server-pass", Some(backend)).unwrap();
+        let mut device = host.open_as("server-pass", Some(backend), "bob").unwrap();
         for (i, page) in snapshot_pages(&mut engine, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
         assert_eq!(device.predict("sweep", "bob", &json!({}), 1000, vec![], 1).unwrap_err().code(), "E_PREDICT");
         let entry = Queued { id: "sweep".into(), seq: 1, op: "sweep".into(), args: json!({}), viewer: "bob".into(), now: 1000, new_ids: vec![], predicted: vec![], predictable: true, sent_seq: None, observed_seq: None };
         assert!(!device.admit(entry).unwrap().predictable);
         host.close("server-pass", device);
-        let mut device = host.open("server-pass", None).unwrap();
+        let mut device = host.open_as("server-pass", None, "bob").unwrap();
         assert!(!device.queued().unwrap()[0].predictable);
         assert_eq!(device.query("one", "bob", &json!({"key":"own"}), 1000).unwrap().data.field("amount"), Ok(&Value::Int(7)));
         let sent = engine.mutate("sweep", Some("sweep"), Context::new("bob", Default::default()).at(1000)).unwrap();
@@ -110,7 +110,7 @@ fn named_receipt_after_revocation<H: Host>(host: &mut H, historical: bool) {
         engine.seed(rows).unwrap();
     };
     seed(&mut engine, "alice", 0);
-    let mut device = host.open("named-receipt", Some(backend)).unwrap();
+    let mut device = host.open_as("named-receipt", Some(backend), "alice").unwrap();
     for (i, page) in snapshot_pages(&mut engine, "alice", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
     let entry = Queued { id: "lost".into(), seq: 1, op: "edit".into(), args: json!({"key":"lookup"}), viewer: "alice".into(), now: 1000,
         new_ids: vec![], predicted: vec![], predictable: true, sent_seq: None, observed_seq: None };
@@ -131,7 +131,7 @@ fn named_receipt_after_revocation<H: Host>(host: &mut H, historical: bool) {
     // before delivering the retried response to either device store.
     host.close("named-receipt", device);
     seed(&mut engine, "carol", 0);
-    let mut device = host.open("named-receipt", None).unwrap();
+    let mut device = host.open_as("named-receipt", None, "alice").unwrap();
     assert_eq!(device.queued().unwrap().len(), 1);
     let page = stream_page(&mut engine, "alice", device.state().unwrap().0);
     device.apply(&page, false).unwrap();
@@ -149,7 +149,7 @@ fn named_receipt_after_revocation<H: Host>(host: &mut H, historical: bool) {
     device.keep_write(&delivered.to_string()).unwrap();
     device.settle("lost", None).unwrap();
     host.close("named-receipt", device);
-    let mut device = host.open("named-receipt", None).unwrap();
+    let mut device = host.open_as("named-receipt", None, "alice").unwrap();
     assert!(device.queued().unwrap().is_empty());
     assert_eq!(serde_json::from_str::<Json>(&device.meta("write-history").unwrap().unwrap()).unwrap(), json!([delivered]));
     // The same named constraint admits a non-colliding write by the new owner.

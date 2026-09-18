@@ -11,7 +11,7 @@ fn run<H: Host>(host: &mut H) {
     let post = server.mutate("create", Some("alice-post"), Context::new("alice", args(&[("body", Value::String("hello".into()))])).at(now).with_ids(["p".into()])).unwrap();
     assert!(matches!(post.state, WriteState::Sent { .. }));
     server.run_job("scoreTrending", args(&[]), now).unwrap();
-    let mut device = host.open("trending", Some(backend)).unwrap();
+    let mut device = host.open_as("trending", Some(backend), "bob").unwrap();
     for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
     let from = server.seq().unwrap();
     let rank = |device: &mut snapback4_device::device::Device<H::Store>, at| device.query("trending", "bob", &json!({"c":null}), at).unwrap().data;

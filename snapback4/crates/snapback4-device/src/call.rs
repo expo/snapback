@@ -61,7 +61,12 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 json!({ "jobs": jobs, "reads": reads })
             }
             "sync_state" => encoded(&device.sync_state()?)?,
-            "begin_send" => json!({ "send_revision": device.begin_send()? }),
+            "begin_send" => {
+                let revision = if request.get("ids").is_some() {
+                    device.begin_send_for(&parse::<Vec<String>>(take(&mut request, "ids")?)?)?
+                } else { device.begin_send()? };
+                json!({ "send_revision": revision })
+            }
             "adopt" => {
                 let mut expected = std::collections::BTreeMap::new();
                 for (field, key) in [("store_id", "device:store_id"), ("send_revision", "device:send_revision")] {

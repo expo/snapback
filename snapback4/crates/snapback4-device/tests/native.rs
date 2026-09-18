@@ -121,11 +121,11 @@ fn snapshot_catchup_publishes_one_consistent_base_before_replaying_writes() {
     let backend = snapback4_device::device::Backend { generation: engine.generation(), ..backend };
     let host = Sqlite::new("catchup");
     let path = host.path("store");
-    let mut device = Device::open(&path, Some(backend), "dev:bob").unwrap();
+    let mut device = Device::open(&path, Some(backend), "dev:alice").unwrap();
     for (n, page) in snapshot_pages(&mut engine, "dev:alice", 100).iter().enumerate() {
         device.apply(page, n == 0).unwrap();
     }
-    let mut sender = Device::open(&path, None, "dev:bob").unwrap();
+    let mut sender = Device::open(&path, None, "dev:alice").unwrap();
     sender.admit(Queued { id: "pending-inc".into(), seq: 1, op: "inc".into(), args: serde_json::json!({ "id": "z" }), new_ids: vec![], predicted: vec![], viewer: "dev:alice".into(), now: 2, predictable: true, sent_seq: None, observed_seq: None }).unwrap();
     sender.begin_send().unwrap();
     let capture = device.sync_state().unwrap();
@@ -187,7 +187,7 @@ fn pending_metadata_reprediction_survives_updates_upserts_scans_and_offline_reop
     let dir = std::env::temp_dir().join(format!("sb4-pending-metadata-{}-{nonce}", std::process::id()));
     std::fs::create_dir(&dir).unwrap();
     let path = dir.join("device.sqlite");
-    let mut device = Device::open(&path, Some(backend), "dev:bob").unwrap();
+    let mut device = Device::open(&path, Some(backend), "dev:alice").unwrap();
     for (n, page) in snapshot_pages(&mut engine, "dev:alice", 10).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
     let commands = [
         ("profile", serde_json::json!({"person":"alice","name":"Offline Alice","bio":"Saved bio"})),
@@ -211,7 +211,7 @@ fn pending_metadata_reprediction_survives_updates_upserts_scans_and_offline_reop
     let queued = device.queued().unwrap();
     assert_eq!(queued.len(), commands.len());
     drop(device);
-    device = Device::open(&path, None, "dev:bob").unwrap();
+    device = Device::open(&path, None, "dev:alice").unwrap();
     assert_eq!(device.queued().unwrap(), queued, "submission order, arguments and minted IDs survive offline reopen");
     // Match native hosts that explicitly predict their durable queue on open.
     for entry in &queued {

@@ -21,7 +21,7 @@ fn w13c_capped_roster_predicts_and_prefix_existence_has_precise_horizon_coverage
             let now = snapback4_core::now_ms();
             engine.seed([member("r1", "dev:alice", 3), member("r1", "dev:bob", 5), member("empty", "dev:alice", 0), member("expired", "dev:alice", 0),
                 message("a", "r1", 1, Value::Null), message("b", "r1", 2, Value::Null), message("old", "expired", 1, Value::Int(now + 1000)), message("hidden", "hidden", 1, Value::Null)]).unwrap();
-            let mut device = host.open(if horizon { "prefix-horizon" } else { "prefix-full" }, Some(backend)).unwrap();
+            let mut device = host.open_as(if horizon { "prefix-horizon" } else { "prefix-full" }, Some(backend), "dev:alice").unwrap();
             for (i, page) in snapshot_pages(&mut engine, "dev:alice", 100).iter().enumerate() { ok(apply(&mut *device, page, i == 0)); }
             let roster = query(&mut *device, "roster", "dev:alice", json!({"roomId":"r1"}), now);
             assert_eq!(roster["complete"], true);

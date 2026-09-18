@@ -31,7 +31,7 @@ fn the_device_follows_the_server_and_answers_locally() {
         assert_eq!(rows(&query(&mut *device, "inbox", "dev:bob", serde_json::json!({}), 2_000))[0]["count"], 121, "{label}");
         // The outbox keeps it in submission order until the server answers.
         let seq = ok(device.call(serde_json::json!({ "op": "next_submission" }))).as_u64().unwrap();
-        let entry = Queued { id: "w1".into(), seq, op: "send".into(), args: serde_json::json!({ "conversationId": "c1", "body": "hello" }), new_ids: vec!["msgNEW".into()], predicted: vec!["messages/msgNEW".into()], viewer: String::new(), now: 0, predictable: false, sent_seq: None, observed_seq: None };
+        let entry = Queued { id: "w1".into(), seq, op: "send".into(), args: serde_json::json!({ "conversationId": "c1", "body": "hello" }), new_ids: vec!["msgNEW".into()], predicted: vec!["messages/msgNEW".into()], viewer: "dev:bob".into(), now: 0, predictable: false, sent_seq: None, observed_seq: None };
         ok(device.call(serde_json::json!({ "op": "enqueue", "entry": entry })));
         assert_eq!(ok(device.call(serde_json::json!({ "op": "queued" }))).as_array().unwrap().len(), 1, "{label}");
         assert!(device.call(serde_json::json!({ "op": "enqueue", "entry": entry })).get("denied").is_some(), "{label}: a duplicate submission is refused");
@@ -127,7 +127,7 @@ fn online_only_final_insert_target_is_unknown_to_the_predictor() {
         let (mut engine, backend) = compile(source);
         engine.seed([("targets".into(), snapback4_core::value::object([("id", id("t")), ("name", Value::String("known".into()))]))]).unwrap();
         let backend = snapback4_device::device::Backend { generation: engine.generation(), ..backend };
-        let mut device = host.open("alice", Some(backend)).unwrap();
+        let mut device = host.open_as("alice", Some(backend), "dev:alice").unwrap();
         for (n, page) in snapshot_pages(&mut engine, "dev:alice", 10).iter().enumerate() {
             assert!(page.events.iter().all(|event| event.table != "targets"));
             ok(apply(&mut *device, page, n == 0));
@@ -196,7 +196,7 @@ fn durable_rejection_rebase_preserves_confirmed_images() {
         let (mut engine, backend) = compile(source);
         engine.seed([("items".into(), snapback4_core::value::object([("id", id("a")), ("group", Value::String("g".into())), ("value", Value::Int(1))])), ("items".into(), snapback4_core::value::object([("id", id("b")), ("group", Value::String("g".into())), ("value", Value::Int(20))]))]).unwrap();
         let backend = snapback4_device::device::Backend { generation: engine.generation(), ..backend };
-        let mut device = host.open("alice", Some(backend)).unwrap();
+        let mut device = host.open_as("alice", Some(backend), "dev:alice").unwrap();
         for (n, page) in snapshot_pages(&mut engine, "dev:alice", 100).iter().enumerate() {
             ok(apply(&mut *device, page, n == 0));
         }
@@ -208,7 +208,7 @@ fn durable_rejection_rebase_preserves_confirmed_images() {
         assert_eq!(read(&mut *device, "a"), 100, "{label}");
         // Reopen before rejection: both the base images and the ordered overlay survive.
         device.close();
-        let mut device = host.open("alice", None).unwrap();
+        let mut device = host.open_as("alice", None, "dev:alice").unwrap();
         ok(device.call(serde_json::json!({ "op": "settle", "id": "w1" })));
         assert_eq!(ok(device.call(serde_json::json!({ "op": "queued" }))).as_array().unwrap().len(), 1, "{label}");
         assert_eq!(read(&mut *device, "a"), 2, "{label}: the survivor replays over the confirmed image");
@@ -234,7 +234,7 @@ fn durable_rejection_rebase_preserves_confirmed_images() {
         assert_eq!(ids.len(), 12, "{label}");
         assert_eq!(ids.iter().collect::<std::collections::BTreeSet<_>>().len(), 12);
         device.close();
-        let mut device = host.open("alice", None).unwrap();
+        let mut device = host.open_as("alice", None, "dev:alice").unwrap();
         ok(apply(&mut *device, &stream_page(&mut engine, "dev:alice", watermark), false));
         assert_eq!(ok(device.call(serde_json::json!({ "op": "queued" })))[0]["new_ids"], serde_json::json!(ids), "{label}");
         for key in ids {
@@ -282,7 +282,7 @@ fn pending_metadata_survives_repeated_updates_and_an_offline_reopen_on_both_host
         engine.seed([("people".into(), snapback4_core::value::object([("id", id("alice")), ("name", Value::String("Alice".into())), ("bio", Value::String("Confirmed bio".into()))]))]).unwrap();
         engine.seed([("votes".into(), snapback4_core::value::object([("id", id("held-vote")), ("person", id("alice")), ("answer", Value::String("answer".into())), ("direction", Value::Int(0))]))]).unwrap();
         let backend = snapback4_device::device::Backend { generation: engine.generation(), ..backend };
-        let mut device = host.open("alice", Some(backend)).unwrap();
+        let mut device = host.open_as("alice", Some(backend), "dev:alice").unwrap();
         for (n, page) in snapshot_pages(&mut engine, "dev:alice", 10).iter().enumerate() {
             ok(apply(&mut *device, page, n == 0));
         }
@@ -308,7 +308,7 @@ fn pending_metadata_survives_repeated_updates_and_an_offline_reopen_on_both_host
         assert_eq!(queued.as_array().unwrap().len(), commands.len(), "{label}");
         // Offline reopen: the outbox and the pending marks are what they were.
         device.close();
-        let mut device = host.open("alice", None).unwrap();
+        let mut device = host.open_as("alice", None, "dev:alice").unwrap();
         assert_eq!(ok(device.call(serde_json::json!({ "op": "queued" }))), queued, "{label}: submission order, arguments and minted ids survive an offline reopen");
         let person = query(&mut *device, "person", "dev:alice", person_args.clone(), 10);
         assert_eq!(person["data"]["name"], "Final Alice", "{label}");
@@ -410,14 +410,14 @@ fn upload_receipts_predict_id_only_image_and_video_on_both_stores() {
         // Version 0 mvhd: flags, creation, modification, timescale, duration.
         mp4.resize(60, 0); mp4[20..24].copy_from_slice(&40u32.to_be_bytes()); mp4[28..32].copy_from_slice(&32u32.to_be_bytes());
         mp4[48..52].copy_from_slice(&1000u32.to_be_bytes()); mp4[52..56].copy_from_slice(&1000u32.to_be_bytes());
-        let mut device = host.open("uploads", Some(backend)).unwrap();
+        let mut device = host.open_as("uploads", Some(backend), "dev:alice").unwrap();
         for (n, page) in snapshot_pages(&mut engine, "dev:alice", 10).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
         for (op, bytes) in [("photo", png.as_slice()), ("clip", mp4.as_slice())] {
             let asset = engine.store_asset("dev:alice", bytes, 1).unwrap();
             let facts = snapback4_core::wire::to_json(&asset.column_value());
             ok(device.call(serde_json::json!({ "op": "upload_facts", "viewer": "dev:alice", "asset": facts })));
             device.close();
-            device = host.open("uploads", None).unwrap();
+            device = host.open_as("uploads", None, "dev:alice").unwrap();
             let submitted = serde_json::json!({ op: { "id": asset.id } });
             let forged = ok(device.call(serde_json::json!({ "op":"predict", "name":op, "viewer":"dev:alice", "args":{ op: { "id":asset.id, "width":999, "duration":999999 } }, "now":2, "entropy":41 })));
             assert_eq!(forged["result"][op]["id"], asset.id);
@@ -428,8 +428,8 @@ fn upload_receipts_predict_id_only_image_and_video_on_both_stores() {
             assert_eq!(admitted["predicted"].as_array().unwrap().len(), 1);
             let unknown = ok(device.call(serde_json::json!({ "op": "admit", "entry": { "id": format!("unknown-{op}"), "seq": if op == "photo" { 3 } else { 4 }, "op": op, "args": { op: { "id": "missing", "width": 2, "duration": 1000 } }, "viewer": "dev:alice", "now": 3, "predictable": true } })));
             assert_eq!(unknown["predictable"], false, "caller facts never substitute for a receipt");
-            let foreign = ok(device.call(serde_json::json!({ "op": "admit", "entry": { "id": format!("foreign-{op}"), "seq": if op == "photo" { 5 } else { 6 }, "op": op, "args": { op: { "id": asset.id } }, "viewer": "dev:bob", "now": 3, "predictable": true } })));
-            assert_eq!(foreign["predictable"], false, "receipts belong to the uploader");
+            let foreign = ok(device.call(serde_json::json!({ "op": "predict", "name": op, "args": { op: { "id": asset.id } }, "viewer": "dev:bob", "now": 3 })));
+            assert_eq!(foreign["denied"]["code"], "E_PREDICT", "receipts belong to the uploader");
         }
         device.close();
     });
@@ -489,7 +489,7 @@ fn actions_never_predict_query_or_enter_either_device_outbox() {
     on_both(|host| {
         let source = "action remote(n: int)\nmutation answer(n: int):\n  return { n }\nquery answer():\n  return 7\n".replace("query answer()", "query number()");
         let (_, backend) = compile(&source);
-        let mut device = host.open("actions", Some(backend)).unwrap();
+        let mut device = host.open_as("actions", Some(backend), "dev:alice").unwrap();
         let predicted = ok(device.call(serde_json::json!({ "op": "predict", "name": "answer", "viewer": "dev:alice", "args": { "n": 42 }, "now": 1 })));
         assert_eq!(predicted["result"]["n"], 42);
         assert_eq!(query(device.as_mut(), "number", "dev:alice", serde_json::json!({}), 1)["data"], 7);

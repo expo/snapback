@@ -123,13 +123,13 @@ fn local<H: Host>(device: &mut Device<H::Store>, viewer: &str, query: &(&str, Js
     json!({"rows":rows,"query":query,"outbox":device.queued().unwrap()})
 }
 fn prepare<H: Host>(host: &mut H, backend: &Backend, snapshot: &Json, entry: &Queued, query: &(&str, Json)) -> (Device<H::Store>, Json) {
-    let mut device = host.open("paired", Some(backend.clone())).unwrap();
+    let mut device = host.open_as("paired", Some(backend.clone()), &entry.viewer).unwrap();
     device.apply(&serde_json::from_value(snapshot.clone()).unwrap(), true).unwrap();
     let initial = local::<H>(&mut device, &entry.viewer, query);
     let admitted = match device.admit(entry.clone()) { Ok(entry) => json!({"queued":entry}), Err(error) => json!({"refusal":error.refusal()}) };
     let pending = local::<H>(&mut device, &entry.viewer, query);
     host.close("paired", device);
-    let mut device = host.open("paired", None).unwrap();
+    let mut device = host.open_as("paired", None, &entry.viewer).unwrap();
     let reopened = local::<H>(&mut device, &entry.viewer, query);
     assert_eq!(pending, reopened, "pending state survives reopen");
     (device, json!({"initial":initial,"admission":admitted,"pending":pending,"reopened":reopened}))
