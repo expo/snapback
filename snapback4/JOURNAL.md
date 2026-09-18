@@ -39714,6 +39714,20 @@ Evidence: `benchmarks/runs/snapback4-public-catalog-20260913/README.md` and
 its data-only record; follow-up remains the open membership-feed-cost issue.
 No publication or deployment is part of this pass.
 
+
+## 2026-09-18 — author shelves the single-decode cursor candidate
+
+The author chose **"Keep it shelved (Recommended)"** for the reviewed
+two-file cursor patch. The repeated heavy-feed gain does not justify the
+point-read throughput losses in all six pairs. The adoption request is
+closed, and the performance lane applies no core change.
+
+The patch, qualification, measurements, failures and independent reviews
+remain preserved. The benchmark README and existing membership-feed-cost
+issue record this disposition. The issue stays open, and the bounded
+goal's performance landing remains outstanding. No additional experiment,
+publication or deployment is part of this disposition.
+
 ## 2026-09-17 — Repair B, round 4: private publication and declared-prefix replay
 
 The round-3 brief supersedes the original per-row Repair B proposal in LLP
@@ -40739,4 +40753,3 @@ restore evidence 1,654 B; wasm opening 1,218 B; shared remainder 5,550 B. 2,686 
 were reclaimed before raising. The remaining 23,449 B is about 21.3% of the
 diet's recovered bytes and is tracked in
 `issues/20260918-snapback4-repair-b-device-bytes.md`.
-

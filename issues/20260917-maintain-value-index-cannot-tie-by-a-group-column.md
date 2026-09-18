@@ -1,6 +1,6 @@
 # A maintain value index cannot break ties by a group column, so a ranking cannot be newest-first
 
-Status: open
+Status: open — ruled 2026-09-18 (ruling 41): option 1, as an interim; lane W15c
 Priority: P2 (an acceptance criterion a published example cannot meet; the builder's
 documented workaround is a handwritten score, which is the shape three prior
 calibrations shipped with `update <- allow`)
@@ -101,3 +101,15 @@ Prerequisites, unchanged by acceptance: gate 5 is the lane's milestone zero, and
 `issues/20260917-snapback4-oversized-sync-page-hides-generation.md` is a
 prerequisite of the first build (§3.11) and is still open. Gates 1 and 2 are
 measured and pass.
+
+## Ruling 41 (the author, 2026-09-18; LLP 3000.007 §14) — overturns the ruling above on this one point
+
+**Option 1, as an interim.** Walked through with the derived-data lead, with ruling 39's
+reasoning in view (the lead recommended keeping it), the author chose to relax the index
+rule now — *a prefix of group fields, then `value`, then any remaining group fields, then
+`id`* — so the lanes recipe can tie newest-first before maintained columns ship. Lane
+**W15c**, two-family blind review before landing. Ruling 39's acceptance of the
+maintained-columns design stands.
+
+*Addendum (ruling 41, the same day):* the relaxation is temporary — retired when maintained columns
+(lane MC1, the wave 12 lead) land; the refusal returns pointing at the column form.
