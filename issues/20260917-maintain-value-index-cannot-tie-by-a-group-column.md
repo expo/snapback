@@ -110,3 +110,6 @@ rule now — *a prefix of group fields, then `value`, then any remaining group f
 `id`* — so the lanes recipe can tie newest-first before maintained columns ship. Lane
 **W15c**, two-family blind review before landing. Ruling 39's acceptance of the
 maintained-columns design stands.
+
+*Addendum (ruling 41, the same day):* the relaxation is temporary — retired when maintained columns
+(lane MC1, the wave 12 lead) land; the refusal returns pointing at the column form.
