@@ -216,18 +216,21 @@ test("HTTP admission, encoding, slow readers and idle changes polls", { timeout:
     });
     await t.test("Wasm and process clients acquire wide snapshots by shrinking the same cursor", async () => {
       for (const tier of ["wasm", "process"]) {
-        const limits = [], requests = [];
+        const limits = [], requests = [], discoveries = [];
         const device = tier === "wasm"
           ? webDevice({ wasm, persist: memoryPersistence() })
           : processDevice({ binary, dir: join(directory, `device-${tier}`) });
         const client = await createLocalClient({ url, persona: "alice", device, waitSeconds: 1, fetch: async (input, init) => {
           if (new URL(input).pathname === "/sync") {
-            const body = JSON.parse(init.body); limits.push(body.limit); requests.push(body);
+            const body = JSON.parse(init.body);
+            if (body.metadata) discoveries.push(body);
+            else { limits.push(body.limit); requests.push(body); }
           }
           return fetch(input, init);
         } });
         try {
           assert.equal(client.acquired, true, `${tier} must publish only the complete snapshot and catch-up`);
+          assert.ok(discoveries.length > 0, `${tier} discovers authenticated metadata after overflow`);
           assert.deepEqual(limits.slice(0, 8), [4000, 2000, 1000, 500, 250, 125, 62, 31]);
           assert.ok(requests.slice(0, 8).every(request => request.from === 0 && request.after === null && request.stream === false), `${tier} retries one cursor and watermark`);
           assert.ok(requests.some(request => request.after !== null), `${tier} continues the reduced snapshot pages`);

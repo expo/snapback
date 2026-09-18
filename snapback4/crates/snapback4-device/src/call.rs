@@ -64,10 +64,12 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
             "begin_send" => json!({ "send_revision": device.begin_send()? }),
             "adopt" => {
                 let mut expected = std::collections::BTreeMap::new();
-                for (field, key) in [("store_id", "device:store_id"), ("send_revision", "device:send_revision")] {
+                // @ref LLP 3000.007#18.2 — keep the request-local acquisition fence through the later
+                // schema fetch as well as the initial store observation.
+                for (field, key) in [("store_id", "device:store_id"), ("send_revision", "device:send_revision"), ("captured_watermark", "device:watermark")] {
                     if let Some(value) = request.get(field) {
-                        let value = if field == "send_revision" {
-                            let revision = value.as_u64().ok_or_else(|| RuntimeError::Input("send_revision is an unsigned integer".into()))?;
+                        let value = if field != "store_id" {
+                            let revision = value.as_u64().ok_or_else(|| RuntimeError::Input(format!("{field} is an unsigned integer")))?;
                             if revision == 0 && device.store().meta(key)?.is_none() { None } else { Some(revision.to_string()) }
                         } else if value.is_null() { None } else {
                             Some(value.as_str().ok_or_else(|| RuntimeError::Input("store_id is text or null".into()))?.to_owned())

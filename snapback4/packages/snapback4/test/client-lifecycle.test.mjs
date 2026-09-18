@@ -225,11 +225,13 @@ test("local startup releases a device when initialization after the protocol pro
   assert.equal(device.closed(), 1, "constructor owns and closes the opened device until it returns a client");
 });
 
-test("local sync shrinks response-bound pages at one cursor and exposes an indivisible refusal", async t => {
+test("local sync discovers metadata, shrinks snapshot pages at one cursor and refuses an oversized single row", async t => {
   const tooLarge = { code: "E_BOUND", family: "bound", message: "the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values", guide: "reads" };
   const expectedLimits = [4000, 2000, 1000, 500, 250, 125, 62, 31, 15, 7, 3, 1];
   for (const fitsAtOne of [true, false]) {
-    const device = emptyDevice();
+    const device = emptyDevice({ call: async request => {
+      if (request.op === "observe_store") return { ok: { reset: false, backend_required: false, send_revision: 0, retired: {} } };
+    } });
     const requests = [];
     const changes = deferred();
     const client = await createLocalClient({
@@ -238,7 +240,9 @@ test("local sync shrinks response-bound pages at one cursor and exposes an indiv
         const path = new URL(input).pathname;
         if (path === "/schema") return Response.json(emptyBackend);
         if (path === "/sync") {
-          const body = JSON.parse(init.body); requests.push(body);
+          const body = JSON.parse(init.body);
+          if (body.metadata) return Response.json({ metadata: true, store_id: "test-store", generation: 1, watermark: 0 });
+          requests.push(body);
           if (!fitsAtOne || body.limit > 1) return Response.json({ denied: tooLarge });
           return Response.json({ snapshot: false, events: [], watermark: 0, more: false, generation: 1, acknowledged: [] });
         }

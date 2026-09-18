@@ -558,12 +558,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     let after: string | undefined;
     let catchingUp = false;
     let pageLimit = PAGE;
+    let overflow: Refusal | undefined;
     try {
       for (let pages = 0; pages < 100_000; pages++) {
         let page: SyncPage;
         let pageRevision = credentialRevision;
         let requestedStore: string | null | undefined;
         let backendRequired = false;
+        const discovering = overflow !== undefined;
         const pageIncarnation = incarnation;
         try {
           const captured = await call({ op: "sync_state" });
@@ -573,12 +575,19 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           backendRequired = !!backend_required;
           requestedStore = store_id;
           const request = requestCredentials();
-          const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify({ from: watermark, limit: pageLimit, after: after ?? null, stream: catchingUp, pending, ...(store_id ? { store_id } : {}) }), signal: aborter.signal });
+          const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify(discovering ? { metadata: true } : { from: watermark, limit: pageLimit, after: after ?? null, stream: catchingUp, pending, ...(store_id ? { store_id } : {}) }), signal: aborter.signal });
           if (response.status >= 500) { setLink("offline"); return false; }
           page = (await response.json()) as SyncPage;
           if (!response.ok && !page.denied) { setLink("offline"); return false; }
+          if (discovering && !page.denied) {
+            if (page.metadata !== true || typeof page.store_id !== "string" || !page.store_id
+              || !Number.isSafeInteger(page.generation) || Number(page.generation) < 0
+              || !Number.isSafeInteger(page.watermark) || Number(page.watermark) < 0) return false;
+            // Discovery is an observation, never an empty stream page to apply.
+            page = { store_id: page.store_id, generation: page.generation, watermark: page.watermark, snapshot: false, events: [], more: false };
+          }
           page.send_revision = send_revision;
-          page.requested_watermark = watermark;
+          page.requested_watermark = discovering ? capturedWatermark : watermark;
           page.captured_watermark = capturedWatermark;
           pageRevision = request.revision;
         } catch {
@@ -589,10 +598,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (page.denied) {
           const denied = page.denied as Refusal;
           if (pageIncarnation !== incarnation || pageRevision !== credentialRevision) return false;
-          if (responsePageTooLarge(denied) && pageLimit > 1) {
-            // Retry this exact stream position with a smaller page. Keep the
-            // reduced limit for the round so every following wide page fits.
-            pageLimit = Math.max(1, Math.floor(pageLimit / 2));
+          if (responsePageTooLarge(denied) && !discovering) {
+            // An error has no reset authority. Make a fresh authenticated
+            // request whose metadata must pass the ordinary device fences.
+            overflow = denied;
             continue;
           }
           await refusedSession(page.denied, pageRevision);
@@ -606,14 +615,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (pageIncarnation !== incarnation || pageRevision !== credentialRevision) return false;
         // @ref LLP 3000.007#18.2 — sync identity retires the old partition before any read or outbox replay.
         let replacedStore = false;
-        if (typeof page.store_id === "string") observeIncarnation(page.store_id);
-        if ((typeof page.store_id === "string" && page.store_id !== requestedStore) || Number(page.watermark) < watermark) {
+        if (!discovering && typeof page.store_id === "string") observeIncarnation(page.store_id);
+        if (discovering || (typeof page.store_id === "string" && page.store_id !== requestedStore) || Number(page.watermark) < watermark) {
           for (const entry of await queued()) {
             const seq = entry.sent_seq ?? entry.observed_seq;
             if (entry.sent_seq == null && seq != null) await history.keep({ state: "sent", id: entry.id, seq, replayed: true });
           }
           const observed = await call({ op: "observe_store", page });
           if (observed.denied) { refuseRestore(observed.denied); return false; }
+          if (discovering && typeof page.store_id === "string") observeIncarnation(page.store_id);
           const observation = observed.ok as { reset: boolean; backend_required?: boolean; send_revision: number; retired: Record<string, number> };
           page.send_revision = observation.send_revision;
           backendRequired = !!observation.backend_required;
@@ -647,8 +657,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             const request = requestCredentials();
             backendRevision = request.revision;
             const nextBackend = await loadBackend(doFetch, base, request.headers, aborter.signal);
-            if (closed || backendIncarnation !== incarnation) return false;
-            const adopted = await call({ op: "adopt", backend: nextBackend, store_id: page.store_id ?? requestedStore ?? null, send_revision: page.send_revision });
+            if (closed || backendIncarnation !== incarnation || request.revision !== credentialRevision) return false;
+            const adopted = await call({ op: "adopt", backend: nextBackend, store_id: page.store_id ?? requestedStore ?? null, send_revision: page.send_revision, captured_watermark: page.captured_watermark });
             await refreshAcquired();
             if (adopted.denied) return false;
             incarnation++;
@@ -662,7 +672,24 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             if (error instanceof BackendAuthError) await refusedSession(error.denied, backendRevision);
             return false;
           }
-          watermark = 0; after = undefined; catchingUp = false; continue;
+          watermark = 0; after = undefined; catchingUp = false; overflow = undefined; continue;
+        }
+        if (discovering) {
+          if (pageLimit > 1) {
+            // Preserve position and snapshot continuation while shrinking.
+            pageLimit = Math.max(1, Math.floor(pageLimit / 2));
+          } else if (watermark > 0 || catchingUp) {
+            // A whole commit cannot be split. Reacquire through the ordinary
+            // staged snapshot, retaining left history and acquisition markers.
+            watermark = 0; after = undefined; catchingUp = false;
+          } else {
+            // Even one snapshot row cannot fit: discovery cannot fix that.
+            partitionDenied = overflow!;
+            for (const watch of watches.values()) void rerun(watch);
+            return false;
+          }
+          overflow = undefined;
+          continue;
         }
         if (Number(page.watermark) < watermark || (catchingUp && page.snapshot) || (page.snapshot && page.more && !page.next)) return false;
         page.stage_snapshot = !!page.snapshot;

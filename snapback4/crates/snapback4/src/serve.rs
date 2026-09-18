@@ -1088,7 +1088,19 @@ fn handle(mut request: Request, shared: &Shared) {
                 Ok(input) if input.pending.len() <= 256 && input.pending.iter().all(|id| !id.is_empty() && id.len() <= 128) => input,
                 _ => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "sync needs { from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes")) })),
             };
-            let SyncRequest { from, limit, mut after, stream, pending, store_id: requested_store } = input;
+            let SyncRequest { from, limit, mut after, stream, pending, store_id: requested_store, metadata } = input;
+            if metadata {
+                // Recovery must discover a generation without materializing an
+                // indivisible commit. Read all three facts under the writer lock.
+                let (head, generation) = {
+                    let engine = lock(&shared.engine);
+                    (engine.store().meta("store_id").and_then(|id| engine.seq().map(|seq| (id, seq))), engine.generation())
+                };
+                return match head {
+                    Ok((Some(store_id), watermark)) => respond(request, 200, json!({ "metadata": true, "store_id": store_id, "generation": generation, "watermark": watermark })),
+                    _ => respond(request, 503, json!({ "denied": refusal_json(&snapback4_core::error::RuntimeError::Store("sync metadata is unavailable".into()).refusal()) })),
+                };
+            }
             let store_id = match lock(&shared.engine).store().meta("store_id") {
                 Ok(Some(id)) => id,
                 _ => return respond(request, 503, json!({ "denied": refusal_json(&snapback4_core::error::RuntimeError::Store("the server store has no identity".into()).refusal()) })),
@@ -1313,6 +1325,8 @@ mod poison_tests {
 #[derive(serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 struct SyncRequest {
+    #[serde(default)]
+    metadata: bool,
     #[serde(default)]
     from: u64,
     #[serde(default = "sync_limit")]
