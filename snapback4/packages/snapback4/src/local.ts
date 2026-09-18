@@ -119,6 +119,8 @@ interface StoreCapture {
   transfer_store_id?: string | null;
   transfer_watermark?: number;
   restore_watermark?: number;
+  restore_images_at?: number;
+  adoption_capture?: Record<string, string | null>;
   watermark: number;
   send_revision: number;
   restore_refusal?: Refusal;
@@ -148,7 +150,7 @@ async function requireSyncProtocol(core: DeviceCore): Promise<void> {
   if (denied && typeof denied.code === "string" && denied.code !== "E_OP") throw new Error(`createLocalClient: ${denied.code}: native startup failed: ${denied.message}`);
   const state = reply?.ok as Record<string, unknown> | undefined;
   const uint = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-  if (denied || !state || typeof state.backend_required !== "boolean" || typeof state.acquired !== "boolean" || !(state.store_id === null || typeof state.store_id === "string") || !uint(state.watermark) || !uint(state.generation) || !uint(state.send_revision) || !Array.isArray(state.pending_ids) || state.pending_ids.length > 256 || !state.pending_ids.every((id) => typeof id === "string" && id.length > 0)) {
+  if (denied || !state || typeof state.backend_required !== "boolean" || typeof state.acquired !== "boolean" || !(state.store_id === null || typeof state.store_id === "string") || !uint(state.watermark) || !uint(state.generation) || !uint(state.send_revision) || !uint(state.restore_watermark) || !uint(state.restore_images_at) || !state.adoption_capture || typeof state.adoption_capture !== "object" || Array.isArray(state.adoption_capture) || !Array.isArray(state.pending_ids) || state.pending_ids.length > 256 || !state.pending_ids.every((id) => typeof id === "string" && id.length > 0)) {
     throw new Error("createLocalClient: E_DEVICE_VERSION: the device lacks the sync receipt protocol this client speaks. Update the device to match the client: rebuild the app's native binary for snapback4-expo (reloading JavaScript does not update a native module), or serve the wasm this package version ships.");
   }
 }
@@ -380,6 +382,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (typeof storeId !== "string" || storeId !== (capture.transfer_store_id ?? capture.store_id)) return false;
     const observed = await call({ op: "observe_store", page: { snapshot: false, generation, events: [], watermark: head, more: false, store_id: storeId,
       requested_watermark: capture.restore_watermark ?? capture.transfer_watermark ?? capture.watermark,
+      captured_restore_watermark: capture.restore_watermark, captured_restore_images_at: capture.restore_images_at,
       captured_watermark: capture.watermark, send_revision: capture.send_revision } });
     if (observed.denied) { refuseRestore(observed.denied); return true; }
     return false;
@@ -577,7 +580,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         try {
           const captured = await call({ op: "sync_state" });
           if (captured.denied) return false;
-          const { pending_ids: pending, send_revision, store_id, transfer_store_id, watermark: capturedWatermark, transfer_watermark, restore_watermark, snapshot_catchup, pending_through, pending_complete, pending_bound, backend_required, restore_refusal } = captured.ok as { pending_ids: string[]; pending_through: number; pending_complete: boolean; pending_bound: number; transfer_watermark: number; restore_watermark?: number; snapshot_catchup?: boolean; send_revision: number; store_id?: string | null; transfer_store_id?: string | null; watermark: number; backend_required?: boolean; restore_refusal?: Refusal };
+          const { pending_ids: pending, send_revision, store_id, transfer_store_id, watermark: capturedWatermark, transfer_watermark, restore_watermark, restore_images_at, snapshot_catchup, pending_through, pending_complete, pending_bound, backend_required, restore_refusal } = captured.ok as { pending_ids: string[]; pending_through: number; pending_complete: boolean; pending_bound: number; transfer_watermark: number; restore_watermark?: number; restore_images_at?: number; snapshot_catchup?: boolean; send_revision: number; store_id?: string | null; transfer_store_id?: string | null; watermark: number; backend_required?: boolean; restore_refusal?: Refusal };
           if (restore_refusal) { refuseRestore(restore_refusal); return false; }
           backendRequired = !!backend_required;
           requestedStore = transfer_store_id ?? store_id;
@@ -599,6 +602,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           page.pending_bound = pending_bound;
           page.requested_watermark = watermark;
           page.captured_restore_watermark = restore_watermark;
+          page.captured_restore_images_at = restore_images_at;
           page.captured_watermark = capturedWatermark;
           pageRevision = request.revision;
         } catch {
@@ -626,6 +630,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (pageIncarnation !== incarnation || pageRevision !== credentialRevision) return false;
         // @ref LLP 3000.007#18.2 — sync identity retires the old partition before any read or outbox replay.
         let replacedStore = false;
+        let adoptionCapture: Record<string, string | null> | undefined;
         {
           // Validate every reply before adoption can discard private evidence.
           if ((typeof page.store_id === "string" && page.store_id !== requestedStore) || Number(page.watermark) < watermark) {
@@ -636,8 +641,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           }
           const observed = await call({ op: "observe_store", page });
           if (observed.denied) { refuseRestore(observed.denied); return false; }
-          const observation = observed.ok as { reset: boolean; backend_required?: boolean; send_revision: number; retired: Record<string, number> };
+          const observation = observed.ok as { reset: boolean; backend_required?: boolean; send_revision: number; retired: Record<string, number>; adoption_capture?: Record<string, string | null> };
           page.send_revision = observation.send_revision;
+          adoptionCapture = observation.adoption_capture;
           backendRequired = !!observation.backend_required;
           if (observation.reset) {
             // Only a durable native replacement changes published identity.
@@ -675,8 +681,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             const request = requestCredentials();
             backendRevision = request.revision;
             const nextBackend = await loadBackend(doFetch, base, request.headers, aborter.signal);
-            if (closed || backendIncarnation !== incarnation) return false;
-            const adopted = await call({ op: "adopt", backend: nextBackend, store_id: publishedStore ?? null, send_revision: page.send_revision });
+            if (closed || backendIncarnation !== incarnation || request.revision !== credentialRevision) return false;
+            const adopted = await call({ op: "adopt", backend: nextBackend, store_id: publishedStore ?? null, send_revision: page.send_revision, adoption_capture: adoptionCapture });
             await refreshAcquired();
             if (adopted.denied) return false;
             incarnation++;
@@ -706,7 +712,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         for (const table of ((applied.ok as { touched?: string[] } | undefined)?.touched ?? [])) touched.add(table);
         if (published) {
           const publishedRead = await call({ op: "sync_state", capture: false });
-          if (publishedRead.denied) return false;
+          if (closed || applyingIncarnation !== incarnation || publishedRead.denied) return false;
           const publishedState = publishedRead.ok as { store_id?: string | null; watermark: number } | undefined;
           publishedStore = publishedState?.store_id;
           observeIncarnation(publishedStore ?? undefined);

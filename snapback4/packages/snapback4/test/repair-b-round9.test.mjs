@@ -31,6 +31,7 @@ const ok = async (core, request) => {
 async function page(core, watermark, extra = {}) {
   const c = await ok(core, { op: "sync_state" });
   return { snapshot: false, store_id: "S", generation: 1, events: [], watermark, images_at: watermark, more: false,
+    captured_restore_watermark: c.restore_watermark, captured_restore_images_at: c.restore_images_at,
     requested_watermark: c.transfer_watermark, captured_watermark: c.watermark, send_revision: c.send_revision,
     pending_through: c.pending_through, pending_complete: c.pending_complete, pending_bound: c.pending_bound,
     snapshot_catchup: c.snapshot_catchup, ...extra };
@@ -76,28 +77,41 @@ test("round 9 native client head observations", { timeout: 60_000 }, async t => 
   const backend = await (await fetch(`${url}/schema`, { headers: { "x-snapback-persona": "alice" } })).json();
   assert.equal(backend.generation, 1);
   let number = 0;
-  for (const [mode, head, snapshot] of [["startup", 7, false], ["startup", 15, false], ["startup", 15, true], ["probe", 15, false], ["changes", 7, false], ["generation", 15, false], ["generation", 15, true], ["snapshot-restart", 20, true], ["stale-send", 7, false], ["stale-published", 7, false], ["healthy", 20, false]]) {
+  for (const [mode, head, snapshot] of [["startup", 7, false], ["startup", 15, false], ["startup", 15, true], ["probe", 15, false], ["changes", 7, false], ["generation", 15, false], ["generation", 15, true], ["snapshot-restart", 20, true], ["stale-send", 7, false], ["stale-published", 7, false], ["healthy", 20, false], ["private-overlap", 7, false], ["private-overlap", 15, false], ["private-generation", 15, false], ["private-generation-declaration", 15, false], ["late-evidence", 20, false], ["image-only", 20, false], ["late-first-evidence", 7, false], ["schema-overlap", 20, false], ["schema-preflight-gap", 20, false]]) {
     await t.test(`${mode} head ${head}, snapshot ${snapshot}`, async t => {
       const opener = processDevice({ binary, dir: join(directory, `device-${number++}`) });
-      let core = await opener.open("fixture", backend), client;
-      t.after(async () => { await client?.close(); await core.close(); });
+      let core = await opener.open("fixture", backend), client, peer;
+      t.after(async () => { await client?.close(); await core.close(); await peer?.close(); });
       const polling = mode === "probe" || mode === "changes";
-      if (!polling) await seed(core, snapshot);
+      if (!polling && mode !== "late-first-evidence") await seed(core, snapshot);
       else await ok(core, { op: "apply", page: await page(core, 5, { events: [put("a", 5), put("b", 0)] }) });
+      if (mode === "late-first-evidence") await ok(core, { op: "admit", entry: { id: "q", seq: 1, op: "bump", args: {}, new_ids: [], predicted: [], viewer: "dev:alice", now: 1000, predictable: true } });
       await core.close();
       core = await opener.open("fixture", null);
+      if (["private-overlap", "private-generation", "private-generation-declaration", "late-evidence", "image-only", "late-first-evidence", "schema-overlap", "schema-preflight-gap"].includes(mode)) peer = await opener.open("fixture", null);
+      const generationMode = ["generation", "private-generation", "private-generation-declaration", "schema-overlap", "schema-preflight-gap"].includes(mode);
+      const advance = async () => {
+        const before = await ok(peer, { op: "sync_state", capture: false });
+        if (mode === "late-first-evidence") await ok(peer, { op: "apply", page: await page(peer, 10, { images_at: 20, more: true, committed_above: { q: 20 }, events: [put("a", 99)] }) });
+        else await ok(peer, { op: "apply", page: await page(peer, mode === "image-only" ? 10 : 12, { images_at: ["late-evidence", "image-only", "schema-overlap"].includes(mode) ? 25 : 20, more: true, committed_above: { q: 20 } }) });
+        const after = await ok(peer, { op: "sync_state", capture: false });
+        assert.deepEqual([after.watermark, after.send_revision], [before.watermark, before.send_revision], "only private evidence moves");
+      };
       const observations = [], sends = [], adoptions = [];
       let syncs = 0, injected = false, probed = false, preSyncSends;
       let resolveObservation;
       const observed = new Promise(resolve => { resolveObservation = resolve; });
       client = await createLocalClient({ url: "http://head-r9.invalid", persona: "alice", waitSeconds: 0,
         device: { open: async () => ({ close: () => core.close(),
-          ...(!polling && mode !== "generation" && mode !== "snapshot-restart" ? { onSuspend: () => () => {} } : {}),
+          ...(!polling && !generationMode && mode !== "snapshot-restart" ? { onSuspend: () => () => {} } : {}),
           call: async request => {
             if (request.op === "begin_send") sends.push("begin_send");
             if (request.op === "adopt") adoptions.push(request);
             const reply = await core.call(request);
-            if (request.op === "observe_store") observations.push({ request, reply });
+            if (request.op === "observe_store") {
+              observations.push({ request, reply });
+              if (mode === "schema-preflight-gap") await advance();
+            }
             if (polling && request.op === "set_meta" && request.key === "syncedAt" && !injected) {
               injected = true; await seed(core, false, false);
               // The private evidence also survives withdrawal; no sender competes with the poll.
@@ -107,12 +121,16 @@ test("round 9 native client head observations", { timeout: 60_000 }, async t => 
           } }) },
         fetch: async (input, init) => {
           const path = new URL(input).pathname;
-          if (path === "/schema") return Response.json(mode === "generation" && syncs > 0 ? { ...backend, generation: 2 } : backend);
+          if (path === "/schema") {
+            if (mode === "schema-overlap" && syncs > 0) await advance();
+            return Response.json(generationMode && syncs > 0 ? { ...backend, generation: 2 } : backend);
+          }
           if (path === "/probe" || path === "/changes") {
             if (mode === "changes" && path === "/probe") throw new Error("unexpected probe");
             if (mode === "probe" && path === "/changes") throw new TypeError("disconnect before reconnect probe");
             if (probed) return held(init.signal);
             probed = true; resolveObservation();
+            if (peer) await advance();
             if (mode === "stale-send") await ok(core, { op: "begin_send" });
             if (mode === "stale-published") {
               await ok(core, { op: "settle", id: "q", seq: 20 });
@@ -129,10 +147,19 @@ test("round 9 native client head observations", { timeout: 60_000 }, async t => 
               if (syncs > 1) throw new TypeError("hold after a healthy replacement page");
               return Response.json({ snapshot: true, generation: 1, store_id: "S", watermark: 8, images_at: 20, more: true, next: "next", events: [put("a", 20)] });
             }
-            if (mode === "generation" && syncs > 1) throw new TypeError("hold after the first generation reply");
-            if (mode === "generation") return Response.json({ snapshot: false, generation: 2, store_id: "S", watermark: 15, images_at: 15, more: false, events: [] });
+            if (generationMode && syncs > 1) throw new TypeError("hold after the first generation reply");
+            if (generationMode) {
+              if (mode.startsWith("private-generation")) {
+                await advance();
+                if (mode === "private-generation-declaration") {
+                  await ok(peer, { op: "admit", entry: { id: "later", seq: 2, op: "bump", args: {}, new_ids: [], predicted: [], viewer: "dev:alice", now: 1000, predictable: true } });
+                  await ok(peer, { op: "sync_state" });
+                }
+              }
+              return Response.json({ snapshot: false, generation: 2, store_id: "S", watermark: head, images_at: head, more: false, events: [] });
+            }
             if (polling && syncs === 1) return Response.json({ snapshot: false, generation: 1, store_id: "S", watermark: 5, images_at: 5, more: false, events: [] });
-            if (polling || mode.startsWith("stale-") || mode === "healthy") throw new TypeError("hold acquisition after early replay decision");
+            if (polling || mode.startsWith("stale-") || mode === "healthy" || ["late-evidence", "image-only", "late-first-evidence"].includes(mode)) throw new TypeError("hold acquisition after early replay decision");
             return Response.json({ snapshot: false, generation: 1, store_id: "S", watermark: 25, images_at: 25, more: false, events: [], acknowledged: { q: 20 } });
           }
           throw new Error(`unexpected ${path}`);
@@ -145,7 +172,14 @@ test("round 9 native client head observations", { timeout: 60_000 }, async t => 
           await new Promise(resolve => setTimeout(resolve, 5));
         }
       }
-      if (mode.startsWith("stale-")) {
+      if (mode === "schema-overlap" || mode === "schema-preflight-gap") {
+        assert.equal(sends.length, 0);
+        assert.equal(adoptions.length, 1);
+        const state = await ok(core, { op: "sync_state", capture: false });
+        assert.equal(state.generation, 1, "schema reply cannot discard private evidence acquired during its request");
+        assert.equal(state.restore_watermark, 12);
+        assert.equal(state.restore_refusal, undefined);
+      } else if (mode.startsWith("stale-") || ["late-evidence", "image-only", "late-first-evidence"].includes(mode)) {
         assert.equal(preSyncSends.length, 0, "a fenced head cannot authorize early replay");
         assert.equal(observations[0].reply.denied?.code, "E_GENERATION");
         assert.equal((await ok(core, { op: "sync_state", capture: false })).restore_refusal, undefined, "stale observations cannot persist a halt");

@@ -14,6 +14,7 @@ fn reply<S: DeviceStore>(d: &mut Device<S>, cut: u64, head: Option<u64>) -> Stre
     serde_json::from_value(json!({"snapshot":false,"store_id":"S","generation":1,
         "events":[],"watermark":cut,"images_at":head,"more":head.is_some_and(|h| h > cut),
         "snapshot_catchup":capture.snapshot_catchup,
+        "captured_restore_watermark":capture.restore_watermark,"captured_restore_images_at":capture.restore_images_at,
         "requested_watermark":capture.transfer_watermark,"captured_watermark":capture.watermark,
         "send_revision":capture.send_revision,"pending_through":capture.pending_through,
         "pending_complete":capture.pending_complete,"pending_bound":capture.pending_bound})).unwrap()
@@ -144,7 +145,9 @@ fn healthy_and_stale<H: Host>(h: &mut H) {
         let mut d = fixture(h, &name, snapshot);
         let mut stale = reply(&mut d, 7, Some(7));
         stale.requested_watermark = Some(5);
-        assert!(d.observe_store(&stale).is_ok(), "an obsolete transfer response is not restore evidence");
+        stale.captured_restore_watermark = Some(5);
+        stale.captured_restore_images_at = Some(0);
+        assert_eq!(d.observe_store(&stale).unwrap_err().refusal().code, "E_GENERATION", "an obsolete transfer response must not authorize action");
         assert_eq!(d.apply(&stale, false).unwrap_err().refusal().code, "E_GENERATION");
         assert!(d.sync_state_read().unwrap().restore_refusal.is_none());
         let mut p = reply(&mut d, 12, Some(20));
@@ -213,3 +216,95 @@ fn invalid_progress<H: Host>(h: &mut H) {
     assert!(d.sync_state_read().unwrap().restore_refusal.is_none());
 }
 both!(only_validated_pages_advance_private_restore_evidence, invalid_progress);
+
+// Round 10: requests own their evidence even while another call advances it.
+fn captured_private_evidence<H: Host>(h: &mut H) {
+    for snapshot in [false, true] {
+        for head in [7, 15, 20] {
+            let name = format!("captured-{snapshot}-{head}");
+            let mut d = fixture(h, &name, snapshot);
+            let old = reply(&mut d, head, Some(head));
+            let before = d.sync_state_read().unwrap();
+            let mut advance = reply(&mut d, 12, Some(if head == 20 { 25 } else { 20 }));
+            advance.committed_above.insert("q".into(), 20);
+            assert!(!d.apply_publication(&advance, false).unwrap().1);
+            let after = d.sync_state_read().unwrap();
+            assert_eq!((before.watermark, before.send_revision), (after.watermark, after.send_revision));
+            assert_eq!(after.restore_watermark, 12);
+            let code = d.observe_store(&old).unwrap_err().refusal().code;
+            if head < 20 {
+                assert_eq!(code, "E_STORE_RESTORE", "private progress cannot erase captured evidence");
+                h.close(&name, d);
+                let mut d = h.open(&name, None).unwrap();
+                halted(&mut d);
+                let refill = reply(&mut d, 25, Some(25));
+                refused(&mut d, "apply", &refill);
+            } else {
+                assert_eq!(code, "E_GENERATION", "new evidence must fence, never condemn, a healthy older reply");
+                assert!(d.sync_state_read().unwrap().restore_refusal.is_none());
+                let mut refill = reply(&mut d, 25, Some(25));
+                refill.acknowledged.insert("q".into(), 20);
+                assert!(d.apply_publication(&refill, false).unwrap().1);
+                assert_eq!(value(&mut d, "a"), Some(99));
+            }
+        }
+    }
+}
+both!(round10_request_owns_private_restore_evidence, captured_private_evidence);
+
+fn image_only_evidence<H: Host>(h: &mut H) {
+    let mut d = fixture(h, "image-only", false);
+    let old = reply(&mut d, 20, Some(20));
+    let mut advance = reply(&mut d, 10, Some(25));
+    advance.committed_above.insert("q".into(), 20);
+    assert!(!d.apply_publication(&advance, false).unwrap().1);
+    assert_eq!(d.sync_state_read().unwrap().restore_watermark, 10);
+    assert_eq!(d.observe_store(&old).unwrap_err().refusal().code, "E_GENERATION");
+    assert!(d.sync_state_read().unwrap().restore_refusal.is_none());
+}
+both!(round10_image_head_only_advance_fences_without_false_restore, image_only_evidence);
+
+fn adoption_evidence<H: Host>(h: &mut H) {
+    for overlap in [false, true] {
+        let name = format!("adoption-{overlap}");
+        let mut d = fixture(h, &name, false);
+        let probe = reply(&mut d, 20, Some(20));
+        let capture = d.observe_store(&probe).unwrap();
+        if overlap {
+            let mut advance = reply(&mut d, 12, Some(20));
+            advance.committed_above.insert("q".into(), 20);
+            assert!(!d.apply_publication(&advance, false).unwrap().1);
+        }
+        let (_, mut backend) = compile(SOURCE);
+        backend.generation = 2;
+        let reply = snapback4_device::call::call(&mut d, json!({"op":"adopt", "backend":backend, "adoption_capture":capture.adoption_capture}));
+        if overlap {
+            assert!(reply.get("denied").is_some(), "adoption must compare schema-request evidence: {reply}");
+            assert_eq!(d.state().unwrap(), (5, 1));
+            assert_eq!(d.sync_state_read().unwrap().restore_watermark, 12);
+            h.close(&name, d);
+            let mut d = h.open(&name, None).unwrap();
+            assert_eq!(d.state().unwrap(), (5, 1));
+            assert_eq!(d.sync_state_read().unwrap().restore_watermark, 12);
+        } else {
+            assert!(reply.get("denied").is_none(), "unchanged capture permits adoption: {reply}");
+            assert_eq!(d.state().unwrap().1, 2);
+        }
+    }
+}
+both!(round10_schema_adoption_compares_request_progress_atomically, adoption_evidence);
+
+fn declaration_overlap<H: Host>(h: &mut H) {
+    let mut d = fixture(h, "declaration-overlap", false);
+    let old = reply(&mut d, 15, Some(15));
+    let mut advance = reply(&mut d, 12, Some(20));
+    advance.committed_above.insert("q".into(), 20);
+    assert!(!d.apply_publication(&advance, false).unwrap().1);
+    admit(&mut d, "later", "bump", json!({"k":"b"}));
+    let newer = d.sync_state().unwrap();
+    assert_eq!(old.send_revision, Some(newer.send_revision));
+    assert_ne!(old.pending_through, Some(newer.pending_through));
+    refused(&mut d, "observe_store", &old);
+    halted(&mut d);
+}
+both!(round10_later_declaration_cannot_erase_captured_restore_proof, declaration_overlap);

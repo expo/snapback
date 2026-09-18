@@ -101,9 +101,12 @@ reopen. The old watermark and outbox remain in place. Stop that client and use
 a fresh device store and outbox for the restored backend; retry, refill or
 backend adoption does not silently reacquire that identity. Authenticated probe,
 change-feed and sync replies all reach the device's restore validator before
-replay, freshness or adoption decisions. Their captured progress and send
-revision fence obsolete responses so a delayed reply cannot accuse a healthy
-client of restore. Each native owner binds its interpreter and loaded
+replay, freshness or adoption decisions. The validator uses the progress and
+retained image head captured before each request. A later private advance
+cannot erase that evidence or falsely turn an older healthy response into a
+restore; obsolete healthy replies retry. Schema adoption also compares the
+progress captured before fetching that schema, atomically with installation.
+The JavaScript client requires a device module with this capture protocol. Each native owner binds its interpreter and loaded
 module digest to the adopted store identity. Another owner's replacement
 requires adoption and module reload before local reads or prediction resume.
 

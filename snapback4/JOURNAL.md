@@ -37036,3 +37036,55 @@ git diff --check passes. Per-finding dispositions are in REPAIR-B-HANDOFF.md;
 complete verbatim command results, mutation edits/commands, hashes and incoming
 client evidence are in target/review-fix9/report.md. No push, rebase, merge,
 Wasm build or publication was performed.
+
+
+## 2026-09-18 — Repair B, review fix round 10: request-owned private restore evidence
+
+Z1: native capture now includes the retained private image head alongside its
+private/published cuts. Probe/change observations and sync replies echo that
+request evidence. The restore comparison no longer substitutes the current
+private cursor/head or skips proof because private progress changed. A head
+below captured evidence durably halts after private-only advance; evidence
+acquired later fences an obsolete healthy reply without manufacturing a halt.
+A newer same-send-revision pending declaration cannot erase the independent
+head proof; declaration validation still precedes applying effects.
+
+Successful native preflight also captures the metadata expected by adoption
+inside its transaction. The client retains that map across schema retrieval,
+rather than recapturing after the response. Atomic installation checks
+private progress/heads and snapshot owner as well as published progress,
+halt, generation, backend identity and native digest. Overlap immediately
+after preflight or during the schema fetch cannot erase private evidence.
+Schema credential revision is checked; older native modules without the
+capture protocol are rejected before startup. Server wire fields and the
+old-server deferral policy are unchanged. No durable metadata key was added.
+
+The expanded native client suite uses two real SQLite owners with controlled
+HTTP. It covers published 5/private 10/images 20 followed by private 12 at
+unchanged send revision, heads 7/15, generation adoption, newer image evidence,
+image-head-only change, first private evidence after request issue, a new
+pending declaration, and both schema-adoption windows. Both-store Rust cases
+check durable refusal/reopen/refill, healthy-response retry, and atomic
+adoption with an unchanged-capture positive control.
+
+The response-path inventory in REPAIR-B-HANDOFF.md names captured evidence,
+current comparison guards, and remaining current-state dependencies separately.
+It does not close the whole lifetime class: mutation settlement, native module
+refresh, some successful response handling, readiness and legacy no-capture
+calls remain explicit audit boundaries. The upload-facts ticket is unchanged
+and outside this round. Every received review finding has a disposition.
+
+Final verification: cargo test -p snapback4-device exits 0 (639 passed,
+0 failed, 3 existing ignored); cargo test -p snapback4-core exits 0 (160 passed,
+0 failed); cargo test -p snapback4 exits 0 (265 passed, 0 failed). Strict
+TypeScript compilation, 30 transport/native client tests, 3 compatibility
+checks and 18 session tests pass. Eight Rust, five client and three protocol
+mutations fail their intended assertions with passing controls, and all
+16 mutation input hashes match final source/compiler output. Ref-check:
+484 LLP documents, 9441 references, zero errors; git diff --check passes.
+The first full device run caught an old local request cursor incorrectly
+being treated as a complete private capture; the explicit-capture fence
+corrects that, and the full suite then passes. Its failure remains recorded.
+Verbatim output of all three commands, all mutations/commands/hashes and
+controls are in target/review-fix10/report.md. No push, rebase, merge, Wasm
+build or publication was performed.

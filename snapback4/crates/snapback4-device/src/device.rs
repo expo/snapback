@@ -54,6 +54,10 @@ pub struct SyncState {
     /// Cut echoed by head-only observations, including an abandoned snapshot
     /// whose images remain restore evidence but cannot authorize continuation.
     pub restore_watermark: u64,
+    /// Highest retained image head at request time, not at response time.
+    pub restore_images_at: u64,
+    /// Raw expected metadata for atomic installation after a schema request.
+    pub adoption_capture: BTreeMap<String, Option<String>>,
     pub transfer_store_id: Option<String>,
     pub snapshot_catchup: bool,
     pub send_revision: u64,
@@ -76,6 +80,8 @@ pub struct StreamPage {
     /// request cursor. It validates head evidence, never acquisition progress.
     #[serde(default)]
     pub captured_restore_watermark: Option<u64>,
+    #[serde(default)]
+    pub captured_restore_images_at: Option<u64>,
     #[serde(default)]
     pub images_at: Option<u64>,
     #[serde(default)]
@@ -532,7 +538,7 @@ impl<S: DeviceStore> Device<S> {
         let restore_refusal = tx.meta(store_identity::RESTORE_REFUSED)?.map(|_| store_identity::restore_error().refusal());
         // @ref LLP 3000.007#18.2 — expose acquisition for this healthy owner, never a superseded store's marker.
         let acquired = restore_refusal.is_none() && tx.meta(ACQUIRED)? == Some(self.generation.to_string());
-        let mut state = SyncState { acquired, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()).is_err(), restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, pending_through, pending_complete, pending_bound, transfer_watermark: deferred::cursor(&tx)?.or(snapshot_transfer).unwrap_or(meta_u64(&tx, WATERMARK)?), restore_watermark: store_identity::restore_cursor(&tx)?.unwrap_or(meta_u64(&tx, WATERMARK)?), snapshot_catchup: snapshot_transfer.is_some(), transfer_store_id: tx.meta(deferred::IDENTITY)?.or(tx.meta(STORE_ID)?), send_revision: meta_u64(&tx, SEND_REVISION)? };
+        let mut state = SyncState { acquired, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()).is_err(), restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, pending_through, pending_complete, pending_bound, transfer_watermark: deferred::cursor(&tx)?.or(snapshot_transfer).unwrap_or(meta_u64(&tx, WATERMARK)?), restore_watermark: store_identity::restore_cursor(&tx)?.unwrap_or(meta_u64(&tx, WATERMARK)?), snapshot_catchup: snapshot_transfer.is_some(), restore_images_at: store_identity::restore_images_at(&tx)?, adoption_capture: store_identity::adoption_capture(&tx)?, transfer_store_id: tx.meta(deferred::IDENTITY)?.or(tx.meta(STORE_ID)?), send_revision: meta_u64(&tx, SEND_REVISION)? };
         state.acquired &= !state.backend_required;
         if capture_request { tx.commit()?; } else { tx.rollback()?; }
         Ok(state)

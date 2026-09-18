@@ -16,7 +16,7 @@ function device(state, apply, extra = () => undefined) {
       case "state": return { ok: { watermark: state().watermark, generation: 1 } };
       case "queued": return { ok: [] };
       case "sync_state": return { ok: { acquired: true, backend_required: false, generation: 1,
-        pending_ids: [], pending_through: 0, pending_complete: true, pending_bound: 0, send_revision: 0, ...state() } };
+        restore_watermark: 0, restore_images_at: 0, adoption_capture: {}, pending_ids: [], pending_through: 0, pending_complete: true, pending_bound: 0, send_revision: 0, ...state() } };
       case "apply": return apply(request);
       case "set_meta": case "keep_write": return { ok: null };
       case "next_submission": return { ok: 1 };

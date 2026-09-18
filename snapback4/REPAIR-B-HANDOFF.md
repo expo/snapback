@@ -291,3 +291,153 @@ run includes the last snapshot-capture change. Strict TypeScript compilation,
 controls, and all 22 input hashes match final source/compiler output.
 `ref-check --verbose`: 484 LLP documents, 9441 refs, zero errors.
 `git diff --check` passes. No push, rebase or merge was performed.
+
+## Round 10 — request evidence survives private-only overlap
+
+Incoming `e896e0b1a`, base `27a8a4d66`. Review inputs are the received files in
+`target/reviews-r10/`; no additional review was commissioned. This is a local
+commit on the supplied branch, with no push, rebase or merge.
+
+### Context and change
+
+Scope: device observation/capture, local transport and schema adoption.
+Governing constraints: LLP 3000 §7 (one Rust authority), LLP 3000.001's Repair B
+section (private progress is evidence, publication owns visibility), and LLP
+3000.007 §18.2 (incarnation, restore and atomic adoption). These documents are
+in `llp/current/`; no new foundation policy or design document was introduced.
+The current client operations guide was read and updated alongside the code.
+No new durable metadata key, server wire field, contract.ts change or
+upload-facts work is part of this fix.
+
+**Z1 is fixed.** `sync_state` captures the retained private image head in the
+same transaction as the private and published cuts. The client echoes that
+head for probe/change observations and sync preflight. `observe` derives the
+restore floor from these request echoes, not from the current private slot.
+The original published-watermark and send-revision fences run first. A
+same-incarnation head below the request's evidence persists E_STORE_RESTORE,
+even if private progress advanced in the meantime. A newer pending-write declaration cannot erase this independent head proof;
+declaration validation still precedes effect application. Otherwise, changed private
+cut/head yields E_GENERATION: it neither authorizes replay/adoption nor falsely
+condemns an older healthy reply. A terminal snapshot's second observation
+inside its own apply transaction does not mistake its own staging for an
+external overlap.
+
+The adjacent `/schema` response window is also fenced. Successful native preflight returns raw expected metadata from that same
+transaction. The client carries it unchanged across the schema fetch; it does
+not recapture and bless intervening private progress. Adoption
+compares it atomically in both existing store installation implementations,
+including private cut/head and snapshot owner, published progress, halt,
+backend identity, generation and native digest. Credential revision is also
+checked after that schema fetch. The protocol startup check rejects native
+modules lacking these capture fields. Old HTTP peers still omit images_at and
+committed_above as before; the client adds local echoes after transport.
+
+### Received findings, individually
+
+Packet numbers name `grok-b10-NN.txt`; GPT's Z1 is above.
+
+| Finding | Disposition and evidence |
+| --- | --- |
+| 03.1 sticky snapshot cut | Disproved. `snapshot::clear` consumes the snapshot owner on publication, including an intermediate published catch-up page. `live_cursor_precedes_terminal_snapshot_cut` and the existing multi-page snapshot/catch-up cases cover this path. |
+| 03.2 reset skips acquisition | Disproved. `reset_publication(false)` clears deferred state and all snapshot keys; only identity is deliberately restaged by `clear_rows`. The round-6 reset test inspects every key and reopen. |
+| 03.3 first-apply owner bypass | Disproved. `observe(false)` privately stages the first identity; `require_owner` compares this interpreter with durable published STORE_ID. First publication promotes identity. First-private-identity and native acquisition regressions pass. |
+| 03.4 rejection loses declaration/effects | No demonstrated defect. Cleanup removes only a matching request declaration, not outbox or published exclusion. Real retries recapture; echoed responses carry bounded declarations. The cleanup failure and absent-echo regression suites remain applicable. No transaction atomicity counterexample was supplied. |
+| 03.5 recapture widens an outstanding request | Disproved. `predictions::capture` reuses the existing capture at its send revision. Inspection uses `capture:false`. Changed revisions invalidate the earlier response; bounds and IDs are checked together. |
+| 05.1 receipt None fails to restore | Disproved by `Device::settle`: `predictions::restore` precedes the entire match, including None. Existing relative-survivor tests cover it. |
+| 05.2 ACKS absent on deferred page | Disproved. `deferred::stage` always writes ACKS, including `{}`. `publication_pending` uses that occupancy invariant; cursor alone is not occupancy. |
+| 05.3 snapshot misses touched tables | Disproved. The replacement publication branch explicitly extends touched with both joined keys and acquisition marker tables before staged installation. |
+| 05.4 absent watermark blocks dequeue | Disproved. `meta_u64` defaults missing metadata to zero. Dequeue restores the base before removal and replay. |
+| 13.1 omitted identity must latch restore | Rejected. Omitted identity cannot prove same incarnation. A persistent existing halt survives omission; a new identity-free lower cut uses the legacy rewind/replacement contract. Snapshot catch-up does not inherently omit identity. The proposed unconditional halt would infer identity the response does not establish. |
+| 13.2 ordinary private cursor mistaken for legacy rewind | No new counterexample in the received fragment, which stops after its input clause. A head below an identity-free request is the documented legacy reset signal; private receipts are preserved unless independently covered by published progress. Current apply rejects a below-request page. The legacy/private receipt tests cover this distinction. |
+| 15.1 malformed head treated as restore / images_at omission breaks peers | Disproved. `witnessRestore` receives probe/change `seq`, not optional images_at. True means “do not authorize this response”; it does not persist a halt. Unsafe or absent sequence numbers cannot authorize sends. Old-wire tests still exercise omitted images_at. |
+| 15.2 non-restore denial should authorize replay | Rejected: that proposed change reintroduces the overlap bypass. E_GENERATION must fence the response without persisting a restore halt. Stale-send, stale-published, private-only and image-only client controls prove this. |
+| 15.3 transfer/published identity mismatch | No supported lifecycle shown. Named replacement resets the old slot before staging the replacement. First private identity exists only without published identity. Arbitrary corrupt metadata is not evidence of that proposed state. The native replacement/private-identity tests remain green. |
+| 15.4 capture:false loses declaration | Disproved. Head observations are not acquisition pages and cannot publish/defer/replay a declaration. Their returned values are request-local evidence. Actual sync uses capture:true. Z1 fixes the head evidence's later comparison, not declaration admission. |
+| 15.5 stale restore watermark survives publication | Disproved. Publication consumes deferred/snapshot progress; `restore_cursor` then falls back to published progress in SyncState. Existing ordinary/snapshot publication-disposal tests inspect the image-head keys. |
+| 16.1 mixed after/from livelocks ordinary pages | Disproved. `after` is assigned only for snapshot pages. Ordinary publication-outstanding requests use the native transfer cursor with stream:true; snapshot paging intentionally preserves its token. The interrupted ordinary and snapshot client controls exercise both. |
+| 16.2 first identity adoption uses null published identity | Disproved. First observation stores identity privately without changing durable STORE_ID. Null is therefore the correct published identity CAS until first publication. The private-identity/adoption tests exercise this exact case. |
+| 16.3 publicationOutstanding never clears | Disproved. Immediately after successful apply it is assigned `!published`, and reset/adoption also clear it. The quoted `||=` is recovery at request construction, not the sole writer. |
+| 16.4 receipt evidence check misses distinct private store | The proposed P/T durable split is not produced by replacement/reset. Known receipts are inspected by native reset before discarding their identity authority, and returned in observation.retired; it is not only the shell history prepass that preserves them. |
+| 16.5 observeIncarnation(undefined) resets | Disproved: the function explicitly returns for undefined unless force is true. Native SyncState serializes store_id as null or string. |
+| 17.1 deferred ordinary cursor never advances | Disproved by the next loop's native capture and `watermark = transfer_watermark`. `first` only starts a replacement when page.snapshot is true. Existing request-cursor transport tests assert the advancing sequence. |
+| 17.2 post-publication metadata read / lifetime check | A denied read already stops the round and touched tables are retained for finally. Added a closed/incarnation recheck after the await. A malformed custom DeviceCore remains outside the production serialized shape. The broader current-state freshness dependency is explicitly listed in the audit below, not certified by this change. |
+| 17.3 restore runs across replacement | Disproved by the review's stated exception: `witnessRestore` returns false on a store-id mismatch. Only same captured identity reaches native head validation. |
+| 17.4 slow-head path loses validity/rewind checks | Disproved. `witnessRestore` rejects unsafe/missing seq first and native observation handles same-store shrink. Startup stale-send/published/private controls demonstrate that no send is authorized by a refused observation. |
+
+Packets 01, 10 and 11 report no actionable defects. Packets 02, 04, 06–09,
+12 and 14 contain only memory-flush notices. No missing conclusion was inferred.
+
+### Response-path check inventory: captured versus current
+
+“Captured + CAS” means the request carries evidence and the response path
+compares current state for equality/obsolescence. Reading current state for
+that comparison is necessary; replacing the evidence with current state is
+not equivalent. This table includes current-only paths instead of treating
+all response handling as covered by the Z1 tests.
+
+| Check / action | State compared today | Result / remaining boundary |
+| --- | --- | --- |
+| Startup, reconnect and change head validity | Response seq must be a safe nonnegative integer; response identity compared with captured transfer/published identity. | Request-local; invalid heads authorize nothing. |
+| Probe/change/sync credentials and local incarnation | Captured credential revision and (except constructor-only startup) captured shell incarnation compared with current revisions. | Captured + CAS; obsolete replies stop. |
+| Native observation send revision | Echo captured before HTTP versus current SEND_REVISION. | Captured + CAS; existing stale-send control. |
+| Native published acquisition fence | Echoed captured_watermark versus current WATERMARK. | Captured + CAS; existing stale-published control. |
+| Private restore proof | Response head/cut versus captured private cut, captured retained image head and captured published cut. | **Fixed Z1.** Does not substitute current private evidence. |
+| Private overlap authorization | Captured private cut/head versus current cut/head after checking captured restore proof. | **Fixed Z1.** Mismatch returns retry, never success. |
+| Same-incarnation / sticky halt | Response identity versus current published/private identity; current durable halt. | Current authority protected by send revision for replacement. Halt is an enduring prohibition, not new historical evidence. |
+| Schema adoption | Expected raw metadata captured atomically with successful preflight and retained through `/schema`, credentials/incarnation captured before request, versus install transaction/current shell. | **Fixed adjacent gap.** Atomic CAS includes private progress and halt. Legacy direct adopt without this map still fills omitted expectations from current state; modern client always passes the map. |
+| Sync generation/backend ownership | Response generation versus this owner's current interpreter generation; durable backend/store/native digest versus this owner's loaded values. | Current owner guard in the application transaction. No separate immutable request-backend token; same-number/backend replacement remains dependent on owner checks and serialization. |
+| Pending declaration | Echoed through/complete/bound versus durable same-send-revision capture, or echoed bounds when capture is consumed. | Captured bounds. Direct legacy no-echo fallback reads current capture/published exclusion. That fallback is **not** certified as a request capture. |
+| Transfer continuity | Echoed requested_watermark versus current ordinary/snapshot transfer cut. | Captured cursor + CAS; prevents applying a page over another transfer. |
+| Snapshot owner/token/send fence | This Device's owner token versus durable owner; server after token versus stored continuation; stored snapshot send revision versus current send revision. | Current snapshot authority plus echoed continuation, not a new image-head proof. Snapshot restart/reopen remains separately fenced. |
+| Deferred validation / terminal invariant | Only response fields (images_at, watermark, more, committed_above bounds) and declared request bounds. | Intrinsic response consistency, not replacement with current progress. |
+| Deferral, receipt retirement and replay | Captured declared ID interval combined with current outbox liveness, confirmed base and matching receipt incarnation inside one transaction. | Current work selection is intentional: a dequeued write must not be replayed merely because it was alive at request time. It is not the historical restore verdict. |
+| begin_send after observation | Current durable health; increments current send revision. | **Current-only action boundary:** no observation token is passed into begin_send. Client network serialization and the earlier observation fence are still assumptions, not a request-bound authorization receipt. |
+| Mutation HTTP response and settle | post captures credential revision for obsolete E_AUTH; settle checks current owner and records receipt against current incarnation. | **Current dependency remains:** no request store/send capture reaches settle, and successful post responses are not generally revision-fenced. This audit does not close that lifetime. |
+| Native module fallback `/schema` | Refreshed response generation versus current shell generation. | **Current dependency remains:** this separate fallback lacks the full request capture added to generation adoption. |
+| `/native.wasm` installation | Wanted digest and target generation captured locally; digest verified; current native owner/backend/health checked. | Mixed: bytes/generation captured, request credentials/incarnation not passed to installation. Same-number identity transitions rely on current owner checks. |
+| Server query results/cache/watch return | Shell incarnation captured by runLocal/evaluateLocal; post's credential revision only rejects obsolete E_AUTH, with an extra credential comparison for unremembered composition reads. | Mixed. Successful remembered reads do not carry a native request-store capture; current session and shell incarnation guard them. |
+| Post-apply acquired/fresh/caughtUp | Current native acquired/store/watermark plus terminal flag of the completed response; closed/incarnation checked after the read. | **Current dependency remains:** readiness is not bound to a publication receipt. The lifecycle recheck does not establish that broader property. |
+| Assets and actions | Asset fetch captures credential revision; action uses post's credential handling and current unavailable state. | No native store/request capture. Upload-facts lifetime remains the existing out-of-scope ticket, unchanged. |
+| Direct legacy native observe/apply | Optional local echoes; absent image-head echo attests only the request cursor. Published-restore fallback can read current WATERMARK when capture is omitted. | Compatibility path, **not** an implementation of the full captured-evidence contract. Modern client version-checks the native protocol and always echoes its captures; HTTP field omission does not omit these local fields. |
+
+The response-path class is **not closed**. The explicit current dependencies
+above are the remaining audit list the author requested; they are not new
+verified counterexamples. The fixed Z1 path and schema-adoption window have
+controlled overlap regressions, which is a narrower claim.
+
+### Regression and mutation proof
+
+The memory witness uses its production host drain/reopen boundary; SQLite
+uses real on-disk stores. The compiled-client cases use two simultaneously
+open process devices sharing one SQLite store and controlled HTTP responses.
+No browser-kill or physical-power-loss claim is made.
+
+| New/strengthened regression | Passing control and killed mutation |
+| --- | --- |
+| Private 10→12 at unchanged published 5/send revision; restored head 7 or 15; ordinary and snapshot, halt/reopen/refill | Both stores pass. Reintroducing current-cut eligibility for restore fails the required E_STORE_RESTORE assertion. |
+| Healthy response 20 captured before later image evidence 25 | Both stores/client pass without a halt. Substituting current image head for the captured floor falsely halts and fails. |
+| Image head advances alone, private cursor stays 10 | Both stores/client return E_GENERATION without halt. Removing the private overlap fence returns success and fails. |
+| A later same-revision pending declaration differs | Both stores and the native generation case still halt on the older request's captured evidence. Reintroducing current declaration validation before the restore proof fails. |
+| Native capture actually carries retained image head | Setting the returned image capture to zero fails the lower-head restore regressions. |
+| Two-owner compiled startup at heads 7/15 | Zero begin_send/HTTP sends; durable halt across reopen/refill. Omitting the probe image-head echo fails the head-15 case. |
+| Two-owner generation reply at head 15 | No adoption; durable halt. Omitting the sync image-head echo fails. |
+| First private evidence acquired after a head request | No false halt; no early replay. Ignoring a non-restore observation denial causes a send and fails, as do the late-evidence/image-only controls. |
+| Private progress changes during `/schema` | Both stores reject atomic installation; native client retains generation 1/private cut 12. Omitting CURSOR from the captured map, dropping the preflight map, ignoring it in native adoption, or omitting it in the client each fails. A second client case advances private progress immediately after native preflight returns; recapturing after preflight fails that case. An unchanged capture permits adoption. |
+| Older native modules lack cut, image head or adoption capture | Online/offline compatibility tests reject before any further core call. Removing each corresponding version predicate independently fails. |
+
+Exact compiler/test commands, mutation edits, input hashes, passing controls,
+assertion failures and complete verbatim results of the three requested Cargo
+commands are retained in [target/review-fix10/report.md](./target/review-fix10/report.md).
+
+
+Final commands all exit 0: `cargo test -p snapback4-device` **639 passed,
+0 failed, 3 existing ignored**; `cargo test -p snapback4-core` **160 passed,
+0 failed**; `cargo test -p snapback4` **265 passed, 0 failed**. Final source
+also passes strict TypeScript compilation, 30 transport/native client tests,
+3 device-compatibility tests and 18 session tests. All 8 Rust, 5 client and
+3 protocol mutations fail their intended assertions with passing controls;
+all 16 input hashes match final source/compiler output. `ref-check --verbose`
+reports 484 LLP documents, 9441 references and zero errors. `git diff --check`
+passes. The first full device run's legacy-cursor refusal and the initial
+first-evidence test-fixture correction remain in the evidence record.
+No push, rebase, merge, Wasm build or publication was performed.

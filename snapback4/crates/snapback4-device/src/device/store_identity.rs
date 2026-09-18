@@ -7,6 +7,17 @@ pub(super) fn restore_cursor<T: DeviceTx>(tx: &T) -> Result<Option<u64>, Runtime
     Ok(deferred::cursor(tx)?.or(if tx.meta(SNAPSHOT_OWNER)?.is_some() { Some(meta_u64(tx, SNAPSHOT_THROUGH)?) } else { None }))
 }
 
+pub(super) fn restore_images_at<T: DeviceTx>(tx: &T) -> Result<u64, RuntimeError> {
+    Ok(meta_u64(tx, deferred::IMAGES_AT)?.max(meta_u64(tx, SNAPSHOT_IMAGES_AT)?))
+}
+
+pub(super) fn adoption_capture<T: DeviceTx>(tx: &T) -> Result<BTreeMap<String, Option<String>>, RuntimeError> {
+    [BACKEND_REQUIRED, STORE_ID, SEND_REVISION, BACKEND_IDENTITY, GENERATION, NATIVE_DIGEST,
+        WATERMARK, ACQUIRED, RESTORE_REFUSED, deferred::IDENTITY, deferred::CURSOR,
+        deferred::IMAGES_AT, SNAPSHOT_OWNER, SNAPSHOT_THROUGH, SNAPSHOT_IMAGES_AT]
+        .into_iter().map(|key| Ok((key.to_owned(), tx.meta(key)?))).collect()
+}
+
 pub(super) fn restore_error() -> RuntimeError {
     RuntimeError::Structural { code: "E_STORE_RESTORE", message: "the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox".into() }
 }
@@ -46,6 +57,7 @@ pub struct StoreObservation {
     pub backend_required: bool,
     pub send_revision: u64,
     pub retired: BTreeMap<String, u64>,
+    pub adoption_capture: BTreeMap<String, Option<String>>,
     #[serde(skip)]
     pub(super) restore_refused: bool,
 }
@@ -73,14 +85,17 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
     let private_identity = previous.is_none() && page.store_id.is_some() && transfer_identity == page.store_id;
     let same_identity = page.store_id.is_some() && (!identity_changed || private_identity);
     // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — private progress is restore evidence, never publication authority.
-    let transfer = restore_cursor(tx)?;
-    let private_restore = if let Some(transfer) = transfer.filter(|cut| page.captured_restore_watermark.or(page.requested_watermark) == Some(*cut)) {
-        // A delayed reply from an earlier private cut cannot accuse a healthy
-        // store of restore. Revision and published-capture checks ran above.
-        predictions::declaration(tx, page)?;
-        let floor = watermark.max(transfer).max(meta_u64(tx, deferred::IMAGES_AT)?).max(meta_u64(tx, SNAPSHOT_IMAGES_AT)?);
+    let transfer = restore_cursor(tx)?.unwrap_or(watermark);
+    let captured = page.captured_restore_watermark.or(page.requested_watermark);
+    let private_restore = if let Some(cut) = captured {
+        // Only evidence that existed when this request left can condemn its
+        // response. Legacy local callers attest only their request cursor;
+        // never substitute a subsequently retained image head for an absent echo.
+        // Pending declarations govern applying effects, not this head proof:
+        // a newer declaration cannot erase evidence this request already held.
+        let floor = page.captured_watermark.unwrap_or(0).max(cut).max(page.captured_restore_images_at.unwrap_or(0));
         page.images_at.or((!page.more).then_some(page.watermark)).is_some_and(|head| head < floor)
-            || (page.requested_watermark == Some(transfer) && page.watermark < transfer)
+            || (page.requested_watermark == Some(cut) && page.watermark < cut)
     } else { false };
     let published_restore = page.watermark < watermark
         && page.requested_watermark.is_none_or(|requested| page.watermark < requested);
@@ -90,7 +105,16 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
     // A halt belongs to the incarnation, even when rows are cleared, a
     // backend is adopted, identity is omitted, or its head later refills.
     if tx.meta(RESTORE_REFUSED)?.is_some() && (!identity_changed || private_identity) {
-        return Ok(StoreObservation { reset: false, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()), send_revision: revision, retired: BTreeMap::new(), restore_refused: true });
+        return Ok(StoreObservation { reset: false, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()), send_revision: revision, retired: BTreeMap::new(), adoption_capture: BTreeMap::new(), restore_refused: true });
+    }
+    // Healthy but obsolete evidence authorizes neither a send nor adoption.
+    // Check after the captured restore proof: a private advance cannot erase
+    // a restore already demonstrated against the older request's own evidence.
+    let captured_progress = page.captured_restore_watermark;
+    let images_at = restore_images_at(tx)?;
+    if !publish_first && (captured_progress.is_some_and(|cut| cut != transfer)
+        || page.captured_restore_images_at.is_some_and(|head| head != images_at)) {
+        return Err(RuntimeError::Generation("private progress changed during the request; retry sync".into()));
     }
     let reset = (identity_changed && !private_identity && (receipt_identity.is_some() || tx.meta(ACQUIRED)?.is_some_and(|value| !value.is_empty()) || meta_u64(tx, WATERMARK)? > 0 || tx.meta(SNAPSHOT_OWNER)?.is_some()))
         || (!page.snapshot_catchup && page.store_id.is_none() && page.requested_watermark.is_some_and(|requested| page.watermark < requested) && page.captured_watermark == Some(watermark));
@@ -135,7 +159,7 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
         revision = revision.checked_add(1).filter(|n| *n <= 9_007_199_254_740_991).ok_or_else(|| RuntimeError::Store("send revision overflow".into()))?;
         tx.set_meta(SEND_REVISION, &revision.to_string())?;
     }
-    Ok(StoreObservation { reset, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()), send_revision: revision, retired, restore_refused: tx.meta(RESTORE_REFUSED)?.is_some() })
+    Ok(StoreObservation { reset, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()), send_revision: revision, retired, adoption_capture: BTreeMap::new(), restore_refused: tx.meta(RESTORE_REFUSED)?.is_some() })
 }
 
 impl<S: DeviceStore> Device<S> {
@@ -143,10 +167,13 @@ impl<S: DeviceStore> Device<S> {
     /// or acquiring pages. A replacement is durable even if acquisition fails.
     pub fn observe_store(&mut self, page: &StreamPage) -> Result<StoreObservation, RuntimeError> {
         let tx = self.store.transaction()?;
-        let observed = match observe(&tx, page, false) {
+        let mut observed = match observe(&tx, page, false) {
             Ok(observed) => observed,
             Err(error) => { tx.rollback()?; let _ = self.reject_sync_capture(page); return Err(error); }
         };
+        // Carry this successful preflight through schema transport. Recapturing
+        // afterward could bless private evidence the response never validated.
+        observed.adoption_capture = adoption_capture(&tx)?;
         tx.commit()?;
         if observed.reset { self.snapshot_owner = None; }
         if observed.restore_refused { return Err(restore_error()); }
