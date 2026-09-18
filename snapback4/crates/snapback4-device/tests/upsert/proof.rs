@@ -277,6 +277,7 @@ fn left_group<H: Host>(host: &mut H, replay: bool) {
     for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
     if replay { assert!(device.admit(queued("vote", 1)).unwrap().predictable); }
     assert!(matches!(sent(&mut server, "leave", 2).state, WriteState::Sent { .. }));
+    device.sync_state().unwrap();
     let mut page = stream_page(&mut server, "bob", device.state().unwrap().0);
     assert!(page.events.iter().any(|event| event.kind == "scope"));
     // Exercise the absent left-group boundary explicitly: the server confirmed

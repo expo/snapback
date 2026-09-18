@@ -19,6 +19,7 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 
 mod predictions;
+mod deferred;
 mod media;
 mod snapshot;
 mod history;
@@ -46,11 +47,15 @@ pub struct SyncState {
     pub watermark: u64,
     pub generation: u64,
     pub pending_ids: Vec<String>,
+    pub pending_through: u64,
+    pub pending_complete: bool,
+    pub pending_bound: u64,
+    pub transfer_watermark: u64,
     pub send_revision: u64,
 }
 
 /// One event of the stream or a snapshot, as `POST /sync` sends it.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StreamEvent {
     pub table: String,
     pub kind: String,
@@ -60,8 +65,19 @@ pub struct StreamEvent {
 }
 
 /// One page of `POST /sync`.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StreamPage {
+    #[serde(default)]
+    pub images_at: Option<u64>,
+    #[serde(default)]
+    pub committed_above: BTreeMap<String, u64>,
+    /// Local declaration captured by sync_state, echoed by the transport.
+    #[serde(default)]
+    pub pending_through: Option<u64>,
+    #[serde(default)]
+    pub pending_complete: Option<bool>,
+    #[serde(default)]
+    pub pending_bound: Option<u64>,
     #[serde(default)]
     pub acquisitions: Vec<wire::Acquisition>,
     /// Local request watermark and persisted acquisition watermark at capture.
@@ -147,7 +163,8 @@ const SNAPSHOT_WATERMARK: &str = "device:snapshot:watermark";
 const SNAPSHOT_SEND_REVISION: &str = "device:snapshot:send_revision";
 const SNAPSHOT_THROUGH: &str = "device:snapshot:through";
 const SNAPSHOT_NEXT: &str = "device:snapshot:next";
-const SNAPSHOT_KEYS: [&str; 7] = [SNAPSHOT_NEXT, boundary::STAGED, SNAPSHOT_OWNER, SNAPSHOT_WATERMARK, SNAPSHOT_SEND_REVISION, SNAPSHOT_THROUGH, history::STAGED_GROUPS];
+const SNAPSHOT_ACKS: &str = "device:snapshot:acks";
+const SNAPSHOT_KEYS: [&str; 8] = [SNAPSHOT_ACKS, SNAPSHOT_NEXT, boundary::STAGED, SNAPSHOT_OWNER, SNAPSHOT_WATERMARK, SNAPSHOT_SEND_REVISION, SNAPSHOT_THROUGH, history::STAGED_GROUPS];
 /// The app's native module (LLP 3000.005 §9), kept so a cold start offline
 /// answers native reads too: the bytes as hex, and the digest the server named.
 const NATIVE: &str = "device:native";
@@ -283,6 +300,10 @@ impl<S: DeviceStore> Device<S> {
         let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string()), (BACKEND_IDENTITY.to_owned(), backend_identity.clone())]);
         if reset {
             metadata.insert(WATERMARK.to_owned(), "0".into());
+            metadata.insert(deferred::PREFIX.into(), String::new());
+            metadata.insert(predictions::CAPTURE.into(), String::new());
+            metadata.insert(predictions::FIRST_CAPTURE.into(), String::new());
+            if !keep_images { metadata.insert(predictions::PUBLISHED.into(), String::new()); }
             metadata.insert(ACQUIRED.to_owned(), if keep_acquired { backend.generation.to_string() } else { String::new() });
             invalidate_native(&mut metadata);
             metadata.insert(history::GROUPS.to_owned(), "{}".into());
@@ -397,6 +418,10 @@ impl<S: DeviceStore> Device<S> {
         metadata.insert(BACKEND_REQUIRED.to_owned(), String::new());
         if reset {
             metadata.insert(WATERMARK.to_owned(), "0".into());
+            metadata.insert(deferred::PREFIX.into(), String::new());
+            metadata.insert(predictions::CAPTURE.into(), String::new());
+            metadata.insert(predictions::FIRST_CAPTURE.into(), String::new());
+            if !keep_images { metadata.insert(predictions::PUBLISHED.into(), String::new()); }
             metadata.insert(ACQUIRED.to_owned(), if keep_acquired { backend.generation.to_string() } else { String::new() });
             invalidate_native(&mut metadata);
             metadata.insert(history::GROUPS.to_owned(), "{}".into());
@@ -441,23 +466,29 @@ impl<S: DeviceStore> Device<S> {
     /// What a sync request is made from: the watermark, the generation,
     /// the writes sent but not yet seen, and the send revision.
     pub fn sync_state(&mut self) -> Result<SyncState, RuntimeError> {
-        let tx = self.store.read_transaction()?;
-        let mut pending_ids = Vec::new();
-        for entry in tx.outbox_entries()? {
-            let queued: Queued = decoded(&entry)?;
-            if queued.sent_seq.is_none() {
-                pending_ids.push(queued.id);
-                if pending_ids.len() == 256 {
-                    break;
-                }
-            }
+        let tx = self.store.transaction()?;
+        let entries = tx.outbox_entries()?.iter().map(|data| decoded::<Queued>(data)).collect::<Result<Vec<_>, _>>()?;
+        // Include sent receipts too: this is an actual prefix of unretired
+        // submissions, and committed_above must see those writes as well.
+        let pending_ids = entries.iter().take(256).map(|q| q.id.clone()).collect();
+        let pending_through = entries.iter().take(256).last().map_or(0, |q| q.seq);
+        let pending_complete = entries.len() <= 256;
+        let pending_bound = tx.outbox_max_seq()?.max(meta_u64(&tx, SUBMISSION)?);
+        let capture = encoded(&(pending_through, pending_complete, pending_bound))?;
+        if tx.meta(predictions::FIRST_CAPTURE)?.is_none_or(|s| s.is_empty()) {
+            tx.set_meta(predictions::FIRST_CAPTURE, &capture)?;
         }
+        tx.set_meta(predictions::CAPTURE, &capture)?;
+        // Snapshot continuation requests still use from=0; after its terminal
+        // page, catch-up starts at its staged cut. A reopened owner restarts it.
+        let snapshot_transfer = if self.snapshot_owner.is_some() && tx.meta(SNAPSHOT_OWNER)? == self.snapshot_owner
+            && tx.meta(SNAPSHOT_NEXT)?.as_deref() == Some("") { Some(meta_u64(&tx, SNAPSHOT_THROUGH)?) } else { None };
         let restore_refusal = tx.meta(store_identity::RESTORE_REFUSED)?.map(|_| store_identity::restore_error().refusal());
         // @ref LLP 3000.007#18.2 — expose acquisition for this healthy owner, never a superseded store's marker.
         let acquired = restore_refusal.is_none() && tx.meta(ACQUIRED)? == Some(self.generation.to_string());
-        let mut state = SyncState { acquired, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()).is_err(), restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, send_revision: meta_u64(&tx, SEND_REVISION)? };
+        let mut state = SyncState { acquired, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()).is_err(), restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, pending_through, pending_complete, pending_bound, transfer_watermark: deferred::cursor(&tx)?.or(snapshot_transfer).unwrap_or(meta_u64(&tx, WATERMARK)?), send_revision: meta_u64(&tx, SEND_REVISION)? };
         state.acquired &= !state.backend_required;
-        tx.rollback()?;
+        tx.commit()?;
         Ok(state)
     }
 
@@ -467,6 +498,8 @@ impl<S: DeviceStore> Device<S> {
         let tx = self.store.transaction()?;
         tx.clear_rows()?;
         tx.base_clear()?;
+        deferred::clear(&tx)?;
+        tx.delete_meta(&[predictions::DECLARATION_PREFIX])?;
         tx.staged_clear()?;
         tx.set_meta(WATERMARK, "0")?;
         tx.delete_meta(&[ACQUIRED])?;
@@ -483,6 +516,7 @@ impl<S: DeviceStore> Device<S> {
     pub fn apply(&mut self, page: &StreamPage, first: bool) -> Result<Vec<String>, RuntimeError> {
         let tx = self.store.transaction()?;
         let first_identity = tx.meta(STORE_ID)?.is_none() && self.store_identity.is_none();
+        let original_revision = meta_u64(&tx, SEND_REVISION)?;
         let owner_store = if first_identity { page.store_id.clone() } else { self.store_identity.clone() };
         let observed = store_identity::observe(&tx, page)?;
         if observed.restore_refused {
@@ -517,11 +551,35 @@ impl<S: DeviceStore> Device<S> {
         if page.watermark < watermark {
             return Err(RuntimeError::Generation("device watermark would move backwards".into()));
         }
+        deferred::validate(page)?;
+        let declaration = predictions::declaration(&tx, page)?;
         let mut touched = BTreeSet::new();
         let replacing = page.snapshot || page.snapshot_catchup;
+        let transfer = deferred::cursor(&tx)?.unwrap_or(watermark);
+        // A replacement may not discard ordinary private effects or retire
+        // their receipts. Drain them through ordinary pages before restarting.
+        if replacing && transfer > watermark {
+            return Err(RuntimeError::Generation("drain deferred ordinary pages before replacing the partition".into()));
+        }
+        let requested = if replacing && !first && page.snapshot_catchup { meta_u64(&tx, SNAPSHOT_THROUGH)? } else { transfer };
+        if page.requested_watermark.is_some_and(|from| from != requested) || page.watermark < transfer {
+            return Err(RuntimeError::Generation("obsolete deferred transfer page; retry sync".into()));
+        }
+        let defer = deferred::should_defer(&tx, &self.programs, page, watermark, declaration)?;
+        if !replacing && defer {
+            deferred::stage(&tx, &self.schema, self.generation, page)?;
+            predictions::clear_capture(&tx)?;
+            if first_identity {
+                if let Some(id) = &page.store_id { tx.set_meta(deferred::IDENTITY, id)?; }
+                tx.delete_meta(&[STORE_ID])?; tx.set_meta(SEND_REVISION, &original_revision.to_string())?;
+            }
+            tx.commit()?;
+            return Ok(Vec::new());
+        }
         if replacing {
             if page.snapshot && first {
                 tx.staged_clear()?;
+                tx.delete_meta(&[SNAPSHOT_ACKS])?;
                 snapshot::retain(&tx, &self.schema, page.held.as_ref())?;
                 boundary::retain(&tx, &self.schema)?;
                 tx.set_meta(SNAPSHOT_WATERMARK, &page.watermark.to_string())?;
@@ -546,14 +604,29 @@ impl<S: DeviceStore> Device<S> {
             snapshot::stage(&tx, &self.schema, page)?;
             history::events(&tx, &self.schema, &page.events, &page.joined, true)?;
             tx.set_meta(SNAPSHOT_THROUGH, &page.watermark.to_string())?;
+            let mut acks: BTreeMap<String, u64> = tx.meta(SNAPSHOT_ACKS)?.map(|s| decoded(&s)).transpose()?.unwrap_or_default();
+            acks.extend(page.acknowledged.clone());
+            tx.set_meta(SNAPSHOT_ACKS, &encoded(&acks)?)?;
             // Paged snapshots read different server transactions. Keep every
             // image private until log catch-up repairs intervening commits.
-            if page.more || (page.snapshot && page.stage_snapshot) {
+            if defer || page.more || (page.snapshot && page.stage_snapshot) {
+                predictions::clear_capture(&tx)?;
+                if first_identity {
+                    if let Some(id) = &page.store_id { tx.set_meta(deferred::IDENTITY, id)?; }
+                    tx.delete_meta(&[STORE_ID])?;
+                    tx.set_meta(SEND_REVISION, &original_revision.to_string())?;
+                }
                 tx.commit()?;
-                self.store_identity = owner_store.clone();
                 self.snapshot_owner = owner;
                 return Ok(Vec::new());
             }
+        }
+        let mut acknowledgements = page.acknowledged.clone();
+        if replacing {
+            let staged: BTreeMap<String, u64> = tx.meta(SNAPSHOT_ACKS)?.map(|s| decoded(&s)).transpose()?.unwrap_or_default();
+            acknowledgements.extend(staged);
+            touched.extend(page.joined.keys().cloned());
+            touched.extend(page.acquisitions.iter().map(|marker| marker.table.clone()));
         }
         predictions::restore(&tx, &self.schema)?;
         if replacing {
@@ -584,63 +657,17 @@ impl<S: DeviceStore> Device<S> {
             tx.staged_clear()?;
             tx.delete_meta(&SNAPSHOT_KEYS)?;
         } else {
-            let mut boundaries = boundary::Boundaries::editing(false);
-            let mut markers = page.acquisitions.iter().peekable();
-            boundary::validate_positions(page)?;
-            for position in 0..=page.events.len() {
-                while markers.peek().is_some_and(|marker| marker.at == position) {
-                    boundaries.marker(&tx, &self.schema, markers.next().unwrap(), false)?;
-                }
-                let Some(event) = page.events.get(position) else { break };
-                touched.insert(event.table.clone());
-                let table = self.schema.table(&event.table).ok_or_else(|| RuntimeError::Schema(format!("unknown table {}", event.table)))?;
-                match event.kind.as_str() {
-                    "put" => {
-                        let row = wire::row_from_json(table, event.data.as_ref().ok_or_else(|| RuntimeError::Input("event row is missing".into()))?).map_err(RuntimeError::Input)?;
-                        if row.field("id")?.as_str()? != event.id {
-                            return Err(RuntimeError::Input("row identity does not match its event".into()));
-                        }
-                        let old = tx.get(&event.table, &event.id)?;
-                        if !boundaries.accept(&tx, &event.table, table, &row, old.is_some())? { continue; }
-                        if let Some(old) = &old { media::forget(&tx, table, old)?; }
-                        tx.put(&event.table, table, &row, old.as_ref())?;
-                        media::remember(&tx, &event.table, table, &row, self.generation)?;
-                    }
-                    "del" => {
-                        if let Some(old) = tx.get(&event.table, &event.id)? {
-                            media::forget(&tx, table, &old)?;
-                            tx.delete(&event.table, table, &old)?;
-                        }
-                    }
-                    "scope" => {
-                        let group = scope_group(table, event)?;
-                        leave(&tx, &self.schema, &event.table, &group)?;
-                        boundaries.scope(&tx, &event.table, table, &group)?;
-                    }
-                    _ => return Err(RuntimeError::Input("unknown stream event".into())),
-                }
-            }
-            boundaries.save(&tx, false)?;
+            deferred::install(&tx, &self.schema, &mut touched)?;
+            deferred::events(&tx, &self.schema, self.generation, page, &mut touched)?;
         }
-        if !replacing { history::events(&tx, &self.schema, &page.events, &page.joined, false)?; }
-        touched.extend(page.joined.keys().cloned());
-        touched.extend(page.acquisitions.iter().map(|marker| marker.table.clone()));
         tx.set_meta(WATERMARK, &page.watermark.to_string())?;
         // @ref LLP 3000.008.001#2-three-facts-to-distinguish — schema availability is not acquisition.
         // A staged snapshot reaches here only after catch-up publishes its
         // confirmed rows. Commit readiness with those rows, even at seq zero;
         // a later interrupted refresh retains the prior acquired partition.
         if !page.more { tx.set_meta(ACQUIRED, &self.generation.to_string())?; }
-        for (id, seq) in &page.acknowledged {
-            if *seq > page.watermark {
-                return Err(RuntimeError::Input("acknowledgement is beyond the applied watermark".into()));
-            }
-            if let Some(data) = tx.outbox_get(id)? {
-                let mut entry: Queued = decoded(&data)?;
-                entry.observed_seq = Some(*seq);
-                predictions::enqueue(&tx, &entry)?;
-            }
-        }
+        deferred::acknowledge(&tx, page.watermark, &acknowledgements)?;
+        predictions::publish_declaration(&tx, declaration)?;
         predictions::replay(&tx, &self.schema, &self.programs, page.watermark)?;
         tx.commit()?;
         self.store_identity = owner_store.clone();
@@ -648,6 +675,12 @@ impl<S: DeviceStore> Device<S> {
             self.snapshot_owner = None;
         }
         Ok(touched.into_iter().collect())
+    }
+
+    /// Whether apply still has private effects; an empty touched set alone
+    /// says nothing about publication (an empty terminal page can publish).
+    pub fn publication_pending(&self) -> Result<bool, RuntimeError> {
+        Ok(self.store.meta(deferred::CURSOR)?.is_some() || self.store.meta(SNAPSHOT_OWNER)?.is_some())
     }
 
     /// A query over the device's rows, with the device's words.

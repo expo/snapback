@@ -114,7 +114,10 @@ fn rows(read: &serde_json::Value) -> &Vec<serde_json::Value> {
 }
 
 fn apply(device: &mut dyn AnyDevice, page: &snapback4_device::device::StreamPage, first: bool) -> serde_json::Value {
-    device.call(serde_json::json!({ "op": "apply", "page": page_json(page), "first": first }))
+    // Serialization-only apply fixture. The caller supplies the page and its
+    // receipts; this does not simulate a sync request or invent a declaration.
+    let page = page_json(page);
+    device.call(serde_json::json!({ "op": "apply", "page": page, "first": first }))
 }
 
 fn snapshot_pages_at(
@@ -160,7 +163,7 @@ fn stream_page_at(
 ) -> snapback4_device::device::StreamPage {
     let page = engine.stream_at(principal, watermark, 1_000, now).unwrap();
     serde_json::from_value(serde_json::json!({
-        "snapshot": false, "acquisitions": page.acquisitions,
+        "snapshot": false, "images_at": page.images_at, "acquisitions": page.acquisitions,
         "events": page.events.iter().map(|event| serde_json::json!({
             "table": event.table,
             "kind": event.kind,

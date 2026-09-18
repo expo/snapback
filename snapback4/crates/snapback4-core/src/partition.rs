@@ -510,6 +510,8 @@ pub fn append(tx: &dyn PartitionRows, seq: u64, events: &[Event]) -> Result<(), 
 /// `watermark`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StreamPage {
+    #[serde(default)]
+    pub images_at: Option<u64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub acquisitions: Vec<crate::wire::Acquisition>,
     pub events: Vec<LogEvent>,
@@ -607,7 +609,7 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
         _ => false,
     });
     // A cursor from a replaced database is not evidence that this store reached it.
-    if watermark > head || (watermark == head && !expiring_audience) { return Ok(StreamPage { acquisitions: Vec::new(), events: Vec::new(), watermark: head, more: false, joined: BTreeMap::new() }); }
+    if watermark > head || (watermark == head && !expiring_audience) { return Ok(StreamPage { images_at: Some(head), acquisitions: Vec::new(), events: Vec::new(), watermark: head, more: false, joined: BTreeMap::new() }); }
     let held = intervals(tx, schema, principal, watermark)?;
     let mut spans = vec![(partition_of(principal), watermark.saturating_add(1), None, None), (PUBLIC.to_owned(), watermark.saturating_add(1), None, None)];
     for ((table, group), intervals) in &held {
@@ -704,7 +706,7 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
         }
         events.push(event);
     }
-    Ok(StreamPage { acquisitions: published, events, watermark: next, more, joined })
+    Ok(StreamPage { images_at: Some(head), acquisitions: published, events, watermark: next, more, joined })
 }
 
 #[cfg(feature = "sqlite")]

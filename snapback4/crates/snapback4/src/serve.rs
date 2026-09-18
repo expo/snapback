@@ -635,6 +635,8 @@ struct SnapshotReply {
 
 #[derive(serde::Serialize)]
 struct StreamReply {
+    images_at: Option<u64>,
+    committed_above: BTreeMap<String, u64>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     acquisitions: Vec<wire::Acquisition>,
     acknowledged: BTreeMap<String, u64>,
@@ -1128,18 +1130,18 @@ fn handle(mut request: Request, shared: &Shared) {
                     match reader {
                         Ok(mut reader) => {
                             let generation = reader.generation();
-                            (reader.stream_at(&principal, from, limit, shared.now()).and_then(|page| reader.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))), generation)
+                            (reader.stream_at(&principal, from, limit, shared.now()).and_then(|page| reader.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| (page, acks))), generation)
                         }
                         Err(_) => {
                             let mut engine = lock(&shared.engine);
-                            (engine.stream_at(&principal, from, limit, shared.now()).and_then(|page| engine.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))), *lock(&shared.generation))
+                            (engine.stream_at(&principal, from, limit, shared.now()).and_then(|page| engine.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| (page, acks))), *lock(&shared.generation))
                         }
                     }
                 };
                 match outcome {
-                    Ok((page, acknowledged)) => {
+                    Ok((page, (acknowledged, committed_above))) => {
                         respond(request, 200, StreamReply {
-                            acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Stream(page.events), generation, store_id,
+                            images_at: page.images_at, committed_above, acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Stream(page.events), generation, store_id,
                             joined: page.joined, more: page.more, snapshot: false, watermark: page.watermark,
                         });
                     }

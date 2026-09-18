@@ -47,6 +47,7 @@ pub trait DeviceTx: Rows {
     /// Read a metadata namespace in key order. Keys ending in `:` name namespaces.
     fn meta_prefix(&self, prefix: &str) -> Result<Vec<(String, String)>, RuntimeError>;
     /// Delete exact keys, or every entry of a namespace ending in `:`.
+    /// Delete exact keys; a trailing colon deletes the complete namespace.
     fn delete_meta(&self, keys: &[&str]) -> Result<(), RuntimeError>;
     /// Every row and index entry goes.
     fn clear_rows(&self) -> Result<(), RuntimeError>;

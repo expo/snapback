@@ -137,6 +137,7 @@ fn prepare<H: Host>(host: &mut H, backend: &Backend, snapshot: &Json, entry: &Qu
 fn settle<H: Host>(host: &mut H, mut device: Device<H::Store>, mut observation: Json, result: &MutationOutcome, page: &StreamPage, entry: &Queued, query: &(&str, Json)) -> Json {
     let seq = match result.state { WriteState::Sent { seq, .. } => Some(seq), WriteState::Failed { .. } => None };
     if device.queued().unwrap().iter().any(|queued| queued.id == entry.id) { device.settle(&entry.id, seq).unwrap(); }
+    device.sync_state().unwrap();
     device.apply(page, false).unwrap();
     observation["settled"] = local::<H>(&mut device, &entry.viewer, query);
     assert!(device.queued().unwrap().is_empty(), "settles sent and failed operations");
@@ -191,7 +192,7 @@ fn observe_lifecycle(e: &mut Engine, name: &str, viewer: &str, values: Json, op:
     assert_eq!(e.replay(viewer, op).unwrap().unwrap().reply(Some(op)), retry.reply(Some(op)));
     let stream_page = e.stream_at(viewer, seq, 20_000, 1000).unwrap();
     let stream = serde_json::to_value(&stream_page).unwrap();
-    let page: StreamPage = serde_json::from_value(json!({"snapshot":false,"events":stream_page.events.iter().map(|event| json!({"table":event.table,"kind":event.kind,"id":event.id,"data":event.data.as_ref().map(wire::to_json)})).collect::<Vec<_>>(),"watermark":stream_page.watermark,"more":stream_page.more,"generation":e.generation()})).unwrap();
+    let page: StreamPage = serde_json::from_value(json!({"snapshot":false,"events":stream_page.events.iter().map(|event| json!({"table":event.table,"kind":event.kind,"id":event.id,"data":event.data.as_ref().map(wire::to_json)})).collect::<Vec<_>>(),"watermark":stream_page.watermark,"images_at":stream_page.images_at,"more":stream_page.more,"generation":e.generation()})).unwrap();
     let sqlite_after = settle(&mut sqlite, sqlite_device, sqlite_before, &result, &page, &entry, &query);
     let memory_after = settle(&mut memory, memory_device, memory_before, &result, &page, &entry, &query);
     assert_eq!(sqlite_after, memory_after, "SQLite and memory devices agree");

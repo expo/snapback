@@ -41,6 +41,8 @@ export interface AcquisitionMarker {
   floor?: string;
 }
 interface SyncPage extends Record<string, unknown> {
+  images_at?: number;
+  committed_above?: Record<string, number>;
   /** Cursor echoed by the server; the device validates snapshot continuity. */
   after?: string | null;
   acquisitions?: AcquisitionMarker[];
@@ -568,16 +570,20 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         try {
           const captured = await call({ op: "sync_state" });
           if (captured.denied) return false;
-          const { pending_ids: pending, send_revision, store_id, watermark: capturedWatermark, backend_required, restore_refusal } = captured.ok as { pending_ids: string[]; send_revision: number; store_id?: string | null; watermark: number; backend_required?: boolean; restore_refusal?: Refusal };
+          const { pending_ids: pending, send_revision, store_id, watermark: capturedWatermark, transfer_watermark, pending_through, pending_complete, pending_bound, backend_required, restore_refusal } = captured.ok as { pending_ids: string[]; pending_through: number; pending_complete: boolean; pending_bound: number; transfer_watermark: number; send_revision: number; store_id?: string | null; watermark: number; backend_required?: boolean; restore_refusal?: Refusal };
           if (restore_refusal) { refuseRestore(restore_refusal); return false; }
           backendRequired = !!backend_required;
           requestedStore = store_id;
+          watermark = transfer_watermark ?? capturedWatermark;
           const request = requestCredentials();
           const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify({ from: watermark, limit: pageLimit, after: after ?? null, stream: catchingUp, pending, ...(store_id ? { store_id } : {}) }), signal: aborter.signal });
           if (response.status >= 500) { setLink("offline"); return false; }
           page = (await response.json()) as SyncPage;
           if (!response.ok && !page.denied) { setLink("offline"); return false; }
           page.send_revision = send_revision;
+          page.pending_through = pending_through;
+          page.pending_complete = pending_complete;
+          page.pending_bound = pending_bound;
           page.requested_watermark = watermark;
           page.captured_watermark = capturedWatermark;
           pageRevision = request.revision;
@@ -679,7 +685,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         after = undefined;
         watermark = Number(page.watermark ?? watermark);
         if (page.snapshot) { catchingUp = true; continue; }
-        if (!page.more) {
+        if (!page.more && (applied.ok as { published?: boolean } | undefined)?.published !== false) {
           partitionCurrent = true;
           caughtUp = true;
           identityChecked = true;

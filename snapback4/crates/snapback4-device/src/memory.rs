@@ -220,6 +220,8 @@ impl DeviceStore for MemoryStore {
             changes.push(Change { s: 'm', k: key.clone(), v: Some(value.clone()) });
         }
         if reset {
+            let obsolete: Vec<_> = state.meta.keys().filter(|key| key.starts_with("device:deferred:") || key.starts_with("device:declaration:")).cloned().collect();
+            for k in obsolete { state.meta.remove(&k); changes.push(Change { s: 'm', k, v: None }); }
             for (table, id) in state.rows.keys() {
                 changes.push(Change { s: 'r', k: row_key(table, id), v: None });
             }

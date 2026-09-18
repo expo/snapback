@@ -64,7 +64,8 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<StoreObs
         return Err(RuntimeError::Generation("another owner advanced acquisition during sync; retry sync".into()));
     }
     let identity_changed = page.store_id.as_ref().is_some_and(|id| previous.as_ref() != Some(id));
-    let reset = (identity_changed && (previous.is_some() || tx.meta(ACQUIRED)?.is_some() || meta_u64(tx, WATERMARK)? > 0 || tx.meta(SNAPSHOT_OWNER)?.is_some()))
+    let private_identity = previous.is_none() && page.store_id.is_some() && tx.meta(deferred::IDENTITY)? == page.store_id;
+    let reset = (identity_changed && !private_identity && (previous.is_some() || tx.meta(ACQUIRED)?.is_some() || meta_u64(tx, WATERMARK)? > 0 || tx.meta(SNAPSHOT_OWNER)?.is_some()))
         || (page.store_id.is_none() && page.requested_watermark.is_some_and(|requested| page.watermark < requested) && page.captured_watermark == Some(watermark));
     let mut retired = BTreeMap::new();
     // A matching identity with a lower head is a restore, not a new store.
@@ -75,9 +76,14 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<StoreObs
         tx.set_meta(RESTORE_REFUSED, "1")?;
     }
     if reset {
+        // Discarding private effects discards their retirement authority too.
+        // Only receipts already covered by the published base can retire here.
+        let private = deferred::cursor(tx)?.is_some() || tx.meta(SNAPSHOT_OWNER)?.is_some();
         tx.delete_meta(&[RESTORE_REFUSED])?;
         tx.clear_rows()?;
         tx.base_clear()?;
+        deferred::clear(tx)?;
+        tx.delete_meta(&[predictions::DECLARATION_PREFIX])?;
         tx.staged_clear()?;
         tx.set_meta(WATERMARK, "0")?;
         tx.set_meta(BACKEND_REQUIRED, page.store_id.as_deref().unwrap_or("legacy"))?;
@@ -85,7 +91,7 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<StoreObs
         tx.delete_meta(&SNAPSHOT_KEYS)?;
         for data in tx.outbox_entries()? {
             let mut entry: Queued = decoded(&data)?;
-            if let Some(seq) = entry.sent_seq.or(entry.observed_seq) {
+            if let Some(seq) = entry.sent_seq.or(entry.observed_seq).filter(|seq| !private || *seq <= watermark) {
                 // A receipt proves execution in the old store. It is not
                 // permission to execute that write in the replacement.
                 retired.insert(entry.id.clone(), seq);

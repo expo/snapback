@@ -36460,3 +36460,84 @@ Final root reference check:
 ./ref-check --verbose
 ref-check: ok — 483 LLP docs, 9081 refs in 24233 files, 0 errors, 0 unchecked
 ```
+
+## 2026-09-17 — Repair B, round 4: private publication and declared-prefix replay
+
+The round-3 brief supersedes the original per-row Repair B proposal in LLP
+3000.001: defer the page's effects, receipts and published watermark together,
+advance a separate durable transfer cursor, and publish the accumulated effects
+before the first safe page and its replay. Current readable images remain the
+server's materialization policy. `images_at` and `committed_above` now carry the
+two bounds through the real server/client/device path.
+
+The separate 256-ID defect is guarded: sync captures an actual prefix of
+unretired submissions, and publication durably excludes its undeclared suffix
+from replay. Entries remain queued. New captures cannot widen an older
+response's implicit declaration. Pagination remains with the open cap ticket.
+B2a's durable predicted-write-set refresh is a separate success-arm change and
+regression test.
+
+Private effects fold through the ordinary event applicator under a rolled-back
+savepoint, preserving marker/scope/history/media order while storing only each
+row's last image or tombstone and the affected metadata. Installation rechecks
+the acquisition boundary, including a scope followed by recreation losing its
+old holding exemption. On server-store replacement, private receipt proofs
+retire old-incarnation writes before the buffer is discarded. The row cost is
+the distinct backlog, not the outbox, and continuous catch-up has no timeout.
+
+The implementation, every changed file, exact predicates, reset audit and
+verbatim verification are recorded in `repair-b-round4-report.md` and
+`repair-b-round4-verification.txt`. The three counterexample files remain as
+correctness regressions on both stores. This lane performs no git history
+operation, publication, wasm/release build, whole/simulator suite, witness or
+root generator. The supervisor owns integration and the governing LLP update.
+
+Verification clarification for the preceding Repair B entry: its phrase about
+no Wasm/release build is too broad. The prescribed full device suite internally
+invoked the existing `native-fixtures/rescore` release Wasm build through
+`tests/native_reads.rs::module`. No device Wasm or production release build was
+invoked. The full device run passed 518 tests (3 existing ignores), core passed
+160, the final affected reset/repair/adoption/history run passed 49, and the
+native client watch test passed 1. The final affected run covers the last
+private-receipt reset addition after the full device run. Complete output and
+initial corrected failures are retained in the two round-4 report files above.
+
+
+## 2026-09-17 — Repair B, review fix round 1
+
+This entry supersedes the round-4 implementation description above where it
+conflicts. Replacement pages use the ordinary publication predicate and remain
+in snapshot staging until safe. An occupied ordinary transfer must drain before
+a replacement starts; its effects and acknowledgements cannot be discarded by
+snapshot promotion. Catch-up requests always adopt the device transfer cursor.
+Legacy terminal responses without `images_at` can publish.
+
+The replay exclusion bound is captured with the request, not read from the live
+outbox at publication. Each request records its live declaration; interpreting a
+reply without the echo is the only place captures are intersected, and successful
+apply ends that capture window. Adoption retaining confirmed images preserves the
+published replay guard and does not replay already published observations. A
+reset discarding private effects cannot turn their receipts into retirement.
+Row recording separates final presence from first-admission provenance, so a
+privately acquired row can move below its floor without disappearing; deletion
+and recreation start a new admission. Folded acquisition metadata is installed
+before boundary checks. An empty slot does not load the boundary namespace.
+
+The three `repair-b-round3/round4` report files were working notes and have been
+removed. Review dispositions, mutation failures and final command output belong
+to this session's final response, not repository report files. The strengthened
+counterexamples use distinct retained rows, non-inverting writes, durable reopen
+assertions and actual receipt declarations. Twenty-four temporary Rust mutations
+failed across 35 tests, and reverting the client cursor assignment failed its
+focused transport test; restored copies passed. The mutations never changed this
+worktree. The two requested crate commands are the final verification scope;
+the device command reuses the existing rescore Wasm fixture to honor the explicit
+no-Wasm-build instruction. No history operation or publication is part of this
+lane. The supervisor still owns integration and the governing LLP update.
+
+Final verification for this review-fix entry: `cargo test -p snapback4-device`
+passed **527**, failed **0**, ignored **3**; `cargo test -p snapback4-core`
+passed **160**, failed **0**, ignored **0**. The first device run detected an
+introduced acquisition-namespace load on an empty slot; the final run includes
+its correction and the added regression assertions. The focused TypeScript
+cursor test also passed. No failing requested check remains.

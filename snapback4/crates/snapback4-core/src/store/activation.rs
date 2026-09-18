@@ -42,7 +42,7 @@ impl Store {
                     tx.conn().execute("DELETE FROM _meta WHERE key >= ?1 AND key < ?2", params![key, format!("{key}\u{10ffff}")])?;
                 } else { tx.set_meta(key, value)?; }
             }
-            if reset { tx.conn().execute_batch("DELETE FROM _device_base; DELETE FROM _device_snapshot;")?; }
+            if reset { tx.conn().execute_batch("DELETE FROM _device_base; DELETE FROM _device_snapshot; DELETE FROM _meta WHERE key LIKE 'device:deferred:%' OR key LIKE 'device:declaration:%';")?; }
             Ok(())
         }).map(|_| ())
     }
