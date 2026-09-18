@@ -38014,3 +38014,73 @@ ignored this note. cal10 and cal11 have no `follows` table at all, so that was
 false, and I removed it before it reached the ticket. What is true is narrower:
 one note, one table, the right one, ignored — and the advice attached to it
 would have made the app worse if taken.
+
+## 2026-09-18 — W16H/2: the worker entry sits one directory outside the ESM island
+
+The 0.2.28 builder wrote, of this: "the conventional worker entry and Node module
+mode produced avoidable setup loops", and in the diary, "**agent mistakes, not
+demonstrated backend defects**". They took the blame. The log does not support
+that, and `setup_and_docs` — 96 → 88 fitted over ten runs — is the category it
+lands in.
+
+`evidence/backend.log:175-195`, seven times: `snapback4 worker: .../server.ts`,
+then Node's `Failed to load the ES module`, `SyntaxError: Cannot use import
+statement outside a module`, eight frames of `cjs/loader`, and
+`exited exit status: 1; restarting in 250 ms`.
+
+`init` is right in intent and I want that recorded before the defect: it does
+**not** force the application to ESM. It preserves the project's module type
+(`inherited_package_type`) and gives the code it generates its own island —
+`snapback/generated/package.json` is literally `{"type":"module"}`
+(`project.rs:280`, `@ref §20.2`). The island is `snapback/generated/`. The
+documented author entry is `snapback/server.ts`, one directory above it, so it
+inherits the project's type while the generated code beside it does not. The
+guide's example for that very file is ESM (`guide/actions.rs:35`,
+`guide/routes.rs:36`), and `"type": "module"` appears nowhere in the guide, the
+README or SERVER.md.
+
+`dev` already gates the entry twice and gates it well — `E_SERVER_TOOLCHAIN`
+names `bun add --dev typescript @types/node`, `E_SERVER_TYPECHECK` prints the
+compiler's own line — and forty lines further into the builder's log,
+`E_AUTH: this is a worker's door: send a live service token (`snapback4 token
+--service <name>`)`. Typecheck cannot see module resolution, though, so the file
+passes every gate and then fails to load. At that seam Snapback said
+`exited {status}; restarting in {} ms` and forwarded Node's trace.
+
+Built: before spawning, if the entry is `.ts`/`.js`, carries a top-level
+`import`/`export`, and no `package.json` above it declares `"type": "module"`,
+name the repair.
+
+```
+snapback4 worker: …/snapback/server.ts uses ES modules but the nearest package.json
+  does not declare them, so Node will read it as CommonJS
+snapback4 worker:   rewrite: rename it to server.mts — or declare "type": "module" for it
+```
+
+Advisory, not a refusal: Node still gets its attempt, so a loader or a future
+type-stripping default cannot be locked out by a heuristic of mine.
+
+Verified by running it, on a probe reproducing the builder's configuration
+exactly — root `"type": "commonjs"`, `snapback/generated/package.json` present,
+their own `tsconfig.json`, an ESM `server.ts`. It reproduces their failure
+verbatim, and the advice now precedes the trace. Both negative controls are
+silent: `server.mts` (the fix they reached unaided), and `server.ts` in a
+`"type": "module"` project. `cargo test -p snapback4`: 265 tests, 10 binaries,
+0 failures.
+
+Two judgements worth stating. The first message I wrote spelled the rename as a
+full absolute path; in a lane whose entire subject is that advice must be
+usable, shipping that would have been self-refuting, so it names the file the
+way the author would perform the rename. And I did **not** change the guide's
+documented example to `server.mts`, which is the change that would actually have
+saved this builder: it moves a paved spelling across the corpus, and with the
+remove-vs-document question unruled and cal13 in flight, that belongs in a blind
+round rather than in a unilateral edit. It is recommendation 1 of the ticket,
+left open on purpose.
+
+The wider point, and the reason this sits beside §20.23. The builder blamed
+themselves. The wave-13 session independently found the same shape in the bounds
+bar: the one loop that repeats — guessing a root `snapback4` export and the
+bare-arguments wire body — was paid by six builders of seven, **every time
+self-attributed as agent error**. A calibration that reads builder
+self-assessment is reading a floor on Snapback's share, not a count of it.
