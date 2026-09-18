@@ -107,6 +107,10 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
     let adopt_identity = identity_changed && (publish_first || reset || previous.is_some());
     if adopt_identity {
         tx.set_meta(STORE_ID, page.store_id.as_deref().expect("changed identity"))?;
+    } else if previous.is_none() {
+        // Observation may be followed by backend adoption without applying
+        // this page. Remember its authenticated identity independently of rows.
+        deferred::stage_identity(tx, page.store_id.as_deref())?;
     }
     if reset || adopt_identity {
         revision = revision.checked_add(1).filter(|n| *n <= 9_007_199_254_740_991).ok_or_else(|| RuntimeError::Store("send revision overflow".into()))?;

@@ -455,3 +455,6 @@ mod lifecycle;
 
 #[path = "repair_b/resumption.rs"]
 mod resumption;
+
+#[path = "repair_b/round4.rs"]
+mod round4;

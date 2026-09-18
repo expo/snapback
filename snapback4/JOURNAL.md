@@ -36690,3 +36690,64 @@ and corrected to an assertion failure. All final source bytes were restored and
 hash-checked against the tested files. Full per-finding dispositions, the reader
 audit, mutation records and verbatim command output are in
 `target/review-fix3/report.md`.
+
+## 2026-09-17 — Repair B, review fix round 4: slot disposal and incarnation lifetime
+
+S1: ordinary publication now consumes the deferred bundle while installing its
+images/metadata and returns only those installed effects' receipts. Snapshot
+publication explicitly discards any superseded same-position bundle, including
+its receipts. The existing guard still requires an ordinary transfer ahead of
+the published cut to drain. A debug assertion checks the whole deferred namespace
+is empty before the shared tail changes the watermark, records acknowledgements
+or replays. The acknowledgement helper can no longer reach into a hidden slot.
+The new regression covers direct and staged replacement, with reopen before and
+after publication, and distinguishes a discarded receipt from one incorrectly
+promoted over the replacement base.
+
+S2: publication pending reads the existing acknowledgement record's presence,
+which every deferred bundle writes even when its map is empty, plus snapshot
+ownership. It no longer infers private effects from the request cursor. The new
+regression independently varies cursor and slot, then publishes both nonterminal
+and terminal pages. No new durable marker or wire field is introduced.
+
+S3: generation installation preserves known private incarnation while clearing
+obsolete transfer effects, for both open/adopt and keep/drop image policies.
+Authenticated observation also remembers identity before first apply, because a
+generation mismatch can cause adoption before the response is staged. A later B
+response must therefore detect replacement of A, fetch/adopt B's backend even
+when its generation equals A2, and retire A's execution receipts. The dispatcher
+regression exercises all four lifecycle combinations on memory and SQLite,
+refuses B's acquisition under A2, then confirms B's query program and an empty
+outbox through two reopens. This round verifies the device/dispatcher lifecycle;
+it does not claim to rerun the reviewer's TypeScript/native transport script.
+
+The round 3 durable-key table's cursor, identity and acknowledgement rows are
+superseded by these lifetimes: cursor is request progress only; ACKS is slot
+occupancy and is consumed on installation or discarded on replacement; private
+identity is also written by authenticated observation and survives generation
+installation independently of effects. Published STORE_ID remains adoption's
+comparison value. Replacement still settles matching receipts before clearing
+the discarded incarnation's state.
+
+The smaller findings were read in full. Three test weaknesses were strengthened:
+count transaction opens to catch post-commit reads through a transaction, reject
+wider declaration echoes, and seed every private bundle/snapshot member before
+checking cleanup. The other Medium/Low diagnoses are disposed with full caller
+and storage evidence in `target/review-fix4/dispositions.md`.
+
+Nine independent mutations compiled and failed their intended regressions,
+including both S1 disposal and receipt leakage, the S2 cursor proxy, S3 identity
+loss and receipt retirement, and the three strengthened tests. Source bytes were
+restored and their hashes verified. Scripts, failed-run logs and the per-finding
+report are local evidence under `target/review-fix4/`.
+
+Final requested verification: `cargo test -p snapback4-device` exited 0 with
+**569 passed, 0 failed, 3 ignored** (existing); `cargo test -p snapback4-core`
+exited 0 with **160 passed, 0 failed, 0 ignored**. Verbatim outputs are in
+`target/review-fix4/device.log` and `target/review-fix4/core.log`, also embedded
+in `target/review-fix4/report.md` with all dispositions and mutation evidence.
+The device command reused the existing digest-checked rescore fixture through a
+narrow shim which refuses actual nested Wasm/release builds; its SHA256 remains
+`e18f1c343d88c2f1642be54d212c1eb9084ffdd51a8d3c0fcabd329c23616697`.
+No push, rebase, merge, whole suite, simulator suite, witness, Wasm build, release
+build or repository-root generator ran. The supervisor retains integration.

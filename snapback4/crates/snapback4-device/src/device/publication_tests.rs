@@ -13,15 +13,21 @@ fn cursor_and_recording<S: DeviceStore>(store: S) {
     tx.commit().unwrap();
     assert!(!device.publication_pending().unwrap());
     let tx = device.store.transaction().unwrap();
+    tx.set_meta(deferred::CURSOR, "77").unwrap();
     tx.set_meta("device:deferred:rows:held", "payload").unwrap();
+    tx.set_meta("device:deferred:meta:device:held", "payload").unwrap();
+    tx.set_meta(deferred::ACKS, r#"{"q":77}"#).unwrap();
+    tx.set_meta(deferred::IDENTITY, "private").unwrap();
     tx.set_meta("device:declaration:first-capture", "[9,true,9]").unwrap();
     tx.set_meta("device:declaration:capture", "obsolete").unwrap();
     tx.set_meta("device:declaration:published", "[1,9]").unwrap();
-    tx.set_meta(SNAPSHOT_THROUGH, "88").unwrap();
+    for key in SNAPSHOT_KEYS { tx.set_meta(key, "88").unwrap(); }
+    tx.staged_put("row", "table", "payload").unwrap();
     reset_publication(&tx, false).unwrap();
     assert!(tx.meta_prefix("device:deferred:").unwrap().is_empty());
     assert!(tx.meta_prefix("device:declaration:").unwrap().is_empty());
-    assert!(tx.meta(SNAPSHOT_THROUGH).unwrap().is_none());
+    for key in SNAPSHOT_KEYS { assert!(tx.meta(key).unwrap().is_none(), "{key}"); }
+    assert!(tx.staged_after("", 1).unwrap().is_empty());
     tx.commit().unwrap();
 }
 
@@ -33,7 +39,7 @@ fn empty_cursor_and_reset_remove_all_publication_keys() {
 }
 
 // A dispatcher must not issue a new fallible store read after apply committed.
-struct RejectMetadataReads<S> { store: S, reject: Rc<Cell<bool>> }
+struct RejectMetadataReads<S> { store: S, reject: Rc<Cell<bool>>, transactions: Rc<Cell<usize>> }
 impl<S: DeviceStore> DeviceStore for RejectMetadataReads<S> {
     type Tx<'a> = S::Tx<'a> where Self: 'a;
     fn install(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool) -> Result<(), RuntimeError> { self.store.install(schema, metadata, reset) }
@@ -41,19 +47,26 @@ impl<S: DeviceStore> DeviceStore for RejectMetadataReads<S> {
         if self.reject.get() { Err(RuntimeError::Store("post-commit metadata read refused".into())) } else { self.store.meta(key) }
     }
     fn set_meta(&mut self, key: &str, value: &str) -> Result<(), RuntimeError> { self.store.set_meta(key, value) }
-    fn transaction(&mut self) -> Result<Self::Tx<'_>, RuntimeError> { self.store.transaction() }
+    fn transaction(&mut self) -> Result<Self::Tx<'_>, RuntimeError> {
+        self.transactions.set(self.transactions.get() + 1);
+        self.store.transaction()
+    }
 }
 fn publication_result<S: DeviceStore>(store: S) {
     let reject = Rc::new(Cell::new(false));
+    let transactions = Rc::new(Cell::new(0));
     let backend = Backend { generation: 1, schema: Schema::default(), programs: vec![] };
-    let mut device = Device::open_store(RejectMetadataReads { store, reject: reject.clone() }, Some(backend)).unwrap();
+    let mut device = Device::open_store(RejectMetadataReads { store, reject: reject.clone(), transactions: transactions.clone() }, Some(backend)).unwrap();
     reject.set(true);
+    let before = transactions.get();
     let response = crate::call::call(&mut device, serde_json::json!({"op":"apply", "first":true,
         "page":{"snapshot":true,"stage_snapshot":true,"watermark":1,"more":false,"events":[]}}));
     assert_eq!(response["ok"]["published"], false, "{response}");
+    assert_eq!(transactions.get(), before + 1, "apply may not reopen a transaction after commit");
     let response = crate::call::call(&mut device, serde_json::json!({"op":"apply", "first":false,
         "page":{"snapshot":false,"snapshot_catchup":true,"watermark":1,"images_at":1,"more":false,"events":[]}}));
     assert_eq!(response["ok"]["published"], true, "{response}");
+    assert_eq!(transactions.get(), before + 2, "each apply supplies its result from its own transaction");
 }
 #[test]
 fn apply_returns_publication_without_a_second_store_read() {
@@ -119,6 +132,10 @@ fn capture_echo<S: DeviceStore>(mut store: S) {
     assert_eq!(predictions::declaration(&tx, &page).unwrap(), (1, false, 9));
     page.pending_bound = Some(9);
     assert_eq!(predictions::declaration(&tx, &page).unwrap(), (1, false, 9));
+    for (through, complete, bound) in [(1, false, 10), (2, false, 9), (1, true, 9)] {
+        page.pending_through = Some(through); page.pending_complete = Some(complete); page.pending_bound = Some(bound);
+        assert!(predictions::declaration(&tx, &page).unwrap_err().to_string().contains("echo differs"));
+    }
     tx.rollback().unwrap();
 }
 mod echoed_bound_cannot_widen_the_captured_declaration {
@@ -126,4 +143,29 @@ mod echoed_bound_cannot_widen_the_captured_declaration {
     #[test] fn memory() { capture_echo(MemoryStore::new()); }
     #[cfg(feature = "native")]
     #[test] fn sqlite() { with_sqlite(capture_echo); }
+}
+
+fn slot_occupancy<S: DeviceStore>(store: S) {
+    let backend = Backend { generation: 1, schema: Schema::default(), programs: vec![] };
+    let mut device = Device::open_store(store, Some(backend)).unwrap();
+    device.store.set_meta(deferred::CURSOR, "12").unwrap();
+    assert!(!device.publication_pending().unwrap(), "request position alone is not private effects");
+    let tx = device.store.transaction().unwrap();
+    tx.delete_meta(&[deferred::CURSOR]).unwrap();
+    // stage writes ACKS even for a metadata-only or receipt-free bundle.
+    tx.set_meta(deferred::ACKS, "{}").unwrap();
+    tx.commit().unwrap();
+    assert!(device.publication_pending().unwrap(), "a slot does not depend on its cursor");
+    let page = decoded(r#"{"snapshot":false,"watermark":12,"images_at":12,"more":true,"events":[]}"#).unwrap();
+    assert!(device.apply_publication(&page, false).unwrap().1);
+    assert!(!device.publication_pending().unwrap(), "published nonterminal pages have no private effects");
+    let page = decoded(r#"{"snapshot":false,"watermark":13,"images_at":13,"more":false,"events":[]}"#).unwrap();
+    assert!(device.apply_publication(&page, false).unwrap().1);
+    assert!(!device.publication_pending().unwrap(), "terminal publication stays empty");
+}
+#[test]
+fn pending_publication_reads_the_slot_not_request_progress() {
+    slot_occupancy(MemoryStore::new());
+    #[cfg(feature = "native")]
+    with_sqlite(slot_occupancy);
 }

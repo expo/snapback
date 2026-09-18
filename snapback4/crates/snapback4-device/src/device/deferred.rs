@@ -10,7 +10,9 @@ pub(super) const IDENTITY: &str = "device:deferred:identity";
 pub(super) const PREFIX: &str = "device:deferred:";
 const ROWS: &str = "device:deferred:rows:";
 const META: &str = "device:deferred:meta:";
-const ACKS: &str = "device:deferred:acks";
+// Every staged bundle writes this key, even with no receipts or row changes.
+// Its presence is slot occupancy; CURSOR is only the next request position.
+pub(super) const ACKS: &str = "device:deferred:acks";
 pub(super) const CURSOR: &str = "device:deferred:cursor";
 
 pub(super) fn clear<T: DeviceTx>(tx: &T) -> Result<(), RuntimeError> { tx.delete_meta(&[PREFIX]) }
@@ -139,27 +141,28 @@ pub(super) fn stage<T: DeviceTx>(tx: &T, schema: &Schema, generation: u64, page:
     tx.set_meta(CURSOR, &encoded(&page.watermark)?)
 }
 
-pub(super) fn install<T: DeviceTx>(tx: &T, schema: &Schema, touched: &mut BTreeSet<String>) -> Result<(), RuntimeError> {
+pub(super) fn install<T: DeviceTx>(tx: &T, schema: &Schema, touched: &mut BTreeSet<String>) -> Result<BTreeMap<String, u64>, RuntimeError> {
     install_metadata(tx)?;
     install_rows(tx, schema, true, touched)?;
     // Include non-row-only changes in watch invalidation.
-    if cursor(tx)?.is_some() { touched.extend(schema.tables.keys().cloned()); }
-    Ok(())
+    let bundle = tx.meta(ACKS)?;
+    if bundle.is_some() { touched.extend(schema.tables.keys().cloned()); }
+    let acks = bundle.map(|v| decoded(&v)).transpose()?.unwrap_or_default();
+    clear(tx)?;
+    Ok(acks)
 }
 
 pub(super) fn acknowledge<T: DeviceTx>(tx: &T, watermark: u64, current: &BTreeMap<String, u64>) -> Result<(), RuntimeError> {
-    let mut all: BTreeMap<String, u64> = tx.meta(ACKS)?.map(|v| decoded(&v)).transpose()?.unwrap_or_default();
-    all.extend(current.clone());
     // Acknowledgements must be complete through the watermark for the declared
     // prefix. The durable replay guard excludes the undeclared suffix.
-    for (id, seq) in all {
-        if seq > watermark { return Err(RuntimeError::Input("deferred acknowledgement is beyond publication".into())); }
-        if let Some(data) = tx.outbox_get(&id)? {
+    for (id, seq) in current {
+        if *seq > watermark { return Err(RuntimeError::Input("deferred acknowledgement is beyond publication".into())); }
+        if let Some(data) = tx.outbox_get(id)? {
             let mut q: Queued = decoded(&data)?;
-            predictions::record_receipt(tx, &mut q, seq, true)?;
+            predictions::record_receipt(tx, &mut q, *seq, true)?;
         }
     }
-    clear(tx)
+    Ok(())
 }
 
 type Admissions = RefCell<BTreeMap<(String, String), Option<Value>>>;

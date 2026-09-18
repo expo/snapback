@@ -290,7 +290,13 @@ fn invalidate_native(metadata: &mut BTreeMap<String, String>) {
 pub(crate) fn reset_for_install<T: DeviceTx>(tx: &T, metadata: &BTreeMap<String, String>, drop_images: bool) -> Result<(), RuntimeError> {
     let old = meta_u64(tx, GENERATION)?;
     let changed = metadata.get(GENERATION).is_some_and(|new| new != &old.to_string());
-    if drop_images || (old != 0 && changed) { reset_publication(tx, !drop_images)?; }
+    if drop_images || (old != 0 && changed) {
+        // A generation changes the interpreter and invalidates its transfer,
+        // not the incarnation that authenticated it or executed its receipts.
+        let identity = tx.meta(deferred::IDENTITY)?;
+        reset_publication(tx, !drop_images)?;
+        deferred::stage_identity(tx, identity.as_deref())?;
+    }
     Ok(())
 }
 
@@ -670,10 +676,16 @@ impl<S: DeviceStore> Device<S> {
             tx.set_meta(history::GROUPS, &encoded(&groups)?)?;
             boundary::Boundaries::load(&tx, true)?.save(&tx, false)?;
             snapshot::clear(&tx)?;
+            // The snapshot supersedes an old slot at the published cut. Its
+            // receipts cannot outlive the discarded images and metadata.
+            deferred::clear(&tx)?;
         } else {
-            deferred::install(&tx, &self.schema, &mut touched)?;
+            let mut installed = deferred::install(&tx, &self.schema, &mut touched)?;
+            installed.extend(acknowledgements);
+            acknowledgements = installed;
             deferred::events(&tx, &self.schema, self.generation, page, &mut touched)?;
         }
+        debug_assert!(tx.meta_prefix(deferred::PREFIX)?.is_empty(), "publication requires a disposed deferred slot");
         tx.set_meta(WATERMARK, &page.watermark.to_string())?;
         // @ref LLP 3000.008.001#2-three-facts-to-distinguish — schema availability is not acquisition.
         // A staged snapshot reaches here only after catch-up publishes its
@@ -694,7 +706,7 @@ impl<S: DeviceStore> Device<S> {
     /// Whether apply still has private effects; an empty touched set alone
     /// says nothing about publication (an empty terminal page can publish).
     pub fn publication_pending(&self) -> Result<bool, RuntimeError> {
-        Ok(deferred::decode_cursor(self.store.meta(deferred::CURSOR)?)?.is_some() || self.store.meta(SNAPSHOT_OWNER)?.is_some())
+        Ok(self.store.meta(deferred::ACKS)?.is_some() || self.store.meta(SNAPSHOT_OWNER)?.is_some())
     }
 
     /// A query over the device's rows, with the device's words.
