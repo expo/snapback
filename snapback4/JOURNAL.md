@@ -39681,3 +39681,35 @@ the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer va
 This single append preserves all **2,335,746** earlier journal bytes, SHA-256
 `b27a93cda6702fd8210bdab5e2e8d829ce41661c527922d716784bfc15fdd51b`.
 Reference validation and whitespace checks run again after this append.
+
+
+## 2026-09-18 — fixed 0.2.29 feed comparison and one cursor candidate
+
+The performance lane completed the fixed published-source comparison on
+Office ARM Linux. Snapback wins p50 medians in 12/39 cases against Convex
+and 38/39 against Supabase. Its largest feed gap is 150-group rotating
+pages at concurrency 8: 40.136 ms versus 3.636 and 35.530 ms. Every result,
+authentication, leave/regrant and physical fixture check passed; the source,
+platform and retained-comparator limits stay with the benchmark record.
+
+An ignored two-file candidate removes the second canonical decode inside
+one opaque-cursor bounds invocation, preserving live authorization and
+cursor/meter semantics. Selected baseline/candidate qualification passed
+708/709 tests with three existing named exclusions. The first matched A/B
+has repeated 150-group continuation gains alongside smaller-feed/point,
+tail and RSS losses. A single reversed-start confirmation retains those
+first results instead of replacing them.
+
+The confirmation reproduces the heavy-feed gain: 150-group rotating C8
+p50/rate improve in all six pairs across both batches. It also reproduces
+five-group rotating-point C8 p95/rate losses in all six pairs; median rates
+fall 15.5% and 28.0% in the two batches. First-thread C8 p50/p95/rate lose
+five of six pairs. Both batches, 162 median / 556 paired losses and all
+36 memory snapshots are preserved. Independent custody and calculation
+reviews pass. Default disposition is defer/shelve; any core-owner choice
+to accept the targeted tradeoff must be explicit. No runtime change is
+adopted, and the goal's performance landing remains outstanding.
+
+Evidence: `benchmarks/runs/snapback4-public-catalog-20260913/README.md` and
+its data-only record; follow-up remains the open membership-feed-cost issue.
+No publication or deployment is part of this pass.

@@ -1,6 +1,6 @@
 # Snapback 4: requalify and reduce membership-feed query cost
 
-Status: Open — fixed 0.2.20 comparison confirms large-feed gap versus Convex; cursor-reuse adoption remains with core owner
+Status: Open — fixed 0.2.29 comparison confirms large-feed gap; single-decode candidate deferred because control losses repeat
 Priority: P1
 Systems: Snapback 4 online membership feeds, query execution
 Implementation owner: Snapback 4 core lead (LLP 3000 decision 4)
@@ -317,3 +317,58 @@ remain in the benchmark README. Evidence prefix membership-current-0220-v1:
 complete4e5bb86c, transfer9a1d42ac, root8aec8c13, independent807029fe,
 auditc9c6880d and review11cb1a13. Nine full original records are preserved
 in storage.jsonl.
+
+
+## 2026-09-18 — fixed 0.2.29 comparison and single-decode assessment
+
+The nine-run Office ARM Linux comparison pins published 0.2.29 source
+1b3d97f61 (the full Snapback 4 tree and toolchain are identical to build
+source a8de12ed88). All 175,500 timed requests, 10,530 warmups, 243 untimed
+walks / 50,265 pages and 36 physical proofs passed, including live auth,
+acknowledged leave, same-session regrant and owned-process cleanup. Both
+calculators agree; independent evidence review is complete. The native
+production source build is not the Darwin npm binary or a hosted result.
+
+Snapback p50 medians beat Convex in 12/39 cases and Supabase in 38/39.
+All 18 feed medians lose to Convex; all degree-30/150 feed p50s lose in each
+paired round. The largest ratio is the 150-group rotating feed at C8:
+40.136 / 3.636 / 35.530 ms for Snapback / Convex / Supabase. The gap remains
+open. This separate time window does not isolate regression from 0.2.20.
+
+The candidate targets a duplicated canonical decode inside each opaque
+cursor bounds call. It retains descriptor/scope/generation checks,
+inclusive mode, expressions, live rules/rows, exact results and meter
+behavior. It does not reuse cursors across lanes or add a cache. Baseline
+and candidate passed 708/709 selected Rust executions, with three named
+existing exclusions each. Those are not full-suite passes.
+
+The initial six-run A/B passes 117,000 timed requests, 7,020 warmups and all
+physical/HTTP/auth/regrant checks. All four 150-group continuation cases
+improve p50 and rate in all pairs, with p50-median reductions of 8.2–30.3%.
+However, 30-group next-page C8 p50/p99/rate medians worsen, and 30-group
+first-page C8 plus five-group point C8 have repeated throughput losses.
+Every post-main and post-regrant RSS pair is higher. These remain measured
+regressions. One confirmation batch with unchanged binaries and reversed
+starting order was declared in advance; it retains all cases and both
+batches separately.
+
+The reversed-start confirmation also passes all six runs and oracles.
+150-group rotating C8 p50/rate improve in all six pairs across both batches;
+its confirmation medians are 31.050 → 20.972 ms and 240.5 → 355.6/s.
+However, five-group rotating-point C8 p95 and rate worsen in all six pairs:
+rate medians fall 15.5% in the first batch and 28.0% in confirmation.
+Five-group first-thread C8 p50/p95/rate worsen in five of six pairs. The
+30-group continuation and RSS penalties do not repeat consistently; no
+causal memory benefit or penalty is established. Both batches and all
+162 median / 556 paired losses remain recorded separately.
+
+Default disposition: defer/shelve this candidate. Accepting this targeted
+heavy-feed/point-read tradeoff needs an explicit core-owner decision.
+No runtime patch or third timing batch is adopted here. Investigate the
+persistent controls and remaining per-lane scan/materialization work; the
+bounded goal of landing one verified improvement remains outstanding.
+
+The fixed warm-loopback protocol and the complete losses, memory readings,
+source/binary bindings, failures and reviews are in the benchmark README
+and its new data-only record. Full physical row hashes and logical walks do
+not establish complete policy/ACL/index equivalence between engines.
