@@ -1,0 +1,140 @@
+{
+  "reportVersion": 1,
+  "lane": "astra-snapback4",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "/Users/ccheever/clique-sb4-20260918-astra-cal14/instrument/schema/social-messenger/assertions.json",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md §3.2 W8; §1 S-m8",
+      "note": "Rendered tiles equal insights.summary (51/3/4/5/4/2); suite also compared the six totals to direct store counts."
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md §3.1 H-m8 m8-a02-insights-like-refresh",
+      "note": "Grader-run harness: likes-received 2 -> 3 after Bob's like and refresh."
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md §3.2 W8; §1 S-m8",
+      "note": "Today's UTC bucket (day 20714 = 2026-09-18) carries today's posts; suite verified on a fresh store."
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "trace.md §3.2 W8; §1 S-m8",
+      "note": "Seven day rows rendered; six zero days present (suite asserted 6 zero rows)."
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace.md §1 S-m8; §3.2 W8; §3.4 SI-4",
+      "note": "Suite on a fresh proof store with a +25 h dev-clock advance ranked the 2-like post first; UI renders the server's top row first."
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace.md §1 S-m8; §3.4 SI-4",
+      "note": "8-like post older than 24 h absent (query filters .at > now-24h)."
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "builder-suite",
+      "suiteResult": "pass",
+      "evidence": "trace.md §1 S-m8; §3.4 SI-4",
+      "note": "Equal-like posts ordered newest first (index hour(at), score, at, id)."
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md §3.5 D P1",
+      "note": "Real 2-minute periods, all clients closed: exactly one digest each for alice {1,1,2,1}, henry {0,1,0,0}, erin {0,0,2,2}, grace {0,0,1,1}, emitted ~360 ms after the boundary; tombstoned and read messages excluded."
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md §3.5 D P1",
+      "note": "frank (no activity), dave, bob (read everything) and carol (removed before the message) got no digest."
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md §3.5 D P2",
+      "note": "Following idle period emitted 0 digests."
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md §3.5 D P3/P4",
+      "note": "Backend stopped/restarted mid-period and again after the P3 emission: P3 emitted exactly once for grace and alice; no duplicate user-period anywhere in the run; P4 none."
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": null,
+      "evidence": "trace.md §3.5 D P1",
+      "note": "Alice's unread counts exclude dave's DM and private group (not a member) and the group carol was removed from."
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md §3.1 H-m8 m8-a13-same-account-message-live",
+      "note": "Grader-run harness passed (visible 1107.5 ms)."
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md §3.1 H-m8 m8-a14-cross-device-read-state",
+      "note": "Grader-run harness passed (unread cleared 872.8 ms). Badge miscount defect d-02 is separate."
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md §3.1 H-m8 m8-a15-dual-offline-convergence",
+      "note": "Grader-run harness passed."
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md §3.1 H-m8 m8-a16-dual-offline-receipts",
+      "note": "Grader-run harness passed."
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md §3.6 N",
+      "note": "No iOS-simulator artifact exists (harness supplementalExternal ios-simulator-m8 {pass:null, status:not-recorded}); per the brief, absent native evidence is not passed."
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "suiteResult": null,
+      "evidence": "trace.md §3.6 N",
+      "note": "No iOS-simulator artifact exists (harness supplementalExternal ios-simulator-m8 {pass:null, status:not-recorded}); per the brief, absent native evidence is not passed."
+    }
+  }
+}
