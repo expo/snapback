@@ -144,3 +144,43 @@ another documentation wave — points the same way.
 
 Nothing in the per-run tables above changes. What changes is the frame they should be
 read in.
+
+
+---
+
+## The measurement the friction review ranked #1, taken — and it refutes the leading hypothesis
+
+Taken 2026-09-18 on a settled host (load ~21, against the 56–70 of the original run),
+using **the lane's own pinned 0.2.28 binary** against **the lane's own surviving
+full-corpus scale store** — the same instance the 54,982 ms `coldFirstFeedMs` was
+measured on.
+
+    scale store on disk                  1.5 GB
+    cold acquisition, one persona       43,721 rows / 6,693,727 bytes   (6.7 MB)
+
+**6.7 MB is 0.4% of the corpus, and it cannot take 55 seconds.** The 0.2.25 run
+acquired its corpus in 8.29 s, and the engine's own reads in the very window that
+produced the 55 s were `insights` p95 3.41 ms and `trending` p95 20.32 ms.
+
+**So acquisition volume is ruled out as the cause**, which is what this record and the
+0.2.28 friction review both hypothesised — the review's ranked entry reads "Expensive
+cold acquisition without a cost breakdown", and its smallest change was exactly this
+measurement. The app's bounded residency worked. What remains as candidates is the
+**browser login-and-render path** and **host contamination**; this measurement
+separates acquisition from both but does not choose between them. Re-running the
+browser probe on a quiet host is what would.
+
+**One real residency defect, which Snapback diagnosed and the builder shipped past.**
+`check --residency --verbose` on that store reports:
+
+    N_NO_HORIZON: table follows: `sync public` has no horizon, so every row of every
+    group a device holds reaches it and stays; a device that holds many groups, or a
+    public table that grows, pays for all of it at every cold start
+      rewrite: sync public last 500 by byPair
+
+`follows` (5,921 rows / 840,782 bytes) and `feedFollows` (5,921 / 876,308) are 1.7 MB
+of the 6.7 MB — about a quarter, and avoidable by the rewrite the note prints. That is
+a **documentation-reach** finding, not an engine one: the diagnostic exists, is
+accurate, names the fix, and did not change the outcome. It belongs with the
+programme's standing theme rather than with the cold-start question, and it does not
+account for the 55 s either.
