@@ -23,7 +23,12 @@ impl Parser {
                 "m" => 60_000,
                 "h" => 3_600_000,
                 "d" => 86_400_000,
-                _ => return Err(syntax_with(&unit.site, "a period is a number and m, h or d: 2m, 1h, 1d", rewrite)),
+                // `s` and `ms` are real Quarry units elsewhere (work durations in
+                // `actions.rs`, route waits in `routes.rs`), so naming the valid set
+                // alone reads as "`s` is not a unit" and hides the actual constraint:
+                // a schedule has a one-minute floor, which the next branch enforces
+                // but a sub-minute unit returns before ever reaching.
+                _ => return Err(syntax_with(&unit.site, "a schedule period is a whole number and m, h or d, from 1m up; a schedule cannot fire more often than once a minute (`s` and `ms` are work and wait units, not schedule periods)", rewrite)),
             };
         if every_ms < 60_000 {
             return Err(syntax_with(&unit.site, "the shortest period is 1m", rewrite));

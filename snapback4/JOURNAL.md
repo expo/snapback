@@ -37933,3 +37933,84 @@ Lead entry (Claude, orchestrating; lanes S3-R0 and S3-R1 were Codex `gpt-6-astra
 **Outside the sandbox, on `7235fa6273` (the last commit before the fix round; the fix round changes the canary input, `since` capture, the matcher and docs):** `cargo build --workspace`, `scripts/build-wasm.sh` (409,620 B gzip), the package build, `witness/idb.mjs` exit 0, `witness/idb.mjs unicode` in Chromium exit 0 (the differential over the Unicode 17 test files through the shipped wasm), `witness/scale.mjs` exit 0, React 13 of 13, the unicode and wasm node tests exit 0. The full suite ran on `0abb5b7e25`: `== 1 failure(s) in 1022 s` at host load 55–67 with sixteen other suite processes on the machine: every build step, the release guard, typechecks, fixtures and the client tests ok (748 tests, 745 passed, 3 skipped, 0 failed); `cargo test` red on one target, `snapback4::witness driver::cli_rejects_milestone_appended_after_done`, where `xcrun simctl list devices booted --json` timed out (`E_WITNESS_TIMEOUT`) — the simulator driver, nothing this landing touches — and it passed alone on the same commit eleven minutes later (1 passed). The lane's Node differential at the fix round: 57,848 folds, 0 differences. The fix round's own targeted runs (unicode_fold, device unicode, guide, the unicode/wasm/retained-history node tests, `--check-families --check-absent`) were green, and the lead's matcher fix re-ran the absence tests and the artifact check.
 
 **Coordination.** The wave-13 session published snapback4 0.2.29 this morning; this landing waited for its suite gate (the lead stopped its own suite run to free the host) and rebased over the bump. Journal conflicts where another session inserts entries mid-file are resolved as `main`'s text plus this branch's appended entries, after checking every heading and paragraph of the merge base survives in `main`'s version.
+
+## 2026-09-18 — W16H: the note was right, the advice was not
+
+The twelfth Astra-medium calibration scored 85 with `scale_and_limits` at 65 on
+a 54,982 ms cold first feed. Measuring it (`0f4ff08e98`) ruled out acquisition
+volume and left one table: `follows`, `sync public`, no horizon, ~1.7 MB of a
+6.7 MB cold acquisition for one persona.
+
+Detection was not the problem, and I want that on the record because the
+temptation is to read this entry as "the diagnostics are noisy". They are the
+opposite. That builder declared 17 `sync` lines, 12 unhorizoned, and `check`
+emitted exactly **one** `N_NO_HORIZON` — on the table that mattered, on every
+check they ran from first to last. The suppression rules did their job exactly.
+
+What the one correct note said was `rewrite: sync public last 500 by byPair`.
+`byPair` is `follower, target`: no time order, so that horizon keeps the 500
+alphabetically-highest pairs. For `sync public` the group prefix is empty, so
+`columns().starts_with(&prefix)` held vacuously for every index and the
+`BTreeMap` returned whichever name sorted first. Renaming `byTargetTime` to
+`aaTime` — changing nothing else — changed the recommendation, which is now
+pinned as `w16h_horizon_advice_does_not_depend_on_index_name_order`. I ran that
+test against the base first and watched it fail with
+`left: "sync public last 500 by byPair"` / `right: "sync public last 500 by
+aaTime"` before trusting it; a regression test that has never failed is not
+evidence.
+
+The part that decided the ranking: applying the note's own rewrite verbatim
+gives `check: ok — no problems` and the note disappears, and the semantically
+correct horizon gives the identical verdict. Static compilation cannot tell the
+two apart — both are well-formed — so there is no downstream gate, and the
+advice string is the only place in the toolchain where this can be decided. A
+builder who follows it is paid a green check for making the app worse. That is
+a better reason to ignore diagnostics than noise ever was.
+
+Built: an index qualifies as a horizon only if the column after the prefix is
+minted in time order — a `time` column or `id`. Admitting `id` is load-bearing,
+not a convenience: it is what keeps `sync to members[.conversationId] last 500
+by byConversation` correct, the paved horizon in the corpus. For `follows` every
+index leads with a `principal`, so nothing qualifies and the advice falls to the
+branch that says to add the ordered index first — a branch that already existed
+and was, before this, unreachable for any table with any index at all.
+
+Two smaller ones travelled with it. The builder wrote `cap 1000 by follower` on
+that table: they had already tried to bound it, and the cap is over `follower`
+while the sync group is the public partition, so it bounds nothing a device
+acquires. Capped and uncapped schemas produced byte-identical notes, which reads
+from the author's chair as advice that has not noticed what they did; the note
+now names the cap and says what it does not bound. And every note now names
+`check --residency`, which already reports acquired bytes per table per persona
+— the ranking the note itself cannot carry, and which no builder in the
+programme has been observed to run.
+
+Separately, `schedule … every 30s` answered "a period is a number and m, h or
+d". But `s` is a real Quarry unit — work durations take `s m h d`
+(`parser/actions.rs`), route waits take `ms s` (`parser/routes.rs`) — so naming
+the valid set alone reads as "`s` is not a unit" and hides the actual rule: a
+schedule cannot fire more often than once a minute. That floor lives in the next
+branch, which a sub-minute unit returns before reaching. The message now states
+it, modelled on the route-wait message, which already states its range and was
+the best of the three.
+
+Verified rather than assumed: the new test fails at `a8de12ed88` and passes
+after; all 40 `residency_notes` tests pass; the cal12 builder's real table now
+yields `by byAt: at, id  -- then: sync public last 500 by byAt`, identical under
+the rename, checked against a built binary and not by reading the source; a
+valid `every 1m` schedule still parses past that line; `ref-check --verbose` is
+ok at 9,116 refs.
+
+Two of my own errors, caught before they cost anything. I wrote an `@ref` to
+LLP 3000.007 §20.23 when §20.22 was the last section — the reference was to a
+section I had invented, and `ref-check` would have refused it in CI. The repair
+was to write §20.23, not to delete the annotation: what qualifies as a horizon
+index is exactly the kind of decision the corpus exists to hold. And I passed
+`&&Index` where a closure wanted `&Index`; method calls auto-deref and closure
+arguments do not.
+
+One claim I am not making. I started to write that three consecutive builders
+ignored this note. cal10 and cal11 have no `follows` table at all, so that was
+false, and I removed it before it reached the ticket. What is true is narrower:
+one note, one table, the right one, ignored — and the advice attached to it
+would have made the app worse if taken.

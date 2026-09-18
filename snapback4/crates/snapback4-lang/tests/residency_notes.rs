@@ -11,6 +11,29 @@ fn clean(source: &str) -> Bound {
 }
 fn online() -> String { SOURCE.replace("  read <- allow", "  read <- allow\n  online only") }
 
+/// A horizon decides *which* rows a device keeps, so the index it names must order the
+/// group by mint time. Before that was enforced, `columns().starts_with(&prefix)` held
+/// vacuously for every index of a `sync public` table and the `BTreeMap` returned
+/// whichever name sorted first — so renaming an index, changing nothing else, changed
+/// the advice. The 0.2.28 calibration builder was told `sync public last 500 by byPair`
+/// for a table whose every index leads with a `principal`.
+#[test]
+fn w16h_horizon_advice_does_not_depend_on_index_name_order() {
+    const FOLLOWS: &str = "table follows:\n  follower: principal\n  target: principal\n  at: time\n  unique byPair: follower, target\n  by byTargetTime: target, at, id\n  public 'follows are public'\n  insert <- .follower = viewer\n  immutable follower, target, at\n  sync public\n\nquery followersOf(target: principal, c: cursor ?):\n  return follows[target] after c first 20 by byTargetTime\n";
+    let advice = |source: &str| {
+        let b = compile(&[("social.q".into(), source.into())]);
+        assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+        b.notes.iter().find(|n| n.code == "N_NO_HORIZON").expect("an unhorizoned public sync is noted").rewrite.clone()
+    };
+    // A pure rename: `byTargetTime` sorts after `byPair`, `aaTime` sorts before it.
+    let named = advice(FOLLOWS);
+    let renamed = advice(&FOLLOWS.replace("byTargetTime", "aaTime"));
+    assert_eq!(named, renamed, "renaming an index changed the horizon advice");
+    // Neither index orders the public group by mint time — both lead with a principal —
+    // so the advice must be to add one, not to horizon by whichever index sorts first.
+    assert!(named.starts_with("by byAt: at, id"), "{named}");
+}
+
 #[test]
 fn w10r1_no_horizon_card_matches_reader_suppression() {
     let sentence = "Eligible mutations that require whole-partition coverage can suppress this advice. An absent note does not certify bounded acquisition or a safe cold-start size.";
@@ -646,7 +669,11 @@ fn mutation_page_horizon_advice(read: &str, rewrite: &str) {
     assert_eq!(b.schema.operations["chat.copyArchive"].predicts.as_deref(), Some("eligible"));
     let note = b.notes.iter().find(|n| n.code == "N_NO_HORIZON" && n.message.starts_with("table archive:")).unwrap();
     println!("{read}:\n{note}");
-    assert_eq!(note.to_string(), format!("chat.q:1:1 — N_NO_HORIZON: table archive: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start\n  rewrite: {rewrite}\n  guide: sync"));
+    // The note now ends by naming the measurement that ranks it. The advice is not
+    // actionable without one: a builder cannot tell which unhorizoned table is 1.7 MB
+    // and which is 3 KB from the note alone, and `check --residency` already reports
+    // exactly that, per table and per persona.
+    assert_eq!(note.to_string(), format!("chat.q:1:1 — N_NO_HORIZON: table archive: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; measure what it costs with `check --residency`\n  rewrite: {rewrite}\n  guide: sync"));
 }
 
 #[test]
