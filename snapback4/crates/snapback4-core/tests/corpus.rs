@@ -383,7 +383,7 @@ fn card_expected(case: &Case, schema: &Schema, program: &Program) -> Result<Expe
         let row = ids.into_iter().rev().find_map(|id| case.receipt.rows.iter().find(|row| row.table == page.table && row.row.field("id").ok() == Some(&Value::Id(id.to_owned()))));
         if let Some(row) = row {
             let values = page.suffix.iter().map(|column| row.row.field(&column.name).cloned().map_err(|error| error.to_string())).collect::<Result<_, _>>()?;
-            expected.next = Some(encode_cursor(schema, &CursorPosition { table: page.table.clone(), index: page.index.clone(), order: page.order, suffix: page.suffix.clone(), values, scope: None }).map_err(|error| error.to_string())?);
+            expected.next = Some(encode_cursor(schema, &CursorPosition { table: page.table.clone(), index: page.index.clone(), order: page.order, suffix: page.suffix.clone(), values, inclusive: false, scope: None }).map_err(|error| error.to_string())?);
         }
     }
     Ok(expected)
@@ -825,7 +825,7 @@ mod adapter {
         let program = Program {
             name: "asset.metadata".into(), kind: ProgramKind::Mutation,
             args: BTreeMap::from([("photo".into(), ArgType::Image { max: 5_000_000 })]),
-            read_time_granularity_ms: None, native: false,
+            read_time_granularity_ms: None, native: false, returned_shapes: Default::default(),
             body: vec![snapback4_core::ir::Stmt::Return(Expr::Object(["width", "height", "duration", "bytes"].into_iter().map(|name| (name.to_owned(), snapback4_core::ir::field(snapback4_core::ir::var("photo"), name))).collect()))],
         };
         let mut engine = Engine::memory(schema, vec![program]).unwrap();

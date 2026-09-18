@@ -8,7 +8,7 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
 fn program() -> Program {
-    Program { name: "work".into(), kind: ProgramKind::Action, args: BTreeMap::new(), read_time_granularity_ms: None, native: false,
+    Program { name: "work".into(), kind: ProgramKind::Action, args: BTreeMap::new(), read_time_granularity_ms: None, native: false, returned_shapes: Default::default(),
         body: vec![Stmt::Require { condition: Expr::Literal(Value::Bool(true)), code: "E_RULE".into(), site: None }] }
 }
 fn schema(policy: WorkPolicy) -> Schema {

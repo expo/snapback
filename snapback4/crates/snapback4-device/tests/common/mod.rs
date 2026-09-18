@@ -53,10 +53,11 @@ pub fn snapshot_pages(engine: &mut Engine, principal: &str, limit: usize) -> Vec
     let mut pages = Vec::new();
     let mut after: Option<String> = None;
     loop {
-        let (events, watermark, next, held) = engine.snapshot_page_with_groups_at(principal, after.as_deref(), limit, snapback4_core::now_ms()).unwrap();
+        let page = engine.snapshot_acquisition_page_at(principal, after.as_deref(), limit, snapback4_core::now_ms()).unwrap();
+        let (events, watermark, next, held) = (page.events, page.watermark, page.next.map(|next| next.encode()), page.held);
         let more = next.is_some();
         pages.push(serde_json::from_value(serde_json::json!({
-            "snapshot": true, "held": held,
+            "snapshot": true, "after": after, "held": held, "acquisitions": page.acquisitions,
             "events": events.iter().map(|e| serde_json::json!({ "table": e.table, "kind": e.kind.word(), "id": e.id, "data": e.data.as_ref().map(snapback4_core::wire::to_json) })).collect::<Vec<_>>(),
             "watermark": watermark, "more": more, "next": next, "generation": engine.generation(),
         })).unwrap());
@@ -70,14 +71,14 @@ pub fn snapshot_pages(engine: &mut Engine, principal: &str, limit: usize) -> Vec
 pub fn stream_page(engine: &mut Engine, principal: &str, watermark: u64) -> StreamPage {
     let page = engine.stream(principal, watermark, 1_000).unwrap();
     serde_json::from_value(serde_json::json!({
-        "snapshot": false, "joined": page.joined,
+        "snapshot": false, "joined": page.joined, "acquisitions": page.acquisitions,
         "events": page.events.iter().map(|e| serde_json::json!({ "table": e.table, "kind": e.kind, "id": e.id, "data": e.data.as_ref().map(snapback4_core::wire::to_json) })).collect::<Vec<_>>(),
         "watermark": page.watermark, "more": page.more, "generation": engine.generation(),
     })).unwrap()
 }
 
 pub fn page_json(page: &StreamPage) -> serde_json::Value {
-    serde_json::json!({ "snapshot": page.snapshot, "held": page.held, "joined": page.joined, "events": page.events.iter().map(|e| serde_json::json!({ "table": e.table, "kind": e.kind, "id": e.id, "data": e.data })).collect::<Vec<_>>(), "watermark": page.watermark, "more": page.more, "next": page.next, "generation": page.generation })
+    serde_json::json!({ "after": page.after, "snapshot": page.snapshot, "held": page.held, "acquisitions": page.acquisitions, "joined": page.joined, "events": page.events.iter().map(|e| serde_json::json!({ "table": e.table, "kind": e.kind, "id": e.id, "data": e.data })).collect::<Vec<_>>(), "watermark": page.watermark, "more": page.more, "next": page.next, "generation": page.generation })
 }
 
 pub fn context(principal: &str, pairs: &[(&str, Value)]) -> Context {
@@ -87,7 +88,7 @@ pub fn context(principal: &str, pairs: &[(&str, Value)]) -> Context {
 /// A host: where devices live between opens. `open` gives a device on the
 /// named store; `close` gives it back so the next `open` finds what it kept.
 pub trait Host {
-    type Store: DeviceStore;
+    type Store: BoundaryMetadata;
     fn open(&mut self, name: &str, backend: Option<Backend>) -> Result<Device<Self::Store>, RuntimeError>;
     fn close(&mut self, name: &str, device: Device<Self::Store>);
     fn label(&self) -> &'static str;
@@ -171,4 +172,18 @@ impl Host for Memory {
 /// the web host does after every call.
 pub fn checkpoint(host: &mut Memory, name: &str, device: &Device<MemoryStore>) {
     host.kept.entry(name.to_owned()).or_default().extend(device.store().drain());
+}
+
+/// Inspect persisted acquisition metadata without changing device API.
+pub trait BoundaryMetadata: DeviceStore { fn boundary_entries(&self) -> Vec<(String, String)>; }
+impl BoundaryMetadata for snapback4_core::store::Store {
+    fn boundary_entries(&self) -> Vec<(String, String)> {
+        self.conn().prepare("SELECT key, value FROM _meta WHERE key LIKE 'device:acquisition-boundaries:%' ORDER BY key").unwrap()
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?))).unwrap().collect::<Result<_, _>>().unwrap()
+    }
+}
+impl BoundaryMetadata for MemoryStore {
+    fn boundary_entries(&self) -> Vec<(String, String)> {
+        self.export().into_iter().filter(|c| c.s == 'm' && c.k.starts_with("device:acquisition-boundaries:")).map(|c| (c.k, c.v.unwrap())).collect()
+    }
 }

@@ -130,7 +130,7 @@ fn d01_old_descriptor_refused_and_paved_token_bytes_unchanged() {
         let source = merge_source(if ends_id { "by byLane: lane, at, id" } else { "unique byLane: lane, at" }, false, false, 2, "last", 1, "");
         let rows = vec![("msgs".into(), row("b", 0, Value::Int(100), "b")), ("msgs".into(), row("a", 1, Value::Int(90), "a"))];
         let mut position = CursorPosition { table: "msgs".into(), index: "byLane".into(), order: Order::Desc,
-            suffix: vec![CursorColumn { name: "at".into(), kind: ColumnType::Int }], values: vec![Value::Int(100)], scope: None };
+            suffix: vec![CursorColumn { name: "at".into(), kind: ColumnType::Int }], values: vec![Value::Int(100)], inclusive: false, scope: None };
         if ends_id { position.suffix.push(CursorColumn { name: "id".into(), kind: ColumnType::Id }); position.values.push(Value::Id("b".into())); }
         let old = encode_cursor(&Schema::default(), &position).unwrap();
         with_fixture(&source, rows, |q| {
@@ -230,6 +230,7 @@ fn control_c2c_later_meter_cut_does_not_strand_the_owner() {
         with_fixture(&source, rows, |q| {
             let page = q("feed", ctx(None)).unwrap();
             observe("C2c later shape cut", &page);
+            assert!(ids(&page).is_empty(), "the unfinished merge row must not be returned");
             assert_eq!((page.complete, page.cut, page.next.is_some()), (false, Some(ReadCut::Meter), true));
         });
     }

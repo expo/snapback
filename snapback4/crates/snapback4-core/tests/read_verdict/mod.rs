@@ -52,7 +52,7 @@ fn observation(or: bool, admitted: bool, hidden: bool, words: bool, cut: Cut, re
     let mut runner = Runner::new(&tx, &schema, Context::new("alice", BTreeMap::new()).at(100), meter, 0);
     let scan = scan(words);
     let expr = if words { Expr::Merge(Merge { site: "merge".into(), lanes: vec![MergeLane { setup: vec![], source: None, binding: String::new(), scan }] }) } else { Expr::Scan(scan) };
-    let program = Program { name: "read".into(), kind: ProgramKind::Query, args: BTreeMap::new(), read_time_granularity_ms: None, body: vec![Stmt::Return(expr)], native: false };
+    let program = Program { name: "read".into(), kind: ProgramKind::Query, args: BTreeMap::new(), read_time_granularity_ms: None, body: vec![Stmt::Return(expr)], native: false, returned_shapes: Default::default() };
     let result = runner.run(&program).and_then(|data| { runner.charge_output(&data)?; Ok(data) });
     let (data, error) = match result { Ok(data) => (crate::wire::to_json(&data), Json::Null), Err(error) => (Json::Null, json!(error.refusal())) };
     json!({"data": data, "error": error, "complete": runner.meter.capped_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.beyond_horizon,
@@ -101,7 +101,7 @@ fn observe_read(schema: Schema, seed: Vec<(String, Value)>, expr: Expr, cut: Cut
     engine.seed(seed).unwrap();
     let tx = engine.store_mut().transaction().unwrap();
     let mut runner = Runner::new(&tx, &schema, Context::new("alice", BTreeMap::new()).at(100), Meter::new(Ceilings::default(), cut), 0);
-    let program = Program { name: "read".into(), kind: ProgramKind::Query, args: BTreeMap::new(), read_time_granularity_ms: None, body: vec![Stmt::Return(expr)], native: false };
+    let program = Program { name: "read".into(), kind: ProgramKind::Query, args: BTreeMap::new(), read_time_granularity_ms: None, body: vec![Stmt::Return(expr)], native: false, returned_shapes: Default::default() };
     let result = runner.run(&program).and_then(|data| { runner.charge_output(&data)?; Ok(data) });
     let (data, error) = match result { Ok(data) => (crate::wire::to_json(&data), Json::Null), Err(error) => (Json::Null, json!(error.refusal())) };
     json!({"data":data,"error":error,"complete":runner.meter.capped_at.is_none() && !runner.non_uniform && !runner.page_overflow,"next":runner.next_cursor().unwrap(),"capped_at":runner.meter.capped_at,"metered":runner.meter.used,"tables":runner.read_tables,"nextExpiry":runner.next_expiry})

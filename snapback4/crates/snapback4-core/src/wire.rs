@@ -7,6 +7,20 @@ use crate::value::Value;
 use serde_json::{Map, Value as Json};
 use std::collections::BTreeMap;
 
+/// Additive acquisition markers, ordered before `events[at]` (or after the
+/// last event). No floor starts acquisition; a floor completes it. `whole`
+/// proves the group end; a keyed completion uses a delivered current readable
+/// selected key, never a withheld historical key. No safe key leaves it unfinished.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Acquisition {
+    pub at: usize,
+    pub table: String,
+    pub index: String,
+    pub group: Vec<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub floor: Option<String>,
+}
+
 /// Audience prefixes only, keyed by delivered-history table. An empty list
 /// means this principal currently holds none of that table’s groups.
 pub type HeldGroups = BTreeMap<String, Vec<Vec<Json>>>;

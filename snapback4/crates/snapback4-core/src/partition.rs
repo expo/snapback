@@ -309,6 +309,7 @@ impl SnapshotCursor {
 /// One page of the snapshot: events, and where the next page starts
 /// (`None` on the last).
 pub struct SnapshotPage {
+    pub acquisitions: Vec<crate::wire::Acquisition>,
     pub events: Vec<Event>,
     pub watermark: u64,
     pub next: Option<SnapshotCursor>,
@@ -348,10 +349,12 @@ pub fn snapshot_page(tx: &dyn PartitionRows, schema: &Schema, principal: &str, c
         }
         Some(held)
     } else { None };
+    let mut acquisitions = Vec::new();
     let mut at = cursor.unwrap_or(SnapshotCursor { watermark, ..SnapshotCursor::default() });
     let tables: Vec<(&str, &Table, &Sync)> = schema.synced().collect();
     let mut events = Vec::new();
     let limit = limit.max(1);
+    let mut used = 0;
     while at.table < tables.len() {
         let (table_name, table, sync) = tables[at.table];
         let groups = snapshot_groups(tx, schema, table_name, sync, principal, now)?;
@@ -367,12 +370,19 @@ pub fn snapshot_page(tx: &dyn PartitionRows, schema: &Schema, principal: &str, c
         }
         while position < groups.len() {
             let group = &groups[position];
-            let room = limit - events.len();
+            let room = limit - used;
             if room == 0 {
                 at.group = Some(group.clone());
-                return Ok(SnapshotPage { events, watermark, next: Some(at), held });
+                return Ok(SnapshotPage { acquisitions, events, watermark, next: Some(at), held });
+            }
+            if at.taken == 0 && at.after.is_none() {
+                if let Some(horizon) = &sync.horizon {
+                    acquisitions.push(acquisition(table_name, &horizon.by, group, events.len(), None));
+                }
             }
             let (rows, exhausted) = group_rows_from(tx, table_name, table, sync, group, at.after.as_deref(), at.taken, room, now, Some(schema))?;
+            // Empty groups still emit transitions and must consume page room.
+            used += rows.len().max(1);
             for (row, key) in rows {
                 let id = row.field("id")?.as_str()?.to_owned();
                 at.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
@@ -386,7 +396,15 @@ pub fn snapshot_page(tx: &dyn PartitionRows, schema: &Schema, principal: &str, c
             }
             if !exhausted {
                 at.group = Some(group.clone());
-                return Ok(SnapshotPage { events, watermark, next: Some(at), held });
+                return Ok(SnapshotPage { acquisitions, events, watermark, next: Some(at), held });
+            }
+            if let Some(horizon) = &sync.horizon {
+                let floor = if at.taken < horizon.last as usize { "whole".into() } else {
+                    let mut key = group.clone();
+                    key.extend(at.after.clone().expect("selected horizon has a last key"));
+                    crate::value::encode_bytes_hex(&crate::key::encode(&key))
+                };
+                acquisitions.push(acquisition(table_name, &horizon.by, group, events.len(), Some(floor)));
             }
             at.after = None;
             at.taken = 0;
@@ -395,7 +413,7 @@ pub fn snapshot_page(tx: &dyn PartitionRows, schema: &Schema, principal: &str, c
         at.table += 1;
         at.group = None;
     }
-    Ok(SnapshotPage { events, watermark, next: None, held })
+    Ok(SnapshotPage { acquisitions, events, watermark, next: None, held })
 }
 
 /// The whole snapshot at once, for hosts that hold it (the simulator's
@@ -492,6 +510,8 @@ pub fn append(tx: &dyn PartitionRows, seq: u64, events: &[Event]) -> Result<(), 
 /// `watermark`.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StreamPage {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub acquisitions: Vec<crate::wire::Acquisition>,
     pub events: Vec<LogEvent>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub joined: crate::wire::HeldGroups,
@@ -587,7 +607,7 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
         _ => false,
     });
     // A cursor from a replaced database is not evidence that this store reached it.
-    if watermark > head || (watermark == head && !expiring_audience) { return Ok(StreamPage { events: Vec::new(), watermark: head, more: false, joined: BTreeMap::new() }); }
+    if watermark > head || (watermark == head && !expiring_audience) { return Ok(StreamPage { acquisitions: Vec::new(), events: Vec::new(), watermark: head, more: false, joined: BTreeMap::new() }); }
     let held = intervals(tx, schema, principal, watermark)?;
     let mut spans = vec![(partition_of(principal), watermark.saturating_add(1), None, None), (PUBLIC.to_owned(), watermark.saturating_add(1), None, None)];
     for ((table, group), intervals) in &held {
@@ -618,7 +638,7 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
             joined.entry(event.table.clone()).or_default().push(group.iter().map(crate::wire::to_json).collect());
         }
     }
-    let mut events = expand_joins(tx, schema, page, &held, now)?;
+    let (mut events, acquisitions) = expand_joins(tx, schema, page, &held, now)?;
     if !more {
         next = next.max(head);
         // Logical expiry is a revocation even before the physical sweep
@@ -646,28 +666,88 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
         ),
         0,
     );
-    for mut event in expanded {
-        if event.kind == "put" {
-            event.data = if schema.table(&event.table).is_some() {
-                reader.fetch(&event.table, &event.id)?
+    let mut acquisitions = acquisitions.into_iter().peekable();
+    let mut published = Vec::new();
+    let mut active: Option<(crate::wire::Acquisition, BTreeSet<Vec<u8>>)> = None;
+    let expanded_len = expanded.len();
+    let mut expanded = expanded.into_iter();
+    for position in 0..=expanded_len {
+        while acquisitions.peek().is_some_and(|join| join.marker.at == position) {
+            let JoinAcquisition { mut marker, completion } = acquisitions.next().unwrap();
+            if let Some(selection) = completion {
+                let (_, delivered) = active.take().expect("join acquisition begin");
+                marker.floor = join_completion(tx, &mut reader, schema, &marker, selection, delivered)?;
+                if marker.floor.is_none() { continue; }
             } else {
-                None
-            };
+                active = Some((marker.clone(), BTreeSet::new()));
+            }
+            marker.at = events.len();
+            published.push(marker);
+        }
+        let Some(mut event) = expanded.next() else { break };
+        if event.kind == "put" {
+            event.data = if schema.table(&event.table).is_some() { reader.fetch(&event.table, &event.id)? } else { None };
             if let Some(row) = &event.data {
-                // Revocation with delivered-history keeps already delivered
-                // device data. Suppress a now-hidden historical put; only an
-                // actual row removal (or its scope policy) clears that copy.
-                if !reader.check_rule(&event.table, crate::schema::Effect::Read, None, row)? {
-                    continue;
+                // Retained history permits keeping a delivered image, never retrieving a hidden one.
+                if !reader.check_rule(&event.table, crate::schema::Effect::Read, None, row)? { continue; }
+                // @ref LLP 3000#7-decisions-during-execution — a completion discloses only a current readable key delivered on this stream.
+                if let Some((selected, delivered)) = &mut active {
+                    let table = schema.table(&selected.table).expect("acquiring table");
+                    let group = group_of(table.sync.as_ref().expect("sync"), row);
+                    if group.iter().map(crate::wire::to_json).collect::<Vec<_>>() == selected.group {
+                        let key = crate::rows::index_key(table.index(&selected.index).expect("horizon index"), row, &event.id);
+                        delivered.insert(key);
+                    }
                 }
             }
-            if event.data.is_none() {
-                event.kind = "del".into();
-            }
+            if event.data.is_none() { event.kind = "del".into(); }
         }
         events.push(event);
     }
-    Ok(StreamPage { events, watermark: next, more, joined })
+    Ok(StreamPage { acquisitions: published, events, watermark: next, more, joined })
+}
+
+#[cfg(feature = "sqlite")]
+struct JoinSelection {
+    seq: u64,
+    whole: bool,
+    // Descending join-time images discarded by the horizon, already read by group_at.
+    unselected: Vec<Value>,
+}
+
+#[cfg(feature = "sqlite")]
+struct JoinAcquisition {
+    marker: crate::wire::Acquisition,
+    completion: Option<JoinSelection>,
+}
+
+#[cfg(feature = "sqlite")]
+fn join_completion(tx: &dyn PartitionRows, reader: &mut Runner<'_>, schema: &Schema, marker: &crate::wire::Acquisition, selection: JoinSelection, delivered: BTreeSet<Vec<u8>>) -> Result<Option<String>, RuntimeError> {
+    // @ref LLP 3000.007#18.2 — completion uses delivered rows, current readable images and post-join row events for this group's table — the events the device receives.
+    // An unwritten blocker is precisely an undelivered readable row.
+    // Whole selection has no unselected rows. Every current readable row is
+    // delivered here or written after the join, even when every selected row is gone.
+    if selection.whole { return Ok(Some("whole".into())); }
+    let Some(oldest) = delivered.first() else { return Ok(None) };
+    let table = schema.table(&marker.table).expect("acquiring table");
+    let index = table.index(&marker.index).expect("horizon index");
+    for historical in selection.unselected {
+        let id = historical.field("id")?.as_str()?;
+        let key = crate::rows::index_key(index, &historical, id);
+        // The ordinary case stops before any extra fetch. The historical
+        // key only locates a possible falsifier; it never supplies a boundary.
+        if &key < oldest { break; }
+        // Any post-join write is delivered by the log, including a same-key
+        // rewrite. Only an unwritten row can still be missing from this suffix.
+        if tx.written_after(&marker.table, id, selection.seq)? { continue; }
+        let Some(current) = reader.fetch(&marker.table, id)? else { continue };
+        if !reader.check_rule(&marker.table, crate::schema::Effect::Read, None, &current)? { continue; }
+        if group_of(table.sync.as_ref().expect("sync"), &current).iter().map(crate::wire::to_json).collect::<Vec<_>>() != marker.group { continue; }
+        // Descending order makes this the greatest falsifier. Narrow once to
+        // the first delivered key above it; all remaining falsifiers are lower.
+        return Ok(delivered.range((std::ops::Bound::Excluded(key), std::ops::Bound::Unbounded)).next().map(|key| crate::value::encode_bytes_hex(key)));
+    }
+    Ok(Some(crate::value::encode_bytes_hex(oldest)))
 }
 
 /// A join acquires the images that existed at its own commit, even if a
@@ -676,7 +756,8 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
 /// permission to retrieve revoked or replaced images. A same-commit grant and
 /// revocation conveys no authority. Joins never reach a device.
 #[cfg(feature = "sqlite")]
-fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, page: Vec<LogEvent>, held: &BTreeMap<(String, String), Vec<Interval>>, now: i64) -> Result<Vec<LogEvent>, RuntimeError> {
+fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, page: Vec<LogEvent>, held: &BTreeMap<(String, String), Vec<Interval>>, now: i64) -> Result<(Vec<LogEvent>, Vec<JoinAcquisition>), RuntimeError> {
+    let mut acquisitions = Vec::new();
     let commit_times = tx.commit_times(&page.iter().map(|event| event.seq).collect::<Vec<_>>())?;
     let mut out = Vec::with_capacity(page.len());
     for event in page {
@@ -699,19 +780,38 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, page: Vec<LogEvent>, he
         if expired_predecessor {
             out.push(LogEvent { seq: event.seq, ord: event.ord, table: event.table.clone(), kind: "scope".into(), id: event.id.clone(), data: Some(Value::Array(group.clone())) });
         }
+        let spans = &held[&(event.table.clone(), event.id.clone())];
+        let continuous = spans.iter().any(|span| span.to == Some(event.seq)
+            && span.expires_at.is_none_or(|expiry| commit_times.get(&event.seq).is_some_and(|at| *at < expiry)));
+        let current = spans.last().is_some_and(|span| span.to.is_none() && span.expires_at.is_none_or(|expiry| expiry > now));
+        let acquiring = !continuous && current;
+        if acquiring && let Some(horizon) = &sync.horizon {
+            acquisitions.push(JoinAcquisition { marker: acquisition(&event.table, &horizon.by, &group, out.len(), None), completion: None });
+        }
         let mut rows: Vec<Value> = tx.group_at(&group_partition(&event.table, &group), event.seq)?.into_iter().filter_map(|event| event.data)
             .map(|row| row_image(&row, table).into_owned()).filter(|row| !table.expired(row, now)).collect();
+        let mut completion = None;
         if let Some(horizon) = &sync.horizon {
             let index = table.index(&horizon.by).ok_or_else(|| RuntimeError::Schema(format!("missing horizon index {}", horizon.by)))?;
             rows.sort_by_cached_key(|row| std::cmp::Reverse(crate::rows::index_key(index, row, row.field("id").ok().and_then(|v| v.as_str().ok()).unwrap_or(""))));
-            rows.truncate(horizon.last as usize);
+            let whole = rows.len() < horizon.last as usize;
+            let unselected = rows.split_off(rows.len().min(horizon.last as usize));
+            if acquiring { completion = Some(JoinSelection { seq: event.seq, whole, unselected }); }
         }
         for row in rows {
             let id = row.field("id")?.as_str()?.to_owned();
             out.push(LogEvent { seq: event.seq, ord: event.ord, table: event.table.clone(), kind: "put".into(), id, data: Some(row) });
         }
+        if acquiring && let Some(horizon) = &sync.horizon {
+            acquisitions.push(JoinAcquisition { marker: acquisition(&event.table, &horizon.by, &group, out.len(), None), completion });
+        }
     }
-    Ok(out)
+    Ok((out, acquisitions))
+}
+
+#[cfg(feature = "sqlite")]
+fn acquisition(table: &str, index: &str, group: &[Value], at: usize, floor: Option<String>) -> crate::wire::Acquisition {
+    crate::wire::Acquisition { at, table: table.into(), index: index.into(), group: group.iter().map(crate::wire::to_json).collect(), floor }
 }
 
 /// What one principal holds, grouped by table, for tests and `why`.

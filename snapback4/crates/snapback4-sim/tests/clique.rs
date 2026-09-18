@@ -592,59 +592,7 @@ fn search_reads_are_checked() {
     assert_eq!(codes(&merged), vec!["E_QUARRY_UNSUPPORTED"], "{:?}", merged.diagnostics);
 }
 
-const EFFECTS: &str = r#"
-use personas alice, bob, carol
-
-effect notify
-
-table conversations:
-  title: text <=120
-  read <- exists memberships[.id, viewer]
-  insert <- allow
-  sync to memberships[.id]
-
-table memberships:
-  conversationId: conversations
-  principal: principal
-  unique byConversationPrincipal: conversationId, principal
-  by byPrincipalConversation: principal, conversationId, id
-  cap 50 by conversationId
-  read <- exists memberships[.conversationId, viewer]
-  insert <- exists memberships[.conversationId, viewer] or created conversations[.conversationId]
-  sync to memberships[.conversationId]
-
-table messages:
-  conversationId: conversations
-  authorId: principal
-  body: text <=4000
-  at: time
-  by byConvTime: conversationId, at, id
-  read <- exists memberships[.conversationId, viewer]
-  insert <- .authorId = viewer and exists memberships[.conversationId, viewer]
-  sync to memberships[.conversationId] last 500 by byConvTime
-
-table rankings:
-  postId: id
-  score: int
-  unique byPost: postId
-  read <- allow
-  insert <- viewer = 'service:ranker'
-  update <- viewer = 'service:ranker'
-
-mutation send(conversationId: conversations, body: text <=4000):
-  require exists memberships[conversationId, viewer] else NOT_MEMBER
-  msg = insert messages { conversationId, authorId: viewer, body, at: now }
-  for m in memberships[conversationId] first 50 by byConversationPrincipal:
-    if m.principal != viewer and not exists connected[m.principal]:
-      emit notify { targetUserId: m.principal, chatId: conversationId, messageId: msg.id, preview: slice(body, 0, 80) }
-  return { id: msg.id }
-
-query online(p: principal):
-  return connected[p]
-
-mutation rank(postId: id, score: int):
-  upsert rankings[postId] { postId, score }
-"#;
+const EFFECTS: &str = include_str!("grace_effects/presence_cost.q");
 
 #[derive(Debug)]
 struct Online(Vec<String>);
@@ -682,7 +630,9 @@ fn an_emit_is_claimed_and_settled_by_a_worker() {
     let sent = engine.mutate("send", Some("s1"), Context::new("dev:alice", args(&[("conversationId", id("c1")), ("body", Value::String("Coffee? ".repeat(20)))])).at(1_000).with_ids(["msg1".to_owned()])).unwrap();
     assert!(matches!(sent.state, WriteState::Sent { .. }), "{:?}", sent.state);
     let queued = engine.effects(Some("queued"), 10).unwrap();
-    assert_eq!(queued.len(), 1, "{queued:?}");
+    assert_eq!(queued.len(), 2, "{queued:?}");
+    assert_eq!(queued[1].next_at, Some(6_000));
+    engine.presence_reconnected("dev:bob", 1_001).unwrap();
     assert_eq!(queued[0].payload.field("targetUserId").unwrap(), &id("dev:carol"));
     assert_eq!(queued[0].payload.field("preview").unwrap().as_str().unwrap().chars().count(), 80);
     assert_eq!(engine.query("online", Context::new("dev:alice", args(&[("p", id("dev:bob"))])).at(1_000)).unwrap().data, Value::Int(1));
@@ -703,6 +653,7 @@ fn an_emit_is_claimed_and_settled_by_a_worker() {
     assert!(engine.effects_due(None, 7_000).unwrap());
     let again = engine.claim_effects("service:pusher", None, 10, 60_000, 7_000).unwrap();
     assert_eq!((again.len(), again[0].attempts), (1, 2));
+    assert_eq!(engine.effects(Some("satisfied"), 10).unwrap()[0].attempts, 0);
     // The lease expires: the effect is queued again, the attempt kept.
     assert_eq!(engine.requeue_expired_effects(60_000).unwrap(), 0, "the lease still stands");
     assert_eq!(engine.requeue_expired_effects(70_000).unwrap(), 1);

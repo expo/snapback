@@ -64,6 +64,8 @@ pub enum Dir {
 pub struct Bounds {
     /// Resume strictly after this suffix position.
     pub after: Option<Vec<Value>>,
+    /// Initial inclusive resume; subsequent scan batches still advance `after` exclusively.
+    pub at_or_after: Option<Vec<Value>>,
     /// Stop strictly before this suffix position.
     pub before: Option<Vec<Value>>,
     pub gt: Option<Value>,
@@ -99,6 +101,15 @@ pub fn scan_range(prefix: &[Value], bounds: &Bounds, dir: Dir) -> Option<(Vec<u8
     }
     if let Some(value) = &bounds.lt {
         hi = hi.min(with(value));
+    }
+    if let Some(start) = &bounds.at_or_after {
+        let mut position = prefix.to_vec();
+        position.extend(start.iter().cloned());
+        let position = key::encode(&position);
+        match dir {
+            Dir::Asc => lo = lo.max(position),
+            Dir::Desc => hi = hi.min(key::upper_bound(&position)),
+        }
     }
     if let Some(after) = &bounds.after {
         let mut position = prefix.to_vec();
@@ -174,7 +185,12 @@ pub enum PrefetchRequest {
     Lookup { table: String, index: String, key: Vec<Value> },
 }
 
+#[derive(Clone, Debug)]
+pub enum AcquiredBoundary { Whole, Key(Vec<u8>) }
+
 pub trait Rows {
+    /// The server-selected suffix of a device partition, independent of holdings.
+    fn acquired_boundary(&self, _table: &str, _index: &str, _prefix: &[Value]) -> Result<Option<AcquiredBoundary>, RuntimeError> { Ok(None) }
     /// A device-only fact: this scan pins a delivered-history group it left.
     /// A found row belongs to retained history, without changing whole-query coverage.
     fn retained_row(&self, _table: &str, _row: &Value) -> Result<bool, RuntimeError> { Ok(false) }

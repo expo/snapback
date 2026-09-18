@@ -474,8 +474,9 @@ Here `model` is the application's provider SDK. The generated action arguments,
 return type and secret names come from Quarry. Runtime registration requires
 exactly the declared action handlers, with flat qualified names such as
 `"mail.send"`. A mismatched generated contract fails the invocation before its
-handler runs. Optional `effects` retain `snapback4/worker`'s `EffectHandler`
-signature; they must name declared effects.
+handler runs. Optional generated `effects` must name declared effects and use
+`(payload: unknown, ctx: EffectContext<the effect's secret names>)`. Low-level
+`runWorker` retains its `(payload, EffectMeta)` signature.
 
 Install `typescript` and `@types/node` in the application. `check` and `dev`
 typecheck the conventional server entry and its imports without executing it;
@@ -610,8 +611,10 @@ blind replacement send. Recovery and compensation are application-specific,
 The core evaluates action and effect step transitions in one work-kind-aware
 policy. Effects use `_effect_steps` and the provider-key domain
 `snapback4:effect-step:v1`; `_action_steps`, action keys and action behavior are
-unchanged. Effects retain their legacy `(payload, meta)` handler signature and
-do not gain the action context or `ctx.step` in this slice.
+unchanged. Generated effects receive only frozen `ctx.effect` metadata (`id`,
+`effect`, `attempt`, `seq`, `at`, `worker`), live `ctx.invocation` (`id`,
+`attempt`, `deadline`, `cancelled`, `signal`), their declared `ctx.secrets`, and `ctx.step`; they do not gain
+the action context's principal, query, mutation or write-id authority.
 
 Current `runWorker` requests fenced effect claims; hand-written wire workers
 request `fenced: true` and return the `leaseToken` as
@@ -624,6 +627,41 @@ same key or parks the effect. Oversized outcomes park with E_STEP_RESULT and
 unknown outcomes park with E_STEP_PARKED. Parked effects are excluded from
 lease expiry and reclaim. Policy-allowed cancellation may move parked work to
 failed/E_EFFECT_CANCELLED but never resumes it.
+
+`POST /effects/claim` also accepts optional `declarationContract`, but only
+with one nonempty `effect` and `fenced: true`. The digest uses the literal
+generic-payload validator identity, exact effect name and full current
+`WorkSpec`; payload and release do not enter it. After BEGIN the strict claim
+samples time and supervisor revision once, authenticates the current service,
+and compares this digest before expiry, selection, leasing or other work
+mutation. A missing current declaration or mismatch returns
+E_EFFECT_GENERATION with rows, attempts and steps unchanged. Claim JSON carries
+the server-derived `declarationContract`; omission preserves low-level
+`runWorker` behavior. Generated TypeScript embeds the Rust-computed digest for
+each exact effect name and full `WorkSpec`; it never recomputes the digest.
+Generated polls include `fenced: true` and that name's digest. A generation
+refusal, missing digest or mismatch stops and rejects the generated worker
+before handler execution or settlement.
+
+`POST /effects/<percent-encoded-id>/status` requires exactly one nonempty
+`x-snapback-effect-lease` before entering the engine. Its immediate writer
+transaction takes one post-BEGIN authority/time sample, authenticates the
+current service, loads that exact row and enforces its admitted contract.
+Running status requires the claiming service and exact current lease; an
+expired or lost lease reports E_EFFECT_LEASE without requeue, reclaim, unpark
+or successor authority. A current deployment-trusted service may read terminal
+safe metadata. Only the target row's deadline or recorded cancellation may be
+finalized. The response contains only `id`, `attempt`, `state`, `deadline`,
+`cancelled` and `errorCode`.
+
+The generated effect context polls that exact status route under the service
+bearer and private effect lease. Current matching running status continues;
+cancellation, deadline, terminal state, lease/generation/auth loss or transport
+uncertainty aborts the context and suppresses top-level settlement. `ctx.step`
+uses `/effects/<encoded-id>/steps/<encoded-name>/{begin,done,park}` under the
+same private lease. Service/effect tokens and declared secret names and values
+are redacted from failures. The signal is cooperative and does not imply that
+aborting it cancels an already committed provider call.
 
 New emits retain the current release as admission provenance and store a
 contract over the exact generic `Value` payload, effect name and full admitted
@@ -644,6 +682,11 @@ remains compatible. Existing direct core claim/settle methods retain their
 historical compatibility behavior and do not provide the strict HTTP authority boundary.
 Only a service may call `POST /effects/<id>/cancel`; cancellation cannot stop
 provider I/O already in flight.
+
+This checkpoint is the generated server effect-context slice over the existing
+claim/status/step substrate. It adds no typed effect payload, query/mutate/data/
+admin authority, PostgreSQL effect work, provider qualification, process-crash
+proof or complete B claim.
 
 ## Routes and webhooks
 

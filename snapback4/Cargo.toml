@@ -8,7 +8,7 @@ exclude = ["vendor/tiny_http"]
 tiny_http = { path = "vendor/tiny_http" }
 
 [workspace.package]
-version = "0.2.28"
+version = "0.2.29"
 edition = "2024"
 license = "MIT"
 

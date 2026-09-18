@@ -751,6 +751,31 @@ const session = await mintSession(url, token, "member:42", "member", 30);
 await revokeSessions(url, token, "member:42");
 ```
 
+The generated host, `startServer`, does not use `runWorker` for the effects the
+schema declares. It runs the declaration-bound arm, `runGeneratedEffects`: one
+fenced claim loop per declared effect, each claim carrying that declaration's
+contract digest from the generated manifest, so a changed or missing declaration
+stops the worker with `E_EFFECT_GENERATION` instead of running a stale handler.
+`startServer` builds the registry from your handlers; the arm is shown here so
+the contract is visible, not as something an app writes by hand:
+
+```ts
+import { runGeneratedEffects, type GeneratedEffectOutcome } from "snapback4/worker";
+import { manifest } from "../snapback/generated/server";
+const url = process.env.SNAPBACK_URL!, token = process.env.SNAPBACK_SERVICE_TOKEN!;
+const generated = runGeneratedEffects({ url, token }, {
+  notify: {
+    declarationContract: manifest.effects.notify!.contract,
+    execute: async (effect, meta): Promise<GeneratedEffectOutcome> => {
+      const sent = await fetch("https://push.example.com/send", { method: "POST", headers: { "idempotency-key": meta.id }, body: JSON.stringify(effect.payload) });
+      if (!sent.ok) return { kind: "active-error", error: "push provider refused the notification", retry: false };
+      return { kind: "settle", result: { providerId: meta.id } };
+    },
+  },
+});
+await generated.done;
+```
+
 A service is a principal `service:<name>` with a bearer session of its
 own: `snapback4 token --service pusher` prints it once (`--release <dir>`
 for a deployment). The token and one newline are the whole of stdout, with

@@ -10,6 +10,9 @@ mod adoption_tests;
 #[path = "../tests/serve_routes/mod.rs"]
 mod route_tests;
 
+#[path = "../tests/serve_presence/mod.rs"]
+mod presence_tests;
+
 const SCHEMA: &str = "use identity\ntable items:\n  n: int\n  photo: image <=1024 ?\n  read <- allow\n  insert <- deny\n  sync public\nquery who():\n  return viewer\n";
 
 struct Host {
@@ -61,6 +64,7 @@ impl Host {
             auth_work: Mutex::new(None),
             upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),
+            poll_wait: Mutex::new(None),
         });
         let server = Arc::new(
             Server::http_with_limits(("127.0.0.1", 0), tiny_http::ConnectionLimits::default())
@@ -633,21 +637,48 @@ fn effect_http_strictly_validates_present_fields_without_mutating_work() {
     let bearer = format!("Authorization: Bearer {}\r\n", service.token);
     let id = { lock(&host.shared.engine).effects(Some("queued"), 1).unwrap().remove(0).id };
     let queued = effect_snapshot(&host, &id);
+    let engine_guard = lock(&host.shared.engine);
+    let address = host.address;
+    let malformed_bearer = bearer.clone();
+    let (response_tx, response_rx) = mpsc::channel();
+    let malformed_worker = thread::spawn(move || {
+        let malformed = r#"{"effect":17}"#;
+        let response = exchange(address, &format!(
+            "POST /effects/claim HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: {}\r\n{malformed_bearer}\r\n{malformed}", malformed.len()
+        ));
+        let _ = response_tx.send(response);
+    });
+    let prompt_response = response_rx.recv_timeout(Duration::from_secs(2));
+    drop(engine_guard);
+    let joined = malformed_worker.join();
+    assert!(joined.is_ok(), "malformed claim request thread panicked");
+    let prompt_response = prompt_response.expect("malformed claim waited for the engine mutex");
+    assert_eq!(status(&prompt_response), 400); assert_eq!(body(&prompt_response)["denied"]["code"], "E_INPUT");
+    assert_eq!(effect_snapshot(&host, &id), queued, "pre-mutex malformed claim mutated work");
     for malformed in [
         r#"{"effect":17,"fenced":"true"}"#,
         r#"{"fenced":"true"}"#,
         r#"{"limit":"1"}"#,
         r#"{"lease":"60"}"#,
         r#"{"wait":"0"}"#,
+        r#"{"effect":"mail","fenced":true,"declarationContract":17}"#,
+        r#"{"declarationContract":"stale"}"#,
+        r#"{"effect":"mail","declarationContract":"stale"}"#,
+        r#"{"effect":"","fenced":true,"declarationContract":"stale"}"#,
+        r#"{"effect":"mail","fenced":false,"declarationContract":"stale"}"#,
     ] {
         let response = host.request("POST", "/effects/claim", &bearer, malformed);
         assert_eq!(status(&response), 400, "{response}");
         assert_eq!(body(&response)["denied"]["code"], "E_INPUT");
         assert_eq!(effect_snapshot(&host, &id), queued, "malformed claim mutated the row: {malformed}");
     }
-    let claimed = body(&host.request("POST", "/effects/claim", &bearer, r#"{"fenced":true}"#));
+    let declaration = { let engine = lock(&host.shared.engine);
+        engine.schema().effect_specs["mail"].effect_declaration_contract("mail") };
+    let claim_body = json!({"effect":"mail", "fenced":true, "declarationContract":declaration.clone()}).to_string();
+    let claimed = body(&host.request("POST", "/effects/claim", &bearer, &claim_body));
     let effect = &claimed["effects"][0];
     assert_eq!(effect["id"], id);
+    assert_eq!(effect["declarationContract"], declaration);
     let lease = effect["leaseToken"].as_str().unwrap();
     let begin_path = format!("/effects/{id}/steps/provider/begin");
     let missing = body(&host.request("POST", &begin_path, &bearer, r#"{"input":{"n":1}}"#));
@@ -656,6 +687,20 @@ fn effect_http_strictly_validates_present_fields_without_mutating_work() {
     assert_eq!(body(&host.request("POST", &begin_path, &duplicate, r#"{"input":{"n":1}}"#))["denied"]["code"], "E_EFFECT_LEASE");
     let held = format!("{bearer}x-snapback-effect-lease: {lease}\r\n");
     let running = effect_snapshot(&host, &id);
+    let status_path = format!("/effects/{id}/status");
+    for headers in [bearer.clone(), format!("{bearer}x-snapback-effect-lease: \r\n"), format!("{held}x-snapback-effect-lease: {lease}\r\n")] {
+        let answer = body(&host.request("POST", &status_path, &headers, "{}"));
+        assert_eq!(answer["denied"]["code"], "E_EFFECT_LEASE");
+        assert_eq!(effect_snapshot(&host, &id), running);
+    }
+    let wrong = format!("{bearer}x-snapback-effect-lease: wrong\r\n");
+    assert_eq!(body(&host.request("POST", &status_path, &wrong, "{}"))["denied"]["code"], "E_EFFECT_LEASE");
+    assert_eq!(effect_snapshot(&host, &id), running);
+    let status_body = body(&host.request("POST", &status_path, &held, "ignored"));
+    assert_eq!(status_body, json!({ "id": id, "attempt": 1, "state": "running", "deadline": null, "cancelled": false, "errorCode": null }));
+    let malformed_status = host.request("POST", "/effects/bad%FF/status", &held, "{}");
+    assert_eq!(status(&malformed_status), 400); assert_eq!(body(&malformed_status)["denied"]["code"], "E_INPUT");
+    assert_eq!(effect_snapshot(&host, &id), running);
     let park_path = format!("/effects/{id}/steps/provider/park");
     let failed_path = format!("/effects/{id}/failed");
     for (path, malformed) in [
@@ -1319,17 +1364,17 @@ fn sync_snapshot_encoding_preserves_plain_values_and_explicit_nulls() {
     ];
     let held = Some(BTreeMap::from([("items".into(), vec![vec![json!("group"), json!(7)]])]));
     let acknowledged = BTreeMap::from([("write-id".into(), 8)]);
-    let reply = SnapshotReply { store_id: "store-a".into(), acknowledged, events: SyncEvents::Snapshot(events), generation: 3, held, more: true, next: Some("opaque-cursor".into()), snapshot: true, watermark: 9 };
+    let reply = SnapshotReply { after: None, acquisitions: vec![], store_id: "store-a".into(), acknowledged, events: SyncEvents::Snapshot(events), generation: 3, held, more: true, next: Some("opaque-cursor".into()), snapshot: true, watermark: 9 };
     let expected = json!({
-        "acknowledged": {"write-id":8}, "events": [
+        "acknowledged": {"write-id":8}, "after": null, "events": [
             {"data":{"id":"row\"雪","nested":{"items":[null,true,i64::MIN,i64::MAX,"line\n\0","000fff"]}},"id":"second","kind":"put","table":"items"},
             {"data":null,"id":"first","kind":"del","table":"items"}
         ], "generation":3,"held":{"items":[["group",7]]},"more":true,"next":"opaque-cursor","snapshot":true,"store_id":"store-a","watermark":9
     });
     assert_eq!(serde_json::to_vec(&reply).unwrap(), serde_json::to_vec(&expected).unwrap());
     for held in [None, Some(BTreeMap::new())] {
-        let expected = json!({"acknowledged":{},"events":[],"generation":3,"held":held,"more":false,"next":null,"snapshot":true,"store_id":"store-a","watermark":9});
-        let reply = SnapshotReply { store_id: "store-a".into(), acknowledged: BTreeMap::new(), events: SyncEvents::Snapshot(vec![]), generation: 3, held, more: false, next: None, snapshot: true, watermark: 9 };
+        let expected = json!({"acknowledged":{},"after":null,"events":[],"generation":3,"held":held,"more":false,"next":null,"snapshot":true,"store_id":"store-a","watermark":9});
+        let reply = SnapshotReply { after: None, acquisitions: vec![], store_id: "store-a".into(), acknowledged: BTreeMap::new(), events: SyncEvents::Snapshot(vec![]), generation: 3, held, more: false, next: None, snapshot: true, watermark: 9 };
         assert_eq!(serde_json::to_vec(&reply).unwrap(), serde_json::to_vec(&expected).unwrap());
     }
 }
@@ -1342,7 +1387,7 @@ fn sync_stream_encoding_preserves_sequences_scopes_and_empty_groups() {
         LogEvent { seq: u64::MAX, ord: 91, table: "items".into(), kind: "del".into(), id: "gone".into(), data: None },
         LogEvent { seq: u64::MAX, ord: 92, table: "items".into(), kind: "put".into(), id: "last".into(), data: Some(Value::Row(BTreeMap::from([("n".into(), Value::Int(2))]).into())) },
     ];
-    let reply = StreamReply { store_id: "store-a".into(), acknowledged: BTreeMap::from([("write-id".into(), u64::MAX)]), events: SyncEvents::Stream(events), generation: 4, joined: BTreeMap::from([("items".into(), vec![vec![json!("joined")]])]), more: true, snapshot: false, watermark: u64::MAX };
+    let reply = StreamReply { acquisitions: vec![], store_id: "store-a".into(), acknowledged: BTreeMap::from([("write-id".into(), u64::MAX)]), events: SyncEvents::Stream(events), generation: 4, joined: BTreeMap::from([("items".into(), vec![vec![json!("joined")]])]), more: true, snapshot: false, watermark: u64::MAX };
     let expected = json!({
         "acknowledged":{"write-id":u64::MAX},"events":[
             {"data":["group",7],"id":"","kind":"scope","seq":0,"table":"items"},
@@ -1351,7 +1396,7 @@ fn sync_stream_encoding_preserves_sequences_scopes_and_empty_groups() {
         ],"generation":4,"joined":{"items":[["joined"]]},"more":true,"snapshot":false,"store_id":"store-a","watermark":u64::MAX
     });
     assert_eq!(serde_json::to_vec(&reply).unwrap(), serde_json::to_vec(&expected).unwrap());
-    let reply = StreamReply { store_id: "store-a".into(), acknowledged: BTreeMap::new(), events: SyncEvents::Stream(vec![]), generation: 4, joined: BTreeMap::new(), more: false, snapshot: false, watermark: 9 };
+    let reply = StreamReply { acquisitions: vec![], store_id: "store-a".into(), acknowledged: BTreeMap::new(), events: SyncEvents::Stream(vec![]), generation: 4, joined: BTreeMap::new(), more: false, snapshot: false, watermark: 9 };
     let expected = json!({"acknowledged":{},"events":[],"generation":4,"joined":{},"more":false,"snapshot":false,"store_id":"store-a","watermark":9});
     assert_eq!(serde_json::to_vec(&reply).unwrap(), serde_json::to_vec(&expected).unwrap());
 }

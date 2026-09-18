@@ -67,9 +67,15 @@ impl DeviceTx for Tx<'_> {
     fn set_meta(&self, key: &str, value: &str) -> Result<(), RuntimeError> {
         Tx::set_meta(self, key, value)
     }
+    fn meta_prefix(&self, prefix: &str) -> Result<Vec<(String, String)>, RuntimeError> {
+        Ok(self.conn().prepare_cached("SELECT key, value FROM _meta WHERE key >= ?1 AND key < ?2 ORDER BY key")?
+            .query_map(params![prefix, format!("{prefix}\u{10ffff}")], |row| Ok((row.get(0)?, row.get(1)?)))?.collect::<Result<_, _>>()?)
+    }
     fn delete_meta(&self, keys: &[&str]) -> Result<(), RuntimeError> {
         for key in keys {
-            self.conn().execute("DELETE FROM _meta WHERE key = ?1", [key])?;
+            if key.ends_with(':') {
+                self.conn().execute("DELETE FROM _meta WHERE key >= ?1 AND key < ?2", params![key, format!("{key}\u{10ffff}")])?;
+            } else { self.conn().execute("DELETE FROM _meta WHERE key = ?1", [key])?; }
         }
         Ok(())
     }

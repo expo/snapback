@@ -157,11 +157,15 @@ fn generated_manifest_types_and_prototype_properties_preserve_the_contract() {
     }
     assert!(!server.contains("__proto__:"));
     assert!(!server.contains("@route/"));
-    assert!(server.contains("actions?: Actions; routes: Routes; effects?: Record<string, never>"));
-    assert!(emit::server_typescript(&clean("")).contains("actions?: Actions; routes?: Routes; effects?: Record<string, never>"));
-    assert!(emit::server_typescript(&clean("action actionOnly()\n")).contains("actions: Actions; routes?: Routes; effects?: Record<string, never>"));
+    assert!(server.contains("export type Effects = Record<string, never>;") && server.contains("actions?: Actions; routes: Routes; effects?: Effects"), "{server}");
+    let empty_server = emit::server_typescript(&clean(""));
+    assert!(empty_server.contains("export type Effects = Record<string, never>;") && empty_server.contains("actions?: Actions; routes?: Routes; effects?: Effects"), "{empty_server}");
+    let action_server = emit::server_typescript(&clean("action actionOnly()\n"));
+    assert!(action_server.contains("export type Effects = Record<string, never>;") && action_server.contains("actions: Actions; routes?: Routes; effects?: Effects"), "{action_server}");
     let mixed = clean("action billing() returns {}\nroute billing: post \"/hook\"\neffect notify\n");
-    assert!(emit::server_typescript(&mixed).contains("actions: Actions; routes: Routes; effects?: Partial<Record<\"notify\", EffectHandler>>"));
+    let mixed_server = emit::server_typescript(&mixed);
+    assert!(mixed_server.contains("actions: Actions; routes: Routes; effects?: Effects"), "{mixed_server}");
+    assert!(mixed_server.contains("notify?: (payload: unknown, ctx: EffectContext<never>) => Promise<unknown> | unknown"), "{mixed_server}");
 }
 
 #[test]

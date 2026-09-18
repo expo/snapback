@@ -80,6 +80,8 @@ pub struct Shared {
     pub upload_work: WorkHook,
     #[cfg(test)]
     pub effect_wait: WorkHook,
+    #[cfg(test)]
+    pub poll_wait: WorkHook,
 }
 
 impl Shared {
@@ -164,7 +166,7 @@ impl Drop for AssetTransfer<'_> {
 
 /// A connection lasts as long as its poll and a grace after it: a client
 /// re-polls within milliseconds of an answer, a dropped one never does.
-const PRESENCE_GRACE: Duration = Duration::from_secs(35);
+use snapback4_core::engine::{PRESENCE_GRACE, PRESENCE_CONFIRMATION};
 
 /// The registry of open long polls, per principal: how many are open now,
 /// and when the last one ended. A device that holds `/changes?wait` open
@@ -197,10 +199,15 @@ impl Live {
 
 impl Presence for Live {
     fn effect_presence(&self, principal: &str) -> (u64, Option<i64>) {
+        let now = lock(&self.clock).now();
+        self.effect_presence_at(principal, now)
+    }
+
+    fn effect_presence_at(&self, principal: &str, now: i64) -> (u64, Option<i64>) {
         let map = lock(&self.polls);
         let clock = lock(&self.clock);
         match map.get(principal) {
-            Some((open, _)) if *open > 0 => (u64::from(*open), None),
+            Some((open, _)) if *open > 0 => (u64::from(*open), Some(now.saturating_add(PRESENCE_CONFIRMATION.as_millis() as i64))),
             Some((_, Some(last))) => {
                 let remaining = (PRESENCE_GRACE.as_millis() as i64).saturating_sub(clock.presence_now().saturating_sub(*last));
                 (0, (remaining > 0).then(|| clock.now().saturating_add(remaining)))
@@ -294,6 +301,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
         #[cfg(test)] auth_work: Mutex::new(None),
         #[cfg(test)] upload_work: Mutex::new(None),
         #[cfg(test)] effect_wait: Mutex::new(None),
+        #[cfg(test)] poll_wait: Mutex::new(None),
     });
     let server = Arc::new(server);
     let address = server.server_addr();
@@ -611,7 +619,10 @@ impl serde::Serialize for SyncEvents {
 
 #[derive(serde::Serialize)]
 struct SnapshotReply {
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    acquisitions: Vec<wire::Acquisition>,
     acknowledged: BTreeMap<String, u64>,
+    after: Option<String>,
     events: SyncEvents,
     generation: u64,
     held: Option<wire::HeldGroups>,
@@ -624,6 +635,8 @@ struct SnapshotReply {
 
 #[derive(serde::Serialize)]
 struct StreamReply {
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    acquisitions: Vec<wire::Acquisition>,
     acknowledged: BTreeMap<String, u64>,
     events: SyncEvents,
     generation: u64,
@@ -1090,19 +1103,21 @@ fn handle(mut request: Request, shared: &Shared) {
                     match reader {
                         Ok(mut reader) => {
                             let generation = reader.generation();
-                            (reader.snapshot_page_with_groups_at(&principal, after.as_deref(), limit, shared.now()).and_then(|(events, watermark, next, held)| reader.acknowledged(&principal, &pending, watermark).map(|acks| (events, watermark, next, held, acks))), generation)
+                            (reader.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, shared.now()).and_then(|page| reader.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))), generation)
                         }
                         Err(_) => {
                             let mut engine = lock(&shared.engine);
-                            (engine.snapshot_page_with_groups_at(&principal, after.as_deref(), limit, shared.now()).and_then(|(events, watermark, next, held)| engine.acknowledged(&principal, &pending, watermark).map(|acks| (events, watermark, next, held, acks))), *lock(&shared.generation))
+                            (engine.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, shared.now()).and_then(|page| engine.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))), *lock(&shared.generation))
                         }
                     }
                 };
                 match outcome {
-                    Ok((events, watermark, next, held, acknowledged)) => {
+                    Ok((page, acknowledged)) => {
+                        let next = page.next.map(|next| next.encode());
+                        let (events, watermark, held) = (page.events, page.watermark, page.held);
                         respond(request, 200, SnapshotReply {
-                            acknowledged, events: SyncEvents::Snapshot(events), generation, store_id,
-                            held, more: next.is_some(), next, snapshot: true, watermark,
+                            acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Snapshot(events), generation, store_id,
+                            held, more: next.is_some(), next, after, snapshot: true, watermark,
                         });
                     }
                     Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else if refusal.code == "E_INPUT" { 400 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
@@ -1124,7 +1139,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 match outcome {
                     Ok((page, acknowledged)) => {
                         respond(request, 200, StreamReply {
-                            acknowledged, events: SyncEvents::Stream(page.events), generation, store_id,
+                            acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Stream(page.events), generation, store_id,
                             joined: page.joined, more: page.more, snapshot: false, watermark: page.watermark,
                         });
                     }
@@ -1266,6 +1281,7 @@ mod poison_tests {
             auth_work: Mutex::new(None),
             upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),
+            poll_wait: Mutex::new(None),
         });
         let poisoned = shared.clone();
         assert!(std::thread::spawn(move || {

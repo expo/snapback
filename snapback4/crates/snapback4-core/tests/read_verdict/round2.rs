@@ -23,7 +23,7 @@ fn observe(rule: RuleExpr, hidden: bool, author: &str, scan: Scan, cut: Cut, exa
     engine.seed(seed).unwrap();
     let tx = engine.store_mut().transaction().unwrap();
     let mut runner = Runner::new(&tx, &schema, Context::new("alice", BTreeMap::new()).at(100), Meter::new(Ceilings { examined, ..Ceilings::default() }, cut), 0);
-    let program = Program { name: "read".into(), kind: ProgramKind::Query, args: BTreeMap::new(), read_time_granularity_ms: None, body: vec![Stmt::Return(Expr::Scan(scan))], native: false };
+    let program = Program { name: "read".into(), kind: ProgramKind::Query, args: BTreeMap::new(), read_time_granularity_ms: None, body: vec![Stmt::Return(Expr::Scan(scan))], native: false, returned_shapes: Default::default() };
     let result = runner.run(&program).and_then(|data| { runner.charge_output(&data)?; Ok(data) });
     let (data, error) = match result { Ok(data) => (crate::wire::to_json(&data), Json::Null), Err(error) => (Json::Null, json!(error.refusal())) };
     json!({"data":data,"error":error,"complete":runner.meter.capped_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.beyond_horizon,

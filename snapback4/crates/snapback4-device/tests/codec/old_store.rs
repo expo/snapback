@@ -105,7 +105,7 @@ fn newly_written_records_decode_with_the_old_plain_serde_apis() {
     // staged image and queued entry come from production's private derives.
     let mut device = Device::open_store(MemoryStore::new(), Some(backend)).unwrap();
     device.enqueue(&queued).unwrap();
-    let page = json!({"snapshot":true,"events":[{"table":"notes","kind":"put","id":"n1","data":{"id":"n1","body":"kept"}}],"watermark":1,"more":true,"generation":1});
+    let page = json!({"snapshot":true,"events":[{"table":"notes","kind":"put","id":"n1","data":{"id":"n1","body":"kept"}}],"watermark":1,"more":true,"next":"next","generation":1});
     let result = snapback4_device::call::call_text(&mut device, &json!({"op":"apply","page":page,"first":true}).to_string());
     assert!(result.get("ok").is_some(), "{result}");
     let emitted = device.store().drain();

@@ -99,7 +99,7 @@ returns that meter. If the server cannot answer the query, declare `query … he
 to answer from the device; the server refuses it with E_QUERY_HELD.
 Merged pages return no `next` for a non-uniform answer, an opening cut or a
 word-limit cut. A uniform lazy merge cut while draining established heads
-carries `next` after its last emitted row, with `complete: false, cut: 'meter'`.
+carries `next` after its last emitted row (its last fully computed row when the merge is the query's returned shape expression, §5.6), with `complete: false, cut: 'meter'`.
 Following that cursor does not clear the earlier page's incompleteness in `usePage`. Reads inside
 `where` use their own rules and search terms. Even an empty matching result
 past a device horizon is incomplete; a held group can fall back to the server.

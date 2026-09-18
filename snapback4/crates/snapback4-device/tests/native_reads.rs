@@ -155,13 +155,10 @@ fn the_same_module_answers_the_same_on_the_server_and_on_both_devices() {
         assert!(read["ok"]["denied"].is_null(), "{label}: {read}");
         assert_eq!(read["ok"]["data"], expected, "{label}: the device's answer is the server's");
         assert_eq!(read["ok"]["tables"], json!(["affinity", "ranked", "seen", "votes"]), "{label}: {read}");
-        // The device's words: a page of 10 over 3 held rows of a table with a
-        // horizon (`ranked`, last 500) may continue on the server, so the
-        // read is `complete: false` here and the client asks the server
-        // when online; the viewer's own tables sync without a horizon, so
-        // a miss there is definitive.
-        assert_eq!(read["ok"]["complete"], false, "{label}: {read}");
-        assert_eq!(read["ok"]["unknown"], true, "{label}: {read}");
+        // Acquisition selected 3 rows below last 500, so its whole boundary
+        // proves the end. The viewer's own tables have no horizon either.
+        assert_eq!(read["ok"]["complete"], true, "{label}: {read}");
+        assert_eq!(read["ok"]["unknown"], false, "{label}: {read}");
         // A page that fills from held rows is complete on the device.
         let filled = device.call_json(json!({ "op": "query", "name": "personalize", "viewer": "dev:bob", "args": { "first": 2 }, "now": NOW + 2_000 }));
         assert_eq!(filled["ok"]["complete"], true, "{label}: {filled}");

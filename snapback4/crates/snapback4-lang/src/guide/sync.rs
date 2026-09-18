@@ -60,9 +60,36 @@ target audiences require every content prefix and corresponding target
 group column to be non-optional: `null` cannot name a device partition, so
 `sync to participants[.threadId]` requires both copies of `threadId`.
 checks also cover insert-if-absent and upsert. The horizon
-`last N by index` bounds what a device acquires per group: the newest N stay
-on the device, older rows are online-only, and a local read past them is
-`complete: false`. A synced table with no horizon delivers every row of
+`last N by index` bounds what a device acquires per group. The server sends
+an acquisition boundary: a safe suffix starting at a delivered selected key,
+or `whole` when fewer than N rows were selected, including an empty group.
+A descending page on that index is complete while it stays at or above that
+boundary by key; crossing it returns only the known suffix with `complete: false`
+and unknown coverage, so the online client asks the server. Without a boundary
+the group is unknown. Ascending reads and other indexes keep their ordinary
+horizon rule. An unheld put below the boundary is dropped; a held row whose key
+moves below it remains available to point reads but is excluded from the suffix.
+A put moving above the boundary joins the suffix. Continuous renewal keeps the
+boundary. A join reacquiring retained history leaves the horizon unknown until
+a full replacement snapshot acquires the group again. Boundaries persist with
+acquisition and publish with staged snapshot rows only after catch-up. The additive sync field
+`acquisitions` contains `{ at, table, index, group, floor? }` markers before
+`events[at]` (or at the end): missing `floor` begins acquisition; completion
+carries `whole` or the hex-encoded index key. A completion without a matching
+begin is ignored and reported in device metadata (`device:acquisition-report`).
+A keyed completion starts at the oldest current readable selected key delivered
+by that acquisition. It narrows upward if an unselected, current readable row
+with no write after the join has a key at or above that boundary: that row was not acquired.
+Only row puts and deletes count as writes; membership joins and scopes do not.
+If no delivered key proves a complete suffix, the group stays unknown. Selection
+is at the join commit; its historical floor never decides completion or appears
+on the wire. `whole` proves the same claim without a lower bound, including when
+every selected row has since disappeared or become unreadable.
+Snapshot replies echo `after`; the device checks every
+continuation and requires the terminal page before catch-up publishes coverage.
+Empty groups consume page room too, so even a page with no rows can continue.
+
+A synced table with no horizon delivers every row of
 every group a device holds, at every cold start, as the table grows;
 `check` notes it (N_NO_HORIZON) unless the group cannot grow (one row per
 group, or a `cap` over the group), or its whole partition supplies an eligible
@@ -92,7 +119,11 @@ Replacement observation immediately invalidates freshness, remembered answers
 and watch snapshots; delayed reads from the previous store are retried.
 Change polls echo `store_id` and return immediately on a mismatch or a lower
 head. Reconnect probes carry the identity and head, checked before local
-freshness returns; a matching identity needs no extra sync. A matching
+freshness returns; a matching identity needs no extra sync.
+
+## A restored backend store
+
+A matching
 `store_id` with a lower head refuses `E_STORE_RESTORE`: the backend was
 restored or shrank. Sync halts and reads refuse, including after offline
 reopen; the watermark and outbox stay in place. Stop the client and use a
@@ -113,8 +144,10 @@ rows; leaving it delivers one scope tombstone, and `retain` says whether the
 device keeps what it was given (`delivered-history`) or drops it
 (`until-revoked`, the default). Retained rows survive a leave whatever the
 horizon; the horizon bounds what a device acquires, never what it keeps.
-The same local completeness rule applies after leaving: an exhausted horizon
-is `complete: false`, while unbounded whole-group history is `complete: true`.
+The same boundary rule applies after leaving: a page within the acquired suffix
+is complete, crossing the floor is incomplete, and `whole` proves the group's
+end even on a horizoned table. A snapshot from a server without `acquisitions`
+leaves newly acquired groups unknown, so local pages fall back online.
 A read pinning the left group answers from those rows on the device online
 and offline, through a query without a membership `require`; the server
 cannot serve that retained history. Replacement snapshots keep left groups

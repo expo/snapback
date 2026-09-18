@@ -31,6 +31,21 @@ import {
   type SignIn,
 } from "./auth.ts";
 
+/** Server acquisition markers, applied before events[at]. A missing floor
+ * begins a group; completion carries "whole" or a delivered readable index key. */
+export interface AcquisitionMarker {
+  at: number;
+  table: string;
+  index: string;
+  group: unknown[];
+  floor?: string;
+}
+interface SyncPage extends Record<string, unknown> {
+  /** Cursor echoed by the server; the device validates snapshot continuity. */
+  after?: string | null;
+  acquisitions?: AcquisitionMarker[];
+}
+
 /** One JSON call into the device: `{ op, ... }` in, `{ ok } | { denied }` out. */
 export interface DeviceCore {
   readonly media?: MediaStorage;
@@ -545,7 +560,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     let pageLimit = PAGE;
     try {
       for (let pages = 0; pages < 100_000; pages++) {
-        let page: Record<string, unknown>;
+        let page: SyncPage;
         let pageRevision = credentialRevision;
         let requestedStore: string | null | undefined;
         let backendRequired = false;
@@ -560,7 +575,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           const request = requestCredentials();
           const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify({ from: watermark, limit: pageLimit, after: after ?? null, stream: catchingUp, pending, ...(store_id ? { store_id } : {}) }), signal: aborter.signal });
           if (response.status >= 500) { setLink("offline"); return false; }
-          page = (await response.json()) as Record<string, unknown>;
+          page = (await response.json()) as SyncPage;
           if (!response.ok && !page.denied) { setLink("offline"); return false; }
           page.send_revision = send_revision;
           page.requested_watermark = watermark;

@@ -126,7 +126,7 @@ mod old_store;
 fn cursor_tokens_keep_the_old_bytes_in_both_directions() {
     use snapback4_core::{cursor::*, ir::Order, schema::ColumnType};
     let schema = Schema::default();
-    let position = CursorPosition { table: "t".into(), index: "byId".into(), order: Order::Asc, suffix: vec![CursorColumn { name:"id".into(), kind:ColumnType::Id }], values:vec![Value::Id("id".into())], scope:None };
+    let position = CursorPosition { table: "t".into(), index: "byId".into(), order: Order::Asc, suffix: vec![CursorColumn { name:"id".into(), kind:ColumnType::Id }], values:vec![Value::Id("id".into())], inclusive:false, scope:None };
     for scope in [None, Some(CursorScope { generation: 3, prefix: vec![Value::Bytes(vec![0,255])] })] {
         let p = CursorPosition { scope, ..position.clone() };
         let bytes = match &p.scope {
@@ -136,6 +136,11 @@ fn cursor_tokens_keep_the_old_bytes_in_both_directions() {
         let token = base64(&bytes);
         assert_eq!(encode_cursor(&schema, &p).unwrap(), token);
         assert_eq!(decode_cursor(&schema, &token).unwrap(), p);
+        let inclusive = CursorPosition { inclusive: true, ..p };
+        let bytes = serde_json::to_vec(&(3u8, &inclusive.table, &inclusive.index, inclusive.order, &inclusive.suffix, &inclusive.values, &inclusive.scope)).unwrap();
+        let token = base64(&bytes);
+        assert_eq!(encode_cursor(&schema, &inclusive).unwrap(), token);
+        assert_eq!(decode_cursor(&schema, &token).unwrap(), inclusive);
     }
 }
 

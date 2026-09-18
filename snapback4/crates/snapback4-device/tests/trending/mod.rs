@@ -80,9 +80,8 @@ fn tied_pages<H: Host>(host: &mut H) {
     let mut pages = 0;
     loop {
         let page = device.query("trending", "bob", &json!({"c":cursor}), now).unwrap();
-        // A filled first page is covered; exhausting a horizon-bound table
-        // keeps the existing incomplete word even when this fixture fits.
-        assert_eq!(page.complete, pages == 0, "{}: {page:?}", host.label());
+        // Acquisition selected fewer than N rows: whole proves the final page too.
+        assert!(page.complete, "{}: {page:?}", host.label());
         let rows = page.data.as_array().unwrap();
         assert!(rows.iter().all(|r| r.field("score").unwrap() == &Value::Int(0) && r.field("at").unwrap() == &Value::Int(now)));
         actual.extend(rows.iter().map(|r| r.field("postId").unwrap().clone()));

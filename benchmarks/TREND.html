@@ -1,0 +1,334 @@
+<title>Clique Calibration Trend</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ground:#F4F6F8; --surface:#FFFFFF; --raised:#EDF1F4;
+    --ink:#111820; --ink2:#54616E; --ink3:#8B96A1;
+    --rule:#DDE3E9; --rule2:#C9D2DA;
+    --falling:#B03A2E; --rising:#06699B; --flatc:#7A8794;
+    --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+    --ground:#0E1317; --surface:#161C22; --raised:#1D242B;
+    --ink:#E8EDF2; --ink2:#9AA7B4; --ink3:#69757F;
+    --rule:#242C34; --rule2:#333D46;
+    --falling:#DE6A53; --rising:#3B9FCE; --flatc:#7E8B97;
+  }}
+  :root[data-theme="dark"]{
+    --ground:#0E1317; --surface:#161C22; --raised:#1D242B;
+    --ink:#E8EDF2; --ink2:#9AA7B4; --ink3:#69757F;
+    --rule:#242C34; --rule2:#333D46;
+    --falling:#DE6A53; --rising:#3B9FCE; --flatc:#7E8B97;
+  }
+  body{background:var(--ground);color:var(--ink);font-family:var(--sans);line-height:1.5;
+       padding-inline:20px;padding-block:0;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:860px;margin-inline:auto;padding-block:40px 64px;display:flex;flex-direction:column;gap:40px}
+  h1{font-size:1.05rem;font-weight:600;margin:0;letter-spacing:.14em;text-transform:uppercase;color:var(--ink2)}
+  .sub{margin:6px 0 0;color:var(--ink3);font-size:.82rem;font-family:var(--mono)}
+
+  .verdict{display:flex;flex-direction:column;gap:18px}
+  .big{font-size:clamp(2.1rem,7vw,3.1rem);font-weight:600;line-height:1.05;margin:0;text-wrap:balance;
+       letter-spacing:-.02em}
+  .big em{font-style:normal;font-family:var(--mono);font-weight:500}
+  .big.falling em{color:var(--falling)} .big.rising em{color:var(--rising)} .big.flat em{color:var(--flatc)}
+  .lede{margin:0;max-width:62ch;color:var(--ink2)}
+
+  figure{margin:0;background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:18px 14px 8px}
+  #hero{width:100%;height:auto;display:block}
+  #hero .grid{stroke:var(--rule);stroke-width:1}
+  #hero .raw{stroke:var(--ink3);stroke-width:1.5;stroke-linejoin:round}
+  #hero .pt{fill:var(--ink3)} #hero .pt:last-of-type{fill:var(--ink)}
+  #hero .fit{stroke-width:2.5;stroke-linecap:round;stroke:var(--flatc)}
+  figure.falling #hero .fit{stroke:var(--falling)}
+  figure.rising #hero .fit{stroke:var(--rising)}
+  figure.fragile #hero .fit{stroke:var(--flatc);stroke-dasharray:6 4}
+  .tick,.vlabel,.fitlabel{font-family:var(--mono);font-size:10px;fill:var(--ink3)}
+  .fitlabel{font-size:11px;fill:var(--flatc)}
+  figure.falling .fitlabel{fill:var(--falling)}
+  figure.rising .fitlabel{fill:var(--rising)}
+  .hit{fill:transparent;cursor:crosshair}
+  figcaption{font-family:var(--mono);font-size:.72rem;color:var(--ink3);padding:8px 4px 4px;
+             display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}
+  .key{display:inline-block;width:14px;height:2px;vertical-align:middle;margin-right:5px;background:var(--ink3)}
+  .key.fit{height:2.5px;background:var(--flatc)}
+  figure.falling .key.fit{background:var(--falling)}
+  figure.rising .key.fit{background:var(--rising)}
+  #tip{position:fixed;pointer-events:none;opacity:0;transition:opacity .1s;background:var(--ink);
+       color:var(--ground);font-family:var(--mono);font-size:.72rem;padding:6px 9px;border-radius:3px;z-index:9}
+
+  h2{font-size:.78rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);
+     margin:0 0 14px;padding-bottom:8px;border-bottom:1px solid var(--rule)}
+  .grid-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1px;
+              background:var(--rule);border:1px solid var(--rule);border-radius:4px;overflow:hidden}
+  .card{background:var(--surface);padding:14px 14px 12px;display:flex;flex-direction:column;gap:8px;
+        border-left:3px solid transparent}
+  .card.falling{border-left-color:var(--falling)}
+  .card.rising{border-left-color:var(--rising)}
+  .card.fragile{border-left-color:var(--flatc);border-left-style:dashed}
+  .card.fragile .drift,.card.fragile .badge{color:var(--flatc)}
+  .card.fragile .spark .fit{stroke:var(--flatc);stroke-dasharray:4 3}
+  .fragile-note{margin:10px 4px 2px;font-size:.76rem;color:var(--ink2);max-width:60ch;
+                border-top:1px solid var(--rule);padding-top:10px}
+  .big.fragile em{color:var(--flatc)}
+  .card header{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .card h3{font-size:.87rem;font-weight:500;margin:0}
+  .drift{font-family:var(--mono);font-size:.87rem;font-variant-numeric:tabular-nums;color:var(--ink3)}
+  .card.falling .drift{color:var(--falling)} .card.rising .drift{color:var(--rising)}
+  .spark{width:100%;height:40px;display:block}
+  .spark .raw{stroke:var(--ink3);stroke-width:1.25;stroke-linejoin:round}
+  .spark .fit{stroke:var(--flatc);stroke-width:2;stroke-linecap:round}
+  .card.falling .spark .fit{stroke:var(--falling)} .card.rising .spark .fit{stroke:var(--rising)}
+  .spark .end{fill:var(--ink2)}
+  .range{margin:0;display:flex;justify-content:space-between;align-items:center;gap:8px;
+         font-family:var(--mono);font-size:.76rem;color:var(--ink2);font-variant-numeric:tabular-nums}
+  .badge{font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3)}
+  .card.falling .badge{color:var(--falling)} .card.rising .badge{color:var(--rising)}
+  .series{margin:0;font-family:var(--mono);font-size:.68rem;color:var(--ink3);
+          font-variant-numeric:tabular-nums;letter-spacing:.02em}
+
+  .callout{background:var(--raised);border:1px solid var(--rule);border-left:3px solid var(--falling);
+           border-radius:4px;padding:16px 18px}
+  .callout p{margin:0;max-width:62ch}
+  .callout p + p{margin-top:10px}
+  .callout strong{font-weight:600}
+  .callout .q{font-family:var(--mono);font-size:.82rem;color:var(--ink2)}
+
+  details{background:var(--surface);border:1px solid var(--rule);border-radius:4px}
+  summary{cursor:pointer;padding:12px 16px;font-size:.82rem;color:var(--ink2);font-weight:500}
+  summary:focus-visible{outline:2px solid var(--rising);outline-offset:-2px}
+  .tablewrap{overflow-x:auto;padding:0 16px 16px}
+  table{border-collapse:collapse;font-family:var(--mono);font-size:.72rem;width:100%;
+        font-variant-numeric:tabular-nums}
+  th,td{padding:4px 7px;text-align:right;border-bottom:1px solid var(--rule);white-space:nowrap}
+  th[scope=row]{text-align:left;font-weight:400;color:var(--ink2)}
+  thead th{color:var(--ink3);font-weight:500;border-bottom:1px solid var(--rule2)}
+  tr.falling th[scope=row]{color:var(--falling)} tr.rising th[scope=row]{color:var(--rising)}
+  td.n{color:var(--ink)}
+
+  footer{color:var(--ink3);font-size:.78rem;display:flex;flex-direction:column;gap:8px}
+  footer code{font-family:var(--mono);font-size:.92em;background:var(--raised);padding:2px 5px;border-radius:3px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Clique calibration trend</h1>
+    <p class="sub">12 Astra-medium runs · 0.2.9 → 0.2.28 · generated 2026-09-18</p>
+  </header>
+
+  <section class="verdict">
+    <p class="big flat">No category survives every way of cutting the series.</p>
+    <p class="lede">A verdict counts here only if its drift beats its own noise, it holds when <strong>any single run</strong> is dropped, and it does not change when the series is started <strong>at any later run</strong>. 5 categories fail one of those tests and are not counted. Overall fits at +0.1 a run, 88.0 → 89.0.</p>
+    <figure class="flat">
+      <svg id="hero" viewBox="0 0 720 260" role="img" aria-label="Overall score across 12 runs: 85, 86, 90, 91, 88, 91, 88, 88, 91, 90, 89, 85">
+      <line class="grid" x1="48" y1="206.5" x2="700" y2="206.5" />
+      <text class="tick" x="40" y="210.5" text-anchor="end">85</text><line class="grid" x1="48" y1="130" x2="700" y2="130" />
+      <text class="tick" x="40" y="134" text-anchor="end">88</text><line class="grid" x1="48" y1="53.5" x2="700" y2="53.5" />
+      <text class="tick" x="40" y="57.5" text-anchor="end">91</text>
+      <line class="fit" x1="48" y1="129.01923076923092" x2="700" y2="105.48076923076945" />
+      <polyline class="raw" points="48,206.5 107.27272727272728,181 166.54545454545456,79 225.8181818181818,53.5 285.0909090909091,130 344.3636363636364,53.5 403.6363636363636,130 462.9090909090909,130 522.1818181818182,53.5 581.4545454545455,79 640.7272727272727,104.5 700,206.5" fill="none" />
+      <circle class="pt" cx="48" cy="206.5" r="3.5" data-i="0" /><circle class="pt" cx="107.27272727272728" cy="181" r="3.5" data-i="1" /><circle class="pt" cx="166.54545454545456" cy="79" r="3.5" data-i="2" /><circle class="pt" cx="225.8181818181818" cy="53.5" r="3.5" data-i="3" /><circle class="pt" cx="285.0909090909091" cy="130" r="3.5" data-i="4" /><circle class="pt" cx="344.3636363636364" cy="53.5" r="3.5" data-i="5" /><circle class="pt" cx="403.6363636363636" cy="130" r="3.5" data-i="6" /><circle class="pt" cx="462.9090909090909" cy="130" r="3.5" data-i="7" /><circle class="pt" cx="522.1818181818182" cy="53.5" r="3.5" data-i="8" /><circle class="pt" cx="581.4545454545455" cy="79" r="3.5" data-i="9" /><circle class="pt" cx="640.7272727272727" cy="104.5" r="3.5" data-i="10" /><circle class="pt" cx="700" cy="206.5" r="5" data-i="11" /><text class="vlabel" x="48" y="254" text-anchor="middle">0.2.9</text><text class="vlabel" x="225.8181818181818" y="254" text-anchor="middle">0.2.19</text><text class="vlabel" x="403.6363636363636" y="254" text-anchor="middle">0.2.23</text><text class="vlabel" x="581.4545454545455" y="254" text-anchor="middle">0.2.26</text><text class="vlabel" x="700" y="254" text-anchor="middle">0.2.28</text>
+      <text class="fitlabel" x="700" y="122.48076923076945" text-anchor="end">fitted 89.0</text>
+      <rect class="hit" x="30" y="18" width="36" height="224" data-i="0" data-v="0.2.9" data-s="85" data-d="2026-09-14" /><rect class="hit" x="89.27272727272728" y="18" width="36" height="224" data-i="1" data-v="0.2.12" data-s="86" data-d="2026-09-14" /><rect class="hit" x="148.54545454545456" y="18" width="36" height="224" data-i="2" data-v="0.2.16" data-s="90" data-d="2026-09-15" /><rect class="hit" x="207.8181818181818" y="18" width="36" height="224" data-i="3" data-v="0.2.19" data-s="91" data-d="2026-09-15" /><rect class="hit" x="267.0909090909091" y="18" width="36" height="224" data-i="4" data-v="0.2.21" data-s="88" data-d="2026-09-15" /><rect class="hit" x="326.3636363636364" y="18" width="36" height="224" data-i="5" data-v="0.2.22" data-s="91" data-d="2026-09-15" /><rect class="hit" x="385.6363636363636" y="18" width="36" height="224" data-i="6" data-v="0.2.23" data-s="88" data-d="2026-09-16" /><rect class="hit" x="444.9090909090909" y="18" width="36" height="224" data-i="7" data-v="0.2.24" data-s="88" data-d="2026-09-16" /><rect class="hit" x="504.18181818181824" y="18" width="36" height="224" data-i="8" data-v="0.2.25" data-s="91" data-d="2026-09-16" /><rect class="hit" x="563.4545454545455" y="18" width="36" height="224" data-i="9" data-v="0.2.26" data-s="90" data-d="2026-09-16" /><rect class="hit" x="622.7272727272727" y="18" width="36" height="224" data-i="10" data-v="0.2.27" data-s="89" data-d="2026-09-17" /><rect class="hit" x="682" y="18" width="36" height="224" data-i="11" data-v="0.2.28" data-s="85" data-d="2026-09-17" />
+    </svg>
+      <figcaption><span><span class="key raw"></span>overall score, per run &nbsp; <span class="key fit"></span>fitted trend</span><span>drift +0.9 · sd 2.14 · mean 88.5</span></figcaption>
+      <p class="fragile-note">A straight line is the wrong shape for this series. It steps up at <strong>0.2.16</strong> and drifts after, so the fit reads +0.9 from 0.2.9, −0.8 from 0.2.12, −2.7 from 0.2.16 — the window decides the answer. Only a verdict that holds from every start is counted below.</p>
+    </figure>
+  </section>
+
+  <section class="callout">
+    <p class="q">“The error was comparing neighbours instead of fitting the series.”</p>
+    <p>Found on 2026-09-17, by hand, in the prose of one run record. <strong>setup_and_docs</strong> went 85 → 89 → 92 across three runs and was reported repeatedly as the programme’s success. Fitted across all 12 runs it is 86 → 91 — a local recovery inside a falling line. This page exists so that fit is never done by hand again.</p>
+  </section>
+
+  <section>
+    <h2>Every category, sorted by drift — 0 survive every cut</h2>
+    <div class="grid-cards"><article class="card flat">
+        <header>
+          <h3>scale and limits</h3>
+          <span class="drift">−10.4</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="82, 86, 88, 91, 85, 84, 79, 80, 87, 83, 85, 65">
+      <polyline class="raw" points="5,15.384615384615385 17.727272727272727,10.769230769230768 30.454545454545457,8.461538461538463 43.18181818181818,5 55.909090909090914,11.923076923076922 68.63636363636363,13.076923076923078 81.36363636363636,18.846153846153847 94.0909090909091,17.692307692307693 106.81818181818183,9.615384615384617 119.54545454545455,14.230769230769232 132.27272727272725,11.923076923076922 145,35" fill="none" />
+      <polyline class="fit" points="5,8.313609467455608 145,20.340236686390515" fill="none" />
+      <circle class="end" cx="145" cy="35" r="3" />
+    </svg>
+        <p class="range"><span>88 → 78</span><span class="badge">flat</span></p>
+        <p class="series">82 86 88 91 85 84 79 80 87 83 85 65</p>
+      </article><article class="card fragile">
+        <header>
+          <h3>data modeling</h3>
+          <span class="drift">−4.7</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="88, 89, 85, 88, 88, 89, 85, 88, 88, 84, 84, 82">
+      <polyline class="raw" points="5,9.285714285714288 17.727272727272727,5 30.454545454545457,22.142857142857142 43.18181818181818,9.285714285714288 55.909090909090914,9.285714285714288 68.63636363636363,5 81.36363636363636,22.142857142857142 94.0909090909091,9.285714285714288 106.81818181818183,9.285714285714288 119.54545454545455,26.42857142857143 132.27272727272725,26.42857142857143 145,35" fill="none" />
+      <polyline class="fit" points="5,5.659340659340687 145,25.769230769230802" fill="none" />
+      <circle class="end" cx="145" cy="35" r="3" />
+    </svg>
+        <p class="range"><span>89 → 84</span><span class="badge">rests on 0.2.28</span></p>
+        <p class="series">88 89 85 88 88 89 85 88 88 84 84 82</p>
+      </article><article class="card flat">
+        <header>
+          <h3>operations</h3>
+          <span class="drift">−2.5</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="87, 87, 88, 89, 88, 89, 83, 86, 88, 88, 84, 85">
+      <polyline class="raw" points="5,15.000000000000002 17.727272727272727,15.000000000000002 30.454545454545457,10 43.18181818181818,5 55.909090909090914,10 68.63636363636363,5 81.36363636363636,35 94.0909090909091,20 106.81818181818183,10 119.54545454545455,10 132.27272727272725,30 145,25.000000000000004" fill="none" />
+      <polyline class="fit" points="5,9.487179487179489 145,22.17948717948715" fill="none" />
+      <circle class="end" cx="145" cy="25.000000000000004" r="3" />
+    </svg>
+        <p class="range"><span>88 → 86</span><span class="badge">flat</span></p>
+        <p class="series">87 87 88 89 88 89 83 86 88 88 84 85</p>
+      </article><article class="card fragile">
+        <header>
+          <h3>client integration</h3>
+          <span class="drift">−2.0</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="90, 91, 88, 90, 89, 90, 87, 88, 89, 88, 89, 88">
+      <polyline class="raw" points="5,12.5 17.727272727272727,5 30.454545454545457,27.5 43.18181818181818,12.5 55.909090909090914,20 68.63636363636363,12.5 81.36363636363636,35 94.0909090909091,27.5 106.81818181818183,20 119.54545454545455,27.5 132.27272727272725,20 145,27.5" fill="none" />
+      <polyline class="fit" points="5,13.269230769230766 145,27.98076923076927" fill="none" />
+      <circle class="end" cx="145" cy="27.5" r="3" />
+    </svg>
+        <p class="range"><span>90 → 88</span><span class="badge">rests on 0.2.9/0.2.12/0.2.19/0.2.21/0.2.22/0.2.26/0.2.28</span></p>
+        <p class="series">90 91 88 90 89 90 87 88 89 88 89 88</p>
+      </article><article class="card flat">
+        <header>
+          <h3>media assets</h3>
+          <span class="drift">−0.9</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="96, 97, 97, 98, 97, 97, 96, 96, 98, 97, 96, 95">
+      <polyline class="raw" points="5,25.000000000000004 17.727272727272727,15.000000000000002 30.454545454545457,15.000000000000002 43.18181818181818,5 55.909090909090914,15.000000000000002 68.63636363636363,15.000000000000002 81.36363636363636,25.000000000000004 94.0909090909091,25.000000000000004 106.81818181818183,5 119.54545454545455,15.000000000000002 132.27272727272725,25.000000000000004 145,35" fill="none" />
+      <polyline class="fit" points="5,13.717948717948618 145,22.94871794871781" fill="none" />
+      <circle class="end" cx="145" cy="35" r="3" />
+    </svg>
+        <p class="range"><span>97 → 96</span><span class="badge">flat</span></p>
+        <p class="series">96 97 97 98 97 97 96 96 98 97 96 95</p>
+      </article><article class="card flat">
+        <header>
+          <h3>background work</h3>
+          <span class="drift">−0.3</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="93, 88, 91, 93, 95, 94, 92, 92, 96, 95, 86, 91">
+      <polyline class="raw" points="5,14.000000000000002 17.727272727272727,29 30.454545454545457,20 43.18181818181818,14.000000000000002 55.909090909090914,7.999999999999999 68.63636363636363,10.999999999999998 81.36363636363636,17 94.0909090909091,17 106.81818181818183,5 119.54545454545455,7.999999999999999 132.27272727272725,35 145,20" fill="none" />
+      <polyline class="fit" points="5,16.038461538461505 145,16.961538461538424" fill="none" />
+      <circle class="end" cx="145" cy="20" r="3" />
+    </svg>
+        <p class="range"><span>92 → 92</span><span class="badge">flat</span></p>
+        <p class="series">93 88 91 93 95 94 92 92 96 95 86 91</p>
+      </article><article class="card flat">
+        <header>
+          <h3>queries and live</h3>
+          <span class="drift">−0.0</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="74, 80, 91, 89, 84, 91, 82, 78, 86, 82, 83, 81">
+      <polyline class="raw" points="5,35 17.727272727272727,24.41176470588235 30.454545454545457,5 43.18181818181818,8.529411764705884 55.909090909090914,17.352941176470587 68.63636363636363,5 81.36363636363636,20.88235294117647 94.0909090909091,27.941176470588232 106.81818181818183,13.823529411764705 119.54545454545455,20.88235294117647 132.27272727272725,19.11764705882353 145,22.647058823529413" fill="none" />
+      <polyline class="fit" points="5,18.34841628959274 145,18.416289592760158" fill="none" />
+      <circle class="end" cx="145" cy="22.647058823529413" r="3" />
+    </svg>
+        <p class="range"><span>83 → 83</span><span class="badge">flat</span></p>
+        <p class="series">74 80 91 89 84 91 82 78 86 82 83 81</p>
+      </article><article class="card flat">
+        <header>
+          <h3>writes and transactions</h3>
+          <span class="drift">+0.2</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="94, 94, 96, 95, 92, 94, 91, 95, 95, 96, 94, 94">
+      <polyline class="raw" points="5,17 17.727272727272727,17 30.454545454545457,5 43.18181818181818,10.999999999999998 55.909090909090914,29 68.63636363636363,17 81.36363636363636,35 94.0909090909091,10.999999999999998 106.81818181818183,10.999999999999998 119.54545454545455,5 132.27272727272725,17 145,17" fill="none" />
+      <polyline class="fit" points="5,16.69230769230765 145,15.30769230769229" fill="none" />
+      <circle class="end" cx="145" cy="17" r="3" />
+    </svg>
+        <p class="range"><span>94 → 94</span><span class="badge">flat</span></p>
+        <p class="series">94 94 96 95 92 94 91 95 95 96 94 94</p>
+      </article><article class="card fragile">
+        <header>
+          <h3>authorization</h3>
+          <span class="drift">+4.7</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="91, 94, 88, 97, 91, 96, 95, 95, 96, 97, 95, 95">
+      <polyline class="raw" points="5,25.000000000000004 17.727272727272727,15.000000000000002 30.454545454545457,35 43.18181818181818,5 55.909090909090914,25.000000000000004 68.63636363636363,8.333333333333336 81.36363636363636,11.666666666666666 94.0909090909091,11.666666666666666 106.81818181818183,8.333333333333336 119.54545454545455,5 132.27272727272725,11.666666666666666 145,11.666666666666666" fill="none" />
+      <polyline class="fit" points="5,22.264957264957225 145,6.6239316239315835" fill="none" />
+      <circle class="end" cx="145" cy="11.666666666666666" r="3" />
+    </svg>
+        <p class="range"><span>92 → 97</span><span class="badge">rests on 0.2.9/0.2.16/0.2.21/0.2.25/0.2.26</span></p>
+        <p class="series">91 94 88 97 91 96 95 95 96 97 95 95</p>
+      </article><article class="card flat">
+        <header>
+          <h3>setup and docs</h3>
+          <span class="drift">+5.6</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="78, 79, 96, 92, 90, 90, 92, 90, 85, 89, 92, 88">
+      <polyline class="raw" points="5,35 17.727272727272727,33.33333333333333 30.454545454545457,5 43.18181818181818,11.666666666666666 55.909090909090914,15.000000000000002 68.63636363636363,15.000000000000002 81.36363636363636,11.666666666666666 94.0909090909091,15.000000000000002 106.81818181818183,23.333333333333336 119.54545454545455,16.666666666666664 132.27272727272725,11.666666666666666 145,18.333333333333332" fill="none" />
+      <polyline class="fit" points="5,22.28632478632477 145,12.991452991452967" fill="none" />
+      <circle class="end" cx="145" cy="18.333333333333332" r="3" />
+    </svg>
+        <p class="range"><span>86 → 91</span><span class="badge">flat</span></p>
+        <p class="series">78 79 96 92 90 90 92 90 85 89 92 88</p>
+      </article><article class="card fragile">
+        <header>
+          <h3>offline sync</h3>
+          <span class="drift">+6.2</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="82, 90, 93, 92, 90, 94, 91, 93, 95, 92, 93, 93">
+      <polyline class="raw" points="5,35 17.727272727272727,16.538461538461537 30.454545454545457,9.615384615384617 43.18181818181818,11.923076923076922 55.909090909090914,16.538461538461537 68.63636363636363,7.307692307692307 81.36363636363636,14.230769230769232 94.0909090909091,9.615384615384617 106.81818181818183,5 119.54545454545455,11.923076923076922 132.27272727272725,9.615384615384617 145,9.615384615384617" fill="none" />
+      <polyline class="fit" points="5,20.26627218934911 145,5.8875739644970455" fill="none" />
+      <circle class="end" cx="145" cy="9.615384615384617" r="3" />
+    </svg>
+        <p class="range"><span>88 → 95</span><span class="badge">rests on 0.2.9</span></p>
+        <p class="series">82 90 93 92 90 94 91 93 95 92 93 93</p>
+      </article><article class="card fragile">
+        <header>
+          <h3>diagnostics dev loop</h3>
+          <span class="drift">+8.7</span>
+        </header>
+        <svg class="spark" viewBox="0 0 150 40" role="img" aria-label="88, 78, 94, 95, 93, 90, 92, 94, 94, 95, 95, 94">
+      <polyline class="raw" points="5,17.352941176470587 17.727272727272727,35 30.454545454545457,6.764705882352942 43.18181818181818,5 55.909090909090914,8.529411764705884 68.63636363636363,13.823529411764705 81.36363636363636,10.294117647058824 94.0909090909091,6.764705882352942 106.81818181818183,6.764705882352942 119.54545454545455,5 132.27272727272725,5 145,6.764705882352942" fill="none" />
+      <polyline class="fit" points="5,18.257918552036195 145,2.918552036199089" fill="none" />
+      <circle class="end" cx="145" cy="6.764705882352942" r="3" />
+    </svg>
+        <p class="range"><span>87 → 96</span><span class="badge">rests on 0.2.9/0.2.12</span></p>
+        <p class="series">88 78 94 95 93 90 92 94 94 95 95 94</p>
+      </article></div>
+  </section>
+
+  <details>
+    <summary>All scores, as a table</summary>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th scope="col">category</th><th scope="col">0.2.9</th><th scope="col">0.2.12</th><th scope="col">0.2.16</th><th scope="col">0.2.19</th><th scope="col">0.2.21</th><th scope="col">0.2.22</th><th scope="col">0.2.23</th><th scope="col">0.2.24</th><th scope="col">0.2.25</th><th scope="col">0.2.26</th><th scope="col">0.2.27</th><th scope="col">0.2.28</th><th scope="col">/run</th><th scope="col">drift</th><th scope="col">sd</th><th scope="col">fit</th></tr></thead>
+        <tbody><tr class="flat"><th scope="row">scale and limits</th><td>82</td><td>86</td><td>88</td><td>91</td><td>85</td><td>84</td><td>79</td><td>80</td><td>87</td><td>83</td><td>85</td><td>65</td><td class="n">−0.9</td><td class="n">−10.4</td><td class="n">6.28</td><td>flat</td></tr><tr class="fragile"><th scope="row">data modeling</th><td>88</td><td>89</td><td>85</td><td>88</td><td>88</td><td>89</td><td>85</td><td>88</td><td>88</td><td>84</td><td>84</td><td>82</td><td class="n">−0.4</td><td class="n">−4.7</td><td class="n">2.25</td><td>fragile</td></tr><tr class="flat"><th scope="row">operations</th><td>87</td><td>87</td><td>88</td><td>89</td><td>88</td><td>89</td><td>83</td><td>86</td><td>88</td><td>88</td><td>84</td><td>85</td><td class="n">−0.2</td><td class="n">−2.5</td><td class="n">1.86</td><td>flat</td></tr><tr class="fragile"><th scope="row">client integration</th><td>90</td><td>91</td><td>88</td><td>90</td><td>89</td><td>90</td><td>87</td><td>88</td><td>89</td><td>88</td><td>89</td><td>88</td><td class="n">−0.2</td><td class="n">−2.0</td><td class="n">1.11</td><td>fragile</td></tr><tr class="flat"><th scope="row">media assets</th><td>96</td><td>97</td><td>97</td><td>98</td><td>97</td><td>97</td><td>96</td><td>96</td><td>98</td><td>97</td><td>96</td><td>95</td><td class="n">−0.1</td><td class="n">−0.9</td><td class="n">0.85</td><td>flat</td></tr><tr class="flat"><th scope="row">background work</th><td>93</td><td>88</td><td>91</td><td>93</td><td>95</td><td>94</td><td>92</td><td>92</td><td>96</td><td>95</td><td>86</td><td>91</td><td class="n">−0.0</td><td class="n">−0.3</td><td class="n">2.79</td><td>flat</td></tr><tr class="flat"><th scope="row">queries and live</th><td>74</td><td>80</td><td>91</td><td>89</td><td>84</td><td>91</td><td>82</td><td>78</td><td>86</td><td>82</td><td>83</td><td>81</td><td class="n">−0.0</td><td class="n">−0.0</td><td class="n">4.94</td><td>flat</td></tr><tr class="flat"><th scope="row">writes and transactions</th><td>94</td><td>94</td><td>96</td><td>95</td><td>92</td><td>94</td><td>91</td><td>95</td><td>95</td><td>96</td><td>94</td><td>94</td><td class="n">+0.0</td><td class="n">+0.2</td><td class="n">1.40</td><td>flat</td></tr><tr class="fragile"><th scope="row">authorization</th><td>91</td><td>94</td><td>88</td><td>97</td><td>91</td><td>96</td><td>95</td><td>95</td><td>96</td><td>97</td><td>95</td><td>95</td><td class="n">+0.4</td><td class="n">+4.7</td><td class="n">2.64</td><td>fragile</td></tr><tr class="flat"><th scope="row">setup and docs</th><td>78</td><td>79</td><td>96</td><td>92</td><td>90</td><td>90</td><td>92</td><td>90</td><td>85</td><td>89</td><td>92</td><td>88</td><td class="n">+0.5</td><td class="n">+5.6</td><td class="n">5.11</td><td>flat</td></tr><tr class="fragile"><th scope="row">offline sync</th><td>82</td><td>90</td><td>93</td><td>92</td><td>90</td><td>94</td><td>91</td><td>93</td><td>95</td><td>92</td><td>93</td><td>93</td><td class="n">+0.6</td><td class="n">+6.2</td><td class="n">3.20</td><td>fragile</td></tr><tr class="fragile"><th scope="row">diagnostics dev loop</th><td>88</td><td>78</td><td>94</td><td>95</td><td>93</td><td>90</td><td>92</td><td>94</td><td>94</td><td>95</td><td>95</td><td>94</td><td class="n">+0.8</td><td class="n">+8.7</td><td class="n">4.65</td><td>fragile</td></tr><tr class="flat"><th scope="row">overall</th><td>85</td><td>86</td><td>90</td><td>91</td><td>88</td><td>91</td><td>88</td><td>88</td><td>91</td><td>90</td><td>89</td><td>85</td><td class="n">+0.1</td><td class="n">+0.9</td><td class="n">2.14</td><td>flat</td></tr></tbody>
+      </table>
+    </div>
+  </details>
+
+  <footer>
+    <p>A category is called <strong>falling</strong> or <strong>rising</strong> only when two things hold: its drift across the series exceeds one standard deviation of that series — the bar the original correction set — <em>and</em> the verdict survives leaving any single run out. A verdict that flips when one run is removed is marked <strong>rests on one run</strong> and is not counted. Everything else reads flat. Nothing here says <em>why</em>; it says where to look.</p>
+    <p>N = 1 per version. Calibration runs, read for shape — not a ranking, and not a magnitude claim about any backend.</p>
+    <p>Regenerate with <code>node benchmarks/scripts/score-trend.mjs</code> after every calibration.</p>
+  </footer>
+</div>
+<div id="tip" role="status"></div>
+
+<script>
+(function () {
+  var runs = [{"v":"0.2.9","d":"2026-09-14","s":85},{"v":"0.2.12","d":"2026-09-14","s":86},{"v":"0.2.16","d":"2026-09-15","s":90},{"v":"0.2.19","d":"2026-09-15","s":91},{"v":"0.2.21","d":"2026-09-15","s":88},{"v":"0.2.22","d":"2026-09-15","s":91},{"v":"0.2.23","d":"2026-09-16","s":88},{"v":"0.2.24","d":"2026-09-16","s":88},{"v":"0.2.25","d":"2026-09-16","s":91},{"v":"0.2.26","d":"2026-09-16","s":90},{"v":"0.2.27","d":"2026-09-17","s":89},{"v":"0.2.28","d":"2026-09-17","s":85}];
+  var hero = document.getElementById("hero"), tip = document.getElementById("tip");
+  if (!hero || !tip) return;
+  function show(e, i) {
+    var r = runs[i];
+    tip.textContent = r.v + "  ·  " + r.s + "  ·  " + r.d;
+    tip.style.opacity = "1";
+    var pad = 14;
+    var x = Math.min(e.clientX + pad, window.innerWidth - tip.offsetWidth - 8);
+    tip.style.left = Math.max(8, x) + "px";
+    tip.style.top = Math.max(8, e.clientY - tip.offsetHeight - pad) + "px";
+  }
+  hero.querySelectorAll(".hit").forEach(function (h) {
+    var i = +h.dataset.i;
+    h.addEventListener("mousemove", function (e) { show(e, i); });
+    h.addEventListener("mouseenter", function (e) { show(e, i); });
+  });
+  hero.addEventListener("mouseleave", function () { tip.style.opacity = "0"; });
+})();
+</script>

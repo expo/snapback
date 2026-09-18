@@ -1,0 +1,1335 @@
+{
+  "multiplicity": {
+    "tested": 13,
+    "threshold": 3.5,
+    "survives": []
+  },
+  "generated": "2026-09-18",
+  "generator": "benchmarks/scripts/score-trend.mjs",
+  "note": "Fitted across the whole series. A single run against its neighbour is noise; see the 2026-09-17 trend correction.",
+  "runs": [
+    {
+      "run": "2026-09-14-snapback4-clique-astra-0.2.9",
+      "date": "2026-09-14",
+      "version": "0.2.9",
+      "family": "astra",
+      "scores": {
+        "overall": 85,
+        "setup_and_docs": 78,
+        "data_modeling": 88,
+        "authorization": 91,
+        "queries_and_live": 74,
+        "writes_and_transactions": 94,
+        "offline_sync": 82,
+        "media_assets": 96,
+        "background_work": 93,
+        "client_integration": 90,
+        "diagnostics_dev_loop": 88,
+        "scale_and_limits": 82,
+        "operations": 87
+      }
+    },
+    {
+      "run": "2026-09-14-snapback4-clique-astra-0.2.12",
+      "date": "2026-09-14",
+      "version": "0.2.12",
+      "family": "astra",
+      "scores": {
+        "overall": 86,
+        "setup_and_docs": 79,
+        "data_modeling": 89,
+        "authorization": 94,
+        "queries_and_live": 80,
+        "writes_and_transactions": 94,
+        "offline_sync": 90,
+        "media_assets": 97,
+        "background_work": 88,
+        "client_integration": 91,
+        "diagnostics_dev_loop": 78,
+        "scale_and_limits": 86,
+        "operations": 87
+      }
+    },
+    {
+      "run": "2026-09-15-snapback4-clique-astra-0.2.16",
+      "date": "2026-09-15",
+      "version": "0.2.16",
+      "family": "astra",
+      "scores": {
+        "overall": 90,
+        "setup_and_docs": 96,
+        "data_modeling": 85,
+        "authorization": 88,
+        "queries_and_live": 91,
+        "writes_and_transactions": 96,
+        "offline_sync": 93,
+        "media_assets": 97,
+        "background_work": 91,
+        "client_integration": 88,
+        "diagnostics_dev_loop": 94,
+        "scale_and_limits": 88,
+        "operations": 88
+      }
+    },
+    {
+      "run": "2026-09-15-snapback4-clique-astra-0.2.19",
+      "date": "2026-09-15",
+      "version": "0.2.19",
+      "family": "astra",
+      "scores": {
+        "overall": 91,
+        "setup_and_docs": 92,
+        "data_modeling": 88,
+        "authorization": 97,
+        "queries_and_live": 89,
+        "writes_and_transactions": 95,
+        "offline_sync": 92,
+        "media_assets": 98,
+        "background_work": 93,
+        "client_integration": 90,
+        "diagnostics_dev_loop": 95,
+        "scale_and_limits": 91,
+        "operations": 89
+      }
+    },
+    {
+      "run": "2026-09-15-snapback4-clique-astra-0.2.21",
+      "date": "2026-09-15",
+      "version": "0.2.21",
+      "family": "astra",
+      "scores": {
+        "overall": 88,
+        "setup_and_docs": 90,
+        "data_modeling": 88,
+        "authorization": 91,
+        "queries_and_live": 84,
+        "writes_and_transactions": 92,
+        "offline_sync": 90,
+        "media_assets": 97,
+        "background_work": 95,
+        "client_integration": 89,
+        "diagnostics_dev_loop": 93,
+        "scale_and_limits": 85,
+        "operations": 88
+      }
+    },
+    {
+      "run": "2026-09-15-snapback4-clique-astra-0.2.22",
+      "date": "2026-09-15",
+      "version": "0.2.22",
+      "family": "astra",
+      "scores": {
+        "overall": 91,
+        "setup_and_docs": 90,
+        "data_modeling": 89,
+        "authorization": 96,
+        "queries_and_live": 91,
+        "writes_and_transactions": 94,
+        "offline_sync": 94,
+        "media_assets": 97,
+        "background_work": 94,
+        "client_integration": 90,
+        "diagnostics_dev_loop": 90,
+        "scale_and_limits": 84,
+        "operations": 89
+      }
+    },
+    {
+      "run": "2026-09-16-snapback4-clique-astra-0.2.23",
+      "date": "2026-09-16",
+      "version": "0.2.23",
+      "family": "astra",
+      "scores": {
+        "overall": 88,
+        "setup_and_docs": 92,
+        "data_modeling": 85,
+        "authorization": 95,
+        "queries_and_live": 82,
+        "writes_and_transactions": 91,
+        "offline_sync": 91,
+        "media_assets": 96,
+        "background_work": 92,
+        "client_integration": 87,
+        "diagnostics_dev_loop": 92,
+        "scale_and_limits": 79,
+        "operations": 83
+      }
+    },
+    {
+      "run": "2026-09-16-snapback4-clique-astra-0.2.24",
+      "date": "2026-09-16",
+      "version": "0.2.24",
+      "family": "astra",
+      "scores": {
+        "overall": 88,
+        "setup_and_docs": 90,
+        "data_modeling": 88,
+        "authorization": 95,
+        "queries_and_live": 78,
+        "writes_and_transactions": 95,
+        "offline_sync": 93,
+        "media_assets": 96,
+        "background_work": 92,
+        "client_integration": 88,
+        "diagnostics_dev_loop": 94,
+        "scale_and_limits": 80,
+        "operations": 86
+      }
+    },
+    {
+      "run": "2026-09-16-snapback4-clique-astra-0.2.25",
+      "date": "2026-09-16",
+      "version": "0.2.25",
+      "family": "astra",
+      "scores": {
+        "overall": 91,
+        "setup_and_docs": 85,
+        "data_modeling": 88,
+        "authorization": 96,
+        "queries_and_live": 86,
+        "writes_and_transactions": 95,
+        "offline_sync": 95,
+        "media_assets": 98,
+        "background_work": 96,
+        "client_integration": 89,
+        "diagnostics_dev_loop": 94,
+        "scale_and_limits": 87,
+        "operations": 88
+      }
+    },
+    {
+      "run": "2026-09-16-snapback4-clique-astra-0.2.26",
+      "date": "2026-09-16",
+      "version": "0.2.26",
+      "family": "astra",
+      "scores": {
+        "overall": 90,
+        "setup_and_docs": 89,
+        "data_modeling": 84,
+        "authorization": 97,
+        "queries_and_live": 82,
+        "writes_and_transactions": 96,
+        "offline_sync": 92,
+        "media_assets": 97,
+        "background_work": 95,
+        "client_integration": 88,
+        "diagnostics_dev_loop": 95,
+        "scale_and_limits": 83,
+        "operations": 88
+      }
+    },
+    {
+      "run": "2026-09-17-snapback4-clique-astra-0.2.27",
+      "date": "2026-09-17",
+      "version": "0.2.27",
+      "family": "astra",
+      "scores": {
+        "overall": 89,
+        "setup_and_docs": 92,
+        "data_modeling": 84,
+        "authorization": 95,
+        "queries_and_live": 83,
+        "writes_and_transactions": 94,
+        "offline_sync": 93,
+        "media_assets": 96,
+        "background_work": 86,
+        "client_integration": 89,
+        "diagnostics_dev_loop": 95,
+        "scale_and_limits": 85,
+        "operations": 84
+      }
+    },
+    {
+      "run": "2026-09-17-snapback4-clique-astra-0.2.28",
+      "date": "2026-09-17",
+      "version": "0.2.28",
+      "family": "astra",
+      "scores": {
+        "overall": 85,
+        "setup_and_docs": 88,
+        "data_modeling": 82,
+        "authorization": 95,
+        "queries_and_live": 81,
+        "writes_and_transactions": 94,
+        "offline_sync": 93,
+        "media_assets": 95,
+        "background_work": 91,
+        "client_integration": 88,
+        "diagnostics_dev_loop": 94,
+        "scale_and_limits": 65,
+        "operations": 85
+      }
+    }
+  ],
+  "categories": {
+    "overall": {
+      "series": [
+        85,
+        86,
+        90,
+        91,
+        88,
+        91,
+        88,
+        88,
+        91,
+        90,
+        89,
+        85
+      ],
+      "slope": 0.08391608391608392,
+      "mean": 88.5,
+      "sd": 2.140872096444188,
+      "residualSd": 2.3236395372993415,
+      "se": 0.19431249972031475,
+      "t": 0.4318614810517553,
+      "first": 88.03846153846153,
+      "last": 88.96153846153845,
+      "drift": 0.9230769230769231,
+      "beyondNoise": false,
+      "robust": true,
+      "restsOn": [],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": 0.9230769230769231,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.12",
+          "drift": -0.8181818181818181,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.16",
+          "drift": -2.672727272727273,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.19",
+          "drift": -2.6666666666666665,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.21",
+          "drift": -1.8333333333333335,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.22",
+          "drift": -3,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.23",
+          "drift": -1.8571428571428572,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.24",
+          "drift": -3.2,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.25",
+          "drift": -5.699999999999999,
+          "verdict": "falling"
+        }
+      ],
+      "windowStable": false,
+      "windowVerdicts": [
+        "flat",
+        "falling"
+      ]
+    },
+    "setup_and_docs": {
+      "series": [
+        78,
+        79,
+        96,
+        92,
+        90,
+        90,
+        92,
+        90,
+        85,
+        89,
+        92,
+        88
+      ],
+      "slope": 0.506993006993007,
+      "mean": 88.41666666666667,
+      "sd": 5.1065045666178435,
+      "residualSd": 5.255089662980772,
+      "se": 0.43945267425385265,
+      "t": 1.1536919370301504,
+      "first": 85.62820512820514,
+      "last": 91.20512820512822,
+      "drift": 5.576923076923077,
+      "beyondNoise": false,
+      "robust": true,
+      "restsOn": [],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": 5.576923076923077,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.12",
+          "drift": 0.9090909090909092,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.16",
+          "drift": -5.127272727272727,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.19",
+          "drift": -2.533333333333333,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.21",
+          "drift": -1.5,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.22",
+          "drift": -1.5,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.23",
+          "drift": -1.4285714285714284,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.24",
+          "drift": 1.2,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.25",
+          "drift": 3.5999999999999996,
+          "verdict": "flat"
+        }
+      ],
+      "windowStable": false,
+      "windowVerdicts": [
+        "flat",
+        "falling"
+      ]
+    },
+    "data_modeling": {
+      "series": [
+        88,
+        89,
+        85,
+        88,
+        88,
+        89,
+        85,
+        88,
+        88,
+        84,
+        84,
+        82
+      ],
+      "slope": -0.42657342657342656,
+      "mean": 86.5,
+      "sd": 2.254624876411447,
+      "residualSd": 1.870267921422516,
+      "se": 0.15639966058621485,
+      "t": 2.727457495588868,
+      "first": 88.84615384615384,
+      "last": 84.15384615384615,
+      "drift": -4.6923076923076925,
+      "beyondNoise": true,
+      "robust": false,
+      "restsOn": [
+        "0.2.28"
+      ],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": -4.6923076923076925,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.12",
+          "drift": -4.7272727272727275,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.16",
+          "drift": -4.090909090909091,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.19",
+          "drift": -5.733333333333333,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.21",
+          "drift": -5.833333333333334,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.22",
+          "drift": -5.785714285714286,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.23",
+          "drift": -4.428571428571429,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.24",
+          "drift": -6.4,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.25",
+          "drift": -5.4,
+          "verdict": "falling"
+        }
+      ],
+      "windowStable": false,
+      "windowVerdicts": [
+        "falling",
+        "flat"
+      ]
+    },
+    "authorization": {
+      "series": [
+        91,
+        94,
+        88,
+        97,
+        91,
+        96,
+        95,
+        95,
+        96,
+        97,
+        95,
+        95
+      ],
+      "slope": 0.42657342657342656,
+      "mean": 94.16666666666667,
+      "sd": 2.640496586292477,
+      "residualSd": 2.4009516372823434,
+      "se": 0.20077766230908023,
+      "t": 2.124606002816951,
+      "first": 91.82051282051283,
+      "last": 96.51282051282053,
+      "drift": 4.6923076923076925,
+      "beyondNoise": true,
+      "robust": false,
+      "restsOn": [
+        "0.2.9",
+        "0.2.16",
+        "0.2.21",
+        "0.2.25",
+        "0.2.26"
+      ],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": 4.6923076923076925,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.12",
+          "drift": 3.8181818181818183,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.16",
+          "drift": 4.309090909090909,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.19",
+          "drift": 0.9333333333333333,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.21",
+          "drift": 2.5,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.22",
+          "drift": -0.21428571428571427,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.23",
+          "drift": 0.14285714285714285,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.24",
+          "drift": -0.4,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.25",
+          "drift": -1.5,
+          "verdict": "flat"
+        }
+      ],
+      "windowStable": false,
+      "windowVerdicts": [
+        "rising",
+        "flat"
+      ]
+    },
+    "queries_and_live": {
+      "series": [
+        74,
+        80,
+        91,
+        89,
+        84,
+        91,
+        82,
+        78,
+        86,
+        82,
+        83,
+        81
+      ],
+      "slope": -0.0034965034965034965,
+      "mean": 83.41666666666667,
+      "sd": 4.940619619260546,
+      "residualSd": 5.412161475925478,
+      "se": 0.45258767911108644,
+      "t": 0.007725582595113662,
+      "first": 83.43589743589745,
+      "last": 83.39743589743591,
+      "drift": -0.038461538461538464,
+      "beyondNoise": false,
+      "robust": true,
+      "restsOn": [],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": -0.038461538461538464,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.12",
+          "drift": -5.181818181818182,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.16",
+          "drift": -8.781818181818181,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.19",
+          "drift": -6.533333333333333,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.21",
+          "drift": -4.416666666666666,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.22",
+          "drift": -5.142857142857142,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.23",
+          "drift": 0.8571428571428572,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.24",
+          "drift": 1.2,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.25",
+          "drift": -4.199999999999999,
+          "verdict": "falling"
+        }
+      ],
+      "windowStable": false,
+      "windowVerdicts": [
+        "flat",
+        "falling"
+      ]
+    },
+    "writes_and_transactions": {
+      "series": [
+        94,
+        94,
+        96,
+        95,
+        92,
+        94,
+        91,
+        95,
+        95,
+        96,
+        94,
+        94
+      ],
+      "slope": 0.02097902097902098,
+      "mean": 94.16666666666667,
+      "sd": 1.404358295529393,
+      "residualSd": 1.5363505330402156,
+      "se": 0.12847608578250153,
+      "t": 0.16329125261907945,
+      "first": 94.05128205128206,
+      "last": 94.28205128205128,
+      "drift": 0.23076923076923078,
+      "beyondNoise": false,
+      "robust": true,
+      "restsOn": [],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": 0.23076923076923078,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.12",
+          "drift": 0.18181818181818182,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.16",
+          "drift": 0.10909090909090909,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.19",
+          "drift": 1.3333333333333333,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.21",
+          "drift": 2.4166666666666665,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.22",
+          "drift": 1.5,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.23",
+          "drift": 1.8571428571428572,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.24",
+          "drift": -1.2,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.25",
+          "drift": -1.5,
+          "verdict": "flat"
+        }
+      ],
+      "windowStable": true,
+      "windowVerdicts": [
+        "flat"
+      ]
+    },
+    "offline_sync": {
+      "series": [
+        82,
+        90,
+        93,
+        92,
+        90,
+        94,
+        91,
+        93,
+        95,
+        92,
+        93,
+        93
+      ],
+      "slope": 0.5664335664335665,
+      "mean": 91.5,
+      "sd": 3.2015621187164243,
+      "residualSd": 2.777028648013577,
+      "se": 0.23222680184621475,
+      "t": 2.4391395047014,
+      "first": 88.38461538461539,
+      "last": 94.61538461538461,
+      "drift": 6.230769230769231,
+      "beyondNoise": true,
+      "robust": false,
+      "restsOn": [
+        "0.2.9"
+      ],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": 6.230769230769231,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.12",
+          "drift": 2.1818181818181817,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.16",
+          "drift": 1.2,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.19",
+          "drift": 1.7333333333333334,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.21",
+          "drift": 1.75,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.22",
+          "drift": 0,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.23",
+          "drift": 1,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.24",
+          "drift": -0.8,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.25",
+          "drift": -1.5,
+          "verdict": "flat"
+        }
+      ],
+      "windowStable": false,
+      "windowVerdicts": [
+        "rising",
+        "flat"
+      ]
+    },
+    "media_assets": {
+      "series": [
+        96,
+        97,
+        97,
+        98,
+        97,
+        97,
+        96,
+        96,
+        98,
+        97,
+        96,
+        95
+      ],
+      "slope": -0.08391608391608392,
+      "mean": 96.66666666666667,
+      "sd": 0.8498365855987975,
+      "residualSd": 0.8751956158296071,
+      "se": 0.07318753409307444,
+      "t": 1.1465898524380629,
+      "first": 97.12820512820514,
+      "last": 96.20512820512822,
+      "drift": -0.9230769230769231,
+      "beyondNoise": false,
+      "robust": true,
+      "restsOn": [],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": -0.9230769230769231,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.12",
+          "drift": -1.4545454545454546,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.16",
+          "drift": -1.5818181818181818,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.19",
+          "drift": -1.7333333333333334,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.21",
+          "drift": -1.1666666666666665,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.22",
+          "drift": -1.0714285714285714,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.23",
+          "drift": -0.8571428571428572,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.24",
+          "drift": -1.6,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.25",
+          "drift": -3,
+          "verdict": "flat"
+        }
+      ],
+      "windowStable": true,
+      "windowVerdicts": [
+        "flat"
+      ]
+    },
+    "background_work": {
+      "series": [
+        93,
+        88,
+        91,
+        93,
+        95,
+        94,
+        92,
+        92,
+        96,
+        95,
+        86,
+        91
+      ],
+      "slope": -0.027972027972027972,
+      "mean": 92.16666666666667,
+      "sd": 2.793842435706702,
+      "residualSd": 3.0586725642797816,
+      "se": 0.25577904931068673,
+      "t": 0.10936012174340062,
+      "first": 92.32051282051283,
+      "last": 92.01282051282053,
+      "drift": -0.3076923076923077,
+      "beyondNoise": false,
+      "robust": true,
+      "restsOn": [],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": -0.3076923076923077,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.12",
+          "drift": 0.09090909090909091,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.16",
+          "drift": -2.3454545454545457,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.19",
+          "drift": -3.8666666666666667,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.21",
+          "drift": -4.583333333333333,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.22",
+          "drift": -3.8571428571428577,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.23",
+          "drift": -3.428571428571429,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.24",
+          "drift": -4.8,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.25",
+          "drift": -7.199999999999999,
+          "verdict": "flat"
+        }
+      ],
+      "windowStable": true,
+      "windowVerdicts": [
+        "flat"
+      ]
+    },
+    "client_integration": {
+      "series": [
+        90,
+        91,
+        88,
+        90,
+        89,
+        90,
+        87,
+        88,
+        89,
+        88,
+        89,
+        88
+      ],
+      "slope": -0.17832167832167833,
+      "mean": 88.91666666666667,
+      "sd": 1.114924013354971,
+      "residualSd": 1.018305645150997,
+      "se": 0.08515499595026371,
+      "t": 2.094083574683396,
+      "first": 89.8974358974359,
+      "last": 87.93589743589743,
+      "drift": -1.9615384615384617,
+      "beyondNoise": true,
+      "robust": false,
+      "restsOn": [
+        "0.2.9",
+        "0.2.12",
+        "0.2.19",
+        "0.2.21",
+        "0.2.22",
+        "0.2.26",
+        "0.2.28"
+      ],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": -1.9615384615384617,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.12",
+          "drift": -1.7272727272727273,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.16",
+          "drift": -0.7636363636363637,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.19",
+          "drift": -1.3333333333333333,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.21",
+          "drift": -0.6666666666666666,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.22",
+          "drift": -0.42857142857142855,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.23",
+          "drift": 1,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.24",
+          "drift": 0,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.25",
+          "drift": -0.6000000000000001,
+          "verdict": "flat"
+        }
+      ],
+      "windowStable": false,
+      "windowVerdicts": [
+        "falling",
+        "flat"
+      ]
+    },
+    "diagnostics_dev_loop": {
+      "series": [
+        88,
+        78,
+        94,
+        95,
+        93,
+        90,
+        92,
+        94,
+        94,
+        95,
+        95,
+        94
+      ],
+      "slope": 0.7902097902097902,
+      "mean": 91.83333333333333,
+      "sd": 4.65176191231762,
+      "residualSd": 4.127625956563412,
+      "se": 0.3451694226474028,
+      "t": 2.2893389111613303,
+      "first": 87.48717948717949,
+      "last": 96.17948717948718,
+      "drift": 8.692307692307692,
+      "beyondNoise": true,
+      "robust": false,
+      "restsOn": [
+        "0.2.9",
+        "0.2.12"
+      ],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": 8.692307692307692,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.12",
+          "drift": 8.181818181818182,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.16",
+          "drift": 1.309090909090909,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.19",
+          "drift": 1.8666666666666667,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.21",
+          "drift": 3.4166666666666665,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.22",
+          "drift": 4.071428571428571,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.23",
+          "drift": 2,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.24",
+          "drift": 0.4,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.25",
+          "drift": 0,
+          "verdict": "flat"
+        }
+      ],
+      "windowStable": false,
+      "windowVerdicts": [
+        "rising",
+        "flat"
+      ]
+    },
+    "scale_and_limits": {
+      "series": [
+        82,
+        86,
+        88,
+        91,
+        85,
+        84,
+        79,
+        80,
+        87,
+        83,
+        85,
+        65
+      ],
+      "slope": -0.9475524475524476,
+      "mean": 82.91666666666667,
+      "sd": 6.277716322216402,
+      "residualSd": 5.869610805013484,
+      "se": 0.4908415137543814,
+      "t": 1.9304651725660795,
+      "first": 88.12820512820514,
+      "last": 77.70512820512822,
+      "drift": -10.423076923076923,
+      "beyondNoise": false,
+      "robust": false,
+      "restsOn": [
+        "0.2.9",
+        "0.2.25",
+        "0.2.27"
+      ],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": -10.423076923076923,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.12",
+          "drift": -12.818181818181817,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.16",
+          "drift": -13.581818181818182,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.19",
+          "drift": -13.066666666666666,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.21",
+          "drift": -9.666666666666666,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.22",
+          "drift": -9,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.23",
+          "drift": -8.428571428571429,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.24",
+          "drift": -12.8,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.25",
+          "drift": -19.200000000000003,
+          "verdict": "flat"
+        }
+      ],
+      "windowStable": false,
+      "windowVerdicts": [
+        "flat",
+        "falling"
+      ]
+    },
+    "operations": {
+      "series": [
+        87,
+        87,
+        88,
+        89,
+        88,
+        89,
+        83,
+        86,
+        88,
+        88,
+        84,
+        85
+      ],
+      "slope": -0.23076923076923078,
+      "mean": 86.83333333333333,
+      "sd": 1.8633899812498247,
+      "residualSd": 1.8452989473600767,
+      "se": 0.15431165008043593,
+      "t": 1.4954751028126576,
+      "first": 88.1025641025641,
+      "last": 85.56410256410257,
+      "drift": -2.5384615384615388,
+      "beyondNoise": false,
+      "robust": true,
+      "restsOn": [],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": -2.5384615384615388,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.12",
+          "drift": -2.909090909090909,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.16",
+          "drift": -3.381818181818182,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.19",
+          "drift": -3.3333333333333335,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.21",
+          "drift": -2.4166666666666665,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.22",
+          "drift": -1.7142857142857142,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.23",
+          "drift": 0.5714285714285714,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.24",
+          "drift": -2.4,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.25",
+          "drift": -3.9000000000000004,
+          "verdict": "flat"
+        }
+      ],
+      "windowStable": true,
+      "windowVerdicts": [
+        "flat"
+      ]
+    }
+  },
+  "falling": [],
+  "fragile": [
+    "data_modeling",
+    "client_integration",
+    "authorization",
+    "offline_sync",
+    "diagnostics_dev_loop"
+  ]
+}

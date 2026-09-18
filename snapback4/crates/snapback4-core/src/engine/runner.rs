@@ -34,9 +34,11 @@ pub(crate) struct PagePosition {
     pub merge: bool,
     /// A collector exited with rows still unconsumed, even on a short page.
     pub interrupted: bool,
-    /// Raw continuation candidate. Merge candidates include the row id and
-    /// survive later cuts; outcome publication applies the final read class.
+    /// Raw continuation candidate; outcome publication applies the final read class.
     pub next: Option<Vec<Value>>,
+    pub inclusive: bool,
+    pub shape_positions: Vec<Vec<Value>>,
+    pub(super) shape_resume: super::shaping::Resume,
 }
 
 pub struct Runner<'a> {
@@ -71,7 +73,10 @@ pub struct Runner<'a> {
     /// Loss from replaced executions cannot be repaired by a later page.
     pub(super) discarded_page_loss: bool,
     pub(super) page_owner: Option<String>,
-    page_plan: super::pages::Plan,
+    pub(super) page_plan: super::pages::Plan,
+    /// Read paths that actually stopped on a cap, including an inherited cap.
+    pub(super) read_cuts: u64,
+    pub(super) shape_positions: BTreeMap<String, super::shaping::ShapePosition>,
     /// Whether a scan ran whose read rule the prefix does not decide. Such a
     /// result is `capped` whatever the meter found (LLP 1001 §3): a page
     /// that was `complete` only when few hidden rows were walked would
@@ -149,6 +154,8 @@ impl<'a> Runner<'a> {
             discarded_page_loss: false,
             page_owner: None,
             page_plan: super::pages::Plan::default(),
+            read_cuts: 0,
+            shape_positions: BTreeMap::new(),
             non_uniform: false,
             page_overflow: false,
             word_cut_at: None,
@@ -236,12 +243,22 @@ impl<'a> Runner<'a> {
                     Flow::Next
                 }
                 Stmt::If { condition, then_body, else_body } => {
-                    let take_then = self.expr(condition)?.as_bool()?;
+                    let actual = self.expr(condition)?.as_bool()?;
+                    let take_then = self.presence_arm(&site, actual);
+                    #[cfg(not(target_arch = "wasm32"))]
+                    let restore = (take_then != actual).then(|| super::presence::short_target(condition, then_body, else_body)).flatten();
                     let (branch, arm, untaken, other) = if take_then { (then_body, "then", else_body, "else") } else { (else_body, "else", then_body, "then") };
                     let guard = self.enter_presence_guard(&site, take_then)?;
                     if self.prediction_guards.contains(&site) { self.charge_untaken(untaken, &format!("{site}:{other}"))?; }
                     let result = self.statements(branch, &format!("{site}:{arm}"));
                     self.effect_presence.guard = guard;
+                    #[cfg(not(target_arch = "wasm32"))]
+                    if let Some(name) = restore {
+                        if let Some(value) = self.effect_presence.variables.get_mut(name) {
+                            value.absent = value.absent.or_else(|| self.env.get(name).and_then(super::presence::Scalar::of));
+                        }
+                        *self.env.get_mut(name).unwrap() = Value::Bool(actual);
+                    }
                     result?
                 }
                 Stmt::For { binding, domain, body } => {
@@ -250,11 +267,23 @@ impl<'a> Runner<'a> {
                     if is_page {
                         self.page_depth += 1;
                     }
+                    let shape = self.page_plan.shapes.get(&site).cloned();
+                    self.shape_positions.remove(&site);
+                    let mut row_index = 0;
                     let mut result = Flow::Next;
                     while let Some(value) = values.next() {
                         if matches!(domain, LoopDomain::LiteralRange { .. } | LoopDomain::ExpressionRange { .. }) { self.meter.step(1)?; }
                         self.bind(binding, value);
-                        let flow = self.statements(body, &site)?;
+                        let cut_mark = self.read_cuts;
+                        let lengths = shape.as_ref().map(|shape| self.shape_lengths(shape));
+                        let flow = self.statements(body, &site);
+                        if let Some(shape) = &shape
+                            && self.shape_starved(cut_mark, &flow) {
+                            self.trim_shape(&site, shape, row_index, lengths.as_deref().unwrap());
+                            break;
+                        }
+                        let flow = flow?;
+                        row_index += 1;
                         if matches!(flow, Flow::Break | Flow::Return(_)) && values.size_hint().0 > 0
                             && let Some(page) = self.page_plan.collectors.get(&site).and_then(|page| self.pages.get_mut(page)) {
                             page.interrupted = true;
@@ -339,8 +368,16 @@ impl<'a> Runner<'a> {
                         Expr::Object(fields) if component_return => self.component_record(fields, value)?,
                         _ => self.expr(value)?,
                     };
-                    self.page_owner = self.page_plan.returns.get(&site).cloned();
-                    self.page = self.page_owner.as_ref().and_then(|owner| self.pages.get(owner)).cloned();
+                    let returned = self.page_plan.returns.get(&site);
+                    self.page_owner = returned.map(|returned| returned.page.clone());
+                    let shaped = returned.into_iter().flat_map(|returned| &returned.shapes)
+                        .filter_map(|shape| self.shape_positions.get(shape)).min_by_key(|position| position.rows);
+                    self.page = self.page_owner.as_ref().and_then(|owner| self.pages.get(owner)).map(|page| PagePosition {
+                        table: page.table.clone(), index: page.index.clone(), order: page.order, prefix_len: page.prefix_len,
+                        prefix: page.prefix.clone(), merge: page.merge, interrupted: page.interrupted,
+                        next: shaped.map_or_else(|| page.next.clone(), |position| position.next.clone()),
+                        inclusive: shaped.map_or(page.inclusive, |position| position.inclusive), shape_positions: Vec::new(), shape_resume: page.shape_resume,
+                    });
                     Flow::Return(value)
                 },
                 Stmt::Break => Flow::Break,
@@ -440,6 +477,17 @@ impl<'a> Runner<'a> {
     }
 
     pub(super) fn expr(&mut self, expression: &Expr) -> Result<Value, RuntimeError> {
+        #[cfg(not(target_arch = "wasm32"))]
+        { self.effect_presence.absent = None; }
+        let result = self.presence_expr(expression);
+        #[cfg(not(target_arch = "wasm32"))]
+        if !matches!(expression, Expr::Variable(_) | Expr::Binary { .. } | Expr::Unary { op: UnaryOp::Not, .. } | Expr::Builtin { builtin: Builtin::Connected, .. }) {
+            self.effect_presence.absent = None;
+        }
+        result
+    }
+
+    fn presence_expr(&mut self, expression: &Expr) -> Result<Value, RuntimeError> {
         self.meter.step(1)?;
         self.read_presence_value(expression)?;
         match expression {
@@ -448,6 +496,8 @@ impl<'a> Runner<'a> {
                 Ok(value.clone())
             }
             Expr::Variable(name) => {
+                #[cfg(not(target_arch = "wasm32"))]
+                { self.effect_presence.absent = self.effect_presence.variables.get(name).and_then(|v| v.absent); }
                 let value = self.env.get(name).ok_or_else(|| missing_variable(name, &self.statement_site))?;
                 self.meter.heap(value.clone_heap_bytes())?;
                 Ok(value.clone())
@@ -498,6 +548,8 @@ impl<'a> Runner<'a> {
             }
             Expr::Binary { op, left, right } => {
                 let left = self.expr(left)?;
+                #[cfg(not(target_arch = "wasm32"))]
+                let projected = self.effect_presence.absent;
                 if *op == BinaryOp::And && !left.as_bool()? {
                     return Ok(Value::Bool(false));
                 }
@@ -505,12 +557,18 @@ impl<'a> Runner<'a> {
                     return Ok(Value::Bool(true));
                 }
                 let right = self.expr(right)?;
+                #[cfg(not(target_arch = "wasm32"))]
+                self.presence_binary(*op, &left, projected, &right);
                 binary(*op, left, right)
             }
             Expr::Unary { op, value } => {
                 let value = self.expr(value)?;
                 match op {
-                    UnaryOp::Not => Ok(Value::Bool(!value.as_bool()?)),
+                    UnaryOp::Not => {
+                        #[cfg(not(target_arch = "wasm32"))]
+                        { self.effect_presence.absent = match self.effect_presence.absent { Some(super::presence::Scalar::Bool(b)) => Some(super::presence::Scalar::Bool(!b)), _ => None }; }
+                        Ok(Value::Bool(!value.as_bool()?))
+                    },
                     UnaryOp::Neg => Value::int(-(value.as_int()? as i128)).map_err(Into::into),
                 }
             }
@@ -735,8 +793,10 @@ impl<'a> Runner<'a> {
                 match &self.context.presence {
                     Some(presence) => {
                         if self.effect_presence.enabled {
-                            let (live, deadline) = presence.effect_presence(principal);
-                            self.grace_read(principal, deadline.filter(|_| live == 0))?;
+                            let (live, deadline) = presence.effect_presence_at(principal, self.context.now.unwrap_or_default());
+                            self.grace_read(principal, deadline)?;
+                            #[cfg(not(target_arch = "wasm32"))]
+                            if !self.device && live > 0 && deadline.is_some() { self.effect_presence.absent = Some(super::presence::Scalar::Count(0)); }
                             Value::int(live as i128).map_err(Into::into)
                         } else { Value::int(presence.connections(principal) as i128).map_err(Into::into) }
                     },

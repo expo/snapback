@@ -58,20 +58,25 @@ mutation send(roomId: id, body: text <=4000):
   return { id: msg.id }
 ```
 
-This send stays eligible to predict because presence decides only effects; the server commits the effects and defers grace-only decisions until their deadline.
-Prediction also evaluates the safe untaken presence arms and discards their effects, so it pays at least their server cost. Effect ids never consume `new` or an insert's ids.
-With no live poll but an unexpired presence grace, an absence-conditioned push is queued for the grace deadline: up to 35 seconds. `doctor` shows the deferred count and next deadline; `GET /effects` exposes each deadline as `nextAt`. In tests close that window with `snapback4 clock advance 36s` or `POST /dev/clock/advance` with `{ "duration": "36s" }`; a real-time poll budget must exceed 35 seconds. A reconnect during that window cancels it, even if that poll ends before claim or the server restarts. A live poll at claim also cancels it. The effect is recorded as `satisfied` with `result: { outcome: 'presence_reconnected' }` and zero attempts; it is never handed to a worker. Without a reconnect it becomes claimable once, using the existing lease protocol. No grace means immediate admission; an already live poll still suppresses the push.
-Cancellation requires a proven necessary absence guard: `if not exists connected[p]`, its aliases, conjunctions of absence tests or nested absence guards. Several necessary absences wait for the latest grace deadline; a reconnect within any one principal's own window satisfies that guard. Payload-only reads (`emit audit { online: exists connected[p] }`), `not exists connected[p] or force`, and boolean forms without this proof remain immediate and are never cancelled by reconnect.
+This send stays eligible to predict because presence decides only effects. A push guarded by absence is recorded durably at commit even when the recipient looks connected, deferred a few seconds, and cancelled by a new poll only if it arrives within its window. This guarantees durable admission; delivery keeps the effect's ordinary policy deadlines, worker failures, lease retries and `--replay` suppression.
+Prediction also charges the safe untaken presence arms and discards their effects. Effect ids never consume `new` or an insert's ids.
+For a successful effects-only mutation, connection state never changes its rows or result. It can change which effect arms run and therefore the mutation's charges, as live versus absent presence already could. The paved `if not exists connected[p]: emit …` form charges the same whether the recipient is held, graced or absent. Shared boolean payloads and separate positive-presence emits can cost more for held than graced recipients; a held recipient may get both a deferred absence effect and an immediate positive-presence effect.
+A held poll is unconfirmed: its push waits five seconds from the commit for a new poll to arrive. With no live poll but an unexpired presence grace, an absence-conditioned push is queued for the grace deadline: up to 35 seconds. `doctor` shows the deferred count and next deadline; `GET /effects` exposes each deadline as `nextAt`. In tests expire the held-poll deadline with `snapback4 clock advance 6s`; close the grace window with `snapback4 clock advance 36s` or `POST /dev/clock/advance` with `{ "duration": "36s" }`; a real-time poll budget must exceed 35 seconds. Only a poll arriving after the commit within its window cancels it, even if that poll ends before claim or the server restarts. The effect is recorded as `satisfied` with `result: { outcome: 'presence_reconnected' }` and zero attempts; it is never handed to a worker. Without a reconnect it becomes claimable once, using the existing lease protocol. No live poll and no grace means immediate admission. A poll already open at claim does not satisfy the effect.
+Cancellation requires a proven necessary absence guard: `if not exists connected[p]`, its aliases, conjunctions of absence tests or nested absence guards. Several necessary absences wait for the latest deadline; a reconnect within any one principal's own window satisfies that guard. Payload-only reads (`emit audit { online: exists connected[p] }`), `not exists connected[p] or force`, and boolean forms without this proof remain immediate and are never cancelled by reconnect.
 Potential dependency allocation, propagation and emission copies reserve the same heap allowance with or without grace on the server and device; actual allocations stay metered.
-For dispatch-time presence or any other presence-dependent decision, emit unconditionally and have the worker call a service mutation that reads `connected`.
+For any other presence-dependent decision, emit unconditionally and have the worker call a service mutation that reads `connected`.
 
-An effect accepts the same `secrets`, `retry`, `backoff`, `deadline` and `cancellation` clauses as an action (guide actions). A bare `effect notify` retains the defaults: eight total attempts, 4s initial backoff, no deadline, cancellation allowed. Generated `server({ actions, effects })` accepts optional legacy effect handlers; these still receive `(payload, meta)`.
+An effect accepts the same `secrets`, `retry`, `backoff`, `deadline` and `cancellation` clauses as an action (guide actions). A bare `effect notify` retains the defaults: eight total attempts, 4s initial backoff, no deadline, cancellation allowed. Generated `server({ actions, effects })` accepts optional `(payload, ctx)` handlers, with unknown payload and secrets typed to that effect's declared names. Low-level `runWorker` retains its `(payload, meta)` handler.
 
 Effects use the shared external-step transition policy through their own
 `_effect_steps` records and the provider-key domain
-`snapback4:effect-step:v1`; action rows and keys are unchanged. This bounded
-slice exposes the step wire, not a typed effect context: effect handlers still
-receive `(payload, meta)` and do not gain `ServerContext` or `ctx.step`.
+`snapback4:effect-step:v1`; action rows and keys are unchanged. A generated
+handler receives frozen `ctx.effect` metadata (`id`, `effect`, `attempt`, `seq`,
+`at`, `worker`), live `ctx.invocation` (`id`, `attempt`, `deadline`,
+`cancelled`, `signal`), its declared `ctx.secrets`, and `ctx.step`. It receives no principal, query,
+mutation, write-id, raw lease, service token or administrative surface.
+When a claim reply has no richer principal, `ctx.effect.worker` can carry the
+generic legacy label `service`; this is descriptive metadata, not authority.
 
 The data plane never calls out. `emit name { payload }` in a mutation or
 a job writes the payload durably in the same commit as the rows (a
@@ -92,18 +97,19 @@ curl -X POST http://127.0.0.1:4400/dev/clock/advance -H 'Content-Type: applicati
 
 `clock advance` extends held effect leases by the advanced duration, preserving their remaining real-time lifetime; retry `nextAt` still follows the dev clock.
 
-The loop is `POST /effects/claim { effect?, limit?, lease?, wait?, fenced? }` (a
-lease in seconds; `wait` long-polls until something is due), then `POST
+The loop is `POST /effects/claim { effect?, limit?, lease?, wait?, fenced?,
+declarationContract? }` (a lease in seconds; `wait` long-polls until something
+is due), then `POST
 /effects/<id>/done { result? }` or `POST /effects/<id>/failed { error,
 retry }`; `GET /effects?state=` lists them (queued, running, sent,
 satisfied, parked, failed) and `doctor` counts them, including pending grace deferrals. A thrown handler retries with backoff
 (by default 4 s, 8 s, ... up to 5 min) until the declared final attempt, then rests as
 `failed`; throw `GiveUp` to fail at once. A worker that dies loses its
 lease and the effect is claimed again (E_EFFECT_LEASE for the one that
-settles late). `runWorker` includes the server's code and message; only a
-recorded `queued` state is informational and says requeued. Other states
-and unknown outcomes go to `onError` (or stderr). A handler error whose
-settlement cannot be recorded is reported separately with its original stack.
+settles late). `runWorker` reports the server's exact opaque refusal code and
+message as lost authority without inferring the row's state or claiming that
+settlement requeued it. Operators inspect effects separately. A handler error
+whose settlement cannot be recorded is reported separately with its original stack.
 Current `runWorker` sets `fenced: true` and returns each claim's `leaseToken`
 in `x-snapback-effect-lease`; old same-service attempts cannot settle successors.
 Legacy unfenced claims retain their compatibility protocol. A service can
@@ -112,6 +118,17 @@ undo provider I/O already in flight. Work ids have no automatic expiry or reuse.
 Two workers never hold one effect. `meta.id` is the
 idempotency key a provider should see. A scheduled job that `emit`s once
 per period is the digest recipe.
+
+The optional `declarationContract` is only legal with one nonempty `effect`
+and `fenced: true`. It identifies that current named declaration without a
+payload or release. The server authenticates and compares it before queue
+expiry, selection or claim mutation; a missing current declaration or mismatch
+returns E_EFFECT_GENERATION without changing rows, attempts or steps. Successful
+claim JSON carries the server-derived `declarationContract`. Omitting the field
+retains low-level `runWorker` behavior. Generated output embeds the Rust-computed
+contract per exact effect name and full work declaration; TypeScript never
+recomputes it. E_EFFECT_GENERATION or a successful claim with a missing or
+mismatched contract stops that generated worker before handler or settlement.
 
 A fenced claim may call `POST /effects/<id>/steps/<name>/begin` with
 `{ input, reconcile? }`, `/done` with `{ result }`, or `/park` with
@@ -122,6 +139,23 @@ the parent effect. Oversized results park it with E_STEP_RESULT, while unknown
 provider outcome parks it with E_STEP_PARKED. Parked effects are not reclaimed
 or expired. Explicit policy-allowed cancellation may move one to failed with
 E_EFFECT_CANCELLED; it never resumes the effect.
+
+`POST /effects/<percent-encoded-id>/status` requires exactly one nonempty
+`x-snapback-effect-lease` and a current deployment-trusted service. A running
+row additionally requires that service and exact current lease; an expired or
+lost lease returns E_EFFECT_LEASE without requeueing or reclaiming anything.
+Terminal safe metadata is readable by any current service. Status enforces the
+admitted row contract, preserves terminal drift evidence, and may finalize only
+the named row's deadline or recorded cancellation. It returns exactly `id`,
+`attempt`, `state`, `deadline`, `cancelled` and `errorCode`.
+
+While a generated handler runs, its context polls that exact status route under
+the service bearer and private effect lease. Cancellation, deadline, terminal
+state, lease/generation/auth loss or inability to confirm status aborts the
+context and prevents top-level settlement. `ctx.step` uses the same private
+lease at `/effects/<id>/steps/<name>/{begin,done,park}`. Tokens and declared
+secrets are redacted from failures. Abort is cooperative and does not retract a
+provider request that already committed; uncertain work must reconcile or park.
 
 New emits retain the current release as admission provenance and bind the exact
 generic `Value` payload and full admitted work policy to the effect name. Release
@@ -140,7 +174,16 @@ satisfied, failed, cancelled and already parked evidence is not rewritten.
 Direct core claim/settle methods remain compatibility APIs without this strict
 HTTP authority and generation boundary.
 
+This is the generated server effect-context slice over the existing SQLite
+claim/status/step substrate. It is not typed effect-payload, query/mutate/data/
+admin authority, a PostgreSQL adapter, provider qualification, process-crash
+proof, or a completed B milestone.
+
 ## Effect lifecycle refusals
+
+E_EFFECT_CLOSED means a private generated effect context closed with its
+handler lifetime or an authority loss. Do not retain or reuse that context;
+start work only while its invocation signal remains live.
 
 E_EFFECT_GENERATION means the effect's declaration disappeared or changed
 after admission. Queued or running work is durably parked and its claim fields

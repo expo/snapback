@@ -90,13 +90,13 @@ impl Runner<'_> {
 
     pub(super) fn read_charge(&mut self, kind: MeterKind, amount: u64) -> Result<bool, RuntimeError> {
         let charged = self.meter.charge(kind, amount)?;
-        if !charged { self.components.note(|frame| frame.capped = true); }
+        if !charged { self.read_cuts += 1; self.components.note(|frame| frame.capped = true); }
         Ok(charged)
     }
 
     pub(super) fn read_capped(&mut self) -> bool {
         let capped = self.meter.capped_at.is_some();
-        if capped { self.components.note(|frame| frame.capped = true); }
+        if capped { self.read_cuts += 1; self.components.note(|frame| frame.capped = true); }
         capped
     }
 

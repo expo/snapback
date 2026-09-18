@@ -41,15 +41,25 @@ fn held(schema: &Schema) -> MemoryRows {
 fn a_thread_pages_locally_with_the_servers_cursors() {
     let (schema, programs) = backend();
     let rows = held(&schema);
-    let first = local::query(&rows, &schema, &programs["thread"], Context::new("dev:bob", args(&[("conversationId", id("c1"))])).at(2_000), Ceilings::default()).unwrap();
+    let mut server = snapback4_core::Engine::memory(schema.clone(), programs.values().cloned()).unwrap();
+    server.seed(schema.tables.keys().flat_map(|name| rows.rows(name).into_iter().map(|row| (name.clone(), row)))).unwrap();
+    let backend = snapback4_device::device::Backend { generation: server.generation(), schema, programs: programs.values().cloned().collect() };
+    let mut device = snapback4_device::device::Device::open_store(snapback4_device::memory::MemoryStore::new(), Some(backend)).unwrap();
+    let page = server.snapshot_acquisition_page_at("dev:bob", None, 1000, 2_000).unwrap();
+    assert!(page.next.is_none());
+    let page = serde_json::from_value(serde_json::json!({"snapshot":true,"events":page.events.iter().map(|e| serde_json::json!({"table":e.table,"kind":e.kind.word(),"id":e.id,"data":e.data.as_ref().map(snapback4_core::wire::to_json)})).collect::<Vec<_>>(),"acquisitions":page.acquisitions,"held":page.held,"watermark":page.watermark,"more":false})).unwrap();
+    device.apply(&page, true).unwrap();
+    let first = device.query("thread", "dev:bob", &serde_json::json!({"conversationId":"c1","c":null}), 2_000).unwrap();
     assert_eq!(first.data.as_array().unwrap().len(), 50);
     assert_eq!(first.data.as_array().unwrap()[0].field("id").unwrap(), &id("msg119"));
     assert!(first.complete && first.next.is_some());
-    let second = local::query(&rows, &schema, &programs["thread"], Context::new("dev:bob", args(&[("conversationId", id("c1")), ("c", Value::String(first.next.clone().unwrap()))])).at(2_000), Ceilings::default()).unwrap();
+    let truth = server.query("thread", Context::new("dev:bob", args(&[("conversationId", id("c1"))])).at(2_000)).unwrap();
+    assert_eq!(first.next, truth.next);
+    let second = device.query("thread", "dev:bob", &serde_json::json!({"conversationId":"c1","c":first.next}), 2_000).unwrap();
     assert_eq!(second.data.as_array().unwrap()[0].field("id").unwrap(), &id("msg069"));
-    let third = local::query(&rows, &schema, &programs["thread"], Context::new("dev:bob", args(&[("conversationId", id("c1")), ("c", Value::String(second.next.clone().unwrap()))])).at(2_000), Ceilings::default()).unwrap();
+    let third = device.query("thread", "dev:bob", &serde_json::json!({"conversationId":"c1","c":second.next}), 2_000).unwrap();
     assert_eq!(third.data.as_array().unwrap().len(), 20);
-    assert!(third.next.is_none());
+    assert!(third.complete && third.next.is_none(), "the acquisition selected the whole group");
 }
 
 #[test]
@@ -66,8 +76,8 @@ fn the_devices_words_hold() {
     rows.delete("memberships", table, &bob).unwrap();
     let inbox = local::query(&rows, &schema, &programs["inbox"], Context::new("dev:bob", BTreeMap::new()).at(2_000), Ceilings::default()).unwrap();
     assert_eq!(inbox.data.as_array().unwrap().len(), 0);
-    // A page at the horizon (500 per conversation) is complete when the
-    // device holds fewer; holding the horizon's worth says it may go on.
+    // Manually held rows carry no acquisition boundary. Counts alone cannot
+    // prove the suffix, even when this fixture holds 500 rows.
     let rows = held(&schema);
     for n in 120..500 {
         rows.put("messages", schema.table("messages").unwrap(), &object([("id", id(&format!("msg{n:03}"))), ("conversationId", id("c1")), ("authorId", id("dev:bob")), ("body", Value::String(format!("m{n}"))), ("at", Value::Int(1_000 + n))]), None).unwrap();
