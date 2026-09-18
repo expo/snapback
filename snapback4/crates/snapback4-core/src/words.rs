@@ -7,6 +7,9 @@
 //! every character that is neither a letter nor a digit. On the web only
 //! NFC comes from the guarded host: Unicode stability covers normalization
 //! of assigned characters, not case mappings, so lowercase stays Rust.
+//! The guard runs at open only. Deleting normalize, making it non-callable
+//! or making it throw afterward raises a JavaScript exception on the next
+//! non-ASCII fold; a callable replacement is not revalidated.
 
 #[cfg(not(all(target_arch = "wasm32", feature = "web")))]
 use unicode_normalization::UnicodeNormalization;

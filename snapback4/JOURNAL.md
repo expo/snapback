@@ -37770,3 +37770,128 @@ test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fin
 The full `bash snapback4/scripts/test.sh` and Chromium witness were **not run**, as this round explicitly assigns them to the lead outside the sandbox. No failure is claimed pre-existing. No commit, push, tag, publication, install, remote work or sub-agent was performed. Minimal supporting changes outside the brief's named files are the device Cargo manifest and workspace lockfile (one existing dependency edge) and language `diag.rs` (route the new code to `guide search`); no other lane's product surface changed. All changed source files remain below 1,500 lines (largest: guide tests, 1,127).
 
 Root `./ref-check --verbose` exited 0 after the documentation update: `ref-check: ok — 483 LLP docs, 9101 refs in 24291 files, 0 errors, 0 unchecked`. Root `git diff --check` exited 0 with no output. A byte-prefix comparison against `git show HEAD:snapback4/JOURNAL.md` confirms the journal is append-only.
+
+## 2026-09-18 — S3-R1: unordered NFC canary, composed-read timestamp capture and table absence
+
+Base: `7235fa6273311e778d39a5f82c80f4b07f642ed3`. Read the two blind S3-r1 reviews (Sol and Grok) and implemented the four dispositions in the commissioned fix lane. The second NFC input is now `d U+0307 U+0323`, deliberately unordered, with expected `U+1E0D U+0307` in the web constructor, native oracle and JS matrix. The new adjacent-pair normalizer produces `U+1E0B U+0323` for that input and passed the old constructor; the corrected constructor refuses it with `E_HOST_UNICODE`, then opens and folds successfully after restoration. Composed reads capture `lastSyncAt` immediately before the server call and retain that bound across a later completed sync. The retained-history fixture delays the `/q/both` response on both device stores, completes another sync, and checks exact composed rows, metadata and the earlier timestamp. The artifact absence check now refuses any `unicode_normalization` symbol, including a synthetic generic owner with a crate hash, while retaining its positive device-accounting checks.
+
+The boundary stays at open, and `word_fold` stays the witness export. The module comment and LLP state that deleting normalization, making it non-callable or making it throw after open causes a JavaScript exception on the next non-ASCII fold. One premise in disposition 4 needs qualification: an arbitrary callable replacement can return wrong text without throwing, because it is not revalidated. The documentation says this explicitly; no per-fold guard was added. The ratchet's reason is review-visible in the diff, commit message and journal by design, not machine-judged prose. The README and sync card now say that the composed timestamp is captured before the server request; the composition LLP records why an in-flight sync must not advance it. No contract, ceiling, durable/wire format or existing corpus case changed.
+
+All commands below ran from `snapback4/` except the named root checks. Before every Node/Bun invocation: `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`. `bun run --cwd packages/snapback4 build` exited 0 both for the base client and the restored fixed client.
+
+Regression evidence against the base implementation:
+
+- `node --test packages/snapback4/test/unicode.test.mjs packages/snapback4/test/wasm-absent.test.mjs` exited 1 against the unchanged wasm and absence checker, with the new tests. The failures were the no-reordering stub, the corrected second-canary corruption probe and the normalization-symbol refusal.
+
+```text
+ℹ tests 14
+ℹ suites 0
+ℹ pass 11
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 146.167667
+```
+
+- `node --test --test-concurrency=2 --test-name-pattern='R2 sync during reply' packages/snapback4/test/retained-history.test.mjs` exited 1 after rebuilding `local.ts` from the exact base source with `bun run --cwd packages/snapback4 build`; both failures were the timestamp assertion. The fixed source was then restored and rebuilt.
+
+```text
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 634.877958
+```
+
+The same focused command after the fix exited 0:
+
+```text
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 747.24425
+```
+
+An initial test-only mistake called this scenario `R2 concurrent sync`: the existing fixture routes every scenario containing `current` to `/q/three`, so the new `/q/both` delay was never entered. That focused run timed out at 60 seconds and was interrupted in cleanup; a broader attempt was also interrupted at this new scenario after its first four tests passed. Renaming it `R2 sync during reply` corrected the fixture; these interrupted attempts are not product or environment failures, and produced no final count summary.
+
+Final requested targeted checks, all exit 0:
+
+- `cargo test -p snapback4-core --test unicode_fold`:
+
+```text
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+```
+
+- `cargo test -p snapback4-device --test unicode`:
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+```
+
+- `cargo test -p snapback4-lang --test guide`:
+
+```text
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+```
+
+- `node --test packages/snapback4/test/unicode.test.mjs packages/snapback4/test/wasm-*.test.mjs`:
+
+```text
+ℹ tests 52
+ℹ suites 0
+ℹ pass 52
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4587.269541
+```
+
+- `node --test --test-concurrency=2 packages/snapback4/test/retained-history.test.mjs`:
+
+```text
+ℹ tests 44
+ℹ suites 0
+ℹ pass 44
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 22880.277667
+```
+
+`bash scripts/build-wasm.sh` exited 0:
+
+```text
+wasm 1478760 B raw, 409621 B gzip (budget 410000: ok)
+```
+
+The gzip is **1 B** above the lead-reported base measurement of 409,620 B and **379 B** below the unchanged 410,000 B budget. No budget increase.
+
+`node scripts/attribute-wasm.mjs --check-families --check-absent` exited 0:
+
+```text
+1945323 total attributed bytes
+serde family check: ok
+server-only and Unicode-table absence check: ok
+```
+
+The absence check passed with **0 forbidden symbols**, now including the entire normalization crate name. Root `./ref-check --verbose` exited 0:
+
+```text
+ref-check: ok — 485 LLP docs, 9118 refs in 24351 files, 0 errors, 0 unchecked
+```
+
+Root `git diff --check` exited 0 with no output. All changed source files remain below 1,500 lines; `local.ts` is the largest at 1,339 lines. The journal is append-only.
+
+`bash scripts/test.sh` was **not run**: this lane explicitly assigns the full suite to the lead. Lead-provided outside-sandbox evidence on the base (cited, not rerun here): `cargo build --workspace`, `scripts/build-wasm.sh` (409,620 B gzip, budget 410,000 ok), the package build, `witness/idb.mjs`, `witness/idb.mjs unicode` in Chromium, `witness/scale.mjs`, React **13/13**, and the Unicode/wasm Node tests all exited 0. The lead stopped that full-suite attempt to free the host for another session's publish and owns its rerun before landing.
+
+No requested fix remains unimplemented and no failure is claimed pre-existing. Minimal supporting documentation beyond the named product files: the composition LLP, README and sync card clarify the captured timestamp. No other lane's product files were touched. No commit, push, tag, publication, install, remote work or sub-agent was performed.

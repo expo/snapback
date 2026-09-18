@@ -161,7 +161,7 @@ components. The second local observation supplies every component that would
 stay local as its own query; the one server reply supplies those that need it.
 The composed read is `complete` only when the server answer and
 every locally kept component are complete; it reports `fresh: false` with `since`
-(the last sync's time, which the locally kept components are as of) and no continuation. Offline or after a failed request, the whole local
+(the last sync's time captured before the server request, which the locally kept components are as of) and no continuation. Offline or after a failed request, the whole local
 answer stands.
 Composition is never entered while a predictable write is unobserved; the whole local answer stands until it settles.
 Every other shape keeps the separate-query recipe: keep a

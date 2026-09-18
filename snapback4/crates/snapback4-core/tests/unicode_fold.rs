@@ -11,7 +11,7 @@ fn text(hex: &str) -> String {
 
 #[test]
 fn host_nfc_canaries_match_native_tables_and_ascii_lowercase() {
-    for (input, expected) in [("A\u{030A}", "\u{00C5}"), ("d\u{0323}\u{0307}", "\u{1E0D}\u{0307}"), ("\u{1E9B}\u{0323}", "\u{1E9B}\u{0323}"), ("\u{1100}\u{1161}", "\u{AC00}")] {
+    for (input, expected) in [("A\u{030A}", "\u{00C5}"), ("d\u{0307}\u{0323}", "\u{1E0D}\u{0307}"), ("\u{1E9B}\u{0323}", "\u{1E9B}\u{0323}"), ("\u{1100}\u{1161}", "\u{AC00}")] {
         assert_eq!(input.nfc().collect::<String>(), expected);
         assert_eq!(snapback4_core::words::fold(input), expected.to_lowercase());
     }

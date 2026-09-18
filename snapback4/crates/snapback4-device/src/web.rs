@@ -26,7 +26,7 @@ fn guard_unicode() -> Result<(), JsError> {
     let normalize = js_sys::Reflect::get(&prototype, &JsValue::from_str("normalize")).map_err(|_| denied())?;
     if !normalize.is_function() { return Err(denied()); }
     let normalize: js_sys::Function = normalize.unchecked_into();
-    for (input, expected) in [("A\u{030A}", "\u{00C5}"), ("d\u{0323}\u{0307}", "\u{1E0D}\u{0307}"), ("\u{1E9B}\u{0323}", "\u{1E9B}\u{0323}"), ("\u{1100}\u{1161}", "\u{AC00}")] {
+    for (input, expected) in [("A\u{030A}", "\u{00C5}"), ("d\u{0307}\u{0323}", "\u{1E0D}\u{0307}"), ("\u{1E9B}\u{0323}", "\u{1E9B}\u{0323}"), ("\u{1100}\u{1161}", "\u{AC00}")] {
         let actual = normalize.call1(&JsValue::from_str(input), &JsValue::from_str("NFC")).map_err(|_| denied())?;
         if actual.as_string().as_deref() != Some(expected) { return Err(denied()); }
     }
@@ -55,7 +55,7 @@ impl WebDevice {
     }
 
     /// S3 differential witness: the exact fold used by word index keys.
-    /// Kept on the candidate so the witness tests the shipped wasm path.
+    /// Kept as the witness export so it tests the shipped wasm path.
     pub fn word_fold(text: &str) -> String {
         snapback4_core::words::fold(text)
     }

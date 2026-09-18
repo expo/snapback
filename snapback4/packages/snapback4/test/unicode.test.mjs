@@ -27,13 +27,14 @@ test('web word folding delegates only non-ASCII NFC, with Rust lowercase and ide
   } finally { String.prototype.normalize = normalize; String.prototype.toLowerCase = lower; }
 });
 
-const canaries = [['A\u030A', '\u00C5'], ['d\u0323\u0307', '\u1E0D\u0307'], ['\u1E9B\u0323', '\u1E9B\u0323'], ['\u1100\u1161', '\uAC00']];
+const canaries = [['A\u030A', '\u00C5'], ['d\u0307\u0323', '\u1E0D\u0307'], ['\u1E9B\u0323', '\u1E9B\u0323'], ['\u1100\u1161', '\uAC00']];
 const originalNormalize = String.prototype.normalize;
 const emptyBackend = JSON.stringify({ generation: 1, programs: [], schema: { tables: {} } });
 
 for (const [name, replacement] of [
   ['missing', undefined], ['non-function', 42], ['identity', function () { return String(this); }],
   ['throwing', () => { throw new Error('unicode host unavailable'); }],
+  ['composition without reordering', function () { return String(this).replace('A\u030A', '\u00C5').replace('d\u0307', '\u1E0B').replace('d\u0323', '\u1E0D').replace('\u1100\u1161', '\uAC00'); }],
   ...canaries.map(([input], i) => [`canary ${i + 1}`, function (form) { return String(this) === input ? 'wrong' : originalNormalize.call(this, form); }]),
 ]) {
   test(`web open refuses ${name} normalization before loading and opens after restoration`, () => {

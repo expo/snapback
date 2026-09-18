@@ -113,7 +113,7 @@ mutation join(room: text <=40):
 mutation leave(room: text <=40):
   delete members[room = room, principal = 'dev:bob']
 `;
-for (const tier of ["wasm", "process"]) for (const scenario of ["R5 history", "R1a empty search", "R1a mixed reads", "R2 mixed result", "MQ ineligible", "MQ points", "MQ delete current", "MQ revoke current", "MQ rejoin", "MQ held change", "MQ close", "MQ sign-out", "MQ transport", "MQ adoption", "MQ reset", "MQ rotation", "MQ prediction", "MQ expiry left", "MQ expiry held", "MQ interrupted snapshot", "MQ retained snapshot"]) test(`${scenario} ${tier}: retained history and independent held coverage`, { timeout: 60000 }, async (t) => {
+for (const tier of ["wasm", "process"]) for (const scenario of ["R5 history", "R1a empty search", "R1a mixed reads", "R2 mixed result", "R2 sync during reply", "MQ ineligible", "MQ points", "MQ delete current", "MQ revoke current", "MQ rejoin", "MQ held change", "MQ close", "MQ sign-out", "MQ transport", "MQ adoption", "MQ reset", "MQ rotation", "MQ prediction", "MQ expiry left", "MQ expiry held", "MQ interrupted snapshot", "MQ retained snapshot"]) test(`${scenario} ${tier}: retained history and independent held coverage`, { timeout: 60000 }, async (t) => {
   const directory = mkdtempSync(join(tmpdir(), "sb4-retained-"));
   mkdirSync(join(directory, "snapback"));
   const expiring = scenario.startsWith("MQ expiry");
@@ -149,6 +149,7 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["R5 history", "R
   for (const room of ["left", "held", "current"]) assert.equal((await post("/m/join", { args: { room }, id: `join-${room}` })).state, "sent");
   let offline = false, intercept, holdWrites = false, interruptSnapshot = false, snapshotStarted = false, deviceNow;
   const syncPages = [];
+  let syncedAt, querySince;
   let core;
   const delayedName = scenario.includes("current") ? "three" : "both";
   const requests = [], deviceAnswers = [], allRequests = [], allAnswers = [];
@@ -159,6 +160,7 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["R5 history", "R
       if (offline) throw new TypeError("test offline");
       const path = new URL(input).pathname;
       allRequests.push(path);
+      if (scenario === "R2 sync during reply" && path === "/q/both") querySince = syncedAt;
       if (path === "/q/history") requests.push(JSON.parse(init.body).args.room);
       if (holdWrites && path.startsWith("/m/")) throw new TypeError("write held for prediction");
       if (path === "/sync" && interruptSnapshot) {
@@ -173,7 +175,7 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["R5 history", "R
       if (intercept && path === `/q/${delayedName}`) await intercept(init);
       return response;
     },
-    device: { open: async (...args) => { core = await opener.open(...args); return { close: () => core.close(), call: async (request) => { if (request.op === "query" && deviceNow !== undefined) request = { ...request, now: deviceNow }; const reply = await core.call(request); if (request.op === "query") allAnswers.push({ name: request.name, ...reply.ok }); if (request.op === "query" && request.name === "history") deviceAnswers.push({ room: request.args.room, ...reply.ok }); return reply; } }; } },
+    device: { open: async (...args) => { core = await opener.open(...args); return { close: () => core.close(), call: async (request) => { if (request.op === "set_meta" && request.key === "syncedAt") syncedAt = Number(request.value); if (request.op === "query" && deviceNow !== undefined) request = { ...request, now: deviceNow }; const reply = await core.call(request); if (request.op === "query") allAnswers.push({ name: request.name, ...reply.ok }); if (request.op === "query" && request.name === "history") deviceAnswers.push({ room: request.args.room, ...reply.ok }); return reply; } }; } },
   };
   if (session) { delete clientOptions.persona; clientOptions.session = session; }
   client = await createLocalClient(clientOptions);
@@ -369,6 +371,28 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["R5 history", "R
       }
     }
     if (scenario === "MQ held change") assert.equal((await client.query(both, {})).data.held[0].body, "new");
+    return;
+  }
+  if (scenario === "R2 sync during reply") {
+    let release, entered;
+    const waiting = new Promise(resolve => { entered = resolve; });
+    const gate = new Promise(resolve => { release = resolve; releaseReply = resolve; });
+    t.after(() => release());
+    intercept = async () => { entered(); await gate; };
+    const pending = client.query({ kind: "query", name: "both" }, {});
+    await waiting;
+    const before = querySince;
+    assert.ok(Number.isInteger(before) && before > 0);
+    await until(() => Date.now() > before, "clock must advance before the next sync");
+    await client.sync();
+    const after = Number((await core.call({ op: "meta", key: "syncedAt" })).ok);
+    assert.ok(after > before, "a later sync completed while the server reply was delayed");
+    release();
+    const result = await pending;
+    assert.deepEqual(result.data, { left: expected("left", 1), held: expected("held", 0) });
+    assert.equal(result.fresh, false);
+    assert.equal(result.complete, false);
+    assert.equal(result.since, before, "composed since must precede the server read, not follow the in-flight sync");
     return;
   }
   if (scenario === "R2 mixed result") {
