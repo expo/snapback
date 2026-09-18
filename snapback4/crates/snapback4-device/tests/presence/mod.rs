@@ -76,7 +76,7 @@ fn presence_effects_send_predicts_identical_rows_on_both_stores() {
             for (n, page) in snapshot_pages(&mut engine, "dev:alice", 10).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
             let online = query(&mut *device, "online", "dev:alice", serde_json::json!({"p":"dev:bob"}), 1000);
             assert_eq!(online["complete"], false, "presence queries remain unknown on {label}");
-            ok(device.call(serde_json::json!({ "op": "admit", "entry": Queued { id: "send-write".into(), seq: 1, op: "send".into(), args: serde_json::json!({"roomId":"room", "body":"offline hello"}), new_ids: vec!["msg".into()], predicted: vec![], viewer: "dev:alice".into(), now: 1234, predictable: true, sent_seq: None, observed_seq: None } })));
+            ok(device.call(serde_json::json!({ "op": "admit", "entry": Queued { id: "send-write".into(), seq: 1, op: "send".into(), args: serde_json::json!({"roomId":"room", "body":"offline hello"}), new_ids: vec!["msg".into()], predicted: vec![], viewer: "dev:alice".into(), now: 1234, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None } })));
             let predicted = query(&mut *device, "message", "dev:alice", serde_json::json!({"id":"msg"}), 2000);
             assert_eq!(predicted["data"]["pending"], true, "{label}, connected={connected:?}: {predicted}");
             assert!(engine.store().rows("messages").unwrap().is_empty(), "the device admitted the row offline");
@@ -119,7 +119,7 @@ fn r1p_effect_ids_do_not_displace_rows_or_replay_ids_on_both_stores() {
             for (n, page) in snapshot_pages(&mut engine, "alice", 10).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
             let predicted = ok(device.call(serde_json::json!({"op":"predict", "name":"probe", "viewer":"alice", "args":{"p":"bob"}, "now":1, "newIds":["A","B","C","D","E"]})));
             ok(device.call(serde_json::json!({"op":"withdraw", "predicted":predicted["predicted"]})));
-            let admitted = ok(device.call(serde_json::json!({"op":"admit", "entry":Queued { id:"write".into(), seq:1, op:"probe".into(), args:serde_json::json!({"p":"bob"}), new_ids:vec!["A".into(), "B".into()], predicted:vec![], viewer:"alice".into(), now:1, predictable:true, sent_seq:None, observed_seq:None }})));
+            let admitted = ok(device.call(serde_json::json!({"op":"admit", "entry":Queued { id:"write".into(), seq:1, op:"probe".into(), args:serde_json::json!({"p":"bob"}), new_ids:vec!["A".into(), "B".into()], predicted:vec![], viewer:"alice".into(), now:1, predictable:true, sent_seq: None, receipt_store: None, observed_seq:None }})));
             assert_eq!(admitted["new_ids"], serde_json::json!(["A", "B"]));
             // Replaying over a stream page and reopening must keep precisely
             // the row supply, without any dropped effect ids in the queue.

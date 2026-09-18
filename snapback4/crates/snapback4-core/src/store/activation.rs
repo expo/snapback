@@ -31,18 +31,24 @@ impl Store {
     }
 
     pub fn install_device_checked(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
+        self.install_device_checked_with(schema, metadata, reset, expected, |_| Ok(()))
+    }
+
+    /// Device-owned sidecar changes share the schema installation transaction.
+    pub fn install_device_checked_with(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>, prepare: impl FnOnce(&Tx<'_>) -> Result<(), RuntimeError>) -> Result<(), RuntimeError> {
         self.activate(schema, None, reset, |tx, _| {
             for (key, value) in expected {
                 let held: Option<String> = tx.conn().query_row("SELECT value FROM _meta WHERE key = ?1", [key], |row| row.get(0)).optional()?;
                 if &held != value { return Err(RuntimeError::Generation("the backend adoption capture is obsolete; retry sync".into())); }
             }
+            prepare(tx)?;
             for (key, value) in metadata {
                 // A device metadata namespace reset shares backend installation's transaction.
                 if key.ends_with(':') {
                     tx.conn().execute("DELETE FROM _meta WHERE key >= ?1 AND key < ?2", params![key, format!("{key}\u{10ffff}")])?;
                 } else { tx.set_meta(key, value)?; }
             }
-            if reset { tx.conn().execute_batch("DELETE FROM _device_base; DELETE FROM _device_snapshot; DELETE FROM _meta WHERE key LIKE 'device:deferred:%' OR key LIKE 'device:declaration:%';")?; }
+            if reset { tx.conn().execute_batch("DELETE FROM _device_base; DELETE FROM _device_snapshot;")?; }
             Ok(())
         }).map(|_| ())
     }

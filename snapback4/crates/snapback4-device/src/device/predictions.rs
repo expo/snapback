@@ -57,32 +57,70 @@ pub(super) fn run<T: DeviceTx>(tx: &T, schema: &Schema, program: &Program, entry
 // Request capture and published replay eligibility are separate: a deferred
 // response must not change the overlay. The exclusion band ends at the request
 // capture; writes admitted later must remain eligible on the published base.
-pub(super) const DECLARATION_PREFIX: &str = "device:declaration:";
-pub(super) const CAPTURE: &str = "device:declaration:capture";
-pub(super) const FIRST_CAPTURE: &str = "device:declaration:first-capture";
-pub(super) const PUBLISHED: &str = "device:declaration:published";
+const CAPTURE: &str = "device:declaration:capture";
+const PUBLISHED: &str = "device:declaration:published";
 
 // (declared through, declaration complete, outbox upper bound at request time).
 pub(super) type Declaration = (u64, bool, u64);
 
+#[derive(Serialize, Deserialize)]
+pub(super) struct Capture {
+    pub ids: Vec<String>,
+    pub declaration: Declaration,
+}
+
+// All builders share the in-flight declaration. A poll/retry cannot widen it;
+// successful apply consumes it, and begin_send abandons obsolete requests.
+pub(super) fn capture<T: DeviceTx>(tx: &T) -> Result<Capture, RuntimeError> {
+    if let Some(capture) = load_capture(tx)? { return Ok(capture); }
+    let entries = tx.outbox_entries()?.iter().map(|data| decoded::<Queued>(data)).collect::<Result<Vec<_>, _>>()?;
+    let capture = Capture {
+        ids: entries.iter().take(256).map(|q| q.id.clone()).collect(),
+        declaration: (entries.iter().take(256).last().map_or(0, |q| q.seq), entries.len() <= 256,
+            tx.outbox_max_seq()?.max(meta_u64(tx, SUBMISSION)?)),
+    };
+    tx.set_meta(CAPTURE, &encoded(&capture)?)?;
+    Ok(capture)
+}
+
+// The checkpoint stored only bounds. Submission numbers never get reused,
+// so its still-unretired IDs can be recovered without widening that capture.
+fn load_capture<T: DeviceTx>(tx: &T) -> Result<Option<Capture>, RuntimeError> {
+    let Some(data) = tx.meta(CAPTURE)?.filter(|s| !s.is_empty()) else { return Ok(None) };
+    if let Ok(capture) = decoded::<Capture>(&data) { return Ok(Some(capture)); }
+    let declaration: Declaration = decoded(&data)?;
+    let ids = tx.outbox_entries()?.iter().map(|data| decoded::<Queued>(data)).collect::<Result<Vec<_>, _>>()?
+        .into_iter().filter(|entry| entry.seq <= declaration.0).take(256).map(|entry| entry.id).collect();
+    Ok(Some(Capture { ids, declaration }))
+}
+
 pub(super) fn declaration<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<Declaration, RuntimeError> {
-    let capture = tx.meta(CAPTURE)?.filter(|s| !s.is_empty()).map(|s| decoded::<Declaration>(&s)).transpose()?;
+    let capture = load_capture(tx)?;
     match (page.pending_through, page.pending_complete) {
-        (Some(through), Some(complete)) => Ok((through, complete,
-            page.pending_bound.or(capture.map(|c| c.2)).unwrap_or(through))),
-        (None, None) => {
-            let latest = capture.unwrap_or((0, false, 0));
-            // Only an un-echoed reply is ambiguous. Never narrow the next
-            // request's live declaration; successful apply ends this window.
-            let first = tx.meta(FIRST_CAPTURE)?.filter(|s| !s.is_empty()).map(|s| decoded::<Declaration>(&s)).transpose()?.unwrap_or(latest);
-            Ok((first.0.min(latest.0), first.1 && latest.1 && first.0 == latest.0, first.2.max(latest.2)))
+        (Some(through), Some(complete)) => {
+            let bound = page.pending_bound.or_else(|| capture.as_ref().filter(|c| c.declaration.0 == through && c.declaration.1 == complete).map(|c| c.declaration.2));
+            let bound = match bound {
+                Some(bound) if bound >= through => bound,
+                None if complete => through,
+                _ => return Err(RuntimeError::Input("incomplete local pending declaration capture".into())),
+            };
+            Ok((through, complete, bound))
         }
+        (None, None) => Ok(capture.map_or((0, false, 0), |c| c.declaration)),
         _ => Err(RuntimeError::Input("incomplete local pending declaration capture".into())),
     }
 }
 
 pub(super) fn clear_capture<T: DeviceTx>(tx: &T) -> Result<(), RuntimeError> {
-    tx.delete_meta(&[CAPTURE, FIRST_CAPTURE])
+    // FIRST_CAPTURE no longer has a writer: it was a second, conflicting
+    // representation of the request. Remove residue at the same boundary.
+    tx.delete_meta(&[CAPTURE, "device:declaration:first-capture"])
+}
+
+pub(super) fn reset<T: DeviceTx>(tx: &T, keep_images: bool) -> Result<(), RuntimeError> {
+    clear_capture(tx)?;
+    if !keep_images { tx.delete_meta(&[PUBLISHED])?; }
+    Ok(())
 }
 
 pub(super) fn publish_declaration<T: DeviceTx>(tx: &T, declaration: Declaration) -> Result<(), RuntimeError> {
@@ -95,24 +133,25 @@ pub(super) fn replay_limit<T: DeviceTx>(tx: &T) -> Result<(u64, u64), RuntimeErr
 }
 
 // @ref LLP 3000.001#reliability-catchup — the publication decision and replay share eligibility, including the declaration guard.
-pub(super) fn replayable(entry: &Queued, programs: &BTreeMap<String, Program>, watermark: u64, declaration: (u64, u64)) -> bool {
-    !entry.sent_seq.is_some_and(|seq| seq <= watermark)
+pub(super) fn replayable(entry: &Queued, programs: &BTreeMap<String, Program>, watermark: u64, declaration: (u64, u64), store: Option<&str>) -> bool {
+    !(receipt_matches(entry, store) && entry.sent_seq.is_some_and(|seq| seq <= watermark))
         // An observation is written only with its published row effects. A
         // generation can reset the transfer watermark while retaining them.
-        && entry.observed_seq.is_none()
+        && !(receipt_matches(entry, store) && entry.observed_seq.is_some())
         && entry.predictable && !entry.viewer.is_empty() && programs.contains_key(&entry.op)
         && (entry.seq <= declaration.0 || entry.seq > declaration.1)
 }
 
 pub(super) fn replay<T: DeviceTx>(tx: &T, schema: &Schema, programs: &BTreeMap<String, Program>, watermark: u64) -> Result<(), RuntimeError> {
     let declaration = replay_limit(tx)?;
+    let store = tx.meta(STORE_ID)?;
     for data in tx.outbox_entries()? {
         let mut entry: Queued = decoded(&data)?;
-        if entry.sent_seq.is_some_and(|seq| seq <= watermark) {
-            tx.outbox_delete(&entry.id)?;
+        if receipt_matches(&entry, store.as_deref()) && entry.sent_seq.is_some_and(|seq| seq <= watermark) {
+            remove(tx, &entry.id)?;
             continue;
         }
-        if !replayable(&entry, programs, watermark, declaration) { continue; }
+        if !replayable(&entry, programs, watermark, declaration, store.as_deref()) { continue; }
         let program = &programs[&entry.op];
         tx.savepoint("replay")?;
         match run(tx, schema, program, &entry) {
@@ -141,6 +180,38 @@ pub(super) fn replay<T: DeviceTx>(tx: &T, schema: &Schema, programs: &BTreeMap<S
             }
             Err(error) if error.is_refusal() => tx.rollback_to("replay")?,
             Err(error) => return Err(error),
+        }
+    }
+    Ok(())
+}
+
+// Receipts and their incarnation are one outbox value, persisted together.
+pub(super) fn receipt_matches(entry: &Queued, store: Option<&str>) -> bool {
+    entry.receipt_store.as_ref().is_none_or(|receipt| receipt.id.as_deref() == store)
+}
+
+pub(super) fn record_receipt<T: DeviceTx>(tx: &T, entry: &mut Queued, seq: u64, observed: bool) -> Result<(), RuntimeError> {
+    let store = tx.meta(STORE_ID)?.or(tx.meta(deferred::IDENTITY)?);
+    if (entry.sent_seq.is_some() || entry.observed_seq.is_some()) && !receipt_matches(entry, store.as_deref()) {
+        return Ok(()); // A replacement cannot rebind a preserved old receipt.
+    }
+    entry.receipt_store = Some(ReceiptStore { id: store });
+    if observed { entry.observed_seq = Some(seq); } else { entry.sent_seq = Some(seq); }
+    enqueue(tx, entry)
+}
+
+pub(super) fn remove<T: DeviceTx>(tx: &T, id: &str) -> Result<(), RuntimeError> {
+    tx.outbox_delete(id)
+}
+
+// Upgrade old implicit receipts while their original incarnation is still
+// available. The ordinary receipt writer owns the only persisted binding.
+pub(super) fn bind_legacy_receipts<T: DeviceTx>(tx: &T) -> Result<(), RuntimeError> {
+    for data in tx.outbox_entries()? {
+        let mut entry: Queued = decoded(&data)?;
+        if entry.receipt_store.is_none() && let Some(seq) = entry.sent_seq.or(entry.observed_seq) {
+            let observed = entry.sent_seq.is_none();
+            record_receipt(tx, &mut entry, seq, observed)?;
         }
     }
     Ok(())

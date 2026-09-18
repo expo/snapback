@@ -58,7 +58,7 @@ fn probe<H: Host>(host: &mut H, write_count: usize, first_deferred: bool) {
             id: write_id.clone(), seq: 0, op: "bump".into(),
             args: serde_json::json!({"counterId": row}), new_ids: vec![],
             predicted: vec![], viewer: "dev:alice".into(), now: 1000,
-            predictable: true, sent_seq: None, observed_seq: None,
+            predictable: true, sent_seq: None, receipt_store: None, observed_seq: None,
         }).unwrap();
         device.begin_send().unwrap();
         let result = engine.mutate("bump", Some(&write_id),

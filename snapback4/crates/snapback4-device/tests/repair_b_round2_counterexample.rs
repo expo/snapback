@@ -46,7 +46,7 @@ fn counterexample<H: Host>(host: &mut H, receive_write_responses: bool) {
             id: write_id.into(), seq: 0, op: "adjust".into(),
             args: serde_json::json!({"delta": delta}), new_ids: vec![],
             predicted: vec![], viewer: "dev:alice".into(), now: 1000,
-            predictable: true, sent_seq: None, observed_seq: None,
+            predictable: true, sent_seq: None, receipt_store: None, observed_seq: None,
         }).unwrap();
         let result = engine.mutate("adjust", Some(write_id),
             context("dev:alice", &[("delta", Value::Int(delta))]).at(1000)).unwrap();

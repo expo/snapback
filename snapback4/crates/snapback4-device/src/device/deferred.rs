@@ -14,8 +14,16 @@ const ACKS: &str = "device:deferred:acks";
 pub(super) const CURSOR: &str = "device:deferred:cursor";
 
 pub(super) fn clear<T: DeviceTx>(tx: &T) -> Result<(), RuntimeError> { tx.delete_meta(&[PREFIX]) }
+pub(super) fn stage_identity<T: DeviceTx>(tx: &T, identity: Option<&str>) -> Result<(), RuntimeError> {
+    if let Some(identity) = identity { tx.set_meta(IDENTITY, identity)?; }
+    Ok(())
+}
 pub(super) fn cursor<T: DeviceTx>(tx: &T) -> Result<Option<u64>, RuntimeError> {
-    tx.meta(CURSOR)?.map(|v| decoded(&v)).transpose()
+    decode_cursor(tx.meta(CURSOR)?)
+}
+
+pub(super) fn decode_cursor(value: Option<String>) -> Result<Option<u64>, RuntimeError> {
+    value.filter(|v| !v.is_empty()).map(|v| decoded(&v)).transpose()
 }
 
 pub(super) fn validate(page: &StreamPage) -> Result<(), RuntimeError> {
@@ -34,10 +42,11 @@ pub(super) fn should_defer<T: DeviceTx>(tx: &T, programs: &BTreeMap<String, Prog
     // Exactly the replay eligibility this page would publish, evaluated before
     // its acknowledgements can remove a prediction from the visible overlay.
     let prospective = (declaration.0, declaration.2);
+    let store = tx.meta(STORE_ID)?;
     for data in tx.outbox_entries()? {
         let q: Queued = decoded(&data)?;
-        if predictions::replayable(&q, programs, published, prospective)
-            && (page.images_at.is_none() || !declaration.1 || page.committed_above.contains_key(&q.id)) { return Ok(true); }
+        if predictions::replayable(&q, programs, published, prospective, store.as_deref())
+            && (page.images_at.is_none() || page.committed_above.contains_key(&q.id)) { return Ok(true); }
     }
     Ok(false)
 }
@@ -104,25 +113,27 @@ pub(super) fn stage<T: DeviceTx>(tx: &T, schema: &Schema, generation: u64, page:
     install_metadata(tx)?;
     install_rows(tx, schema, false, &mut BTreeSet::new())?;
     let inherited = rows(tx)?.into_iter().map(|(name, id, effect)| ((name, id), effect.admission)).collect();
-    let recording = Recording::new(tx, inherited);
+    let recording = Recording::new(tx, inherited, metadata(tx)?.into_iter().collect());
     events(&recording, schema, generation, page, &mut BTreeSet::new())?;
     let mut row_delta = Vec::new();
     for ((name, id), present) in recording.rows.borrow().iter() {
         row_delta.push((format!("{ROWS}{}", encoded(&(name, id))?), encoded(&RowEffect {
             image: if *present { tx.get(name, id)? } else { None },
-            admission: recording.admission.borrow().get(&(name.clone(), id.clone())).cloned().flatten(),
+            admission: if *present { recording.admission.borrow().get(&(name.clone(), id.clone())).cloned()
+                .ok_or_else(|| RuntimeError::Store("deferred row has no admission provenance".into()))? } else { None },
         })?));
     }
-    let mut meta_delta = Vec::new();
-    for key in recording.meta.borrow().iter() {
-        meta_delta.push((format!("{META}{key}"), encoded(&tx.meta(key)?)?));
-    }
+    // Older concrete children removed by a new prefix operation become
+    // tombstones too. Keep one last operation per key; clear owns all deletion.
+    for (key, _) in metadata(tx)? { recording.meta.borrow_mut().entry(key).or_insert(None); }
+    let meta_delta = recording.meta.borrow().iter().map(|(key, value)|
+        Ok((format!("{META}{key}"), encoded(value)?))).collect::<Result<Vec<_>, RuntimeError>>()?;
     tx.rollback_to("deferred")?;
     for (key, value) in row_delta.into_iter().chain(meta_delta) { tx.set_meta(&key, &value)?; }
     let mut acks: BTreeMap<String, u64> = tx.meta(ACKS)?.map(|v| decoded(&v)).transpose()?.unwrap_or_default();
     acks.extend(page.acknowledged.clone());
     tx.set_meta(ACKS, &encoded(&acks)?)?;
-    tx.set_meta(CURSOR, &page.watermark.to_string())
+    tx.set_meta(CURSOR, &encoded(&page.watermark)?)
 }
 
 pub(super) fn install<T: DeviceTx>(tx: &T, schema: &Schema, touched: &mut BTreeSet<String>) -> Result<(), RuntimeError> {
@@ -130,7 +141,7 @@ pub(super) fn install<T: DeviceTx>(tx: &T, schema: &Schema, touched: &mut BTreeS
     install_rows(tx, schema, true, touched)?;
     // Include non-row-only changes in watch invalidation.
     if cursor(tx)?.is_some() { touched.extend(schema.tables.keys().cloned()); }
-    tx.delete_meta(&[ROWS, META, CURSOR])
+    Ok(())
 }
 
 pub(super) fn acknowledge<T: DeviceTx>(tx: &T, watermark: u64, current: &BTreeMap<String, u64>) -> Result<(), RuntimeError> {
@@ -142,8 +153,7 @@ pub(super) fn acknowledge<T: DeviceTx>(tx: &T, watermark: u64, current: &BTreeMa
         if seq > watermark { return Err(RuntimeError::Input("deferred acknowledgement is beyond publication".into())); }
         if let Some(data) = tx.outbox_get(&id)? {
             let mut q: Queued = decoded(&data)?;
-            q.observed_seq = Some(seq);
-            predictions::enqueue(tx, &q)?;
+            predictions::record_receipt(tx, &mut q, seq, true)?;
         }
     }
     clear(tx)

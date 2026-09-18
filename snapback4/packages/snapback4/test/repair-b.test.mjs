@@ -161,3 +161,52 @@ test("catch-up requests adopt the device transfer cursor", { timeout: 5000 }, as
     assert.equal(published, 8);
   } finally { await client.close(); }
 });
+
+test("interrupted snapshot catch-up resumes its durable mode", { timeout: 5000 }, async () => {
+  const { createLocalClient: create } = await import(process.env.REPAIR_B_LOCAL ?? "../dist/local.js");
+  const backend = { generation: 1, schema: { tables: {} }, programs: [] };
+  let staged = false, published = 0, failures = 1;
+  const requests = [];
+  const core = { close: async () => {}, call: async request => {
+    switch (request.op) {
+      case "backend": return { ok: backend };
+      case "meta": return { ok: null };
+      case "state": return { ok: { watermark: published, generation: 1 } };
+      case "queued": return { ok: [] };
+      case "sync_state": return { ok: { acquired: published > 0, backend_required: false, store_id: null,
+        watermark: published, transfer_watermark: staged ? 5 : published, snapshot_catchup: staged,
+        generation: 1, pending_ids: [], pending_through: 0, pending_complete: true, pending_bound: 0, send_revision: 0 } };
+      case "apply":
+        if (request.page.snapshot) { staged = true; return { ok: { touched: [], published: false } }; }
+        assert.equal(request.page.snapshot_catchup, true);
+        assert.equal(request.first, false);
+        staged = false; published = request.page.watermark;
+        return { ok: { touched: [], published: true } };
+      case "set_meta": case "keep_write": case "adopt": return { ok: null };
+      case "next_submission": return { ok: 1 };
+      default: throw new Error(`unexpected device operation ${request.op}`);
+    }
+  } };
+  const client = await create({ url: "http://resume.invalid", persona: "alice", device: { open: async () => core },
+    fetch: async (url, init) => {
+      const path = new URL(url).pathname;
+      if (path === "/schema") return Response.json(backend);
+      if (path === "/sync") {
+        const request = JSON.parse(init.body); requests.push(request);
+        if (requests.length === 1) return Response.json({ snapshot: true, events: [], watermark: 5, more: false, generation: 1 });
+        if (failures-- > 0) throw new TypeError("interrupted after staging");
+        assert.equal(request.stream, true, "the new syncRound must recover staged transfer mode");
+        assert.equal(request.from, 5);
+        return Response.json({ snapshot: false, events: [], watermark: 8, images_at: 8, more: false, generation: 1 });
+      }
+      throw new TypeError("background transport held");
+    },
+  });
+  try {
+    assert.equal(staged, true);
+    await client.sync();
+    assert.equal(published, 8);
+    assert.equal(staged, false);
+    assert.equal(requests.length, 3);
+  } finally { await client.close(); }
+});

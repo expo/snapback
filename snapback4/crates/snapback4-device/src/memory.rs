@@ -208,6 +208,11 @@ impl DeviceStore for MemoryStore {
         self.install(schema, metadata, reset)
     }
     fn install(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool) -> Result<(), RuntimeError> {
+        // Installation below is infallible and memory has one exclusive owner.
+        // Run fallible cleanup first; the host persists this whole call together.
+        let tx = self.transaction()?;
+        crate::device::reset_for_install(&tx, metadata, reset)?;
+        tx.commit()?;
         let mut state = self.state.borrow_mut();
         let mut changes = self.changes.borrow_mut();
         for (key, value) in metadata {
@@ -220,8 +225,6 @@ impl DeviceStore for MemoryStore {
             changes.push(Change { s: 'm', k: key.clone(), v: Some(value.clone()) });
         }
         if reset {
-            let obsolete: Vec<_> = state.meta.keys().filter(|key| key.starts_with("device:deferred:") || key.starts_with("device:declaration:")).cloned().collect();
-            for k in obsolete { state.meta.remove(&k); changes.push(Change { s: 'm', k, v: None }); }
             for (table, id) in state.rows.keys() {
                 changes.push(Change { s: 'r', k: row_key(table, id), v: None });
             }

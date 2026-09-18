@@ -19,7 +19,7 @@ fn run<H: Host>(host: &mut H) {
     assert_eq!(original.as_array().unwrap()[0].field("score").unwrap(), &Value::Int(0));
     for (seq, op) in [(1, "like"), (2, "like"), (3, "unlike"), (4, "like")] {
         let entry = device.admit(Queued { id:format!("q{seq}"), seq, op:op.into(), args:json!({"postId":"p"}), viewer:"bob".into(), now:now + seq as i64,
-            new_ids:vec![format!("l{seq}")], predicted:vec![], predictable:true, sent_seq:None, observed_seq:None }).unwrap();
+            new_ids:vec![format!("l{seq}")], predicted:vec![], predictable:true, sent_seq: None, receipt_store: None, observed_seq:None }).unwrap();
         assert!(entry.predictable, "{}: {entry:?}", host.label());
         assert!(entry.predicted.iter().all(|key| key.starts_with("likes/")), "{entry:?}");
         assert_eq!(device.query("myLike", "bob", &json!({"postId":"p"}), now + seq as i64).unwrap().data, Value::Bool(op != "unlike"));
@@ -29,7 +29,7 @@ fn run<H: Host>(host: &mut H) {
         device.settle(&format!("q{seq}"), Some(server.seq().unwrap())).unwrap();
     }
     let create = device.admit(Queued { id:"create".into(), seq:5, op:"create".into(), args:json!({"body":"local"}), viewer:"bob".into(), now:now+5,
-        new_ids:vec!["local-post".into()], predicted:vec![], predictable:true, sent_seq:None, observed_seq:None }).unwrap();
+        new_ids:vec!["local-post".into()], predicted:vec![], predictable:true, sent_seq: None, receipt_store: None, observed_seq:None }).unwrap();
     assert!(create.predictable, "{create:?}");
     assert!(create.predicted.iter().any(|key| key == "posts/local-post"));
     assert!(!create.predicted.iter().any(|key| key.starts_with("ranked/")));

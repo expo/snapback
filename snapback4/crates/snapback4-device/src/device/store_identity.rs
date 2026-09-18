@@ -47,7 +47,7 @@ pub struct StoreObservation {
 }
 
 // @ref LLP 3000.007#18.2 — replacement discards the old partition, never an unsent write or a known receipt.
-pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<StoreObservation, RuntimeError> {
+pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: bool) -> Result<StoreObservation, RuntimeError> {
     let mut revision = meta_u64(tx, SEND_REVISION)?;
     let previous = tx.meta(STORE_ID)?;
     if page.send_revision.is_some_and(|expected| expected != revision) {
@@ -79,23 +79,21 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<StoreObs
         // Discarding private effects discards their retirement authority too.
         // Only receipts already covered by the published base can retire here.
         let private = deferred::cursor(tx)?.is_some() || tx.meta(SNAPSHOT_OWNER)?.is_some();
+        predictions::bind_legacy_receipts(tx)?;
         tx.delete_meta(&[RESTORE_REFUSED])?;
         tx.clear_rows()?;
         tx.base_clear()?;
-        deferred::clear(tx)?;
-        tx.delete_meta(&[predictions::DECLARATION_PREFIX])?;
-        tx.staged_clear()?;
+        reset_publication(tx, false)?;
         tx.set_meta(WATERMARK, "0")?;
         tx.set_meta(BACKEND_REQUIRED, page.store_id.as_deref().unwrap_or("legacy"))?;
         tx.delete_meta(&[ACQUIRED, history::GROUPS, boundary::BOUNDARIES, boundary::REPORT])?;
-        tx.delete_meta(&SNAPSHOT_KEYS)?;
         for data in tx.outbox_entries()? {
             let mut entry: Queued = decoded(&data)?;
-            if let Some(seq) = entry.sent_seq.or(entry.observed_seq).filter(|seq| !private || *seq <= watermark) {
+            if let Some(seq) = entry.sent_seq.or(entry.observed_seq).filter(|seq| predictions::receipt_matches(&entry, previous.as_deref()) && (!private || *seq <= watermark)) {
                 // A receipt proves execution in the old store. It is not
                 // permission to execute that write in the replacement.
                 retired.insert(entry.id.clone(), seq);
-                tx.outbox_delete(&entry.id)?;
+                predictions::remove(tx, &entry.id)?;
             } else {
                 entry.predictable = false;
                 entry.predicted.clear();
@@ -103,10 +101,11 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage) -> Result<StoreObs
             }
         }
     }
-    if identity_changed {
+    let adopt_identity = identity_changed && (publish_first || reset || previous.is_some());
+    if adopt_identity {
         tx.set_meta(STORE_ID, page.store_id.as_deref().expect("changed identity"))?;
     }
-    if reset || identity_changed {
+    if reset || adopt_identity {
         revision = revision.checked_add(1).filter(|n| *n <= 9_007_199_254_740_991).ok_or_else(|| RuntimeError::Store("send revision overflow".into()))?;
         tx.set_meta(SEND_REVISION, &revision.to_string())?;
     }
@@ -118,10 +117,8 @@ impl<S: DeviceStore> Device<S> {
     /// or acquiring pages. A replacement is durable even if acquisition fails.
     pub fn observe_store(&mut self, page: &StreamPage) -> Result<StoreObservation, RuntimeError> {
         let tx = self.store.transaction()?;
-        let first_identity = tx.meta(STORE_ID)?.is_none() && self.store_identity.is_none();
-        let observed = observe(&tx, page)?;
+        let observed = observe(&tx, page, false)?;
         tx.commit()?;
-        if first_identity && !observed.reset { self.store_identity = page.store_id.clone(); }
         if observed.reset { self.snapshot_owner = None; }
         if observed.restore_refused { return Err(restore_error()); }
         Ok(observed)

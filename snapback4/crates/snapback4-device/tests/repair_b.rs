@@ -49,7 +49,7 @@ fn value<S: DeviceStore>(d: &mut Device<S>, k: &str) -> Option<i64> {
 }
 fn admit<S: DeviceStore>(d: &mut Device<S>, id: &str, op: &str, args: serde_json::Value) {
     d.admit(Queued { id:id.into(), seq:0, op:op.into(), args, new_ids:vec![], predicted:vec![], viewer:"dev:alice".into(), now:100,
-        predictable:true, sent_seq:None, observed_seq:None }).unwrap();
+        predictable:true, sent_seq: None, receipt_store: None, observed_seq:None }).unwrap();
 }
 fn bump(e: &mut Engine, write: &str, k: &str, viewer: &str) -> u64 {
     let r = e.mutate("bump", Some(write), context(viewer, &[("k", id(k))]).at(100)).unwrap();
@@ -256,7 +256,7 @@ fn capture_overlap<H: Host>(h: &mut H) {
     old.pending_through = None; old.pending_complete = None;
     for i in 0..256 { d.dequeue(&format!("w{i}")).unwrap(); }
     let newer = d.sync_state().unwrap();
-    assert_eq!(newer.pending_ids, ["w256"]);
+    assert_eq!(newer.pending_ids.len(), 256, "an in-flight declaration is immutable even if the outbox shrinks");
     d.apply(&old, false).unwrap();
     assert_eq!(value(&mut d, "a"), Some(0), "a later capture cannot widen an older response");
     let p = next(&mut e, &mut d, 100);
@@ -411,9 +411,13 @@ fn private_identity<H: Host>(h: &mut H) {
     let mut d=h.open("identity",Some(b)).unwrap();
     let mut p=snapshot_pages(&mut e,"dev:alice",100).remove(0);
     p.store_id=Some("first".into());p.stage_snapshot=true;
+    let preflight = d.observe_store(&p).unwrap();
+    assert!(!preflight.reset);
+    assert!(d.store().meta("device:store_id").unwrap().is_none(), "preflight cannot publish first identity");
     d.apply(&p,true).unwrap();
     let capture=d.sync_state().unwrap();
     assert!(capture.store_id.is_none());
+    assert_eq!(capture.transfer_store_id.as_deref(), Some("first"), "continuations bind the staged identity without publishing it");
     assert!(!capture.backend_required, "a private identity must not obsolete the in-memory owner");
     assert!(d.store().meta("device:store_id").unwrap().is_none());
     let mut terminal=stream_page(&mut e,"dev:alice",p.watermark);
@@ -435,8 +439,8 @@ fn capture_progress<H: Host>(h: &mut H) {
     admit(&mut d,"q2","bump",json!({"k":"b"}));
     let mut final_page=next(&mut e,&mut d,100);
     assert_eq!((final_page.pending_through,final_page.pending_complete),(Some(2),Some(true)));
-    let stored: (u64,bool,u64)=serde_json::from_str(&d.store().meta("device:declaration:capture").unwrap().unwrap()).unwrap();
-    assert_eq!(stored,(2,true,2));
+    let stored: serde_json::Value=serde_json::from_str(&d.store().meta("device:declaration:capture").unwrap().unwrap()).unwrap();
+    assert_eq!(stored["declaration"],json!([2,true,2]));
     // A legacy/direct caller omits the echo. A previous applied page must not
     // leave an intersected declaration that excludes this request's new write.
     final_page.pending_through=None;final_page.pending_complete=None;final_page.pending_bound=None;
@@ -445,3 +449,6 @@ fn capture_progress<H: Host>(h: &mut H) {
     assert!(d.store().meta("device:declaration:capture").unwrap().is_none());
 }
 stores!(captures_follow_each_request_and_end_on_deferred_apply, capture_progress);
+
+#[path = "repair_b/lifecycle.rs"]
+mod lifecycle;

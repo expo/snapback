@@ -20,7 +20,7 @@ fn run<H: Host>(host: &mut H) {
     assert_eq!(f::names(&f::rows(&fill.data)), ["mid", "fresh", "edge", "quiet-00", "quiet-01", "quiet-02", "quiet-03", "quiet-04", "quiet-05", "quiet-06"]);
     for (n, liked) in [true, true, false, false].into_iter().enumerate() {
         let entry = device.admit(Queued { id: format!("q{n}"), seq:n as u64 + 1, op:"setLike".into(), args:json!({"postId":"quiet-00","liked":liked}),
-            viewer:"bob".into(), now:f::NOW, new_ids:vec![format!("local-{n}")], predicted:vec![], predictable:true, sent_seq:None, observed_seq:None }).unwrap();
+            viewer:"bob".into(), now:f::NOW, new_ids:vec![format!("local-{n}")], predicted:vec![], predictable:true, sent_seq: None, receipt_store: None, observed_seq:None }).unwrap();
         assert!(entry.predictable, "{}: {entry:?}", host.label());
         let result = device.query("trending", "bob", &json!({"c":null}), f::NOW).unwrap();
         assert_eq!(f::names(&f::rows(&result.data)).contains(&"quiet-00".to_string()), liked);

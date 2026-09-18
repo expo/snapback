@@ -190,8 +190,8 @@ fn page_call<S: DeviceStore>(device: &mut Device<S>, command: PageArgument) -> R
     PAGE_CALLS.set(PAGE_CALLS.get() + 1);
     if command.op == "observe_store" { return encoded(&device.observe_store(&command.page)?); }
     // A missing marker is a continuation; starting a snapshot must be explicit.
-    let touched = device.apply(&command.page, command.first.as_bool().unwrap_or(false))?;
-    Ok(json!({ "touched": touched, "published": !device.publication_pending()? }))
+    let (touched, published) = device.apply_publication(&command.page, command.first.as_bool().unwrap_or(false))?;
+    Ok(json!({ "touched": touched, "published": published }))
 }
 
 #[cfg(test)]

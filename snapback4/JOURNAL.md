@@ -36541,3 +36541,62 @@ passed **160**, failed **0**, ignored **0**. The first device run detected an
 introduced acquisition-namespace load on an empty slot; the final run includes
 its correction and the added regression assertions. The focused TypeScript
 cursor test also passed. No failing requested check remains.
+
+## 2026-09-17 — Repair B, review fix round 2: durable publication lifecycle
+
+The follow-up to `891041ddf` puts open/adoption, local clear and store
+replacement through `reset_publication`. SQLite invokes it inside schema
+activation; memory does the fallible cleanup before its infallible exclusive
+installation and persists the complete call together. Retaining confirmed
+images retains their published replay guard. Empty transfer cursors mean no
+transfer in both request construction and publication status.
+
+One immutable capture holds a request's IDs and bounds until apply consumes it
+or a send revision abandons it. `FIRST_CAPTURE` and the first/latest intersection
+are removed. The checkpoint's bounds-only capture remains readable. Deferred
+metadata keeps its existing per-key layout but records prefix tombstones and
+subsequent writes explicitly. Present rows require admission provenance; nested
+recording savepoints are unsupported, and failed writes do not enter the delta.
+
+Receipts carry their incarnation in the same outbox value. Older implicit
+receipts bind before replacement clears that incarnation; replacement watermarks
+cannot retire them. The optional field is omitted on unsent records, preserving
+the existing byte-format regression. First-identity preflight detects actual
+replacement but leaves initial publication to apply. Requests recover both the
+snapshot catch-up mode and private transfer identity from staging. Apply returns
+publication status with its touched tables, without a second fallible read.
+
+Some packet-only hypotheses did not hold in the full code: namespace deletion
+already worked on both stores; folding already installed preceding metadata and
+rows; ordinary history and watch invalidation already ran; and unpublished
+terminal pages already caused the transport to continue. The per-finding record
+and complete command/mutation logs are local evidence under
+`target/review-fix2/`. Twenty-one distinct Rust mutations and one TypeScript
+mutation failed their intended regressions; affected mutations were repeated
+after the compatibility correction, with source bytes restored each time.
+
+| Durable value | Sole writer | Sole clearer |
+| --- | --- | --- |
+| `device:deferred:rows:*`, `meta:*`, `acks`, `cursor` | `deferred::stage` | `deferred::clear` |
+| `device:deferred:identity` | `deferred::stage_identity` | `deferred::clear` |
+| `device:declaration:capture` | `predictions::capture` | `predictions::clear_capture` |
+| `device:declaration:first-capture` | Removed | `predictions::clear_capture` removes old residue |
+| `device:declaration:published` | `predictions::publish_declaration` | `predictions::reset` when images go |
+| `device:snapshot:through` | `Device::apply_publication` | `snapshot::clear` |
+| `Queued.receipt_store` | `predictions::record_receipt` | `predictions::remove`, with its outbox entry |
+
+`deferred::PREFIX` and the former `DECLARATION_PREFIX` select namespaces; they
+are not stored values. Transfer mode and transfer identity are derived outputs,
+not additional durable keys. The supervisor retains integration and the governing
+LLP update. This lane commits locally only: no push, merge, rebase, whole suite,
+simulator suite, witness, repository-root generator, Wasm build or release build.
+The device tests reuse the existing rescore fixture through a narrow command shim
+that verifies its digest and refuses to run the nested build.
+
+Final verification: `cargo test -p snapback4-device` passed **542**, failed **0**,
+ignored **3** (existing); `cargo test -p snapback4-core` passed **160**, failed
+**0**, ignored **0**. The targeted TypeScript compile and both transport tests
+also passed. The first device run found the introduced null receipt-field byte
+change; the final run includes its correction and checkpoint-format regressions.
+The guest fixture SHA256 stayed
+`e18f1c343d88c2f1642be54d212c1eb9084ffdd51a8d3c0fcabd329c23616697`.
