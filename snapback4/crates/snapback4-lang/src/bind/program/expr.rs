@@ -97,7 +97,7 @@ impl Binder<'_> {
             A::If { then, condition, otherwise, .. } => {
                 let (cond, cond_ty) = self.expr(condition, out)?;
                 if !cond_ty.is_bool() {
-                    return Err(type_error(condition.site(), format!("a conditional value needs a bool condition, got {}", cond_ty.name()), "compare the value: `x if ttl != null else y`"));
+                    return Err(type_error(condition.site(), format!("a conditional value needs a bool condition, got {}", cond_ty.name()), super::control::bool_condition_rewrite(&cond_ty, "x if ttl {} else y")));
                 }
                 // Each arm binds under its narrowing and runs only when taken.
                 let temp = self.temp("if");

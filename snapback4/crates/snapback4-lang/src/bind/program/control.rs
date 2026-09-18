@@ -120,7 +120,7 @@ impl Binder<'_> {
                 validate_code(site, code)?;
                 let (expr, ty) = self.expr(condition, out)?;
                 if !ty.is_bool() {
-                    return Err(type_error(condition.site(), format!("require needs a bool condition, got {}", ty.name()), "compare the value: `require x != null else CODE`"));
+                    return Err(type_error(condition.site(), format!("require needs a bool condition, got {}", ty.name()), bool_condition_rewrite(&ty, "require x {} else CODE")));
                 }
                 self.narrow(condition, true);
                 out.push(Stmt::Require { condition: expr, code: code.clone(), site: Some(site.to_string()) });
@@ -147,7 +147,7 @@ impl Binder<'_> {
                 let (expr, ty) = self.expr(condition, out)?;
                 if self.record_ownership { out.own(start, setup::Owner::Condition); }
                 if !ty.is_bool() {
-                    return Err(type_error(condition.site(), format!("if needs a bool condition, got {}", ty.name()), "compare the value: `if x != null:`"));
+                    return Err(type_error(condition.site(), format!("if needs a bool condition, got {}", ty.name()), bool_condition_rewrite(&ty, "if x {}:")));
                 }
                 let before = self.visible_bindings();
                 let (then_out, then_bindings) = self.branch(condition, true, then_body, completes)?;
@@ -552,5 +552,22 @@ fn field_path(expr: &A) -> Option<(&str, Vec<String>)> {
             Some((root, path))
         }
         _ => None,
+    }
+}
+
+/// A condition needs a `bool`, and the repair depends on what the author has.
+///
+/// For most optionals `x != null` is exactly right: the question is whether a value
+/// is present. For `bool ?` it is a trap — `x != null` is also true when the value is
+/// `false`, so an author who follows that advice gets a condition that compiles, is
+/// blessed by `check`, and silently inverts their intent for every explicitly-false
+/// row. The 0.2.28 calibration hit this class six times.
+///
+/// `shape` carries `{}` where the comparison belongs.
+pub(super) fn bool_condition_rewrite(ty: &crate::types::Ty, shape: &str) -> String {
+    if matches!(ty.required(), crate::types::Ty::Bool) {
+        format!("compare the value: `{}` — `x != null` is also true when x is false", shape.replace("{}", "= true"))
+    } else {
+        format!("compare the value: `{}`", shape.replace("{}", "!= null"))
     }
 }
