@@ -127,7 +127,10 @@ export function checkAbsent(rows, retainingPath) {
   // Only the core's namespace: a client module or a dependency that happens to be
   // called prefetch or admission is not server engine code.
   const forbidden = /snapback4_core(?:\[[0-9a-f]+\])?::(?:[A-Za-z0-9_]+::)*(?:(?:prefetch|admission|log_events)::|partition::(?:[A-Za-z0-9_]+::)*(?:row_changed|put|del|scope|join)(?=$|::|[<> ]))/;
-  const unexpected = rows.filter(row => forbidden.test(clean(row.name)) || row.name.includes('unicode_normalization'));
+  // The NFC tables left the web artifact with S3: the crate's own path, at any mount, is forbidden;
+  // a symbol that merely contains the words (another crate's `unicode_normalization_cache`) is not.
+  const tables = /(?:^|[<(, ]|::)unicode_normalization(?:\[[0-9a-f]+\])?::/;
+  const unexpected = rows.filter(row => forbidden.test(clean(row.name)) || tables.test(row.name));
   const failures = unexpected.map(row => {
     const path = retainingPath(row.name);
     if (!path?.trim()) refuse(`no retaining path returned for ${row.name}`);
