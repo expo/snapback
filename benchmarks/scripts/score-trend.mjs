@@ -47,8 +47,11 @@ function fit(values) {
 function readRun(dir) {
   const full = join(runsDir, dir);
   for (const family of readdirSync(full, { withFileTypes: true }).filter(e => e.isDirectory()).map(e => e.name)) {
-    const file = join(full, family, "FINAL.md");
-    if (!existsSync(file)) continue;
+    // Both spellings are the same instrument. Reading only FINAL.md silently
+    // started the series at 0.2.16 — which is its maximum — and a window that
+    // starts at the peak cannot come out anything but falling.
+    const file = [join(full, family, "FINAL.md"), join(full, family, "holistic-score.md")].find(existsSync);
+    if (!file) continue;
     const block = /```json\s*(\{[\s\S]*?\})\s*```/.exec(readFileSync(file, "utf8"));
     if (!block) continue;
     let parsed;
@@ -66,9 +69,24 @@ function readRun(dir) {
   return null;
 }
 
+/** Date first, then version numerically — "0.2.12" sorts before "0.2.9" as a string. */
+function chronological(a, b) {
+  const key = d => {
+    const m = /^(\d{4}-\d{2}-\d{2})-snapback4-clique-astra-(.+)$/.exec(d);
+    return [m?.[1] ?? d, (m?.[2] ?? "").split(".").map(Number)];
+  };
+  const [da, va] = key(a), [db, vb] = key(b);
+  if (da !== db) return da < db ? -1 : 1;
+  for (let i = 0; i < Math.max(va.length, vb.length); i++) {
+    const x = va[i] ?? 0, y = vb[i] ?? 0;
+    if (x !== y) return x - y;
+  }
+  return 0;
+}
+
 const runs = readdirSync(runsDir)
   .filter(d => /^\d{4}-\d{2}-\d{2}-snapback4-clique-astra-/.test(d))
-  .sort()
+  .sort(chronological)
   .map(readRun)
   .filter(Boolean);
 
@@ -90,7 +108,22 @@ function robustness(series, versions) {
     const without = series.filter((_, j) => j !== i);
     if (verdict(fit(without)) !== full) rests.push(versions[i]);
   }
-  return { robust: rests.length === 0, restsOn: rests };
+  // Leave-one-out does not catch a window whose START decides the answer. A
+  // series that steps up and then drifts reads "falling" from just after the
+  // step and "rising" from before it; both are a straight line through a bend.
+  // Refit from each later start and record every verdict the data admits.
+  const windows = [];
+  for (let i = 0; i + 4 <= series.length; i++) {
+    windows.push({ from: versions[i], drift: fit(series.slice(i)).drift, verdict: verdict(fit(series.slice(i))) });
+  }
+  const seen = [...new Set(windows.map(w => w.verdict))];
+  return {
+    robust: rests.length === 0,
+    restsOn: rests,
+    windows,
+    windowStable: seen.length === 1,
+    windowVerdicts: seen,
+  };
 }
 
 const versions = runs.map(r => r.version);
@@ -101,10 +134,10 @@ for (const c of categories) {
 }
 
 const falling = categories
-  .filter(c => c !== "overall" && trends[c].slope < 0 && trends[c].beyondNoise && trends[c].robust)
+  .filter(c => c !== "overall" && trends[c].slope < 0 && trends[c].beyondNoise && trends[c].robust && trends[c].windowStable)
   .sort((a, b) => trends[a].drift - trends[b].drift);
 const fragile = categories
-  .filter(c => trends[c].beyondNoise && !trends[c].robust)
+  .filter(c => trends[c].beyondNoise && (!trends[c].robust || !trends[c].windowStable))
   .sort((a, b) => trends[a].drift - trends[b].drift);
 
 const report = {
@@ -122,7 +155,7 @@ writeFileSync(join(root, "benchmarks/TREND.json"), JSON.stringify(report, null, 
 const n = runs.length;
 const o = trends.overall;
 const sign = v => (v >= 0 ? "+" : "") + v.toFixed(1);
-const arrow = t => (!t.beyondNoise ? "flat" : !t.robust ? "rests on one run" : t.slope < 0 ? "falling" : "rising");
+const arrow = t => (!t.beyondNoise ? "flat" : !t.robust ? "rests on one run" : !t.windowStable ? "window decides it" : t.slope < 0 ? "falling" : "rising");
 
 const lines = [];
 lines.push("# Calibration trend");
@@ -144,9 +177,19 @@ for (const c of ["overall", ...categories.filter(x => x !== "overall").sort((a, 
 }
 lines.push("");
 if (fragile.length) {
-  lines.push("## Verdicts that rest on a single run");
+  lines.push("## Verdicts the data does not support");
   lines.push("");
-  for (const c of fragile) lines.push(`- **${c}** reads ${trends[c].slope < 0 ? "falling" : "rising"} at ${sign(trends[c].drift)}, but the verdict flips without ${trends[c].restsOn.join(" or ")}. Treat it as unproven until another run lands.`);
+  for (const c of fragile) {
+    const t = trends[c];
+    const why = [];
+    if (!t.robust) why.push(`flips without ${t.restsOn.join(" or ")}`);
+    if (!t.windowStable) {
+      const lo = t.windows.reduce((a, w) => (w.drift < a.drift ? w : a));
+      const hi = t.windows.reduce((a, w) => (w.drift > a.drift ? w : a));
+      why.push(`reads ${sign(lo.drift)} started from ${lo.from} and ${sign(hi.drift)} started from ${hi.from}, so the window decides it`);
+    }
+    lines.push(`- **${c}** reads ${t.slope < 0 ? "falling" : "rising"} at ${sign(t.drift)} over the whole series, but it ${why.join("; and it ")}. Not counted.`);
+  }
   lines.push("");
 }
 if (falling.length) {

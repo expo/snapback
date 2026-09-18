@@ -4,6 +4,48 @@
   "note": "Fitted across the whole series. A single run against its neighbour is noise; see the 2026-09-17 trend correction.",
   "runs": [
     {
+      "run": "2026-09-14-snapback4-clique-astra-0.2.9",
+      "date": "2026-09-14",
+      "version": "0.2.9",
+      "family": "astra",
+      "scores": {
+        "overall": 85,
+        "setup_and_docs": 78,
+        "data_modeling": 88,
+        "authorization": 91,
+        "queries_and_live": 74,
+        "writes_and_transactions": 94,
+        "offline_sync": 82,
+        "media_assets": 96,
+        "background_work": 93,
+        "client_integration": 90,
+        "diagnostics_dev_loop": 88,
+        "scale_and_limits": 82,
+        "operations": 87
+      }
+    },
+    {
+      "run": "2026-09-14-snapback4-clique-astra-0.2.12",
+      "date": "2026-09-14",
+      "version": "0.2.12",
+      "family": "astra",
+      "scores": {
+        "overall": 86,
+        "setup_and_docs": 79,
+        "data_modeling": 89,
+        "authorization": 94,
+        "queries_and_live": 80,
+        "writes_and_transactions": 94,
+        "offline_sync": 90,
+        "media_assets": 97,
+        "background_work": 88,
+        "client_integration": 91,
+        "diagnostics_dev_loop": 78,
+        "scale_and_limits": 86,
+        "operations": 87
+      }
+    },
+    {
       "run": "2026-09-15-snapback4-clique-astra-0.2.16",
       "date": "2026-09-15",
       "version": "0.2.16",
@@ -217,6 +259,8 @@
   "categories": {
     "overall": {
       "series": [
+        85,
+        86,
         90,
         91,
         88,
@@ -228,20 +272,74 @@
         89,
         85
       ],
-      "slope": -0.296969696969697,
-      "mean": 89.1,
-      "sd": 1.8138357147217052,
-      "first": 90.43636363636364,
-      "last": 87.76363636363637,
-      "drift": -2.672727272727273,
-      "beyondNoise": true,
+      "slope": 0.08391608391608392,
+      "mean": 88.5,
+      "sd": 2.140872096444188,
+      "first": 88.03846153846153,
+      "last": 88.96153846153845,
+      "drift": 0.9230769230769231,
+      "beyondNoise": false,
       "robust": false,
       "restsOn": [
         "0.2.28"
+      ],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": 0.9230769230769231,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.12",
+          "drift": -0.8181818181818181,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.16",
+          "drift": -2.672727272727273,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.19",
+          "drift": -2.6666666666666665,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.21",
+          "drift": -1.8333333333333335,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.22",
+          "drift": -3,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.23",
+          "drift": -1.8571428571428572,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.24",
+          "drift": -3.2,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.25",
+          "drift": -5.699999999999999,
+          "verdict": "falling"
+        }
+      ],
+      "windowStable": false,
+      "windowVerdicts": [
+        "flat",
+        "falling"
       ]
     },
     "setup_and_docs": {
       "series": [
+        78,
+        79,
         96,
         92,
         90,
@@ -253,18 +351,77 @@
         92,
         88
       ],
-      "slope": -0.5696969696969697,
-      "mean": 90.4,
-      "sd": 2.764054992217051,
-      "first": 92.96363636363637,
-      "last": 87.83636363636364,
-      "drift": -5.127272727272727,
+      "slope": 0.506993006993007,
+      "mean": 88.41666666666667,
+      "sd": 5.1065045666178435,
+      "first": 85.62820512820514,
+      "last": 91.20512820512822,
+      "drift": 5.576923076923077,
       "beyondNoise": true,
-      "robust": true,
-      "restsOn": []
+      "robust": false,
+      "restsOn": [
+        "0.2.9",
+        "0.2.12",
+        "0.2.27"
+      ],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": 5.576923076923077,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.12",
+          "drift": 0.9090909090909092,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.16",
+          "drift": -5.127272727272727,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.19",
+          "drift": -2.533333333333333,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.21",
+          "drift": -1.5,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.22",
+          "drift": -1.5,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.23",
+          "drift": -1.4285714285714284,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.24",
+          "drift": 1.2,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.25",
+          "drift": 3.5999999999999996,
+          "verdict": "rising"
+        }
+      ],
+      "windowStable": false,
+      "windowVerdicts": [
+        "rising",
+        "flat",
+        "falling"
+      ]
     },
     "data_modeling": {
       "series": [
+        88,
+        89,
         85,
         88,
         88,
@@ -276,18 +433,71 @@
         84,
         82
       ],
-      "slope": -0.45454545454545453,
-      "mean": 86.1,
-      "sd": 2.2561028345356955,
-      "first": 88.14545454545454,
-      "last": 84.05454545454545,
-      "drift": -4.090909090909091,
+      "slope": -0.42657342657342656,
+      "mean": 86.5,
+      "sd": 2.254624876411447,
+      "first": 88.84615384615384,
+      "last": 84.15384615384615,
+      "drift": -4.6923076923076925,
       "beyondNoise": true,
       "robust": true,
-      "restsOn": []
+      "restsOn": [],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": -4.6923076923076925,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.12",
+          "drift": -4.7272727272727275,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.16",
+          "drift": -4.090909090909091,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.19",
+          "drift": -5.733333333333333,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.21",
+          "drift": -5.833333333333334,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.22",
+          "drift": -5.785714285714286,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.23",
+          "drift": -4.428571428571429,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.24",
+          "drift": -6.4,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.25",
+          "drift": -5.4,
+          "verdict": "falling"
+        }
+      ],
+      "windowStable": true,
+      "windowVerdicts": [
+        "falling"
+      ]
     },
     "authorization": {
       "series": [
+        91,
+        94,
         88,
         97,
         91,
@@ -299,20 +509,73 @@
         95,
         95
       ],
-      "slope": 0.47878787878787876,
-      "mean": 94.5,
-      "sd": 2.692582403567252,
-      "first": 92.34545454545454,
-      "last": 96.65454545454546,
-      "drift": 4.309090909090909,
+      "slope": 0.42657342657342656,
+      "mean": 94.16666666666667,
+      "sd": 2.640496586292477,
+      "first": 91.82051282051283,
+      "last": 96.51282051282053,
+      "drift": 4.6923076923076925,
       "beyondNoise": true,
-      "robust": false,
-      "restsOn": [
-        "0.2.16"
+      "robust": true,
+      "restsOn": [],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": 4.6923076923076925,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.12",
+          "drift": 3.8181818181818183,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.16",
+          "drift": 4.309090909090909,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.19",
+          "drift": 0.9333333333333333,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.21",
+          "drift": 2.5,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.22",
+          "drift": -0.21428571428571427,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.23",
+          "drift": 0.14285714285714285,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.24",
+          "drift": -0.4,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.25",
+          "drift": -1.5,
+          "verdict": "falling"
+        }
+      ],
+      "windowStable": false,
+      "windowVerdicts": [
+        "rising",
+        "flat",
+        "falling"
       ]
     },
     "queries_and_live": {
       "series": [
+        74,
+        80,
         91,
         89,
         84,
@@ -324,18 +587,74 @@
         83,
         81
       ],
-      "slope": -0.9757575757575757,
-      "mean": 84.7,
-      "sd": 4.196427051671457,
-      "first": 89.0909090909091,
-      "last": 80.30909090909091,
-      "drift": -8.781818181818181,
-      "beyondNoise": true,
-      "robust": true,
-      "restsOn": []
+      "slope": -0.0034965034965034965,
+      "mean": 83.41666666666667,
+      "sd": 4.940619619260546,
+      "first": 83.43589743589745,
+      "last": 83.39743589743591,
+      "drift": -0.038461538461538464,
+      "beyondNoise": false,
+      "robust": false,
+      "restsOn": [
+        "0.2.9"
+      ],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": -0.038461538461538464,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.12",
+          "drift": -5.181818181818182,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.16",
+          "drift": -8.781818181818181,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.19",
+          "drift": -6.533333333333333,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.21",
+          "drift": -4.416666666666666,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.22",
+          "drift": -5.142857142857142,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.23",
+          "drift": 0.8571428571428572,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.24",
+          "drift": 1.2,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.25",
+          "drift": -4.199999999999999,
+          "verdict": "falling"
+        }
+      ],
+      "windowStable": false,
+      "windowVerdicts": [
+        "flat",
+        "falling"
+      ]
     },
     "writes_and_transactions": {
       "series": [
+        94,
+        94,
         96,
         95,
         92,
@@ -347,18 +666,73 @@
         94,
         94
       ],
-      "slope": 0.012121212121212121,
-      "mean": 94.2,
-      "sd": 1.5362291495737217,
-      "first": 94.14545454545456,
-      "last": 94.25454545454546,
-      "drift": 0.10909090909090909,
+      "slope": 0.02097902097902098,
+      "mean": 94.16666666666667,
+      "sd": 1.404358295529393,
+      "first": 94.05128205128206,
+      "last": 94.28205128205128,
+      "drift": 0.23076923076923078,
       "beyondNoise": false,
       "robust": true,
-      "restsOn": []
+      "restsOn": [],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": 0.23076923076923078,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.12",
+          "drift": 0.18181818181818182,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.16",
+          "drift": 0.10909090909090909,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.19",
+          "drift": 1.3333333333333333,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.21",
+          "drift": 2.4166666666666665,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.22",
+          "drift": 1.5,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.23",
+          "drift": 1.8571428571428572,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.24",
+          "drift": -1.2,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.25",
+          "drift": -1.5,
+          "verdict": "falling"
+        }
+      ],
+      "windowStable": false,
+      "windowVerdicts": [
+        "flat",
+        "rising",
+        "falling"
+      ]
     },
     "offline_sync": {
       "series": [
+        82,
+        90,
         93,
         92,
         90,
@@ -370,22 +744,73 @@
         93,
         93
       ],
-      "slope": 0.13333333333333333,
-      "mean": 92.6,
-      "sd": 1.3564659966250534,
-      "first": 92,
-      "last": 93.2,
-      "drift": 1.2,
-      "beyondNoise": false,
-      "robust": false,
-      "restsOn": [
-        "0.2.16",
-        "0.2.22",
-        "0.2.26"
+      "slope": 0.5664335664335665,
+      "mean": 91.5,
+      "sd": 3.2015621187164243,
+      "first": 88.38461538461539,
+      "last": 94.61538461538461,
+      "drift": 6.230769230769231,
+      "beyondNoise": true,
+      "robust": true,
+      "restsOn": [],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": 6.230769230769231,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.12",
+          "drift": 2.1818181818181817,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.16",
+          "drift": 1.2,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.19",
+          "drift": 1.7333333333333334,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.21",
+          "drift": 1.75,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.22",
+          "drift": 0,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.23",
+          "drift": 1,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.24",
+          "drift": -0.8,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.25",
+          "drift": -1.5,
+          "verdict": "falling"
+        }
+      ],
+      "windowStable": false,
+      "windowVerdicts": [
+        "rising",
+        "flat",
+        "falling"
       ]
     },
     "media_assets": {
       "series": [
+        96,
+        97,
         97,
         98,
         97,
@@ -397,18 +822,76 @@
         96,
         95
       ],
-      "slope": -0.17575757575757575,
-      "mean": 96.7,
-      "sd": 0.8999999999999999,
-      "first": 97.4909090909091,
-      "last": 95.90909090909092,
-      "drift": -1.5818181818181818,
+      "slope": -0.08391608391608392,
+      "mean": 96.66666666666667,
+      "sd": 0.8498365855987975,
+      "first": 97.12820512820514,
+      "last": 96.20512820512822,
+      "drift": -0.9230769230769231,
       "beyondNoise": true,
-      "robust": true,
-      "restsOn": []
+      "robust": false,
+      "restsOn": [
+        "0.2.19",
+        "0.2.27",
+        "0.2.28"
+      ],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": -0.9230769230769231,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.12",
+          "drift": -1.4545454545454546,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.16",
+          "drift": -1.5818181818181818,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.19",
+          "drift": -1.7333333333333334,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.21",
+          "drift": -1.1666666666666665,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.22",
+          "drift": -1.0714285714285714,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.23",
+          "drift": -0.8571428571428572,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.24",
+          "drift": -1.6,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.25",
+          "drift": -3,
+          "verdict": "falling"
+        }
+      ],
+      "windowStable": false,
+      "windowVerdicts": [
+        "falling",
+        "flat"
+      ]
     },
     "background_work": {
       "series": [
+        93,
+        88,
         91,
         93,
         95,
@@ -420,22 +903,74 @@
         86,
         91
       ],
-      "slope": -0.2606060606060606,
-      "mean": 92.5,
-      "sd": 2.7294688127912363,
-      "first": 93.67272727272727,
-      "last": 91.32727272727273,
-      "drift": -2.3454545454545457,
+      "slope": -0.027972027972027972,
+      "mean": 92.16666666666667,
+      "sd": 2.793842435706702,
+      "first": 92.32051282051283,
+      "last": 92.01282051282053,
+      "drift": -0.3076923076923077,
       "beyondNoise": false,
       "robust": false,
       "restsOn": [
-        "0.2.16",
-        "0.2.25",
-        "0.2.26"
+        "0.2.27"
+      ],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": -0.3076923076923077,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.12",
+          "drift": 0.09090909090909091,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.16",
+          "drift": -2.3454545454545457,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.19",
+          "drift": -3.8666666666666667,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.21",
+          "drift": -4.583333333333333,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.22",
+          "drift": -3.8571428571428577,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.23",
+          "drift": -3.428571428571429,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.24",
+          "drift": -4.8,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.25",
+          "drift": -7.199999999999999,
+          "verdict": "falling"
+        }
+      ],
+      "windowStable": false,
+      "windowVerdicts": [
+        "flat",
+        "falling"
       ]
     },
     "client_integration": {
       "series": [
+        90,
+        91,
         88,
         90,
         89,
@@ -447,22 +982,73 @@
         89,
         88
       ],
-      "slope": -0.08484848484848485,
-      "mean": 88.6,
-      "sd": 0.9165151389911679,
-      "first": 88.98181818181817,
-      "last": 88.2181818181818,
-      "drift": -0.7636363636363637,
-      "beyondNoise": false,
-      "robust": false,
-      "restsOn": [
-        "0.2.16",
-        "0.2.23",
-        "0.2.27"
+      "slope": -0.17832167832167833,
+      "mean": 88.91666666666667,
+      "sd": 1.114924013354971,
+      "first": 89.8974358974359,
+      "last": 87.93589743589743,
+      "drift": -1.9615384615384617,
+      "beyondNoise": true,
+      "robust": true,
+      "restsOn": [],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": -1.9615384615384617,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.12",
+          "drift": -1.7272727272727273,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.16",
+          "drift": -0.7636363636363637,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.19",
+          "drift": -1.3333333333333333,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.21",
+          "drift": -0.6666666666666666,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.22",
+          "drift": -0.42857142857142855,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.23",
+          "drift": 1,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.24",
+          "drift": 0,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.25",
+          "drift": -0.6000000000000001,
+          "verdict": "falling"
+        }
+      ],
+      "windowStable": false,
+      "windowVerdicts": [
+        "falling",
+        "flat",
+        "rising"
       ]
     },
     "diagnostics_dev_loop": {
       "series": [
+        88,
+        78,
         94,
         95,
         93,
@@ -474,22 +1060,72 @@
         95,
         94
       ],
-      "slope": 0.14545454545454545,
-      "mean": 93.6,
-      "sd": 1.4966629547095762,
-      "first": 92.94545454545454,
-      "last": 94.25454545454545,
-      "drift": 1.309090909090909,
-      "beyondNoise": false,
-      "robust": false,
-      "restsOn": [
-        "0.2.16",
-        "0.2.19",
-        "0.2.21"
+      "slope": 0.7902097902097902,
+      "mean": 91.83333333333333,
+      "sd": 4.65176191231762,
+      "first": 87.48717948717949,
+      "last": 96.17948717948718,
+      "drift": 8.692307692307692,
+      "beyondNoise": true,
+      "robust": true,
+      "restsOn": [],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": 8.692307692307692,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.12",
+          "drift": 8.181818181818182,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.16",
+          "drift": 1.309090909090909,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.19",
+          "drift": 1.8666666666666667,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.21",
+          "drift": 3.4166666666666665,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.22",
+          "drift": 4.071428571428571,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.23",
+          "drift": 2,
+          "verdict": "rising"
+        },
+        {
+          "from": "0.2.24",
+          "drift": 0.4,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.25",
+          "drift": 0,
+          "verdict": "flat"
+        }
+      ],
+      "windowStable": false,
+      "windowVerdicts": [
+        "rising",
+        "flat"
       ]
     },
     "scale_and_limits": {
       "series": [
+        82,
+        86,
         88,
         91,
         85,
@@ -501,18 +1137,73 @@
         85,
         65
       ],
-      "slope": -1.509090909090909,
-      "mean": 82.7,
-      "sd": 6.797793759742936,
-      "first": 89.4909090909091,
-      "last": 75.90909090909092,
-      "drift": -13.581818181818182,
+      "slope": -0.9475524475524476,
+      "mean": 82.91666666666667,
+      "sd": 6.277716322216402,
+      "first": 88.12820512820514,
+      "last": 77.70512820512822,
+      "drift": -10.423076923076923,
       "beyondNoise": true,
-      "robust": true,
-      "restsOn": []
+      "robust": false,
+      "restsOn": [
+        "0.2.28"
+      ],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": -10.423076923076923,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.12",
+          "drift": -12.818181818181817,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.16",
+          "drift": -13.581818181818182,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.19",
+          "drift": -13.066666666666666,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.21",
+          "drift": -9.666666666666666,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.22",
+          "drift": -9,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.23",
+          "drift": -8.428571428571429,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.24",
+          "drift": -12.8,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.25",
+          "drift": -19.200000000000003,
+          "verdict": "falling"
+        }
+      ],
+      "windowStable": true,
+      "windowVerdicts": [
+        "falling"
+      ]
     },
     "operations": {
       "series": [
+        87,
+        87,
         88,
         89,
         88,
@@ -524,27 +1215,82 @@
         84,
         85
       ],
-      "slope": -0.37575757575757573,
-      "mean": 86.8,
-      "sd": 2.039607805437114,
-      "first": 88.49090909090908,
-      "last": 85.10909090909091,
-      "drift": -3.381818181818182,
+      "slope": -0.23076923076923078,
+      "mean": 86.83333333333333,
+      "sd": 1.8633899812498247,
+      "first": 88.1025641025641,
+      "last": 85.56410256410257,
+      "drift": -2.5384615384615388,
       "beyondNoise": true,
-      "robust": true,
-      "restsOn": []
+      "robust": false,
+      "restsOn": [
+        "0.2.27"
+      ],
+      "windows": [
+        {
+          "from": "0.2.9",
+          "drift": -2.5384615384615388,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.12",
+          "drift": -2.909090909090909,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.16",
+          "drift": -3.381818181818182,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.19",
+          "drift": -3.3333333333333335,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.21",
+          "drift": -2.4166666666666665,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.22",
+          "drift": -1.7142857142857142,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.23",
+          "drift": 0.5714285714285714,
+          "verdict": "flat"
+        },
+        {
+          "from": "0.2.24",
+          "drift": -2.4,
+          "verdict": "falling"
+        },
+        {
+          "from": "0.2.25",
+          "drift": -3.9000000000000004,
+          "verdict": "falling"
+        }
+      ],
+      "windowStable": false,
+      "windowVerdicts": [
+        "falling",
+        "flat"
+      ]
     }
   },
   "falling": [
-    "scale_and_limits",
-    "queries_and_live",
-    "setup_and_docs",
-    "data_modeling",
-    "operations",
-    "media_assets"
+    "data_modeling"
   ],
   "fragile": [
-    "overall",
-    "authorization"
+    "scale_and_limits",
+    "operations",
+    "client_integration",
+    "media_assets",
+    "authorization",
+    "setup_and_docs",
+    "offline_sync",
+    "diagnostics_dev_loop"
   ]
 }

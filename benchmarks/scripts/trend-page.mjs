@@ -207,12 +207,14 @@ export function page(report) {
   </header>
 
   <section class="verdict">
-    <p class="big falling">${falling.length} categor${falling.length === 1 ? "y is" : "ies are"} <em>falling</em> — and the overall score is not the evidence.</p>
-    <p class="lede">${falling.length} categories decline beyond their own noise <strong>and hold when any single run is removed</strong>. Overall fits at ${sign(overall.slope)} a run, ${overall.first.toFixed(1)} → ${overall.last.toFixed(1)}${dir === "fragile" ? `, but that verdict flips without ${esc(overall.restsOn.join(" or "))} — one run, on a host the record says was loaded. Treat the headline number as unproven and the categories as the finding.` : "."}</p>
+    <p class="big ${falling.length ? "falling" : dir}">${falling.length
+      ? `${falling.length} categor${falling.length === 1 ? "y survives" : "ies survive"} every way of cutting the series.`
+      : `No category survives every way of cutting the series.`}</p>
+    <p class="lede">A verdict counts here only if its drift beats its own noise, it holds when <strong>any single run</strong> is dropped, and it does not change when the series is started <strong>at any later run</strong>. ${fragile.length ? `${fragile.length} categor${fragile.length === 1 ? "y fails" : "ies fail"} one of those tests and ${fragile.length === 1 ? "is" : "are"} not counted.` : ""} Overall fits at ${sign(overall.slope)} a run, ${overall.first.toFixed(1)} → ${overall.last.toFixed(1)}${dir === "fragile" ? ` — but the window decides it, so it is not evidence of anything.` : "."}</p>
     <figure class="${dir}">
       ${hero(overall, runs)}
       <figcaption><span><span class="key raw"></span>overall score, per run &nbsp; <span class="key fit"></span>fitted trend</span><span>drift ${sign(overall.drift)} · sd ${overall.sd.toFixed(2)} · mean ${overall.mean.toFixed(1)}</span></figcaption>
-      ${dir === "fragile" ? `<p class="fragile-note">This line's verdict rests on <strong>${esc(overall.restsOn.join(" / "))}</strong>: drop that run and the fit is ${sign(overall.slope)} → flat. The category verdicts below do not.</p>` : ""}
+      ${overall.windows && !overall.windowStable ? `<p class="fragile-note">A straight line is the wrong shape for this series. It steps up at <strong>${esc(overall.windows.length > 2 ? runs[2].version : runs[0].version)}</strong> and drifts after, so the fit reads ${overall.windows.map(w => `${sign(w.drift)} from ${esc(w.from)}`).slice(0, 3).join(", ")} — the window decides the answer. Only a verdict that holds from every start is counted below.</p>` : (dir === "fragile" ? `<p class="fragile-note">This line's verdict rests on <strong>${esc(overall.restsOn.join(" / "))}</strong>.</p>` : "")}
     </figure>
   </section>
 
@@ -222,7 +224,7 @@ export function page(report) {
   </section>
 
   <section>
-    <h2>Every category, sorted by drift — ${falling.length} falling, robust to dropping any run</h2>
+    <h2>Every category, sorted by drift — ${falling.length} survive every cut</h2>
     <div class="grid-cards">${cards}</div>
   </section>
 
