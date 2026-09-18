@@ -615,7 +615,7 @@ fn renewing_a_live_membership_does_not_prematurely_revoke_held_rows() {
 fn delivered_history_survives_membership_expiry_during_a_paged_snapshot() {
     on_both(|host| {
         let label = host.label();
-        let source = "table subscriptions:\n  group: text <=10\n  person: principal\n  until: time ?\n  unique byGroupPerson: group, person\n  by byPerson: person, group\n  by byExpiry: until\n  expire at .until\n  immutable group, person\n  read <- .person = viewer\n  insert <- exists subscriptions[.group, viewer]\n  sync to .person\ntable notes:\n  group: text <=10\n  body: text <=10\n  by byGroup: group, id\n  read <- exists subscriptions[.group, viewer]\n  insert <- allow\n  update <- allow\n  retain delivered-history\n  sync to subscriptions[.group]\nquery notes():\n  return notes[] first 10 by byId\nmutation join(person: principal):\n  insert subscriptions {group: 'g', person, until: 10}\nmutation add(body: text <=10):\n  insert notes {group: 'g', body}\nmutation edit():\n  update notes['n1'] {body: 'changed'}\n";
+        let source = "table subscriptions:\n  group: text <=10\n  person: principal\n  until: time ?\n  unique byGroupPerson: group, person\n  by byPerson: person, group\n  by byExpiry: until\n  expire at .until\n  immutable group, person\n  read <- .person = viewer\n  insert <- exists subscriptions[.group, viewer]\n  sync to .person\ntable notes:\n  group: text <=10\n  body: text <=10\n  by byGroup: group, id\n  read <- exists subscriptions[.group, viewer]\n  insert <- allow\n  update <- allow\n  retain delivered-history\n  sync to subscriptions[.group]\nquery notes():\n  return notes[] first 10 by byId\nmutation join(person: principal):\n  insert subscriptions {group: 'g', person, until: 10}\nmutation add(body: text <=10):\n  insert notes {group: 'g', body}\nmutation edit():\n  update notes['n3'] {body: 'changed'}\n";
         let (mut engine, backend) = compile(source);
         for (number, now) in [(1, 1), (2, 2), (3, 3)] {
             let outcome = engine
@@ -674,7 +674,7 @@ fn delivered_history_survives_membership_expiry_during_a_paged_snapshot() {
                 .iter()
                 .map(|event| (event.table.as_str(), event.id.as_str()))
                 .collect::<Vec<_>>(),
-            [("notes", "n1")],
+            [("notes", "n3")],
             "{label}: the first page delivers one history row before expiry"
         );
         ok(apply(&mut *device, &first, true));
@@ -748,7 +748,7 @@ fn delivered_history_survives_membership_expiry_during_a_paged_snapshot() {
             .collect::<std::collections::BTreeMap<_, _>>();
         assert_eq!(
             notes,
-            std::collections::BTreeMap::from([("n1".to_owned(), "note-1".to_owned())]),
+            std::collections::BTreeMap::from([("n3".to_owned(), "note-3".to_owned())]),
             "{label}: only history delivered before expiry remains, without the later edit or insert"
         );
         device.close();

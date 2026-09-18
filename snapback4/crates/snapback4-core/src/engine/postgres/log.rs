@@ -26,10 +26,6 @@ impl Tx<'_> {
 }
 
 impl PartitionRows for Tx<'_> {
-    fn written_after(&self, table: &str, id: &str, seq: u64) -> Result<bool, RuntimeError> {
-        Ok(self.query("SELECT EXISTS(SELECT 1 FROM _log WHERE t = $1 AND id = $2 AND seq > $3 AND kind IN ('put', 'del'))", &[&table, &id, &signed(seq)?])?[0].get(0))
-    }
-
     fn next_seq(&self) -> Result<u64, RuntimeError> {
         if let Some(head) = self.head.get() { return Ok(head + 1); }
         Ok(self.query("SELECT seq FROM _head WHERE singleton", &[])?[0].get::<_, i64>(0) as u64 + 1)
@@ -90,13 +86,4 @@ impl PartitionRows for Tx<'_> {
         )
     }
 
-    fn group_at(&self, partition: &str, seq: u64) -> Result<Vec<LogEvent>, RuntimeError> {
-        self.log_rows(
-            "SELECT seq,ord,t,kind,id,data FROM (SELECT seq,ord,t,kind,id,data,
-            ROW_NUMBER() OVER (PARTITION BY t,id ORDER BY seq DESC,ord DESC) AS position
-            FROM _log WHERE partition = $1 AND seq <= $2 AND kind IN ('put','del')) AS ranked
-            WHERE position = 1 AND kind = 'put'",
-            &[&partition, &signed(seq)?],
-        )
-    }
 }

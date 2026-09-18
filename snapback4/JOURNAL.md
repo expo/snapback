@@ -38817,3 +38817,695 @@ The original 2,229,615 journal bytes are preserved. Logs are under
 `/tmp/w13ir1/`: `red-sim.log`, `green-sim.log`, `device.log`, `guide.log`,
 `before-residency-notes.log`, `after-residency-notes.log`, `lang.log`, `core.log`,
 `bin.log`, `wasm.log` and `ref-check.log`.
+
+## 2026-09-18 — W13k: acquire the current readable rows (ruling 36)
+
+Implemented the revision-3 lane design on base
+`629ae76ec813ad06ec4cfb777a654e30733d23d9`. An acquiring, currently open join
+now scans the current group in descending order at the serving transaction's
+fixed clock, applies the joining principal's server read rule, and stops at N
+readable rows without looking past the Nth. The full Nth key is the floor;
+fewer rows, including zero, produce `whole`. Horizonless joins acquire every
+current readable row. Closed joins acquire nothing, including uniformly
+readable rows with retained history. Continuous renewals expand no rows; an
+expired predecessor's scope still precedes its replacement acquisition.
+
+The cold snapshot shares that walk and principal read check; live aggregates
+still use the system runner. Log puts are normalized before join expansion so
+that an acquired image is checked and delivered once. Removed the historical
+completion proof, unselected walk, delivered-set tracking, both storage methods
+and implementations, and the old row-log index (dropped when existing SQLite
+and Postgres stores open). Updated the published sync card, package README,
+and the RFC's law, W13g history, and newest revision-history entry. No wire,
+value encoding, meter ceiling, device implementation, or existing corpus case
+changed.
+
+The rewritten two-worlds tests retain payload and marker equality. Added the
+Rust-constructed mixed-readable schema pair, deletion pair, 1,000 hidden rows,
+empty readable group, current horizonless acquisition and closed private/public
+joins, duplicate puts across ordinary and staged pages, subsequent deletion,
+group move, expiry, below-floor update, and stable snapshot/stream floor equality.
+Both native device stores and wasm are covered. Descending horizonless order
+also required the existing paged-snapshot retention test to retain `n3` first
+instead of `n1`.
+
+What this taught us: choosing readable rows directly removes the historical
+proof entirely. Physical work can still vary with hidden rows, but the wire
+and boundary do not. The public explicit-audience form is admitted by the core
+and still rejected by Quarry: the native tests construct that schema in Rust;
+the public wasm test exercises the corresponding constructed backend and
+scope/put application, not an HTTP-authored public-subset program. Private
+wasm tests use the real HTTP server. The design's collision example lists
+`[collision, p2]`; its descending-order law yields `[p2, collision]` because
+those keys are 2,000 and 1,500, with the specified floor 1,500. The implementation
+follows that law. There are no other known design contradictions.
+
+Measured numbers (the probe run below prints these values):
+
+```
+GROUP stream: stored=100 horizon=2 delivered=2 physical-rows=2 read-rule-probes=2 content-scans=1
+GROUP snapshot: delivered=2 physical-rows=2 read-rule-probes=2 content-scans=1
+1000-lane merge: lanes=1001 whole-map-parses=0 boundary-namespace-loads=1
+1000-lane merge probes: server=1001 device=0 server-examined=1000 device-examined=1000
+ordinary stream: namespace-loads=0 boundary-writes=0; one changed group: namespace-loads=0 boundary-writes=1
+persisted boundaries: groups=1000 horizon=500 raw-keys=114000 hex-floors=228000 total-metadata-bytes=356000; sqlite and memory have identical values
+empty groups: groups=5000 first-limit=1 subsequent-limit=32 pages=158 max-acquisition-bytes=114369
+```
+
+Horizonless acquisition delivers 26 rows while open and zero when closed before
+serving, for private and public read rules on both native stores. The wasm
+artifact remains 1,595,051 bytes raw / 467,476 bytes gzip; the full suite reports
+the existing 452,000-byte budget advisory (15,476 bytes over). No device
+production source changed.
+
+All Cargo commands below ran from `snapback4/`; all JavaScript commands used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` first. Logs are in
+`/private/tmp/w13k/`. Red-before results were obtained before the implementation
+change at the base above, or with the preserved binary built from that base.
+An initial public fixture attempted the Quarry-rejected spelling; it was
+corrected to a Rust-constructed schema and rerun before changing production
+code. Only the corrected semantic failures below count as regression evidence.
+
+Red before:
+
+```
+$ cargo test -p snapback4-device --test w13g_probe --test retained_history --no-fail-fast
+test result: FAILED. 22 passed; 26 failed; 0 ignored; 0 measured; 0 filtered out; finished in 20.16s
+```
+
+```
+$ cargo test -p snapback4-device --test retained_history horizonless_join -- --nocapture
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 18 filtered out; finished in 1.68s
+```
+
+```
+$ cargo test -p snapback4-core --test rows acquisition_selects -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.50s
+```
+
+```
+$ node --test packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 20
+ℹ pass 6
+ℹ fail 14
+```
+
+```
+$ SNAPBACK4_BIN=/private/tmp/w13k/snapback4-base node --test --test-name-pattern='wasm current selection fills' packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 5
+ℹ pass 0
+ℹ fail 5
+```
+
+Green after (device summaries are device, native_reads, retained_history, then w13g_probe):
+
+```
+$ cargo test -p snapback4-device --test w13g_probe --test retained_history --test native_reads --test device
+test result: ok. 383 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 292.68s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.90s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.44s
+test result: ok. 49 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.68s
+```
+
+```
+$ cargo test -p snapback4-core --lib --test rows
+test result: ok. 65 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.62s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+```
+
+```
+$ cargo test -p snapback4-sim --test device
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+```
+
+```
+$ cargo check -p snapback4-core --features postgres
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 28s
+```
+
+```
+$ node --test --test-concurrency=2 packages/snapback4/test/horizon-boundary.test.mjs packages/snapback4/test/retained-history.test.mjs
+ℹ tests 71
+ℹ pass 71
+ℹ fail 0
+ℹ skipped 0
+```
+
+```
+$ cargo test -p snapback4-device --test w13g_probe --test retained_history --no-fail-fast -- --nocapture
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.19s
+test result: ok. 49 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.84s
+```
+
+Full blocking suite (from the repository root):
+
+```
+$ export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+$ bash snapback4/scripts/test.sh
+-- ok: cargo test (1083 s)
+ℹ tests 731
+ℹ pass 725
+ℹ fail 3
+ℹ skipped 3
+-- FAIL: client tests (985 s)
+== 1 failure(s) in 1122 s
+   client tests
+```
+
+Every other step passed, including builds, compiled guide and README examples,
+Rust targets and witness tests, release guard, package/chat/Expo typechecks,
+and the nine fixture-wrapper tests. The host reported load 60.08 across 18
+CPUs. Client failures were Chromium SIGABRT in the React test and the wasm
+and native maximum-pending-ID transport timeouts. Both transport cases also
+failed when rerun alone on the changed binary; all three failures reproduced
+using the preserved binary built from exact base
+`629ae76ec813ad06ec4cfb777a654e30733d23d9`. They are base-reproduced failures,
+not assumed load flakes. The lead can rerun outside the sandbox.
+
+Base verification commands (each produced `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`):
+
+```
+SNAPBACK4_BIN=/private/tmp/w13k/snapback4-base node --test packages/snapback4/test/react.test.mjs
+SNAPBACK4_BIN=/private/tmp/w13k/snapback4-base node --test --test-name-pattern='wasm: maximum pending ids' packages/snapback4/test/transport-http.test.mjs
+SNAPBACK4_BIN=/private/tmp/w13k/snapback4-base node --test --test-name-pattern='native: maximum pending ids' packages/snapback4/test/transport-http.test.mjs
+```
+
+The corresponding changed-binary transport reruns used the same commands without
+`SNAPBACK4_BIN`; each also produced one failure. Full evidence is in
+`full-suite.log`, `react-base.log`, `transport-base.log`,
+`transport-native-base.log`, `transport-alone.log`, and
+`transport-native-alone.log` under the log directory above.
+
+No diagnostic text or code changed. No out-of-scope file was changed. The supplied
+`LANE-DESIGN.md` is left untouched. This entry preserves all 2,220,632 prior journal
+bytes (SHA-256 `309d999d7c673d40ab578b5032a16ff4047976982fb011e57542016eaa1c695e`).
+Final reference and whitespace checks run after this append. No commit, push,
+tag, or publication was made.
+
+
+## 2026-09-18 — W13kR1: renewal preserves the undelivered acquisition; cross-host witnesses
+
+Addressed the two verified review findings on base
+`e93b7eec9ad6a045dd078cdd1f720ebff42b426b`. Expiry-tracking spans remain
+separate, but a grant retains its acquisition obligation through contiguous
+live renewals. Starting at the join's own nonempty span, each edge must end in
+a join, match the next span's start sequence, and commit before the preceding
+expiry (or follow a span with no expiry). The chain must end open and unexpired
+at serve time. Scope and expiry gaps break it. Renewal joins still expand no
+content. A replacement's expired-predecessor scope precedes acquisition whenever
+that replacement's chain is live, including when its renewal is on another raw
+page. Edge commit times are fetched together for the joined groups, including
+edges outside the current page. A same-commit grant/revocation acquires nothing.
+
+The first fix passed the reported regressions; an added exact-expiry control
+found one more composition within the same finding: the synthetic predecessor
+at a watermark can have zero width and the replacement's start sequence. It
+must not mask the replacement's own span. The chain lookup now skips that
+zero-width span. The controls also cover two successive renewals, no expiry,
+a scope followed by a same-sequence rejoin, an already expired terminal span,
+and same-commit grant/revocation. What we learned: a span's lifetime tracks log
+authority at each commit; closing that span for a renewal does not settle an
+undelivered acquisition, and the watermark's synthetic predecessor is not a
+new grant.
+
+The cold, gap and revoke/rejoin witnesses run both with a horizon and without
+one, with both joins on one catch-up page and split across pages. The cold
+witness starts with no snapshot. The gap witness first proves the device holds
+the row deleted during the gap, then requires its removal, the ordered scope,
+replacement rows, marker and local completeness. Both native stores and wasm
+apply the same Rust-generated server pages. Expiring audience memberships sync
+to the viewer so the device's independent expiry read check has its authority.
+The existing snapshot-first continuous-renewal test remains unchanged and green.
+
+Extracted the existing Rust mixed-readable fixture without weakening its
+server assertions. Its actual stream and paginated snapshot pages now reach
+SQLite, MemoryStore and wasm: 0, 1 and 1,000 hidden rows, a deleted historical
+candidate, and empty readable groups with 0 or 1,000 hidden rows. Each host
+checks the rows, persisted floor and completeness: at the Nth readable key is
+complete; below it is incomplete and unknown; an empty readable group is whole.
+The two-worlds wire and local-observation equalities remain. Quarry refuses the
+mixed public read rule, so the fixture constructs that schema in Rust after
+installing the admitted public schema; it does not relax schema admission.
+The wasm suite invokes a Rust test exporter into a private temporary directory;
+there is no checked-in generated fixture, new script, or production export API.
+
+Parameterised the existing wasm duplicate/change witness over ordinary and
+`retain delivered-history` tables. Added ordinary/staged witnesses in which
+an acquired row moves below the floor before its insert and two later writes
+are streamed. All three puts carry that same current below-floor image, leave
+one stored row, and preserve the original persisted floor. The retained staged
+combination is now explicitly exercised. Updated the README and sync card to
+state that renewal preserves an acquisition not yet delivered. No diagnostic,
+wire/value encoding, meter ceiling, selection walk, device implementation,
+existing corpus case, or RFC section changed. The specified floors and earlier
+W13k deletions stand. No out-of-scope file was touched; no commit was made.
+
+Measurements: wasm is 1,595,051 bytes raw and 467,476 bytes gzip on both the
+base and final builds, a 0-byte delta in each. The existing budget advisory is
+15,476 bytes above 452,000; it is unchanged, not a new build failure. There are
+13 renewal scenarios per host (26 native tests and 13 wasm tests), 12 generated
+mixed fixtures per host, and 4 below-floor duplicate scenarios (retained/plain
+crossed with staged/ordinary), each applying 3 duplicate puts to 1 stored row.
+Horizon acquisition delivers 2 content rows; horizonless cold acquisition
+delivers all 3; the replacement after gap deletion delivers 2. Renewal itself
+adds 0 content rows and 0 markers. The cold/gap streams use 1 or 2 pages;
+the split revoke/rejoin stream uses 4. The marker pair exists only for a
+horizoned table; horizonless acquisition retains its existing marker-free wire.
+
+All Cargo commands ran from `snapback4/`. JavaScript and wasm commands used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` first. Logs are in
+`/private/tmp/w13kr1/`. Base regression evidence below was collected with the
+exact base `partition.rs`, before the fix (and restored temporarily for the
+additional chain control). Initial fixture-setup corrections are not counted
+as regression evidence. The mixed-readable and retained duplicate additions
+are coverage repairs and pass on the base as well as after the fix; no false
+red claim is made for them.
+
+Red-before and green-after commands and verbatim summary lines:
+
+Base:
+```
+$ cargo test -p snapback4-device --test w13g_probe renewal_review -- --nocapture
+test result: FAILED. 2 passed; 26 failed; 0 ignored; 0 measured; 49 filtered out; finished in 1.39s
+```
+
+Final:
+```
+$ cargo test -p snapback4-device --test w13g_probe renewal_review -- --nocapture
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 49 filtered out; finished in 2.39s
+```
+
+Base:
+```
+$ cargo test -p snapback4-core --test rows renewal_chains_stop -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.02s
+```
+
+Base:
+```
+$ node --test --test-concurrency=2 --test-name-pattern='wasm review|retained=true' packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 21
+ℹ pass 8
+ℹ fail 13
+ℹ skipped 0
+```
+
+The first fix's additional core edge-case run reported `test result: FAILED. 7 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s`. This was our incomplete first fix, not a pre-existing or environmental failure; the zero-width predecessor correction resolved it.
+
+Final requested checks (device, native_reads, retained_history, w13g_probe summaries in that order):
+
+
+```
+$ cargo test -p snapback4-device --test w13g_probe --test retained_history --test native_reads --test device
+test result: ok. 383 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 195.02s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.90s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.29s
+test result: ok. 77 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.10s
+```
+
+
+```
+$ cargo test -p snapback4-core --lib --test rows
+test result: ok. 65 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.29s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+```
+
+
+```
+$ node --test --test-concurrency=2 packages/snapback4/test/horizon-boundary.test.mjs packages/snapback4/test/retained-history.test.mjs
+ℹ tests 92
+ℹ pass 92
+ℹ fail 0
+ℹ skipped 0
+```
+
+
+```
+$ cargo test -p snapback4-lang --test guide
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+```
+
+The full requested device command was repeated after the zero-width correction; the earlier run also passed (383/8/20/77, with 2 ignored in device).
+
+```
+$ cargo check -p snapback4-core --features postgres
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.37s
+```
+
+```
+$ bash scripts/build-wasm.sh
+wasm 1595051 B raw, 467476 B gzip (budget 452000: OVER by 15476 B — issues/20260913-snapback4-wasm-device-diet.md)
+```
+
+```
+$ ./ref-check --verbose
+ref-check: ok — 485 LLP docs, 9115 refs in 24350 files, 0 errors, 0 unchecked
+```
+
+Per-test before/after lines for every added regression (the two native hosts
+are listed separately). Native lines are verbatim; wasm lines omit duration
+only. The export helper and added coverage tests are also shown as pass/pass.
+
+```
+test renewal_review::cold_horizon_split::memory ... FAILED
+test renewal_review::cold_horizon_split::memory ... ok
+test renewal_review::cold_horizon_split::sqlite ... FAILED
+test renewal_review::cold_horizon_split::sqlite ... ok
+test renewal_review::cold_horizon_together::memory ... FAILED
+test renewal_review::cold_horizon_together::memory ... ok
+test renewal_review::cold_horizon_together::sqlite ... FAILED
+test renewal_review::cold_horizon_together::sqlite ... ok
+test renewal_review::cold_horizonless_split::memory ... FAILED
+test renewal_review::cold_horizonless_split::memory ... ok
+test renewal_review::cold_horizonless_split::sqlite ... FAILED
+test renewal_review::cold_horizonless_split::sqlite ... ok
+test renewal_review::cold_horizonless_together::memory ... FAILED
+test renewal_review::cold_horizonless_together::memory ... ok
+test renewal_review::cold_horizonless_together::sqlite ... FAILED
+test renewal_review::cold_horizonless_together::sqlite ... ok
+test renewal_review::export_wire_fixtures ... ok
+test renewal_review::export_wire_fixtures ... ok
+test renewal_review::gap_horizon_split::memory ... FAILED
+test renewal_review::gap_horizon_split::memory ... ok
+test renewal_review::gap_horizon_split::sqlite ... FAILED
+test renewal_review::gap_horizon_split::sqlite ... ok
+test renewal_review::gap_horizon_together::memory ... FAILED
+test renewal_review::gap_horizon_together::memory ... ok
+test renewal_review::gap_horizon_together::sqlite ... FAILED
+test renewal_review::gap_horizon_together::sqlite ... ok
+test renewal_review::gap_horizonless_split::memory ... FAILED
+test renewal_review::gap_horizonless_split::memory ... ok
+test renewal_review::gap_horizonless_split::sqlite ... FAILED
+test renewal_review::gap_horizonless_split::sqlite ... ok
+test renewal_review::gap_horizonless_together::memory ... FAILED
+test renewal_review::gap_horizonless_together::memory ... ok
+test renewal_review::gap_horizonless_together::sqlite ... FAILED
+test renewal_review::gap_horizonless_together::sqlite ... ok
+test renewal_review::mixed_readable_pages_reach_both_stores ... ok
+test renewal_review::mixed_readable_pages_reach_both_stores ... ok
+test renewal_review::revoke_horizon_split::memory ... FAILED
+test renewal_review::revoke_horizon_split::memory ... ok
+test renewal_review::revoke_horizon_split::sqlite ... FAILED
+test renewal_review::revoke_horizon_split::sqlite ... ok
+test renewal_review::revoke_horizon_together::memory ... FAILED
+test renewal_review::revoke_horizon_together::memory ... ok
+test renewal_review::revoke_horizon_together::sqlite ... FAILED
+test renewal_review::revoke_horizon_together::sqlite ... ok
+test renewal_review::revoke_horizonless_split::memory ... FAILED
+test renewal_review::revoke_horizonless_split::memory ... ok
+test renewal_review::revoke_horizonless_split::sqlite ... FAILED
+test renewal_review::revoke_horizonless_split::sqlite ... ok
+test renewal_review::revoke_horizonless_together::memory ... FAILED
+test renewal_review::revoke_horizonless_together::memory ... ok
+test renewal_review::revoke_horizonless_together::sqlite ... FAILED
+test renewal_review::revoke_horizonless_together::sqlite ... ok
+test renewal_review::unlimited_horizon_split::memory ... FAILED
+test renewal_review::unlimited_horizon_split::memory ... ok
+test renewal_review::unlimited_horizon_split::sqlite ... FAILED
+test renewal_review::unlimited_horizon_split::sqlite ... ok
+test renewal_chains_stop_at_expiry_scope_and_same_commit_revocation ... FAILED
+test renewal_chains_stop_at_expiry_scope_and_same_commit_revocation ... ok
+```
+
+```
+✔ wasm current acquisition survives paged duplicates and later row changes staged=false retained=true
+✔ wasm current acquisition survives paged duplicates and later row changes staged=false retained=true
+✔ wasm current acquisition survives paged duplicates and later row changes staged=true retained=true
+✔ wasm current acquisition survives paged duplicates and later row changes staged=true retained=true
+✖ wasm review renewal cold horizon=false split=false
+✔ wasm review renewal cold horizon=false split=false
+✖ wasm review renewal cold horizon=false split=true
+✔ wasm review renewal cold horizon=false split=true
+✖ wasm review renewal cold horizon=true split=false
+✔ wasm review renewal cold horizon=true split=false
+✖ wasm review renewal cold horizon=true split=true
+✔ wasm review renewal cold horizon=true split=true
+✖ wasm review renewal gap horizon=false split=false
+✔ wasm review renewal gap horizon=false split=false
+✖ wasm review renewal gap horizon=false split=true
+✔ wasm review renewal gap horizon=false split=true
+✖ wasm review renewal gap horizon=true split=false
+✔ wasm review renewal gap horizon=true split=false
+✖ wasm review renewal gap horizon=true split=true
+✔ wasm review renewal gap horizon=true split=true
+✖ wasm review renewal revoke horizon=false split=false
+✔ wasm review renewal revoke horizon=false split=false
+✖ wasm review renewal revoke horizon=false split=true
+✔ wasm review renewal revoke horizon=false split=true
+✖ wasm review renewal revoke horizon=true split=false
+✔ wasm review renewal revoke horizon=true split=false
+✖ wasm review renewal revoke horizon=true split=true
+✔ wasm review renewal revoke horizon=true split=true
+✖ wasm review renewal unlimited horizon=true split=true
+✔ wasm review renewal unlimited horizon=true split=true
+✔ wasm review mixed-readable generated pages snapshot=false
+✔ wasm review mixed-readable generated pages snapshot=false
+✔ wasm review mixed-readable generated pages snapshot=true
+✔ wasm review mixed-readable generated pages snapshot=true
+✔ wasm review duplicate below the floor retained=false staged=false
+✔ wasm review duplicate below the floor retained=false staged=false
+✔ wasm review duplicate below the floor retained=false staged=true
+✔ wasm review duplicate below the floor retained=false staged=true
+✔ wasm review duplicate below the floor retained=true staged=false
+✔ wasm review duplicate below the floor retained=true staged=false
+✔ wasm review duplicate below the floor retained=true staged=true
+✔ wasm review duplicate below the floor retained=true staged=true
+```
+
+`bash snapback4/scripts/test.sh` was not run in this review round, as explicitly
+instructed; the lead runs it at landing. Nothing else requested remains undone.
+No test failure is claimed pre-existing. No diagnostic text changed, so there
+are no before/after diagnostic strings. `git diff --check` passed and all
+changed code files remain below 1,500 lines. The lane documents were present
+untracked on entry and remain untouched.
+
+This entry preserves all 2,229,641 prior journal bytes (SHA-256
+`b2cffaf4f39187bf6992da3286889e23b786d7fef7154c430e56cb962d19527e`).
+
+Matching focused final reruns, to pair the exact base commands above:
+
+```
+$ cargo test -p snapback4-core --test rows renewal_chains_stop -- --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 1.01s
+```
+
+```
+$ node --test --test-concurrency=2 --test-name-pattern='wasm review|retained=true' packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 21
+ℹ pass 21
+ℹ fail 0
+ℹ skipped 0
+```
+
+
+## 2026-09-18 — W13kR2: same-commit joins carry (seq, ord)
+
+Fixed the second review's High on base
+`0f2e290bc271bf3c5796616689b752af0912d758`: joins sharing a commit were
+mistaken for each other. Each interval now records the ordinal of its opening
+join and the full `(seq, ord)` of its closing transition. The synthetic
+watermark predecessor has no opening ordinal, so it can precede a real join
+but cannot be selected as that join's own span. A real zero-width grant span
+remains the start of its chain when it ends in a continuous renewal. Chain
+edges match the next join's exact position and must precede expiry; scope and
+expiry gaps break them. Only the immediate predecessor ending at the served
+join's `(seq, ord)` decides whether it is a renewal or needs an expiry scope.
+The first join in each live chain acquires once, and renewals acquire nothing.
+The retained `joined` metadata also matches the surviving join's ordinal, so
+several joins in one commit do not repeat the held group.
+
+Added shared generated-page fixtures for grant/renewal, grant/revoke/rejoin,
+grant/two renewals, and a same-commit renewal followed by a distinct-commit
+renewal. Each runs with and without a horizon, together and paginated, and with
+and without delivered-history retention: 32 fixtures, 64 native tests across
+SQLite and MemoryStore, and 32 wasm tests. The first three use successive
+transitions in commit 2 at time 500; the grant's expiry is 1000 and its renewal
+extends to 2000 (3000 for a second renewal). Catch-up runs at 1600 from watermark
+1 after the posts were seeded. Revoke/rejoin uses a real insert/delete/insert
+mutation; renewal uses successive upserts in one `seed_at` batch. A later
+member put provides a real page boundary, and changes expiry again only in
+the distinct-commit-renewal case. Same-commit transitions stay indivisible even
+at raw limit 1; pagination yields 2 pages versus 1 together.
+
+Each fixture checks acquisition rows and their exact sequence/ordinal, one
+marker pair with the expected floor for a horizon, scope before the rejoin's
+rows, persisted boundaries, and local completeness. Retained rejoin now has
+no first acquisition to survive scope and turn the second boundary unknown.
+The wasm horizonless read also follows its cursor to the third row. Horizon
+acquisition delivers 2 content rows, with 1 beginning marker and 1 completion;
+horizonless acquisition delivers 3 content rows and 0 markers. Renewals deliver
+0 extra content rows and 0 markers. The existing single-join-per-commit controls
+and all prior assertions remain. The source fixture includes exact-position
+observations only in test data; no wire field was added.
+
+What we learned: zero width in commit sequence space does not mean a span has
+no identity or acquisition obligation. Event ordinals distinguish a grant, its
+renewals and a scope even within one transaction; a synthetic predecessor must
+be distinguished by the absence of an opening join, not by width. Updated the
+chain annotation and the README/sync-card sentence to state the same-commit
+rule. Selection, floors, device implementation, ceilings, value/wire forms,
+existing corpus cases, the earlier deletions and the RFC text are unchanged.
+No out-of-scope file was changed, and no commit, push, tag or publication was
+made. No diagnostic code or diagnostic text changed.
+
+Wasm was measured by `bash scripts/build-wasm.sh` on the base and after the fix:
+1,595,051 bytes raw and 467,476 bytes gzip in both builds, delta 0/0 bytes. The
+build's 452,000-byte budget advisory remains 15,476 bytes over in both runs.
+This is measured on the named base, not attributed to an unverified predecessor.
+
+All commands below ran from `snapback4/`, except `./ref-check --verbose` and
+`git diff --check` at the repository root. Node, wasm and reference commands
+used `export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` first. Logs
+are `/private/tmp/w13kr2-*.log`. Every new composition was red before production
+code changed and green after. No unrelated test failure occurred. Per this
+round's explicit instruction, the full `scripts/test.sh` was not run; the lead
+runs it at landing.
+
+Regression evidence, before then after for each composition:
+
+`grant_renew` (16 tests: both stores, both horizons, both page sizes, both retention policies):
+
+```
+$ cargo test -p snapback4-device --test w13g_probe renewal_review::same_commit::grant_renew::
+test result: FAILED. 0 passed; 16 failed; 0 ignored; 0 measured; 125 filtered out; finished in 0.37s
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 125 filtered out; finished in 0.44s
+```
+
+`grant_revoke_rejoin` (16 tests: both stores, both horizons, both page sizes, both retention policies):
+
+```
+$ cargo test -p snapback4-device --test w13g_probe renewal_review::same_commit::grant_revoke_rejoin::
+test result: FAILED. 0 passed; 16 failed; 0 ignored; 0 measured; 125 filtered out; finished in 0.35s
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 125 filtered out; finished in 0.98s
+```
+
+`grant_renew_twice` (16 tests: both stores, both horizons, both page sizes, both retention policies):
+
+```
+$ cargo test -p snapback4-device --test w13g_probe renewal_review::same_commit::grant_renew_twice::
+test result: FAILED. 0 passed; 16 failed; 0 ignored; 0 measured; 125 filtered out; finished in 0.40s
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 125 filtered out; finished in 0.48s
+```
+
+`grant_renew_later` (16 tests: both stores, both horizons, both page sizes, both retention policies):
+
+```
+$ cargo test -p snapback4-device --test w13g_probe renewal_review::same_commit::grant_renew_later::
+test result: FAILED. 0 passed; 16 failed; 0 ignored; 0 measured; 125 filtered out; finished in 0.49s
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 125 filtered out; finished in 0.37s
+```
+
+Wasm `renew` (8 tests):
+
+```
+$ node --test --test-concurrency=2 --test-name-pattern='wasm review same-commit renew ' packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 8
+ℹ pass 0
+ℹ fail 8
+ℹ tests 8
+ℹ pass 8
+ℹ fail 0
+```
+
+Wasm `rejoin` (8 tests):
+
+```
+$ node --test --test-concurrency=2 --test-name-pattern='wasm review same-commit rejoin ' packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 8
+ℹ pass 0
+ℹ fail 8
+ℹ tests 8
+ℹ pass 8
+ℹ fail 0
+```
+
+Wasm `twice` (8 tests):
+
+```
+$ node --test --test-concurrency=2 --test-name-pattern='wasm review same-commit twice ' packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 8
+ℹ pass 0
+ℹ fail 8
+ℹ tests 8
+ℹ pass 8
+ℹ fail 0
+```
+
+Wasm `later` (8 tests):
+
+```
+$ node --test --test-concurrency=2 --test-name-pattern='wasm review same-commit later ' packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 8
+ℹ pass 0
+ℹ fail 8
+ℹ tests 8
+ℹ pass 8
+ℹ fail 0
+```
+
+The combined native regression command, before then after:
+
+```
+$ cargo test -p snapback4-device --test w13g_probe renewal_review::same_commit::
+test result: FAILED. 0 passed; 64 failed; 0 ignored; 0 measured; 77 filtered out; finished in 1.40s
+test result: ok. 64 passed; 0 failed; 0 ignored; 0 measured; 77 filtered out; finished in 2.25s
+```
+
+Final requested checks (device, native_reads, retained_history, then w13g_probe):
+
+```
+$ cargo test -p snapback4-device --test w13g_probe --test retained_history --test native_reads --test device
+test result: ok. 383 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 207.59s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.02s
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.31s
+test result: ok. 141 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.17s
+```
+
+```
+$ cargo test -p snapback4-core --lib --test rows
+test result: ok. 65 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.35s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+```
+
+```
+$ cargo check -p snapback4-core --features postgres
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 8.70s
+```
+
+```
+$ node --test --test-concurrency=2 packages/snapback4/test/horizon-boundary.test.mjs packages/snapback4/test/retained-history.test.mjs
+ℹ tests 124
+ℹ pass 124
+ℹ fail 0
+ℹ skipped 0
+ℹ duration_ms 146671.241041
+```
+
+```
+$ cargo test -p snapback4-lang --test guide
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+```
+
+```
+$ cargo build -p snapback4
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 31.52s
+```
+
+Wasm build output, identical before and after:
+
+```
+$ bash scripts/build-wasm.sh
+wasm 1595051 B raw, 467476 B gzip (budget 452000: OVER by 15476 B — issues/20260913-snapback4-wasm-device-diet.md)
+wasm 1595051 B raw, 467476 B gzip (budget 452000: OVER by 15476 B — issues/20260913-snapback4-wasm-device-diet.md)
+```
+
+Reference validation before this append:
+
+```
+$ ./ref-check --verbose
+ref-check: ok — 485 LLP docs, 9115 refs in 24352 files, 0 errors, 0 unchecked
+```
+
+This entry preserves all 2,245,276 earlier journal bytes (SHA-256
+`8dbed07a15be93003e00add097dca55702c39cdc9da9f133c2273d4d317ca3f1`). Reference and whitespace checks
+run again after this append. All changed code files are below 1,500 lines.

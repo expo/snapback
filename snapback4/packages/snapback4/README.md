@@ -1384,8 +1384,8 @@ has the matching grant, or that the mutation created the referenced group;
 `.principal = viewer` alone is a self-grant and fails `check`. Audience group
 and recipient columns must be immutable or guarded on update. This also covers
 insert-if-absent and upsert. The horizon `last N by index` bounds what a device acquires per group;
-the server carries each group's delivered selected boundary key (or `whole` for fewer
-than N selected rows, including an empty group) in additive acquisition metadata.
+the server carries each group's Nth delivered readable key (or `whole` for fewer
+than N readable rows, including an empty group) in additive acquisition metadata.
 Descending pages on that index are complete while they stay at or above the
 boundary by key. Crossing it returns the known suffix with `complete: false`
 and unknown coverage, and the online client asks the server. A never-acquired
@@ -1399,14 +1399,22 @@ acquisition, and staged snapshots publish it with their rows only after catch-up
 `acquisitions: [{ at, table, index, group, floor? }]`: markers apply before
 `events[at]`, or after all events when `at` equals their count. Missing `floor`
 begins acquisition; a completion supplies `whole` or the hex-encoded index key.
-A keyed completion starts at the oldest current readable selected key delivered
-by that acquisition. It narrows upward if an unselected, current readable row
-with no write after the join has a key at or above that boundary: that row was not acquired.
-Only row puts and deletes count as writes; membership joins and scopes do not.
-If no delivered key proves a complete suffix, the group stays unknown. Selection
-is at the join commit; its historical floor never decides completion or appears
-on the wire. `whole` proves the same claim without a lower bound, including when
-every selected row has since disappeared or become unreadable.
+An acquiring join selects the group's current readable rows when the stream
+serves it, newest first on the horizon index. The floor is the full key of the
+Nth delivered row, including its id tie-breaker; `whole` means the walk reached
+the group's end with fewer than N readable rows, including none. Expired and
+unreadable rows do not consume horizon slots. A cold snapshot uses the same
+readable-row selection; at a stable state and clock its floor matches the join's.
+Without a horizon an acquiring join delivers every current readable row.
+A continuous renewal expands no rows and preserves the original grant's acquisition
+if it has not yet been delivered. Contiguous renewals committed before the preceding
+grant expires keep that membership open; a revocation or expiry gap breaks the chain.
+Within one commit, a grant followed by continuous renewals acquires once at the
+grant; a revoked grant acquires nothing, and a rejoin starts a new chain.
+A join whose membership is already closed when served acquires nothing, even for
+publicly readable retained history.
+A row written after the join may arrive in the acquisition and again as a later
+put; applying it twice replaces the same row by id. A later deletion still deletes.
 Snapshot replies echo `after`; the device checks every
 continuation and requires the terminal page before catch-up publishes coverage.
 Unsolicited completions are ignored and reported in `device:acquisition-report`.

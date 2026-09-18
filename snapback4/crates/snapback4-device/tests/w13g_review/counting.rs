@@ -48,3 +48,39 @@ impl DeviceTx for CountedTx<'_> {
     fn staged_table_after(&self, table: &str, after: &str, limit: usize) -> Result<Vec<(String, String)>, RuntimeError> { self.tx.staged_table_after(table, after, limit) }
     fn staged_clear(&self) -> Result<(), RuntimeError> { self.tx.staged_clear() }
 }
+
+/// Instrument server acquisition separately from device boundary metadata.
+pub struct Partition<'a> {
+    pub tx: &'a dyn snapback4_core::partition::PartitionRows,
+    pub probes: Cell<usize>,
+    pub selected_rows: Cell<usize>,
+    pub content_scans: Cell<usize>,
+}
+impl<'a> Partition<'a> {
+    pub fn new(tx: &'a dyn snapback4_core::partition::PartitionRows) -> Self {
+        Self { tx, probes: Cell::new(0), selected_rows: Cell::new(0), content_scans: Cell::new(0) }
+    }
+}
+impl Rows for Partition<'_> {
+    fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> { self.tx.get(table, id) }
+    fn lookup(&self, table: &str, name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
+        if table == "members" && name == "byGroupPerson" { self.probes.set(self.probes.get() + 1); }
+        self.tx.lookup(table, name, index, key)
+    }
+    fn scan(&self, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        let rows = self.tx.scan(table, name, prefix, bounds, dir, limit)?;
+        if table == "posts" { self.content_scans.set(self.content_scans.get() + 1); self.selected_rows.set(self.selected_rows.get() + rows.len()); }
+        Ok(rows)
+    }
+    fn count_prefix(&self, table: &str, name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> { self.tx.count_prefix(table, name, prefix, limit) }
+    fn put(&self, name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> { self.tx.put(name, table, row, old) }
+    fn delete(&self, name: &str, table: &Table, row: &Value) -> Result<u64, RuntimeError> { self.tx.delete(name, table, row) }
+}
+impl snapback4_core::partition::PartitionRows for Partition<'_> {
+    fn next_seq(&self) -> Result<u64, RuntimeError> { self.tx.next_seq() }
+    fn append_log(&self, partition: &str, seq: u64, ord: u32, table: &str, kind: &str, id: &str, data: Option<&str>) -> Result<(), RuntimeError> { self.tx.append_log(partition, seq, ord, table, kind, id, data) }
+    fn membership_transitions(&self, partition: &str, after: u64) -> Result<Vec<snapback4_core::store::LogEvent>, RuntimeError> { self.tx.membership_transitions(partition, after) }
+    fn memberships_before(&self, partition: &str, watermark: u64) -> Result<Vec<snapback4_core::store::LogEvent>, RuntimeError> { self.tx.memberships_before(partition, watermark) }
+    fn commit_times(&self, sequences: &[u64]) -> Result<BTreeMap<u64, i64>, RuntimeError> { self.tx.commit_times(sequences) }
+    fn read_log_spans(&self, spans: &[snapback4_core::partition::LogSpan], after: u64, only_seq: Option<u64>, limit: usize) -> Result<Vec<snapback4_core::store::LogEvent>, RuntimeError> { self.tx.read_log_spans(spans, after, only_seq, limit) }
+}

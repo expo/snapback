@@ -137,58 +137,81 @@ fn adoption_names_legacy_index_count_and_rewrites_can_shrink_or_delete() {
     store.install(&schema).unwrap();
 }
 
-#[test]
-fn written_after_is_strict_per_row_and_uses_the_log_index() {
-    use snapback4_core::partition::PartitionRows;
-    let mut engine = snapback4_core::Engine::memory(common::schema(), []).unwrap();
-    let tx = engine.store_mut().transaction().unwrap();
-    for n in 0..10_000 {
-        tx.append_log("noise", n + 1, 0, "other", "put", "p1", None).unwrap();
+#[path = "common/acquisition.rs"]
+mod acquisition;
+fn mixed_acquisition(hidden: usize, readable: usize, deleted_selected: bool) -> (String, String) {
+    let acquisition::Fixture { stream, snapshots: pages, .. } = acquisition::mixed_acquisition(hidden, readable, deleted_selected);
+    assert_eq!(stream.events.len(), readable.min(2));
+    assert!(stream.events.iter().all(|e| e.data.as_ref().unwrap().field("body").unwrap() == &Value::String("bob".into())));
+    assert_eq!(stream.acquisitions.len(), 2);
+    assert_eq!(stream.acquisitions[1].floor.as_deref() == Some("whole"), readable < 2);
+    let mut snapshots = Vec::new(); let mut floors = Vec::new();
+    for page in pages {
+        snapshots.extend(page.events); floors.extend(page.acquisitions.into_iter().filter_map(|a| a.floor));
     }
-    tx.append_log("g", 10, 0, "posts", "put", "p1", None).unwrap();
-    assert!(tx.written_after("posts", "p1", 9).unwrap());
-    assert!(!tx.written_after("posts", "p1", 10).unwrap(), "the join commit is not after itself");
-    assert!(!tx.written_after("posts", "missing", 0).unwrap());
-    assert!(!tx.written_after("missing", "p1", 0).unwrap());
-    for (seq, partition, kind) in [(11, "g", "put"), (12, "g", "del"), (13, "elsewhere", "put")] {
-        tx.append_log(partition, seq, 0, "posts", kind, "p1", None).unwrap();
-        assert!(tx.written_after("posts", "p1", seq - 1).unwrap(), "{kind} in {partition}");
-        assert!(!tx.written_after("posts", "p1", seq).unwrap());
-    }
-    for (seq, kind) in [(14, "join"), (15, "scope")] {
-        tx.append_log("hidden-principal", seq, 0, "posts", kind, "p1", None).unwrap();
-        assert!(!tx.written_after("posts", "p1", 13).unwrap(), "{kind} is not a row transition");
-    }
-    let sql = "SELECT EXISTS(SELECT 1 FROM _log WHERE t = ?1 AND id = ?2 AND seq > ?3 AND kind IN ('put', 'del'))";
-    let plan: Vec<String> = tx.conn().prepare(&format!("EXPLAIN QUERY PLAN {sql}")).unwrap()
-        .query_map(rusqlite::params!["posts", "p1", 10], |row| row.get(3)).unwrap().map(Result::unwrap).collect();
-    assert!(plan.iter().any(|step| step.contains("SEARCH _log USING COVERING INDEX _log_row_seq_kind (t=? AND id=? AND seq>?)")), "{plan:?}");
-    for (after, expected) in [(10, true), (13, false)] {
-        let mut statement = tx.conn().prepare(sql).unwrap();
-        let found: bool = statement.query_row(rusqlite::params!["posts", "p1", after], |row| row.get(0)).unwrap();
-        assert_eq!(found, expected);
-        let scanned = statement.get_status(rusqlite::StatementStatus::FullscanStep);
-        let steps = statement.get_status(rusqlite::StatementStatus::VmStep);
-        assert_eq!(scanned, 0);
-        println!("written_after: log-rows=10006 after={after} found={found} fullscan-steps={scanned} vm-steps={steps}; plan={plan:?}");
-    }
+    assert_eq!(snapshots.len(), readable.min(2));
+    assert_eq!(floors, vec![stream.acquisitions[1].floor.clone().unwrap()]);
+    (serde_json::to_string(&stream).unwrap(), serde_json::to_string(&snapshots).unwrap())
 }
 
 #[test]
-fn written_after_reopened_store_replaces_the_uncovered_index() {
+fn acquisition_selects_readable_rows_independent_of_hidden_or_deleted_history() {
+    let clean = mixed_acquisition(0, 3, false);
+    assert_eq!(clean, mixed_acquisition(1, 3, false));
+    assert_eq!(clean, mixed_acquisition(1000, 3, false));
+    assert_eq!(clean, mixed_acquisition(0, 3, true));
+    assert_eq!(mixed_acquisition(0, 0, false), mixed_acquisition(1000, 0, false));
+}
+
+#[test]
+fn opening_a_store_drops_the_retired_row_log_index() {
     use snapback4_core::store::Store;
-    let dir = std::env::temp_dir().join(format!("snapback4-written-after-{}-{}", std::process::id(), snapback4_core::ids::mint(snapback4_core::now_ms(), &mut 0).unwrap()));
+    let dir = std::env::temp_dir().join(format!("snapback4-retired-log-index-{}-{}", std::process::id(), snapback4_core::ids::mint(snapback4_core::now_ms(), &mut 0).unwrap()));
     let path = dir.join("store.sqlite");
     let store = Store::open(&path).unwrap();
-    store.conn().execute_batch("DROP INDEX IF EXISTS _log_row_seq_kind; CREATE INDEX IF NOT EXISTS _log_row_seq ON _log(t, id, seq);").unwrap();
-    drop(store);
+    store.conn().execute_batch("CREATE INDEX _log_row_seq_kind ON _log(t, id, seq, kind);").unwrap(); drop(store);
     for _ in 0..2 {
         let store = Store::open(&path).unwrap();
-        let columns: Vec<String> = store.conn().prepare("SELECT name FROM pragma_index_info('_log_row_seq_kind') ORDER BY seqno").unwrap()
-            .query_map([], |row| row.get(0)).unwrap().map(Result::unwrap).collect();
-        assert_eq!(columns, ["t", "id", "seq", "kind"]);
-        let old: bool = store.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = '_log_row_seq')", [], |row| row.get(0)).unwrap();
-        assert!(!old, "the superseded index must not double the per-event index writes");
+        let exists: bool = store.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = '_log_row_seq_kind')", [], |row| row.get(0)).unwrap();
+        assert!(!exists);
+        let tx = store.conn();
+        tx.execute("INSERT OR REPLACE INTO _meta VALUES ('w13k', 'usable')", []).unwrap();
+        assert_eq!(store.meta("w13k").unwrap().as_deref(), Some("usable"));
     }
     std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn renewal_chains_stop_at_expiry_scope_and_same_commit_revocation() {
+    use snapback4_core::{partition, schema::Horizon, value::canonical_json};
+    // (sequence, time, kind, expiry). Equality with expiry is already a gap;
+    // a scope breaks authority even when the next join has the same sequence.
+    let cases = [
+        (vec![(2,2,"join",Some(1000)),(3,500,"join",Some(1500)),(4,1200,"join",Some(2000))], Some(2)),
+        (vec![(2,2,"join",Some(1000)),(3,1000,"join",Some(1500)),(4,1200,"join",Some(2000))], Some(3)),
+        (vec![(2,2,"join",None),(3,500,"scope",None),(3,500,"join",Some(1500)),(4,1200,"join",Some(2000))], Some(3)),
+        (vec![(2,2,"join",None),(2,2,"scope",None)], None),
+        (vec![(2,2,"join",Some(1000)),(3,500,"join",Some(1500))], None),
+    ];
+    for (steps, expected) in cases { for limit in [1, 1000] {
+        let mut schema = common::schema(); schema.tables.remove("messages");
+        schema.tables.get_mut("writes").unwrap().sync.as_mut().unwrap().horizon = Some(Horizon { last: 2, by: "byBucket".into() });
+        let mut engine = snapback4_core::Engine::memory(schema.clone(), []).unwrap();
+        engine.seed_at((0..3).map(|n| ("writes".into(), object([("id",Value::Id(format!("r{n}"))),("bucket",Value::Int(n)),("body",Value::String("bob".into()))]))), 1).unwrap();
+        let tx = engine.store_mut().transaction().unwrap();
+        let mut previous = 1;
+        for (ord, (seq, at, kind, expiry)) in steps.iter().enumerate() {
+            if previous != *seq { tx.record_commit(*seq, *at, "membership", "bob", "mutation", &[], 0).unwrap(); previous = *seq; }
+            let data = if *kind == "join" { object([("expiresAt",expiry.map_or(Value::Null, Value::Int))]) } else { Value::Array(vec![]) };
+            tx.append_log("p:bob", *seq, ord as u32, "writes", kind, "[]", Some(&canonical_json(&data))).unwrap();
+        }
+        let mut from = 1; let mut puts = Vec::new(); let mut markers = Vec::new();
+        loop {
+            let page = partition::stream(&tx, &schema, "bob", from, limit, 1800).unwrap();
+            puts.extend(page.events.into_iter().filter(|e| e.kind == "put").map(|e| (e.seq, e.id)));
+            markers.extend(page.acquisitions); from = page.watermark; if !page.more { break; }
+        }
+        assert_eq!(puts, expected.map_or_else(Vec::new, |seq| vec![(seq,"r2".into()),(seq,"r1".into())]), "steps={steps:?} limit={limit}");
+        assert_eq!(markers.len(), if expected.is_some() { 2 } else { 0 });
+    } }
 }

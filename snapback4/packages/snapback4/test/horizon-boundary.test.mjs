@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { once } from "node:events";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -198,8 +199,9 @@ async function reviewServer(t, source = reviewSource) {
     const result = await response.json(); assert.equal(response.status, 200, JSON.stringify(result)); assert.ok(!result.denied, JSON.stringify(result)); return result;
   };
   const backend = await (await fetch(`${url}/schema`, { headers: { "x-snapback-persona": "bob" } })).json();
-  const core = await webDevice({ wasm, persist: memoryPersistence() }).open(directory, backend); t.after(() => core.close());
-  return { post, core };
+  const persist = memoryPersistence();
+  const core = await webDevice({ wasm, persist }).open(directory, backend); t.after(() => core.close());
+  return { post, core, persisted: () => persist.load(directory) };
 }
 for (const moved of [false, true]) for (const hidden of [false, true]) test(`wasm wire withholds a ${hidden ? "hidden" : "deleted"} floor's historical value${moved ? " with moved survivor (recheck)" : ""}`, { timeout: 720_000 }, async t => {
   const payloads = [];
@@ -214,34 +216,35 @@ for (const moved of [false, true]) for (const hidden of [false, true]) test(`was
     const { store_id, ...payload } = stream; payloads.push(JSON.stringify(payload));
     ok(await core.call({ op: "apply", page: stream }));
     const read = ok(await core.call({ op: "query", name: "timeline", viewer: "dev:bob", args: { g: "g", c: null }, now: 20_000 }));
-    assert.deepEqual(ids(read), ["p3"]); assert.equal(read.unknown, true); assert.equal(read.complete, false);
+    assert.deepEqual(ids(read), ["p3", "p1"]); assert.equal(read.unknown, false); assert.equal(read.complete, true);
   }
   assert.equal(payloads[0], payloads[1], "all viewer payload bytes agree apart from the independent store identity");
   if (moved) {
     assert.equal(JSON.parse(payloads[0]).acquisitions.filter(a => a.floor).length, 1);
-    console.log(`wasm moved survivor hidden=${hidden}: payload-bytes=${Buffer.byteLength(payloads[0])} identical-worlds=2 completions=1 key-at=1000`);
+    console.log(`wasm moved survivor hidden=${hidden}: payload-bytes=${Buffer.byteLength(payloads[0])} identical-worlds=2 completions=1 key-at=100`);
   }
 });
 
-for (const removed of [false, true]) test(`wasm recheck unselected row ${removed ? "blocks every key" : "narrows completion"}`, { timeout: 720_000 }, async t => {
+for (const removed of [false, true]) test(`wasm recheck unselected row ${removed ? "replaces a deleted selection" : "enters the current top two"}`, { timeout: 720_000 }, async t => {
   const { post, core } = await reviewServer(t);
   await post("/seed", [1500, 2000, 3000].map((at, i) => ({ table: "posts", row: { id: `p${i + 1}`, group: "g", at } })));
   const before = await post("/sync", { from: 0 }); ok(await core.call({ op: "apply", first: true, page: before }));
   await post("/seed", [{ table: "members", row: { id: "m", group: "g", person: "dev:bob" } }]);
-  const atJoin = await post("/sync", { from: before.watermark, stream: true });
   assert.equal((await post("/m/move", { id: "move", args: { p: "p3", at: 1000 } })).state, "sent");
   if (removed) assert.equal((await post("/m/remove", { id: "remove", args: { p: "p2" } })).state, "sent");
   const stream = await post("/sync", { from: before.watermark, stream: true });
   const floors = stream.acquisitions.filter(a => a.floor).map(a => a.floor);
-  assert.deepEqual(floors, removed ? [] : [atJoin.acquisitions.at(-1).floor], "the unselected p1 must never be certified by 1000");
+  const snapshot = await post("/sync", { from: 0 });
+  assert.deepEqual(snapshot.events.filter(e => e.table === "posts").map(e => e.data.at), removed ? [1500, 1000] : [2000, 1500]);
+  assert.deepEqual(floors, snapshot.acquisitions.filter(a => a.floor).map(a => a.floor));
   ok(await core.call({ op: "apply", page: stream }));
   for (const name of ["newest", "above"]) {
     const read = ok(await core.call({ op: "query", name, viewer: "dev:bob", args: { c: null }, now: 20_000 }));
-    assert.equal(read.complete, !removed); assert.equal(read.unknown, removed);
+    assert.equal(read.complete, true); assert.equal(read.unknown, false);
   }
   const crossing = ok(await core.call({ op: "query", name: "timeline", viewer: "dev:bob", args: { g: "g", c: null }, now: 20_000 }));
-  assert.equal(crossing.complete, false); assert.equal(crossing.unknown, true); assert.deepEqual(ids(crossing), [removed ? "p3" : "p2"]);
-  console.log(`wasm unselected control removed=${removed}: completions=${floors.length} key-at=${removed ? "none" : "2000"} crossing-complete=false`);
+  assert.equal(crossing.complete, true); assert.equal(crossing.unknown, false); assert.deepEqual(ids(crossing), removed ? ["p1", "p3"] : ["p2", "p1"]);
+  console.log(`wasm unselected control removed=${removed}: completions=${floors.length} key-at=${removed ? "1000" : "1500"} page-complete=true`);
 });
 
 test("wasm acquires 5000 empty groups through bounded HTTP pages", { timeout: 720_000 }, async t => {
@@ -266,7 +269,7 @@ test("wasm acquires 5000 empty groups through bounded HTTP pages", { timeout: 72
   console.log(`wasm empty groups: groups=${groups} pages=${pages} max-response-bytes=${maxBytes}`);
 });
 
-for (const roundTrip of [true, false]) test(`wasm written unselected ${roundTrip ? "round trip hides pre-join key" : "same-key rewrite discharges blocker"}`, { timeout: 720_000 }, async t => {
+for (const roundTrip of [true, false]) test(`wasm written unselected ${roundTrip ? "round trip hides pre-join key" : "same-key rewrite duplicates current acquisition"}`, { timeout: 720_000 }, async t => {
   const payloads = [], floors = [], reads = [], expected = [];
   for (const at of roundTrip ? [1500, 1200] : [1500]) {
     const { post, core } = await reviewServer(t);
@@ -279,7 +282,7 @@ for (const roundTrip of [true, false]) test(`wasm written unselected ${roundTrip
     assert.equal((await post("/m/move", { id: "write-p1", args: { p: "p1", at: 1500 } })).state, "sent");
     const stream = await post("/sync", { from: before.watermark, stream: true });
     const puts = stream.events.filter(e => e.id === "p1" && e.kind === "put");
-    assert.equal(puts.length, roundTrip ? 2 : 1, "same-value writes are log events too");
+    assert.equal(puts.length, roundTrip ? 3 : 2, "acquisition plus each later put");
     assert.ok(puts.every(e => e.data.at === 1500), "every put substitutes the current image");
     const { store_id, ...payload } = stream; payloads.push(JSON.stringify(payload));
     floors.push(stream.acquisitions.filter(a => a.floor).map(a => a.floor));
@@ -296,7 +299,7 @@ for (const roundTrip of [true, false]) test(`wasm written unselected ${roundTrip
     assert.deepEqual(read.data, [{ id: "p1", at: 1500 }, { id: "p3", at: 1000 }]);
     assert.equal(read.complete, true); assert.equal(read.unknown, false);
   }
-  console.log(`wasm written unselected round-trip=${roundTrip}: payload-bytes=${Buffer.byteLength(payloads[0])} worlds=${payloads.length} post-join-p1-puts=${roundTrip ? 2 : 1} completions=1 key-at=1000`);
+  console.log(`wasm written unselected round-trip=${roundTrip}: payload-bytes=${Buffer.byteLength(payloads[0])} worlds=${payloads.length} p1-puts=${roundTrip ? 3 : 2} completions=1 key-at=1000`);
 });
 
 for (const kind of ["scope", "join"]) for (const rowEvent of [null, "put", "del"]) test(`wasm membership collision ${kind} row-event=${rowEvent}`, { timeout: 720_000 }, async t => {
@@ -312,8 +315,6 @@ for (const kind of ["scope", "join"]) for (const rowEvent of [null, "put", "del"
     await post("/seed", rows);
     const before = await post("/sync", { from: 0 }); ok(await core.call({ op: "apply", first: true, page: before }));
     await post("/seed", [{ table: "members", row: { id: "m", group: "g", person: "dev:bob" } }]);
-    // The join-time floor independently pins p2's 2000 key for the unwritten case.
-    const atJoin = await post("/sync", { from: before.watermark, stream: true });
     assert.equal((await post("/m/move", { id: "move-p3", args: { p: "p3", at: 1000 } })).state, "sent");
     if (kind === "scope") assert.equal((await post("/m/leaveCharlie", { id: "leave-charlie", args: {} }, "charlie")).state, "sent");
     else await post("/seed", [charlie]);
@@ -323,30 +324,241 @@ for (const kind of ["scope", "join"]) for (const rowEvent of [null, "put", "del"
     const stream = await post("/sync", { from: before.watermark, stream: true });
     assert.ok(stream.events.every(e => e.table === "posts" && ["put", "del"].includes(e.kind)), "private membership events never reach Bob");
     const colliding = stream.events.filter(e => e.id === collision);
-    assert.equal(colliding.length, rowEvent ? 1 : 0);
-    if (rowEvent) assert.equal(colliding[0].kind, rowEvent);
-    assert.deepEqual(stream.events.filter(e => e.kind === "put" && e.id !== collision).map(e => e.id), ["p3", "p2", "p3"]);
+    assert.equal(colliding.length, rowEvent === "put" ? 2 : 1);
+    assert.equal(colliding.at(-1).kind, rowEvent ?? "put");
+    assert.deepEqual(stream.events.filter(e => e.kind === "put" && e.id !== collision).map(e => e.id), rowEvent === "del" ? ["p2", "p3", "p3"] : ["p2", "p3"]);
     const { store_id, ...payload } = stream; payloads.push(JSON.stringify(payload));
     floors.push(stream.acquisitions.filter(a => a.floor).map(a => a.floor));
     const truth = await post("/q/timeline", { args: { g: "g", c: null } });
     assert.deepEqual(truth.data, [{ id: "p2", at: 2000 }, rowEvent === "del" ? { id: "p3", at: 1000 } : { id: collision, at: 1500 }]);
     ok(await core.call({ op: "apply", page: stream }));
     reads.push(ok(await core.call({ op: "query", name: "timeline", viewer: "dev:bob", args: { g: "g", c: null }, now: 20_000 })));
-    if (rowEvent) {
-      // Removing p1 leaves p2 and p3; a fresh snapshot independently pins p3's 1000 key.
-      if (rowEvent === "put") assert.equal((await post("/m/remove", { id: "remove-collision", args: { p: collision } })).state, "sent");
-      // Keep exactly N=2 rows so the snapshot publishes a keyed completion, not whole.
-      const snapshot = await post("/sync", { from: 0 });
-      assert.deepEqual(snapshot.events.filter(e => e.table === "posts").map(e => e.data.at), [2000, 1000]);
-      expected.push(snapshot.acquisitions.filter(a => a.floor).map(a => a.floor));
-    } else expected.push(atJoin.acquisitions.filter(a => a.floor).map(a => a.floor));
+    const snapshot = await post("/sync", { from: 0 });
+    assert.deepEqual(snapshot.events.filter(e => e.table === "posts").map(e => e.data.at), rowEvent === "del" ? [2000, 1000] : [2000, 1500]);
+    expected.push(snapshot.acquisitions.filter(a => a.floor).map(a => a.floor));
   }
   assert.equal(payloads[0], payloads[1], "all payload bytes, markers included, agree apart from independent store identity");
   for (let i = 0; i < floors.length; i++) { assert.equal(expected[i].length, 1); assert.deepEqual(floors[i], expected[i]); }
   for (const read of reads) {
-    const second = rowEvent === "put" ? { id: collision, at: 1500 } : { id: "p3", at: 1000 };
-    assert.deepEqual(read.data, rowEvent ? [{ id: "p2", at: 2000 }, second] : [{ id: "p2", at: 2000 }]);
-    assert.equal(read.complete, Boolean(rowEvent)); assert.equal(read.unknown, !rowEvent);
+    const second = rowEvent !== "del" ? { id: collision, at: 1500 } : { id: "p3", at: 1000 };
+    assert.deepEqual(read.data, [{ id: "p2", at: 2000 }, second]);
+    assert.equal(read.complete, true); assert.equal(read.unknown, false);
   }
-  console.log(`wasm membership collision kind=${kind} row-event=${rowEvent}: payload-bytes=${Buffer.byteLength(payloads[0])} identical-worlds=2 completions=1 key-at=${rowEvent ? 1000 : 2000}`);
+  console.log(`wasm membership collision kind=${kind} row-event=${rowEvent}: payload-bytes=${Buffer.byteLength(payloads[0])} identical-worlds=2 completions=1 key-at=${rowEvent === "del" ? 1000 : 1500}`);
+});
+
+for (const retained of [false, true]) for (const staged of [false, true]) test(`wasm current acquisition survives paged duplicates and later row changes staged=${staged} retained=${retained}`, { timeout: 720_000 }, async t => {
+  const source = reviewSource.replace("  sync to members", `${retained ? "  retain delivered-history\n" : ""}  sync to members`).replace("  at: time", "  at: time\n  until: time ?\n  expire at .until\n  by byExpiry: until")
+    + "\nmutation expire(p: posts):\n  update posts[p] {until: 1}\nquery one(p: posts):\n  return posts[p]\n";
+  for (const change of ["below", "delete", "group", "expiry"]) {
+    const { post, core } = await reviewServer(t, source);
+    await post("/seed", [1000, 2000, 3000].map((at, i) => ({ table: "posts", row: { id: `p${i + 1}`, group: "g", at } })));
+    const before = await post("/sync", { from: 0 });
+    ok(await core.call({ op: "apply", first: true, page: { ...before, stage_snapshot: staged } }));
+    await post("/seed", [{ table: "members", row: { id: "m", group: "g", person: "dev:bob" } }]);
+    await post("/seed", [{ table: "posts", row: { id: "p4", group: "g", at: 4000 } }]);
+    const first = await post("/sync", { from: before.watermark, stream: true, limit: 1 });
+    assert.equal(first.more, true); assert.deepEqual(first.events.map(e => e.id), ["p4", "p3"]);
+    const snapshot = await post("/sync", { from: 0 });
+    assert.deepEqual(first.acquisitions.filter(a => a.floor).map(a => a.floor), snapshot.acquisitions.filter(a => a.floor).map(a => a.floor));
+    ok(await core.call({ op: "apply", page: { ...first, snapshot_catchup: staged } }));
+    const duplicate = await post("/sync", { from: first.watermark, stream: true, limit: 1 });
+    assert.deepEqual(duplicate.events.map(e => e.id), ["p4"]);
+    ok(await core.call({ op: "apply", page: { ...duplicate, snapshot_catchup: staged } }));
+    const query = () => core.call({ op: "query", name: "timeline", viewer: "dev:bob", args: { g: "g", c: null }, now: Date.now() });
+    assert.deepEqual(ids(ok(await query())), ["p4", "p3"]);
+    const op = { below: "move", delete: "remove", group: "hide", expiry: "expire" }[change];
+    assert.equal((await post(`/m/${op}`, { id: "change", args: { p: "p4", ...(change === "below" ? { at: 500 } : {}) } })).state, "sent");
+    const next = await post("/sync", { from: duplicate.watermark, stream: true });
+    ok(await core.call({ op: "apply", page: next }));
+    const one = ok(await core.call({ op: "query", name: "one", viewer: "dev:bob", args: { p: "p4" }, now: Date.now() }));
+    if (change === "below") assert.equal(one.data.at, 500); else assert.equal(one.data, null);
+    assert.deepEqual(ids(ok(await query())), ["p3"]);
+  }
+});
+
+test("wasm horizonless current join and closed private join", { timeout: 720_000 }, async t => {
+  const source = reviewSource.replace(" last 2 by byTime\nquery", "\nquery")
+    .replace("  insert <- deny\n  online only", "  insert <- deny\n  delete <- allow\n  online only")
+    .replace("  sync to members", "  retain delivered-history\n  sync to members")
+    + "\nmutation leave():\n  delete members['m']\n";
+  for (const leave of [false, true]) {
+    const { post, core } = await reviewServer(t, source);
+    await post("/seed", Array.from({ length: 26 }, (_, i) => ({ table: "posts", row: { id: `p${i}`, group: "g", at: i } })));
+    const before = await post("/sync", { from: 0 }); ok(await core.call({ op: "apply", first: true, page: before }));
+    await post("/seed", [{ table: "members", row: { id: "m", group: "g", person: "dev:bob" } }]);
+    if (leave) assert.equal((await post("/m/leave", { id: "leave", args: {} })).state, "sent");
+    const page = await post("/sync", { from: before.watermark, stream: true });
+    assert.equal(page.events.filter(e => e.table === "posts" && e.kind === "put").length, leave ? 0 : 26);
+    ok(await core.call({ op: "apply", page }));
+    const read = ok(await core.call({ op: "query", name: "timeline", viewer: "dev:bob", args: { g: "g", c: null }, now: Date.now() }));
+    assert.equal(read.data.length, leave ? 0 : 2);
+  }
+});
+
+// The core admits this Rust-level schema; Quarry's public-subset spelling is
+// still unbuilt. Rust tests exercise its server selection; this is its wasm apply.
+test("wasm public retained history keeps only served rows on a closed horizonless join", async t => {
+  const backend = structuredClone(rawBackend);
+  backend.schema.tables.messages.rules.read = "Allow";
+  backend.schema.tables.messages.sync.horizon = null;
+  for (const served of [false, true]) {
+    const core = await webDevice({ wasm, persist: memoryPersistence() }).open(`public-closed-${served}`, backend);
+    t.after(() => core.close());
+    ok(await core.call({ op: "apply", first: true, page: { snapshot: true, events: [membership], watermark: 1, more: false } }));
+    if (served) ok(await core.call({ op: "apply", page: { snapshot: false, events: Array.from({ length: 26 }, (_, i) => message(i)), watermark: 2, more: false } }));
+    ok(await core.call({ op: "apply", page: { snapshot: false, events: [{ table: "messages", id: "scope", kind: "scope", data: ["c1"] }], watermark: 3, more: false } }));
+    assert.equal(ok(await rawQuery(core)).data.length, served ? 26 : 0);
+  }
+});
+
+for (const change of ["move-up", "move-down", "remove", "hide", "remove-both"]) test(`wasm current selection fills a changed historical candidate set: ${change}`, { timeout: 720_000 }, async t => {
+  const { post, core } = await reviewServer(t);
+  await post("/seed", [1500, 2000, 3000].map((at, i) => ({ table: "posts", row: { id: `p${i + 1}`, group: "g", at } })));
+  const before = await post("/sync", { from: 0 }); ok(await core.call({ op: "apply", first: true, page: before }));
+  await post("/seed", [{ table: "members", row: { id: "m", group: "g", person: "dev:bob" } }]);
+  assert.equal((await post("/m/remove", { id: "remove-p2", args: { p: "p2" } })).state, "sent");
+  assert.equal((await post("/m/move", { id: "move-p3", args: { p: "p3", at: 1000 } })).state, "sent");
+  const op = change.startsWith("move") ? "move" : change === "remove-both" ? "remove" : change;
+  assert.equal((await post(`/m/${op}`, { id: "change", args: { p: change === "remove-both" ? "p3" : "p1", ...(op === "move" ? { at: change === "move-up" ? 2500 : 500 } : {}) } })).state, "sent");
+  const first = await post("/sync", { from: before.watermark, stream: true, limit: 1 });
+  const expected = change === "move-up" ? [{ id: "p1", at: 2500 }, { id: "p3", at: 1000 }] : change === "move-down" ? [{ id: "p3", at: 1000 }, { id: "p1", at: 500 }] : change === "remove-both" ? [{ id: "p1", at: 1500 }] : [{ id: "p3", at: 1000 }];
+  assert.deepEqual(first.events.filter(e => e.kind === "put").map(e => ({ id: e.id, at: e.data.at })), expected);
+  const snapshot = await post("/sync", { from: 0 });
+  const floors = first.acquisitions.filter(a => a.floor).map(a => a.floor);
+  assert.deepEqual(floors, snapshot.acquisitions.filter(a => a.floor).map(a => a.floor));
+  if (!change.startsWith("move")) assert.deepEqual(floors, ["whole"]);
+  const page = await post("/sync", { from: before.watermark, stream: true }); ok(await core.call({ op: "apply", page }));
+  const read = ok(await core.call({ op: "query", name: "timeline", viewer: "dev:bob", args: { g: "g", c: null }, now: Date.now() }));
+  assert.deepEqual(read.data, expected); assert.equal(read.complete, true); assert.equal(read.unknown, false);
+});
+
+// Generated by the Rust fixture used on SQLite and MemoryStore. The mixed rule
+// is intentionally constructed in Rust because Quarry refuses that schema.
+let reviewFixtures;
+function rustReviewFixtures() {
+  return reviewFixtures ??= (async () => {
+    const directory = mkdtempSync(join(tmpdir(), "sb4-review-wire-"));
+    const output = join(directory, "pages.json");
+    try {
+      await promisify(execFile)("cargo", ["test", "-p", "snapback4-device", "--test", "w13g_probe", "renewal_review::export_wire_fixtures", "--", "--exact"], {
+        cwd: root, env: { ...process.env, SNAPBACK4_REVIEW_FIXTURES: output }, timeout: 600_000, maxBuffer: 4 * 1024 * 1024,
+      });
+      return JSON.parse(readFileSync(output, "utf8"));
+    } finally { rmSync(directory, { recursive: true, force: true }); }
+  })();
+}
+for (const kind of ["cold", "gap", "revoke", "unlimited"]) for (const horizon of [false, true]) for (const split of [false, true]) {
+  if (kind === "unlimited" && (!horizon || !split)) continue;
+  test(`wasm review renewal ${kind} horizon=${horizon} split=${split}`, { timeout: 720_000 }, async t => {
+    const f = (await rustReviewFixtures()).renewals.find(f => f.kind === kind && f.horizon === horizon && f.split === split);
+    const persist = memoryPersistence(), core = await webDevice({ wasm, persist }).open(f.name, f.backend); t.after(() => core.close());
+    for (const [i, page] of f.initial.entries()) ok(await core.call({ op: "apply", first: i === 0, page }));
+    if (kind === "gap") assert.notEqual(ok(await core.call({ op: "query", name: "one", viewer: "dev:bob", args: { p: "p3" }, now: 100 })).data, null);
+    for (const page of f.pages) ok(await core.call({ op: "apply", page }));
+    if (kind === "gap") assert.equal(ok(await core.call({ op: "query", name: "one", viewer: "dev:bob", args: { p: "p3" }, now: f.now })).data, null, "scope clears the gap deletion");
+    const query = c => core.call({ op: "query", name: "timeline", viewer: "dev:bob", args: { g: "g", c }, now: f.now }).then(ok);
+    const read = await query(null);
+    assert.deepEqual(read.data, f.expected); assert.equal(read.complete, true); assert.equal(read.unknown, false);
+    assert.equal(f.pages.length, split ? kind === "revoke" ? 4 : 2 : 1);
+    const events = f.pages.flatMap(p => p.events).filter(e => e.table === "posts"), markers = f.pages.flatMap(p => p.acquisitions);
+    assert.equal(events.filter(e => e.kind === "put").length, kind === "gap" || horizon ? 2 : 3);
+    assert.equal(markers.length, horizon ? 2 : 0);
+    if (horizon) {
+      assert.equal(markers[1].floor, f.floor);
+      assert.deepEqual((await persist.load(f.name)).filter(e => e.s === "m" && e.k.startsWith("device:acquisition-boundaries:")).map(e => e.v), [f.floor]);
+      const below = await query(read.next); assert.equal(below.complete, false); assert.equal(below.unknown, true);
+    }
+    if (kind === "gap" || kind === "revoke") {
+      assert.equal(events[0].kind, "scope");
+      assert.equal(events.filter(e => e.kind === "scope").length, 1);
+      if (horizon) {
+        const acquisition = f.pages.find(p => p.acquisitions.length);
+        assert.equal(acquisition.acquisitions[0].at, acquisition.events.findIndex(e => e.table === "posts" && e.kind === "put"));
+      }
+    }
+    if (kind === "gap") assert.equal(ok(await core.call({ op: "query", name: "one", viewer: "dev:bob", args: { p: "p3" }, now: f.now })).data, null);
+    if (split) {
+      assert.deepEqual(f.pages.at(-1).events.filter(e => e.table === "posts"), []); assert.deepEqual(f.pages.at(-1).acquisitions, []);
+      if (kind === "revoke") { assert.deepEqual(f.pages[0].events.filter(e => e.table === "posts"), []); assert.deepEqual(f.pages[0].acquisitions, []); }
+    }
+  });
+}
+for (const kind of ["renew", "rejoin", "twice", "later"]) for (const horizon of [false, true]) for (const split of [false, true]) for (const retained of [false, true]) {
+  test(`wasm review same-commit ${kind} horizon=${horizon} split=${split} retained=${retained}`, { timeout: 720_000 }, async t => {
+    const f = (await rustReviewFixtures()).same_commit.find(f => f.kind === kind && f.horizon === horizon && f.split === split && f.retained === retained);
+    const persist = memoryPersistence(), core = await webDevice({ wasm, persist }).open(f.name, f.backend); t.after(() => core.close());
+    for (const page of f.pages) ok(await core.call({ op: "apply", page }));
+    const query = c => core.call({ op: "query", name: "timeline", viewer: "dev:bob", args: { g: "g", c }, now: f.now }).then(ok);
+    const read = await query(null);
+    assert.deepEqual(read.data, f.expected); assert.equal(read.complete, true); assert.equal(read.unknown, false);
+    assert.equal(f.pages.length, split ? 2 : 1);
+    const events = f.pages.flatMap(p => p.events).filter(e => e.table === "posts"), markers = f.pages.flatMap(p => p.acquisitions);
+    const puts = events.filter(e => e.kind === "put");
+    assert.deepEqual(puts.map(e => e.id), horizon ? ["p3", "p2"] : ["p3", "p2", "p1"], "one acquisition per live chain");
+    assert.deepEqual(f.positions, puts.map(() => f.position), "acquire at the chain's first join ordinal");
+    assert.equal(events.filter(e => e.kind === "scope").length, kind === "rejoin" ? 1 : 0);
+    if (kind === "rejoin") assert.equal(events[0].kind, "scope", "the revoked first grant delivers nothing before scope");
+    assert.equal(markers.length, horizon ? 2 : 0);
+    if (horizon) {
+      const start = f.pages[0].events.findIndex(e => e.table === "posts" && e.kind === "put");
+      assert.equal(markers[0].at, start); assert.equal(markers[0].floor, undefined);
+      assert.equal(markers[1].at, start + 2); assert.equal(markers[1].floor, f.floor);
+      assert.deepEqual((await persist.load(f.name)).filter(e => e.s === "m" && e.k.startsWith("device:acquisition-boundaries:")).map(e => e.v), [f.floor]);
+      const below = await query(read.next); assert.equal(below.complete, false); assert.equal(below.unknown, true);
+    } else {
+      const rest = await query(read.next); assert.deepEqual(ids(rest), ["p1"]); assert.equal(rest.complete, true); assert.equal(rest.unknown, false);
+    }
+    if (retained) assert.deepEqual(f.pages.flatMap(p => p.joined.posts ?? []), [["g"]], "only the surviving join names the held group");
+    if (split) { assert.deepEqual(f.pages[1].events.filter(e => e.table === "posts"), []); assert.deepEqual(f.pages[1].acquisitions, []); }
+  });
+}
+for (const snapshot of [false, true]) test(`wasm review mixed-readable generated pages snapshot=${snapshot}`, { timeout: 720_000 }, async t => {
+  const observations = [];
+  for (const f of (await rustReviewFixtures()).mixed.filter(f => f.snapshot === snapshot)) {
+    const persist = memoryPersistence(), core = await webDevice({ wasm, persist }).open(f.name, f.backend); t.after(() => core.close());
+    for (const [i, page] of f.pages.entries()) ok(await core.call({ op: "apply", first: snapshot && i === 0, page }));
+    const query = c => core.call({ op: "query", name: "timeline", viewer: "bob", args: { c }, now: 3 }).then(ok);
+    const read = await query(null);
+    assert.deepEqual(ids(read), f.readable ? ["r2", "r1"] : []); assert.equal(read.complete, true); assert.equal(read.unknown, false);
+    const floors = (await persist.load(f.name)).filter(e => e.s === "m" && e.k.startsWith("device:acquisition-boundaries:")).map(e => e.v);
+    assert.deepEqual(floors, [f.floor]);
+    if (f.readable) {
+      const below = await query(read.next); assert.equal(below.complete, false); assert.equal(below.unknown, true); assert.deepEqual(below.data, []);
+    } else { assert.equal(read.next, null); assert.equal(f.floor, "whole"); }
+    observations.push({ pages: f.pages, read, floors });
+  }
+  for (const n of [1, 2, 3]) assert.deepEqual(observations[n], observations[0], "hidden or deleted history cannot change the wire or device answer");
+  assert.deepEqual(observations[4], observations[5], "an empty readable group stays whole under 1000 hidden rows");
+});
+
+for (const retained of [false, true]) for (const staged of [false, true]) test(`wasm review duplicate below the floor retained=${retained} staged=${staged}`, { timeout: 720_000 }, async t => {
+  const source = reviewSource.replace("  sync to members", `${retained ? "  retain delivered-history\n" : ""}  sync to members`)
+    + "\nquery one(p: posts):\n  return posts[p]\n";
+  const { post, core, persisted } = await reviewServer(t, source);
+  await post("/seed", [1000, 2000, 3000].map((at, i) => ({ table: "posts", row: { id: `p${i + 1}`, group: "g", at } })));
+  const before = await post("/sync", { from: 0 });
+  ok(await core.call({ op: "apply", first: true, page: { ...before, stage_snapshot: staged } }));
+  await post("/seed", [{ table: "members", row: { id: "m", group: "g", person: "dev:bob" } }]);
+  await post("/seed", [{ table: "posts", row: { id: "p4", group: "g", at: 4000 } }]);
+  const first = await post("/sync", { from: before.watermark, stream: true, limit: 1 });
+  assert.deepEqual(first.events.map(e => e.id), ["p4", "p3"]); assert.equal(first.more, true);
+  const floor = first.acquisitions[1].floor;
+  ok(await core.call({ op: "apply", page: { ...first, snapshot_catchup: staged } }));
+  for (const id of ["below", "duplicate-below"]) assert.equal((await post("/m/move", { id, args: { p: "p4", at: 500 } })).state, "sent");
+  let from = first.watermark, count = 0;
+  for (;;) {
+    const page = await post("/sync", { from, stream: true, limit: 1 });
+    assert.deepEqual(page.events.map(e => [e.id, e.data.at]), [["p4", 500]]);
+    assert.deepEqual(page.acquisitions ?? [], []);
+    ok(await core.call({ op: "apply", page: { ...page, snapshot_catchup: staged } }));
+    count++; from = page.watermark; if (!page.more) break;
+  }
+  assert.equal(count, 3, "original insert plus two moves all carry the same current image below the acquired floor");
+  const one = ok(await core.call({ op: "query", name: "one", viewer: "dev:bob", args: { p: "p4" }, now: Date.now() }));
+  assert.equal(one.data.at, 500);
+  const read = ok(await core.call({ op: "query", name: "timeline", viewer: "dev:bob", args: { g: "g", c: null }, now: Date.now() }));
+  assert.deepEqual(ids(read), ["p3"]); assert.equal(read.complete, false); assert.equal(read.unknown, true);
+  assert.deepEqual((await persisted()).filter(e => e.s === "m" && e.k.startsWith("device:acquisition-boundaries:")).map(e => e.v), [floor]);
+  assert.equal((await persisted()).filter(e => e.s === "r" && e.k === JSON.stringify(["posts", "p4"])).length, 1, "all duplicate puts leave one row");
 });
