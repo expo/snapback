@@ -157,6 +157,51 @@ and per persona. The builder never ran it. That is a third, softer finding: the
 note points at `check --residency` only from the code explanation, never from
 the emitted note itself.
 
+## 3. LOW — the schedule period refuses `s` without saying why, and `s` is a unit elsewhere
+
+Smaller than 1 and 2, and filed here because it is the **same defect class**:
+detection is right, the rewrite is not actionable.
+
+The 0.2.28 builder's own essay (`lanes/astra-snapback4/essay.md:21`):
+
+> Schedule syntax accepted minute/hour/day periods rather than the seconds
+> notation I first generated.
+
+Reproduced. `schedule sweeper every 30s: sweep` gives:
+
+```
+schema.q:11:26 — E_QUARRY_SYNTAX: a period is a number and m, h or d: 2m, 1h, 1d
+  rewrite: schedule digest every 1d at 08:00: sendDigests
+```
+
+Two problems. The rewrite is a generic example sharing nothing with the
+author's line. And the message reads as "`s` is not a unit" when `s` **is** a
+unit in this language — Quarry has three duration vocabularies:
+
+| form | site | units | states its range? |
+|---|---|---|---|
+| `schedule … every N` | `parser/programs.rs:22-27` | `m h d` | no |
+| `backoff` / `deadline` | `parser/actions.rs:83-88` | `s m h d` | no |
+| route `wait` | `parser/routes.rs:48-51` | `ms s` | **yes** |
+
+A builder who has written `backoff 2s` reasonably writes `every 30s`. The real
+constraint is not the unit set — it is that a schedule cannot fire more often
+than once a minute. That fact lives in the *next* branch
+(`if every_ms < 60_000 { … "the shortest period is 1m" }`), which the `s` case
+returns before ever reaching.
+
+### Smallest change
+
+Say the constraint, in the shape the route-wait message already uses — it is
+the best of the three and is in-repo precedent:
+
+> a schedule period is a whole number and m, h or d, from 1m up; a schedule
+> cannot fire more often than once a minute (`s` and `ms` are work and wait
+> units, not schedule periods)
+
+Do not mark it mechanical: `30s` → `1m` changes how often the job runs, so it
+is the author's decision, not a repair.
+
 ## This is isolated, not a pattern — checked
 
 I swept every `indexes.iter().find(...)` in `snapback4-lang` and
