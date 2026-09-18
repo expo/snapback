@@ -36976,3 +36976,63 @@ mutation edits and commands, source hashes, assertion failures, controls and
 incoming-source evidence are retained in target/review-fix8/report.md. The
 memory witness is host drain/reopen, not browser termination or power loss.
 No push, rebase or merge was performed.
+
+
+## 2026-09-18 — Repair B, review fix round 9: every observed head reaches private restore evidence
+
+Y1 was the client half of the round-8 device fix. Startup, reconnect and change
+polling filtered their authenticated head observations through the published
+watermark and could therefore permit a send without asking the device about
+private progress. They now submit the head to observe_store before replay or
+freshness decisions, using captured revision, published cut, private restore
+cut and transfer identity. Any native refusal fences that response; only the
+restore refusal persists the halt. Probe/change credential revisions are also
+checked before consuming the response.
+
+The entry-point audit found the related generation path: the client only ran
+preflight for an apparent identity change or cursor rewind. Every sync reply
+now reaches preflight before adoption can discard the private evidence.
+SyncState exposes restore_watermark through the validator's own restore_cursor
+helper; a sync reply echoes captured_restore_watermark separately from its
+request cursor. A reopened snapshot must restart acquisition but still knows
+its retained image head. The separation catches a head-15 generation reply
+against retained head 20 without falsely accusing a replacement's lower page
+cut when its image head is healthy. No new durable metadata key was added.
+
+The compiled-client/native SQLite regressions publish 5, stage through 10 with
+images at 20, reopen and observe head 7 or 15 through the actual web startup
+callback branch. They require zero sends and a durable refusal through two
+reopens and refill to 25. Further scenarios cover ordinary probe/change
+polling, generation replies after ordinary and snapshot deferral, stale send
+and published-capture fences, and healthy head/replacement-head controls.
+The acquired/read/outbox decisions remain native; published identity still
+owns watch invalidation and the adoption CAS. The audit and every received
+Grok packet's disposition are recorded in REPAIR-B-HANDOFF.md. The upload-facts
+cache boundary remains open; this is no whole-lifetime closure claim.
+
+Grok's concrete storage-test gaps are strengthened: malformed capture recovery
+now preserves nonempty row/metadata/receipt payloads and published progress;
+both cleanup paths prove the injected failure happened and retain the exact
+primary error plus metadata/outbox bytes; object-form inversion and published
+exclusion survive their respective checks; capped captures preserve all 257
+outbox entries with noncontiguous submission numbers, tuple echoes cannot
+widen, and empty cursors are inspected after commit. The remaining production
+hypotheses were checked against their complete callers, existing tests and
+transaction boundaries, rather than accepted from isolated diff hunks.
+
+Final verification: cargo test -p snapback4-device exited 0 (631 passed,
+0 failed, 3 existing ignored); cargo test -p snapback4-core exited 0 (160
+passed, 0 failed); cargo test -p snapback4 exited 0 (265 passed, 0 failed).
+The final device run follows the last snapshot-capture change. Strict
+TypeScript compilation, 21 client/transport tests and four existing native
+reconnect tests pass. Twelve Rust mutations and ten client mutations fail their
+intended assertions with passing controls; all 22 inputs match final source
+or compiler output. The commit-only empty-cursor mutation specifically fails
+the new post-commit assertion while its pre-commit check still passes.
+The original d0dc78878 client fails the new zero-send/halt regressions against
+the same final native binary; the healthy head-20 control passes there.
+ref-check --verbose reports 484 LLP documents, 9441 refs and zero errors;
+git diff --check passes. Per-finding dispositions are in REPAIR-B-HANDOFF.md;
+complete verbatim command results, mutation edits/commands, hashes and incoming
+client evidence are in target/review-fix9/report.md. No push, rebase, merge,
+Wasm build or publication was performed.

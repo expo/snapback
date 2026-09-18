@@ -167,3 +167,127 @@ Strict TypeScript compilation and nine client/transport tests pass. All four
 old-wire probes remain **1/1/1**. Eleven mutation input hashes match final
 source/output. `ref-check --verbose`: 484 LLP docs, 9441 refs, zero errors;
 `git diff --check` passes.
+
+## Round 9 — client observations must reach the device's private evidence
+
+Incoming HEAD `d0dc78878`, base `27a8a4d66`; work remains on the supplied branch.
+Review inputs are the received files in `target/reviews-r9/`. No new review
+was commissioned. Packet numbers below name `grok-b9-NN.txt`.
+
+### Context and implementation
+
+The governing context is LLP 3000 §7 and LLP 3000.001's Repair B section:
+private progress is restore evidence, never publication authority; native
+transactions own capture, replay and durable refusal. LLP 3000.007 §18.2
+separates incarnation/adoption from freshness. The published client guide's
+restore paragraph is updated with the code. No contract.ts change, new LLP,
+new gate, deployment or publication is part of this round.
+
+`witnessRestore` no longer decides from the published watermark whether a
+head deserves validation. Authenticated same-captured-identity heads from
+startup, reconnect and change polling are passed to `observe_store`, with
+captured revision and published/private cuts. Any native refusal fences the
+client decision; only `E_STORE_RESTORE` records the client halt. Invalid heads
+also cannot authorize replay. Credential revision checks cover probe and
+change-feed responses as they already did startup and sync.
+
+`SyncState.restore_watermark` captures the device's existing private restore
+cut independently of its paging cursor. This matters for a reopened snapshot:
+it must restart paging, but its retained images still prove an earlier head.
+Sync replies separately echo `captured_restore_watermark`, so a restarted
+snapshot can validate its head without pretending to continue its old cursor.
+The field and validator call the same `restore_cursor` helper; the shell never
+reads image-head keys or implements the head comparison. It does not create a
+new durable key. `/sync` preflight now runs on every reply, before generation
+adoption; only an actual native reset refreshes published identity.
+
+### Per-finding dispositions
+
+| Finding | Disposition and evidence |
+| --- | --- |
+| **Y1 — startup probe skips private restore evidence (High)** | **Fixed.** Real SQLite/compiled-client startup tests publish 5, stage through 10 with images at 20, reopen, then report head 7 or 15. They require zero begin-send/HTTP sends, unchanged published 5, refused reads, and a durable halt across two reopens and attempted publication at 25. Reopened-snapshot, reconnect and change-feed cases exercise the same boundary. A head-20 control permits exactly one mutation send. Send-revision and published-capture controls reject stale observations without persisting a halt. |
+| **Audit: generation preflight can discard private evidence** | **Fixed.** The previous client conditional did not observe a same-store page at 15 when its request cut was 10, even though images at 20 were retained. With a changed generation, adoption could erase that evidence before apply validated it. The new native client regressions require no adoption and a durable halt for ordinary and reopened-snapshot transfers; restoring the conditional or dropping the private-cut echo fails them. A replacement reply at cut 8/head 20 does not falsely persist restore: its existing snapshot acquisition floor may still reject that old cut, preserving the private state. |
+| **02.1 — mandatory SyncState fields break wire decoding (High)** | **Disproved.** `SyncState` derives `Serialize`, not `Deserialize`. It is native request preparation output, not the HTTP request type or a persisted capture. The server decodes `/sync`'s `from`, `pending`, etc.; the client supplies `from: transfer_watermark`. Persisted `Capture` and incoming `StreamPage` have their own decoders/defaults. The real HTTP/native round trip and existing old-wire tests pass. |
+| **02.2 — generation reset occurs after metadata installation (High)** | **Disproved.** SQLite `install_device_checked_with` runs `prepare(tx)` before writing device metadata, inside the activation transaction; SQLite passes `reset_for_install` as that callback. Memory calls the reset before installing metadata and exposes the whole call's changes to the host. The second open transaction abandons request capture, not generation progress. Existing generation-reset, install-failure and reopen tests exercise the boundary. Generation zero denotes the uninstalled initial state on this supported backend path; the alleged generation-5-to-6 crash window does not exist. |
+| **02.3 — keep_images polarity drops wrong state (Medium)** | **Disproved.** `reset_publication` always clears deferred state and snapshots. Its boolean reaches only `predictions::reset` and controls published replay evidence. Both reasons clear private transfer; literal-default evolution can preserve published images. Existing lifetime tests cover both resets. The hypothesized future caller is not current behavior. |
+| **03.1 — first page owner check ignores its identity (High)** | **Disproved.** `observe` first stages an authenticated identity privately. `require_owner` checks the installed backend and durable **published** STORE_ID against this owner's interpreter; passing a private identity would fail that CAS. Replacement sets backend-required, while first publication promotes the private identity. First-private-identity and A→A2→row-reset→B tests verify the full caller chain. |
+| **03.2 — rejected capture silently loses a prediction (High)** | **No demonstrated bug.** Rejection consumes only a matching echoed capture, never the outbox or published exclusion. The real retry recaptures before fetching; an already-echoed page carries its declaration. An un-echoed page preserves the existing exclusion rather than manufacturing replay authority. Round-5 capture lifetime, round-6 abandoned-request/revision tests, and `absent_capture_and_echo_preserve_published_exclusion` remain green. Moving cleanup into a rolled-back apply would defeat release; making every absent capture an error would break the supported omitted-echo path. |
+| **03.3 — row reset leaves snapshot keys (Medium)** | **Disproved.** `reset_publication` calls `snapshot::clear`, which deletes the entire SNAPSHOT_KEYS array and staging in the reset transaction. `clear_rows_consumes_all_private_progress_and_keeps_incarnation` asserts every member absent after commit, then verifies reopen. |
+| **03.4 — cleanup error must replace original failure (Medium)** | **Rejected.** It contradicts the accepted round-7 requirement. Capture is revision-bound, not an exclusive lock: a new send revision can recapture even if cleanup failed. Strengthened tests now count the injected second-transaction failure, match the exact Generation error, and compare all device metadata/outbox bytes after both apply and observe failures. |
+| **03.5 — deferred cursor and snapshot flag differ (Medium; received text stops mid-sentence)** | **No counterexample in the received fragment.** `transfer_watermark` chooses request progress, while `snapshot_catchup` denotes staging ownership. These are distinct facts. `live_cursor_precedes_terminal_snapshot_cut`, multi-page snapshot catch-up and ordinary false-snapshot-mode transport regressions pass. No missing remainder was inferred. |
+| **09.1 — publication tests use opposite first booleans (High; truncated)** | **No contradictory invariant.** `terminal_gap_is_a_protocol_refusal` tests a malformed terminal head on snapshot and ordinary pages. `absent_capture_and_echo_preserve_published_exclusion` tests a valid ordinary page without a declaration. `first` controls replacement/snapshot start; terminal validation runs independently. Both-store controls and the round-6 terminal mutation evidence retain this distinction. |
+| **10.1 — snapshot owner/next unasserted (Medium)** | **Disproved by the review's own exception.** Both SNAPSHOT_OWNER and SNAPSHOT_NEXT are members of SNAPSHOT_KEYS. The post-clear loop explicitly checks every member, including the overwritten empty NEXT. SNAPSHOT_OWNERS is intentionally a separate allocator that survives reset. No added redundant assertion. |
+| **11.1 — corrupt-capture recovery fixture lacks effects and published progress (High)** | **Strengthened.** Seed published 5, private cut 7, a row image, metadata effect, and nonempty receipt map; compare the whole private prefix through reopen and retain `(5,7,1)`. Independent mutations dropping rows, metadata or receipts, or zeroing the watermark, fail. |
+| **11.2 — cleanup injection may never fire / error kind unchecked (Medium)** | **Strengthened.** Count injected failures for apply and observe separately, match the exact RuntimeError::Generation message, and compare metadata/outbox bytes. Skipping either cleanup fails its counter assertion. |
+| **11.3 — object-form inverted declaration untested (Low)** | **Strengthened.** Both the tuple checkpoint and object capture with inverted bounds must refuse. Removing the object-form bound check fails. Their diagnostic wording is intentionally different; the test asserts refusal. |
+| **11.4 — rejection could erase published exclusion (Low)** | **Strengthened.** After matched rejection, the `[1,9]` published exclusion must remain. Adding PUBLISHED to capture cleanup fails. |
+| **12.1 — capped capture could delete overflow (High)** | **Strengthened.** Compare all 257 serialized outbox entries before/after both capture and checkpoint recovery. Deleting q257 while capturing fails. |
+| **12.2 — contiguous sequence fixture confuses sequence and count (Medium)** | **Strengthened.** Submission numbers are `110,120,…,2670`, in reversed storage order. Expected bounds are `(2660,false,2670)` for 256 declared writes. Substituting a count fails. |
+| **12.3 — checkpoint test never supplies a widening echo (Medium)** | **Strengthened.** A tuple capture `(10,true,10)` now receives `(11,true,11)` and must refuse its echo. Bypassing echo comparison for tuple captures fails. |
+| **12.4 — empty cursor not inspected after commit (Low)** | **Strengthened.** A new transaction reads `None` before replacing the empty cursor with 77. A memory-store commit mutation that changes empty to zero fails the new post-commit assertion (the pre-commit assertion still passes). |
+| **18.1 — deferred ordinary pages have no cursor (High)** | **Disproved.** Every iteration captures native state and uses `transfer_watermark` as `from`. `after` is a snapshot token, not the ordinary log position. Native and stub transport tests assert advancing requests and publication through interruption. |
+| **18.2 — adoption must receive page/private identity (High)** | **Disproved.** Adoption's store_id is the expected durable published identity, not an assignment. `adopt_captured` compares that value. `generation adoption compares published identity during private acquisition` and the native replacement test cover it. This is separate from the real pre-adoption restore gap fixed above. |
+| **18.3 — missing wire identity clears the native identity (Medium)** | **Disproved for the current device contract.** Native serializes store_id explicitly; once known it survives identity-omitted wire pages, row clearing and generation changes. Null denotes genuinely unpublished identity. Preserving stale shell identity across native reset would be incorrect. The omitted-identity and private-watch tests pass. |
+| **18.4 — unpublished ordinary apply falls through to success (Medium)** | **Disproved.** It sets publicationOutstanding, receives no touched tables from native, does not set caughtUp, and loops to the next native transfer capture. Snapshot ownership and stream mode remain separate. The ordinary interrupted/false-snapshot-mode regression checks exactly this. |
+| **18.5 — reset clears shell flag without clearing slot (Medium)** | **Disproved.** Incarnation replacement and generation installation call reset_publication transactionally, consuming the slot before the shell clears its flag. Both-store reset/reopen tests and native replacement transport tests remain green. |
+| **18.6 — failed post-publication state read retries stale cursor (Low)** | **Disproved.** Retry captures native state before constructing every request. Round-8's adjacent watch-loss fix records touched tables before the fallible read; its regression still checks watch value 2 and request cuts 5,5,9. Falling back to page.watermark could instead overwrite another owner's newer native progress. |
+
+Packets 01, 13, 15 and 16 explicitly report no actionable finding. Packets
+04–08, 14 and 17 contain only memory-flush notices or are empty; there is no
+review conclusion to invent for them.
+
+### Other client entry points audited
+
+| Entry point | Decision owner / result |
+| --- | --- |
+| Startup replay, reconnect probe, change feed | Fixed above: native head observation precedes replay/freshness decisions; captured transfer identity is used even before first publication. |
+| Sync reply and generation adoption | Fixed above: unconditional preflight before adoption; requests use private transfer progress, watches/adoption CAS use published state. |
+| Ordinary queued send / newly admitted mutation | `begin_send` reaches native health checks before HTTP; `admit`, prediction, reads and settlement likewise use device health/ownership. No shell published-watermark replay predicate found. |
+| Web teardown and orphan recovery | `web.ts` invokes the native `begin_send` synchronously before teardown transport. Orphan recovery inspects native restore_refusal/backend_required; it does not clear a halt using a shell watermark. |
+| Acquisition and watch readiness | `refreshAcquired` asks native for acquired; native incorporates restore refusal and backend ownership. Watch identity stays published while images remain private. |
+| Change subscription `seq` | Published progress intentionally schedules notification/sync; it no longer determines whether a private restore deserves validation. |
+| Server-only actions and reads | Their server authority is separate from local outbox replay; no private/public watermark choice controls execution there. |
+
+This is an entry-point audit with concrete regression evidence. It does not
+close the entire lifetime class. The upload-facts cache limitation and its
+round-8 follow-up ticket remain unchanged.
+
+### Verification and mutation evidence
+
+The new native client scenarios use a real compiled backend and SQLite device,
+with controlled HTTP history, including the actual web startup `onSuspend`
+callback branch. They do not claim a browser termination or power-loss witness.
+The existing 9 client/transport cases and all 11 new scenarios pass (Node counts
+21 tests including the new parent). Existing stub devices now answer the newly
+unconditional preflight; their cursor, watch, mode and adoption assertions remain.
+
+Each new/strengthened regression has mutation proof:
+
+| Regression | Mutation(s) |
+| --- | --- |
+| Startup heads 7 and 15; durable halt through refill/reopen | Restore the published-head filter; separately echo the published request cut. |
+| Reopened snapshot head 15 | Drop restore_watermark and use the restart/paging cursor. |
+| Reconnect and change-feed head | Remove the respective call to native head validation. |
+| Generation preflight, including snapshot reopen | Restore the client conditional that bypasses observe_store; drop the captured private restore cut. |
+| Healthy snapshot restart below the private cut | Replace its request cursor with the restore cut, falsely treating restart as continuation. |
+| Stale send and published-capture responses | Ignore a non-restore native denial and permit early replay. |
+| Healthy head 20 | Refuse every head observation; the required send disappears. |
+| Corrupt capture preserves effects/progress | Delete row effects, metadata effects, receipts, or the published watermark independently. |
+| Cleanup failure preserves original kind and state | Skip apply cleanup or observe cleanup independently. |
+| Object capture inversion; rejection preserves exclusion | Remove object bound validation; clear PUBLISHED during capture cleanup. |
+| Capped outbox and noncontiguous prefix | Delete q257; use count in place of last sequence. |
+| Checkpoint cannot widen; empty cursor survives commit | Bypass tuple echo check; change empty cursor to zero only at commit. |
+
+Exact mutations, commands, passing controls, failing assertions, source hashes,
+incoming-client counterexamples, and complete verbatim output of all three
+requested Cargo commands are in [target/review-fix9/report.md](./target/review-fix9/report.md).
+
+Final results: `cargo test -p snapback4-device` **631 passed, 0 failed,
+3 existing ignored**; `cargo test -p snapback4-core` **160 passed, 0 failed**;
+`cargo test -p snapback4` **265 passed, 0 failed**. All exit 0. The final device
+run includes the last snapshot-capture change. Strict TypeScript compilation,
+21 client/transport tests and four existing native reconnect tests pass. All
+12 Rust and 10 client mutations fail their intended assertions with passing
+controls, and all 22 input hashes match final source/compiler output.
+`ref-check --verbose`: 484 LLP documents, 9441 refs, zero errors.
+`git diff --check` passes. No push, rebase or merge was performed.

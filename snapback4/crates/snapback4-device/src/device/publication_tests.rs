@@ -13,6 +13,7 @@ fn cursor_and_recording<S: DeviceStore>(store: S) {
     tx.commit().unwrap();
     assert!(!device.publication_pending().unwrap());
     let tx = device.store.transaction().unwrap();
+    assert_eq!(deferred::cursor(&tx).unwrap(), None, "empty cursor remains absent after commit");
     tx.set_meta(deferred::CURSOR, "77").unwrap();
     tx.set_meta("device:deferred:rows:held", "payload").unwrap();
     tx.set_meta("device:deferred:meta:device:held", "payload").unwrap();
@@ -96,9 +97,11 @@ pub(super) fn with_sqlite(test: impl FnOnce(snapback4_core::store::Store)) {
 fn checkpoint_capture<S: DeviceStore>(mut store: S) {
     let tx = store.transaction().unwrap();
     tx.set_meta("device:declaration:capture", "[10,true,10]").unwrap();
-    let page: StreamPage = decoded(r#"{"snapshot":false,"watermark":0,"more":false,"events":[]}"#).unwrap();
+    let mut page: StreamPage = decoded(r#"{"snapshot":false,"watermark":0,"more":false,"events":[]}"#).unwrap();
     assert_eq!(predictions::declaration(&tx, &page).unwrap(), (10, true, 10));
     assert_eq!(predictions::capture(&tx).unwrap().declaration, (10, true, 10));
+    page.pending_through = Some(11); page.pending_complete = Some(true); page.pending_bound = Some(11);
+    assert!(predictions::declaration(&tx, &page).unwrap_err().to_string().contains("echo differs"));
     tx.rollback().unwrap();
 }
 #[test]
@@ -112,16 +115,19 @@ fn unordered_capture<S: DeviceStore>(mut store: S) {
     let tx = store.transaction().unwrap();
     // Adversarial adapter order: payload sequence is opposite its storage key.
     for seq in 1..=257 {
-        let q: Queued = decoded(&format!(r#"{{"id":"q{seq}","seq":{seq},"op":"bump","args":{{}},"viewer":"alice","now":0}}"#)).unwrap();
+        let q: Queued = decoded(&format!(r#"{{"id":"q{seq}","seq":{},"op":"bump","args":{{}},"viewer":"alice","now":0}}"#, 100 + seq * 10)).unwrap();
         tx.outbox_upsert(258-seq, &q.id, &encoded(&q).unwrap()).unwrap();
     }
+    let before = tx.outbox_entries().unwrap();
     let capture = predictions::capture(&tx).unwrap();
-    assert_eq!(capture.declaration, (256, false, 257));
+    assert_eq!(tx.outbox_entries().unwrap(), before, "capturing the prefix preserves all 257 writes");
+    assert_eq!(capture.declaration, (2660, false, 2670));
     assert_eq!(capture.ids, (1..=256).map(|seq| format!("q{seq}")).collect::<Vec<_>>());
     predictions::clear_capture(&tx).unwrap();
-    tx.set_meta("device:declaration:capture", "[256,false,257]").unwrap();
+    tx.set_meta("device:declaration:capture", "[2660,false,2670]").unwrap();
     assert_eq!(predictions::capture(&tx).unwrap().ids, capture.ids, "checkpoint recovery is the same prefix");
-    tx.set_meta("device:declaration:capture", "[257,false,257]").unwrap();
+    assert_eq!(tx.outbox_entries().unwrap(), before, "checkpoint recovery preserves the overflow write");
+    tx.set_meta("device:declaration:capture", "[2670,false,2670]").unwrap();
     assert!(predictions::capture(&tx).err().unwrap().to_string().contains("prefix limit"), "never truncate an inconsistent checkpoint into a different declared set");
     tx.rollback().unwrap();
 }

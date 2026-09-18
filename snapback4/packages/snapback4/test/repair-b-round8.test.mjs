@@ -8,6 +8,7 @@ test("publication notifies watches even when its following state read fails; ret
   const requests = [];
   const core = { close: async () => {}, call: async request => {
     switch (request.op) {
+      case "observe_store": return { ok: { reset: false, backend_required: false, send_revision: 0, retired: {} } };
       case "backend": return { ok: backend };
       case "meta": return { ok: null };
       case "state": return { ok: { watermark, generation: 1 } };

@@ -10,6 +10,7 @@ function device(state, apply, extra = () => undefined) {
     const reply = extra(request);
     if (reply !== undefined) return reply;
     switch (request.op) {
+      case "observe_store": return { ok: { reset: false, backend_required: false, send_revision: 0, retired: {} } };
       case "backend": return { ok: backend };
       case "meta": return { ok: null };
       case "state": return { ok: { watermark: state().watermark, generation: 1 } };
@@ -74,7 +75,7 @@ test("private identity leaves published watches and adoption unchanged until pub
   assert.equal(duringPrivate.reads, priorReads, "private pages do not rerun published watches");
   assert.equal(duringPrivate.notifications, priorNotifications);
   assert.equal(watch.getSnapshot().data, 2);
-  assert.equal(observations, 0, "page identity equal to native transfer identity is not a replacement");
+  assert.equal(observations, 3, "all pages are validated without treating private identity as a replacement");
   assert.equal(adoptions, 0);
   assert.deepEqual(requests.slice(1).map(r => [r.store_id, r.from]), [["B", 5], ["B", 6]]);
 });

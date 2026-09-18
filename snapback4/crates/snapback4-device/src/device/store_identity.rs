@@ -3,6 +3,10 @@ use super::*;
 
 pub(super) const RESTORE_REFUSED: &str = "device:restore-refused";
 
+pub(super) fn restore_cursor<T: DeviceTx>(tx: &T) -> Result<Option<u64>, RuntimeError> {
+    Ok(deferred::cursor(tx)?.or(if tx.meta(SNAPSHOT_OWNER)?.is_some() { Some(meta_u64(tx, SNAPSHOT_THROUGH)?) } else { None }))
+}
+
 pub(super) fn restore_error() -> RuntimeError {
     RuntimeError::Structural { code: "E_STORE_RESTORE", message: "the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox".into() }
 }
@@ -69,14 +73,14 @@ pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: boo
     let private_identity = previous.is_none() && page.store_id.is_some() && transfer_identity == page.store_id;
     let same_identity = page.store_id.is_some() && (!identity_changed || private_identity);
     // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — private progress is restore evidence, never publication authority.
-    let transfer = deferred::cursor(tx)?.or(if tx.meta(SNAPSHOT_OWNER)?.is_some() { Some(meta_u64(tx, SNAPSHOT_THROUGH)?) } else { None });
-    let private_restore = if let Some(transfer) = transfer.filter(|cut| page.requested_watermark == Some(*cut)) {
+    let transfer = restore_cursor(tx)?;
+    let private_restore = if let Some(transfer) = transfer.filter(|cut| page.captured_restore_watermark.or(page.requested_watermark) == Some(*cut)) {
         // A delayed reply from an earlier private cut cannot accuse a healthy
         // store of restore. Revision and published-capture checks ran above.
         predictions::declaration(tx, page)?;
         let floor = watermark.max(transfer).max(meta_u64(tx, deferred::IMAGES_AT)?).max(meta_u64(tx, SNAPSHOT_IMAGES_AT)?);
         page.images_at.or((!page.more).then_some(page.watermark)).is_some_and(|head| head < floor)
-            || page.watermark < transfer
+            || (page.requested_watermark == Some(transfer) && page.watermark < transfer)
     } else { false };
     let published_restore = page.watermark < watermark
         && page.requested_watermark.is_none_or(|requested| page.watermark < requested);

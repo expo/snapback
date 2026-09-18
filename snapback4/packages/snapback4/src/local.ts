@@ -116,6 +116,9 @@ interface Queued {
 interface StoreCapture {
   backend_required?: boolean;
   store_id?: string | null;
+  transfer_store_id?: string | null;
+  transfer_watermark?: number;
+  restore_watermark?: number;
   watermark: number;
   send_revision: number;
   restore_refusal?: Refusal;
@@ -371,13 +374,15 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     for (const watch of watches.values()) { watch.snapshot = { denied }; notify(watch); }
   }
 
-  // @ref LLP 3000.007#18.2 — /probe and /changes report the committed head: a same-identity head below the acquisition captured before the request is a restore, whatever later writes do to the head.
+  // @ref LLP 3000.001#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes — the device validates head observations against private progress and retained image heads before replay or freshness decisions.
   async function witnessRestore(storeId: unknown, head: unknown, capture: StoreCapture): Promise<boolean> {
-    if (typeof storeId !== "string" || storeId !== storeIdentity || !(Number(head) < capture.watermark)) return false;
-    const observed = await call({ op: "observe_store", page: { snapshot: false, generation, events: [], watermark: Number(head), more: false, store_id: storeId,
-      requested_watermark: capture.watermark, captured_watermark: capture.watermark, send_revision: capture.send_revision } });
-    if (observed.denied) refuseRestore(observed.denied);
-    return partitionDenied?.code === "E_STORE_RESTORE";
+    if (!Number.isSafeInteger(head) || Number(head) < 0) return true;
+    if (typeof storeId !== "string" || storeId !== (capture.transfer_store_id ?? capture.store_id)) return false;
+    const observed = await call({ op: "observe_store", page: { snapshot: false, generation, events: [], watermark: head, more: false, store_id: storeId,
+      requested_watermark: capture.restore_watermark ?? capture.transfer_watermark ?? capture.watermark,
+      captured_watermark: capture.watermark, send_revision: capture.send_revision } });
+    if (observed.denied) { refuseRestore(observed.denied); return true; }
+    return false;
   }
 
   async function captureStore(): Promise<StoreCapture | undefined> {
@@ -572,7 +577,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         try {
           const captured = await call({ op: "sync_state" });
           if (captured.denied) return false;
-          const { pending_ids: pending, send_revision, store_id, transfer_store_id, watermark: capturedWatermark, transfer_watermark, snapshot_catchup, pending_through, pending_complete, pending_bound, backend_required, restore_refusal } = captured.ok as { pending_ids: string[]; pending_through: number; pending_complete: boolean; pending_bound: number; transfer_watermark: number; snapshot_catchup?: boolean; send_revision: number; store_id?: string | null; transfer_store_id?: string | null; watermark: number; backend_required?: boolean; restore_refusal?: Refusal };
+          const { pending_ids: pending, send_revision, store_id, transfer_store_id, watermark: capturedWatermark, transfer_watermark, restore_watermark, snapshot_catchup, pending_through, pending_complete, pending_bound, backend_required, restore_refusal } = captured.ok as { pending_ids: string[]; pending_through: number; pending_complete: boolean; pending_bound: number; transfer_watermark: number; restore_watermark?: number; snapshot_catchup?: boolean; send_revision: number; store_id?: string | null; transfer_store_id?: string | null; watermark: number; backend_required?: boolean; restore_refusal?: Refusal };
           if (restore_refusal) { refuseRestore(restore_refusal); return false; }
           backendRequired = !!backend_required;
           requestedStore = transfer_store_id ?? store_id;
@@ -593,6 +598,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           page.pending_complete = pending_complete;
           page.pending_bound = pending_bound;
           page.requested_watermark = watermark;
+          page.captured_restore_watermark = restore_watermark;
           page.captured_watermark = capturedWatermark;
           pageRevision = request.revision;
         } catch {
@@ -620,25 +626,27 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (pageIncarnation !== incarnation || pageRevision !== credentialRevision) return false;
         // @ref LLP 3000.007#18.2 — sync identity retires the old partition before any read or outbox replay.
         let replacedStore = false;
-        if ((typeof page.store_id === "string" && page.store_id !== requestedStore) || Number(page.watermark) < watermark) {
-          for (const entry of await queued()) {
-            const seq = entry.sent_seq ?? entry.observed_seq;
-            if (entry.sent_seq == null && seq != null) await history.keep({ state: "sent", id: entry.id, seq, replayed: true });
+        {
+          // Validate every reply before adoption can discard private evidence.
+          if ((typeof page.store_id === "string" && page.store_id !== requestedStore) || Number(page.watermark) < watermark) {
+            for (const entry of await queued()) {
+              const seq = entry.sent_seq ?? entry.observed_seq;
+              if (entry.sent_seq == null && seq != null) await history.keep({ state: "sent", id: entry.id, seq, replayed: true });
+            }
           }
           const observed = await call({ op: "observe_store", page });
           if (observed.denied) { refuseRestore(observed.denied); return false; }
           const observation = observed.ok as { reset: boolean; backend_required?: boolean; send_revision: number; retired: Record<string, number> };
           page.send_revision = observation.send_revision;
           backendRequired = !!observation.backend_required;
-          // Observation may durably reset an old incarnation. Only native's
-          // published identity can authorize adoption or invalidate watches.
-          const observedRead = await call({ op: "sync_state", capture: false });
-          if (observedRead.denied) return false;
-          const observedState = observedRead.ok as { store_id?: string | null } | undefined;
-          publishedStore = observedState?.store_id;
-          observeIncarnation(publishedStore ?? undefined);
-          storeIdentity = publishedStore ?? undefined;
           if (observation.reset) {
+            // Only a durable native replacement changes published identity.
+            const observedRead = await call({ op: "sync_state", capture: false });
+            if (observedRead.denied) return false;
+            const observedState = observedRead.ok as { store_id?: string | null } | undefined;
+            publishedStore = observedState?.store_id;
+            observeIncarnation(publishedStore ?? undefined);
+            storeIdentity = publishedStore ?? undefined;
             if (typeof page.store_id !== "string") observeIncarnation(undefined, true);
             page.captured_watermark = 0;
             serverAnswers.clear();
@@ -752,7 +760,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       try { json = (await response.json()) as Record<string, unknown>; } catch {}
       if (closed) return;
       await refusedSession(json.denied ?? json.why, request.revision);
-      if (response.status === 200 && json.ok === true && !sessionDead && probeIncarnation === incarnation) {
+      if (response.status === 200 && json.ok === true && !sessionDead && probeIncarnation === incarnation && request.revision === credentialRevision) {
         // @ref LLP 3000.007#18.2 — verify identity before reconnect can bless cached local answers or resume a long poll.
         if (await witnessRestore(json.store_id, json.seq, capture)) return;
         if (typeof json.store_id === "string") observeIncarnation(json.store_id, json.store_id === storeIdentity && Number(json.seq) < Math.max(seq, capture.watermark));
@@ -782,9 +790,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (json.denied?.code === "E_AUTH") return false;
         throw new Error(`changes: HTTP ${response.status}`);
       }
-      if (closed || changeIncarnation !== incarnation) return false;
+      if (closed || changeIncarnation !== incarnation || request.revision !== credentialRevision) return false;
       const replaced = json.store_id !== undefined && json.store_id !== storeIdentity;
-      if (!replaced && await witnessRestore(json.store_id, json.seq, capture)) return false;
+      if (await witnessRestore(json.store_id, json.seq, capture)) return false;
       const shrank = json.seq < Math.max(seq, capture.watermark);
       if (replaced || shrank) observeIncarnation(json.store_id, shrank);
       const changed = replaced || shrank || json.seq > seq || (json.generation !== undefined && json.generation !== generation);
@@ -1110,7 +1118,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       await refusedSession(head.denied ?? head.why, request.revision);
       if (!response.ok || head.ok !== true || sessionDead || request.revision !== credentialRevision) return;
       if (await witnessRestore(head.store_id, head.seq, capture)) return;
-      if (head.store_id !== capture.store_id || !Number.isSafeInteger(head.seq) || head.seq < capture.watermark) return;
+      if (head.store_id !== capture.store_id) return;
       // A slow snapshot must not hold an unknown write behind acquisition.
       // Receipt settlement still runs in the ordinary network queue; these
       // sends retain their IDs and the first sync collects their effects.

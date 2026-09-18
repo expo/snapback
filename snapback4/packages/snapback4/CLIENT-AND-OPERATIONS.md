@@ -94,15 +94,16 @@ watermark counts as replacement only behind that request's own watermark,
 while its acquisition capture is still current.
 Reconnect verifies the backend identity before local answers become fresh;
 an unchanged store resumes its long poll without another sync. A matching
-`store_id` with a head below the device's watermark is a restore or shrink,
-not a replacement: `E_STORE_RESTORE` halts sync and refuses reads, including
-after an offline reopen. The old watermark and outbox remain in place.
-Stop that client and use a fresh device store and outbox for the restored
-backend; retry or backend adoption does not silently reacquire that identity.
-A lower poll or probe head invalidates freshness and requests sync confirmation.
-Only an authenticated sync reply with the matching identity and a head below
-that request's acquired watermark persists the refusal; a notification alone
-cannot halt a healthy client. Each native owner binds its interpreter and loaded
+`store_id` with a head below the device's published progress, private transfer
+progress, or retained private image head is a restore or shrink:
+`E_STORE_RESTORE` halts sync and refuses reads, including after an offline
+reopen. The old watermark and outbox remain in place. Stop that client and use
+a fresh device store and outbox for the restored backend; retry, refill or
+backend adoption does not silently reacquire that identity. Authenticated probe,
+change-feed and sync replies all reach the device's restore validator before
+replay, freshness or adoption decisions. Their captured progress and send
+revision fence obsolete responses so a delayed reply cannot accuse a healthy
+client of restore. Each native owner binds its interpreter and loaded
 module digest to the adopted store identity. Another owner's replacement
 requires adoption and module reload before local reads or prediction resume.
 

@@ -124,6 +124,7 @@ test("catch-up requests adopt the device transfer cursor", { timeout: 5000 }, as
   const requests = [];
   const core = { close: async () => {}, call: async request => {
     switch (request.op) {
+      case "observe_store": return { ok: { reset: false, backend_required: false, send_revision: 0, retired: {} } };
       case "backend": return { ok: backend };
       case "meta": return { ok: null };
       case "state": return { ok: { watermark: published, generation: 1 } };
@@ -169,6 +170,7 @@ test("interrupted snapshot catch-up resumes its durable mode", { timeout: 5000 }
   const requests = [];
   const core = { close: async () => {}, call: async request => {
     switch (request.op) {
+      case "observe_store": return { ok: { reset: false, backend_required: false, send_revision: 0, retired: {} } };
       case "backend": return { ok: backend };
       case "meta": return { ok: null };
       case "state": return { ok: { watermark: published, generation: 1 } };
@@ -218,6 +220,7 @@ test("generation adoption compares published identity during private acquisition
   const backend = () => ({ generation: serverGeneration, schema: { tables: {} }, programs: [] });
   const core = { close: async () => {}, call: async request => {
     switch (request.op) {
+      case "observe_store": return { ok: { reset: false, backend_required: false, send_revision: 0, retired: {} } };
       case "backend": return { ok: { ...backend(), generation } };
       case "meta": return { ok: null };
       case "state": return { ok: { watermark: published, generation } };
@@ -226,7 +229,6 @@ test("generation adoption compares published identity during private acquisition
         store_id: published ? "store" : null, transfer_store_id: staged || published ? "store" : null,
         watermark: published, transfer_watermark: staged ? 5 : published, snapshot_catchup: staged,
         generation, pending_ids: [], pending_through: 0, pending_complete: true, pending_bound: 0, send_revision: 0 } };
-      case "observe_store": return { ok: { reset: false, send_revision: 0, retired: {} } };
       case "adopt":
         assert.equal(request.store_id, null, "adoption must compare the published identity, not the private transfer");
         assert.equal(request.send_revision, 0);
