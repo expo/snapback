@@ -55,15 +55,23 @@ if (process.argv[2] !== '--check-families' || process.env.TEST_FAMILY_FAIL === '
       writeFileSync(budget, JSON.stringify({ gzip: 1, set: '2026-09-17', why: 'force overrun' }));
       for (const dirtyPath of ['', 'snapback4/crates', 'snapback4/rust-toolchain.toml', 'snapback4/metrics/wasm-budget.json']) {
         const dirty = Boolean(dirtyPath);
-        const result = run(dirtyPath); assert.equal(result.status, 0, result.stderr);
+        const result = run(dirtyPath);
         assert.match(readFileSync(log, 'utf8'), /cargo/);
-        if (name === 'build-wasm.sh') assert.match(result.stdout, /OVER by \d+ B/);
-        else {
+        if (name === 'build-wasm.sh') {
+          // The budget is a ratchet: an overrun prints the size line and then fails the step.
+          assert.notEqual(result.status, 0, 'an overrun must fail the wasm build step');
+          assert.match(result.stdout, /OVER by \d+ B/); assert.match(result.stderr, /raises the budget in the same commit/);
+        } else {
+          assert.equal(result.status, 0, result.stderr);
           const measured = JSON.parse(result.stdout); assert.equal(measured.dirty, dirty); assert.ok(measured.over > 0); assert.equal(measured.sha, '123456789');
           assert.equal(result.stderr.includes('WARNING: measuring a dirty source tree'), dirty);
           assert.match(readFileSync(log, 'utf8'), /status --porcelain -- snapback4\/crates snapback4\/scripts snapback4\/Cargo.toml snapback4\/Cargo.lock snapback4\/rust-toolchain.toml snapback4\/metrics\/wasm-budget.json/);
           assert.match(readFileSync(log, 'utf8'), /--check-families/);
         }
+      }
+      if (name === 'build-wasm.sh') {
+        writeFileSync(budget, JSON.stringify({ gzip: 10000000, set: '2026-09-17', why: 'within budget' }));
+        const within = run(); assert.equal(within.status, 0, within.stderr); assert.match(within.stdout, /: ok\)/);
       }
       if (name === 'measure-wasm.sh') {
         writeFileSync(log, '');

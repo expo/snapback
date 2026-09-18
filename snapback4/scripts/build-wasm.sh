@@ -19,3 +19,8 @@ rm -f "$out/.gitignore" "$out/package.json"
 gzip_bytes=$(gzip -9 -c "$wasm" | wc -c | tr -d ' ')
 status=$(node scripts/wasm-budget.mjs metrics/wasm-budget.json "$gzip_bytes")
 printf 'wasm %s B raw, %s B gzip %s\n' "$(wc -c < "$wasm" | tr -d ' ')" "$gzip_bytes" "$status"
+# @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — the budget is a ratchet (author ruling 2026-09-18): an overrun fails the build step.
+case "$status" in *OVER*)
+  echo "wasm budget: the web device exceeds metrics/wasm-budget.json. A landing that needs the bytes raises the budget in the same commit, with the reason in its why, the commit message and the journal (LLP 3000.002; issues/20260913-snapback4-wasm-device-diet.md)." >&2
+  exit 1;;
+esac
