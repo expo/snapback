@@ -440,8 +440,10 @@ query digestToday():
   return digestPosts[viewer, bucket(now, 1d, 8h)]
 ```
 
-Value-order indexes end in value, id, optionally after group fields. last N
-descends by both; ordinary cursors continue it. A direct page cursor binds the
+Value-order indexes are a prefix of group fields, then value, then any
+remaining group fields, then id (implicit when every group field is present),
+until maintained columns ship. last N descends by value, then the trailing
+group fields and id; ordinary cursors continue it. A direct page cursor binds the
 evaluated prefix and active generation, so another prefix or adoption refuses
 it. Ordinary writes keep it valid; rows can move between pages. Only existing nonzero groups
 appear. Author attribution stays a source field. A value-order page pins
@@ -449,9 +451,10 @@ every group field before value in its index;
 value, id alone gives a global ranking. A UTC day is not a rolling
 24-hour window: for posts younger than a day, `guide feeds` groups
 non-expiring likes by `hour(.postAt), postAt, postId` and merges the last
-25 hour lanes ordered by `hour, value, id`, filtering the exact time edge.
-It includes the validated copied-time insert rule and a zero-like fill;
-ties use maintained id, and groups persist as long as any like remains.
+25 hour lanes ordered by `hour, value, postAt, postId`, filtering the exact
+time edge. It includes the validated copied-time insert rule and a zero-like
+fill; equal scores put the newest post first, and groups persist as long as
+any like remains.
 Whole old buckets are skipped, but rejected candidates in the oldest
 included hour still consume the meter. For likes arriving in the last day
 on posts of any age, `rollingLikes()` still sorts live counts at read time;

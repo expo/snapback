@@ -40932,3 +40932,39 @@ pinned unchanged by the existing and new controls. Raw local logs and the
 command ledger are under `/private/tmp/w15c-evidence/`. Reference validation
 before this append passed with 485 LLP documents, 9,125 references, zero
 errors and zero unchecked references; it runs again after the append.
+
+## 2026-09-19 — W15c: the two-family review, and the lead's four fixes
+
+Blind review of `076753f3a2` (base `0518ec9e76`): GPT READY WITH CHANGES (one Medium, one
+Low), Grok READY WITH CHANGES (one High, one Medium, one Low). Neither found a behavioural
+defect; both confirmed the rule as implemented (any subset of group fields, then `value`,
+then the rest, then `id`, omitted only when the group is whole), that no engine code
+needed to change, that the merge cursor carries the full suffix across ties in both
+directions, and device parity at 48 ties. Records under `llp/reviews/3000.007-w15c-*`.
+
+Applied by the lead, no behaviour changed:
+
+- Grok High: the package README's *maintains* summary, which a reader meets before the
+  feeds pointer, still taught the retired rule ("end in value, id"; "ties use maintained
+  id"; lanes "ordered by `hour, value, id`"). It now states the interim rule and the
+  newest-first recipe, and `w15c_cards_pin_the_interim_rule_and_newest_first_recipe` pins
+  the README as well as the cards.
+- Grok Medium: the refusal's rewrite was not a pasteable `by` line (an English clause after
+  `;`, and `value` moved first, which turns a scoped ranking into a global one that the
+  lane merge then refuses). The message now carries the omission clause and the rewrite is
+  one line that keeps the author's fields before `value` as the lane scope and appends the
+  omitted group fields and `id`; the test asserts each rewrite compiles.
+- GPT Medium: the feeds card said the 48,200-post fixture examined 264 rows; the fixture
+  asserts 34. Corrected.
+- GPT Low: the comparative meter test now also pins the recorded seven-field page
+  (33 examined, 648 steps, 36,720 heap, 1,691 output), not only equality across keys.
+
+Grok's Low — the binder admits any permutation of the leading group fields, not only a
+declared-order prefix — is left as documented behaviour (`maintains.rs` already asserts
+`at, value, author, id` for `by author, at`); the ruling's "prefix" names the shape, not
+an order.
+
+Verification after the fixes (from `snapback4/`): `-p snapback4-lang --test maintains
+--test guide` 48 + 14 passed; `-p snapback4-sim --test clique trending::` 16 passed;
+`-p snapback4 --test check w15c` 1 passed; the two README-reading client tests 17/17;
+`git diff --check` clean.

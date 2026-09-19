@@ -937,7 +937,7 @@ enter. Nothing stale is ordered, charged or swept under a reader in those
 buckets. The oldest included hour is different: `where` rejects its old
 portion, and those rejected candidates are charged, so a crowded boundary
 hour can still hit the meter. The validated
-48,200-post fixture returned ten, complete with `next`, at 264 examinations;
+48,200-post fixture returned ten, complete with `next`, at 34 examinations;
 8,300 rejected groups in the oldest included hour instead reached 8,193
 examinations and returned incomplete. This is an exact indexed page when
 complete, not a population-independent worst-case bound.

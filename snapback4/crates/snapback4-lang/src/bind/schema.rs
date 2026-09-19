@@ -585,8 +585,15 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
             if !index.is_plain() || fields.len() != index.columns.len()
                 || index.columns.iter().any(|field| field != "value" && !(field == "id" && explicit_id) && !maintain.by.contains(field))
                 || (!explicit_id && !whole_group) {
-                return Err(super::maintains::refusal(&index.site, "a maintain value index is a prefix of group fields, then value, then any remaining group fields, then id; fields cannot repeat",
-                    format!("by {}: value, {}, id; id may be omitted only when every group field is present", index.name, maintain.by.join(", "))));
+                // The rewrite is one pasteable `by` line: the author's fields before `value`
+                // stay (they are the lane scope), the group fields they omitted follow it.
+                let value_at = index.columns.iter().position(|field| field == "value").unwrap_or(index.columns.len());
+                let mut seen = BTreeSet::new();
+                let prefix = index.columns[..value_at].iter().filter(|field| maintain.by.contains(field) && seen.insert(field.as_str())).cloned().collect::<Vec<_>>();
+                let rest = maintain.by.iter().filter(|field| !seen.contains(field.as_str())).cloned().collect::<Vec<_>>();
+                let rewrite = prefix.into_iter().chain(["value".to_owned()]).chain(rest).chain(["id".to_owned()]).collect::<Vec<_>>().join(", ");
+                return Err(super::maintains::refusal(&index.site, "a maintain value index is a prefix of group fields, then value, then any remaining group fields, then id (id may be omitted only when every group field is present); fields cannot repeat",
+                    format!("by {}: {rewrite}", index.name)));
             }
             // Keep the existing total-key, lane and cursor path for the abbreviated declaration.
             if !explicit_id { index.columns.push("id".into()); }

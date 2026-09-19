@@ -204,13 +204,27 @@ fn w15c_value_index_accepts_group_suffix_and_normalizes_total_group_key() {
 
 #[test]
 fn w15c_value_index_refusal_pins_the_rule_and_rewrite() {
-    for key in ["author, value, score, id", "author, value, author, id", "author, author, value, id",
-        "value, at, at, id", "author, value, value, id", "author, value, id, at", "author, value", "value, at", "value, id, id"] {
+    // The rewrite is one pasteable `by` line: the author's group fields before `value` stay
+    // as the lane scope, the omitted ones follow `value`, and `id` closes it.
+    for (key, rewrite) in [
+        ("author, value, score, id", "by byCount: author, value, at, id"),
+        ("author, value, author, id", "by byCount: author, value, at, id"),
+        ("author, author, value, id", "by byCount: author, value, at, id"),
+        ("value, at, at, id", "by byCount: value, author, at, id"),
+        ("author, value, value, id", "by byCount: author, value, at, id"),
+        ("author, value, id, at", "by byCount: author, value, at, id"),
+        ("author, value", "by byCount: author, value, at, id"),
+        ("value, at", "by byCount: value, author, at, id"),
+        ("value, id, id", "by byCount: value, author, at, id"),
+    ] {
         let bound = compile(&format!("maintain totals: count posts by author, at\n  read <- allow\n  online only\n  by byCount: {key}\n"));
         let d = bound.diagnostics.iter().find(|d| d.code == "E_QUARRY_MAINTAIN").unwrap_or_else(|| panic!("{key}: {:?}", bound.diagnostics));
-        assert_eq!(d.message, "a maintain value index is a prefix of group fields, then value, then any remaining group fields, then id; fields cannot repeat");
-        assert_eq!(d.rewrite, "by byCount: value, author, at, id; id may be omitted only when every group field is present");
+        assert_eq!(d.message, "a maintain value index is a prefix of group fields, then value, then any remaining group fields, then id (id may be omitted only when every group field is present); fields cannot repeat");
+        assert_eq!(d.rewrite, rewrite, "{key}");
         assert_eq!(d.guide, "maintains");
+        // The rewrite compiles, and keeps the author's scope.
+        let fixed = compile(&format!("maintain totals: count posts by author, at\n  read <- allow\n  online only\n  {rewrite}\n"));
+        assert!(fixed.diagnostics.is_empty(), "{rewrite}: {:?}", fixed.diagnostics);
     }
 }
 
@@ -238,6 +252,10 @@ fn w15c_cards_pin_the_interim_rule_and_newest_first_recipe() {
     let source = snapback4_lang::guide::quarry(feeds).into_iter().find(|s| s.contains("maintain trend:")).unwrap();
     assert!(source.contains("by byScore: hour, value, postAt, postId\n"));
     assert!(feeds.contains("Equal scores put the newest post first"));
+    let readme = include_str!("../../../packages/snapback4/README.md").split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(readme.contains("Value-order indexes are a prefix of group fields, then value, then any remaining group fields, then id (implicit when every group field is present), until maintained columns ship."));
+    assert!(readme.contains("ordered by `hour, value, postAt, postId`") && readme.contains("equal scores put the newest post first"));
+    assert!(!readme.contains("ties use maintained id"));
     let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
     assert!(b.diagnostics.is_empty() && b.notes.is_empty(), "{:?}", b.diagnostics);
 }
