@@ -93,7 +93,7 @@ fn ties<H: Host>(host: &mut H) {
     // the server after the identical source write, including a return into a tie.
     for (n, liked) in [true, false].into_iter().enumerate() {
         let entry = device.admit(Queued { id: format!("w15c-{n}"), seq: n as u64 + 1, op: "setLike".into(), args: json!({"postId":"tie-00","liked":liked}),
-            viewer: "bob".into(), now: f::TIE_NOW, new_ids: vec![format!("w15c-like-{n}")], predicted: vec![], predictable: true, sent_seq: None, observed_seq: None }).unwrap();
+            viewer: "bob".into(), now: f::TIE_NOW, new_ids: vec![format!("w15c-like-{n}")], predicted: vec![], predictable: true, sent_seq: None, observed_seq: None, receipt_store: None }).unwrap();
         assert!(entry.predictable, "{entry:?}");
         f::set_like(&mut server, "bob", "tie-00", liked, f::TIE_NOW, &format!("w15c-server-{n}"));
         let page = device.query("trending", "bob", &json!({"c":null}), f::TIE_NOW).unwrap();
