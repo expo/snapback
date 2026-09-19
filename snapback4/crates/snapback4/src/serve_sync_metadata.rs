@@ -1,16 +1,18 @@
-//! Discovery has no row authority; its typed reply can carry a measured grant.
+//! Every /sync request uses one typed reply, on one catalog-validated reader.
 use super::*;
 use snapback4_core::error::RuntimeError;
 
 pub(super) fn serve(request: Request, shared: &Shared, principal: &str, input: SyncRequest) {
-    match with_reader(shared, |engine| inspect_engine(engine, principal, &input, shared.now())) {
+    match with_reader(shared, |engine| sync_stream::reply(engine, principal, &input, shared.now())) {
         Ok(body) => respond(request, 200, body),
-        Err(error) => respond(request, if matches!(error, RuntimeError::Input(_)) { 400 } else { 503 }, json!({ "denied": refusal_json(&error.refusal()) })),
+        // Failure is deliberately identity-free and grants nothing. Identity
+        // from another read would not describe the failed transaction.
+        Err(error) => {
+            let refusal = error.refusal();
+            respond(request, if refusal.retryable { 503 } else if refusal.code == "E_INPUT" { 400 } else { 500 },
+                json!({ "denied": refusal_json(&refusal) }));
+        }
     }
-}
-
-pub(super) fn stream(shared: &Shared, principal: &str, input: &SyncRequest) -> Result<StreamReply, RuntimeError> {
-    with_reader(shared, |engine| sync_stream::stream(engine, principal, input, shared.now()))
 }
 
 fn with_reader<T>(shared: &Shared, read: impl FnOnce(&mut Engine) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
@@ -26,6 +28,7 @@ fn with_reader<T>(shared: &Shared, read: impl FnOnce(&mut Engine) -> Result<T, R
     }
 }
 
+#[cfg(test)]
 fn inspect_engine(engine: &mut Engine, principal: &str, input: &SyncRequest, now: i64) -> Result<sync_stream::MetadataReply, RuntimeError> {
     sync_stream::metadata(engine, principal, input, now)
 }

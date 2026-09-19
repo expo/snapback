@@ -610,7 +610,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (restore_refusal) { refuseRestore(restore_refusal); return false; }
           backendRequired = !!backend_required;
           requestedStore = store_id;
-          metadataCapture = { store_id: store_id ?? null, generation, send_revision, captured_watermark: capturedWatermark, from: watermark, after: after ?? null, stream: catchingUp, recover: !backendRequired && pageLimit === 1 && after === undefined && watermark === capturedWatermark && (watermark > 0 || catchingUp) };
+          metadataCapture = { store_id: store_id ?? null, generation, send_revision, captured_watermark: capturedWatermark, from: watermark, after: after ?? null, stream: catchingUp, limit: pageLimit, recover: !backendRequired && pageLimit === 1 && after === undefined && watermark === capturedWatermark && (watermark > 0 || catchingUp) };
           const request = requestCredentials();
           const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify(discovering ? { metadata: true, from: watermark, after: after ?? null, stream: catchingUp, limit: pageLimit, generation, pending, recover: metadataCapture.recover, ...(store_id ? { store_id } : {}) } : { from: watermark, limit: pageLimit, after: after ?? null, stream: catchingUp, pending, ...(store_id ? { store_id } : {}) }), signal: aborter.signal });
           if (response.status >= 500) { setLink("offline"); return false; }
@@ -621,9 +621,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
               || !Number.isSafeInteger(page.generation) || Number(page.generation) < 1
               || !Number.isSafeInteger(page.watermark) || Number(page.watermark) < 0) return false;
           }
-          page.send_revision = send_revision;
-          page.requested_watermark = discovering ? capturedWatermark : watermark;
-          page.captured_watermark = capturedWatermark;
+          // Metadata uses its separate SyncCapture. Keep the actual requested
+          // position on data pages; never overwrite it with the durable one.
+          if (!discovering) {
+            page.send_revision = send_revision;
+            page.requested_watermark = watermark;
+            page.captured_watermark = capturedWatermark;
+          }
           pageRevision = request.revision;
         } catch {
           setLink("offline");
@@ -656,9 +660,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
         if (pageIncarnation !== incarnation || pageRevision !== credentialRevision) return false;
         if (discovering) {
-          // The device validates the whole capture, observes replacement, and
-          // accepts only a measured grant at the confirmed position. Adoption
-          // takes precedence and always starts a fresh request.
+          // The server owns measurement; the device validates the received
+          // evidence against its capture and durable state. Wire recovery
+          // fields never decide host control flow: only the device result does.
+          // Adoption takes precedence and always starts a fresh request.
           // Fence cached answers immediately on authenticated replacement,
           // including while the device's observation is still queued.
           observeIncarnation(page.store_id as string);
@@ -669,6 +674,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           }
           const recovery = checked.ok as { snapshot: boolean; retired: Record<string, number>; reset: boolean; backend_required: boolean; send_revision: number };
           page.send_revision = recovery.send_revision;
+          page.captured_watermark = metadataCapture!.captured_watermark;
           if (recovery.reset) {
             requestedStore = page.store_id as string;
             page.captured_watermark = 0;
@@ -731,6 +737,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           watermark = 0; after = undefined; catchingUp = false; needsMetadata = false; continue;
         }
         if (Number(page.watermark) < watermark || (catchingUp && page.snapshot) || (page.snapshot && page.more && !page.next)) return false;
+        // Only data replies reach apply. Staging keeps snapshot rows private
+        // until catch-up; it cannot grant recovery or clear acquisition. The
+        // device also checks identity, generation, revision and the live lease.
         page.stage_snapshot = !!page.snapshot;
         page.snapshot_catchup = catchingUp;
         const applyingIncarnation = incarnation;

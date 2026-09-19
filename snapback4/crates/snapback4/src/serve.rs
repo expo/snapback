@@ -1097,50 +1097,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 Ok(input) if input.pending.len() <= 256 && input.pending.iter().all(|id| !id.is_empty() && id.len() <= 128) => input,
                 _ => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "sync needs { from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes")) })),
             };
-            if input.metadata { return sync_metadata::serve(request, shared, &principal, input); }
-            // Ordinary streaming and recovery count the same reply in the same
-            // catalog-bound read transaction, including acknowledgements.
-            if input.from != 0 || input.stream {
-                return match sync_metadata::stream(shared, &principal, &input) {
-                    Ok(reply) => respond(request, 200, reply),
-                    Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })); }
-                };
-            }
-            let SyncRequest { from, limit, mut after, stream, pending, store_id: requested_store, .. } = input;
-            let store_id = match lock(&shared.engine).store().meta("store_id") {
-                Ok(Some(id)) => id,
-                _ => return respond(request, 503, json!({ "denied": refusal_json(&snapback4_core::error::RuntimeError::Store("the server store has no identity".into()).refusal()) })),
-            };
-            // An old snapshot cursor belongs to its database, not merely its schema.
-            if requested_store.as_ref().is_some_and(|id| id != &store_id) { after = None; }
-            let limit = limit.clamp(1, 10_000);
-            if from == 0 && !stream {
-                // `after` is the previous snapshot page's opaque `next` token.
-                let (outcome, generation) = {
-                    let reader = { lock(&shared.engine).reader() };
-                    match reader {
-                        Ok(mut reader) => {
-                            let generation = reader.generation();
-                            (reader.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, shared.now()).and_then(|page| reader.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))), generation)
-                        }
-                        Err(_) => {
-                            let mut engine = lock(&shared.engine);
-                            (engine.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, shared.now()).and_then(|page| engine.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))), *lock(&shared.generation))
-                        }
-                    }
-                };
-                match outcome {
-                    Ok((page, acknowledged)) => {
-                        let next = page.next.map(|next| next.encode());
-                        let (events, watermark, held) = (page.events, page.watermark, page.held);
-                        respond(request, 200, SnapshotReply {
-                            acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Snapshot(events), generation, store_id,
-                            held, more: next.is_some(), next, after, snapshot: true, watermark,
-                        });
-                    }
-                    Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else if refusal.code == "E_INPUT" { 400 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
-                }
-            }
+            sync_metadata::serve(request, shared, &principal, input);
         }
         (Method::Post, "/auth/session") => {
             // An application that authenticates its own accounts (a phone

@@ -16,14 +16,14 @@ fn sync_metadata_recovery_fences_and_durable_acquisition_on_both_stores() {
         assert_eq!(ok(device.call(json!({ "op": "queued" }))).as_array().unwrap().len(), 2);
         let state = ok(device.call(json!({ "op": "sync_state" })));
         let capture = json!({ "store_id": state["store_id"], "generation": state["generation"], "send_revision": state["send_revision"],
-            "captured_watermark": state["watermark"], "from": state["watermark"], "stream": false, "recover": true });
+            "captured_watermark": state["watermark"], "from": state["watermark"], "stream": false, "recover": true, "limit": 1 });
         let metadata = json!({ "metadata": true, "store_id": state["store_id"], "generation": state["generation"], "watermark": state["watermark"] });
         assert_eq!(ok(device.call(json!({ "op": "sync_metadata", "metadata": metadata, "capture": capture })))["snapshot"], false);
         assert_eq!(ok(device.call(json!({ "op": "sync_state" }))), state, "generic metadata is read-only");
         let mut decision = metadata.clone();
         decision["watermark"] = json!(state["watermark"].as_u64().unwrap() + 1);
         decision["recovery"] = json!({ "from": state["watermark"], "snapshot": true, "store_id": state["store_id"], "generation": state["generation"] });
-        for field in ["store_id", "send_revision", "captured_watermark", "generation", "from", "stream", "recover"] {
+        for field in ["store_id", "send_revision", "captured_watermark", "generation", "from", "stream", "recover", "limit"] {
             let mut stale = capture.clone();
             stale[field] = match field { "store_id" => json!("foreign"), "stream" => json!(true), "recover" => json!(false), _ => json!(99) };
             let denied = device.call(json!({ "op": "sync_metadata", "metadata": decision, "capture": stale }));

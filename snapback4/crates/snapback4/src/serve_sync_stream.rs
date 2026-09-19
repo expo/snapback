@@ -3,6 +3,14 @@
 use super::*;
 use snapback4_core::error::RuntimeError;
 
+// All successful /sync responses cross this opaque boundary. The private
+// variants cannot be selected by handle; only read can choose the wire shape.
+// Snapshot acquisition is data, not a recovery grant. Neither data variant
+// has a recovery field; MetadataReply needs measurement::OverflowGrant.
+#[derive(serde::Serialize)]
+#[serde(transparent)]
+pub(super) struct Reply(ReadReply);
+
 #[derive(serde::Serialize)]
 pub(super) struct MetadataReply {
     metadata: bool,
@@ -15,23 +23,36 @@ pub(super) struct MetadataReply {
 
 use measurement::{OverflowGrant, ResponseSize};
 
-enum ReadReply { Stream(StreamReply), Metadata(MetadataReply) }
+#[derive(serde::Serialize)]
+#[serde(untagged)]
+enum ReadReply { Stream(StreamReply), Snapshot(SnapshotReply), Metadata(MetadataReply) }
+enum ReadMode { Stream, Snapshot, Discovery }
 
+pub(super) fn reply(engine: &mut Engine, principal: &str, input: &SyncRequest, now: i64) -> Result<Reply, RuntimeError> {
+    let mode = if input.metadata || input.recover { ReadMode::Discovery }
+        else if input.from == 0 && !input.stream { ReadMode::Snapshot }
+        else { ReadMode::Stream };
+    read(engine, principal, input, now, mode).map(Reply)
+}
+
+#[cfg(test)]
 pub(super) fn metadata(engine: &mut Engine, principal: &str, input: &SyncRequest, now: i64) -> Result<MetadataReply, RuntimeError> {
-    match read(engine, principal, input, now, true)? {
+    match read(engine, principal, input, now, ReadMode::Discovery)? {
         ReadReply::Metadata(reply) => Ok(reply),
-        ReadReply::Stream(_) => unreachable!("metadata mode returns only metadata"),
+        _ => unreachable!("metadata mode returns only metadata"),
     }
 }
 
+#[cfg(test)]
 pub(super) fn stream(engine: &mut Engine, principal: &str, input: &SyncRequest, now: i64) -> Result<StreamReply, RuntimeError> {
-    match read(engine, principal, input, now, false)? {
+    match read(engine, principal, input, now, ReadMode::Stream)? {
         ReadReply::Stream(reply) => Ok(reply),
-        ReadReply::Metadata(_) => unreachable!("ordinary mode never returns metadata"),
+        _ => unreachable!("stream test helper returns only stream"),
     }
 }
 
-fn read(engine: &mut Engine, principal: &str, input: &SyncRequest, now: i64, discovery: bool) -> Result<ReadReply, RuntimeError> {
+fn read(engine: &mut Engine, principal: &str, input: &SyncRequest, now: i64, mode: ReadMode) -> Result<ReadReply, RuntimeError> {
+    let discovery = matches!(mode, ReadMode::Discovery);
     if discovery && input.store_id.as_ref().is_none_or(|id| id.is_empty()) {
         return Err(RuntimeError::Input("sync metadata needs the captured store_id; retry ordinary sync".into()));
     }
@@ -43,6 +64,21 @@ fn read(engine: &mut Engine, principal: &str, input: &SyncRequest, now: i64, dis
     let tx = engine.store_mut().read_transaction()?;
     let store_id: String = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'store_id'", [], |row| row.get(0))?;
     let watermark = tx.next_seq()?.saturating_sub(1);
+    if matches!(mode, ReadMode::Snapshot) {
+        // A cursor belongs to its store. Identity, snapshot images and acks
+        // share this catalog-validated transaction, just like the stream.
+        let after = input.after.as_deref().filter(|_| input.store_id.as_ref().is_none_or(|id| id == &store_id));
+        let cursor = after.map(|token| snapback4_core::partition::SnapshotCursor::decode(token)
+            .ok_or_else(|| RuntimeError::Input("the snapshot cursor is not one this server minted".into()))).transpose()?;
+        let page = snapback4_core::partition::snapshot_page(&tx, &schema, principal, cursor, input.limit.clamp(1, 10_000), now)?;
+        let acknowledged = Engine::acknowledged_in(&tx, principal, &input.pending, page.watermark)?;
+        let next = page.next.map(|next| next.encode());
+        return Ok(ReadReply::Snapshot(SnapshotReply {
+            acquisitions: page.acquisitions, acknowledged, after: after.map(str::to_owned),
+            events: SyncEvents::Snapshot(page.events), generation, held: page.held,
+            more: next.is_some(), next, snapshot: true, store_id, watermark: page.watermark,
+        }));
+    }
     let mut metadata = MetadataReply { metadata: true, store_id: store_id.clone(), generation, watermark, recovery: None };
     if discovery && !(input.recover && input.store_id.as_ref() == Some(&store_id) && input.generation == Some(generation)
         && input.limit == 1 && (input.from > 0 || input.stream) && input.after.is_none() && input.from < watermark) {

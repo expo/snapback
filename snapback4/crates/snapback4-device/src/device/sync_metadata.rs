@@ -1,4 +1,7 @@
 //! Metadata observes identity; a bound overflow grant alone authorizes recovery.
+//! Byte measurement is authenticated-server evidence, not something this
+//! decoder can prove. Acceptance rechecks the request (including its limit)
+//! and durable state. The wire value is neither signed nor single-use.
 use super::*;
 
 #[derive(Deserialize)]
@@ -21,6 +24,10 @@ pub struct SyncCapture {
     after: Option<String>,
     stream: bool,
     recover: bool,
+    // Missing older captures fail closed for recovery, but may still observe
+    // metadata. Never infer limit 1 from the host's derived recover boolean.
+    #[serde(default)]
+    limit: usize,
 }
 
 #[derive(Serialize)]
@@ -111,7 +118,7 @@ mod grant {
                 || tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) {
                 return Err(RuntimeError::Generation("snapshot recovery capture requires a fresh adopted backend".into()));
             }
-            if !self.snapshot || !capture.recover || capture.after.is_some() || !(capture.from > 0 || capture.stream)
+            if !self.snapshot || !capture.recover || capture.limit != 1 || capture.after.is_some() || !(capture.from > 0 || capture.stream)
                 || self.store_id != metadata.store_id || self.generation != metadata.generation
                 || self.from != capture.from || capture.from != capture.captured_watermark
                 || capture.from >= metadata.watermark || metadata.generation != capture.generation {

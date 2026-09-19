@@ -39,7 +39,7 @@ fn snapshot(engine: &mut Engine) -> Json {
 
 fn capture(state: &Json, from: u64, stream: bool) -> Json {
     json!({"store_id":state["store_id"], "generation":state["generation"], "send_revision":state["send_revision"],
-        "captured_watermark":state["watermark"], "from":from, "stream":stream, "recover":true})
+        "captured_watermark":state["watermark"], "from":from, "stream":stream, "recover":true, "limit":1})
 }
 
 fn c1<S: DeviceStore>(open: impl FnOnce(Backend) -> Device<S>) {
@@ -117,6 +117,14 @@ fn measured<S: DeviceStore>(open: impl FnOnce(Backend) -> Device<S>) {
     assert_eq!(metadata["recovery"]["store_id"], state["store_id"]);
     assert_eq!(metadata["recovery"]["generation"], state["generation"]);
     assert!(metadata.get("events").is_none());
+    for limit in [json!(0), json!(2), Json::Null] {
+        let mut incorrect = capture(&state, 2, false);
+        if limit.is_null() { incorrect.as_object_mut().unwrap().remove("limit"); }
+        else { incorrect["limit"] = limit; }
+        let result = snapback4_device::call::call(&mut device, json!({"op":"sync_metadata","metadata":metadata,"capture":incorrect}));
+        assert_eq!(result["denied"]["code"], "E_GENERATION", "a derived recover flag cannot replace the actual limit: {result}");
+        assert_eq!(command(&mut device, json!({"op":"sync_state"})), state);
+    }
     for field in ["from", "store_id", "generation"] {
         let mut mismatched = metadata.clone();
         mismatched["recovery"][field] = if field == "store_id" { json!("foreign") } else { json!(999) };

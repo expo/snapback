@@ -39816,3 +39816,179 @@ Disposition by finding:
 The construction boundary is structural: the nested measurement module's opaque grant cannot be built or rebound by outer handler branches; the device's private Accepted value includes every recovery fence and borrows the exact transaction it will modify. It remains authenticated-server evidence across the JSON wire, not a cryptographic claim against a malicious server.
 
 Open limits remain explicit: early current-image stopping is not an end-to-end traversal bound; generation adoption still uses the pre-existing program-only retained-history policy; in-memory discovery retains its already tracked writer-mutex contention (`issues/20260918-snapback4-in-memory-sync-measurement-writer-contention.md`). The web artifact is 415,730 B gzip, 4,730 B above the unchanged budget; device-diet owns it and no size repair was attempted. No ceiling, rule, card wording or disclosure boundary changed. No commit, push, tag or publication. HEAD is aac90114d; llp/** and NOT-DOING.md remain untouched, and the original journal bytes are preserved as a prefix.
+
+## 2026-09-19 — round 4 starts: total sync routing and the client boundary
+
+Worktree `sb4/mc-prereq-51b7a134`, HEAD `0fdac3dfb`, initially clean. The
+round is local-only: no commits, pushes, tags or publication; no LLP,
+NOT-DOING, ceiling, rule, card-word or disclosure changes. One Cargo invocation
+at a time. No wasm size work.
+
+Read-only orientation: LLP 3000 (root), LLP 2000.000 §§6–8 (meter, partition
+and fixed vocabulary), and current LLP 3000.007 §18.2 (horizon acquisition,
+retained history, identity replacement and request-local fences) govern this
+change. Preserve acquisition markers, serve-time selection and merged renewal
+chains. No LLP update is authorized; decisions and evidence stay here and next
+to the affected code/tests.
+
+F1 confirmed in `handle`: metadata and nonzero/stream requests return early,
+leaving the public default route to a separate snapshot handler that drops
+recover/generation. Added HTTP regressions for explicit and omitted defaults
+with recover true and arbitrary generation, against memory and file SQLite
+server stores, before changing production code. Expected result: metadata
+without row/reset authority. Existing result: a snapshot reply.
+
+F3 trace: local.ts's `recovery.snapshot` is the result of the Rust device's
+sync_metadata command, not the HTTP recovery field. The device checks the
+request and durable state; it cannot independently measure server JSON that it
+never received. Add actual-client fabricated-wire regressions and distinguish
+that boundary from authentication of a malicious server.
+
+F1 red: `/tmp/f188-round4-f1-red.log`, **0 passed / 2 failed**. Both actual
+HTTP handlers returned `snapshot:true`, no metadata, for the default-position
+recovery request carrying generation 999999. The replacement dispatches every
+successful /sync response through an opaque Reply with private snapshot,
+stream and metadata variants. recover requests enter discovery even without
+metadata:true. Snapshot images, identity and acknowledgements now share the
+same catalog-validated read transaction; file-reader errors do not fall back.
+
+F3 baseline refusal regressions pass **4/4** (wasm and process): fabricated
+grant before limit 1, and wrong position at limit 1. However, the client alone
+computed the page-limit condition in capture.recover. A second regression
+sets that derived bit true on the actual larger-page capture. Both real devices
+accepted the fabricated wire grant and cleared acquisition: **0 passed / 2
+failed**, `/tmp/f188-round4-f3-red.log`, each returning
+`{"ok":{"backend_required":false,"reset":false,"retired":{},"send_revision":2,"snapshot":true}}`.
+This is an unchecked client decision, so F3 is a real, narrower fourth instance.
+The capture now carries the actual limit; Recovery::accept requires exactly 1
+(missing defaults to 0 and refuses). Tests also cover missing, zero and larger
+limits with an otherwise real measured grant. Measurement remains the server's
+job; this does not make serialized evidence unforgeable against a malicious
+server or a host that lies about every request input.
+
+F2 ruling: a stream success cannot carry a grant: StreamReply has no recovery
+field. All successes now come through private ReadReply variants inside opaque
+Reply. MetadataReply.recovery requires measurement::OverflowGrant, whose fields
+are private in that child module, with Serialize only (no Deserialize, Default,
+or public constructor). ResponseSize::into_grant consumes the counter; only
+Counter::write sets its private overflow bit. No handler-layer remeasurement is
+needed. New actual-HTTP cases send recover:true with arbitrary generation
+999999 at zero, nonzero and staged-stream positions (metadata flag both ways),
+on a fixture where a real limit-1 request demonstrably overflows.
+
+F2 replay qualification: the device checks the captured revision against durable
+SEND_REVISION, not against a revision embedded in the grant (there is none).
+A stale capture, changed position/identity/generation or consumed stream lease
+refuses; the broader statement that every saved response plus any fresh capture
+must fail is not established and is not the contract. This is authenticated
+server evidence, not a signed or single-use wire token. The prior G2 test even
+injects matching wire evidence to test receipt retirement; renamed its title
+from “measured reset” to “accepted recovery” and explicitly documented the
+simulation so it cannot be mistaken for a measurement proof.
+
+Remaining findings: discovery no longer writes requested_watermark at all;
+SyncCapture preserves requested from separately from captured_watermark. Every
+data/metadata success obtains store identity within its read transaction;
+foreign snapshot cursors reset to the first page, while stream/discovery return
+the actual store for device observation. from == head is now covered through
+the HTTP dispatcher on both stores. Error replies remain deliberately identity-
+free: a separate read cannot bind identity to the failed transaction, and denied
+has no reset authority. The data-only stage_snapshot flag keeps rows private
+until catch-up; metadata control flow exits before apply, and the device enforces
+identity, generation, send revision, snapshot owner/continuation and boundaries.
+
+Server qualification is green **88/88**, `/tmp/f188-round4-server.log`, including
+four new HTTP tests (two stores × default-recovery and full-route cases).
+The large-reply fixture initially exposed the test Host helper's lack of HTTP
+chunk decoding; the new scoped helper now decodes tiny_http's chunked replies,
+and the same oversized fixture runs without reducing its payload. No product
+change was needed for that harness issue. Typecheck passes. Starting the full
+device package, including W13g and renewal-chain tests, before rebuilding the
+CLI/web device and running the affected client suites. Cargo remains serialized.
+
+Full device package completed green: **722 passed, 0 failed, 3 existing
+ignores**, `/tmp/f188-round4-device.log`, including W13g acquisition boundaries,
+merged renewal chains, retained history and the expanded recovery capture
+fences on both stores. The cold feature/profile build took most of the run;
+there were no product-test failures. Building the CLI, then the required web
+device artifact, serially. The wasm budget will be reported without repair.
+
+CLI build passes (`/tmp/f188-round4-cli.log`). The required web rebuild emits
+**1,500,557 B raw / 415,860 B gzip**, **4,860 B above the unchanged 411,000 B
+budget**, and exits nonzero at that existing size gate
+(`/tmp/f188-round4-wasm.log`). No size repair, budget edit or measurement-led
+diet work was attempted. The freshly built artifact is used for semantic tests.
+
+Fresh-artifact client qualification passes **272/272**, zero skips/failures
+(`/tmp/f188-round4-clients.log`): recovery 58 (including all six R4 client
+checks), horizon/renewal 82, retained history 44, replacement 32 and lifecycle
+56. File-backed real-server variants pass **6/6**, zero skips/failures
+(`/tmp/f188-round4-file-clients.log`). F3 is now green on both real hosts.
+
+Adding two more F1 checks through actual wasm-memory and process-SQLite devices,
+so the red evidence covers those stores as well as the original HTTP memory/file
+server modes. To demonstrate the old route, temporarily build the three server
+routing files from HEAD, with byte-for-byte backups of the current sources and
+qualified CLI, then restore them in a finally block. The isolated baseline binary
+is only a test input; no commit, checkout, reset, stash or publication is involved.
+
+## 2026-09-19 — round 4 final verification and disposition
+
+The extra F1 real-host regressions reproduce against HEAD's original server
+route: **0 passed / 2 failed**, wasm-memory and process-SQLite, each receiving
+`snapshot:true` with no metadata flag (`/tmp/f188-round4-f1-device-red.log`).
+The fixed binary passes **2/2** (`/tmp/f188-round4-f1-device-green.log`). This
+supplements the original pre-edit HTTP red on memory/file server stores,
+`/tmp/f188-round4-f1-red.log`. The temporary baseline build restored all three
+current server sources byte for byte and restored the already qualified CLI;
+its SHA256 is `4cb8fd6976ed58eadcae9bf1f2fb742bc305433fc30610c49246f6683ce47959`.
+
+F2's replay qualification is now demonstrated, rather than only inferred:
+both real devices reject the stale capture but accept saved matching wire
+evidence with a fresh send revision at the unchanged non-stream position. The
+regression deliberately synthesizes matching trusted-server evidence on a small
+reply; it does not claim that reply overflowed. The broad claim that a fresh
+capture necessarily rejects every replay is false. The grant has no revision or
+nonce on the wire; acceptance revalidates current binding. This remains the
+existing authenticated-server trust model, with no new signature or single-use
+protocol. Constructor visibility and real server measurement remain the proof
+that production responses do not fabricate that evidence. Arbitrary request
+generations are inert in the actual HTTP tests.
+
+Final semantic qualification:
+
+- Server: **88/88**, `/tmp/f188-round4-server.log`.
+- Device: **722 passed, 0 failed, 3 existing ignores**,
+  `/tmp/f188-round4-device.log`, including W13g and merged renewals.
+- Clients: **276 distinct tests**: the grouped **272/272** run plus four added
+  F1/replay cases. The final R4 boundary run passes **10/10**, six overlapping
+  the grouped run (not counted twice), `/tmp/f188-round4-client-boundaries.log`.
+  The distinct breakdown is recovery 62, horizon/renewal 82, retained history
+  44, replacement 32 and lifecycle 56. All zero failures/skips.
+- Additional real file-backed-server variants: **6/6**,
+  `/tmp/f188-round4-file-clients.log`, zero failures/skips.
+- Typecheck, package/CLI build, whitespace check and journal-prefix check pass.
+  No complete unrelated core or simulator battery is claimed for this round.
+
+F1 is closed by one opaque successful-reply dispatcher, including default
+acquisition, streaming and recovery without a metadata flag. F3's unchecked
+client page-limit decision is closed inside Recovery::accept; the two red
+forged-bit witnesses now refuse and preserve acquisition, and all measured
+recovery positives still pass. The host's recovery.snapshot is a device result,
+not the HTTP field. Missing/zero/larger capture limits also refuse on both stores.
+
+Remaining review findings are disposed: discovery no longer overwrites
+requested_watermark; identity comes from the same read transaction on every
+successful path; head equality is tested through handle; failures intentionally
+remain identity-free and cannot grant reset; stage_snapshot only stages data
+until fenced catch-up, and metadata never reaches apply. Existing acquisition
+markers, boundaries, renewal selection and retained-history mechanisms were not
+changed.
+
+Open/unchanged: authenticated-server trust and non-single-use serialized
+evidence; in-memory measurement's existing writer-mutex contention; no end-to-end
+traversal bound; the existing program-only generation adoption history policy.
+The wasm size gate remains red at **415,860 B gzip / 411,000 B budget**; no size
+repair or budget change. No commit, push, tag, publication, merge or rebase.
+HEAD remains `0fdac3dfb`. LLPs, NOT-DOING, rules, card words and ceilings are
+unchanged; the journal's committed bytes remain an intact prefix.
