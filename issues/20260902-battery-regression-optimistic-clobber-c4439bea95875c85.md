@@ -13,12 +13,12 @@
 **Battery gate:** `regression-optimistic-clobber`
 **Failure signature:** `sha256:c4439bea95875c859480fa4e09069233d5ec81a3f542104509213bf8625d5247`
 **First observed run:** `local.20260902T222959Z.21867fec6d93`
-**Last observed run:** `local.20260919T040853Z.0168b46b0c20`
-**Last processed run:** `local.20260919T040853Z.0168b46b0c20`
+**Last observed run:** `local.20260919T140917Z.e116b8324d19`
+**Last processed run:** `local.20260919T140917Z.e116b8324d19`
 **Detected at revision:** `21867fec6d938b0a0b27076ffab22c23232b7672`
-**Last observed revision:** `0168b46b0c205a32b607ecda053fc041dfda900f`
-**Consecutive red runs:** `1`
-**Escalation:** `pending (1/4)`
+**Last observed revision:** `e116b8324d196d3f799ac8d570c156cd73ee18f6`
+**Consecutive red runs:** `2`
+**Escalation:** `pending (2/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
