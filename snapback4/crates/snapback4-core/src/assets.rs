@@ -35,6 +35,10 @@ impl Upload {
             return Err(RuntimeError::Input("upload length changed".into()));
         }
         let io = |e: std::io::Error| RuntimeError::Store(format!("cannot keep the upload: {e}"));
+        // A store in memory has no assets directory until its first upload.
+        if let Some(directory) = self.path.parent() {
+            crate::private_fs::directory(directory).map_err(io)?;
+        }
         let staging = self.path.with_extension("part");
         let mut file = crate::private_fs::file(&staging, true).map_err(io)?;
         // Only remove a file after this upload actually created it.

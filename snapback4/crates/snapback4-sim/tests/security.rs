@@ -234,7 +234,36 @@ fn stores_sidecars_assets_and_existing_files_are_owner_only() {
     let reopened = Store::open(&db).unwrap();
     assert_eq!(std::fs::metadata(old).unwrap().permissions().mode() & 0o777, 0o600);
     assert_eq!(std::fs::metadata(reopened.assets_dir()).unwrap().permissions().mode() & 0o777, 0o700);
+    // A store in memory makes no directory until its first upload (and drops it
+    // with the store); the owner-only mode of the one it makes is asserted in
+    // `an_in_memory_store_leaves_no_assets_directory_behind`.
     let memory = Store::memory().unwrap();
-    assert_eq!(std::fs::metadata(memory.assets_dir()).unwrap().permissions().mode() & 0o777, 0o700);
-    std::fs::remove_dir_all(memory.assets_dir()).unwrap(); drop(reopened); std::fs::remove_dir_all(dir).unwrap();
+    assert!(!memory.assets_dir().exists());
+    drop(memory); drop(reopened); std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn an_in_memory_store_leaves_no_assets_directory_behind() {
+    // Before: every `Store::memory()` created `$TMPDIR/snapback4-<pid>-<ulid>`
+    // and nothing removed it — 4.1 million empty directories on one machine
+    // after a week of test runs. Now nothing exists until the first upload,
+    // and the store's drop removes whatever it made.
+    let e = chat_engine_from(CHAT, &["dev:alice"]);
+    let dir = e.store().assets_dir().to_path_buf();
+    assert!(dir.starts_with(std::env::temp_dir()), "{}", dir.display());
+    assert!(!dir.exists(), "an in-memory store made {} before any upload", dir.display());
+    drop(e);
+    assert!(!dir.exists());
+
+    let mut e = chat_engine_from(CHAT, &["dev:alice"]);
+    let dir = e.store().assets_dir().to_path_buf();
+    let upload = e.store_asset("dev:alice", &png(30, 20), 1).unwrap();
+    assert!(e.store().asset_path(&upload.id).is_file());
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(std::fs::metadata(&dir).unwrap().permissions().mode() & 0o777, 0o700);
+    }
+    drop(e);
+    assert!(!dir.exists(), "dropping the store must remove its directory and the upload in it");
 }

@@ -25,9 +25,23 @@ pub struct Store {
     conn: Connection,
     catalog: BTreeMap<String, i64>,
     /// Where uploaded bytes live: `assets/` beside the database file, or a
-    /// directory that dies with the process for a store in memory.
+    /// directory that dies with the store for a store in memory.
     assets_dir: PathBuf,
+    /// A store in memory owns its assets directory: nothing creates it until
+    /// the first upload, and dropping the store removes it. Before this, every
+    /// `Store::memory()` created one and nothing removed it — one empty
+    /// directory per in-memory engine, four million of them in a week of test
+    /// runs on one machine, until listing the temp directory took minutes.
+    ephemeral_assets: bool,
     identity: activation::Identity,
+}
+
+impl Drop for Store {
+    fn drop(&mut self) {
+        if self.ephemeral_assets {
+            let _ = std::fs::remove_dir_all(&self.assets_dir);
+        }
+    }
 }
 
 /// One transaction over the store, with the catalog in reach.
@@ -57,7 +71,7 @@ impl Store {
         tx.rollback()?;
         let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
         let assets_dir = real.parent().unwrap_or(Path::new(".")).join("assets");
-        Ok(Self { conn, catalog, identity, assets_dir })
+        Ok(Self { conn, catalog, identity, assets_dir, ephemeral_assets: false })
     }
 
     /// Classify against one read snapshot of the active generation and rows.
@@ -91,7 +105,7 @@ impl Store {
         // beside the file itself, so every release serves the same bytes.
         let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
         let assets_dir = real.parent().map(|dir| dir.join("assets")).unwrap_or_else(|| PathBuf::from("assets"));
-        let store = Self::prepare(conn, assets_dir)?;
+        let store = Self::prepare(conn, assets_dir, false)?;
         for suffix in ["-wal", "-shm", "-journal"] {
             crate::private_fs::existing_file(&PathBuf::from(format!("{}{suffix}", real.display())))
                 .map_err(io)?;
@@ -103,7 +117,7 @@ impl Store {
         let assets_dir = std::env::temp_dir().join(format!(
             "snapback4-{}-{}", std::process::id(), crate::ids::mint(crate::now_ms(), &mut 0)?
         ));
-        Self::prepare(Connection::open_in_memory()?, assets_dir)
+        Self::prepare(Connection::open_in_memory()?, assets_dir, true)
     }
 
     /// Where this store keeps uploaded bytes (`assets/<id>`).
@@ -111,16 +125,20 @@ impl Store {
         &self.assets_dir
     }
 
-    fn prepare(mut conn: Connection, assets_dir: PathBuf) -> Result<Self, RuntimeError> {
+    fn prepare(mut conn: Connection, assets_dir: PathBuf, ephemeral_assets: bool) -> Result<Self, RuntimeError> {
         // Our fixed indexed SQL should reuse its plan when keys or limits
         // change. Set this before caching statements: an existing VDBE
         // retains its parameter-expiry mask even after automatic reprepare.
         // @ref LLP 3000#7-decisions-during-execution — reuse SQLite plans across bound inputs
         conn.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_ENABLE_QPSG, true)?;
-        let io = |e: std::io::Error| RuntimeError::Store(format!("private assets: {e}"));
-        crate::private_fs::directory(&assets_dir).map_err(io)?;
-        for entry in std::fs::read_dir(&assets_dir).map_err(io)? {
-            crate::private_fs::existing_file(&entry.map_err(io)?.path()).map_err(io)?;
+        // An ephemeral directory is created by the first upload (`Upload::write`)
+        // and has no earlier contents to make private.
+        if !ephemeral_assets {
+            let io = |e: std::io::Error| RuntimeError::Store(format!("private assets: {e}"));
+            crate::private_fs::directory(&assets_dir).map_err(io)?;
+            for entry in std::fs::read_dir(&assets_dir).map_err(io)? {
+                crate::private_fs::existing_file(&entry.map_err(io)?.path()).map_err(io)?;
+            }
         }
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -185,7 +203,7 @@ impl Store {
         let catalog = opened.prepare("SELECT name, num FROM _catalog")?.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)))?.collect::<Result<BTreeMap<_, _>, _>>()?;
         let identity = activation::identity(&opened)?;
         opened.commit()?;
-        Ok(Self { conn, catalog, assets_dir, identity })
+        Ok(Self { conn, catalog, assets_dir, ephemeral_assets, identity })
     }
 
     pub fn transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
@@ -228,7 +246,8 @@ impl Store {
         // @ref LLP 3000#7-decisions-during-execution — reuse SQLite plans across bound inputs
         conn.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_ENABLE_QPSG, true)?;
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
-        Ok(Self { conn, catalog: self.catalog.clone(), assets_dir: self.assets_dir.clone(), identity: self.identity.clone() })
+        // A reader never owns the directory; only the store that made it removes it.
+        Ok(Self { conn, catalog: self.catalog.clone(), assets_dir: self.assets_dir.clone(), ephemeral_assets: false, identity: self.identity.clone() })
     }
 
     pub fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
