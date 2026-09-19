@@ -1,6 +1,6 @@
 # Snapback 4: every in-memory store created a temp directory and nothing removed it — 4.5 million of them on one machine
 
-Status: Closed 2026-09-19 — fixed on main (this landing); the leaked directories removed by hand
+Status: Closed 2026-09-19 — the source fixed on main (this landing; two-family blind review, GPT READY WITH CHANGES → applied, Grok READY). The host cleanup is a separate, running job: see "The cleanup" below for what was verified when
 Priority: P1 for the host (every `mkdtemp`, sandboxed launch and `$TMPDIR` listing on the machine was timing out); no product defect
 Date: 2026-09-19
 Systems: `snapback4-core` `store.rs` (`Store::memory`, `prepare`), `assets.rs` (`Upload::write`)
@@ -35,14 +35,25 @@ timed out, and the cleanup itself runs for hours.
 A process killed by a signal still leaks its one directory per store that uploaded
 something; that is one per server run, not one per engine, and the sweep below handles it.
 
+*Review finding, applied:* an `Upload` is handed out without borrowing the engine, so one
+written after the engine dropped recreated the directory and its drop removed only the
+files. Now the upload knows the directory is ephemeral: it creates it only then, and an
+uncommitted upload's drop removes the directory too when it is left empty (`remove_dir`,
+never `remove_dir_all`, so a live store's other assets are untouched). A file store's
+`assets/` is no longer touched by uploads at all. Regression:
+`a_detached_upload_cannot_resurrect_a_dropped_stores_directory`.
+
 ## The cleanup, for the record
 
 Delete list built from the names (a ULID's first ten characters are its creation time, so no
 `stat` was needed): every `snapback4-<pid>-<ulid>` older than an hour whose pid is not a live
 `snapback4` process; other `snapback4-*` names (publish stages, `loopbar-verify`, `test.`)
-left alone. Removal in the 4-million-entry directory ran at roughly 300 removals a second
-with six parallel `rm -rf`s and did not improve with plain `rmdir`; it is left running in
-the background from `~/projects/snapback-next-20260914/tmpdir-leak/`.
+left alone. Removal in the 4-million-entry directory runs at 300–400 removals a second
+(a name lookup there costs ~17 ms; six-way `rm -rf` gave 300/s, thirty-two-way `rmdir`
+400/s), so the 4.5 million take hours. **As of this landing the cleanup is still running**
+(detached, `~/projects/snapback-next-20260914/tmpdir-leak/cleanup-rest.sh`, log `rest2.log`);
+the last line of that log records the count left in `/private/tmp` when it finishes, and
+this ticket is amended then.
 
 ## Related
 

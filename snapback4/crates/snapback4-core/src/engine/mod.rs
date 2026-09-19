@@ -512,6 +512,7 @@ impl Engine {
             generation: self.generation,
             written: false,
             committed: false,
+            ephemeral_directory: self.store.ephemeral_assets(),
         })
     }
 

@@ -181,7 +181,10 @@ fn staged_upload_cleans_up_when_its_generation_changes() {
     let mut schema = e.schema().clone(); schema.auth.password = !schema.auth.password;
     e.adopt(schema, []).unwrap();
     assert_eq!(e.finish_asset(upload).unwrap_err().code(), "E_GENERATION");
-    assert_eq!(std::fs::read_dir(e.store().assets_dir()).unwrap().count(), 0);
+    // The failed upload's drop removes its files, and the directory too when
+    // that leaves a store-in-memory's directory empty.
+    let dir = e.store().assets_dir();
+    assert!(!dir.exists() || std::fs::read_dir(dir).unwrap().count() == 0);
 }
 
 #[test]
@@ -266,4 +269,21 @@ fn an_in_memory_store_leaves_no_assets_directory_behind() {
     }
     drop(e);
     assert!(!dir.exists(), "dropping the store must remove its directory and the upload in it");
+}
+
+#[test]
+fn a_detached_upload_cannot_resurrect_a_dropped_stores_directory() {
+    // `prepare_asset` hands out an upload that does not borrow the engine. If
+    // the engine is dropped first, the upload's write recreates the directory
+    // and its drop must take it away again (review finding, 2026-09-19).
+    let mut e = chat_engine_from(CHAT, &["dev:alice"]);
+    let dir = e.store().assets_dir().to_path_buf();
+    let bytes = png(30, 20);
+    let upload = e.prepare_asset("dev:alice", snapback4_core::assets::sniff(&bytes).unwrap(), bytes.len() as u64, 1).unwrap();
+    drop(e);
+    assert!(!dir.exists());
+    let upload = upload.write(&bytes).unwrap();
+    assert!(dir.is_dir(), "the write recreated the directory");
+    drop(upload);
+    assert!(!dir.exists(), "an uncommitted upload leaves nothing behind, directory included");
 }

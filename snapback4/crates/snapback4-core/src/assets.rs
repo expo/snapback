@@ -26,6 +26,11 @@ pub struct Upload {
     pub(crate) generation: u64,
     pub(crate) committed: bool,
     pub(crate) written: bool,
+    /// The directory is a store-in-memory's own: this upload creates it if
+    /// the first write needs it, and removes it again if it is left empty
+    /// by an upload that never committed — including one written after the
+    /// store itself was dropped.
+    pub(crate) ephemeral_directory: bool,
 }
 #[cfg(feature = "sqlite")]
 impl Upload {
@@ -36,7 +41,7 @@ impl Upload {
         }
         let io = |e: std::io::Error| RuntimeError::Store(format!("cannot keep the upload: {e}"));
         // A store in memory has no assets directory until its first upload.
-        if let Some(directory) = self.path.parent() {
+        if self.ephemeral_directory && let Some(directory) = self.path.parent() {
             crate::private_fs::directory(directory).map_err(io)?;
         }
         let staging = self.path.with_extension("part");
@@ -55,6 +60,11 @@ impl Drop for Upload {
         if self.written && !self.committed {
             let _ = std::fs::remove_file(self.path.with_extension("part"));
             let _ = std::fs::remove_file(&self.path);
+            // `remove_dir` removes only an empty directory: a live store's
+            // other assets keep theirs, and the store recreates it on demand.
+            if self.ephemeral_directory && let Some(directory) = self.path.parent() {
+                let _ = std::fs::remove_dir(directory);
+            }
         }
     }
 }

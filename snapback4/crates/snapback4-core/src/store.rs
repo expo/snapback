@@ -125,6 +125,12 @@ impl Store {
         &self.assets_dir
     }
 
+    /// Whether the assets directory belongs to this store alone (a store in
+    /// memory) rather than to the project beside the database.
+    pub fn ephemeral_assets(&self) -> bool {
+        self.ephemeral_assets
+    }
+
     fn prepare(mut conn: Connection, assets_dir: PathBuf, ephemeral_assets: bool) -> Result<Self, RuntimeError> {
         // Our fixed indexed SQL should reuse its plan when keys or limits
         // change. Set this before caching statements: an existing VDBE
