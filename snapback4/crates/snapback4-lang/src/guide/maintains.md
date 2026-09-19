@@ -94,9 +94,11 @@ query mostLiked(c: cursor ?):
   return postLikes after c last 10 by byCount { postId, count: .value }
 ```
 
-Value indexes have zero or more distinct group fields, then value, id.
+Value indexes have a prefix of group fields, then value, then any remaining
+group fields, then id (implicit when every group field is present), until
+maintained columns ship; each field appears once.
 Pin every scope field before value; use value, id alone for global ranking.
-last N descends by value and then canonical group id on both stores; pass next
+last N descends by value, trailing group fields and id on both stores; pass next
 as the cursor. A direct page cursor binds its evaluated prefix and active
 generation; reuse after adoption or under another prefix is refused. It stays
 valid across ordinary writes in that generation; scores can move between pages. Only existing nonzero groups
@@ -105,7 +107,7 @@ attribution remains a validated source field, with no automatic join.
 
 A UTC day is not a rolling 24-hour window. For posts younger than a day,
 group non-expiring likes by hour(.postAt), postAt, postId, index hour, value,
-id, and merge the last 25 hours with `where .postAt > now - 86400000`:
+postAt, postId, and merge the last 25 hours with `where .postAt > now - 86400000`:
 guide feeds gives the validated source rule, full query and zero-like fill.
 Whole old buckets are never visited; rejected rows in the oldest included
 hour still cost examinations. For contributions arriving in the last day on

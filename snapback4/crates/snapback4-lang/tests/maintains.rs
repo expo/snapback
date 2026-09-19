@@ -187,3 +187,57 @@ fn w14a_hour_lanes_are_the_first_trending_answer() {
     assert_eq!(bound.schema.operations["setLike"].predicts.as_deref(), Some("eligible"));
     for name in ["posts", "likes", "trend"] { assert!(bound.schema.tables[name].sync.as_ref().unwrap().horizon.is_none()); }
 }
+
+#[test]
+fn w15c_value_index_accepts_group_suffix_and_normalizes_total_group_key() {
+    for key in ["author, value, at, id", "author, value, at", "value, at, author", "at, value, author, id", "value, at, id"] {
+        let bound = compile(&format!("maintain totals: count posts by author, at\n  read <- allow\n  online only\n  by byCount: {key}\n"));
+        assert!(bound.diagnostics.is_empty(), "{key}: {:?}", bound.diagnostics);
+        assert!(bound.notes.is_empty());
+        let mut expected = key.split(", ").collect::<Vec<_>>();
+        if expected.last() != Some(&"id") { expected.push("id"); }
+        assert_eq!(bound.schema.tables["totals"].indexes["byCount"].columns(), expected);
+        assert_eq!(bound.schema.tables["totals"].indexes["byGroup"].columns(), ["author", "at"]);
+        assert_eq!(bound.schema.tables["totals"].indexes["byId"].columns(), ["id"]);
+    }
+}
+
+#[test]
+fn w15c_value_index_refusal_pins_the_rule_and_rewrite() {
+    for key in ["author, value, score, id", "author, value, author, id", "author, author, value, id",
+        "value, at, at, id", "author, value, value, id", "author, value, id, at", "author, value", "value, at", "value, id, id"] {
+        let bound = compile(&format!("maintain totals: count posts by author, at\n  read <- allow\n  online only\n  by byCount: {key}\n"));
+        let d = bound.diagnostics.iter().find(|d| d.code == "E_QUARRY_MAINTAIN").unwrap_or_else(|| panic!("{key}: {:?}", bound.diagnostics));
+        assert_eq!(d.message, "a maintain value index is a prefix of group fields, then value, then any remaining group fields, then id; fields cannot repeat");
+        assert_eq!(d.rewrite, "by byCount: value, author, at, id; id may be omitted only when every group field is present");
+        assert_eq!(d.guide, "maintains");
+    }
+}
+
+#[test]
+fn w15c_old_value_indexes_and_expiry_refusal_are_unchanged() {
+    for key in ["value, id", "author, value, id", "author, at, value, id"] {
+        let b = compile(&format!("maintain totals: count posts by author, at\n  read <- allow\n  online only\n  by byCount: {key}\n"));
+        assert!(b.diagnostics.is_empty() && b.notes.is_empty(), "{:?}", b.diagnostics);
+        assert_eq!(b.schema.tables["totals"].indexes["byCount"].columns(), key.split(", ").collect::<Vec<_>>());
+    }
+    expiring_rank_rewrite_routes_by_window_intent();
+    let source = SOURCE.replace("  at: time", "  until: time\n  by byUntil: until\n  expire at .until\n  at: time");
+    for key in ["author, value, at, id", "author, value, at"] {
+        let b = snapback4_lang::compile(&[("expiry.q".into(), format!("{source}maintain totals: count posts by author, at\n  read <- allow\n  by byCount: {key}\n"))]);
+        assert_eq!(b.diagnostics[0].code, "E_QUARRY_MAINTAIN_EXPIRE");
+        assert_eq!(b.diagnostics[0].message, "maintain totals cannot order by value because source posts expires: stored order is stale before the physical sweep, so taking stored top-N can miss a live winner; a count upper-bound threshold scan is not built");
+    }
+}
+
+#[test]
+fn w15c_cards_pin_the_interim_rule_and_newest_first_recipe() {
+    let maintains = snapback4_lang::guide::card("maintains").unwrap().split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(maintains.contains("Value indexes have a prefix of group fields, then value, then any remaining group fields, then id (implicit when every group field is present), until maintained columns ship; each field appears once."));
+    let feeds = snapback4_lang::guide::card("feeds").unwrap();
+    let source = snapback4_lang::guide::quarry(feeds).into_iter().find(|s| s.contains("maintain trend:")).unwrap();
+    assert!(source.contains("by byScore: hour, value, postAt, postId\n"));
+    assert!(feeds.contains("Equal scores put the newest post first"));
+    let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(b.diagnostics.is_empty() && b.notes.is_empty(), "{:?}", b.diagnostics);
+}

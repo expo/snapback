@@ -41,11 +41,10 @@ pub fn ranking(engine: &mut Engine, now: i64) -> Vec<Value> {
     }
     panic!("cursor did not finish");
 }
-// Independent counts come from source rows, with the documented maintained-id tie break.
+// Independent counts and newest-first ties come only from source rows.
 pub fn oracle(engine: &Engine, now: i64) -> Vec<(String, i64)> {
     let posts = engine.store().rows("posts").unwrap();
     let likes = engine.store().rows("likes").unwrap();
-    let targets = engine.store().rows("trend").unwrap();
     let mut result = Vec::new();
     for post in posts {
         let Value::Int(at) = post.field("at").unwrap() else { panic!() };
@@ -53,10 +52,9 @@ pub fn oracle(engine: &Engine, now: i64) -> Vec<(String, i64)> {
         let name = post.field("id").unwrap();
         let count = likes.iter().filter(|l| l.field("postId").unwrap() == name).count() as i64;
         if count == 0 { continue; }
-        let target = targets.iter().find(|t| t.field("postId").unwrap() == name).unwrap();
-        result.push((name.as_str().unwrap().to_owned(), count, target.field("id").unwrap().as_str().unwrap().to_owned()));
+        result.push((name.as_str().unwrap().to_owned(), count, *at));
     }
-    result.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| b.2.cmp(&a.2)));
+    result.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| b.2.cmp(&a.2)).then_with(|| b.0.cmp(&a.0)));
     result.into_iter().map(|(id, count, _)| (id, count)).collect()
 }
 pub fn scored(rows: &[Value]) -> Vec<(String, i64)> {
@@ -73,4 +71,18 @@ pub fn fixture(engine: &mut Engine) {
 pub fn paging_fixture(engine: &mut Engine) {
     for n in 0..37 { seed_post(engine, &format!("p{n:02}"), NOW - (n % 23 + 1) * HOUR, 1 + n as usize); }
     seed_post(engine, "old", NOW - 26 * HOUR, 50);
+}
+
+// Cross hour 999/1000: opaque maintained ids sort these decimal strings differently.
+pub const TIE_NOW: i64 = 1005 * HOUR + HOUR / 2;
+// Twelve occupied hour lanes, four tied scores in each; pairs also share post time.
+pub fn tie_fixture(engine: &mut Engine) {
+    for n in 0..48 { seed_post(engine, &format!("tie-{:02}", 47 - n), TIE_NOW - (n / 4 + 1) * HOUR - (n % 2) * 1000, 2); }
+}
+pub fn tie_queries(take: usize) -> String {
+    let mut source = String::new();
+    for (name, direction) in [("tieFirst", "first"), ("tieLast", "last")] {
+        source.push_str(&format!("\nquery {name}(c: cursor ?):\n  return merge trend after c {direction} {take} by byScore where .postAt > now - 86400000 and .postAt <= now:\n    [h] for h in range(hour(now) - 24, hour(now) + 1)\n"));
+    }
+    source
 }

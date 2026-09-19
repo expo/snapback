@@ -40753,3 +40753,182 @@ restore evidence 1,654 B; wasm opening 1,218 B; shared remainder 5,550 B. 2,686 
 were reclaimed before raising. The remaining 23,449 B is about 21.3% of the
 diet's recovered bytes and is tracked in
 `issues/20260918-snapback4-repair-b-device-bytes.md`.
+
+
+## 2026-09-18 — W15c: group fields after a maintain's value
+
+Implemented LLP 3000.007 §14 ruling 41 in the maintain-target binder: a
+prefix of group fields, then `value`, then any remaining group fields, then
+`id`; every field occurs once, and no other column or computed/tokenized
+component is admitted. An author may omit `id` only when every group field
+is present. Binding appends it, so the existing total-key and merge cursor
+path remains in use. The published Trending index is now
+`hour, value, postAt, postId`; `hour, value, postAt` refuses because it omits
+`postId`. The maintains card calls the rule interim, "until maintained
+columns ship". The feeds card, README pointer and §20.21 record agree.
+No engine, store, cursor, serialized value, ceiling or maintained-column
+code changed. `byGroup`, `byId`, old value-index shapes, the inherited-sync
+and delta notes, the expiring-source refusal and threshold-read status stay.
+`guide/codes.rs` states no value-index rule and needed no edit.
+
+Base: `0518ec9e761e114a02d7fc46e5520a102991c627`. The brief's assumed README
+twin block and twin-equality test are absent at this base; the README has a
+prose pointer, which was updated without duplicating the recipe. Its
+265/276 examined counts are also absent: the unchanged base's 48,200-post
+page measured **34**, as does this candidate; the card's historical 264 is
+not the present count. The `map_while` in `engine/maintains.rs` checks source
+indexes for retained coverage; `bind/program.rs` pins lane prefixes at the
+first `value`, and ordinary store code builds and rewrites the whole key.
+
+The old tie fixture accidentally agreed with maintained-id order. The new
+regressions cross time 9,999,999/10,000,000 and hour 999/1000, where the
+maintained id's canonical JSON order disagrees with numeric time. The oracle
+uses only source posts/likes and sorts `(count desc, postAt desc, postId desc)`.
+The server proves first insertion, two score rewrites, physical removal of
+the old index entry and deletion at zero (3 entries become 2). Forty-eight
+tied rows walk in both directions: **7** ordinary pages, or **5** pages
+containing **4** drain cuts under a lowered 16-examination budget, with no
+skip/repeat. SQLite and memory devices walk both directions and match the
+server after **2/2** predicted score changes each.
+
+The paired 37-post recipe page has identical data and all seven counters
+with both index shapes: examined **33**, index entries **0**, rule probes
+**0**, steps **648**, heap bytes **36,720**, output bytes **1,691**, rows
+written **0**. The 10,000-post device page examines **34** on both stores;
+zero-fill examines **25**. `check --cost` reports the same **25** lanes and
+10-row page before/after. A comparison must exclude the command's elapsed-ms
+header. It must also compare the same returned rows for byte counters: the
+48-tie counterexample intentionally changes the winners, keeping examined
+**20** and steps **429** but changing heap **36,770 → 36,780** and output
+**1,721 → 1,741** because those rows have different serialized lengths.
+No meter accounting was altered to conceal that difference.
+
+Targeted commands run from `snapback4/` with these scoped build inputs:
+
+```sh
+export DEVELOPER_DIR=/Library/Developer/CommandLineTools
+export SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk
+```
+
+The initial clean-base invocation without SDKROOT could not link against
+the default MacOSX27.0 SDK (`unknown architecture`, `arm64e.x1`); the 26.5
+SDK resolves it. One redundant red binder command mistakenly ran from the
+root with `--manifest-path snapback4/Cargo.toml`; subsequent Cargo commands
+ran from the fenced workspace. The first direct-lane test draft lacked a
+cursor and emitted N_NO_CURSOR; that fixture was corrected before recording
+the ordering regression. No such test-harness failure is called pre-existing.
+
+Red evidence (old-shape and expiry controls remain green):
+
+```text
+$ cargo test -p snapback4-lang --test maintains w15c -- --nocapture
+test result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+```
+
+```text
+$ cargo test -p snapback4-sim --test clique w15c -- --nocapture
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 240 filtered out; finished in 0.02s
+```
+
+```text
+$ cargo test -p snapback4-device --test device w15c -- --nocapture
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 417 filtered out; finished in 0.04s
+```
+
+```text
+$ cargo test -p snapback4 --test check w15c -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 66 filtered out; finished in 0.46s
+```
+
+Green evidence (the simulator total also includes the paired-meter control):
+
+```text
+$ cargo test -p snapback4-lang --test maintains --test guide -- --nocapture
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+```text
+$ cargo test -p snapback4-sim --test clique trending::lanes -- --nocapture
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 234 filtered out; finished in 2.83s
+```
+
+```text
+$ cargo test -p snapback4-device --test device trending::lanes -- --nocapture
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 413 filtered out; finished in 1.62s
+```
+
+```text
+$ cargo test -p snapback4 --test check w15c -- --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 66 filtered out; finished in 0.51s
+```
+
+```text
+$ cargo test -p snapback4-sim --test clique w15c -- --nocapture
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 240 filtered out; finished in 0.11s
+```
+
+The full suite ran **once**, from the repository root, after the source
+changes, with Node 24 on PATH and the same SDK inputs:
+
+```text
+$ export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+$ bash snapback4/scripts/test.sh
+wasm 1481394 B raw, 410426 B gzip (budget 411000: ok)
+-- FAIL: cargo test (365 s)
+-- ok: fixture wrapper tests (13 s)
+-- FAIL: client tests (232 s)
+== 2 failure(s) in 411 s
+```
+
+Summing the suite's Rust summaries gives **1,934 passed, 1 failed, 8 ignored**;
+client shards give **805 passed, 1 failed, 3 skipped**; fixtures **9/9**.
+The Rust failure was
+`killed_supervisors_leave_only_bounded_sessions_and_startup_sweeps_their_children`,
+reading an empty PID file (`ParseIntError { kind: Empty }`), not a maintain
+failure or the timeout named in the brief. It passed alone. React failed
+Chromium launch with `SIGABRT`, the sandbox artifact named in the brief, and
+failed identically alone. Neither product-test failure was rerun on the base,
+so neither is claimed base-verified pre-existing. The lead must requalify
+outside the sandbox; this lane does not call the full suite green.
+
+```text
+$ cargo test -p snapback4 --test lifecycle killed_supervisors_leave_only_bounded_sessions_and_startup_sweeps_their_children -- --exact --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.56s
+```
+
+```text
+$ node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ skipped 0
+```
+
+The changed source files are at most **1,391 lines**. Outside the binder,
+feeds/maintains cards and README, changes are confined to the language
+maintains tests, simulator lanes and shared fixture, device lanes tests,
+CLI check tests, this append and the required §20.21 append. The two-family
+blind review remains for the lead before landing: this lane spawned no
+agents and committed, pushed and published nothing.
+
+The E_QUARRY_MAINTAIN message/rewrite before, verbatim:
+
+```text
+a maintain value index is group fields followed by value, id
+by byCount: value, id
+```
+
+After, for `by byScore: hour, value, postAt`, verbatim:
+
+```text
+a maintain value index is a prefix of group fields, then value, then any remaining group fields, then id; fields cannot repeat
+by byScore: value, hour, postAt, postId, id; id may be omitted only when every group field is present
+```
+
+`guide: maintains` is unchanged. The requested valid new recipe emits no
+diagnostic or note. E_QUARRY_MAINTAIN_EXPIRE's complete message/rewrite is
+pinned unchanged by the existing and new controls. Raw local logs and the
+command ledger are under `/private/tmp/w15c-evidence/`. Reference validation
+before this append passed with 485 LLP documents, 9,125 references, zero
+errors and zero unchecked references; it runs again after the append.

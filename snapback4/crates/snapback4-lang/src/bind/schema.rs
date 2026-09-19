@@ -574,15 +574,24 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
     let mut names = BTreeSet::from(["byGroup".to_owned(), "byId".to_owned()]);
     for index in &maintain.indexes {
         if !names.insert(index.name.clone()) { return Err(super::maintains::refusal(&index.site, format!("duplicate maintain index {}", index.name), "use a distinct index name; byGroup and byId are generated")); }
+        let mut index = index.clone();
         if index.columns.contains(&"value".into()) {
             // @ref LLP 3000.007#20.21 — stored order is stale; the sound server count upper-bound threshold read is not built.
             if source.decl.expire.is_some() { return Err(Diagnostic::new(&index.site, "E_QUARRY_MAINTAIN_EXPIRE", format!("maintain {} cannot order by value because source {} expires: stored order is stale before the physical sweep, so taking stored top-N can miss a live winner; a count upper-bound threshold scan is not built", maintain.name, maintain.source), "for a window over the entity's own immutable time, use guide feeds' hour-lanes Trending over a non-expiring source; for contributions arriving in the window, use its live bounded rollingLikes read: a candidate or contribution scan cut makes the ranking incomplete").guide("feeds")); }
-            let prefix = index.columns.len().saturating_sub(2);
-            if index.columns.get(prefix..).is_none_or(|tail| tail != ["value", "id"]) || !index.columns[..prefix].iter().all(|field| maintain.by.contains(field)) {
-                return Err(super::maintains::refusal(&index.site, "a maintain value index is group fields followed by value, id", "by byCount: value, id"));
+            // @ref LLP 3000.007#14 — ruling 41
+            let explicit_id = index.columns.last().is_some_and(|field| field == "id");
+            let fields = index.columns.iter().collect::<BTreeSet<_>>();
+            let whole_group = maintain.by.iter().all(|field| fields.contains(field));
+            if !index.is_plain() || fields.len() != index.columns.len()
+                || index.columns.iter().any(|field| field != "value" && !(field == "id" && explicit_id) && !maintain.by.contains(field))
+                || (!explicit_id && !whole_group) {
+                return Err(super::maintains::refusal(&index.site, "a maintain value index is a prefix of group fields, then value, then any remaining group fields, then id; fields cannot repeat",
+                    format!("by {}: value, {}, id; id may be omitted only when every group field is present", index.name, maintain.by.join(", "))));
             }
+            // Keep the existing total-key, lane and cursor path for the abbreviated declaration.
+            if !explicit_id { index.columns.push("id".into()); }
         }
-        indexes.push(index.clone());
+        indexes.push(index);
     }
     Ok(TableDecl {
         name: maintain.name.clone(),

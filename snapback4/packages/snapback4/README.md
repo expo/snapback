@@ -1948,8 +1948,10 @@ and a separate bounded zero-like fill when the first page is short; score
 changes can move rows between pages, so the cursor is not a snapshot.
 The source rule pins principal to viewer, validates the copied post time,
 keeps the pair unique and immutable, and admits the viewer's unlike.
-No declared mutation accepts a score, time or hour. Ties use maintained id;
-the maintain cannot expire or be capped, so historical liked groups stay.
+No declared mutation accepts a score, time or hour. Equal scores put the newest
+post first: `by byScore: hour, value, postAt, postId` carries post time and id
+after the score. The maintain cannot expire or be capped, so historical liked
+groups stay.
 With no source sync it is server-run; adding `sync public` on posts and
 likes gives device reads and eligible likes after acquisition, with the
 `N_MAINTAIN_SYNCED` disclosure that every group reaches every device.

@@ -60,7 +60,7 @@ fn population<H: Host>(host: &mut H) {
     assert_eq!(targets, 10_000);
     for (i, page) in pages.iter().enumerate() { device.apply(page, i == 0).unwrap(); }
     let page = device.query("trending", "bob", &json!({"c":null}), f::NOW).unwrap();
-    assert!(page.complete && page.next.is_some()); assert_eq!(f::rows(&page.data).len(), 10); assert!(page.metered.examined < 400);
+    assert!(page.complete && page.next.is_some()); assert_eq!(f::rows(&page.data).len(), 10); assert_eq!(page.metered.examined, 34);
     let expected = server.query("trending", snapback4_core::Context::new("bob", args(&[("c", Value::Null)])).at(f::NOW)).unwrap();
     assert_eq!(page.data, expected.data);
     let old = device.query("trending", "bob", &json!({"c":null}), f::NOW + 2 * f::DAY).unwrap();
@@ -71,3 +71,38 @@ fn population<H: Host>(host: &mut H) {
 
 #[test] fn w14a_population_on_sqlite() { population(&mut Sqlite::new("w14a-population")); }
 #[test] fn w14a_population_on_memory() { population(&mut Memory::new()); }
+
+fn ties<H: Host>(host: &mut H) {
+    let (mut server, backend) = compile(&(f::source(true) + &f::tie_queries(7))); f::tie_fixture(&mut server);
+    assert_eq!(server.schema().operations["trending"].runs.as_deref(), Some("device"));
+    assert_eq!(server.schema().operations["setLike"].predicts.as_deref(), Some("eligible"));
+    let expected = f::oracle(&server, f::TIE_NOW).into_iter().map(|r| r.0).collect::<Vec<_>>();
+    let mut device = host.open("w15c-ties", Some(backend)).unwrap();
+    for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+    for op in ["tieFirst", "tieLast"] {
+        let mut expected = expected.clone(); if op == "tieFirst" { expected.reverse(); }
+        let mut result = Vec::new(); let mut cursor = serde_json::Value::Null;
+        for _ in 0..10 {
+            let page = device.query(op, "bob", &json!({"c":cursor}), f::TIE_NOW).unwrap();
+            assert!(page.complete); result.extend(f::names(&f::rows(&page.data)));
+            match page.next { Some(next) => cursor = json!(next), None => break }
+        }
+        assert_eq!(result, expected, "{} {op}", host.label());
+    }
+    // Prediction rewrites the target's whole key; compare each overlay page with
+    // the server after the identical source write, including a return into a tie.
+    for (n, liked) in [true, false].into_iter().enumerate() {
+        let entry = device.admit(Queued { id: format!("w15c-{n}"), seq: n as u64 + 1, op: "setLike".into(), args: json!({"postId":"tie-00","liked":liked}),
+            viewer: "bob".into(), now: f::TIE_NOW, new_ids: vec![format!("w15c-like-{n}")], predicted: vec![], predictable: true, sent_seq: None, observed_seq: None }).unwrap();
+        assert!(entry.predictable, "{entry:?}");
+        f::set_like(&mut server, "bob", "tie-00", liked, f::TIE_NOW, &format!("w15c-server-{n}"));
+        let page = device.query("trending", "bob", &json!({"c":null}), f::TIE_NOW).unwrap();
+        let remote = server.query("trending", snapback4_core::Context::new("bob", args(&[("c", Value::Null)])).at(f::TIE_NOW)).unwrap();
+        assert!(page.complete && remote.complete);
+        assert_eq!(f::scored(&f::rows(&page.data)), f::scored(&f::rows(&remote.data)));
+    }
+    println!("W15c {}: 48 ties, both cursor directions, 2/2 predicted score rewrites match server", host.label());
+    host.close("w15c-ties", device);
+}
+#[test] fn w15c_ties_on_sqlite() { ties(&mut Sqlite::new("w15c-ties")); }
+#[test] fn w15c_ties_on_memory() { ties(&mut Memory::new()); }
