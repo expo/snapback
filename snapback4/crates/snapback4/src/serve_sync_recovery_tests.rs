@@ -47,7 +47,7 @@ fn c1<S: DeviceStore>(open: impl FnOnce(Backend) -> Device<S>) {
     seed(&mut engine, "p3", "small");
     let state = command(&mut device, json!({"op":"sync_state"}));
     let input = serde_json::from_value(json!({"metadata":true,"recover":true,"store_id":state["store_id"],
-        "generation":state["generation"],"from":2,"limit":1})).unwrap();
+        "generation":state["generation"],"send_revision":state["send_revision"],"from":2,"limit":1})).unwrap();
     // Fault at the inspection seam: the page is incomplete, but its tiny
     // event did not exceed the ordinary serializer's ceiling.
     ABORT_INSPECTION.with(|abort| abort.set(true));
@@ -84,7 +84,7 @@ fn c2<S: DeviceStore>(open: impl FnOnce(Backend) -> Device<S>) {
         engine.seed((n..n+4).map(|i| ("posts".into(), object([("id", Value::Id(format!("p3-{i:02}"))), ("body", Value::String("x".repeat(400000)))])))).unwrap();
     }
     let input = serde_json::from_value(json!({"metadata":true,"recover":true,"stream":true,"store_id":state["store_id"],
-        "generation":state["generation"],"from":2,"limit":1})).unwrap();
+        "generation":state["generation"],"send_revision":state["send_revision"],"from":2,"limit":1})).unwrap();
     let metadata = serde_json::to_value(inspect_engine(&mut engine, "alice", &input, 0).unwrap()).unwrap();
     assert_eq!(metadata["recovery"]["snapshot"], true, "the real server measured an overflow at the obsolete position");
     let result = snapback4_device::call::call(&mut device, json!({"op":"sync_metadata","metadata":metadata,"capture":capture(&state, 2, true)}));
@@ -109,7 +109,7 @@ fn measured<S: DeviceStore>(open: impl FnOnce(Backend) -> Device<S>) {
     engine.seed(rows).unwrap();
     for i in 0..48 { seed(&mut engine, &format!("wide-{i:02}"), &"x".repeat(400000)); }
     let input: SyncRequest = serde_json::from_value(json!({"metadata":true,"recover":true,"store_id":state["store_id"],
-        "generation":state["generation"],"from":2,"limit":1})).unwrap();
+        "generation":state["generation"],"send_revision":state["send_revision"],"from":2,"limit":1})).unwrap();
     let ordinary = sync_stream::stream(&mut engine, "alice", &input, 0).unwrap();
     assert!(serde_json::to_writer(&mut JsonBuffer(Vec::new()), &ordinary).is_err(), "ordinary StreamReply must really exceed the unchanged ceiling");
     let metadata = serde_json::to_value(inspect_engine(&mut engine, "alice", &input, 0).unwrap()).unwrap();
@@ -171,7 +171,7 @@ fn discovery_requires_identity_and_does_not_measure_the_tip_or_a_snapshot_cursor
     }
     for (from, after) in [(2, None), (1, Some("snapshot-position"))] {
         let input = serde_json::from_value(json!({"metadata":true,"recover":true,"store_id":state["store_id"],
-            "generation":state["generation"],"from":from,"after":after,"limit":1})).unwrap();
+            "generation":state["generation"],"send_revision":state["send_revision"],"from":from,"after":after,"limit":1})).unwrap();
         ABORT_INSPECTION.with(|abort| abort.set(true));
         let result = inspect_engine(&mut engine, "alice", &input, 0);
         ABORT_INSPECTION.with(|abort| abort.set(false));

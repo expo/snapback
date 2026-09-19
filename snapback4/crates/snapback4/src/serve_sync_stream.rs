@@ -21,7 +21,9 @@ pub(super) struct MetadataReply {
     recovery: Option<OverflowGrant>,
 }
 
-use measurement::{OverflowGrant, ResponseSize};
+use measurement::OverflowGrant;
+#[path = "serve_sync_measurement.rs"]
+mod measurement;
 
 #[derive(serde::Serialize)]
 #[serde(untagged)]
@@ -80,86 +82,14 @@ fn read(engine: &mut Engine, principal: &str, input: &SyncRequest, now: i64, mod
         }));
     }
     let mut metadata = MetadataReply { metadata: true, store_id: store_id.clone(), generation, watermark, recovery: None };
-    if discovery && !(input.recover && input.store_id.as_ref() == Some(&store_id) && input.generation == Some(generation)
-        && input.limit == 1 && (input.from > 0 || input.stream) && input.after.is_none() && input.from < watermark) {
+    if discovery {
+        metadata.recovery = measurement::measure(&tx, &schema, principal, input, now, &metadata)?;
         return Ok(ReadReply::Metadata(metadata));
     }
-    let mut prefix = ResponseSize::new(input.from, &store_id, generation);
-    let page = snapback4_core::partition::stream_inspected(&tx, &schema, principal, input.from, input.limit.clamp(1, 10_000), now, |event| {
-        if discovery { prefix.event(event)?; }
-        #[cfg(test)]
-        if let Some(run) = ON_EVENT.with(|hook| hook.borrow_mut().take()) { run(); }
-        #[cfg(test)]
-        if ABORT_INSPECTION.with(|abort| abort.get()) { return Ok(false); }
-        Ok(!prefix.overflowed())
-    })?;
-    let Some(page) = page else {
-        // An incomplete page carries no authority. Only the consumed counter
-        // can supply a grant, and only if its serializer actually overflowed.
-        metadata.recovery = prefix.into_grant();
-        return if discovery && metadata.recovery.is_some() { Ok(ReadReply::Metadata(metadata)) }
-            else { Err(RuntimeError::Store("sync inspection was incomplete without a measured overflow; retry sync".into())) };
-    };
+    let page = snapback4_core::partition::stream(&tx, &schema, principal, input.from, input.limit.clamp(1, 10_000), now)?;
     let acknowledged = Engine::acknowledged_in(&tx, principal, &input.pending, page.watermark)?;
-    let reply = StreamReply { acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Stream(page.events), generation, store_id: store_id.clone(),
-        joined: page.joined, more: page.more, snapshot: false, watermark: page.watermark };
-    if !discovery { return Ok(ReadReply::Stream(reply)); }
-    let mut size = ResponseSize::new(input.from, &store_id, generation);
-    size.reply(&reply)?;
-    metadata.recovery = size.into_grant();
-    Ok(ReadReply::Metadata(metadata))
-}
-
-// Keep construction below the read-path branches: none can set the overflow
-// bit or construct a grant, even within this file. The counter captures identity
-// before counting; it cannot be rebound to another position after overflow.
-mod measurement {
-    use super::*;
-    #[derive(serde::Serialize)]
-    pub(super) struct OverflowGrant {
-        from: u64,
-        snapshot: bool,
-        store_id: String,
-        generation: u64,
-    }
-
-    struct Counter { bytes: usize, overflow: bool }
-    pub(super) struct ResponseSize { counter: Counter, from: u64, store_id: String, generation: u64 }
-    impl ResponseSize {
-        pub(super) fn new(from: u64, store_id: &str, generation: u64) -> Self {
-            Self { counter: Counter { bytes: 0, overflow: false }, from, store_id: store_id.into(), generation }
-        }
-        pub(super) fn overflowed(&self) -> bool { self.counter.overflow }
-        pub(super) fn event(&mut self, event: &snapback4_core::store::LogEvent) -> Result<(), RuntimeError> {
-            // A sum of the ordinary serializer's event images is a strict lower
-            // bound. This stops further current-image fetches, not the entire walk.
-            let encoded = serde_json::to_writer(&mut self.counter, &SyncEvent::from(event));
-            self.checked(encoded)
-        }
-        pub(super) fn reply(&mut self, reply: &StreamReply) -> Result<(), RuntimeError> {
-            let encoded = serde_json::to_writer(&mut self.counter, reply);
-            self.checked(encoded)
-        }
-        pub(super) fn checked(&self, encoded: serde_json::Result<()>) -> Result<(), RuntimeError> {
-            if encoded.is_err() && !self.counter.overflow { return Err(RuntimeError::Store("sync recovery encoding failed".into())); }
-            Ok(())
-        }
-        pub(super) fn into_grant(self) -> Option<OverflowGrant> {
-            self.counter.overflow.then(|| OverflowGrant { from: self.from, snapshot: true, store_id: self.store_id, generation: self.generation })
-        }
-    }
-    impl io::Write for Counter {
-        fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-            if bytes.len() > JSON_RESPONSE_CEILING.saturating_sub(self.bytes) {
-                self.overflow = true;
-                return Err(io::Error::other("sync response exceeds the wire ceiling"));
-            }
-            self.bytes += bytes.len();
-            Ok(bytes.len())
-        }
-        fn flush(&mut self) -> io::Result<()> { Ok(()) }
-    }
-
+    Ok(ReadReply::Stream(StreamReply { acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Stream(page.events), generation, store_id,
+        joined: page.joined, more: page.more, snapshot: false, watermark: page.watermark }))
 }
 
 #[cfg(test)]
@@ -171,33 +101,6 @@ thread_local! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn oversized_current_images_stop_materializing_at_the_wire_ceiling() {
-        use snapback4_core::value::{object, Value};
-        let source = "table items:\n  body: text <=400000\n  read <- allow\n  sync public\n";
-        let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
-        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-        let mut engine = Engine::memory(bound.schema.clone(), vec![]).unwrap();
-        engine.seed([("items".into(), object([("id", Value::Id("before".into())), ("body", Value::String("small".into()))]))]).unwrap();
-        let from = engine.seq().unwrap();
-        engine.seed((0..192).map(|i| ("items".into(), object([("id", Value::Id(format!("item-{i}"))), ("body", Value::String("small".into()))])))).unwrap();
-        for n in (0..192).step_by(4) {
-            engine.seed((n..n+4).map(|i| ("items".into(), object([("id", Value::Id(format!("item-{i}"))), ("body", Value::String("x".repeat(400000)))])))).unwrap();
-        }
-        let mut size = ResponseSize::new(from, "test", 1);
-        let mut fetched = 0;
-        let tx = engine.store_mut().read_transaction().unwrap();
-        let page = snapback4_core::partition::stream_inspected(&tx, &bound.schema, "alice", from, 1, 0, |event| {
-            fetched += 1;
-            let result = size.event(event);
-            assert!(result.is_ok() || size.overflowed());
-            Ok(!size.overflowed())
-        }).unwrap();
-        assert!(page.is_none(), "no partial commit can be returned");
-        assert!(size.overflowed());
-        assert_eq!(fetched, 42, "stop current-image fetches at the first overflowing prefix, not after all 192 rows");
-    }
-
     fn file_snapshot(initially_wide: bool) {
         use snapback4_core::value::{object, Value};
         let dir = std::env::temp_dir().join(format!("sb4-measure-snapshot-{}-{initially_wide}", std::process::id()));
@@ -215,15 +118,17 @@ mod tests {
         if initially_wide { resize(&mut writer, true); }
         let mut reader = writer.reader().unwrap();
         let input: SyncRequest = serde_json::from_value(json!({"metadata":true,"recover":true,"from":from,"limit":1,
-            "store_id":writer.store().meta("store_id").unwrap(),"generation":writer.generation()})).unwrap();
+            "store_id":writer.store().meta("store_id").unwrap(),"generation":writer.generation(),"send_revision":7})).unwrap();
         let before = stream(&mut reader, "alice", &input, 0).unwrap();
         assert_eq!(serde_json::to_writer(&mut JsonBuffer(Vec::new()), &before).is_err(), initially_wide);
+        assert!(serde_json::to_value(&before).unwrap().get("recovery").is_none(), "data streams cannot carry grants");
         let writer = std::rc::Rc::new(std::cell::RefCell::new(writer));
         let concurrent = writer.clone();
         ON_EVENT.with(|hook| *hook.borrow_mut() = Some(Box::new(move || resize(&mut concurrent.borrow_mut(), !initially_wide))));
         let measured = metadata(&mut reader, "alice", &input, 0).unwrap();
         assert_eq!(measured.recovery.is_some(), initially_wide, "writes between measured images cannot change the pinned reply");
         let after = stream(&mut reader, "alice", &input, 0).unwrap();
+        assert!(serde_json::to_value(&after).unwrap().get("recovery").is_none(), "data streams cannot carry grants");
         assert_eq!(serde_json::to_writer(&mut JsonBuffer(Vec::new()), &after).is_err(), !initially_wide, "the concurrent writer really changed ordinary streaming");
         drop(reader); drop(writer);
         std::fs::remove_dir_all(dir).unwrap();
@@ -233,7 +138,3 @@ mod tests {
     #[test] fn file_measurement_cannot_mix_in_later_shrinks() { file_snapshot(true); }
 
 }
-
-#[cfg(test)]
-#[path = "serve_sync_grant_tests.rs"]
-mod grant_tests;

@@ -1,7 +1,8 @@
 //! Metadata observes identity; a bound overflow grant alone authorizes recovery.
 //! Byte measurement is authenticated-server evidence, not something this
 //! decoder can prove. Acceptance rechecks the request (including its limit)
-//! and durable state. The wire value is neither signed nor single-use.
+//! and durable state. The grant binds its send revision; acceptance advances it atomically.
+//! Evidence is trusted server data, not a cryptographic token.
 use super::*;
 
 #[derive(Deserialize)]
@@ -94,7 +95,16 @@ mod grant {
     use super::*;
 
     #[derive(Deserialize)]
-    pub(super) struct Recovery { from: u64, snapshot: bool, store_id: String, generation: u64 }
+    pub(super) struct Recovery {
+        from: u64, snapshot: bool, store_id: String, generation: u64,
+        // Missing evidence fields decode only to a refusal, never inferred authority.
+        #[serde(default)] limit: usize,
+        #[serde(default)] stream: Option<bool>,
+        #[serde(default)] send_revision: Option<u64>,
+        #[serde(default)] single_commit: bool,
+        #[serde(default)] commit: u64,
+        #[serde(default)] measured_head: u64,
+    }
     pub(super) struct Accepted<'tx, T: DeviceTx> { tx: &'tx T, revision: u64 }
     pub(super) struct Owner<'a> {
         pub backend: &'a str,
@@ -118,7 +128,10 @@ mod grant {
                 || tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) {
                 return Err(RuntimeError::Generation("snapshot recovery capture requires a fresh adopted backend".into()));
             }
-            if !self.snapshot || !capture.recover || capture.limit != 1 || capture.after.is_some() || !(capture.from > 0 || capture.stream)
+            if self.limit != 1 || self.limit != capture.limit || self.stream != Some(capture.stream)
+                || self.send_revision != Some(capture.send_revision) || !self.single_commit
+                || self.commit <= self.from || self.commit > self.measured_head || self.measured_head != metadata.watermark
+                || !self.snapshot || !capture.recover || capture.limit != 1 || capture.after.is_some()
                 || self.store_id != metadata.store_id || self.generation != metadata.generation
                 || self.from != capture.from || capture.from != capture.captured_watermark
                 || capture.from >= metadata.watermark || metadata.generation != capture.generation {

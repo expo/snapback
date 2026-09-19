@@ -119,8 +119,21 @@ fn measured_routes(file: bool) {
                 assert!(reply.get("events").is_none());
             }
         }
-        let eligible = json!({"recover":true,"generation":generation,"store_id":store,"from":1,"limit":1});
+        let eligible = json!({"recover":true,"generation":generation,"send_revision":7,"store_id":store,"from":1,"limit":1});
         assert_eq!(sync(host, eligible.clone())["recovery"]["snapshot"], true, "the counter really measures this reply");
+        for (field, value) in [("limit", Json::Null), ("limit", json!(0)), ("limit", json!(2)),
+            ("send_revision", Json::Null), ("send_revision", json!(9_007_199_254_740_992_u64)),
+            ("after", json!("snapshot-cursor"))] {
+            let mut ineligible = eligible.clone();
+            if value.is_null() { ineligible.as_object_mut().unwrap().remove(field); }
+            else { ineligible[field] = value; }
+            let observed = sync(host, ineligible);
+            assert_eq!(observed["metadata"], true);
+            assert!(observed.get("recovery").is_none(), "{field}: {observed}");
+        }
+        let unknown = host.request("POST", "/sync", "X-Snapback-Persona: alice\r\n", r#"{"unknown":true}"#);
+        assert_eq!(status(&unknown), 400);
+        assert_eq!(reply_body(&unknown)["denied"]["code"], "E_INPUT");
         for stream in [false, true] {
             let mut tip = eligible.clone();
             tip["from"] = head.clone(); tip["stream"] = json!(stream);

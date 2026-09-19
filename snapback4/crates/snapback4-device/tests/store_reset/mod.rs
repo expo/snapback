@@ -22,7 +22,9 @@ fn sync_metadata_recovery_fences_and_durable_acquisition_on_both_stores() {
         assert_eq!(ok(device.call(json!({ "op": "sync_state" }))), state, "generic metadata is read-only");
         let mut decision = metadata.clone();
         decision["watermark"] = json!(state["watermark"].as_u64().unwrap() + 1);
-        decision["recovery"] = json!({ "from": state["watermark"], "snapshot": true, "store_id": state["store_id"], "generation": state["generation"] });
+        decision["recovery"] = json!({ "from": state["watermark"], "snapshot": true, "store_id": state["store_id"], "generation": state["generation"],
+            "limit":1,"stream":false,"send_revision":state["send_revision"],"single_commit":true,
+            "commit":decision["watermark"],"measured_head":decision["watermark"] });
         for field in ["store_id", "send_revision", "captured_watermark", "generation", "from", "stream", "recover", "limit"] {
             let mut stale = capture.clone();
             stale[field] = match field { "store_id" => json!("foreign"), "stream" => json!(true), "recover" => json!(false), _ => json!(99) };
@@ -32,6 +34,14 @@ fn sync_metadata_recovery_fences_and_durable_acquisition_on_both_stores() {
             assert_eq!(ok(device.call(json!({ "op": "queued" }))).as_array().unwrap().len(), 2, "a stale capture cannot retire either receipt");
             assert!(ok(device.call(json!({ "op": "meta", "key": "write-history" }))).is_null(), "no receipt history before the fence");
             assert_eq!(rows(&query(&mut *device, "all", "alice", json!({}), 1)).len(), 1);
+        }
+        for field in ["limit", "send_revision", "single_commit", "commit", "measured_head", "stream"] {
+            let mut wrong = decision.clone();
+            wrong["recovery"][field] = match field { "single_commit" => json!(false), "stream" => json!(true), _ => json!(999) };
+            assert_eq!(device.call(json!({"op":"sync_metadata","metadata":wrong,"capture":capture}))["denied"]["code"], "E_GENERATION", "{field}");
+            wrong["recovery"].as_object_mut().unwrap().remove(field);
+            assert_eq!(device.call(json!({"op":"sync_metadata","metadata":wrong,"capture":capture}))["denied"]["code"], "E_GENERATION", "missing {field}");
+            assert_eq!(ok(device.call(json!({"op":"sync_state"}))), state);
         }
         let mut wrong_position = decision.clone();
         wrong_position["recovery"]["from"] = json!(0);
@@ -48,6 +58,8 @@ fn sync_metadata_recovery_fences_and_durable_acquisition_on_both_stores() {
         assert_eq!(recovering["acquired"], false);
         assert_eq!(recovering["watermark"], state["watermark"], "keep the restore watermark");
         assert_eq!(recovering["send_revision"].as_u64().unwrap(), state["send_revision"].as_u64().unwrap() + 1);
+        let mut fresh_capture = capture.clone(); fresh_capture["send_revision"] = recovering["send_revision"].clone();
+        assert_eq!(device.call(json!({"op":"sync_metadata","metadata":decision,"capture":fresh_capture}))["denied"]["code"], "E_GENERATION", "consumed evidence cannot be rebound to a fresh capture");
         let mut page = page_json(&stream_page(&mut engine, "alice", state["watermark"].as_u64().unwrap()));
         page["store_id"] = state["store_id"].clone();
         page["send_revision"] = state["send_revision"].clone();

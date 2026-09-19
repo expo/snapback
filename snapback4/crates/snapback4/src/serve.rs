@@ -30,8 +30,8 @@ mod routes;
 #[path = "serve_changes.rs"]
 mod changes;
 
-#[path = "serve_sync_metadata.rs"]
-mod sync_metadata;
+#[path = "serve_sync_dispatch.rs"]
+mod sync_dispatch;
 #[path = "serve_sync_stream.rs"]
 mod sync_stream;
 
@@ -1095,9 +1095,9 @@ fn handle(mut request: Request, shared: &Shared) {
             };
             let input = match serde_json::from_str::<SyncRequest>(&body) {
                 Ok(input) if input.pending.len() <= 256 && input.pending.iter().all(|id| !id.is_empty() && id.len() <= 128) => input,
-                _ => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "sync needs { from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes")) })),
+                _ => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "sync accepts from, limit, after, stream, pending, store_id, metadata, recover, generation and send_revision; use nonnegative integers, booleans, a cursor or null, and at most 256 ids of 1..128 UTF-8 bytes")) })),
             };
-            sync_metadata::serve(request, shared, &principal, input);
+            sync_dispatch::serve(request, shared, &principal, input);
         }
         (Method::Post, "/auth/session") => {
             // An application that authenticates its own accounts (a phone
@@ -1271,6 +1271,8 @@ struct SyncRequest {
     recover: bool,
     #[serde(default)]
     generation: Option<u64>,
+    #[serde(default)]
+    send_revision: Option<u64>,
     #[serde(default)]
     from: u64,
     #[serde(default = "sync_limit")]

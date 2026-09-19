@@ -29,8 +29,8 @@ fn with_reader<T>(shared: &Shared, read: impl FnOnce(&mut Engine) -> Result<T, R
 }
 
 #[cfg(test)]
-fn inspect_engine(engine: &mut Engine, principal: &str, input: &SyncRequest, now: i64) -> Result<sync_stream::MetadataReply, RuntimeError> {
-    sync_stream::metadata(engine, principal, input, now)
+fn inspect_engine(engine: &mut Engine, principal: &str, input: &SyncRequest, now: i64) -> Result<sync_stream::Reply, RuntimeError> {
+    sync_stream::reply(engine, principal, input, now)
 }
 
 #[cfg(test)]
@@ -47,8 +47,12 @@ mod tests {
         let mut reader = engine.reader().unwrap();
         let changed = snapback4_lang::compile(&[("schema.q".into(), "query value():\n  return 2\n".into())]);
         engine.adopt(changed.schema, changed.programs.into_iter().map(|p| p.program)).unwrap();
-        let input: SyncRequest = serde_json::from_value(json!({ "metadata": true, "store_id": "captured" })).unwrap();
-        assert!(matches!(inspect_engine(&mut reader, "alice", &input, 0), Err(RuntimeError::Generation(_))));
+        for wire in [json!({}), json!({"stream":true}), json!({"metadata":true,"store_id":"captured"}),
+            json!({"recover":true,"store_id":"captured","generation":1,"send_revision":7,"limit":1}),
+            json!({"recover":true,"store_id":"captured","generation":1,"send_revision":7,"limit":1,"stream":true})] {
+            let input: SyncRequest = serde_json::from_value(wire.clone()).unwrap();
+            assert!(matches!(sync_stream::reply(&mut reader, "alice", &input, 0), Err(RuntimeError::Generation(_))), "{wire}");
+        }
         drop(reader); drop(engine);
         std::fs::remove_dir_all(dir).unwrap();
     }

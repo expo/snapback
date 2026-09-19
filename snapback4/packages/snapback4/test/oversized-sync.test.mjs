@@ -58,7 +58,7 @@ async function until(check, message) {
   for (let i = 0; i < 1000; i++) { if (await check()) return; await pause(20); }
   assert.fail(message);
 }
-async function fixture(t, tier) {
+async function fixture(t, tier, empty = false) {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-oversized-'));
   mkdirSync(join(dir, 'snapback'));
   writeFileSync(join(dir, 'snapback/schema.q'), source);
@@ -75,7 +75,7 @@ async function fixture(t, tier) {
   await until(() => { assert.equal(child.exitCode, null, log); return url; }, 'server startup');
   const post = async (path, body) => fetch(url + path, { method: 'POST', headers: { 'x-snapback-persona': 'alice' }, body: JSON.stringify(body?.metadata ? { store_id: knownStore, ...body } : body) }).then(r => r.json());
   const seed = async rows => assert.equal((await post('/seed', rows)).seeded, rows.length);
-  await seed([
+  if (!empty) await seed([
     { table: 'held', row: { id: 'p1', body: 'first' } },
     { table: 'held', row: { id: 'p2', body: 'second' } },
     { table: 'members', row: { id: 'member', room: 'left', principal: 'dev:alice' } },
@@ -103,11 +103,11 @@ async function fixture(t, tier) {
     },
   });
   client = await openClient();
-  assert.equal((await post('/m/leave', { id: 'leave', args: {} })).state, 'sent');
+  if (!empty) assert.equal((await post('/m/leave', { id: 'leave', args: {} })).state, 'sent');
   await client.sync();
   const before = (await core.call({ op: 'sync_state' })).ok;
   offline = true;
-  assert.equal((await client.query({ kind: 'query', name: 'retained' }, {})).data?.[0]?.body, 'keep this delivered history');
+  if (!empty) assert.equal((await client.query({ kind: 'query', name: 'retained' }, {})).data?.[0]?.body, 'keep this delivered history');
   return { get client() { return client; }, get core() { return core; }, requests, replies, calls, before, seed, post, dir, url,
     reopen: async () => { await client.close(); client = await openClient(); },
     intercept: handler => { intercept = handler; },
@@ -143,10 +143,10 @@ for (const tier of ['wasm', 'process']) for (const changed of [true, false]) tes
   const metadata = await f.post('/sync', { metadata: true });
   assert.deepEqual(Object.keys(metadata).sort(), ['generation', 'metadata', 'store_id', 'watermark']);
   assert.ok(JSON.stringify(metadata).length < 200);
-  const recovery = await f.post('/sync', { metadata: true, recover: true, store_id: metadata.store_id, generation: metadata.generation, from: f.before.watermark, limit: 1 });
-  assert.deepEqual(recovery.recovery, { from: f.before.watermark, snapshot: true, store_id: metadata.store_id, generation: metadata.generation });
+  const recovery = await f.post('/sync', { metadata: true, recover: true, store_id: metadata.store_id, generation: metadata.generation, send_revision: f.before.send_revision, from: f.before.watermark, limit: 1 });
+  assert.deepEqual(recovery.recovery, { from: f.before.watermark, snapshot: true, store_id: metadata.store_id, generation: metadata.generation, limit: 1, stream: false, send_revision: f.before.send_revision, single_commit: true, commit: f.before.watermark + 1, measured_head: metadata.watermark });
   assert.deepEqual(Object.keys(recovery).sort(), ['generation', 'metadata', 'recovery', 'store_id', 'watermark']);
-  assert.ok(JSON.stringify(recovery).length < 300, 'recovery reveals no rows or historical keys');
+  assert.ok(JSON.stringify(recovery).length < 500, 'recovery reveals no rows or historical keys');
   const caughtUp = await f.post('/sync', { metadata: true, recover: true, store_id: metadata.store_id, generation: metadata.generation, from: metadata.watermark, limit: 1 });
   assert.equal(caughtUp.recovery, undefined, 'the tip has no pending commit to measure');
   assert.equal((await f.post('/sync', { metadata: true, store_id: 'another-store' })).store_id, metadata.store_id, 'a named foreign capture observes the current store without a recovery grant');
@@ -209,24 +209,56 @@ for (const tier of ['wasm', 'process']) test(`${tier}: many ordinary commits rec
 });
 
 const bound = { denied: { code: 'E_BOUND', family: 'bound', message: 'the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values' } };
-for (const tier of ['wasm', 'process']) test(`${tier}: R4 saved wire evidence is revalidated, not a single-use token`, async t => {
+async function measuredRecovery(f) {
+  const state = (await f.core.call({ op: 'sync_state' })).ok;
+  const rows = Array.from({ length: 48 }, (_, i) => ({ table: 'items', row: { id: `proof-${i}`, body: 'small' } }));
+  await f.seed(rows);
+  for (let i = 0; i < rows.length; i += 4) await f.seed(rows.slice(i, i + 4).map(({ table, row }) => ({ table, row: { ...row, body: 'x'.repeat(400000) } })));
+  const capture = { store_id: state.store_id, generation: state.generation, send_revision: state.send_revision,
+    captured_watermark: state.watermark, from: state.watermark, stream: false, recover: true, limit: 1 };
+  const metadata = await f.post('/sync', { metadata: true, recover: true, store_id: state.store_id,
+    generation: state.generation, send_revision: state.send_revision, from: state.watermark, limit: 1 });
+  assert.equal(metadata.recovery?.snapshot, true, 'the server actually measured an oversized commit');
+  return { state, capture, metadata, rows };
+}
+
+for (const tier of ['wasm', 'process']) test(`${tier}: R5 S1 a limit-one capture rejects evidence measured under a different limit`, { timeout: 120000 }, async t => {
   const f = await fixture(t, tier);
-  await f.seed([{ table: 'held', row: { id: 'p3', body: 'small fitting commit' } }]);
-  const before = (await f.core.call({ op: 'sync_state' })).ok;
-  const metadata = await f.post('/sync', { metadata: true, from: before.watermark, limit: 1 });
-  assert.equal(metadata.recovery, undefined);
-  // Deliberately synthesize matching trusted-server evidence. The device
-  // validates its binding, not the byte measurement; this is a trust-limit
-  // regression, not a claim that this small reply actually overflowed.
-  metadata.recovery = { from: before.watermark, snapshot: true, store_id: before.store_id, generation: before.generation };
-  const capture = { store_id: before.store_id, generation: before.generation, send_revision: before.send_revision,
-    captured_watermark: before.watermark, from: before.watermark, stream: false, recover: true, limit: 1 };
-  const accept = () => f.core.call({ op: 'sync_metadata', metadata, capture });
-  assert.equal((await accept()).ok?.snapshot, true);
-  assert.equal((await accept()).denied?.code, 'E_GENERATION', 'the stale capture is refused');
+  const { state, capture, metadata } = await measuredRecovery(f);
+  for (const [field, value] of Object.entries({ limit: 2, stream: true, single_commit: false,
+    from: state.watermark + 1, commit: state.watermark, measured_head: metadata.watermark + 1, send_revision: state.send_revision + 1 })) {
+    const mismatched = structuredClone(metadata); mismatched.recovery[field] = value;
+    const result = await f.core.call({ op: 'sync_metadata', metadata: mismatched, capture });
+    assert.equal(result.denied?.code, 'E_GENERATION', `S1: mismatched ${field} accepted: ${JSON.stringify(result)}`);
+    assert.deepEqual((await f.core.call({ op: 'sync_state' })).ok, state);
+  }
+  const accepted = await f.core.call({ op: 'sync_metadata', metadata, capture });
+  assert.equal(accepted.ok?.snapshot, true, 'the unmodified measurement is sufficient');
+  const consumed = (await f.core.call({ op: 'sync_state' })).ok;
+  capture.send_revision = consumed.send_revision;
+  assert.equal((await f.core.call({ op: 'sync_metadata', metadata, capture })).denied?.code, 'E_GENERATION', 'acceptance consumes the measured revision');
+  await f.reopen();
+  assert.equal((await f.core.call({ op: 'sync_metadata', metadata, capture })).denied?.code, 'E_GENERATION', 'consumption survives reopening');
+  assert.deepEqual((await f.core.call({ op: 'sync_state' })).ok, consumed);
+});
+
+for (const tier of ['wasm', 'process']) test(`${tier}: R5 S2 saved overflow evidence cannot authorize a fresh send revision after shrink`, { timeout: 120000 }, async t => {
+  const f = await fixture(t, tier);
+  const { state, capture, metadata, rows } = await measuredRecovery(f);
+  await f.seed(rows); // Same generation/position, now the current images fit.
+  const fitting = await f.post('/sync', { from: state.watermark, limit: 1 });
+  assert.ok(!fitting.denied && Buffer.byteLength(JSON.stringify(fitting)) < 16 * 1024 * 1024);
+  assert.equal((await f.core.call({ op: 'begin_send' })).denied, undefined);
   const fresh = (await f.core.call({ op: 'sync_state' })).ok;
+  assert.equal(fresh.watermark, state.watermark);
+  assert.equal(fresh.generation, state.generation);
+  assert.ok(fresh.send_revision > state.send_revision);
+  const remeasured = await f.post('/sync', { metadata: true, recover: true, store_id: state.store_id, generation: state.generation, send_revision: fresh.send_revision, from: state.watermark, limit: 1 });
+  assert.equal(remeasured.recovery, undefined, 'a fresh measurement of the fitting rewrite grants nothing');
   capture.send_revision = fresh.send_revision;
-  assert.equal((await accept()).ok?.snapshot, true, 'a fresh revision at the unchanged position is not wire replay protection');
+  const result = await f.core.call({ op: 'sync_metadata', metadata, capture });
+  assert.equal(result.denied?.code, 'E_GENERATION', `S2: saved overflow authorized fitting rewrite: ${JSON.stringify(result)}`);
+  assert.deepEqual((await f.core.call({ op: 'sync_state' })).ok, fresh);
 });
 
 for (const tier of ['wasm', 'process']) test(`${tier}: R4 default recovery reaches metadata on the real device`, async t => {
@@ -272,7 +304,7 @@ for (const tier of ['wasm', 'process']) test(`${tier}: R4 device rechecks the li
     const metadata = await send().then(r => r.json());
     assert.equal(metadata.recovery, undefined);
     return Response.json({ ...metadata, recovery: { from: request.from, snapshot: true,
-      store_id: metadata.store_id, generation: metadata.generation } });
+      store_id: metadata.store_id, generation: metadata.generation, limit: 1, stream: !!request.stream, send_revision: request.send_revision, single_commit: true, commit: request.from + 1, measured_head: metadata.watermark } });
   });
   f.online(); await f.client.sync();
   assert.equal(checked?.denied?.code, 'E_GENERATION', `F3: forged recover bypassed the page limit: ${JSON.stringify(checked)}`);
@@ -304,7 +336,7 @@ for (const tier of ['wasm', 'process']) for (const forged of ['before-limit-one'
       assert.equal(request.recover, forged !== 'before-limit-one');
       fabricated = true;
       metadata.recovery = { from: request.from + (forged === 'before-limit-one' ? 0 : 1), snapshot: true,
-        store_id: metadata.store_id, generation: metadata.generation };
+        store_id: metadata.store_id, generation: metadata.generation, limit: 1, stream: !!request.stream, send_revision: request.send_revision, single_commit: true, commit: request.from + 1, measured_head: metadata.watermark };
     }
     return Response.json(metadata);
   });
@@ -480,7 +512,7 @@ for (const tier of ['wasm', 'process']) test(`${tier}: G2 accepted recovery reti
     // Deliberately simulate trusted-server evidence to isolate device receipt
     // retirement. This test does not measure overflow or authenticate the wire;
     // the enlarged-commit tests above exercise real measurement end to end.
-    if (request.recover) metadata.recovery = { from: request.from, snapshot: true, store_id: metadata.store_id, generation: metadata.generation };
+    if (request.recover) metadata.recovery = { from: request.from, snapshot: true, store_id: metadata.store_id, generation: metadata.generation, limit: 1, stream: !!request.stream, send_revision: request.send_revision, single_commit: true, commit: request.from + 1, measured_head: metadata.watermark };
     return Response.json(metadata);
   });
   f.online(); await f.client.sync();
@@ -500,7 +532,7 @@ if (process.env.SB4_CONTENTION) test('metadata measurement writer contention', {
     await f.seed(rows);
     for (let i = 0; i < count; i += 4) await f.seed(rows.slice(i, i + 4).map(({ table, row }) => ({ table, row: { ...row, body: 'x'.repeat(400000) } })));
     const metadata = await f.post('/sync', { metadata: true });
-    const request = { metadata: true, recover: true, store_id: metadata.store_id, generation: metadata.generation, from, limit: 1 };
+    const request = { metadata: true, recover: true, store_id: metadata.store_id, generation: metadata.generation, send_revision: 7, from, limit: 1 };
     const baseline = [], samples = [];
     const write = async id => { const start = performance.now(); await f.seed([{ table: 'held', row: { id, body: 'writer' } }]); return performance.now() - start; };
     for (let n = 0; n < 5; n++) baseline.push(await write(`baseline-${count}-${n}`));
@@ -551,7 +583,7 @@ for (const tier of ['wasm', 'process']) test(`${tier}: catch-up recovery rejects
   const capture = { store_id: state.store_id, generation: state.generation, send_revision: state.send_revision,
     captured_watermark: state.watermark, from: page.watermark, stream: true, recover: true, limit: 1 };
   const metadata = { metadata: true, store_id: state.store_id, generation: state.generation, watermark: page.watermark + 1,
-    recovery: { from: page.watermark, snapshot: true, store_id: state.store_id, generation: state.generation } };
+    recovery: { from: page.watermark, snapshot: true, store_id: state.store_id, generation: state.generation, limit: 1, stream: true, send_revision: state.send_revision, single_commit: true, commit: page.watermark + 1, measured_head: page.watermark + 1 } };
   const recover = capture => f.core.call({ op: 'sync_metadata', capture, metadata });
   const advanced = { snapshot: false, events: [], store_id: state.store_id, generation: state.generation,
     watermark: page.watermark + 1, more: true, snapshot_catchup: true };
@@ -564,7 +596,9 @@ for (const tier of ['wasm', 'process']) test(`${tier}: catch-up recovery rejects
   capture.send_revision = current.send_revision;
   assert.equal((await recover(capture)).denied?.code, 'E_GENERATION', 'current revision alone cannot create a lease');
   await stage();
-  assert.equal((await recover(capture)).ok?.snapshot, true, 'a new first snapshot establishes the next lease');
+  assert.equal((await recover(capture)).denied?.code, 'E_GENERATION', 'a new lease cannot revalidate the old measured revision');
+  metadata.recovery.send_revision = capture.send_revision; // Simulate newly measured evidence for this receipt-only test.
+  assert.equal((await recover(capture)).ok?.snapshot, true, 'a new lease with newly bound evidence can recover');
 });
 
 for (const tier of ['wasm', 'process']) test(`${tier}: G1 backend-required metadata cannot clear an existing partition refusal`, async t => {
@@ -692,4 +726,41 @@ for (const tier of ['wasm', 'process']) test(`${tier}: R3 a foreign metadata ide
   assert.equal(after.acquired, false);
   assert.equal(after.watermark, 0);
   assert.ok(f.calls.every(r => r.op !== 'apply'), 'identity observation never installs metadata as rows');
+});
+
+for (const tier of ['wasm', 'process']) test(`${tier}: R5 D1 a new replica recovers its oversized first commit`, { timeout: 120000 }, async t => {
+  const f = await fixture(t, tier, true);
+  assert.equal(f.before.watermark, 0);
+  // One seed request fits just below the request ceiling. Per-event wire
+  // framing takes the same indivisible commit over the response ceiling.
+  const rows = Array.from({ length: 42 }, (_, i) => ({ table: 'items', row: { id: `first-${i}`, body: '' } }));
+  const bytes = 16 * 1024 * 1024 - 100 - Buffer.byteLength(JSON.stringify(rows));
+  for (let i = 0; i < rows.length; i++) rows[i].row.body = 'x'.repeat(Math.floor(bytes / 42) + (i < bytes % 42 ? 1 : 0));
+  await f.seed(rows);
+  const head = await f.post('/sync', { metadata: true });
+  assert.equal(head.watermark, 1);
+  assert.equal((await f.post('/sync', { from: 0, stream: true, limit: 1 })).denied?.code, 'E_BOUND');
+  const defaultGrant = await f.post('/sync', { from: 0, stream: false, recover: true, limit: 1, store_id: f.before.store_id, generation: f.before.generation, send_revision: f.before.send_revision });
+  assert.equal(defaultGrant.recovery?.snapshot, true, 'default recovery without metadata also measures the first commit');
+  assert.equal(defaultGrant.events, undefined);
+  let accepted;
+  f.interceptDevice(async (request, send) => {
+    const result = await send();
+    if (request.op === 'sync_metadata' && request.capture.limit === 1) {
+      accepted = result;
+      t.diagnostic(JSON.stringify({ capture: request.capture, metadata: request.metadata, result }));
+    }
+    return result;
+  });
+  // Exercise the real client's refusal/discovery loop at the default position.
+  // No grant is fabricated: every metadata response and subsequent snapshot
+  // is served and measured by the real server. A bare refusal has no authority.
+  f.intercept((path, request) => path === '/sync' && !request.metadata && !accepted?.ok?.snapshot ? Response.json(bound) : undefined);
+  f.online(); await f.client.sync();
+  assert.equal(accepted?.ok?.snapshot, true, `D1: first-commit recovery failed: ${JSON.stringify(accepted)}`);
+  const after = (await f.core.call({ op: 'sync_state' })).ok;
+  assert.equal(after.watermark, 1);
+  assert.equal(after.acquired, true);
+  assert.notEqual(after.snapshot_required, true);
+  assert.equal((await f.core.call({ op: 'query', name: 'item', viewer: 'dev:alice', args: { id: 'first-41' }, now: Date.now() })).ok.data.body, rows[41].row.body);
 });

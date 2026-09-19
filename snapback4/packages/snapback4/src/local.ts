@@ -610,9 +610,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (restore_refusal) { refuseRestore(restore_refusal); return false; }
           backendRequired = !!backend_required;
           requestedStore = store_id;
-          metadataCapture = { store_id: store_id ?? null, generation, send_revision, captured_watermark: capturedWatermark, from: watermark, after: after ?? null, stream: catchingUp, limit: pageLimit, recover: !backendRequired && pageLimit === 1 && after === undefined && watermark === capturedWatermark && (watermark > 0 || catchingUp) };
+          metadataCapture = { store_id: store_id ?? null, generation, send_revision, captured_watermark: capturedWatermark, from: watermark, after: after ?? null, stream: catchingUp, limit: pageLimit, recover: !backendRequired && pageLimit === 1 && after === undefined && watermark === capturedWatermark };
           const request = requestCredentials();
-          const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify(discovering ? { metadata: true, from: watermark, after: after ?? null, stream: catchingUp, limit: pageLimit, generation, pending, recover: metadataCapture.recover, ...(store_id ? { store_id } : {}) } : { from: watermark, limit: pageLimit, after: after ?? null, stream: catchingUp, pending, ...(store_id ? { store_id } : {}) }), signal: aborter.signal });
+          const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify(discovering ? { metadata: true, from: watermark, after: after ?? null, stream: catchingUp, limit: pageLimit, generation, send_revision, pending, recover: metadataCapture.recover, ...(store_id ? { store_id } : {}) } : { from: watermark, limit: pageLimit, after: after ?? null, stream: catchingUp, pending, ...(store_id ? { store_id } : {}) }), signal: aborter.signal });
           if (response.status >= 500) { setLink("offline"); return false; }
           page = (await response.json()) as SyncPage;
           if (!response.ok && !page.denied) { setLink("offline"); return false; }

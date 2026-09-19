@@ -39992,3 +39992,60 @@ The wasm size gate remains red at **415,860 B gzip / 411,000 B budget**; no size
 repair or budget change. No commit, push, tag, publication, merge or rebase.
 HEAD remains `0fdac3dfb`. LLPs, NOT-DOING, rules, card words and ceilings are
 unchanged; the journal's committed bytes remain an intact prefix.
+
+## 2026-09-19 — round 5: measurement custody and first-commit recovery
+
+Starting at clean `2159a238f`, branch `sb4/mc-prereq-51b7a134`. No commit,
+push, tag, publication, LLP or NOT-DOING edit authorized. Cargo commands run
+serially. Scope: D1 first, then S1/S2 and the stream/meta packet residue.
+Read the received round-5 packets, Snapback 4 instructions, LLP 3000, the
+2000.000 design brief and LLP 3000.007 §18.2. Constraints: unchanged
+authorization and byte ceilings; retained delivered history, W13g acquisition
+boundaries and merged renewals remain qualification obligations. No LLP handoff
+or doc mutation; this append-only journal records the repair.
+
+D1 regression uses the real local client on wasm-memory and process-SQLite,
+an empty replica already bound to the server at watermark zero, and exactly
+one server commit. Its seed fits below the request ceiling but its ordinary
+stream framing exceeds the response ceiling. Fault injection supplies only
+bare ordinary refusals to drive the default-position discovery loop; metadata
+and all recovery snapshots come from the real server. No fabricated grant.
+The zero-position guard exists in client, server and device, so all three
+need removal, preserving the confirmed-position equality and lease checks.
+
+D1 red: `/tmp/f188-round5-d1-red.log`, **0 passed / 2 failed**, both
+real clients send recover:false at limit 1 and cannot recover. Removing only
+the client/server zero-position guards exposes the decoder defect directly:
+`/tmp/f188-round5-d1-device-red.log`, **0 passed / 2 failed**, both return
+`E_GENERATION: snapshot recovery does not match its confirmed position` on
+the real measured grant at head 1. Removed the remaining decoder guard;
+the confirmed watermark equality, generation, identity and lease fences stay.
+
+D1 fixed and verified **2/2**, `/tmp/f188-round5-d1-green.log`. The first
+green attempt exposed a harness assertion (cleared snapshot_required is omitted,
+not false); corrected that assertion, with acquisition and watermark verified.
+S1/S2 red through both real devices: `/tmp/f188-round5-s1-s2-red.log`,
+**0 passed / 4 failed**. A wrong measured limit was accepted; a real saved
+overflow grant was accepted with a fresh send revision after all current
+images shrank back below the ceiling. Direct S1 mint red on memory/file
+server stores: `/tmp/f188-round5-s1-mint-red.log`, **0 passed / 4 failed**,
+for multi-commit counting and a walk at 2 labeled as from 1.
+
+The replacement measurement module owns its walk; the caller-fed counter API
+is gone. Evidence binds the exact requested/walked from and limit, stream
+mode, store, generation, send revision, one observed indivisible commit and
+the read snapshot's head. Limit 1 and the actual same-sequence event walk
+are checked before minting. The device validates those fields independently.
+Acceptance already increments SEND_REVISION in its recovery transaction;
+now the grant binds that revision, so consumption is durable and a fresh
+capture cannot relabel saved evidence. No TTL or cryptographic claim.
+
+Initial server package run passes **290/290** (93 unit + 197 integration),
+`/tmp/f188-round5-server.log`; typecheck passes. Additional route-shape
+assertions and required-field decoder checks added during that run will get
+a final affected rerun. The meta packet's stale-reader test now exercises
+the production dispatcher with default, stream and recover-without-metadata
+shapes. The wrapper is renamed serve_sync_dispatch.rs. Stream bodies are
+asserted to omit grants on both sides of a concurrent resize. Encoding
+errors are size evidence only for the counter's specific FileTooLarge error;
+an unrelated later failure invalidates the mint and has its own regression.
