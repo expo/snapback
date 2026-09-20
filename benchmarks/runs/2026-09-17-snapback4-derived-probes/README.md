@@ -203,7 +203,11 @@ page(limit 1) from 1 → watermark 2, more=true, acks={}, events: seq 2 put n=2
 
 The page ends before alice's commit and does not acknowledge it, yet its image already
 includes it, so her device replays the pending `bump` over it and shows 3 until the next
-page. Filed as `issues/20260917-snapback4-stream-page-serves-images-newer-than-its-watermark.md`.
+page. Filed as `issues/20260917-snapback4-stream-page-serves-images-newer-than-its-watermark.md`. **Closed 2026-09-19:** Repair B (LLP 3000.001, `201c45d245`)
+adds `images_at` and `committed_above` to the page — on main `5df0d211a1` the same page reads
+`"committed_above":{"alice-1":3},"images_at":3,"watermark":2` — and the device no longer
+installs a confirmed image over a row its live prediction writes; `measure.mjs` now prints
+the page's fields.
 
 ## `column-gates/` — LLP 3000.007.001 §7's gates 1 and 2, measured by proxy
 

@@ -14,5 +14,6 @@ try {
   const page = await post("/sync", { from: snap.watermark, limit: 1, after: null, stream: true, pending: ["alice-1"] }, "alice");
   const ev = (page.events ?? []).filter((e) => e.table === "counters");
   console.log(`page(limit 1) from ${snap.watermark} → watermark ${page.watermark}, more=${page.more}, acks=${JSON.stringify(page.acks ?? page.acknowledged ?? null)}, events: ${ev.map((e) => `seq ${e.seq} put n=${e.data?.n}`).join("; ")}`);
+  { const { events, ...rest } = page; console.log("page fields:", JSON.stringify(rest)); }
   console.log(page.watermark < a.seq && ev.some((e) => e.data?.n === a.result?.n) ? "CONFIRMED: the page ends BEFORE alice's commit, does not acknowledge it, yet its image already includes it → replaying alice's pending bump on this image shows n = " + (a.result.n + 1) : "not reproduced: " + JSON.stringify(page).slice(0, 400));
 } finally { server.kill(); await exited; }

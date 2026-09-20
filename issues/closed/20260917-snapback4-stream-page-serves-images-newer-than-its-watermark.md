@@ -1,6 +1,6 @@
 # Snapback 4: a stream page serves row images newer than its own watermark — a pending read-modify-write is replayed on top of its own effect
 
-Status: Open
+Status: Closed 2026-09-19 — repaired by Repair B (`201c45d245`, LLP 3000.001 `#reliability-catchup`, the program that owns the sync protocol), verified on a build of main `5df0d211a1` by this ticket's own probe
 Priority: P2 (a device shows a wrong value for a predicted relative update until a later page retires the write; an interrupted catch-up leaves it on screen and on disk)
 Date: 2026-09-17
 Systems: `snapback4-core` `partition.rs` (the stream page's put materialization), `engine/mod.rs` (`acknowledged`), `snapback4-device` `device.rs` (`apply`) and `device/predictions.rs` (`replay`); the client's catch-up loop in `packages/snapback4/src/local.ts`
@@ -60,3 +60,25 @@ cites (LLP 3000 §7), so it is not proposed.
 
 Regression shape: the probe above as a device test on both stores — after applying the
 first page, a watch over the counter never observes a value greater than the server's.
+
+## Resolution (2026-09-19)
+
+LLP 3000.001's rewrite of 2026-09-18 names this ticket as **Repair B**'s target ("the base:
+the image already contains the device's own pending write … never install a confirmed image
+over a row a live prediction writes"), and Repair B landed on main as `201c45d245`. The
+server keeps serving current readable images — that is its materialization policy, not the
+defect — but a stream page now carries the two bounds a device needs: `images_at` (the
+sequence the images reflect) and `committed_above` (each pending write of the requester
+already committed above the page's watermark). This ticket's probe, re-run against a build
+of main `5df0d211a1`, shows the same limit-1 page as before with those fields added:
+
+```
+published 0.2.28:  {"acknowledged":{},"generation":1,…,"more":true,"watermark":2}
+main 5df0d211a1:   {"acknowledged":{},"committed_above":{"alice-1":3},"generation":1,"images_at":3,…,"watermark":2}
+```
+
+so the device knows its `alice-1` is committed at 3 while the page ends at 2, and does not
+replay it over an image that already contains it. The device-side proof is Repair B's own
+regressions on both stores (`crates/snapback4-device/tests/repair_b*.rs`, three counterexample
+files) and its four review rounds in that program. The prediction increment of maintained
+columns (LLP 3000.007.001 §3.7) that this ticket gated is therefore unblocked on this point.
