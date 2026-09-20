@@ -29,6 +29,10 @@ does not move:* the grader's own probe of the bound (calibration #13's 45 distin
 no cursor) returns either a continuation that reaches all 45 or a refusal that names the words consumed; #13's d-01 class is
 absent from the defect list. *Void, not failed,* if the grader does not probe the bound (it did not in #14) — the mechanism
 criterion is then carried by the lane's own test, and the category is read as null.
+*As built (2026-09-20, `b0aa544ce7`):* a uniform scope's first-term expansion is bounded by the meter — the 45-word walk
+completes 20/20/5 on the server, both device stores and wasm (red on main before, green after; 200 and 1,000 words walk too);
+an admitted non-uniform scope keeps 32 words and public `cut: null` on the server. Of the mechanism criterion's two
+branches, the continuation that reaches all 45 is the one built. The prediction above is unchanged.
 
 **W14b — the removal candidate: the README's orientation volume** (measurement + design lane → two-family blind review →
 edit lane). *Predicts:* `setup_and_docs` ≥ 91 confirms, ≤ 85 refutes. *Mechanism criterion:* the lines a cold builder reads
