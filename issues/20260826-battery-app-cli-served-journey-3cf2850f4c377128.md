@@ -13,11 +13,11 @@
 **Battery gate:** `app-cli-served-journey`
 **Failure signature:** `sha256:3cf2850f4c377128fe0609f4721600dc047c753ca1017af3fbec7f0cddc0e8d3`
 **First observed run:** `local.20260826T230829Z.fb14180ba761`
-**Last observed run:** `local.20260920T102449Z.dac4e3fed707`
-**Last processed run:** `local.20260920T102449Z.dac4e3fed707`
+**Last observed run:** `local.20260920T195819Z.92d678d5700d`
+**Last processed run:** `local.20260920T195819Z.92d678d5700d`
 **Detected at revision:** `fb14180ba761ee0cee2881d4889f4fffa981ae83`
-**Last observed revision:** `dac4e3fed7072c5a682d356adb92275ad2d9b5af`
-**Consecutive red runs:** `5`
+**Last observed revision:** `92d678d5700d5a95303f12bb69ba8537fb9d977f`
+**Consecutive red runs:** `6`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
