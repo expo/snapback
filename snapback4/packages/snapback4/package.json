@@ -1,6 +1,6 @@
 {
   "name": "snapback4",
-  "version": "0.2.30",
+  "version": "0.2.31",
   "type": "module",
   "description": "Snapback 4: the card (contract), the online and local-first clients (IndexedDB, SQLite), React hooks, sign-in, a labelled mock, and the `snapback4` CLI. LLP 3000.",
   "bin": {
@@ -60,7 +60,7 @@
     "CLIENT-AND-OPERATIONS.md"
   ],
   "optionalDependencies": {
-    "snapback4-darwin-arm64": "0.2.30"
+    "snapback4-darwin-arm64": "0.2.31"
   },
   "dependencies": {
     "openid-client": "6.8.8"
