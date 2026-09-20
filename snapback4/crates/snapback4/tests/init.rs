@@ -501,8 +501,8 @@ fn w8b_sized_recipe_compiles_without_notes() {
 
 #[test]
 fn w10b_sizing_carries_the_backfill_bound_and_refuses_incoherent_caps() {
-    for (flags, backfill) in [(vec![], 917), (vec!["--authors", "1008", "--edges", "5921"], 917),
-        (vec!["--authors", "2000"], 917), (vec!["--edges", "2000"], 917), (vec!["--authors", "50", "--edges", "1000"], 200)] {
+    for (flags, backfill) in [(vec![], 865), (vec!["--authors", "1008", "--edges", "5921"], 865),
+        (vec!["--authors", "2000"], 865), (vec!["--edges", "2000"], 865), (vec!["--authors", "50", "--edges", "1000"], 200)] {
         for prefix in ["", "feed"] {
             let dir = Dir::new();
             let mut flags = flags.clone();
@@ -676,7 +676,7 @@ fn w10r1b_51st_follow_fits_the_write_ceiling_with_the_app_edge() {
     assert_eq!(e.store().rows("feedFollows").unwrap().len(), 51);
     assert_eq!(e.store().rows("feedPulls").unwrap().len(), 52);
     assert_eq!(e.store().rows("appFollows").unwrap().len(), 1);
-    assert_eq!(e.store().rows("feedFeed").unwrap().len(), 917);
+    assert_eq!(e.store().rows("feedFeed").unwrap().len(), 865);
     assert_eq!(write.metered.rows_written, 1024);
 }
 
@@ -694,7 +694,7 @@ fn w10r1b_backfill_leaves_room_for_delete_and_replace_before_purge() {
     run("replace", "author", "postId", "replacement");
     let copies = e.store().rows("feedFeed").unwrap();
     let reader = copies.iter().filter(|r| r.field("readerId").unwrap().as_str().unwrap() == "reader").collect::<Vec<_>>();
-    assert_eq!(reader.len(), 918);
+    assert_eq!(reader.len(), 866);
     assert!(reader.iter().any(|r| r.field("eventId").unwrap().as_str().unwrap() == "event-0999"), "purge has not run");
     assert!(reader.iter().any(|r| r.field("eventId").unwrap().as_str().unwrap() == "replacement"));
     assert_eq!(e.store().rows("feedPosts").unwrap().len(), 1000);

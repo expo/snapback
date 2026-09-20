@@ -159,6 +159,6 @@ fn consumed_pages_and_engine_owned_loops_do_not_need_caller_cursors() {
     ];
     for (case, program) in cases {
         let notes = page_notes(program);
-        assert!(notes.is_empty(), "{case}: {notes:?}");
+        assert!(notes.iter().all(|note| note.code == "N_PUBLIC_AGGREGATE_COPY"), "{case}: {notes:?}");
     }
 }

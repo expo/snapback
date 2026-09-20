@@ -17,9 +17,10 @@ pub fn valid_prefix(prefix: &str) -> bool {
 pub struct FollowingCaps { authors: u32, edges: u32, routes: u32 }
 
 // @ref LLP 3000.007#20.3 — promotion and backfill share one unchanged mutation meter.
-// Two writes per route for the author and 51 followers, plus the recipe
-// edge, promotion update and the documented app edge: 2 * 52 + 3 = 107.
-const BACKFILL_PROMOTION_ALLOWANCE: u64 = 2 * (51 + 1) + 3;
+// @ref LLP 3000.007#20.21 — pin public slot counts to a private maintain; reserve its per-route write too.
+// Three writes per route for the author and 51 followers, plus the recipe
+// edge, promotion update and the documented app edge: 3 * 52 + 3 = 159.
+const BACKFILL_PROMOTION_ALLOWANCE: u64 = 3 * (51 + 1) + 3;
 const BACKFILL_MIN_EVENTS: u32 = 200;
 
 impl FollowingCaps {

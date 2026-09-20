@@ -42158,3 +42158,2845 @@ that eventual pin must be reported separately before claiming an effect
 from this documentation move. The useful constraint here was executable
 self-containment: a short path needs durable pending-write recovery and
 real generated types, not just links or compiling schema fragments.
+
+
+## 2026-09-19 — W15b: provenance for public derived columns (ruling 31)
+
+Base: `5df0d211a12ef3255a142685d064ae56d794aba3`. Implemented in
+`snapback4-lang`; no engine, meter ceiling or serialized form changed.
+The classifier was compiled through the existing integration test only while
+running the first census; only after recording its hits and repairing the
+published findings was it connected to ordinary binding. The temporary test
+entry point is gone. No sub-agent, remote machine, commit, push or publication.
+
+The proof is per written column, across Quarry programs, job preludes/chunks
+and helpers in every catalog document. Program arguments carry argument
+provenance through bindings, helper substitution, object/shape fields,
+arithmetic and value-selecting conditions. Statement assignments track their
+branch's control provenance; argument-dependent loop counts and conditional
+breaks/continues taint carried assignments, and loop returns include their
+selection provenance. Table and maintain reads supply read values; their selectors do
+not taint those stored values. Ambient inputs are literals, `viewer`, `now`,
+minted ids and presence (including `exists connected`). A column qualifies
+only with a read-derived write and no argument, unknown or ambient-only write;
+literal inserts and omitted literal/null defaults may initialize that column,
+whereas literal updates/upserts defeat the proof. Upsert's implicit key writes
+are included; an unresolved positional key is unknown rather than evidence.
+Field-sensitive objects and shapes keep an unrelated argument out of a count's
+provenance. A native job's arbitrary writes make the all-writers proof unknown;
+a native query does not. Actions have no Quarry data-plane body; their external
+steps' mutation arguments are already included. This is a conservative value
+proof, not equality analysis or a claim that every derivation is recognized.
+
+The existing public/uniform-read, provably unconditional insert/update rule,
+immutable, append-only and maintain-target checks remain. The output stays one
+`N_PUBLIC_AGGREGATE_COPY` note per column, `guide: feeds`, never a refusal.
+Direct maintain copies keep their message. The rewrite now offers the maintain
+or a source-pinning rule, with the absent count group's zero case. The card and
+README's entire note section remain verbatim-equal and compile without notes.
+
+Census counts include generated maintain targets and repeated table occurrences;
+“blocks” means fenced blocks or source files. The corpus has 740 bundles,
+782 files and 229 refused bundles, which cannot emit this note. Old hits were
+measured with the base classifier. Broad-before-fix is the initial test-only
+classifier on the original material; seven distinct presence-only false hits
+were found across the first census and the control-flow regression pass.
+
+| Material | Blocks before → after | Tables before → after | Old hits | Broad before repair | Final hits |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 28 cards + README, CLIENT-AND-OPERATIONS, SERVER | 51 → 53 | 451 → 463 | 0 | 4 | 0 |
+| Following recipe, bare + prefixed | 2 → 2 | 16 → 18 | 0 | 2 | 0 |
+| Init local, online, Expo | 3 → 3 | 7 → 7 | 0 | 0 | 0 |
+| Apps (chat's schema; Expo reuses it) | 1 → 1 | 5 → 5 | 0 | 0 | 0 |
+| Lowering corpus | 782 → 782 | 1,356 → 1,356 | 0 | 16 | 10 |
+| Calibration 9 / 0.2.25 | 8 → 8 | 34 → 34 | 1 | 2 | 2 |
+| Calibration 10 / 0.2.26 | 6 → 6 | 34 → 34 | 1 | 1 | 1 |
+| Calibration 11 / 0.2.27 | 13 → 13 | 38 → 38 | 2 | 3 | 3 |
+| Calibration 12 / 0.2.28 | 13 → 13 | 34 → 34 | 0 | 3 | 3 |
+
+Every published hit and its disposition:
+
+| Site in the surveyed block | Finding | Disposition |
+| --- | --- | --- |
+| writes block 2, `schema.q:2:3` | `conversations.lastOrdinal`, read increment under allow | Real; the creator admits members, and membership authorizes counter updates. The execution test rejects a nonmember, then admits and runs that member; immutable message ordinals remain silent. |
+| feeds block 1, `schema.q:38:3` | `pullCounts.used` | Real; both count write rules are pinned to private `pullTotals`, an engine count of `pulls`. |
+| feeds block 2, `schema.q:38:3` | `feedPullCounts.used` in its recipe prelude | Same real finding and repair, renamed by the existing installer. |
+| README block 10, `schema.q:38:3` | `pullCounts.used` | Same repair in the published twin. |
+| bare and prefixed recipe, `social.q:38:3` | `pullCounts.used` / `feedPullCounts.used` | Same repair; both installed forms compile with zero notes. |
+
+The private count adds **one server-only maintained row per reader** and **one
+write per route**. Promotion reserves **3 × 52 + 3 = 159** writes (formerly
+107); backfill becomes **865** events (formerly 917), leaving the unchanged
+**1,024** write ceiling. The smaller 200-event minimum and 1,000-event source
+scan remain. The 51st-follow execution test still asserts exactly 1,024 writes
+with the app edge. The shared promotion test's allowance and CLI sizing/backfill
+expectations are the only changes outside the compiler/package/docs scope.
+No schema constraint or meter ceiling was raised.
+
+Retained packets are read-only evidence. The ignored survey still requires
+`SNAPBACK4_CALIBRATION_PACKETS`; calibration 12 is dated 20260917, while 9–11
+are dated 20260916. Its exact final sites:
+
+| Packet | Site | Column | Disposition |
+| --- | --- | --- | --- |
+| cal9 | `feed.q:38:3` | `feedPullCounts.used` | New real finding, same old recipe. |
+| cal9 | `insights.q:28:3` | `ranked.score` | Existing direct maintain copy. |
+| cal10 | `feed.q:38:3` | `feedPullCounts.used` | New real finding, same old recipe. |
+| cal11 | `feed.q:38:3` | `feedPullCounts.used` | New real finding, same old recipe. |
+| cal11 | `social.q:6:3` | `posts.score` | Existing direct maintain copy. |
+| cal11 | `trending.q:3:3` | `trendingPosts.score` | Existing direct maintain copy. |
+| cal12 | `feed.q:38:3` | `feedPullCounts.used` | New, helper/backfill read provenance. |
+| cal12 | `social.q:19:3` | `posts.parentAuthor` | New, copied authoritative row field. |
+| cal12 | `social.q:20:3` | `posts.score` | New, helper and prior-image arithmetic. |
+
+The brief's retained-calibration premise is not universally true: cal10 writes
+`rank.score + (1 if value else -1)` in `setLike`, where `value` is a program
+argument. Its old `trendingRows.score` note at `insights.q:29:3` is therefore
+removed by the requested no-argument rule, despite another writer copying a
+maintain. The three synthetic calibration **score** assertions remain; the
+synthetic job additionally notes its non-immutable `trendingRows.postId` at
+`schema.q:14:3`, because that column also meets the broadened contract. No
+column-name exception was introduced. Another brief detail: there is one
+installable recipe (`feeds`), so both its bare and prefixed forms are surveyed.
+
+The corpus's exact ten surviving sites are pinned in the existing test, not
+changed in the corpus. All are real read-derived writes under unrestricted
+rules; they intentionally remain as diagnostic census controls:
+
+```text
+10ad23600c1148fe6b3e09303dada6b3394b8c6b3758655df79b14e4ae35829e: schema.q:3:3: every write to items.n is computed from reads (`row.n + 1` in `q`); `update <- allow` lets any principal run any mutation that writes it
+13a6fe30eb4d29c0a49fee087b67d6b8394bdce1eb212b44fdef068058e2268c: schema.q:2:3: every write to items.n is computed from reads (`row.n + 10` in `skipRows`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+217e2fd78229359384c5ac4c5bb84b0d5ccda507a4b371119c5e62314d4b3774: schema.q:3:3: every write to notes.n is computed from reads (`r.n` in `probe`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+4d91ac27297b399b30a21b34804b66d8dd7c3c78befb2d49256d0bb034535668: schema.q:3:3: every write to items.n is computed from reads (`member.n + 1` in `q`); `update <- allow` lets any principal run any mutation that writes it
+56b57bca0fb142113c08ec242639506fccbcaccdb50dcf48ee3282e03527a476: schema.q:4:3: every write to items.body is computed from reads (`row.body` in `sweep`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+6f4a24cfe8c8e07993869bb37938a3c838723726594742aea048af672a6722d3: schema.q:2:3: every write to items.value is computed from reads (`row.value + 1` in `inc`); `update <- allow` lets any principal run any mutation that writes it
+a6c418dad38017d6b8a5c1045b88088e76c0de97261bec467fa8eb7b62c9759c: schema.q:3:3: every write to notes.n is computed from reads (`r.n` in `probe`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+abac58b5071aa7a78b3c81be694c6badb05c8786a9ca3a24127bf5df581ebfc0: schema.q:3:3: every write to notes.n is computed from reads (`r.n` in `probe`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+b379c824f4530bc2804beeccd783cff81658dd3693ecc083d3c55a1c5668c5e7: schema.q:2:3: every write to items.n is computed from reads (`row.n + total` in `refresh`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+c36b97a6be6dbfc475c58dce1d3859f725ab84e85fff2b477999c5ff081e5a75: schema.q:3:3: every write to items.n is computed from reads (`row.n + 1` in `q`); `update <- allow` lets any principal run any mutation that writes it
+```
+
+The following six initial sites, plus the later control-flow site
+`b588427f1c2b7348095a9aa1998022a0f20f4eef8267e33ba850f47f9e58631f:
+schema.q:3:3: notes.n` (`n = 1` selected by `exists connected[p]`), were false
+positives. The principled fix is the catalog boundary: presence is ambient,
+not a table/maintain read. No suppression list or name heuristic for columns:
+
+```text
+30b12a61917e8216000938e57ce49f722fda9fcb8f42780b0ee6269a713ab7e8: schema.q:3:3: every write to notes.n is computed from reads (`connected[p]` in `probe`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+32fdfa39ffcba06e2d71d1a5226817f1aeb453ec9570b9c3d739b2ed379a769a: schema.q:3:3: every write to notes.n is computed from reads (`connected[p]` in `probe`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+54428be6d9da4d0d545905c157294339b82a4f26613aada07824f3b32076a192: schema.q:3:3: every write to notes.n is computed from reads (`connected[p]` in `probe`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+6485a4d1fc24660b750a9a0f4ff4b0f466a645325079f58482a916b299e38853: schema.q:3:3: every write to notes.n is computed from reads (`count(ns)` in `probe`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+f7478f48a37bf2caac30d349d9ba6fe43439ae75beccd706ad9de1be382a7728: schema.q:3:3: every write to notes.n is computed from reads (`n` in `probe`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+f964e91296e00a3a86509d9e5151b6813d469078c2c528893d6ee89b953d37d7: schema.q:3:3: every write to notes.n is computed from reads (`n` in `probe`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+```
+
+Additional positive controls cover aliases, helper arguments and returns,
+shapes, count/sum, group items, job preludes, uncalled helpers, tuple bindings,
+loop accumulators, literal birth/defaults and repeated cross-file writes.
+Silent controls cover argument/ambient writers, conditional argument values,
+argument-selected constants, argument-dependent loop counts, literal update
+and upsert, implicit upsert keys, native-writer uncertainty, message ordinals,
+readOrdinal, editedAt, done, lastSeen, viewer-naming rules and jobs under deny.
+The public pinning example executes zero and the true count successfully;
+a forged existing row returns E_RULE. A forged absent upsert returns NOT_FOUND,
+the existing absence contract, rather than §21.1's general E_RULE wording.
+
+Exact diagnostic change for the prior-image regression: the base emits **no
+N_PUBLIC_AGGREGATE_COPY note**. Afterward:
+
+```text
+schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + 1` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+```
+
+For the existing scalar-copy fixture, the message is unchanged, verbatim:
+
+```text
+column ranked.score copies maintain likeCounts, an aggregate of likes the engine already keeps; `insert <- allow` and `update <- allow` let any principal set this public column through any mutation that writes it
+```
+
+Its rewrite before:
+
+```text
+read maintain likeCounts directly, or restrict insert and update authority on ranked so callers cannot choose score
+```
+
+Its rewrite after:
+
+```text
+keep the count in a maintain and read it directly, or pin ranked.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+```
+
+Validation commands below run from `snapback4/` unless otherwise specified.
+Before every JavaScript command, the shell used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`. The largest changed
+code file has 1,131 lines; all ten changed/new code files are below 1,500.
+`git diff --check` passes.
+
+Primary regression, red before implementation:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies every_write_from_reads_including_prior_image_reports_once -- --exact --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s
+```
+
+Same regression, green:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies every_write_from_reads_including_prior_image_reports_once -- --exact --nocapture
+```
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+```
+
+Control-flow regression, red before each fix and green afterward:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies argument_selected_constants_and_loop_counts_do_not_look_read_only -- --exact --nocapture
+```
+
+```text
+control-red.log
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+control-exit-red.log
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+control-green.log
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+```
+
+Final targeted tests:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies --test guide -- --nocapture
+```
+
+```text
+test result: ok. 21 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+```
+
+Retained calibration survey:
+
+```sh
+SNAPBACK4_CALIBRATION_PACKETS=/Users/ccheever cargo test -p snapback4-lang --test aggregate_copies survey_retained_calibration_schemas -- --ignored --exact --nocapture
+```
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.06s
+```
+
+Following scenarios: stale 107-write test expectation, then corrected to 159:
+
+```sh
+cargo test -p snapback4-sim --test clique following:: -- --nocapture
+```
+
+```text
+following.log
+test result: FAILED. 22 passed; 1 failed; 1 ignored; 0 measured; 219 filtered out; finished in 18.06s
+following-final.log
+test result: ok. 23 passed; 0 failed; 1 ignored; 0 measured; 219 filtered out; finished in 28.28s
+```
+
+Required full language suite, final source:
+
+```sh
+cargo test -p snapback4-lang
+```
+
+```text
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.69s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 21 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.27s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.61s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.77s
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 113.86s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.01s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.23s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+The 23 full-language harness summaries total **310 passed, 0 failed, 1 ignored**.
+The one ignored test is the optional retained-calibration survey, run explicitly
+above. The recipe assertions caught the extra private-maintain write; the
+counted reserve changed, never the engine ceiling.
+
+Reference check (repository root):
+
+```sh
+./ref-check --verbose
+python3 /private/tmp/w15b-evidence/check-base-refs.py
+```
+
+The first command fails on exactly ten unchanged Repair B references. The second
+loads the checker from base `5df0d211a12ef3255a142685d064ae56d794aba3`,
+overlays each changed tracked file with its base blob in memory, excludes new
+untracked source, and verifies every failing source and target byte-for-byte
+against that base. It reproduces the same ten errors without modifying the
+worktree. The target's explicit HTML anchors are not recognized by the checker.
+This lane does not repair other lanes' annotations or change the checker.
+
+```text
+ERROR snapback4/crates/snapback4-device/src/device.rs:367: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device.rs:369: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device.rs:660: broken ref: no anchor #repair-b-replacement-disposal in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device/deferred.rs:115: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device/predictions.rs:229: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device/store_identity.rs:90: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/packages/snapback4/src/local.ts:248: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/packages/snapback4/src/local.ts:411: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/packages/snapback4/src/local.ts:438: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/packages/snapback4/src/web.ts:146: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ref-check: FAIL — 485 LLP docs, 9135 refs in 24510 files, 10 errors, 0 unchecked
+base verified: 5df0d211a12ef3255a142685d064ae56d794aba3; 13 changed files overlaid from git; new files excluded
+ref-check: FAIL — 485 LLP docs, 9134 refs in 24510 files, 10 errors, 0 unchecked
+```
+
+Whole-suite follow-up in this same entry: the first default blocking run
+terminated with exit 137 without a summary; its cause was not established.
+The second run used a dedicated temporary directory, four Rust processes and
+serial client files. It completed the client inventory (884 passed, 1 failed,
+3 skipped), but exposed two issues before its final collection. The stale
+918-row delete/replace expectation now says 866, and all 30 init tests pass.
+More significantly, three existing W13h finite-helper-composition cases did not
+terminate: the new provenance loop fixed point repeatedly nested a JSON
+`previous` field. I interrupted that run after isolating the three cases,
+reproduced the compiler defect with a five-second regression, and fixed it.
+
+A finite set of provenance bits is insufficient when its shape tree can grow.
+The first iteration retains field structure; subsequent joins widen newly
+growing subtrees to unknown, preserving their argument/read/ambient bits and
+known sibling fields. Unknown defeats the column proof. This terminates the
+analysis without a runtime ceiling change or a name exception. The focused
+regression, existing simulator case and both device-store cases now pass.
+The final census is unchanged. The validation below supersedes the earlier
+source snapshot in this entry.
+
+Recursive shape regression, red then green:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies loop_carried_recursive_shapes_have_a_finite_provenance -- --exact --nocapture
+```
+
+```text
+finite-red.log
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 22 filtered out; finished in 5.02s
+finite-green.log
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.00s
+```
+
+Existing simulator regression:
+
+```sh
+cargo test -p snapback4-sim --test clique w13h_finite_helper_composition_terminates -- --nocapture
+```
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 242 filtered out; finished in 0.01s
+```
+
+Existing memory and SQLite device regressions:
+
+```sh
+cargo test -p snapback4-device --test device w13h_finite_helper_composition_terminates -- --nocapture
+```
+
+```text
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 417 filtered out; finished in 0.03s
+```
+
+Corrected complete init suite:
+
+```sh
+cargo test -p snapback4 --test init -- --nocapture
+```
+
+```text
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 36.21s
+```
+
+Final provenance and guide tests:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies --test guide -- --nocapture
+```
+
+```text
+test result: ok. 22 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.16s
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+```
+
+Final retained survey:
+
+```sh
+SNAPBACK4_CALIBRATION_PACKETS=/Users/ccheever cargo test -p snapback4-lang --test aggregate_copies survey_retained_calibration_schemas -- --ignored --exact --nocapture
+```
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.08s
+```
+
+Measured recipe costs from the final init run:
+
+```text
+W10R1b promotion: state=Sent { seq: 2, result: Null } examined=1213 index=8261 written=1024
+W10R1b follow: state=Sent { seq: 2, result: Null } examined=1005 index=7793 written=867
+W10R1b remove: state=Sent { seq: 3, result: Null } examined=1 index=9 written=2
+W10R1b replace: state=Sent { seq: 4, result: Row(ObjectFields({"id": Id("replacement")})) } examined=4 index=24 written=3
+```
+
+The isolated browser rerun reproduces the brief's Chromium sandbox artifact,
+not an application assertion. I have not verified this test on the base outside
+the sandbox and do not claim that base qualification.
+
+```sh
+TMPDIR=/private/tmp/w15b-evidence/test-tmp node --test packages/snapback4/test/react.test.mjs
+```
+
+```text
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 527.648625
+browserType.launch: Target page, context or browser has been closed
+<process did exit: exitCode=null, signal=SIGABRT>
+```
+
+Required language suite after the finite-shape fix:
+
+```sh
+cargo test -p snapback4-lang
+```
+
+```text
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 22 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.24s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.98s
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 82.09s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.41s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.67s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+These 23 harnesses total **311 passed, 0 failed, 1 ignored**.
+
+Earlier blocking commands (repository root, with the Node 24 PATH above):
+
+```sh
+bash snapback4/scripts/test.sh
+TMPDIR=/private/tmp/w15b-evidence/test-tmp SNAPBACK4_RUST_TEST_PROCESSES=4 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 bash snapback4/scripts/test.sh
+```
+
+The first exited 137 before a summary. I interrupted the second to fix the
+recursive-shape defect; it has no final script summary. Its init failure before
+the expected-count correction was:
+
+```text
+test result: FAILED. 29 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 36.08s
+```
+
+To identify its three unfinished cases without rerunning the tests,
+`cargo test --workspace --no-run --message-format=json` succeeded and supplied
+the executable inventory; their `--list --format=terse` inventories identified
+the same W13h case on the simulator and both device stores.
+
+Final blocking run, after both fixes (repository root):
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+TMPDIR=/private/tmp/w15b-evidence/final-tmp SNAPBACK4_RUST_TEST_PROCESSES=4 bash snapback4/scripts/test.sh
+```
+
+The runner observed load 27.22 across 18 CPUs and selected serial client files.
+All build, wasm-budget, release-guard, typecheck and fixture stages passed.
+All three formerly hanging W13h scenarios and all 30 init tests passed.
+The 777 Rust harness summaries total **2,101 passed, 3 failed, 8 ignored**;
+the only failed target was the unrelated witness driver. Its timeout failures
+were `cli_invalid_receipts_missing_video_and_step_timeout_fail_and_stop_backend`,
+`cli_missing_app_and_ambiguous_simulator_never_start_a_backend` and
+`cli_preserves_every_existing_output`. The first two printed
+`E_WITNESS_TIMEOUT: xcrun simctl list devices booted --json timed out`; the last
+received an unexpected error instead of `E_WITNESS_ARTIFACT`. No witness code
+was changed. Verbatim stage and failure summaries:
+
+```text
+-- ok: cargo build (4 s)
+-- ok: wasm build (3 s)
+-- ok: release guard (2 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (2 s)
+-- ok: chat app check (5 s)
+test result: FAILED. 17 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 57.33s
+-- FAIL: cargo test (570 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (1 s)
+-- ok: fixture wrapper tests (11 s)
+-- FAIL: client tests (629 s)
+== 2 failure(s) in 648 s
+```
+
+fixture wrapper tests:
+
+```text
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10798.418292
+```
+
+client tests:
+
+```text
+ℹ tests 888
+ℹ suites 0
+ℹ pass 884
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 3
+ℹ todo 0
+ℹ duration_ms 628903.052542
+```
+
+The client failure is the same Chromium SIGABRT at launch reproduced alone
+above. The whole witness file rerun passed those three cases, but a different
+case (`cli_rejects_failure_in_the_milestone_batch`) hit the same fake-simctl
+timeout. That case then passed alone, without a code change. These are observed
+time-dependent failures; unlike the reference-check failure, I have not run
+them on the base commit and do not claim a base-verified failure.
+
+```sh
+TMPDIR=/private/tmp/w15b-evidence/final-tmp cargo test -p snapback4 --test witness -- --test-threads=1 --nocapture
+```
+
+```text
+test result: FAILED. 19 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 80.48s
+```
+
+```sh
+TMPDIR=/private/tmp/w15b-evidence/final-tmp cargo test -p snapback4 --test witness driver::cli_rejects_failure_in_the_milestone_batch -- --exact --nocapture
+```
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 5.26s
+```
+
+The only out-of-crate test changes are the shared promotion allowance
+(107 → 159) and CLI sizing/backfill expectations (917 → 865, and its
+delete/replace continuation 918 → 866). No other lane's implementation was
+edited. The lead owns the two-family blind review and landing; this lane has
+not committed, pushed, tagged or published.
+
+Final reference check after the completed suite reproduces only the ten
+base-verified Repair B errors listed above; no new reference fails.
+
+```text
+ref-check: FAIL — 485 LLP docs, 9135 refs in 24510 files, 10 errors, 0 unchecked
+```
+
+
+## 2026-09-19 — W15b-2: round-one provenance review repairs (ruling 31)
+
+Base: `ef7bac6d7adde50bfa20dab51f418ae862fe8457`, the reviewed W15b
+commit. Both supplied blind reviews were read before editing. The scope is
+`snapback4-lang`'s diagnostic pass and its existing aggregate-copy suite,
+this appended journal entry, and one newest-first Revision-history bullet in
+LLP 3000.007. The governing constraints are LLP 3000 §6–§7 and
+LLP 3000.007 §14 ruling 31, §20.20–§20.21, §21.1 item 3, §21.3 P5 and
+§21.6; §18's accepted decisions remain unchanged. No admission, program IR,
+engine behavior, charge, ceiling, serialized value, code name or note severity
+changed. No sub-agents, remote machines, clone, commit, push, tag or publication.
+The existing P5 reference on the pass still applies. The published feeds/README
+claim needs no change: these repairs make its existing propagation claims true,
+and its verbatim-twin test remains green.
+
+- **F1:** the pass validates builtin and helper arity itself, returns unknown
+  for malformed/unsupported calls, and still visits writes in their arguments.
+  Group/sort field selectors must be literal strings. Five malformed uncalled
+  forms panicked at the reviewed commit; the regression covers called and
+  uncalled `at`, `slice` and `group`, extra arguments, unknown functions,
+  malformed selectors and a write nested in a malformed call. Called malformed
+  helpers retain ordinary binding's diagnostic; uncalled helpers remain admitted.
+- **F2:** a structural join visits each distinct field once, borrowing its
+  children; influence walks the owned tree without cloning each subtree.
+  Branches, iterations and merge lanes use scoped maps of changed bindings;
+  untouched bindings are neither copied nor joined. Helpers are interpreted
+  once per `(helper, argument provenance)`. Their column facts were already
+  recorded by that first interpretation, so cache hits need no replay.
+  Different argument provenance has a different cache entry.
+- **F3:** slice bounds influence the returned container, its elements and their
+  nested fields. Caller-selected positive/negative increments are silent;
+  constant bounds preserve the positive read-derived control.
+- **F4:** read-derived iteration cardinality influences carried assignments,
+  including `total = total + 1`, which has no row field in its expression.
+  That table-row count now gets the note; an ambient `range(0, 5)` count does not.
+- **F5:** body results carry loop-exit influence out to the loop's join, including
+  nested conditions. A caller's break after accumulation now silences the
+  column; a read-dependent break remains a positive control.
+- **F6:** two append-only derived insertions (the public log's
+  `n: (last.n ?? 0) + 1` and a copied `p.score`) and a public write of a widened
+  recursive JSON value assert silence. Each has an otherwise-qualifying positive
+  control. Removing the AppendOnly filter makes its test fail. Replacing the
+  widening summary with `READ` makes the recursive-public-write test fail.
+  Both temporary faults were removed before final verification.
+- **F7:** one 2026-09-19 Revision-history bullet names §20.21 and ruling 31.
+
+Two brief clarifications were necessary without changing what binds. Quarry
+has no `append only` declaration: that phrase produces `E_QUARRY_UNKNOWN`,
+`unknown table declaration append`. `Constraint::AppendOnly` exists in the
+core schema. The test attaches that existing constraint to a bound schema and
+calls the production pass through a test-only path include, without exporting
+an API or adding a declaration. The initial end-to-end 2,000-binding/2,000-if
+query also exceeds five seconds in ordinary binding, independently of the
+repaired pass. Its final timing test parses that same query, builds the catalog
+and schema, and runs the production note pass directly, excluding ordinary
+binding's type-environment copies. The deep-object query is timed end-to-end;
+the repeated-helper case compiles a catalog containing an uncalled helper,
+which this pass must inspect but ordinary binding does not inline. These are
+provenance scaling measurements, not a claim about the entire binder's scaling.
+
+| Timed shape | Reviewed pass, 200 ms budget | Repaired pass, 5,000 ms budget |
+| --- | ---: | ---: |
+| 30 nested single-field objects; unrelated if | timed out at 202.556 ms | 0.654 ms |
+| Same depth; assignment on one arm forces the structural join | first case timed out before this arm | 0.721 ms |
+| 2,000 bindings and 2,000 sibling ifs, direct note analysis | timed out at 202.282 ms | 9.251 ms |
+| 2,000 calls of one 2,000-binding helper | timed out at 202.317 ms | 8.010 ms |
+| Recursive value written to public JSON column | 0.461 ms, silent | 2.859 ms, silent |
+
+The before times are timeout lower bounds, not completed execution times.
+All completed timings are single-run wall clocks on this shared host. The
+first candidate end-to-end wide-query attempt timed out at 5,003.952 ms;
+that prompted isolating the pass rather than changing ordinary binding.
+Maximum changed code-file size is 645 lines (pass: 466; suite: 645).
+No runtime meter or promotion measurement was requested or changed in this
+review round; W15b's 159 reserve, 865 backfill and 1,024-write ceiling stand.
+
+The whole census was rerun at the reviewed pass and after the repairs. The
+printed material counts and exact sites are equal; **zero added hits, zero
+removed hits**. No published repair or new suppression was needed.
+
+| Material | Blocks/files | Tables | Before | After |
+| --- | ---: | ---: | ---: | ---: |
+| 28 cards plus README, CLIENT-AND-OPERATIONS and SERVER | 53 | 463 | 0 | 0 |
+| Bare and prefixed Following recipes | 2 | 18 | 0 | 0 |
+| Init local / online / expo | 3 | 7 | 0 | 0 |
+| Apps | 1 | 5 | 0 | 0 |
+| Lowering corpus, 740 bundles (229 refused) | 782 | 1,356 | 10 | 10 |
+| Calibration 9 / 0.2.25 | 8 | 34 | 2 | 2 |
+| Calibration 10 / 0.2.26 | 6 | 34 | 1 | 1 |
+| Calibration 11 / 0.2.27 | 13 | 38 | 3 | 3 |
+| Calibration 12 / 0.2.28 | 13 | 34 | 3 | 3 |
+
+The unchanged corpus sites, all still true findings:
+
+```text
+0.2.25: schema.q:15:3 — N_PUBLIC_AGGREGATE_COPY: column ranked.score copies maintain likeCounts, an aggregate of likes the engine already keeps; `insert <- allow` and `update <- allow` let any principal set this public column through any mutation that writes it
+0.2.26: schema.q:15:3 — N_PUBLIC_AGGREGATE_COPY: column trendingRows.score copies maintain likeCounts, an aggregate of likes the engine already keeps; `insert <- allow` and `update <- allow` let any principal set this public column through any mutation that writes it
+0.2.27: schema.q:15:3 — N_PUBLIC_AGGREGATE_COPY: column trendingPosts.score copies maintain likeCounts, an aggregate of likes the engine already keeps; `insert <- allow` and `update <- allow` let any principal set this public column through any mutation that writes it
+10ad23600c1148fe6b3e09303dada6b3394b8c6b3758655df79b14e4ae35829e: schema.q:3:3: items.n
+13a6fe30eb4d29c0a49fee087b67d6b8394bdce1eb212b44fdef068058e2268c: schema.q:2:3: items.n
+217e2fd78229359384c5ac4c5bb84b0d5ccda507a4b371119c5e62314d4b3774: schema.q:3:3: notes.n
+4d91ac27297b399b30a21b34804b66d8dd7c3c78befb2d49256d0bb034535668: schema.q:3:3: items.n
+56b57bca0fb142113c08ec242639506fccbcaccdb50dcf48ee3282e03527a476: schema.q:4:3: items.body
+6f4a24cfe8c8e07993869bb37938a3c838723726594742aea048af672a6722d3: schema.q:2:3: items.value
+a6c418dad38017d6b8a5c1045b88088e76c0de97261bec467fa8eb7b62c9759c: schema.q:3:3: notes.n
+abac58b5071aa7a78b3c81be694c6badb05c8786a9ca3a24127bf5df581ebfc0: schema.q:3:3: notes.n
+b379c824f4530bc2804beeccd783cff81658dd3693ecc083d3c55a1c5668c5e7: schema.q:2:3: items.n
+c36b97a6be6dbfc475c58dce1d3859f725ab84e85fff2b477999c5ff081e5a75: schema.q:3:3: items.n
+```
+
+The unchanged retained hits are cal9 `feed.q:38:3 feedPullCounts.used` and
+`insights.q:28:3 ranked.score`; cal10 `feed.q:38:3 feedPullCounts.used`;
+cal11 `feed.q:38:3 feedPullCounts.used`, `social.q:6:3 posts.score` and
+`trending.q:3:3 trendingPosts.score`; cal12 `feed.q:38:3 feedPullCounts.used`,
+`social.q:19:3 posts.parentAuthor` and `social.q:20:3 posts.score`.
+Cal10's argument-derived ranking remains silent, as ruling 31 requires.
+Retained sources and existing corpus cases were not edited. The three original
+synthetic scalar-maintain score assertions remain green.
+
+The exact note text is unchanged. F3 and F5 previously emitted the following
+false positive, and now emit no aggregate-copy note:
+
+```text
+schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + delta` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+```
+
+F4 previously emitted no aggregate-copy note; it now emits:
+
+```text
+schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`total` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+```
+
+Verification commands ran from `snapback4/`, except `ref-check`, whitespace
+validation and the full-suite invocation at the repository root. Raw logs
+are retained locally under `/private/tmp/w15b-r1-evidence/`. The regression
+ledger below preserves the received summary lines. Before runs used the
+reviewed implementation; later baseline reruns loaded that file with
+`git show ef7bac6d7adde50bfa20dab51f418ae862fe8457:...` and restored the
+candidate byte-for-byte in a `finally` block. No Git branch or index changed.
+
+F1, before then after:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies malformed_helper_calls_never_panic_or_supply_read_evidence -- --exact --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.01s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 23 filtered out; finished in 0.00s
+```
+
+F2, final regression against the reviewed implementation (tight timeout):
+
+```sh
+SNAPBACK4_PROVENANCE_TEST_MS=200 cargo test -p snapback4-lang --test aggregate_copies provenance_ -- --nocapture
+```
+
+```text
+test result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.20s
+```
+
+F2, initial candidate including ordinary query binding (the wide query timed out):
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies provenance_ -- --nocapture
+```
+
+```text
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 23 filtered out; finished in 5.00s
+```
+
+F2, intermediate isolated helper-body measurement:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies provenance_ -- --nocapture
+```
+
+```text
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 0.01s
+```
+
+F3, initial before/after and final regression against the reviewed implementation:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies caller_selected_slice_elements_and_nested_fields_are_silent -- --exact --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 27 filtered out; finished in 0.00s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 0.00s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 31 filtered out; finished in 0.00s
+```
+
+F4, before then after:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies a_loop_carried_table_row_count_is_derived -- --exact --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+```
+
+F5, initial before/after and final regression against the reviewed implementation:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies an_argument_dependent_break_after_accumulation_is_silent -- --exact --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 29 filtered out; finished in 0.00s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 31 filtered out; finished in 0.00s
+```
+
+F6, reviewed implementation then intentionally removed AppendOnly filter:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies append_only_derived_insertions_are_silent -- --exact --nocapture
+```
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 31 filtered out; finished in 0.00s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 31 filtered out; finished in 0.00s
+```
+
+F6, reviewed implementation then intentionally incorrect READ widening:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies a_public_write_of_a_widened_recursive_value_is_silent -- --exact --nocapture
+```
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 31 filtered out; finished in 0.00s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 31 filtered out; finished in 0.00s
+```
+
+Reviewed-implementation census, excluding the failing new regressions:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies -- --nocapture --skip malformed_helper --skip provenance_ --skip caller_selected_slice --skip a_loop_carried_table_row_count --skip an_argument_dependent_break
+```
+
+```text
+test result: ok. 23 passed; 0 failed; 1 ignored; 0 measured; 8 filtered out; finished in 0.13s
+```
+
+Final repaired aggregate suite: includes all regressions, sensitivity controls and the non-retained census:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies -- --nocapture
+```
+
+```text
+test result: ok. 31 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.12s
+```
+
+Retained calibrations: reviewed implementation, initial repaired pass, final repaired pass:
+
+```sh
+SNAPBACK4_CALIBRATION_PACKETS=/Users/ccheever cargo test -p snapback4-lang --test aggregate_copies survey_retained_calibration_schemas -- --ignored --exact --nocapture
+```
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 31 filtered out; finished in 0.05s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 31 filtered out; finished in 0.06s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 31 filtered out; finished in 0.05s
+```
+
+Complete language suite:
+
+```sh
+cargo test -p snapback4-lang
+```
+
+```text
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 31 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 74.58s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s
+test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.58s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.88s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+The final language command totals **320 passed, 0 failed, 1 ignored**
+across 23 harnesses. During test authoring, the first append-only test used
+the unsupported Quarry spelling above (one refusal, corrected to the existing
+schema constraint), and the first test-only import collided with the local
+`bind` test helper (E0255, corrected before any test ran). These were test
+construction errors, not product failures or changed language admission.
+
+`./ref-check --verbose` was also run with every modified tracked file
+restored temporarily to the exact reviewed base, then restored to the candidate.
+Both runs reported the same ten Repair B anchor errors, in untouched device
+and client files pointing into LLP 3000.001:
+
+```text
+ERROR snapback4/crates/snapback4-device/src/device.rs:367: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device.rs:369: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device.rs:660: broken ref: no anchor #repair-b-replacement-disposal in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device/deferred.rs:115: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device/predictions.rs:229: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device/store_identity.rs:90: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/packages/snapback4/src/local.ts:248: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/packages/snapback4/src/local.ts:411: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/packages/snapback4/src/local.ts:438: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/packages/snapback4/src/web.ts:146: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ref-check: FAIL — 485 LLP docs, 9135 refs in 24510 files, 10 errors, 0 unchecked
+```
+
+No reference failure was introduced. The complete run of `git diff --check`
+has empty output and exits zero. Other full-suite failures below are not
+claimed base-verified merely because the brief names them as known artifacts.
+
+The full suite was invoked **once**, after the completed language checks:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+TMPDIR=/private/tmp/w15br1 SNAPBACK4_RUST_TEST_PROCESSES=4 bash snapback4/scripts/test.sh
+```
+
+Verbatim stage and test summaries (the first Node summary is fixtures; the
+second is the client suite):
+
+```text
+-- ok: cargo build (8 s)
+wasm 1576848 B raw, 433876 B gzip (budget 434000: ok)
+-- ok: wasm build (2 s)
+-- ok: release guard (2 s)
+-- ok: package typecheck (0 s)
+-- ok: package build (2 s)
+-- ok: chat app check (13 s)
+-- ok: cargo test (1027 s)
+-- ok: chat app typecheck (7 s)
+-- ok: expo app typecheck (1 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ skipped 0
+ℹ duration_ms 21329.374791
+-- ok: fixture wrapper tests (21 s)
+ℹ tests 888
+ℹ pass 884
+ℹ fail 1
+ℹ skipped 3
+ℹ duration_ms 851737.292125
+-- FAIL: client tests (851 s)
+== 1 failure(s) in 1054 s
+```
+
+Rust totals across the runner's 777 summaries: **2,113 passed, 0 failed,
+8 ignored**. The witness harness passed 20/20 and lifecycle passed 20/20;
+there was no timing failure to rerun. Clients: **884 passed, 1 failed,
+3 skipped**, from 888 tests. The sole failure was
+`packages/snapback4/test/react.test.mjs:74:30`, launching Chromium:
+
+```text
+browserType.launch: Target page, context or browser has been closed
+[pid=79602] <process did exit: exitCode=null, signal=SIGABRT>
+```
+
+The brief explicitly names this sandbox launch artifact as report-only; it
+was not chased or claimed independently reproduced at the reviewed base.
+The wasm step **passed**, despite the brief's expectation of a known overrun:
+1,576,848 bytes raw, 433,876 gzip under 434,000 (124 bytes headroom).
+The suite took 1,054 seconds on the loaded shared host and exited 1 solely
+for the browser test. All other stages passed.
+
+Final `./ref-check --verbose` output is byte-identical to the exact-base
+output above (ten errors); `git diff --check` is clean. The journal retains
+every base byte and adds one dated entry. Final intended files: the provenance
+pass, its aggregate-copy suite, this journal, and LLP 3000.007's single
+Revision-history bullet. No out-of-scope file was changed; no implementation
+remains outstanding in F1–F7. A green browser run outside the sandbox and the
+next blind review remain the lead's work. No commit, push, tag or publication.
+
+## 2026-09-19 — W15b round 2: bounded abstract values and value-selection control
+
+Continues `ef7bac6d7a` and `4ab1191008`; reviewed base for this turn is
+`4ab119100889f815596a8283b862e3661cf674d1`. No commit, push, tag or publication.
+This is the third appended W15b entry. The earlier journal bytes remain intact.
+The scope is the optional `N_PUBLIC_AGGREGATE_COPY` pass, its existing aggregate
+suite, the note's README/feeds twins, and the governing paragraph in LLP
+3000.007 §20.21. No admission, IR, engine, serialized value, meter, ceiling or
+existing conformance case changes.
+
+F8 replaces owned recursive provenance with shared immutable nodes and cached
+node counts/bit summaries. A value may represent at most **4,096 expanded nodes**
+and **128 levels**; sharing does not discount its expanded size. Construction
+checks the size before allocating its parent. Overgrowth replaces the whole
+value with UNKNOWN, including field projections of an unknown root. The
+**262,144 weighted-work-unit budget covers the entire catalog**, and therefore
+each program within it, including helper calls, joins, influence propagation,
+field construction, write-summary replay and control-flow traversal. The
+traversal also has a **128-frame bound**. These are private diagnostic bounds,
+not engine charges. Exhaustion abandons all column proofs: an unvisited writer
+could invalidate any earlier note. The source regression deliberately exhausts
+work after recording an otherwise-positive column and checks that no note leaks.
+
+F9 records enclosing statement/expression conditions and loop cardinality in
+write facts, including helper calls. A later break/continue also influences
+preceding writes in that loop. The helper cache includes control provenance and
+replays cached write summaries; merely remembering that a prior invocation
+recorded them is insufficient when a later loop exit changes their context.
+Short-circuit `and`/`or`/`??` arms carry the left operand's influence into helper
+writes. Read control does **not** manufacture read evidence for `now`, `true`,
+or a literal write. Return guards affect returned values, while a no-write
+early return alone does not turn the remaining written value into an argument.
+The literal insert/default identity exception remains valid under control.
+
+F10 propagates every ascending/descending sort key into the reordered container,
+elements and nested fields. Group keys similarly influence membership,
+cardinality, `items`, and subsequent projections or sums. `first`, `last`, `at`
+and `slice` preserve that influence. Unknown key forms remain UNKNOWN.
+
+F11 found additional losses beyond the three review examples: optional shape
+projection could discard the argument selecting whether a source exists;
+short-circuit and conditional expressions could invoke writing helpers without
+control; `group` could hide argument-dependent membership and a projected sum's
+cardinality. Unknown table reads and rule-only `created` in uncalled helpers
+could also supply bogus read evidence. All have silent regressions. Known
+scalar builtins are enumerated explicitly; a future arity entry does not
+implicitly gain the old optimistic scalar fallback.
+
+### Expression and builtin audit
+
+The table classifies the *provenance model*, not exact value evaluation. “Precise”
+means the stated four-bit/field abstraction preserves the relevant dependence;
+it does not claim constant folding or path feasibility. “Taints elements” includes
+flattened summaries whose bits follow every later field/element projection.
+Every row additionally falls back to UNKNOWN on a value/work/depth limit.
+Read selectors intentionally do not taint stored values, as ruling 31's contract
+requires. No note is an authorization proof.
+
+| AST expression | Classification | Model / audit disposition |
+| --- | --- | --- |
+| `Name` | Modelled precisely | Local provenance; viewer/now/commit/new ambient; an unresolved name UNKNOWN. |
+| `Focal` | Modelled precisely | Current row/element provenance. |
+| `Literal` | Modelled precisely | Ambient; eligible as insert initialization only. |
+| `Array` | Taints elements | Union of possible elements, preserving each field's bits; selection never drops a key's influence. |
+| `Object` | Modelled precisely | Per-field provenance; unrelated argument fields need not taint a selected read field. |
+| `Unary` | Modelled precisely | Operand bits; negative literal remains literal initialization. |
+| `Binary` | Taints elements | Both inputs retained; list concatenation joins element shapes; other results conservatively flatten bits. Short-circuit arms propagate control to writes. |
+| `Member` | Modelled precisely | Known field or whole-value summary; missing/unrepresented field UNKNOWN. |
+| `Call` | Modelled precisely / conservatively UNKNOWN | Declared helper interpreted with arguments and control; cache replays writes. Recursive, malformed or unsupported calls UNKNOWN, while argument writes are still visited. Builtins below. |
+| `Read` | Modelled precisely / conservatively UNKNOWN | Known table/maintain READ; connected ambient; unknown table UNKNOWN. Selectors traversed for writes, not mistaken for stored values. |
+| `Merge` | Modelled precisely / conservatively UNKNOWN | Stored rows READ; unknown source table UNKNOWN. Lane/filter expressions visited. |
+| `Exists` | Modelled precisely | The read's classification; connected remains ambient. |
+| `Created` | Modelled conservatively (UNKNOWN) | Rule-only form, not valid program-value evidence even in an uncalled helper. |
+| `Assert` | Modelled precisely | Preserves successful value; refusal is not another written value. |
+| `Shape` | Taints elements | Per-field projection plus source selection bits; optional/unknown source cannot lose its influence when every field is replaced. |
+| `ShapeUse` | Taints elements / conservatively UNKNOWN | Same projection model; missing or recursive named shape UNKNOWN. |
+| `Walk` | Modelled precisely / conservatively UNKNOWN | Stored rows READ; unknown table UNKNOWN. Seed traversed. |
+| `If` | Taints elements | Both possible values joined and recursively influenced by the condition; arm writes inherit control too. |
+| `Write` | Modelled precisely | Patch/default/key facts and prior-image result; caller/unknown control disqualifies non-initializing writes, never supplies positive READ. Delete writes no column. |
+
+The full core `Builtin` enum was checked against the Quarry lowering in
+`bind/program/expr.rs` and `control.rs` and execution in `engine/runner.rs`.
+IR-only spellings are named below so the audit does not imply a second Quarry API.
+
+| Core builtin / Quarry form | Classification | Model / audit disposition |
+| --- | --- | --- |
+| `Calendar` / day, hour, bucket | Modelled precisely | Scalar summary retains all supplied input bits. |
+| `Len` / count(text) | Modelled precisely | Text dependency retained. |
+| `Slice` | Taints elements | Bounds influence container, elements and nested fields; text uses the same summary. |
+| `Concat` / binary `+` | Taints elements | Both list-element shapes joined, or scalar union for text/identity forms. |
+| `Lower` | Modelled precisely | Input summary retained. |
+| `Trim` | Modelled precisely | Input summary retained. |
+| `Sha256` | Modelled precisely | Input summary retained. |
+| `Join` | Modelled precisely | List and separator summaries retained in text. |
+| `Group` | Taints elements | Key affects membership/cardinality and every nested group item. Projected sum regression was red before repair. |
+| `First` | Taints elements | Selected element retains container selection influence. |
+| `Last` | Taints elements | Same; descending sort and group membership regressions. |
+| `At` | Taints elements | Index and prior reorder/selection influence every nested field. |
+| `Min` | Taints elements | Union of all operand bits, flattened so later projection cannot drop comparison influence. |
+| `Max` | Taints elements | Same as min; caller-dependent scalar regression and positive read control. |
+| `Divmod` | Modelled precisely | Both tuple components retain both operands' summary. |
+| `Sort` | Taints elements | All literal key fields, stripping the descending `-`, influence every element/field; nonliteral key UNKNOWN. |
+| `MentionTokens` / tokens | Taints elements | Text summary follows the result and selected tokens. |
+| `DeterministicShare` / share | Modelled precisely | Amount, recipients and recipient summaries retained. |
+| `Count` | Modelled precisely | Container/element summary retained conservatively, including grouped cardinality influence. No constant-length optimization is claimed. |
+| `Sum` | Modelled precisely | Scalar input union; projection form includes container/cardinality and projection bits, with projected helper writes under that context. |
+| `CountCapped` | Modelled precisely | Internal count lowering; same source provenance, not a separate supported call spelling. |
+| `Connected` / connected[p] | Modelled precisely | Ambient presence, not stored-table evidence. |
+| sorted(a, b) | Taints elements | Pair lowering to min/max; both names get the complete comparison summary. |
+| range(a, b) | Taints elements | Loop-only form; both bounds influence cardinality and carried values/writes. |
+| Unknown name, malformed arity, unsupported sort/group key | Modelled conservatively (UNKNOWN) | Explicit fallback; no automatic READ from a future builtin. |
+
+Statement audit: binding preserves value bits; return joins value-selecting
+conditions; expression/emit/require traverse their expressions and helper writes;
+if scopes control, joins changed bindings and records conditional exits; for
+widens carried bindings and applies domain and exit influence to write facts;
+break/continue end the path and influence earlier/later loop writes. Require
+and a no-write early return are successful-execution guards, not independent
+sources of a written value. Literal insert initialization is the explicit
+exception to disqualification, not read evidence.
+
+### Census and the incompatible zero-delta request
+
+The first candidate incorrectly added READ control to ambient writers, adding
+three published `authors.shared` hits, three corpus hits, and ambient synthetic
+calibration columns. The census rejected that implementation; the final model
+uses control only to reject a proof. None of those additions remains.
+
+The final census is **zero added, five removed**, all removals in retained
+calibrations. Thus the brief's demand for zero removals cannot be truthfully
+reported alongside F9. These sites are exact instances of its newly required
+caller-controlled writes, not false negatives caused by budget exhaustion or
+name-based suppression. The note's latent authority concern may remain, but
+ruling 31's no-argument trigger no longer applies.
+
+| Material | Blocks/files | Tables | Reviewed base → final hits |
+| --- | ---: | ---: | ---: |
+| 28 cards and 3 published documents | 53 | 463 | 0 → 0 |
+| Recipe forms | 2 | 18 | 0 → 0 |
+| Init local/online/expo | 3 | 7 | 0 → 0 |
+| App schemas | 1 | 5 | 0 → 0 |
+| Lowering corpus, 740 bundles | 782 | 1,356 | 10 → 10 |
+| Calibration 9 / 0.2.25 | 8 | 34 | 2 → 1 |
+| Calibration 10 / 0.2.26 | 6 | 34 | 1 → 0 |
+| Calibration 11 / 0.2.27 | 13 | 38 | 3 → 2 |
+| Calibration 12 / 0.2.28 | 13 | 34 | 3 → 1 |
+
+Removed sites and the selecting argument:
+
+- Cal9 `feed.q:38:3 feedPullCounts.used`: `social.q:64`'s `if set` calls
+  `feedAddFollow` → `feedTryPull`, incrementing the count; the other path drops it.
+- Cal10 `feed.q:38:3 feedPullCounts.used`: `schema.q:101`'s `if value` chooses
+  `feedAddFollow` versus `feedDropFollow`.
+- Cal11 `feed.q:38:3 feedPullCounts.used`: `social.q:81`'s `if active` chooses
+  those same writing helpers.
+- Cal12 `feed.q:38:3 feedPullCounts.used`: `social.q:98`'s `if set` chooses
+  those same writing helpers.
+- Cal12 `social.q:20:3 posts.score`: `social.q:122–128` uses `set` to choose
+  `p.score + 1` versus `max(0, p.score - 1)`.
+
+Kept after correcting the first candidate: cal11 `trending.q:3:3
+trendingPosts.score`. Its `social.q:56–58` argument guard controls only literal
+initialization to zero. The later maintain-copy writer is under a read-derived
+condition. Keeping this hit follows the existing insert identity exception.
+The other retained hits are cal9 `insights.q:28:3 ranked.score`, cal11
+`social.q:6:3 posts.score`, and cal12 `social.q:19:3 posts.parentAuthor`.
+The three synthetic scalar-maintain calibration assertions remain unchanged.
+
+Unchanged corpus sites (full identity, site and column):
+
+```text
+10ad23600c1148fe6b3e09303dada6b3394b8c6b3758655df79b14e4ae35829e: schema.q:3:3: items.n
+13a6fe30eb4d29c0a49fee087b67d6b8394bdce1eb212b44fdef068058e2268c: schema.q:2:3: items.n
+217e2fd78229359384c5ac4c5bb84b0d5ccda507a4b371119c5e62314d4b3774: schema.q:3:3: notes.n
+4d91ac27297b399b30a21b34804b66d8dd7c3c78befb2d49256d0bb034535668: schema.q:3:3: items.n
+56b57bca0fb142113c08ec242639506fccbcaccdb50dcf48ee3282e03527a476: schema.q:4:3: items.body
+6f4a24cfe8c8e07993869bb37938a3c838723726594742aea048af672a6722d3: schema.q:2:3: items.value
+a6c418dad38017d6b8a5c1045b88088e76c0de97261bec467fa8eb7b62c9759c: schema.q:3:3: notes.n
+abac58b5071aa7a78b3c81be694c6badb05c8786a9ca3a24127bf5df581ebfc0: schema.q:3:3: notes.n
+b379c824f4530bc2804beeccd783cff81658dd3693ecc083d3c55a1c5668c5e7: schema.q:2:3: items.n
+c36b97a6be6dbfc475c58dce1d3859f725ab84e85fff2b477999c5ff081e5a75: schema.q:3:3: items.n
+```
+
+### Measured bounds and regression evidence
+
+The before experiment used the exact reviewed pass with test-only node counting
+at object construction (no bounds, no provenance change). The two 200 ms
+experiments ran separately so each timed-out test process exited with its worker;
+no runaway background analysis was left on the shared machine. “Observed peak”
+is the largest completed abstract value counted before timeout, not the final
+required size or peak process RSS. The exact recurrence is `nodes(x0) = 1`,
+`nodes(xN) = 1 + 2 * nodes(xPrev)`, so the unbounded x30 would require
+**2,147,483,647 nodes**. That final allocation was deliberately not attempted.
+
+| Exact 30-binding note-pass input | Before observed peak, lower bound | Before elapsed / 200 ms bound | Final peak expanded nodes/value | Final elapsed / 5,000 ms bound | Final weighted work | Widenings |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Unused helper | 262,143 | timeout at 205.039 ms | 4,095 | 1.352 ms | 16,797 | 2 |
+| Called helper | 524,287 | timeout at 205.028 ms | 4,095 | 0.819 ms | 16,796 | 2 |
+
+The exact unused helper also passes **full compilation in 0.319 ms**. The
+exact called-helper measurement isolates parsing, catalog/schema construction
+and this diagnostic pass, as the earlier sibling-branch stress test does. A
+supplementary full-compilation probe, including a JSON-typed identity around
+each branching object, exceeded five seconds (**5,001.485 ms**) in other
+compiler work. That broader compilation bound is **not established** by this
+lane and the attempted assertion was removed rather than weakening its time
+limit. No change to ordinary binding or IR construction was made. This was
+observed in the candidate; no independently base-verified attribution is claimed.
+The targeted and language runs containing that attempted assertion each reported:
+
+```text
+test result: FAILED. 38 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 5.01s
+```
+
+The final whole-catalog exhaustion regression consumes **262,128** weighted
+units before refusing the next charge, records **13 widenings**, peaks at
+**4,095 nodes/value**, and emits **zero notes**, including the positive write
+recorded before the exhausted helper. Three public-write controls exercise the
+oversized value, a long field projection and an unknown-root shape. Existing
+recursive-loop, 30-level join, 2,000-binding/branch and repeated-helper tests stay
+green. Values widened by the node/depth bound carry UNKNOWN, never manufactured
+READ. Shared pointers alone are not the claim: both expanded size and cumulative
+analysis work have explicit bounds.
+
+### Commands and verbatim summaries
+
+Cargo commands below run from `snapback4/`; ref-check, diff-check and the full
+script run from the repository root. JS commands use the required environment:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+Baseline census before any implementation edit:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies -- --nocapture
+SNAPBACK4_CALIBRATION_PACKETS=/Users/ccheever cargo test -p snapback4-lang --test aggregate_copies survey_retained_calibration_schemas -- --ignored --exact --nocapture
+```
+
+```text
+test result: ok. 31 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 31 filtered out; finished in 0.07s
+```
+
+Final selection/control/unknown regressions against the reviewed implementation
+(with test-only measurement support, not a repaired classifier):
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies review_ -- --nocapture --skip review_thirty_branching --skip review_expansion
+```
+
+```text
+test result: FAILED. 2 passed; 3 failed; 0 ignored; 0 measured; 35 filtered out; finished in 0.01s
+```
+
+The three failures are statement/helper write control, reordered/grouped elements,
+and unknown forms/optional shape selection. The already-safe scalar min/max/
+sorted/divmod controls and ambient-write controls pass. Initial narrower
+versions also failed, and the first candidate's regression run found the
+unknown-root shape loss before it was repaired. No test proves only a refusal:
+read-derived controls still require the note, and malformed unused helpers
+still compile successfully with no note.
+
+The separate before bound commands and summaries:
+
+```sh
+SNAPBACK4_PROVENANCE_TEST_MS=200 cargo test -p snapback4-lang --test aggregate_copies review_thirty_branching_unused_helper_is_bounded -- --exact --nocapture
+SNAPBACK4_PROVENANCE_TEST_MS=200 cargo test -p snapback4-lang --test aggregate_copies review_thirty_branching_called_helper_is_bounded -- --exact --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 39 filtered out; finished in 0.21s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 39 filtered out; finished in 0.21s
+```
+
+Final repaired aggregate suite and retained survey (the final survey pins columns,
+not just the two identically named `posts` table hits):
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies -- --nocapture
+SNAPBACK4_CALIBRATION_PACKETS=/Users/ccheever cargo test -p snapback4-lang --test aggregate_copies survey_retained_calibration_schemas -- --ignored --exact --nocapture
+```
+
+```text
+test result: ok. 39 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 39 filtered out; finished in 0.06s
+```
+
+Complete language suite, **328 passed, 0 failed, 1 ignored**, across 23 harnesses:
+
+```sh
+cargo test -p snapback4-lang
+```
+
+```text
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 39 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 68.93s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.90s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+### Exact diagnostic text before and after
+
+No wording, code, severity, rewrite or guide changes. These false-positive
+notes are suppressed; after each example below there is **no aggregate-copy
+note**. The first is F9's statement branch and the second is F10's sorted
+delta (the grouped delta has the same text). Existing prior-image and
+scalar-maintain positive diagnostics are unchanged.
+
+```text
+schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + 1` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+```
+
+```text
+schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + delta` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+```
+
+```text
+schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + missing[postId]` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+```
+
+```text
+schema.q:3:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`selected.delta ?? 0` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+```
+
+The five removed calibration notes, verbatim before (cal9 and cal11 share
+one identical text). Each has no note afterward:
+
+```text
+feed.q:38:3 — N_PUBLIC_AGGREGATE_COPY: every write to feedPullCounts.used is computed from reads (`used + 1` in `follow`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin feedPullCounts.used to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+```
+
+```text
+feed.q:38:3 — N_PUBLIC_AGGREGATE_COPY: every write to feedPullCounts.used is computed from reads (`used + 1` in `setFollow`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin feedPullCounts.used to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+```
+
+```text
+feed.q:38:3 — N_PUBLIC_AGGREGATE_COPY: every write to feedPullCounts.used is computed from reads (`n` in `backfill`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin feedPullCounts.used to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+```
+
+```text
+social.q:20:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`valueOrZero(likeCounts[p.id])` in `backfill`); `update <- allow` lets any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+```
+
+F8's before timeout has no completed compiler result to quote. Afterward
+both diagnostic-pass cases and full compilation of the unused helper finish
+with zero notes. Source expansion does not emit a new diagnostic or refusal.
+
+### Final verification
+
+The full blocking suite is invoked once:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+TMPDIR=/private/tmp/w15br2 SNAPBACK4_RUST_TEST_PROCESSES=4 bash snapback4/scripts/test.sh
+```
+
+Verbatim full-suite stage and count summaries (first Node summary: fixtures;
+second: clients):
+
+```text
+-- ok: cargo build (6 s)
+wasm 1576848 B raw, 433876 B gzip (budget 434000: ok)
+-- ok: wasm build (2 s)
+-- ok: release guard (1 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (1 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (524 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (0 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ skipped 0
+ℹ duration_ms 6483.838958
+-- ok: fixture wrapper tests (6 s)
+ℹ tests 888
+ℹ pass 884
+ℹ fail 1
+ℹ skipped 3
+ℹ duration_ms 580896.013042
+-- FAIL: client tests (581 s)
+== 1 failure(s) in 594 s
+```
+
+Rust totals across 777 runner summaries: **2,121 passed, 0 failed, 8 ignored**.
+Clients: **884 passed, 1 failed, 3 skipped** out of 888. No timing-sensitive
+failure needed an isolated rerun. The sole failing test was React's Chromium
+launch at `packages/snapback4/test/react.test.mjs:74:30`:
+
+```text
+browserType.launch: Target page, context or browser has been closed
+[pid=49782] <process did exit: exitCode=null, signal=SIGABRT>
+```
+
+This is the sandbox launch artifact named in the brief, reported without
+chasing it. It was not independently reproduced at the reviewed base during
+this turn and is not claimed base-verified. The wasm step passed: **1,576,848 B
+raw, 433,876 B gzip / 434,000 B budget**, leaving **124 B**. The full suite ran
+once and exited 1 solely for the browser launch.
+
+The read-only ref-check command is:
+
+```sh
+./ref-check --verbose
+```
+
+At the exact clean reviewed base `4ab119100889f815596a8283b862e3661cf674d1`:
+
+```text
+ref-check: FAIL — 485 LLP docs, 9135 refs in 24510 files, 10 errors, 0 unchecked
+```
+
+The ten error records match the candidate byte for byte. They are the untouched
+Repair B references, not an introduced reference failure:
+
+```text
+ERROR snapback4/crates/snapback4-device/src/device.rs:367: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device.rs:369: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device.rs:660: broken ref: no anchor #repair-b-replacement-disposal in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device/deferred.rs:115: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device/predictions.rs:229: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device/store_identity.rs:90: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/packages/snapback4/src/local.ts:248: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/packages/snapback4/src/local.ts:411: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/packages/snapback4/src/local.ts:438: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/packages/snapback4/src/web.ts:146: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+```
+
+The final ref-check summary and final diff hygiene are recorded below. Intended
+files are `bind/aggregate_provenance.rs`, new `bind/aggregate_value.rs`, the
+existing `tests/aggregate_copies.rs`, the README/feeds twins, this appended
+journal entry and the new dated paragraph within LLP 3000.007 §20.21. No
+out-of-scope file was touched. The largest changed code file is 804 lines.
+F8–F10 and the F11 audit are implemented. The zero-removal census request and
+a five-second **whole compiler** bound for the called expanding helper are the
+two claims not established, for the reasons recorded above. No core, admission,
+charge, ceiling, serialized-form, commit or publication change was made.
+
+```text
+ref-check: FAIL — 485 LLP docs, 9136 refs in 24511 files, 10 errors, 0 unchecked
+```
+
+`git diff --check` exits zero with empty output. The README and feeds note
+sections are byte-equal. The journal retains all 2,485,909 base bytes and adds
+this one dated entry. All seven working-tree paths are intended lane changes.
+
+
+## 2026-09-19 — W15b-4: L26 separates data dependence from caller selection
+
+This fourth W15b entry appends to the three earlier records and preserves their
+bytes and the expression/builtin audit. The exact base is
+`eb215b895ccf974d318205a032b3d66431723070`, after `ef7bac6d7a` and
+`4ab1191008`. No commit, push, tag or publication. Scope: the language crate's
+optional aggregate-copy pass and existing tests, its feeds/README twins, and a
+further dated paragraph at the end of LLP 3000.007 §20.21. The binding ruling
+is §21.8 L26, quoted in the lane brief; this checkout's decision table ends at
+L25, so no fetch or reconstruction of the lead's decision record was needed.
+
+### R1: the implemented verdict and preserved bounds
+
+An abstract value and each write fact now carry separate **data** and **control**
+bits. Every non-initializing write must have READ data, optionally AMBIENT,
+without ARGUMENT or UNKNOWN data. At least one write must supply read evidence.
+Literal inserts/defaults retain the existing identity exception. Conditions,
+loop bounds/exits, sort/group keys and slice/element positions contribute control;
+that control does not disqualify the written data. Arithmetic combines operand
+data and preserves their control separately. A copied argument field remains
+ARGUMENT even after sorting, slicing, grouping or shaping. Unknown constructs
+still add UNKNOWN data: moving an unsupported condition into the control channel
+does not make its dependence known. The same audience, unconditional-rule,
+immutable, append-only, maintain-target and native-writer checks still apply.
+
+The previous journal's audit remains the history; these are its changed entries:
+
+| Previous audit entries | L26 model |
+| --- | --- |
+| `If`, statement branches, return guards, loop bounds, `break`/`continue` | Join candidate data; record the selector in control, including helper writes and cached write replay. |
+| `Shape` / `ShapeUse`, field and element projection | Preserve projected field data; carry source/element selection separately through nested fields. An unrelated argument field never becomes copied data. |
+| `Sort`, `Group`, `Slice`, `First`, `Last`, `At` | Keys and positions select values through control. A group's `key` remains the original key's data; sorting never erases supplied field data. Unknown key forms remain UNKNOWN. |
+| `Count` over a represented list | Use its cardinality provenance, not the union of fields in its elements. A literal list's length is ambient; a read list's cardinality is read-derived. Text/opaque-input count retains its input summary. |
+| `Sum` and scalar arithmetic/builtins | Combine consumed data and preserve control. Projected sum includes source cardinality and projection data. Min/max/sorted/divmod retain the conservative operand union. |
+| Loop-carried addition/subtraction | A direct carried `n = n + ...` / `n = n - ...` consumes read cardinality. A new local, a reset binding, an unrelated constant assignment or a constant helper called per row does not gain READ. Other unrepresented recurrences retain their conservative summaries. |
+| `Write` | Record data and control separately; control never manufactures READ evidence. The representative expression includes parentheses around a conditional arithmetic operand. |
+
+Every other audit entry and the UNKNOWN fallback are retained. The abstract
+representation still shares values; the **4,096 expanded-node**, **128 value
+level**, **262,144 weighted catalog work unit** and **128 traversal frame**
+bounds are unchanged. Control has one shared selector witness per summary;
+column diagnostics retain at most two representative selected expressions.
+Helper cache keys include control. Function-local accumulators do not inherit
+an enclosing caller loop's cardinality. Neither the core meter nor admission,
+IR, value serialization, engine execution or a conformance case changed.
+
+### R2: every inverted case and the silent controls
+
+All renamed tests state why the former silent verdict flips:
+
+| Final positive test | Flipped cases / reason |
+| --- | --- |
+| `l26_conditional_delta_is_control_and_toggle_message_names_both_arms` | Moves the former `conditional argument` silent case out of `argument_or_ambient_writer_disqualifies_across_the_catalog`: `p.score + (1 if value else -1)` consumes a read and ambient delta. Also pins the exact statement-toggle message with `liked` in `setLike`. |
+| `l26_slice_positions_choose_ambient_deltas_without_supplying_data` | Scalar, nested-object and nested-list picks from `[1, -1]`; `offset` selects an ambient delta added to a read. |
+| `l26_break_chooses_how_many_read_values_are_summed` | Break after accumulation, directly and under a read-dependent outer condition; `choice` selects how many `row.score` values are summed. |
+| `l26_statement_helper_and_loop_control_choose_read_derived_writes` | Statement ±1 arms, helper cache, loop branch, argument loop count, break after write, cached helper before break, expression helper, short-circuit helper, guarded-return helper: all write read-derived data selected by control. |
+| `l26_sort_and_group_keys_choose_elements_without_supplying_their_fields` | Ascending first, descending last, indexed pick, descending nested field, multiple sort keys, nested grouped item, group count and projected group sum; argument keys select, while delta data stays ambient and is added to a read. |
+| `l26_statement_constants_and_loop_counts_choose_deltas_without_supplying_data` | Constants chosen by a statement, argument-bounded count, break before accumulation, helper loop return choosing 1/2; chosen deltas do not supply argument data. |
+| `l26_optional_shape_presence_selects_a_read_derived_field` | Inline and named optional shapes move out of the unknown-forms silent test: caller chooses presence, projected data comes from a read. Unknown-table and rule-only `created` cases remain silent. |
+
+`l26_control_alone_does_not_manufacture_read_data` and
+`l26_a_constant_helper_called_in_a_read_loop_has_no_read_data` pin the converse:
+read conditions, repeated constant assignment, per-iteration reset/local
+increment, sort keys and an ambient helper cannot manufacture read data.
+`l26_selected_argument_fields_still_supply_data` pairs silent direct arguments,
+arithmetic, copied object/shape fields, sorted/sliced payloads and copied group
+keys with positive read replacements. All ten `l26_` tests are red on the exact
+base and green on the candidate, including the positive companions of silent
+argument cases. The malformed-call no-panic and bounded/widened-value tests
+remain green.
+
+The existing silent controls are retained. `score: amount`, `p.score + amount`
+and argument fields (including helper/shape/write-result fields) carry ARGUMENT
+data. `editedAt: now`, `done: true` and `lastSeen: now` are ambient-only.
+`messages.ordinal` is immutable; the ordinal/readOrdinal fixture's insert and
+update rules additionally name `.principal = viewer`. A `readOrdinal` bump is
+silent because of that restricted rule; its unrestricted companion takes the
+caller's ordinal, which supplies ARGUMENT data. The append-only ordinal test
+uses the IR's AppendOnly constraint (Quarry has no spelling) and verifies that
+removing it would note the derivation. Job-written totals under `deny` have no
+unconditional write rule. Maintain targets are excluded. Widened recursive
+values and exhausted catalogs retain UNKNOWN and stay silent.
+
+### R3: census against eb215b895c
+
+| Material | Blocks/files | Table occurrences | Base hits | L26 hits |
+| --- | ---: | ---: | ---: | ---: |
+| 28 cards + 3 published documents | 53 | 463 | 0 | 0 |
+| Bare + prefixed feeds recipes | 2 | 18 | 0 | 0 |
+| Local, online and Expo init templates | 3 | 7 | 0 | 0 |
+| Apps (`apps/chat/snapback`) | 1 | 5 | 0 | 0 |
+| Lowering corpus, 740 bundles (229 refused) | 782 | 1,356 | 10 | 10 |
+| Calibration 9, 0.2.25 | 8 | 34 | 1 | 2 |
+| Calibration 10, 0.2.26 | 6 | 34 | 0 | 2 |
+| Calibration 11, 0.2.27 | 13 | 38 | 2 | 4 |
+| Calibration 12, 0.2.28 | 13 | 34 | 1 | 3 |
+
+No published or corpus hit was added or removed; the ten exact corpus sites
+remain pinned in the existing test. The calibration survey remains ignored
+by default, and names every expected column:
+
+| Calibration | Final columns | Added versus base |
+| --- | --- | --- |
+| 9 | `feedPullCounts.used`, `ranked.score` | `feedPullCounts.used` at `feed.q:38:3` |
+| 10 | `feedPullCounts.used`, `trendingRows.score` | Both: `feed.q:38:3`, `insights.q:29:3` |
+| 11 | `feedPullCounts.used`, `posts.parentAuthorId`, `posts.score`, `trendingPosts.score` | First two: `feed.q:38:3`, `social.q:5:3` |
+| 12 | `feedPullCounts.used`, `posts.parentAuthor`, `posts.score` | `feedPullCounts.used` at `feed.q:38:3`, `posts.score` at `social.q:20:3` |
+
+**Seven added, zero removed.** All six requested returning hits return.
+The brief's 2/1/3/3 prediction is not R1's result: cal10's returning trending
+score is a second hit alongside its returning feed count. Cal11 also gains
+`posts.parentAuthorId`: `posts[parentId].authorId if parentId != null else null`
+combines READ and AMBIENT data under argument control. No argument supplies the
+author. The nullable branch join follows the requested bit rule, rather than a
+name exception or a forced census count. Cal11's `trendingPosts.score` remains.
+
+### R4/R5: message and record
+
+The feeds section and README twin state the rule in one sentence and explain
+control in builder terms. The toggle message prints both alternatives and the
+selector; a conditional arithmetic operand keeps its parentheses. The rewrite,
+code name, severity and `feeds` destination are unchanged, so `guide::CODES`
+needs no new entry. The new dated §20.21 paragraph cites L26 and preserves
+both earlier paragraphs. This journal entry preserves the previous audit and
+records the changed interpretations above.
+
+### Measurements and verification
+
+Paired diagnostic-pass runs in this session (elapsed includes the test's worker
+thread startup; these are observations on a shared host, not speedup claims):
+
+| Case | Base peak nodes | L26 peak nodes | Base ms | L26 ms | L26 work units | L26 widenings |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 30 branching bindings, unused helper | 4,095 | 4,095 | 3.696 | 1.369 | 16,797 | 2 |
+| 30 branching bindings, called helper | 4,095 | 4,095 | 1.953 | 1.285 | 16,796 | 2 |
+
+The unused helper's full compilation measured **3.459 → 0.545 ms**, zero notes.
+The deliberate total-budget case stayed silent, **262,128 → 254,143** spent
+work units and **13 → 3** widenings; the ceiling is still 262,144. The
+aggregate suite measured **44 passed, 0 failed, 1 ignored** in **0.11 s**.
+The new regressions measured **10 passed** in **0.01 s**. Calibration survey:
+**1 passed** in **0.06 s**. Largest changed code file: **860 lines**.
+
+### Command ledger (all summaries verbatim)
+
+All Cargo test commands below ran from `snapback4/`. A preliminary invocation
+of `cargo test -p snapback4-lang --test aggregate_copies l26_ -- --nocapture`
+was mistakenly launched from the repository root and exited 101 before any
+suite ran; it was immediately repeated in the required workspace. No test
+summary was produced by that invocation.
+
+The final before-fix check temporarily substituted only the two diagnostic
+modules from the exact base with `git show eb215b895ccf974d318205a032b3d66431723070:<path>`;
+a Python `finally` restored both candidate files. No branch checkout, reset,
+stash or commit was used. The tests and their expectations were the final ones.
+
+Untouched base:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies -- --nocapture
+```
+
+```text
+test result: ok. 39 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.17s
+```
+
+Untouched base calibration:
+
+```sh
+SNAPBACK4_CALIBRATION_PACKETS=/Users/ccheever cargo test -p snapback4-lang --test aggregate_copies survey_retained_calibration_schemas -- --ignored --exact --nocapture
+```
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 39 filtered out; finished in 0.10s
+```
+
+First seven L26 regressions, before implementation:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies l26_ -- --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 7 failed; 0 ignored; 0 measured; 36 filtered out; finished in 0.01s
+```
+
+First implementation; one superseded silent expectation still present:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies -- --nocapture
+```
+
+```text
+test result: FAILED. 41 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.11s
+```
+
+First calibration with old expected counts; the seven additions were inspected:
+
+```sh
+SNAPBACK4_CALIBRATION_PACKETS=/Users/ccheever cargo test -p snapback4-lang --test aggregate_copies survey_retained_calibration_schemas -- --ignored --exact --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 42 filtered out; finished in 0.08s
+```
+
+Ambient-helper regression before isolating function-local cardinality:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies l26_a_constant_helper_called_in_a_read_loop_has_no_read_data -- --exact --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 44 filtered out; finished in 0.00s
+```
+
+Second aggregate pass; a new positive test accidentally replaced its argument declaration as well as its written expression:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies -- --nocapture
+```
+
+```text
+test result: FAILED. 43 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.10s
+```
+
+Third aggregate pass; compilation overlapped the README/card edit and embedded different revisions; final rerun below was after both files were stable:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies -- --nocapture
+```
+
+```text
+test result: FAILED. 43 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.12s
+```
+
+Final ten regressions on exact base modules:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies l26_ -- --nocapture
+```
+
+```text
+test result: FAILED. 0 passed; 10 failed; 0 ignored; 0 measured; 35 filtered out; finished in 0.07s
+```
+
+Same ten regressions after the fix:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies l26_ -- --nocapture
+```
+
+```text
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 35 filtered out; finished in 0.01s
+```
+
+Final aggregate pass:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies -- --nocapture
+```
+
+```text
+test result: ok. 44 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.11s
+```
+
+Final calibration pass:
+
+```sh
+SNAPBACK4_CALIBRATION_PACKETS=/Users/ccheever cargo test -p snapback4-lang --test aggregate_copies survey_retained_calibration_schemas -- --ignored --exact --nocapture
+```
+
+```text
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 44 filtered out; finished in 0.06s
+```
+
+Entire language crate: 333 passed, 0 failed, 1 ignored across 23 summaries:
+
+```sh
+cargo test -p snapback4-lang
+```
+
+```text
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 44 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 74.06s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+### Exact changed diagnostics
+
+At the exact base, every requested restored toggle/slice/sort/break case emitted
+**no `N_PUBLIC_AGGREGATE_COPY` note**. The finalized statement and expression
+regressions now emit the following verbatim. The rewrite is unchanged.
+
+```text
+schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + 1` or `p.score - 1`, chosen by `liked` in `setLike`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+```
+
+```text
+schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + (1 if value else -1)`, chosen by `value` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+```
+
+The retained-calibration survey prints every final diagnostic, including the
+unchanged scalar-maintain messages and each returning/new hit:
+
+```text
+calibration 0.2.25: 8 files, 34 tables, 2 aggregate-copy notes: ["feedPullCounts.used", "ranked.score"]
+feed.q:38:3 — N_PUBLIC_AGGREGATE_COPY: every write to feedPullCounts.used is computed from reads (`used + 1`, chosen by `set` in `follow`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin feedPullCounts.used to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+insights.q:28:3 — N_PUBLIC_AGGREGATE_COPY: column ranked.score copies maintain likeCounts, an aggregate of likes the engine already keeps; `insert <- allow` and `update <- allow` let any principal set this public column through any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin ranked.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+calibration 0.2.26: 6 files, 34 tables, 2 aggregate-copy notes: ["feedPullCounts.used", "trendingRows.score"]
+feed.q:38:3 — N_PUBLIC_AGGREGATE_COPY: every write to feedPullCounts.used is computed from reads (`used + 1`, chosen by `value` in `setFollow`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin feedPullCounts.used to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+insights.q:29:3 — N_PUBLIC_AGGREGATE_COPY: every write to trendingRows.score is computed from reads (`rank.score + (1 if value else -1)`, chosen by `(rank != null) and (wasLiked != value)` in `setLike`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin trendingRows.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+calibration 0.2.27: 13 files, 38 tables, 4 aggregate-copy notes: ["feedPullCounts.used", "posts.parentAuthorId", "posts.score", "trendingPosts.score"]
+feed.q:38:3 — N_PUBLIC_AGGREGATE_COPY: every write to feedPullCounts.used is computed from reads (`used + 1` or `slots.used - 1`, chosen by `active` in `follow`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin feedPullCounts.used to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+social.q:5:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.parentAuthorId is computed from reads (`posts[parentId].authorId if parentId != null else null`, chosen by `parentId != null` in `post`); `update <- allow` lets any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin posts.parentAuthorId to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+social.q:6:3 — N_PUBLIC_AGGREGATE_COPY: column posts.score copies maintain likeCounts, an aggregate of likes the engine already keeps; `update <- allow` lets any principal set this public column through any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+trending.q:3:3 — N_PUBLIC_AGGREGATE_COPY: column trendingPosts.score copies maintain likeCounts, an aggregate of likes the engine already keeps; `insert <- allow` and `update <- allow` let any principal set this public column through any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin trendingPosts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+calibration 0.2.28: 13 files, 34 tables, 3 aggregate-copy notes: ["feedPullCounts.used", "posts.parentAuthor", "posts.score"]
+feed.q:38:3 — N_PUBLIC_AGGREGATE_COPY: every write to feedPullCounts.used is computed from reads (`used + 1`, chosen by `set` in `follow`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin feedPullCounts.used to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+social.q:19:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.parentAuthor is computed from reads (`posts[p.parent].author` in `backfill`); `update <- allow` lets any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin posts.parentAuthor to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+social.q:20:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + 1`, chosen by `set and not exists likes[post, viewer]` in `like`); `update <- allow` lets any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+```
+
+### Final full-suite and repository checks
+
+The full suite was run **once**, from the repository root, with the required
+Node 24 PATH and the same four-process Rust pool as the preceding lane run:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+TMPDIR=/private/tmp/w15b4 SNAPBACK4_RUST_TEST_PROCESSES=4 bash snapback4/scripts/test.sh
+```
+
+Verbatim stage/count summaries (fixtures first, clients second):
+
+```text
+-- ok: cargo build (9 s)
+wasm 1576848 B raw, 433876 B gzip (budget 434000: ok)
+-- ok: wasm build (3 s)
+-- ok: release guard (2 s)
+-- ok: package typecheck (1 s)
+-- ok: package build (1 s)
+-- ok: chat app check (2 s)
+-- ok: cargo test (921 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (0 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+ℹ skipped 0
+ℹ duration_ms 8277.406667
+-- ok: fixture wrapper tests (8 s)
+wasm moved survivor hidden=false: payload-bytes=631 identical-worlds=2 completions=1 key-at=100
+wasm moved survivor hidden=true: payload-bytes=631 identical-worlds=2 completions=1 key-at=100
+wasm unselected control removed=false: completions=1 key-at=1500 page-complete=true
+wasm unselected control removed=true: completions=1 key-at=1000 page-complete=true
+wasm empty groups: groups=5000 pages=158 max-response-bytes=119311
+wasm written unselected round-trip=true: payload-bytes=812 worlds=2 p1-puts=3 completions=1 key-at=1000
+wasm written unselected round-trip=false: payload-bytes=722 worlds=1 p1-puts=2 completions=1 key-at=1000
+wasm membership collision kind=scope row-event=null: payload-bytes=663 identical-worlds=2 completions=1 key-at=1500
+wasm membership collision kind=scope row-event=put: payload-bytes=789 identical-worlds=2 completions=1 key-at=1500
+wasm membership collision kind=scope row-event=del: payload-bytes=650 identical-worlds=2 completions=1 key-at=1000
+wasm membership collision kind=join row-event=null: payload-bytes=663 identical-worlds=2 completions=1 key-at=1500
+wasm membership collision kind=join row-event=put: payload-bytes=789 identical-worlds=2 completions=1 key-at=1500
+wasm membership collision kind=join row-event=del: payload-bytes=650 identical-worlds=2 completions=1 key-at=1000
+ℹ tests 888
+ℹ pass 884
+ℹ fail 1
+ℹ skipped 3
+ℹ duration_ms 920550.91925
+-- FAIL: client tests (921 s)
+== 1 failure(s) in 940 s
+```
+
+Rust totals across 777 summaries: **2,126 passed, 0 failed, 8 ignored**.
+Fixtures: **9/9**. Clients: **884 passed, 1 failed, 3 skipped** out of 888.
+The host load recorded at startup was **29.34 across 18 CPUs**. No lifecycle
+or client timing test failed, so no isolated timing rerun was needed. The
+sole failure was `packages/snapback4/test/react.test.mjs` launching Chromium:
+
+```text
+browserType.launch: Target page, context or browser has been closed
+[pid=869] <process did exit: exitCode=null, signal=SIGABRT>
+```
+
+This matches the sandbox artifact explicitly named in the brief. It was not
+independently run on the base this turn and is not claimed base-verified.
+The lead's outside-sandbox browser rerun remains. Wasm is unchanged at
+**1,576,848 B raw, 433,876 B gzip**, against **434,000 B**, leaving **124 B**.
+The suite exits 1 for that one browser launch failure.
+
+`./ref-check --verbose` was run on the clean exact base before editing and
+again on the candidate. Both report the following, with their ten ERROR
+records identical byte for byte:
+
+```text
+ref-check: FAIL — 485 LLP docs, 9136 refs in 24511 files, 10 errors, 0 unchecked
+```
+
+These errors were independently verified on
+`eb215b895ccf974d318205a032b3d66431723070`; all concern the untouched Repair B
+anchors in LLP 3000.001, outside this compiler lane:
+
+```text
+ERROR snapback4/crates/snapback4-device/src/device.rs:367: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device.rs:369: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device.rs:660: broken ref: no anchor #repair-b-replacement-disposal in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device/deferred.rs:115: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device/predictions.rs:229: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device/store_identity.rs:90: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/packages/snapback4/src/local.ts:248: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/packages/snapback4/src/local.ts:411: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/packages/snapback4/src/local.ts:438: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/packages/snapback4/src/web.ts:146: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+```
+
+R1–R5 are implemented. Two requested numeric/green outcomes cannot be asserted:
+The measured calibration census is **2/2/4/3**, for the seven additions recorded
+above; the brief expected 2/1/3/3. Inherited ref-check errors and Chromium's launch keep
+the full verification from entirely green. No out-of-scope file was changed.
+The seven intended paths are the two aggregate analysis modules, the existing
+aggregate tests, feeds card, package README, this journal and LLP 3000.007.
+The preceding **2,517,039 journal bytes** are preserved exactly. No commit,
+push, tag, publication, engine change, charge change or ceiling change was made.
+
+`git diff --check` exits 0 with empty output. The final ref-check repeats the
+same ten base-verified errors. The README/feeds sections are byte-equal, and
+`git status --short` lists only the seven intended, uncommitted files.
+
+
+## 2026-09-19 — W15b-5: final review fixes F12–F15
+
+This is the fifth W15b entry, appended on `sb4/w15b-land` over exact base
+`e0ff6fdb9d9e2a323efc02da6a2c914e72c65d30`. The preceding **2,665,443 bytes**
+are preserved (SHA-256
+`77d9b31470deac4335e8236d64c4e6d1ea767840343f8e58ef4cd623e25d992e`).
+The round-three brief requests these four findings only and explicitly replaces
+the full-suite instruction with the language, documentation and reference checks.
+Nothing is committed, pushed, tagged or published by this lane.
+
+- **F12:** an upsert's returned id preserves the supplied key's data bits.
+  Named `id` keys and a sole positional byId candidate retain ARGUMENT or READ;
+  ambiguous positional candidates retain UNKNOWN. An id minted without an id
+  key stays AMBIENT. The id is carried on the abstract returned object, without
+  creating a declared-column write fact for the implicit id. The caller's
+  mixed-object example now stays silent, including a helper result returned
+  from the cache. A read-supplied id still qualifies, both alone and beside
+  another read; a minted id alone is silent but combines with a read as AMBIENT.
+- **F13:** the choice witness uses sorted argument names in the current program
+  or helper scope instead of the whole condition string. `set and not exists
+  likes[postId, viewer]` and `not set` therefore name both stored expressions.
+  A second regression uses `enabled` and `set` in different condition orders.
+  The existing shared-condition and expression-toggle test is retained. The
+  bounded name walk skips read-key selectors and falls back to “an argument”
+  when it cannot name a direct parameter; it changes no data/control bit rule.
+- **F14:** non-numeric copies lead with the source-pinning rule. Maintains can
+  produce int, decimal and money values here, so those types keep the existing
+  maintain advice. Tests cover nullable principal, text, bool, time and JSON
+  copies, plus all three supported numeric types. The feeds card explains the
+  distinction and supplied-id provenance; the code's `why` blurb includes L26's
+  selector sentence. The package README is byte-for-byte unchanged.
+- **F15:** the helper-mediated carried increment remains a conservative miss,
+  as instructed. The new ignored test asserts the desired one-note result,
+  after proving that the equivalent direct addition already emits one note.
+  Its exact ignore reason is `F15: helper-mediated carried increments do not
+  yet receive READ cardinality evidence`. This preserves a failing executable
+  description of the gap rather than making current silence the desired result.
+
+What I learned: an id filled by an upsert key is written data, even though the
+same id spelling is ambient when minted. Conversely, a selector's diagnostic
+identity should describe the argument choosing the data, not its entire guard.
+The repair remains entirely in the optional note pass and its published help:
+no binder acceptance, IR, engine, value serialization, charge or ceiling changes.
+The existing LLP 3000.007 §21.8 L26 annotation still governs the bit rule.
+
+### Regression commands and results
+
+All Cargo commands below ran from `snapback4/`. Logs for this session are under
+`/private/tmp/w15b5/`. An initial test-only run had two fixture errors (a source
+reference used as a scratch reference and an undeclared likes table), corrected
+before taking the valid before-fix measurement. Both before runs used unchanged
+production sources from the exact base above; the test fixtures alone were new.
+The first run and the corrected run used the same command:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies review_f -- --nocapture
+```
+
+The initial run (`regressions-before.log`) and corrected before-fix run
+(`regressions-before-valid.log`) each reported:
+
+```text
+test result: FAILED. 0 passed; 4 failed; 1 ignored; 0 measured; 45 filtered out; finished in 0.00s
+```
+
+The corrected run binds every exercised program: F12 fails on the false
+caller-id note and missing read-id evidence; F13 fails on the dropped arm;
+F14 fails on the unsupported maintain advice. After the production fixes,
+that exact command (`regressions-after.log`) reports:
+
+```text
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 45 filtered out; finished in 0.00s
+```
+
+I explicitly ran the ignored limitation once (`f15-limitation.log`):
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies review_f15_helper_increment_over_read_rows_should_supply_cardinality_evidence -- --ignored --exact --nocapture
+```
+
+Its direct-addition comparison passes (1 note); the helper assertion fails
+(actual 0 notes, desired 1), exactly the limitation the brief says to preserve:
+
+```text
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 49 filtered out; finished in 0.00s
+```
+
+This explicit expected failure is not a claim of a separately base-verified
+suite failure. The regular harness keeps the test ignored.
+
+### Exact changed diagnostic text
+
+F12, before (GPT's caller-supplied-id program, compacted only in blank lines):
+
+```text
+schema.q:10:3 — N_PUBLIC_AGGREGATE_COPY: every write to copies.value is computed from reads (`{ requestId: r.id, n: p.n }` in `copy`); `insert <- allow` lets any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin copies.value to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+```
+
+F12, after: no aggregate-copy note (1 → 0).
+
+F13, before:
+
+```text
+schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + 1`, chosen by `set and not exists likes[postId, viewer]` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+```
+
+F13, after:
+
+```text
+schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + 1` or `max(0, p.score - 1)`, chosen by `set` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+```
+
+F14, nullable-principal copy, before:
+
+```text
+schema.q:5:3 — N_PUBLIC_AGGREGATE_COPY: every write to copies.value is computed from reads (`p.value` in `copy`); `insert <- allow` lets any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin copies.value to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+```
+
+F14, after:
+
+```text
+schema.q:5:3 — N_PUBLIC_AGGREGATE_COPY: every write to copies.value is computed from reads (`p.value` in `copy`); `insert <- allow` lets any principal run any mutation that writes it
+  rewrite: pin copies.value to its source in both insert and update rules; see guide feeds for the rule
+  guide: feeds
+```
+
+The `why` blurb, before:
+
+```text
+every write to a public column derives from reads, but its insert or update rule is unrestricted. Keep the count in a maintain and read it, or pin the copy to the engine's count in both rules. A note about latent table permission, not a claim that an existing mutation accepts arbitrary scores. guide feeds.
+```
+
+The `why` blurb, after:
+
+```text
+every write to a public column derives from reads, but its insert or update rule is unrestricted. An argument may choose which derived value is written; it may not supply the value itself. Keep a count in a maintain and read it, or pin the copy to its source in both rules. A note about latent table permission, not a claim that an existing mutation accepts arbitrary scores. guide feeds.
+```
+
+
+### Final verification and measurements
+
+`cargo test -p snapback4-lang` completed all 23 harnesses: **337 passed,
+0 failed, 2 ignored**. The two ignored tests are the retained-calibration
+survey and the explicitly requested F15 limitation. In harness order
+(lib, actions, aggregate_copies, chat, components, ergonomics, feed_forms,
+frontend_regressions, guide, lane_domains, lowering, maintains, papercuts,
+prefix_reads, presence, repairs, residency_notes, routes, search_guidance,
+sparse_filter, spelling, time_indexes, doc-tests), the verbatim summary lines
+from `lang-all.log` are:
+
+```text
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 48 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.16s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 84.49s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.28s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.18s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+```
+
+The all-harness command inherited the Volta shim on PATH. Because the
+frontend and route tests spawn Node, I additionally reran those two harnesses
+with the explicitly pinned Node 24 path (`node24-harnesses.log`):
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+cargo test -p snapback4-lang --test frontend_regressions --test routes
+```
+
+```text
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.55s
+```
+
+From `snapback4/`, documentation qualification (`docs-budget.log`):
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+node scripts/docs-budget.mjs
+```
+
+```text
+docs budget: README 300/300 physical lines
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 47 filtered out; finished in 0.00s
+```
+
+From the repository root, `./ref-check --verbose` passed on both the clean
+exact base and this candidate (`ref-base.log`, `ref-after.log`):
+
+```text
+ref-check: ok — 485 LLP docs, 9137 refs in 24597 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` passes with empty output. No pre-existing blocking
+failure is claimed in this session. No requested implementation was omitted;
+F15 behavior stays unchanged as expressly requested. `bash snapback4/scripts/test.sh`
+was **not run**, per the current round-three brief; the lead owns the affected
+suites on the landed tree. No out-of-scope file was changed.
+
+Measured values: caller-id mixed object **1 → 0 notes**; read-derived id
+alone **0 → 1 note**; minted id alone **0 notes**, minted id plus another read
+**1 note**; F13 **2 stored expressions**, **1 note** for both the one-argument
+and two-argument cases; F14 **5 non-numeric types** lead with pinning and
+**3 numeric types** retain maintain advice. The existing published and corpus
+assertions pass with **0** and **10** notes respectively; the external retained
+calibrations were not rerun in this bounded round. The unchanged private analysis
+bounds are **4,096 nodes/value**, **262,144 work units**, and **128 levels/frames**.
+No engine or wasm measurement is needed for this compiler-only change.
+The largest changed code file is **953 lines** (aggregate_copies.rs); the
+provenance pass is **631 lines**, codes.rs **242 lines**. The README remains
+byte-for-byte unchanged at **300/300 lines**, and all **2,665,443** earlier
+journal bytes were verified against their saved SHA-256.
+
+
+## 2026-09-20 — W15b-6: cardinality is provenance of its own (F16–F18)
+
+Continued `sb4/w15b-land` at `13ed112a257182bdf58c6e42141cdb7defd644aa`,
+without committing. This sixth lane entry implements L28 from the lead's
+2026-09-20 brief, amending L26 under [LLP 3000.007 §21.8](../llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md#21.8).
+The lead owns the L28 row itself; this lane does not edit §21.8. The Snapback 4
+fence, simulator invariants and execution decisions remain those of
+[LLP 3000 §6–§7](../llp/3000-snapback4.explainer.md#6-the-simulators-invariants).
+The optional note still changes no admitted program, IR, engine execution,
+serialized value, charge, ceiling or existing conformance case.
+
+### F16: data, cardinality and control
+
+Collections now have an explicit cardinality field, separate from their item
+tree's data and from control. A list parameter's items and cardinality are
+ARGUMENT; a read page's cardinality is READ, independently of the fields its
+shape keeps; a literal array's cardinality is AMBIENT. Nested list parameters
+and stored list columns retain the same distinction at each level. The field
+participates in structural equality, widening and helper-cache keys. It is
+included when a whole collection is consumed or written, not copied into every
+item merely because that item is visited by a loop or shape.
+
+`count` consumes the cardinality, including the `Len` lowering of `count(text)`;
+Quarry still has no `len` alias. A SHA-256 string's length is AMBIENT (64), while
+its content retains its input's data. `sum`, projected sum and first/last/at
+consume item data together with cardinality. Min/max and the `sorted` pair keep
+both candidates' item trees and cardinalities, with conservative operand unions
+on consumed data. Shape, slice, sort and group retain source cardinality; group
+keys and positions still select finite choices under L26. A read filter may
+add its predicate's data bits. `range` and `tokens` now produce actual abstract
+lists rather than scalar summaries: their bounds/text supply their cardinality.
+
+Direct carried addition/subtraction and list append consume the loop domain's
+cardinality. Thus an argument-sized constant accumulation cannot become a
+read-derived value merely by adding `p.score` after the loop. Locals reset on
+each iteration and finite choices of constants remain selection. Bounded,
+scoped sets of data names follow aliases to recognize a recurrence whose
+transfer is not represented; those recurrences become UNKNOWN rather than
+silently losing their cardinality. The name sets supply no positive READ or
+ARGUMENT evidence. Function-local accumulators do not inherit a caller loop's
+cardinality. The ignored F15 positive remains a limitation: helper-mediated
+increment over read rows is still silent, now explicitly UNKNOWN.
+
+### F17: complete expression and builtin audit, with cardinality
+
+This table supersedes the earlier audit for the current implementation without
+editing its history. “Carried” means the bounded abstraction retains both item
+data and cardinality; unions can conservatively retain extra input dependence.
+It is not constant folding, path-feasibility analysis or an authorization proof.
+Every row becomes UNKNOWN on exhausted work/depth or an oversized value. A
+shape-dependent form without a represented source shape is UNKNOWN even when
+its scalar summary includes READ. The two channels must both survive before a
+form is called carried.
+
+| AST expression | Items / value data | Cardinality | Audit result |
+| --- | --- | --- | --- |
+| `Name` | Scoped value; typed list arguments contain ARGUMENT items; viewer/now/commit/new AMBIENT | Scoped field; nested list parameters ARGUMENT | Carried; unresolved name UNKNOWN |
+| `Focal` | Current row or list item | Its own nested collection cardinality | Carried |
+| `Literal` | AMBIENT, with the existing insert-initializer marker | AMBIENT | Carried |
+| `Array` | Field-preserving join of the literal's elements | AMBIENT, independent of the elements | Carried |
+| `Object` | Independent fields | Nested fields retain theirs; object field count is AMBIENT | Carried |
+| `Unary` | Operand summary; negative literal keeps initialization | Scalar result / text summary; no list produced | Carried |
+| `Binary` | Operand union; list append joins element trees; `??` joins candidate values without flattening them | List append joins both cardinalities and consumes its loop domain; coalescing keeps both candidates' fields | Carried; unsupported heterogeneous joins UNKNOWN |
+| `Member` | Selected field; stored list fields are typed recursively | Selected field's own cardinality | Carried; an opaque field keeps only a scalar summary, so a later shape becomes UNKNOWN |
+| `Call` (helper) | Actual argument values, returned shape and cached write facts; unused helpers get typed ARGUMENT values | Preserved in arguments, results, structural cache keys and write replay | Carried; recursive/malformed/unknown calls UNKNOWN |
+| `Read` | Stored row/maintain READ; connected AMBIENT; typed row fields | Explicit/structurally resolved pages READ, plus filter data; opaque stored input length READ | Carried for scalar consumption and resolved shapes; positional point-versus-prefix type ambiguity keeps an opaque summary and a subsequent shape is UNKNOWN |
+| `Merge` | Known stored row shape; every lane/prefix/filter expression traversed | READ, plus filter data; lane discovery selects the read population | Carried; unknown source UNKNOWN |
+| `Exists` | Read/presence summary | Scalar; prefix existence consumes the read population | Carried |
+| `Created` | Rule-only form | UNKNOWN | UNKNOWN, unchanged |
+| `Assert` | Successful value unchanged | Unchanged | Carried |
+| `Shape` | Projected fields; dropped input fields do not become copied data | Source collection cardinality survives even when every field is replaced | Carried for represented sources; opaque sources and mixed row/list sources UNKNOWN |
+| `ShapeUse` | Same projection, including named spreads | Same preservation | Carried for represented sources; missing/recursive/opaque shape UNKNOWN |
+| `Walk` | Known stored row, including typed list columns | READ; seed chooses the stored traversal | Carried; unknown table UNKNOWN |
+| `If` | Join both result trees; condition stays control | Join both result cardinalities; finite ambient choices stay AMBIENT | Carried; incompatible object/list join UNKNOWN |
+| `Write` | Supplied/default/key fields and prior-image summaries; existing id handling unchanged | Supplied list fields retain theirs; opaque omitted prior-image fields require UNKNOWN for a later shape | Carried for represented returned fields; opaque projections UNKNOWN. The separate round-4 update-id finding is not repaired by this cardinality lane |
+
+| Core builtin / Quarry form | Items / value data | Cardinality | Audit result |
+| --- | --- | --- | --- |
+| `Calendar` / day, hour, bucket | Supplied scalar-input union | Scalar result | Carried |
+| `Len` / count(text) | Returns length provenance | Input length becomes output data | Carried; SHA-256's fixed 64-character length is AMBIENT |
+| `Slice` | Base item tree / text data; positions control selection | Base cardinality | Carried |
+| `Concat` / list append or text `+` | Both item trees or scalar text-input union | List cardinalities joined; repeated append also consumes domain cardinality | Carried |
+| `Lower`, `Trim` | Input text summary | Input data supplies the transformed text length | Carried |
+| `Sha256` | Input content summary | AMBIENT fixed length | Carried |
+| `Join` | Item data, source cardinality and separator summary | Scalar text length carries the consumed input union | Carried |
+| `Group` | Key retains its data; grouped items retain theirs; keys select membership | Both outer groups and inner items preserve source cardinality; a partition of an ambient literal list remains finite selection | Carried; unsupported key UNKNOWN |
+| `First`, `Last`, `At` | Selected item recursively consumes source cardinality; index stays control | Any selected nested collection retains its cardinality plus the consumed outer cardinality | Carried |
+| `Min`, `Max` | Both possible values/shapes retained with conservative data union | Both cardinalities retained instead of flattening into item data | Carried; heterogeneous shapes UNKNOWN |
+| `Divmod` | Both tuple components carry both numeric inputs | Scalar components | Carried |
+| `Sort` | Item tree preserved; every literal sort key, including descending keys, stays control | Base cardinality | Carried; unsupported key UNKNOWN |
+| `MentionTokens` / tokens | Input text summary as token data | Input text summary as token-count provenance | Carried as a list |
+| `DeterministicShare` / share | Amount, recipient data and recipient-list cardinality | Scalar result | Carried |
+| `Count` | Returns cardinality, not discarded projected fields | Input cardinality becomes output data | Carried; any UNKNOWN input keeps the fallback |
+| `Sum` | Item data plus cardinality; projected sum consumes projection data plus source cardinality | Becomes part of scalar output data | Carried |
+| `CountCapped` | Same internal count lowering | Source cardinality | Carried; no separate Quarry spelling |
+| `Connected` / connected[p] | AMBIENT presence | Ambient scalar connection count | Carried |
+| sorted(a, b) | Both possible component values/shapes | Both candidates' cardinalities survive pair binding | Carried |
+| range(a, b) | Both bounds' data in iteration values | Both bounds' data in iteration count | Carried as a loop-domain list |
+| Unknown/malformed builtin or unsupported key | UNKNOWN; arguments still traversed for writes | UNKNOWN | UNKNOWN, unchanged |
+
+Statement audit: bindings preserve values and alias data names; branch joins
+preserve both provenance fields and keep conditions in control; returns preserve
+both fields; expression/emit/require traverse their values and helper writes.
+Direct loop-carried addition/subtraction/append consumes the domain cardinality.
+Other carried self-dependence (helper calls, arithmetic through aliases,
+non-additive recurrence and sorted-pair aliases) is UNKNOWN. Loop exits remain
+control and still reach cached writes; constant reassignment and per-iteration
+reset do not manufacture READ. Literal insert initialization keeps its exception.
+
+New UNKNOWN demotions are explicitly exercised by
+`review_f17_opaque_shapes_and_unmodelled_recurrences_stay_unknown`
+(opaque JSON and mixed object/list projection),
+`review_f17_implicit_prefix_projection_is_unknown_until_its_collection_shape_is_known`
+(type-dependent implicit population shape, paired with the explicit-page positive),
+and `review_f17_loop_recurrence_aliases_helpers_and_nonadditive_forms_stay_unknown`
+(helper, local alias, multiplication and sorted-pair recurrence over argument and
+read domains, paired with the direct read-count positive). Existing unknown
+names, rule-only `created`, recursive shapes/calls, malformed arities, unsupported
+sort/group keys and budget widening stay unknown with their existing tests.
+
+All existing `l26_` positive test functions remain positive. The one superseded
+subcase is named explicitly: `range(0, amount)` followed by a carried constant
+increment moved into F16's silent regressions. Its old positive slot now uses
+`range(0, p.score)`, and its enclosing test is renamed
+`l26_statement_constants_and_read_loop_counts_choose_deltas_without_supplying_data`.
+The separate `l26_statement_helper_and_loop_control_choose_read_derived_writes`
+case that writes the already-read `p.score + 1` on each iteration remains positive;
+it does not accumulate a caller-sized value. Finite 1/2, ±1, sliced/sorted/grouped
+literal choices, helper-returned constants and argument-selected read-loop exits
+all stay noted.
+
+### F18: census and measurements
+
+The baseline is the actual worktree HEAD
+`13ed112a257182bdf58c6e42141cdb7defd644aa`, not an assumed earlier main.
+Both baseline and final census runs used the same current corpus and retained
+calibration packets. The test assertions pin the exact column identities.
+
+| Material | Measured size | Base notes | Final notes |
+| --- | --- | ---: | ---: |
+| Published cards/documents | 29 cards, 3 documents, 47 Quarry blocks, 412 table occurrences | 0 | 0 |
+| Feeds recipes | 2 forms, 18 table occurrences | 0 | 0 |
+| Init local/online/expo | 3 blocks, 7 table occurrences | 0 | 0 |
+| App schemas | 1 block, 5 tables | 0 | 0 |
+| Lowering corpus | 740 bundles, 782 blocks, 1,356 table occurrences, 229 refused bundles | 10 | 10 |
+| Calibration 9 / 0.2.25 | 8 files, 34 tables | 2 | 2 |
+| Calibration 10 / 0.2.26 | 6 files, 34 tables | 2 | 2 |
+| Calibration 11 / 0.2.27 | 13 files, 38 tables | 4 | 4 |
+| Calibration 12 / 0.2.28 | 13 files, 34 tables | 3 | 3 |
+
+The number of published blocks differs from older journal entries because this
+base already contains the README reference move: the same base and candidate
+have 47 blocks and 29 cards. There is no note-count or site delta. Retained sites:
+
+- Cal9: `feedPullCounts.used`, `ranked.score`.
+- Cal10: `feedPullCounts.used`, `trendingRows.score`.
+- Cal11: `feedPullCounts.used`, `posts.parentAuthorId`, `posts.score`, `trendingPosts.score`.
+- Cal12: `feedPullCounts.used`, `posts.parentAuthor`, `posts.score`.
+
+Both exact review counterexamples are **1 → 0 notes**. The existing ten corpus
+identities are unchanged. The 30-binding stressors peak at **4,095 expanded
+nodes/value**, with **16,828 / 16,827 work units**, **2 / 2 widenings**, and
+**0.521 / 0.536 ms** for unused/called helpers. The full unused-helper compile
+measured **0.291 ms**. The 2,000-binding/2,000-branch case measured **9.127 ms**.
+The deliberate total-budget exhaustion reached **254,184 work units**, **3
+widenings**, zero notes. These are observations on the shared host, not raised
+limits: ceilings remain **4,096 expanded nodes**, **262,144 work units**, and
+**128 value levels / traversal frames**. The README is unchanged at **300/300
+physical lines**. The largest changed code file is **1,129 lines** (`aggregate_copies.rs`);
+`aggregate_provenance.rs` is **755**, `aggregate_value.rs` **162**, and
+`guide/codes.rs` **242**.
+
+### Commands and regression evidence
+
+All Cargo commands below ran from `snapback4/` with
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`. The one erroneous
+initial root invocation is recorded separately, rather than labelled a product
+failure. No `bun install`, bare `cargo fmt`, commit, push, tag, publication,
+sub-agent, clone, remote build or full blocking suite was run.
+
+The targeted command throughout was:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies review_f1 -- --nocapture
+```
+
+Its final regressions against unchanged base production files, temporarily
+loaded from `git show HEAD:<path>` with all four candidate production files
+restored byte-for-byte in a `finally` block, then against the candidate:
+
+```text
+test result: FAILED. 4 passed; 11 failed; 1 ignored; 0 measured; 45 filtered out; finished in 0.01s
+test result: ok. 15 passed; 0 failed; 1 ignored; 0 measured; 45 filtered out; finished in 0.00s
+```
+
+Eleven test functions fail on the base: ten new behavioral regressions plus the
+updated `why` wording assertion. The direct read/literal positive control passes
+on both. Initial test-authoring runs corrected an inadmissible general list `+`
+expression, a nonliteral list default, one Rust parenthesis and an already-bound
+tuple component; the final witnesses use the real append form, explicit insert
+fields and fresh tuple names. No fixture parse/type error is counted as a final
+red regression. An intermediate candidate also failed the implicit-prefix
+positive; the final opaque-read summary preserves READ length without guessing
+the row/list shape. The development runs and their summary lines follow in the
+final check record.
+
+The initial root invocation of the same targeted command exited 101 before a
+build, with no test summary:
+
+```text
+error: failed to get `ibex-runtime` as a dependency of package `snapback-runtime v0.1.0 (/Users/ccheever/projects/snapback-w15b/crates/snapback-runtime)`
+
+Caused by:
+  failed to load source for dependency `ibex-runtime`
+
+Caused by:
+  unable to update /Users/ccheever/projects/snapback-w15b/vendor/ibex
+
+Caused by:
+  failed to read `/Users/ccheever/projects/snapback-w15b/vendor/ibex/Cargo.toml`
+
+Caused by:
+  No such file or directory (os error 2)
+```
+
+This was an invocation mistake, not a pre-existing Snapback 4 failure, and changed
+no root file. Subsequent invocations used the fenced workspace.
+
+The complete requested language command:
+
+```sh
+cargo test -p snapback4-lang
+```
+
+**348 passed, 0 failed, 2 ignored**, across 23 harnesses. Verbatim summaries:
+
+```text
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 59 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 64.70s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.90s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+The final full aggregate-copy census:
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies -- --nocapture
+```
+
+```text
+card/README survey: 29 cards, 3 documents, 47 blocks, 412 bound table occurrences, 0 aggregate-copy notes
+corpus: 740 bundles, 782 blocks, 1356 tables, 229 refused, 10 aggregate-copy notes
+test result: ok. 59 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.09s
+```
+
+The retained calibration census (baseline, then final):
+
+```sh
+SNAPBACK4_CALIBRATION_PACKETS=/Users/ccheever cargo test -p snapback4-lang --test aggregate_copies survey_retained_calibration_schemas -- --ignored --exact --nocapture
+```
+
+```text
+calibration 0.2.25: 8 files, 34 tables, 2 aggregate-copy notes: ["feedPullCounts.used", "ranked.score"]
+calibration 0.2.26: 6 files, 34 tables, 2 aggregate-copy notes: ["feedPullCounts.used", "trendingRows.score"]
+calibration 0.2.27: 13 files, 38 tables, 4 aggregate-copy notes: ["feedPullCounts.used", "posts.parentAuthorId", "posts.score", "trendingPosts.score"]
+calibration 0.2.28: 13 files, 34 tables, 3 aggregate-copy notes: ["feedPullCounts.used", "posts.parentAuthor", "posts.score"]
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 54 filtered out; finished in 0.05s
+calibration 0.2.25: 8 files, 34 tables, 2 aggregate-copy notes: ["feedPullCounts.used", "ranked.score"]
+calibration 0.2.26: 6 files, 34 tables, 2 aggregate-copy notes: ["feedPullCounts.used", "trendingRows.score"]
+calibration 0.2.27: 13 files, 38 tables, 4 aggregate-copy notes: ["feedPullCounts.used", "posts.parentAuthorId", "posts.score", "trendingPosts.score"]
+calibration 0.2.28: 13 files, 34 tables, 3 aggregate-copy notes: ["feedPullCounts.used", "posts.parentAuthor", "posts.score"]
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 60 filtered out; finished in 0.06s
+```
+
+The documentation-budget command:
+
+```sh
+node scripts/docs-budget.mjs
+```
+
+```text
+docs budget: README 300/300 physical lines
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 47 filtered out; finished in 0.00s
+```
+
+`bash snapback4/scripts/test.sh` was **not run**, as the W15b-6 Finish section
+explicitly instructs. No F16–F18 requirement was omitted, and no out-of-scope
+file was touched. The separate Grok-only update-result-id and differing-argument
+message findings were not part of F16–F18 and remain for the lead. No pre-existing
+test failure is claimed. F15 remains ignored, as the brief's accepted limitation.
+
+### Exact diagnostic and published wording changes
+
+The GPT review program, before:
+
+```text
+schema.q:5:3 — N_PUBLIC_AGGREGATE_COPY: every write to copies.n is computed from reads (`count(mapped)`, chosen by `xs` in `copy`); `insert <- allow` lets any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin copies.n to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+```
+
+After: **no `N_PUBLIC_AGGREGATE_COPY` note**. The Grok range-accumulation spelling, before:
+
+```text
+schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + delta`, chosen by `amount` in `like`); `insert <- allow` and `update <- allow` let any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+```
+
+After: **no `N_PUBLIC_AGGREGATE_COPY` note**. No replacement diagnostic or error is emitted.
+
+Before, the complete `why` blurb:
+
+```text
+every write to a public column derives from reads, but its insert or update rule is unrestricted. An argument may choose which derived value is written; it may not supply the value itself. Keep a count in a maintain and read it, or pin the copy to its source in both rules. A note about latent table permission, not a claim that an existing mutation accepts arbitrary scores. guide feeds.
+```
+
+After, the complete `why` blurb:
+
+```text
+every write to a public column derives from reads, but its insert or update rule is unrestricted. An argument may choose which derived value is written; it may not supply the value itself or how many values contribute to it. Keep a count in a maintain and read it, or pin the copy to its source in both rules. A note about latent table permission, not a claim that an existing mutation accepts arbitrary scores. guide feeds.
+```
+
+The exact added clause in the feeds sentence and `why` is
+`or how many values contribute to it`. The feeds card also explains the separate
+cardinality channel, and removes loop bounds from the sentence that described
+all such influence as control. Neither the README nor §21.8 changed.
+
+### Development runs and final checks
+
+For completeness, repeated targeted command outcomes are recorded here in
+execution order. All rows ran the targeted command above; a compiler failure
+has no test-summary line. These intermediate fixture/implementation failures
+were corrected, not labelled pre-existing.
+
+Initial fixtures, base:
+
+```text
+test result: FAILED. 5 passed; 4 failed; 1 ignored; 0 measured; 45 filtered out; finished in 0.00s
+```
+
+Corrected fixtures, base:
+
+```text
+test result: FAILED. 5 passed; 4 failed; 1 ignored; 0 measured; 45 filtered out; finished in 0.01s
+```
+
+Expanded fixtures, Rust parenthesis error:
+
+```text
+error: could not compile `snapback4-lang` (test "aggregate_copies") due to 1 previous error
+```
+
+Expanded fixtures corrected:
+
+```text
+test result: ok. 14 passed; 0 failed; 1 ignored; 0 measured; 45 filtered out; finished in 0.01s
+```
+
+New wording / tuple fixture correction pending:
+
+```text
+test result: FAILED. 12 passed; 2 failed; 1 ignored; 0 measured; 45 filtered out; finished in 0.01s
+```
+
+Tuple and wording fixtures corrected:
+
+```text
+test result: ok. 14 passed; 0 failed; 1 ignored; 0 measured; 45 filtered out; finished in 0.01s
+```
+
+Append / write-return regressions added:
+
+```text
+test result: ok. 15 passed; 0 failed; 1 ignored; 0 measured; 45 filtered out; finished in 0.01s
+```
+
+The full aggregate-copy command also ran during development:
+
+Base sources with new failing regressions:
+
+```text
+test result: FAILED. 49 passed; 4 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.08s
+```
+
+Initial cardinality implementation:
+
+```text
+test result: FAILED. 52 passed; 1 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.12s
+```
+
+Implicit-prefix count corrected:
+
+```text
+test result: ok. 53 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.09s
+```
+
+Alias recurrence tracking added:
+
+```text
+test result: ok. 53 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.08s
+```
+
+From the repository root:
+
+```sh
+./ref-check --verbose
+git diff --check
+```
+
+```text
+ref-check: ok — 485 LLP docs, 9138 refs in 24597 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` exits 0 with empty output. All **2,678,920** earlier journal
+bytes remain unchanged (SHA-256
+`cee5b661848c894a237df54955a91cbb9ce53a075b35325553ab7695e30aa019`).
+The README and LLP §21.8 are byte-for-byte unchanged; the LLP delta is only the
+new dated paragraph at the end of §20.21. Seven intended files are modified,
+none staged or committed. No pre-existing failure is claimed, and no unrelated
+review finding is presented as fixed.
+
+
+## 2026-09-20 — W15b-7: loops prefer silence (F19–F20, L29)
+
+Continued `sb4/w15b-land` at
+`5c8ec7cd03dc6e63893d1213f707778d16b4bc07`, without committing.
+This seventh lane entry implements the lead's L29 ruling supplied in the
+2026-09-20 brief under [LLP 3000.007 §21.8](../llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md#21.8);
+that section remains the lead's and is unchanged here. The governing scope is
+[LLP 3000 §6–§7](../llp/3000-snapback4.explainer.md#6-the-simulators-invariants)
+and the optional all-writers note in
+[LLP 3000.007 §20.21](../llp/3000.007-relaxed-quarry-and-explicit-residency.rfc.md#20.21).
+No change to admission, execution, the serialized value model, engine ceilings,
+existing corpus cases, or the feeds rule sentence is needed.
+
+### F19: the loop join
+
+The body is walked syntactically once per analyzed loop to collect every
+assigned name, recursively through branches and nested loops, without stopping
+at a return, break or continue. The traversal and name collection use the
+existing depth and work budgets. At each fixed-point join, every collected
+binding that survives outside the iteration takes the domain's cardinality
+bits into its data and nested fields; a binding not visited before an exit
+uses its incoming value. Resets, branch joins and the assignment's position
+cannot suppress that union. Unassigned bindings and assignments after the loop
+keep their ordinary behavior. Existing unsupported-recurrence UNKNOWN
+summaries remain conservative; the join never removes them.
+
+This supersedes the loop precision in the sixth entry's statement audit;
+the expression and builtin rows otherwise stand.
+
+| Statement | Items / value data | Cardinality | Audit result |
+| --- | --- | --- | --- |
+| Loop / body join | Every assigned outer binding, including its nested value fields, unions the domain's cardinality regardless of resets, branches, nested loops or exits | ARGUMENT for argument lists/ranges; UNKNOWN for an unknown domain; READ for a read domain; AMBIENT for a literal domain | conservative (L29) |
+| Bindings and branch joins outside loops | Existing value/alias propagation and selection control | Existing cardinality preserved | Unchanged |
+
+Four new active test functions cover the exact GPT conditional-reset program,
+36 variants (12 assignment shapes × 3 argument domains), an argument loop
+nested inside a read loop with a read-domain replacement, and the read-count /
+`range(0, p.n)` controls plus outside-loop precision and an unknown domain.
+The argument variants include direct accumulation, conditional and unconditional
+resets, nested branches and loops, and assignments before and after breaks and
+continues. On the base, 33 of the 36 variants emitted a note; after the fix,
+all 36 are silent. The exact GPT program changes from 1 note to 0. The
+read-domain conditional-reset control changes from 0 to 1; direct read counts
+and the existing L26/L28 positive assertions remain noted.
+
+The old read-loop constant-assignment and unconditional-reset subcases were
+split out of `l26_control_alone_does_not_manufacture_read_data` into
+`l29_unconditional_reset_precision`, with the argument-range unconditional-reset
+precision control beside them. This test is explicitly ignored with
+`L29: loops prefer silence`. L29 also supersedes the silent expectation in
+`l26_a_constant_helper_called_in_a_read_loop_has_no_read_data`, which receives
+the same ignore reason: its outer assigned result now takes READ at the join.
+Its positive `p.score + delta` assertion remains active in the new F19 controls.
+The unrelated non-loop and iteration-local controls stay active. The two
+previous ignores (the retained external calibration survey and F15's unsupported
+helper-mediated recurrence) are unchanged: 4 ignored tests in total.
+
+The trade is deliberate: an unconditional reset in an argument-bounded loop
+can now hide a valid note even though it stores at most one, while a constant
+assignment over a read domain takes READ. The pass no longer spends precision
+on proving those loop shapes. Nothing here turns the optional note into an
+authorization or equality analysis.
+
+### Measurements and regression evidence
+
+- Published census: 29 cards, 3 documents, 47 blocks, 412 bound table
+  occurrences, **0** aggregate-copy notes.
+- Lowering census: **740** bundles, **782** blocks, **1,356** table occurrences,
+  **229** refused bundles, **10** aggregate-copy notes at the same pinned sites.
+- Three init templates, two recipe forms and the chat schema: **0** notes.
+- Analysis limits unchanged: **4,096** expanded nodes per value,
+  **262,144** work units, **128** value levels / traversal frames.
+- Largest changed code file: **1,206** lines; implementation: **776** lines.
+- Existing total-budget witness: **4,095** peak nodes, **254,184** work units,
+  **3** widenings, no aggregate-copy note.
+- All **2,705,405** pre-existing journal bytes are preserved verbatim.
+
+Commands ran from `snapback4/` with Node 24 first on PATH:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+cargo test -p snapback4-lang --test aggregate_copies review_f19 -- --nocapture
+```
+
+Initial base run included an invalid tuple-reassignment fixture; the binder
+correctly refused duplicate locals. It was removed before the definitive base
+run, and production sources were untouched until that run failed:
+
+```text
+test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 61 filtered out; finished in 0.01s
+```
+
+Definitive base regression run, then fixed production:
+
+```text
+test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 61 filtered out; finished in 0.00s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 62 filtered out; finished in 0.01s
+```
+
+The paired read-range fixture was subsequently spelled `range(0, p.n)` to
+match the brief, and the historical helper positive was added to the active
+controls. The exact failing program and 36 argument variants are unchanged.
+
+```sh
+cargo test -p snapback4-lang --test aggregate_copies -- --nocapture
+```
+
+First fixed-code run before marking superseded precision controls, then final:
+
+```text
+test result: FAILED. 61 passed; 2 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 62 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.08s
+```
+
+The failures above are development/regression evidence, not pre-existing
+failures. No pre-existing failure is claimed. The retained calibration survey
+was not rerun in this round; its earlier results remain earlier evidence.
+The full `bash snapback4/scripts/test.sh` suite was not run, as W15b-7 explicitly
+requires only the language crate, docs budget, references and whitespace checks.
+No commit, push, tag, publish, sub-agent, other machine or out-of-scope file
+belongs to this round. F19 and F20 are implemented, including one dated sentence
+appended to §20.21; the README, feeds card, code registry and §21.8 are unchanged.
+
+### Exact diagnostic
+
+Before, the GPT program emits:
+
+```text
+schema.q:2:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads (`p.score + delta`, chosen by `amount` in `setScore`); `update <- allow` lets any principal run any mutation that writes it
+  rewrite: keep the count in a maintain and read it directly, or pin posts.score to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule
+  guide: feeds
+```
+
+After: no aggregate-copy diagnostic is emitted. No diagnostic wording or code
+is changed.
+
+### Final checks
+
+```sh
+cargo test -p snapback4-lang
+```
+
+**351 passed, 0 failed, 4 ignored** across 23 harnesses:
+
+```text
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 62 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 69.96s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.01s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+```sh
+node scripts/docs-budget.mjs
+```
+
+```text
+docs budget: README 300/300 physical lines
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 47 filtered out; finished in 0.00s
+```
+
+From the repository root:
+
+```sh
+./ref-check --verbose
+git diff --check
+```
+
+```text
+ref-check: ok — 485 LLP docs, 9139 refs in 24597 files, 0 errors, 0 unchecked
+```
+
+`git diff --check` exits 0 with empty output.
+
+## 2026-09-20 — W15b lands after six blind rounds; the last two findings applied under L29's rule
+
+Round 6 (the last, LLP 3000.007 §21.8 L29): Grok READY WITH CHANGES — a caller-supplied seek
+bound or `matching` text decides how many rows a page holds, so a count of it is
+caller-controlled; GPT NOT READY — a helper named like a syntactic builtin (`divmod`,
+`sorted`, `range`) lent its provenance where the binder bypasses it. Both are behavioural, and
+L29 says what happens: the construct goes conservative and the lane lands without another
+round. The lead applied both directly:
+
+- seek values, `matching` text, the cursor and the filter now enter a page's cardinality
+  (READ from the read, ARGUMENT from an argument); a **key** does not — it selects which group,
+  whose size is a fact about the data, so `count(likes[postId])` stays the footgun and notes.
+  A `matching` page inside a mutation is refused by admission (`E_STRUCTURAL_FANOUT`), so that
+  half is defensive; the seek bound is the reachable case.
+  `round6_seek_bounds_and_matching_text_shape_a_pages_cardinality_but_keys_only_select`.
+- a two-name binding is `divmod`/`sorted` by syntax and `for … in range(a, b)` is syntax: when
+  a helper of that name exists the pass now yields UNKNOWN instead of the helper's value.
+  `round6_helpers_named_like_syntactic_builtins_are_unknown_where_the_binder_bypasses_them`.
+
+GPT's first attempt at round 6 died in a provider capacity error and was rerun; both records
+are verbatim under `llp/reviews/3000.007-w15b-aggregate-provenance*`, twelve in all.
+
+After the two fixes: `cargo test -p snapback4-lang` 353 passed, 0 failed; the retained
+calibration survey unchanged (2 / 2 / 4 / 3); docs budget 300/300; ref-check 0 errors.
+
+What six rounds bought, in order: a compiler that cannot panic on a malformed unused helper;
+an environment join that is linear and a value that is bounded; three optimistic selections
+made honest; **one wrong rule, the lead's** (information flow → data dependence, L26); one
+missing provenance axis (cardinality, L28); and the decision that loops prefer silence (L29).
+The pass that lands is stated in the terms it computes — data, control, cardinality — and every
+construct it does not model precisely is UNKNOWN, which is silence.

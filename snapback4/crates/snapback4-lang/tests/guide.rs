@@ -44,7 +44,7 @@ fn w11a_feeds_card_requires_delivery_preserving_promotion() {
         "Show the refusal in the app. Have each saturated follower unfollow a shared\nauthor to free a slot, then retry the refused follow with a new write ID.\nThe triggering reader freeing their own slot does not help a different\nsaturated follower. If those followers cannot free slots, decline the new\nfollow and keep the existing pushed delivery; more than 32 shared authors\nneeds a separate serving design, not a larger cap alone.",
         "`complete` describes the queried lanes' coverage under the meter; promotion\nnever omits a subscribed follower's route.",
         "Promotion uses that count to refuse a saturated follower without reading\ntheir routes.",
-        "Requiring route success adds no writes, so the 107-write allowance and\n917-event backfill bound are unchanged; a refusal rolls back attempted writes.",
+        "The private maintained check adds one write per route. The allowance is\n159 writes with an 865-event backfill; a refusal rolls back attempted writes.",
     ] { assert!(feeds.contains(text), "feeds card omits verbatim policy: {text}"); }
     for doc in [feeds, readme_reference("feeds")] {
         assert!(doc.contains("if count(near) > 50:\n      -- Check the caller first so their own full slots name their own repair.\n      require tryPull(viewer, authorId) else FEED_PULL_CAP\n      update authors"), "both published copies check the caller before promotion");
@@ -839,7 +839,7 @@ fn arrival_recipe_orders_ties_and_retries_then_pages() {
     let source = quarry(card("writes").unwrap()).into_iter().find(|block| block.contains("table conversations:")).unwrap();
     let bound = clean("arrival recipe", &source);
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
-    sent(&engine.mutate("createConversation", Some("create"), Context::new("dev:alice", args(&[])).with_ids(["room".into()])).unwrap());
+    sent(&engine.mutate("createConversation", Some("create"), Context::new("dev:alice", args(&[])).with_ids(["room".into(), "member".into()])).unwrap());
     for i in 1..=51 {
         let context = || Context::new("dev:alice", args(&[("conversationId", id("room")), ("body", text("hello"))])).at(1000).with_ids([format!("message-{:03}", 52 - i)]);
         let write = format!("write-{i}");
@@ -857,6 +857,10 @@ fn arrival_recipe_orders_ties_and_retries_then_pages() {
     let Value::Array(rows) = second.data else { panic!("history is a page") };
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].field("ordinal").unwrap(), &Value::Int(1));
+    let outsider = || Context::new("dev:bob", args(&[("conversationId", id("room")), ("body", text("hello"))])).at(1001).with_ids(["bob-message".into()]);
+    assert_eq!(failed(&engine.mutate("send", None, outsider()).unwrap()), "E_RULE");
+    sent(&engine.mutate("addMember", None, Context::new("dev:alice", args(&[("conversationId", id("room")), ("principal", id("dev:bob"))])).with_ids(["bob-member".into()])).unwrap());
+    assert_eq!(sent(&engine.mutate("send", None, outsider()).unwrap()).field("ordinal").unwrap(), &Value::Int(52));
 }
 
 #[test]

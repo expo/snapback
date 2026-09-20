@@ -43,18 +43,18 @@ Replace `<fixture-directory>` and `<principal>` with your fixture directory and 
 A missing fixture directory refuses instead of measuring an empty store.
 `--authors N` and `--edges N` set the global author and
 follow-edge caps; omitted flags keep 1,000 and 100,000 respectively.
-The newest-event backfill bound is `clamp(authors, 200, 917)`: 917 by default
+The newest-event backfill bound is `clamp(authors, 200, 865)`: 865 by default
 and for `--authors 1008`, or 200 for `--authors 50`. The lower clamp preserves
 the earlier 200-event history window; no separate backfill flag is needed.
 An edges-only install uses the default author count. The upper bound reserves
-107 of the 1,024 mutation writes: two per pull route for the author and 51
-followers, one recipe edge, one promotion update and one app edge. Additional
+159 of the 1,024 mutation writes: three per pull route (route, private total and public count) for the
+author and 51 followers, one recipe edge, one promotion update and one app edge. Additional
 app writes need their own allowance. The 1,000-event per-actor cap and source
 scan/unfollow bounds stay coupled; growing the global author cap cannot
 exceed the backfill's write allowance. A smaller backfill reduces copied
 history and writes, but not the source page's metered cost: it still reads
 `last 1000`. A one-follower backfill examines 1,005 rows with either 200 or
-917 copies. Shrinking `--authors` is not a way to reduce that scan cost.
+865 copies. Shrinking `--authors` is not a way to reduce that scan cost.
 They change only the installed module, not the app's own tables. For room
 beyond this fixture, use `--authors 2000 --edges 200000`. Grow the app's
 profile and follow caps too if they would otherwise refuse first.
@@ -70,15 +70,15 @@ rows in one operation. The runtime meters still decide each operation.
 | Cap | What grows together; cost |
 |---|---|
 | Authors / edges | The flags set their global caps; each stored row is public and reaches every device. The wired app also stores its own profile and edge rows. |
-| Pull routes / online counts | Both global caps grow to `32 × authors` (32,000 by default). Routes cost server storage and at most 32 acquired rows for their reader; each installed reader's count costs one server-only row and no acquisition. Unregistered readers can follow too, so this remains a finite global routing budget, not a guarantee for every possible graph. |
+| Pull routes / online counts | Both global caps grow to `32 × authors` (32,000 by default). Routes cost server storage and at most 32 acquired rows for their reader; each installed reader's count and its private maintained check cost two server-only rows and no acquisition. Unregistered readers can follow too, so this remains a finite global routing budget, not a guarantee for every possible graph. |
 | Source events / broadcast / tombstones | Fixed globals: 60,000 / 32,000 / 32,000. Every stored row reaches every device. Removal temporarily adds a tombstone until the purge finishes. App post cards and repost attribution add their own acquisition. |
 | Follows per reader / followers per author | Both stay at 1,000. The follower cap, promotion/delivery loops, inbox's 1,001 copies per event and purge loop must grow together if edited by hand; larger writes can hit the unchanged meter. |
-| Events and tombstones per actor / inbox per reader and actor | Each stays at 1,000. The source scan and unfollow loop cover 1,000 rows; a follow visits the newest `clamp(authors, 200, 917)` events, copying only pushed events. At the default backfill, 83 inbox slots remain for new deliveries before removal cleanup. |
+| Events and tombstones per actor / inbox per reader and actor | Each stays at 1,000. The source scan and unfollow loop cover 1,000 rows; a follow visits the newest `clamp(authors, 200, 865)` events, copying only pushed events. At the default backfill, 135 inbox slots remain for new deliveries before removal cleanup. |
 | Inbox per reader / pulls per reader | Fixed at 50,000 / 32. The former bounds private cold acquisition; the latter bounds the merge's pulled lanes and its per-read work. Growing them requires revisiting the query and its meter, not just global sizing. |
 
 Small accounts write each reader's private inbox. On a successful 51st follow,
 future events go into one public broadcast projection; the earlier events
-keep their delivery mode. Follow backfills from the latest 917 source events by default,
+keep their delivery mode. Follow backfills from the latest 865 source events by default,
 and unfollow deletes every private entry by that actor and drops the pull
 lane. The reader's own posts and reposts need no self-follow edge.
 Entries carry the app post ID and attribution, without copying a text body.
@@ -144,9 +144,13 @@ table pullCounts:                 -- server-only slot accounting; never lists in
   unique byReader: readerId
   cap 32000
   public 'only the number of installed pulls is public; routes stay reader-private'
-  insert <- allow
-  update <- allow
+  insert <- exists pullTotals[readerId = .readerId, value = .used]
+  update (old, next) <- exists pullTotals[readerId = next.readerId, value = next.used]
   delete <- .readerId = viewer
+  online only
+
+maintain pullTotals: count pulls by readerId
+  read <- deny
   online only
 
 table posts:                       -- originals and attributed reposts, one source event each
@@ -266,7 +270,7 @@ fn addFollow(authorId: principal):
         require tryPull(f.followerId, authorId) else FEED_PROMOTION_PULL_CAP
   visited = 0
   for p in posts[authorId] last 1000 by byActorTime:
-    if visited = 917:
+    if visited = 865:
       break
     visited = visited + 1
     if not p.shared:
@@ -420,8 +424,8 @@ A new follow of an already-shared author with no slot refuses `FEED_PULL_CAP`
 atomically, including the app edge; that reader must free their own slot.
 `complete` describes the queried lanes' coverage under the meter; promotion
 never omits a subscribed follower's route.
-Requiring route success adds no writes, so the 107-write allowance and
-917-event backfill bound are unchanged; a refusal rolls back attempted writes.
+The private maintained check adds one write per route. The allowance is
+159 writes with an 865-event backfill; a refusal rolls back attempted writes.
 Promotion still attempts a self pull for the author.
 A saturated author's own new shared events also get
 an own-inbox copy, so their own posts remain visible without a self pull.
@@ -500,7 +504,7 @@ Limits: 1,000 follows per account, 1,000 source events per actor, 50,000
 private entries per reader, 32 pulled authors per reader and 32,000 public
 broadcast entries, and 32,000 pending tombstones (1,000 per actor); reaching
 a cap refuses the write atomically, so archive
-or redesign before exceeding this envelope. A default follow backfills at most 917 events,
+or redesign before exceeding this envelope. A default follow backfills at most 865 events,
 not an unlimited historical archive. Public broadcast rows reach every
 device; at the measured envelope that is 200 rows, plus any pending removal
 tombstones. Cleanup is a bounded job; no exact horizon maintenance is involved.
@@ -636,7 +640,7 @@ new event. Copy inserts are unconditional:
 a new source or new follow already establishes that this delivery is new,
 without an unknowable `if absent` probe into another reader's private inbox.
 The backfill loop covers the 1,000-event schema cap and stops after the
-newest `clamp(authors, 200, 917)` events; promotion and delivery loops cover the graph cap.
+newest `clamp(authors, 200, 865)` events; promotion and delivery loops cover the graph cap.
 Follow and unfollow queue because their slot accounting is online-only;
 profile saves and post creation remain eligible after acquisition.
 New follow edges record `at: now`; an idempotent repeated follow preserves it.
@@ -1245,21 +1249,89 @@ expiring can increase the live sum. One value index would add at most two entry
 writes per removed contribution, not another aggregate scan; paying that cost
 alone does not make stored top-N fresh. This recipe pays for live reads instead.
 
-## N_PUBLIC_AGGREGATE_COPY: a public copy keeps ordinary write authority
+## N_PUBLIC_AGGREGATE_COPY: a public derived column keeps ordinary write authority
 
-N_PUBLIC_AGGREGATE_COPY is a note, not an error. A public column is assigned
-directly from a declared `maintain`, but `insert <- allow` or `update <- allow`
-(or a provably unrestricted equivalent) lets any principal set it through any
-mutation that writes it. The column duplicates an aggregate the engine already
-keeps. Read the maintain directly, or restrict both insert and update authority
-so callers cannot choose the copied value. The fresh bounded Trending recipe
-in `guide feeds` reads live counts and has no writable ranking table or copied score.
+N_PUBLIC_AGGREGATE_COPY is a note, not an error. Every write to a public or
+uniformly readable column is computed from table or maintain reads, but
+`insert <- allow` or `update <- allow` (or a provably unrestricted equivalent)
+lets any principal run any mutation that writes it. The note names the column
+and a written expression, such as `p.score + 1` in `like`. Keep the count in a
+`maintain` and read it directly, as the Trending recipe does, or pin a copied
+score to the engine's count in both insert and update rules:
+
+```quarry
+table posts:
+  author: principal
+  public 'posts'
+  insert <- .author = viewer
+
+table likes:
+  postId: posts
+  principal: principal
+  unique byPair: postId, principal
+  immutable postId, principal
+  public 'likes'
+  insert <- .principal = viewer
+  delete <- .principal = viewer
+
+maintain likeCounts: count likes by postId
+  read <- allow
+  online only
+
+table ranked:
+  postId: posts
+  score: int
+  unique byPost: postId
+  immutable postId
+  public 'ranking'
+  insert <- exists likeCounts[postId = .postId, value = .score] or (.score = 0 and not exists likeCounts[.postId])
+  update (old, next) <- exists likeCounts[postId = next.postId, value = next.score] or (next.score = 0 and not exists likeCounts[next.postId])
+
+mutation refresh(postId: posts):
+  upsert ranked[postId] { postId, score: likeCounts[postId] }
+```
+
+The zero case matters: a count group has no row without contributions. These
+rules reject a forged score; keeping a copy fresh is still the application's
+responsibility. For another derived fact, pin the copied value to its source
+row with an `exists` rule. Maintains produce numeric counts and sums; the note
+leads with the pinning rule for a non-numeric copy, such as a nullable author.
+The Following recipe uses a private `pullTotals`
+maintain to check its public slot count without making private routes readable.
 
 The client calls declared operations, not arbitrary table writes. This note
 identifies latent table permission, not proof that a current mutation accepts
-an arbitrary score. It covers direct scalar maintain-to-column assignments in
-programs and helpers, including jobs, once per column and maintain. It does not
-infer copies from names, matching group keys, increments, aliases or arithmetic.
-Restricted rules, private targets and immutable columns do not receive it;
-absence of the note is not a proof that a ranking cannot be forged. Sync and
+an arbitrary score. It follows values through bindings, helper calls, objects,
+shapes, arithmetic and loops across all Quarry programs and helpers, including
+jobs, once per column. The written value must be computed from reads (possibly
+with ambient values); an argument may choose which derived value is written
+but may not supply the value itself or how many values contribute to it.
+A purely ambient write (`viewer`, `now`,
+a minted id or a literal) disqualifies the column, except a literal insert or
+omitted literal default may initialize a
+column that has another read-derived write. A literal update or upsert is not
+that exception. Presence (`connected`) is ambient, not a table aggregate.
+An upsert's returned id keeps the supplied id key's data provenance: an
+argument supplies it, a read derives it, and an id minted without an id key
+is ambient.
+
+A collection carries cardinality separately from its items: a read page's is
+read-derived, an argument list's or argument-bounded range's is supplied, and a
+literal list's is ambient. Shapes, slices and sorts preserve that cardinality;
+a filter may add its predicate's dependence. `count` consumes cardinality,
+while sums, element picks and loop accumulations consume it with their data.
+Branches, loop exits, sort/group keys and slice/element positions
+carry control provenance through helper writes and nested fields; that control
+does not enter the verdict. The note names a caller-dependent choice, such as
+`p.score + 1` or `p.score - 1`, chosen by `liked` in `setLike`. An unknown
+dependence or an exhausted analysis budget stays silent; it never becomes read
+evidence. Literal insert initialization keeps the exception above, including
+inside a branch.
+
+Restricted rules, private targets, immutable columns, append-only tables and
+maintain targets do not receive it. Job-only writers under `deny` stay silent.
+Actions have no Quarry write body; their external steps call declared mutations,
+whose arguments are included. A native job can write tables outside this syntax
+census, so its presence makes the all-writers proof unknown and silent. The note does not infer meaning from column names,
+and its absence is not proof that a ranking cannot be forged. Sync and
 `online only` do not change write authority.

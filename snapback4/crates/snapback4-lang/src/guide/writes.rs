@@ -219,9 +219,18 @@ order accepted writes within that conversation; they do not order groups.
 ```quarry
 table conversations:
   lastOrdinal: int default 0
+  creator: principal
   public 'shared conversation counters'
-  insert <- allow
-  update <- allow
+  insert <- .creator = viewer
+  update <- exists members[.id, viewer]
+  online only
+
+table members:
+  conversationId: conversations
+  principal: principal
+  unique byPair: conversationId, principal
+  public 'shared conversation membership'
+  insert <- exists conversations[id = .conversationId, creator = viewer]
   online only
 
 table messages:
@@ -236,7 +245,12 @@ table messages:
   online only
 
 mutation createConversation():
-  insert conversations {}
+  c = insert conversations { creator: viewer }
+  insert members { conversationId: c.id, principal: viewer }
+  return c
+
+mutation addMember(conversationId: conversations, principal: principal):
+  insert members { conversationId, principal } if absent
 
 mutation send(conversationId: conversations, body: text <=200):
   conversation = conversations[conversationId] ! else NOT_FOUND
@@ -250,8 +264,8 @@ query history(conversationId: conversations, c: cursor ?):
 
 Pass the returned `next` as `c` to page newest first by ordinal. Reusing the
 mutation id on retry neither increments again nor inserts twice. This short
-shared-history example is online-only; private conversations need membership
-rules. If you sync and predict it, a local ordinal is provisional until the
+shared-history example is online-only and only members can advance its counter;
+private conversations also need membership read rules. If you sync and predict it, a local ordinal is provisional until the
 server commits and reconciles concurrent sends.
 
 ## Write authority

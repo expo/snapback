@@ -57,7 +57,7 @@ pub fn refused_with_code(engine: &mut Engine, code: &str) {
     assert_eq!(engine.seq().unwrap(), seq, "no partial promotion reaches sync");
     assert_eq!(result.events, 0);
     assert!(result.tables.is_empty());
-    assert!(result.metered.rows_written <= 107);
+    assert!(result.metered.rows_written <= 159);
     println!("W11a refused: examined={} index={} written={} committed_events=0 code={} message={}",
         result.metered.examined, result.metered.index_entries, result.metered.rows_written, why.code, why.message);
 }
