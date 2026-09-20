@@ -71,7 +71,8 @@ test("README TypeScript examples compile and call every public function", (t) =>
   writeFileSync(join(scratch, "src/generated/api.ts"), apiStub);
   writeFileSync(join(scratch, "snapback/generated/server.ts"), serverStub);
   writeFileSync(join(scratch, "src/generated/server.ts"), serverStub);
-  const readme = ["README.md", "CLIENT-AND-OPERATIONS.md", "SERVER.md"].map(name => read(join(root, name))).join("\n");
+  // The orientation modules compile together against their generated API in first-account.test.mjs.
+  const readme = ["CLIENT-AND-OPERATIONS.md", "SERVER.md"].map(name => read(join(root, name))).join("\n");
   const blocks = [...readme.matchAll(/^```(tsx?)\s*\n([\s\S]*?)^```\s*$/gm)].map((match, index) => {
     const line = readme.slice(0, match.index).split("\n").length + 1;
     const file = join(scratch, "src", `block-${index + 1}.${match[1]}`);
@@ -122,9 +123,10 @@ test("README TypeScript examples compile and call every public function", (t) =>
 });
 
 test("R1a Queries lists matching merges over scope lanes", () => {
-  const queries = (["README.md", "CLIENT-AND-OPERATIONS.md"].map(name => read(join(root, name))).join("\n").split("- **Reads:")[1]?.split("- **")[0] ?? "").replace(/\s+/g, " ");
+  const queries = (read(join(root, "../../crates/snapback4-lang/src/guide/reads.rs")).split("- **Reads:")[1]?.split("- **")[0] ?? "").replace(/\s+/g, " ");
   assert.ok(queries.includes("merge t matching q [after c] last N by wordsIndex:"), "Queries must spell the matching merge");
   assert.ok(queries.includes("scope lanes"));
+  assert.ok(read(join(root, "README.md")).includes("`guide reads`"));
 });
 
 test("Expo Go README session store normalizes SecureStore keys and round-trips a session", async () => {

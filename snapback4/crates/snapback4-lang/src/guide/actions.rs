@@ -293,4 +293,10 @@ label such as `ctx.writeIdFor('save-invitation')`. Labels are 1–128 ASCII
 characters without controls. Reuse that label for retries of the same
 mutation within this invocation, and use another stable label for a
 different mutation; do not put a timestamp or random value in the label.
-"##;
+
+## Actions
+
+Declare typed I/O operations in Quarry and implement them with generated
+TypeScript handlers. Read [actions and the server context](./SERVER.md) for
+the declaration, admission authority, durable steps, secrets and supervision,
+or run `snapback4 guide actions`."##;

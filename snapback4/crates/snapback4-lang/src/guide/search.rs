@@ -104,4 +104,79 @@ Following that cursor does not clear the earlier page's incompleteness in `usePa
 `where` use their own rules and search terms. Even an empty matching result
 past a device horizon is incomplete; a held group can fall back to the server.
 
-"##, include_str!("search_all.md"));
+"##, include_str!("search_all.md"), r##"
+
+## Membership search with an admin gate
+
+```quarry
+table conversations:
+  title: text <=120
+  read <- exists memberships[.id, viewer]
+  insert <- allow
+  sync to memberships[.id]
+
+table memberships:
+  conversationId: conversations
+  principal: principal
+  role: enum('member', 'admin')
+  unique byConversationPrincipal: conversationId, principal
+  by byConversationPrincipalRole: conversationId, principal, role
+  by byPrincipalConversation: principal, conversationId, id
+  cap 50 by conversationId
+  read <- exists memberships[.conversationId, viewer]
+  insert <- exists memberships[.conversationId, viewer, 'admin'] or created conversations[.conversationId]
+  sync to memberships[.conversationId]
+
+table messages:
+  conversationId: conversations
+  authorId: principal
+  body: text <=4000 ?
+  caption: text <=200 ?
+  at: time
+  by byConvTime: conversationId, at, id
+  by byConvWords: conversationId, words(body, caption), at, id
+  read <- exists memberships[.conversationId, viewer]
+  insert <- .authorId = viewer and exists memberships[.conversationId, viewer]
+  sync to memberships[.conversationId] last 500 by byConvTime
+
+table profiles:
+  principal: principal
+  displayName: text <=50
+  handle: text <=30 format handle
+  unique byPrincipal: principal
+  unique byHandle: handle
+  by byNameWords: words(displayName, handle), id
+  public 'profiles are public'
+  insert <- .principal = viewer
+  update <- .principal = viewer
+
+query inChat(conversationId: conversations, q: text <=100, c: cursor ?):
+  require exists memberships[conversationId, viewer] else NOT_MEMBER
+  return messages[conversationId] matching q after c last 50 by byConvWords
+
+-- everything, grouped by chat
+query searchGrouped(q: text <=100, c: cursor ?):
+  return memberships[viewer] after c first 20 by byPrincipalConversation where exists (messages[.conversationId] matching q) { conversationId, hits: messages[.conversationId] matching q last 3 by byConvWords }
+
+-- a globally newest-first screen while every chat opens in one read
+query searchNewest(q: text <=100, c: cursor ?):
+  return merge messages matching q after c last 20 by byConvWords:
+    [m.conversationId] for m in memberships[viewer]
+
+query people(q: text <=100, c: cursor ?):
+  return profiles matching q after c first 20 by byNameWords
+
+query allPeople(c: cursor ?):
+  return profiles after c first 20 by byId
+```
+
+This version gives conversations their own table and lets an admin add members.
+Use `inChat` for more hits in one conversation; `searchGrouped` and
+`searchNewest` use the grouped and global ordering described above.
+A query with `first 1` and no cursor is incomplete when its range contains two
+held rows. A horizon, an online-only source or zero read sites gets no
+source-coverage line; that line never promises answer completeness.
+For ordinary device reads, online fallback asks the server only for a missing
+fact or unknown presence; a meter or word cut and a cursorless page stay local,
+as do held queries and retained left groups, and pending predictable writes
+still prevent fallback."##);

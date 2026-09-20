@@ -39,7 +39,7 @@ fn w10r1_no_horizon_card_matches_reader_suppression() {
     let sentence = "Eligible mutations that require whole-partition coverage can suppress this advice. An absent note does not certify bounded acquisition or a safe cold-start size.";
     assert!(snapback4_lang::guide::card("sync").unwrap().split_whitespace().collect::<Vec<_>>().join(" ").contains(sentence));
     assert!(snapback4_lang::guide::CODES.iter().find(|(code, _)| *code == "N_NO_HORIZON").unwrap().1.contains(sentence));
-    assert!(include_str!("../../../packages/snapback4/README.md").split_whitespace().collect::<Vec<_>>().join(" ").contains(sentence));
+    assert!(include_str!("../../../packages/snapback4/README.md").contains("`guide sync`"), "the orientation reaches the complete advice checked above");
 }
 
 #[test]

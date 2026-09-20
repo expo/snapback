@@ -88,4 +88,38 @@ platform's reserved `E_` prefix. For example,
 at the use site and handle that code on the client. The same rule applies
 to a unique index's `else` hook; it does not require adding the code to the
 platform registry.
-"##;
+
+## App files and modules
+
+```
+my-app/
+  snapback/schema.q          the backend: tables, rules, sync, queries, mutations
+  snapback/worker.mts        optional Node ESM worker: effects and actions (dev starts it)
+  snapback/generated/package.json  ESM boundary for generated artifacts
+  snapback/generated/api.ts  written by `check`; never edited, never committed
+  src/                       your client: React on the web, React Native on Expo
+```
+
+The backend is one file (more `.q` files beside it hold modules; their
+operations are named `<module>.<op>`, and every file shares one namespace
+of tables, shapes and helpers); generated operations group under `api.<module>`
+(`api.social.follow`, not `api.follow`). The client imports `api` from the generated
+file and talks to the server through one client object. There are no
+resolvers, no migrations to write, no subscriptions to manage: a table's
+`sync` line says which devices hold its rows, and the client's reads run
+over what the device holds.
+
+**Two ways to run.** `snapback4 init` starts local-first: declare `sync`
+and open `createLocalClient` so the device holds its partition and works
+offline. `snapback4 init --online` writes a schema with no `sync` lines
+and a `src/client.ts` on `createClient`. Its queries run on the server and
+stay live through `/changes`, with no replica. Both tiers use the same
+rules, meter, identity, assets and jobs. Add `sync` and open a local-first
+client when the app needs offline data. `init --expo` adds the phone
+starter, selecting the native tier when available and online in Expo Go.
+Every starter writes `snapback/generated/package.json` with `{"type":"module"}`,
+so Node ESM seed scripts can import `api` from `snapback/generated/api.ts`
+even when the app's package.json says `"type":"commonjs"`. Existing scripts
+under `snapback/` keep their module interpretation. The Expo starter uses
+`worker.mts` so its generated worker is explicitly ESM in a CommonJS app.
+`check` and `dev` rebuild the generated package boundary alongside `api.ts`."##;

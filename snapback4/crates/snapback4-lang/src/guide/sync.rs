@@ -44,6 +44,15 @@ table threads:
   sync to participants[.id] by .personId    -- each row reaches every principal with a participants row whose threadId matches
 ```
 
+```text
+sync [last N by index]                           audience inferred from the read rule
+sync public [last N by index]                    everyone holds the same rows
+sync to .col [last N by index]                   each row reaches the principal in .col
+sync to t[.a, .b] [by .col] [last N by index]    each row reaches every principal with a
+                                                 row in t whose (a, b) match; `by .col` names
+                                                 the recipient column when t has several
+```
+
 `sync [last N by index]` infers its audience from the read rule. Explicit
 `sync public` and `sync to ...` remain valid and must agree with that rule.
 The read rule must be exactly the audience — `public`, `.col = viewer`, or
@@ -59,7 +68,9 @@ let anyone join. Audience keys are immutable or guarded on update. These
 target audiences require every content prefix and corresponding target
 group column to be non-optional: `null` cannot name a device partition, so
 `sync to participants[.threadId]` requires both copies of `threadId`.
-checks also cover insert-if-absent and upsert. The horizon
+Checks also cover insert-if-absent and upsert.
+Read rules may add `or viewer = 'service:pusher'` (or several service grants);
+sync infers its audience without them, so device snapshots and streams stay the same. The horizon
 `last N by index` bounds what a device acquires per group. The server sends
 an acquisition boundary: a suffix starting at the Nth delivered readable key,
 or `whole` when fewer than N readable rows exist, including an empty group.
@@ -191,6 +202,64 @@ grouped by the audience columns inherits sync and is delivered as a value row.
 out of inheritance. Both lines absent on a table still means online only.
 See `guide residency` for operation classes and cold acquisition measurements.
 
+`online only` optionally documents a table with no sync. On a `maintain`,
+it opts out of inherited sync. `N_MAINTAIN_SYNCED` calls out public inherited
+aggregates and group audiences with unbounded recipients or multiple values per group,
+grouped into one note retaining each maintain's source location.
+The note names mutations that would stop predicting if the maintain goes
+`online only`; `snapback4 test --residency` measures its cold rows. `check`
+prints the facts without pre-adoption counts: a new maintain has no stored rows yet.
+
+`check --residency --verbose` lists every table's residency, inferred and inherited
+audiences, and each operation's `runs: device | server` or
+`predicts: eligible | never`. Read sites are `held`, `horizon` or `server`.
+Each site names its read, write or rule's file:line:column when source is
+available, including helper writes and after-insert rules. A source-less
+fact names its rule or write path instead of an internal compiler site.
+Queries reading `connected` run on the server; mutations stay eligible when presence decides only effects.
+A horizon site stays eligible but may queue without a row past the horizon;
+`E_PREDICT` names the table, index and key. `why <op>` names the reason and
+rewrite; `why <table>` includes the rule used for inference. The generated
+`api.ts` documents arguments, results, these words, horizon sites and
+`require` codes. `check` compares with `snapback/generated/residency.json`;
+`dev` compares with its served generation. `N_NOW_SERVER` and
+`N_NOT_PREDICTABLE` name changed sites, including added horizon risks.
+Each mutation gets one `N_NOT_PREDICTABLE` note with distinct root causes
+and deduplicated sites and rewrites.
+Every text `check` also summarizes mutations that never predict, blocked insert
+arms, and eligible mutations with horizon reads; JSON checks include `predictionSummary`.
+The horizon bucket and `why`'s qualified heading keep every read and site visible
+on unchanged checks. This includes the expiring source behind a live-aggregate
+write-rule probe: prediction needs that source without a horizon.
+`N_HORIZON_GUARD` distinguishes the argument row id from the mutation write id;
+only codes with `DUPLICATE`, `RETRY` or `DEDUPE` words get retry advice.
+Application invariants such as `else EVENT_REMOVED` keep their guards.
+Ordinary mutation pages still get `N_NO_HORIZON` growing-table advice;
+point/exists reads, rule probes and insert proofs that need whole coverage do not.
+When an eligible mutation reads an ascending `first N` page, or a page on
+a different index from the suggested horizon, the note names the mutation
+that would lose prediction instead of recommending that horizon. A descending
+`last N` page on the horizon's own index may keep the rewrite; an exhausted
+horizon can still make that call queue without a predicted row.
+Add `predicts` before
+a mutation header's colon (`mutation like(postId: posts) predicts:`) to assert
+eligibility: `check` refuses `E_NOT_PREDICTABLE` at that header if any site
+makes it `never`. This asserts eligibility, not that every call will predict;
+a horizon miss can still queue without a row. See `guide prediction`.
+
+`test --residency --fixture dir [--as persona]` reports the eight costliest
+acquired table/persona pairs, ordered by compact JSON row bytes, then rows,
+with all omitted pairs summed into one line and totals that include them.
+It measures the real cold partition snapshot, respecting authorization and
+horizons; byte counts exclude transport framing and are not process RSS.
+`check --residency --fixture dir --as persona` gives the same report where
+builders already check their backend. Without a fixture, `check --residency`
+measures the active dev-store schema read-only, without adopting current
+source; without a dev store it says not measured and names the fixture command.
+Use `--verbose` for all table counts, declared facts and notes; on `test` it
+also runs the query meters as before. The default acquisition report fits
+one screen even for hundreds of tables or personas. No count is extrapolated.
+
 ## Refused sync declarations
 
 E_QUARRY_RETAIN means a table repeats its retention declaration or uses
@@ -206,5 +275,4 @@ audience. For example, `read <- .ownerId = viewer` cannot pair with
 match the read rule's membership probe, declare its unique group/principal
 index and recipient-leading index, and guard new memberships with existing
 membership or creation of the group. Follow the message's rule term,
-column or index; do not make private rows public just to enable sync.
-"##;
+column or index; do not make private rows public just to enable sync."##;

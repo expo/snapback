@@ -71,4 +71,46 @@ Quarry, iterate a bounded list or an explicit `first 10` page and process
 remaining work through another page or a job chunk. Increasing a runtime
 meter ceiling is not the repair, and silently dropping required work is
 not a complete sweep.
-"##;
+
+## Allocation, completeness and diagnostic context
+
+Heap is a cumulative allocation and binding budget: constructed values,
+concatenation and other allocating builtins, local bindings, and owned
+copies count. Inspecting a held value's length or sum borrows it; row and
+map clones share their immutable image. A heap cut stops a query immediately
+with `data: null`, `complete: false`, and no continuation, since an interrupted
+scalar or shape has no valid partial answer. Its cut site remains internal;
+the meter is available only through dev's default read inspection (CLIENT-AND-OPERATIONS.md §4).
+An unfinished maintained lookup or live aggregate uses the same unavailable
+query result, preserving zero only for a completed missing-group lookup.
+A mutation rolls back with `E_BOUND` as above.
+A page whose read rule the prefix does not decide (the deciding fields include a
+column the scan does not pin) is never `complete`: the server cannot tell
+"no more" from "more you may not see". Scan by an index that leads with
+the rule's columns, or read the page on the device (`guide sync`), where the
+partition holds exactly what the viewer may read. `check` says so
+(`N_NEVER_COMPLETE`), as it notes a query page returned without a cursor
+(`N_NO_CURSOR`), a synced table whose groups can grow with no horizon
+(`N_NO_HORIZON`), and a merge past 50 lanes (`N_WIDE_MERGE`). A single-group
+page omits the cursor note when its bound covers the group cap and that cap
+fits the default 8,192-row examined ceiling. Larger caps still need a cursor;
+other metered work can also cut a read.
+For a page of 50 pinned by `conversationId`, either declare `c: cursor ?`
+and page with `after c`, or add `cap 50 by conversationId` to the table if
+that is the intended group limit. An unscoped plain page can use `cap 50`.
+The cap refuses writes beyond its limit; a per-lane cap does not bound a merge.
+
+When the same code and card occur twice in one text `check`, its card excerpt
+prints once under the first occurrence, with the `guide:` pointer kept at
+every site. At most three excerpts print per check, each at most 4,096 UTF-8
+bytes including its full-card pointer and final newline (12,291 extra bytes
+including separating blank lines). A single occurrence stays compact;
+`check --json` keeps its structured diagnostics. `why <code>` still opens
+the excerpt on demand. Every registered code has a dedicated paragraph on
+its default card; `why <code>` names the code and explains it there.
+For example, `E_QUARRY_SYNTAX` and `E_QUARRY_UNKNOWN` have mistake-and-repair
+sections on `guide language`; `E_QUARRY_PLACEMENT` and `E_EMIT_IN_QUERY`
+have theirs on `guide programs`. A diagnostic may point to another card
+for its context; if that card lacks a section for the code, `check` keeps
+the diagnostic and pointer without an excerpt. Explicit `why <code>`
+then labels its fallback to that card's opening."##;

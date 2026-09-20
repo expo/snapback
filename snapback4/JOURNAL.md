@@ -41922,3 +41922,239 @@ retirement, and the ranking ticket's closure remain owed after a passing
 gate/ruling. Index churn and private-maintain costs are not measured. No
 ceiling, serialized value form or corpus case changes; no subagents,
 remote work, commits, pushes, tags or publications.
+
+## 2026-09-19 — W14B: one first-account orientation, tested reference cards, and a docs budget
+
+Implemented W14b revision 2 (the cut, first-screen path, discoverability,
+self-containment and ratchet in §§3–6, §8 and the binding §11 changes).
+The package README is now 300 physical lines, including every fence and
+blank. It contains a password-only Expo starter path with the complete
+profile/handle schema, generated operations, signup/login, normalized
+platform stores/openers, persisted session restore, upload then avatar
+placement, and loading/denied/pending/failed/sent handling. The online
+controller records the write ID and intent before sending and collects the
+same ID after an uncertain reply and reopen. The optional reference map is
+the first external-document hop. `guide app` is the optional intact chat
+example; bare `guide` is described correctly as the two-line index.
+
+The integration base is `d6aee9e075a598653d666e059dada30f5eb65798`.
+Before moving anything, the tree README measured 2,004 lines, SHA-256
+`5d4298bec07bdc8f332552a9c5dc2f5cf8e177931fbbef4222364eba65871fd6`.
+The published 0.2.30 comparison was 1,999 lines, SHA-256
+`efce36dce181863e55561ad13e68e74cb26163cdaedb7f8972021b4426409bc2`.
+Only Maintains (131 → 134 lines) and Feeds (451 → 453) differed: the
+value-index interim order and newest-first tie rule; the other 1,417 lines
+were identical. The move used this tree's headings and preserved those
+additional qualifications. The final README SHA-256 is
+`3691b4b7b27e1a1384ff4aba512342ba8427ef9a26afdfc515c1ea170727a3ba`.
+
+The six non-identical Quarry blocks moved whole to app (66 fenced lines),
+maintains (60), reads (7), jobs/remind (19), search (61) and effects (31):
+244 lines. The four byte-identical blocks reuse one existing card copy:
+native (5), indexes (24), jobs/digest (73), feeds (255): 357 lines.
+Every one of the ten original block bodies occurs byte-for-byte exactly
+once at its destination. The native Rust example also remains intact. The replaced maintains
+card block differed only in query declaration order; the remind block
+differed only in its schedule comment, whose spellings and 1m minimum
+remain in prose.
+Reference prose was merged with existing card coverage, retaining the
+complete programs and qualifications. Search block 1 stays in place with
+its precise existing N_NO_HORIZON exception. One contradictory old README
+sentence was corrected rather than copied: a grouped preview starved by a
+cut is dropped and retried by continuation, as the existing tested search
+card already says, rather than emitted empty and never refilled (§§3/8).
+
+The built local CLI's stdout line census (`cargo build -p snapback4`, then
+`SNAPBACK4_BIN=$PWD/target/debug/snapback4 node_modules/.bin/snapback4 guide <card>`
+and `wc -l`) is below. Zero for app means no baseline card.
+
+| Card | Before | After |
+|---|---:|---:|
+| language | 508 | 508 |
+| app | 0 | 76 |
+| types | 104 | 196 |
+| indexes | 142 | 142 |
+| maintains | 167 | 170 |
+| rules | 98 | 98 |
+| sync | 209 | 277 |
+| residency | 76 | 76 |
+| prediction | 208 | 208 |
+| evolution | 16 | 16 |
+| expire | 82 | 82 |
+| assets | 52 | 52 |
+| reads | 284 | 440 |
+| shapes | 36 | 94 |
+| writes | 255 | 299 |
+| programs | 89 | 123 |
+| jobs | 362 | 366 |
+| native | 118 | 126 |
+| feeds | 1265 | 1266 |
+| search | 244 | 319 |
+| effects | 227 | 268 |
+| actions | 296 | 302 |
+| routes | 114 | 114 |
+| services | 158 | 158 |
+| presence | 24 | 27 |
+| bounds | 73 | 115 |
+| refusals | 101 | 101 |
+| personas | 94 | 94 |
+| witness | 219 | 219 |
+
+Cards total 5,621 → 6,332 lines; README plus all cards is 7,625 → 6,632,
+a reduction of 993 lines. The README alone is 2,004 → 300. These are
+artifact sizes, not measured reader demand or a calibration score.
+
+Retargeted the evolution card's stale README §5, the client reference's
+“§2, the meter”, the moved app's identity/persona section context, the moved
+reference prose's section pointers, and the loopbar brief's one-page
+claim. The map links directly to the client reference's §§4–8 and SERVER.
+The guide and aggregate-copy assertions now check their destination and
+orientation reachability. The TypeScript Reads assertion follows `guide
+reads`; reference TypeScript examples remain typechecked, and the new
+orientation's three modules compile together against the generated API.
+The full suite found further old-location checks in maintains.rs and
+residency_notes.rs and old keyword prefixes in CLI tests/check.rs; only
+those test bindings changed. The `fix` alias equality test needed a rebuild
+after the last jobs prose addition; its assertion did not change. Both
+`why E_QUARRY_TYPE` and `why E_SHAPE_EXCEEDS_METER` outputs compare
+byte-identical to the baseline, including the full-card pointers.
+
+The acceptance exercise is assembled only from the final README blocks
+and `init --expo`. It typechecks the three actual modules against the
+fresh generated API and real SDK/Expo types, then runs the account
+controller against a real host on both online and SQLite process-device
+tiers. Each tier passed signup, login, profile save, avatar upload and
+placement, persisted-session reopen, a denied read, and same-ID pending
+recovery after a lost committed response: generated_types=1, signup=1,
+login=1, profile=1, avatar=1, reopen=1, denied=1, pending_same_id=1.
+The platform component is typechecked; this is not an interactive native
+UI or browser qualification. No calibration or bounds-bar cell was run.
+
+Regression evidence: the old README produced self-containment 0 passed /
+1 failed and acceptance 0 passed / 2 failed. The final path is 1/0 and
+acceptance 2/0. The budget helper also rejected an added blank line
+(301/300, exit 1) and a 300-line example whose schema admitted guests
+(self-containment 0/1, exit 1). Restoring the README returned 300/300 and
+self-containment 1/0, exit 0. Its ratchet is 300: the achieved 300 rounded
+up to a multiple of ten remains 300; a smaller ten would reject this path.
+The exact budget record is:
+
+```json
+{"readmeLines":300,"set":"2026-09-19","why":"W14b revision 2: one self-contained password account/profile/avatar/reopen orientation; reference moves to tested cards. Achieved 300 physical lines, rounded up to the next ten: 300. Any increase must name the added reader task and change this reason and the journal in the same commit."}
+```
+
+Targeted commands ran from `snapback4/` (Node/Bun commands used Node
+24.18.0 on PATH). Their verbatim result lines are:
+
+```text
+$ cargo test -p snapback4-lang --test guide
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+$ cargo test -p snapback4-lang --test aggregate_copies
+test result: ok. 10 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.07s
+$ cargo test -p snapback4 --bin snapback4
+test result: ok. 93 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.55s
+$ cargo test -p snapback4-lang --test maintains --test residency_notes
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.31s
+$ cargo test -p snapback4 --test check --test fix
+test result: ok. 67 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.37s
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+$ node --test packages/snapback4/test/readme-examples.test.mjs
+ℹ tests 6
+ℹ pass 6
+ℹ fail 0
+$ node --test packages/snapback4/test/first-account.test.mjs
+ℹ tests 2
+ℹ pass 2
+ℹ fail 0
+```
+
+`bun run --cwd packages/snapback4 build` completed successfully. The first
+full run found four old-location/listing assertions (fixed without losing
+the underlying content assertions) and one alias equality failure from
+mixing the last card edit with an already compiled test binary. The final
+full run used the unchanged final sources. Both invocations were
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH` followed by
+`bash snapback4/scripts/test.sh` from the repository root.
+
+```text
+First full run:
+-- FAIL: wasm build (102 s)
+-- FAIL: cargo test (1243 s)
+-- FAIL: client tests (1620 s)
+== 3 failure(s) in 1778 s
+
+Final full run:
+-- FAIL: wasm build (3 s)
+-- ok: docs budget (2 s)
+-- ok: cargo test (660 s)
+-- ok: fixture wrapper tests (11 s)
+ℹ tests 960
+ℹ pass 952
+ℹ fail 4
+ℹ cancelled 1
+ℹ skipped 3
+-- FAIL: client tests (682 s)
+== 2 failure(s) in 715 s
+```
+
+The first Rust run totaled 2,116 passed / 9 failed / 8 ignored; the final
+Rust run totals **2,125 passed / 0 failed / 8 ignored**, from 780 result
+summaries. Fixtures passed 9/0. The first client run was 960 tests,
+949 passed, 6 failed, 2 cancelled, 3 skipped. The suite selected serial
+client files at host loads 46.61 and 42.40 across 18 CPUs. All 20 lifecycle
+tests passed in both full runs; all six maximum-pending-ID cases passed.
+
+The HTTP timeout from the first run passed alone with
+`node --test packages/snapback4/test/http-bounds.test.mjs`: tests 10,
+pass 10, fail 0, cancelled 0. The final cancelled acquisition case passed
+alone with `node --test --test-name-pattern='^W5R1x process: a restore halt
+keeps acquisition false across retries and reopen$'
+packages/snapback4/test/acquisition.test.mjs`: tests 1, pass 1, fail 0,
+cancelled 0, duration_ms 1138.595542. The witness driver was 16/4 in the
+first full run and 16/4 in an isolated
+`cargo test -p snapback4 --test witness -- --test-threads=1` run, with
+simctl discovery timeouts; it passed all 20 in the final full run.
+No base verification is claimed for these timing failures.
+
+Remaining reds are recorded rather than repaired outside this lane:
+
+- `node --test packages/snapback4/test/react.test.mjs`: tests 1, pass 0,
+  fail 1, cancelled 0; Chromium exits with `signal=SIGABRT`, the sandbox
+  artifact named in the brief. No unsandboxed/browser qualification is claimed.
+- `node --test packages/snapback4/test/wasm-codec-census.test.mjs`: tests 26,
+  pass 23, fail 3, cancelled 0. The census reports three direct serde sites
+  in partition.rs (634, 657, 669) and stale `stream` exception ownership.
+  Its test, helper and all core/device source inputs are byte-identical to
+  base `d6aee9e075a598653d666e059dada30f5eb65798` (the scoped diff is empty).
+  This is an observed base-content failure, not a claimed clean-checkout run.
+- The unchanged wasm target is 1,601,169 B raw / **441,568 B gzip**, versus
+  the unchanged **434,000 B** budget: **7,568 B over**, in both full runs.
+  Artifact SHA-256 is
+  `1c4fd0cd75cd73d3ea061fa3f82a7f1917dfbb9ea46532fa3e9c5c0fb27bebb0`.
+  The wasm normal/build dependency graph includes only core/device from
+  this workspace, not lang. Those sources, native/vendor/build inputs,
+  Cargo/config/toolchain files, build-wasm.sh, its budget helper and budget
+  are unchanged from the same base (zero-byte scoped diff). No wasm budget
+  or runtime change was made to conceal the overrun.
+
+Raw logs and the block/count ledger are in `/tmp/w14b/`, including
+`suite-initial.log`, `suite-final.log`, the targeted logs and the two
+empty base-input diffs. `git diff --check` passes, and the largest changed
+code file is 1,391 lines. The final reference check is run after this
+append. One early Cargo invocation accidentally used the repository root
+and failed package selection before building; all later Cargo/Bun commands
+used the Snapback 4 workspace. Some early log-capture wrappers also used
+zsh's read-only `status` name after the underlying command finished; later
+wrappers use `w14b_exit`, and the final full run returned its real exit 1.
+
+
+No runtime, parser, client implementation, wire/value form, meter ceiling,
+existing corpus case, or diagnostic emitter changed. No new E_/N_ code was
+introduced. No fifth published Markdown file, commit, push, tag or
+publication was made. The lead owns blind review, integration and the
+calibration/bounds-bar measurements; any simultaneous implementation in
+that eventual pin must be reported separately before claiming an effect
+from this documentation move. The useful constraint here was executable
+self-containment: a short path needs durable pending-write recovery and
+real generated types, not just links or compiling schema fragments.

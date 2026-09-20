@@ -46,11 +46,16 @@ job remind(periodStart: time, periodEnd: time):
   chunk i in invites[sentAt >= periodStart, sentAt < periodEnd] first 100 by bySentAt:
     if not i.reminded:
       update invites[i.id] { reminded: true }
-schedule remindDaily every 1d at 08:00: remind          -- or `every 2m`, `every 1h`; the shortest period is 1m
+schedule remindDaily every 1d at 08:00: remind          -- or: every 2m
 ```
 
 A sweep by id visits every row ever written; a sweep by the period visits
 the period.
+`break` ends the sweep, `return` the job. Schedules accept `every 2m`,
+`every 1h` and `every 1d at 08:00`; the shortest period is 1m.
+A job in `snapback/jobs.q` is named `jobs.<name>` in every schedule;
+`schema.q` jobs use bare names. `check --fix` qualifies an unambiguous
+bare module job. Jobs are not on `api.ts`.
 
 A job is a sequence of sweeps, optionally preceded by statements. Those
 statements run at the start of every chunk under its meter; their bindings
@@ -360,5 +365,4 @@ cannot target a query; target a job, or an action with
 `as service:billing`. A scheduled target accepts no arguments or only
 `periodStart: time` and `periodEnd: time`. Jobs run as the system and
 forbid `as`; actions need a seat their rule admits. Use the qualified
-name for a module job, such as `jobs.summarize`.
-"##;
+name for a module job, such as `jobs.summarize`."##;

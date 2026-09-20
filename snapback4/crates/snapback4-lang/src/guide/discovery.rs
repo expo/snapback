@@ -53,4 +53,4 @@ Run `snapback4 check` against the dev store, or `check --store <path>`:
 each failed successor step is E_ADOPT at its column, index or table, with
 a rewrite. `dev` refuses that step on save and keeps the previous generation.
 A green check means the current rows fit; a later write can change that.
-Without a store, check only compiles. See package README §5, Schema evolution."##;
+Without a store, check only compiles. This is `guide evolution`; client development commands are in CLIENT-AND-OPERATIONS.md §5."##;

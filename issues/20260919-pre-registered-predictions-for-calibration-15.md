@@ -36,13 +36,18 @@ fall — the bounds bar's `cardsRead` totals (1,872 / 4,797 / 2,772 on 0.2.29) a
 counts — by the amount the design predicts, and the surface budget the design proposes is enforced by the docs check.
 *Confound to name now:* a grader that deducts `data_modeling` or `queries_and_live` for a section it could not find — those
 two categories must not fall below their null bands on the same run, or the removal moved the deduction rather than the volume.
+*As built (2026-09-20, `490ee9cfac`):* README 2,004 → 300 physical lines; cards 5,621 → 6,332; README + cards 7,625 → 6,632;
+docs budget 300 (`metrics/docs-budget.json`, `scripts/docs-budget.mjs` in `scripts/test.sh`); the acceptance exercise
+`test/first-account.test.mjs` green from the README alone. The prediction above is unchanged.
 
 **W14c — `data_modeling`, gone at directly for the first time** (no new lane: the lever is the maintained-columns program,
 rulings 39 and 41 — MC1's build and W15c's value-index tie-break — whose target is exactly the scorers' recurring deduction:
 "M8 required an explicit ranked table, hour-leading indexes, and validation probes" (#14), "an explicit ranking projection
 for newest-first ties" (#13), "explicit merge lanes, scalar maintain semantics and optional-row handling" (#12)).
-*Predicts:* `data_modeling` ≥ 86 confirms, ≤ 80 refutes. *Void, not failed,* if the pin #15 runs on does not carry MC1 and
-W15c — then the prediction rolls to the next calibration unchanged.
+*Predicts:* `data_modeling` ≥ 86 confirms, ≤ 80 refutes. *Void, not failed,* if the pin #15 runs on does not carry MC1 —
+then the prediction rolls to the next calibration unchanged. If the pin carries W15c alone, the prediction is read at the
+tie-break's share only: ≥ 86 confirms, anything else is null and nothing refutes (W15c removes one of the three deductions
+the scorers name; MC1 removes the table itself). *Amended 2026-09-20 at W14b's landing, before #15 runs.*
 
 ## Rules of reading, stated in advance
 

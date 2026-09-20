@@ -7,15 +7,20 @@ schedule rescoreEvery every 5m: rescore  -- fired like any job
 query personalize(first: int): native    -- a read: on the server as the viewer, on a device over its rows
 ```
 
-`snapback/native/` is a Cargo package the app owns (`crate-type =
-["cdylib"]`, its own `[workspace]`, a dependency on `snapback4-native`);
-`module!` names its jobs and its reads. `snapback4 check` writes `snapback/generated/native.rs` — a constant per
-table, index and maintain, a `serde` struct per table — builds the package
-for wasm32-unknown-unknown into `snapback/generated/native.wasm`, and
-refuses if a declared job or read is not one the module implements. `dev`
-rebuilds on save; `deploy` ships the module with the release; `run <name>`
-runs one here; `doctor` says whether the module and the toolchain are in
-place.
+A job whose body is not Quarry but the app's own Rust (LLP 3000.005), for
+the scoring half of a feed and anything else that wants floats, vectors,
+real loops and a typed schema without putting them into Quarry.
+`snapback/native/` is a Cargo package the app owns — `crate-type =
+["cdylib"]`, its own `[workspace]`, a dependency on `snapback4-native` —
+and `snapback4 check` writes `snapback/generated/native.rs` (a constant
+per table, index and maintain; a `serde` struct per table), builds the
+package for `wasm32-unknown-unknown` into `snapback/generated/native.wasm`
+(cold about ten seconds, then a cargo no-op), and refuses if a declared
+job is not one the module implements. `dev` rebuilds on every save under
+`snapback/`; `deploy` ships the module with the release; `run <job>` runs
+it here; `doctor` says whether the module and the toolchain are in place.
+
+`module!` names its jobs and reads; check also verifies every declared read.
 
 ```rust
 // snapback/native/src/lib.rs
@@ -50,18 +55,22 @@ fn personalize(ctx: &Ctx, args: &Json) -> Result<Json> {
 }
 ```
 
-A **native read** (`query name(args): native`) is the twin: the same Rust
-runs on the server as the viewer — every `Ctx` read under the viewer's
-rules and the read meter, `complete` from the meter — and on a device over
-the rows it holds, with the device's words (a page at the horizon is
-`complete: false`); the same rows give the same answer, floats included
-(`wasmi` is built deterministic). A device fetches the module from
-`/native.wasm` once per digest and keeps it, so a cold start offline
-answers native reads too; a device without the module says so and the
-client asks the server. A native read cannot write, returns no cursor
-(page by your own arguments), and returns the value model (ints, not
-floats: round a score). A mutation cannot be native: a device predicts
-Quarry and the server replays it.
+**A native read is the twin** (LLP 3000.005 §9): `query name(args):
+native` runs the same Rust on the server as the viewer — every `Ctx` read
+under the viewer's rules and the read meter, `complete` from the meter —
+and on a native device (the Expo module, Exact2's hosts, the `snapback4
+device` process) over the rows it holds, with the device's words (a page at
+the horizon is `complete: false`); the same rows give the same answer,
+floats included (`wasmi` is built deterministic). The client fetches the
+module from `/native.wasm` once per digest (`/schema` names it) and
+installs it on the device, which keeps it, so a cold start offline answers
+native reads too. The web device carries no wasm host (with one its wasm
+doubled, to 648 KB gzip) and says so; the client then asks the server, as
+it does for a device without the module. A native read cannot write,
+returns no cursor (page by your own arguments) and returns the value model
+(ints, not floats: round a score); `api.ts` types its result `unknown`. A
+mutation cannot be native: a device predicts Quarry and the server replays
+it.
 
 One chunk per call, one transaction per chunk, under the job ceilings
 (guide bounds): the job returns `Next::Again(state)` to be called again with
@@ -115,5 +124,4 @@ the generated names and rerun `snapback4 check`. The diagnostic includes
 the compiler's output tail; run its printed Cargo command by hand to see
 the full error. If no wasm was produced, declare `crate-type = ["cdylib"]`;
 if the message names a filesystem failure, repair that path's permissions.
-Do not edit the generated schema to hide the mismatch.
-"##;
+Do not edit the generated schema to hide the mismatch."##;

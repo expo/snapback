@@ -136,6 +136,7 @@ collect() {
 start=$(date +%s)
 run "cargo build" cargo build --workspace --quiet
 run "wasm build" bash scripts/build-wasm.sh
+run "docs budget" node scripts/docs-budget.mjs
 run "release guard" bash scripts/check-release-guard.sh
 run "package typecheck" bun run --cwd packages/snapback4 typecheck
 run "package build" bun run --cwd packages/snapback4 build

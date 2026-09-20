@@ -253,9 +253,11 @@ fn w15c_cards_pin_the_interim_rule_and_newest_first_recipe() {
     assert!(source.contains("by byScore: hour, value, postAt, postId\n"));
     assert!(feeds.contains("Equal scores put the newest post first"));
     let readme = include_str!("../../../packages/snapback4/README.md").split_whitespace().collect::<Vec<_>>().join(" ");
-    assert!(readme.contains("Value-order indexes are a prefix of group fields, then value, then any remaining group fields, then id (implicit when every group field is present), until maintained columns ship."));
-    assert!(readme.contains("ordered by `hour, value, postAt, postId`") && readme.contains("equal scores put the newest post first"));
-    assert!(!readme.contains("ties use maintained id"));
+    assert!(readme.contains("`guide maintains`") && readme.contains("`guide feeds`"), "the orientation reaches both complete references");
+    // The complete ordering law above and the recipe's key now live on these linked cards.
+    let reference = format!("{maintains} {}", feeds.split_whitespace().collect::<Vec<_>>().join(" "));
+    assert!(reference.contains("by byScore: hour, value, postAt, postId") && reference.contains("Equal scores put the newest post first"));
+    assert!(!reference.contains("ties use maintained id") && !readme.contains("ties use maintained id"));
     let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
     assert!(b.diagnostics.is_empty() && b.notes.is_empty(), "{:?}", b.diagnostics);
 }

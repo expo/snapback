@@ -28,7 +28,8 @@ bucket(.at, 1d, 8h) groups 08:00 UTC through just before the next 08:00.
 The ordinal is floor((at - offset) / period); offsets are nonnegative whole
 durations smaller than the period, including 0ms. hour(.at, 30m) works too.
 The same offset belongs in scalar lookups: day(now, 8h). Days remain exactly
-86,400,000 ms; no timezone or daylight-saving adjustment is applied.
+86,400,000 ms; no timezone or daylight-saving adjustment is applied. Changing the offset
+rebuilds the maintain without adding a source column.
 
 The following Clique summaries are online-only. Add source sync when its
 audience is invertible, and omit the maintain's online only to inherit it
@@ -84,14 +85,15 @@ maintain postLikes: count likes by postId
   online only
   by byCount: value, id
 
-query digestToday():
-  return digestPosts[viewer, bucket(now, 1d, 8h)]
 query today():
   return dailyPosts[viewer, day(now)]
 query reactionChips(messageId: id):
   return reactionCounts[messageId] by byGroup { emoji, count: .value }
 query mostLiked(c: cursor ?):
   return postLikes after c last 10 by byCount { postId, count: .value }
+
+query digestToday():
+  return digestPosts[viewer, bucket(now, 1d, 8h)]
 ```
 
 Value indexes have a prefix of group fields, then value, then any remaining
@@ -109,6 +111,7 @@ A UTC day is not a rolling 24-hour window. For posts younger than a day,
 group non-expiring likes by hour(.postAt), postAt, postId, index hour, value,
 postAt, postId, and merge the last 25 hours with `where .postAt > now - 86400000`:
 guide feeds gives the validated source rule, full query and zero-like fill.
+Equal scores put the newest post first; groups persist as long as any like remains.
 Whole old buckets are never visited; rejected rows in the oldest included
 hour still cost examinations. For contributions arriving in the last day on
 posts of any age, its `rollingLikes()` sorts live counts at read time;

@@ -40,6 +40,7 @@ snapback4 init --recipe feeds --prefix feed --authors 1008 --edges 5921
 its stdout line, plus `backfill/author`. A successful install prints the
 cold-row measurement command once; subsequent checks do not repeat it.
 Replace `<fixture-directory>` and `<principal>` with your fixture directory and reader.
+A missing fixture directory refuses instead of measuring an empty store.
 `--authors N` and `--edges N` set the global author and
 follow-edge caps; omitted flags keep 1,000 and 100,000 respectively.
 The newest-event backfill bound is `clamp(authors, 200, 917)`: 917 by default

@@ -102,4 +102,96 @@ the declared object instead. Compile the program so field names are checked,
 and narrow an optional row with `row ! else NOT_FOUND` when presence is
 required. Ordinary Quarry field access propagates a null base as null;
 that is not evidence that the row exists.
-"##;
+
+## Tables
+
+For complete index, rule and expiry recipes, open `guide indexes`,
+`guide rules` or `guide expire` directly.
+
+- Every table has an implicit `id` and a unique `byId` index.
+- **Types:** `principal`, `id`, `<table>` (a reference to that table's
+  id), `int` (within ±(2^53 − 1); there are no floats), `time`
+  (milliseconds), `bool`, `decimal <scale>`, `money <CUR> [scale]` (both
+  hold integer minor units), `text <=N`, `text M..N`, either with
+  `format handle|url`, `enum('a', 'b')`, `json <=N`, `bytes <=N`,
+  `[type] <=N` (a bounded list), `image <=N [once]` and `video <=N` (an
+  upload the row holds — `guide assets`); `?` after a type makes the column
+  optional (null when absent). `default <literal | now | viewer>` fills an
+  omitted insert column on the writing host; an explicit value wins.
+  A required literal default also fills absent columns in older rows on every host; optional columns still read null when absent.
+  An enum fits `text <=N` when every variant has at most N characters and
+  contains no control characters except tab, LF and CR: a
+  static, total widening with no runtime conversion. If any variant exceeds
+  N, use the enum type on the helper parameter instead.
+- **References** are typed ids, with no implicit existence check and no
+  delete cascade. The string `"null"` is an id; JSON `null` only fits an
+  optional reference. When a mutation requires a visible target, write
+  `require exists prompts[promptId] else PROMPT_NOT_FOUND` before its
+  writes: a metered point read that refuses absent and hidden targets
+  alike. Target deletion and dependent-row cleanup are the application's
+  policy, expressed in mutations and rules.
+- **Indexes:** `by name: cols` orders rows; `unique name: cols` also
+  constrains them. Add `else HANDLE_TAKEN 'That handle is taken.'` to a
+  unique index to supply its refusal code and message; `detail` retains the
+  original index text for development. The message literal is optional;
+  `else HANDLE_TAKEN` says `the program refused with HANDLE_TAKEN`.
+  Codes follow `require`: UPPER_SNAKE, never `E_`, declared at the use site.
+  Without the hook the `E_CONSTRAINT` message is unchanged. A point read needs a unique index over its key;
+  In a program, `exists` uses an exact-key index when present, or a strict prefix scan. Rule probes need an index over exactly their keys. Named equalities covering a total
+  unique key check extra columns on the one row, with no extra index; a scan needs an index whose
+  leading columns are the scan's prefix, and pages in the order of the
+  remaining columns; a cursor needs an index ending in `id` or a unique one.
+  `by index` names one when two match. `by name: scope, words(text cols),
+  at, id` is a words index: one entry per distinct word of the named text
+  columns, read with `matching` (`guide search`) and nothing else.
+  `day(at)`, `hour(at)` and `bucket(at, 2h, 30m)` are time key components in
+  a table's `by` or `unique` list, at any position, once per function per index;
+  they use a required time column and add no column to the row.
+- **Constraints:** `cap N by cols` (at most N rows per group; needs an index
+  leading with those columns), `immutable cols`, `after insert <- exists
+  t[..]` (a row that must exist by the end of the mutation that inserted
+  this one).
+- **Rules:** `read`, `insert`, `update`, `delete`, each `<-` one
+  expression over the row (`.col`), `viewer`, and literals: `allow`,
+  `deny`, `public` (or the table line `public 'reason'`, which also
+  documents why), `.col = viewer`, `.col != 'x'`,
+  `exists t[.a, viewer, 'literal']` (a probe may name its columns:
+  `exists t[id = .docId, ownerId = viewer]`), `created t[..]` (insert rules
+  only: true when this mutation inserted the probed row), `and`, `or`,
+  `not`. `update (old, next) <- old.x = next.x` names both images. A table
+  with no rule for an effect denies it. A rule may probe existence on a maintain
+  over an expiring source at one unit, but `check` refuses an equality on its
+  `value` (E_QUARRY_LIVE_MAINTAIN_PROBE): read the maintain in the program;
+  its live value cannot be probed at one unit. Equalities on non-expiring
+  maintains and ordinary tables are unchanged. Rules compare with `=` and `!=`
+  only; the system principal consults no rules. Write authority and refusal
+  disclosure are separate, as `guide writes` states.
+- **Sync** (`guide sync`) and **retain**: `retain until-revoked` (the default: a
+  device drops a group's rows when it leaves the group) or
+  `retain delivered-history` (it keeps what it was given).
+- **Expire:** `expire at .expiresAt` (a `time ?` column with an index
+  leading with it, `by byExpiresAt: expiresAt`). A row past that time is
+  absent to every reader on every host from that moment, before any rule;
+  the server sweeps it within a second and the deletion streams to each
+  device holding it. An already returned answer keeps the row until the
+  next answer; a live reader that must hide it at its deadline drops it
+  locally by `expiresAt` (the client example in CLIENT-AND-OPERATIONS.md).
+  A typing indicator or short-lived presence row especially needs this
+  filter and a render timer; `guide reads` shows the typing table and query.
+  This is an application table, separate from the server's `connected[p]`.
+  That server-decided connection signal has no `expiresAt`.
+  The server will not return it again after expiry, but does not push a
+  removal at that instant.
+  A null time never expires. Disappearing messages
+  are one field on insert, `expiresAt: now + ttl if ttl != null else
+  null` with `ttl: int ?`; nothing else to write. A `maintain` over an
+  expiring table recomputes its live source group at read time, before the
+  sweep; a partial device reports `complete: false`. If the meter interrupts
+  a maintained lookup or live group, the query returns `data: null,
+  complete: false`, without substituting zero or a partial total.
+  Value-order indexes over expiring sources are refused
+  (`E_QUARRY_MAINTAIN_EXPIRE`): live values change before the physical sweep,
+  so stored top-N can miss a winner. For a window over the entity's own
+  immutable time, `guide feeds` gives hour lanes over a non-expiring source;
+  for contributions arriving in the window, its live bounded `rollingLikes()`
+  read remains necessary, and a candidate or contribution scan cut makes it incomplete."##;

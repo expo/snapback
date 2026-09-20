@@ -126,9 +126,7 @@ fn every_card_and_published_quarry_block_has_no_aggregate_copy_note() {
     assert!(hits.is_empty(), "{}", hits.join("\n"));
 }
 
-#[test]
-fn aggregate_copy_card_section_is_verbatim_and_discoverable() {
-    let section = "## N_PUBLIC_AGGREGATE_COPY: a public copy keeps ordinary write authority\n\n\
+const AGGREGATE_COPY_SECTION: &str = "## N_PUBLIC_AGGREGATE_COPY: a public copy keeps ordinary write authority\n\n\
 N_PUBLIC_AGGREGATE_COPY is a note, not an error. A public column is assigned\n\
 directly from a declared `maintain`, but `insert <- allow` or `update <- allow`\n\
 (or a provably unrestricted equivalent) lets any principal set it through any\n\
@@ -144,6 +142,10 @@ infer copies from names, matching group keys, increments, aliases or arithmetic.
 Restricted rules, private targets and immutable columns do not receive it;\n\
 absence of the note is not a proof that a ranking cannot be forged. Sync and\n\
 `online only` do not change write authority.\n";
+
+#[test]
+fn aggregate_copy_card_section_is_verbatim_and_discoverable() {
+    let section = AGGREGATE_COPY_SECTION;
     assert!(guide::card("feeds").unwrap().ends_with(section));
     assert_eq!(snapback4_lang::diag::guide_for(CODE), "feeds");
     let explanation = guide::explain_code(CODE).unwrap();
@@ -152,13 +154,14 @@ absence of the note is not a proof that a ranking cannot be forged. Sync and\n\
 }
 
 #[test]
-fn aggregate_copy_claim_matches_in_both_published_documents() {
+fn aggregate_copy_claim_is_reached_from_the_orientation() {
     fn section(doc: &str) -> &str {
         doc.split_once("## N_PUBLIC_AGGREGATE_COPY:").expect("published aggregate-copy section").1
             .split("\n## ").next().unwrap().trim_end()
     }
-    assert_eq!(section(README), section(guide::card("feeds").unwrap()),
-        "the README and feeds card share the entire claim, not independent summaries");
+    assert!(README.split_once("## Reference map").unwrap().1.contains("`guide feeds`"));
+    let claim = section(guide::card("feeds").unwrap());
+    assert_eq!(claim, section(AGGREGATE_COPY_SECTION), "the full relocated claim remains verbatim");
 }
 
 #[test]

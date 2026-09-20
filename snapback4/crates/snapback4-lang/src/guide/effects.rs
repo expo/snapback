@@ -179,6 +179,48 @@ claim/status/step substrate. It is not typed effect-payload, query/mutate/data/
 admin authority, a PostgreSQL adapter, provider qualification, process-crash
 proof, or a completed B milestone.
 
+## A conversation notification
+
+```quarry
+effect notify
+
+table memberships:
+  conversationId: id
+  principal: principal
+  unique byConversationPrincipal: conversationId, principal
+  by byPrincipalConversation: principal, conversationId, id
+  cap 50 by conversationId
+  read <- exists memberships[.conversationId, viewer]
+  insert <- exists memberships[.conversationId, viewer]
+  sync
+
+table messages:
+  conversationId: id
+  authorId: principal
+  body: text <=4000
+  at: time
+  by byConvTime: conversationId, at, id
+  read <- exists memberships[.conversationId, viewer]
+  insert <- .authorId = viewer and exists memberships[.conversationId, viewer]
+  sync last 500 by byConvTime
+
+mutation send(conversationId: id, body: text <=4000):
+  require exists memberships[conversationId, viewer] else NOT_MEMBER
+  msg = insert messages { conversationId, authorId: viewer, body, at: now }
+  for m in memberships[conversationId] by byConversationPrincipal:
+    if m.principal != viewer and not exists connected[m.principal]:
+      emit notify { targetUserId: m.principal, chatId: conversationId, preview: slice(body, 0, 80) }
+  return { id: msg.id }
+```
+
+For a digest, **seek the period, filter the ordinal**. The complete recipe on `guide jobs` shares `unreadIn` with the viewer's inbox for the same period and walks
+each recipient's own memberships; the job may read expiring messages directly.
+`snapback4 guide jobs` explains the 16,384-examined chunk envelope, the measured
+hub, the single totals-table fallback past it, and restart/re-run behavior.
+Emits commit with the chunk cursor, but queueing a parked run again or manually
+running the same period creates another run and can emit again. Use
+`(targetUserId, periodEnd)` as the worker's idempotency key, or an emission marker.
+
 ## Effect lifecycle refusals
 
 E_EFFECT_CLOSED means a private generated effect context closed with its
@@ -224,5 +266,4 @@ settlements are refused. For example, a worker finishing a push after
 `POST /effects/<id>/cancel` cannot mark that old effect sent. Inspect the
 provider using the effect's idempotency key before creating another effect.
 Cancellation stops further admitted work, but cannot undo a provider call
-already in flight.
-"##;
+already in flight."##;

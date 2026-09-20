@@ -341,7 +341,7 @@ An explicit `require … else CODE` still refuses with the program's code.
 
 `complete` says this is everything the query can answer: false when the
 meter cut the page, when a scan's read rule is not decided by its prefix
-(§2, the meter), when a page declared without a cursor had more rows than
+(`guide bounds`), when a page declared without a cursor had more rows than
 it holds (declare `c: cursor ?` and page with `after c`; `check` notes
 it), or when a local read passes the horizon. `fresh` says the device has
 everything the server had at the last sync (`since` is the last sync's
@@ -1097,7 +1097,7 @@ step.
   hint on stderr; **`doctor [--json]`** says what is in place: the
   store, its size, schedules and their last boundary, the last job runs,
   the effects by state and the failed ones;
-  **`guide [keyword]`** lists cards and aliases, or prints one card: language,
+  **`guide [keyword]`** lists cards and aliases, or prints one card: language, app,
   types, indexes, maintains, rules, sync, residency, prediction, evolution, expire, assets, reads, shapes, writes,
   programs, jobs, native, feeds, search, effects, actions, routes, services, presence,
   bounds, refusals, personas, witness (`guide <E_CODE>` explains a code);

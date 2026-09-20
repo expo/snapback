@@ -29,6 +29,13 @@ use std::path::{Path, PathBuf};
 
 const README: &str = concat!(include_str!("../../../packages/snapback4/README.md"), "\n", include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md"), "\n", include_str!("../../../packages/snapback4/SERVER.md"));
 
+// A relocated assertion checks the actual orientation door as well as its destination.
+fn readme_reference(name: &str) -> &'static str {
+    let map = include_str!("../../../packages/snapback4/README.md").split_once("## Reference map").unwrap().1;
+    assert!(map.contains(&format!("`guide {name}`")), "orientation omits guide {name}");
+    card(name).unwrap()
+}
+
 #[test]
 fn w11a_feeds_card_requires_delivery_preserving_promotion() {
     let feeds = card("feeds").unwrap();
@@ -39,7 +46,7 @@ fn w11a_feeds_card_requires_delivery_preserving_promotion() {
         "Promotion uses that count to refuse a saturated follower without reading\ntheir routes.",
         "Requiring route success adds no writes, so the 107-write allowance and\n917-event backfill bound are unchanged; a refusal rolls back attempted writes.",
     ] { assert!(feeds.contains(text), "feeds card omits verbatim policy: {text}"); }
-    for doc in [feeds, README] {
+    for doc in [feeds, readme_reference("feeds")] {
         assert!(doc.contains("if count(near) > 50:\n      -- Check the caller first so their own full slots name their own repair.\n      require tryPull(viewer, authorId) else FEED_PULL_CAP\n      update authors"), "both published copies check the caller before promotion");
         assert!(doc.contains("require tryPull(f.followerId, authorId) else FEED_PROMOTION_PULL_CAP"));
         assert!(!doc.contains("skips a follower") && !doc.contains("skip saturated readers"));
@@ -55,7 +62,7 @@ fn w11a_feeds_card_requires_delivery_preserving_promotion() {
 
 #[test]
 fn w11r1c_promotion_names_the_persistent_block_and_its_discovery_path() {
-    for text in [card("feeds").unwrap().to_owned(), README.to_owned(), explain_code("FEED_PROMOTION_PULL_CAP").unwrap()] {
+    for text in [card("feeds").unwrap().to_owned(), readme_reference("feeds").to_owned(), explain_code("FEED_PROMOTION_PULL_CAP").unwrap()] {
         let prose = text.split_whitespace().collect::<Vec<_>>().join(" ");
         for fact in ["every later follow", "50 followers", "follows", "pullCounts", "public", "server-run query", "51 reads", "used"] {
             assert!(prose.contains(fact), "missing {fact}: {prose}");
@@ -75,8 +82,8 @@ fn w11r1c_residency_fact_cards_require_verbose() {
 
 #[test]
 fn w11r1c_first_screen_generates_types_and_starts_the_backend() {
-    let path = README.split_once("1. **Choose the Expo/local-replica starter.**").unwrap().1.split_once("2. **").unwrap().0;
-    for text in ["npx snapback4 check", "npx snapback4 dev", "./CLIENT-AND-OPERATIONS.md#5-development"] {
+    let path = README.split_once("### 1. Create and run the backend").unwrap().1.split_once("### 2.").unwrap().0;
+    for text in ["npx snapback4 check", "npx snapback4 dev", "npm install"] {
         assert!(path.contains(text), "step 1 omits {text}");
     }
 }
@@ -116,57 +123,55 @@ fn w11r2_native_boundary_sentence_matches_both_published_copies() {
     }
     let expected = "the table, its rules and its `sync`; a mutation cannot be native, because a device predicts Quarry and the server replays it";
     assert_eq!(sentence(card("native").unwrap()), expected);
-    assert_eq!(sentence(README), expected);
+    assert_eq!(sentence(readme_reference("native")), expected);
 }
 
 #[test]
-fn w11b_first_account_screen_has_a_sufficient_path_before_the_reference() {
+fn w14b_first_account_screen_is_self_contained() {
     let readme = include_str!("../../../packages/snapback4/README.md");
-    let opening = readme.split_once("## 1.").unwrap().0;
-    let path = opening.split_once("**Start here — first working account screen:**").expect("a first-screen path before §1").1;
-    let mut rest = path;
-    for (i, step) in [
-        "Choose the Expo/local-replica starter.",
-        "Enable identity and persist the session.",
-        "Declare the profile rule and avatar home.",
-        "Open the correct platform client/device.",
-        "Render loading, failed, pending and sent states.",
-        "Stop at the first working account screen.",
-    ].into_iter().enumerate() {
-        let label = format!("{}. **{step}**", i + 1);
-        rest = rest.strip_prefix('\n').unwrap_or(rest);
-        rest = rest.split_once(&label).unwrap_or_else(|| panic!("missing ordered step: {label}")).1;
-        let body = rest.split("\n\n").next().unwrap();
-        assert!(body.contains("]("), "{label} needs a section pointer");
-    }
-    let prose = path.split_whitespace().collect::<Vec<_>>().join(" ");
-    assert!(prose.contains("Defer feeds, search, schedules and server handlers until those features are needed."));
-    for name in ["feeds", "search", "jobs", "actions", "routes"] {
-        assert!(rest.contains(&format!("guide {name}")), "return pointer for {name}");
-    }
-    // Check the task path's actual destinations, not a parallel list of expected URLs.
+    let path = readme.split_once("## Reference map").expect("one optional reference map").0;
+    for text in [
+        "npx snapback4 init --expo", "npm install", "npx snapback4 check", "npx snapback4 dev",
+        "use identity password", "table profiles:", "unique byHandle:", "avatar: image",
+        "query handleAvailable(", "query myProfile(", "mutation saveProfile(",
+        "signup(", "login(", "keepSession(", "restoreSession(", "sessionStore",
+        "nativeDevice", "webDevice()", "createClient(", "createLocalClient(", "acquired",
+        "client.upload(", "avatar: { id:", "client.mutate(api.saveProfile", "client.write(",
+        "\"pending\"", "\"denied\"", "\"sent\"", "\"failed\"", "\"loading\"",
+        "post-signup", "terminal", "cold-offline", "1,024 UTF-8 bytes", "8 characters",
+        "// src/account.ts", "// src/client.ts", "// App.tsx",
+    ] { assert!(path.contains(text), "in-file first-screen path omits {text}"); }
+    assert!(!path.contains("]("), "required setup is in-file; external lookups belong in the reference map");
+    assert!(!path.contains("guest("), "the first account is password-only");
+    assert!(path.find("client.upload(").unwrap() < path.find("avatar: { id: uploaded.asset.id }").unwrap());
+    let source = quarry(path).into_iter().find(|block| block.contains("table profiles:")).unwrap();
+    let bound = clean("first account", &source);
+    assert!(bound.schema.auth.password && !bound.schema.auth.guests);
+    let schema = &bound.schema;
+    assert!(schema.operations.contains_key("saveProfile") && schema.operations.contains_key("myProfile"));
+    // Validate the optional map's actual destinations too, including all local anchors.
     let package = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../packages/snapback4");
-    for link in path.split("](").skip(1) {
+    for link in readme.split("](").skip(1) {
         let target = link.split_once(')').unwrap().0;
-        assert!(target.starts_with("./"), "local section pointer: {target}");
+        if !target.starts_with("./") { continue; }
         let (file, anchor) = target.split_once('#').map_or((target, None), |(file, anchor)| (file, Some(anchor)));
-        let doc = std::fs::read_to_string(package.join(file)).unwrap_or_else(|e| panic!("{target}: {e}"));
+        let doc = std::fs::read_to_string(package.join(file)).unwrap();
         if let Some(anchor) = anchor {
             let slug = |heading: &str| heading.trim_start_matches('#').trim().to_lowercase().chars()
                 .filter(|c| c.is_alphanumeric() || c.is_whitespace() || *c == '-').collect::<String>().replace(' ', "-");
             assert!(doc.lines().filter(|line| line.starts_with('#')).any(|heading| slug(heading) == anchor), "dead anchor: {target}");
         }
     }
-    for command in path.split("guide ").skip(1) {
+    for command in readme.split("guide ").skip(1) {
         let name = command.split(|c: char| !c.is_ascii_alphabetic()).next().unwrap();
-        assert!(card(name).is_some(), "dead card: {name}");
+        if !name.is_empty() { assert!(card(name).is_some(), "dead card: {name}"); }
     }
 }
 
 #[test]
 fn w10a_readme_opening_is_one_way_into_the_published_surface() {
     let readme = include_str!("../../../packages/snapback4/README.md");
-    let opening = readme.split("## 1.").next().unwrap();
+    let opening = readme;
     for text in ["README.md", "CLIENT-AND-OPERATIONS.md", "./CLIENT-AND-OPERATIONS.md#4-the-client", "./CLIENT-AND-OPERATIONS.md#8-not-in-this-release", "Start here", "snapback4 guide <card>", "snapback4 why <code>", "terminal", "cold-offline"] {
         assert!(opening.contains(text), "the first page omits {text}");
     }
@@ -192,7 +197,7 @@ fn w10a_effect_and_job_names_are_explained_where_a_module_declares_both() {
     let effects = engine.effects(Some("queued"), 10).unwrap();
     assert_eq!(effects.len(), 1);
     assert_eq!(effects[0].effect, "notify");
-    for (name, doc) in [("jobs", card("jobs").unwrap()), ("effects", card("effects").unwrap()), ("README", README)] {
+    for (name, doc) in [("jobs", card("jobs").unwrap()), ("effects", card("effects").unwrap()), ("orientation destination", readme_reference("effects"))] {
         let prose = doc.split_whitespace().collect::<Vec<_>>().join(" ");
         for phrase in ["Effects are global declarations", "jobs are module-qualified operations", "digest.q", "emit notify", "effects: { notify:", "digest.daily"] {
             assert!(prose.contains(phrase), "{name} omits {phrase}");
@@ -500,7 +505,7 @@ fn every_card_compiles_clean() {
 #[test]
 fn w13e_every_chat_search_has_two_single_cursor_forms_without_a_protocol() {
     let text = card("search").unwrap();
-    let section = text.split_once("## Search every chat I'm in").expect("the search forms").1;
+    let section = text.split_once("## Search every chat I'm in").expect("the search forms").1.split("\n## ").next().unwrap();
     let blocks = quarry(section);
     assert_eq!(blocks.len(), 1);
     let block = &blocks[0];
@@ -523,7 +528,7 @@ fn w13e_every_chat_search_has_two_single_cursor_forms_without_a_protocol() {
 #[test]
 fn the_readme_quarry_compiles_clean() {
     let blocks = quarry(README);
-    assert!(blocks.len() >= 3, "the README carries the app schema, the feed and the sync forms");
+    assert!(blocks.len() >= 3, "the package documents carry the first-account schema and complete reference programs");
     for (n, block) in blocks.iter().enumerate() {
         clean(&format!("README block {} starting `{}`", n + 1, block.lines().next().unwrap_or_default()), &in_context(block));
     }
@@ -619,7 +624,7 @@ fn code_words(text: &str) -> Vec<String> {
 }
 
 /// Every refusal code the engine, the compiler and the client emit is one
-/// `snapback4 why` explains — README §1's promise, tested.
+/// `snapback4 why` explains — the orientation's promise, tested.
 #[test]
 fn every_emitted_code_is_explained() {
     let known = codes();
@@ -856,7 +861,7 @@ fn arrival_recipe_orders_ties_and_retries_then_pages() {
 
 #[test]
 fn onboarding_recipe_recovers_a_taken_handle_for_the_same_principal() {
-    let source = quarry(README).into_iter().find(|block| block.contains("query handleAvailable(")).unwrap();
+    let source = quarry(include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md")).into_iter().find(|block| block.contains("query handleAvailable(")).unwrap();
     let bound = clean("onboarding recipe", &source);
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     assert_eq!(engine.query("handleAvailable", Context::new("guest:visitor", args(&[("handle", text("alice"))]))).unwrap().data, Value::Bool(true));
@@ -930,11 +935,11 @@ fn direct_and_merged_cursor_generation_contracts_are_distinct() {
             assert_eq!(refusal.message, "E_INPUT: cursor: cursor token describes a different prefix or generation");
         }
     }
-    for (name, doc) in [("feeds", card("feeds").unwrap()), ("README", README)] {
+    for (name, doc) in [("feeds", card("feeds").unwrap()), ("orientation destination", readme_reference("feeds"))] {
         assert!(doc.contains("A merge cursor from generation N"), "{name} must scope cross-generation continuation to merge cursors");
         assert!(!doc.contains("A cursor from generation N"), "{name} must not promise it for direct pages");
     }
-    assert!(README.contains("A direct page cursor binds the\nevaluated prefix and active generation"));
+    assert!(readme_reference("maintains").contains("A direct page cursor binds its evaluated prefix and active\ngeneration"));
 }
 
 #[test]
@@ -974,7 +979,7 @@ fn calibration_effects_jobs_and_seed_cards_explain_replay_flags() {
 
 #[test]
 fn following_cards_pin_examinations() {
-    for (name, doc) in [("feeds", card("feeds").unwrap()), ("README", README)] {
+    for (name, doc) in [("feeds", card("feeds").unwrap()), ("orientation destination", readme_reference("feeds"))] {
         assert!(doc.contains("82 examinations"), "{name} must count examinations, including lookups");
         assert!(doc.contains("41 tombstone probes"), "{name} must pin the tombstone work");
     }
@@ -1009,7 +1014,7 @@ fn password_policy_and_guest_choice_are_on_the_card() {
 #[test]
 fn w7c_meter_store_readiness_and_aggregate_discovery_are_on_the_cards() {
     assert_eq!(card("aggregates"), card("maintains"));
-    for doc in [card("reads").unwrap(), README] {
+    for doc in [card("reads").unwrap(), readme_reference("reads")] {
         for text in ["meter: true", "x-snapback-meter: 1", "heapBytes", "probes", "principal id", "ignores"] { assert!(doc.contains(text), "missing {text}"); }
     }
     for doc in [card("services").unwrap(), README] {
@@ -1062,11 +1067,11 @@ fn w9a_held_search_leads_with_coverage_then_cost_then_refusal() {
 }
 
 #[test]
-fn composition_card_matches_readme_and_the_routing_boundary() {
+fn composition_card_is_reachable_and_keeps_the_routing_boundary() {
     let sync = card("sync").unwrap();
     let paragraph = |text: &str| text.split("A device query returning\n").nth(1).unwrap().split("answer offline.").next().unwrap().to_owned();
-    assert_eq!(paragraph(sync), paragraph(README));
-    for text in [sync, README] {
+    assert_eq!(paragraph(sync), paragraph(readme_reference("sync")));
+    for text in [sync, readme_reference("sync")] {
         for word in ["`check --residency` names", "at most one read", "no reading `require`", "found point read", "Composition is never entered while a predictable write is unobserved; the whole local answer stands until it settles.", "every locally kept component"] {
             assert!(text.contains(word), "missing {word}");
         }
@@ -1082,7 +1087,7 @@ fn structural_admission_cards_name_every_host_and_the_web_trust_boundary() {
     for code in ["E_STRUCTURAL_FANOUT", "E_UNBOUND_SCAN"] {
         assert!(explain_code(code).unwrap().contains(boundary), "{code}: missing the web trust boundary");
     }
-    for text in [card("prediction").unwrap(), README] {
+    for text in [card("prediction").unwrap(), readme_reference("reads")] {
         assert!(text.contains("the backend compiler's structural admission") && text.contains("hand-built or corrupted backend"));
     }
 }
@@ -1091,8 +1096,8 @@ fn structural_admission_cards_name_every_host_and_the_web_trust_boundary() {
 fn w14b_digest_recipes_are_complete_and_share_the_period_helper() {
     let jobs = card("jobs").unwrap();
     let digest = quarry(jobs).into_iter().find(|b| b.contains("job digest(")).expect("a complete digest recipe");
-    let readme = quarry(README).into_iter().find(|b| b.contains("job digest(")).expect("README digest recipe");
-    assert_eq!(digest, readme);
+    let recipes = quarry(readme_reference("jobs")).into_iter().filter(|b| b.contains("job digest(")).collect::<Vec<_>>();
+    assert_eq!(recipes, [digest.clone()], "one intact digest, reached from the orientation");
     clean("digest", &digest);
     let large = quarry(jobs).into_iter().find(|b| b.contains("job digestLarge(")).expect("past-the-envelope recipe");
     clean("large digest", &large);
@@ -1106,7 +1111,7 @@ fn w14b_digest_recipes_are_complete_and_share_the_period_helper() {
     // `why` names the job door too, and neither text promises a backfill:
     // missed boundaries coalesce into one run for the latest period.
     assert!(explain_code("E_STRUCTURAL_FANOUT").unwrap().contains("or use a job chunk, which may read a table with expiry"));
-    for text in [jobs, README] {
+    for text in [jobs, readme_reference("jobs")] {
         assert!(text.contains("never twice for the\nsame boundary") || text.contains("never twice for the same boundary"));
         assert!(!text.contains("exactly once across restarts") && !text.contains("exactly once per\nboundary"));
     }
@@ -1119,7 +1124,7 @@ fn host_unicode_refusal_explains_the_repair_and_search_contract() {
     assert!(why.contains("standard String.prototype.normalize"));
     assert!(why.contains("will not index text differently from the server"));
     assert_eq!(snapback4_lang::diag::guide_for("E_HOST_UNICODE"), "search");
-    for text in [card("search").unwrap(), README] {
+    for text in [card("search").unwrap(), readme_reference("search")] {
         assert!(text.contains("browser's normalization"));
         assert!(text.contains("refuses to open"));
         assert!(text.contains("E_HOST_UNICODE"));

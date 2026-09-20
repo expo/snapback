@@ -7,6 +7,14 @@
 //! promise a form the parser refuses. A block that declares a table compiles
 //! on its own; one that does not compiles beside the language card's schema.
 
+// @ref LLP 3000.007#20.19 — one orientation points to tested reference cards.
+#[path = "guide/app.rs"]
+mod app;
+#[path = "guide/shapes.rs"]
+mod shapes;
+#[path = "guide/presence.rs"]
+mod presence;
+
 /// The keyword cards, in the order `snapback4 guide` lists them.
 #[path = "guide/actions.rs"]
 mod actions;
@@ -45,7 +53,7 @@ mod indexes;
 #[path = "guide/types.rs"]
 mod types;
 pub use discovery::{listing, nearest};
-pub const KEYWORDS: &[&str] = &["language", "types", "indexes", "maintains", "rules", "sync", "residency", "prediction", "evolution", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "bounds", "refusals", "personas", "witness"];
+pub const KEYWORDS: &[&str] = &["language", "app", "types", "indexes", "maintains", "rules", "sync", "residency", "prediction", "evolution", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "bounds", "refusals", "personas", "witness"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
@@ -107,6 +115,7 @@ pub fn card(keyword: &str) -> Option<&'static str> {
     let keyword = ALIASES.iter().find(|(alias, _)| *alias == keyword).map_or(keyword, |(_, target)| *target);
     Some(match keyword {
         "language" => LANGUAGE,
+        "app" => app::CARD,
         "witness" => include_str!("guide/witness.md"),
         "prediction" => prediction::CARD,
         "evolution" => discovery::EVOLUTION,
@@ -326,43 +335,7 @@ asset response is `private, no-store`, so a browser must reauthorize each
 viewer. At most two uploads run at once, and their disk writes happen outside
 the engine mutex. Uploads are online only; there is nothing to queue."##,
         "reads" => reads::CARD,
-        "shapes" => r##"# Shapes
-
-```quarry
-shape brief = { id, body, author: .authorId }                        -- a named shape: bare columns, and `.` for the row
-
-query shapeForms(roomId: rooms, messageId: messages, c: cursor ?):
-  page = messages[roomId] after c last 20 by byRoomTime { *, room: rooms[.roomId], count: messageCounts[.roomId] }   -- over a page: `*` spreads every column; a point read inside is null for a hidden row
-  row = rooms[roomId] { id, name, tagCount: count(.tags) }           -- over a row: an object; over a nullable row: null when the row is
-  named = messages[messageId] brief                                  -- a named shape by its name
-  nested = rooms[roomId] { ...card, extra: 1 }                        -- `...name` spreads a named shape's fields
-  return { page, row, named, nested }
-```
-
-The table and shape names are the language card's. A shape over a page is
-a bounded loop; its fields are the row's columns by bare name, `*` for all
-of them, `...shape` for a named shape's fields, and `name: expr` with `.`
-as the row. A shape is the only projection: there is no `select`.
-A table-typed helper accepts that table's row or reference. A reference has no
-fields: read `messages[m] ! else NOT_FOUND` first, or select through the shape's
-implicit row parameter, `messages[m] { body: .body }`. Shapes are projections,
-not declared helper-argument types.
-A helper's early `return` inside a page's shape ends only that call; the page
-keeps its `next` cursor and completeness.
-A collector building a returned value makes the query incomplete if it exits
-with rows still unconsumed, even on a short final page.
-Each page needs its own returned owner when it has
-more rows: one field's cursor cannot cover a lost sibling or auxiliary page.
-A fully consumed, exhausted scan needs no cursor owner, even when its row count
-equals the bound and the query returns a scalar such as `count(rows)`.
-An auxiliary traversal of an intact returned page does not affect completeness,
-even if it breaks. Repeating a page read cannot clear earlier loss: only the
-final execution of an owned page site supplies `next`, and an earlier lost
-continuation still makes the query incomplete.
-A row-based shape keeps `pending?: boolean` from its base, including `*`, named
-spreads and subsequent shapes. It is this device's unconfirmed change, absent
-after confirmation; it is not a schema column or metadata on a containing record."##,
-        "writes" => writes::CARD,
+        "shapes" => shapes::CARD,        "writes" => writes::CARD,
         "programs" => programs::CARD,
         "jobs" => jobs::CARD,
         "native" => native::CARD,
@@ -372,31 +345,7 @@ after confirmation; it is not a schema column or metadata on a containing record
         "routes" => routes::CARD,
         "effects" => effects::CARD,
         "services" => services::CARD,
-        "presence" => r##"# Presence: who is connected right now
-
-```quarry
-query connections(p: principal):
-  return connected[p]                    -- an int; `exists connected[p]` is the bool
-```
-
-`connected[p]` is how many connections a principal holds open on the
-server now: a device following the stream keeps a long poll open
-(`GET /changes?wait=25&heartbeat=1`), and a poll that answered a moment ago still
-counts for 35 seconds, the gap before the next. Heartbeats are JSON whitespace
-every 2 seconds before the final object. On a running host, 4 seconds of
-silence marks the link offline within 5 seconds; native fetch without streams
-uses at most 2-second polls. Browser connectivity events give immediate hints;
-authenticated `/probe` confirms recovery. Suspended hosts notify on resume.
-It is not a table: nothing
-syncs, nothing is written. A mutation uses it to defer an absence-guarded
-notification while a connected-looking client is unconfirmed (guide effects); a query reads it for an online mark.
-On a device the word is unknown: a query that reads it is `complete: false`.
-A mutation stays eligible to predict when presence decides only effects: connection state never changes its rows or result on a successful commit, but can change which effect arms run and therefore its charges, as live versus absent presence already could. The server commits the effects and defers unconfirmed absence decisions until their deadline. The paved `if not exists connected[p]: emit …` form charges the same whether the recipient is held, graced or absent.
-For a proven necessary absence guard in those effects-only mutations, a held poll is unconfirmed: the push is recorded and deferred five seconds from the commit, and only a new poll arriving within that window cancels it. Grace alone keeps its deadline, up to 35 seconds. Cancellation records the `satisfied` outcome `presence_reconnected` (guide effects). The guard decision does not change the value of `connected[p]` in a payload. Only a proven necessary absence guard authorizes cancellation; payload-only reads and alternative guards retain their ordinary decisions and remain immediate. Grace deadlines and recorded reconnects survive restart; `clock advance` makes a waiting effect due along with its grace.
-Presence-derived values may use comparisons, `exists`, boolean logic and field values. Arithmetic, fallible builtins, reads, `new` or refusals controlled by presence keep `predicts: never`, as do conditional values without a fixed-size proof. Prediction charges both safe presence arms, so it may reach a bound even when the server would fit. If an untaken arm needs a combined guard's value refinement, the device queues without a row; put the data guard outside presence.
-In tests: `snapback4 clock advance 36s` or `POST /dev/clock/advance` with `{ "duration": "36s" }` closes the up-to-35-second deferral after a poll ends; open polls stay connected, and online client queries read the server's updated answer (guide clock). `snapback4 clock advance 6s` expires a held-poll effect deadline.
-`snapback4 run` reads nobody as connected."##,
-        "bounds" => bounds::CARD,
+        "presence" => presence::CARD,        "bounds" => bounds::CARD,
         "refusals" => refusals::CARD,
         "personas" => personas::CARD,
         _ => return None,
