@@ -1,0 +1,15 @@
+{
+  "before_bytes": 16744164,
+  "after_reconstructed_bytes": 16804164,
+  "delta_bytes": 60000,
+  "ceiling_bytes": 16777216,
+  "excess_bytes": 26948,
+  "actual_refusal_bytes": 236,
+  "denial": {
+    "code": "E_BOUND",
+    "family": "bound",
+    "guide": "reads",
+    "message": "the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values"
+  },
+  "event_count": 4000
+}

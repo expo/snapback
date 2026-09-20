@@ -1,0 +1,63 @@
+{"label":"seed","startup_ms":508.503375,"resource_file":"1-seed.resources.json"}
+{"seeded_parents":1000}
+{"seeded_parents":21000}
+{"seeded_parents":41000}
+{"seeded_parents":61000}
+{"seeded_parents":81000}
+{"seeded_sources":10000}
+{"seeded_sources":110000}
+{"seeded_sources":210000}
+{"seeded_sources":310000}
+{"seeded_sources":410000}
+{"seeded_sources":510000}
+{"seeded_sources":610000}
+{"seeded_sources":710000}
+{"seeded_sources":810000}
+{"seeded_sources":910000}
+{"seeding_ms":46338.923916}
+{"initial_device":{"name":"current","elapsed_ms":17736.797458,"state":{"generation":1,"native":null,"watermark":200}}}
+{"initial_device":{"name":"lagging","elapsed_ms":16936.914208000002,"state":{"generation":1,"native":null,"watermark":200}}}
+{"pre_activation_page_bytes":16744164,"width":4077,"old_watermark":200,"current_watermark":208}
+{"backfill":{"mode":"backfill","before":{"rows":{"posts":100000,"likes":1000000},"generation":"1","log_rows":108000,"commits":208,"parents_with_count":0},"after":{"rows":{"posts":100000,"likes":1000000},"generation":"1","log_rows":108000,"commits":208,"parents_with_count":100000},"elapsed_ms":2359.707584,"peak_rss_bytes":126238720}}
+{"label":"activation-only","startup_ms":26120.271292000005,"resource_file":"2-activation-only.resources.json"}
+{"activation":{"label":"activation-only","startup_ms":26120.271292000005,"resource_file":"2-activation-only.resources.json"},"activation_resources":{"command":["/Users/ccheever/projects/snapback-mc1/snapback4/target/debug/snapback4","dev","--no-watch","--hold-effects","--hold-schedules","--port","61599"],"pid":13923,"elapsed_ms":26083.711625,"user_seconds":21.877347,"system_seconds":1.123709,"peak_rss_bytes":24084480,"exit_status":-15}}
+{"label":"adoption-http","startup_ms":725.0159160000039,"resource_file":"3-adoption-http.resources.json"}
+Traceback (most recent call last):
+  File "/Users/ccheever/projects/snapback-mc1/benchmarks/runs/2026-09-19-snapback4-column-activation/store.py", line 14, in <module>
+    db = sqlite3.connect(path if mode == "backfill" else f"file:{path}?mode=ro", uri=mode != "backfill")
+sqlite3.OperationalError: unable to open database file
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+Error: Command failed: python3 /Users/ccheever/projects/snapback-mc1/benchmarks/runs/2026-09-19-snapback4-column-activation/store.py inspect /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-mc1-activation-lPwQ7W/current/snapback4-http%3A%2F%2F127.0.0.1%3A61599%3Adev%3Aalice.sqlite
+Traceback (most recent call last):
+  File "/Users/ccheever/projects/snapback-mc1/benchmarks/runs/2026-09-19-snapback4-column-activation/store.py", line 14, in <module>
+    db = sqlite3.connect(path if mode == "backfill" else f"file:{path}?mode=ro", uri=mode != "backfill")
+sqlite3.OperationalError: unable to open database file
+
+    at genericNodeError (node:internal/errors:985:15)
+    at wrappedFn (node:internal/errors:539:14)
+    at checkExecSyncError (node:child_process:925:11)
+    at execFileSync (node:child_process:961:15)
+    at inspect (file:///Users/ccheever/projects/snapback-mc1/benchmarks/runs/2026-09-19-snapback4-column-activation/measure.mjs:125:21)
+    at file:///Users/ccheever/projects/snapback-mc1/benchmarks/runs/2026-09-19-snapback4-column-activation/measure.mjs:233:23 {
+  status: 1,
+  signal: null,
+  output: [
+    null,
+    '',
+    'Traceback (most recent call last):\n' +
+      '  File "/Users/ccheever/projects/snapback-mc1/benchmarks/runs/2026-09-19-snapback4-column-activation/store.py", line 14, in <module>\n' +
+      '    db = sqlite3.connect(path if mode == "backfill" else f"file:{path}?mode=ro", uri=mode != "backfill")\n' +
+      'sqlite3.OperationalError: unable to open database file\n'
+  ],
+  pid: 22304,
+  stdout: '',
+  stderr: 'Traceback (most recent call last):\n' +
+    '  File "/Users/ccheever/projects/snapback-mc1/benchmarks/runs/2026-09-19-snapback4-column-activation/store.py", line 14, in <module>\n' +
+    '    db = sqlite3.connect(path if mode == "backfill" else f"file:{path}?mode=ro", uri=mode != "backfill")\n' +
+    'sqlite3.OperationalError: unable to open database file\n'
+}
+
+Node.js v24.18.0

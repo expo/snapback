@@ -1,0 +1,25 @@
+{
+  "mode": "backfill",
+  "before": {
+    "rows": {
+      "posts": 100000,
+      "likes": 1000000
+    },
+    "generation": "1",
+    "log_rows": 108000,
+    "commits": 208,
+    "parents_with_count": 0
+  },
+  "after": {
+    "rows": {
+      "posts": 100000,
+      "likes": 1000000
+    },
+    "generation": "1",
+    "log_rows": 108000,
+    "commits": 208,
+    "parents_with_count": 100000
+  },
+  "elapsed_ms": 2798.0438329999997,
+  "peak_rss_bytes": 128139264
+}

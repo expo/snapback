@@ -1,0 +1,19 @@
+▶ HTTP admission, encoding, slow readers and idle changes polls
+  ✔ the liveness probe requires credentials and has an explicit success body (38.253ms)
+  ✔ catalog, generated API, native module, and change activity refuse anonymous callers (17.15675ms)
+  ✔ declared/chunked oversize, truncation and invalid UTF-8 do not execute a write (70.33225ms)
+  ✔ seed and upload retain their separate larger request ceilings (27.401125ms)
+  ✔ one-view assets finalize only after a complete non-range response (74.090875ms)
+  ✔ eight idle polls leave health/schema/query work free and commits wake subscribers (469.63425ms)
+  ✔ oversized sync JSON is refused and a smaller page remains valid (610.947458ms)
+  ✔ Wasm and process clients acquire wide snapshots by shrinking the same cursor (3831.683208ms)
+  ✔ a paused large response releases the engine before network progress (58.242083ms)
+✔ HTTP admission, encoding, slow readers and idle changes polls (5336.935667ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5446.209917

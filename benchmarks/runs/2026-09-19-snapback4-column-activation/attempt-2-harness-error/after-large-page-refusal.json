@@ -1,0 +1,11 @@
+{
+  "denied": {
+    "code": "E_BOUND",
+    "family": "bound",
+    "guide": "reads",
+    "message": "the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values"
+  },
+  "generation": 2,
+  "store_id": "16a8ea93fdf2b1a05ba0e298f0e33fd7",
+  "watermark": 204
+}

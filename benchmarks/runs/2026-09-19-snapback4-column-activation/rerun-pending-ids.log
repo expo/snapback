@@ -1,0 +1,36 @@
+{"store":"wasm","pendingBoundary":232,"writesAcknowledged":232,"terminalWrites":232,"snapshotCursors":5}
+✔ wasm: maximum pending ids (232), cursor batches and every terminal acknowledgement (19816.627125ms)
+{"store":"wasm","pendingBoundary":233,"writesAcknowledged":233,"terminalWrites":233,"snapshotCursors":5}
+✔ wasm: maximum pending ids (233), cursor batches and every terminal acknowledgement (12327.183833ms)
+{"store":"wasm","pendingBoundary":256,"writesAcknowledged":273,"terminalWrites":273,"snapshotCursors":5}
+✔ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (19216.013541ms)
+✖ native: maximum pending ids (232), cursor batches and every terminal acknowledgement (32120.129375ms)
+{"store":"native","pendingBoundary":233,"writesAcknowledged":233,"terminalWrites":233,"snapshotCursors":5}
+✔ native: maximum pending ids (233), cursor batches and every terminal acknowledgement (32013.768667ms)
+{"store":"native","pendingBoundary":256,"writesAcknowledged":273,"terminalWrites":273,"snapshotCursors":5}
+✔ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (29976.708375ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 5
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 145589.01775
+
+✖ failing tests:
+
+test at packages/snapback4/test/transport-http.test.mjs:133:77
+✖ native: maximum pending ids (232), cursor batches and every terminal acknowledgement (32120.129375ms)
+  AssertionError [ERR_ASSERTION]: timed out
+      at until (file:///Users/ccheever/projects/snapback-mc1/snapback4/packages/snapback4/test/transport-http.test.mjs:27:10)
+      at async TestContext.<anonymous> (file:///Users/ccheever/projects/snapback-mc1/snapback4/packages/snapback4/test/transport-http.test.mjs:175:3)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }

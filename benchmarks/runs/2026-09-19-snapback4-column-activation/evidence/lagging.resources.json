@@ -1,0 +1,14 @@
+{
+  "command": [
+    "/Users/ccheever/projects/snapback-mc1/snapback4/target/debug/snapback4",
+    "device",
+    "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-mc1-activation-RrZ8TF/lagging/snapback4-http%3A%2F%2F127.0.0.1%3A63418%3Adev%3Aalice.sqlite",
+    "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-mc1-activation-RrZ8TF/lagging/snapback4-http%3A%2F%2F127.0.0.1%3A63418%3Adev%3Aalice.sqlite.backend.json"
+  ],
+  "pid": 55406,
+  "elapsed_ms": 168416.169292,
+  "user_seconds": 22.923622,
+  "system_seconds": 2.666793,
+  "peak_rss_bytes": 80166912,
+  "exit_status": -15
+}

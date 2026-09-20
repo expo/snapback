@@ -1,0 +1,5 @@
+{
+  "message": "Cannot convert undefined or null to object",
+  "stack": "TypeError: Cannot convert undefined or null to object\n    at file:///Users/ccheever/projects/snapback-mc1/benchmarks/runs/2026-09-19-snapback4-column-activation/measure.mjs:198:50\n    at Array.map (<anonymous>)\n    at file:///Users/ccheever/projects/snapback-mc1/benchmarks/runs/2026-09-19-snapback4-column-activation/measure.mjs:197:109\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)",
+  "phase": "post-activation-large-page"
+}

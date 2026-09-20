@@ -1,0 +1,24 @@
+{
+  "width": 4077,
+  "syncRequest": {
+    "from": 200,
+    "limit": 4000,
+    "after": null,
+    "stream": true,
+    "pending": []
+  },
+  "current": {
+    "generation": 1,
+    "native": null,
+    "watermark": 208
+  },
+  "lagging": {
+    "generation": 1,
+    "native": null,
+    "watermark": 200
+  },
+  "response_bytes": 16744164,
+  "ceiling_margin_bytes": 33052,
+  "events": 4000,
+  "response_sha256": "f17620528e4d31728cb391f43ec9cd91853dace89795d771efbf4be329fdcced"
+}

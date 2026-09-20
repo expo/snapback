@@ -1,0 +1,26 @@
+▶ oversized sync identity, indivisible-commit snapshot recovery, and wedged generation adoption
+  ✔ snapshot overflow preserves generation and store identity (753.093833ms)
+  ✔ stream overflow preserves generation and store identity (1116.391041ms)
+  ✔ limit 1 instructs a snapshot only for an indivisible stream page (837.572375ms)
+  ✔ wasm reacquires an indivisible commit by snapshot at the same generation (23353.982375ms)
+  ✔ process reacquires an indivisible commit by snapshot at the same generation (28409.527834ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+  ✔ wasm a wedged device discovers generation before shrinking the oversized page (8308.25175ms)
+  ✔ process a wedged device discovers generation before shrinking the oversized page (9995.752542ms)
+✔ oversized sync identity, indivisible-commit snapshot recovery, and wedged generation adoption (105520.748083ms)
+ℹ current row body bytes=17600000; HTTP ceiling=16777216; rows in indivisible commit=44; head=13
+ℹ wasm before generation change: watermark=1; terminal limit=1; refusal=E_BOUND
+ℹ process before generation change: watermark=1; terminal limit=1; refusal=E_BOUND
+▶ an oversized reply from a replacement store is observed before shrinking even at the same generation
+  ✔ wasm replaces the old store before shrinking (7661.200375ms)
+  ✔ process replaces the old store before shrinking (7647.503375ms)
+✔ an oversized reply from a replacement store is observed before shrinking even at the same generation (19908.794375ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 125586.077959

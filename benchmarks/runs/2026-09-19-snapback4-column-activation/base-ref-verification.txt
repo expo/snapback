@@ -1,0 +1,8 @@
+base 5df0d211a12ef3255a142685d064ae56d794aba3
+f65d472627b21eeec1a124df2fa3b975e42805d03e60fd5499082981b93b535e  llp/3000.001-durable-replica-and-write-lifecycle.research.md  identical to base
+e0046ad0ffa214223677a79c25f8cd6e125aaf5b286ad555ef111887d845c3ea  snapback4/crates/snapback4-device/src/device.rs  identical to base
+a0f596b4f4c21bfdecde6196783fceca5c6e878e62749d608446ae47d80819ef  snapback4/crates/snapback4-device/src/device/deferred.rs  identical to base
+f40fb93dcbe2ddfe0e6183368367cac319bdd14d7e5beeb71084233a377b5b23  snapback4/crates/snapback4-device/src/device/predictions.rs  identical to base
+a2fba11eaa3d3f13b4176269fcf14cb014576211c28206a198ced0084494d4db  snapback4/crates/snapback4-device/src/device/store_identity.rs  identical to base
+b837d88019b5641e4755aa1a0c815265be955fe00e68d12459d1cc4d4d75b745  snapback4/packages/snapback4/src/local.ts  identical to base
+e776054fcaacd491e2e567056e772ae0190aa7777cb20f570fe4c02937fd8c82  snapback4/packages/snapback4/src/web.ts  identical to base

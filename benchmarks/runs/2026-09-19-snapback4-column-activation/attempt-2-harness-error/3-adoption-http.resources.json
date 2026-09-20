@@ -1,0 +1,17 @@
+{
+  "command": [
+    "/Users/ccheever/projects/snapback-mc1/snapback4/target/debug/snapback4",
+    "dev",
+    "--no-watch",
+    "--hold-effects",
+    "--hold-schedules",
+    "--port",
+    "61599"
+  ],
+  "pid": 18415,
+  "elapsed_ms": 23905.065125,
+  "user_seconds": 3.996506,
+  "system_seconds": 0.31723999999999997,
+  "peak_rss_bytes": 138477568,
+  "exit_status": -15
+}

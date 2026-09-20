@@ -1,0 +1,9 @@
+old page: 16744164 bytes; new page: 16804164 bytes; added: 60000 bytes
+ceiling: 16777216 bytes; old margin: 33052 bytes; new excess: 26948 bytes
+activation startup: 51254.685 ms; peak RSS: 24100864 bytes
+offline proxy backfill: 2798.044 ms; peak RSS: 128139264 bytes
+current: 30436.769 ms; generation 2; watermark 208; 100000/100000 parents read 10; peak RSS 110198784 bytes
+  first requests: /sync(from=208,limit=4000,events=0) -> /schema -> /sync(from=0,limit=4000,events=4000) -> /sync(from=0,limit=4000,events=4000)
+lagging: 32953.641 ms; generation 2; watermark 208; 100000/100000 parents read 10; peak RSS 80166912 bytes
+  first requests: /sync(from=200,limit=4000,E_BOUND) -> /schema -> /sync(from=0,limit=4000,events=4000) -> /sync(from=0,limit=4000,events=4000)
+gate 5: FAIL; devices adopted 2/2; no-oversize clause FAIL

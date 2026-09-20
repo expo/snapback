@@ -41772,3 +41772,153 @@ All 48 journal collision entries and all three diet collision entries survive
 in date order. The merge against `5df0d211a12ef3255a142685d064ae56d794aba3` is
 resolved and staged for the owner; HEAD remains `0d4d60347`. No merge commit or
 push. No rule, ceiling, card vocabulary or disclosure-boundary changes.
+
+## 2026-09-19 — MC1 milestone zero: both devices adopt, gate 5 fails on page growth
+
+**Gate 5: FAIL.** At **100,000 parents and 1,000,000 source rows**, activation
+took **51.255 s**, peak RSS **24,100,864 B**. The separate stopped-store proxy
+backfill took **2.798 s**, peak RSS **128,139,264 B**; together **54.053 s**,
+not one atomic implementation. The current device adopted in **30.437 s**
+and the lagging device in **32.954 s**. Both real SQLite process devices
+finished at **generation 2, watermark 208**, with **100,000/100,000** parents
+persisted at `likeCount = 10`. Their whole-lifetime peak RSS, including initial
+acquisition, was **110,198,784 B** and **80,166,912 B** respectively. The HTTP
+serving process peaked at **160,563,200 B**, separately from activation.
+
+The large pre-activation page was **16,744,164 B**, below the unchanged
+**16,777,216 B** ceiling by **33,052 B**. Adding the integer field adds
+**60,000 B** across its 4,000 events: **16,804,164 B**, an excess of
+**26,948 B**. The real response becomes a **236 B `E_BOUND`**. MC0 carries
+recovery; it does not make the no-oversize clause pass. Under the lane's
+explicit stop rule, **no maintained-column implementation begins and the
+lead's ruling is required**.
+
+Record: [`benchmarks/runs/2026-09-19-snapback4-column-activation/`](../benchmarks/runs/2026-09-19-snapback4-column-activation/README.md),
+including the two schemas, deterministic fixture generator, stopped-store
+backfill, full compressed HTTP bodies, request sequence, raw resource and
+row counters, and `rederive.py`. Base and measured product source:
+`5df0d211a12ef3255a142685d064ae56d794aba3`, including MC0 and W15c. The debug
+binary was rebuilt with `cargo build -p snapback4 --locked`; its SHA-256 and
+Node 24.18.0 are recorded. These are loaded-host observations, not a
+production performance claim: the host reached load 83 during measurement.
+
+What was verified rather than assumed:
+
+- The million persisted, non-expiring source rows really reference the
+  100,000 parents ten times each. The backfill derives their counts rather
+  than inserting the expected answer from the generator.
+- The proxy adds a required `likeCount: int` with **no literal default**.
+  Parent images are filled while the server is stopped, then ordinary
+  schema activation validates and adopts them. No private maintain or
+  mirror evaluator is prototyped; their performance is not claimed.
+- The partition log remains at **108,000 events**, commits at **208**,
+  throughout backfill and activation. This proxy does not implement the
+  future maintained activation's always-touched commit. Generation alone
+  causes the observed replacement snapshot when the clients explicitly sync.
+- The lagging device really stays at watermark **200** behind eight
+  pre-activation commits. Request ordinals **298–301** show `/sync` from
+  200 at limit 4,000 returning `E_BOUND` with generation 2 and watermark
+  204, then `/schema`, then the real device's successful `adopt` with
+  watermark **0**, then `/sync` from **0** at the unchanged **4,000** limit.
+  This is MC0's adoption-before-shrinking path; the refusal watermark was
+  not applied. Every snapshot page fits, with a maximum of **16,764,471 B**.
+- Each device makes **27 sync requests**. The current device has zero
+  oversized replies and the lagging device has one. Both persisted stores
+  contain every new total; direct device queries also return 10, fresh,
+  with no server-query fallback. No source rows reach either device.
+- Two successful post-activation half-pages reconstruct the oversized full
+  page. Removing only `likeCount` and restoring the generation makes it
+  exactly equal to the captured pre-activation page. Thus the added field,
+  not unrelated row changes, causes the crossing. `rederive.py` independently
+  reproduces the byte counts from the retained complete bodies.
+
+The RFC finding is precise: LLP 3000.007.001 §3.11's event-free barrier avoids
+one oversized activation commit, but does **not** establish §7 gate 5's
+no-oversize clause for a pre-existing stream page. That page is still
+materialized before the client learns the generation. MC0 correctly made it
+recoverable and explicitly deferred a request-side generation check before
+materialization. Commissioning that change or revising the gate needs the
+lead's ruling; neither is silently substituted for the written bar here.
+The separately owned newer-than-watermark prediction ticket is not made a
+prerequisite, and no prediction or protocol repair is attempted.
+
+Two incomplete measurement attempts are retained: the first used `row`
+instead of the wire event's `data` in a comparison; the second failed in
+read-only inspection because a SQLite URI decoded literal percent escapes
+in the device filename. The helper was corrected to encode the path and
+read the device generation key, verified on both stores, and the completed
+measurement reran the entire fixture from scratch. These were harness
+errors, not product failures.
+
+Qualification, all on that exact base with unchanged product and test
+sources. From `snapback4/`, after the Node 24 PATH export:
+
+```text
+$ node --test --test-concurrency=2 packages/snapback4/test/sync-overflow.test.mjs
+ℹ tests 11
+ℹ pass 11
+ℹ fail 0
+ℹ skipped 0
+```
+
+From the repository root, the full suite ran once:
+
+```text
+$ bash snapback4/scripts/test.sh
+-- ok: cargo test (1691 s)
+-- ok: fixture wrapper tests (7 s)
+-- FAIL: client tests (1730 s)
+== 1 failure(s) in 1750 s
+```
+
+The Rust summaries total **2,092 passed, 0 failed, 8 ignored**; fixtures
+**9 passed, 0 failed**. All 20 lifecycle tests passed. Building the test
+artifacts took **7m59s**; the final maintain paired-observation test took
+**1,008.12s**. The suite selected serial client files at load **36.44**
+across **18 CPUs**. Its client totals were **888 tests, 877 passed, 7 failed,
+1 cancelled, 3 skipped**. The separately requested concurrency-2 command
+overlapped that long suite, after the gate measurement had completed:
+
+```text
+$ node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'
+ℹ tests 888
+ℹ pass 878
+ℹ fail 7
+ℹ cancelled 0
+ℹ skipped 3
+```
+
+That is one more pass than the same-base full run, not a green client
+qualification. The failures are the HTTP idle-poll case (and its containing
+test), journal record count, React, and maximum-pending-ID cases; the full
+run also cancelled the native input-key-order/evicted-receipt case at its
+60-second timeout. Isolated reruns are recorded with their exact commands
+and verbatim summaries in the benchmark README: HTTP **10/0**; journal count
+**0/1**; React **0/1**, Chromium `SIGABRT`; pending-ID cases **5/1**, with the
+one remaining native/232 case then **1/0** alone; cancelled client-seams
+case **1/0** alone. The journal assertion that all 33 writes are `sent`
+still fails alone and is not called a proven host-only defect. These reds
+are base-verified, not assumed inherited from another release.
+
+```text
+$ ./ref-check --verbose
+ref-check: FAIL — 485 LLP docs, 9135 refs in 24552 files, 10 errors, 0 unchecked
+```
+
+All ten are broken Repair B anchors in the unchanged base's LLP 3000.001
+references, nine to `repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes`
+and one to `repair-b-replacement-disposal`. The target LLP and all referring
+files were compared byte-for-byte with the base; the record preserves their
+digests and every failing site. The new measurement reference is valid.
+No unrelated reference repair is folded into this stopped lane. The final
+reference check repeats after this append, with its raw output in the record.
+
+Only the benchmark record and this single appended journal block change.
+No crate/package code, published README or guide card changes. No new
+product regression test or red-to-green claim exists because implementation
+has not begun. The maintained-column acceptance list, including the
+author's **equal scores, newest first** criterion, W15c's simultaneous
+retirement, and the ranking ticket's closure remain owed after a passing
+gate/ruling. Index churn and private-maintain costs are not measured. No
+ceiling, serialized value form or corpus case changes; no subagents,
+remote work, commits, pushes, tags or publications.

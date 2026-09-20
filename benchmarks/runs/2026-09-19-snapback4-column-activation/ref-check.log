@@ -1,0 +1,11 @@
+ERROR snapback4/crates/snapback4-device/src/device.rs:367: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device.rs:369: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device.rs:660: broken ref: no anchor #repair-b-replacement-disposal in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device/deferred.rs:115: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device/predictions.rs:229: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/crates/snapback4-device/src/device/store_identity.rs:90: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/packages/snapback4/src/local.ts:248: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/packages/snapback4/src/local.ts:411: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/packages/snapback4/src/local.ts:438: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ERROR snapback4/packages/snapback4/src/web.ts:146: broken ref: no anchor #repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes in llp/3000.001-durable-replica-and-write-lifecycle.research.md
+ref-check: FAIL — 485 LLP docs, 9135 refs in 24552 files, 10 errors, 0 unchecked
