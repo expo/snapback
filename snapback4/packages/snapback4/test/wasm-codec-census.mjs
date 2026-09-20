@@ -203,9 +203,10 @@ function assertSource(all, file) { if (!all.has(file)) throw new Error(`missing 
 // item (possibly its impl). Moving the line, lifting cfg, or deleting it is red.
 export const allow = [
   { file: core + 'partition.rs', item: 'groups_now', line: 'Ok(groups.into_iter().map(|group| serde_json::from_str(&group).expect("canonical")).collect())' },
-  { file: core + 'partition.rs', item: 'stream', line: 'let group: Vec<Value> = serde_json::from_str(group).map_err(|e| RuntimeError::Store(e.to_string()))?;' },
-  ...['stream', 'expand_joins'].map(item => ({ file: core + 'partition.rs', item, line: 'let group: Vec<Value> = serde_json::from_str(&event.id).map_err(|e| RuntimeError::Store(e.to_string()))?;' })),
-  { file: core + 'partition.rs', item: 'stream', line: 'let group_values: Vec<Value> = serde_json::from_str(group).map_err(|e| RuntimeError::Store(e.to_string()))?;' },
+  // The oversized-sync recovery lane (2026-09-19) moved `stream`'s body into `stream_inspected`; both stay sqlite-only.
+  { file: core + 'partition.rs', item: 'stream_inspected', line: 'let group: Vec<Value> = serde_json::from_str(group).map_err(|e| RuntimeError::Store(e.to_string()))?;' },
+  ...['stream_inspected', 'expand_joins'].map(item => ({ file: core + 'partition.rs', item, line: 'let group: Vec<Value> = serde_json::from_str(&event.id).map_err(|e| RuntimeError::Store(e.to_string()))?;' })),
+  { file: core + 'partition.rs', item: 'stream_inspected', line: 'let group_values: Vec<Value> = serde_json::from_str(group).map_err(|e| RuntimeError::Store(e.to_string()))?;' },
   { file: core + 'engine/receipt.rs', item: 'from_receipt', line: 'let body: Json = serde_json::from_str(text).map_err(|e| RuntimeError::Store(e.to_string()))?;' },
   { file: core + 'engine/receipt.rs', item: 'from_receipt', line: 'let mut why: Refusal = serde_json::from_value(body["why"].clone()).map_err(|e| RuntimeError::Store(e.to_string()))?;' },
   { file: core + 'engine/mod.rs', item: 'open', line: 'let schema = serde_json::from_str(&schema).map_err(|e| RuntimeError::Store(format!("invalid stored schema: {e}")))?;' },
