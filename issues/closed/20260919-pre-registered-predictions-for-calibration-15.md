@@ -2,7 +2,7 @@
 
 **Filed** 2026-09-19, by the wave-13 lead (session snapback-9c) under the author's sign-off of 2026-09-19, before any wave-14
 lane has produced a design
-**Status** open — resolves when #15's score lands on the pin that carries the levers below
+**Status** resolved 2026-09-20 — calibration #15 on 0.2.31 scored (`benchmarks/runs/2026-09-20-snapback4-clique-astra-0.2.31/`); the outcome is at the end of this file
 **Subject** LLP 3000.007 §20.24 (wave 14), §14 ruling 40's refined condition, §20.22.7
 
 Calibration #14's pre-registration (`closed/20260918-pre-registered-prediction-for-calibration-14.md`) gapped on
@@ -63,3 +63,22 @@ the scorers name; MC1 removes the table itself). *Amended 2026-09-20 at W14b's l
 - The host confound (the provenance-scan stall of 2026-09-17/18) is checked in the packet's `logs/load.log` and the
   publish gate's record before any `scale_and_limits` reading is attributed to the pin.
 - Nothing here commissions a publish: the pin #15 runs on is published only on the author's say-so.
+
+## Outcome (2026-09-20, calibration #15 on 0.2.31 — `benchmarks/runs/2026-09-20-snapback4-clique-astra-0.2.31/`)
+
+Read by the rules above, in the order they set (mechanism criteria by string search first, then the categories):
+
+- **W14b — `setup_and_docs` 93 ≥ 91: CONFIRMED.** Mechanism met: the README a cold builder reads fell 1,999 → 300 lines (the
+  design's −1,699); the guide output saved as evidence 2,905 → 3,451 lines across 8 → 14 cards; README + guide −24%; the docs
+  budget enforced (`scripts/docs-budget.mjs` in `test.sh`). Confound absent: `data_modeling` 85 inside its null band,
+  `queries_and_live` 89 above its threshold. 5.1 above the fitted line (1.8 sd).
+- **W14a — `queries_and_live` 89 ≥ 84 by the number; NULL by this file's rule.** The grader did not probe the bound (no `kx*`,
+  no `words`, no cursor probe in `grader-report.json` or `trace.md`), so the category is read as null and the mechanism is
+  carried by the lane's own test: the 45/200/1,000-word walks red on main `6002c855aa` on the server, both device stores and
+  wasm, green on the pin (the W14a review record). #13's d-01 shape is absent, trivially. The prediction rolls forward.
+- **W14c — `data_modeling` 85: VOID** (MC1 is not in the pin); at W15c's share, 85 < 86 — null. Inside its null band, 2.3 above
+  its line. Rolls to #16 unchanged.
+- The holistic 91 is reported, not read. The host confound: load 7–47 (median 12) during the run, nothing struck by environment;
+  the publish gate passed at load 10.7.
+- The pin: snapback4 0.2.31 / darwin 0.2.31 / expo 0.2.22 (`275d23c867`, published 09:28Z); MC1 absent by the author's queue,
+  not by omission.

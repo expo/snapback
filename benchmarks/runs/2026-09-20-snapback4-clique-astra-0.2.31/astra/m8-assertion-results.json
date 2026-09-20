@@ -1,0 +1,122 @@
+{
+  "reportVersion": 1,
+  "lane": "astra-snapback4",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "instrument/schema/social-messenger/assertions.json",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md §3.1 m8-a01 — insights.totals exposes exactly the six lifetime totals {posts, likesReceived, repostsReceived, repliesReceived, followers, following}; the mapped suite test reconciles each against a direct SQL count and against the six sm-insights-total-* nodes",
+      "suiteResult": "pass"
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/receipts/all-choreo.jsonl m8 m8-a02-insights-like-refresh (beforeLikes 87 → afterLikes 88, refresh 359.8 ms)",
+      "bestOf3Ms": null,
+      "note": "machine load recorded in trace.md §Load"
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md §3.1 m8-a03 — days.length 7, last bucket = floor(serverTime/86400000) (UTC day), and a post created now increments exactly that bucket",
+      "suiteResult": "pass"
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md §3.1 m8-a04 — all 7 buckets present and contiguous (day n+1 each step), 5 of them zero-valued rather than omitted",
+      "suiteResult": "pass"
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "builder-suite",
+      "evidence": "grading/logs/g-m8-acceptance.log trailing-window-ranking (grader run) plus trace.md §3.1 m8-a05a06a07-shape: live top-10 like series [9,9,8,7,6,6,5,5,2,1] is monotonically descending",
+      "suiteResult": "pass"
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "builder-suite",
+      "evidence": "grading/logs/g-m8-acceptance.log trailing-window-ranking — a post backdated 90 000 000 ms and liked above the current maximum is absent from Trending; my own shape probe confirms every returned row is inside 24 h",
+      "suiteResult": "pass"
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "builder-suite",
+      "evidence": "grading/logs/g-m8-acceptance.log trailing-window-ranking — two posts tied at the top rank newest-first; my shape probe confirms the tie-break holds across the live top 10",
+      "suiteResult": "pass"
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md §9 grading/g-m8-digest-result.json — fresh instance, shortened digest config (120 s), every client closed and the backend restarted mid-period: exactly 3 digests for the 3 active users, counts exactly as constructed (U0 1/1/3/2, U1 1/0/0/0, U3 0/0/2/1)"
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md §9 — the persona with no activity received 0 digests; the two users who only *sent* also received 0"
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md §9 — the following quiet period emitted 0 digests (total stayed at 3)"
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md §9 — SIGTERM + restart mid-period yielded one digest per user, and an explicit re-run of digest.daily for the same period emitted nothing new (digestMarkers/digestMessageMarkers idempotency)"
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "trace.md §9 — a 2-message DM between two other users contributed nothing: U0 stayed at 3 unread across 2 chats, U1 at 0"
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/receipts/all-choreo.jsonl m8 m8-a13-same-account-message-live (visible 1171.9 ms)",
+      "bestOf3Ms": null,
+      "note": "machine load recorded in trace.md §Load"
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/receipts/all-choreo.jsonl m8 m8-a14-cross-device-read-state (cleared in 810.7 ms)",
+      "bestOf3Ms": null,
+      "note": "machine load recorded in trace.md §Load"
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/receipts/all-choreo.jsonl m8 m8-a15-dual-offline-convergence (flush 328.0 / 868.9 ms, no loss, no duplicates)",
+      "bestOf3Ms": null,
+      "note": "machine load recorded in trace.md §Load"
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/receipts/all-choreo.jsonl m8 m8-a16-dual-offline-receipts (both reached read)",
+      "bestOf3Ms": null,
+      "note": "machine load recorded in trace.md §Load"
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/receipts/all-choreo.jsonl m8 segment summary, choreography.supplementalExternal[0]; trace.md §7",
+      "note": "No iOS-simulator artifact exists. simulator.md requires m8-ios-screen.mp4 + m8-ios-receipts.jsonl + m8-ios-run.json; none are present anywhere in the lane, and both the builder’s and my own choreography receipts record the external entry ios-simulator-m8 as {\"pass\":null,\"status\":\"not-recorded\"}. evidence/native-artifacts.json lists only Expo Hermes exports, which the lane’s own README says do not claim native simulation. Per the brief, missing evidence leaves the native/O4 proof absent rather than passing it, so this scores not-passed. Not re-driven by the grader (simulator proofs are not grader-driven). evidence/web-offline-proof.json demonstrates a durable outbox across a *web* page reload on the production export; that is the web carrier, not the required native artifact."
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/receipts/all-choreo.jsonl m8 segment summary, choreography.supplementalExternal[0]; trace.md §7",
+      "note": "No iOS-simulator artifact exists. simulator.md requires m8-ios-screen.mp4 + m8-ios-receipts.jsonl + m8-ios-run.json; none are present anywhere in the lane, and both the builder’s and my own choreography receipts record the external entry ios-simulator-m8 as {\"pass\":null,\"status\":\"not-recorded\"}. evidence/native-artifacts.json lists only Expo Hermes exports, which the lane’s own README says do not claim native simulation. Per the brief, missing evidence leaves the native/O4 proof absent rather than passing it, so this scores not-passed. Not re-driven by the grader (simulator proofs are not grader-driven)."
+    }
+  }
+}
