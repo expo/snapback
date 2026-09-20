@@ -1,6 +1,6 @@
 # Snapback 4: two implementations of oversized-sync recovery are both on main
 
-Status: Resolved in the uncommitted `sb4/retire-dup-51b7a134` working-tree patch, 2026-09-20. No landing or publication performed.
+Status: Closed 2026-09-20 — the second implementation is retired and MC0's stands, landed as `8bdb56ef2`. Not published; the release is the diet program's call.
 Priority: P3 (surface, not correctness: redundant machinery on the sync recovery path)
 Date: 2026-09-19
 Systems: `snapback4` `serve.rs`, `serve_sync_dispatch.rs`, `serve_sync_measurement.rs`, `serve_sync_stream.rs`; `snapback4-device` `device/sync_metadata.rs`; `packages/snapback4/src/local.ts`
