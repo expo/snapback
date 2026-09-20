@@ -285,7 +285,7 @@ query tokenDigest(token: text <=200):
 
 query search(roomId: rooms, q: text <=100, c: cursor ?):
   require exists members[roomId, viewer] else NOT_MEMBER
-  return messages[roomId] matching q after c last 50 by byRoomWords   -- word-prefix search: every term a prefix of some word of the row, newest first
+  return messages[roomId] matching q after c last 50 by byRoomWords   -- word-prefix search: uniform expansion bounded by the meter; admitted non-uniform scopes keep 32 words; newest first
 
 query everywhere(q: text <=100, c: cursor ?):
   return merge messages matching q after c last 50 by byRoomWords:

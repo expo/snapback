@@ -162,6 +162,7 @@ fn w13c_lane_source_inline_seek_matches_locals_and_direct_page() {
 }
 
 mod first_witness {
+    const DEVICE: bool = false;
     use snapback4_core::{Context, Engine, Value, engine::QueryOutcome, error::Refusal};
     type Query<'a> = dyn FnMut(&str, Context) -> Result<QueryOutcome, Refusal> + 'a;
     fn with_fixture(source: &str, rows: Vec<(String, Value)>, check: impl Fn(&mut Query<'_>)) {

@@ -21,8 +21,9 @@ pub struct Visibility {
 pub fn scan_visibility(schema: &Schema, scan: &Scan) -> Visibility {
     let Some(table) = schema.table(&scan.table) else { return Visibility::default() };
     let Some(index) = table.index(&scan.index) else { return Visibility::default() };
-    let pinned: BTreeMap<&String, &Expr> = index.components.iter().zip(&scan.prefix).filter_map(|(component, key)| component.column().zip(key.scalar())).collect();
-    prefix_visibility(&scan.table, table, &table.rules.read, &pinned)
+    let pinned = |name: &str| index.components.iter().zip(&scan.prefix).find_map(|(part, key)| (part.column().is_some_and(|column| column == name)).then(|| key.scalar()).flatten());
+    visibility(&scan.table, table, &table.rules.read, &pinned)
+
 }
 
 // @ref LLP 3000.007#20.5 — a missing upsert may insert only when the complete held group and its key decide that no hidden target can exist.
@@ -63,7 +64,7 @@ fn conjuncts(rule: RuleExpr) -> Vec<RuleExpr> {
 }
 
 fn simplify_prefix(rule: &RuleExpr, name: &str, table: &Table, pinned: &BTreeMap<&String, &Expr>) -> RuleExpr {
-    if rule_true(rule, name, table, pinned) { return RuleExpr::Allow; }
+    if rule_true(rule, name, table, &|name| pinned.iter().find_map(|(key, value)| (key.as_str() == name).then_some(*value))) { return RuleExpr::Allow; }
     match rule {
         RuleExpr::And(terms) => RuleExpr::And(terms.iter().map(|term| simplify_prefix(term, name, table, pinned)).flat_map(conjuncts).filter(|term| !matches!(term, RuleExpr::Allow)).collect()),
         RuleExpr::Or(_) => {
@@ -99,9 +100,30 @@ pub fn lazy_merge(schema: &Schema, merge: &Merge) -> bool {
 /// The same analysis for an arbitrary pinned prefix (`sync` audiences and
 /// merge lanes use it too).
 pub fn prefix_visibility(table_name: &str, table: &Table, rule: &RuleExpr, pinned: &BTreeMap<&String, &Expr>) -> Visibility {
-    let decided_true = rule_true(rule, table_name, table, pinned);
-    let used = deciding_fields(table_name, table, rule);
-    Visibility { uniform: decided_true || used.iter().all(|field| pinned.contains_key(field)), decided_true }
+    visibility(table_name, table, rule, &|name| pinned.iter().find_map(|(key, value)| (key.as_str() == name).then_some(*value)))
+}
+
+// @ref LLP 3000.007#20.24 — visibility borrows compiled rule/scan images; word lanes allocate no analysis maps or field sets.
+fn visibility<'a>(name: &str, table: &Table, rule: &RuleExpr, pinned: &impl Fn(&str) -> Option<&'a Expr>) -> Visibility {
+    let decided_true = rule_true(rule, name, table, pinned);
+    Visibility { uniform: decided_true || fields_pinned(name, table, rule, pinned), decided_true }
+}
+fn any_disjunct(rule: &RuleExpr, test: &impl Fn(&RuleExpr) -> bool) -> bool {
+    match rule { RuleExpr::Or(terms) => terms.iter().any(|term| any_disjunct(term, test)), other => test(other) }
+}
+fn all_disjunct(rule: &RuleExpr, test: &impl Fn(&RuleExpr) -> bool) -> bool {
+    match rule { RuleExpr::Or(terms) => terms.iter().all(|term| all_disjunct(term, test)), other => test(other) }
+}
+fn fields_pinned<'a>(name: &str, table: &Table, rule: &RuleExpr, pinned: &impl Fn(&str) -> Option<&'a Expr>) -> bool {
+    let term = |term: &RuleTerm| !matches!(term, RuleTerm::Field(field) if pinned(field).is_none());
+    match rule {
+        RuleExpr::Or(_) => all_disjunct(rule, &|part| any_disjunct(rule, &|other| self_probe_absorbs(name, table, part, other)) || fields_pinned(name, table, part, pinned)),
+        RuleExpr::And(terms) => terms.iter().all(|part| fields_pinned(name, table, part, pinned)),
+        RuleExpr::Not(inner) => fields_pinned(name, table, inner, pinned),
+        RuleExpr::Eq(a, b) | RuleExpr::Ne(a, b) => term(a) && term(b),
+        RuleExpr::Exists { key, equalities, .. } | RuleExpr::Created { key, equalities, .. } => key.iter().chain(equalities.iter().map(|(_, term)| term)).all(term),
+        RuleExpr::Allow | RuleExpr::Deny | RuleExpr::Public { .. } => true,
+    }
 }
 
 /// Fields that decide a rule after absorbing same-row equalities into
@@ -135,8 +157,8 @@ fn self_probe_absorbs(table_name: &str, table: &Table, disjunct: &RuleExpr, othe
     // @ref LLP 3000.007#16 — the equal row is its own witness on a total unique key; literal key terms cannot absorb it.
     index.unique && index.is_plain() && key.len() == index.components.len()
         && equalities.iter().all(|(field, term)| matches!(term, RuleTerm::Field(source) if source == field) || (field == column && matches!(term, RuleTerm::Viewer)))
-        && index.columns().contains(column)
-        && index.columns().iter().zip(key).all(|(component, term)| {
+        && index.components.iter().any(|part| part.column() == Some(column))
+        && index.components.iter().filter_map(|part| part.column()).zip(key).all(|(component, term)| {
             table.columns.get(component).is_some_and(|kind| !kind.is_optional())
                 && if component == column { matches!(term, RuleTerm::Viewer) } else { matches!(term, RuleTerm::Field(field) if field == component) }
         })
@@ -150,12 +172,12 @@ fn pinned_term(term: &RuleTerm, expression: &Expr) -> bool {
     }
 }
 
-fn rule_true(rule: &RuleExpr, table_name: &str, table: &Table, pinned: &BTreeMap<&String, &Expr>) -> bool {
+fn rule_true<'a>(rule: &RuleExpr, table_name: &str, table: &Table, pinned: &impl Fn(&str) -> Option<&'a Expr>) -> bool {
     match rule {
         RuleExpr::Allow | RuleExpr::Public { .. } => true,
         RuleExpr::Eq(left, right) => [(left, right), (right, left)].iter().any(|(field, value)| {
             let RuleTerm::Field(column) = field else { return false };
-            pinned.get(column).is_some_and(|expression| pinned_term(value, expression))
+            pinned(column).is_some_and(|expression| pinned_term(value, expression))
         }),
         RuleExpr::Or(rules) => rules.iter().any(|rule| rule_true(rule, table_name, table, pinned)),
         RuleExpr::And(rules) => !rules.is_empty() && rules.iter().all(|rule| rule_true(rule, table_name, table, pinned)),
@@ -167,16 +189,16 @@ fn rule_true(rule: &RuleExpr, table_name: &str, table: &Table, pinned: &BTreeMap
             // Extra tests must be true on the self-witness too; a unique key alone cannot decide them.
             equalities.iter().all(|(column, term)| match term {
                 RuleTerm::Field(field) => field == column,
-                _ => pinned.get(column).is_some_and(|expression| pinned_term(term, expression)),
+                _ => pinned(column).is_some_and(|expression| pinned_term(term, expression)),
             }) && index.unique
                 && index.is_plain()
                 && !key.is_empty()
                 && key.len() == index.components.len()
-                && index.columns().iter().zip(key).all(|(column, term)| {
+                && index.components.iter().filter_map(|part| part.column()).zip(key).all(|(column, term)| {
                     table.columns.get(column).is_some_and(|ty| !matches!(ty, ColumnType::Optional(_)))
                         && match term {
                             RuleTerm::Field(field) => field == column,
-                            _ => pinned.get(column).is_some_and(|expression| pinned_term(term, expression)),
+                            _ => pinned(column).is_some_and(|expression| pinned_term(term, expression)),
                         }
                 })
         }

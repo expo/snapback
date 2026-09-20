@@ -67,7 +67,7 @@ fn further_terms_filter_and_query_expression_is_outside_lane_bindings() {
 }
 
 #[test]
-fn a_wide_word_lane_is_named_and_incomplete_but_a_denied_lane_cannot_cut() {
+fn uniform_wide_words_continue_nonuniform_is_named_and_denied_lanes_cannot_cut() {
     let mut engine = fixture(SCHEMA);
     let before = read(&mut engine, "explicit", "cof", None);
     for n in 0..33 { seed_message(&mut engine, "r3", &format!("hidden{n}"), &format!("cof{n:02}"), 50); }
@@ -76,7 +76,12 @@ fn a_wide_word_lane_is_named_and_incomplete_but_a_denied_lane_cannot_cut() {
     assert_eq!((ids(&before), before.complete, before.next.clone(), before.capped_at.clone(), before.metered.clone()), (ids(&allowed), allowed.complete, allowed.next.clone(), allowed.capped_at.clone(), allowed.metered.clone()), "hidden rows in a denied lane change no observable");
     for n in 0..33 { seed_message(&mut engine, "r2", &format!("wide{n}"), &format!("cof{n:02}"), n); }
     let page = read(&mut engine, "everywhere", "cof", None);
-    assert!(!page.complete);
+    assert!(page.complete && page.next.is_some() && page.word_cut_at.is_none());
+    let source = SCHEMA.replace("  sync to members[.roomId]\n", "").replace("  by byRoomTime: roomId, at, id\n  read <- exists members[.roomId, viewer]", "  by byRoomTime: roomId, at, id\n  read <- exists members[.roomId, viewer] and .body != 'hidden'");
+    let mut control = fixture(&source);
+    for n in 0..33 { seed_message(&mut control, "r2", &format!("wide{n}"), &format!("cof{n:02}"), n); }
+    let page = read(&mut control, "everywhere", "cof", None);
+    assert!(!page.complete && page.next.is_none() && page.cut.is_none());
     let site = page.word_cut_at.as_ref().expect("word cut");
     assert!(site.contains("lane") && site.contains("r2"), "{site}");
     println!("word cut: {:?}", page.word_cut_at);

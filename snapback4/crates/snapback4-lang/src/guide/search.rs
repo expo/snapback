@@ -66,7 +66,8 @@ ordering columns and appended id, must fit the portable 2048-byte index key.
 
 `matching q` folds the text the same way. Its first term selects every
 word it is a prefix of ("cof": coffee, coffers, cofounder — one seek each,
-at most 32 words per scope, else the page is `complete: false`), and those words
+bounded by the meter for a uniform scope; at most 32 words for an admitted
+non-uniform scope, whose page remains `complete: false` even below that bound), and those words
 merge as ordered lanes into one page — newest first when the index says
 so. Every further term must be a prefix of some word of the row ("cof
 car" finds "COFFEE for Carol"). Mid-word text does not match; an empty
@@ -86,8 +87,8 @@ an explicit `first N` above 50 still emits N_WIDE_MERGE.
 A pinned conjunct such as `exists members[.roomId, viewer]` can deny a scope
 before word discovery even when another conjunct needs each row. Admitted
 non-uniform scopes keep per-row costs and remain incomplete; hidden rows
-there still spend the query-wide examined/index-entry budget. The 32-word
-bound makes that lane incomplete without cutting later lanes; operator
+there still spend the query-wide examined/index-entry budget. The admitted non-uniform scope's 32-word
+bound records a word cut without cutting later lanes; operator
 results name it in `word_cut_at`, separately from a meter cut in `capped_at`.
 Device reads and uniform server reads expose `cut: 'words'` or `cut: 'meter'`
 beside `complete`; `meter` wins if both limits cut. Non-uniform server reads
@@ -97,9 +98,15 @@ for `complete: false` with `cut: null`, even when empty; never "no matches".
 The precise reason remains in development-only `Read.meter.cut`; `serve` never
 returns that meter. If the server cannot answer the query, declare `query … held:`
 to answer from the device; the server refuses it with E_QUERY_HELD.
+Uniform word expansion is bounded by the meter. A cut during discovery or
+opening returns `complete: false, cut: 'meter'` with no continuation.
+Heap exhaustion clears the page: `data: null`, `complete: false`,
+`cut: 'meter'`, no `next`.
 Merged pages return no `next` for a non-uniform answer, an opening cut or a
-word-limit cut. A uniform lazy merge cut while draining established heads
-carries `next` after its last emitted row (its last fully computed row when the merge is the query's returned shape expression, §5.6), with `complete: false, cut: 'meter'`.
+word-limit cut. A resumable read-meter cut while an owning uniform lazy merge drains established heads
+can carry `next` after its last fully shaped emitted row (§5.6), subject to final-answer eligibility, with `complete: false, cut: 'meter'`.
+Heap exhaustion clears the whole page even during the drain; step exhaustion aborts and output exhaustion can refuse after materialisation.
+A terminal full page need not carry `next`.
 Following that cursor does not clear the earlier page's incompleteness in `usePage`. Reads inside
 `where` use their own rules and search terms. Even an empty matching result
 past a device horizon is incomplete; a held group can fall back to the server.

@@ -7,7 +7,7 @@ fn args(values: &[(&str, &str)]) -> BTreeMap<String, Value> {
 }
 
 #[test]
-fn calibration_empty_cut_is_distinct_from_no_matches() {
+fn calibration_uniform_words_continue_and_nonuniform_empty_cut_differs_from_no_matches() {
     let bound = snapback4_lang::compile(&[("schema.q".into(), fixture::SOURCE.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
@@ -25,8 +25,13 @@ fn calibration_empty_cut_is_distinct_from_no_matches() {
     assert!(serde_json::to_value(empty).unwrap().get("cut").unwrap().is_null());
     engine.seed(fixture::seed(0, 0).into_iter().filter(|(table, _)| table == "messages")).unwrap();
     let words = engine.query("scoped", Context::new("dev:alice", args(&[("roomId", "words"), ("q", "cof")]))).unwrap();
-    assert!(!words.complete && !words.data.as_array().unwrap().is_empty());
-    assert_eq!(serde_json::to_value(words).unwrap()["cut"], "words");
+    assert!(words.complete && words.next.is_some());
+    assert_eq!(words.data.as_array().unwrap().len(), 10);
+    assert!(words.cut.is_none() && words.word_cut_at.is_none());
+    let control = engine.query("all", Context::new("dev:alice", args(&[("q", "cof")]))).unwrap();
+    assert!(!control.complete && control.next.is_none() && control.word_cut_at.is_some());
+    assert!(control.cut.is_none());
+    assert!(!control.data.as_array().unwrap().is_empty());
     let nonuniform = engine.query("all", Context::new("dev:alice", args(&[("q", "absent")]))).unwrap();
     assert!(!nonuniform.complete && nonuniform.capped_at.is_none() && nonuniform.word_cut_at.is_none());
     assert!(serde_json::to_value(nonuniform).unwrap().get("cut").unwrap().is_null());
@@ -51,9 +56,9 @@ fn nonuniform_full_response_sweep_including_cut() {
         let visible = engine.query("all", disclosure::context("coffee")).unwrap();
         assert_eq!(visible.data.as_array().unwrap().len(), 5);
         assert!(!visible.complete && visible.cut.is_none());
-        disclosure::merge_cuts("server", |q, ceilings| {
+        disclosure::merge_cuts("server", |name, q, ceilings| {
             engine.set_ceilings(ceilings);
-            engine.query("merged", disclosure::context(q)).unwrap()
+            engine.query(name, disclosure::context(q)).unwrap()
         });
     }
     assert_eq!(worlds[0], worlds[1]);

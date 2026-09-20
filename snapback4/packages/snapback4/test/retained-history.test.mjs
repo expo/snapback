@@ -113,11 +113,28 @@ mutation join(room: text <=40):
 mutation leave(room: text <=40):
   delete members[room = room, principal = 'dev:bob']
 `;
-for (const tier of ["wasm", "process"]) for (const scenario of ["R5 history", "R1a empty search", "R1a mixed reads", "R2 mixed result", "R2 sync during reply", "MQ ineligible", "MQ points", "MQ delete current", "MQ revoke current", "MQ rejoin", "MQ held change", "MQ close", "MQ sign-out", "MQ transport", "MQ adoption", "MQ reset", "MQ rotation", "MQ prediction", "MQ expiry left", "MQ expiry held", "MQ interrupted snapshot", "MQ retained snapshot"]) test(`${scenario} ${tier}: retained history and independent held coverage`, { timeout: 60000 }, async (t) => {
+for (const tier of ["wasm", "process"]) for (const scenario of ["W14A horizon-free matching", "W14A positive existence", "R5 history", "R1a empty search", "R1a mixed reads", "R2 mixed result", "R2 sync during reply", "MQ ineligible", "MQ points", "MQ delete current", "MQ revoke current", "MQ rejoin", "MQ held change", "MQ close", "MQ sign-out", "MQ transport", "MQ adoption", "MQ reset", "MQ rotation", "MQ prediction", "MQ expiry left", "MQ expiry held", "MQ interrupted snapshot", "MQ retained snapshot"]) test(`${scenario} ${tier}: retained history and independent held coverage`, { timeout: 60000 }, async (t) => {
   const directory = mkdtempSync(join(tmpdir(), "sb4-retained-"));
   mkdirSync(join(directory, "snapback"));
   const expiring = scenario.startsWith("MQ expiry");
   let fixtureSource = expiring ? source.replace("  body: text <=40\n  unique", "  body: text <=40\n  expiresAt: time\n  expire at .expiresAt\n  by byExpiresAt: expiresAt\n  unique").replace("insert messages {room, at, body}", "insert messages {room, at, body, expiresAt: now + 3600000}") : source;
+  const wordCase = scenario.startsWith("W14A");
+  const horizonFree = scenario === "W14A horizon-free matching";
+  if (wordCase) {
+    if (horizonFree) fixtureSource = fixtureSource.replace("sync to members[.room] last 25 by byTime", "sync to members[.room]");
+    const left = horizonFree ? "messages['left'] matching 'del' last 50 by byWords" : "exists (messages['left'] matching 'del' by byWords)";
+    fixtureSource += `
+table recent:
+  room: text <=40
+  at: time
+  body: text <=40
+  by byTime: room, at, id
+  read <- exists members[.room, viewer]
+  sync to members[.room] last 25 by byTime
+query wordBoth():
+  return {left: ${left}, right: recent['held'] last 50 by byTime}
+`;
+  }
   if (scenario === "MQ adoption") fixtureSource = fixtureSource.replace("return {left: leftRows, held: heldRows}", "return {left: leftRows, held: heldRows, epoch: 1}");
   writeFileSync(join(directory, "snapback/schema.q"), fixtureSource);
   t.after(() => rmSync(directory, { recursive: true, force: true }));
@@ -145,7 +162,8 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["R5 history", "R
   }
   rows.push(...["left", "held"].map((room) => ({ table: "members", row: { id: `alice-${room}`, room, principal: "dev:alice" } })));
   rows.push({ table: "current", row: { id: "current-row", room: "current", body: "remove me" } }, { table: "members", row: { id: "alice-current", room: "current", principal: "dev:alice" } });
-  assert.equal((await post("/seed", rows)).seeded, 56);
+  if (wordCase) rows.push(...rows.filter(item => item.table === "messages" && item.row.room === "held").map(item => ({ table: "recent", row: item.row })));
+  assert.equal((await post("/seed", rows)).seeded, wordCase ? 82 : 56);
   for (const room of ["left", "held", "current"]) assert.equal((await post("/m/join", { args: { room }, id: `join-${room}` })).state, "sent");
   let offline = false, intercept, holdWrites = false, interruptSnapshot = false, snapshotStarted = false, deviceNow;
   const syncPages = [];
@@ -182,8 +200,10 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["R5 history", "R
   await client.sync();
   const held = await client.query(query, { room: "held" });
   assert.equal(held.data.length, 26); assert.equal(held.complete, true);
-  assert.ok(requests.includes("held"));
-  assert.ok(deviceAnswers.some((a) => a.room === "held" && a.data?.length === 25 && a.complete === false));
+  if (!horizonFree) {
+    assert.ok(requests.includes("held"));
+    assert.ok(deviceAnswers.some((a) => a.room === "held" && a.data?.length === 25 && a.complete === false));
+  }
   const watch = client.observe(query, { room: "left" });
   const deliveries = [];
   const unsubscribe = watch.subscribe(() => { const value = watch.getSnapshot(); if (value.data) deliveries.push(value.data.length); });
@@ -192,6 +212,21 @@ for (const tier of ["wasm", "process"]) for (const scenario of ["R5 history", "R
   assert.equal((await post("/m/leave", { args: { room: "left" }, id: "leave-left" })).state, "sent");
   await client.sync();
   const expected = (room, start) => rows.filter((item) => item.table === "messages" && item.row.room === room && item.row.at >= start).map((item) => item.row).reverse();
+  if (wordCase) {
+    const name = "wordBoth";
+    const result = await client.query({ kind: "query", name }, {});
+    const local = allAnswers.findLast(answer => answer.name === name);
+    assert.deepEqual(local.components.left, { complete: true, unknown: false, retained: true });
+    assert.equal(local.components.right.unknown, true, "the right horizon needs server knowledge");
+    assert.ok(allRequests.includes("/q/wordBoth"), "mixed routing consulted the server");
+    assert.deepEqual(result.data.left, horizonFree ? expected("left", 1) : true, "server fallback must keep the left group's delivered matching history");
+    assert.deepEqual(result.data.right, expected("held", 0));
+    assert.equal(result.complete, true);
+    assert.equal(result.fresh, false);
+    assert.ok(result.since > 0);
+    t.diagnostic(`W14A ${tier}: acquired before leave; ${horizonFree ? "25 retained matches" : "positive retained existence"} + 26 server rows`);
+    return;
+  }
   if (scenario === "MQ points") {
     for (const name of ["pointMiss", "pointIndex", "pointId", "pointExists"]) {
       const result = await client.query({ kind: "query", name }, {});

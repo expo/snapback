@@ -43,6 +43,10 @@ pub fn fold(text: &str) -> String {
 /// Fold text into its tokens: NFC, lowercase, split on anything that is not
 /// a letter or a digit, distinct, in order of first appearance.
 pub fn tokens(text: &str) -> Vec<String> {
+    tokens_limited(text, MAX_TOKENS_PER_ROW)
+}
+
+fn tokens_limited(text: &str, limit: usize) -> Vec<String> {
     let folded = fold(text);
     let mut out: Vec<String> = Vec::new();
     for word in folded.split(|c: char| !c.is_alphanumeric()) {
@@ -52,7 +56,7 @@ pub fn tokens(text: &str) -> Vec<String> {
         let word: String = word.chars().take(MAX_TOKEN_CHARS).collect();
         if !out.contains(&word) {
             out.push(word);
-            if out.len() == MAX_TOKENS_PER_ROW {
+            if out.len() == limit {
                 break;
             }
         }
@@ -80,9 +84,7 @@ pub fn row_tokens<'a>(texts: impl IntoIterator<Item = &'a str>) -> Vec<String> {
 /// An empty query has no terms, and no terms match nothing (never
 /// everything).
 pub fn terms(query: &str) -> Vec<String> {
-    let mut out = tokens(query);
-    out.truncate(MAX_TERMS);
-    out
+    tokens_limited(query, MAX_TERMS)
 }
 
 /// Whether every term is a prefix of some token of the row's text.

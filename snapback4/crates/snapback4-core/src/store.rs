@@ -23,6 +23,7 @@ const STORE_VERSION: &str = "snapback4-store-1";
 
 pub struct Store {
     conn: Connection,
+    page_size: u64,
     catalog: BTreeMap<String, i64>,
     /// Where uploaded bytes live: `assets/` beside the database file, or a
     /// directory that dies with the store for a store in memory.
@@ -47,6 +48,7 @@ impl Drop for Store {
 /// One transaction over the store, with the catalog in reach.
 pub struct Tx<'a> {
     tx: rusqlite::Transaction<'a>,
+    page_size: u64,
     catalog: &'a BTreeMap<String, i64>,
 }
 
@@ -71,7 +73,8 @@ impl Store {
         tx.rollback()?;
         let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
         let assets_dir = real.parent().unwrap_or(Path::new(".")).join("assets");
-        Ok(Self { conn, catalog, identity, assets_dir, ephemeral_assets: false })
+        let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
+        Ok(Self { conn, page_size, catalog, identity, assets_dir, ephemeral_assets: false })
     }
 
     /// Classify against one read snapshot of the active generation and rows.
@@ -209,7 +212,8 @@ impl Store {
         let catalog = opened.prepare("SELECT name, num FROM _catalog")?.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)))?.collect::<Result<BTreeMap<_, _>, _>>()?;
         let identity = activation::identity(&opened)?;
         opened.commit()?;
-        Ok(Self { conn, catalog, assets_dir, ephemeral_assets, identity })
+        let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
+        Ok(Self { conn, page_size, catalog, assets_dir, ephemeral_assets, identity })
     }
 
     pub fn transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
@@ -220,7 +224,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { tx, catalog: &self.catalog })
+        Ok(Tx { tx, page_size: self.page_size, catalog: &self.catalog })
     }
 
     /// A consistent read snapshot does not reserve SQLite's writer lock.
@@ -229,7 +233,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { tx, catalog: &self.catalog })
+        Ok(Tx { tx, page_size: self.page_size, catalog: &self.catalog })
     }
 
     /// One deferred snapshot for an authority walk from an API that only
@@ -239,7 +243,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { tx, catalog: &self.catalog })
+        Ok(Tx { tx, page_size: self.page_size, catalog: &self.catalog })
     }
 
     /// An independent read connection, bound to this catalog and identity.
@@ -253,7 +257,8 @@ impl Store {
         conn.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_ENABLE_QPSG, true)?;
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         // A reader never owns the directory; only the store that made it removes it.
-        Ok(Self { conn, catalog: self.catalog.clone(), assets_dir: self.assets_dir.clone(), ephemeral_assets: false, identity: self.identity.clone() })
+        let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
+        Ok(Self { conn, page_size, catalog: self.catalog.clone(), assets_dir: self.assets_dir.clone(), ephemeral_assets: false, identity: self.identity.clone() })
     }
 
     pub fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
@@ -795,6 +800,53 @@ impl crate::rows::Rows for Tx<'_> {
     }
     fn scan(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
         Tx::scan(self, table, index_name, prefix, bounds, dir, limit)
+    }
+    fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut crate::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        use crate::rows::word_heap as heap;
+        meter.heap(heap::range(prefix, bounds) + heap::allocation(table.len() + index_name.len() + 1))?;
+        let Some((lo, hi)) = crate::rows::scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };
+        let t = self.num(table)?;
+        let ti = self.num(&format!("{table}.{index_name}"))?;
+        // @ref LLP 3000.007#20.24.1 — stream preflight allowances before stepping to the next row.
+        // Per-execution statement storage and the page cache are shared images outside this payload ledger, as for every store scan; tests/word_heap.rs::sqlite_empty_scan_statement_storage_is_pinned_and_transient pins the excluded execution storage.
+        // Within one preflight execution the first row's resident copy (one
+        // page_size buffer per column, two registers) precedes its charge;
+        // every later row's copy follows the previous row's charge. Across
+        // executions the reserve prepays the first execution's first copy once
+        // per read; later executions' first copies are charged immediately after,
+        // bounded by the same constant. No other priced payload is copied before its allowance.
+        // BYTELENARG / LENGTHARG never read overflow payloads. The payload
+        // statement uses the granted allowances; Rust borrows its JSON.
+        meter.once(crate::meter::HeapSite::SqliteColumns, 2 * self.page_size)?;
+        let sizes = match dir {
+            Dir::Asc => "SELECT octet_length(r.data) + length(i.k) FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k ASC LIMIT ?5",
+            Dir::Desc => "SELECT octet_length(r.data) + length(i.k) FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k DESC LIMIT ?5",
+        };
+        {
+            let mut statement = self.tx.prepare_cached(sizes)?;
+            let mut rows = statement.query(params![t, ti, lo, hi, limit as i64])?;
+            while let Some(row) = rows.next()? {
+                let bytes = row.get::<_, i64>(0)? as u64;
+                // Two payload copies and two allocation headers/alignment per row.
+                // Refusal drops/resets this statement without stepping again.
+                // Database pages and cached VM/statement storage remain shared images.
+                meter.heap(bytes.saturating_mul(2).saturating_add(64))?;
+            }
+        }
+        let mut statement = self.tx.prepare_cached(scan_sql(dir))?;
+        let mut rows = statement.query(params![t, ti, lo, hi, limit as i64])?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next()? {
+            // SQLite lends these bytes; no JSON String, Value or key Vec exists
+            // until this allowance succeeds. Nominal IDs have no schema max.
+            let data = row.get_ref(0)?.as_str().map_err(|e| RuntimeError::Store(e.to_string()))?;
+            let key = row.get_ref(1)?.as_blob().map_err(|e| RuntimeError::Store(e.to_string()))?;
+            meter.heap(heap::stored_row(data) + heap::allocation(key.len()))?;
+            let additional = heap::grow::<(Value, Vec<u8>)>(meter, out.len(), out.capacity())?;
+            if additional != 0 { out.reserve_exact(additional); }
+            out.push((serde_json::from_str(data).map_err(|e| RuntimeError::Store(e.to_string()))?, key.to_vec()));
+        }
+        Ok(out)
     }
     fn count_prefix(&self, table: &str, index_name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> {
         Tx::count_prefix(self, table, index_name, prefix, limit)

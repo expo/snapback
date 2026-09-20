@@ -40,8 +40,11 @@ query searchNewest(q: text <=100, c: cursor ?):
 ```
 
 **Grouped.** Pass `c: read.next` to continue. A meter-cut filtered page
-positions after its last rule-visible examined membership and carries `next`,
-so an empty cut page can still lead to later matching chats. Each group shows
+positions after its last rule-visible examined membership and carries `next`;
+an interrupted existence predicate retries its membership inclusively. If that
+retry interrupts the same membership again with nothing emitted, the page stays
+`complete: false`, `cut: 'meter'`, with no `next`, so it cannot loop.
+An empty cut page with `next` can still lead to later matching chats. Each group shows
 up to three hits. A chat whose preview the cut starved is not on the page:
 it is dropped with every later chat, and `next` reaches it first, so the next
 request shapes it with a fresh meter (§5.6). Use
@@ -49,18 +52,27 @@ request shapes it with a fresh meter (§5.6). Use
 search screen, not an enumeration of every message in every chat.
 
 **Newest.** Pass `c: read.next` for the next globally ordered page. With the
-dense fixture below, a complete first page fits through 2,717 chats; 2,718–2,730
+dense fixture below, 1,000 chats fit on all three hosts. Memory's shared row
+images fit a complete first page through 2,717 chats; 2,718–2,730
 open every head but cut while draining, with `next` and `complete: false`.
-Past 2,730 dense chats the opening is cut (`complete: false, cut: 'meter'`)
+SQLite prepays fetched row decoding and can heap-cut earlier, clearing the page
+to `data: null` with no `next`. Past 2,730 dense chats even memory's opening is cut (`complete: false, cut: 'meter'`)
 with no continuation; use the grouped form.
-A uniform lazy drain cut carries `next` after its last emitted row; following
-it does not clear the earlier page's incompleteness in `usePage`.
+An owning uniform lazy traversal can resume a read-meter drain cut after its last
+fully shaped emitted row when the final answer is eligible; the heap exception below still applies.
+Following it does not clear the earlier page's incompleteness in `usePage`.
 
 These are live reads, not a snapshot across requests: restart after a
 membership change, and refresh for concurrent edits or new messages.
-Reset the cursor when changing the search text. Each chat scope still admits
-at most 32 distinct words matching the first term; a word-limit cut is
-incomplete, and further terms can spend the meter on misses. A device read past its
+Reset the cursor when changing the search text. Each uniform chat scope expands words under the meter; an admitted
+non-uniform scope retains at most 32 words. Discovery or opening cuts return
+`cut: "meter"` with no continuation. A resumable read-meter cut while an owning
+uniform lazy traversal drains established heads can carry `next` after its last
+fully shaped emitted row, subject to the final answer's continuation eligibility.
+Heap exhaustion clears the whole page to `data: null` with no `next`, even during
+the drain; step exhaustion aborts and output exhaustion can refuse after materialisation.
+A terminal full page need not carry `next`; following a cut does not clear
+`usePage`'s accumulated incompleteness. Further terms can spend the meter on misses. A device read past its
 acquisition horizon makes its answer `complete: false`, including an empty
 match; the server searches full history.
 
@@ -68,7 +80,7 @@ match; the server searches full history.
 source coverage for `searchHeld`: it reads one unscoped words index over the
 messages this device holds, with no membership merge or per-reader copy.
 Use the local client and continue with `c: read.next`.
-Runtime meter cuts, the 32-word limit and page continuation still apply;
+Runtime meter cuts, the non-uniform scope's 32-word limit and page continuation still apply;
 `complete` describes each returned page, and `fresh` separately describes
 sync freshness.
 Expiring memberships require runtime audience checks; an unscoped matching
@@ -127,12 +139,15 @@ grouped returns all three chats exactly once in two requests on all three
 hosts. The first page is meter-cut with `next`; the second finishes complete.
 | Host | Request 1: groups / examined / next | Request 2: groups / examined / next |
 |---|---|---|
-| Server | 0 / 8,194 / yes | 3 / 906 / no |
-| SQLite device | 0 / 8,194 / yes | 3 / 906 / no |
-| Memory device | 0 / 8,194 / yes | 3 / 906 / no |
+| Server | 0 / 8,193 / yes | 3 / 906 / no |
+| SQLite device | 0 / 8,193 / yes | 3 / 906 / no |
+| Memory device | 0 / 8,193 / yes | 3 / 906 / no |
 
-Total: 9,100 examined per host. The cut page shows no chat whose `hits`
+Total: 9,099 examined per host. The cut page shows no chat whose `hits`
 preview the meter starved: that chat is dropped, `next` reaches it first, and
 the second page shapes it with a fresh meter and returns every chat with its
 hits — the dropped chat's discovery is paid twice, which is the cost of never
 showing a row the read could not finish (LLP 3000.007 §5.6).
+
+Capped generated word descriptors are no longer opened, so the first grouped
+cut attempts 8,193 examined rows rather than 8,194.

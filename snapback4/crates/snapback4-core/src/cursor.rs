@@ -63,11 +63,11 @@ pub fn encode_cursor(schema: &Schema, position: &CursorPosition) -> Result<Strin
     validate_values(schema, &position.table, &position.suffix, &position.values)?;
     let tagged = (
         VERSION,
-        position.table.clone(),
-        position.index.clone(),
+        &position.table,
+        &position.index,
         position.order,
-        position.suffix.clone(),
-        position.values.clone(),
+        &position.suffix,
+        &position.values,
     );
     let bytes = if position.inclusive {
         crate::json_codec::to_vec(&(3_u8, tagged.1, tagged.2, tagged.3, tagged.4, tagged.5, &position.scope))

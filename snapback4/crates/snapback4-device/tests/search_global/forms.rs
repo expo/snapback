@@ -19,6 +19,7 @@ fn fixture_on<H: Host>(mut host: H, source: &str, rows: Vec<(String, Value)>, ch
 
 mod memory {
     use super::*;
+    const DECODED_STORE: bool = false;
     fn with_fixture(source: &str, rows: Vec<(String, Value)>, check: impl Fn(&mut dyn FnMut(&str, Option<String>, &str) -> QueryOutcome)) {
         fixture_on(Memory::new(), source, rows, check);
     }
@@ -27,6 +28,7 @@ mod memory {
 
 mod sqlite {
     use super::*;
+    const DECODED_STORE: bool = true;
     fn with_fixture(source: &str, rows: Vec<(String, Value)>, check: impl Fn(&mut dyn FnMut(&str, Option<String>, &str) -> QueryOutcome)) {
         fixture_on(Sqlite::new("w13e"), source, rows, check);
     }

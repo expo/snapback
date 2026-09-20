@@ -8,6 +8,7 @@ fn query(engine: &mut Engine, name: &str, cursor: Option<String>, term: &str) ->
     engine.query(name, Context::new("dev:alice", args).at(2000)).unwrap()
 }
 
+const DECODED_STORE: bool = true;
 mod forms;
 
 #[test]

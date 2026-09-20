@@ -15,6 +15,7 @@ fn fixture<S: DeviceStore>(mut store: S, source: &str, rows: Vec<(String, Value)
     tx.rollback().unwrap();
 }
 mod memory {
+    const DEVICE: bool = true;
     use super::*;
     fn with_fixture(source: &str, rows: Vec<(String, Value)>, check: impl Fn(&mut Query<'_>)) {
         fixture(snapback4_device::memory::MemoryStore::new(), source, rows, check);
@@ -22,6 +23,7 @@ mod memory {
     mod cases { include!("../../../snapback4-sim/tests/common/prefix_witness.rs"); }
 }
 mod sqlite {
+    const DEVICE: bool = true;
     use super::*;
     fn with_fixture(source: &str, rows: Vec<(String, Value)>, check: impl Fn(&mut Query<'_>)) {
         fixture(snapback4_core::Store::memory().unwrap(), source, rows, check);

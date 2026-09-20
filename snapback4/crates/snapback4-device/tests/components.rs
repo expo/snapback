@@ -1,11 +1,20 @@
 //! Run the same coverage observation on SQLite and the wasm memory store.
 mod common;
+#[path = "components/retained_words.rs"]
+mod retained_words;
 use common::*;
 use snapback4_core::{engine::local, error::RuntimeError, meter::Ceilings, rows::{Rows, Bounds, Dir}, schema::{Index, Table}, value::Value};
 use snapback4_device::store::{DeviceStore, DeviceTx};
 use std::collections::BTreeMap;
 
 const SOURCE: &str = r#"
+table members:
+  room: text <=40
+  principal: principal
+  unique byRoomPrincipal: room, principal
+  by byPrincipal: principal, id
+  read <- .principal = viewer
+  sync to .principal
 table messages:
   room: text <=40
   at: time
@@ -53,6 +62,7 @@ impl Rows for Retained<'_> {
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> { self.0.get(table, id) }
     fn lookup(&self, table: &str, name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> { self.0.lookup(table, name, index, key) }
     fn scan(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> { self.0.scan(table, index, prefix, bounds, dir, limit) }
+    fn scan_metered(&self, t: &str, i: &str, p: &[Value], b: &Bounds, d: Dir, l: usize, meter: &mut snapback4_core::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> { self.0.scan_metered(t, i, p, b, d, l, meter) }
     fn count_prefix(&self, table: &str, index: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> { self.0.count_prefix(table, index, prefix, limit) }
     fn put(&self, name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> { self.0.put(name, table, row, old) }
     fn delete(&self, name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> { self.0.delete(name, table, old) }
@@ -62,6 +72,9 @@ fn frames<S: DeviceStore>(mut store: S) {
     let (_, backend) = compile(SOURCE);
     store.install(&backend.schema, &Default::default(), true).unwrap();
     let tx = store.transaction().unwrap();
+    for room in ["left", "held"] {
+        tx.put("members", &backend.schema.tables["members"], &snapback4_core::value::object([("id", id(&format!("member-{room}"))), ("room", Value::String(room.into())), ("principal", id("viewer"))]), None).unwrap();
+    }
     for room in ["left", "held"] { for at in 1..26 {
         let body = if at == 1 { (0..40).map(|n| format!("coffee{n}")).collect::<Vec<_>>().join(" ") } else { "coffee".into() };
         let row = snapback4_core::value::object([("id", id(&format!("{room}-{at}"))), ("room", Value::String(room.into())), ("at", Value::Int(at)), ("body", Value::String(body))]);
@@ -108,19 +121,30 @@ fn frames<S: DeviceStore>(mut store: S) {
                 "both" | "scalar" | "empty" | "guard" | "capGuard" => { assert!(components["left"].retained); assert!(!components["left"].unknown); assert!(components["held"].unknown); }
                 "point" => assert!(components["left"].unknown),
                 "unknownGuard" => assert!(components.is_empty(), "an unknown passing guard withholds coverage"),
-                "overflow" | "words" => { assert!(!components["left"].retained); assert!(!components["left"].complete); }
+                "words" => { assert!(components["left"].retained); assert!(!components["left"].unknown); assert!(actual.as_ref().unwrap().word_cut_at.is_none()); }
+                "overflow" => { assert!(!components["left"].retained); assert!(!components["left"].complete); }
                 _ => unreachable!(),
             }
         }
     }
+    // The positive uniform word component above retains its coverage. A row-rule
+    // control still loses it to the 32-word cut, with the same readable rows.
+    let source = SOURCE.to_owned()
+        .replace("  body: text <=1000", "  author: principal default 'viewer'\n  body: text <=1000")
+        .replace("read <- allow", "read <- exists members[.room, viewer] and .author = viewer").replace("  sync public last 25 by byTime", "  online only");
+    let (_, control) = compile(&source);
+    let program = control.programs.iter().find(|p| p.name == "words").unwrap();
+    let (page, _, _, components) = local::query_with_components(&rows, &control.schema, program, context("viewer", &[]).at(100), Ceilings::default());
+    assert!(page.unwrap().word_cut_at.is_some());
+    assert!(!components["left"].retained && !components["left"].complete);
     println!("component differential: {comparisons} comparisons; 0 differences");
     tx.rollback().unwrap();
 }
 
 #[test]
-fn component_frames_memory() { frames(snapback4_device::memory::MemoryStore::new()); }
+fn component_frames_uniform_words_and_nonuniform_cuts_memory() { frames(snapback4_device::memory::MemoryStore::new()); }
 #[test]
-fn component_frames_sqlite() {
+fn component_frames_uniform_words_and_nonuniform_cuts_sqlite() {
     let host = Sqlite::new("component-frames");
     let path = host.path("frames");
     let (_, backend) = compile(SOURCE);

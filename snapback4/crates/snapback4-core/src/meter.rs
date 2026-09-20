@@ -85,10 +85,18 @@ pub enum Cut {
     Abort,
 }
 
+#[cfg(feature = "sqlite")]
+#[derive(Clone, Copy)]
+pub(crate) enum HeapSite {
+    SqliteColumns,
+}
+
 #[derive(Clone, Debug)]
 pub struct MeterMark {
     used: Metered,
     capped_at: Option<(MeterKind, String)>,
+    #[cfg(feature = "sqlite")]
+    heap_once: u8,
 }
 
 #[derive(Clone, Debug)]
@@ -99,11 +107,14 @@ pub struct Meter {
     /// Set when a read site was cut; the result is then `capped`.
     pub capped_at: Option<(MeterKind, String)>,
     site: String,
+    #[cfg(feature = "sqlite")]
+    heap_once: u8,
 }
 
 impl Meter {
     pub fn new(ceilings: Ceilings, cut: Cut) -> Self {
-        Self { ceilings, used: Metered::default(), cut, capped_at: None, site: String::new() }
+        Self { ceilings, used: Metered::default(), cut, capped_at: None, site: String::new(),
+            #[cfg(feature = "sqlite")] heap_once: 0 }
     }
 
     pub fn at(&mut self, site: &str) {
@@ -141,12 +152,15 @@ impl Meter {
     /// `rollback_candidate`), so a hidden hit costs what a miss costs and a
     /// hoisted-false range costs what an empty one costs.
     pub fn mark(&self) -> MeterMark {
-        MeterMark { used: self.used, capped_at: self.capped_at.clone() }
+        MeterMark { used: self.used, capped_at: self.capped_at.clone(),
+            #[cfg(feature = "sqlite")] heap_once: self.heap_once }
     }
 
     pub fn restore(&mut self, mark: MeterMark) {
         self.used = mark.used;
         self.capped_at = mark.capped_at;
+        #[cfg(feature = "sqlite")]
+        { self.heap_once = mark.heap_once; }
     }
 
     /// Whether `kind` has room for `amount` more without charging.
@@ -190,6 +204,17 @@ impl Meter {
         }
         Ok(())
     }
+
+    /// Reserve bounded reusable scratch once per meter, only after admission.
+    #[cfg(feature = "sqlite")]
+    pub(crate) fn once(&mut self, site: HeapSite, bytes: u64) -> Result<(), RuntimeError> {
+        let bit = 1 << site as u8;
+        if self.heap_once & bit == 0 {
+            self.heap(bytes)?;
+            self.heap_once |= bit;
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -212,5 +237,28 @@ mod tests {
         meter.charge(MeterKind::RowsWritten, 1).unwrap();
         let error = meter.charge(MeterKind::RowsWritten, 1).unwrap_err();
         assert!(matches!(error, RuntimeError::Bound { kind: MeterKind::RowsWritten, actual: 2, ceiling: 1, .. }));
+    }
+
+    #[cfg(feature = "sqlite")]
+    #[test]
+    fn once_per_read_scratch_is_prepaid_and_restores_with_its_charge() {
+        for cut in [Cut::Cap, Cut::Abort] {
+            let mut meter = Meter::new(Ceilings { heap_bytes: 8192, ..Ceilings::default() }, cut);
+            let before = meter.mark();
+            for _ in 0..1000 { meter.once(HeapSite::SqliteColumns, 8192).unwrap(); }
+            assert_eq!(meter.used.heap_bytes, 8192);
+            let paid = meter.mark();
+            meter.restore(before);
+            assert_eq!(meter.used.heap_bytes, 0);
+            meter.once(HeapSite::SqliteColumns, 8192).unwrap();
+            assert_eq!(meter.used.heap_bytes, 8192, "a restored charge must restore admission too");
+            meter.restore(paid);
+            meter.once(HeapSite::SqliteColumns, 8192).unwrap();
+            assert_eq!(meter.used.heap_bytes, 8192);
+            let mut next_read = Meter::new(Ceilings { heap_bytes: 500, ..Ceilings::default() }, cut);
+            assert!(next_read.once(HeapSite::SqliteColumns, 8192).is_err());
+            assert!(next_read.once(HeapSite::SqliteColumns, 8192).is_err(), "a refusal must not mark the site paid");
+            assert_eq!(next_read.heap_once, 0);
+        }
     }
 }

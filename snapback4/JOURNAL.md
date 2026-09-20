@@ -45000,3 +45000,995 @@ made honest; **one wrong rule, the lead's** (information flow → data dependenc
 missing provenance axis (cardinality, L28); and the decision that loops prefer silence (L29).
 The pass that lands is stated in the terms it computes — data, control, cardinality — and every
 construct it does not model precisely is UNKNOWN, which is silence.
+## 2026-09-19 — W14a alternative 3: uniform word expansion measurement spike
+
+Uncommitted experiment against `f37e45e7ab059c44b5fe982115e56cc15414bf26`,
+with a default-off `W14A_WORD_EXPANSION_METER` compile-time switch in
+`engine/read.rs`. Admitted uniform scopes discover past 32 words; generated
+lanes now pay a step and descriptor/head heap charges. Non-uniform scopes
+retain 32. This is measurement code, not a landing or a complete allocation
+audit; the owned scan's general nested IR and transient clones still need
+accounting before production use. The detailed record is
+[W14A-SPIKE.md](../W14A-SPIKE.md).
+
+At 45 distinct `kx00` through `kx44` words, the base returns 20 rows with
+`cut: "words"` and no cursor; the spike returns all 45 in three ordered
+pages, with a cursor on both full pages, on server SQLite, device memory,
+device SQLite and the actual wasm device under Node 24. At 200 and 1,000
+words every host completes in 10 and 50 pages without a cut. Native
+first-page counters at 1,000 words are examined 1,000, index entries 1,001,
+rule probes 1 on the server / 0 on devices, steps 5,027, heap 4,143,712 B,
+output 2,031 B and writes 0. The 9,000-hidden-row paired worlds produce
+identical viewer bytes on each host. Wasm does not expose its meter; its
+counters were not invented from the native measurements.
+
+Sixty samples after three warm-ups: server first-page p50/p95 changes from
+403.083/547.583 to 445.458/602.500 microseconds; the terminal base walk
+(only 20 rows) is 431.042/570.916, versus the complete 45-row spike walk
+at 1,655.209/1,883.042 microseconds. Shared-host load averages were 36–52;
+these are in-process observations, not controlled throughput claims. The
+base wasm build is 1,601,169 B raw / 441,568 B gzip, already 7,568 B above
+the unchanged 434,000 B budget. The spike is 1,603,020 / 442,202 B, a
+1,851 B raw / 634 B gzip increase, and its build also exits over budget.
+
+The positive 45-word regression is red before and green after. Spike
+measurement tests pass (server 4, native device 2, wasm 1); the existing
+search/continuation tests retain ten enabled-switch assertion failures:
+seven expect the old uniform word cut and three expect an extra examined
+attempt after an already-recorded cut (8,194 rather than 8,193). Their
+base-mode reruns pass; existing tests were not rewritten to conceal the
+changed contract. The corpus is 212 passed, 83 skipped, 0 failed. Lowered
+test-only ceilings confirm opening cuts have no continuation. A heap cut
+unwinds internally with E_BOUND, but the query runner catches it and
+returns null/incomplete/meter/no-next; the design's caller-visible heap
+refusal claim is therefore false. No ceiling, cursor, serialized value,
+corpus case, card, README, page planner, partition or device boundary
+changed. No full test.sh, network, other machine, subagent, commit, push
+or publication was used.
+
+## 2026-09-20 — W14A build: uniform word expansion spends the meter
+
+Implemented revision 2 of `LANE-DESIGN.md` against base
+`bef001a27a81412240ab66776e7746ecb82e24a3`. The compile-time spike switch is
+removed. An admitted, statically uniform scope discovers words under the
+existing meter. An admitted non-uniform scope still retains 32, witnesses
+and discards the 33rd, records `word_cut_at`, and keeps its disclosure
+class. Device trust alone does not make a scope uniform. Discovery/opening
+cuts have no continuation; an established-head drain cut keeps the existing
+continuation. A capped heap unwind still returns null/incomplete/meter/no-next.
+The final-answer veto, cursor version, serialized values, ceilings, existing
+corpus cases, pages/partition and device boundary implementations are unchanged.
+The rule's single new reference is LLP 3000.007 §20.24.
+
+Allocation accounting is cumulative interpreter work, not live RSS. Let
+`A(n) = 0` for zero bytes, otherwise `max(n, sizeof(usize))`,
+`V<T>(n) = A(n * sizeof(T))`, and `B(value)` count owned String/Id/Bytes
+bodies and recursive Array slots/bodies; Row/Map/asset clones share an Arc.
+Vector/heap growth explicitly uses `reserve_exact`, starts at one slot,
+doubles capacity, and charges the full replacement `V<T>(new_capacity)`
+before growing. This avoids Vec's implicit four-slot minimum for large
+inline scans. Generated scans are boxed once; ordinary scans are borrowed.
+All formulas below run before their corresponding interpreter allocation
+or retention grows. Existing bounded store fetch temporaries stay at the
+Rows boundary; they are not accumulated as discovered descriptors.
+
+| Allocation site | Charge before allocation/retention |
+| --- | --- |
+| Scope input / WordRead fields | `V<Value>(scope length) + V<String>(field count) + sum A(field.len)`; expression evaluation retains its existing charge |
+| Query and row tokenization | ASCII fold `A(input.len)`; non-ASCII NFC/lowercase/wasm bridge scratch `48*A(input.len)`; each unique retained token `A(UTF-8 len)` plus geometric String-vector growth; duplicate/truncated tokens compare borrowed slices first |
+| Discovery prefix bound | `A(first term.len)` |
+| Discovery key decoding | `2*V<Value>(index components + 1) + 2*A(encoded key.len)` before decoding |
+| Discovered word and next seek | `2*A(word.len) + V<Value>(1)` plus geometric retained-word-vector growth |
+| Generated merge / lane IR | Exact `V<MergeLane>(word count) + A(site.len)`; each lane pays the complete recursive scan tail, exact prefix-expression slots and cloned scope bodies; the original prefix is replaced without cloning and discarding it |
+| Arbitrary IR clones | All Expr/Stmt/Read/Scan/Merge/LoopDomain variants, boxes, vectors, object fields, names, literal bodies and after/before/range/filter expressions; B-tree object fields use the node bound below |
+| Cursor suffix / decoding | Exact suffix slots with room for an appended id, copied names and recursive column-type bodies; `8*A(token.len)` for each validation/decode group, including initial merge validation |
+| Generated lane opening | One Steps unit before admission; boxed direct-source iterator; generated Scan box; exact evaluated prefix slots; bounds/WordRead owned bodies; geometric retained-descriptor-vector growth |
+| Prepared scan / scan cursor | Prefix slot/body clones and all owned bounds; bounds again for the working cursor; singleton positional bounds pay `V<Value>(1)` |
+| Row scan decoding / buffers | Same key-decoder scratch as discovery; `A(key.len)` before each raw-key copy; retained row `row.heap_bytes()` plus exact/geometric row/key-vector allocations before retention; Vec-to-VecDeque transfers the buffer |
+| Heap heads / refill keys | Geometric `MergeHead` storage; exact suffix Value slots and copied column/id bodies before each head/refill key |
+| Dedup / output drain | Each pop pays `11*sizeof((String,())) + 12*sizeof(usize) + 32 + A(id.len)` (one conservative full internal B-tree node, including duplicate attempts); emitted last-key clones pay Value slots/bodies, and output rows pay geometric vector growth |
+
+The range/list `charge_lane` path and its existing descriptor formula are
+unchanged. A conservative first attempt used large inline Scan descriptors
+and per-column token vectors; it exhausted heap in existing dense controls.
+Boxing owned descriptors, borrowing ordinary ones, and tokenizing into one
+metered vector eliminated those unnecessary allocations. Unicode, token
+truncation, multi-column dedup and the 512-token ceiling match the index
+tokenizer in direct positive tests. A nested, untaken 1,000,000-byte cursor
+IR expression now reaches the heap cut before any head opens; the small
+8-byte expression remains a positive continuation case.
+
+First-page counters below are identical on server SQLite, device SQLite
+and device Memory except rule probes (server 1, devices 0). E=examined,
+I=index entries, P=rule probes, S=steps, H=heap bytes, O=output bytes,
+W=rows written. All head pages are complete with null cut; `next` is absent
+at 0/1 and present at every other listed size.
+
+| Words | E | I | P server/device | S | H | O | W |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 0 | 0 | 1 | 1 / 0 | 5 | 120 | 12 | 0 |
+| 1 | 1 | 2 | 1 / 0 | 12 | 4,913 | 109 | 0 |
+| 31 | 31 | 32 | 1 / 0 | 182 | 153,463 | 1,991 | 0 |
+| 32 | 32 | 33 | 1 / 0 | 187 | 156,691 | 1,991 | 0 |
+| 33 | 33 | 34 | 1 / 0 | 192 | 189,103 | 1,991 | 0 |
+| 45 | 45 | 46 | 1 / 0 | 252 | 227,839 | 1,991 | 0 |
+| 200 | 200 | 201 | 1 / 0 | 1,027 | 904,103 | 2,031 | 0 |
+| 1,000 | 1,000 | 1,001 | 1 / 0 | 5,027 | 4,193,319 | 2,031 | 0 |
+
+Base first-page H at 0/1/31/32/33/45/200/1,000 was
+8/408/8,096/8,104/8,104/8,104/8,144/8,144 bytes; base S was
+5/11/151/155/155/155/155/155. E/I was 0/1, 1/2, 31/32, then
+32/33 for every larger size. O/W/P were the same as the head table.
+Base 33+ pages were incomplete with a words cut and no next. The unchanged
+non-uniform server control has E=32, I=33, P=33, S=134, H=8,104,
+O=1,991, W=0: 20 rows, incomplete, private word cut, public null cut,
+no next. Both device stores retain E=32/I=33 and the public words cut.
+
+The 45-word walk is 20/20/5, newest first with exact ids, no duplicates or
+gaps and a cursor on both full pages. The 200/1,000 walks take 10/50 pages.
+Server and both actual device stores run ordinary unconditional tests;
+wasm runs compiled-program/authorized-snapshot golden fixtures checked by
+Rust and 14 ordinary JS tests. The spike's env-controlled behavior and
+ignored regression are gone; only optional measurement/fixture-update
+controls remain. Index allowance 32 yields 0 rows, I=33, false/meter/no-next;
+examined allowance 10 yields 10 rows, E=45, false/meter/no-next; heap
+allowance 10,000 yields null, H=10,020, I=18, E=0, false/meter/no-next.
+Wasm spends the other budget in an ordinary IR prelude because its existing
+production boundary has no ceiling override; defaults and boundary stay intact.
+
+The denied-scope 9,000-row pair, including the denied-first explicit merge,
+has six byte-identical complete-walk replies on server and both devices/wasm.
+The expired-word pair has six byte-identical replies on every host, including
+cursor presence. The original `search_merge/round3.q` admitted-non-uniform
+pair is retained on the server. For device/wasm it is adapted to an admitted
+unscoped non-uniform read over actual authorized snapshots: seven whole
+replies including that control are byte-identical with/without hidden
+server rows. The original Round3 schema is not synced; injecting its hidden
+server rows into a device would not represent an authorized acquisition.
+That is the §6 fixture adaptation, not a change to disclosure.
+
+Explicit reconciliation of design §8: the overflow control and its two
+device twins now positively include words beyond 32 and the later scope;
+C2d and its two device twins now continue the uniform page, with a row-rule
+non-uniform twin retaining the cut; the wide-scope control now continues
+with a non-uniform twin. These are the seven superseded word-cut controls.
+The three grouped assertions change E=8,194 to E=8,193 (whole walk
+9,100 to 9,099): already capped generated descriptors are no longer opened.
+No control was deleted. The full suite found further superseded expectations
+outside that ten-assertion census: read-cut disclosure sweeps on three hosts,
+the server calibration, device wire cuts, component coverage on both stores,
+and six client seam cases. They now pair uniform positives with non-uniform
+controls; the operator `why` text assertion also tracks the new bound.
+These additional test-only edits are the §8 scope extension.
+
+45-word latency, microseconds, 60 samples after 3 warm-ups per measurement:
+
+| Host / work | Base p50 | Base p95 | Head p50 | Head p95 |
+| --- | --- | --- | --- | --- |
+| Server SQLite first page | 193.375 | 308.791 | 341.250 | 350.084 |
+| Server SQLite whole walk | 190.625 | 277.375 | 1,369.458 | 1,443.792 |
+| Device SQLite first page | 233.333 | 383.250 | 401.959 | 533.708 |
+| Device SQLite whole walk | 242.500 | 388.500 | 1,546.125 | 1,835.375 |
+
+A head whole walk is three requests; the base stopped after one incomplete
+request. Whole-walk samples therefore use 180 measured head requests versus
+60 base requests. These were sequential in-process observations on a loaded
+shared machine, not a controlled throughput comparison. The blocking suite
+observed load 115.61/18 CPUs on its first run and 38.46/18 on its final run.
+The final wasm is 1,614,300 B raw / 446,774 B gzip versus verified base
+1,601,169 / 441,568: this lane adds 13,131 raw / 5,206 gzip bytes.
+The unchanged 434,000-byte gzip budget was already exceeded by 7,568 bytes
+on the base; final excess is 12,774. No budget edit was made.
+
+The server's positive 45-word regression was red on the base:
+`test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 246 filtered out; finished in 0.01s`.
+The promoted wasm 45-word test against the retained base wasm likewise
+reported `tests 1`, `pass 0`, `fail 1`; final wasm reports `tests 14`,
+`pass 14`, `fail 0`. Both native device base measurements stopped at one
+20-row page; their head tests walk all three pages.
+
+Final targeted commands and verbatim result lines follow. Cargo ran from
+`snapback4/` with `CARGO_NET_OFFLINE=true`; every Node/Bun invocation used
+`export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH`. The baseline
+red command was `cargo test -p snapback4-sim --test clique
+w14a_spike::w14a_45_word_regression -- --ignored --nocapture`. Latency runs
+used `WORD_EXPANSION_MEASURE=1 cargo test -p snapback4-sim --test clique
+uniform_word_expansion:: -- --nocapture --test-threads=1` and the analogous
+`-p snapback4-device --test device` command (6/0 and 4/0 respectively).
+
+```text
+cargo test -p snapback4-sim --test clique search
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 224 filtered out; finished in 47.47s
+cargo test -p snapback4-sim --test search_merge
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+cargo test -p snapback4-sim --test clique merge_continuation
+test result: ok. 70 passed; 0 failed; 0 ignored; 0 measured; 179 filtered out; finished in 9.88s
+cargo test -p snapback4-device --test device search
+test result: ok. 66 passed; 0 failed; 0 ignored; 0 measured; 360 filtered out; finished in 150.27s
+cargo test -p snapback4-device --test device merge_continuation
+test result: ok. 140 passed; 0 failed; 0 ignored; 0 measured; 286 filtered out; finished in 5.75s
+cargo test -p snapback4-core --test corpus
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.25s
+cargo test -p snapback4-lang --test guide
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+cargo test -p snapback4 --bin snapback4
+test result: ok. 93 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.59s
+cargo test -p snapback4-core --test word_heap
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+cargo test -p snapback4-sim --test clique uniform_word_expansion::
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 243 filtered out; finished in 1.30s
+cargo test -p snapback4-device --test device uniform_word_expansion::
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 422 filtered out; finished in 1.98s
+cargo test -p snapback4-sim --test clique read_cut
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 245 filtered out; finished in 2.47s
+cargo test -p snapback4-device --test device read_cut
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 420 filtered out; finished in 0.90s
+cargo test -p snapback4-device --test components
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+cargo test -p snapback4 --test check
+test result: ok. 67 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.65s
+cargo test -p snapback4-sim --test clique search_45_words_walks_20_20_5 -- --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 248 filtered out; finished in 0.02s
+node --test packages/snapback4/test/word-expansion.test.mjs
+ℹ tests 14
+ℹ pass 14
+ℹ fail 0
+ℹ skipped 0
+node --test --test-name-pattern='remembered uniform continuation|uniform words continue while' packages/snapback4/test/client-seams.test.mjs
+ℹ tests 6
+ℹ pass 6
+ℹ fail 0
+```
+
+There are no new E_/N_ diagnostics or cards. Exact changed operator literals:
+
+```text
+Before: words (32 first-term words per scope)
+After:  words (32 first-term words per admitted non-uniform scope)
+Before: ; each matching scope merges at most 32 first-term words, further terms filter; past 32 words a lane is incomplete (word_cut_at names it), later lanes continue; meter ceilings remain query-wide
+After:  ; uniform matching scopes expand first-term words under the meter; admitted non-uniform scopes keep at most 32 (word_cut_at names a cut), later lanes continue; further terms filter; discovery/opening meter cuts have no next, drain cuts continue with next; heap exhaustion clears data to null; meter ceilings remain query-wide
+```
+
+The required root command `bash snapback4/scripts/test.sh` ran twice. The
+first development run ended `== 3 failure(s) in 1527 s` (wasm build,
+cargo test, client tests); its client summary was 972 tests, 910 passed,
+59 failed, 0 cancelled, 3 skipped. It exposed the additional superseded
+controls above and a transient fixture-build compile error while the
+cursor accounting edit was in progress; those were repaired and rerun.
+The final run, after those repairs, reports verbatim:
+
+```text
+-- FAIL: wasm build (3 s)
+-- FAIL: cargo test (625 s)
+ℹ tests 972
+ℹ pass 964
+ℹ fail 4
+ℹ cancelled 1
+ℹ skipped 3
+-- FAIL: client tests (748 s)
+== 3 failure(s) in 784 s
+   wasm build
+   cargo test
+   client tests
+```
+
+The final Rust failures are lifecycle's abort probe (19 passed, 1 failed;
+probe did not reach main in 30 seconds) and witness (8 passed, 12 failed;
+`E_WITNESS_TIMEOUT: xcrun simctl list devices booted --json timed out`).
+The lifecycle case passed alone; the witness case did not. No base-verified
+pre-existing claim is made for witness or lifecycle. Final client failures
+are the documented Chromium SIGABRT and three codec-census assertions;
+one streaming-poll case was cancelled at its 5-second timeout and passes
+alone. All maximum-pending-id transport cases passed this final run.
+
+The codec failures are verified against the exact base commit above:
+`node --test /private/tmp/w14a-base-census.test.mjs` runs that commit's
+auditor and tests with source supplied directly by `git show` into the
+same source map (no checkout or production-file mutation). It and
+`node --test packages/snapback4/test/wasm-codec-census.test.mjs` both
+report 26 tests, 23 passed, 3 failed. The six census findings are the
+three `partition.rs` stream exceptions and their unconsumed allowlist
+entries. That file is explicitly out of lane scope and was not changed.
+The wasm budget overrun is the other base-verified failure (441,568 gzip
+on `bef001a27a81412240ab66776e7746ecb82e24a3`).
+
+Isolated commands and verbatim result lines:
+
+```text
+node --test --test-name-pattern='a streaming poll rechecks a revoked bearer' packages/snapback4/test/transport-http.test.mjs
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+cargo test -p snapback4 --test lifecycle abort_profile_reports_an_off_thread_panic_to_redirected_stderr -- --exact
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 5.10s
+cargo test -p snapback4 --test witness
+test result: FAILED. 8 passed; 12 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.88s
+cargo test -p snapback4 --test witness driver::cli_cold_start_and_relaunch_capture_real_backend_refusal_and_bound_artifacts -- --exact
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 19 filtered out; finished in 5.77s
+node --test --test-name-pattern='stalled exit body recovers in order' packages/snapback4/test/web-navigation.test.mjs
+ℹ tests 2
+ℹ pass 2
+ℹ fail 0
+node --test --test-name-pattern='lost effect lease on the wire reports running' packages/snapback4/test/worker.test.mjs
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+node --test --test-name-pattern='wasm review same-commit renew horizon=false split=false retained=false' packages/snapback4/test/horizon-boundary.test.mjs
+ℹ tests 1
+ℹ pass 1
+ℹ fail 0
+```
+
+The extra files beyond the named brief are test-only reconciliations
+(`read_cut`, `components`, `client-seams`, CLI/guide text assertions), the
+reads-card and NOT-DOING bound qualifiers, and the missing §20.24 anchor
+in the governing RFC. One initial cargo selection was accidentally issued
+from the repository root and failed before compiling; subsequent commands
+used the Snapback 4 workspace. The full suite remains red for the reasons
+above; there is no claim that it passes. No commit, push, tag, publication,
+subagent or other machine was used. `git diff --check` is clean; the final
+root `./ref-check --verbose` reports zero errors and zero unchecked refs.
+
+## 2026-09-19 — W14A-BUILD-R1: allocation ledger and disclosure corrections
+
+Continued W14a from `99fdcb6c6a470965f5bc6a0fafa4cf5f8b367647`, the R0/spike
+squash rebased onto main `6bc2520963`. This round implements REV3 A–H under
+LLP 3000.007 §20.24.1. Nothing was committed, pushed, tagged or published.
+
+Uniform word lanes now borrow their compiled scan/expression trees and share
+one scope's remaining terms. Bounds still evaluate per lane, while cursor
+validation shares one decoded image. Query tokenization stops at eight terms
+at the source. All new interpreter containers grow through prepaid exact
+capacities; dedup uses an explicit B-tree root/split bound instead of 80 bytes
+per insertion. Cursor construction reserves the largest emitted key, including
+a returned-shape rewind, and the later trim-position map is prepaid too.
+
+A finite schema-max-row multiplier cannot cover unbounded IDs/principals.
+The narrow Rows store exception therefore charges before owning fetched
+images: SQLite first queries byte lengths to reserve native column payload
+scratch, then borrows JSON and prices its typed decoder before decoding.
+Memory shares row images and prepays result/key copies. Store wrappers forward
+the metered method. The optional PostgreSQL adapter preflights lengths in the
+existing transaction; it compiled with the feature enabled, but no PostgreSQL
+server was used. Existing general expression/rule-probe accounting and the
+admitted non-uniform eager traversal retain their prior contracts.
+
+The resource ledger is below. These are cumulative allowances, not RSS;
+observed heap totals are not the proof of the bound.
+
+Allocation ledger for uniform, meter-bounded word expansion (LLP 3000.007 §20.24).
+Charges accumulate allocations, not live RSS. A failed allowance precedes the
+indicated growth. Existing general expression evaluation and rule-probe engines
+retain their own accounting; this ledger prices the expansion's added storage.
+
+Notation: A(n)=0 for n=0, otherwise max(n,sizeof(usize)); S<T>(n)=A(n*sizeof(T));
+V(v)=S<Value>(len)+owned String/Id/Bytes/Array payload recursively (Arc images 0);
+B(b)=V(each vector bound)+owned scalar/word payload. G<T> charges S<T>(max(1,2c))
+on replacement of capacity c; ordinary collect growth uses vec_growth<T>.
+N<K,V>=11*sizeof(K)+11*sizeof(V)+12*sizeof(usize)+32; insertion at n entries
+reserves N*(floor(log2(n+1))+2), one possible split per level and a new root.
+R(prefix,bounds)=range(), including key escaping and replacement capacities.
+J(json)=stored_row(), an allocation-free count of quoted bytes, typed map roots,
+fields, arrays and commas; its formula is implemented in word_heap.rs and tested against allocs.
+For JSON length L, typed Row/Map roots O, actual fields F, arrays Q and unquoted
+commas C: J=4*A(L)+(O+(F>11 ? 2*floor(F/5) : 0))*N<String,Value>
++(Q=0 ? 0 : 4*S<Value>(4*Q+C))+2*O*S<usize>(1). Cursor construction reserves
+2*(S<CursorColumn>(index arity+1)+descriptor+key+8*(256+8*(names+descriptor+key))).
+
+| Site / allocation | Class | Formula | Charge point before growth |
+|---|---|---|---|
+| Initial field names and scope slots | retained interpreter storage | strings(fields)+S<Value>(scope arity) | discover_words, before to_vec/with_capacity |
+| Query normalization/lowercase scratch | bounded store scratch | ASCII A(input bytes); Unicode 48*A(bytes) | tokenize_limit, before fold (also wasm UTF-16 bridge) |
+| Query tokens and token vector | retained interpreter storage | A(token bytes)+G<String>, maximum 8 at source | tokenize_limit, before to_owned/reserve_exact |
+| Temporary bound singleton vectors | retained interpreter storage | S<Value>(1); evaluated operands use expr accounting | word_bounds, before vec! |
+| Cursor validation and cached input | retained interpreter storage | 256*A(token bytes)+A(token bytes), once per distinct token | validate_word_cursor, before decode/reencode/to_owned |
+| Cursor suffix names/types/slots | retained interpreter storage | S<CursorColumn>(remaining+id)+names+recursive column payload | suffix, before with_capacity/clone |
+| Evaluated cursor bound copies | retained interpreter storage | V(position.values) per lane | word_bounds, before clone |
+| Read-table and dependency sets | retained interpreter storage | A(name)+insertion<String,()> only on first insertion | word_note_table, before owned name/insert; dependency traversal borrows rules |
+| Visibility and compiled Scan/Expr trees | shared images | 0; borrowed traversal, including eight 4 KiB literals | scan_visibility and merge_lazy never clone per generated lane |
+| Scope verdict temporary prefix row/terms | bounded store scratch | verdict(): collect slots+map nodes+names+owned terms+Arc header | discover_words, before prefix_verdict |
+| Device coverage diagnostic | retained interpreter storage | 256*(192+V(scope)+A(table)+A(index)+A(site)) | discover_words, before unknown_fact/horizon_coverage |
+| Initial discovery bounds.word | retained interpreter storage | A(first term) | discover_words, before clone |
+| Store encoded bounds/range endpoints | bounded store scratch | R(prefix,bounds)+copied table/index names | scan_metered, before scan_range and range lookup |
+| SQLite native column payload scratch | bounded store scratch | 2*SUM(JSON/key byte lengths)+64*entry count in the same transaction | scalar length preflight, then charge before payload-bearing SQL query; database pages/cached VM are shared images |
+| SQLite fetched typed row and key | bounded store scratch | J(borrowed JSON)+A(key bytes)+G<(Value,Vec<u8>)> for each fetched entry | scan_metered, before serde decode/key.to_vec/result reserve |
+| Memory fetched key and result slots | bounded store scratch | owned value payload+A(key bytes)+G<(Value,Vec<u8>)> | memory_result, before cloning or reserving |
+| Memory row maps; compiled schema/program; SQLite database/cache | shared images | 0 per Arc/borrow; storage engine's existing pages/cache are not interpreter heap | store borrowing; no row-body clone per lane |
+| PostgreSQL optional adapter batch | bounded store scratch | 2*R+4096 preflight; 256*SUM(serialized row/key bytes)+vec_growth<(Value,Vec<u8>)>(limit) | scalar preflight then allowance before owning scan result, in same snapshot |
+| Every decoded discovery/refill key component | bounded store scratch | 4*S<Value>(max(components,4))+4*A(max(key bytes,8)) | key_decode allowance before key::decode |
+| Retained discovered words and after vector | retained interpreter storage | decoded word already paid; 2*A(word)+S<Value>(1)+G<String> | discover_words, before after clone/vector growth |
+| Shared fields/remaining terms | retained interpreter storage | S<WordRead>(1)+2*S<usize>(1), payload moved from discovery | merge_lazy, before Rc::new; every lane clones only Rc |
+| Lane source iterator | retained interpreter storage | S<Once<Value>>(1) | merge_lazy, before boxed source iterator; no generated scans Vec |
+| Per-word evaluated prefix and descriptor | retained interpreter storage | S<Value>(scope+1)+owned scope payload+G<PreparedLane> | merge_lazy, before prefix allocation and descriptor push |
+| Range/list descriptor admission | retained interpreter storage | vec_growth<Value>(prefix arity)+G<PreparedLane>; bound copies use the same helpers | merge_lazy, before prefix collection and descriptor push; charge_lane charges only its step |
+| Opening/refill prefix and bounds clones | bounded store scratch | V(prefix)+B(bounds), then B(bounds) for scan cursor | word_scan_prepared and scan_prepared, before each clone |
+| Every opening/refill fetched batch | bounded store scratch | sum of per-entry store formula, including rejected rows/discarded keys | scan_metered, before each image/key allocation; no post-fetch buffer allowance |
+| Optional/default fields or pending-field removal | retained interpreter storage | materialize/object_copy: nodes+owned fields+Arc header+missing-field insertion bounds | before optional materialization / stripping pending |
+| Candidate text references | shared images | 0, borrowed iterator (no Vec) | scan_prepared; no tokenizer at all with no remaining terms |
+| Complete candidate tokenization | bounded store scratch | same fold/token/G<String> formula, at most 512 retained tokens | tokenize, before folding/copying/growth |
+| Filter environment slot | retained interpreter storage | A("$filter")+insertion<String,Value>(env.len) | scan_prepared, before env.insert; row image shared |
+| last_rule_visible and returned raw keys | retained interpreter storage | A(key bytes) each; G<Vec<u8>> for result | scan_prepared, before key clone/vector growth |
+| Visible-row and drain-page vectors | retained interpreter storage | G<Value> at each replacement | push, before reserve_exact; row image moved/shared |
+| Vec to VecDeque buffer transfer | shared images | 0 additional allocation | transfer consumes the existing Vec, never charged twice |
+| Merge head key and heap capacity | retained interpreter storage | S<Value>(suffix)+owned component/id payload; G<MergeHead> | charge_word_key and grow, before key construction/heap growth |
+| Dedup IDs and B-tree splits | retained interpreter storage | A(id)+insertion<String,()>(seen.len) | merge_lazy, before to_owned/insert |
+| Emitted position and moving winning head | retained interpreter storage | V(head.key) for copied last; moving head.key into after is 0 | merge_lazy, before last.clone |
+| Repeated meter site strings | retained interpreter storage | A(site) each | before meter.at in admission, opening/refill and filter restoration |
+| Shape-cursor map | retained interpreter storage | A(site)+insertion<String,String>; token moved | word_shape_cursor, before record_shape_cursor |
+| Page record names/map/position | retained interpreter storage | insertion<String,PagePosition>+3*(A(site)+A(table)+A(index))+2*V(last) | merge_lazy, before record_page |
+| Returned shape-position collection | retained interpreter storage | vec_growth<Vec<Value>>(rows)+sum(vec_growth<Value>(suffix)+owned key payload) | merge_lazy, before record_page; generic shaping charge is additional conservative accounting |
+| Later returned-shape trim map | retained interpreter storage | sum(A(shape site)+max emitted key bytes+insertion<String,ShapePosition>) over possible shape sites | merge_lazy, before any later trim_shape inserts/clones a position |
+| Output cursor construction | bounded store scratch | cursor_build(): 2 descriptors/keys plus JSON/base64 allowance, maximum emitted key (including shape rewind) | merge_lazy, before record_page/raw/final encoding |
+
+Unbounded Id/Principal/Ref payloads make a finite schema-max-row multiplier
+impossible. The store exception is narrow: inspect borrowed stored bytes, charge,
+then materialize; an exhausted heap never starts the decode/copy. SQLite borrows
+its JSON text instead of first allocating a String. PostgreSQL preflights byte
+lengths in its existing repeatable-read/serializable transaction. The measured
+heap column describes these allowances; this ledger, not observations, is the bound.
+
+
+The allocator probe measured a maximum 1,408 B B-tree allocation over 4,096
+inserts; the stated bound at insert 4,095 is 5,488 B, with ID payload prepaid.
+The explicit-capacity probe crosses 1/2/4/8/16/32 to capacity 64 at element 33.
+The 1,000-word fixture with eight 4 KiB dead literals retains one 32,768 B
+compiled image, copies 0 IR bytes per lane, charges 9,244,581 heap B on the
+first page, and returns all 1,000 IDs in 50 pages. Every continuation prepays
+its decode/re-encode allowance; multiplying it by 1,000 would exceed 16 MiB,
+so the successful walk also exercises the shared cursor cache. The 4,014-byte
+row-body fixture returns 20 rows and `next`; at 10,000 heap B it clears to
+null during discovery with 0 examined. A separate 4,000-byte SQLite payload
+probe observes 0 additional payload-query executions after a failed 500-byte
+allowance, then 1 successful execution with headroom.
+
+Disclosure is host-specific. Denied scopes with 0/9,000 hidden rows produce
+identical production replies on server, both devices and wasm. Expired-word
+sub-pair (i) has ample headroom and identical full replies, cursor bytes and
+nextExpiry included. In sub-pair (ii), no expired-only word completes discovery
+in 46 seeks; adding the unswept expired word attempts seek 47 at the 46-entry
+ceiling, returning an empty incomplete meter-cut page without next. This is
+the existing time-hidden existence bit of metered expired work. Devices
+acquire at time 0, query at 100,000 without sweeping/resyncing; wasm spends the
+preceding index budget in IR because its production boundary has no ceiling
+setter. The admitted membership-and-author pair admits Alice to r1/r2, keeps
+her coffee row in r2 and adds 33 Bob-owned words in r1. Server full envelopes
+are equal (shown row, incomplete, null cut, no next). Hand-inserted online-only
+candidates on both device stores and wasm compare data/completeness/next,
+explicitly excluding cut (null versus words). Legitimate acquisition supplies
+none of those online-only rows and gives equal empty full envelopes. No pair
+claims equality for arbitrary budgets or populations.
+
+The reconciliation preserves positive cases. C2d remains incomplete because
+its auxiliary cursorless last 1 truncates; its uniform owner gains next and
+loses words, while its non-uniform twin asserts private word-cut evidence and
+its exact one-row shape. The grouped walk is 8,193 + 906 = 9,099 examined,
+with an empty cursor-bearing first page and three fully shaped groups on the
+second. Moving the matching membership to the last rule-visible position
+exposed a skipped match; an interrupted existence predicate now retries that
+membership inclusively (8,193 + 815 = 9,008). General counting predicates retain
+their old forward-progress behavior. The first-witness controls still witness
+at exactly 8,192 and attempt 8,193 only for the next outer candidate; 7,000
+cheap misses replace decoded/tokenized misses so these remain read-meter
+controls below the new heap bound. Drain controls similarly preserve 32
+emissions / 4 unique overlapping emissions with a 7,373-point-read prelude.
+The wide opening fixture now asserts heap-null on both stores, plus a small
+positive partial-opening/no-next control. Memory can record examined first and
+then clear the page on heap; capped_at preserves that first reason. Retained
+scope coverage is shared alongside authorization, preventing a word lane from
+reclassifying retained history as unknown. The unchanged ranked-key equality
+now pins 27,472 heap B instead of 36,720, because borrowed IR and exact shared
+range/list descriptor growth replace the old descriptor approximation.
+
+First-page counters on the rebased tree (heap is the charged allowance in bytes,
+not a measured bound). All cells are complete with null cut; pages at 31 words
+and above return 20 rows and `next`, and the 0/1 cases return 0/1 rows with no
+`next`. Server rule probes are 1; device probes are 0. Rows written are 0.
+
+| Words | Examined | Index entries | Steps | Output B | Server SQLite heap B | Device memory heap B | Device SQLite heap B |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 0 | 1 | 6 | 12 | 7,587 | 6,466 | 6,425 |
+| 1 | 1 | 2 | 10 | 109 | 15,511 | 11,513 | 14,349 |
+| 31 | 31 | 32 | 120 | 1,991 | 309,665 | 220,505 | 308,503 |
+| 32 | 32 | 33 | 123 | 1,991 | 315,689 | 223,640 | 314,527 |
+| 33 | 33 | 34 | 126 | 1,991 | 347,313 | 252,375 | 346,151 |
+| 45 | 45 | 46 | 162 | 1,991 | 419,601 | 289,995 | 418,439 |
+| 200 | 200 | 201 | 627 | 2,031 | 1,512,381 | 932,520 | 1,511,219 |
+| 1,000 | 1,000 | 1,001 | 3,027 | 2,031 | 6,987,581 | 4,076,520 | 6,986,419 |
+
+The 45/200/1,000-word walks return all 45/200/1,000 IDs over 3/10/50 pages.
+The latency observation used 60 samples after 3 warm-ups per case, at host load
+17.71/21.65/29.23 then 19.20/21.40/28.78 (1/5/15-minute averages). These are
+in-process engine/device queries in the optimized test profile, not HTTP timings.
+
+| Host | First-page p50 / p95 µs | Whole 45-row walk p50 / p95 µs |
+|---|---:|---:|
+| Server SQLite | 729.167 / 947.708 | 2102.542 / 2646.708 |
+| Device SQLite | 689.416 / 1591.750 | 1784.917 / 8160.416 |
+| Device memory | 173.125 / 306.667 | 646.209 / 1085.875 |
+
+Wasm attribution for the landing: main's supplied base is 441,568 B gzip;
+this head is 450,853 B gzip (1,622,733 B raw), a net +9,285 B. The unchanged
+442,000 B ratchet is red by 8,853 B because the base had 432 B headroom. Raise
+it at landing by rounding the measured head up to the next 1,000 B. The
+bytes buy borrowed uniform lanes plus prepaid word/key/container/dedup/cursor
+storage and the store interfaces. Measured successive build deltas were
++8,562 B for the initial ledger/refactor, +458 B for bounds/cursor/shape/coverage
+allowances and restored per-lane bound evaluation, +39 B for shared descriptor
+admission and existence-specific retry, +33 B for retained-scope propagation,
+and +193 B for the later shape-trim map allowance: +9,285 B total. These are
+build-stage marginal gzip deltas, not independent per-function costs. Native
+SQLite/PostgreSQL preflights contribute 0 wasm bytes. A paired pre-trim build
+measured cursor-field borrowing at 450,660 versus 450,785 B with clones,
+reclaiming 125 B; it is already included in the net delta. Shared formulas and
+eliminated duplicated IR were not assigned invented independent gzip savings.
+`metrics/wasm-budget.json` was not changed.
+
+What I learned: allocating after observing a row's heap_bytes cannot protect
+the allocation that already happened; actual stored byte lengths and borrowed
+compiled images separate the defensible bounds from pessimistic schema maxima.
+Expiry, non-uniform rules, returned shaping and device coverage each have their
+own existing contracts; uniform expansion does not erase any of them. Heap
+exhaustion clears a drain page even if a read-meter cut happened first.
+
+Verification: all required targeted suites passed, including 7 allocation-ledger
+tests, 48 guide tests, 17 wasm word-expansion tests and 50 client-seam tests.
+The final full `bash snapback4/scripts/test.sh` run reported
+`== 3 failure(s) in 920 s`: this lane's expected wasm ratchet overage, witness
+driver failures (`15 passed; 5 failed`) and the Chromium SIGABRT (`971 passed;
+1 failed; 3 skipped` client tests). Lifecycle passed all 20. Witness reruns
+reported 18/2 and, with one test thread, 16/4; simctl startup timeouts persist
+under load and are unresolved here. I did not verify witness on the untouched
+base and do not call those failures pre-existing. Chromium SIGABRT was verified
+on the untouched base above; the codec census was 26/0 there, so its anticipated
+three failures were not reproduced. The earlier store-reset timing failure
+passed alone (1/0), and passed in the final full run.
+
+## 2026-09-19 — W14A-FIX: implementation-review corrections
+
+Implemented the GPT 1–6 and Grok text/accounting findings against
+`518bf6b6733b21e807cdaa78bffee8b90c119bf3`, following the lead's rulings. No
+commits, publication, ceiling, cursor-version or budget changes. The earlier
+entry's ratchet sentence now states the requested rule: the landing rounds the
+measured head up to the next 1,000 bytes.
+
+SQLite's size preflight now uses direct `octet_length(r.data)`. The regression
+inspects EXPLAIN for the actual cached preflight on bundled SQLite 3.53.2:
+JSON Column P5 was 0 with `length(CAST(... AS BLOB))`, and is now 192 (0xc0,
+BYTELENARG). The direct BLOB key length retains P5 64 (0x40, LENGTHARG).
+The 4,000-byte payload / 500-byte heap probe still executes no payload fetch
+after refusal, and the positive allowance still fetches the row. Its new
+preflight assertion was red 0/1 and green 1/0; all seven ledger tests pass.
+
+`discover_words` computes the retained verdict once before discovery, outside
+both the horizon and non-existence branches. Relevant uniform scope scratch
+is prepaid before that lookup; every generated lane shares `word.retained`.
+Four legitimate native acquire/leave cases were red 0/4 and green 4/0, covering
+horizon-free matching and positive existence on both stores. Four client cases
+were also red 0/4 and green 4/0 on wasm/process devices. Their mixed records
+retain the left group's 25 delivered matches (or positive existence) while the
+right component consults the server for 26 rows beyond its 25-row horizon.
+Native horizon-free fixtures retain 45 matches.
+
+The inclusive interrupted-existence retry remains. If it interrupts the same
+membership at the same inclusive input position again with nothing emitted,
+it returns an empty incomplete meter-cut page with no continuation. The
+unshaped plain-prefix regression has 8,193 unswept expired rows in the first
+public room and a live row in the second: page one is empty with next; page
+two is empty without next, both at 8,193 examined. A live positive twin returns
+both rooms. The regression was red on server and both stores, then green;
+LLP 3000.007 §20.24.1 and the grouped search card record the rule. The
+final-answer continuation veto remains untouched.
+
+Ordinary range/list lanes again pay the previous descriptor allowance. The
+W15c heap pin is restored from 27,472 to 36,720 bytes, with a comment explaining
+that this lever must not change non-word cost. Its red 0/1 became green 1/0;
+the word ledger retains its exact formula and explicitly excludes range/list
+accounting.
+
+The native expired boundary now acquires through the device at time 0 and
+observes through query/call wrappers at 100,000, without sweeping or resyncing.
+A 16,338-seek empty prelude leaves 46 of the production 16,384 entries; the two
+worlds consume 46/47 additional seeks (16,384/16,385 total), with the original
+population and full-envelope comparison. Moving the old manually populated
+fixture to device observation was red 0/2 with E_PREDICT; legitimate acquisition
+is green 2/0. This corrects the previous entry's claim that this sub-pair already
+acquired through the device.
+
+The execution-control decision is (a): uniform direct matching is always lazy,
+because the merge position appends id when the suffix lacks it. The eager
+controls now use admitted membership-and-author rules, with an explicit
+compiled-visibility assertion; both use the suffix without id. For 1/2/9 words,
+the witness remains exactly examined 8,192, and only the next outer attempt
+reaches 8,193. The uniform walk takes two requests; the non-uniform eager walk
+retains its terminal empty third request. Combined retry/control tests were
+red 3/2 on server and 6/4 across devices; final results are 5/0 and 10/0.
+
+The compact reads spelling and N_WIDE_MERGE explain meter-bounded uniform
+expansion, the admitted non-uniform 32-word bound, qualified resumable read-meter
+drain cuts and the heap-null exception. The compact/card regression was red
+0/1 and green 1/0. All 49 guide tests and 67 CLI check tests pass; all Quarry
+blocks still compile cleanly and the exact why text stays mirrored. The README
+remains its existing orientation linking these cards.
+
+Corrected inventory rows (the prior report is a preserved lead input):
+
+| Test / file | Actual construction and preserved assertion |
+|---|---|
+| device `read_cut/mod.rs`, `uniform_words_continue_and_nonuniform_cut_reasons_cross_both_device_wires` | Real acquired rows; scoped uniform search is complete with null cut and next; the unscoped `all` query is the non-uniform control and reports words, incomplete, no next. No hand-inserted membership-and-author candidates in this wire test. |
+| shared `uniform_word_expansion/fixture.rs`, `non_uniform_source` | Replaced the body guard with membership plus `.author = viewer`; server suppression/private word evidence and native 32-word controls remain. |
+| shared `common/merge_continuation.rs`, C2d twin | Replaced the body guard with membership-and-author; retains private word-cut evidence, exact one-row shape and the auxiliary cursorless `last 1` loss. |
+| device `components.rs`, `frames` non-uniform twin | Replaced the body guard with membership-and-author and seeded memberships; the uniform positive and private word-cut coverage assertions remain. Actual acquire/leave regressions are separately in `components/retained_words.rs`. |
+| shared `common/prefix_witness.rs`, eager controls | Admitted membership-and-author, asserted non-uniform; the uniform controls remain lazy even without id in the suffix. |
+| `packages/snapback4/test/react.test.mjs`, usePage aggregation | Synthetic replies: earlier words survives aggregation; meter wins in either order; withheld reasons preserve incompleteness. This does not classify an engine scan. |
+| `packages/snapback4/test/client-lifecycle.test.mjs`, W13b fallback boundary: words | Synthetic device answer with words and unknown=false; zero server requests. This does not classify an engine scan. |
+
+The wasm build measures 1,623,401 raw bytes and 451,094 gzip bytes, versus
+1,622,733 / 450,853 at the reviewed base: +668 raw / +241 gzip. The unchanged
+442,000-byte budget is red by 9,094; the current measurement is 94 bytes above
+the earlier 451,000-byte landing plan. No budget file was edited. Required wasm
+word-expansion and client-seam tests pass 17/0 and 50/0. All changed code files
+remain below 1,500 lines (largest: CLI check tests, 1,393).
+
+What I learned: a length expression is not proof of payload-free evaluation;
+the generated Column flags catch an allocation hidden by a cast. Retention
+belongs to the acquired scope independently of its horizon or query's positive
+existence form. Inclusive predicate recovery also needs a same-position
+no-progress rule, and an eager control must establish its actual visibility
+class rather than infer the path from an ordering suffix.
+
+The full blocking run, `bash snapback4/scripts/test.sh`, finished with
+`== 2 failure(s) in 365 s`: wasm budget and client tests. All 801 Rust test
+executions passed (2,162 tests passed, 0 failed, 8 ignored), as did workspace
+doctests; witness and lifecycle each passed 20/0. The main client process
+reported `ℹ tests 947`, `ℹ pass 943`, `ℹ fail 1`, `ℹ skipped 3`; its seven
+acquisition/server shards passed another 34 tests. The only client failure was
+Chromium SIGABRT in react.test.mjs, reproduced alone with 1 test / 0 pass /
+1 fail. There were no mass client timeouts. These are observations on this
+modified tree; this round makes no independently verified base-red claim.
+The full-suite wasm rebuild reported 1,623,401 raw / 451,093 gzip bytes
+(+668 / +240 versus base), one gzip byte below the standalone build. Both
+measurements are preserved rather than silently choosing one. Reference
+validation reports `ref-check: ok — 485 LLP docs, 9139 refs in 24613 files,
+0 errors, 0 unchecked`; `git diff --check` passes. No witness-only rerun was
+needed or performed.
+
+
+## 2026-09-19 — W14A-FIX-2: prepay SQLite's resident preflight scratch
+
+Closed the two remaining recheck findings against
+`760bb0d1ac9d07e0e9a5ab9f946656f53089f794`. The High now reserves
+`2 * page_size` once per read, before the first SQLite length preflight executes.
+Each store connection reads its actual `PRAGMA page_size` once at open, including
+independent and inspection readers; transactions carry that number. The keyed
+meter allowance uses one inline bit, marks admission only after the heap charge
+succeeds, and rolls back with its charge in a meter mark. Its unit test covers
+1,000 repeated reservations, cap and abort, failed admission, fresh reads and
+restoring marks both before and after payment. The actual-length allowance
+before the subsequent payload statement is unchanged. The additional meter
+state compiles only with SQLite. The Low changes the always-lazy comment's
+reference from LLP 3000.007 §18.1 to §20.24.1, without changing traversal.
+
+Correction to the earlier preflight descriptions: the length preflight is not
+payload-free. In the bundled `libsqlite3-sys-0.38.2/sqlite3/sqlite3.c`, SQLite
+3.53.2's `OP_Column` page-resident branch (lines 99667–99693) handles both TEXT
+and BLOB without consulting P5: `szMalloc < len+2` guards `sqlite3VdbeMemGrow`,
+then `memcpy` copies the cell. The following overflow branch (99694–99726)
+consults `OPFLAG_BYTELENARG` / `LENGTHARG` and skips reading those payloads.
+The two resident column registers are bounded by the page size and prepaid once
+per read, not once per row, lane or fetch. The store comment, ledger and
+§20.24.1 now say this. Cached VM/database images remain a separate shared class;
+Rust still borrows the later JSON before decoding it.
+
+The native allocation probe uses the existing Rust counting allocator and a
+forwarding wrapper around SQLite's own malloc/realloc. Its isolated test binary
+disables SQLite lookaside so small column copies are measurable; production
+configuration is unchanged. Native allocation totals include other SQLite
+scratch, so the probe also reports the JSON column's rounded `len+2` allocation,
+statement runs and retained statement bytes. The resident row serializes to
+720 bytes; the overflow row to 4,070 bytes. With a 500-byte allowance before
+the fix, both preflights ran once: resident Rust/native/payload allocation was
+320/1,976/728 bytes; overflow was 320/5,360/0. The regression summary was
+`test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.01s`.
+
+After the fix, both low-budget probes run the preflight zero times, allocate
+104 Rust bytes and zero native/payload bytes, and refuse at a charged 8,297
+bytes (105 for the range plus 8,192 for resident scratch). With that scratch
+admitted, the preflight allocates the same 1,976/728 resident and 5,360/0
+overflow native/payload bytes inside the 8,192-byte allowance; the later
+actual-length refusal still executes zero payload fetches. Ample allowances
+return each row. Resident first-fetch / next-fetch / fresh-read charges are
+13,578 / 5,386 / 13,578 bytes; overflow is 33,678 / 25,486 / 33,678 bytes.
+The page-size regression checks an 8,192-byte-page file through writable,
+independent-reader and read-only opens: every first scan reserves 16,384 bytes,
+and subsequent fetches do not repeat it. Combined SQLite probes pass
+`test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.04s`.
+All nine word-heap tests and all five meter-filtered library tests pass.
+
+Remeasured first-page counters (same 4,096-byte pages): the two SQLite heap
+columns each rise by exactly 8,192 bytes; the memory column and all other
+counters, completeness, cuts, row counts and continuations are unchanged.
+§20.24.1's table is updated in place; this table supersedes the earlier journal
+numbers without editing their entry.
+
+| Words | Examined | Index entries | Steps | Output B | Server SQLite heap B | Device memory heap B | Device SQLite heap B |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 0 | 1 | 6 | 12 | 15,779 | 6,466 | 14,617 |
+| 1 | 1 | 2 | 10 | 109 | 23,703 | 11,513 | 22,541 |
+| 31 | 31 | 32 | 120 | 1,991 | 317,857 | 220,505 | 316,695 |
+| 32 | 32 | 33 | 123 | 1,991 | 323,881 | 223,640 | 322,719 |
+| 33 | 33 | 34 | 126 | 1,991 | 355,505 | 252,375 | 354,343 |
+| 45 | 45 | 46 | 162 | 1,991 | 427,793 | 289,995 | 426,631 |
+| 200 | 200 | 201 | 627 | 2,031 | 1,520,573 | 932,520 | 1,519,411 |
+| 1,000 | 1,000 | 1,001 | 3,027 | 2,031 | 6,995,773 | 4,076,520 | 6,994,611 |
+
+Required targeted suites: core word heap 9/0, meter 5/0, simulator uniform-word
+13/0 and search 29/0, device uniform-word 17/0 and search 74/0, W15c 1/0 (still
+36,720 bytes), guide 49/0 and wasm word-expansion 17/0. The standalone wasm
+build is 1,623,401 raw / 451,093 gzip bytes, or 0 raw / -1 gzip versus the
+supplied 1,623,401 / 451,094 reference. It fails the unchanged 442,000-byte
+budget by 9,093 bytes. The previous entry also observed this one-byte gzip
+variation; this measurement does not claim a wasm optimization.
+
+What I learned: Column P5 proves the overflow optimization, not the absence of
+resident copies. Measuring only Rust allocations misses SQLite's allocator;
+measuring only retained statement bytes misses temporary native scratch.
+A fixed per-read allowance covers the resident registers without multiplying
+an 8 KiB reserve by the number of generated lanes. No diagnostic text or
+published authoring form changed, so the README and guide cards are untouched.
+The sole extra implementation hunk is `store/activation.rs`, passing the cached
+page size into its directly constructed transaction. No ceiling, serialized
+form, cursor version, veto, acquisition boundary, client runtime, corpus case,
+wasm budget, lead-owned lane file, commit, push, tag or publication changed.
+
+The full blocking command `bash snapback4/scripts/test.sh` completed with
+`== 2 failure(s) in 526 s`: wasm build and client tests. All 801 Rust test
+executions passed (2,165 tests passed, 0 failed, 8 ignored), as did workspace
+doctests; lifecycle and witness each passed 20/0. Fixture tests, all typechecks,
+the package build, release guard and docs budget passed. The suite's wasm
+measurement repeats 1,623,401 raw / 451,093 gzip bytes. Client main reported
+`ℹ tests 947`, `ℹ pass 943`, `ℹ fail 1`, `ℹ skipped 3`; seven acquisition/server
+shards passed another 34 tests. Its sole failure was Chromium SIGABRT in
+`packages/snapback4/test/react.test.mjs`. The required isolated rerun,
+`node --test packages/snapback4/test/react.test.mjs`, reproduced SIGABRT with
+`ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`, `ℹ skipped 0`. There were no mass client
+timeouts or lifecycle failures. The brief names this Chromium sandbox artifact;
+this round did not independently rerun it on the untouched base and makes no
+verified pre-existing-failure claim. The lead can rerun outside the sandbox.
+Reference validation is green: `ref-check: ok — 485 LLP docs, 9140 refs in
+24615 files, 0 errors, 0 unchecked`. `git diff --check` is clean; the largest
+changed code file is 1,077 lines, and this journal has exactly one appended
+entry with all earlier bytes preserved.
+
+## 2026-09-20 — W14A-FIX-3: charge each SQLite preflight row before stepping again
+
+Closed the remaining cumulative-allocation finding against
+`cddf0d42d67e474dea6b1589b451e0e0448b0fc7`. The SQLite size preflight now
+streams `octet_length(r.data) + length(i.k)` in the scan's order, with the same
+bounds and limit, and charges each row's `2 * length + 64` before stepping to
+the next row. A refusal resets the statement without another step. The
+once-per-read `2 * page_size` reserve remains, and the subsequent payload
+statement uses the allowances already granted without charging them again.
+The store comment, allocation ledger and LLP 3000.007 §20.24.1 record the
+ordering exception: within one execution the first row's resident copy (one
+page-size buffer per column, two registers) precedes its charge; every later
+row's copy follows the previous row's charge. Across executions the reserve
+prepays the first execution's first copy once per read, while later executions'
+first copies are charged immediately after, bounded by the same constant.
+Nothing else is copied before its allowance; overflow payloads are never read
+by the length preflight.
+
+Verified both bundled SQLite 3.53.2 facts in
+`libsqlite3-sys-0.38.2/sqlite3/sqlite3.c`: the resident `OP_Column` branch tests
+`pDest->szMalloc < len+2` at line 99681 and calls
+`sqlite3VdbeMemGrow(pDest, len+2, 0)` at 99684. With preservation false,
+lines 85764–85765 free the old allocation and allocate the entire new size.
+`sqlite3_reset` calls `sqlite3VdbeReset` at 93694; a still-running VM is halted
+at 91347, `sqlite3VdbeHalt` calls `closeAllCursors` at 91088, and that releases
+the register array at 90597. Lines 89962–89963 free `zMalloc` and zero
+`szMalloc`. Cached statements therefore allocate register buffers afresh on
+each execution. The previous entry's once-per-read reserve bounds the first
+copy, not a whole batch's cumulative allocation.
+
+The regression uses 22 resident rows with body lengths `650 + 8*n` for
+`n = 0..21`, `limit = 22`, a 9,000-byte heap ceiling and disabled lookaside.
+The first attempt exposed host allocator slack: forwarding `xSize` unchanged
+let two buffers cover all 22 lengths (2,752 native bytes, 1,504 payload bytes),
+so it did not exercise every growth. The test-only forwarding allocator now
+keeps an eight-byte size header and reports requested capacity rather than
+platform `malloc_size` slack. Every eight-byte growth reaches `MemGrow`; native
+totals count bytes requested from malloc/realloc, including those headers.
+Production SQLite configuration is unchanged.
+
+Red before the fix: native 19,368 B, payload 17,864 B, Rust 320 B; successfully
+charged 8,297 B plus the 8,192 B ordering allowance gives a 16,489 B bound.
+The native-allocation assertion fails, before checking the attempted charge
+of 46,269 B. `Meter.used` includes the refused attempt, which is not an
+allocation allowance. The isolated regression summary was
+`test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.01s`.
+The brief's 17,952 B sum is corrected by this fixture: serialized JSON is
+720–888 B and the 22 rounded payload requests are 728, 736, …, 896 B, summing
+to 17,864 B. This still exceeds the bound and reproduces the High.
+
+Green after the fix: native 1,768 B, payload 728 B, Rust 272 B, successfully
+charged 8,297 B. The first row attempts 9,855 B, exceeds 9,000 B and refuses;
+no second preflight row or payload fetch is copied. With ample headroom all
+22 rows return in order with their original body lengths: native 38,144 B,
+Rust 35,874 B, charged 137,863 B. The resident/overflow single-row and actual
+page-size probes remain. Repeated fetches now count native allocations too:
+resident first/next/fresh-read native bytes are 3,536/3,536/3,536, and overflow
+14,400/14,400/14,400. The two-fetch native totals are 7,072 and 28,800 B;
+their first/next/fresh-read meter charges remain 13,578/5,386/13,578 and
+33,678/25,486/33,678 B. The tests check per-fetch and cumulative allowances
+and that reset causes fresh payload allocations.
+
+What I learned: a bound on live register capacity is not a bound on cumulative
+allocation, and platform allocator slack can hide the repeated-growth case
+unless the probe controls reported capacity. Admission must happen between
+SQLite steps. No authoring form or diagnostic changes, so the README and guide
+cards are unchanged. No ceiling, serialized form, cursor version, veto,
+acquisition boundary, client runtime, existing corpus case, wasm budget or
+lead-owned lane file changed. No commit, push, tag or publication was made.
+
+The final core word-heap run reports
+`test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s`.
+The isolated increasing-resident regression reports
+`test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.01s`.
+Required targeted suites pass: meter 5/0, simulator uniform-word 13/0 and
+search 29/0, device uniform-word 17/0 and search 74/0, W15c 1/0 (still
+36,720 B), guide 49/0, and wasm word-expansion 17/0. Separate counter runs
+pass 1/0 on the server and 1/0 on both device stores; all 24 host/word cells
+match §20.24.1, including every heap column, so its table is unchanged.
+The standalone wasm build reports 1,623,401 raw / 451,094 gzip bytes,
++1 gzip byte against the supplied 451,093 reference. It fails the unchanged
+442,000-byte budget by 9,094 B; this fix touches only SQLite-enabled runtime
+code and makes no wasm-size improvement claim.
+
+The full blocking command `bash snapback4/scripts/test.sh` reports
+`== 3 failure(s) in 330 s`: wasm build, cargo test and client tests. The wasm
+rebuild repeats 1,623,401 raw / 451,094 gzip B. Rust's 801 executions have one
+failed target: witness reports
+`test result: FAILED. 16 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 43.92s`.
+All four refusals name
+`E_WITNESS_TIMEOUT: xcrun simctl list devices booted --json timed out`.
+Across the Rust summary lines, 2,163 passed, 4 failed and 8 were ignored;
+lifecycle passes 20/0 and workspace doctests pass. Fixture tests pass 9/0,
+all typechecks and builds other than the wasm budget pass, and docs budget
+and release guard pass.
+
+Client main reports `ℹ tests 947`, `ℹ pass 943`, `ℹ fail 1`, `ℹ skipped 3`;
+its seven acquisition/server shards pass another 34 tests. The only client
+failure is Chromium SIGABRT in `packages/snapback4/test/react.test.mjs`.
+The isolated command `node --test packages/snapback4/test/react.test.mjs`
+reproduces SIGABRT with `ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`, `ℹ skipped 0`.
+No mass client timeout or lifecycle failure was observed. The brief identifies
+the Chromium sandbox artifact; this run does not independently establish any
+suite failure on the untouched base and makes no verified pre-existing-red
+claim.
+
+The isolated witness command
+`cargo test -p snapback4 --test witness -- --test-threads=1` reports
+`test result: FAILED. 18 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 57.88s`.
+The invalid-receipt and missing-app cases recover there; the remaining cold-start
+and concurrent-owner cases still time out in the simulator-list command.
+Each remaining case then passes alone with `cargo test -p snapback4 --test witness
+driver::<name> -- --exact`: `cli_cold_start_and_relaunch_capture_real_backend_refusal_and_bound_artifacts`
+reports `test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 7.05s`,
+and `cli_concurrent_runs_into_one_namespace_have_one_owner` reports
+`test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 3.31s`.
+Thus every witness failure has a passing rerun, without changing the driver,
+its deadlines or its fixture. This does not relabel the full suite as green.
+
+Final reference validation reports
+`ref-check: ok — 485 LLP docs, 9140 refs in 24617 files, 0 errors, 0 unchecked`.
+`git diff --check` passes. Changed code files have 899 (`store.rs`), 295
+(the ledger) and 362 (the word-heap tests) lines. Exactly five files changed,
+all in scope; the journal's base bytes are preserved with one appended entry.
+
+
+## 2026-09-20 — W14A-FIX-4: pin SQLite execution storage outside the payload ledger
+
+Base: `ab52240718e7f23b670b676be1d284b82e32f018`. Read both round-4 reviews:
+GPT's remaining High is the cumulative native allocation of repeated empty
+scans; Grok found no remaining payload-preflight defect. This implements the
+lead's scope ruling under the author's sign-off, recorded in LLP 3000.007
+§20.24.1: the ledger prices interpreter allocations and store payload copies
+(row images, keys and resident-payload registers), with the existing preflight
+ordering exception. The storage engine's per-execution statement storage and
+page cache are shared images outside it. Execution storage is transient and
+freed at reset; it is measured and pinned, not charged. Every store scan has
+this exclusion; pricing it only for word reads would make their costs
+incomparable with the engine's other reads. No production executable text or
+charge changes; the ledger and store edits are comments only.
+
+Extended the existing lookaside-disabled native allocator probe to count
+successful allocations, frees and peak live requested capacity, including its
+existing size headers. Realloc conservatively counts the new buffer before
+subtracting the old one. All existing probe assertions remain byte-identical.
+The new test warms both statements, proves the empty range is valid, uses
+`limit = 1`, checks both statement execution counts, and tests one scan and
+1,000 scans sharing one meter. Every scan succeeds with an empty result and
+no cap. After every scan, allocations minus frees is zero.
+
+| Scans | Statement executions | Native allocated B | Native B/scan (mean / max) | Peak live B | Native freed B | End live B | Meter heap B |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 2 | 1,952 | 1,952 / 1,952 | 976 | 1,952 | 0 | 8,297 |
+| 1,000 | 2,000 | 1,952,000 | 1,952 / 1,952 | 976 | 1,952,000 | 0 | 113,192 |
+
+`PIN = 2,048 B` rounds the measured pair of executions, 1,952 B, up to the
+next 1,024 B. Each scan must allocate at most PIN, and the whole measured
+run's peak live must stay at most `2 * PIN = 4,096 B`. The meter remains
+`8,192 + 105 * scans`: the once-per-read reserve plus each scan's range/names.
+The warmed page cache is outside the measurement; these are requested
+capacities, not platform allocator slack or RSS. The result demonstrates why
+cumulative allocation and live storage cannot be interchanged in this scope
+ruling: native allocation grows with scan count while live execution storage
+returns to zero after every reset pair.
+
+Before changing the contract prose, the new measurement ran with the old
+unscoped assertion `native as u64 <= meter.used.heap_bytes + 2 * page_size`.
+It failed at 1,000 scans: 1,952,000 native B exceeds 121,384 B allowed by that
+claim. Command (from `snapback4/`, Node 24 on PATH and `CARGO_NET_OFFLINE=true`):
+`cargo test -p snapback4-core --test word_heap sqlite_empty_scan_statement_storage_is_pinned_and_transient -- --exact --nocapture`.
+Red: `test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.01s`.
+With that rejected assertion removed and the ruled per-scan/peak-live pins
+retained, the same command is green:
+`test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s`.
+This is a counterexample to the old scope claim, not a red-to-green production
+fix: production charges are identical, and the final contract test passes on
+that unchanged behavior.
+
+Targeted commands, all from `snapback4/` with the same environment:
+
+`cargo test -p snapback4-core --test word_heap -- --nocapture`:
+`test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s`.
+
+`cargo test -p snapback4-core --lib meter`:
+`test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 61 filtered out; finished in 0.26s`.
+
+`cargo test -p snapback4-sim --test clique uniform_word`:
+`test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 241 filtered out; finished in 2.03s`.
+
+`cargo test -p snapback4-device --test device uniform_word`:
+`test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 419 filtered out; finished in 1.75s`.
+
+`cargo test -p snapback4-lang --test guide`:
+`test result: ok. 49 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s`.
+
+`bash scripts/build-wasm.sh` reports, both before the first edit at the base
+above and after the changes:
+`wasm 1623401 B raw, 451094 B gzip (budget 442000: OVER by 9094 B — issues/20260913-snapback4-wasm-device-diet.md)`.
+Both commands exit 1. Gzip delta against the brief's 451,094 B is **0 B**;
+the 9,094 B budget overrun is verified at the exact untouched base, and
+`metrics/wasm-budget.json` is unchanged.
+
+From the repository root with the same environment,
+`bash snapback4/scripts/test.sh` reports `== 2 failure(s) in 328 s`:
+wasm build and client tests. Rust completes 801 executions with zero failed
+targets; its Cargo-only summaries total 2,167 passed, 0 failed, 8 ignored
+(2,168 passed including the docs-budget step's separate one-test invocation).
+The lifecycle target passes 20/0 and witness passes 20/0. Workspace doctests,
+docs budget, release guard, package/app builds and all typechecks pass.
+Fixture summary: `ℹ tests 9`, `ℹ pass 9`, `ℹ fail 0`, `ℹ skipped 0`.
+Client main summary: `ℹ tests 947`, `ℹ pass 943`, `ℹ fail 1`, `ℹ skipped 3`;
+the seven acquisition/server shards pass another 34 tests with zero failures.
+The only client failure is Chromium SIGABRT in `react.test.mjs`.
+The isolated rerun, from `snapback4/`,
+`node --test packages/snapback4/test/react.test.mjs`, reports
+`ℹ tests 1`, `ℹ pass 0`, `ℹ fail 1`, `ℹ skipped 0`, again with SIGABRT.
+This matches the sandbox artifact named in the brief; it was not separately
+verified on the untouched base, so only the wasm overrun is claimed as a
+verified pre-existing failure. No lifecycle or client-timeout failure occurred.
+
+No new language form, diagnostic or published authoring surface was introduced,
+so the package README, guide and code registry are unchanged. Exactly five
+files change, all named in the brief; no out-of-scope file was touched. The
+three changed code files are 304, 900 and 432 lines (ledger, store, tests).
+The journal's previous bytes are preserved; no commit, push, tag or publication.
+
+Final reference validation (`./ref-check --verbose` at the root):
+`ref-check: ok — 485 LLP docs, 9141 refs in 24619 files, 0 errors, 0 unchecked`.
+`git diff --check` passes; the existing SQLite probe tests are byte-identical
+from their first test through EOF, and both production source files have
+byte-identical non-comment text against the base.
+
+**2026-09-20 — W14a landed (the lead).** Reviewed at `bcbdf0c122`; Recheck round 5 at bcbdf0c122: READY from both families — GPT with no findings and no objection to the ruling, Grok with one Low (two leftover 'nothing else is copied' sentences) applied at landing. The wasm ratchet rises 442,000 → 452,000 for the lane's +9,526 B gzip (451,094 measured on the integrated tree against main's 441,568), attributed in `metrics/wasm-budget.json` by the lane's build-stage deltas (the ledger and borrowed-lane refactor +8,562; allowances +458; descriptor admission and the existence-predicate retry +39; retained-scope propagation +33; the shape-trim map +193; cursor borrowing −125). LLP 3000.007 §20.24.1 records the rule as built.

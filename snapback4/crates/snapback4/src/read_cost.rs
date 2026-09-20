@@ -19,7 +19,7 @@ impl ReadCuts {
     pub(crate) fn line(&mut self, op: &str, viewer: &str, outcome: &QueryOutcome, now: Instant) -> Option<String> {
         let (kind, site) = match (&outcome.capped_at, &outcome.word_cut_at) {
             (Some((kind, site)), _) => (kind.word(), site),
-            (None, Some(site)) => ("words (32 first-term words per scope)", site),
+            (None, Some(site)) => ("words (32 first-term words per admitted non-uniform scope)", site),
             _ => return None,
         };
         let m = outcome.metered;

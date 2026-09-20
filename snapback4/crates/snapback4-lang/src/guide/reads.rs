@@ -4,7 +4,7 @@ pub const CARD: &str = r##"# Reads
 Every ready `Read` carries `cut: 'meter' | 'words' | null` beside `complete`,
 on the server and either device store. An empty page with `cut: 'meter'`
 means partial: retry narrower, or continue if `next` exists; never "no matches".
-`words` means the first term expanded past 32 words in a scope: narrow that
+`words` means the first term expanded past 32 words in an admitted non-uniform scope: narrow that
 term or use scoped search (guide search). If both limits cut, `meter` wins.
 Device reads and uniform server reads keep precise reasons.
 Non-uniform server reads report `cut: null`: the reason is withheld, with `complete: false` still truthful.
@@ -216,9 +216,13 @@ once before discovery, without materializing the range; lists yield their
 elements in order. Empty domains give an empty complete page, and duplicate
 lanes still return each row once. Lane descriptors are heap-charged and
 iteration and scans remain metered. A non-uniform answer, an opening cut or a
-word-limit cut withholds `next`. A uniform lazy merge cut while draining
-established heads carries `next` after its last emitted row (its last fully computed row when the merge is the query's returned shape expression, §5.6), with
-`complete: false, cut: 'meter'`.
+word-limit cut withholds `next`. A resumable read-meter cut while an owning
+uniform lazy traversal drains established heads can carry `next` after its last
+fully shaped emitted row (§5.6), subject to the final answer's continuation eligibility,
+with `complete: false, cut: 'meter'`. Heap exhaustion clears the whole page to
+`data: null` with no `next`, even during the drain; step exhaustion aborts and
+output exhaustion can refuse after materialisation. A terminal full page need
+not carry `next`; following a cut does not clear `usePage`'s accumulated incompleteness.
 `check --cost` prints `lanes ≤ meter` for an unknown width. Literal bounds,
 the same expression plus literal offsets, and a list's `<=N` bound supply a
 static count; only a static count above 50 emits N_WIDE_MERGE.
@@ -235,8 +239,10 @@ A merge position uses the ordering suffix and appends the row id when that
 suffix does not already end in `id`, so equal ordering values never skip rows.
 An older merge token missing that id is refused; restart the walk. Tokens whose
 suffix already ends in `id` keep their encoding, as do direct-page tokens.
-A uniform lazy merge cut while draining established lane heads carries `next`
-after its last emitted row (its last fully computed row when the merge is the query's returned shape expression, §5.6), with `complete: false, cut: 'meter'`.
+An owning uniform lazy merge with established lane heads can resume a read-meter drain cut
+after its last fully shaped emitted row (§5.6), subject to final-answer eligibility, with `complete: false, cut: 'meter'`.
+Heap exhaustion clears the page to `data: null` even during the drain; step exhaustion aborts and output exhaustion can refuse.
+A terminal full page need not carry `next`, and following a cut retains `usePage`'s accumulated incompleteness.
 An opening cut or word-limit cut has no continuation. A non-uniform answer
 withholds a merge's `next` even when that read ran after the merge.
 `t[prefix, col >= start, col < end]` seeks on the first unpinned index column;
@@ -333,8 +339,10 @@ charged to that chunk's meter. Writes belong inside a chunk.
   `walk` is not a lane domain. Unknown widths print `lanes ≤ meter`; literal
   widths, equal expressions plus literal offsets, and list bounds are static.
   A non-uniform answer, an opening cut or a word-limit cut has no `next`.
-  A uniform lazy merge cut while draining established heads carries `next`
-  after its last emitted row (its last fully computed row when the merge is the query's returned shape expression, LLP 3000.007 §5.6), with `complete: false, cut: 'meter'`.
+  A resumable read-meter cut while an owning uniform lazy merge drains established heads
+  can carry `next` after its last fully shaped emitted row (§5.6), subject to final-answer eligibility, with `complete: false, cut: 'meter'`.
+  Heap exhaustion clears the whole page even during the drain; step exhaustion aborts and output exhaustion can refuse after materialisation.
+  A terminal full page need not carry `next`; following a cut does not clear `usePage`'s accumulated incompleteness.
   Lanes computed from `now` move between pages:
   the cursor remains valid, but newly appearing rows before it are skipped;
   uniform lanes with a non-nullable unique index or an index ending in
@@ -343,7 +351,10 @@ charged to that chunk's meter. Writes belong inside a chunk.
   t[seed] up .parentId depth 8` (a bounded list of rows), `t[scope]
   matching q after c last N by wordsIndex` (word-prefix search; `guide search`), `merge t matching q [after c] last N by wordsIndex:` over scope
   lanes (search across groups; uniform scopes share one heap of discovered
-  word lanes, with one verdict before discovery and at most 32 words per scope),
+  word lanes, with one verdict before discovery and meter-bounded expansion;
+  only an admitted non-uniform scope keeps at most 32 words).
+  A uniform matching scan is always lazy: its merge position appends the row id
+  when the ordering suffix lacks it; admitted non-uniform matching scans stay eager.
   `connected[p]` (open connections; `exists connected[p]` tests;
   `guide presence`). A key may name its columns: `t[a = x, b = y]`.
   If several indexes match a positional key, a single exact-type match wins

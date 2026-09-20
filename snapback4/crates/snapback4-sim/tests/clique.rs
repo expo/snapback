@@ -9,6 +9,7 @@ mod merge_continuation;
 mod trending;
 mod grace_effects;
 mod search_global;
+mod uniform_word_expansion;
 mod read_cut;
 mod digest;
 mod search_directory;

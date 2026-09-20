@@ -22,6 +22,9 @@ fn partition_sweep<S: snapback4_device::store::DeviceStore>(mut store: S, label:
                 }
             }
         }
+        // The online-only membership-and-author controls exercise the store
+        // directly. Real acquisition never supplies this candidate population.
+        for (table, row) in disclosure::private_rows() { tx.put(&table, &backend.schema.tables[&table], &row, None).unwrap(); }
         let run = |name: &str, q: &str, ceilings| {
             let program = backend.programs.iter().find(|p| p.name == name).unwrap();
             snapback4_core::engine::local::query_with_coverage(&tx, &backend.schema, program, disclosure::context(q), ceilings)
@@ -35,7 +38,7 @@ fn partition_sweep<S: snapback4_device::store::DeviceStore>(mut store: S, label:
         let visible = run("all", "coffee", Default::default()).0.unwrap();
         assert_eq!(visible.data.as_array().unwrap().len(), 5);
         assert!(visible.complete && visible.cut.is_none());
-        disclosure::merge_cuts(label, |q, ceilings| run("merged", q, ceilings).0.unwrap());
+        disclosure::merge_cuts(label, |name, q, ceilings| run(name, q, ceilings).0.unwrap());
         tx.rollback().unwrap();
     }
     assert_eq!(worlds[0], worlds[1]);
@@ -66,7 +69,7 @@ fn point_probe_cut_memory() { point_probes(snapback4_device::memory::MemoryStore
 fn point_probe_cut_sqlite() { point_probes(snapback4_core::Store::memory().unwrap(), "sqlite"); }
 
 #[test]
-fn cut_reasons_cross_both_device_wires() {
+fn uniform_words_continue_and_nonuniform_cut_reasons_cross_both_device_wires() {
     on_both(|host| {
         let source = format!("{}\nquery top():\n  return messages['readable'] first 1 by byTime\n", fixture::SOURCE);
         let (mut engine, backend) = common::compile(&source);
@@ -82,10 +85,17 @@ fn cut_reasons_cross_both_device_wires() {
         assert_eq!(cut["unknown"], false, "a meter cut is not a missing fact");
         assert!(rows(&cut).is_empty());
         let words = query(&mut *device, "scoped", "dev:alice", json!({"roomId":"words", "q":"cof"}), 10000);
-        assert_eq!(words["cut"], "words");
-        assert_eq!(words["unknown"], false, "a word cut is not a missing fact");
-        assert_eq!(words["complete"], false);
-        assert!(!rows(&words).is_empty());
+        assert_eq!(words["cut"], serde_json::Value::Null);
+        assert_eq!(words["unknown"], false);
+        assert_eq!(words["complete"], true);
+        assert_eq!(rows(&words).len(), 10);
+        assert!(words["next"].is_string());
+        let control = query(&mut *device, "all", "dev:alice", json!({"q":"cof"}), 10000);
+        assert_eq!(control["cut"], "words");
+        assert_eq!(control["unknown"], false, "a nonuniform word cut is not a missing fact");
+        assert_eq!(control["complete"], false);
+        assert!(control["next"].is_null());
+        assert!(!rows(&control).is_empty());
         for (term, size) in [("coffee", 10), ("absent", 0)] {
             let page = query(&mut *device, "scoped", "dev:alice", json!({"roomId":"readable", "q":term}), 10000);
             assert_eq!(rows(&page).len(), size);

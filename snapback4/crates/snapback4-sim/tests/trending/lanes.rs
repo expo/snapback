@@ -188,6 +188,8 @@ fn w15c_recipe_meter_matches_the_old_key() {
     }
     assert_eq!(pages[0], pages[1]);
     assert_eq!(meters[0], meters[1]);
-    // The recorded page, not only the equality: a charge added to both keys would otherwise pass.
+    // The recorded page, not only equality: a charge added to both keys would otherwise pass.
+    // W14a's exact ledger is for word descriptors only. Ordinary range/list
+    // lanes keep their previous allowance: no non-word read changes cost.
     assert_eq!(meters[1], snapback4_core::meter::Metered { examined: 33, index_entries: 0, rule_probes: 0, steps: 648, heap_bytes: 36_720, output_bytes: 1_691, rows_written: 0 });
 }

@@ -1,5 +1,5 @@
 // The two published forms: one cursor per read on every host.
-use super::{fixture, with_fixture};
+use super::{fixture, with_fixture, DECODED_STORE};
 use snapback4_core::{Value, engine::{QueryOutcome, ReadCut}, value::object};
 use std::collections::BTreeSet;
 
@@ -57,13 +57,18 @@ fn dense(memberships: usize) {
 #[test] fn w13e_dense_1000() { dense(1000); }
 
 #[test]
-fn w13e_grouped_cut_continues_through_9000_memberships() {
+fn w13e_grouped_cut_continues_through_9000_memberships() { grouped_cut_at(8100); }
+
+#[test]
+fn uniform_word_grouped_matching_membership_is_last_rule_visible_on_cut_page() { grouped_cut_at(8191); }
+
+fn grouped_cut_at(first_hit: i64) {
     let mut rows = Vec::new();
     for room in 0..=9000 {
         let room_id = format!("r{room:04}");
         rows.push(("members".into(), object([("id", Value::Id(format!("member{room:04}"))), ("roomId", Value::Id(room_id.clone())),
             ("principal", Value::Id(if room == 9000 { "dev:bob" } else { "dev:alice" }.into()))])));
-        if [8100, 8500, 8999, 9000].contains(&room) {
+        if [first_hit, 8500, 8999, 9000].contains(&room) {
             rows.push(("messages".into(), object([("id", Value::Id(format!("{room_id}-hit"))), ("roomId", Value::Id(room_id)),
                 ("body", Value::String("coffee".into())), ("at", Value::Int(room))])));
         }
@@ -84,11 +89,14 @@ fn w13e_grouped_cut_continues_through_9000_memberships() {
                 assert_eq!((page.complete, page.cut), (false, Some(ReadCut::Meter)));
                 assert!(page.next.is_some(), "the cut must continue");
                 assert_eq!(page.data.as_array().unwrap().len(), 0);
-                assert_eq!(page.metered.examined, 8194);
+                // Capped generated word descriptors are no longer opened: one fewer attempted row.
+                assert_eq!(page.metered.examined, 8193);
             } else {
                 assert!(page.complete && page.cut.is_none() && page.next.is_none());
                 assert_eq!(page.data.as_array().unwrap().len(), 3);
-                assert_eq!(page.metered.examined, 906);
+                // Retrying r8100 costs 900 memberships + six message reads;
+                // the last-visible fixture retries r8191, so 809 + six instead.
+                assert_eq!(page.metered.examined, (9000 - first_hit + 6) as u64);
             }
             for row in page.data.as_array().unwrap() {
                 let room = row.field("roomId").unwrap().as_str().unwrap().to_owned();
@@ -102,23 +110,35 @@ fn w13e_grouped_cut_continues_through_9000_memberships() {
             if cursor.is_none() { break; }
         }
         assert_eq!(pages, 2);
-        assert_eq!(rooms, ["r8100", "r8500", "r8999"].map(String::from).into());
-        assert_eq!(total, 9100);
+        assert_eq!(rooms, [format!("r{first_hit:04}"), "r8500".into(), "r8999".into()].into());
+        // The existing case remains exactly 9,099. Moving the matching row 91
+        // slots later removes exactly those 91 retried memberships.
+        assert_eq!(total, 8193 + (9000 - first_hit + 6) as u64);
         println!("W13e grouped9000 requests={pages} groups={} examined_total={total}", rooms.len());
     });
 }
 
 #[test]
 fn w13e_newest_measures_complete_page_and_opening_envelope() {
-    for memberships in [2717, 2718, 2730, 2731, 3000] {
+    for memberships in [1000, 2717, 2718, 2730, 2731, 3000] {
         with_fixture(fixture::source(), fixture::seed(memberships), |q| {
             let page = q("searchNewest", None, "cof");
+            // SQLite now prepays every decoded row, including discarded store
+            // lookahead: heap can precede the old examined-only 2,717 boundary.
+            // Memory shares row images and retains that examined-only control.
+            if DECODED_STORE && memberships >= 2717 {
+                assert_eq!(page.data, Value::Null);
+                assert_eq!((page.complete, page.cut, page.next), (false, Some(ReadCut::Meter), None));
+                assert_eq!(page.capped_at.as_ref().unwrap().0, snapback4_core::error::MeterKind::HeapBytes);
+                println!("W14A newest-envelope memberships={memberships} heap-null examined={} heap={}", page.metered.examined, page.metered.heap_bytes);
+                return;
+            }
             let ids: Vec<_> = page.data.as_array().unwrap().iter().map(|row| row.field("id").unwrap().as_str().unwrap().to_owned()).collect();
             println!("W13e newest-envelope memberships={memberships} rows={} examined={} complete={} cut={:?} next={}", ids.len(), page.metered.examined, page.complete, page.cut, page.next.is_some());
             if memberships <= 2730 {
                 assert_eq!(ids, (memberships - 20..memberships).rev().map(|room| format!("r{room:04}-23")).take(ids.len()).collect::<Vec<_>>());
                 assert!(page.next.is_some());
-                assert_eq!(page.complete, memberships == 2717);
+                assert_eq!(page.complete, memberships <= 2717);
             } else {
                 assert_eq!((page.complete, page.cut, page.next), (false, Some(ReadCut::Meter), None));
             }

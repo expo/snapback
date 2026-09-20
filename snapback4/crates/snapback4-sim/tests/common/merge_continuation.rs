@@ -150,25 +150,30 @@ fn d01_old_descriptor_refused_and_paved_token_bytes_unchanged() {
 fn drain_fixture(words: bool, overlap: bool) -> (String, Vec<(String, Value)>, Vec<String>) {
     // D5.1: 12 x 1,000 rows, descending; the 100th examined and each 100th thereafter passes.
     // 1,200 opening + 69 x 100 = 8,100; refill 70 fails at 8,193 after 70 emissions.
-    // D5.2/4: nine disjoint coffee* lanes; zebra every 100th. One-head reads look ahead:
-    // 9 x 200 + 31 x 200 = 8,000; refill 32 fails in lookahead at 8,193, 32 emissions.
-    // D5.3: the same nine words overlap on every row. Pop 32 is a duplicate of emission 4.
+    // D5.2/4 now prepays all fetched/decoded/tokenized rows. Preserve its
+    // examined-cut positive case below the heap ceiling: 7,373 cheap missing
+    // point reads, nine 100-row lanes with zebra every tenth, and lookahead.
+    // 7,373 + 9*20 + 31*20 = 8,173; refill 32 cuts at 8,193, 32 emissions.
+    // D5.3 overlaps the same nine words: pop 32 still duplicates emission 4.
+    // Thus the asserted emissions/cut/ordered walk remain, with fewer large
+    // tokenizer allocations. No ceiling or assertion is weakened.
     let source = if words {
-        format!("{}query feed(c: cursor ?):\n  return msgs[0] matching 'cof zebra' after c last 100 by byLane\n", table("msgs", "by byLane: lane, words(body), at, id", false))
+        format!("{}query feed(c: cursor ?):\n  for i in range(0, 7373):\n    unused = exists msgs['missing']\n  return msgs[0] matching 'cof zebra' after c last 100 by byLane\n", table("msgs", "by byLane: lane, words(body), at, id", false))
     } else { merge_source("by byLane: lane, at, id", false, false, 12, "last", 100, " where .body = 'hit'") };
     let mut rows = Vec::new();
     let mut expected = Vec::new();
     let lanes = if overlap { 1 } else if words { 9 } else { 12 };
     let all_words = "coffeea coffeeb coffeec coffeed coffeee coffeef coffeeg coffeeh coffeei";
-    for n in 0..1000 { for lane in 0..lanes {
+    let (population, stride) = if words { (100, 10) } else { (1000, 100) };
+    for n in 0..population { for lane in 0..lanes {
         let id = format!("r{n:04}-{lane:02}");
-        let hit = n % 100 == 99;
+        let hit = n % stride == stride - 1;
         let body = if overlap { format!("{all_words} {}", if hit { "zebra" } else { "none" }) }
             else if words { format!("coffee{} {}", char::from(b'a' + lane as u8), if hit { "zebra" } else { "none" }) }
             else { if hit { "hit" } else { "none" }.into() };
         rows.push(("msgs".into(), row(&id, if words { 0 } else { lane }, Value::Int(1000 - n), &body)));
     } }
-    for n in (99..1000).step_by(100) { for lane in (0..lanes).rev() { expected.push(format!("r{n:04}-{lane:02}")); } }
+    for n in (stride - 1..population).step_by(stride as usize) { for lane in (0..lanes).rev() { expected.push(format!("r{n:04}-{lane:02}")); } }
     (source, rows, expected)
 }
 
@@ -300,19 +305,38 @@ fn control_c1_opening_cut_with_a_short_nonempty_buffer_stays_terminal() {
 }
 
 #[test]
-fn control_c2d_prior_word_cut_and_positive_owner_word_cut_withhold_candidate() {
-    for owner_overflows in [false, true] {
-        let source = format!("{}query feed(c: cursor ?):\n  auxiliary = msgs[1] matching 'cof' last 1 by byLane\n  return msgs[0] matching 'cof' after c last 1 by byLane\n", table("msgs", "by byLane: lane, words(body), at, id", false));
+fn control_c2d_uniform_words_continue_and_nonuniform_word_cuts_withhold_candidate() {
+    for uniform in [true, false] { for owner_overflows in [false, true] {
+        let mut source = format!("{}query feed(c: cursor ?):\n  auxiliary = msgs[1] matching 'cof' last 1 by byLane\n  return msgs[0] matching 'cof' after c last 1 by byLane\n", table("msgs", "by byLane: lane, words(body), at, id", false));
+        if !uniform {
+            source = format!("table members:\n  lane: int\n  principal: principal\n  unique byLanePrincipal: lane, principal\n  by byPrincipal: principal, id\n  read <- .principal = viewer\n  sync to .principal\n{source}")
+                .replace("  body: text <=200", "  author: principal default 'dev:alice'\n  body: text <=200")
+                .replace("public 'merge fixture'", "read <- exists members[.lane, viewer] and .author = viewer").replace("  sync public\n", "");
+        }
         let mut rows = Vec::new();
+        if !uniform { for lane in 0..2 { rows.push(("members".into(), object([("id", Value::Id(format!("member-{lane}"))),
+            ("lane", Value::Int(lane)), ("principal", Value::Id("dev:alice".into()))]))); } }
         for lane in 0..2 { for n in 0..if lane == 1 || owner_overflows { 33 } else { 2 } {
-            // Omitted word coffee32 has the newest row, ahead of the returned frontier.
+            // Word coffee32 is newest: uniform discovery must include it; the
+            // non-uniform twin still witnesses and discards that 33rd word.
             rows.push(("msgs".into(), row(&format!("r{lane}-{n}"), lane, Value::Int(n), &format!("coffee{n:02}"))));
         } }
         with_fixture(&source, rows, |q| {
             let page = q("feed", ctx(None)).unwrap();
-            assert_eq!((page.complete, page.cut, page.next), (false, Some(ReadCut::Words), None));
+            if uniform {
+                // The cursorless auxiliary last 1 still loses rows: uniform
+                // expansion repairs the owner's word cut, not that answer loss.
+                assert!(!page.complete && page.word_cut_at.is_none() && page.cut.is_none() && page.next.is_some(), "{page:?}");
+                assert_eq!(ids(&page), [if owner_overflows { "r0-32" } else { "r0-1" }]);
+                let second = q("feed", ctx(page.next)).unwrap();
+                assert_eq!(ids(&second), [if owner_overflows { "r0-31" } else { "r0-0" }]);
+            } else {
+                assert_eq!((page.complete, page.cut, page.next.as_ref()), (false, if DEVICE { Some(ReadCut::Words) } else { None }, None));
+                assert!(page.word_cut_at.as_ref().is_some_and(|site| site.contains("feed")));
+                assert_eq!(ids(&page), [if owner_overflows { "r0-31" } else { "r0-1" }], "non-uniform twin retains the same one-row returned shape");
+            }
         });
-    }
+    } }
 }
 
 #[test]

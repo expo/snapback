@@ -8,6 +8,7 @@ mod language;
 mod membership;
 mod search_merge;
 mod search_global;
+mod uniform_word_expansion;
 mod read_cut;
 mod presence;
 mod upsert;

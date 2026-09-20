@@ -1,5 +1,5 @@
 // Uniform matching merges share one heap; exercised on the server and acquired devices.
-use super::{fixture, with_fixture};
+use super::{fixture, with_fixture, DECODED_STORE};
 use snapback4_core::{Value, engine::{QueryOutcome, ReadCut}, value::object};
 use std::cell::RefCell;
 
@@ -85,15 +85,21 @@ fn message(room: &str, n: usize, text: String, at: i64) -> (String, Value) {
 }
 
 #[test]
-fn w13f_word_overflow_keeps_later_scopes() {
+fn w14a_uniform_words_past_32_keep_later_scopes_and_nonuniform_stays_capped() {
     let mut rows = fixture::seed(12);
     rows.retain(|(table, _)| table == "members");
     for n in 0..33 { rows.push(message("r0000", n, format!("coffee{n:02}"), n as i64)); }
     rows.push(message("r0011", 0, "coffee".into(), 100));
-    with_fixture(&source(20, 1000), rows, |q| {
+    let source = source(20, 1000) + "\nquery nonuniform(q: text <=100, c: cursor ?):\n  return messages matching q after c last 20 by byWords\n";
+    with_fixture(&source, rows, |q| {
         let page = q("wide", None, "cof");
-        assert_eq!((page.complete, page.cut, page.next.as_ref()), (false, Some(ReadCut::Words), None));
+        assert!(page.complete && page.cut.is_none() && page.next.is_some() && page.word_cut_at.is_none());
         assert_eq!(ids(&page).first().unwrap(), "r0011-0000", "a later scope is still discovered and wins");
+        let pages = walk(q, "cof");
+        assert_eq!(pages.iter().flat_map(ids).collect::<Vec<_>>(), std::iter::once("r0011-0000".to_owned()).chain((0..33).rev().map(|n| format!("r0000-{n:04}"))).collect::<Vec<_>>());
+        let control = q("nonuniform", None, "cof");
+        assert!(!control.complete && control.word_cut_at.is_some() && control.next.is_none());
+        assert_eq!(control.metered.index_entries, 33);
     });
 }
 
@@ -108,11 +114,13 @@ fn drain_rows(lanes: usize, rows_per_lane: usize, stride: usize) -> Vec<(String,
 
 #[test]
 fn w13f_flattened_drain_cut_continues_after_32_emissions() {
-    // Nine (scope, word) lanes, one word per scope, 1,000 rows descending in each.
-    // Every 100th row matches term two. Memberships cost 9; opening costs 9 * 200.
-    // 31 refills cost 6,200: 8,009 total. Refill 32 crosses 8,192 in lookahead.
-    // Its emitted row is safe; the next head is unknown, so stop at 32 emissions.
-    with_fixture(&source(100, 1000), drain_rows(9, 1000, 100), |q| {
+    // Prepaid fetch/decode scratch makes the former 8,193-row search heap-cut.
+    // Preserve the 32-emission resumable read-meter control with 7,374 cheap
+    // missing point reads, then nine 100-row lanes matching every tenth row:
+    // 9 memberships + 9*20 opening + 31*20 refills = 809; refill 32 crosses
+    // the remaining 818 examined allowance. No ceiling is raised.
+    let source = source(100, 1000).replace("query wide(q: text <=100, c: cursor ?):\n", "query wide(q: text <=100, c: cursor ?):\n  for i in range(0, 7374):\n    unused = exists members['missing']\n");
+    with_fixture(&source, drain_rows(9, 100, 10), |q| {
         let first = q("wide", None, "cof zeb");
         println!("W13f drain rows={} examined={} cut={:?} next={}", ids(&first).len(), first.metered.examined, first.cut, first.next.is_some());
         assert_eq!((first.complete, first.cut), (false, Some(ReadCut::Meter)));
@@ -120,7 +128,7 @@ fn w13f_flattened_drain_cut_continues_after_32_emissions() {
         assert_eq!(ids(&first).len(), 32);
         assert_eq!(first.metered.examined, 8193);
         let pages = walk(q, "cof zeb");
-        let expected: Vec<_> = (99..1000).step_by(100).flat_map(|n| (0..9).rev().map(move |room| format!("r{room:04}-{n:04}"))).collect();
+        let expected: Vec<_> = (9..100).step_by(10).flat_map(|n| (0..9).rev().map(move |room| format!("r{room:04}-{n:04}"))).collect();
         assert_eq!(pages.iter().flat_map(ids).collect::<Vec<_>>(), expected);
         assert!(pages.last().unwrap().complete);
     });
@@ -131,7 +139,23 @@ fn w13f_flattened_opening_cut_stays_terminal() {
     // 3,000 dense scope/word lanes: 3,000 memberships + 2 * 3,000 heads/lookahead > 8,192.
     with_fixture(&source(20, 3000), drain_rows(3000, 3, 1), |q| {
         let page = q("wide", None, "cof");
-        println!("W13f opening rows={} examined={} cut={:?} next={}", ids(&page).len(), page.metered.examined, page.cut, page.next.is_some());
+        // Both stores exhaust heap at this width and clear the entire page.
+        // SQLite's decoder hits heap first; memory first hits examined and
+        // then heap while completing opening bookkeeping. capped_at preserves
+        // the first reason, so assert both the null page and exceeded heap.
+        assert_eq!(page.data, Value::Null);
+        assert!(page.metered.heap_bytes > snapback4_core::Ceilings::default().heap_bytes);
+        assert_eq!(page.capped_at.as_ref().unwrap().0, if DECODED_STORE { snapback4_core::error::MeterKind::HeapBytes } else { snapback4_core::error::MeterKind::Examined });
+        assert_eq!((page.complete, page.cut, page.next.as_ref()), (false, Some(ReadCut::Meter), None));
+    });
+    // Preserve the positive partial-opening case below the heap boundary:
+    // 8,090 misses + 100 memberships leave two examined units, enough for
+    // the first head/lookahead but not the remaining heads. No next is safe.
+    let source = source(20, 100).replace("query wide(q: text <=100, c: cursor ?):\n", "query wide(q: text <=100, c: cursor ?):\n  for i in range(0, 8090):\n    unused = exists members['missing']\n");
+    with_fixture(&source, drain_rows(100, 3, 1), |q| {
+        let page = q("wide", None, "cof");
+        assert_eq!(ids(&page).len(), 1);
+        assert_eq!(page.capped_at.as_ref().unwrap().0, snapback4_core::error::MeterKind::Examined);
         assert_eq!((page.complete, page.cut, page.next.as_ref()), (false, Some(ReadCut::Meter), None));
     });
 }

@@ -273,6 +273,22 @@ impl Rows for Tx<'_> {
             .collect()
     }
 
+    fn scan_metered(&self, table: &str, name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut crate::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        use crate::rows::word_heap as heap;
+        // Queries use repeatable-read; serialized writes hold the head lock.
+        // The same bounded range cannot grow between this scalar size preflight
+        // and its fetch. Reserve network/decoder scratch before the driver owns it.
+        meter.heap(2 * heap::range(prefix, bounds) + 4096)?;
+        let Some((lo, hi)) = crate::rows::scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };
+        let sql = match dir {
+            Dir::Asc => "SELECT COALESCE(SUM(octet_length(data) + octet_length(k)), 0)::bigint FROM (SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5) AS picked",
+            Dir::Desc => "SELECT COALESCE(SUM(octet_length(data) + octet_length(k)), 0)::bigint FROM (SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k DESC LIMIT $5) AS picked",
+        };
+        let bytes = self.query(sql, &[&table, &name, &lo, &hi, &(limit.min(i64::MAX as usize) as i64)])?[0].get::<_, i64>(0) as u64;
+        meter.heap(bytes.saturating_mul(256) + heap::vec_growth::<(Value, Vec<u8>)>(limit))?;
+        self.scan(table, name, prefix, bounds, dir, limit)
+    }
+
     fn count_prefix(&self, table: &str, name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> {
         let lo = key::encode(prefix);
         let hi = key::upper_bound(&lo);

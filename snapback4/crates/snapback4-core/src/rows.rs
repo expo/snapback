@@ -5,6 +5,9 @@
 //! host's store through callbacks on the web — so one interpreter runs on
 //! every host and the language is bound once.
 
+#[path = "engine/word_heap.rs"]
+pub mod word_heap;
+
 use crate::assets::Asset;
 use crate::error::RuntimeError;
 use crate::key;
@@ -208,6 +211,13 @@ pub trait Rows {
     /// Rows under `prefix` in index order, bounded, at most `limit`, each
     /// with its stored key so a cursor can be minted from the last.
     fn scan(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError>;
+    /// Word expansion cannot bound nominal ID payloads from schema alone. A
+    /// store must charge before decoding/cloning its fetched row/key and before
+    /// result-vector growth. The default refuses before calling an unpriced store.
+    fn scan_metered(&self, _table: &str, _index_name: &str, _prefix: &[Value], _bounds: &Bounds, _dir: Dir, _limit: usize, meter: &mut crate::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        meter.heap(u64::MAX)?;
+        Err(RuntimeError::Store("word fetch requires a metered store adapter".into()))
+    }
     /// How many entries sit under `prefix`, counting at most `limit`.
     fn count_prefix(&self, table: &str, index_name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError>;
     /// Write a row image (a fresh insert when `old` is none); returns the
@@ -279,6 +289,23 @@ impl Rows for MemoryRows {
             Some((lo, hi)) => self.range(table, index_name, &lo, &hi, dir, limit),
             None => Vec::new(),
         })
+    }
+    fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, meter: &mut crate::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
+        meter.heap(word_heap::range(prefix, bounds) + 2 * word_heap::allocation(table.len() + index_name.len() + 1))?;
+        let Some((lo, hi)) = scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };
+        meter.heap(word_heap::allocation(lo.len()) + word_heap::allocation(hi.len()))?;
+        let ti = format!("{table}.{index_name}");
+        let entries = self.entries.borrow();
+        let rows = self.rows.borrow();
+        let within = entries.range((ti.clone(), lo)..(ti, hi));
+        let mut out = Vec::new();
+        let mut pick = |((_, key), id): (&(String, Vec<u8>), &String)| -> Result<(), RuntimeError> {
+            meter.heap(word_heap::text(table) + word_heap::text(id))?;
+            if let Some(row) = rows.get(&(table.to_owned(), id.clone())) { word_heap::memory_result(meter, &mut out, row, key)?; }
+            Ok(())
+        };
+        match dir { Dir::Asc => { for entry in within.take(limit) { pick(entry)?; } }, Dir::Desc => { for entry in within.rev().take(limit) { pick(entry)?; } } }
+        Ok(out)
     }
     fn count_prefix(&self, table: &str, index_name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> {
         let base = key::encode(prefix);

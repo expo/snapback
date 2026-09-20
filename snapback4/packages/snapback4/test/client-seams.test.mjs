@@ -648,6 +648,16 @@ table entries:
   by byRoomWords: room, words(body), at, id
   public 'cut fixture'
   sync public
+table privateWords:
+  owner: principal
+  body: text <=100
+  at: time
+  by byOwner: owner, id
+  by byWords: words(body), at, id
+  read <- .owner = viewer
+  sync to .owner
+query wordCut(q: text <=100, c: cursor ?):
+  return privateWords matching q after c last 10 by byWords
 query search(room: text <=10, q: text <=100, c: cursor ?):
   return entries[room] matching q after c last 10 by byRoomWords
 query filtered(c: cursor ?):
@@ -710,34 +720,39 @@ query search():
   t.diagnostic("hidden words=32,33 hidden rows=8193 identical full-response pairs=3");
 });
 
-for (const tier of ["online", "native", "web"]) test(`W8R1a ${tier} remembered server cuts survive disconnection`, { timeout: 30000 }, async t => {
-  const f = await fixture(t, false, cutSource.replace("  sync public", "  online only"));
+for (const tier of ["online", "native", "web"]) test(`W8R1a ${tier} remembered uniform continuation and nonuniform cuts survive disconnection`, { timeout: 30000 }, async t => {
+  const f = await fixture(t, false, cutSource.replace("  sync public", "  online only").replace("  sync to .owner", "  online only"));
   const seeds = Array.from({ length: 8233 }, (_, n) => ({ table: "entries", row: { id: `r${n}`, room: n < 8200 ? "normal" : "words", body: n < 8200 ? "coffee" : `cof${n}`, at: n } }));
+  seeds.push(...Array.from({ length: 33 }, (_, n) => ({ table: "privateWords", row: { id: `p${n}`, owner: "dev:alice", body: `cof${n}`, at: n } })));
   for (let n = 0; n < seeds.length; n += 1000) await f.post("/seed", seeds.slice(n, n + 1000));
   let offline = false;
   const options = { url: f.url, persona: "alice", waitSeconds: 1, fetch: (...args) => offline ? Promise.reject(new Error("offline")) : fetch(...args) };
   const client = tier === "online" ? createClient(options) : await createLocalClient({ ...options, device: tier === "native" ? f.device : f.web });
   f.clients.push(client);
   if (tier !== "online") await client.sync();
-  const watches = [["filtered", {}, "meter"], ["search", { room: "words", q: "cof" }, "words"]].map(([name, args, cut]) => ({ watch: client.observe({ kind: "query", name }, args), cut }));
+  const watches = [["filtered", {}, "meter", false], ["search", { room: "words", q: "cof" }, null, true], ["wordCut", { q: "cof" }, null, false]].map(([name, args, cut, complete]) => ({ watch: client.observe({ kind: "query", name }, args), cut, complete }));
   t.after(() => watches.forEach(({ watch }) => watch.close()));
   for (const { watch, cut } of watches) await until(() => watch.getSnapshot().cut === cut && watch.getSnapshot().fresh);
   const before = watches.map(({ watch }) => watch.getSnapshot());
+  assert.ok(before[1].next, "the full uniform page continues past 32 words");
+  assert.equal(before[2].next, null, "the nonuniform discovery cut has no continuation");
   offline = true;
   if (tier === "online") await client.query({ kind: "query", name: "filtered" }, {});
   else await client.sync();
   await until(() => watches.every(({ watch }) => watch.getSnapshot().fresh === false));
-  watches.forEach(({ watch, cut }, n) => {
+  watches.forEach(({ watch, cut, complete }, n) => {
     const after = watch.getSnapshot();
-    assert.equal(after.cut, cut); assert.equal(after.complete, false);
+    assert.equal(after.cut, cut); assert.equal(after.complete, complete);
+    assert.equal(after.next, before[n].next);
     assert.deepEqual(after.data, before[n].data); assert.deepEqual(after.meter, before[n].meter);
   });
 });
 
-for (const tier of ["online", "native", "web"]) test(`W8a ${tier} read exposes meter, words and null cuts`, { timeout: 30000 }, async t => {
+for (const tier of ["online", "native", "web"]) test(`W8a ${tier} uniform words continue while nonuniform words and meter cuts remain bounded`, { timeout: 30000 }, async t => {
   const source = tier === "online" ? cutSource : cutSource.replaceAll("c: cursor ?):", "c: cursor ?) held:");
   const f = await fixture(t, false, source);
   const seeds = Array.from({ length: 8233 }, (_, n) => ({ table: "entries", row: { id: `r${String(n).padStart(5, "0")}`, room: n < 8200 ? "normal" : "words", body: n < 8200 ? "coffee" : `cof${n}`, at: n } }));
+  seeds.push(...Array.from({ length: 33 }, (_, n) => ({ table: "privateWords", row: { id: `p${n}`, owner: "dev:alice", body: `cof${n}`, at: n } })));
   for (let n = 0; n < seeds.length; n += 1000) assert.equal((await f.post("/seed", seeds.slice(n, n + 1000))).seeded, Math.min(1000, seeds.length - n));
   let offline = false;
   const requests = [];
@@ -757,16 +772,22 @@ for (const tier of ["online", "native", "web"]) test(`W8a ${tier} read exposes m
   assert.equal(meter.complete, false);
   assert.equal(meter.cut, "meter");
   const words = await read("search", { room: "words", q: "cof" });
-  assert.equal(words.cut, "words");
-  assert.equal(words.complete, false);
-  assert.ok(words.data.length > 0);
+  assert.equal(words.cut, null);
+  assert.equal(words.complete, true);
+  assert.equal(words.data.length, 10);
+  assert.ok(words.next);
+  const nonuniform = await read("wordCut", { q: "cof" });
+  assert.equal(nonuniform.cut, tier === "online" ? null : "words");
+  assert.equal(nonuniform.complete, false);
+  assert.equal(nonuniform.next, null);
+  assert.equal(nonuniform.data.length, 10);
   for (const [term, size] of [["coffee", 10], ["absent", 0]]) {
     const page = await read("search", { room: "normal", q: term });
     assert.equal(page.data.length, size);
     assert.equal(page.complete, true);
     assert.equal(page.cut, null);
   }
-  if (tier === "online") assert.deepEqual(wire.map(reply => reply.cut), ["meter", "words", null, null]);
+  if (tier === "online") assert.deepEqual(wire.map(reply => reply.cut), ["meter", null, null, null, null]);
   if (tier !== "online") {
     assert.deepEqual(requests, [], "a held cut must not fall back to the server");
     offline = true; await client.sync();

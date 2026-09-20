@@ -110,6 +110,7 @@ fn w9r1b_why_wide_merge_opens_the_notes_card() {
         assert!(output.status.success(), "{output:?}");
         let text = String::from_utf8(output.stdout).unwrap();
         println!("{keyword}: {} bytes\n{text}", text.len());
+        assert!(text.contains("A resumable read-meter cut while an owning uniform lazy merge drains established heads can carry `next` after its last fully shaped emitted row (§5.6), subject to final-answer eligibility, with `complete: false, cut: 'meter'`. Heap exhaustion clears the whole page even during the drain; step exhaustion aborts and output exhaustion can refuse after materialisation."), "{text}");
         assert!(text.ends_with(&format!("Full card: snapback4 guide {keyword}\n")));
         assert!(text.lines().any(|line| line.starts_with('#') && snapback4_lang::guide::card(keyword).unwrap().lines().any(|heading| heading == line)));
         assert!(text.len() <= snapback4_lang::guide::WHY_MAX_BYTES);
@@ -456,14 +457,15 @@ fn upsert_insert_proof_and_service_grants_reach_check_and_why() {
 }
 
 #[test]
-fn r3_cost_and_why_name_the_lane_local_word_bound() {
+fn r3_cost_and_why_name_uniform_meter_and_nonuniform_word_bounds() {
     let p = Project::new();
     p.source(include_str!("../../snapback4-sim/tests/search_merge/round3.q"));
     for args in [vec!["check", "--cost"], vec!["why", "matching"]] {
         let output = p.run(&args);
         assert!(output.status.success(), "{output:?}");
         let text = String::from_utf8(output.stdout).unwrap();
-        assert!(text.contains("past 32 words a lane is incomplete (word_cut_at names it), later lanes continue; meter ceilings remain query-wide"), "{text}");
+        // R1 pins the full resumable-read qualification and heap/drain exception, not an unconditional next.
+        assert!(text.contains("uniform matching scopes expand first-term words under the meter; admitted non-uniform scopes keep at most 32 (word_cut_at names a cut), later lanes continue; further terms filter; discovery/opening meter cuts have no next; resumable read-meter drain cuts may continue after a fully shaped emitted row when the owning uniform traversal and final answer are eligible; heap exhaustion clears data to null even during drain; steps abort, output may refuse, terminal pages need no next, usePage retains earlier incompleteness; meter ceilings remain query-wide"), "{text}");
     }
 }
 
@@ -1301,7 +1303,7 @@ fn w13b_cut_log_suppresses_per_operation_and_site_with_a_count() {
     assert!(next.ends_with("suppressed 3 repeated read cuts"), "{next}");
     assert!(log.line("other", "alice", &read, now).is_some());
     read.capped_at = None; read.word_cut_at = Some("search:2".into());
-    assert!(log.line("value", "alice", &read, now).unwrap().contains("cut by words (32 first-term words per scope) at search:2"));
+    assert!(log.line("value", "alice", &read, now).unwrap().contains("cut by words (32 first-term words per admitted non-uniform scope) at search:2"));
     println!("W13b suppression: first window emitted=2 suppressed=8; next window reports=3; distinct operation/site independent");
 }
 

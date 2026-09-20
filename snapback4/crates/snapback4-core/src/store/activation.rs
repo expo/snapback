@@ -84,7 +84,7 @@ impl Store {
                 }
             }
         }
-        let tx = Tx { tx: sql, catalog: &catalog };
+        let tx = Tx { tx: sql, page_size: self.page_size, catalog: &catalog };
         if schema_changed && programs.is_some() {
             if let Some(step) = super::successor::assess(&tx, schema)?.iter().find(|s| s.change == crate::successor::Change::Narrowing) {
                 return Err(step.refusal(schema));

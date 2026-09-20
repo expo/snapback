@@ -1064,10 +1064,26 @@ fn w9a_held_search_leads_with_coverage_then_cost_then_refusal() {
     let refusal = prose.find("refuses E_QUERY_HELD").unwrap();
     assert!(coverage < cost && cost < refusal);
     assert!(prose.contains("Expiring memberships require runtime audience checks; an unscoped matching read can remain non-uniform and `complete: false` below every meter and word limit."));
-    assert!(prose.contains("Runtime meter cuts, the 32-word limit and page continuation still apply; `complete` describes each returned page, and `fresh` separately describes sync freshness."));
+    assert!(prose.contains("Runtime meter cuts, the non-uniform scope's 32-word limit and page continuation still apply; `complete` describes each returned page, and `fresh` separately describes sync freshness."));
     assert!(prose.contains("The local clients never fall back to the server for a held query, even at a horizon, meter cut or word cut."));
     let wide = explain_code("N_WIDE_MERGE").unwrap();
     assert!(wide.contains("Inspect structural costs with `snapback4 check --cost`; if a held query answers this read, delete the merge."));
+}
+
+#[test]
+fn w14a_compact_reads_and_wide_note_qualify_word_expansion_and_continuation() {
+    let reads = card("reads").unwrap();
+    assert!(!reads.contains("at most 32 words per scope"));
+    let compact = reads.split_once("Unknown widths print").unwrap().1;
+    assert!(compact.contains("A resumable read-meter cut"));
+    assert!(compact.contains("Heap exhaustion clears the whole page"));
+    assert!(compact.contains("uniform matching scan is always lazy"));
+    let why = explain_code("N_WIDE_MERGE").unwrap();
+    assert!(why.contains("subject to final-answer eligibility"));
+    assert!(why.contains("Heap exhaustion clears the whole page even during the drain"));
+    let search = card("search").unwrap();
+    assert!(search.contains("an interrupted existence predicate retries its membership inclusively"));
+    assert!(search.contains("same membership again with nothing emitted"));
 }
 
 #[test]
