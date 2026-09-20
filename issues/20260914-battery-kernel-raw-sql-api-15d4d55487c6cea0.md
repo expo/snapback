@@ -10,11 +10,11 @@
 **Battery gate:** `kernel-raw-sql-api`
 **Failure signature:** `sha256:15d4d55487c6cea0914240eb59c399aca5e22d066372d4e7c52e9816c0cd31a9`
 **First observed run:** `local.20260914T104118Z.86928d068765`
-**Last observed run:** `local.20260920T003721Z.7ef61e81a1bf`
-**Last processed run:** `local.20260920T003721Z.7ef61e81a1bf`
+**Last observed run:** `local.20260920T102449Z.dac4e3fed707`
+**Last processed run:** `local.20260920T102449Z.dac4e3fed707`
 **Detected at revision:** `86928d068765e3d57c68747e4f2359950b8ff7d1`
-**Last observed revision:** `7ef61e81a1bf922f1a7984fc7c1cadfaeab1854c`
-**Consecutive red runs:** `14`
+**Last observed revision:** `dac4e3fed7072c5a682d356adb92275ad2d9b5af`
+**Consecutive red runs:** `15`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
