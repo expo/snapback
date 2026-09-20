@@ -50,10 +50,15 @@ Delete list built from the names (a ULID's first ten characters are its creation
 `snapback4` process; other `snapback4-*` names (publish stages, `loopbar-verify`, `test.`)
 left alone. Removal in the 4-million-entry directory runs at 300–400 removals a second
 (a name lookup there costs ~17 ms; six-way `rm -rf` gave 300/s, thirty-two-way `rmdir`
-400/s), so the 4.5 million take hours. **As of this landing the cleanup is still running**
-(detached, `~/projects/snapback-next-20260914/tmpdir-leak/cleanup-rest.sh`, log `rest2.log`);
-the last line of that log records the count left in `/private/tmp` when it finishes, and
-this ticket is amended then.
+400/s), so the 4.5 million take hours. **The cleanup finished 2026-09-19 22:41 UTC**: the
+`rmdir` pass (32-way) ran 20:37–22:39 UTC over 4.23 million entries, 6,889 non-empty ones
+were then removed with `rm -rf`, and `/private/tmp` was cleared in the same pass. After it:
+`$TMPDIR` holds 37,700 entries, lists in 0.17 s (from 3.5 minutes) and a name lookup there
+is sub-millisecond (from ~17 ms); `/private/tmp` holds 22 `snapback4-*` entries and `$TMPDIR`
+504, all of the other kinds left alone on purpose plus 35 new `snapback4-<pid>-<ulid>`
+made since the cutoff by processes still running an unfixed binary (the published pins
+through 0.2.30 leak until the next pin carries this fix; a lane's suite on a base before
+`7ce7c068d5` does too).
 
 ## Related
 
