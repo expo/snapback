@@ -374,6 +374,23 @@ published 0.2.29:  alice push(bob) while bob holds a poll: sent seq 1
   0.2.29: the push a held poll used to swallow is recorded at commit and deferred five
   seconds, to be cancelled by bob's next poll or delivered if none comes.
 
+## Published 0.2.31 (2026-09-20): the two lanes ruled after the walk-through, pasted blind
+
+`snapback4-darwin-arm64@0.2.31` fetched with `npm pack`; one project holding the like/unlike
+toggle on a hand-kept `posts.score` under `update <- allow` (calibration 12's shape) and a
+maintain value index carrying a group field after `value` (`by byScore: value, postId, id`):
+
+```
+check: ok — 3 tables (0 synced), 1 operations, no problems, 1 note, 2.0 ms
+note: schema.q:4:3 — N_PUBLIC_AGGREGATE_COPY: every write to posts.score is computed from reads
+  (`p.score + 1` or `p.score - 1`, chosen by `liked` in `setLike`); `insert <- allow` and
+  `update <- allow` let any principal run any mutation that writes it
+```
+
+W15c (ruling 41): the index binds with no diagnostic. W15b (ruling 31): the toggle notes, and
+the message names both arms and the argument that chooses. Nothing published before 0.2.31
+said a word about either program.
+
 ## What this record does not show
 
 A device store was run only in `horizon-gap/` (elsewhere the residency facts are the compiler's); no wall-clock claim is
