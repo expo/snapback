@@ -45,9 +45,17 @@ test("failed admission cannot appear in later reads or hitchhike on the next sav
   const following = f.core.call({ op: "set_meta", key: "following", value: "saved" });
   await assert.rejects(rejected, /save aborted/);
   ok(await following);
+  const expected = new Map(durable.map(({ s, k, v }) => [`${s} ${k}`, v]));
+  // Recovery preserves the admitted rows/outbox and fences the old capture.
+  // Journal recovery then captures the surviving admission at the new revision.
+  assert.ok(expected.delete("m device:declaration:capture"));
+  const revision = Number(expected.get("m device:send_revision") ?? 0) + 1;
+  expected.set("m device:send_revision", String(revision));
+  expected.set("m device:declaration:capture", JSON.stringify({ ids: ["earlier"], declaration: [1, true, 1], send_revision: revision }));
+  expected.set("m client:following", "saved");
+  assert.deepEqual(new Map((await f.memory.load(f.name)).map(({ s, k, v }) => [`${s} ${k}`, v])), expected);
   assert.deepEqual(await query(f.core), before);
   assert.deepEqual(ok(await f.core.call({ op: "queued" })).map(e => e.id), ["earlier"]);
-  assert.deepEqual((await f.memory.load(f.name)).filter(c => c.k !== "client:following"), durable);
   await f.reopen();
   assert.deepEqual(await query(f.core), before);
   ok(await f.core.call({ op: "admit", entry: entry("later", 3) }));

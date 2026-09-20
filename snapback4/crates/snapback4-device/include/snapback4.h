@@ -26,7 +26,10 @@ extern "C" {
 
 typedef struct sb4_device sb4_device;
 
-/* Open the device's store at `path` for the backend; NULL when it refuses
+/* Backend may be GET /schema JSON, null for the kept backend, or
+ * {"initial_backend": <backend>} to install only if still empty (otherwise
+ * open the kept backend). Older modules refuse that envelope.
+ * Open the device's store at `path` for the backend; NULL when it refuses
  * (ask `sb4_open_reason` why). */
 sb4_device *sb4_open(const char *path, const char *backend_json);
 

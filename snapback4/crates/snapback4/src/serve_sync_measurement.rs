@@ -36,8 +36,8 @@ pub(super) fn measure(tx: &snapback4_core::store::Tx<'_>, schema: &snapback4_cor
         Ok(!size.counter.overflow)
     })?;
     if let Some(page) = page {
-        let acknowledged = Engine::acknowledged_in(tx, principal, &input.pending, page.watermark)?;
-        let reply = StreamReply { acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Stream(page.events),
+        let (acknowledged, committed_above) = Engine::acknowledged_at_in(tx, principal, &input.pending, page.watermark, page.images_at.unwrap_or(page.watermark))?;
+        let reply = StreamReply { images_at: page.images_at, committed_above, acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Stream(page.events),
             generation: metadata.generation, store_id: metadata.store_id.clone(), joined: page.joined,
             more: page.more, snapshot: false, watermark: page.watermark };
         size.reply(&reply)?;

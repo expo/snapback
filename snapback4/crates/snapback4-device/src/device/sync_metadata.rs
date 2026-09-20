@@ -19,6 +19,14 @@ pub struct SyncCapture {
     store_id: Option<String>,
     generation: u64,
     captured_watermark: u64,
+    // For an ordinary deferred drain only: captured_watermark is its durable
+    // request cut; publication is fenced independently, never advanced by it.
+    #[serde(default)]
+    published_watermark: Option<u64>,
+    #[serde(default)]
+    captured_restore_watermark: Option<u64>,
+    #[serde(default)]
+    captured_restore_images_at: Option<u64>,
     send_revision: u64,
     from: u64,
     #[serde(default)]
@@ -38,40 +46,52 @@ pub struct MetadataObservation {
     reset: bool,
     backend_required: bool,
     send_revision: u64,
+    store_id: Option<String>,
+    adoption_capture: BTreeMap<String, Option<String>>,
 }
 
 impl<S: DeviceStore> Device<S> {
     // @ref LLP 3000.007#18.2 — request-local fences precede all durable recovery effects.
     pub fn sync_metadata(&mut self, mut metadata: SyncMetadata, capture: SyncCapture) -> Result<MetadataObservation, RuntimeError> {
         let tx = self.store.transaction()?;
-        store_identity::require_healthy(&tx)?;
+        let published = capture.published_watermark.unwrap_or(capture.captured_watermark);
+        let identity = tx.meta(deferred::IDENTITY)?.or(tx.meta(STORE_ID)?);
         if !metadata.metadata || metadata.store_id.is_empty() || metadata.generation == 0
             || capture.generation != self.generation || capture.store_id.as_ref().is_none_or(|id| id.is_empty())
-            || tx.meta(STORE_ID)? != capture.store_id || meta_u64(&tx, GENERATION)? != capture.generation
+            || identity != capture.store_id || meta_u64(&tx, GENERATION)? != capture.generation
             || meta_u64(&tx, SEND_REVISION)? != capture.send_revision
-            || meta_u64(&tx, WATERMARK)? != capture.captured_watermark {
+            || meta_u64(&tx, WATERMARK)? != published
+            || (capture.published_watermark.is_some() && deferred::cursor(&tx)? != Some(capture.captured_watermark)) {
             return Err(RuntimeError::Generation("sync metadata does not match its device capture; retry sync".into()));
         }
-        if capture.store_id.as_ref() != Some(&metadata.store_id) {
-            let observed = store_identity::observe_identity(&tx, Some(&metadata.store_id), metadata.watermark,
-                Some(capture.send_revision), Some(capture.captured_watermark), Some(capture.captured_watermark))?;
-            tx.commit()?;
-            self.snapshot_owner = None;
-            return Ok(MetadataObservation { snapshot: false, retired: observed.retired, reset: observed.reset,
-                backend_required: observed.backend_required, send_revision: observed.send_revision });
-        }
-        if metadata.generation < capture.generation {
+        let same_identity = identity.as_ref() == Some(&metadata.store_id);
+        if same_identity && metadata.generation < capture.generation {
             return Err(RuntimeError::Generation("sync metadata generation is obsolete; retry sync".into()));
         }
-        if metadata.generation == capture.generation && metadata.watermark < capture.captured_watermark {
-            tx.set_meta(store_identity::RESTORE_REFUSED, "1")?;
+        // A changed generation may reset positions. Only a same-generation
+        // authenticated head proves restore; existing halts still persist.
+        let check_head = !same_identity || metadata.generation == capture.generation;
+        let observed = store_identity::observe_identity(&tx, store_identity::IdentityEvidence {
+            check_restore: check_head,
+            store_id: Some(metadata.store_id.clone()),
+            watermark: if check_head { metadata.watermark } else { published },
+            send_revision: Some(capture.send_revision), captured_watermark: Some(published),
+            // An unvalidated request position is not restore evidence. The
+            // durable captured cut is; grant acceptance checks from separately.
+            requested_watermark: Some(capture.captured_watermark),
+            captured_restore_watermark: capture.captured_restore_watermark,
+            captured_restore_images_at: capture.captured_restore_images_at,
+            images_at: check_head.then_some(metadata.watermark), more: !check_head,
+            snapshot_catchup: capture.stream,
+        }, false)?;
+        if observed.restore_refused {
             tx.commit()?;
             return Err(store_identity::restore_error());
         }
-        let backend_required = metadata.generation != capture.generation
-            || tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty());
-        let mut observation = MetadataObservation { snapshot: false, retired: BTreeMap::new(), reset: false,
-            backend_required, send_revision: capture.send_revision };
+        let backend_required = !same_identity || metadata.generation != capture.generation || observed.backend_required;
+        let mut observation = MetadataObservation { snapshot: false, retired: observed.retired, reset: observed.reset,
+            backend_required, send_revision: observed.send_revision, store_id: tx.meta(STORE_ID)?,
+            adoption_capture: BTreeMap::new() };
         // Adoption always wins. A grant from this response cannot survive it;
         // the client must capture fresh state and request again.
         if !backend_required && let Some(recovery) = metadata.recovery.take() {
@@ -83,8 +103,9 @@ impl<S: DeviceStore> Device<S> {
             observation.snapshot = true;
             observation.send_revision = capture.send_revision + 1;
         }
+        observation.adoption_capture = store_identity::adoption_capture(&tx)?;
         tx.commit()?;
-        if observation.snapshot { self.snapshot_owner = None; }
+        if observation.snapshot || observation.reset { self.snapshot_owner = None; }
         Ok(observation)
     }
 }
@@ -121,10 +142,11 @@ mod grant {
             // reaches this method through a different metadata control path.
             store_identity::require_healthy(tx)?;
             if !metadata.metadata || metadata.store_id.is_empty() || metadata.generation == 0
-                || tx.meta(STORE_ID)? != capture.store_id || capture.store_id.as_ref() != Some(&metadata.store_id)
+                || tx.meta(deferred::IDENTITY)?.or(tx.meta(STORE_ID)?) != capture.store_id || capture.store_id.as_ref() != Some(&metadata.store_id)
                 || meta_u64(tx, GENERATION)? != capture.generation || owner.generation != capture.generation
                 || meta_u64(tx, SEND_REVISION)? != capture.send_revision
-                || meta_u64(tx, WATERMARK)? != capture.captured_watermark
+                || meta_u64(tx, WATERMARK)? != capture.published_watermark.unwrap_or(capture.captured_watermark)
+                || (capture.published_watermark.is_some() && deferred::cursor(tx)? != Some(capture.captured_watermark))
                 || tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) {
                 return Err(RuntimeError::Generation("snapshot recovery capture requires a fresh adopted backend".into()));
             }
@@ -139,7 +161,7 @@ mod grant {
             }
             // A live staged lease is an additional fence, never an exemption
             // from the confirmed-position equality above (including from zero).
-            if capture.stream && (owner.snapshot.is_none() || owner.snapshot != tx.meta(SNAPSHOT_OWNER)?.as_deref()
+            if capture.stream && capture.published_watermark.is_none() && (owner.snapshot.is_none() || owner.snapshot != tx.meta(SNAPSHOT_OWNER)?.as_deref()
                 || meta_u64(tx, SNAPSHOT_THROUGH)? != capture.from) {
                 return Err(RuntimeError::Generation("snapshot recovery lease is no longer current".into()));
             }
@@ -155,10 +177,15 @@ mod grant {
             let tx = self.tx;
             let retired = store_identity::retire_known(tx)?;
             tx.set_meta(SNAPSHOT_REQUIRED, "1")?;
-            tx.delete_meta(&[ACQUIRED])?;
+            // Keep the old base's acquisition evidence for reads. sync_state
+            // reports unacquired and new predictions refuse while recovery is owed.
             tx.set_meta(SEND_REVISION, &self.revision.to_string())?;
-            tx.staged_clear()?;
-            tx.delete_meta(&SNAPSHOT_KEYS)?;
+            predictions::clear_capture(tx)?;
+            // Keep private effects/ACKs until the first valid replacement page;
+            // retain image-head evidence even when consuming a snapshot lease.
+            let images_at = store_identity::restore_images_at(tx)?;
+            snapshot::clear(tx)?;
+            tx.set_meta(deferred::IMAGES_AT, &images_at.to_string())?;
             Ok(retired)
         }
     }

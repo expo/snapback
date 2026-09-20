@@ -1,9 +1,9 @@
 # complete battery red: auth-handshake
 
 **Status:** Closed
-**Reopened by battery run:** `local.20260915T190403Z.ca4844fb29ff`
+**Reopened by battery run:** `local.20260919T040853Z.0168b46b0c20`
 **Closure:** `signature absent from determinate FAIL`
-**Closed at revision:** `fbf2c6042249ffb1b8b21cea660939688718671f`
+**Closed at revision:** `e116b8324d196d3f799ac8d570c156cd73ee18f6`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -13,10 +13,10 @@
 **Battery gate:** `auth-handshake`
 **Failure signature:** `sha256:c219e5ccf74ae281b3e8f5bae467262848289054dded1f0a59b8c50b9e31a8a5`
 **First observed run:** `local.20260824T022619Z.88476b032428`
-**Last observed run:** `local.20260915T190403Z.ca4844fb29ff`
-**Last processed run:** `local.20260916T051524Z.fbf2c6042249`
+**Last observed run:** `local.20260919T040853Z.0168b46b0c20`
+**Last processed run:** `local.20260919T140917Z.e116b8324d19`
 **Detected at revision:** `88476b0324286a5c8bde4b0c1d877ae542cf96e7`
-**Last observed revision:** `ca4844fb29ff71c92ad531a4bc2fa0e53b20d5fe`
+**Last observed revision:** `0168b46b0c205a32b607ecda053fc041dfda900f`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3

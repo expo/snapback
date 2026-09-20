@@ -227,7 +227,8 @@ fn baseline_page_call<S: snapback4_device::store::DeviceStore>(device: &mut Devi
         let value = request.get("page").ok_or_else(|| RuntimeError::Input("the call needs page".into()))?;
         let page: StreamPage = serde_json::from_value(value.clone()).map_err(|e| RuntimeError::Input(e.to_string()))?;
         if op == "observe_store" { return Ok(serde_json::to_value(device.observe_store(&page)?).unwrap()); }
-        Ok(json!({ "touched": device.apply(&page, request.get("first").and_then(Json::as_bool).unwrap_or(false))? }))
+        let touched = device.apply(&page, request.get("first").and_then(Json::as_bool).unwrap_or(false))?;
+        Ok(json!({ "touched": touched, "published": !device.publication_pending()? }))
     })();
     match result { Ok(value) => json!({"ok":value}), Err(error) => json!({"denied": serde_json::to_value(error.refusal()).unwrap()}) }
 }

@@ -13,6 +13,11 @@ pub use crate::device::{Backend, Predicted, Queued, StreamEvent, StreamPage, Syn
 pub type Device = device::Device<Store>;
 
 impl device::Device<Store> {
+    /// Shared host input, including conditional first installation.
+    pub fn open_with(path: &Path, opening: crate::opening::Opening) -> Result<Self, RuntimeError> {
+        opening.open(crate::sqlite::open(path)?)
+    }
+
     /// Open the device's store at `path` (created when absent) for the
     /// backend the server sent — or, with none, for the backend kept from
     /// last time, so a device that starts with no network opens on what it

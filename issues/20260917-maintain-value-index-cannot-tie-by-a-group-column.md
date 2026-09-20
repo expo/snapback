@@ -1,6 +1,6 @@
 # A maintain value index cannot break ties by a group column, so a ranking cannot be newest-first
 
-Status: open
+Status: open — ruled 2026-09-18 (ruling 41): option 1, as an interim; lane W15c
 Priority: P2 (an acceptance criterion a published example cannot meet; the builder's
 documented workaround is a handwritten score, which is the shape three prior
 calibrations shipped with `update <- allow`)
@@ -75,3 +75,41 @@ form that needs no maintain table at all: with ruling 29 (built, W13c) and rulin
 `by byHourLikes: hour(.at), likeCount, at, id` — whose ties are whatever the author writes.
 Option 2 is declined (it makes an id order meaningful that the cards call opaque); option 3
 is what ships until one of the other two does.
+
+## Ruling (the author, 2026-09-18; LLP 3000.007 §14 ruling 39)
+
+**Not option 1.** The value index is not widened. The author ruled for
+**LLP 3000.007.001 (maintained columns), now Accepted and to be built** — the
+fourth path this ticket's disposition named. As a column of the row it
+describes, `likeCount: count likes by postId` makes the ranking an ordinary
+index on the parent, `by byLikes: likeCount, at, id`, whose ties are whatever
+the author writes. "Equal scores, newest first" becomes expressible without any
+new index rule.
+
+So this limit is **retired with the form, not relaxed within it**. Option 1
+would have restated the index rule as a longer rule; the accepted design deletes
+a concept and §20.20's caveats with it. Option 2 stays declined. Option 3 is
+what has shipped, and is what three consecutive builders answered by hand-keeping
+a `posts.score` with `update <- allow`.
+
+This ticket stays **open** until the maintained-columns first build lands, since
+until then option 3 is still what ships and the handwritten score is still the
+paved answer. It closes when a maintained ranking can tie newest-first, not when
+the design is accepted.
+
+Prerequisites, unchanged by acceptance: gate 5 is the lane's milestone zero, and
+`issues/20260917-snapback4-oversized-sync-page-hides-generation.md` is a
+prerequisite of the first build (§3.11) and is still open. Gates 1 and 2 are
+measured and pass.
+
+## Ruling 41 (the author, 2026-09-18; LLP 3000.007 §14) — overturns the ruling above on this one point
+
+**Option 1, as an interim.** Walked through with the derived-data lead, with ruling 39's
+reasoning in view (the lead recommended keeping it), the author chose to relax the index
+rule now — *a prefix of group fields, then `value`, then any remaining group fields, then
+`id`* — so the lanes recipe can tie newest-first before maintained columns ship. Lane
+**W15c**, two-family blind review before landing. Ruling 39's acceptance of the
+maintained-columns design stands.
+
+*Addendum (ruling 41, the same day):* the relaxation is temporary — retired when maintained columns
+(lane MC1, the wave 12 lead) land; the refusal returns pointing at the column form.

@@ -1,9 +1,9 @@
 # complete battery red: snapback-cli-real-server
 
 **Status:** Closed
-**Reopened by battery run:** `local.20260912T024408Z.7d09e3124e2e`
+**Reopened by battery run:** `local.20260919T040853Z.0168b46b0c20`
 **Closure:** `signature absent from determinate FAIL`
-**Closed at revision:** `195ccc9b90d5816f4cdc6145b29b5215bd348579`
+**Closed at revision:** `e116b8324d196d3f799ac8d570c156cd73ee18f6`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -13,10 +13,10 @@
 **Battery gate:** `snapback-cli-real-server`
 **Failure signature:** `sha256:2efc791988de5d6e6e3da3fafe32bc2bc6dc8126d33d571ff95284d615a235a9`
 **First observed run:** `local.20260904T174537Z.37281c059a09`
-**Last observed run:** `local.20260912T024408Z.7d09e3124e2e`
-**Last processed run:** `local.20260912T132006Z.195ccc9b90d5`
+**Last observed run:** `local.20260919T040853Z.0168b46b0c20`
+**Last processed run:** `local.20260919T140917Z.e116b8324d19`
 **Detected at revision:** `37281c059a09e560ab1cae613ed5a4a96487ce7c`
-**Last observed revision:** `7d09e3124e2ea43e4e53d5f26460b04f6aa4bf82`
+**Last observed revision:** `0168b46b0c205a32b607ecda053fc041dfda900f`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3

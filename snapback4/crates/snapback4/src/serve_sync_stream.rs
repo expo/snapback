@@ -87,8 +87,8 @@ fn read(engine: &mut Engine, principal: &str, input: &SyncRequest, now: i64, mod
         return Ok(ReadReply::Metadata(metadata));
     }
     let page = snapback4_core::partition::stream(&tx, &schema, principal, input.from, input.limit.clamp(1, 10_000), now)?;
-    let acknowledged = Engine::acknowledged_in(&tx, principal, &input.pending, page.watermark)?;
-    Ok(ReadReply::Stream(StreamReply { acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Stream(page.events), generation, store_id,
+    let (acknowledged, committed_above) = Engine::acknowledged_at_in(&tx, principal, &input.pending, page.watermark, page.images_at.unwrap_or(page.watermark))?;
+    Ok(ReadReply::Stream(StreamReply { images_at: page.images_at, committed_above, acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Stream(page.events), generation, store_id,
         joined: page.joined, more: page.more, snapshot: false, watermark: page.watermark }))
 }
 

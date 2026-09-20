@@ -71,7 +71,7 @@ fn c2<S: DeviceStore>(open: impl FnOnce(Backend) -> Device<S>) {
     // for a request from 2, although the device has already confirmed it at 3.
     engine.seed((0..48).map(|i| ("posts".into(), object([("id", Value::Id(format!("p3-{i:02}"))), ("body", Value::String("small".into()))])))).unwrap();
     let page = engine.stream_at("alice", 2, 100, 0).unwrap();
-    let page = serde_json::to_value(StreamReply { acquisitions: page.acquisitions, acknowledged: BTreeMap::new(),
+    let page = serde_json::to_value(StreamReply { images_at: page.images_at, committed_above: BTreeMap::new(), acquisitions: page.acquisitions, acknowledged: BTreeMap::new(),
         events: SyncEvents::Stream(page.events), generation: engine.generation(), joined: page.joined,
         more: page.more, snapshot: false, store_id: engine.store().meta("store_id").unwrap().unwrap(), watermark: page.watermark }).unwrap();
     command(&mut device, json!({"op":"apply","page":page}));

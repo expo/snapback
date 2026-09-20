@@ -1,9 +1,9 @@
 # complete battery red: exact-all-aboard-live
 
 **Status:** Open
-**Reopened by battery run:** `local.20260918T081626Z.dc1abf6b7394`
+**Reopened by battery run:** `local.20260919T140917Z.e116b8324d19`
 **Closure:** `signature absent from determinate FAIL`
-**Closed at revision:** `81bd5e61eb1ada23d6d00618afd0fb020be3eafc`
+**Closed at revision:** `0168b46b0c205a32b607ecda053fc041dfda900f`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -13,10 +13,10 @@
 **Battery gate:** `exact-all-aboard-live`
 **Failure signature:** `sha256:6e69948d2a0950986353de078cfa87b6ff89e81b04e6d9781c7e3ae14c386af3`
 **First observed run:** `local.20260828T032832Z.2fbb5bd35a5d`
-**Last observed run:** `local.20260918T081626Z.dc1abf6b7394`
-**Last processed run:** `local.20260918T081626Z.dc1abf6b7394`
+**Last observed run:** `local.20260919T140917Z.e116b8324d19`
+**Last processed run:** `local.20260919T140917Z.e116b8324d19`
 **Detected at revision:** `2fbb5bd35a5d7355b5bf9abf3dc6417ea7a02473`
-**Last observed revision:** `dc1abf6b73943f637964c7e8160ef477f77afa90`
+**Last observed revision:** `e116b8324d196d3f799ac8d570c156cd73ee18f6`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3

@@ -205,3 +205,51 @@ vocabulary or disclosure boundary was changed.
 Remaining work: reduce at least 3,285 B without weakening those semantics,
 then rerun the wasm size gate and affected device/client recovery checks.
 The present semantic test passes do not constitute a green size qualification.
+
+## 2026-09-18 Repair B lane, round 12 delta recorded in round 13
+
+The round-12 device is 488,235 B gzip, **+658 B** over round 11's
+487,577 B. Round 13's full blocking-suite build reproduces 1,686,925 B raw /
+488,235 B gzip. That measurement predates the S3 landing and the ratchet
+above; against the 410,000 B budget now enforced by `scripts/build-wasm.sh`
+the lane's tree is over, and it must be re-measured on the integrated tree
+before any publication. Round 13 changes test fixtures only;
+this records the lane's existing growth, without changing the budget or
+claiming size qualification. The full build output is retained in
+`snapback4/target/review-fix13/full-suite.log`. This ticket remains open.
+
+
+
+## 2026-09-18 Repair B integration, round 2
+
+The merge of main `04def4945` and lane `456782dbb` starts at 436,594 B gzip,
+26,135 B above the measured main parent (410,459). Ordered source ablations
+attribute 10,824 B to deferred fold/record/install, 6,889 B to capture/declaration,
+1,654 B to private restore observation/evidence, 1,218 B to wasm opening and
+checked kept-backend installation, and 5,550 B to the remaining shared
+publication/lifecycle/wire/outbox integration. These are order-dependent
+compression/reachability measurements, with a stated residual; TypeScript
+opening code itself adds no wasm bytes.
+
+Combining the recording maps and avoiding unnecessary collection sorting save
+2,654 B against the correctness-fixed tree. The final build is 433,908 B gzip,
+22,908 B over the unchanged 411,000 budget, and 23,449 B above the main parent.
+A shared trait-object applicator compressed 2,640 B worse and was reverted.
+The serde-family and forbidden-code census passes. The remaining lane delta
+would spend 21.3% of the diet's 110,098 B recovered on this main parent. No
+ratchet increase is authorized or made by this integration.
+
+The [integration report](../snapback4/reports/20260918-repair-b-integration-r2.md)
+records the probe method, exact artifacts and command output locations. This
+ticket remains open for the author's budget decision and S6.
+
+## 2026-09-19 — oversized-sync / Repair B / W15c integration measurement
+
+Resolved integration of lane `0d4d60347` and main `5df0d211a` produces a fresh
+web device of **1,601,169 B raw / 441,568 B gzip**, **7,568 B over** main's
+unchanged **434,000 B** budget. `CARGO_BUILD_JOBS=1 bash scripts/build-wasm.sh`
+exits 1 only at its size gate after generating the artifact. The final CLI and
+package were rebuilt before JS qualification; this is not a stale-wasm result.
+Log: `/tmp/f188-integration/wasm-build.log`. This is the combined tree's size,
+not attribution to either parent. No ceiling was raised and no correctness
+mechanism was removed to reduce bytes; the overage remains this diet program's.

@@ -1,9 +1,9 @@
 # complete battery red: fork-parallel-dispositions
 
 **Status:** Closed
-**Reopened by battery run:** `local.20260917T214352Z.81bd5e61eb1a`
+**Reopened by battery run:** `local.20260918T181131Z.c60751e30f9f`
 **Closure:** `signature absent from determinate FAIL`
-**Closed at revision:** `dc1abf6b73943f637964c7e8160ef477f77afa90`
+**Closed at revision:** `0168b46b0c205a32b607ecda053fc041dfda900f`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
@@ -13,10 +13,10 @@
 **Battery gate:** `fork-parallel-dispositions`
 **Failure signature:** `sha256:f35c98847dba04d15442b755e347e8d1b2db337dad021f64bf10f0e93391655b`
 **First observed run:** `local.20260825T115521Z.64e70df1e088`
-**Last observed run:** `local.20260917T214352Z.81bd5e61eb1a`
-**Last processed run:** `local.20260918T081626Z.dc1abf6b7394`
+**Last observed run:** `local.20260918T181131Z.c60751e30f9f`
+**Last processed run:** `local.20260919T040853Z.0168b46b0c20`
 **Detected at revision:** `64e70df1e088d492cde44c9693463a2d052bbd7a`
-**Last observed revision:** `81bd5e61eb1ada23d6d00618afd0fb020be3eafc`
+**Last observed revision:** `c60751e30f9f1528c5532c396c7f8d6da598e7f5`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3

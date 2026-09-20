@@ -60,7 +60,7 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 let (jobs, reads) = device.install_native(&bytes, text(&request, "digest")?, generation)?;
                 json!({ "jobs": jobs, "reads": reads })
             }
-            "sync_state" => encoded(&device.sync_state()?)?,
+            "sync_state" => encoded(&if request.get("capture").and_then(Json::as_bool) == Some(false) { device.sync_state_read()? } else { device.sync_state()? })?,
             "sync_metadata" => {
                 let metadata = parse(take(&mut request, "metadata")?)?;
                 let capture = parse(take(&mut request, "capture")?)?;
@@ -68,9 +68,7 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
             }
             "begin_send" => json!({ "send_revision": device.begin_send()? }),
             "adopt" => {
-                let mut expected = std::collections::BTreeMap::new();
-                // @ref LLP 3000.007#18.2 — keep the request-local acquisition fence through the later
-                // schema fetch as well as the initial store observation.
+                let mut expected = request.get("adoption_capture").cloned().map(parse::<std::collections::BTreeMap<String, Option<String>>>).transpose()?.unwrap_or_default();
                 for (field, key) in [("store_id", "device:store_id"), ("send_revision", "device:send_revision"), ("captured_watermark", "device:watermark")] {
                     if let Some(value) = request.get(field) {
                         let value = if field != "store_id" {
@@ -197,7 +195,8 @@ fn page_call<S: DeviceStore>(device: &mut Device<S>, command: PageArgument) -> R
     PAGE_CALLS.set(PAGE_CALLS.get() + 1);
     if command.op == "observe_store" { return encoded(&device.observe_store(&command.page)?); }
     // A missing marker is a continuation; starting a snapshot must be explicit.
-    Ok(json!({ "touched": device.apply(&command.page, command.first.as_bool().unwrap_or(false))? }))
+    let (touched, published) = device.apply_publication(&command.page, command.first.as_bool().unwrap_or(false))?;
+    Ok(json!({ "touched": touched, "published": published }))
 }
 
 #[cfg(test)]

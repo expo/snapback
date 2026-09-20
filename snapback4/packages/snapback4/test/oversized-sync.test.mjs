@@ -159,13 +159,17 @@ for (const tier of ['wasm', 'process']) for (const changed of [true, false]) tes
   });
   f.online(); await f.client.sync();
   if (!changed) {
-    const interrupted = (await f.core.call({ op: 'sync_state' })).ok;
+    const interrupted = (await f.core.call({ op: 'sync_state', capture: false })).ok;
     assert.equal(interrupted.snapshot_required, true);
     assert.equal(interrupted.acquired, false);
     assert.equal(interrupted.watermark, f.before.watermark);
     assert.equal(f.client.acquired, false);
     await f.reopen();
-    assert.deepEqual((await f.core.call({ op: 'sync_state' })).ok, interrupted, 'recovery obligation survives reopening the real device');
+    const reopened = (await f.core.call({ op: 'sync_state', capture: false })).ok;
+    assert.equal(reopened.send_revision, interrupted.send_revision + 1, 'Repair B abandons the interrupted snapshot request on reopen');
+    assert.deepEqual(reopened, { ...interrupted, send_revision: reopened.send_revision,
+      adoption_capture: { ...interrupted.adoption_capture, 'device:send_revision': String(reopened.send_revision) } },
+    'recovery obligation and all other progress survive reopening the real device');
     assert.equal(f.client.acquired, false);
     f.intercept(undefined);
     await f.client.sync();
@@ -234,12 +238,12 @@ for (const tier of ['wasm', 'process']) test(`${tier}: R5 S1 a limit-one capture
   }
   const accepted = await f.core.call({ op: 'sync_metadata', metadata, capture });
   assert.equal(accepted.ok?.snapshot, true, 'the unmodified measurement is sufficient');
-  const consumed = (await f.core.call({ op: 'sync_state' })).ok;
+  const consumed = (await f.core.call({ op: 'sync_state', capture: false })).ok;
   capture.send_revision = consumed.send_revision;
   assert.equal((await f.core.call({ op: 'sync_metadata', metadata, capture })).denied?.code, 'E_GENERATION', 'acceptance consumes the measured revision');
   await f.reopen();
   assert.equal((await f.core.call({ op: 'sync_metadata', metadata, capture })).denied?.code, 'E_GENERATION', 'consumption survives reopening');
-  assert.deepEqual((await f.core.call({ op: 'sync_state' })).ok, consumed);
+  assert.deepEqual((await f.core.call({ op: 'sync_state', capture: false })).ok, consumed);
 });
 
 for (const tier of ['wasm', 'process']) test(`${tier}: R5 S2 saved overflow evidence cannot authorize a fresh send revision after shrink`, { timeout: 120000 }, async t => {
@@ -585,11 +589,6 @@ for (const tier of ['wasm', 'process']) test(`${tier}: catch-up recovery rejects
   const metadata = { metadata: true, store_id: state.store_id, generation: state.generation, watermark: page.watermark + 1,
     recovery: { from: page.watermark, snapshot: true, store_id: state.store_id, generation: state.generation, limit: 1, stream: true, send_revision: state.send_revision, single_commit: true, commit: page.watermark + 1, measured_head: page.watermark + 1 } };
   const recover = capture => f.core.call({ op: 'sync_metadata', capture, metadata });
-  const advanced = { snapshot: false, events: [], store_id: state.store_id, generation: state.generation,
-    watermark: page.watermark + 1, more: true, snapshot_catchup: true };
-  assert.ok(!(await f.core.call({ op: 'apply', page: advanced })).denied);
-  assert.equal((await recover(capture)).denied?.code, 'E_GENERATION');
-  await stage();
   assert.equal((await recover(capture)).ok?.snapshot, true);
   assert.equal((await recover(capture)).denied?.code, 'E_GENERATION', 'old capture cannot reuse the retired lease');
   const current = (await f.core.call({ op: 'sync_state' })).ok;
@@ -599,6 +598,15 @@ for (const tier of ['wasm', 'process']) test(`${tier}: catch-up recovery rejects
   assert.equal((await recover(capture)).denied?.code, 'E_GENERATION', 'a new lease cannot revalidate the old measured revision');
   metadata.recovery.send_revision = capture.send_revision; // Simulate newly measured evidence for this receipt-only test.
   assert.equal((await recover(capture)).ok?.snapshot, true, 'a new lease with newly bound evidence can recover');
+  // Advancing a private snapshot is restore evidence in Repair B. Test its
+  // refusal last; replaying the older snapshot afterward is no longer valid.
+  await stage();
+  capture.send_revision = (await f.core.call({ op: 'sync_state', capture: false })).ok.send_revision;
+  metadata.recovery.send_revision = capture.send_revision;
+  const advanced = { snapshot: false, events: [], store_id: state.store_id, generation: state.generation,
+    watermark: page.watermark + 1, more: true, snapshot_catchup: true };
+  assert.ok(!(await f.core.call({ op: 'apply', page: advanced })).denied);
+  assert.equal((await recover(capture)).denied?.code, 'E_GENERATION');
 });
 
 for (const tier of ['wasm', 'process']) test(`${tier}: G1 backend-required metadata cannot clear an existing partition refusal`, async t => {

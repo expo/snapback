@@ -1369,3 +1369,23 @@ fn w13cr1_cost_keeps_differently_grouped_range_expressions_dynamic() {
     assert!(text.contains("lanes ≤ meter"), "{text}");
     assert!(!text.contains("up to 0 lanes"), "{text}");
 }
+
+#[test]
+fn w15c_trending_cost_keeps_the_same_lane_and_head_counts() {
+    let recipe = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).into_iter().find(|s| s.contains("maintain trend:")).unwrap();
+    let old = recipe.replace("by byScore: hour, value, postAt, postId", "by byScore: hour, value, id");
+    let new = recipe.replace("by byScore: hour, value, id", "by byScore: hour, value, postAt, postId");
+    let p = Project::new();
+    p.source(&old); let before = p.run(&["check", "--cost"]);
+    p.source(&new); let after = p.run(&["check", "--cost"]);
+    assert!(before.status.success(), "{before:?}");
+    assert!(after.status.success(), "{after:?}");
+    let before = String::from_utf8(before.stdout).unwrap();
+    let after = String::from_utf8(after.stdout).unwrap();
+    // The first line reports elapsed check time, not structural cost.
+    let before = before.lines().skip(1).collect::<Vec<_>>().join("\n");
+    let after = after.lines().skip(1).collect::<Vec<_>>().join("\n");
+    assert_eq!(before, after);
+    assert_eq!(after.matches("merge trend: up to 25 lanes").count(), 2);
+    println!("W15c check --cost before/after (identical):\n{after}");
+}

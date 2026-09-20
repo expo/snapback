@@ -208,6 +208,11 @@ impl DeviceStore for MemoryStore {
         self.install(schema, metadata, reset)
     }
     fn install(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool) -> Result<(), RuntimeError> {
+        // Installation below is infallible and memory has one exclusive owner.
+        // Run fallible cleanup first; the host persists this whole call together.
+        let tx = self.transaction()?;
+        crate::device::reset_for_install(&tx, metadata, reset)?;
+        tx.commit()?;
         let mut state = self.state.borrow_mut();
         let mut changes = self.changes.borrow_mut();
         for (key, value) in metadata {

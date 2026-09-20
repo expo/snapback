@@ -4177,3 +4177,239 @@ complete calculations, reviews, qualification summary and transport custody.
 `storage.jsonl` carries its small binding instead of another multi-megabyte
 append. The source change is adopted for the repeated targeted gains with
 these limits and losses; integration and publication are separate facts.
+
+
+### Fixed 0.2.29 comparison and single-decode candidate, 2026-09-18
+
+Comparison and both A/B batches are complete. The candidate remains
+unlanded. On 2026-09-18 the author chose **"Keep it shelved (Recommended)"**
+after reviewing the repeated point-read losses. This closes the adoption
+request for this candidate; the broader feed-cost issue stays open.
+
+The release pin is 0.2.29, published at source
+`1b3d97f61fd4ee20ad2f2b71c32108dce6af210d`. The production build uses
+`a8de12ed88202622dcb496ba2ac3abc356d46635`; the complete Snapback 4 tree and
+Rust toolchain blob are byte-identical at the two commits. This is a native
+ARM Linux production build of published source, not the Darwin npm binary.
+The pin remains fixed while main and publication continue to advance.
+
+The retained Office M1 Max / four-vCPU, 12-GiB Colima VM runs one workload
+at a time, with Node 24.21.0 / Undici 7.29.1, the original membership
+instrument `36f4026b…`, and the retained Convex/Supabase services and image
+pins. Builds finished before measurement. The comparison rotates
+Snapback/Convex/Supabase, Convex/Supabase/Snapback and
+Supabase/Snapback/Convex at trials 801–803. The separate candidate experiment
+alternates baseline/candidate, candidate/baseline and baseline/candidate at
+trials 901–903. Each run has the same 39 cases, 500 timed requests and
+30 excluded warmups per case. Request latency includes fetch, JSON parsing
+and unpacking, including HTTP-success, completeness and viewer checks.
+Complete-row and next-presence assertions follow that request timer but
+remain in case elapsed time and client-observed throughput.
+
+Fixtures have 501 groups, 186 memberships and 100,000 messages. Each
+Snapback run restores its own copy of the pristine database and starts a
+fresh process. Comparison and A/B use separate snapshots and identities;
+within each batch the same ordinary sessions survive leave and regrant.
+Physical projections, full ordered HTTP walks, live authorization,
+invalid/expired authentication and old/foreign cursor checks remain. Convex
+regrant restores all 186 memberships with the retained import; Snapback and
+Supabase restore the removed membership. No comparator deployment changes
+or service restarts are part of this pass. Backend caches stay enabled.
+
+The two-file candidate removes the second decoding of the same opaque
+token within one `bounds` invocation. A crate-private helper validates the
+canonical token and descriptor and returns the whole cursor position;
+the public value-returning wrapper keeps its signature. Scope/generation
+validation and inclusive/exclusive bounds use that validated position.
+This is not reuse across merge lanes. Canonical re-encoding, expression
+execution, live row/rule reads, error order, meter charges and ceilings
+remain. No result or authorization cache is added. The added unit case
+covers scoped/unscoped and inclusive/exclusive forms, public-wrapper values,
+descriptor refusal and canonical/base64 refusal before descriptor refusal.
+
+Current-source inspection connects the candidate to the large-feed gap:
+`merge_lazy` prepares bounds for each discovered membership lane, and each
+opaque bounds check currently decodes the same token twice. The candidate
+removes one of those decodes per bounds call. It still opens lane heads,
+fetches rows and evaluates live rules. This is a source-level explanation
+of the repeated work, not a new CPU profile or a claim that cursor work
+accounts for the entire measured gap.
+
+Selected qualification passed 708 baseline and 709 candidate Rust tests,
+with zero failures and three existing exclusions in each. One exclusion is
+a deliberate following-design comparison; two presence/prediction-meter
+failures are already tracked in the 2026-09-17 presence-conjunction issue.
+These are selected core, simulator and device tests, not a full-suite or
+publication claim. Both production builds and version checks passed.
+The original missing-fixture compilation failure remains recorded; the
+successful resumption supplied six literal fixture dependencies whose bytes
+match both the build source and the published source. The first comparison
+setup failed at the generator because its parent directory was absent,
+before any fixture or service mutation; the original records remain intact.
+
+The nine-run comparison completed at 13:48:18 UTC with clean owned-process
+cleanup. Both frozen calculators and the reconciler passed unchanged on their first
+formal invocations; independent evidence review is ready for this scoped comparison:
+Snapback has lower p50 medians in 12/39 cases versus Convex and 38/39 versus
+Supabase, with no ties. All 18 feed p50 medians exceed Convex's. Medians of
+three reported per-run p50 statistics, milliseconds:
+
+| 150-membership feed | Snapback | Convex | Supabase |
+|---|---:|---:|---:|
+| First page, C1 | 6.047 | 1.177 | 11.881 |
+| Next page, C1 | 9.062 | 0.966 | 14.521 |
+| Rotating pages, C1 | 9.904 | 0.953 | 12.899 |
+| First page, C8 | 21.234 | 4.118 | 34.771 |
+| Next page, C8 | 29.010 | 3.865 | 36.884 |
+| Rotating pages, C8 | 40.136 | 3.636 | 35.530 |
+
+The largest feed p50 ratio against Convex is the 150-membership rotating
+case at C8: 11.04 times the latency. It is also the sole p50-median loss
+against Supabase. Its Snapback/Convex/Supabase p99 values are
+97.325/22.038/112.673 ms, with client-observed rates
+184.7/1634.7/200.6 requests/s. Full case metrics and paired losses belong
+in the durable data record; small differences are descriptive observations.
+All 175,500 timed requests and 10,530 excluded warmups passed, along with
+36 physical fixture proofs, acknowledged leave and same-session regrant.
+The primary ledger retains 153 median / 409 paired metric losses against
+Convex and 10 / 50 against Supabase across all six metrics. Every degree-30
+and degree-150 feed case loses p50 to Convex in every paired round.
+The records directly count 135 feed walks / 49,914 feed pages. The fixed
+instrument additionally performs four representative thread walks totaling
+13 pages in each verification phase. Those source-derived thread counts
+add 108 walks / 351 pages, for 243 untimed walks / 50,265 pages combined.
+These totals exclude additional auth, point and cursor probes; they are not
+a count of all HTTP traffic. All 702 shared median values and every median
+and paired loss agree between the two calculations. Paired scalar contrasts
+and win/tie distinctions are retained in the independent calculation; the
+primary calculator does not emit all of those values.
+The independent evidence review checks all 344 public originals, 78 stage
+launch/exit joins, 21 positive SQL phase completions, restored physical
+fixtures and same-session walks. Deployment/version assertions and private
+proof hashes remain producer attestations. Convex reports an unknown
+server version and its source binding is historical. Supabase admission
+does not establish complete policy, ACL or index equivalence. No stronger
+comparator custody claim follows.
+
+The first ordinary A/B completed at 14:00:58 UTC: six runs, 117,000 timed
+requests, 7,020 warmups, 24 physical proofs and 162 untimed walks / 33,510
+pages. All result, auth, leave, regrant and owned-process cleanup checks
+passed. Both frozen calculators passed unchanged on their first formal
+invocations. The original reconciler's A/B invocation failed because its
+suffix selector also included nested `memory-after-main.json` files. The
+failure and the original review miss remain recorded. Reviewed v2 adds only
+a top-level-path check; its first invocation agrees on 468 shared
+case-statistic medians, all 74 median / 246 paired loss identities, six
+main-file hashes and every memory point/median/difference. The independent
+output retains all 234 median / 702 paired scalar contrasts; the primary
+calculator does not emit all of those contrasts. The workload and calculators were
+not rerun to repair that analysis selection bug.
+
+Medians of three paired A/B runs, baseline → candidate. These use the
+A/B baseline, never the separate comparison window's 40.136 ms value:
+
+| 150-membership continuation | p50 ms | p99 ms | Requests/s |
+|---|---:|---:|---:|
+| Next page, C1 | 9.141 → 7.792 | 13.347 → 16.489 | 110.1 → 118.8 |
+| Rotating pages, C1 | 9.852 → 6.862 | 23.065 → 21.426 | 96.8 → 107.4 |
+| Next page, C8 | 27.101 → 23.073 | 64.779 → 51.781 | 278.9 → 335.1 |
+| Rotating pages, C8 | 27.169 → 24.937 | 75.090 → 63.992 | 271.7 → 292.5 |
+
+All four target p50 and rate cases improve in every pair. The p50-median
+reductions span 8.2–30.3%; 30/39 total case medians improve, including
+9/12 feed-continuation cases. The candidate also has unresolved losses:
+30-group next-page C8 p50 rises 8.450 → 10.979 ms, p99 rises
+23.794 → 43.022 ms and rate falls 863.2 → 624.0/s. The 30-group first-page
+C8 p50 and rate worsen in all three pairs. Five-group rotating-point C8
+p95 and rate also worsen in all three pairs (medians 4.416 → 6.805 ms and
+2518.5 → 2127.2/s). Five-group next-thread C8 p95/max worsen in all pairs.
+The 150-group rotating C8 p99 loses two pairs despite its lower median;
+its max median rises 78.372 → 85.152 ms. These are retained measured
+regressions, not dismissed as noise.
+
+All six post-main and post-regrant RSS paired differences are positive.
+The after-main RSS medians are 36,616 → 37,692 KiB; after regrant they are
+29,960 → 32,512 KiB. HWM medians are 38,884 → 39,076 KiB with mixed paired
+differences. All eighteen snapshots remain in the data. A second, bounded
+confirmation was declared before its launch: identical binaries and
+39-case protocol, fresh restored stores/processes, C/B then B/C then C/B
+order at trials 904–906. It assesses the target gains, the smaller-feed and
+point/thread losses, and RSS together. It does not replace the first batch.
+The confirmation completed at 14:26:57 UTC with all six runs, correctness
+checks and cleanup passing. It adds 117,000 timed requests, 7,020 warmups,
+24 physical proofs and 162 untimed walks / 33,510 pages. Both frozen
+calculators pass unchanged on their first invocations; their reconciler
+also passes on its first invocation. The correction to the report joiner
+was caught in source review before execution: compare case names between
+batches, not their deliberately distinct median values. Its preserved v1
+never executed; reviewed v2 joins the complete outputs successfully.
+
+Confirmation medians, baseline → candidate:
+
+| 150-membership continuation | p50 ms | p99 ms | Requests/s |
+|---|---:|---:|---:|
+| Next page, C1 | 9.753 → 7.996 | 31.786 → 8.935 | 86.9 → 124.2 |
+| Rotating pages, C1 | 10.266 → 8.138 | 20.621 → 9.965 | 89.5 → 126.7 |
+| Next page, C8 | 29.318 → 25.329 | 76.256 → 75.342 | 252.9 → 279.6 |
+| Rotating pages, C8 | 31.050 → 20.972 | 70.380 → 56.160 | 240.5 → 355.6 |
+
+The largest-gap target (rotating C8) improves p50 and rate in all six pairs
+across both batches. Next-page C8 improves those metrics in five of six.
+The other two 150-group continuation targets improve them in all six.
+Confirmation p50 medians improve in 25/39 cases, with 88 median / 310
+paired metric losses across all six metrics. The two batches retain 556
+paired losses among 1,404 comparisons; elapsed and rate are related, not
+independent evidence. Their quantiles are never pooled.
+
+The persistent control regression is five-group rotating-point C8:
+p95 rises 4.762 → 9.811 ms and rate falls 2297.2 → 1653.7/s in confirmation.
+Those metrics worsen in every one of the six pairs across both batches;
+the rate-median losses are 15.5% and 28.0%. Confirmation also has slower
+five-group hot/rotating point and first-thread controls. Target tails
+remain mixed: next-page C8 max rises 100.893 → 138.178 ms and its p95 rises
+53.854 → 56.155 ms. Every case and loss stays in the data.
+
+The earlier 30-group next-page penalties do not repeat consistently;
+confirmation medians improve in all six metrics. Memory differences also
+vary: confirmation after-main RSS medians are 36,908 → 35,124 KiB, and
+after-regrant medians are 31,032 → 28,824 KiB, with mixed paired signs.
+HWM medians are 37,916 → 37,880 KiB. The complete record retains all 36
+snapshots from both batches. It does not establish a causal RSS benefit
+or penalty, and the first batch's increases remain recorded.
+
+The heavy-feed gain is repeatable in this protocol, but the persistent
+point-read regression prevents recommending this as a general read-speed
+improvement. The author accepted the recommendation to shelve this
+candidate. No third timing batch or another tuned runtime variant is part
+of this decision round.
+Independent confirmation evidence review is ready for scoped reporting.
+It verifies all 152 public originals, 42 stage launch/exit joins, 24 physical
+proofs, live same-session restoration and process-owned memory observations.
+Across both batches, five-group first-thread C8 p50/p95/rate also worsen in five of six
+pairs. The record preserves both gains and repeated control losses.
+
+The data-only record is [`membership-0229-single-decode-20260918.jsonl`](./membership-0229-single-decode-20260918.jsonl),
+SHA-256 `78be07d5e9ed59baed8c2cfb2818684bef978a37a325e683d76d58e01904ae7f`,
+5,274,778 bytes. It preserves 756 exact public JSON originals (4,675,706
+original bytes), including comparison and both A/B runs, setups, selected
+qualification, original failures, both calculations, reconciliation,
+all-case contrasts, memory observations and independent reviews. Private
+credentials, logs and database exports remain excluded; non-exported
+build/test logs and private proof hashes are producer attestations.
+The performance lane has not adopted any core change. The two-file patch
+and its qualification records remain preserved in the local run archive;
+the author's shelving decision grants no exception to the one-owner rule
+in `snapback4/AGENTS.md` / `snapback4/NOT-DOING.md`. Correctness qualification
+does not resolve the measured performance tradeoff. The broader feed-cost
+issue stays open: investigate per-lane scan and row-materialization work,
+and explain persistent control losses before claiming a general speedup.
+The bounded goal's performance landing remains outstanding.
+
+These are warm loopback, finite-concurrency request batches on a shared
+host, with repeated/previously visited keys and pages. Medians combine three
+reported run statistics, not pooled raw samples or confidence intervals.
+Process VmRSS/VmHWM snapshots are outside the timed requests; they do not
+isolate cursor allocations or establish a continuous lifetime peak. The
+comparison does not isolate a cross-version regression against 0.2.20, and
+does not establish hosted/WAN, cold-cache, device, write, realtime or
+power-loss durability performance.

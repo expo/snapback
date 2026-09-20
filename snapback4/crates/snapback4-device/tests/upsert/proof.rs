@@ -20,7 +20,7 @@ fn ascending_horizon_advice<H: Host>(host: &mut H) {
         assert_eq!(acquired, 25, "every existing row was acquired, even under last 500");
         let new_ids: Vec<_> = (0..20).map(|n| format!("copy{n:02}")).collect();
         let entry = Queued { id: "copy-write".into(), seq: 1, op: "copyArchive".into(), args: json!({}), viewer: "bob".into(), now: 1000,
-            new_ids: new_ids.clone(), predicted: vec![], predictable: true, sent_seq: None, observed_seq: None };
+            new_ids: new_ids.clone(), predicted: vec![], predictable: true, sent_seq: None, receipt_store: None, observed_seq: None };
         let admitted = device.admit(entry).unwrap();
         let pending = device.query("copied", "bob", &json!({}), 1000).unwrap().data;
         let pending = pending.as_array().unwrap();
@@ -64,7 +64,7 @@ fn horizon_guard_rewrite_restores_the_pending_message_on_both_stores() {
             for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
             let input = json!({"messageId":"message", "conversationId":"room", "body":"hello"});
             let entry = Queued { id: "write".into(), seq: 1, op: "send".into(), args: input.clone(), viewer: "bob".into(), now: 1000,
-                new_ids: vec![], predicted: vec![], predictable: true, sent_seq: None, observed_seq: None };
+                new_ids: vec![], predicted: vec![], predictable: true, sent_seq: None, receipt_store: None, observed_seq: None };
             let queued = device.admit(entry).unwrap();
             assert_eq!(queued.predictable, !guarded, "{} {name}: {queued:?}", host.label());
             let pending = device.query("one", "bob", &json!({"messageId":"message"}), 1000).unwrap().data;
@@ -83,7 +83,7 @@ fn horizon_guard_rewrite_restores_the_pending_message_on_both_stores() {
 
 fn queued(op: &str, seq: u64) -> Queued {
     Queued { id: op.into(), seq, op: op.into(), args: json!({"postId":"first"}), viewer: "bob".into(), now: 1000,
-        new_ids: vec![format!("new-{seq}")], predicted: vec![], predictable: true, sent_seq: None, observed_seq: None }
+        new_ids: vec![format!("new-{seq}")], predicted: vec![], predictable: true, sent_seq: None, receipt_store: None, observed_seq: None }
 }
 fn seed(server: &mut Engine, table: &str, image: Json) {
     let row = wire::row_from_json(&server.schema().tables[table], &image).unwrap();
@@ -277,6 +277,7 @@ fn left_group<H: Host>(host: &mut H, replay: bool) {
     for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
     if replay { assert!(device.admit(queued("vote", 1)).unwrap().predictable); }
     assert!(matches!(sent(&mut server, "leave", 2).state, WriteState::Sent { .. }));
+    device.sync_state().unwrap();
     let mut page = stream_page(&mut server, "bob", device.state().unwrap().0);
     assert!(page.events.iter().any(|event| event.kind == "scope"));
     // Exercise the absent left-group boundary explicitly: the server confirmed

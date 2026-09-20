@@ -53,7 +53,7 @@ fn sync_metadata_recovery_fences_and_durable_acquisition_on_both_stores() {
         let queue = ok(device.call(json!({ "op": "queued" })));
         assert_eq!(queue.as_array().unwrap().len(), 1);
         assert_eq!(queue[0]["id"], "unknown");
-        let recovering = ok(device.call(json!({ "op": "sync_state" })));
+        let recovering = ok(device.call(json!({ "op": "sync_state", "capture": false })));
         assert_eq!(recovering["snapshot_required"], true);
         assert_eq!(recovering["acquired"], false);
         assert_eq!(recovering["watermark"], state["watermark"], "keep the restore watermark");
@@ -66,7 +66,7 @@ fn sync_metadata_recovery_fences_and_durable_acquisition_on_both_stores() {
         assert_eq!(device.call(json!({ "op": "apply", "page": page }))["denied"]["code"], "E_GENERATION", "pre-recovery pages are fenced");
         device.close();
         let mut device = host.open("metadata", None).unwrap();
-        assert_eq!(ok(device.call(json!({ "op": "sync_state" }))), recovering, "restart persists across reopen");
+        assert_eq!(ok(device.call(json!({ "op": "sync_state", "capture": false }))), recovering, "restart persists across reopen");
         page["send_revision"] = recovering["send_revision"].clone();
         assert_eq!(device.call(json!({ "op": "apply", "page": page }))["denied"]["code"], "E_GENERATION", "ordinary streaming cannot discharge recovery");
         identified_pages(&mut engine, &mut *device, true);
@@ -245,8 +245,12 @@ fn store_identity_resets_equal_watermarks_and_retires_only_known_receipts_on_bot
         let b_id = b.store().meta("store_id").unwrap().unwrap();
         assert_ne!(a_id, b_id);
         let mut device = host.open("identities", Some(backend.clone())).unwrap();
+        // The next request belongs to the reopened owner. Recovery fences the
+        // old capture; keep old_page unchanged to test its delayed rejection.
+        let reopened = ok(device.call(json!({ "op": "sync_state" })));
+        assert_ne!(reopened["send_revision"], capture["send_revision"]);
         let mut page = page_json(&stream_page(&mut b, "alice", 4));
-        page["store_id"] = json!(b_id); page["send_revision"] = capture["send_revision"].clone();
+        page["store_id"] = json!(b_id); page["send_revision"] = reopened["send_revision"].clone();
         let observation = ok(device.call(json!({ "op": "observe_store", "page": page })));
         assert_eq!(observation["reset"], true);
         assert_eq!(observation["retired"]["known-observed"], 3);

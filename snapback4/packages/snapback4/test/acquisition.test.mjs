@@ -286,16 +286,18 @@ for (const tier of ["wasm", "process"]) {
     const queued = await client.mutate({ kind: "mutation", name: "add" }, { body: "acquired prediction" });
     assert.equal(queued.state, "pending");
     assert.equal((await f.core().call({ op: "queued" })).ok[0].predictable, true);
-    // Safe literal-default evolution retains the complete old partition.
+    // A schema fetch alone cannot adopt a generation before sync preflight.
+    // Keep the complete old partition until a validated reply permits evolution.
     const old = await f.backend();
     const evolved = source.replace("  body: text <=100", "  body: text <=100\n  tag: text <=20 default 'new'");
     writeFileSync(f.schemaPath, evolved);
     await until(async () => (await f.backend()).generation !== old.generation, "server did not adopt the new generation");
     await client.close(); f.mode("sync-fails"); client = await f.open();
-    assert.equal(client.acquired, true, "safe default-only widening preserves acquisition");
+    assert.equal(client.acquired, true, "failed preflight preserves the acquired old generation");
     const inherited = await client.query(query("all"), {});
     assert.equal(inherited.complete, true); assert.equal(inherited.fresh, false); assert.equal(inherited.data.length, 7);
-    assert.ok(inherited.data.every((row) => row.tag === "new"));
+    assert.equal((await f.core().call({ op: "state" })).ok.generation, old.generation);
+    assert.ok(inherited.data.every((row) => !Object.hasOwn(row, "tag")), "unvalidated defaults cannot appear in the retained generation");
     assert.equal((await f.core().call({ op: "queued" })).ok[0].id, queued.id);
     f.mode("online"); await client.sync();
     await until(async () => (await f.core().call({ op: "queued" })).ok.length === 0, "old queued write did not settle after adoption");

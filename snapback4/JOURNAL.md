@@ -39652,11 +39652,365 @@ This entry preserves all 2,245,276 earlier journal bytes (SHA-256
 `8dbed07a15be93003e00add097dca55702c39cdc9da9f133c2273d4d317ca3f1`). Reference and whitespace checks
 run again after this append. All changed code files are below 1,500 lines.
 
+## 2026-09-17 — Repair B, round 4: private publication and declared-prefix replay
+
+The round-3 brief supersedes the original per-row Repair B proposal in LLP
+3000.001: defer the page's effects, receipts and published watermark together,
+advance a separate durable transfer cursor, and publish the accumulated effects
+before the first safe page and its replay. Current readable images remain the
+server's materialization policy. `images_at` and `committed_above` now carry the
+two bounds through the real server/client/device path.
+
+The separate 256-ID defect is guarded: sync captures an actual prefix of
+unretired submissions, and publication durably excludes its undeclared suffix
+from replay. Entries remain queued. New captures cannot widen an older
+response's implicit declaration. Pagination remains with the open cap ticket.
+B2a's durable predicted-write-set refresh is a separate success-arm change and
+regression test.
+
+Private effects fold through the ordinary event applicator under a rolled-back
+savepoint, preserving marker/scope/history/media order while storing only each
+row's last image or tombstone and the affected metadata. Installation rechecks
+the acquisition boundary, including a scope followed by recreation losing its
+old holding exemption. On server-store replacement, private receipt proofs
+retire old-incarnation writes before the buffer is discarded. The row cost is
+the distinct backlog, not the outbox, and continuous catch-up has no timeout.
+
+The implementation, every changed file, exact predicates, reset audit and
+verbatim verification are recorded in `repair-b-round4-report.md` and
+`repair-b-round4-verification.txt`. The three counterexample files remain as
+correctness regressions on both stores. This lane performs no git history
+operation, publication, wasm/release build, whole/simulator suite, witness or
+root generator. The supervisor owns integration and the governing LLP update.
+
+Verification clarification for the preceding Repair B entry: its phrase about
+no Wasm/release build is too broad. The prescribed full device suite internally
+invoked the existing `native-fixtures/rescore` release Wasm build through
+`tests/native_reads.rs::module`. No device Wasm or production release build was
+invoked. The full device run passed 518 tests (3 existing ignores), core passed
+160, the final affected reset/repair/adoption/history run passed 49, and the
+native client watch test passed 1. The final affected run covers the last
+private-receipt reset addition after the full device run. Complete output and
+initial corrected failures are retained in the two round-4 report files above.
+
+
+
+## 2026-09-17 — Repair B, review fix round 1
+
+This entry supersedes the round-4 implementation description above where it
+conflicts. Replacement pages use the ordinary publication predicate and remain
+in snapshot staging until safe. An occupied ordinary transfer must drain before
+a replacement starts; its effects and acknowledgements cannot be discarded by
+snapshot promotion. Catch-up requests always adopt the device transfer cursor.
+Legacy terminal responses without `images_at` can publish.
+
+The replay exclusion bound is captured with the request, not read from the live
+outbox at publication. Each request records its live declaration; interpreting a
+reply without the echo is the only place captures are intersected, and successful
+apply ends that capture window. Adoption retaining confirmed images preserves the
+published replay guard and does not replay already published observations. A
+reset discarding private effects cannot turn their receipts into retirement.
+Row recording separates final presence from first-admission provenance, so a
+privately acquired row can move below its floor without disappearing; deletion
+and recreation start a new admission. Folded acquisition metadata is installed
+before boundary checks. An empty slot does not load the boundary namespace.
+
+The three `repair-b-round3/round4` report files were working notes and have been
+removed. Review dispositions, mutation failures and final command output belong
+to this session's final response, not repository report files. The strengthened
+counterexamples use distinct retained rows, non-inverting writes, durable reopen
+assertions and actual receipt declarations. Twenty-four temporary Rust mutations
+failed across 35 tests, and reverting the client cursor assignment failed its
+focused transport test; restored copies passed. The mutations never changed this
+worktree. The two requested crate commands are the final verification scope;
+the device command reuses the existing rescore Wasm fixture to honor the explicit
+no-Wasm-build instruction. No history operation or publication is part of this
+lane. The supervisor still owns integration and the governing LLP update.
+
+Final verification for this review-fix entry: `cargo test -p snapback4-device`
+passed **527**, failed **0**, ignored **3**; `cargo test -p snapback4-core`
+passed **160**, failed **0**, ignored **0**. The first device run detected an
+introduced acquisition-namespace load on an empty slot; the final run includes
+its correction and the added regression assertions. The focused TypeScript
+cursor test also passed. No failing requested check remains.
+
+
+## 2026-09-17 — Repair B, review fix round 2: durable publication lifecycle
+
+The follow-up to `891041ddf` puts open/adoption, local clear and store
+replacement through `reset_publication`. SQLite invokes it inside schema
+activation; memory does the fallible cleanup before its infallible exclusive
+installation and persists the complete call together. Retaining confirmed
+images retains their published replay guard. Empty transfer cursors mean no
+transfer in both request construction and publication status.
+
+One immutable capture holds a request's IDs and bounds until apply consumes it
+or a send revision abandons it. `FIRST_CAPTURE` and the first/latest intersection
+are removed. The checkpoint's bounds-only capture remains readable. Deferred
+metadata keeps its existing per-key layout but records prefix tombstones and
+subsequent writes explicitly. Present rows require admission provenance; nested
+recording savepoints are unsupported, and failed writes do not enter the delta.
+
+Receipts carry their incarnation in the same outbox value. Older implicit
+receipts bind before replacement clears that incarnation; replacement watermarks
+cannot retire them. The optional field is omitted on unsent records, preserving
+the existing byte-format regression. First-identity preflight detects actual
+replacement but leaves initial publication to apply. Requests recover both the
+snapshot catch-up mode and private transfer identity from staging. Apply returns
+publication status with its touched tables, without a second fallible read.
+
+Some packet-only hypotheses did not hold in the full code: namespace deletion
+already worked on both stores; folding already installed preceding metadata and
+rows; ordinary history and watch invalidation already ran; and unpublished
+terminal pages already caused the transport to continue. The per-finding record
+and complete command/mutation logs are local evidence under
+`target/review-fix2/`. Twenty-one distinct Rust mutations and one TypeScript
+mutation failed their intended regressions; affected mutations were repeated
+after the compatibility correction, with source bytes restored each time.
+
+| Durable value | Sole writer | Sole clearer |
+| --- | --- | --- |
+| `device:deferred:rows:*`, `meta:*`, `acks`, `cursor` | `deferred::stage` | `deferred::clear` |
+| `device:deferred:identity` | `deferred::stage_identity` | `deferred::clear` |
+| `device:declaration:capture` | `predictions::capture` | `predictions::clear_capture` |
+| `device:declaration:first-capture` | Removed | `predictions::clear_capture` removes old residue |
+| `device:declaration:published` | `predictions::publish_declaration` | `predictions::reset` when images go |
+| `device:snapshot:through` | `Device::apply_publication` | `snapshot::clear` |
+| `Queued.receipt_store` | `predictions::record_receipt` | `predictions::remove`, with its outbox entry |
+
+`deferred::PREFIX` and the former `DECLARATION_PREFIX` select namespaces; they
+are not stored values. Transfer mode and transfer identity are derived outputs,
+not additional durable keys. The supervisor retains integration and the governing
+LLP update. This lane commits locally only: no push, merge, rebase, whole suite,
+simulator suite, witness, repository-root generator, Wasm build or release build.
+The device tests reuse the existing rescore fixture through a narrow command shim
+that verifies its digest and refuses to run the nested build.
+
+Final verification: `cargo test -p snapback4-device` passed **542**, failed **0**,
+ignored **3** (existing); `cargo test -p snapback4-core` passed **160**, failed
+**0**, ignored **0**. The targeted TypeScript compile and both transport tests
+also passed. The first device run found the introduced null receipt-field byte
+change; the final run includes its correction and checkpoint-format regressions.
+The guest fixture SHA256 stayed
+`e18f1c343d88c2f1642be54d212c1eb9084ffdd51a8d3c0fcabd329c23616697`.
+
+
+## 2026-09-17 — Repair B, review fix round 3: resumption and capture authority
+
+Capture sorts decoded submission numbers before deriving both declared IDs and
+the replay interval, rejects duplicate numbers, and uses one pending limit in
+creation and bounds-only recovery. Recovery refuses an inconsistent over-cap
+prefix. A request capture also owns its echoed bounds; mismatches refuse.
+Dropping images invalidates observations of those images, retaining their
+sequence as send evidence. That independent execution proof survives a later
+replacement without allowing it to resend a known old-store execution.
+
+A send now abandons snapshot rows and their owner/cursor/revision keys in its
+revision-advancing transaction. It retains the private identity needed to bind
+the receipt. Transport keeps the published identity used by adoption separate
+from the identity used to continue a private transfer. An empty acquisition
+marker means no acquisition. Replacement recognizes a private incarnation even
+before the first published identity and retires its matching known receipts;
+only legacy rewind uses the published/private receipt cut. Foreign receipts
+still cannot retire from a replacement watermark.
+
+Deferred admission evidence upgrades when a later image qualifies against a
+completed boundary, including when completion follows puts on the same page.
+Marker-only pages persist evidence changes in the row delta. Later moves keep
+the evidence; deletion/recreation starts fresh. Tests reopen between private
+pages. Malformed terminal ordinary pages whose image head exceeds their cut now
+refuse before staging. The prefix-delta test rolls back its recording writes
+before installation, so it proves installation into absent keys.
+
+The per-finding dispositions, mutation scripts/logs and verbatim requested test
+outputs are local evidence under `target/review-fix3/`. The supervisor retains
+integration and the governing LLP update. This lane makes no push, rebase, merge,
+whole-suite, simulator, witness, repository-root-generator, Wasm-build or
+release-build claim. Device tests use the existing digest-checked rescore
+fixture; the command shim refuses an actual nested Wasm/release build.
+
+The publication lifecycle's durable-key table now names readers and the state
+each expects, not just writers and clearers:
+
+| Durable value | Readers and expected state; cross-state audit | Writer(s) | Clearer(s) |
+| --- | --- | --- | --- |
+| `device:deferred:rows:*` (image, admission) | `rows` → `stage`/`install_rows`: **private** folded rows and qualifying provenance. Savepoint replay is private; final installation consumes it only in publication. No published reader bypasses installation. | `deferred::stage` | `deferred::clear` |
+| `device:deferred:meta:*` | `metadata` → stage/`install_metadata`: **private** ordered metadata delta. Published boundary/history/media readers see it only during the private savepoint or publishing transaction. Prefix tombstones precede child writes. | `deferred::stage` | `deferred::clear` |
+| `device:deferred:acks` | stage merges; `acknowledge` consumes: **private** receipts until the effects publish. Reset never promotes this map to outbox observations. | `deferred::stage` | `deferred::clear` |
+| `device:deferred:cursor` | `sync_state` requests **private** progress; `apply_publication` validates transfer/drain; `publication_pending` reports unfinished work; `observe` classifies private rewind. It never authorizes replay retirement. | `deferred::stage` | `deferred::clear` |
+| `device:deferred:identity` | `sync_state` gives transport identity; `record_receipt` binds execution; `observe` compares occupied transfer/receipt identity: **private**. **R4/R5 fixed** paths that previously expected published state or ignored private occupancy. Replay still compares `STORE_ID`, because its retirement concerns published effects. | `deferred::stage_identity` | `deferred::clear`; deliberately retained by `begin_send` until replacement/publication |
+| `device:declaration:capture` (IDs and bounds) | `capture`/`load_capture`/`declaration`: immutable **request** state. It is not replay authority. **R1/G7.4 fixed** ordering/recovery and echo checks; status/retry cannot widen it. | `predictions::capture` | `predictions::clear_capture`: apply consumption, send abandonment, reset |
+| `device:declaration:first-capture` | No reader; removed second representation. | None | `predictions::clear_capture` removes checkpoint residue |
+| `device:declaration:published` | `replay_limit` → replay: **published** exclusion guard. Private capture is not read here. Retained only while the images it describes survive. | `predictions::publish_declaration` | `predictions::reset(false)` |
+| `device:snapshot:through` | `sync_state` advertises catch-up; apply checks requested/monotonic progress: **private**, never the published replay watermark. Snapshot catch-up advances this value, not the ordinary deferred cursor. | `Device::apply_publication` | `snapshot::clear` |
+| `device:snapshot:owner` | apply validates owner; `sync_state` selects resumable mode; `publication_pending` and `observe` recognize private occupancy. **R3 fixed:** a new send clears it before another request can advertise an invalid catch-up. | `Device::apply_publication` | `snapshot::clear` |
+| `device:snapshot:owners` | apply allocates the next private owner token; a monotonic allocator, neither publication nor acquisition evidence. | `Device::apply_publication` | No lifecycle clear; no token reuse |
+| `device:snapshot:watermark` | apply validates the original snapshot cut: **private**. No replay consumer. | First snapshot apply | `snapshot::clear` |
+| `device:snapshot:send_revision` | apply compares the **private** transfer's revision with current send state. **R3 fixed:** invalidation clears transfer keys in the revision-advancing transaction. | First snapshot apply | `snapshot::clear` |
+| `device:snapshot:next` | `snapshot::continuation` validates pages; `sync_state` interprets the terminal empty-string sentinel as catch-up mode: **private**. No publication authority. | `snapshot::continuation` | `snapshot::clear` |
+| `device:snapshot:acks` | apply accumulates and merges at publication: **private**. No early observation or retirement consumer. | `Device::apply_publication` | Snapshot initialization and `snapshot::clear` |
+| Snapshot staging rows | `snapshot::retain`/`stage`; publishing replacement scans: **private** rows. Visible queries never read staging. | `snapshot::retain`/`stage` | `snapshot::clear`, snapshot restart, resetting store installation |
+| `device:snapshot:boundaries:*` | snapshot acceptance and publishing `Boundaries::load(true)`: **private** acquisition evidence. | `boundary::retain`, snapshot boundary save | `snapshot::clear` and install-reset namespace deletion |
+| `device:snapshot:groups` | snapshot retain/stage/publication: **private** held/left groups. (`history::STAGED_GROUPS`.) | `snapshot::retain`, `history::events(..., true)` | `snapshot::clear` and install reset |
+| `device:store_id` | owner checks, state, adoption CAS, observation and replay: **published** identity. `record_receipt` falls back to private identity only for execution binding. `local.ts` now keeps this value separate from requested transfer identity (**R4**). `observe(..., true)` can temporarily set first identity inside apply; private returns undo it atomically. | `store_identity::observe` when publishing or resetting | Private first-publication undo; whole store disposal |
+| `device:send_revision` | request capture, observe/apply validation, adoption CAS: current invalidation revision, neither transfer cut nor base watermark. `begin_send` now invalidates snapshot state as it advances (**R3**). | `begin_send`, identity observation; private first-identity apply restores its original value | Whole store disposal |
+| `device:watermark` | state, request published capture, restore detection, replay/retirement: **published** progress. Transfer code reads distinct cursor/through values. | Publishing apply; reset/adoption writes zero | Reset writes zero |
+| `device:acquired-generation` | reads/prediction and `sync_state` test published acquisition for the active generation; adoption tests retained acquisition; observe tests occupied published state. **R4 fixed:** empty reset marker is absence, not occupancy. | Terminal publication; adoption/open preserve or invalidate | `clear_rows`, replacement; adoption/open may write empty |
+| `device:generation` | state, interpreter context, open/reset decisions: installed backend generation, **not** acquisition. | Backend install/adoption | Whole store disposal |
+| `device:backend` / `device:backend-identity` | offline open, backend access and owner validation: installed interpreter state. It can exist before any published identity or images. No acquisition inference. | Backend install/adoption | Whole store disposal |
+| `device:backend-required` | owner/read/native/adoption checks and sync transport: persisted replacement obligation. Neither private staging nor a matching generation discharges it. | Identity replacement | Successful backend install writes empty |
+| `device:restore-refused` | health checks and sync state: durable same-incarnation halt, unrelated to private transfer progress. | Restore observation | Different-incarnation reset; whole store disposal |
+| `device:submission` | capture bound and admission allocator: inclusive last-assigned number. No next-unused interpretation (**G7.3 documented**). | Admission | No lifecycle clear; numbers never reused |
+| `Queued.seq` and ID | capture/declaration, send order, replay order: durable submission identity. Capture explicitly establishes a sorted unique prefix (**R1**). | Admission/enqueue; replay/receipt updates preserve identity | Outbox retirement/removal |
+| `Queued.receipt_store` / `sent_seq` | `receipt_matches`, replay, reset and transport: incarnation-bound **execution** evidence; may precede publication. **R5 fixed:** replacement compares the previous published-or-private incarnation and retires its known executions. Unrelated receipts remain bound and cannot retire from a replacement's watermark. | `record_receipt` (also legacy binding); reset promotes discarded observations into send evidence without changing their incarnation | Outbox removal; image reset intentionally keeps send evidence |
+| `Queued.observed_seq` | replay, receipt settlement and reset: **published effect** evidence. **R2 fixed:** dropping images clears it after preserving its execution sequence as a send receipt; retaining images retains it even if acquisition watermark resets. Replacement inspects it before clearing. | `record_receipt(..., observed=true)` in publication | `predictions::reset(false)` or outbox removal |
+| `Queued.predictable` / `predicted` | replay eligibility/overlay reporting: speculative overlay metadata, not acknowledgement or base-undo authority. | Admission/replay; replacement withdraws prediction | Entry removal or withdrawal/update |
+| Confirmed base sidecar | `predictions::restore`; snapshot retain uses it to exclude speculative images: **published base beneath overlay**, never deferred transfer storage. | Prediction `remember` | Restore after consuming it; image reset |
+| `device:acquisition-boundaries:*`, `device:history:groups` | query/prediction and ordinary application read **published** evidence. Private folding uses the same applicator only inside a rolled-back savepoint and records the delta. Boundary completion and later image qualification update candidate provenance (**R6**). | Normal application/publication; reset/install | Reset or scope/namespace replacement |
+| `device:acquisition-report` | Diagnostics only; it cannot authorize row holding or publication. | Boundary validation | Image reset |
+| `device:media:*` | Media access treats these as hints and rechecks the current row, generation and lifetime. Private application records its mutations and publication installs them with row effects; rejected recreated rows forget their media. | `media::remember`, folded publication | `media::forget`; reset may leave harmless stale hints, which readers revalidate |
+| `device:native`, `device:native:digest`, `device:native:generation` | Open/module qualification, owner validation, native invocation: installed module identity, not acquisition. Adoption compares/invalidate these alongside published identity. | Native install | Adoption/replacement invalidation; invalid-cache cleanup |
+
+After these changes, no audited reader uses a transfer cursor or identity as published replay/adoption authority. The explicit conversions are snapshot/deferred publication, receipt execution binding, and replacement's comparison with the incarnation being discarded.
+
+Final verification for round 3: `cargo test -p snapback4-device` passed **562**,
+failed **0**, ignored **3** (existing); `cargo test -p snapback4-core` passed
+**160**, failed **0**, ignored **0**. The touched TypeScript module compiled and
+all three focused transport tests passed. Nineteen distinct behavioral mutations
+(18 Rust, one TypeScript) failed their intended regressions; repeat executions
+are counted once. The strengthened prefix test killed an installer mutation
+that the old test survived. An invalid compile-only mutation attempt was excluded
+and corrected to an assertion failure. All final source bytes were restored and
+hash-checked against the tested files. Full per-finding dispositions, the reader
+audit, mutation records and verbatim command output are in
+`target/review-fix3/report.md`.
+
+
+## 2026-09-17 — Repair B, review fix round 4: slot disposal and incarnation lifetime
+
+S1: ordinary publication now consumes the deferred bundle while installing its
+images/metadata and returns only those installed effects' receipts. Snapshot
+publication explicitly discards any superseded same-position bundle, including
+its receipts. The existing guard still requires an ordinary transfer ahead of
+the published cut to drain. A debug assertion checks the whole deferred namespace
+is empty before the shared tail changes the watermark, records acknowledgements
+or replays. The acknowledgement helper can no longer reach into a hidden slot.
+The new regression covers direct and staged replacement, with reopen before and
+after publication, and distinguishes a discarded receipt from one incorrectly
+promoted over the replacement base.
+
+S2: publication pending reads the existing acknowledgement record's presence,
+which every deferred bundle writes even when its map is empty, plus snapshot
+ownership. It no longer infers private effects from the request cursor. The new
+regression independently varies cursor and slot, then publishes both nonterminal
+and terminal pages. No new durable marker or wire field is introduced.
+
+S3: generation installation preserves known private incarnation while clearing
+obsolete transfer effects, for both open/adopt and keep/drop image policies.
+Authenticated observation also remembers identity before first apply, because a
+generation mismatch can cause adoption before the response is staged. A later B
+response must therefore detect replacement of A, fetch/adopt B's backend even
+when its generation equals A2, and retire A's execution receipts. The dispatcher
+regression exercises all four lifecycle combinations on memory and SQLite,
+refuses B's acquisition under A2, then confirms B's query program and an empty
+outbox through two reopens. This round verifies the device/dispatcher lifecycle;
+it does not claim to rerun the reviewer's TypeScript/native transport script.
+
+The round 3 durable-key table's cursor, identity and acknowledgement rows are
+superseded by these lifetimes: cursor is request progress only; ACKS is slot
+occupancy and is consumed on installation or discarded on replacement; private
+identity is also written by authenticated observation and survives generation
+installation independently of effects. Published STORE_ID remains adoption's
+comparison value. Replacement still settles matching receipts before clearing
+the discarded incarnation's state.
+
+The smaller findings were read in full. Three test weaknesses were strengthened:
+count transaction opens to catch post-commit reads through a transaction, reject
+wider declaration echoes, and seed every private bundle/snapshot member before
+checking cleanup. The other Medium/Low diagnoses are disposed with full caller
+and storage evidence in `target/review-fix4/dispositions.md`.
+
+Nine independent mutations compiled and failed their intended regressions,
+including both S1 disposal and receipt leakage, the S2 cursor proxy, S3 identity
+loss and receipt retirement, and the three strengthened tests. Source bytes were
+restored and their hashes verified. Scripts, failed-run logs and the per-finding
+report are local evidence under `target/review-fix4/`.
+
+Final requested verification: `cargo test -p snapback4-device` exited 0 with
+**569 passed, 0 failed, 3 ignored** (existing); `cargo test -p snapback4-core`
+exited 0 with **160 passed, 0 failed, 0 ignored**. Verbatim outputs are in
+`target/review-fix4/device.log` and `target/review-fix4/core.log`, also embedded
+in `target/review-fix4/report.md` with all dispositions and mutation evidence.
+The device command reused the existing digest-checked rescore fixture through a
+narrow shim which refuses actual nested Wasm/release builds; its SHA256 remains
+`e18f1c343d88c2f1642be54d212c1eb9084ffdd51a8d3c0fcabd329c23616697`.
+No push, rebase, merge, whole suite, simulator suite, witness, Wasm build, release
+build or repository-root generator ran. The supervisor retains integration.
+
+
+
+## 2026-09-17 — Repair B, review fix round 5: cursor, request and identity lifetimes
+
+The author corrected the legacy-wire rule: absent image-head/committed-ID fields
+mean no deferral. Old servers retain the original double-apply limitation; holding
+every replayable local write would wedge a live tail. LLP 3000.001 records the
+correction. Terminal snapshots now share ordinary pages' no-gap validation, and
+the deferral predicate independently excludes all terminal pages.
+
+Live transfer progress precedes a terminal snapshot cut. Sends abort only paging
+snapshots; terminal catch-up keeps its owner/cut and updates its send revision.
+Private continuations require their request cursor and compare against that floor;
+first replacements can start from zero. Snapshot catch-up cannot masquerade as an
+identity-free ordinary rewind. Apply observes first identity privately and promotes
+the page-or-staged identity only with publication. Row-only reset now preserves
+known private incarnation; a same-generation replacement must adopt its own backend
+and retire the discarded incarnation's receipts. Both-store dispatcher tests and
+an HTTP/native transport test exercise A→A2→row reset→B through reopens.
+
+Corrections to the round 3 durable-key table:
+
+| State | Corrected writers/readers/clearers |
+| --- | --- |
+| `device:declaration:capture` | Actual request preparation writes it; repeated request preparation returns it unchanged. Startup/readiness/identity polling uses `sync_state` with `capture:false`, a read transaction. Send does not erase it. Successful apply, a matching echoed rejection, or reset consumes it. Stored captures validate cap, uniqueness, interval and live prefix membership. |
+| `device:declaration:published` | A page lacking both capture and echo preserves the existing exclusion interval. Publication still installs its prospective declaration before replay. |
+| Snapshot owner/next/through/send revision | Send clears these only while NEXT is nonempty. NEXT="" survives with the new revision; the deferred live cursor takes precedence in request progress. |
+| `device:deferred:identity` / `device:store_id` | Observation ignores omitted identity. Publication uses the named page or preserved private identity before consuming the slot. Generation installation and row-only clearing preserve known incarnation; replacement settles its known receipts before disposal. |
+
+Dequeue now restores the base and replays survivors atomically. The core rejects
+inverted receipt cuts. The HTTP encoder omits absent/empty additive fields, with
+both populated and omitted forms checked by the CLI's byte-exact test. Review
+claims about inherited snapshot rows, rejected held-row media, recording reads,
+anonymous/foreign receipt ownership and empty acquisition markers were evaluated
+against their full callers; the evidence is in `REPAIR-B-HANDOFF.md`.
+
+Old synthetic fixtures now echo their actual private request positions, and those
+intended to defer use known image gaps instead of the corrected legacy behavior.
+The send-abort regression now constructs a snapshot still paging. These fixture
+changes retain their row, history, media and receipt assertions.
+
+Final verification: `cargo test -p snapback4-device` exited 0 (**593 passed,
+0 failed, 3 existing ignored**); `cargo test -p snapback4-core` exited 0 (**160
+passed, 0 failed**); `cargo test -p snapback4` exited 0 (**265 passed, 0 failed**).
+All five focused TypeScript/native transport tests passed, including the backend
+fetch and receipt assertions after row-only reset; strict TypeScript compilation
+passed. Twenty-eight distinct mutations compiled and failed their intended tests,
+with passing controls. They ran against copied source; the workspace source was
+never replaced, and all recorded source hashes match the final files. The normal
+Cargo runs use the repository test profile and no fixture shim; mutation controls
+and mutants use identical native features/debug assertions with optimization off.
+Per-finding dispositions, complete verbatim command results, mutation source edits,
+commands and logs are in `target/review-fix5/report.md`; the durable summary is
+`REPAIR-B-HANDOFF.md`. Only the requested crate suites and affected checks ran;
+no push, rebase or merge was performed.
+
+
+
 ## 2026-09-18 — oversized-sync merge integration: orientation and composition
 
 Integrating the in-progress merge of origin/main into sb4/mc-prereq-51b7a134 (HEAD 1cbeebf90; prior recovery commits c2789d0c1 and 2e490e3e9). Read b1edab634, the Snapback 4 fence, rules, sync card, LLP 3000 §7 and LLP 3000.007 §18.2 through llp-orient. User explicitly requires semantic re-verification, one Cargo job at a time, no commit or push, and a resolved/staged result. No ceiling, rule, card vocabulary or disclosure-boundary change.
 
 The journal append conflict retains every entry from both sides byte-for-byte, sorting only the conflicted entries by date (stable order within a day). The partition composition retains Main's (seq, ord) renewal edges, live-chain acquisition and serve-time readable selection. Ordinary historical puts are re-materialized and rule-checked immediately before inspection/retention; acquired rows use the already-checked selected image. Inspection can abort the whole page with None without fetching the rest of the ordinary current images. Acquisition marker positions count only emitted events. Main's retired historical completion proof stays deleted; the lane's Option<StreamPage> and overflow stop survive. Verification and any fixes will be appended below.
+
 
 ## 2026-09-18 — second-round final checks and external integration state
 
@@ -39668,21 +40022,25 @@ G1-G3 implementation items are resolved in the tested delta. The alleged G1 stag
 
 Follow-up observation: the other process resolved the unmerged paths while the evidence copy was being saved. The integration remains outside this qualification. This supplement is also appended to the live journal after that resolution, without altering any integration code.
 
+
 ## 2026-09-18 — merge composition staged; focused regression coverage
 
 All unmerged index entries are cleared. Added a store-read counter and a regression proving ordinary current-image fetching stops at the second inspected readable event: a moved row delivers its current value, a now-hidden row is skipped, and only three of 100 current rows may be fetched. Extended the existing renewal-chain regression to compare normal and inspected pages byte-for-byte and abort inspection at every emitted position, including scope events. Main's separate selection counter still requires exactly N acquired rows and N read-rule probes, with no second fetch.
 
 Package typecheck passed. The first core test compilation is in progress. A whole-merge whitespace check reports inherited trailing whitespace in Main's W13i/W13k review transcripts and the upstream Unicode SpecialCasing fixture's final blank line; these evidence/fixture bytes are preserved. The conflict-resolution and added-test diff passes its scoped whitespace check.
 
+
 ## 2026-09-18 — merge core verification green
 
 `CARGO_BUILD_JOBS=1 cargo test -p snapback4-core --lib --test rows` passed: **65 unit tests + 8 row/storage tests = 73 passed, zero failures/ignores** (`/tmp/f188-merge-core.log`). This includes b1edab634's mixed readable acquisition, snapshot/stream equality, retired row-log index removal and renewal/expiry/scope regression, with the added inspection/abort assertions. The full device package is running next (`/tmp/f188-merge-device.log`); all Cargo invocations remain serialized.
+
 
 ## 2026-09-18 — full merged device package green
 
 `CARGO_BUILD_JOBS=1 cargo test -p snapback4-device --no-fail-fast` passed: **730 tests, zero failures, 3 existing ignores**, including **142 W13g/W13k**, **20 retained-history**, **418 main device**, **90 helper-page** and **8 native-read** tests (`/tmp/f188-merge-device.log`). The new current-image counter regression passed both independently and in the full package. No product or fixture failure has required a fix so far. Next: fresh CLI/wasm artifacts and the real-client suites.
 
 Count correction: summing the actual 15 target summaries gives **722 passed**, not the mistakenly transcribed 730 above. The zero failures, 3 ignores and per-suite counts above are correct; `/tmp/f188-merge-device.log` is authoritative.
+
 
 ## 2026-09-18 — merged wasm budget red and codec composition repair
 
@@ -39692,11 +40050,13 @@ The shared-codec repair measures **414,285 B gzip** (423 B smaller), still **3,2
 
 The non-inlining experiment did not help (414,286 B gzip); reverted both attributes. A follow-up optimizer check found `wasm-opt` absent from this machine's PATH. The existing build script silently skips its optional `-Os` step when absent. Installing Binaryen to exercise that existing step, without modifying the build script or budget. The server unit suite is running serially while this tool prerequisite is installed.
 
+
 ## 2026-09-18 — size experiments bounded; semantic verification continues
 
 Server unit tests passed **70/70**, including the exact wire-ceiling prefix stop and stale-reader adoption checks (`/tmp/f188-merge-server.log`). Binaryen 132 is now installed. Its existing optional `-Os` step made the compressed artifact larger (485,903 B), so the unchanged build script retains the smaller unoptimized output. A third candidate reused primitive JSON decoders for the small recovery envelopes; it measured **412,871 B gzip**, still 1,871 B over, and would need extra handling to preserve derived serde's positional-array acceptance. Reverted that parser experiment in full rather than retaining a changed input contract without solving the gate.
 
 The only retained codec change is the existing `encoded` response helper (414,285 B measured before the other experiments). The wasm gate remains red against the unchanged 411,000 B ceiling. Three bounded repair experiments have not brought it under; following rules/RULES.md's three-round limit, stop this size loop and report the unresolved gate. Continue all requested semantic suites against the rebuilt conservative composition. No acquisition/readability/reset fence was weakened to save bytes.
+
 
 ## 2026-09-18 — final artifacts and client verification start
 
@@ -39706,15 +40066,18 @@ Running the complete oversized-sync, horizon-boundary, retained-history and all 
 
 All four enlarged-commit real-client cases passed on the final artifacts (same/new generation × wasm/process). The unresolved fixed-budget overage is recorded in the existing `issues/20260913-snapback4-wasm-device-diet.md` rather than duplicating its tracker. Remaining recovery and surrounding client suites are still running.
 
+
 ## 2026-09-18 — final recovery, retained-history and replacement clients green
 
 Final real-client results: oversized-sync **48/48**, including all four enlarged-commit cases and every requested earlier recovery case; retained-history **44/44**; store-reset **4/4**, review **14/14**, reconnect **12/12**, IndexedDB transaction model **2/2** (**32/32** replacement tests). No failures or skips. The horizon suite is still running its existing Rust-generated fixture exporter; no parallel Cargo command is active.
+
 
 ## 2026-09-18 — surrounding semantic verification complete
 
 The final horizon-boundary client suite passed **82/82**, including **32 same-commit wasm compositions**; all seven client files together passed **206/206**, zero skips/failures. Native W13g/W13k included **64 same-commit** cases and **92 total renewal-fixture** cases in its 142 tests. After the response encoder adjustment, device unit/codec targets passed **4 + 11 = 15/15**. The Clique simulator passed **239**, zero failed, **1 existing ignore**; guide tests passed **48/48**. Logs: `/tmp/f188-merge-{codec,sim,guide}.log` and `/tmp/f188-merge-js-*.log`. Postgres feature compilation is the last running check.
 
 The merged partition source has not changed since the full device-package run. The subsequent one-line recovery-response codec adjustment is covered by the 15 unit/codec tests and all final real-client tests; the 722-test device-package result predates only that adjustment. Both original journal append sets (34 entries) were rechecked against HEAD/MERGE_HEAD and are preserved verbatim. The complete merge carries inherited whitespace warnings in Main's review transcripts and Unicode fixture; this resolution's scoped whitespace checks pass.
+
 
 ## 2026-09-18 — merge qualification disposition and staged handoff
 
@@ -39724,6 +40087,7 @@ One unresolved gate: wasm **414,285 B gzip > 411,000 B**, by **3,285 B**. The or
 
 Final resolution: partition composes unchanged renewal edges/live-chain selection with current-readable ordinary materialization and abortable inspection; markers use emitted-event positions and no partial commit is returned. Journal keeps all 34 parent append entries in date order, verbatim. Added regressions prove actual current-image reads stop and inspection retains/aborts renewal acquisitions correctly. The response codec now follows Main's existing shared encoder. HEAD remains `1cbeebf9060fe74c7be8c2035a29bce978af24a3`, MERGE_HEAD/origin/main remain `b88f5d6c9f997c9d38834046071236ea61393552`. Leave all resolution, test and evidence updates staged with the merge in progress; no commit or push.
 
+
 ## 2026-09-18 — recovery round 3: structural grant boundary and red setup
 
 Own worktree `sb4/mc-prereq-51b7a134`, starting at `aac90114d`; no commit, push, tag or publication authorized. Read the SB4 fence, rules, LLP 3000, the design brief, §18.2 and the sync card through llp-orient. Preserve horizon boundaries, retained history, renewal chains, all ceilings and disclosure boundaries. No LLP or NOT-DOING edits. The journal carries this design and its evidence.
@@ -39732,9 +40096,11 @@ Added C1/C2 regressions through the actual metadata handler/device dispatcher fo
 
 Two review qualifications to retain: `refuseRestore` already checks E_STORE_RESTORE internally; add explicit caller classification and regression rather than claim an observed persistent halt. Current-image early-stop evidence is not an end-to-end traversal bound. Generation adoption still reaches the existing program-only retained-history policy; that policy and the recorded wasm overage belong to other work.
 
+
 ## 2026-09-18 — round 3 red evidence on both device stores
 
 `CARGO_BUILD_JOBS=1 cargo test -p snapback4 round3_c -- --nocapture` (`/tmp/f188-round3-red.log`) finishes **0 passed, 4 failed**. Both C1 tests show acquired true → false, send revision 1 → 2, and snapshot_required true after a tiny event's forced non-overflow abort. Both C2 tests return `{"ok":{"retired":{},"snapshot":true}}` where the live lease at 2 and confirmed watermark 3 must refuse E_GENERATION. Initial SQLite fixture setup lacked device side tables; corrected to the public native Device::open before recording this red run. No product repair preceded this four-test red.
+
 
 ## 2026-09-18 — resumed round 3 regression cross-check
 
@@ -39742,9 +40108,11 @@ The resumed verification independently reproduced C1/C2 on both device stores, *
 
 The resumed boundary checks additionally cover full-reply-only overflow (the event prefix fits), arbitrary serializer failure without overflow, and C2 using an actual grant from `inspect_engine` after a confirmed commit's current images grow. SQLite C1/C2 now use distinct temporary device files and remove them after the test; `Path(":memory:")` is not an in-memory database through Store::open's canonical path handling, so its accidental fixture file was removed. These strengthen the existing red witnesses without changing product behavior.
 
+
 ## 2026-09-18 — structural boundary sealed below handler branches
 
 The server handler's `MetadataReply.recovery` holds an opaque `OverflowGrant`. Its fields and the writable byte counter now live in a nested measurement module, inaccessible even to new read/metadata branches in the surrounding file. The counter captures store, generation and from before serialization; `into_grant()` consumes it and cannot relabel the measured position. Only the ordinary event/reply serializers can feed it; an incomplete page and unrelated serializer failure cannot mint it. The device decodes wire evidence into `Recovery` and must obtain private `Accepted` before its durable recovery transaction. Acceptance always requires equality with the confirmed captured watermark; an owned staged lease is an additional fence, never an exception. The wire trusts the authenticated server; these types do not claim cryptographic evidence against a malicious server.
+
 
 ## 2026-09-18 — round 3 structural repair; criticals green
 
@@ -39758,6 +40126,7 @@ Latest verification scheduling: full device-package test is running in the share
 
 The accepted device grant now borrows the exact transaction that validated it; `apply()` takes no separate transaction argument. It cannot be checked against one store/transaction and applied to another. All capture, owner, backend-required, identity, generation, position, continuation and live-lease fences are inside this acceptance boundary, even if a future metadata path calls it. This is the final structural hardening for verification; no protocol ceiling or policy change accompanies it.
 
+
 ## 2026-09-18 — final sealed server boundary checks pass
 
 `/tmp/f188-round3-server-sealed.log`: **84 passed, 0 failed, 0 ignored**, including C1/C2 on both device stores, a real inspect_engine overflow grant accepted by both stores, full-reply-only overflow, unrelated encoding failure, both file-reader mutation directions, stale reader/adoption rejection, and no measurement for omitted identity/tip/cursor. The accepted device grant now carries its exact validated transaction, preventing later application to another store or transaction.
@@ -39766,11 +40135,13 @@ The full device suite remains in progress. Next scheduled work in this session, 
 
 Self-review of the newly enabled metadata replacement path found two existing observation duties to preserve: invalidate host freshness before awaiting the queued device transaction, and reconcile media after its successful row reset. `local.ts` now does both. The foreign-metadata client regression pauses the actual device command and checks that acquisition is already fenced before releasing it. This is confined to replacement observation; grant construction and acceptance are unchanged.
 
+
 ## 2026-09-18 — full device package and CLI build pass
 
 `/tmp/f188-round3-device.log`: **722 passed, 0 failed, 3 existing ignores**, including W13g/W13k **142**, retained history **20**, main device **418**, helper pages **90** and native reads **8**. The final grant's transaction-ownership refinements are additionally exercised by the final sealed server/device boundary suite; the broad package run began before those final encapsulation-only edits. Fresh CLI build passes (`/tmp/f188-round3-cli.log`). The required web artifact rebuild is now running; any existing size-gate overage is recorded only, without diet experiments or budget edits.
 
 Final host freshness/media changes pass typecheck. Rebuilt the package from current local.ts and the new web artifact (`/tmp/f188-round3-resumed-package.log`). The process-only recovery run started with the earlier host JS; its final foreign-identity case may require a focused rerun. Wasm recovery is now running against the final rebuilt package in `/tmp/f188-round3-recovery-wasm.log`; do not duplicate it. The wasm artifact's recorded budget overage is left to device-diet as requested.
+
 
 ## 2026-09-18 — real-client recovery progress and unchanged size gate
 
@@ -39779,6 +40150,7 @@ Required web rebuild produced 1,500,342 B raw / **415,730 B gzip**, **4,730 B ab
 Final wasm recovery passes **26/26** (`/tmp/f188-round3-recovery-wasm.log`), including paused replacement observation, cursor discovery and stale-denial retry. The process run against earlier JS reproduced the new early-invalidation test failure as expected; its final-artifact rerun is underway separately. Retained-history and all four store-reset client files are now running together in `/tmp/f188-round3-history-replacement.log`; the resumed verification owns that run, so it need not be duplicated.
 
 Final process recovery passes **26/26** (`/tmp/f188-round3-recovery-process-final.log`), bringing real-client recovery to **52/52** on the final artifacts. The combined retained-history/store-replacement client run passes **76/76** (`/tmp/f188-round3-history-replacement.log`: 44 history + 32 replacement), zero failures/skips. Starting the remaining horizon-boundary client suite in `/tmp/f188-round3-horizon.log`; it invokes its Rust fixture exporter, so leave Cargo otherwise idle until that exporter finishes.
+
 
 ## 2026-09-18 — resumed round 3 final qualification and dispositions
 
@@ -39795,6 +40167,7 @@ Final semantic evidence: server **84/84** (`/tmp/f188-round3-server-sealed.log`,
 Limits retained visibly here and atop oversized-sync.test.mjs: early current-image stopping is not an end-to-end traversal bound; program-only generation adoption still uses its existing retained-history policy. In-memory measurement still uses the engine mutex (the previously filed writer-contention follow-up remains). The required wasm rebuild reports **415,730 B gzip > unchanged 411,000 B**; no size repair or ceiling edit was attempted. This belongs to the existing device-diet work and remains a red size gate, not a semantic-test failure.
 
 No commit, push, tag, publication, merge or rebase was performed. HEAD remains `aac90114d`; changes are local. LLPs, NOT-DOING.md, card words, partition/renewal implementation and ceilings are unchanged. The journal preserves its original committed prefix and all prior interrupted-session entries.
+
 
 ## 2026-09-18 — round 3 final disposition and verification
 
@@ -39816,6 +40189,1099 @@ Disposition by finding:
 The construction boundary is structural: the nested measurement module's opaque grant cannot be built or rebound by outer handler branches; the device's private Accepted value includes every recovery fence and borrows the exact transaction it will modify. It remains authenticated-server evidence across the JSON wire, not a cryptographic claim against a malicious server.
 
 Open limits remain explicit: early current-image stopping is not an end-to-end traversal bound; generation adoption still uses the pre-existing program-only retained-history policy; in-memory discovery retains its already tracked writer-mutex contention (`issues/20260918-snapback4-in-memory-sync-measurement-writer-contention.md`). The web artifact is 415,730 B gzip, 4,730 B above the unchanged budget; device-diet owns it and no size repair was attempted. No ceiling, rule, card wording or disclosure boundary changed. No commit, push, tag or publication. HEAD is aac90114d; llp/** and NOT-DOING.md remain untouched, and the original journal bytes are preserved as a prefix.
+
+
+## 2026-09-18 — MC0: generation discovery survives an oversized sync page
+
+Base: `0f34b023a3a811a9e5482f8e06572f25953c399c`. Implemented in the lane
+working tree; no commit, push, tag or publication. The lead owns landing.
+The ticket is closed at
+`issues/closed/20260917-snapback4-oversized-sync-page-hides-generation.md`.
+
+The bounded HTTP encoder now preserves a sync page's `generation`, `store_id`
+and `watermark` in its E_BOUND replacement body. The client observes identity
+and adopts a changed backend before reducing its page limit. An identity-only
+refusal can reach the device's existing guarded store observation, but is never
+applied as a row page and cannot advance the delivered watermark. A changed
+store at the same generation follows that same replacement/adoption path.
+
+For part 3 I chose `snapshot: true` alongside `denied`, only when an oversized
+stream response was requested at limit 1. The client restarts acquisition with
+`from: 0, after: null, stream: false`, keeping the reduced limit and the normal
+staged snapshot/catch-up publication. I rejected a new `snapshot_required`
+field and a new error code: the existing snapshot word and E_BOUND are enough.
+Splitting commits or raising the ceiling would violate the lane's constraints.
+An oversized snapshot row at limit 1 remains refused; it cannot restart forever.
+No new diagnostic code, value serialization, meter ceiling or request field was
+introduced. The README, sync card and LLP 3000.007 §18.2 record the protocol.
+
+Verified rather than assumed: a real SQLite HTTP host rematerializes a single
+commit of 44 initially narrow rows after they have been widened in later
+commits to 400,000 body bytes apiece. That is **17,600,000 body bytes**, above
+the unchanged **16,777,216-byte** response ceiling. No lowered ceiling or
+checked-in 16 MiB fixture was used. The actual refusals remain below 1,000
+bytes. The stream limit sequence is **4000, 2000, 1000, 500, 250, 125, 62, 31,
+15, 7, 3, 1**; the same-generation recovery reaches watermark **13** from **1**.
+The real client loop runs on both wasm and SQLite process devices. A legacy
+setup suppresses only the new snapshot instruction on genuine oversized
+responses, proving the device is stuck at limit **1**, watermark **1**, with
+E_BOUND. It then forwards replies unchanged after the backend advances from
+generation **1** to **2**. Both devices request `/schema` before any smaller
+page and finish acquisition with a fresh read. Separate cases prove both
+same-generation snapshot recovery and same-generation store replacement.
+A test-side call guard refuses any attempt to apply a denied page.
+
+The first test fixture parked `/changes` without response bytes. Its four-second
+watchdog correctly started reconnects, making the first fixed run report
+`ℹ pass 7`, `ℹ fail 4`. I corrected the fixture to emit whitespace heartbeat
+frames and reran the identical corrected regression against restored base
+runtime sources, then against the fix. This is transport scheduling control;
+all `/sync` bodies are real server responses, with only the explicitly named
+legacy setup suppressing the new recovery instruction.
+
+All Node/Bun commands used the required runtime:
+
+```sh
+export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+```
+
+From `snapback4/`, the corrected regression command and its verbatim summaries,
+base first, then fixed (nine cases and two containing tests):
+
+```text
+$ node --test --test-concurrency=2 packages/snapback4/test/sync-overflow.test.mjs
+ℹ tests 11
+ℹ pass 0
+ℹ fail 11
+ℹ duration_ms 107410.547959
+ℹ tests 11
+ℹ pass 11
+ℹ fail 0
+ℹ duration_ms 89147.841958
+```
+
+The published-card check:
+
+```text
+$ cargo test -p snapback4-lang --test guide
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s
+```
+
+The requested complete client run, base first, then fixed. Every base pass is
+retained; the fixed run adds the 11 regression results and the two transport
+cases that timed out at base. The only remaining failure is Chromium SIGABRT.
+
+```text
+$ node --test --test-concurrency=2 'packages/snapback4/test/*.test.mjs'
+ℹ tests 809
+ℹ pass 792
+ℹ fail 14
+ℹ cancelled 0
+ℹ skipped 3
+ℹ duration_ms 593405.552083
+ℹ tests 809
+ℹ pass 805
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 3
+ℹ duration_ms 283106.095916
+```
+
+From the repository root, the full blocking suite used its existing serial-client
+switch to reduce contention. Shell tracing made the separate phase logs visible.
+Every category except the sandbox Chromium witness passed; the zero-failure bar
+is not claimed. The lead still needs the outside-sandbox browser run.
+
+```text
+$ SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 bash -x snapback4/scripts/test.sh
+-- ok: cargo test (347 s)
+ℹ tests 9
+ℹ pass 9
+ℹ fail 0
+-- ok: fixture wrapper tests (7 s)
+ℹ tests 809
+ℹ pass 805
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 3
+-- FAIL: client tests (583 s)
+== 1 failure(s) in 592 s
+```
+
+The suite also printed `wasm 1481402 B raw, 410459 B gzip (budget 411000: ok)`,
+identical to the base build. An earlier optional baseline invocation,
+`bash snapback4/scripts/test.sh`, was interrupted after about 15 minutes without
+a final summary; it is not used as qualification. The complete base client
+command above and the corrected base regression both finished independently.
+
+The three unrelated base client failures were rechecked alone on base runtime
+sources at the exact base commit above. At load **17.65** across **18** CPUs,
+the two transport cases still timed out; both passed in both final full client
+runs. No transport code was changed to make them pass. Chromium also failed
+alone on both base and fixed with `signal=SIGABRT`:
+
+```text
+$ node --test --test-concurrency=1 --test-name-pattern='maximum pending ids' packages/snapback4/test/transport-http.test.mjs
+ℹ tests 2
+ℹ pass 0
+ℹ fail 2
+$ node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+```
+
+Reference validation before this append:
+
+```text
+$ ./ref-check --verbose
+ref-check: ok — 485 LLP docs, 9124 refs in 24399 files, 0 errors, 0 unchecked
+```
+
+The supplementary root `node scripts/caps.mjs` reports `2 violations`: the
+working set is **63/59** and the unrelated
+`crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs` is **1504** lines
+by that check. The cap script, rule file, working-set entries and that source
+file are unchanged from the exact base (verified against its tree). This lane's
+changed source files are **1341**, **1353**, **212** and **210** lines; none
+exceeds 1,500. No out-of-scope code was touched; the covering LLP gained the
+protocol record and a pointer to the closed ticket.
+
+Nothing in the ticket's direction proved wrong. The request-side generation
+mismatch response before materialization remains unbuilt as explicitly directed;
+it could avoid building a rejected page, while this fix already makes recovery
+independent of delivering it. All three requested implementation parts and their
+red/green proofs are complete. The existing refusal text is unchanged, before
+and after, verbatim:
+
+```text
+the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+```
+
+This single append preserves all **2,335,746** earlier journal bytes, SHA-256
+`b27a93cda6702fd8210bdab5e2e8d829ce41661c527922d716784bfc15fdd51b`.
+Reference validation and whitespace checks run again after this append.
+
+
+
+## 2026-09-18 — fixed 0.2.29 feed comparison and one cursor candidate
+
+The performance lane completed the fixed published-source comparison on
+Office ARM Linux. Snapback wins p50 medians in 12/39 cases against Convex
+and 38/39 against Supabase. Its largest feed gap is 150-group rotating
+pages at concurrency 8: 40.136 ms versus 3.636 and 35.530 ms. Every result,
+authentication, leave/regrant and physical fixture check passed; the source,
+platform and retained-comparator limits stay with the benchmark record.
+
+An ignored two-file candidate removes the second canonical decode inside
+one opaque-cursor bounds invocation, preserving live authorization and
+cursor/meter semantics. Selected baseline/candidate qualification passed
+708/709 tests with three existing named exclusions. The first matched A/B
+has repeated 150-group continuation gains alongside smaller-feed/point,
+tail and RSS losses. A single reversed-start confirmation retains those
+first results instead of replacing them.
+
+The confirmation reproduces the heavy-feed gain: 150-group rotating C8
+p50/rate improve in all six pairs across both batches. It also reproduces
+five-group rotating-point C8 p95/rate losses in all six pairs; median rates
+fall 15.5% and 28.0% in the two batches. First-thread C8 p50/p95/rate lose
+five of six pairs. Both batches, 162 median / 556 paired losses and all
+36 memory snapshots are preserved. Independent custody and calculation
+reviews pass. Default disposition is defer/shelve; any core-owner choice
+to accept the targeted tradeoff must be explicit. No runtime change is
+adopted, and the goal's performance landing remains outstanding.
+
+Evidence: `benchmarks/runs/snapback4-public-catalog-20260913/README.md` and
+its data-only record; follow-up remains the open membership-feed-cost issue.
+No publication or deployment is part of this pass.
+
+
+
+## 2026-09-18 — author shelves the single-decode cursor candidate
+
+The author chose **"Keep it shelved (Recommended)"** for the reviewed
+two-file cursor patch. The repeated heavy-feed gain does not justify the
+point-read throughput losses in all six pairs. The adoption request is
+closed, and the performance lane applies no core change.
+
+The patch, qualification, measurements, failures and independent reviews
+remain preserved. The benchmark README and existing membership-feed-cost
+issue record this disposition. The issue stays open, and the bounded
+goal's performance landing remains outstanding. No additional experiment,
+publication or deployment is part of this disposition.
+
+
+## 2026-09-18 — Repair B, review fix round 6: abandoned request revisions
+
+U1: durable declarations now carry the send revision at capture. Repeated
+requests at that revision preserve the declaration; the next request under a
+new revision replaces an abandoned one. Send itself and read-only inspection
+do not erase the old bytes. A late rejected response must match the capture's
+revision as well as its bounds before consuming it. The new memory/SQLite
+regressions cover a fetch that never returns after an ordinary deferral, both
+mutation receipts received, reopen before retry, final value 3, and a late
+response with the same declaration bounds but a different revision.
+
+The old-wire question was measured with the identical terminal-page probe on
+base 27a8a4d66 and incoming HEAD a3c0a367d, then with this fix. Both additive
+wire fields are absent. On memory and SQLite, base gives server/device/reopen
+1/1/1; incoming HEAD gives 1/2/2; the fix gives 1/1/1. Fresh-request controls
+give 1/1/1 on both revisions. This was a lane regression, distinct from the
+old server's original truncated-page limitation. The base source was archived
+and its core/language/device crates rebuilt; source bytes and probe identity
+were checked against git. LLP 3000.001 records the corrected distinction.
+
+U2: validation is the single terminal-page rule: any known image head beyond
+the watermark refuses, including a snapshot. Deleted the separate terminal
+shortcut in should_defer and the redundant defer stay-private reason on the
+replacement path. The tests now assert protocol refusal and unchanged durable
+state for ordinary, direct/staged snapshot, and snapshot-catchup pages.
+The missing-requested-watermark condition also now accepts snapshot catch-up
+when no ordinary deferred cursor is ahead, while retaining the snapshot's own
+monotonic floor, owner, continuation and revision checks.
+
+U3–U5 were checked against their complete callers. Snapshot publication already
+clears every snapshot key and its in-memory owner; filtering out an equal cut
+would incorrectly skip required catch-up. clear_rows already has one complete
+publication reset, including cursor and snapshot disposal; the flag controls
+published image evidence only. First identity is authenticated privately before
+publication and checked against the adopted backend owner, then promoted with
+its images. New tests cover all three lifetimes on both stores through reopen,
+and counterfactual mutations fail their assertions. REPAIR-B-HANDOFF.md contains
+the per-finding evidence and exact durable-key correction to the round 3 table.
+
+All 12 distinct mutations compiled and failed their intended regressions with
+passing controls. The stale-capture mutant independently reproduced device 4
+after deferral and device 2 on the omitted-fields terminal page, on both stores.
+Mutations ran against copied source, and their recorded source hashes match the
+final branch files. No mutated source was installed in this worktree.
+
+Final requested commands, using normal Cargo test profiles and fixtures:
+cargo test -p snapback4-device exited 0 (608 passed, 0 failed, 3 existing ignored);
+cargo test -p snapback4-core exited 0 (160 passed, 0 failed);
+cargo test -p snapback4 exited 0 (265 passed, 0 failed).
+Full verbatim stdout/stderr, baseline and HEAD probes, mutation edits/commands,
+and source verification are preserved in target/review-fix6/report.md and its
+linked logs. No push, rebase or merge was performed; integration remains with
+the supervisor.
+
+
+## 2026-09-18 — Repair B, review fix round 7: lifetimes beyond a request
+
+W1: device open abandons a persisted request capture and advances its send
+revision in the same transaction. Published replay evidence, private pages,
+rows and outbox survive. Recovery cannot trust a teardown send's asynchronous
+host-persistence batch; recapture includes every durably admitted write and
+revision advancement fences surviving old responses. A store without a capture
+gets no extra capture-key writes. The real-engine memory persistence probe loses
+exactly the revision batch after durable admission and gives server/device/reopen
+1/1/1 with additive wire fields present or omitted, as do persisted controls.
+Incoming 5a55e7717 gives 1/2/2 on the identical lost-batch probe.
+
+W3: receipts with no advertised identity stay unbound, including historical
+`Some({id: None})`; the first real identity binds them. Known foreign receipts
+remain foreign. Both-store tests acquire and acknowledge after reopening either
+encoding, check value 1 and retirement, then reopen again. A separate storage
+probe covers private identity and preservation of a foreign binding.
+
+W5/W6: local.ts refreshes published identity and cursor from native state,
+uses transfer identity only for requests, and leaves watches unchanged while
+an identity is private. Actual durable resets still invalidate and adopt. HTTP
+stream mode now stays on for outstanding ordinary publication independently of
+snapshot ownership; an interrupted round recovers the mode from native transfer
+progress. Ordinary deferred pages never claim a staged snapshot owner. Client
+regressions cover private A/B watch behavior, explicit false snapshot mode,
+interruption/resumption, and change polling after another owner advances.
+
+W2 and W4 were disproved by running the new tests against archived incoming
+source, not just the fix. `settle` already restores the confirmed base before
+both receipt arms. Snapshot catch-up already stages each page's events before
+publication, and the advanced ordinary-slot guard refuses the alleged mixed
+publication. Regressions cover two relative survivors, rejection/receipt and
+withdrawal through reopen, a distinct intermediate snapshot row and terminal
+multirow update, plus intact ordinary drain after replacement refusal.
+
+Remaining accepted findings: revision-filter declaration lookup; shared optional
+bound echo matching; inverted checkpoint refusal; recovery from a malformed
+abandoned capture; original apply/observe errors preserved when rejection cleanup
+fails. Reset, live terminal refusal, legacy exclusion, slot occupancy, committed
+reset and nonempty cursor tests now assert their full boundaries. The complete
+per-packet dispositions and source evidence are in REPAIR-B-HANDOFF.md.
+The existing capture-lifetime and replacement fixtures now take fresh captures
+at reopen while retaining assertions that delayed old replies are rejected.
+Reference annotations now use the actual Repair B heading anchor; all references
+validate.
+
+Final requested commands: `cargo test -p snapback4-device` exited 0 (617 passed,
+0 failed, 3 existing ignored); `cargo test -p snapback4-core` exited 0 (160 passed,
+0 failed); `cargo test -p snapback4` exited 0 (265 passed, 0 failed). Eight focused
+TypeScript/native transport tests and strict TypeScript compilation pass.
+Twenty-one Rust and six client mutations failed their intended assertions with
+passing controls; every mutation input hash matches the final branch source or
+compiled TypeScript output. Mutants were compiled from copies, never installed
+in this worktree. `ref-check --verbose`: 484 LLP docs, 9440 refs, zero errors.
+`git diff --check` passes. The initial codec and stale-fixture failures, corrections,
+full verbatim final command output, incoming-source probes, mutation edits,
+compiler commands and source verification are preserved in
+`target/review-fix7/report.md`. No push, rebase or merge was performed.
+
+
+## 2026-09-18 — Repair B, review fix round 8: private restore evidence
+
+X1: same-incarnation restore detection now consumes validated private progress,
+not only the published watermark. Ordinary deferred effects retain their highest
+image head with the transfer cursor; snapshot staging retains the equivalent
+head with its through cut. A current echoed request reporting a head below this
+evidence commits E_STORE_RESTORE before returning. Published 5, private 10,
+images from 20 refuses both restored head 7 and refilled head 15. Healthy
+truncated pages at head 20 continue; obsolete request cuts and invalid pages
+cannot manufacture a halt. Private first identity already binds this evidence.
+
+The halt survives reopen, refill beyond the old head, row clearing and backend
+adoption. Inspection found a related escape through an identity-omitted legacy
+rewind: it can no longer clear an existing halt. Only a different named
+incarnation or complete device-store disposal ends it. The new head keys are
+consumed with their private images on publication or explicit image discard.
+
+All fourteen claims in grok-b8-03, -05 and -16 have individual dispositions in
+REPAIR-B-HANDOFF.md. The capped-dequeue allegation is disproved by an identical
+both-store regression on incoming 8c49c95cc: 257 writes, declared prefix 256,
+published excluded row value 3, dequeue and reopen still 3. Restore consumes the
+confirmed-base sidecar, not admission-time Queued.predicted metadata.
+
+Grok 16.4's cursor allegation is disproved by the next loop's native capture,
+but its failed post-publication state read exposed a real watch invalidation
+loss. Touched tables are now recorded immediately after successful apply, ahead
+of the fallible metadata read, so finally still reruns affected watches. The
+new client test fails at stale value 1 on incoming output, observes/notifies 2
+with the fix, and asserts request cursors 5,5,9.
+
+The handoff replaces the earlier durable-key table with a reader/authority
+column and an explicit invalidation-event column. Every publication key names
+its boundary; the two monotonic allocators deliberately last for the whole
+store. The audit also enumerated the previously omitted upload-facts cache:
+no incarnation/expiry invalidation exists. A native SQLite probe retained S's
+facts through T replacement, backend adoption, acquisition and reopen. This is
+recorded in issues/20260918-snapback4-upload-facts-cache-lacks-incarnation-invalidation.md;
+it does not demonstrate unauthorized server execution, which resolves assets
+independently. The remaining cache boundary prevents an unqualified claim that
+the whole lifetime class is closed.
+
+Verification: cargo test -p snapback4-device exited 0 (631 passed, 0 failed,
+3 existing ignored); cargo test -p snapback4-core exited 0 (160 passed, 0 failed);
+cargo test -p snapback4 exited 0 (265 passed, 0 failed). Fourteen new Rust cases
+cover seven scenarios on both stores, and the nine client/transport tests and
+strict TypeScript compilation pass. All ten Rust mutations and one client
+mutation fail their intended assertions with passing controls; their input
+hashes match final source/output. Both X1 tests fail on archived incoming
+8c49c95cc source; capped dequeue passes there. Old-wire probes remain 1/1/1.
+ref-check --verbose reports 484 LLP documents, 9441 refs, zero errors;
+git diff --check passes. Complete verbatim output of the three commands, exact
+mutation edits and commands, source hashes, assertion failures, controls and
+incoming-source evidence are retained in target/review-fix8/report.md. The
+memory witness is host drain/reopen, not browser termination or power loss.
+No push, rebase or merge was performed.
+
+
+
+## 2026-09-18 — Repair B, review fix round 9: every observed head reaches private restore evidence
+
+Y1 was the client half of the round-8 device fix. Startup, reconnect and change
+polling filtered their authenticated head observations through the published
+watermark and could therefore permit a send without asking the device about
+private progress. They now submit the head to observe_store before replay or
+freshness decisions, using captured revision, published cut, private restore
+cut and transfer identity. Any native refusal fences that response; only the
+restore refusal persists the halt. Probe/change credential revisions are also
+checked before consuming the response.
+
+The entry-point audit found the related generation path: the client only ran
+preflight for an apparent identity change or cursor rewind. Every sync reply
+now reaches preflight before adoption can discard the private evidence.
+SyncState exposes restore_watermark through the validator's own restore_cursor
+helper; a sync reply echoes captured_restore_watermark separately from its
+request cursor. A reopened snapshot must restart acquisition but still knows
+its retained image head. The separation catches a head-15 generation reply
+against retained head 20 without falsely accusing a replacement's lower page
+cut when its image head is healthy. No new durable metadata key was added.
+
+The compiled-client/native SQLite regressions publish 5, stage through 10 with
+images at 20, reopen and observe head 7 or 15 through the actual web startup
+callback branch. They require zero sends and a durable refusal through two
+reopens and refill to 25. Further scenarios cover ordinary probe/change
+polling, generation replies after ordinary and snapshot deferral, stale send
+and published-capture fences, and healthy head/replacement-head controls.
+The acquired/read/outbox decisions remain native; published identity still
+owns watch invalidation and the adoption CAS. The audit and every received
+Grok packet's disposition are recorded in REPAIR-B-HANDOFF.md. The upload-facts
+cache boundary remains open; this is no whole-lifetime closure claim.
+
+Grok's concrete storage-test gaps are strengthened: malformed capture recovery
+now preserves nonempty row/metadata/receipt payloads and published progress;
+both cleanup paths prove the injected failure happened and retain the exact
+primary error plus metadata/outbox bytes; object-form inversion and published
+exclusion survive their respective checks; capped captures preserve all 257
+outbox entries with noncontiguous submission numbers, tuple echoes cannot
+widen, and empty cursors are inspected after commit. The remaining production
+hypotheses were checked against their complete callers, existing tests and
+transaction boundaries, rather than accepted from isolated diff hunks.
+
+Final verification: cargo test -p snapback4-device exited 0 (631 passed,
+0 failed, 3 existing ignored); cargo test -p snapback4-core exited 0 (160
+passed, 0 failed); cargo test -p snapback4 exited 0 (265 passed, 0 failed).
+The final device run follows the last snapshot-capture change. Strict
+TypeScript compilation, 21 client/transport tests and four existing native
+reconnect tests pass. Twelve Rust mutations and ten client mutations fail their
+intended assertions with passing controls; all 22 inputs match final source
+or compiler output. The commit-only empty-cursor mutation specifically fails
+the new post-commit assertion while its pre-commit check still passes.
+The original d0dc78878 client fails the new zero-send/halt regressions against
+the same final native binary; the healthy head-20 control passes there.
+ref-check --verbose reports 484 LLP documents, 9441 refs and zero errors;
+git diff --check passes. Per-finding dispositions are in REPAIR-B-HANDOFF.md;
+complete verbatim command results, mutation edits/commands, hashes and incoming
+client evidence are in target/review-fix9/report.md. No push, rebase, merge,
+Wasm build or publication was performed.
+
+
+
+## 2026-09-18 — Repair B, review fix round 10: request-owned private restore evidence
+
+Z1: native capture now includes the retained private image head alongside its
+private/published cuts. Probe/change observations and sync replies echo that
+request evidence. The restore comparison no longer substitutes the current
+private cursor/head or skips proof because private progress changed. A head
+below captured evidence durably halts after private-only advance; evidence
+acquired later fences an obsolete healthy reply without manufacturing a halt.
+A newer same-send-revision pending declaration cannot erase the independent
+head proof; declaration validation still precedes applying effects.
+
+Successful native preflight also captures the metadata expected by adoption
+inside its transaction. The client retains that map across schema retrieval,
+rather than recapturing after the response. Atomic installation checks
+private progress/heads and snapshot owner as well as published progress,
+halt, generation, backend identity and native digest. Overlap immediately
+after preflight or during the schema fetch cannot erase private evidence.
+Schema credential revision is checked; older native modules without the
+capture protocol are rejected before startup. Server wire fields and the
+old-server deferral policy are unchanged. No durable metadata key was added.
+
+The expanded native client suite uses two real SQLite owners with controlled
+HTTP. It covers published 5/private 10/images 20 followed by private 12 at
+unchanged send revision, heads 7/15, generation adoption, newer image evidence,
+image-head-only change, first private evidence after request issue, a new
+pending declaration, and both schema-adoption windows. Both-store Rust cases
+check durable refusal/reopen/refill, healthy-response retry, and atomic
+adoption with an unchanged-capture positive control.
+
+The response-path inventory in REPAIR-B-HANDOFF.md names captured evidence,
+current comparison guards, and remaining current-state dependencies separately.
+It does not close the whole lifetime class: mutation settlement, native module
+refresh, some successful response handling, readiness and legacy no-capture
+calls remain explicit audit boundaries. The upload-facts ticket is unchanged
+and outside this round. Every received review finding has a disposition.
+
+Final verification: cargo test -p snapback4-device exits 0 (639 passed,
+0 failed, 3 existing ignored); cargo test -p snapback4-core exits 0 (160 passed,
+0 failed); cargo test -p snapback4 exits 0 (265 passed, 0 failed). Strict
+TypeScript compilation, 30 transport/native client tests, 3 compatibility
+checks and 18 session tests pass. Eight Rust, five client and three protocol
+mutations fail their intended assertions with passing controls, and all
+16 mutation input hashes match final source/compiler output. Ref-check:
+484 LLP documents, 9441 references, zero errors; git diff --check passes.
+The first full device run caught an old local request cursor incorrectly
+being treated as a complete private capture; the explicit-capture fence
+corrects that, and the full suite then passes. Its failure remains recorded.
+Verbatim output of all three commands, all mutations/commands/hashes and
+controls are in target/review-fix10/report.md. No push, rebase, merge, Wasm
+build or publication was performed.
+
+
+
+## 2026-09-18 — Repair B, review fix round 11: startup precedes response validation
+
+AA1 was confirmed. Startup installed the fetched generation before the first
+head observation, clearing the very published/private cuts and retained image
+head needed to recognize a same-incarnation restore. The client now opens the
+kept backend first and uses the installed generation until sync preflight and
+captured adoption validate a change. Only the explicit never-synced refusal
+permits first installation. The process adapter also waits for stdio close so
+an exit cannot hide that typed refusal before its last stdout event.
+
+The round-9 shared opener now forwards the actual backend into the production
+opener in every scenario. Previously it returned a fixture already reopened
+with null and therefore bypassed changed-generation opening. New SQLite and
+wasm-memory witnesses start at generation 2 / published 17 / private 18 /
+images 20 and reject generation-1 heads 15/19 with zero sends/adoptions and a
+durable halt through reopen/refill. Healthy generation change, replacement,
+first-install, offline and nonempty-store-failure controls pass. The compiled
+incoming ee1252d73 client fails all ten new negative cases against this
+corrected harness. All eight mutations fail their intended tests with passing
+controls and final-source/test hashes.
+
+The previous audit's response-only scope was too narrow. REPAIR-B-HANDOFF.md
+now includes opening, installation and reset consumers of the same evidence,
+and retains explicit unqualified boundaries for direct low-level installation,
+separate empty-store/first-install attempts and the round-10 current-state
+dependencies. This is not whole-lifetime closure. The upload-facts ticket is
+unchanged. No new durable metadata or server wire field was added.
+
+Verification: cargo test -p snapback4-device exits 0 (639 passed, 0 failed,
+3 existing ignored); cargo test -p snapback4-core exits 0 (160 passed,
+0 failed); cargo test -p snapback4 exits 0 (265 passed, 0 failed). The
+45 client/transport tests, 4 compatibility/process-lifecycle checks,
+4 process-opener tests, strict TypeScript build/typecheck and the native
+lifecycle pass. Session/reconnect cases passed; their initial native-opener
+failure is retained and its dedicated final rerun passes after the close-event
+fix. Old-wire probes remain 1/1/1. Full verbatim results, mutations, incoming
+comparison, source hashes and initial failures are in target/review-fix11/report.md.
+Wasm was rebuilt for host-persistence tests; no browser-termination or physical
+power-loss claim. No push, rebase, merge or publication was performed.
+
+
+## 2026-09-18 — Repair B, review fix round 12: first installation is conditional
+
+BB1 was reproduced before fixing it. After the production empty-store open
+failed, another real owner installed generation 2 and persisted published 17,
+private 18 and image head 20. Resuming the generation-1 fallback installed the
+stale backend and reset those cuts to zero on SQLite and wasm memory; a lower
+same-incarnation head then allowed a mutation send. Controlled scheduling and
+HTTP make the interleaving deterministic; the stores, openers and device
+operations are production code. The intervening owner closes before fallback,
+so this includes the web host's exclusive-claim lifecycle. It is not a real
+browser termination or physical power-loss witness.
+
+The fallback now passes an explicit initial-backend envelope. Every host uses
+the shared decoder; the device opens whatever backend is present or atomically
+checks that it is still absent before installing. A kept open also compares
+the backend it read inside installation. Obsolete observations return
+E_GENERATION without overwriting the winning state. Legacy modules refuse the
+envelope rather than treating its condition as optional. No server wire field
+or durable key was added, and direct explicit backend installation retains its
+low-level semantics. The client inventory found no other two-step backend
+open/fallback path; web recovery holds a claim and opens kept state.
+
+Four overlap regressions on SQLite/wasm reject heads 15/19 through durable
+reopen/refill without sends or adoption; two head-20 controls still perform
+validated generation adoption. Four transaction-boundary injection cases cover
+absence and kept-backend comparison on memory/SQLite. C ABI and decoder
+controls cover the host envelope. All five mutations fail their intended
+assertions, and mutation hashes match the final source/compiler output. The
+compiled incoming client independently reproduces the overlap failures.
+
+Final verification: cargo test -p snapback4-device exits 0 (645 passed,
+0 failed, 3 existing ignored); cargo test -p snapback4-core exits 0 (160 passed,
+0 failed); cargo test -p snapback4 exits 0 (265 passed, 0 failed). The affected
+client/host batch passes 69 tests, strict TypeScript build/typecheck pass, and
+ref-check reports zero errors. The broader client-lifecycle run is not green:
+its missing observe_store mock and apply-only rejection expectation reproduce
+with the incoming client. Its additional timeout and retained handles are
+recorded separately in the filesystem follow-up, not claimed baseline-proven.
+The run was terminated to collect its output. The wasm build reports 488,235 B
+gzip (658 B above the incoming artifact) against the already-exceeded budget;
+no size qualification or publication is claimed. Full verbatim command results,
+mutations, source hashes and failures are in target/review-fix12/report.md.
+No push, rebase, merge or publication was performed.
+The final old-wire probe still reports server/device/reopened 1/1/1 in all four
+memory/SQLite fresh/abandoned variants.
+
+
+
+## 2026-09-18 — Repair B, fix round 13: lifecycle fixtures and the complete suite
+
+The lifecycle fixture now handles `observe_store`, and a successful reconnect
+probe supplies its `seq` head. The shared-native-store overlap witness asserts
+the real `E_GENERATION` preflight refusal, no apply, no published-watermark
+advance and exactly one pending prediction. Healthy startup and a fresh capture
+still reach apply; the fresh capture confirms the value once. Its unrelated
+changes poll is held so the deliberate sync interleaving owns the assertion.
+Production head validation and all production source remain unchanged.
+
+Removing the mock's observe-store implementation reproduces the pending-write
+timeout; the repaired isolated test passes in 75 ms. This is a fixture exception
+in settlement/sync, not a production hang. Clients register failure cleanup,
+held fake fetches honor abort, and device query/settlement gates release before
+cleanup awaits close. Injected failures in all three waits exit normally with
+status 1. The original timeout also now exits normally. The lifecycle follow-up
+moves to issues/closed/20260918-snapback4-client-lifecycle-fixtures-lag-restore-preflight.md.
+
+The first complete `bash snapback4/scripts/test.sh` run exited 1 in 720 s:
+all steps passed except client tests, which reported nine failures. Six stale
+assertions do not reproduce at base `27a8a4d66`: acquisition's inherited-default
+expectation on wasm/process, the codec's old apply-result shape, reset-before-
+commit equality, failed-admission persistence equality, and reset notification
+before validation. The acquisition tests now require the retained old generation
+until validated adoption; their healthy controls still require new defaults and
+outbox drainage. Codec checks include `published: true`. Recovery tests compare
+all durable records exactly while checking abandoned capture invalidation,
+send-revision advancement and the journal's replacement capture. Reset notices
+are copied when delivered and must start with loading before backend adoption;
+the retired answer cannot be republished.
+
+The other three first-run failures reproduce at base: the known README coverage
+gap for `worker.runGeneratedEffects` and the wasm/native maximum-pending-ID
+fixture timeouts. Those queues were making steady progress, not hanging. Each
+232/233/256-ID case now owns a server, and its inner replay wait is 30 s within
+the unchanged 40 s test deadline, with ten seconds reserved for setup/cleanup.
+Every receipt, cursor batch, exactly-once terminal event and drained outbox is
+still asserted. All six cases pass in the final full run. Base qualification
+rebuilt native, wasm and TypeScript from an archive; all 1,058 tracked blobs were
+verified against `27a8a4d66`. Only temporary compilation caches were removed;
+the source, rebuilt artifacts, hashes and logs remain.
+
+Final `bash snapback4/scripts/test.sh`: exit 1. Every step passed except the
+known, separately ticketed README coverage test, which is also red at base.
+Client result: 794 tests, 790 passed, 1 failed, 3 skipped, 0 cancelled; all 56
+lifecycle cases completed normally. Verbatim final script result:
+
+```text
+-- FAIL: client tests (564 s)
+== 1 failure(s) in 579 s
+   client tests
+```
+
+The suite chose serial client files automatically for host load 34.20 across
+10 CPUs. No check was bypassed. Complete verbatim outputs of both full runs,
+the failure-by-failure base comparison, cleanup probes and final fixture hashes
+are in `target/review-fix13/report.md` and its linked logs. `git diff --check`
+passes. This is the requested full-suite result, not an all-green claim.
+
+Wasm remains 1,686,925 B raw / 488,235 B gzip: **+658 B over round 11**
+(487,577 B), and **36,235 B over** the current 452,000 B report-only budget.
+The same note is appended to issues/20260913-snapback4-wasm-device-diet.md;
+that ticket stays open, with no budget change or size qualification claimed.
+No push, rebase, merge or publication was performed.
+
+
+## 2026-09-18 — Repair B, fix round 14: client invalidation precedes post-commit work
+
+FF1 reproduces with the compiled incoming client and the real wasm device:
+replacement commits B with backend-required true and acquisition false, but
+one denied post-reset sync-state read leaves the A watch fresh and sends no
+notification. The client now invalidates at the successful device-call
+boundary, before even the wrapper's media reconciliation can fail. It clears
+all watch snapshots and expiry timers, remembered server answers, acquisition,
+currentness/freshness flags, cached identity and poll position before invoking
+application listeners. Round-local cursors are discarded before inspection;
+retry recaptures B and its zero transfer position from native state.
+
+The requested state audit found the analogous successful-adoption ordering:
+a thrown readiness read could bypass its incarnation advance. Successful
+adoption now fences answers at the same boundary. A compatibility control
+caught an overly conservative intermediate fix: literal-default widening
+must keep native-acquired images readable offline. A successful readiness
+inspection can revalidate that preserved acquisition after the new backend is
+installed; a failed inspection cannot. Both operations have post-commit media
+failure regressions, and every failure regression has a healthy retry.
+
+The complete client-state inventory and per-finding dispositions are appended
+to REPAIR-B-HANDOFF.md. They distinguish immediate read/identity/cursor fences
+from later fallible receipt/media cleanup and retain the earlier native-module,
+mutation-response and upload-facts audit boundaries. A proposed newer-change
+probe was rejected because it actually delivered an obsolete pre-adoption
+poll; its healthy control failed too. The probe/extra guard was removed, with
+its output retained. It is not counted as a finding or mutation proof.
+
+All seven final compiled-client mutations fail their intended assertions;
+the restored reset file passes 19 cases. Source, test, compiled-client and
+wasm hashes match the final mutation inputs. The initial FF1/adoption failures
+and the intermediate compatibility failure remain in target/review-fix14/.
+No native/server semantics, other repaired round-13 fixtures, wire fields,
+or durable metadata keys changed. The source and existing test file are the
+only implementation edits.
+
+Final verification: device **645 passed, 0 failed, 3 existing ignored**; core **160 passed, 0 failed**; CLI **265 passed, 0 failed**. All three Cargo commands exit 0. Final `bash snapback4/scripts/test.sh` exits 1 in 255 s with every step passing except the known `worker.runGeneratedEffects` README coverage failure. Client shards total **799 tests, 795 passed, 1 failed, 3 skipped, 0 cancelled**. Verbatim final script result:
+
+```text
+-- FAIL: client tests (222 s)
+== 1 failure(s) in 255 s
+   client tests
+```
+
+The final suite holds source/test hashes unchanged, and its compiled client and wasm match the mutation inputs. Ref-check: 484 LLP documents, 9443 references, zero errors. Full verbatim crate/script results, mutation edits, hashes and controls are in `target/review-fix14/report.md`. No push, rebase, merge or publication was performed.
+
+
+
+## 2026-09-18 — Repair B, fix round 15: publication invalidation precedes media reconciliation
+
+HH1 predates the lane. The unchanged round-14 client and the compiled base
+`27a8a4d66` client both leave a watched message at A after the real device
+publishes `updated` at watermark 11 and one media `asset_home` lookup fails.
+Both snapshot/catch-up and ordinary-stream variants reproduce; healthy controls
+pass. Base-client isolation uses the current production wasm, with exact base
+source and a matching fresh TypeScript compilation, not a full-base runtime.
+
+The wrapper now copies successful apply's native touched tables into the sync
+round's invalidation set before reconciliation. The existing finally reruns
+those watches even when media or later inspection fails. Four regressions prime
+real media retention and verify publication, notifications, retry from 11 and
+offline reopen. Moving collection back below reconciliation fails both fault
+cases while the two healthy controls pass. The restored reset-review file
+passes all 23 cases. Final source, test, compiled-client and wasm hashes match
+the mutation inputs after the complete suite rebuild.
+
+The previous inventory omitted apply and overstated its media qualification.
+REPAIR-B-HANDOFF.md now derives the invalidation inventory from device commits,
+opening and host persistence. It names four code-inspected remaining gaps:
+admission and settlement before media failure, host work after successful
+persistence but before returning the result, and recovered predictions without
+table invalidation. They are recorded in
+issues/20260918-snapback4-remaining-commit-invalidation-gaps.md, not presented as
+new reproduced counterexamples or a claim of complete class closure. Direct
+raw-device resets, thrown watch evaluations and callback delivery remain
+explicit limits. The upload-facts ticket stays separate.
+
+All three requested crates pass: device **645 passed, 0 failed, 3 existing
+ignored**; core **160 passed, 0 failed**; CLI **265 passed, 0 failed**. Each Cargo
+command exits 0. The full `bash snapback4/scripts/test.sh` exits 1 solely for
+the known `worker.runGeneratedEffects` README coverage failure. Client totals:
+**803 tests, 799 passed, 1 failed, 3 skipped, 0 cancelled**. No additional failure
+requires a base comparison. The script selected serial client files at host
+load 108.13 across 10 CPUs. Verbatim final result:
+
+```text
+-- FAIL: client tests (673 s)
+== 1 failure(s) in 716 s
+   client tests
+```
+
+Full verbatim crate/script outputs, base-client comparison, mutation patch,
+controls and artifact hashes are in `target/review-fix15/report.md`. Ref-check
+reports 484 LLP docs, 9444 refs and zero errors; `git diff --check` passes. No
+push, rebase, merge or publication was performed.
+
+
+
+## 2026-09-18 — Repair B, fix round 16: host persistence exposes its committed result
+
+II1 is this lane's regression. The identical invariant passes on the saved
+base `27a8a4d66` client and wasm device, fails on incoming `66da3c0ad`, and
+passes on the fix. One failed orphan enumeration after persistence saved B
+left incoming HEAD's watch at A with freshness and acquisition true and no
+notification, while native state was B, watermark 0, acquisition false and
+backend-required true. Healthy controls, explicit retries and offline reopen
+reach B on all three subjects. Additional failure points in journal `remember`
+and `recover` have the same base/HEAD/fixed disposition.
+
+The web host now exposes the durable reply immediately after a successful
+save, before journal bookkeeping, listeners or recovery. The local client
+consumes it once to clear reset/adoption state or preserve apply's touched
+tables. A failed save does not signal a commit. Internal invalidation is
+synchronous; application callbacks run after the host finishes or unwinds,
+before client media reconciliation or surfacing the failure. A callback that
+submits another mutation therefore cannot capture the journal's old identity
+while host bookkeeping is unfinished. Hosts returning directly still use the
+returned result; adapters over this web host must forward the observer.
+
+The updated handoff inventory does not claim universal closure: recovered
+predictions remain the confirmed pre-existing exception, and it explicitly
+names raw-device operations, reset-then-denial, lost denied-only results,
+native serialization/transport/decoding (including Expo tracing before return),
+and adapters dropping the hook as unqualified boundaries. Query evaluation and
+subscriber exceptions remain delivery limits after internal invalidation.
+Round-16 review dismissed B15-A/B. B15-C is II1, fixed here; B15-D is continued
+without implementation in issues/20260918-snapback4-recovered-prediction-watch-invalidation.md,
+with the reviewer's failed-admission-save/surviving-journal/empty-publication
+reproduction. The four-item triage ticket moves to issues/closed/ with those
+dispositions; no dismissal rationale was supplied or invented.
+
+The client-without-hook mutant fails three replacement and two publication
+fault cases while five controls pass. The host-without-hook mutant fails all
+three replacement faults while its healthy control passes. Moving the host
+hook below journal bookkeeping fails that fault specifically. Restored code
+passes all 30 tests in the two affected files. The proof compares the full
+saved base client/device, with 1,058 source blobs matching base, all 30 rebuilt
+JavaScript modules matching saved artifacts, and the qualified base wasm hash.
+Initial fixture fallback mistakes and an invalid empty Node test filter remain
+recorded as development errors, not product counterexamples.
+
+All requested crate commands exit 0: device **645 passed, 0 failed, 3 existing
+ignored**; core **160 passed, 0 failed**; CLI **265 passed, 0 failed**. The full
+`bash snapback4/scripts/test.sh` exits 1 solely for the known README coverage
+failure for `worker.runGeneratedEffects` (already established at base in round
+13). Client totals: **810 tests, 806 passed, 1 failed, 3 skipped, 0 cancelled**.
+Verbatim final result:
+
+```text
+-- FAIL: client tests (487 s)
+== 1 failure(s) in 497 s
+   client tests
+```
+
+`target/review-fix16/report.md` contains every verbatim crate result line, all
+script step results and the final client failure, with full logs, comparison,
+mutations and hashes linked. The full suite rebuilt the same compiled-client
+and wasm bytes used by the mutations; all source/test hashes also match.
+Ref-check and `git diff --check` pass. No push, rebase, merge or publication.
+
+
+
+## 2026-09-18 — Repair B integration round 2: authoritative disposal and measured bytes
+
+On the preserved merge of main `04def4945` and lane `456782dbb`, a valid first
+replacement snapshot now discards the ordinary deferred effects and their ACKs
+together. Nothing superseded publishes and no discarded ACK retires a live
+prediction. The visible base/overlay stays unchanged through staged acquisition;
+identity and maximum validated image-head evidence survive disposal and reopen.
+A failed first page rolls back the disposal. LLP 3000.001 records this choice.
+
+Snapshot continuations use zero plus their opaque token; catch-up uses its
+staged cut. The client carries a server-instructed restart across fresh native
+captures, and observes an overflow as nonterminal rather than inventing a
+server head from the event cut. Real 16 MiB HTTP regressions on wasm and SQLite
+each exercise 12 overflow refusals and 46 replacement pages, reaching head 16
+from published 2/private 3 without doubling the counter or a false restore halt.
+
+Incoming wasm 436,594 B gzip becomes 433,908 B (1,576,856 raw). Correctness
+changes account for −32 B; avoiding unnecessary sorts saves 412 B and one
+recording map in place of two saves 2,242 B. A trait-object applicator costs
+2,640 extra gzip bytes and is reverted. Ordered feature ablations, the 5,550 B
+shared residual, toolchain and full verification transcripts are recorded in
+[the report](reports/20260918-repair-b-integration-r2.md). The 411,000 B budget
+is unchanged: 22,908 B still blocks size qualification, for the author to rule
+on. No push or rebase is performed and the merge parents remain the supplied
+main and lane commits.
+
+Final verification for this entry: `cargo test -p snapback4-device` passes
+(872 passed, 3 ignored), `cargo test -p snapback4-core` passes (163), and
+`cargo test -p snapback4` passes (265). The final
+`bash snapback4/scripts/test.sh` reports `1 failure(s) in 235 s`: **wasm build**
+only. All tests and README coverage pass. The report links the four complete,
+verbatim transcripts and retains the earlier stale-expectation run separately.
+
+
+## 2026-09-18 — Repair B lands: a confirmed image may not carry a write the acknowledgements do not
+
+A sync page's events are cut at its watermark while its images are read at the
+server's log head, so a relative update committed in between sat inside the image
+and outside the acknowledgement, and replay applied it twice: a counter read 3
+against a server that never held above 2.
+
+The page now carries `images_at`, the server reports `committed_above` from the
+same lookup that builds `acknowledged`, and a page whose images contain one of
+this device's own replayable writes publishes **nothing** — row effects, non-row
+effects, acknowledgements and the published watermark defer together into a
+durable slot while a separate transfer cursor advances. The first page without
+that property installs the accumulation, applies itself, moves the published
+watermark, applies the accumulated and current acknowledgements, and replays. It
+terminates by construction: `stream` raises `next` to `head` when `more` is
+false, so a final page always has `watermark == images_at` and cannot defer.
+
+Two proposed mechanisms were refused by the implementation lane before this one,
+each with an executed counterexample on both stores, and both are kept as
+regressions. Deferring per row by each entry's recorded write set fails because a
+page can change what a replay writes. Deferring images while the watermark and
+acknowledgements still advance fails because a prediction then retires before its
+effect reaches the base. A third refusal found the 256 pending-id cap, which
+drops acknowledgements silently and replays a write over its own effect
+permanently — a pre-existing defect reproduced on main with no repair applied,
+now guarded here by not replaying what could not be declared, and ticketed for
+declaration pagination.
+
+Seventeen review rounds across two model families found no counterexample to the
+mechanism. What they did find, over and over, was one fact with two
+representations, or a lifetime not bound to one request, one incarnation or one
+publication. The rule that closed the second class is worth keeping: *nothing
+fallible may run between an authoritative commit and the invalidation it
+implies.* Both families returned READY on the final round.
+
+Integration onto main was not free. Upstream's indivisible-commit snapshot
+recovery deadlocked against the lane's refusal to replace while deferred effects
+remained — the required drain is impossible for a commit that cannot stream — so
+a replacement now atomically disposes of the deferred slot and its
+acknowledgements instead of refusing, which is the branch the lane's own first
+review had offered. The client's snapshot continuations request `from: 0` with
+their `after` token, and overflow observation no longer turns an event cut into
+false, durable restore evidence.
+
+The wasm budget rises from 411,000 to 434,000 B gzip under the 2026-09-18
+ratchet ruling. Measured 433,908 B against main's 410,459. Attributed by ordered
+ablation: deferred slot and recording 10,824 B; capture/declaration 6,889 B;
+restore evidence 1,654 B; wasm opening 1,218 B; shared remainder 5,550 B. 2,686 B
+were reclaimed before raising. The remaining 23,449 B is about 21.3% of the
+diet's recovered bytes and is tracked in
+`issues/20260918-snapback4-repair-b-device-bytes.md`.
+
+
+
+## 2026-09-18 — W15c: group fields after a maintain's value
+
+Implemented LLP 3000.007 §14 ruling 41 in the maintain-target binder: a
+prefix of group fields, then `value`, then any remaining group fields, then
+`id`; every field occurs once, and no other column or computed/tokenized
+component is admitted. An author may omit `id` only when every group field
+is present. Binding appends it, so the existing total-key and merge cursor
+path remains in use. The published Trending index is now
+`hour, value, postAt, postId`; `hour, value, postAt` refuses because it omits
+`postId`. The maintains card calls the rule interim, "until maintained
+columns ship". The feeds card, README pointer and §20.21 record agree.
+No engine, store, cursor, serialized value, ceiling or maintained-column
+code changed. `byGroup`, `byId`, old value-index shapes, the inherited-sync
+and delta notes, the expiring-source refusal and threshold-read status stay.
+`guide/codes.rs` states no value-index rule and needed no edit.
+
+Base: `0518ec9e761e114a02d7fc46e5520a102991c627`. The brief's assumed README
+twin block and twin-equality test are absent at this base; the README has a
+prose pointer, which was updated without duplicating the recipe. Its
+265/276 examined counts are also absent: the unchanged base's 48,200-post
+page measured **34**, as does this candidate; the card's historical 264 is
+not the present count. The `map_while` in `engine/maintains.rs` checks source
+indexes for retained coverage; `bind/program.rs` pins lane prefixes at the
+first `value`, and ordinary store code builds and rewrites the whole key.
+
+The old tie fixture accidentally agreed with maintained-id order. The new
+regressions cross time 9,999,999/10,000,000 and hour 999/1000, where the
+maintained id's canonical JSON order disagrees with numeric time. The oracle
+uses only source posts/likes and sorts `(count desc, postAt desc, postId desc)`.
+The server proves first insertion, two score rewrites, physical removal of
+the old index entry and deletion at zero (3 entries become 2). Forty-eight
+tied rows walk in both directions: **7** ordinary pages, or **5** pages
+containing **4** drain cuts under a lowered 16-examination budget, with no
+skip/repeat. SQLite and memory devices walk both directions and match the
+server after **2/2** predicted score changes each.
+
+The paired 37-post recipe page has identical data and all seven counters
+with both index shapes: examined **33**, index entries **0**, rule probes
+**0**, steps **648**, heap bytes **36,720**, output bytes **1,691**, rows
+written **0**. The 10,000-post device page examines **34** on both stores;
+zero-fill examines **25**. `check --cost` reports the same **25** lanes and
+10-row page before/after. A comparison must exclude the command's elapsed-ms
+header. It must also compare the same returned rows for byte counters: the
+48-tie counterexample intentionally changes the winners, keeping examined
+**20** and steps **429** but changing heap **36,770 → 36,780** and output
+**1,721 → 1,741** because those rows have different serialized lengths.
+No meter accounting was altered to conceal that difference.
+
+Targeted commands run from `snapback4/` with these scoped build inputs:
+
+```sh
+export DEVELOPER_DIR=/Library/Developer/CommandLineTools
+export SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk
+```
+
+The initial clean-base invocation without SDKROOT could not link against
+the default MacOSX27.0 SDK (`unknown architecture`, `arm64e.x1`); the 26.5
+SDK resolves it. One redundant red binder command mistakenly ran from the
+root with `--manifest-path snapback4/Cargo.toml`; subsequent Cargo commands
+ran from the fenced workspace. The first direct-lane test draft lacked a
+cursor and emitted N_NO_CURSOR; that fixture was corrected before recording
+the ordering regression. No such test-harness failure is called pre-existing.
+
+Red evidence (old-shape and expiry controls remain green):
+
+```text
+$ cargo test -p snapback4-lang --test maintains w15c -- --nocapture
+test result: FAILED. 1 passed; 3 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.00s
+```
+
+```text
+$ cargo test -p snapback4-sim --test clique w15c -- --nocapture
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 240 filtered out; finished in 0.02s
+```
+
+```text
+$ cargo test -p snapback4-device --test device w15c -- --nocapture
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 417 filtered out; finished in 0.04s
+```
+
+```text
+$ cargo test -p snapback4 --test check w15c -- --nocapture
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 66 filtered out; finished in 0.46s
+```
+
+Green evidence (the simulator total also includes the paired-meter control):
+
+```text
+$ cargo test -p snapback4-lang --test maintains --test guide -- --nocapture
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+```
+
+```text
+$ cargo test -p snapback4-sim --test clique trending::lanes -- --nocapture
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 234 filtered out; finished in 2.83s
+```
+
+```text
+$ cargo test -p snapback4-device --test device trending::lanes -- --nocapture
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 413 filtered out; finished in 1.62s
+```
+
+```text
+$ cargo test -p snapback4 --test check w15c -- --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 66 filtered out; finished in 0.51s
+```
+
+```text
+$ cargo test -p snapback4-sim --test clique w15c -- --nocapture
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 240 filtered out; finished in 0.11s
+```
+
+The full suite ran **once**, from the repository root, after the source
+changes, with Node 24 on PATH and the same SDK inputs:
+
+```text
+$ export PATH=$HOME/.volta/tools/image/node/24.18.0/bin:$PATH
+$ bash snapback4/scripts/test.sh
+wasm 1481394 B raw, 410426 B gzip (budget 411000: ok)
+-- FAIL: cargo test (365 s)
+-- ok: fixture wrapper tests (13 s)
+-- FAIL: client tests (232 s)
+== 2 failure(s) in 411 s
+```
+
+Summing the suite's Rust summaries gives **1,934 passed, 1 failed, 8 ignored**;
+client shards give **805 passed, 1 failed, 3 skipped**; fixtures **9/9**.
+The Rust failure was
+`killed_supervisors_leave_only_bounded_sessions_and_startup_sweeps_their_children`,
+reading an empty PID file (`ParseIntError { kind: Empty }`), not a maintain
+failure or the timeout named in the brief. It passed alone. React failed
+Chromium launch with `SIGABRT`, the sandbox artifact named in the brief, and
+failed identically alone. Neither product-test failure was rerun on the base,
+so neither is claimed base-verified pre-existing. The lead must requalify
+outside the sandbox; this lane does not call the full suite green.
+
+```text
+$ cargo test -p snapback4 --test lifecycle killed_supervisors_leave_only_bounded_sessions_and_startup_sweeps_their_children -- --exact --nocapture
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 19 filtered out; finished in 0.56s
+```
+
+```text
+$ node --test packages/snapback4/test/react.test.mjs
+ℹ tests 1
+ℹ pass 0
+ℹ fail 1
+ℹ skipped 0
+```
+
+The changed source files are at most **1,391 lines**. Outside the binder,
+feeds/maintains cards and README, changes are confined to the language
+maintains tests, simulator lanes and shared fixture, device lanes tests,
+CLI check tests, this append and the required §20.21 append. The two-family
+blind review remains for the lead before landing: this lane spawned no
+agents and committed, pushed and published nothing.
+
+The E_QUARRY_MAINTAIN message/rewrite before, verbatim:
+
+```text
+a maintain value index is group fields followed by value, id
+by byCount: value, id
+```
+
+After, for `by byScore: hour, value, postAt`, verbatim:
+
+```text
+a maintain value index is a prefix of group fields, then value, then any remaining group fields, then id; fields cannot repeat
+by byScore: value, hour, postAt, postId, id; id may be omitted only when every group field is present
+```
+
+`guide: maintains` is unchanged. The requested valid new recipe emits no
+diagnostic or note. E_QUARRY_MAINTAIN_EXPIRE's complete message/rewrite is
+pinned unchanged by the existing and new controls. Raw local logs and the
+command ledger are under `/private/tmp/w15c-evidence/`. Reference validation
+before this append passed with 485 LLP documents, 9,125 references, zero
+errors and zero unchecked references; it runs again after the append.
+
 
 ## 2026-09-19 — round 4 starts: total sync routing and the client boundary
 
@@ -39932,6 +41398,7 @@ routing files from HEAD, with byte-for-byte backups of the current sources and
 qualified CLI, then restore them in a finally block. The isolated baseline binary
 is only a test input; no commit, checkout, reset, stash or publication is involved.
 
+
 ## 2026-09-19 — round 4 final verification and disposition
 
 The extra F1 real-host regressions reproduce against HEAD's original server
@@ -39993,6 +41460,7 @@ repair or budget change. No commit, push, tag, publication, merge or rebase.
 HEAD remains `0fdac3dfb`. LLPs, NOT-DOING, rules, card words and ceilings are
 unchanged; the journal's committed bytes remain an intact prefix.
 
+
 ## 2026-09-19 — round 5: measurement custody and first-commit recovery
 
 Starting at clean `2159a238f`, branch `sb4/mc-prereq-51b7a134`. No commit,
@@ -40049,3 +41517,258 @@ shapes. The wrapper is renamed serve_sync_dispatch.rs. Stream bodies are
 asserted to omit grants on both sides of a concurrent resize. Encoding
 errors are size evidence only for the counter's specific FileTooLarge error;
 an unrelated later failure invalidates the mint and has its own regression.
+
+## 2026-09-19 — W15c: the two-family review, and the lead's four fixes
+
+Blind review of `076753f3a2` (base `0518ec9e76`): GPT READY WITH CHANGES (one Medium, one
+Low), Grok READY WITH CHANGES (one High, one Medium, one Low). Neither found a behavioural
+defect; both confirmed the rule as implemented (any subset of group fields, then `value`,
+then the rest, then `id`, omitted only when the group is whole), that no engine code
+needed to change, that the merge cursor carries the full suffix across ties in both
+directions, and device parity at 48 ties. Records under `llp/reviews/3000.007-w15c-*`.
+
+Applied by the lead, no behaviour changed:
+
+- Grok High: the package README's *maintains* summary, which a reader meets before the
+  feeds pointer, still taught the retired rule ("end in value, id"; "ties use maintained
+  id"; lanes "ordered by `hour, value, id`"). It now states the interim rule and the
+  newest-first recipe, and `w15c_cards_pin_the_interim_rule_and_newest_first_recipe` pins
+  the README as well as the cards.
+- Grok Medium: the refusal's rewrite was not a pasteable `by` line (an English clause after
+  `;`, and `value` moved first, which turns a scoped ranking into a global one that the
+  lane merge then refuses). The message now carries the omission clause and the rewrite is
+  one line that keeps the author's fields before `value` as the lane scope and appends the
+  omitted group fields and `id`; the test asserts each rewrite compiles.
+- GPT Medium: the feeds card said the 48,200-post fixture examined 264 rows; the fixture
+  asserts 34. Corrected.
+- GPT Low: the comparative meter test now also pins the recorded seven-field page
+  (33 examined, 648 steps, 36,720 heap, 1,691 output), not only equality across keys.
+
+Grok's Low — the binder admits any permutation of the leading group fields, not only a
+declared-order prefix — is left as documented behaviour (`maintains.rs` already asserts
+`at, value, author, id` for `by author, at`); the ruling's "prefix" names the shape, not
+an order.
+
+Verification after the fixes (from `snapback4/`): `-p snapback4-lang --test maintains
+--test guide` 48 + 14 passed; `-p snapback4-sim --test clique trending::` 16 passed;
+`-p snapback4 --test check w15c` 1 passed; the two README-reading client tests 17/17;
+`git diff --check` clean.
+
+## 2026-09-19 — oversized-sync recovery/main integration: composition in progress
+
+User-owned merge: HEAD `0d4d60347`, MERGE_HEAD/origin/main `5df0d211a`, branch
+`sb4/mc-prereq-51b7a134`. Nine conflicted files, 21 hunks. No commit or push
+is authorized. `llp-orient` read the Snapback 4 fence, rules, root LLP 3000,
+LLP 2000.000, Repair B in LLP 3000.001, the sync card and Repair B handoff.
+Scope constraints: measured recovery only; Repair B publication/receipt/restore
+custody; W15c index suffixes and receipt_store fixture; memory asset cleanup.
+No ceiling, rule, card word or disclosure boundary change. The ten broken
+Repair B references remain main's responsibility; verification will compare them.
+
+Journal and diet-ticket collisions retain both append bodies in date order.
+Server composition keeps the lane's sole opaque typed dispatcher and inspected
+stream, adds Repair B's image head and split receipts to both ordinary encoding
+and measurement, and performs receipt lookup in that same read transaction.
+Device composition keeps all Repair B capture, private-progress, publication,
+identity and receipt-source machinery alongside the recovery obligation.
+A real semantic overlap remains to resolve: ordinary deferred progress can be
+ahead of publication when it meets an oversized commit. Recovery must bind the
+actual durable transfer cut AND the unchanged published cut, never substitute
+one for the other or derive authority from an overflow refusal. Known live
+predictions must stay with their base until replacement publication.
+Verification and final dispositions follow as work completes; Cargo jobs are
+serialized with CARGO_BUILD_JOBS=1 and wasm will be rebuilt before JS tests.
+
+## 2026-09-19 — integration capture fences and known reference red
+
+Conflict markers are gone and the nine conflict paths are staged; the merge is
+still in progress, uncommitted. Additional composition changes remain under
+verification. Typecheck passes. `./ref-check --verbose` reports exactly ten
+errors: the same nine Repair B references to its long missing heading and one
+to `repair-b-replacement-disposal`, in the same seven source files as main's
+issue. Neither annotations nor headings were repaired. Log:
+`/tmp/f188-integration/ref-check.log` (485 LLP documents, 9,454 references,
+26,415 scanned files; ten errors, zero unchecked).
+
+The additive metadata capture distinguishes an ordinary deferred request cut
+(`captured_watermark`) from its `published_watermark`, validates each against
+its durable slot, and still independently demands `from == captured_watermark`
+and limit one. Old captures and snapshot leases retain their published-cut
+semantics. This is required to combine the lane's measured authority with
+Repair B's advanced private cursor; rejecting every advanced private cut would
+deadlock its real oversized-commit regression. A live prediction's known receipt
+is no longer retired by the recovery grant; its base and receipt publish together.
+Non-predicting known receipts still retire durably as the lane required.
+The server's unused alternative overflow responder is removed; refusals remain
+identity-free and every successful sync response uses the opaque dispatcher.
+
+## 2026-09-19 — integration preservation audit and targeted regression additions
+
+Preservation check confirms the journal's common prefix and all **48** colliding
+entries survive verbatim apart from separator whitespace; all **3** colliding
+diet-ticket entries likewise survive. W15c binder/trending fixture, asset/store
+leak fixes, main's 434,000 B wasm budget, rules, NOT-DOING and contract card match
+MERGE_HEAD byte-for-byte. Source remains within 1,500 lines (`local.ts`: 1,499).
+
+Added both-store regressions for metadata recovery at published 5 / transfer 10 /
+image head 20, independently rejecting wrong request cut, published cut, limit
+and restore-head echo. They retain a live prediction with a known receipt through
+recovery and reopen, and verify metadata head 15 durably halts against retained
+head 20. Extended Repair B's IndexedDB post-save fault cases to replacement via
+metadata as well as data. Its real HTTP overflow test now requires the measured
+grant and both capture cuts, with unchanged row, prediction and publication
+assertions. The older HTTP overflow fixture discovers identity via metadata,
+not the superseded refusal fields. Full server/device compilation is underway.
+
+## 2026-09-19 — first verification correction: restore evidence precedes grant acceptance
+
+Server crate: **291 passed**, zero failed/ignored. The device's existing
+`sync_metadata_recovery_fences_and_durable_acquisition_on_both_stores` caught
+an integration defect: a forged request `from: 99` was interpreted as restore
+evidence before the grant's position check, returning/persisting E_STORE_RESTORE
+instead of a side-effect-free E_GENERATION. Identity-only metadata observation
+now uses the independently validated durable capture as restore evidence;
+`from` is still checked independently by grant acceptance. The existing test
+remains unchanged. The full device run continues to collect all failures;
+this correction will be recompiled and reverified before wasm/JS qualification.
+
+## 2026-09-19 — second composition correction: readable base versus recovery readiness
+
+The complete first device run found **three failures**: the existing malformed
+`from` fence above and the new private-recovery regression on memory/SQLite.
+All other device targets passed (including Repair B's existing cases, 142
+horizon probes and 20 retained-history cases). The two new failures showed
+E_PREDICT after acceptance: deleting the acquired-base evidence made Repair B's
+preserved base unreadable during replacement. Acceptance now retains that old
+read evidence; `sync_state` reports acquired false while snapshot-required is
+set, and `require_acquired` refuses new predictions while allowing queries on
+that already-acquired base. Replacement publication clears the obligation.
+No new durable key or card word was added. First-ever acquisition still lacks
+read evidence. The failed regressions remain unchanged and both affected Rust
+targets are being rerun. A mistyped cwd in the first rerun launch was corrected;
+that launch was interrupted before restarting with the complete correction.
+
+## 2026-09-19 — Repair B target green; recovery capture lifetime composed
+
+Corrected rerun: Repair B **108/108 passed**; the main device target **419 passed,
+1 failed, 2 ignored**. Its remaining failure was the lane's whole-state equality
+across reopen: Repair B correctly advances send revision when abandoning an
+in-flight declaration. Recovery acceptance now consumes its completed request
+capture, and read-only inspection in the Rust/JS durable-recovery assertions uses
+`capture:false` instead of declaring a new request immediately before closing.
+The full store-reset group and the four new measured/private cases are rerunning.
+
+Existing overlays must also survive a late receipt during recovery. The gate for
+new predictions lives in `predict`/admission, while acquired-base reads and replay
+of already-queued writes retain their prior evidence. The new both-store test
+settles the receipt again after acceptance and proves its value stays visible;
+it also requires a new direct prediction to refuse E_PREDICT. This introduces
+no extra durable state and preserves Repair B's ordinary publication behavior.
+
+## 2026-09-19 — Rust recovery corrections verified; fresh host artifacts
+
+Final affected reruns pass: **13/13 store-reset** cases and **4/4 measured
+private-recovery** cases, on both device stores. Together with the completed
+full run and the 108/108 Repair B rerun, the device package has **882 distinct
+passing tests**, **3 existing ignores**, no unresolved test failure; server is
+**291/291**. Logs: `rust-server-device.log`, `rust-device-corrected.log`,
+`rust-store-reset-final.log`, `rust-recovery-final.log` under
+`/tmp/f188-integration/`. These are a full run plus affected correction reruns,
+not a claim of a second complete package run. Building the final native CLI,
+then fresh wasm, serially, before JS qualification.
+
+## 2026-09-19 — rebuilt wasm measured; client qualification started
+
+Final native CLI build passes. Fresh wasm: **1,601,169 B raw / 441,568 B gzip**,
+**7,568 B over** the unchanged main budget **434,000 B**. The build generated
+the artifact, then returned 1 for the known size boundary; recorded in the diet
+issue without raising the budget. Package typecheck and build pass, and copy
+these new wasm bytes into dist before every JS suite. The 21 affected JS files
+run sequentially with Node 24.18.0, beginning with all 66 oversized-sync tests.
+One separate Cargo invocation (one build job) runs core rows/receipts, language
+maintains/guide, simulator clique and security including the two leak witnesses.
+No publication or green wasm-size claim is made.
+
+## 2026-09-19 — W15c/leak qualification green and JS fixture composition
+
+Additional Rust qualification passes: core **65 unit + 8 rows + 1 stream receipt**;
+language **10 unit + 48 guide + 14 maintains**; simulator **17 unit + 242 clique
+(1 existing ignore) + 15 maintains + 12 security**. Includes W15c tied value-index
+paging/prediction and both memory assets-directory cleanup regressions. Combined
+with server/device results: **1,605 distinct passing Rust tests, 4 existing ignores**.
+
+Fresh-wasm JS: horizon **82/82**, retained history **44/44**. Initial oversized
+file: **60/66**, six fixture failures on two hosts. Its two whole-state comparisons
+must acknowledge Repair B's request-capture abandonment on reopen: read-only
+inspection uses capture:false, while interruption of an actual snapshot request
+explicitly asserts send revision +1 with every other state field preserved.
+The lease fixture previously advanced private progress, then reused an older
+snapshot cut. Repair B rightly refuses that rewind, so the advanced-cut refusal
+now runs last, retaining all lease-consumption and from/capture-equality assertions.
+All six corrected cases pass; the entire 66-test file is rerunning. No product
+behavior was weakened to satisfy these assertions. Remaining affected JS files
+continue sequentially in their original run.
+
+## 2026-09-19 — all 66 recovery cases pass; final read-only host correction
+
+Complete recovery rerun: **66/66 passed** (`js-oversized-sync-final.log`).
+The four JS reset files total **43/43**, lifecycle **56/56**, real Repair B
+oversized deferred replacement **3/3** (parent and both hosts), ordinary
+sync-overflow **11/11**, web durability **14/14**. The existing Repair B test
+`generation adoption compares published identity during private acquisition`
+found the lane's pre-loop snapshot-required inspection still called capturing
+`sync_state`; it now uses `capture:false`, preserving Repair B's one declaration
+per actual request. Its other four tests passed. The four added metadata
+post-save fault cases exposed a fixture error: it simulated overflow again for
+B's terminal catch-up. It now overflows only requests still carrying A; the
+existing data fault cases and commit-hook test all passed. These affected files
+will be rerun on the final package build. No Rust/wasm source changed after the
+recorded fresh artifact.
+
+## 2026-09-19 — final Repair B reruns and preservation audit
+
+Rebuilt the package after the read-only pre-loop correction; typecheck and build
+both pass. All six Repair B JS files pass on that build: **5 + 9 + 3 + 1 + 47 +
+3 = 68**, including the four new metadata fault cases and the real oversized
+private-transfer recovery on wasm and SQLite. The full 66-case recovery rerun
+and affected lifecycle/overflow checks continue on this final build.
+
+Compared W15c's binder and device lane fixture, the store/asset leak fixes,
+wasm budget, rules, NOT-DOING and contract against MERGE_HEAD: byte-for-byte
+unchanged. Every one of the ten failing reference annotation lines also matches
+MERGE_HEAD verbatim, with the same per-file multiplicities. The integration
+diff against MERGE_HEAD passes whitespace checking; full staged checking finds
+one inherited trailing space in main's benchmark lane-final-report, which is
+also byte-for-byte unchanged. No commit or push performed.
+
+## 2026-09-19 — final recovery/lifecycle pass and initial-snapshot fixture
+
+On the final package build, oversized-sync passes **66/66**, lifecycle **56/56**
+and sync-overflow **11/11**. Added the HTTP-bounds file to the verification scope;
+its wide initial snapshot acquired successfully but the lane's discovery-count
+assertion assumed an identity was already captured. Repair B deliberately keeps
+first identity unpublished, so these initial requests carry no store identity
+and safely shrink the same snapshot cursor without requesting recovery. The
+fixture now explicitly asserts zero discovery, absence of request identity and
+all original shrinking, continuation, acquisition and catch-up checks on both
+hosts. No product change; the entire HTTP-bounds file is rerunning.
+
+## 2026-09-19 — oversized-sync integration verification complete, left staged
+
+Final HTTP-bounds rerun passes **10/10**, covering wasm and process acquisition;
+all **448 distinct JS tests across 22 files pass**, with no skips or
+cancellations. Rust verification totals **1,605 distinct passes, four existing
+ignores**: server 291, device 882, core 74, language 72, simulator 286. These
+counts combine full initial runs and the documented successful affected reruns,
+not duplicate executions. The native CLI and wasm were rebuilt before JS;
+typecheck and package build pass. Final ledger and logs are under
+`/tmp/f188-integration/`, and the durable detailed account is
+`reports/20260919-oversized-sync-integration.md` (all nine files / 21 hunks).
+
+The two scoped non-green gates remain explicit: ref-check's same ten unchanged
+main annotations, and the **441,568 B gzip** rebuilt wasm against main's
+unchanged **434,000 B** budget (**7,568 B over**, recorded for the diet program).
+All 48 journal collision entries and all three diet collision entries survive
+in date order. The merge against `5df0d211a12ef3255a142685d064ae56d794aba3` is
+resolved and staged for the owner; HEAD remains `0d4d60347`. No merge commit or
+push. No rule, ceiling, card vocabulary or disclosure-boundary changes.

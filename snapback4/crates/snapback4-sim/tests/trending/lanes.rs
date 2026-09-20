@@ -87,7 +87,7 @@ fn w14a_population_and_group_lifetime() {
     let mut engine = engine("");
     for n in 0..48_200 { seed_post(&mut engine, &format!("p{n:05}"), NOW - (n % 24) * HOUR - 1, 1); }
     let page = engine.query("trending", Context::new("bob", args(&[("c", Value::Null)])).at(NOW)).unwrap();
-    assert!(page.complete && page.next.is_some()); assert_eq!(rows(&page.data).len(), 10); assert!(page.metered.examined < 400);
+    assert!(page.complete && page.next.is_some()); assert_eq!(rows(&page.data).len(), 10); assert_eq!(page.metered.examined, 34);
     let before = engine.store().rows("trend").unwrap();
     let bytes: usize = before.iter().map(|r| serde_json::to_vec(&snapback4_core::wire::to_json(r)).unwrap().len()).sum();
     assert!(ranking(&mut engine, NOW + 2 * DAY).is_empty());
@@ -122,4 +122,72 @@ fn w12int_one_liked_post_cost_is_independent_of_unliked_population() {
         println!("W12INT sparse population: posts={population}; likes=1; examined={}; complete={}", read.metered.examined, read.complete);
         previous = population;
     }
+}
+
+#[test]
+fn w15c_lane_ties_rewrite_and_zero_delete() {
+    let mut engine = engine("\nquery lane(h: int, c: cursor ?):\n  return trend[h] after c last 10 by byScore\n");
+    for (name, at) in [("older", 9_999_999), ("newer", 10_000_000), ("same-time-z", 10_000_000)] {
+        seed_post(&mut engine, name, at, 2);
+    }
+    let lane = |engine: &mut Engine| engine.query("lane", Context::new("bob", args(&[("h", Value::Int(2)), ("c", Value::Null)])).at(NOW)).unwrap();
+    let entries = |engine: &Engine| engine.store().conn().query_row(
+        "SELECT COUNT(*) FROM i WHERE ti = (SELECT num FROM _catalog WHERE name = 'trend.byScore')", [], |row| row.get::<_, i64>(0)).unwrap();
+    assert_eq!(names(&rows(&lane(&mut engine).data)), ["same-time-z", "newer", "older"]);
+    assert_eq!(entries(&engine), 3);
+    set_like(&mut engine, "bob", "older", true, NOW, "up");
+    assert_eq!(scored(&rows(&lane(&mut engine).data)), [("older".into(), 3), ("same-time-z".into(), 2), ("newer".into(), 2)]);
+    assert_eq!(entries(&engine), 3, "the old score key was removed");
+    set_like(&mut engine, "bob", "older", false, NOW, "down");
+    assert_eq!(names(&rows(&lane(&mut engine).data)), ["same-time-z", "newer", "older"]);
+    for n in 0..2 { set_like(&mut engine, &format!("reader-{n}"), "same-time-z", false, NOW, &format!("zero-{n}")); }
+    assert_eq!(names(&rows(&lane(&mut engine).data)), ["newer", "older"]);
+    assert_eq!(engine.store().rows("trend").unwrap().len(), 2);
+    assert_eq!(entries(&engine), 2, "no orphaned key remains after zero deletion");
+    println!("W15c lane: 3 tied groups; 2 score rewrites; zero deletion leaves 2 entries");
+}
+
+#[test]
+fn w15c_equal_scores_continue_across_page_and_drain_cuts_in_both_directions() {
+    for drain_cut in [false, true] {
+        let mut engine = engine(&tie_queries(if drain_cut { 100 } else { 7 })); tie_fixture(&mut engine);
+        let expected = oracle(&engine, TIE_NOW).into_iter().map(|r| r.0).collect::<Vec<_>>();
+        // Twelve filtered heads cost twelve examinations; a 16-examination budget
+        // then cuts a refill inside the equal-score run. Never raise a ceiling.
+        if drain_cut { engine.set_ceilings(snapback4_core::meter::Ceilings { examined: 16, ..engine.ceilings() }); }
+        for op in ["tieFirst", "tieLast"] {
+            let mut expected = expected.clone(); if op == "tieFirst" { expected.reverse(); }
+            let mut actual = Vec::new(); let mut cursor = Value::Null; let mut cuts = 0; let mut pages = 0;
+            for _ in 0..60 {
+                let page = engine.query(op, Context::new("bob", args(&[("c", cursor)])).at(TIE_NOW)).unwrap();
+                if !page.complete { assert_eq!(page.cut, Some(snapback4_core::engine::ReadCut::Meter)); assert!(page.next.is_some()); cuts += 1; }
+                actual.extend(names(&rows(&page.data))); pages += 1;
+                match page.next { Some(next) => cursor = Value::String(next), None => break }
+            }
+            assert_eq!(actual, expected, "{op}, drain={drain_cut}");
+            assert_eq!(actual.len(), 48); assert_eq!(cuts > 0, drain_cut);
+            println!("W15c {op}: rows={} pages={pages} meter_cuts={cuts}", actual.len());
+        }
+    }
+}
+
+#[test]
+fn w15c_recipe_meter_matches_the_old_key() {
+    let mut meters = Vec::new(); let mut pages = Vec::new();
+    for key in ["hour, value, id", "hour, value, postAt, postId"] {
+        let source = source(false).replace("by byScore: hour, value, postAt, postId", "by byScore: hour, value, id")
+            .replace("by byScore: hour, value, id", &format!("by byScore: {key}"));
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+        assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?}", bound.diagnostics);
+        let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+        paging_fixture(&mut engine);
+        let page = engine.query("trending", Context::new("bob", args(&[("c", Value::Null)])).at(NOW)).unwrap();
+        assert!(page.complete && page.next.is_some());
+        println!("W15c recipe key={key}: {:?}", page.metered);
+        meters.push(page.metered); pages.push(page.data);
+    }
+    assert_eq!(pages[0], pages[1]);
+    assert_eq!(meters[0], meters[1]);
+    // The recorded page, not only the equality: a charge added to both keys would otherwise pass.
+    assert_eq!(meters[1], snapback4_core::meter::Metered { examined: 33, index_entries: 0, rule_probes: 0, steps: 648, heap_bytes: 36_720, output_bytes: 1_691, rows_written: 0 });
 }
