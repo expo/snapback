@@ -13,12 +13,12 @@
 **Battery gate:** `app-cli-served-journey`
 **Failure signature:** `sha256:3cf2850f4c377128fe0609f4721600dc047c753ca1017af3fbec7f0cddc0e8d3`
 **First observed run:** `local.20260826T230829Z.fb14180ba761`
-**Last observed run:** `local.20260919T140917Z.e116b8324d19`
-**Last processed run:** `local.20260919T140917Z.e116b8324d19`
+**Last observed run:** `local.20260920T003721Z.7ef61e81a1bf`
+**Last processed run:** `local.20260920T003721Z.7ef61e81a1bf`
 **Detected at revision:** `fb14180ba761ee0cee2881d4889f4fffa981ae83`
-**Last observed revision:** `e116b8324d196d3f799ac8d570c156cd73ee18f6`
-**Consecutive red runs:** `3`
-**Escalation:** `pending (3/4)`
+**Last observed revision:** `7ef61e81a1bf922f1a7984fc7c1cadfaeab1854c`
+**Consecutive red runs:** `4`
+**Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
@@ -43,3 +43,8 @@ node tests/acceptance/app-cli-served-journey.mjs
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
 this signature. Four consecutive red observations require author escalation.
+
+## Author escalation
+
+This root-failure signature remained red for 4 consecutive scheduled
+battery runs. Escalate to the author (Charlie Cheever) before the next run.

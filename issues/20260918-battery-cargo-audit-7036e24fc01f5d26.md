@@ -10,12 +10,12 @@
 **Battery gate:** `cargo-audit`
 **Failure signature:** `sha256:7036e24fc01f5d266c44e8c8aa7678996e18df8b34d1af207c31a4750848a2eb`
 **First observed run:** `local.20260918T181131Z.c60751e30f9f`
-**Last observed run:** `local.20260919T140917Z.e116b8324d19`
-**Last processed run:** `local.20260919T140917Z.e116b8324d19`
+**Last observed run:** `local.20260920T003721Z.7ef61e81a1bf`
+**Last processed run:** `local.20260920T003721Z.7ef61e81a1bf`
 **Detected at revision:** `c60751e30f9f1528c5532c396c7f8d6da598e7f5`
-**Last observed revision:** `e116b8324d196d3f799ac8d570c156cd73ee18f6`
-**Consecutive red runs:** `3`
-**Escalation:** `pending (3/4)`
+**Last observed revision:** `7ef61e81a1bf922f1a7984fc7c1cadfaeab1854c`
+**Consecutive red runs:** `4`
+**Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
@@ -40,3 +40,8 @@ cargo audit --deny unmaintained
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
 this signature. Four consecutive red observations require author escalation.
+
+## Author escalation
+
+This root-failure signature remained red for 4 consecutive scheduled
+battery runs. Escalate to the author (Charlie Cheever) before the next run.
