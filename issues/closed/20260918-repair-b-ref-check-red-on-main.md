@@ -1,7 +1,7 @@
 # `ref-check` is red on main: Repair B's ten `@ref`s name anchors that are table text, not headings
 
 **Filed** 2026-09-18 · **Area** snapback4-device / LLP 3000.001 / frozen-record gate
-· **Status** open · **Priority** P2 (main's `ref-check` gate is red for every session)
+· **Status** closed 2026-09-19 (fix-forward by the wave-13 lead on the author's sign-off; resolution below) · **Priority** P2 (main's `ref-check` gate is red for every session)
 
 Not filed by the owner — I did not write Repair B and I have deliberately **not** fixed it,
 because the two candidate repairs differ in intent and that is the author's to choose. The
@@ -64,3 +64,21 @@ it for them.
 the wave-13 session already landed a docs-only commit past it with the gate's other checks
 done by hand. That is correct process, and it is also why this needs a ticket rather than
 silence: an inherited red that nobody owns becomes permanent.
+
+## Resolution (2026-09-19)
+
+Fixed forward on the author's general sign-off, choosing the repair that adds no content of the lead's own:
+
+- **The nine `#repair-b-never-install-a-confirmed-image-over-a-row-a-live-prediction-writes` refs** now resolve to a
+  heading with exactly the document's own phrase (its table cell at line 621), placed where the section states the
+  invariant the nine sites cite — `#### Repair B: never install a confirmed image over a row a live prediction writes`,
+  immediately before "**The invariant this turns on: a prediction is retired exactly when its effect enters the base.**"
+  No prose was added or changed.
+- **The one `#repair-b-replacement-disposal` ref** (`device.rs:672`) now names the heading of the section that discusses
+  disposal, `#authoritative-replacement-disposes-of-the-deferred-slot`. The document already carried
+  `<a id="repair-b-replacement-disposal"></a>` before that heading, which shows the author's intent — but `ref-check`
+  resolves anchors from headings only (`anchor_resolves` in `ref-check`), so an HTML anchor cannot satisfy a ref. The
+  gloss is unchanged.
+
+`./ref-check --verbose` on the tree: `ok — 485 LLP docs, 9134 refs in 24577 files, 0 errors`. The Repair B author may
+retitle either heading; if so, the ten refs move with it (`ref-check` is the gate).

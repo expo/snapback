@@ -669,7 +669,7 @@ impl<S: DeviceStore> Device<S> {
                 let images_at = store_identity::restore_images_at(&tx)?;
                 tx.staged_clear()?;
                 tx.delete_meta(&[SNAPSHOT_ACKS, SNAPSHOT_IMAGES_AT])?;
-                // @ref LLP 3000.001#repair-b-replacement-disposal — an authoritative replacement discards private effects and their receipts together.
+                // @ref LLP 3000.001#authoritative-replacement-disposes-of-the-deferred-slot — an authoritative replacement discards private effects and their receipts together.
                 // Keep incarnation and maximum head evidence, but publish no
                 // old effects and retire no prediction as part of disposal.
                 let identity = tx.meta(deferred::IDENTITY)?;
