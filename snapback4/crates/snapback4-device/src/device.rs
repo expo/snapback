@@ -25,9 +25,7 @@ mod snapshot;
 mod history;
 mod boundary;
 mod store_identity;
-mod sync_metadata;
 pub use store_identity::StoreObservation;
-pub use sync_metadata::{SyncMetadata, SyncCapture};
 
 /// The compiled backend, as `GET /schema` sends it.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -42,8 +40,6 @@ pub struct Backend {
 #[derive(Clone, Debug, Serialize)]
 pub struct SyncState {
     pub acquired: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub snapshot_required: Option<bool>,
     pub backend_required: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub restore_refusal: Option<Refusal>,
@@ -183,7 +179,6 @@ const STORE_ID: &str = "device:store_id";
 const WATERMARK: &str = "device:watermark";
 const GENERATION: &str = "device:generation";
 const ACQUIRED: &str = "device:acquired-generation";
-const SNAPSHOT_REQUIRED: &str = "device:snapshot-required";
 const BACKEND: &str = "device:backend";
 const SEND_REVISION: &str = "device:send_revision";
 const SUBMISSION: &str = "device:submission";
@@ -279,8 +274,6 @@ fn require_acquired<T: DeviceTx>(tx: &T, schema: &Schema, program: &Program) -> 
         return Err(RuntimeError::Prediction("this store's backend has not been adopted; reconnect to acquire it".into()));
     }
     let generation = tx.meta(GENERATION)?;
-    // Recovery keeps this base available to reads and replay of existing writes.
-    // Admission/predict separately prevent new predictions until publication.
     if generation.is_some() && tx.meta(ACQUIRED)? == generation { return Ok(()); }
     // Constants need no partition, and online-only reads retain their own
     // unknown-coverage behavior. Native reads have opaque dependencies.
@@ -371,7 +364,6 @@ impl<S: DeviceStore> Device<S> {
         let backend_identity = store_identity::backend_identity(&backend);
         let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string()), (BACKEND_IDENTITY.to_owned(), backend_identity.clone())]);
         if reset {
-            metadata.insert(SNAPSHOT_REQUIRED.to_owned(), String::new());
             metadata.insert(WATERMARK.to_owned(), "0".into());
             metadata.insert(ACQUIRED.to_owned(), if keep_acquired { backend.generation.to_string() } else { String::new() });
             invalidate_native(&mut metadata);
@@ -493,7 +485,6 @@ impl<S: DeviceStore> Device<S> {
         let mut metadata = BTreeMap::from([(BACKEND.to_owned(), encoded(&backend)?), (GENERATION.to_owned(), backend.generation.to_string()), (BACKEND_IDENTITY.to_owned(), backend_identity.clone())]);
         metadata.insert(BACKEND_REQUIRED.to_owned(), String::new());
         if reset {
-            metadata.insert(SNAPSHOT_REQUIRED.to_owned(), String::new());
             metadata.insert(WATERMARK.to_owned(), "0".into());
             metadata.insert(ACQUIRED.to_owned(), if keep_acquired { backend.generation.to_string() } else { String::new() });
             invalidate_native(&mut metadata);
@@ -564,8 +555,8 @@ impl<S: DeviceStore> Device<S> {
             && tx.meta(SNAPSHOT_NEXT)?.as_deref() == Some("") { Some(meta_u64(&tx, SNAPSHOT_THROUGH)?) } else { None };
         let restore_refusal = tx.meta(store_identity::RESTORE_REFUSED)?.map(|_| store_identity::restore_error().refusal());
         // @ref LLP 3000.007#18.2 — expose acquisition for this healthy owner, never a superseded store's marker.
-        let acquired = restore_refusal.is_none() && tx.meta(SNAPSHOT_REQUIRED)?.as_deref() != Some("1") && tx.meta(ACQUIRED)? == Some(self.generation.to_string());
-        let mut state = SyncState { acquired, snapshot_required: (tx.meta(SNAPSHOT_REQUIRED)?.as_deref() == Some("1")).then_some(true), backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()).is_err(), restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, pending_through, pending_complete, pending_bound, transfer_watermark: deferred::cursor(&tx)?.or(snapshot_transfer).unwrap_or(meta_u64(&tx, WATERMARK)?), restore_watermark: store_identity::restore_cursor(&tx)?.unwrap_or(meta_u64(&tx, WATERMARK)?), snapshot_catchup: snapshot_transfer.is_some(), restore_images_at: store_identity::restore_images_at(&tx)?, adoption_capture: store_identity::adoption_capture(&tx)?, transfer_store_id: tx.meta(deferred::IDENTITY)?.or(tx.meta(STORE_ID)?), send_revision: meta_u64(&tx, SEND_REVISION)? };
+        let acquired = restore_refusal.is_none() && tx.meta(ACQUIRED)? == Some(self.generation.to_string());
+        let mut state = SyncState { acquired, backend_required: tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) || store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref()).is_err(), restore_refusal, store_id: tx.meta(STORE_ID)?, watermark: meta_u64(&tx, WATERMARK)?, generation: self.generation, pending_ids, pending_through, pending_complete, pending_bound, transfer_watermark: deferred::cursor(&tx)?.or(snapshot_transfer).unwrap_or(meta_u64(&tx, WATERMARK)?), restore_watermark: store_identity::restore_cursor(&tx)?.unwrap_or(meta_u64(&tx, WATERMARK)?), snapshot_catchup: snapshot_transfer.is_some(), restore_images_at: store_identity::restore_images_at(&tx)?, adoption_capture: store_identity::adoption_capture(&tx)?, transfer_store_id: tx.meta(deferred::IDENTITY)?.or(tx.meta(STORE_ID)?), send_revision: meta_u64(&tx, SEND_REVISION)? };
         state.acquired &= !state.backend_required;
         if capture_request { tx.commit()?; } else { tx.rollback()?; }
         Ok(state)
@@ -581,7 +572,7 @@ impl<S: DeviceStore> Device<S> {
         reset_publication(&tx, false)?;
         deferred::stage_identity(&tx, identity.as_deref())?;
         tx.set_meta(WATERMARK, "0")?;
-        tx.delete_meta(&[ACQUIRED, SNAPSHOT_REQUIRED])?;
+        tx.delete_meta(&[ACQUIRED])?;
         tx.delete_meta(&[history::GROUPS, boundary::BOUNDARIES, boundary::REPORT])?;
         tx.commit()?;
         self.snapshot_owner = None;
@@ -648,9 +639,6 @@ impl<S: DeviceStore> Device<S> {
         let declaration = predictions::declaration(&tx, page)?;
         let mut touched = BTreeSet::new();
         let replacing = page.snapshot || page.snapshot_catchup;
-        if !replacing && tx.meta(SNAPSHOT_REQUIRED)?.as_deref() == Some("1") {
-            return Err(RuntimeError::Generation("snapshot recovery must finish before streaming".into()));
-        }
         let transfer = deferred::cursor(&tx)?.unwrap_or(watermark);
         // Snapshot pages are requested from zero with an opaque continuation;
         // only their log catch-up requests the staged cut.
@@ -758,7 +746,6 @@ impl<S: DeviceStore> Device<S> {
             tx.set_meta(history::GROUPS, &encoded(&groups)?)?;
             boundary::Boundaries::load(&tx, true)?.save(&tx, false)?;
             snapshot::clear(&tx)?;
-            tx.delete_meta(&[SNAPSHOT_REQUIRED])?;
             // Consume private identity after promotion; ordinary effects and
             // receipts were discarded when this replacement started.
             deferred::clear(&tx)?;
@@ -859,9 +846,6 @@ impl<S: DeviceStore> Device<S> {
         let tx = self.store.transaction()?;
         store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
         require_acquired(&tx, &self.schema, &program)?;
-        if tx.meta(SNAPSHOT_REQUIRED)?.as_deref() == Some("1") {
-            return Err(RuntimeError::Prediction("snapshot recovery must finish before new predictions".into()));
-        }
         let context = Context::new(viewer, media::inputs(&tx, &program, viewer, args)?).at(now).with_generation(self.generation).with_ids(new_ids).with_entropy(entropy.max(1));
         let predicting = Predicting { tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, boundaries: boundary::Boundaries::load(&tx, false)?, written: RefCell::new(Vec::new()) };
         match local::predict(&predicting, &self.schema, &program, context, Ceilings::default()) {
@@ -920,10 +904,6 @@ impl<S: DeviceStore> Device<S> {
         }
         entry.seq = entry.seq.max(tx.outbox_max_seq()?.max(meta_u64(&tx, SUBMISSION)?) + 1);
         entry.predictable &= program.is_some_and(|p| p.kind == snapback4_core::ProgramKind::Mutation);
-        if tx.meta(SNAPSHOT_REQUIRED)?.as_deref() == Some("1") {
-            entry.predictable = false;
-            entry.predicted.clear();
-        }
         if entry.predictable {
             tx.savepoint("admit")?;
             match predictions::run(&tx, &self.schema, program.unwrap(), &entry) {

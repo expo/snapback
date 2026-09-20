@@ -330,56 +330,49 @@ fn replacement_restore_evidence<H: Host>(h: &mut H) {
 }
 both!(replacement_and_reopen_preserve_disposed_image_head, replacement_restore_evidence);
 
-// Trusted-server evidence fixture; the HTTP suite measures the real byte overflow.
-fn recovery_metadata<S: DeviceStore>(d: &mut Device<S>, head: u64) -> serde_json::Value {
-    let s = d.sync_state().unwrap();
-    json!({"op":"sync_metadata","capture":{
-        "store_id":s.transfer_store_id,"generation":s.generation,"send_revision":s.send_revision,
-        "captured_watermark":s.transfer_watermark,"published_watermark":s.watermark,
-        "captured_restore_watermark":s.restore_watermark,"captured_restore_images_at":s.restore_images_at,
-        "from":s.transfer_watermark,"stream":true,"recover":true,"limit":1
-    },"metadata":{"metadata":true,"store_id":"S","generation":1,"watermark":head,
-        "recovery":{"from":s.transfer_watermark,"snapshot":true,"store_id":"S","generation":1,
-            "limit":1,"stream":true,"send_revision":s.send_revision,"single_commit":true,
-            "commit":s.transfer_watermark + 1,"measured_head":head}}})
-}
-
-fn measured_deferred_recovery<H: Host>(h: &mut H) {
-    let mut d = fixture(h, "measured-deferred", false);
+// Inline overflow observation keeps Repair B's cuts and images intact. The
+// HTTP regression proves the actual limit-one instruction and replacement.
+fn inline_deferred_recovery<H: Host>(h: &mut H) {
+    let mut d = fixture(h, "inline-deferred", false);
     d.settle("q", Some(20)).unwrap();
-    let request = recovery_metadata(&mut d, 20);
-    for field in ["from", "captured_watermark", "published_watermark", "limit", "captured_restore_images_at"] {
-        let mut bad = request.clone();
-        bad["capture"][field] = json!(if field == "captured_restore_images_at" { 0 } else { 999 });
-        assert_eq!(snapback4_device::call::call(&mut d, bad)["denied"]["code"], "E_GENERATION", "{field}");
+    let mut page = reply(&mut d, 10, None); // Refused event cut, not a terminal head.
+    page.more = true; // MC0 never invents terminality for a refused row batch.
+    for field in ["send_revision", "captured_watermark", "captured_restore_images_at"] {
+        let mut bad = serde_json::to_value(&page).unwrap();
+        bad[field] = json!(999);
+        assert_eq!(snapback4_device::call::call(&mut d, json!({"op":"observe_store","page":bad}))["denied"]["code"], "E_GENERATION", "{field}");
         assert_eq!(d.state().unwrap().0, 5);
         assert_eq!(value(&mut d, "a"), Some(5));
         assert_eq!(value(&mut d, "b"), Some(1));
     }
-    let accepted = snapback4_device::call::call(&mut d, request.clone());
-    assert_eq!(accepted["ok"]["snapshot"], true, "{accepted}");
-    assert_eq!(d.predict("bump", "dev:alice", &json!({"k":"b"}), 100, vec![], 1).unwrap_err().refusal().code, "E_PREDICT");
-    d.settle("q", Some(20)).unwrap(); // Receipt arrival must still replay the existing overlay.
+    d.observe_store(&page).unwrap();
+    d.settle("q", Some(20)).unwrap();
     assert_eq!(d.queued().unwrap().len(), 1, "a live prediction's known receipt cannot retire before its image");
     assert_eq!(value(&mut d, "a"), Some(5));
     assert_eq!(value(&mut d, "b"), Some(1));
-    assert_eq!(d.sync_state_read().unwrap().transfer_watermark, 10, "grant alone does not dispose private effects");
-    assert_eq!(snapback4_device::call::call(&mut d, request)["denied"]["code"], "E_GENERATION");
-    h.close("measured-deferred", d);
-    let mut d = h.open("measured-deferred", None).unwrap();
-    assert_eq!(d.sync_state_read().unwrap().snapshot_required, Some(true));
+    assert_eq!(d.sync_state_read().unwrap().transfer_watermark, 10, "an inline refusal does not dispose private effects");
+    let mut replacement = reply(&mut d, 20, Some(20));
+    replacement.snapshot = true; replacement.stage_snapshot = true;
+    replacement.requested_watermark = Some(0);
+    assert!(!d.apply_publication(&replacement, true).unwrap().1);
+    assert!(d.store().meta("device:deferred:acks").unwrap().is_none());
+    h.close("inline-deferred", d);
+    let mut d = h.open("inline-deferred", None).unwrap();
     assert_eq!(d.queued().unwrap().len(), 1);
     assert_eq!(value(&mut d, "b"), Some(1));
+    assert_eq!(d.sync_state_read().unwrap().restore_images_at, 20);
 }
-both!(measured_recovery_fences_private_and_published_cuts_without_retiring_predictions, measured_deferred_recovery);
+both!(inline_recovery_fences_private_and_published_cuts_without_retiring_predictions, inline_deferred_recovery);
 
-fn metadata_restore<H: Host>(h: &mut H) {
-    let mut d = fixture(h, "metadata-restore", false);
-    let request = recovery_metadata(&mut d, 15); // Above both cursors, below the retained image head.
-    assert_eq!(snapback4_device::call::call(&mut d, request)["denied"]["code"], "E_STORE_RESTORE");
+fn inline_restore<H: Host>(h: &mut H) {
+    let mut d = fixture(h, "inline-restore", false);
+    // Explicit authenticated image evidence above both cursors but below the
+    // retained image head still proves restore; an event cut alone does not.
+    let page = reply(&mut d, 15, Some(15));
+    refused(&mut d, "observe_store", &page);
     halted(&mut d);
-    h.close("metadata-restore", d);
-    let mut d = h.open("metadata-restore", None).unwrap();
+    h.close("inline-restore", d);
+    let mut d = h.open("inline-restore", None).unwrap();
     halted(&mut d);
 }
-both!(measured_metadata_retains_repair_b_restore_evidence, metadata_restore);
+both!(inline_observation_retains_repair_b_restore_evidence, inline_restore);

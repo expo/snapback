@@ -1,6 +1,6 @@
 # Snapback 4: two implementations of oversized-sync recovery are both on main
 
-Status: Open — a consolidation decision, not a defect. Both are green and they compose.
+Status: Resolved in the uncommitted `sb4/retire-dup-51b7a134` working-tree patch, 2026-09-20. No landing or publication performed.
 Priority: P3 (surface, not correctness: redundant machinery on the sync recovery path)
 Date: 2026-09-19
 Systems: `snapback4` `serve.rs`, `serve_sync_dispatch.rs`, `serve_sync_measurement.rs`, `serve_sync_stream.rs`; `snapback4-device` `device/sync_metadata.rs`; `packages/snapback4/src/local.ts`
@@ -73,3 +73,35 @@ suites.
 - LLP 3000.010 §5 (surface volume is what this instrument charges)
 - `benchmarks/runs/2026-09-19-snapback4-mc1-milestone-zero/` — gate 5 fails, so
   maintained columns is stopped and neither implementation unblocks it
+
+## Resolution — 2026-09-20
+
+The author chose MC0's tokenless inline response and directed retirement of
+the metadata/grant implementation. This supersedes the recommendation above
+to consider carrying revision binding across: there is no saved grant to
+revalidate in MC0. No grant, metadata round trip or measurement type remains.
+
+Before removing any duplicate file, restored the MC0 path integrated with
+Repair B and executed the real oversized-first-commit case on both wasm and
+SQLite process devices: 2/2 pass, watermark 0 → 1, acquired, exact final row
+content. Initial acquisition already uses a snapshot and halves to 31 rows.
+MC0's condition needs no change. The final suite also covers a first commit
+arriving during zero-head snapshot catch-up.
+
+Deleted the six server sync modules, device metadata module/dispatcher, their
+grant/capture/measurement types, metadata wire fields, inspection hooks and
+grant-only acquisition flag, and `oversized-sync.test.mjs`. Distinct behavior
+was ported into `sync-overflow.test.mjs`; token-only tests were retired.
+Shared ordinary receipt persistence and current-image normalization remain.
+The detailed case-by-case ledger and executed evidence are in
+[snapback4/JOURNAL.md](../../snapback4/JOURNAL.md), under the 2026-09-20 duplicate-retirement entries.
+
+Final verification: sync overflow 23/23; HTTP bounds 10/10; horizon 82/82;
+retained history 48/48; four store-reset suites 43/43; client lifecycle 56/56;
+affected Repair B client suites 12/12; server crate 266 passed; device crate
+897 passed, 3 ignored; core rows 8/8. Package build, typecheck and wasm build
+pass. Wasm gzip: **451,094 → 443,474 B**, recovering **7,620 B**; the existing
+452,000 B budget is unchanged. The integration report is retained unchanged.
+
+This resolution describes the reviewable working-tree patch. Per the author's
+instruction, it has not been committed, pushed, tagged or published.

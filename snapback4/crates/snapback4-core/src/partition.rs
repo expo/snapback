@@ -612,14 +612,6 @@ fn intervals(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermark
 
 #[cfg(feature = "sqlite")]
 pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermark: u64, limit: usize, now: i64) -> Result<StreamPage, RuntimeError> {
-    Ok(stream_inspected(tx, schema, principal, watermark, limit, now, |_| Ok(true))?.expect("ordinary streaming visits every event"))
-}
-
-/// Inspect each currently readable wire event before retaining its image.
-/// A false result abandons the whole page; no partial commit can escape.
-#[cfg(feature = "sqlite")]
-pub fn stream_inspected(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermark: u64, limit: usize, now: i64,
-    mut inspect: impl FnMut(&LogEvent) -> Result<bool, RuntimeError>) -> Result<Option<StreamPage>, RuntimeError> {
     let limit = limit.max(1);
     let head = tx.next_seq()?.saturating_sub(1);
     let expiring_audience = schema.synced().any(|(_, _, sync)| match &sync.audience {
@@ -627,7 +619,7 @@ pub fn stream_inspected(tx: &dyn PartitionRows, schema: &Schema, principal: &str
         _ => false,
     });
     // A cursor from a replaced database is not evidence that this store reached it.
-    if watermark > head || (watermark == head && !expiring_audience) { return Ok(Some(StreamPage { images_at: Some(head), acquisitions: Vec::new(), events: Vec::new(), watermark: head, more: false, joined: BTreeMap::new() })); }
+    if watermark > head || (watermark == head && !expiring_audience) { return Ok(StreamPage { images_at: Some(head), acquisitions: Vec::new(), events: Vec::new(), watermark: head, more: false, joined: BTreeMap::new() }); }
     let held = intervals(tx, schema, principal, watermark)?;
     let mut spans = vec![(partition_of(principal), watermark.saturating_add(1), None, None), (PUBLIC.to_owned(), watermark.saturating_add(1), None, None)];
     for ((table, group), intervals) in &held {
@@ -658,7 +650,7 @@ pub fn stream_inspected(tx: &dyn PartitionRows, schema: &Schema, principal: &str
             joined.entry(event.table.clone()).or_default().push(group.iter().map(crate::wire::to_json).collect());
         }
     }
-    let Some((mut events, acquisitions)) = expand_joins(tx, schema, principal, page, &held, now, &mut inspect)? else { return Ok(None); };
+    let (mut events, acquisitions) = expand_joins(tx, schema, principal, page, &held, now)?;
     if !more {
         next = next.max(head);
         // Logical expiry is a revocation even before the physical sweep
@@ -668,12 +660,11 @@ pub fn stream_inspected(tx: &dyn PartitionRows, schema: &Schema, principal: &str
             if spans.last().is_some_and(|span| span.to.is_none() && span.expires_at.is_some_and(|at| at <= now)) {
                 let group_values: Vec<Value> = serde_json::from_str(group).map_err(|e| RuntimeError::Store(e.to_string()))?;
                 let event = LogEvent { seq: next, ord: u32::MAX, table: table.clone(), kind: "scope".into(), id: group.clone(), data: Some(Value::Array(group_values)) };
-                if !inspect(&event)? { return Ok(None); }
                 events.push(event);
             }
         }
     }
-    Ok(Some(StreamPage { images_at: Some(head), acquisitions, events, watermark: next, more, joined }))
+    Ok(StreamPage { images_at: Some(head), acquisitions, events, watermark: next, more, joined })
 }
 
 #[cfg(feature = "sqlite")]
@@ -697,8 +688,7 @@ fn live_join_chain(spans: &[Interval], start: usize, commit_times: &BTreeMap<u64
 /// acquires nothing, including for publicly readable retained-history tables.
 /// Membership intervals remain join-time; joins never reach a device.
 #[cfg(feature = "sqlite")]
-fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: Vec<LogEvent>, held: &BTreeMap<(String, String), Vec<Interval>>, now: i64,
-    inspect: &mut impl FnMut(&LogEvent) -> Result<bool, RuntimeError>) -> Result<Option<(Vec<LogEvent>, Vec<crate::wire::Acquisition>)>, RuntimeError> {
+fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: Vec<LogEvent>, held: &BTreeMap<(String, String), Vec<Interval>>, now: i64) -> Result<(Vec<LogEvent>, Vec<crate::wire::Acquisition>), RuntimeError> {
     let mut acquisitions = Vec::new();
     // The next renewal may be on a later raw-log page. Read every edge time
     // for the groups whose joins this page serves, in one storage call.
@@ -709,9 +699,8 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
     let commit_times = tx.commit_times(&sequences.into_iter().collect::<Vec<_>>())?;
     let mut out = Vec::with_capacity(page.len());
     // @ref LLP 3000#7-decisions-during-execution — retained history is device-held; the server serves current readable images.
-    // Normalize ordinary puts just before inspection so an oversized prefix
-    // stops further current-image fetches. Join selection already checks its
-    // images: never re-fetch them or probe their read rule a second time.
+    // Normalize ordinary puts before delivery. Join selection already checks
+    // its images: never re-fetch them or probe their read rule a second time.
     let mut reader = Runner::new(tx, schema, crate::Context::new(principal, BTreeMap::new()).at(now),
         crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort), 0);
     for mut event in page {
@@ -722,7 +711,6 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
                     if !reader.check_rule(&event.table, crate::schema::Effect::Read, None, row)? { continue; }
                 } else { event.kind = "del".into(); }
             }
-            if !inspect(&event)? { return Ok(None); }
             out.push(event);
             continue;
         }
@@ -740,7 +728,6 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
             && span.expires_at.is_some_and(|expiry| commit_times.get(&event.seq).is_some_and(|at| *at >= expiry)));
         if expired_predecessor {
             let scope = LogEvent { seq: event.seq, ord: event.ord, table: event.table.clone(), kind: "scope".into(), id: event.id.clone(), data: Some(Value::Array(group.clone())) };
-            if !inspect(&scope)? { return Ok(None); }
             out.push(scope);
         }
         let continuous = predecessor.is_some_and(|span| continuous_renewal(span, event.seq, event.ord, &commit_times));
@@ -757,14 +744,13 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
         for (row, _) in rows {
             let id = row.field("id")?.as_str()?.to_owned();
             let image = LogEvent { seq: event.seq, ord: event.ord, table: event.table.clone(), kind: "put".into(), id, data: Some(row) };
-            if !inspect(&image)? { return Ok(None); }
             out.push(image);
         }
         if let Some(horizon) = &sync.horizon {
             acquisitions.push(acquisition(&event.table, &horizon.by, &group, out.len(), floor));
         }
     }
-    Ok(Some((out, acquisitions)))
+    Ok((out, acquisitions))
 }
 
 #[cfg(feature = "sqlite")]

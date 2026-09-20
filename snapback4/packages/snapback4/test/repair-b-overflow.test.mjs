@@ -136,17 +136,11 @@ test("oversized indivisible commit replaces deferred effects on wasm and SQLite"
       pending_complete: c.pending_complete, pending_bound: c.pending_bound } })).published, false);
     const pending = await capture();
     assert.ok(pending.transfer_watermark > pending.watermark);
-    const requests = [], observations = [], metadata = [];
+    const requests = [], observations = [];
     let replacements = 0, publications = 0;
     const client = await createLocalClient({ url: f.url(), persona: "alice",
       device: { async open() { return { async call(request, committed) {
         if (request.op === "observe_store") observations.push(structuredClone(request.page));
-        if (request.op === "sync_metadata") {
-          metadata.push(structuredClone(request));
-          assert.equal(request.capture.captured_watermark, pending.transfer_watermark);
-          assert.equal(request.capture.published_watermark, pending.watermark);
-          assert.equal(request.capture.from, request.capture.captured_watermark);
-        }
         const reply = await d.core.call(request, committed);
         if (request.op === "apply") {
           assert.equal(request.page.denied, undefined, "overflow refusals are never applied");
@@ -173,12 +167,12 @@ test("oversized indivisible commit replaces deferred effects on wasm and SQLite"
     t.after(() => client.close());
     assert.ok(replacements > 1, "a second correctly requested snapshot page must apply");
     assert.equal(publications, 1, "only terminal catch-up publishes");
-    assert.ok(observations.every(page => !page.denied), "refusals have no observation authority");
-    const grant = metadata.find(request => request.metadata.recovery);
-    assert.ok(grant, "an actual measurement authorizes deferred replacement");
-    assert.equal(grant.capture.limit, 1);
-    assert.equal(grant.metadata.recovery.from, pending.transfer_watermark);
-    assert.equal(grant.metadata.recovery.measured_head, receipt.seq);
+    const refusals = observations.filter(page => page.denied);
+    assert.ok(refusals.length > 0, "MC0 observes the bounded reply inline");
+    assert.ok(refusals.every(page => page.requested_watermark === pending.transfer_watermark
+      && page.captured_watermark === pending.watermark && page.more && !page.snapshot && page.events.length === 0),
+      "the inline observation preserves private and published cuts without applying rows or terminality");
+    assert.ok(requests.every(request => !request.metadata && !request.recover));
     const state = ok(await d.core.call({ op: "sync_state", capture: false }));
     assert.equal(state.restore_refusal ?? null, null);
     assert.equal(state.watermark, receipt.seq);
@@ -193,6 +187,6 @@ test("oversized indivisible commit replaces deferred effects on wasm and SQLite"
     assert.ok(requests.filter(request => request.after).every(request => request.from === 0 && !request.stream));
     await client.close();
     t.diagnostic(JSON.stringify({ tier: d.tier, published: c.watermark, transfer: pending.transfer_watermark,
-      images_at: ordinary.images_at, metadataRequests: metadata.length, snapshotPages: replacements, final: state.watermark }));
+      images_at: ordinary.images_at, inlineRefusals: refusals.length, snapshotPages: replacements, final: state.watermark }));
   });
 });

@@ -229,8 +229,7 @@ export function webDevice(options: WebDeviceOptions = {}): DeviceOpener {
               if (!device) await restore();
               if (request.op === "admit") await journal.recover(device!, settle, admissions);
               const reply = request.op === "admit" ? journal.admit(device!, request.entry) : JSON.parse(device!.call(JSON.stringify(request))) as Record<string, unknown>;
-              const metadataChange = request.op === "sync_metadata" && !!(reply.ok as { reset?: boolean; snapshot?: boolean } | undefined)?.reset;
-              const observesStore = request.op === "observe_store" || request.op === "apply" || metadataChange;
+              const observesStore = request.op === "observe_store" || request.op === "apply";
               if (!reply.denied && observesStore) journal.fence(device!);
               try {
                 await settle(!admission ? [] : !reply.denied ? [journal.transfer(admission, false)] : writeRefusal(reply) ? journal.refused(admission) : [], () => committedReply?.(reply));

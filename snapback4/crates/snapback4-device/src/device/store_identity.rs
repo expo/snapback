@@ -14,7 +14,7 @@ pub(super) fn restore_images_at<T: DeviceTx>(tx: &T) -> Result<u64, RuntimeError
 pub(super) fn adoption_capture<T: DeviceTx>(tx: &T) -> Result<BTreeMap<String, Option<String>>, RuntimeError> {
     let mut capture = BTreeMap::new();
     for key in [BACKEND_REQUIRED, STORE_ID, SEND_REVISION, BACKEND_IDENTITY, GENERATION, NATIVE_DIGEST,
-        WATERMARK, ACQUIRED, SNAPSHOT_REQUIRED, RESTORE_REFUSED, deferred::IDENTITY, deferred::CURSOR,
+        WATERMARK, ACQUIRED, RESTORE_REFUSED, deferred::IDENTITY, deferred::CURSOR,
         deferred::IMAGES_AT, SNAPSHOT_OWNER, SNAPSHOT_THROUGH, SNAPSHOT_IMAGES_AT] {
         capture.insert(key.to_owned(), tx.meta(key)?);
     }
@@ -67,37 +67,6 @@ pub struct StoreObservation {
 
 // @ref LLP 3000.007#18.2 — replacement discards the old partition, never an unsent write or a known receipt.
 pub(super) fn observe<T: DeviceTx>(tx: &T, page: &StreamPage, publish_first: bool) -> Result<StoreObservation, RuntimeError> {
-    observe_identity(tx, IdentityEvidence {
-        check_restore: true,
-        store_id: page.store_id.clone(),
-        watermark: page.watermark,
-        send_revision: page.send_revision,
-        captured_watermark: page.captured_watermark,
-        requested_watermark: page.requested_watermark,
-        captured_restore_watermark: page.captured_restore_watermark,
-        captured_restore_images_at: page.captured_restore_images_at,
-        images_at: page.images_at,
-        more: page.more,
-        snapshot_catchup: page.snapshot_catchup,
-    }, publish_first)
-}
-
-// Metadata and pages share identity fences without manufacturing a data page.
-pub(super) struct IdentityEvidence {
-    pub check_restore: bool,
-    pub store_id: Option<String>,
-    pub watermark: u64,
-    pub send_revision: Option<u64>,
-    pub captured_watermark: Option<u64>,
-    pub requested_watermark: Option<u64>,
-    pub captured_restore_watermark: Option<u64>,
-    pub captured_restore_images_at: Option<u64>,
-    pub images_at: Option<u64>,
-    pub more: bool,
-    pub snapshot_catchup: bool,
-}
-
-pub(super) fn observe_identity<T: DeviceTx>(tx: &T, page: IdentityEvidence, publish_first: bool) -> Result<StoreObservation, RuntimeError> {
     let mut revision = meta_u64(tx, SEND_REVISION)?;
     let previous = tx.meta(STORE_ID)?;
     if page.send_revision.is_some_and(|expected| expected != revision) {
@@ -133,7 +102,7 @@ pub(super) fn observe_identity<T: DeviceTx>(tx: &T, page: IdentityEvidence, publ
     } else { false };
     let published_restore = page.watermark < watermark
         && page.requested_watermark.is_none_or(|requested| page.watermark < requested);
-    if page.check_restore && same_identity && (published_restore || private_restore) {
+    if same_identity && (published_restore || private_restore) {
         tx.set_meta(RESTORE_REFUSED, "1")?;
     }
     // A halt belongs to the incarnation, even when rows are cleared, a
@@ -179,7 +148,7 @@ pub(super) fn observe_identity<T: DeviceTx>(tx: &T, page: IdentityEvidence, publ
         reset_publication(tx, false)?;
         tx.set_meta(WATERMARK, "0")?;
         tx.set_meta(BACKEND_REQUIRED, page.store_id.as_deref().unwrap_or("legacy"))?;
-        tx.delete_meta(&[ACQUIRED, SNAPSHOT_REQUIRED, history::GROUPS, boundary::BOUNDARIES, boundary::REPORT])?;
+        tx.delete_meta(&[ACQUIRED, history::GROUPS, boundary::BOUNDARIES, boundary::REPORT])?;
     }
     let incoming = page.store_id.as_ref().or(transfer_identity.as_ref());
     let adopt_identity = incoming.is_some() && previous.as_ref() != incoming && (publish_first || reset || previous.is_some());
@@ -214,25 +183,6 @@ impl<S: DeviceStore> Device<S> {
         if observed.restore_refused { return Err(restore_error()); }
         Ok(observed)
     }
-}
-
-// Measured recovery retires known non-predicting or already-published writes.
-// A live prediction and its receipt stay together until replacement publication.
-// Call after capture/owner checks, in the transaction that fences acquisition.
-pub(super) fn retire_known<T: DeviceTx>(tx: &T) -> Result<BTreeMap<String, u64>, RuntimeError> {
-    let mut retired = BTreeMap::new();
-    let store = tx.meta(STORE_ID)?.or(tx.meta(deferred::IDENTITY)?);
-    let watermark = meta_u64(tx, WATERMARK)?;
-    for data in tx.outbox_entries()? {
-        let entry: Queued = decoded(&data)?;
-        if let Some(seq) = entry.sent_seq.or(entry.observed_seq).filter(|seq| predictions::receipt_matches(&entry, store.as_deref())
-            && (!entry.predictable || entry.observed_seq.is_some() || *seq <= watermark)) {
-            keep_write(tx, &serde_json::json!({ "state": "sent", "id": entry.id, "seq": seq, "replayed": true }).to_string())?;
-            retired.insert(entry.id.clone(), seq);
-            tx.outbox_delete(&entry.id)?;
-        }
-    }
-    Ok(retired)
 }
 
 // Receipt retirement and its durable history share the fenced transaction.

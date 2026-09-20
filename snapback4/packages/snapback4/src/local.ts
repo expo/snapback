@@ -442,8 +442,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       // A committed replacement has already retired the client's partition.
       // Fence it before even media reconciliation can fail; native identity
       // is read separately and must never be a prerequisite for invalidation.
-      if (!result.denied && (request.op === "observe_store" || request.op === "sync_metadata") && (result.ok as { reset?: boolean; snapshot?: boolean } | undefined)?.reset) observeIncarnation(undefined, true, delivery);
-      if (!result.denied && request.op === "sync_metadata" && (result.ok as { snapshot?: boolean } | undefined)?.snapshot) observeIncarnation(storeIdentity, true, delivery);
+      if (!result.denied && request.op === "observe_store" && (result.ok as { reset?: boolean } | undefined)?.reset) observeIncarnation(undefined, true, delivery);
       if (!result.denied && request.op === "adopt") observeIncarnation(storeIdentity, true, delivery);
     };
     const work = core.call(request, committed);
@@ -452,8 +451,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const result = (await work) as { ok?: unknown; denied?: Refusal };
       committed(result);
       deliver();
-      const metadataReset = request.op === "sync_metadata" && (result.ok as { reset?: boolean } | undefined)?.reset === true;
-      if (!result.denied && (metadataReset || ["apply", "observe_store", "adopt", "clear_rows", "admit", "settle"].includes(String(request.op)))) await media?.reconcile();
+      if (!result.denied && ["apply", "observe_store", "adopt", "clear_rows", "admit", "settle"].includes(String(request.op))) await media?.reconcile();
       return result;
     }
     finally { active.delete(work); deliver(); }
@@ -600,6 +598,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   }
 
   // ----- the stream -----
+
   async function refusePartition(denied: Refusal, revision: number) {
     await refusedSession(denied, revision);
     if (!denied.retryable) {
@@ -608,6 +607,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       for (const watch of watches.values()) void rerun(watch);
     }
   }
+
   let syncing: Promise<boolean> | null = null;
   function syncOnce(): Promise<boolean> {
     if (partitionDenied?.code === "E_STORE_RESTORE") return Promise.resolve(false);
@@ -617,51 +617,18 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     void result.finally(() => { if (syncing === result) syncing = null; }).catch(() => {});
     return result;
   }
-  async function publishRetired(retired: Record<string, number>) {
-    for (const [id, sentSeq] of Object.entries(retired)) {
-      const receipt: Write = { state: "sent", id: id as Write["id"], seq: sentSeq, replayed: true };
-      await history.keep(receipt);
-      settled.get(id)?.(receipt); settled.delete(id);
-      emitWrite(receipt);
-    }
-  }
   async function syncRound(): Promise<boolean> {
     caughtUp = false;
     if (closed || sessionDead || partitionDenied?.code === "E_STORE_RESTORE") return false;
-    const state = (await call({ op: "sync_state", capture: false })).ok as { watermark: number; snapshot_required?: boolean } | undefined;
-    let watermark = state?.snapshot_required ? 0 : state?.watermark ?? 0;
+    const state = (await call({ op: "state" })).ok as { watermark: number; generation: number } | undefined;
+    let watermark = state?.watermark ?? 0;
     const touched = new Set<string>();
     let adoptedGeneration = false;
     let after: string | undefined;
     let catchingUp = false;
     let publicationOutstanding = false;
-    let restartingSnapshot = !!state?.snapshot_required;
+    let restartingSnapshot = false;
     let pageLimit = PAGE;
-    let needsMetadata = false;
-    async function adoptBackend(page: SyncPage, store_id: unknown, expectedGeneration?: number, adoptionCapture?: Record<string, string | null>): Promise<boolean> {
-      let backendRevision = credentialRevision;
-      const backendIncarnation = incarnation;
-      try {
-        const request = requestCredentials();
-        backendRevision = request.revision;
-        const nextBackend = await loadBackend(doFetch, base, request.headers, aborter.signal);
-        if (closed || backendIncarnation !== incarnation || request.revision !== credentialRevision) return false;
-        if (expectedGeneration !== undefined && nextBackend.generation !== expectedGeneration) return false;
-        const adopted = await call({ op: "adopt", backend: nextBackend, store_id, send_revision: page.send_revision, adoption_capture: adoptionCapture });
-        if (adopted.denied) return false;
-        backend = nextBackend;
-        generation = Number(nextBackend.generation ?? page.generation ?? generation);
-        nativeReady = false;
-        adoptedGeneration = true;
-        partitionDenied = null;
-        await refreshAcquired(true);
-        nativeReady = await installNative(aborter.signal);
-      } catch (error) {
-        if (error instanceof BackendAuthError) await refusedSession(error.denied, backendRevision);
-        return false;
-      }
-      return true;
-    }
     try {
       for (let pages = 0; pages < 100_000; pages++) {
         let page: SyncPage;
@@ -669,8 +636,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         let requestedStore: string | null | undefined;
         let publishedStore: string | null | undefined;
         let backendRequired = false;
-        let metadataCapture: Record<string, unknown> | undefined;
-        const discovering = needsMetadata;
         let pageIncarnation = incarnation;
         try {
           const captured = await call({ op: "sync_state" });
@@ -687,112 +652,47 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           watermark = snapshotRequest ? 0 : transfer_watermark ?? capturedWatermark;
           catchingUp = !snapshotRequest && (snapshot_catchup ?? catchingUp);
           publicationOutstanding ||= watermark > capturedWatermark;
-          const stream = !snapshotRequest && (catchingUp || publicationOutstanding);
-          // Repair B's private request cut and published cut need separate fences.
-          const deferredRequest = !snapshotRequest && !catchingUp && watermark > capturedWatermark;
-          const recoveryWatermark = deferredRequest ? watermark : capturedWatermark;
-          metadataCapture = { store_id: requestedStore ?? null, generation, send_revision,
-            captured_watermark: recoveryWatermark, ...(deferredRequest ? { published_watermark: capturedWatermark } : {}),
-            captured_restore_watermark: restore_watermark, captured_restore_images_at: restore_images_at,
-            from: watermark, after: after ?? null, stream, limit: pageLimit,
-            recover: !backendRequired && pageLimit === 1 && after === undefined && watermark === recoveryWatermark };
           const request = requestCredentials();
-          const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers,
-            body: JSON.stringify({ from: watermark, limit: pageLimit, after: after ?? null, stream, pending,
-              ...(requestedStore ? { store_id: requestedStore } : {}),
-              ...(discovering ? { metadata: true, generation, send_revision, recover: metadataCapture.recover } : {}) }), signal: aborter.signal });
+          const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify({ from: watermark, limit: pageLimit, after: after ?? null, stream: !snapshotRequest && (catchingUp || (after === undefined && publicationOutstanding)), pending, ...(requestedStore ? { store_id: requestedStore } : {}) }), signal: aborter.signal });
           if (response.status >= 500) { setLink("offline"); return false; }
           page = (await response.json()) as SyncPage;
           if (!response.ok && !page.denied) { setLink("offline"); return false; }
-          if (discovering && !page.denied) {
-            if (page.metadata !== true || typeof page.store_id !== "string" || !page.store_id
-              || !Number.isSafeInteger(page.generation) || Number(page.generation) < 1
-              || !Number.isSafeInteger(page.watermark) || Number(page.watermark) < 0) return false;
-          }
-          if (!discovering) {
-            page.send_revision = send_revision;
-            page.pending_through = pending_through;
-            page.pending_complete = pending_complete;
-            page.pending_bound = pending_bound;
-            page.requested_watermark = watermark;
-            page.captured_restore_watermark = restore_watermark;
-            page.captured_restore_images_at = restore_images_at;
-            page.captured_watermark = capturedWatermark;
-          }
+          page.send_revision = send_revision;
+          page.pending_through = pending_through;
+          page.pending_complete = pending_complete;
+          page.pending_bound = pending_bound;
+          page.requested_watermark = watermark;
+          page.captured_restore_watermark = restore_watermark;
+          page.captured_restore_images_at = restore_images_at;
+          page.captured_watermark = capturedWatermark;
           pageRevision = request.revision;
         } catch {
           setLink("offline");
           return false;
         }
-        if (closed) return false;
-        if (page.denied) {
-          const denied = page.denied as Refusal;
-          if (pageIncarnation !== incarnation || pageRevision !== credentialRevision) return false;
-          if (responsePageTooLarge(denied) && !discovering) {
-            // Refusals authorize nothing; fresh metadata must pass device fences.
-            if (!requestedStore) {
-              if (pageLimit === 1) return false;
-              pageLimit = Math.max(1, Math.floor(pageLimit / 2));
-            } else needsMetadata = true;
-            continue;
-          }
-          if (discovering) { if (denied.code === "E_AUTH") await refusedSession(denied, pageRevision); return false; }
+        if (closed || pageIncarnation !== incarnation || pageRevision !== credentialRevision) return false;
+        const denied = page.denied as Refusal | undefined;
+        // @ref LLP 3000.007.001#3.11 — adopt an oversized reply's identity before shrinking or retrying its position.
+        if (denied && !responsePageTooLarge(denied)) {
           await refusePartition(denied, pageRevision);
           return false;
-        }
-        if (pageIncarnation !== incarnation || pageRevision !== credentialRevision) return false;
-        if (discovering) {
-          // Only the device accepts measured evidence; adoption takes precedence.
-          // Its commit hook invalidates observations before fallible follow-up.
-          if (typeof page.store_id === "string" && requestedStore && page.store_id !== requestedStore) observeIncarnation(page.store_id);
-          const checked = await call({ op: "sync_metadata", metadata: page, capture: metadataCapture });
-          if (checked.denied) {
-            if (checked.denied.code === "E_STORE_RESTORE") refuseRestore(checked.denied);
-            return false;
-          }
-          const recovery = checked.ok as { snapshot: boolean; retired: Record<string, number>; reset: boolean; backend_required: boolean; send_revision: number; store_id?: string | null; adoption_capture?: Record<string, string | null> };
-          page.send_revision = recovery.send_revision;
-          page.captured_watermark = metadataCapture!.published_watermark ?? metadataCapture!.captured_watermark;
-          publishedStore = recovery.store_id;
-          storeIdentity = publishedStore ?? undefined;
-          if (recovery.reset) {
-            requestedStore = page.store_id as string;
-            page.captured_watermark = 0;
-            seq = 0;
-            await call({ op: "set_meta", key: "syncedAt", value: "0" });
-            await publishRetired(recovery.retired);
-            await refreshAcquired();
-          }
-          if (Number(page.generation) !== generation || backendRequired || recovery.backend_required) {
-            if (!await adoptBackend(page, publishedStore ?? null, Number(page.generation), recovery.adoption_capture)) return false;
-            watermark = 0; after = undefined; catchingUp = false; needsMetadata = false; publicationOutstanding = false; restartingSnapshot = true;
-            continue;
-          }
-          if (recovery.snapshot) {
-            await call({ op: "set_meta", key: "syncedAt", value: "0" });
-            await publishRetired(recovery.retired);
-            await refreshAcquired();
-            watermark = 0; after = undefined; catchingUp = false; needsMetadata = false; publicationOutstanding = false; restartingSnapshot = true;
-            continue;
-          }
-          // No grant: shrink or stop. Metadata never reaches data application.
-          if (pageLimit === 1) return false;
-          pageLimit = Math.max(1, Math.floor(pageLimit / 2));
-          needsMetadata = false;
-          continue;
         }
         // @ref LLP 3000.007#18.2 — sync identity retires the old partition before any read or outbox replay.
         let replacedStore = false;
         let adoptionCapture: Record<string, string | null> | undefined;
         {
-          const observed = await call({ op: "observe_store", page });
+          // An overflow watermark is an event cut, not proof of the server
+          // head. Preserve explicit image-head evidence if provided; never
+          // invent terminality for a refusal with no row batch.
+          const observed = await call({ op: "observe_store", page: denied ? { ...page, snapshot: false, events: [], more: true } : page });
           if (observed.denied) { refuseRestore(observed.denied); return false; }
           const observation = observed.ok as { reset: boolean; backend_required?: boolean; send_revision: number; retired: Record<string, number>; adoption_capture?: Record<string, string | null> };
           page.send_revision = observation.send_revision;
           adoptionCapture = observation.adoption_capture;
           backendRequired = !!observation.backend_required;
           if (observation.reset) {
-            // call() already invalidated the retired incarnation.
+            // call() already invalidated the retired incarnation synchronously.
+            // Discard this round's old cursors before inspecting the new store.
             watermark = 0; after = undefined; catchingUp = false; publicationOutstanding = false;
             page.captured_watermark = 0;
             adoptedGeneration = true;
@@ -803,20 +703,59 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
             publishedStore = observedState?.store_id;
             storeIdentity = publishedStore ?? undefined;
             await call({ op: "set_meta", key: "syncedAt", value: "0" });
-            await publishRetired(observation.retired);
+            for (const [id, sentSeq] of Object.entries(observation.retired)) {
+              const receipt: Write = { state: "sent", id: id as Write["id"], seq: sentSeq, replayed: true };
+              settled.get(id)?.(receipt); settled.delete(id);
+              emitWrite(receipt);
+            }
             for (const watch of watches.values()) void rerun(watch);
           }
         }
         if (link !== "online") setLink("online");
-        partitionDenied = null;
+        if (!denied) partitionDenied = null;
         const pageGeneration = Number(page.generation ?? generation);
         if (pageGeneration !== generation || replacedStore || backendRequired) {
-          // Replacement reloads the backend even at the same generation.
-          if (!await adoptBackend(page, publishedStore ?? null, undefined, adoptionCapture)) return false;
-          watermark = 0; after = undefined; catchingUp = false; needsMetadata = false; publicationOutstanding = false; restartingSnapshot = true; continue;
+          // Generation counters restart with a new store. Reload the backend
+          // even when its number matches, then acquire its current partition.
+          let backendRevision = credentialRevision;
+          const backendIncarnation = incarnation;
+          try {
+            const request = requestCredentials();
+            backendRevision = request.revision;
+            const nextBackend = await loadBackend(doFetch, base, request.headers, aborter.signal);
+            if (closed || backendIncarnation !== incarnation || request.revision !== credentialRevision) return false;
+            const adopted = await call({ op: "adopt", backend: nextBackend, store_id: publishedStore ?? null, send_revision: page.send_revision, adoption_capture: adoptionCapture });
+            if (adopted.denied) return false;
+            backend = nextBackend;
+            generation = Number(nextBackend.generation ?? pageGeneration);
+            partitionDenied = null;
+            nativeReady = false;
+            adoptedGeneration = true;
+            await refreshAcquired(true);
+            nativeReady = await installNative(aborter.signal);
+          } catch (error) {
+            if (error instanceof BackendAuthError) await refusedSession(error.denied, backendRevision);
+            return false;
+          }
+          watermark = 0; after = undefined; catchingUp = false; publicationOutstanding = false; continue;
+        }
+        if (denied) {
+          if (page.snapshot === true && pageLimit === 1 && (watermark > 0 || catchingUp)) {
+            // Restart acquisition without applying the refusal's watermark.
+            // Keep the reduced limit; snapshot rows can split a whole commit.
+            watermark = 0; after = undefined; catchingUp = false;
+            restartingSnapshot = true;
+            partitionDenied = null;
+            continue;
+          }
+          if (pageLimit > 1) {
+            pageLimit = Math.max(1, Math.floor(pageLimit / 2));
+            continue;
+          }
+          await refusePartition(denied, pageRevision);
+          return false;
         }
         if (Number(page.watermark) < watermark || (catchingUp && page.snapshot) || (page.snapshot && page.more && !page.next)) return false;
-        // Only data reaches apply; snapshot staging cannot grant recovery.
         page.stage_snapshot = !!page.snapshot;
         page.snapshot_catchup = catchingUp;
         const applyingIncarnation = incarnation;
@@ -826,7 +765,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         restartingSnapshot = false;
         const published = (applied.ok as { published?: boolean } | undefined)?.published !== false;
         publicationOutstanding = !published;
-        // call() preserved committed tables even if follow-up inspection fails.
+        // call() has already preserved committed tables for finally, even if
+        // its media reconciliation or the following metadata inspection fails.
         if (published) {
           const publishedRead = await call({ op: "sync_state", capture: false });
           if (closed || applyingIncarnation !== incarnation || publishedRead.denied) return false;
@@ -837,7 +777,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           watermark = publishedState?.watermark ?? watermark;
         }
         if (page.snapshot && page.more && page.next) {
-          after = page.next as string; continue;
+          after = page.next as string;
+          continue;
         }
         after = undefined;
         if (page.snapshot) { catchingUp = true; continue; }
@@ -870,6 +811,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       }
     }
   }
+
   async function probe(): Promise<void> {
     try {
       const request = requestCredentials();

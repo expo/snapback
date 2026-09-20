@@ -208,19 +208,6 @@ fn renewal_chains_stop_at_expiry_scope_and_same_commit_revocation() {
         let mut from = 1; let mut puts = Vec::new(); let mut markers = Vec::new();
         loop {
             let page = partition::stream(&tx, &schema, "bob", from, limit, 1800).unwrap();
-            let mut inspected = Vec::new();
-            let measured = partition::stream_inspected(&tx, &schema, "bob", from, limit, 1800, |event| {
-                inspected.push(event.clone()); Ok(true)
-            }).unwrap().unwrap();
-            assert_eq!(serde_json::to_value(&measured).unwrap(), serde_json::to_value(&page).unwrap());
-            assert_eq!(serde_json::to_value(&inspected).unwrap(), serde_json::to_value(&page.events).unwrap());
-            for stop in 1..=page.events.len() {
-                let mut visited = 0;
-                assert!(partition::stream_inspected(&tx, &schema, "bob", from, limit, 1800, |_| {
-                    visited += 1; Ok(visited < stop)
-                }).unwrap().is_none(), "no partial acquisition or scope may escape an inspection stop");
-                assert_eq!(visited, stop);
-            }
             puts.extend(page.events.into_iter().filter(|e| e.kind == "put").map(|e| (e.seq, e.id)));
             markers.extend(page.acquisitions); from = page.watermark; if !page.more { break; }
         }

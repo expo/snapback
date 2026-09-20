@@ -16,7 +16,7 @@ async function until(check) {
   assert.fail("watch did not reach the expected state");
 }
 
-for (const viaMetadata of [false, true]) for (const fault of ["healthy", "others", "remember", "recover"]) test(`II1: ${viaMetadata ? "metadata" : "data"} replacement with ${fault} post-save recovery`, async t => {
+for (const viaOverflow of [false, true]) for (const fault of ["healthy", "others", "remember", "recover"]) test(`II1: ${viaOverflow ? "inline overflow" : "data"} replacement with ${fault} post-save recovery`, async t => {
   const failRecovery = fault !== "healthy";
   const persist = memoryPersistence(), save = persist.save, others = persist.others;
   let store = "A", offline = false, core, client, storeName, savedReplacement = false, atFailure;
@@ -50,10 +50,9 @@ for (const viaMetadata of [false, true]) for (const fault of ["healthy", "others
       { name: "marker", kind: "Query", args: {}, body: [{ Return: { Literal: { String: store } } }] }] });
     if (path === "/sync") {
       const request = JSON.parse(init.body); requests.push(request);
-      if (request.metadata) return Response.json({ metadata: true, store_id: store, generation: 1, watermark: 10 });
-      if (viaMetadata && store === "B" && request.store_id !== "B" && request.from > 0) return Response.json({ denied: {
+      if (viaOverflow && store === "B" && request.store_id !== "B" && request.from > 0) return Response.json({ denied: {
         code: "E_BOUND", family: "bound", message: "the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values"
-      } });
+      }, store_id: store, generation: 1, watermark: 10 });
       return Response.json({ snapshot: request.from === 0 && !request.stream, store_id: store,
         generation: 1, events: [], watermark: 10, more: false });
     }

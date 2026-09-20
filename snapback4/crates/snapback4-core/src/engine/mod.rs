@@ -760,21 +760,10 @@ impl Engine {
 
     /// The same receipt lookup split at the event cut and the image read head.
     pub fn acknowledged_at(&mut self, principal: &str, pending: &[String], through: u64, images_at: u64) -> Result<(BTreeMap<String, u64>, BTreeMap<String, u64>), RuntimeError> {
-        let tx = self.store.read_transaction()?;
-        let receipts = Self::acknowledged_at_in(&tx, principal, pending, through, images_at)?;
-        tx.rollback()?;
-        Ok(receipts)
-    }
-
-    /// Reuse the sync reply's catalog-validated read snapshot for both receipt bounds.
-    pub fn acknowledged_in(tx: &crate::store::Tx<'_>, principal: &str, pending: &[String], through: u64) -> Result<BTreeMap<String, u64>, RuntimeError> {
-        Self::acknowledged_at_in(tx, principal, pending, through, through).map(|(covered, _)| covered)
-    }
-
-    pub fn acknowledged_at_in(tx: &crate::store::Tx<'_>, principal: &str, pending: &[String], through: u64, images_at: u64) -> Result<(BTreeMap<String, u64>, BTreeMap<String, u64>), RuntimeError> {
         use rusqlite::OptionalExtension;
         if images_at < through { return Err(RuntimeError::Input("image head precedes the event watermark".into())); }
         if pending.len() > 256 || pending.iter().any(|id| id.len() > 128) { return Err(RuntimeError::Input("sync accepts at most 256 pending ids of at most 128 bytes".into())); }
+        let tx = self.store.read_transaction()?;
         let mut acknowledged = BTreeMap::new();
         let mut committed_above = BTreeMap::new();
         for id in pending {
@@ -785,6 +774,7 @@ impl Engine {
                 else { committed_above.insert(id.clone(), seq); }
             }
         }
+        tx.rollback()?;
         Ok((acknowledged, committed_above))
     }
 

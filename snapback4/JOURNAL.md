@@ -45992,3 +45992,200 @@ from their first test through EOF, and both production source files have
 byte-identical non-comment text against the base.
 
 **2026-09-20 — W14a landed (the lead).** Reviewed at `bcbdf0c122`; Recheck round 5 at bcbdf0c122: READY from both families — GPT with no findings and no objection to the ruling, Grok with one Low (two leftover 'nothing else is copied' sentences) applied at landing. The wasm ratchet rises 442,000 → 452,000 for the lane's +9,526 B gzip (451,094 measured on the integrated tree against main's 441,568), attributed in `metrics/wasm-budget.json` by the lane's build-stage deltas (the ledger and borrowed-lane refactor +8,562; allowances +458; descriptor admission and the existence-predicate retry +39; retained-scope propagation +33; the shape-trim map +193; cursor borrowing −125). LLP 3000.007 §20.24.1 records the rule as built.
+
+## 2026-09-20 — retire duplicate oversized-sync recovery: baseline and isolation
+
+At `76593742a331cc31d7ac060f248e919848a2f90d` on
+`sb4/retire-dup-51b7a134`, the author directs retirement of the metadata/grant
+implementation in favor of MC0. No commit, push, tag, publication, LLP edit or
+NOT-DOING edit is authorized. The governing MC0 contract is LLP 3000.007 §18.2
+and LLP 3000.007.001 §3.11: retain identity on bounded refusals, adopt before
+shrinking, use the inline limit-one stream instruction, never apply refusals.
+Repair B's private publication and restore fences remain in force.
+
+Before any removal, rebuilt the unchanged wasm with Node 24.18.0,
+`CARGO_BUILD_JOBS=1 bash scripts/build-wasm.sh`: 1,623,401 B raw,
+451,094 B gzip, exit 0. This checkout already has a 452,000 B budget (906 B
+headroom), despite the brief's older over-budget observation. The budget will
+not change. Log: `/tmp/sb4-retire-51b7a134/wasm-before.log`.
+
+Isolation uses the MC0 server/client wiring as integrated with Repair B at
+`863e345bf`; its diff against this base is confined to the duplicate protocol.
+The duplicate files and device dispatcher remain present for the initial
+execution, but the client/server data path no longer invokes them. The new
+first-commit regression uses real HTTP on SQLite and both device stores.
+
+### MC0 execution before retirement
+
+`node --test --test-name-pattern='a new replica recovers' packages/snapback4/test/sync-overflow.test.mjs`
+passed 2/2 (wasm and process SQLite), 0 failures, in 21.793 s. The rebuilt
+server and restored client use MC0 alone; no duplicate file had been deleted.
+The first commit contains 42 rows: its seed request fits 100 B below 16 MiB,
+but a real `from:0, stream:true, limit:1` reply refuses with E_BOUND and the
+inline snapshot instruction. Each client's actual zero-position acquisition
+shrinks 4000, 2000, 1000, 500, 250, 125, 62, 31; two snapshot pages then
+catch up from 1. Both reach watermark 1, acquired, with the last row intact.
+MC0's condition is unchanged: initial acquisition is already a snapshot.
+The old D1 test injected bare refusals until grant acceptance, so it did not
+exercise that ordinary tokenless route. Log: `/tmp/sb4-retire-51b7a134/mc0-first-commit.log`.
+
+Retiring the six server modules, device metadata dispatcher/module/types,
+metadata request fields, capture-only adoption field, grant acquisition flag
+and its prediction/apply gates, and the IdentityEvidence wrapper. Shared
+receipt-history persistence is retained because ordinary store replacement
+and `keep_write` use it independently of grants. No Repair B production
+behavior is removed; its grant-specific test hooks will use inline observation
+and ordinary replacement pages instead.
+
+### Port ledger and first post-removal checks
+
+Read all 774 lines of `oversized-sync.test.mjs` before removing it. Its
+default 66 tests (plus one opt-in contention measurement) are consolidated
+as follows; the old test names below identify the cases, not new protocol.
+
+| Former cases | Disposition and reason |
+| --- | --- |
+| R5 D1, new replica / oversized first commit (both stores) | Ported to `sync-overflow.test.mjs` with real responses instead of the old fabricated bare-refusal prelude. Also added arrival during a zero-head snapshot's catch-up, exercising `catchingUp` at watermark zero. |
+| Enlarged whole commit, same generation | Ported its distinct interrupted recovery/reopen, retained-history and 45-row horizon assertions. MC0's existing same-generation test covers basic recovery. No durable grant/recovery-flag expectation remains. |
+| Enlarged whole commit, changed generation | MC0 already tests generation discovery before halving, adoption and real reacquisition on both stores. The larger suite's protocol-shape assertions and duplicate recovery case are dropped. |
+| Many ordinary commits | Ported: shrink, stay in stream mode, preserve retained history, reach head; no snapshot or metadata. |
+| First overflow during staged catch-up | Ported via the real zero-head snapshot/catch-up race above, without the old forced recovery flag. |
+| R3 snapshot continuation | Ported: keep the exact real opaque cursor while shrinking; stop at one without restarting or publishing staged rows. |
+| Unchanged/generic metadata after bare refusals; R3 stale metadata denial/retry | Consolidated the remaining behavioral assertion into a bare-refusal test: held rows outside the horizon and delivered history survive; a later ordinary sync retries successfully. Token/metadata-state no-op assertions are obsolete. MC0 retains its authored terminal refusal behavior, covered by the restored lifecycle test. |
+| R3 foreign metadata identity | Existing MC0 replacement test and Repair B round16 now exercise inline overflow identity before adoption/reacquisition and before fallible post-save recovery. |
+| R5 S1 mismatched measurement; R5 S2 saved evidence after fitting rewrite | Dropped: no stored/replayed evidence, measurement or grant exists to mismatch or revalidate. No revision-binding mechanism is carried across. |
+| R4 default recover routing; R4 forged recover bit; R4 fabricated before-limit-one / wrong-position grants | Dropped: request fields, decoder, dispatcher and acceptance API are removed. The actual ordinary request's limit-one response is tested by MC0. |
+| Older-generation metadata; eight discovery faults (send, watermark, schema-watermark, refusal, bound, malformed, zero-generation, schema-generation); G1 backend-required metadata / existing refusal; G3 lower-head metadata and lower successor | Dropped the metadata-specific injections and capture assertions with that arm. Ordinary restore/adoption/publication fences remain covered by store reset, lifecycle and the device/Repair B suites; metadata can no longer enter row installation. |
+| G2 grant receipt retirement; catch-up grant lease reuse | Dropped the grant transaction's side-effect/consumption expectations. Repair B's tests are adapted to preserve live predictions, captured private/published cuts, retained image heads and eventual replacement publication on the inline path. |
+| Optional metadata writer-contention measurement | Dropped with the measurement round trip it timed. No timing claim is carried over. |
+
+The first post-removal wasm build passes: 1,599,837 B raw, 443,474 B gzip,
+**7,620 B gzip recovered** (23,564 raw B). Unchanged budget: 452,000 B;
+8,526 B headroom. Existing web-profile warnings are in the core's authority
+code; the native server build has no warnings in `crates/snapback4/src/`.
+
+The first HTTP-bounds run correctly exposed an assertion rewritten for the
+duplicate protocol (it demanded no identity on a refused page). Restored that
+case to MC0's same-cursor/shrinking assertions; the rerun passes 10/10. The
+separate Repair B round16 metadata-replacement fixture is likewise being
+changed to an inline refusal carrying identity; all its persistence and
+watch/acquisition invalidation assertions remain. Logs are under
+`/tmp/sb4-retire-51b7a134/`.
+
+### Final reference audit: remove core-only measurement support
+
+The audit found `partition::stream_inspected` and
+`Engine::acknowledged_in` / `acknowledged_at_in`, added for the removed
+measurement/dispatch path. Collapsed receipt lookup back into
+`acknowledged_at`, preserving Repair B's event/image receipt split and the
+unrelated ephemeral-assets leak fix in that file. Removed the inspection
+callback and optional partial-page result; ordinary stream selection, current
+image/rule normalization, join expansion and horizon markers are unchanged.
+Kept normalization inside `expand_joins` so no row fetch/probe order changes.
+Removed only inspection-specific assertions from the existing renewal-chain
+test, and converted the inspection test in W13g to assert ordinary delivery
+of current images, omission of hidden images, and one fetch per row.
+The core/device/server checks and binary will be rebuilt after this cleanup.
+
+### Verification scheduling correction
+
+The first consolidated sync run passes 23/23 in 212.741 s; package build
+and TypeScript typecheck pass. The first horizon run reached its embedded
+`cargo test --test w13g_probe ... export_wire_fixtures` while the serialized
+crate run still held the build lock. Its 600 s subprocess timeout expired
+with only `Blocking waiting for file lock on build directory`; this run is
+not a horizon pass. Rerun horizon after the crate build completes, with
+`CARGO_BUILD_JOBS=1` inherited by its fixture generator and no competing
+Cargo invocation. Remaining direct JS suites continue independently.
+
+### First crate run and final verification sequence
+
+The first crate build took 17m22s at one Cargo build job. Server tests pass
+266/266. The device run reached Repair B, where 106 tests passed and the
+two adapted inline-capture tests failed: the fixture had left `more:false`
+on the synthetic refusal during its stale-image-head checks, falsely
+attesting a terminal head. Both returned E_STORE_RESTORE rather than
+E_GENERATION. Fixed the fixture to set `more:true` before every check,
+matching the real MC0 client's normalization. No production fix was needed.
+
+Direct JS results: HTTP bounds 10/10 after restoring its MC0 assertions;
+retained history 48/48; store-reset 4/4, reconnect 12/12, review 25/25 and
+IDB 2/2; client lifecycle 56/56; Repair B overflow 3/3 and round16 9/9.
+A final serial sequence now runs both crates with `--no-fail-fast`, the
+affected core rows target, rebuilds the binary and wasm, builds the package,
+and runs horizon plus the complete requested JS set against those bytes.
+`CARGO_BUILD_JOBS=1` is inherited by every step (including horizon's internal
+fixture generator); test execution uses eight harness threads. Each step's
+exit code and duration are recorded in
+`/tmp/sb4-retire-51b7a134/final-results.json`, with separate logs.
+
+### Final crate verification is green
+
+`CARGO_BUILD_JOBS=1 RUST_TEST_THREADS=8 cargo test -p snapback4-device -p snapback4 --no-fail-fast`
+passes on the final source, exit 0, 540.482 s including the 3m03s incremental
+rebuild. Repair B is 108/108, including both corrected inline-capture tests;
+W13g is 142/142, including current readable-image delivery after removal of
+the measurement hook. No warning comes from `crates/snapback4/src/`; the
+remaining warnings name the unchanged tiny_http dummy trait and the
+unchanged native_reads test's unnecessary `mut`. Final artifact and JS
+verification continue serially.
+
+### Final wasm and isolated horizon verification
+
+Final crate totals: server 266 passed / 0 failed / 0 ignored; device 897
+passed / 0 failed / 3 ignored. The core rows target passes 8/8. The native
+binary rebuild and package build pass. The final wasm rebuild reproduces
+1,599,837 B raw and 443,474 B gzip: 23,564 raw B and 7,620 gzip B (1.69%)
+recovered from the untouched base; the unchanged 452,000 B budget has
+8,526 B headroom.
+
+The isolated horizon suite passes (exit 0, 250.805 s including its Rust
+fixture compilation); the earlier build-lock timeout is superseded by this
+execution. Final client reruns now use the rebuilt native binary, wasm and
+package. The original MC0 client condition remains byte-for-byte unchanged.
+A final symbol search finds none of the removed module, measurement, grant,
+metadata dispatcher, identity-wrapper or snapshot-required-flag names in
+product Rust/TypeScript. The server module/path audit has no orphan.
+
+### Final result — ready for review, deliberately uncommitted
+
+All 16 steps of the final serial verification sequence exit 0 against the
+completed source and rebuilt artifacts. Exact suite totals:
+
+| Suite | Passed | Failed | Ignored/skipped |
+| --- | ---: | ---: | ---: |
+| sync-overflow (MC0 plus behavioral ports) | 23 | 0 | 0 |
+| HTTP bounds | 10 | 0 | 0 |
+| horizon boundary | 82 | 0 | 0 |
+| retained history | 48 | 0 | 0 |
+| store reset | 4 | 0 | 0 |
+| store reset reconnect | 12 | 0 | 0 |
+| store reset review | 25 | 0 | 0 |
+| store reset IDB | 2 | 0 | 0 |
+| client lifecycle | 56 | 0 | 0 |
+| Repair B overflow | 3 | 0 | 0 |
+| Repair B round16 | 9 | 0 | 0 |
+| server crate (all targets) | 266 | 0 | 0 |
+| device crate (all targets and doctests) | 897 | 0 | 3 |
+| affected core rows | 8 | 0 | 0 |
+
+Package build and typecheck pass. Final wasm is 443,474 B gzip versus
+451,094 B before, a 7,620 B reduction; raw is 1,599,837 versus 1,623,401 B.
+No ceiling/budget, rule, card word or disclosure boundary changes. MC0's
+original limit-one condition is unchanged. No orphan server module, removed
+protocol reference, or server-source unused-import/dead-code warning remains.
+
+All eight named duplicate implementation/test files are deleted, including
+`oversized-sync.test.mjs`. The port ledger above records each old case family.
+The shared receipt-history helper remains because ordinary store replacement
+and `keep_write` use its atomic persistence. Current-image normalization
+remains in the existing join expansion to preserve fetch/rule-probe behavior;
+its inspection callback/API is gone. No grant, measurement type, metadata
+round trip or durable grant-recovery flag remains.
+
+Resolved the consolidation ticket in the working-tree patch and moved it to
+`issues/closed/`. The prior integration report is byte-unchanged, as are
+`llp/**`, NOT-DOING files, and the wasm budget. W15c, Repair B's production
+semantics, leak fixes and horizon behavior are retained. Branch and HEAD
+remain `sb4/retire-dup-51b7a134` / `76593742a331cc31d7ac060f248e919848a2f90d`.
+No commit, push, tag or publication was performed.

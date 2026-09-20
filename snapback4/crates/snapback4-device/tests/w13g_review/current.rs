@@ -76,7 +76,7 @@ fn group_acquisition_stops_at_n_readable_rows_without_lookahead() {
 }
 
 #[test]
-fn inspected_stream_stops_current_fetches_and_never_inspects_a_hidden_image() {
+fn ordinary_stream_delivers_current_readable_images() {
     let (mut engine, backend) = compile(&source());
     engine.seed_at([member("dev:bob")], 1).unwrap();
     let from = engine.seq().unwrap();
@@ -85,13 +85,10 @@ fn inspected_stream_stops_current_fetches_and_never_inspects_a_hidden_image() {
     engine.mutate("hide", Some("hide"), context("dev:alice", &[("p", id("p2"))]).at(4)).unwrap();
     let tx = engine.store_mut().transaction().unwrap();
     let counted = counting::Partition::new(&tx);
-    let mut inspected = Vec::new();
-    let page = snapback4_core::partition::stream_inspected(&counted, &backend.schema, "dev:bob", from, 1, 5, |event| {
-        inspected.push(event.clone());
-        Ok(inspected.len() < 2)
-    }).unwrap();
-    assert!(page.is_none(), "an inspection stop must discard the entire commit");
-    assert_eq!(inspected.iter().map(|event| event.id.as_str()).collect::<Vec<_>>(), ["p1", "p3"]);
-    assert_eq!(inspected[0].data.as_ref().unwrap().field("at").unwrap(), &Value::Int(7777));
-    assert_eq!(counted.content_gets.get(), 3, "fetch only through the second readable image, including the hidden row that was skipped");
+    let page = snapback4_core::partition::stream(&counted, &backend.schema, "dev:bob", from, 1, 5).unwrap();
+    assert_eq!(page.events.len(), 99, "the indivisible commit includes every current readable row");
+    assert_eq!(page.events.iter().take(2).map(|event| event.id.as_str()).collect::<Vec<_>>(), ["p1", "p3"]);
+    assert!(!page.events.iter().any(|event| event.id == "p2"), "hidden images never reach the wire");
+    assert_eq!(page.events[0].data.as_ref().unwrap().field("at").unwrap(), &Value::Int(7777));
+    assert_eq!(counted.content_gets.get(), 100, "each current image is fetched once, including the hidden row");
 }
