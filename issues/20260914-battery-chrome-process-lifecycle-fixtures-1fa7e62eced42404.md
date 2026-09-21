@@ -13,11 +13,11 @@
 **Battery gate:** `chrome-process-lifecycle-fixtures`
 **Failure signature:** `sha256:1fa7e62eced4240468d6dd5d9784ca48bfe8ebc1cad91ea3d07c8db3bcc78870`
 **First observed run:** `local.20260914T104118Z.86928d068765`
-**Last observed run:** `local.20260921T053735Z.66fc10578f22`
-**Last processed run:** `local.20260921T053735Z.66fc10578f22`
+**Last observed run:** `local.20260921T150959Z.9fa99a49e8cf`
+**Last processed run:** `local.20260921T150959Z.9fa99a49e8cf`
 **Detected at revision:** `86928d068765e3d57c68747e4f2359950b8ff7d1`
-**Last observed revision:** `66fc10578f220d2f07d42820f927c5fb80887d96`
-**Consecutive red runs:** `4`
+**Last observed revision:** `9fa99a49e8cf2fb0222211afa533a397b70586e1`
+**Consecutive red runs:** `5`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
