@@ -1,0 +1,14 @@
+{
+  "source": "5a9f9452f27f7f60412b52e0cad7e2584666e10e",
+  "command": [
+    "node",
+    "scripts/publish.mjs",
+    "--dry-run"
+  ],
+  "started": "2026-09-22T18:07:29.063325+00:00",
+  "load": "11:07  up 19 days, 23:31, 76 users, load averages: 11.18 10.76 12.23",
+  "pid": 1704,
+  "exit": 1,
+  "seconds": 299.422,
+  "status": ""
+}

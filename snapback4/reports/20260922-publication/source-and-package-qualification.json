@@ -1,0 +1,22 @@
+{
+  "source": "c482a089d0cb26929066545742c97ac8c21a2db2",
+  "command": [
+    "node",
+    "scripts/publish.mjs",
+    "--dry-run"
+  ],
+  "started": "2026-09-22T18:53:12.579909+00:00",
+  "execution": "ordinary SSH publisher with only actual codesign --sign delegated to existing GUI login session",
+  "statusBefore": "",
+  "load": "11:53  up 20 days, 17 mins, 76 users, load averages: 37.31 35.12 27.17",
+  "suiteConcurrency": {
+    "clientFiles": "serial",
+    "rustProcesses": 4
+  },
+  "coverage": "unchanged complete suite and deadlines",
+  "pid": 25034,
+  "exit": 0,
+  "seconds": 595.246,
+  "ended": "2026-09-22T19:03:08.170200+00:00",
+  "statusAfter": " M metrics/publish.jsonl\n"
+}

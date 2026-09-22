@@ -1,0 +1,18 @@
+{
+  "source": "5554e9a241265655339c03b2cf4c8b4447c53d6f",
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "scripts/publish.mjs",
+    "--dry-run"
+  ],
+  "started": "2026-09-22T18:34:00.683432+00:00",
+  "execution": "owned existing GUI-login launchd job",
+  "statusBefore": " M metrics/witness.jsonl\n",
+  "load": "11:34  up 19 days, 23:58, 76 users, load averages: 8.96 10.72 11.72",
+  "pid": 45888,
+  "exit": 143,
+  "ended": "2026-09-22T18:46:29.705462+00:00",
+  "interrupted": true,
+  "reason": "Qualification already red from background scheduling timing failures; preserved partial logs and stopped only the owned launchd process group; complete normal-priority retry required",
+  "seconds": 749.022276
+}

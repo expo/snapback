@@ -192,11 +192,69 @@ M5 and in the local artifact copy. These observations qualify the maintained
 workspace reference; the published-package and actual Clique cells remain
 separate. All six native metric rows from runs 1–3 are retained.
 
+## Publication and installed-package result
+
+All three packages are published: `snapback4@0.2.32`,
+`snapback4-darwin-arm64@0.2.32`, and `snapback4-expo@0.2.23`.
+Their registry integrities match the exact qualified tarballs. The source was
+`c482a089d0cb26929066545742c97ac8c21a2db2`; its runtime is the independently
+reviewed `5554e9a24`, followed only by documentation/evidence updates. The
+source landed on main as `e26019140` after merging unrelated backstop tickets.
+
+The full publication suite passed with zero failures in 506 s. Its client
+suite reports 955 tests: 952 passed, three skipped, zero failed. Existing
+controls ran client files serially and limited Rust test processes to four;
+coverage and deadlines were unchanged. The publisher built with its existing
+production SQLite policy, signed the binary and passed its fresh installed
+consumer proof. The signed binary has 9,921,648 bytes and SHA256
+`c5e44f61065b3c23c82cba5fb20e993452c5b82c33fa24fbd1758d00aac00339`.
+It is Developer ID signed with the existing identity and is not notarized;
+no notarization profile was configured in this existing publication path.
+
+The additional browser proof copied the unmodified `witness/starter.mjs`
+and `lib.mjs` into a disposable proof root. It installed the exact staged
+client/platform tarballs and pinned third-party tooling through npm, with no
+workspace SDK fallback. The CLI generated the real `init --web` app. Its
+production lifecycle passed in 9.468 s: fresh offline reopen, original pending
+IDs, ordered replay with no duplicate rows, account isolation, truthful receipts,
+credential deletion despite stalled logout, subpath caching and safe shell
+updates. The exact binary hash was checked before the run.
+
+The Expo tarball's 16 files were compared byte-for-byte with the qualified
+source again before upload. Its native archive hashes match reference run 3.
+This binds the native artifact to the package; actual Clique native installation
+remains a separate exercise.
+
+[Qualification and publication receipts](./20260922-publication/qualified-stage.json),
+[source-suite result](./20260922-publication/source-and-package-qualification.json),
+[CLI publication](./20260922-publication/cli-publication.json),
+[installed browser result](./20260922-publication/installed-web-result.json),
+[browser observations](./20260922-publication/installed-web.log),
+and [Expo publication](./20260922-publication/expo-publication.json)
+retain package integrities, commands, timings and source identities.
+
+Failed attempts remain distinct. The first source suite passed but signing
+from SSH failed before packaging. Two GUI publication attempts then encountered
+startup/restart timeouts under different scheduling and host-load conditions;
+their owned jobs were stopped after preserving the failures. The evidence does
+not isolate GUI scheduling from changing load. The final green run used
+ordinary SSH plus the existing lower-concurrency controls; an ephemeral relay
+sent only the unchanged `codesign --sign` arguments to the existing login
+session. Verification/display still used the normal codesign binary. No
+credentials, keychain settings, publisher code, product code, test deadlines or
+assertions changed for that operational repair. Both relay jobs were unloaded.
+The attempt records and [raw-log hashes](./20260922-publication/log-manifest.json)
+are retained beside the successful qualification, with full logs on M5 and in
+the local run artifact directory.
+
 ## Actual Clique native adaptation, only after independent grading
 
 Calibration 16 is at `/Users/ccheever/clique-sb4-20260922-astra-cal16` on M5.
-At this checkpoint it contains an untouched cold packet, pending package pins
-and no builder output. Its instrument and prompt templates remain unchanged.
+The cold builder started at 19:12 UTC on 2026-09-22 after all three public
+package integrities were verified. The 179-file instrument and prompt templates
+remain unchanged. Only the comparable Astra lane is being run: Astra medium
+builder, independent Claude Opus 5 grader, Astra xhigh holistic scorer; M7 and
+the other builder lanes remain unrun.
 The timed task requires a Hermes export and makes native installation optional;
 the extension must be recorded separately from the comparable grader's verdict.
 No plan, prior source or operational-test result is passed into the cold lane.

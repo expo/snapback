@@ -122,3 +122,18 @@ preserved beside `native-reference-3/` receipts, videos and frames. The owned
 simulator was shut down and port 49380 released. This qualifies the maintained
 workspace reference, with installed-package and actual new Clique evidence
 still handled separately.
+
+
+### 2026-09-22 — Published package check
+
+The fresh npm installation of the exact staged snapback4/platform 0.2.32
+tarballs generated the app with `init --web`; the unmodified production browser
+witness passed in 9.468 s. This closes the earlier workspace-only browser
+qualification gap. The full release suite passed with zero failures (952 client
+tests passed, three skipped), and the public registry hashes match those
+tarballs. Expo 0.2.23 is also published with the same native bytes used in the
+reference witness. GUI-session qualification attempts encountered timing
+failures; ordinary SSH with lower suite concurrency and a signing-only relay
+passed without relaxing test deadlines or changing product code. The evidence
+does not separate scheduling from the concurrent change in host load. Actual
+Clique native evidence remains a separate follow-up after independent grading.

@@ -1,0 +1,7 @@
+{"stage":"reopen","newRealm":true,"stoppedBackend":true,"pendingIds":["01M3582VK4KN56GF6N86DYC26J","01M3582VN55TXCMN56GGBX5NMN","01M3582VQQVG1M2QDEYCZZKDPV"],"nonpredicting":true,"stale":true}
+{"stage":"accountIsolation","pendingHidden":true,"referencesPreserved":true,"offlineSignOut":true}
+{"stage":"reconnect","rows":2,"ordered":true,"originalIds":true,"duplicateRows":0,"sequences":[2,3,4]}
+{"stage":"receipts","failedAfterRestart":true,"unknownRemainsUnknown":true}
+{"stage":"guest","samePrincipalOfflineReopen":true,"credentialsCleared":true,"replicaPreserved":true,"stalledLogoutOfflineReopenRefused":true}
+{"stage":"shell","subpath":true,"allowlistOnly":true,"failedSameAssetsUpdateKeptCache":true,"oldTabAssetKept":true,"newBuildActivated":true}
+{"witness":"production-web-starter","base":"/chat/","reopen":{"newRealm":true,"stoppedBackend":true,"pendingIds":["01M3582VK4KN56GF6N86DYC26J","01M3582VN55TXCMN56GGBX5NMN","01M3582VQQVG1M2QDEYCZZKDPV"],"nonpredicting":true,"stale":true},"accountIsolation":{"pendingHidden":true,"referencesPreserved":true,"offlineSignOut":true},"reconnect":{"rows":2,"ordered":true,"originalIds":true,"duplicateRows":0,"sequences":[2,3,4]},"receipts":{"failedAfterRestart":true,"unknownRemainsUnknown":true},"guest":{"samePrincipalOfflineReopen":true,"credentialsCleared":true,"replicaPreserved":true,"stalledLogoutOfflineReopenRefused":true},"shell":{"subpath":true,"allowlistOnly":true,"failedSameAssetsUpdateKeptCache":true,"oldTabAssetKept":true,"newBuildActivated":true},"ok":true}

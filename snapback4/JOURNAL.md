@@ -46354,3 +46354,22 @@ records in the same artifact directory. Only the owned simulator
 This is workspace artifact qualification of the maintained reference, not
 installed-package or new Clique application proof. Publication remains with
 the parent qualification flow.
+
+
+## 2026-09-22 — LLP 3000.011 published and cold calibration started
+
+Published snapback4 and snapback4-darwin-arm64 0.2.32 plus snapback4-expo
+0.2.23 from exact qualified tarballs; all registry integrities match. Both
+independent final runtime reviews are READY. The complete release suite passed
+0 failures in 506 s (client 952 passed, 3 skipped), followed by signed installed
+consumer proof and the actual production starter browser journey against those
+tarballs (9.468 s). The Expo package's 16 files match the qualified source and
+its native archives match reference run 3. Prior signing/GUI timing failures,
+unchanged-argument signing relay, package identities and scope are preserved
+in reports/20260922-application-evidence.md and its publication receipts.
+
+Cal16 started 19:12 UTC on M5 from the same frozen 179-file instrument as
+cal15, with public pins 0.2.32 / 0.2.23. One Astra medium cold-builder lane,
+independent Opus 5 grade and Astra xhigh holistic score preserve comparability.
+The actual app's native extension follows grading and does not alter the
+frozen score. No new benchmark result or real push-provider success is claimed.

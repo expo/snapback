@@ -1,0 +1,30 @@
+{
+  "root": "/tmp/sb4-3011-20260922",
+  "retention": "M5 and local artifact copy; attempt2/3 partial suite logs retained separately",
+  "logs": {
+    "publication-dry-run-1.log": {
+      "sha256": "7e5f041a5b18d466cc8ed5ebb85c71daac248ad3d1c7fa9dec0d39211b347293",
+      "bytes": 303390
+    },
+    "publication-dry-run-2/publisher.log": {
+      "sha256": "a5cd9f798b9194d77c4f79af16f38b46d52894a7e4dd2c3b0f4161ef91197cde",
+      "bytes": 6296
+    },
+    "publication-dry-run-3/publisher.log": {
+      "sha256": "bbb7a6f494826dfa890481b1a45b2b2bcc70012f40fd3568900e7070139bf7fe",
+      "bytes": 6109
+    },
+    "publication-dry-run-4/publisher.log": {
+      "sha256": "f8b77d0b71d080079615699057d1566f7c48f3f44d2ba23835636514e4f8c7b7",
+      "bytes": 303486
+    },
+    "publication-1/publisher.log": {
+      "sha256": "f79be3bf6886b3605baf55c0f6e598033581af9586cdbef2496569162f7e7275",
+      "bytes": 6610
+    },
+    "expo-0.2.23-qualified/publish.log": {
+      "sha256": "3b23dfd4563908a53c62df372787d17fddce3191e810aa0712fb6431fc9d2e6f",
+      "bytes": 1537
+    }
+  }
+}

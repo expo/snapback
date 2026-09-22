@@ -1,0 +1,18 @@
+{
+  "source": "c482a089d0cb26929066545742c97ac8c21a2db2",
+  "command": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "scripts/publish.mjs",
+    "--dry-run"
+  ],
+  "started": "2026-09-22T18:47:04.485095+00:00",
+  "execution": "owned existing GUI-login launchd job",
+  "statusBefore": "",
+  "load": "11:47  up 20 days, 11 mins, 76 users, load averages: 14.50 21.25 19.05",
+  "pid": 66452,
+  "exit": 143,
+  "ended": "2026-09-22T18:52:59.880008+00:00",
+  "interrupted": true,
+  "reason": "Three unchanged server-e2e cases timed out under GUI Standard execution and rising host load; preserve partial logs, stop owned process group, retry complete publisher through ordinary SSH with existing lower-concurrency controls and GUI codesign-only relay; no product/test/deadline changes",
+  "seconds": 355.395399
+}
