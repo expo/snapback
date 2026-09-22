@@ -1,7 +1,7 @@
 # complete battery red: regression-optimistic-clobber
 
-**Status:** Closed
-**Reopened by battery run:** `local.20260917T013752Z.61a3a6fa6021`
+**Status:** Open
+**Reopened by battery run:** `local.20260922T102119Z.50782b08ec43`
 **Closure:** `signature absent from determinate FAIL`
 **Closed at revision:** `46f47983a1ce793a934981413c32c64382872d9d`
 **Impact:** 5
@@ -13,10 +13,10 @@
 **Battery gate:** `regression-optimistic-clobber`
 **Failure signature:** `sha256:5671960eca24a89a65583119c11837d91a70c62323bd33bd4a1a3c7bd153a244`
 **First observed run:** `local.20260826T121823Z.f69e9b16cbe8`
-**Last observed run:** `local.20260917T013752Z.61a3a6fa6021`
-**Last processed run:** `local.20260917T113035Z.46f47983a1ce`
+**Last observed run:** `local.20260922T102119Z.50782b08ec43`
+**Last processed run:** `local.20260922T102119Z.50782b08ec43`
 **Detected at revision:** `f69e9b16cbe835a3d99d598bc739acccb27365d1`
-**Last observed revision:** `61a3a6fa60211153b439fc57ea6cd49ed0d17455`
+**Last observed revision:** `50782b08ec432f5829644b2376245e937485fb7a`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3

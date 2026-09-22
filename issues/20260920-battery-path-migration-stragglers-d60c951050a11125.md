@@ -13,12 +13,12 @@
 **Battery gate:** `path-migration-stragglers`
 **Failure signature:** `sha256:d60c951050a11125c47bd80b2a3f00ee92c4d4700a48f49d5813e80b2da9846a`
 **First observed run:** `local.20260920T003721Z.7ef61e81a1bf`
-**Last observed run:** `local.20260922T004103Z.6841e7dc8d89`
-**Last processed run:** `local.20260922T004103Z.6841e7dc8d89`
+**Last observed run:** `local.20260922T102119Z.50782b08ec43`
+**Last processed run:** `local.20260922T102119Z.50782b08ec43`
 **Detected at revision:** `7ef61e81a1bf922f1a7984fc7c1cadfaeab1854c`
-**Last observed revision:** `6841e7dc8d89aa57907fa6bd9a43142cd9c7344f`
-**Consecutive red runs:** `1`
-**Escalation:** `pending (1/4)`
+**Last observed revision:** `50782b08ec432f5829644b2376245e937485fb7a`
+**Consecutive red runs:** `2`
+**Escalation:** `pending (2/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary

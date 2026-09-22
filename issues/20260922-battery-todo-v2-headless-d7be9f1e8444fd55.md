@@ -1,4 +1,4 @@
-# complete battery red: regression-fake-live
+# complete battery red: todo-v2-headless
 
 **Status:** Open
 **Impact:** 5
@@ -7,20 +7,20 @@
 **Confidence:** 5
 **Systems:** Testing, CI
 **Date:** 2026-09-22
-**Battery gate:** `regression-fake-live`
-**Failure signature:** `sha256:1e66861b7ab68feff2ef3bb4a00152255e7c33aaedcb2c8a545d003aaa95a09b`
-**First observed run:** `local.20260922T004103Z.6841e7dc8d89`
-**Last observed run:** `local.20260922T004103Z.6841e7dc8d89`
-**Last processed run:** `local.20260922T004103Z.6841e7dc8d89`
-**Detected at revision:** `6841e7dc8d89aa57907fa6bd9a43142cd9c7344f`
-**Last observed revision:** `6841e7dc8d89aa57907fa6bd9a43142cd9c7344f`
+**Battery gate:** `todo-v2-headless`
+**Failure signature:** `sha256:d7be9f1e8444fd557dbfd2f5c786bfd4b559639859c43bf1d910a9f273145dfe`
+**First observed run:** `local.20260922T102119Z.50782b08ec43`
+**Last observed run:** `local.20260922T102119Z.50782b08ec43`
+**Last processed run:** `local.20260922T102119Z.50782b08ec43`
+**Detected at revision:** `50782b08ec432f5829644b2376245e937485fb7a`
+**Last observed revision:** `50782b08ec432f5829644b2376245e937485fb7a`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
 
-The scheduled complete canonical battery reported `regression-fake-live` as a root
+The scheduled complete canonical battery reported `todo-v2-headless` as a root
 failure (exit 1). This ticket is keyed by gate plus the normalized
 root-failure signature and remains idempotent while open. Dependent `BLOCKED`
 results do not create tickets.
@@ -30,12 +30,12 @@ results do not create tickets.
 - `single_table_v1` — `crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json`
 
 These are the standing published claims whose recorded LLP 0189 D-4 scope
-derives `regression-fake-live` as claim-relevant for this battery revision.
+derives `todo-v2-headless` as claim-relevant for this battery revision.
 
 ## Reproduce and repair
 
 ```sh
-node demos/_kit/tests/regression-fake-live.mjs
+node demos/todo-v2/tests/acceptance/headless.mjs
 ```
 
 Fix forward, rerun the complete battery, and let the next determinate pass close

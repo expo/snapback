@@ -1,18 +1,21 @@
-# complete battery red: live-delta-e2e
+# complete battery red: regression-multilive-scoped
 
-**Status:** Open
+**Status:** Closed
+**Reopened by battery run:** `local.20260922T004103Z.6841e7dc8d89`
+**Closure:** `signature absent from determinate FAIL`
+**Closed at revision:** `50782b08ec432f5829644b2376245e937485fb7a`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
 **Confidence:** 5
 **Systems:** Testing, CI
-**Date:** 2026-09-22
-**Battery gate:** `live-delta-e2e`
-**Failure signature:** `sha256:af3f4c4a4da59e46e81df71c99bb682b6485c31654ac8931100e3b5cc2c31ec8`
-**First observed run:** `local.20260922T004103Z.6841e7dc8d89`
+**Date:** 2026-08-28
+**Battery gate:** `regression-multilive-scoped`
+**Failure signature:** `sha256:5671960eca24a89a65583119c11837d91a70c62323bd33bd4a1a3c7bd153a244`
+**First observed run:** `local.20260828T032832Z.2fbb5bd35a5d`
 **Last observed run:** `local.20260922T004103Z.6841e7dc8d89`
-**Last processed run:** `local.20260922T004103Z.6841e7dc8d89`
-**Detected at revision:** `6841e7dc8d89aa57907fa6bd9a43142cd9c7344f`
+**Last processed run:** `local.20260922T102119Z.50782b08ec43`
+**Detected at revision:** `2fbb5bd35a5d7355b5bf9abf3dc6417ea7a02473`
 **Last observed revision:** `6841e7dc8d89aa57907fa6bd9a43142cd9c7344f`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
@@ -20,7 +23,7 @@
 
 ## Summary
 
-The scheduled complete canonical battery reported `live-delta-e2e` as a root
+The scheduled complete canonical battery reported `regression-multilive-scoped` as a root
 failure (exit 1). This ticket is keyed by gate plus the normalized
 root-failure signature and remains idempotent while open. Dependent `BLOCKED`
 results do not create tickets.
@@ -30,12 +33,12 @@ results do not create tickets.
 - `single_table_v1` — `crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json`
 
 These are the standing published claims whose recorded LLP 0189 D-4 scope
-derives `live-delta-e2e` as claim-relevant for this battery revision.
+derives `regression-multilive-scoped` as claim-relevant for this battery revision.
 
 ## Reproduce and repair
 
 ```sh
-node demos/_kit/tests/live-delta-e2e.mjs
+bun demos/_kit/tests/regression-multilive-scoped.mjs
 ```
 
 Fix forward, rerun the complete battery, and let the next determinate pass close

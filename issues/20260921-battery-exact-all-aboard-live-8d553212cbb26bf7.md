@@ -1,22 +1,22 @@
 # complete battery red: exact-all-aboard-live
 
 **Status:** Open
-**Reopened by battery run:** `local.20260922T004103Z.6841e7dc8d89`
+**Reopened by battery run:** `local.20260922T102119Z.50782b08ec43`
 **Closure:** `signature absent from determinate FAIL`
-**Closed at revision:** `e116b8324d196d3f799ac8d570c156cd73ee18f6`
+**Closed at revision:** `9fa99a49e8cf2fb0222211afa533a397b70586e1`
 **Impact:** 5
 **Urgency:** 5
 **Ease:** 4
 **Confidence:** 5
 **Systems:** Testing, CI
-**Date:** 2026-08-29
+**Date:** 2026-09-21
 **Battery gate:** `exact-all-aboard-live`
-**Failure signature:** `sha256:5de253e8eba4829ddc240bc847d3c1bde5887936180376d2e545b9ba2b3cb358`
-**First observed run:** `local.20260829T051119Z.45ebcadce605`
-**Last observed run:** `local.20260922T004103Z.6841e7dc8d89`
-**Last processed run:** `local.20260922T004103Z.6841e7dc8d89`
-**Detected at revision:** `45ebcadce6052132fd6c69a0487b3c1258bda1f3`
-**Last observed revision:** `6841e7dc8d89aa57907fa6bd9a43142cd9c7344f`
+**Failure signature:** `sha256:8d553212cbb26bf7d018175953c4fd24559e92fd7f770e03f829e2b93f92541a`
+**First observed run:** `local.20260921T053735Z.66fc10578f22`
+**Last observed run:** `local.20260922T102119Z.50782b08ec43`
+**Last processed run:** `local.20260922T102119Z.50782b08ec43`
+**Detected at revision:** `66fc10578f220d2f07d42820f927c5fb80887d96`
+**Last observed revision:** `50782b08ec432f5829644b2376245e937485fb7a`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3

@@ -1,4 +1,4 @@
-# complete battery red: regression-mixed-transport
+# complete battery red: todo-headless
 
 **Status:** Open
 **Impact:** 5
@@ -7,20 +7,20 @@
 **Confidence:** 5
 **Systems:** Testing, CI
 **Date:** 2026-09-22
-**Battery gate:** `regression-mixed-transport`
-**Failure signature:** `sha256:290f307bedda14cbd8a4d15d0be7f5a6f21fee4daa33440c50f7d6c5bdff1d3e`
-**First observed run:** `local.20260922T004103Z.6841e7dc8d89`
-**Last observed run:** `local.20260922T004103Z.6841e7dc8d89`
-**Last processed run:** `local.20260922T004103Z.6841e7dc8d89`
-**Detected at revision:** `6841e7dc8d89aa57907fa6bd9a43142cd9c7344f`
-**Last observed revision:** `6841e7dc8d89aa57907fa6bd9a43142cd9c7344f`
+**Battery gate:** `todo-headless`
+**Failure signature:** `sha256:7335403a8f8ca516bc0b47f79ce1dac5e6451d52e2f7450137e3a6c0c7f3b5c9`
+**First observed run:** `local.20260922T102119Z.50782b08ec43`
+**Last observed run:** `local.20260922T102119Z.50782b08ec43`
+**Last processed run:** `local.20260922T102119Z.50782b08ec43`
+**Detected at revision:** `50782b08ec432f5829644b2376245e937485fb7a`
+**Last observed revision:** `50782b08ec432f5829644b2376245e937485fb7a`
 **Consecutive red runs:** `1`
 **Escalation:** `pending (1/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
 
-The scheduled complete canonical battery reported `regression-mixed-transport` as a root
+The scheduled complete canonical battery reported `todo-headless` as a root
 failure (exit 1). This ticket is keyed by gate plus the normalized
 root-failure signature and remains idempotent while open. Dependent `BLOCKED`
 results do not create tickets.
@@ -30,12 +30,12 @@ results do not create tickets.
 - `single_table_v1` — `crates/snapback-engine/src/local-persistent-store-publication.anchor.v1.json`
 
 These are the standing published claims whose recorded LLP 0189 D-4 scope
-derives `regression-mixed-transport` as claim-relevant for this battery revision.
+derives `todo-headless` as claim-relevant for this battery revision.
 
 ## Reproduce and repair
 
 ```sh
-node demos/_kit/tests/regression-mixed-transport.mjs
+node demos/todo/tests/acceptance/headless.mjs
 ```
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
