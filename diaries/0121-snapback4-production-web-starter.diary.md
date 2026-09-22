@@ -87,7 +87,7 @@ or a delayed response body, and deleting before an in-flight storage write
 finishes can resurrect the token. Focused tests now cover both boundaries
 using a real file-backed session store reopened through a fresh adapter.
 
-Final M5 verification passed 25 auth tests (seven new cases), 49 guide tests,
+The initial repair's final M5 verification passed 25 auth tests (seven new cases), 49 guide tests,
 15 React cases, package and starter checks/typechecks, and the full generated
 production browser witness in 8.429 seconds. Its logout request stays open
 while the page completes local sign-out; a fresh offline page then cannot
@@ -105,5 +105,20 @@ The local boundary stays prompt, while the real rotation response remains
 available solely for best-effort logout of its successor. Focused tests now
 hold both headers and body parsing, exercise the resolved-promise microtask,
 and withhold an actual server-committed reply until after local completion.
-This follow-up is awaiting its own verification; the earlier pass is not
-evidence for these new changes.
+Final verification of the follow-up at `5554e9a24` passed 28 auth cases,
+five real-server cases, 49 guide tests, 15 React cases, package and starter
+checks/typechecks, and the production browser witness (8.856 s). The logs
+remain under `/tmp/sb4-3011-20260922/successor-*.log`.
+
+The maintained native reference was then rebuilt in Release and freshly
+installed on the owned iPhone 17 Pro / iOS 26.5 simulator. Native run 3 passed
+in 23.128 s: offline 8.600 s and process restart 11.993 s. The two original
+pending write IDs survived process death and settled once, in order; four
+inspected video frames show those pending and sent rows. The Rust framework
+bytes were unchanged, while the installed JavaScript bundle was rebuilt and
+hashed. Direct `xcodebuild` plus `simctl` reused the earlier working path
+without foregrounding Simulator. Logs and source/app/framework manifests are
+preserved beside `native-reference-3/` receipts, videos and frames. The owned
+simulator was shut down and port 49380 released. This qualifies the maintained
+workspace reference, with installed-package and actual new Clique evidence
+still handled separately.

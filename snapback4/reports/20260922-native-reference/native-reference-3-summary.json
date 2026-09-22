@@ -1,0 +1,145 @@
+{
+  "at": "2026-09-22T18:34:00.304367+00:00",
+  "scope": "Workspace artifact qualification of maintained native reference after successor revocation repair; not published-tarball install or actual new Clique qualification",
+  "versions": {
+    "cliClient": "0.2.32",
+    "expo": "0.2.23"
+  },
+  "status": "pass",
+  "witnessElapsedMs": 23128,
+  "segments": {
+    "offline": {
+      "status": "pass",
+      "elapsedMs": 8600,
+      "pendingIds": [
+        "01M3566RMQ7Q3D0F5DRWMECMVM",
+        "01M3566RMX6HF0Q3PSYE71NV9X"
+      ],
+      "settledSequences": [
+        2,
+        3
+      ],
+      "appPids": [
+        24483,
+        25063
+      ],
+      "manifest": "offline-ios-run.json"
+    },
+    "restart": {
+      "status": "pass",
+      "elapsedMs": 11993,
+      "pendingIds": [
+        "01M356722TTKZCHD96WB25CWZX",
+        "01M35672323D4TY8M4N5J70ARB"
+      ],
+      "settledSequences": [
+        5,
+        6
+      ],
+      "appPids": [
+        26253,
+        26777,
+        27358
+      ],
+      "manifest": "restart-ios-run.json"
+    }
+  },
+  "frameworkCopiesMatch": {
+    "/Users/ccheever/Library/Developer/Xcode/DerivedData/Snapback4chat-grgyqkjfxpkcpifqajdlqyhhosst/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/Snapback4Expo/libsnapback4_device.a": "4f3f319a166b93b89284f5a080c0f5e7094fd9aafbd77c67f7932e2136767af5"
+  },
+  "renderedFramesInspected": [
+    "offline-pending.png",
+    "offline-sent.png",
+    "restart-pending.png",
+    "restart-sent.png"
+  ],
+  "build": {
+    "startedAt": "2026-09-22T18:31:04.343016+00:00",
+    "command": [
+      "xcodebuild",
+      "-workspace",
+      "ios/Snapback4chat.xcworkspace",
+      "-configuration",
+      "Release",
+      "-scheme",
+      "Snapback4chat",
+      "-destination",
+      "id=3ADCE896-A566-44FF-838E-95C20022B386",
+      "-jobs",
+      "4",
+      "COCOAPODS_PARALLEL_CODE_SIGN=true",
+      "COMPILER_INDEX_STORE_ENABLE=NO"
+    ],
+    "cwd": "/Users/ccheever/projects/snapback-3011-20260922/snapback4/apps/chat-expo",
+    "log": "native-reference-build-3.log",
+    "pid": 18473,
+    "exitCode": 0,
+    "endedAt": "2026-09-22T18:31:17.321814+00:00"
+  },
+  "install": {
+    "startedAt": "2026-09-22T18:31:29.905515+00:00",
+    "command": [
+      "xcrun",
+      "simctl",
+      "install",
+      "3ADCE896-A566-44FF-838E-95C20022B386",
+      "/Users/ccheever/Library/Developer/Xcode/DerivedData/Snapback4chat-grgyqkjfxpkcpifqajdlqyhhosst/Build/Products/Release-iphonesimulator/Snapback4chat.app"
+    ],
+    "cwd": "/Users/ccheever/projects/snapback-3011-20260922/snapback4",
+    "log": "native-reference-install-3.log",
+    "pid": 22608,
+    "exitCode": 0,
+    "endedAt": "2026-09-22T18:31:32.753121+00:00"
+  },
+  "witness": {
+    "startedAt": "2026-09-22T18:31:40.108203+00:00",
+    "command": [
+      "node",
+      "witness/expo.mjs"
+    ],
+    "cwd": "/Users/ccheever/projects/snapback-3011-20260922/snapback4",
+    "log": "native-reference-witness-3.log",
+    "pid": 24118,
+    "exitCode": 0,
+    "endedAt": "2026-09-22T18:32:03.282773+00:00"
+  },
+  "sourceManifest": "native-reference-3-source.json",
+  "frameworkManifest": "native-reference-3-framework.json",
+  "installedAppManifest": "native-reference-3-installed-app.json",
+  "simulator": {
+    "udid": "3ADCE896-A566-44FF-838E-95C20022B386",
+    "state": "Shutdown"
+  },
+  "port49380": "free after witness",
+  "limits": [
+    "Existing native framework reused byte-for-byte; no physical-device execution",
+    "Auth race semantics are covered by focused SDK and real-server tests; this native witness qualifies offline/restart behavior of the repaired Release bundle",
+    "No installed npm consumer or actual new Clique claim"
+  ],
+  "evidenceSha256": {
+    "offline-ios-backend-stdout.log": "70c2943fb62484a6d00e3640ae90d09742e243521998feb0dfea2b21753907a3",
+    "offline-ios-backend.log": "d544d6299e27d0f63bfdbb9d2a51773fe9c3f3f98b2d9406f3e8741e73430a90",
+    "offline-ios-device.log": "f5a897efdeb6f8e1165d35b0cfd774d843ec890e88498c09b78a01cd8f89a5c5",
+    "offline-ios-launch.log": "b2bf4b4a2d82a335fc8e771703f0517452cbbb0ea597a984cfca4ec46271e9d9",
+    "offline-ios-log-stderr.log": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+    "offline-ios-receipts.jsonl": "c686f79316418fc5b0af752ec6d509aa11efe57693e2ca6d4f5afcc7d7f4fbd4",
+    "offline-ios-reserved": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "offline-ios-run.json": "596ecdfd829a395e8233f9ba9940ded2dbddf17fdfe6771568348fb5251ad8af",
+    "offline-ios-screen.mp4": "a65a8fa79b339d9f48fab172a573b63904a4736de02e08f63160a1dfff6dd327",
+    "offline-ios-video.log": "25a05bd46305226166187f9677af2794244e11e95c475d1afa6b78b9a14e69d3",
+    "offline-pending.png": "043860425fdf40fb7b6c20f967b5ca78cb2ceeb62bda8188a6a0f636e34a360f",
+    "offline-sent.png": "ed612b763223fbcce65596db9e36953ddb6535fedfa51a84421bf63f21ab6ad6",
+    "restart-ios-backend-stdout.log": "70c2943fb62484a6d00e3640ae90d09742e243521998feb0dfea2b21753907a3",
+    "restart-ios-backend.log": "d544d6299e27d0f63bfdbb9d2a51773fe9c3f3f98b2d9406f3e8741e73430a90",
+    "restart-ios-device.log": "40930ee06ea20298f6acd98dc8d1aa4eb0b8c65fa2bc2798a00712041cf27402",
+    "restart-ios-launch.log": "b3abb62d2a150e60887146d4daf2f217c2bbd27952c0ed1a41bc46af6bfdd228",
+    "restart-ios-log-stderr.log": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523",
+    "restart-ios-receipts.jsonl": "3709df2e20383685df64b9231ffe626202744c4491ac0eac42b60f93e92cbdde",
+    "restart-ios-reserved": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "restart-ios-run.json": "a250c7b0c40218f4b8fa5fcda9f713b521a764fe198d77fc6ba0036bf4631910",
+    "restart-ios-screen.mp4": "49a988cb1e38f45486e4c49d88a01adc7ed2de153a523f9bbf2aeac74b187bfc",
+    "restart-ios-video.log": "25a05bd46305226166187f9677af2794244e11e95c475d1afa6b78b9a14e69d3",
+    "restart-pending.png": "4af627cfb714845f0e8cda643b373c4feee557442949e484f1e31ff56f8b7022",
+    "restart-sent.png": "dbc7d103d6dc5b1d0c2a56bfe057e015ba0b03e3b590c401aaf94cdef173e0bc"
+  }
+}

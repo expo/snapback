@@ -46319,3 +46319,38 @@ No runtime serde or parser behavior changed. Chat-target checks and the final
 publication suite remain pending at this entry; no red suite qualifies a
 publication. All source-suite and census logs are retained under the run's
 `/tmp/sb4-3011-20260922/` artifact directory.
+
+### 2026-09-22 — successor revocation repair and native reference run 3
+
+The independent Grok follow-up found that sign-out could lose a successor
+already minted by a server-side rotation: logout with the retired bearer
+cannot revoke that family. Astra xhigh separated the real rotation promise
+from cancellable local adoption. Sign-out captures it before lifecycle
+callbacks, clears local credentials with the existing store-write ordering,
+and attempts logout with any late successor without adopting or persisting it.
+Ordinary close still preserves rotated credentials. This changes no public
+types, server rules, replica, or outbox behavior.
+
+The final focused M5 run at `5554e9a24` passed 28 auth regressions, five
+real-server cases, 49 guide tests, 15 React cases, package and starter
+checks/typechecks, and the production browser witness (8.856 s). Logs are
+retained as `/tmp/sb4-3011-20260922/successor-*.log`. The actual server test
+holds a committed rotation reply until local sign-out completes, observes the
+old bearer's logout refusal, then confirms successor logout revokes the family.
+
+The maintained native reference was rebuilt with the repaired JavaScript using
+direct `xcodebuild` Release and freshly installed on the owned iPhone 17 Pro /
+iOS 26.5 simulator. Run 3 passed both witness segments in 23.128 s (offline
+8.600 s; process restart 11.993 s). The same two pending IDs survived process
+death and each settled once in order; all four pending/sent video frames were
+inspected. Existing xcframework bytes match native runs 1 and 2 exactly. The
+installed JavaScript bundle (`main.jsbundle`) SHA-256 is
+`26e00465bc6f4092e5f195eb9f9acd58eac31174c98639617c587a4c4bb13b34`.
+Source, framework, installed-app and summary manifests are retained as
+`native-reference-3-*.json`, with videos, frames and receipts under
+`native-reference-3/`, beside the build/install/witness logs and PID/time
+records in the same artifact directory. Only the owned simulator
+`3ADCE896-A566-44FF-838E-95C20022B386` was shut down; port 49380 is free.
+This is workspace artifact qualification of the maintained reference, not
+installed-package or new Clique application proof. Publication remains with
+the parent qualification flow.

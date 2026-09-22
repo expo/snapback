@@ -1,0 +1,160 @@
+{
+  "appBuild": {
+    "CFBundleExecutable": "Snapback4chat",
+    "CFBundleIdentifier": "dev.snapback4.chat",
+    "CFBundleShortVersionString": "0.0.1",
+    "CFBundleVersion": "1"
+  },
+  "appPath": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/3ADCE896-A566-44FF-838E-95C20022B386/data/Containers/Bundle/Application/9D1EE060-120D-44D5-8371-0530FF25B239/Snapback4chat.app",
+  "artifacts": {
+    "device.log": {
+      "bytes": 5275672,
+      "path": "/tmp/sb4-3011-20260922/native-reference-3/restart-ios-device.log",
+      "sha256": "40930ee06ea20298f6acd98dc8d1aa4eb0b8c65fa2bc2798a00712041cf27402"
+    },
+    "receipts.jsonl": {
+      "bytes": 3250,
+      "path": "/tmp/sb4-3011-20260922/native-reference-3/restart-ios-receipts.jsonl",
+      "sha256": "3709df2e20383685df64b9231ffe626202744c4491ac0eac42b60f93e92cbdde"
+    },
+    "screen.mp4": {
+      "bytes": 4143475,
+      "path": "/tmp/sb4-3011-20260922/native-reference-3/restart-ios-screen.mp4",
+      "sha256": "49a988cb1e38f45486e4c49d88a01adc7ed2de153a523f9bbf2aeac74b187bfc"
+    }
+  },
+  "backend": {
+    "command": [
+      "/Users/ccheever/projects/snapback-3011-20260922/snapback4/target/debug/snapback4",
+      "dev",
+      "--port",
+      "49380",
+      "--no-watch"
+    ],
+    "cwd": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-expo-witness-CCdS0i",
+    "origin": "http://127.0.0.1:49380",
+    "port": 49380,
+    "store": "/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-expo-witness-CCdS0i/.snapback4/store.sqlite"
+  },
+  "bundleId": "dev.snapback4.chat",
+  "container": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/3ADCE896-A566-44FF-838E-95C20022B386/data/Containers/Data/Application/917A9401-01E6-4CDA-B089-C57149D2C4EC",
+  "endedAt": 1790101922732,
+  "error": null,
+  "events": [
+    {
+      "at": 1790101911171,
+      "step": "backend-ready"
+    },
+    {
+      "at": 1790101911713,
+      "pid": 26253,
+      "step": "prime-launched"
+    },
+    {
+      "at": 1790101911713,
+      "step": "waiting-primed"
+    },
+    {
+      "at": 1790101912984,
+      "step": "primed"
+    },
+    {
+      "at": 1790101913839,
+      "pid": 26253,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790101913898,
+      "step": "backend-refuses-connections"
+    },
+    {
+      "at": 1790101914112,
+      "step": "recording-started"
+    },
+    {
+      "at": 1790101914646,
+      "pid": 26777,
+      "step": "offline-launched"
+    },
+    {
+      "at": 1790101914647,
+      "step": "waiting-relaunch"
+    },
+    {
+      "at": 1790101916799,
+      "step": "relaunch"
+    },
+    {
+      "at": 1790101917647,
+      "pid": 26777,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790101918180,
+      "pid": 27358,
+      "step": "offline-launched"
+    },
+    {
+      "at": 1790101918181,
+      "step": "offline-relaunched"
+    },
+    {
+      "at": 1790101918181,
+      "step": "waiting-offline-done"
+    },
+    {
+      "at": 1790101920416,
+      "step": "offline-done"
+    },
+    {
+      "at": 1790101920526,
+      "step": "backend-ready"
+    },
+    {
+      "at": 1790101920526,
+      "step": "reconnect-signaled"
+    },
+    {
+      "at": 1790101920526,
+      "step": "waiting-done"
+    },
+    {
+      "at": 1790101921697,
+      "step": "done"
+    },
+    {
+      "at": 1790101921811,
+      "step": "recording-stopped"
+    },
+    {
+      "at": 1790101922672,
+      "pid": 27358,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790101922732,
+      "step": "backend-refuses-connections"
+    }
+  ],
+  "exitStatus": 0,
+  "outputs": [
+    "/tmp/sb4-3011-20260922/native-reference-3/restart-ios-run.json",
+    "/tmp/sb4-3011-20260922/native-reference-3/restart-ios-screen.mp4",
+    "/tmp/sb4-3011-20260922/native-reference-3/restart-ios-receipts.jsonl",
+    "/tmp/sb4-3011-20260922/native-reference-3/restart-ios-device.log",
+    "/tmp/sb4-3011-20260922/native-reference-3/restart-ios-video.log",
+    "/tmp/sb4-3011-20260922/native-reference-3/restart-ios-launch.log",
+    "/tmp/sb4-3011-20260922/native-reference-3/restart-ios-backend.log",
+    "/tmp/sb4-3011-20260922/native-reference-3/restart-ios-backend-stdout.log",
+    "/tmp/sb4-3011-20260922/native-reference-3/restart-ios-log-stderr.log"
+  ],
+  "prime": true,
+  "relaunch": true,
+  "reservation": "/tmp/sb4-3011-20260922/native-reference-3/restart-ios-reserved",
+  "run": "1790101910739-25880",
+  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+  "segment": "restart",
+  "startedAt": 1790101910739,
+  "timestampUnit": "unix-ms",
+  "udid": "3ADCE896-A566-44FF-838E-95C20022B386"
+}

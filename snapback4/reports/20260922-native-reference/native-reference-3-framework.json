@@ -1,0 +1,37 @@
+{
+  "at": "2026-09-22T18:31:00.639387+00:00",
+  "package": "snapback4-expo",
+  "version": "0.2.23",
+  "sourceManifest": "native-reference-3-source.json",
+  "note": "Existing framework bytes unchanged from runs 1 and 2",
+  "files": {
+    "Info.plist": {
+      "bytes": 1257,
+      "sha256": "7356f52904a89e04d6e32abafe6d521d97fd5b413de85b330bd608e58da805e4"
+    },
+    "ios-arm64/Headers/module.modulemap": {
+      "bytes": 61,
+      "sha256": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329"
+    },
+    "ios-arm64/Headers/snapback4.h": {
+      "bytes": 2204,
+      "sha256": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab"
+    },
+    "ios-arm64/libsnapback4_device.a": {
+      "bytes": 5787096,
+      "sha256": "955a754124d377db631940220d96efe47ce634373342926981665a831a778e62"
+    },
+    "ios-arm64-simulator/Headers/module.modulemap": {
+      "bytes": 61,
+      "sha256": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329"
+    },
+    "ios-arm64-simulator/Headers/snapback4.h": {
+      "bytes": 2204,
+      "sha256": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab"
+    },
+    "ios-arm64-simulator/libsnapback4_device.a": {
+      "bytes": 5780968,
+      "sha256": "4f3f319a166b93b89284f5a080c0f5e7094fd9aafbd77c67f7932e2136767af5"
+    }
+  }
+}

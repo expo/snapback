@@ -3,7 +3,8 @@
 Implements [LLP 3000.011.005.000](../../llp/3000.011.005.000-qualify-the-built-application.rfc.md).
 The operational probes below passed on the isolated M5 integration checkout.
 Native reference qualification and the actual calibration-16 application are
-separate cells. Neither native cell has passed at this checkpoint.
+separate cells. The reference passed before and after the sign-out repair;
+the actual new Clique application remains pending.
 
 ## Operational results
 
@@ -108,6 +109,88 @@ before calling it an installed-package proof. Record CLI/client/Expo versions,
 tarball integrities, xcframework digests, installed build identity and bundle
 digest alongside the driver's runtime/origin/video/receipt manifest. A source
 version alone is insufficient to identify ignored native build artifacts.
+
+## Reference native result
+
+The reference Release build and both witness segments passed on 2026-09-22.
+The app is `dev.snapback4.chat`, version `0.0.1`, build `1`, installed on the
+run-owned iPhone 17 Pro / iOS 26.5 simulator
+`3ADCE896-A566-44FF-838E-95C20022B386`, with origin
+`http://127.0.0.1:49380` embedded in the bundle. Xcode 27.0 built with zero
+errors. Expo's later desktop activation helper stalled; only its owned launcher
+was stopped. The witness then launched the installed app directly with simctl,
+without Metro. No unrelated simulator or listener was stopped.
+
+| Reference segment | Result | Observed boundary |
+|---|---|---|
+| `offline` | Pass, 8.874 s | Backend connection refusal, cold held history, two pending sends, ordered settlement at sequences 2 and 3 |
+| `restart` | Pass, 12.022 s | A second offline app process recovered the same two pending IDs; ordered settlement at sequences 5 and 6 |
+
+Both videos show the real chat. Extracted restart frames show exactly the two
+pending bubbles, then their authoritative counterparts. Total wrapper time was
+23.321 s. The simulator was shut down afterward and port 49380 is free.
+
+Full artifacts, videos, receipts and manifests are retained together under
+`/tmp/sb4-3011-20260922/native-reference-1/` on M5 and copied to the same local
+path. Adjacent `native-reference-summary.json`, `native-reference-source.json`,
+`native-reference-installed-app.json` and `native-reference-framework.json`
+record file digests, source inputs, installed bundle and CLI identities. The
+remote checkout was populated by controlled source copies; its earlier Git HEAD
+is not used as a substitute for those recorded source hashes.
+
+The linked simulator archive matches SHA256
+`4f3f319a166b93b89284f5a080c0f5e7094fd9aafbd77c67f7932e2136767af5`;
+the built device slice is
+`955a754124d377db631940220d96efe47ce634373342926981665a831a778e62`.
+This is workspace-artifact qualification before the subsequent sign-out review
+fix. It is not an installed npm-tarball proof, a physical-device run, or the
+new Clique application's media, revocation or full-acquisition result.
+
+### Requalification after the sign-out repair
+
+The first client repair in `8248194c864cba06114cfcce28f2afca538d0b87`
+was rebuilt into the same reference Release app. Direct `xcodebuild` exited
+zero with `BUILD SUCCEEDED`; fresh `simctl` installation avoided the earlier
+desktop activation helper. The compiled bundle contains the repaired refresh
+fence and credential-write ordering. Its installed bundle SHA256 is
+`f4097f8e002fc03c1e897ac34d605383700c21841539b27a8b38f1b0ed109790`.
+The linked simulator framework matches the archive recorded above.
+
+Both witness segments passed again: offline in 8.727 s and restart in
+11.945 s, 23.460 s total wrapper time. The same two pending IDs survived the
+offline relaunch; authoritative settlement was ordered at sequences 2/3 and
+5/6. Inspected frames show the real pending bubbles and their sent counterparts.
+The owned simulator is shut down and port 49380 is free.
+
+Run-2 videos, receipts and inspected frames are under
+`/tmp/sb4-3011-20260922/native-reference-2/` on M5 and locally. Adjacent
+`native-reference-2-summary.json`, `-source.json`, `-framework.json` and
+`-installed-app.json` bind that run to its source and native bytes.
+This remains workspace-artifact qualification; the credential race itself is
+covered by the focused SDK and production-browser regressions. Native package
+binding and the actual new Clique application remain separate obligations.
+
+### Final successor-revocation repair qualification
+
+Source `5554e9a241265655339c03b2cf4c8b4447c53d6f` received another direct
+Release rebuild and fresh install after the successor-token fix. Native run 3
+passed offline in 8.600 s and process restart in 11.993 s (23.128 s wrapper).
+Four inspected frames show the same two pending writes surviving relaunch,
+then their ordered authoritative counterparts. The installed Hermes bundle is
+SHA256 `26e00465bc6f4092e5f195eb9f9acd58eac31174c98639617c587a4c4bb13b34`.
+The xcframework bytes remain identical to the two preceding runs. Only the
+owned simulator was shut down; its origin port is free.
+
+The [durable summary](./20260922-native-reference/native-reference-3-summary.json),
+[source manifest](./20260922-native-reference/native-reference-3-source.json),
+[framework manifest](./20260922-native-reference/native-reference-3-framework.json)
+and [installed app manifest](./20260922-native-reference/native-reference-3-installed-app.json)
+retain identities and evidence digests. The adjacent `native-reference-3/`
+directory contains both driver manifests, receipt streams and four inspected
+frames. Full videos and process logs remain in the run artifact directory on
+M5 and in the local artifact copy. These observations qualify the maintained
+workspace reference; the published-package and actual Clique cells remain
+separate. All six native metric rows from runs 1–3 are retained.
 
 ## Actual Clique native adaptation, only after independent grading
 
