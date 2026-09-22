@@ -192,7 +192,7 @@ export interface Client {
   refreshSession(): Promise<SignIn>;
   /** Revoke every session for this principal and close after confirmation. */
   logoutAll(): Promise<SessionRevocation>;
-  /** Revoke this session when reachable, clear local credentials, and close. */
+  /** Clear local credentials and close; remote session revocation is best effort. */
   signOut(): Promise<void>;
   close(): Promise<void>;
 }

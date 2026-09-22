@@ -12,7 +12,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import { createLocalClient } from "../dist/local.js";
-import { memorySessionStore } from "../dist/auth.js";
+import { memorySessionStore, restoreSession } from "../dist/auth.js";
 import { isReady } from "../dist/contract.js";
 import { memoryPersistence, webDevice } from "../dist/web.js";
 
@@ -223,6 +223,64 @@ test("a device restores its session on its own", { timeout: 60_000 }, async () =
     await offline.close();
     await assert.rejects(createLocalClient({ url: url2, guest: true, device: kept, sessionStore: memorySessionStore(), fetch: noNetwork, waitSeconds: 1 }), /cannot reach|E_OFFLINE/);
   } finally {
+    await stop(server, closed);
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("sign-out revokes a server-committed rotation whose reply arrives after local completion", { timeout: 30_000 }, async () => {
+  const dir = mkdtempSync(join(tmpdir(), "sb4-signout-rotation-"));
+  cpSync(join(root, "apps/chat/snapback"), join(dir, "snapback"), { recursive: true, filter: path => !/\/worker\.(ts|mjs)$/.test(path) });
+  rmSync(join(dir, "snapback/generated"), { recursive: true, force: true });
+  const server = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const closed = new Promise(resolve => server.once("close", resolve));
+  let output = "", log = "", successor, client, releaseReply;
+  const replyHeld = new Promise(resolve => { releaseReply = resolve; });
+  server.stdout.on("data", data => { output += data; log += data; });
+  server.stderr.on("data", data => { log += data; });
+  const logouts = [];
+  try {
+    const url = await ready(server, () => output, () => log);
+    const sessions = memorySessionStore();
+    const transport = async (input, init) => {
+      const response = await fetch(input, init);
+      if (new URL(input).pathname === "/auth/refresh") {
+        const result = await response.clone().json();
+        assert.ok(result.session, "the server committed rotation before its reply is withheld");
+        successor = result.session;
+        await replyHeld;
+      } else if (new URL(input).pathname === "/auth/logout") {
+        logouts.push({ bearer: new Headers(init.headers).get("authorization"), status: response.status });
+      }
+      return response;
+    };
+    client = await createLocalClient({ url, guest: true, device: device(), sessionStore: sessions, fetch: transport, waitSeconds: 1 });
+    const original = client.session();
+    const queryWith = token => fetch(`${url}/q/inbox`, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: "{}" }).then(response => response.json());
+    const rotating = client.refreshSession();
+    await until(() => successor);
+    assert.equal((await queryWith(original.token)).denied?.code, "E_AUTH", "rotation already retired the old bearer");
+    assert.ok(Array.isArray((await queryWith(successor.token)).data), "the successor is live before sign-out");
+    let locallyEnded = false;
+    const ending = client.signOut().then(() => { locallyEnded = true; });
+    await until(() => locallyEnded, 2000);
+    await ending;
+    assert.equal((await rotating).ok, false);
+    assert.equal(await restoreSession(url, sessions), null);
+    await until(() => logouts.length === 1);
+    assert.ok(logouts[0].bearer === `Bearer ${original.token}`);
+    assert.equal(logouts[0].status, 401, "the retired bearer cannot revoke this family");
+    assert.ok(Array.isArray((await queryWith(successor.token)).data), "local completion does not claim remote revocation");
+    releaseReply();
+    await until(() => logouts.length === 2);
+    assert.ok(logouts[1].bearer === `Bearer ${successor.token}`, "late success supplies the live bearer to logout");
+    assert.equal(logouts[1].status, 200);
+    assert.equal((await queryWith(successor.token)).denied?.code, "E_AUTH", "the server revoked the successor's family");
+    assert.equal(await restoreSession(url, sessions), null, "late success cannot restore local credentials");
+    assert.equal(client.session(), null);
+  } finally {
+    releaseReply();
+    await client?.close();
     await stop(server, closed);
     rmSync(dir, { recursive: true, force: true });
   }

@@ -97,3 +97,13 @@ includes its correction and the preserved notification ordering. Logs remain
 under `/tmp/sb4-3011-20260922/signout-*-1.log` and `signout-*-2.log`.
 Native reference requalification with the rebuilt JavaScript bundle is tracked
 separately before publication; these checks do not substitute for it.
+
+The independent Grok follow-up exposed the other half of rotation: the server
+may already have retired the old bearer when sign-out begins. Aborting the
+reply loses the only live credential capable of revoking that session family.
+The local boundary stays prompt, while the real rotation response remains
+available solely for best-effort logout of its successor. Focused tests now
+hold both headers and body parsing, exercise the resolved-promise microtask,
+and withhold an actual server-committed reply until after local completion.
+This follow-up is awaiting its own verification; the earlier pass is not
+evidence for these new changes.

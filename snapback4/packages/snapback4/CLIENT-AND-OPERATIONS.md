@@ -167,7 +167,8 @@ schedules the same rotation. A successful rotation replaces the stored
 session and the Authorization bearer before `onSession` receives it. Local
 `signOut()` fences refresh and removes persisted credentials before completing;
 remote logout is best effort and cannot hold that local boundary open. An
-already-started session-store write must finish before deletion. Storage
+in-flight rotation may still return its successor for remote logout, but cannot
+adopt or persist it after sign-out. An already-started session-store write must finish before deletion. Storage
 failure rejects sign-out and may be retried; `close()` alone keeps credentials.
 After
 `signOut()` the client is closed and `session()` is null, as it is once

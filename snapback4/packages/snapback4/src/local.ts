@@ -478,9 +478,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
   let refreshTimer: ReturnType<typeof setTimeout> | undefined;
   let refreshing: Promise<SignIn> | null = null;
+  let rotatingSession: Promise<SignIn> | null = null;
   let persistingSession: Promise<void> | undefined;
   let endingSession: Promise<void> | undefined;
-  const refreshAborter = new AbortController();
   const signedOut = (): SignIn => ({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to continue" } });
   let stopRefresh!: () => void;
   const refreshStopped = new Promise<SignIn>(resolve => { stopRefresh = () => resolve(signedOut()); });
@@ -512,7 +512,6 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       rotating = false;
       credentialRevision += 1;
       stopRefresh();
-      refreshAborter.abort();
       if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = undefined; }
       delete headers.authorization;
       delete headers["x-snapback-persona"];
@@ -549,11 +548,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const expectedPrincipal = session.principal;
     rotating = true;
     credentialRevision += 1;
+    const rotation = rotateSession(base, token, doFetch);
+    rotatingSession = rotation;
     const work = (async (): Promise<SignIn> => {
-      // Unlike ordinary close, sign-out cancels adoption even when an
-      // injected fetch or response body ignores the abort signal.
-      const refreshed = await Promise.race([rotateSession(base, token,
-        (input, init) => doFetch(input, { ...init, signal: refreshAborter.signal })), refreshStopped]);
+      // Sign-out stops adoption, but lets a committed rotation return its
+      // successor for best-effort family revocation, even after close.
+      const refreshed = await Promise.race([rotation, refreshStopped]);
       if (sessionDead) return signedOut();
       if (!refreshed.ok) {
         rotating = false;
@@ -602,6 +602,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     void work.finally(() => {
       rotating = false;
       if (refreshing === work) refreshing = null;
+      if (rotatingSession === rotation) rotatingSession = null;
     }).catch(() => {});
     return work;
   };
@@ -1391,8 +1392,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     },
     async signOut() {
       const token = session?.token;
+      // Capture before endSession's synchronous callbacks. The real promise
+      // remains tracked until adoption ends, including its resolved microtask.
+      const rotation = rotatingSession;
       const ending = endSession();
       if (token) void logout(base, token, doFetch);
+      if (rotation) void rotation.then(refreshed => {
+        if (refreshed.ok && refreshed.session.token !== token) return logout(base, refreshed.session.token, doFetch);
+      }).catch(() => {});
       await ending;
       await client.close();
     },

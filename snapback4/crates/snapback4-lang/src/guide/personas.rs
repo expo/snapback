@@ -65,7 +65,8 @@ store by default. Both online and local clients expose `session()`,
 before notification, and sign-out or a current-session refusal clears it.
 Local `signOut()` fences late refresh responses and completes only after
 persisted credentials are removed. Remote logout is best effort and does not
-gate that local boundary. Storage failure rejects sign-out for retry;
+gate that local boundary. An in-flight rotation may return its successor for
+logout, but cannot adopt or persist it after sign-out. Storage failure rejects sign-out for retry;
 `close()` alone preserves the session. Neither operation erases the outbox.
 Personas have no session; a bare-token online client has none until refresh
 returns one. Only the local client has `sync()`.
