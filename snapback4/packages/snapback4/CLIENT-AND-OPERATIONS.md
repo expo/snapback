@@ -514,8 +514,8 @@ offline. Custom wasm URLs should identify immutable module versions.
 A sent replay receipt carries `replayed: true` and no result. Narrow with
 `write.state === "sent" && !write.replayed` before using `write.result`;
 query the current state when a replay needs a value. Both client tiers and
-React mutation settlement preserve the receipt. `Client.signOut()` revokes
-its session when reachable, clears its credentials and closes the client.
+React mutation settlement preserve the receipt. `Client.signOut()` clears
+local credentials and closes the client; remote session revocation is best effort.
 Applications keeping an online session with `keepSession` also call
 `forgetSession` on their own store (§6); the local client clears its managed store.
 
