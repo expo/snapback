@@ -39,7 +39,8 @@ thread; unknown offline rooms remain uncertain. Write references are saved
 before SDK dispatch and reopened with `usePendingWrite(op, id)`, without
 resubmission. `markRead` demonstrates a nonpredicting queued write. Failed and
 unknown receipts stay visible; a settled write does not imply a fresh read.
-Offline sign-out hides the account and keeps its replica/outbox intact.
+Sign-out hides the account, completes only after local credentials are removed,
+and keeps its replica/outbox intact. A storage failure stays visible for retry.
 See the generated README for residency tables, horizon choices and the
 production offline-reopen journey; fixture residency remains
 `test --residency --fixture <directory> --as <principal>`.
@@ -163,7 +164,12 @@ the durable outbox remains the authority across a restart. A restored or
 provided session within 24 hours of
 expiry rotates before the protected backend is fetched (temporary action sessions cannot refresh); a running client
 schedules the same rotation. A successful rotation replaces the stored
-session and the Authorization bearer before `onSession` receives it. After
+session and the Authorization bearer before `onSession` receives it. Local
+`signOut()` fences refresh and removes persisted credentials before completing;
+remote logout is best effort and cannot hold that local boundary open. An
+already-started session-store write must finish before deletion. Storage
+failure rejects sign-out and may be retried; `close()` alone keeps credentials.
+After
 `signOut()` the client is closed and `session()` is null, as it is once
 the server refuses the session: anything that keeps the token — a native
 image header, a presence lease — takes it from `onSession` (`useSession`

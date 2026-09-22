@@ -450,6 +450,24 @@ for (const [name, Component] of [["web", WebApp], ["Expo", ExpoApp]]) {
   };
 }
 
+cases["web sign-out reports completion only after durable clearing and offers retry on failure"] = async () => {
+  const client = controlled();
+  let opens = 0, ending = deferred();
+  globalThis.openClient = () => Promise.resolve(opens++ === 0 ? controlled() : client);
+  client.signOut = () => ending.promise;
+  await mount(h(WebApp));
+  await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Sign out").click());
+  check(host.textContent.includes("Signing out…") && !host.textContent.includes("Signed out"), "pending deletion cannot announce sign-out");
+  check(client.closes === 0, "effect cleanup does not race the SDK sign-out lifecycle");
+  await act(async () => ending.reject(Error("session storage unavailable")));
+  check(host.textContent.includes("session storage unavailable") && !host.textContent.includes("Continue as a guest"), "failure is visible without a completed sign-out path");
+  ending = deferred();
+  await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Retry").click());
+  await act(async () => ending.resolve());
+  check(host.textContent.includes("Signed out") && host.textContent.includes("Continue as a guest"), "completion follows successful retry");
+  await unmount();
+};
+
 for (const [name, Component] of [["web", Composer], ["Expo", Thread]]) {
   cases[name + " composer preserves edits, immediate failure and offline admission"] = async () => {
     const client = controlled();

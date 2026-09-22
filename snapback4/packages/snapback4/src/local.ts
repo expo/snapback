@@ -478,26 +478,48 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
 
   let refreshTimer: ReturnType<typeof setTimeout> | undefined;
   let refreshing: Promise<SignIn> | null = null;
+  let persistingSession: Promise<void> | undefined;
+  let endingSession: Promise<void> | undefined;
+  const refreshAborter = new AbortController();
+  const signedOut = (): SignIn => ({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to continue" } });
+  let stopRefresh!: () => void;
+  const refreshStopped = new Promise<SignIn>(resolve => { stopRefresh = () => resolve(signedOut()); });
 
-  const endSession = async () => {
-    if (sessionDead) return;
-    sessionDead = true;
-    setAcquired(false);
-    session = null;
-    rotating = false;
-    credentialRevision += 1;
-    if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = undefined; }
-    delete headers.authorization;
-    delete headers["x-snapback-persona"];
-    setLink("signed-out");
-    try { await media?.clear(); }
-    finally {
-      try { await forgetSession(base, sessions); }
-      finally {
-        for (const listener of [...sessionListeners]) listener(null);
-        for (const listener of [...viewerListeners]) listener(null);
+  // @ref LLP 3000.011.003.000#2 — local sign-out fences refresh before durable credential deletion; it never deletes the replica or outbox.
+  const endSession = (): Promise<void> => {
+    if (endingSession) return endingSession;
+    const notify = !sessionDead;
+    const work = Promise.resolve().then(async () => {
+      try {
+        // A store write already in progress must finish before deletion. A
+        // still-pending network refresh has no permission to start a write.
+        try { await persistingSession; } catch {}
+        await forgetSession(base, sessions);
+        await media?.clear();
+      } finally {
+        if (notify) {
+          for (const listener of [...sessionListeners]) listener(null);
+          for (const listener of [...viewerListeners]) listener(null);
+        }
       }
+    });
+    // Coalesce even a listener's reentrant sign-out onto the same deletion.
+    endingSession = work;
+    void work.catch(() => { if (endingSession === work) endingSession = undefined; });
+    if (!sessionDead) {
+      sessionDead = true;
+      session = null;
+      rotating = false;
+      credentialRevision += 1;
+      stopRefresh();
+      refreshAborter.abort();
+      if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = undefined; }
+      delete headers.authorization;
+      delete headers["x-snapback-persona"];
+      setAcquired(false);
+      setLink("signed-out");
     }
+    return work;
   };
 
   const refusedSession = async (denied: unknown, revision: number) => {
@@ -520,15 +542,19 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   };
 
   const refreshCurrent = (): Promise<SignIn> => {
-    if (refreshing) return refreshing;
     if (closed) return Promise.resolve({ ok: false, why: { code: "E_CLOSED", family: "client", message: "this client is closed" } });
     if (sessionDead || !session || options.persona) return Promise.resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
+    if (refreshing) return refreshing;
     const token = session.token;
     const expectedPrincipal = session.principal;
     rotating = true;
     credentialRevision += 1;
     const work = (async (): Promise<SignIn> => {
-      const refreshed = await rotateSession(base, token, doFetch);
+      // Unlike ordinary close, sign-out cancels adoption even when an
+      // injected fetch or response body ignores the abort signal.
+      const refreshed = await Promise.race([rotateSession(base, token,
+        (input, init) => doFetch(input, { ...init, signal: refreshAborter.signal })), refreshStopped]);
+      if (sessionDead) return signedOut();
       if (!refreshed.ok) {
         rotating = false;
         credentialRevision += 1;
@@ -548,8 +574,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       credentialRevision += 1;
       const refreshedRevision = credentialRevision;
       let persistenceError: unknown;
-      try { await keepSession(base, session, sessions); }
+      try { await (persistingSession = keepSession(base, session, sessions)); }
       catch (error) { persistenceError = error; }
+      finally { persistingSession = undefined; }
+      if (sessionDead) return signedOut();
       rotating = false;
       if (!closed) {
         for (const listener of [...sessionListeners]) listener(session);
@@ -1362,9 +1390,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       return revoked;
     },
     async signOut() {
-      if (refreshing) await refreshing;
-      if (session && !sessionDead) await logout(base, session.token, doFetch);
-      if (!sessionDead) await endSession();
+      const token = session?.token;
+      const ending = endSession();
+      if (token) void logout(base, token, doFetch);
+      await ending;
       await client.close();
     },
     close() {

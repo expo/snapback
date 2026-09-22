@@ -18,6 +18,7 @@ export function App() {
   const [persona, setPersona] = useState(new URLSearchParams(location.search).get("as"));
   const [open, setOpen] = useState<Open | null>(null);
   const [ending, setEnding] = useState(false);
+  const [leaving, setLeaving] = useState<{ nextPersona: string | undefined } | null>(null);
   const [stopped, setStopped] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   useEffect(() => {
@@ -33,24 +34,28 @@ export function App() {
     return () => { disposed = true; if (opened) { opened.view.active = false; void opened.client.close(); } };
   }, [persona, stopped]);
   const leave = (nextPersona?: string) => {
-    if (!open) return;
+    if (!open || ending) return;
     // Fence callbacks synchronously, before React unmount or network sign-out.
     open.view.active = false;
     setRoute();
-    setOpen(null);
-    setStopped(true);
+    setLeaving({ nextPersona });
     setEnding(true);
+    setProblem(null);
     const address = new URL(location.href);
     address.searchParams.delete("as");
     if (nextPersona) address.searchParams.set("as", nextPersona);
     history.replaceState(null, "", address);
     const closing = nextPersona ? open.client.close() : open.client.signOut();
     void closing.then(() => {
+      setOpen(null);
+      setLeaving(null);
       setEnding(false);
-      if (nextPersona) { setPersona(nextPersona); setStopped(false); }
+      if (nextPersona) setPersona(nextPersona);
+      else setStopped(true);
     }, (error: Error) => { setEnding(false); setProblem(error.message); });
   };
-  if (stopped) return <section><h1>Signed out</h1><p>Pending writes remain with their original account; sign-out does not settle them.</p>{problem && <p role="alert">{problem}</p>}<button disabled={ending} onClick={() => { setPersona(null); setStopped(false); }}>Continue as a guest</button></section>;
+  if (stopped) return <section><h1>Signed out</h1><p>Pending writes remain with their original account; sign-out does not settle them.</p><button onClick={() => { setPersona(null); setStopped(false); }}>Continue as a guest</button></section>;
+  if (leaving) return <section><h1>{ending ? (leaving.nextPersona ? "Switching accounts…" : "Signing out…") : "Account could not be closed"}</h1>{problem && <p role="alert">{problem}. Local sign-out has not completed.</p>}<button disabled={ending} onClick={() => leave(leaving.nextPersona)}>Retry</button></section>;
   if (problem) return <p role="alert">Could not open this account: {problem}. A first visit needs the backend; a previously acquired account can reopen offline.</p>;
   if (!open) return <p>Opening your replica…</p>;
   return <SnapbackProvider client={open.client}><Home key={open.view.key} view={open.view} persona={persona} leave={leave} /></SnapbackProvider>;

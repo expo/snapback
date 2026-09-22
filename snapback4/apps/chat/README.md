@@ -42,7 +42,9 @@ This example explicitly uses `localStorageSessionStore()` for guest continuity
 across page restarts. Any script executing on the origin can read that bearer
 token; use this persistence only when that exposure is acceptable for your app.
 Tokens never enter the service-worker cache. Sign-out removes local credentials
-and closes the client even offline; remote revocation requires connectivity.
+and closes the client even offline; remote revocation is best effort.
+The completion screen waits for durable credential removal, and a storage
+failure remains visible for retry. A late refresh cannot restore the session.
 It hides the previous account immediately and preserves that account's replica,
 outbox and receipt references. Account changes fence delayed UI callbacks.
 Replace the guest/development entry with your product's existing sign-in flow.

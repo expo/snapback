@@ -68,3 +68,32 @@ old-tab assets usable and activated the new build after old tabs closed.
 The final installed-package qualification is still pending. This browser result
 uses the generated application with the freshly built workspace package; it is
 not an iOS, Android, physical-device or full Clique-scale result.
+
+## 2026-09-22: review correction to sign-out
+
+Independent code review found a lifecycle gap our immediate-offline test did
+not exercise: the starter displayed “Signed out” before a stalled logout or
+refresh allowed the SDK to delete the persisted session. A subsequent offline
+page could therefore restore that account. The fix belongs in the SDK's
+session lifetime as well as the screen. Refresh results are fenced before
+credential deletion; an already-started store write drains before deletion;
+remote logout is best effort. Ordinary close still saves a rotated session.
+The app hides the account immediately but shows completion only after durable
+clearing succeeds, with a visible retry path for storage failure.
+
+The distinction between stopping network work and completing local storage
+work mattered. Aborting fetch alone does not constrain an injected transport
+or a delayed response body, and deleting before an in-flight storage write
+finishes can resurrect the token. Focused tests now cover both boundaries
+using a real file-backed session store reopened through a fresh adapter.
+
+Final M5 verification passed 25 auth tests (seven new cases), 49 guide tests,
+15 React cases, package and starter checks/typechecks, and the full generated
+production browser witness in 8.429 seconds. Its logout request stays open
+while the page completes local sign-out; a fresh offline page then cannot
+restore that principal. The first typecheck found an optional-property
+annotation incompatible with `exactOptionalPropertyTypes`; the final run
+includes its correction and the preserved notification ordering. Logs remain
+under `/tmp/sb4-3011-20260922/signout-*-1.log` and `signout-*-2.log`.
+Native reference requalification with the rebuilt JavaScript bundle is tracked
+separately before publication; these checks do not substitute for it.

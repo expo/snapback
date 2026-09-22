@@ -46273,3 +46273,24 @@ Version files are synchronized for CLI/client/platform 0.2.32 and Expo 0.2.23.
 Neither is published yet. The native framework builds successfully; its installed
 Release reference witness, independent integrated code reviews, publication and
 new Clique run remain in progress.
+
+
+### 2026-09-22 — durable local sign-out repair from independent review
+
+The LLP 3000.011 code review found that the new persistent web starter could
+show “Signed out” while a stalled network logout still held the saved session.
+Astra xhigh repaired the existing local client: sign-out fences refresh results
+immediately, waits for any session-store write already underway, and removes
+credentials before completion. Remote revocation is bounded best effort. A
+failed local deletion rejects and can be retried; ordinary close still preserves
+a rotated session. The replica and durable outbox remain intact. The starter
+shows progress until completion and a retryable failure when storage refuses.
+
+On the owned M5 checkout, the final repair passed 25 authentication tests,
+49 compiled-guide tests, 15 React tests, package and starter typechecks, and
+the complete production Chromium witness (8.429 s), including an indefinitely
+held logout followed by a new offline page. An initial exact-optional-property
+type error in the starter was corrected before that final run. Both attempts
+remain in `/tmp/sb4-3011-20260922/signout-*-{1,2}.log`. The native reference is
+being rebuilt with this client; independent review closure and publication
+remain pending. See LLP 3000.011.003.000 §2.

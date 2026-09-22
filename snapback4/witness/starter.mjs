@@ -260,7 +260,31 @@ try {
   const guestStores = await guest.evaluate(async () => (await indexedDB.databases()).map(db => db.name));
   assert.ok(guestStores.some(name => name.includes(encodeURIComponent(session.principal))));
   await guest.close(); await context.setOffline(false);
-  out.guest = { samePrincipalOfflineReopen: true, credentialsCleared: true, replicaPreserved: true };
+
+  // Hold a real logout request open: completion must mean local credentials
+  // are already gone, even if this page is closed before revocation answers.
+  guest = await trackedPage(context); await guest.goto(address); await acquired(guest);
+  const stalledPrincipal = await guest.evaluate(api => JSON.parse(localStorage.getItem(`snapback4:${api}:session`)).principal, api);
+  let logoutRequested = false, releaseLogout;
+  const heldLogout = new Promise(resolve => { releaseLogout = resolve; });
+  await guest.route(`${api}/auth/logout`, async route => {
+    logoutRequested = true;
+    await heldLogout;
+    await route.abort().catch(() => {});
+  });
+  try {
+    await guest.getByRole("button", { name: "Sign out", exact: true }).click();
+    await until(() => logoutRequested, "stalled logout request started");
+    await guest.getByRole("heading", { name: "Signed out", exact: true }).waitFor();
+    assert.equal(await guest.evaluate(api => localStorage.getItem(`snapback4:${api}:session`), api), null);
+    await guest.close(); await context.setOffline(true);
+    guest = await trackedPage(context); await guest.goto(address);
+    await guest.getByRole("alert").filter({ hasText: "Could not open this account" }).waitFor();
+    assert.ok(!(await guest.locator("body").innerText()).includes(stalledPrincipal), "offline reopen cannot restore the signed-out principal");
+    assert.equal(await guest.evaluate(api => localStorage.getItem(`snapback4:${api}:session`), api), null);
+    await guest.close(); await context.setOffline(false);
+  } finally { releaseLogout(); }
+  out.guest = { samePrincipalOfflineReopen: true, credentialsCleared: true, replicaPreserved: true, stalledLogoutOfflineReopenRefused: true };
   console.log(JSON.stringify({ stage: "guest", ...out.guest }));
 
   // Cache privacy and deployment lifecycle on the actual production worker.

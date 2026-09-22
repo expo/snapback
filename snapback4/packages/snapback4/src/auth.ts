@@ -125,11 +125,18 @@ export async function forgetSession(url: string, store: SessionStore = defaultSe
   await store.delete(sessionKey(url));
 }
 
-/** End a session on the server; the token stops resolving. */
+/** Best-effort server logout. A network failure or timeout cannot confirm
+ * revocation; callers must clear their local credentials independently. */
 export async function logout(url: string, token: string, doFetch: typeof fetch = globalThis.fetch.bind(globalThis)): Promise<void> {
+  const aborter = new AbortController();
+  let timer!: ReturnType<typeof setTimeout>;
+  const deadline = new Promise<void>(resolve => {
+    timer = setTimeout(() => { aborter.abort(); resolve(); }, 5_000);
+    (timer as { unref?: () => void }).unref?.();
+  });
   try {
-    await doFetch(`${url.replace(/\/$/, "")}/auth/logout`, { method: "POST", headers: { authorization: `Bearer ${token}` } });
+    await Promise.race([doFetch(`${url.replace(/\/$/, "")}/auth/logout`, { method: "POST", headers: { authorization: `Bearer ${token}` }, signal: aborter.signal }), deadline]);
   } catch {
     // Offline: the token expires on its own.
-  }
+  } finally { clearTimeout(timer); }
 }
