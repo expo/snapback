@@ -18,7 +18,7 @@ npx snapback4 init --expo
 npm install
 ```
 
-Use `init` for a web replica or `init --online` for an online-only app instead.
+Use `init --web` for the offline Vite starter, `init` for a schema, or `init --online` for an online-only app.
 The example below uses the Expo starter's installed React Native and SecureStore.
 Replace `snapback/schema.q`, `src/client.ts` and `App.tsx` with the blocks below,
 add `src/account.ts`, and remove the unused `src/Inbox.tsx`, `src/Thread.tsx` and
@@ -260,8 +260,8 @@ saved session. A missing profile returns to onboarding; keep a pending write's
 ID through retry/reopen and check its terminal result before starting another.
 Local clients persist their outbox; online clients need the stored intent above
 for an uncertain response. Adopted web tabs share 256 terminal receipts per
-server/viewer; each outbox keeps one owner. Account switching must settle the
-old account's pending writes. Keep local prediction's `pending` row indicator in
+server/viewer; each outbox keeps one owner. Account switching keeps pending writes
+in their account's store; offline sign-out need not settle them. Keep `pending` in
 larger live screens. Your app must deliver its shell on a cold-offline start
 (a service worker on web or an installed native bundle); sync stores data, not HTML.
 Defer feeds, search, schedules and server handlers until those features are needed.
@@ -284,7 +284,7 @@ card's single program also runs. The chat example is optional.
 | Need | One reference lookup |
 |---|---|
 | Quarry grammar | `guide language` |
-| Complete chat example | `guide app` |
+| Complete chat example / offline web starter | `guide app` / [Vite starter](./CLIENT-AND-OPERATIONS.md#offline-web-starter) |
 | Fields / indexes / rules / aggregates | `guide types` / `guide indexes` / `guide rules` / `guide maintains` |
 | Reads / shapes / writes / helpers | `guide reads` / `guide shapes` / `guide writes` / `guide programs` |
 | Device contents / prediction / acquisition costs | `guide sync` / `guide prediction` / `guide residency` |

@@ -5,11 +5,13 @@ use crate::project::{GENERATED_PACKAGE, GITIGNORE};
 use serde_json::{Value, json};
 use std::{io::Write, path::Path};
 
+mod web;
+
 pub fn init(options: &Options) -> i32 {
     let recipe = options.flags.get("recipe");
     let prefix = options.flags.get("prefix");
-    if options.positionals.len() > 1 || (options.flags.contains_key("online") && options.flags.contains_key("expo")) || recipe.is_some_and(|name| name != "feeds") || prefix.is_some_and(|p| recipe.is_none() || !snapback4_lang::recipe::valid_prefix(p)) {
-        eprintln!("usage: snapback4 init [dir] [--online|--expo] [--recipe feeds [--prefix <name>] [--authors N --edges N]]");
+    if options.positionals.len() > 1 || (["online", "expo", "web"].iter().filter(|flag| options.flags.contains_key(**flag)).count() > 1) || recipe.is_some_and(|name| name != "feeds") || prefix.is_some_and(|p| recipe.is_none() || !snapback4_lang::recipe::valid_prefix(p)) {
+        eprintln!("usage: snapback4 init [dir] [--online|--expo|--web] [--recipe feeds [--prefix <name>] [--authors N --edges N]]");
         return 2;
     }
     let sizing = options.flags.contains_key("authors") || options.flags.contains_key("edges");
@@ -24,8 +26,9 @@ pub fn init(options: &Options) -> i32 {
     let dir = options.positionals.first().map(Path::new).unwrap_or_else(|| Path::new("."));
     let online = options.flags.contains_key("online");
     let expo = options.flags.contains_key("expo");
-    let recipe_only = recipe.is_some() && !expo && !online && dir.join("snapback/schema.q").is_file();
-    let mut files = if recipe_only { Vec::new() } else if expo { expo_files() } else if online { online_files() } else { vec![("snapback/schema.q", snapback4_lang::guide::TEMPLATE.to_owned())] };
+    let web = options.flags.contains_key("web");
+    let recipe_only = recipe.is_some() && !expo && !online && !web && dir.join("snapback/schema.q").is_file();
+    let mut files = if recipe_only { Vec::new() } else if web { web::files() } else if expo { expo_files() } else if online { online_files() } else { vec![("snapback/schema.q", snapback4_lang::guide::TEMPLATE.to_owned())] };
     if recipe.map(String::as_str) == Some("feeds") {
         let prefix = prefix.map(String::as_str).unwrap_or("");
         let source = match snapback4_lang::recipe::following_sized(prefix, "feed", caps) {
@@ -121,7 +124,7 @@ pub fn init(options: &Options) -> i32 {
     }
     let cap_summary = if recipe.map(String::as_str) == Some("feeds") { format!(" — caps: {}", caps.summary()) } else { String::new() };
     let recipe_label = "Following recipe";
-    println!("init: wrote {} files in {} — {}{}{cap_summary} — next: `snapback4 check`, then `snapback4 dev`{}", files.len(), dir.display(), if recipe_only { recipe_label } else if expo { "Expo: native when available, online in Expo Go" } else if online { "online-only" } else { "local-first" }, if recipe.is_some() && !recipe_only { format!(" + {recipe_label}") } else { String::new() }, if expo || online { "; see README.md" } else { "" });
+    println!("init: wrote {} files in {} — {}{}{cap_summary} — next: `snapback4 check`, then `snapback4 dev`{}", files.len(), dir.display(), if recipe_only { recipe_label } else if expo { "Expo: native when available, online in Expo Go" } else if web { "Vite web: production offline shell" } else if online { "online-only" } else { "local-first" }, if recipe.is_some() && !recipe_only { format!(" + {recipe_label}") } else { String::new() }, if expo || online || web { "; see README.md" } else { "" });
     // @ref LLP 3000.007#6.8 — measure fixture acquisition when the recipe is installed; ordinary checks stay quiet.
     if recipe.is_some() { println!("cold rows: snapback4 test --residency --fixture <fixture-directory> --as <principal>"); }
     0

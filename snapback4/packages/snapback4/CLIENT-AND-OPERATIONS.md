@@ -17,6 +17,33 @@ function hostCheckedHandlers(handlers: ServerHandlers, signal: AbortSignal) {
 }
 ```
 
+## Offline web starter
+
+`npx snapback4 init --web` copies the maintained Vite chat reference, including
+its production app shell, account-bound saved route and write IDs. Default
+`init` remains schema-only. Run `npm install`, `npx snapback4 check`, then
+`npx snapback4 dev` and `npm run dev` in separate terminals. Build with
+`VITE_SNAPBACK_URL=https://your-backend npm run build`; serve `dist/` over HTTPS.
+For a subpath use `npm run build -- --base=/chat/`. Routes use `#room=<id>`.
+
+The production shell caches only the generic entry and build-known hashed
+assets. It waits for old tabs to close before switching builds. Development
+has no worker. Keep the entry nonpersonalized; SSR, arbitrary navigation
+paths and other bundlers are unsupported. API responses, tokens and uploaded
+media never enter this shell cache. The starter explicitly uses
+`localStorageSessionStore()` for page-restart identity continuity; any script
+on that origin can read the token. Choose this persistence deliberately.
+
+Held room navigation reads conversation and membership before rendering the
+thread; unknown offline rooms remain uncertain. Write references are saved
+before SDK dispatch and reopened with `usePendingWrite(op, id)`, without
+resubmission. `markRead` demonstrates a nonpredicting queued write. Failed and
+unknown receipts stay visible; a settled write does not imply a fresh read.
+Offline sign-out hides the account and keeps its replica/outbox intact.
+See the generated README for residency tables, horizon choices and the
+production offline-reopen journey; fixture residency remains
+`test --residency --fixture <directory> --as <principal>`.
+
 ## 4. The client
 
 The generated `api` groups a module’s operations under `api.<module>`: `api.social.follow`, not `api.follow` (§1).
@@ -1010,6 +1037,20 @@ step.
   get the `dev:` prefix and other principal ids are used verbatim) and
   prints the result, the meter and, for a mutation, the partition events;
   a job runs whole as the system (`--as` is ignored) and prints its run.
+  Before admission, store opening and schema adoption retry only SQLite
+  BUSY/LOCKED for up to 15 seconds, reporting the operation and elapsed wait.
+  `E_RUN_BUSY` stops without admitting the operation; other store errors keep
+  their meaning. The deadline bounds contention retries; it cannot cancel an
+  atomic activation already running or limit job execution time. A completed
+  activation can persist even when the operation remains unadmitted after a
+  timeout or source edit. Source changes during the wait refuse `E_RUN_SOURCE_CHANGED`
+  before admission; check the source and invoke the intended operation again.
+  Watching dev reopens after external CLI adoption; `--no-watch` must restart.
+  If a writer outlasts the deadline, inspect `doctor` and the adoption log,
+  wait for the writer or stop your dev host, run once, then restart dev.
+  There is no retry after job or mutation admission. After an interrupted
+  invocation, inspect its work before starting another one: a new job command
+  creates a new run ID.
   `--now 1789352669447` pins the invocation to Unix milliseconds, so a post
   can be created in the past without a special seed; `--now +25h` uses wall
   time plus the duration. This pins queries, mutations and jobs equally;

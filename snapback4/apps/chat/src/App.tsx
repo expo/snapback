@@ -1,56 +1,106 @@
 import { useEffect, useState } from "react";
 import { createLocalClient, type LocalClient } from "snapback4/local";
+import { localStorageSessionStore } from "snapback4/auth";
 import { webDevice } from "snapback4/web";
-import { SnapbackProvider, useClient, useLink, useViewer } from "snapback4/react";
+import { SnapbackProvider, useAcquired, useLink, useQuery } from "snapback4/react";
+import { api } from "../snapback/generated/api.ts";
 import { Inbox } from "./Inbox.tsx";
 import { Thread } from "./Thread.tsx";
+import { Composer } from "./Composer.tsx";
+import { ViewState, routeFromUrl, setRoute } from "./state.ts";
 
-// The local-first tier: the device is the Rust module as wasm, holding the
-// viewer's partition in memory and keeping it in IndexedDB behind each
-// call; reads run locally, writes queue durably. `snapback4 dev` serves
-// snapback/schema.q at 127.0.0.1:4400. A persona in the URL (?as=bob) is
-// the development door; without one the client keeps a guest session of
-// its own across reloads.
-const persona = new URLSearchParams(location.search).get("as");
-const url = import.meta.env.VITE_SNAPBACK_URL ?? "http://127.0.0.1:4400";
+const url = (import.meta.env.VITE_SNAPBACK_URL ?? "http://127.0.0.1:4400").replace(/\/$/, "");
+// Explicit browser persistence: page scripts can read the token. See README.
+const sessionStore = localStorageSessionStore();
+type Open = { client: LocalClient; view: ViewState };
 
 export function App() {
-  const [client, setClient] = useState<LocalClient | null>(null);
+  const [persona, setPersona] = useState(new URLSearchParams(location.search).get("as"));
+  const [open, setOpen] = useState<Open | null>(null);
+  const [ending, setEnding] = useState(false);
+  const [stopped, setStopped] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   useEffect(() => {
-    let live: LocalClient | null = null;
+    if (stopped) return;
+    let opened: Open | null = null;
     let disposed = false;
-    createLocalClient({ url, device: webDevice(), ...(persona ? { persona } : { guest: true }) }).then((c) => {
-      if (disposed) { void c.close(); return; }
-      live = c;
-      setClient(c);
-    }, (e: Error) => { if (!disposed) setProblem(e.message); });
-    return () => { disposed = true; void live?.close(); };
-  }, []);
-  if (problem) return <p role="alert">Cannot reach {url}: {problem}. Run <code>snapback4 dev</code> in the app directory.</p>;
-  if (!client) return <p>Opening your replica…</p>;
-  return <SnapbackProvider client={client}><Home /></SnapbackProvider>;
+    setProblem(null);
+    createLocalClient({ url, device: webDevice(), sessionStore, ...(persona ? { persona } : { guest: true }) }).then(client => {
+      if (disposed) { void client.close(); return; }
+      opened = { client, view: new ViewState(client, url, client.viewer()!) };
+      setOpen(opened);
+    }, (error: Error) => { if (!disposed) setProblem(error.message); });
+    return () => { disposed = true; if (opened) { opened.view.active = false; void opened.client.close(); } };
+  }, [persona, stopped]);
+  const leave = (nextPersona?: string) => {
+    if (!open) return;
+    // Fence callbacks synchronously, before React unmount or network sign-out.
+    open.view.active = false;
+    setRoute();
+    setOpen(null);
+    setStopped(true);
+    setEnding(true);
+    const address = new URL(location.href);
+    address.searchParams.delete("as");
+    if (nextPersona) address.searchParams.set("as", nextPersona);
+    history.replaceState(null, "", address);
+    const closing = nextPersona ? open.client.close() : open.client.signOut();
+    void closing.then(() => {
+      setEnding(false);
+      if (nextPersona) { setPersona(nextPersona); setStopped(false); }
+    }, (error: Error) => { setEnding(false); setProblem(error.message); });
+  };
+  if (stopped) return <section><h1>Signed out</h1><p>Pending writes remain with their original account; sign-out does not settle them.</p>{problem && <p role="alert">{problem}</p>}<button disabled={ending} onClick={() => { setPersona(null); setStopped(false); }}>Continue as a guest</button></section>;
+  if (problem) return <p role="alert">Could not open this account: {problem}. A first visit needs the backend; a previously acquired account can reopen offline.</p>;
+  if (!open) return <p>Opening your replica…</p>;
+  return <SnapbackProvider client={open.client}><Home key={open.view.key} view={open.view} persona={persona} leave={leave} /></SnapbackProvider>;
 }
 
-function Home() {
-  const [selected, setSelected] = useState<string | undefined>(undefined);
+function Home({ view, persona, leave }: { view: ViewState; persona: string | null; leave(next?: string): void }) {
+  const [selected, setSelected] = useState(() => routeFromUrl() ?? view.read().route);
+  const [problem, setProblem] = useState<string>();
+  const link = useLink();
+  const acquired = useAcquired();
+  useEffect(() => {
+    const changed = () => { if (view.current()) setSelected(routeFromUrl() ?? view.read().route); };
+    window.addEventListener("hashchange", changed);
+    return () => window.removeEventListener("hashchange", changed);
+  }, [view]);
+  const select = (room: string) => {
+    if (!view.current()) return;
+    try { view.route(room); setRoute(room); setSelected(room); }
+    catch (error) { setProblem(String(error)); }
+  };
+  if (link === "signed-out") return <p>Signed out. Reopen after signing in.</p>;
   return <>
-    <Inbox selected={selected} onSelect={setSelected} />
-    <main>
-      <LinkBar />
-      {selected ? <Thread conversationId={selected} /> : <p>Pick a conversation.</p>}
+    <Inbox selected={selected} onSelect={select} />
+    <main><header>
+      <strong>Snapback 4 chat</strong><span role="status">{link === "online" ? "Online" : "Offline"}</span>
+      <small className="note">as {view.principal} · {acquired ? "Local data acquired" : "Local data still acquiring"}</small>
+      {persona ? <select aria-label="Development account" value={persona} onChange={e => leave(e.target.value)}>{["alice", "bob", "charlie"].map(name => <option key={name}>{name}</option>)}</select> : null}
+      <button type="button" onClick={() => leave()}>Sign out</button>
+    </header>
+      {problem && <p role="alert">{problem}</p>}
+      {selected ? <Room key={selected} conversationId={selected} view={view} /> : <p>Pick a conversation.</p>}
     </main>
   </>;
 }
 
-function LinkBar() {
+function Room({ conversationId, view }: { conversationId: string; view: ViewState }) {
+  const room = useQuery(api.room, { conversationId });
   const link = useLink();
-  const viewer = useViewer();
-  const client = useClient() as LocalClient;
-  return <header>
-    <strong>Snapback 4 chat</strong>
-    <span role="status">{link === "online" ? "Online" : link === "offline" ? "Offline" : "Signed out"}</span>
-    <small className="note">as {viewer ?? "nobody"} · {url} · local-first</small>
-    {persona ? null : <button type="button" onClick={() => { void client.signOut().then(() => location.reload()); }}>Sign out</button>}
-  </header>;
+  // A direct held lookup opens a room even when it is beyond the inbox page.
+  // No create mutation or global sync barrier belongs on this navigation path.
+  const held = "data" in room && room.data.conversation && room.data.membership;
+  let content;
+  if ("data" in room && room.data.conversation && room.data.membership) content = <>
+    <h2>{room.data.conversation.title}</h2>
+    {!room.complete && <p>Some room information is not available on this device.</p>}
+    <Thread conversationId={conversationId} />
+  </>;
+  else if (link === "offline" || ("data" in room && !room.complete)) content = <p role="status">This room is not available on this device. Reconnect to check; it may still exist.</p>;
+  else if ("loading" in room) content = <p role="status">Checking this room…</p>;
+  else content = <p role="alert">{"denied" in room ? room.denied.message : "No accessible room was found in the current read."}</p>;
+  // Receipts remain visible even if this room's membership is revoked.
+  return <>{content}<Composer conversationId={conversationId} view={view} canCompose={!!held} /></>;
 }

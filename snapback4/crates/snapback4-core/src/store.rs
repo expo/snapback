@@ -86,6 +86,12 @@ impl Store {
     }
 
     pub fn open(path: &Path) -> Result<Self, RuntimeError> {
+        Self::open_with_busy_timeout(path, std::time::Duration::from_secs(5))
+    }
+
+    /// A caller with its own pre-admission deadline can own the lock wait.
+    // @ref LLP 3000.011.004.000#2 — only open/adoption retries use a caller-owned deadline.
+    pub fn open_with_busy_timeout(path: &Path, timeout: std::time::Duration) -> Result<Self, RuntimeError> {
         let io = |e: std::io::Error| RuntimeError::Store(format!("private store: {e}"));
         // Release links intentionally point at the one shared database.
         let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
@@ -103,7 +109,8 @@ impl Store {
                 .map_err(io)?;
         }
         let conn = Connection::open(&real)?;
-        conn.execute_batch("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = OFF; PRAGMA busy_timeout = 5000;")?;
+        conn.busy_timeout(timeout)?;
+        conn.execute_batch("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = OFF;")?;
         // A release serves the shared store through a link; the assets sit
         // beside the file itself, so every release serves the same bytes.
         let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());

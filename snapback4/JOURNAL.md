@@ -46189,3 +46189,51 @@ Resolved the consolidation ticket in the working-tree patch and moved it to
 semantics, leak fixes and horizon behavior are retained. Branch and HEAD
 remain `sb4/retire-dup-51b7a134` / `76593742a331cc31d7ac060f248e919848a2f90d`.
 No commit, push, tag or publication was performed.
+
+
+## 2026-09-22 — Diary-driven improvements: first verified increments (LLP 3000.011)
+
+Charlie commissioned the umbrella, six problem LLPs and six improvement children,
+independent latest-Grok xhigh and Astra max reviews, Astra xhigh implementation,
+publication and a fresh Clique run. Both actual design reviews are retained under
+`llp/reviews/3000.011-recent-builder-friction.*.md`; the umbrella §7 records their
+disposition and the narrowed accepted scopes.
+
+The first verified changes improve missing-index and prediction dependency
+guidance, preserve the existing helper type diagnostics, and add typed SQLite
+BUSY/LOCKED retries only before `run` admission. Compilation now uses the captured
+source bytes; changed source refuses instead of silently changing the invocation.
+The 15-second contention deadline does not cancel an atomic activation already
+running, and a completed adoption can remain even when the operation is not
+admitted. Existing watched-host adoption and no-watch restart rules stand. The
+focused checks pass: 102 language tests, four host lifecycle cases, two admission
+unit tests and eight subprocess scenarios. The final deadline case took 15,014 ms
+with zero jobs admitted and the original generation retained in that fixture.
+
+The exact calibration-15 digest failure was reproduced from its original source
+and installed 0.2.31 on a disposable copy of the retained store: five chunks and
+five writes, then the unchanged 16,777,216-byte heap ceiling. Its busy chat has
+short bodies and 50 recipient IDs per row; the actual period selects 5,000 rows
+and 4,900 unread matches. Decoding that shape alone uses 22,940,000 metered heap
+bytes even when rows are dropped in batches of 32. The proposed count-retention
+optimization therefore does not ship. The jobs guide replaces its misleading
+non-atomic accumulator with a bounded live transaction, private recipient/period
+markers and explicit overflow refusal. Eleven semantic tests, the compiled guide
+and the allocation experiment pass. The large busy-chat boundary remains.
+
+`init --web` now reuses the maintained Vite chat reference. The app persists only
+backend/account-bound route and write-ID references; the SDK owns the outbox.
+The production worker caches build-known static files and the generic entry.
+The generated app passed the actual stopped-backend, fresh-page offline journey,
+ordered reconnect, account isolation, guest reopening/sign-out, failed/unknown
+receipt recovery and worker upgrade/failure tests. Initial witness setup failures
+are retained separately and are not counted as product failures. Both initializer
+tests, app typecheck and 14 React tests pass. The rebuilt web device is 443,474 B
+gzip under the unchanged 452,000 B budget. Diary 0121 records the build experience.
+
+Verification ran in an isolated M5 Black checkout with at most one build or host
+witness at a time. A copied target cache initially retained stale absolute
+dependency paths; cleaning only the five owned workspace crates and rebuilding
+resolved it. Final quoted results use the fresh build. Feed integration, scoped
+deployment/native evidence, independent code review, publication and calibration
+16 remain in progress; this entry does not claim their completion.

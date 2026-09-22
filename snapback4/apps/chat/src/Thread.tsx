@@ -1,6 +1,5 @@
 import { useMutation, usePage, useViewer } from "snapback4/react";
 import { api } from "../snapback/generated/api.ts";
-import { Composer } from "./Composer.tsx";
 
 // The beauty test (LLP 2000.000 §8): a screen is a query plus JSX. Every word
 // it reads is on the card: data, complete, fresh, since, next, pending.
@@ -9,6 +8,8 @@ export function Thread({ conversationId }: { conversationId: string }) {
   const { items, hasMore, loadMore, read } = usePage(api.thread, { conversationId });
   const unsend = useMutation(api.unsend);
   return <section aria-label="Thread" style={{ display: "contents" }}>
+    {"loading" in read ? <p role="status">Loading held history…</p> : null}
+    {"data" in read && !read.complete ? <p role="status">Some history is not available on this device.</p> : null}
     {"denied" in read ? <p role="alert">{read.denied.message}</p> : null}
     {"data" in read && !read.fresh ? <small className="note">As of {read.since ? new Date(read.since).toLocaleTimeString() : "the last sync"}</small> : null}
     {hasMore ? <button type="button" onClick={loadMore}>Load older messages</button> : null}
@@ -21,6 +22,5 @@ export function Thread({ conversationId }: { conversationId: string }) {
         </li>
       ))}
     </ol>
-    <Composer conversationId={conversationId} />
   </section>;
 }

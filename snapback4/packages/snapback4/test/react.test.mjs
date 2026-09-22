@@ -33,6 +33,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
         { find: /^react\/jsx-runtime$/, replacement: require.resolve("react/jsx-runtime") },
         { find: /^react-dom\/client$/, replacement: require.resolve("react-dom/client") },
         { find: "snapback4/react", replacement: join(root, "packages/snapback4/src/react.tsx") },
+        { find: "web-state", replacement: join(root, "apps/chat/src/state.ts") },
         { find: "web-composer", replacement: join(root, "apps/chat/src/Composer.tsx") },
         { find: "web-app", replacement: join(root, "apps/chat/src/App.tsx") },
         { find: "expo-thread", replacement: join(root, "apps/chat-expo/src/Thread.tsx") },
@@ -52,7 +53,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
         },
         load(id) {
           if (id === "\0open-client") return "export const openClient = (...args) => globalThis.openClient(...args); export const createLocalClient = openClient;";
-          if (id === "\0generated-api") return 'export const api = { send: { kind: "mutation", name: "send" }, thread: { kind: "query", name: "thread" } };';
+          if (id === "\0generated-api") return 'export const api = { send: { kind: "mutation", name: "send" }, markRead: { kind: "mutation", name: "markRead" }, room: { kind: "query", name: "room" }, thread: { kind: "query", name: "thread" } };';
           if (id === "\0home-views") return "export const Inbox = () => null; export const Thread = () => null;";
           if (id === "\0witness-launch") return "export const witness = () => null;";
           if (id === "\0witness") return "export const runWitness = () => Promise.resolve();";
@@ -99,6 +100,7 @@ import { StrictMode, act, createElement as h } from "react";
 import { createRoot } from "react-dom/client";
 import { SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, useAcquired, useAction, useViewer, useAsset } from "snapback4/react";
 import { Composer } from "web-composer";
+import { ViewState } from "web-state";
 import { Thread } from "expo-thread";
 import { App as WebApp } from "web-app";
 import { App as ExpoApp } from "expo-app";
@@ -136,7 +138,7 @@ function controlled(read = () => ready([])) {
       return record;
     },
     query: async (_, args) => read(args),
-    mutate(_, args) { const result = deferred(); writes.push({ ...result, args }); return result.promise; },
+    mutate(_, args, options) { const result = deferred(); writes.push({ ...result, args, options }); return result.promise; },
     upload: async () => ({ ok: false, why: { code: "E_ASSET_UNKNOWN", family: "asset", message: "no upload" } }),
     asset: async id => ({ denied: { code: "E_ASSET_UNKNOWN", family: "asset", message: id } }),
     assetSource: id => ({ uri: "mock://" + id, headers: {} }),
@@ -451,7 +453,9 @@ for (const [name, Component] of [["web", WebApp], ["Expo", ExpoApp]]) {
 for (const [name, Component] of [["web", Composer], ["Expo", Thread]]) {
   cases[name + " composer preserves edits, immediate failure and offline admission"] = async () => {
     const client = controlled();
-    await mount(h(Component, { conversationId: "c", onBack: () => {} }), client);
+    localStorage.clear();
+    const view = new ViewState(client, "http://starter-test", client.viewer());
+    await mount(h(Component, { conversationId: "c", view, onBack: () => {} }), client);
     await edit("draft A"); await submit();
     check(client.writes.length === 1, "draft submitted once");
     await edit("draft B");
@@ -476,5 +480,33 @@ for (const [name, Component] of [["web", Composer], ["Expo", Thread]]) {
     await unmount(); allClosed(client);
   };
 }
+cases["web composer fences old account callbacks and preserves saved write identities"] = async () => {
+  localStorage.clear();
+  const a = controlled(), b = controlled();
+  b.setViewer("dev:other");
+  const av = new ViewState(a, "http://starter-test", a.viewer());
+  const bv = new ViewState(b, "http://starter-test", b.viewer());
+  const admit = a.mutate;
+  a.mutate = (op, args, options) => {
+    check(av.read().intents.some(intent => intent.id === options.id), "reference is durable before SDK dispatch");
+    return admit(op, args, options);
+  };
+  await mount(h(Composer, { key: av.key, conversationId: "a-room", view: av }), a);
+  await edit("A private draft"); await submit();
+  const original = av.read().intents[0].id;
+  check(original.length === 26 && a.writes.length === 1 && a.writes[0].options.id === original, "saved ID is the SDK admission ID");
+  av.active = false;
+  await render(h(Composer, { key: bv.key, conversationId: "b-room", view: bv }), b);
+  await act(async () => a.writes[0].resolve(failed(original)));
+  check(!host.textContent.includes(original) && !host.textContent.includes("A private draft") && !host.textContent.includes("message refused"), "A result cannot enter B UI");
+  check(b.writes.length === 0 && bv.read().intents.length === 0, "account switch does not replay A as B");
+  check(av.read().intents[0].id === original, "switch preserves A reference");
+  let refused = false;
+  try { av.remember({ id: "late", room: "a-room", operation: "send" }); } catch { refused = true; }
+  check(refused, "a delayed A callback cannot admit another reference");
+  const otherBackend = new ViewState(a, "http://different-backend", a.viewer());
+  check(otherBackend.read().intents.length === 0, "references do not cross backends");
+  await unmount();
+};
 window.reactCases = cases;
 `;

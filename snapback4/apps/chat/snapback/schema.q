@@ -108,3 +108,23 @@ mutation unsend(messageId: messages):
   require msg.authorId = viewer else NOT_AUTHOR
   delete messages[msg]
   return null
+
+-- @ref LLP 3000.011.003.000#2 — navigation reads held facts before any mutation.
+query room(conversationId: conversations):
+  return { conversation: conversations[conversationId], membership: memberships[conversationId, viewer] }
+
+-- Online-only state deliberately demonstrates a write with no predicted row.
+-- It is not needed to render the held thread.
+table readMarkers:
+  conversationId: conversations
+  principal: principal
+  at: time
+  unique byConversationPrincipal: conversationId, principal
+  read <- .principal = viewer
+  insert <- .principal = viewer and exists memberships[.conversationId, viewer]
+  update <- .principal = viewer and exists memberships[.conversationId, viewer]
+
+mutation markRead(conversationId: conversations):
+  require exists memberships[conversationId, viewer] else NOT_MEMBER
+  upsert readMarkers[conversationId, viewer] { at: now }
+  return null

@@ -22,6 +22,7 @@ pub use sql::sql;
 mod residency;
 mod test_fixture;
 mod adoption;
+mod run_admission;
 
 pub struct Options {
     pub positionals: Vec<String>,
@@ -40,7 +41,7 @@ pub fn parse(args: &[String]) -> Options {
         } else if let Some(flag) = arg.strip_prefix("--") {
             // A switch takes no value; any other flag takes the next token
             // unless that token is itself a flag.
-            const SWITCHES: &[&str] = &["values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "cost", "residency", "fix", "verbose", "online", "expo", "allow-destructive", "i-understand-cleartext"];
+            const SWITCHES: &[&str] = &["values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "i-understand-cleartext"];
             let (name, value) = match flag.split_once('=') {
                 Some((name, value)) => (name.to_owned(), value.to_owned()),
                 None if SWITCHES.contains(&flag) || iter.peek().is_none_or(|next| next.starts_with("--")) => (flag.to_owned(), String::new()),
@@ -72,6 +73,10 @@ fn compile_or_exit(project: &Project, json: bool) -> Bound {
             std::process::exit(2);
         }
     };
+    compiled_or_exit(bound, json)
+}
+
+fn compiled_or_exit(bound: Bound, json: bool) -> Bound {
     if !bound.diagnostics.is_empty() {
         // These one-shot verbs retain their complete diagnostic output.
         report_diagnostics(&bound, json, false, true);
@@ -353,7 +358,11 @@ pub fn run(options: &Options) -> i32 {
     };
     let now = match crate::dev_clock::run_now(options.flags.get("now")) { Ok(now) => now, Err(error) => { eprintln!("{error}"); return 1; } };
     let project = project_or_exit();
-    let bound = compile_or_exit(&project, options.json);
+    let source = match run_admission::Source::capture(&project) {
+        Ok(source) => source,
+        Err(error) => { eprintln!("cannot read the source: {error}"); return 2; }
+    };
+    let bound = compiled_or_exit(source.compile(), options.json);
     let Some(program) = bound.programs.iter().find(|p| &p.program.name == op).map(|p| p.program.clone()) else {
         let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).collect();
         eprintln!("unknown operation {op}; operations: {}", names.join(", "));
@@ -392,7 +401,7 @@ pub fn run(options: &Options) -> i32 {
         Some(principal) => principal.clone(),
         None => persona_principal("alice"),
     };
-    let mut engine = match project.open_engine(&bound) {
+    let mut engine = match run_admission::open(&project, &bound, &source, op) {
         Ok(engine) => engine,
         Err(error) => {
             eprintln!("cannot open the store: {error}");
@@ -401,6 +410,10 @@ pub fn run(options: &Options) -> i32 {
     };
     if let Err(problem) = crate::native::install(&mut engine, &project) {
         eprintln!("{problem}");
+        return 2;
+    }
+    if let Err(error) = source.validate(&project) {
+        eprintln!("run {op}: {error}");
         return 2;
     }
     if program.kind == ProgramKind::Job {

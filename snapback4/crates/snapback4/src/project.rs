@@ -228,8 +228,12 @@ impl Project {
 
     /// Open (or create) the project's store and install the compiled schema.
     pub fn open_engine(&self, bound: &Bound) -> Result<Engine, RuntimeError> {
+        self.open_engine_with_busy_timeout(bound, std::time::Duration::from_secs(5))
+    }
+
+    pub fn open_engine_with_busy_timeout(&self, bound: &Bound, timeout: std::time::Duration) -> Result<Engine, RuntimeError> {
         snapback4_core::private_fs::directory(&self.data_dir()).map_err(|e| RuntimeError::Store(e.to_string()))?;
-        let store = Store::open(&self.store_path())?;
+        let store = Store::open_with_busy_timeout(&self.store_path(), timeout)?;
         if store.meta("release")?.is_some() {
             return Err(RuntimeError::Generation("this store belongs to a deployment; use `deploy` to activate source and `serve` to run it".into()));
         }

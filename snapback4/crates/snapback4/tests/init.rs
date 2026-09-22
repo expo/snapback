@@ -206,7 +206,7 @@ console.log('Metro: 2 configs, 3 Expo blockList shapes, store paths excluded and
 }
 #[test]
 fn init_merges_packages_and_preserves_unrelated_metadata() {
-    for flag in ["--online", "--expo"] {
+    for flag in ["--online", "--expo", "--web"] {
         let dir = Dir::new();
         let before = json!({"name":"my-app", "private":false, "type":"module", "description":"kept", "dependencies":{"unrelated":"1", "snapback4":env!("CARGO_PKG_VERSION")}, "devDependencies":{"my-tool":"2"}, "scripts":{"test":"my-tests"}});
         fs::write(dir.0.join("package.json"), before.to_string()).unwrap();
@@ -709,4 +709,45 @@ fn w13e_removed_search_recipe_is_an_ordinary_unknown_recipe() {
     assert_eq!(removed.status.code(), unknown.status.code());
     assert_eq!(removed.stderr, unknown.stderr);
     assert!(!dir.0.join("snapback").exists(), "unknown recipe writes nothing");
+}
+
+#[test]
+fn web_starter_embeds_reference_and_keeps_default_schema_only() {
+    let dir = Dir::new();
+    let output = dir.run("--web");
+    assert!(output.status.success(), "{output:?}");
+    for file in ["src/App.tsx", "src/state.ts", "src/Composer.tsx", "shell.ts", "vite.config.ts", "index.html", "README.md"] {
+        assert!(dir.0.join(file).is_file(), "{file}");
+    }
+    let checked = Command::new(BIN).args(["check", "--json"]).current_dir(&dir.0).output().unwrap();
+    assert!(checked.status.success(), "{checked:?}");
+    let source = fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap();
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert_eq!(bound.schema.operations["markRead"].predicts.as_deref(), Some("never"));
+    assert_eq!(bound.schema.operations["room"].runs.as_deref(), Some("device"));
+    let package: Value = serde_json::from_slice(&fs::read(dir.0.join("package.json")).unwrap()).unwrap();
+    assert_eq!(package["dependencies"]["snapback4"], env!("CARGO_PKG_VERSION"));
+    let plain = Dir::new();
+    assert!(plain.run("").status.success());
+    assert!(plain.0.join("snapback/schema.q").is_file());
+    assert!(!plain.0.join("src").exists() && !plain.0.join("package.json").exists());
+}
+
+#[test]
+fn web_starter_refuses_conflicts_before_writing() {
+    for flag in ["--online", "--expo"] {
+        let dir = Dir::new();
+        let output = Command::new(BIN).args(["init", "--web", flag]).current_dir(&dir.0).output().unwrap();
+        assert_eq!(output.status.code(), Some(2));
+        assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0);
+    }
+    for file in ["shell.ts", "src/state.ts", "index.html"] {
+        let dir = Dir::new();
+        let path = dir.0.join(file);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, "kept").unwrap();
+        assert_eq!(dir.run("--web").status.code(), Some(1));
+        assert_eq!(fs::read_to_string(path).unwrap(), "kept");
+        assert!(!dir.0.join("snapback").exists());
+    }
 }
