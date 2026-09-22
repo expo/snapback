@@ -79,6 +79,12 @@ impl Mapping {
         if follows.rules.update != RuleExpr::Deny || reposts.rules.update != RuleExpr::Deny {
             return Err("follow edges and repost attribution must deny updates; remove and insert through the application's bridged mutations".into());
         }
+        // @ref LLP 3000.011.002.000#6 — these helpers must delete the app row as well as its recipe state.
+        for (mapping, table, helper) in [(&self.follows, follows, "AppUnfollow"), (&self.reposts, reposts, "AppUnrepost")] {
+            if !owned(&table.rules.delete, &mapping[1]) {
+                return Err(format!("{} delete must require .{} = viewer: {prefix}{helper} deletes the app row; use the manual integration if deletion must remain denied", mapping[0], mapping[1]));
+            }
+        }
         // Follow owns the app edge insertion. Other app rows remain authored
         // by the application, so extra required post/profile fields are fine.
         for (column, kind) in &follows.columns {

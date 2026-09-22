@@ -139,6 +139,25 @@ fn public_bridge_refuses_incomplete_private_ambiguous_and_unsafe_mappings_withou
     }
 }
 
+#[test]
+fn public_bridge_refuses_delete_denied_follow_and_repost_mappings_without_writes() {
+    for (table, owner, helper) in [("follows", "followerId", "feedAppUnfollow"), ("reposts", "actorId", "feedAppUnrepost")] {
+        for denied_rule in ["", "  delete <- deny\n"] {
+            let dir = Dir::new();
+            let source = tables().replace(&format!("  delete <- .{owner} = viewer\n"), denied_rule);
+            let app = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+            assert!(app.diagnostics.is_empty(), "the refusal fixture must be a valid app: {:?}", app.diagnostics);
+            assert_eq!(app.schema.tables[table].rules.delete, snapback4_core::schema::RuleExpr::Deny);
+            fs::write(dir.0.join("snapback/schema.q"), &source).unwrap();
+            let output = dir.install(&FLAGS); let error = String::from_utf8_lossy(&output.stderr);
+            assert_eq!(output.status.code(), Some(1), "{output:?}");
+            assert!(error.contains("E_RECIPE_BRIDGE") && error.contains(&format!("{table} delete must require .{owner} = viewer")) && error.contains(helper), "{error}");
+            assert_eq!(fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap(), source);
+            for path in ["snapback/feed.q", "snapback/feed_bridge.q", "src", ".gitignore"] { assert!(!dir.0.join(path).exists(), "wrote {path}"); }
+        }
+    }
+}
+
 fn id(value: &str) -> Value { Value::Id(value.into()) }
 fn context(viewer: &str, args: &[(&str, Value)], at: i64) -> Context {
     Context::new(viewer, args.iter().map(|(key, value)| ((*key).into(), value.clone())).collect()).at(at)

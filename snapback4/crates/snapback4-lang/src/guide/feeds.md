@@ -638,12 +638,15 @@ The supported shape is deliberately narrow:
   principal actor, reference to the selected post table, and time columns,
   with one total unique key on actor/post. Follows have two required principal
   columns with one total unique key on follower/followed, in that order.
-- Insert rules require the selected owner to equal `viewer`. Update/delete
-  rules must deny or require that same ownership. If updates are allowed,
-  every mapped identity/time column must be immutable. Follows and reposts
-  deny updates. Post deletion is denied: removal retains cards for independent
-  reposts. Extra follow columns need defaults or must be optional, because
-  the bridge inserts that edge. The app still supplies its other row fields.
+- Insert rules require the selected owner to equal `viewer`. Update rules
+  must deny or require that same ownership; allowed updates require immutable
+  mapped identity/time columns. Follows and reposts deny updates and require
+  owner-equality delete rules: unfollow/unrepost delete their app rows.
+  Denied deletion on either table refuses installation. Profile deletion may
+  deny or require ownership. Post deletion is denied: removal retains cards
+  for independent reposts. Additional rule conditions still apply at runtime.
+  Extra follow columns need defaults or must be optional, because the bridge
+  inserts that edge. The app still supplies its other row fields.
 
 For the manual schema below, add `immutable principal` to profiles before
 selecting this generated path. If these constraints do not fit the app, keep
