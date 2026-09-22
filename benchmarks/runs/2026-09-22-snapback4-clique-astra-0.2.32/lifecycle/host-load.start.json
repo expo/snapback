@@ -1,0 +1,6 @@
+{
+  "pid": 20678,
+  "startedAt": "2026-09-22T19:25:11.640677+00:00",
+  "intervalSeconds": 60,
+  "note": "Sampling began after the builder started; start load is separately recorded in RUN_QUALIFICATION.json. The intervening interval is not reconstructed."
+}

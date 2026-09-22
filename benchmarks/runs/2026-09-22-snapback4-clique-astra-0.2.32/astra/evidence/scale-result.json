@@ -1,0 +1,27 @@
+{
+  "start": 1790107199.529,
+  "end": 1790108075.777,
+  "wall": 876.2479999065399,
+  "excludedVerificationSeconds": 188.75380695900012,
+  "replaySeconds": 687.4941929475398,
+  "capSeconds": 14400,
+  "capNote": "Four-hour conservative safety cap; instrument supplied no calibrated scale cap.",
+  "pass": true,
+  "settled": 167243,
+  "verbs": {
+    "register": 1000,
+    "profile-set": 1000,
+    "follow": 5909,
+    "group-create": 100,
+    "member-add": 48,
+    "dm-create": 900,
+    "post": 48200,
+    "reply": 2000,
+    "like": 5000,
+    "repost": 1000,
+    "send": 99090,
+    "send-media": 910,
+    "react": 2000
+  },
+  "verification": "pass"
+}

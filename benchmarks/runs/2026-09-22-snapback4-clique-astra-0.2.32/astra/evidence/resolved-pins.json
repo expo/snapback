@@ -1,0 +1,21 @@
+{
+  "version": "1.0.0",
+  "name": "astra-snapback4",
+  "dependencies": {
+    "snapback4-expo": {
+      "version": "0.2.23",
+      "resolved": "https://registry.npmjs.org/snapback4-expo/-/snapback4-expo-0.2.23.tgz",
+      "overridden": false,
+      "dependencies": {
+        "snapback4": {
+          "version": "0.2.32"
+        }
+      }
+    },
+    "snapback4": {
+      "version": "0.2.32",
+      "resolved": "https://registry.npmjs.org/snapback4/-/snapback4-0.2.32.tgz",
+      "overridden": false
+    }
+  }
+}

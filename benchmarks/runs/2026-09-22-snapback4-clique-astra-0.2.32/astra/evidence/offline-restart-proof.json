@@ -1,0 +1,15 @@
+[
+  {
+    "phase": "browser-stopped-with-pending",
+    "at": 1790107738717
+  },
+  {
+    "phase": "cold-offline-relaunch-pending",
+    "at": 1790107739189
+  },
+  {
+    "phase": "reconnected-in-order-read",
+    "pass": true,
+    "at": 1790107739917
+  }
+]

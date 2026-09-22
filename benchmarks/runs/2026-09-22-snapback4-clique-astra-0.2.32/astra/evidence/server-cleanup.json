@@ -1,0 +1,36 @@
+{
+  "at": 1790109046.2735622,
+  "results": [
+    {
+      "pid": 43629,
+      "port": 49360,
+      "action": "SIGTERM to recorded owned listener",
+      "stillExists": false
+    },
+    {
+      "pid": 72800,
+      "port": 49361,
+      "action": "SIGTERM to recorded owned listener",
+      "stillExists": false
+    },
+    {
+      "pid": 1586,
+      "port": 49362,
+      "action": "SIGTERM to recorded owned listener",
+      "stillExists": false
+    },
+    {
+      "pid": 81193,
+      "port": 49363,
+      "action": "SIGTERM to recorded owned listener",
+      "stillExists": false
+    },
+    {
+      "pid": 72316,
+      "port": 49365,
+      "action": "SIGTERM to recorded owned listener",
+      "stillExists": false
+    }
+  ],
+  "digestServers": "Each proof stopped its own recorded exact process tree in finally; see run-log.md."
+}

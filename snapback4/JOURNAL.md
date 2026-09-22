@@ -46373,3 +46373,26 @@ cal15, with public pins 0.2.32 / 0.2.23. One Astra medium cold-builder lane,
 independent Opus 5 grade and Astra xhigh holistic score preserve comparability.
 The actual app's native extension follows grading and does not alter the
 frozen score. No new benchmark result or real push-provider success is claimed.
+
+## 2026-09-22 — cal16 independent grade and experience score
+
+The cold Astra medium builder completed at 20:31:50 UTC in 4,752.700 s.
+Independent Opus 5 grading completed at 21:14:10 UTC in 2,436.317 s:
+104 passed, zero failed and 15 unrun assertions, with one minor acceptance-test
+repeatability defect and three cosmetic findings. The independent Astra xhigh
+experience score was 88/100, down from 91. The unchanged frozen task still
+lacks M7 and installed native evidence. Typing expiry now passes; three other
+label improvements reflect this grader crediting browser choreography the
+previous grader left unrun, not new native coverage. The record preserves
+that distinction and makes no causal improvement claim from one run.
+
+Both complete scale replays passed the fixture invariants. The builder
+reproduced a nullable-object-array TypeScript declaration defect and used a
+required-lookup workaround. The source emitter is unchanged by this release;
+issues/20260922-snapback4-generated-nullable-row-array-precedence.md retains
+the small exact-pin reproduction. The one-recipient digest meter boundary
+remains explicit. Actual-app native qualification began only after grade and
+score completion, in a separate preserved app/fixture copy with exact public
+pins. Its results remain pending. Full lifecycle, actual reports, interpretation
+boundaries and selected receipts are under
+benchmarks/runs/2026-09-22-snapback4-clique-astra-0.2.32/.

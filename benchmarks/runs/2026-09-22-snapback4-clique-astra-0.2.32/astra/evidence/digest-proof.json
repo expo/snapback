@@ -1,0 +1,41 @@
+[
+  {
+    "phase": "all-clients-closed",
+    "periodStart": 1790108520000,
+    "periodEnd": 1790108640000,
+    "target": "user:01M35CKGFYGJ50GBRFV3T47XJJ",
+    "at": 1790108615260
+  },
+  {
+    "phase": "scheduled-pass",
+    "payloads": [
+      {
+        "kind": "digest",
+        "newFollowers": 1,
+        "newPostsInFollowing": 1,
+        "periodEnd": 1790108640000,
+        "periodStart": 1790108520000,
+        "targetUserId": "user:01M35CKGGS3PJW4E8WXPZJENFZ",
+        "unreadChats": 1,
+        "unreadMessages": 1
+      },
+      {
+        "kind": "digest",
+        "newFollowers": 1,
+        "newPostsInFollowing": 1,
+        "periodEnd": 1790108640000,
+        "periodStart": 1790108520000,
+        "targetUserId": "user:01M35CKGFYGJ50GBRFV3T47XJJ",
+        "unreadChats": 1,
+        "unreadMessages": 1
+      }
+    ],
+    "at": 1790108641421
+  },
+  {
+    "phase": "restart-and-zero-period-pass",
+    "pass": true,
+    "payloadCount": 2,
+    "at": 1790108761204
+  }
+]

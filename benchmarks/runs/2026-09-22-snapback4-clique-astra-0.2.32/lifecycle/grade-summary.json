@@ -1,0 +1,10 @@
+{
+  "command": [
+    "python3",
+    "scripts/summarize_grades.py"
+  ],
+  "exitCode": 1,
+  "stdout": "",
+  "stderr": "grade has no lifecycle end record: grok\n",
+  "declaredScope": "Astra lane only; Grok/Muse builder lanes unrun"
+}

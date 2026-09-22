@@ -1,0 +1,41 @@
+{
+  "at": "2026-09-22T19:12:37.481271+00:00",
+  "packages": {
+    "snapback4": {
+      "version": "0.2.32",
+      "integrity": "sha512-jSYdZLq8270Lgewu7CRvJ/gHM4RQiYgg0FMf37zxkyHETB3fxSsITa9fA8lzbPt9JQgvWtwnB5AuA4drJVqpRQ=="
+    },
+    "snapback4-darwin-arm64": {
+      "version": "0.2.32",
+      "integrity": "sha512-LYGA0D8/07IVr5RFgHr6ljoasK/FPUxctk3SWJ/lzrvNksYdeVrWmuGsN9ydDSe73VhyP9FB4RuLsRV4qbYePw=="
+    },
+    "snapback4-expo": {
+      "version": "0.2.23",
+      "integrity": "sha512-6Qjmfxr0EuOU1dxteQsOJkhYebh67au1blOTiIuRts1B2nRO3ZYPuQV6qFPXdk9iKGrJhEYatxgFLcJNOAMJpA=="
+    }
+  },
+  "instrumentCommit": "30fea66c9b20dbea50e6d8444a61c2cd9ca3c787",
+  "instrumentManifestSha256": "89b8c59d734334c015eaed025a52488e4c6266aabd40e21ade6a75ffd35381d2",
+  "templateManifestSha256": "33e54d45d451400c38d9e1f738ebcd0181b0fc6c8fbf97de60e4fc15033b0f2e",
+  "scope": "One comparable Astra continuous M1\u2013M6/M8 lane, independent Opus5 grade, Astra xhigh holistic score; M7 and other builder lanes not run; actual-app native qualification only after grading",
+  "builder": {
+    "model": "gpt-6-astra",
+    "effort": "medium"
+  },
+  "grade": {
+    "model": "claude-opus-5"
+  },
+  "score": {
+    "model": "gpt-6-astra",
+    "effort": "xhigh"
+  },
+  "ports": {
+    "range": [
+      49360,
+      49379
+    ],
+    "occupied": []
+  },
+  "load": "12:12  up 20 days, 37 mins, 76 users, load averages: 8.59 9.19 13.92",
+  "node": "v24.18.0"
+}

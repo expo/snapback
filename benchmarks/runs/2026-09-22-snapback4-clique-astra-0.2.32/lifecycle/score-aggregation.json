@@ -1,0 +1,10 @@
+{
+  "command": [
+    "python3",
+    "scripts/aggregate_scores.py"
+  ],
+  "exitCode": 1,
+  "stdout": "",
+  "stderr": "holistic scorer has no lifecycle end record: grok\n",
+  "declaredScope": "Astra lane only; Grok/Muse builder lanes unrun"
+}

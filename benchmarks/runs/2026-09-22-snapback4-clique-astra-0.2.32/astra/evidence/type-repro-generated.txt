@@ -1,0 +1,1 @@
+  nullableArray: Query<Record<string, never>, { id: string; label: string; pending?: boolean } | null[]>;

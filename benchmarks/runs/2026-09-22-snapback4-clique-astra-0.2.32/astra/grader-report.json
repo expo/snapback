@@ -1,0 +1,958 @@
+{
+  "reportVersion": 1,
+  "lane": {
+    "backend": "snapback4-0.2.32",
+    "runRecordPath": "/Users/ccheever/clique-sb4-20260922-astra-cal16/lanes/astra-snapback4/run-record.json",
+    "runScope": "full"
+  },
+  "wave": {
+    "id": "full-3models-astra",
+    "probeSetSha256": "none-uncommitted"
+  },
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5",
+    "sameFamilyGraded": false,
+    "calibrationPassed": false,
+    "sessionOutcome": "completed",
+    "rerunsUsed": 0,
+    "contaminated": false
+  },
+  "assertionManifest": {
+    "path": "instrument/schema/social-messenger/assertions.json",
+    "version": "0.3.0-m8",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m1-a01": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m1",
+      "note": "Grader signup with a 15-char password succeeded; a 7-char password was refused (E_AUTH). Builder suite also green in the grader's own run."
+    },
+    "m1-a02": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m1",
+      "note": "Fresh signup in a clean browser context landed on the authenticated profile-setup screen; the auth form was detached."
+    },
+    "m1-a03": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m1",
+      "note": "Handle 'alice' rejected with visible sm-profile-error 'That handle is taken.'; server-side refusal confirmed via the API."
+    },
+    "m1-a04": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m1",
+      "note": "Signup with the fixture Alice address showed sm-auth-error and stayed unauthenticated; server refusal E_AUTH."
+    },
+    "m1-a05": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m1",
+      "note": "Harness receipt session-persists-on-relaunch passed (366.7 ms)."
+    },
+    "m1-a06": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m1",
+      "note": "Harness receipt logout-remains-signed-out-on-relaunch passed (645.4 ms)."
+    },
+    "m1-a07": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m1",
+      "note": "[grader, full-only] After logout(url, token) the same bearer token was refused on a new client: {denied:{code:'E_AUTH'}}; direct HTTP probe also refused. Server-side revocation, not client-side clearing."
+    },
+    "m1-a08": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m1",
+      "note": "Display name and bio round-tripped through me(); original values restored afterwards."
+    },
+    "m1-a09": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m1",
+      "bestOf3Ms": [
+        79.1,
+        74,
+        75.7
+      ],
+      "note": "Harness receipt profile-edit-live-visibility, bestOf:3, visibleMs metric on the other client without manual refresh."
+    },
+    "m1-a10": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m1",
+      "note": "Fixture avatar-alice.png uploaded; placeAvatar accepted."
+    },
+    "m1-a11": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m1",
+      "note": "Profile row carries the avatar reference and the asset reads back; the builder suite additionally asserts a rendered <img> with naturalWidth>0 inside sm-profile."
+    },
+    "m1-a12": {
+      "result": "pass",
+      "method": "source-inspection",
+      "evidence": "grading/trace.md#m1-hashing",
+      "note": "snapback/schema.q:1 'use identity password' (platform built-in auth). The pinned snapback4-darwin-arm64@0.2.32 binary embeds the argon2 0.5.3 crate and the encoded parameter string $argon2id$v=19$m=19456,t=2,p=1 (OWASP-published argon2id parameters); startup log reports 'Argon2 slots: 16'. No hand-rolled hashing in lane source."
+    },
+    "m1-a13": {
+      "result": "pass",
+      "method": "source-inspection",
+      "evidence": "grading/trace.md#m1-hashing",
+      "note": "0 plaintext hits for any fixture password in .snapback4/store.sqlite(+wal), in web-dist/ and artifacts/*-ios client bundles, and in evidence/*.log; 14 $argon2id$v=19$m=19456,t=2,p=1 records present in server persistence. src/client.ts persists sessions only (SecureStore / localStorage), never passwords."
+    },
+    "m2-a01": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m2",
+      "note": "Grader created a text post, a 2-image post (img-01/img-02) and a video post (vid-01) through the documented client API; the returned rows carry image1/image2 and video."
+    },
+    "m2-a02": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m2",
+      "note": "Grader created a text post, a 2-image post (img-01/img-02) and a video post (vid-01) through the documented client API; the returned rows carry image1/image2 and video."
+    },
+    "m2-a03": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m2",
+      "note": "Grader created a text post, a 2-image post (img-01/img-02) and a video post (vid-01) through the documented client API; the returned rows carry image1/image2 and video."
+    },
+    "m2-a04": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m2",
+      "bestOf3Ms": [
+        210.4,
+        101.5,
+        87.9
+      ],
+      "note": "Harness receipts feed-text/image/video-post-live-update all passed bestOf:3. Measurements are the text-post visibleMs; image visibleMs 163.1/154.2/96.1, video 95.1/98.7/156.2."
+    },
+    "m2-a05": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m2",
+      "note": "Harness receipt feed-author-avatar-and-display-name: exact sm-feed-author-avatar identity plus the author display name on the other client."
+    },
+    "m2-a06": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m2",
+      "note": "After Bob follows Alice, Alice's post appears in Bob's Following feed."
+    },
+    "m2-a07": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grading/trace.md#m2-a07",
+      "bestOf3Ms": [
+        255,
+        224,
+        221
+      ],
+      "note": "The frozen choreography harness has no follower-count check (its m2 follow assertion observes the Following-feed projection, not the count), so no harness receipt covers this observable. The grader observed it directly: a second browser context followed Alice while Alice's own profile page stayed loaded; sm-profile-follower-count moved 4 -> 5 with no reload, three consecutive toggles measured."
+    },
+    "m2-a08": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m2",
+      "note": "After unfollow, no Alice originals (including the pre-follow post) remain in Bob's Following feed."
+    },
+    "m2-a09": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m2",
+      "note": "The same post is still in Bob's Global feed after the unfollow: projection-scoped, not revocation."
+    },
+    "m2-a10": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m2",
+      "note": "A post by Erin (whom Bob does not follow) appears in Bob's Global feed."
+    },
+    "m2-a11": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m2",
+      "note": "The same Erin post is absent from Bob's Following feed."
+    },
+    "m2-a12": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m2-links",
+      "note": "The URL renders as <span role=\"link\" data-testid=\"sm-text-link\"> in blue underline inside the post body; src/Chat.tsx and the UI kit wire onPressLink to Linking.openURL (system browser)."
+    },
+    "m2-a13": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m2-links",
+      "note": "Zero iframe / preview-card / unfurl / link-card / embed elements on the thread screen."
+    },
+    "m2-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m2",
+      "bestOf3Ms": [
+        127.1,
+        54.1,
+        55.2
+      ],
+      "note": "Harness receipt like-unlike-live-count: Bob's like changes Alice's like-count state live (likeVisibleMs)."
+    },
+    "m2-a15": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m2",
+      "note": "like(set:false) twice leaves the count decremented once - idempotent set-state, 1 -> 0."
+    },
+    "m2-a16": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m2",
+      "note": "Repost surfaces with actor.principal = the reposter and a display name for 'reposted by {name}'."
+    },
+    "m2-a17": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m2",
+      "note": "repost(set:false) removes the repost event from the feeds."
+    },
+    "m2-a18": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m2",
+      "note": "Carol (who follows Bob) sees Alice's original surfaced by Bob's repost in her Following feed."
+    },
+    "m2-a19": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m2",
+      "bestOf3Ms": [
+        55.3,
+        56.8,
+        55.6
+      ],
+      "note": "Harness receipt reply-live-thread-projection: Alice's reply count changes live (replyCountVisibleMs) and the thread shows parent then reply."
+    },
+    "m2-a20": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m2",
+      "note": "social.replies returns exactly the two direct replies in creation order; a nested reply is excluded."
+    },
+    "m2-a21": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m2",
+      "note": "Neither reply appears in Global or Following."
+    },
+    "m2-a22": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m2",
+      "note": "Following tab page 1 = 20 rows with a next cursor; page 2 non-empty."
+    },
+    "m2-a23": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m2",
+      "note": "Global tab page 1 = 20 rows with a next cursor; page 2 non-empty."
+    },
+    "m2-a24": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m2",
+      "note": "Union of page 1 + page 2 ids has no duplicates in either tab, and the page boundary is time-monotone (last of page 1 >= first of page 2), so no gap."
+    },
+    "m2-a25": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m2-self",
+      "note": "Verified on a brand-new account with following = 0: its own original post appears in its own Following feed."
+    },
+    "m2-a26": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m2-self",
+      "note": "The same zero-follow account's repost appears in its own Following feed, attributed to itself."
+    },
+    "m2-a27": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m2-self",
+      "note": "followers and following both stayed 0 while implicit self-membership was in effect; an explicit self-follow edge is refused (CANNOT_FOLLOW_SELF)."
+    },
+    "m3-a01": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m3",
+      "bestOf3Ms": [
+        171.9,
+        258,
+        339.8
+      ],
+      "note": "Harness receipt dm-live-messages: required bidirectional live DM text delivery, bestOf:3."
+    },
+    "m3-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m3",
+      "note": "Harness receipt sender-avatar-identity-when-rendered: exact sender identity on an app-rendered avatar node."
+    },
+    "m3-a03": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m3",
+      "note": "createDM from either side three times returned the same conversation id (d-alice-bob); chat.inbox shows exactly one Alice/Bob DM channel."
+    },
+    "m3-a04": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m3",
+      "note": "Group created with Alice+Bob, Carol added; roster of 3 confirmed by chat.conversation."
+    },
+    "m3-a05": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m3",
+      "note": "A second group with the identical 3-member roster got a distinct conversation id and kept its own roster."
+    },
+    "m3-a06": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m3",
+      "bestOf3Ms": [
+        8.6,
+        15.3,
+        16.1
+      ],
+      "note": "Harness receipt typing-indicator-within-2s-expires-within-5s, typingObservationBoundaryVersion v2; measurements are visibleAfterLastKeystrokeMs against the 2000 ms bound."
+    },
+    "m3-a07": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m3",
+      "bestOf3Ms": [
+        4324.3,
+        4830.2,
+        4314.5
+      ],
+      "note": "Same receipt; measurements are expiresAfterLastKeystrokeMs against the 5000 ms bound - all three attempts inside the bound."
+    },
+    "m3-a08": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m3",
+      "note": "Harness receipt receipt-sent-delivered-read-transitions passed (2469.6 ms, exact semantic sent/delivered/read tokens, no glyph matching). The frozen harness records this check at bestOf:1, so only one measurement exists."
+    },
+    "m3-a09": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m3",
+      "note": "Harness receipt group-receipt-waits-for-slowest-member: group read stays 'delivered' until the slowest retained member reads."
+    },
+    "m3-a10": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "fail",
+      "evidence": "grading/trace.md#m3-quote",
+      "note": "PRODUCT PASSES, SUITE FAILS IN THE GRADER'S RUN. In a grader-created conversation the quoted reply renders sm-convo-quote-preview containing the quoted excerpt. The builder's mapped test binds to the m3 starter-log quoted reply in d-alice-bob, which later milestones pushed off the newest-50 first page, so `npm run acceptance -- --milestone m3` now fails there (reproduced twice). Filed as defect d-01."
+    },
+    "m3-a11": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "fail",
+      "evidence": "grading/trace.md#m3-quote",
+      "note": "Tapping the excerpt scrolled the original from 2984 px above the 720 px viewport to top=165 px (in view). Same suite caveat as m3-a10; see defect d-01."
+    },
+    "m3-a12": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m3",
+      "note": "Harness receipt member-add-promote-remove-leave-and-live-cutoff: live cutoff checked only after a later progress marker reached the removed member. Grader API probe independently confirmed the server returns nothing for a removed member and refuses her sends."
+    },
+    "m3-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m3",
+      "note": "Same receipt covers the removed member's retained local pre-removal history (messages table declares `retain delivered-history`)."
+    },
+    "m3-a14": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m3",
+      "note": "Non-admin removeMember refused (NOT_ADMIN) and the roster is unchanged; non-admin promote and addMember also refused."
+    },
+    "m3-a15": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m3",
+      "note": "Re-ran seed segments m1, m2 and m3 (every segment installed so far); chat.inbox and the Global feed id list were byte-identical before and after."
+    },
+    "m4-a01": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m4",
+      "note": "Fixture image sent as a message; recipient sees type 'image' with a readable mediaReference. The builder's mapped test drives the real composer file chooser."
+    },
+    "m4-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m4",
+      "bestOf3Ms": [
+        959.1,
+        927.5,
+        947.3
+      ],
+      "note": "Harness receipt photo-message-live-render: inline render from a query result on the recipient, bestOf:3."
+    },
+    "m4-a03": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m4",
+      "note": "Fixture video sent as a message; recipient sees type 'video' and can read the bytes."
+    },
+    "m4-a04": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m4",
+      "note": "Harness receipt video-message-live-playback passed (1858.7 ms)."
+    },
+    "m4-a05": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m4",
+      "bestOf3Ms": [
+        950,
+        886.5,
+        1005.5
+      ],
+      "note": "Harness receipt reaction-live-replace-remove, bestOf:3."
+    },
+    "m4-a06": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m4",
+      "note": "React 👍 then ❤️ leaves exactly [['❤️',1]] - at most one reaction per user per message."
+    },
+    "m4-a07": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m4",
+      "note": "react(emoji:null) clears the reaction; reactions length 0."
+    },
+    "m4-a08": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m4",
+      "bestOf3Ms": [
+        114.9,
+        154.4,
+        85.9
+      ],
+      "note": "Harness receipt edit-live-visibility, bestOf:3."
+    },
+    "m4-a09": {
+      "result": "pass",
+      "method": "web-automation",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m4",
+      "note": "The recipient's bubble shows the new text plus an 'edited' label."
+    },
+    "m4-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m4-a10",
+      "note": "[grader, shortened-windows] An in-window edit succeeded; after sleeping 66 s (editWindow = 60 s) the same edit was refused server-side with EDIT_WINDOW_CLOSED and the stored text was unchanged. media.edit is declared `: server` in snapback/media.q, so the window is not a client affordance."
+    },
+    "m4-a11": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m4",
+      "note": "Harness receipt delete-live-tombstone passed (1947.7 ms)."
+    },
+    "m4-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m4-a12",
+      "note": "[grader] The asset served 2080 bytes over its documented assetSource URI before the delete; after media.delete the same URI returned HTTP 404 and the SDK returned {denied: E_ASSET_UNKNOWN}; the row's mediaReference is null and tombstone true."
+    },
+    "m5-a01": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m5-expiry",
+      "note": "[grader, shortened-windows] Disappearing '24h' = 180 s. Both web clients saw the message, then both were closed; after expiry with no client open a fresh API client's thread no longer contains it, media.react on it is refused (MESSAGE_NOT_FOUND) and server-side search.inChat returns 0 hits, while the non-expiring control message in the same chat survives and is still searchable."
+    },
+    "m5-a02": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grading/trace.md#m5-expiry",
+      "note": "[grader] Both clients relaunched after expiry: each renders the control message and neither renders the expired one."
+    },
+    "m5-a03": {
+      "result": "pass",
+      "method": "web-automation",
+      "evidence": "grading/trace.md#m5-expiry",
+      "note": "[grader] After the relaunch synced the expiry, each client was put offline (sm-search-offline banner shown). The control token still returns a hit from the local replica; the expired token returns nothing."
+    },
+    "m5-a04": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m5",
+      "note": "First fetch of the view-once asset by the recipient served 2062 bytes."
+    },
+    "m5-a05": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m5",
+      "note": "Second open denied: SDK {denied: E_ASSET_VIEWED}."
+    },
+    "m5-a06": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m5",
+      "note": "[grader] A direct HTTP fetch of the asset URI after the view returned 410 Gone - refused server-side, not just hidden in the UI. The sender (a different principal) still has their own single read, matching the documented one-read-per-principal asset type."
+    },
+    "m5-a07": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m5",
+      "note": "Harness receipt chat-color-background-sync passed (visibleMs 129.3): the admin's accent colour and background reach the other member."
+    },
+    "m5-a08": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m5",
+      "note": "Non-admin search.customize{title} refused (NOT_ADMIN), title unchanged; the admin's rename succeeds."
+    },
+    "m5-a09": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m5",
+      "note": "people('car') and people('CAR') both return Carol; the infix 'arol' does not, confirming word-prefix rather than substring matching."
+    },
+    "m5-a10": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m5",
+      "note": "search.inChat on d-alice-bob for 'Coffee' (and 'coffee') returns the seeded 'Coffee after work?' and nothing from other conversations."
+    },
+    "m5-a11": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m5",
+      "note": "search.allMessages returned 2 groups keyed by conversationId, each carrying only its own conversation's messages."
+    },
+    "m5-a12": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m5",
+      "note": "Harness receipt warm-offline-search-over-synced-messages passed (1035.4 ms). The grader's own m5-a03 run independently exercised warm-offline search on two clients."
+    },
+    "m6-a01": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#m6-native",
+      "note": "No iOS-simulator choreography artifact exists. The harness segment summary records choreography.supplementalExternal = [{id:'ios-simulator-m6', pass:null, receipt:null, status:'not-recorded'}], and artifacts/m6-ios holds only an Expo/Hermes bundle export - no m6-ios-screen.mp4, m6-ios-receipts.jsonl or m6-ios-run.json. Per the frozen grader prompt these assertions are scored only from harness simulator recordings and receipts, never from builder assertions, so nothing was observed."
+    },
+    "m6-a02": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#m6-native",
+      "note": "No iOS-simulator choreography artifact exists. The harness segment summary records choreography.supplementalExternal = [{id:'ios-simulator-m6', pass:null, receipt:null, status:'not-recorded'}], and artifacts/m6-ios holds only an Expo/Hermes bundle export - no m6-ios-screen.mp4, m6-ios-receipts.jsonl or m6-ios-run.json. Per the frozen grader prompt these assertions are scored only from harness simulator recordings and receipts, never from builder assertions, so nothing was observed."
+    },
+    "m6-a03": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#m6-native",
+      "note": "No iOS-simulator choreography artifact exists. The harness segment summary records choreography.supplementalExternal = [{id:'ios-simulator-m6', pass:null, receipt:null, status:'not-recorded'}], and artifacts/m6-ios holds only an Expo/Hermes bundle export - no m6-ios-screen.mp4, m6-ios-receipts.jsonl or m6-ios-run.json. Per the frozen grader prompt these assertions are scored only from harness simulator recordings and receipts, never from builder assertions, so nothing was observed."
+    },
+    "m6-a04": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#m6-native",
+      "note": "No iOS-simulator choreography artifact exists. The harness segment summary records choreography.supplementalExternal = [{id:'ios-simulator-m6', pass:null, receipt:null, status:'not-recorded'}], and artifacts/m6-ios holds only an Expo/Hermes bundle export - no m6-ios-screen.mp4, m6-ios-receipts.jsonl or m6-ios-run.json. Per the frozen grader prompt these assertions are scored only from harness simulator recordings and receipts, never from builder assertions, so nothing was observed."
+    },
+    "m6-a05": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m6",
+      "note": "Harness receipt offline-message-queue-flush-in-order (web carrier): both offline-composed bubbles exposed semantic receipt state 'pending'. choreography/simulator.md re-scopes the queue/flush observables to this implemented web segment; the additional native artifact is not recorded."
+    },
+    "m6-a06": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m6",
+      "note": "Same receipt: on reconnect both messages rendered on the recipient in send order (index check), flushMs 315.2."
+    },
+    "m6-a07": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m6",
+      "note": "Same receipt: both flushed bubbles' receipts were waited to the exact semantic value 'read'."
+    },
+    "m6-a08": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m6-push",
+      "note": "[verified with a grader-minted service token] A 211-char send to a Bob with no live client logged exactly one payload with targetUserId = Bob, chatId = d-alice-bob, senderDisplayName = Alice's display name, and preview = the first 80 characters exactly."
+    },
+    "m6-a09": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m6-push",
+      "note": "A view-once photo logged preview 'Photo' (its caption did not leak) and a video logged 'Video'."
+    },
+    "m6-a10": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m6-demo",
+      "note": "The grader ran node scripts/custom-client-demo.mjs itself; it exited green with {pass:true} and printed no credentials."
+    },
+    "m6-a11": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m6-demo",
+      "note": "Its reported operations are authenticate, list conversations, page history, send text, receive live - the full documented list."
+    },
+    "m6-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m6-a12",
+      "note": "[grader-written variation] Following API.md only, the grader fetched the latest message of the conversation named 'Weekend Plans': chat.inbox -> title match -> conversationId -> chat.thread (newest first, 50/page) -> data[0]. First attempt, no undocumented knowledge needed; the inbox's own `latest` agreed with the thread head."
+    },
+    "m6-a13": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m6-a13",
+      "note": "The grader ran instrument/fixtures/validate.mjs against sample-50.log (50 actions, 13 verbs, valid) and then scripts/replay.mjs, which settled 50/50; the replayed end state was re-checked independently (sample-post-01 likes 1 / replies 2 / reposts 0, DM 4 messages, group 6 messages)."
+    },
+    "m7-a01": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "evidence": "grading/trace.md#m7",
+      "note": "M7 was never attempted: the environment overlay reserves Day-2 evolution for a separate fresh session run after this grading, and the lane records M7 status 'not-run'. Per applicability.json M7 stays in O1's denominator and scores not passed."
+    },
+    "m7-a02": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#m7",
+      "note": "M7 was never attempted: the environment overlay reserves Day-2 evolution for a separate fresh session run after this grading, and the lane records M7 status 'not-run'. Per applicability.json M7 stays in O1's denominator and scores not passed."
+    },
+    "m7-a03": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "evidence": "grading/trace.md#m7",
+      "note": "M7 was never attempted: the environment overlay reserves Day-2 evolution for a separate fresh session run after this grading, and the lane records M7 status 'not-run'. Per applicability.json M7 stays in O1's denominator and scores not passed."
+    },
+    "m7-a04": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "evidence": "grading/trace.md#m7",
+      "note": "M7 was never attempted: the environment overlay reserves Day-2 evolution for a separate fresh session run after this grading, and the lane records M7 status 'not-run'. Per applicability.json M7 stays in O1's denominator and scores not passed."
+    },
+    "m7-a05": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#m7",
+      "note": "M7 was never attempted: the environment overlay reserves Day-2 evolution for a separate fresh session run after this grading, and the lane records M7 status 'not-run'. Per applicability.json M7 stays in O1's denominator and scores not passed."
+    },
+    "m7-a06": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "evidence": "grading/trace.md#m7",
+      "note": "M7 was never attempted: the environment overlay reserves Day-2 evolution for a separate fresh session run after this grading, and the lane records M7 status 'not-run'. Per applicability.json M7 stays in O1's denominator and scores not passed."
+    },
+    "m7-a07": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "evidence": "grading/trace.md#m7",
+      "note": "M7 was never attempted: the environment overlay reserves Day-2 evolution for a separate fresh session run after this grading, and the lane records M7 status 'not-run'. Per applicability.json M7 stays in O1's denominator and scores not passed."
+    },
+    "m7-a08": {
+      "result": "not-run",
+      "method": "snapshot-comparison",
+      "evidence": "grading/trace.md#m7",
+      "note": "M7 was never attempted: the environment overlay reserves Day-2 evolution for a separate fresh session run after this grading, and the lane records M7 status 'not-run'. Per applicability.json M7 stays in O1's denominator and scores not passed."
+    },
+    "m7-a09": {
+      "result": "not-run",
+      "method": "builder-suite",
+      "evidence": "grading/trace.md#m7",
+      "note": "M7 was never attempted: the environment overlay reserves Day-2 evolution for a separate fresh session run after this grading, and the lane records M7 status 'not-run'. Per applicability.json M7 stays in O1's denominator and scores not passed. Its conditionalOn precondition (previously-green milestones) is satisfied - M1-M6 and M8 are green - so this records not-run rather than not-applicable."
+    }
+  },
+  "coverageSpotVerification": {
+    "verdict": "honest",
+    "sampledAssertionIds": [
+      "m1-a03",
+      "m1-a04",
+      "m1-a11",
+      "m2-a13",
+      "m2-a24",
+      "m2-a27",
+      "m3-a05",
+      "m3-a10",
+      "m3-a15",
+      "m4-a01",
+      "m4-a07",
+      "m4-a09",
+      "m5-a05",
+      "m5-a08",
+      "m5-a11",
+      "m6-a08",
+      "m6-a11",
+      "m6-a13",
+      "m8-a01",
+      "m8-a04",
+      "m8-a06"
+    ],
+    "dishonestMilestones": [],
+    "detail": "coverage-manifest.json maps every suite-required assertion of every in-scope milestone to a named test (M1 7/7, M2 22/22, M3 7/7, M4 5/5, M5 6/6, M6 5/5, M8 6/6) with no unmapped ids. The grader read each mapped test body in scripts/acceptance*.mjs and re-ran the whole entrypoint itself. Every sampled mapping exercises the assertion's own observable rather than a proxy: m1-a11 waits for a rendered <img> with naturalWidth>0 inside sm-profile; m2-a13 counts iframe/preview-card/unfurl nodes; m2-a24 checks the cross-page id set size and the page-boundary ordering; m3-a15 re-runs every installed seed segment and deep-compares the inbox; m4-a01 drives the real composer file chooser and then confirms the server row's photo field; m5-a05 asserts the exact E_ASSET_VIEWED refusal code; m6-a13 runs the frozen fixture validator and then re-checks the replayed end state field by field; m8-a01 cross-checks the maintained totals against raw-row SQL and then against the six screen tiles; m8-a06 backdates a post with `snapback4 run --now` so the >24h exclusion is real. The grader's own independent re-execution agreed with the suite on every sampled id. The two thinnest mappings, noted but not dishonest: m2-a27 reads the follower/following counts in the implicit-self-membership state but demonstrates invariance against an explicit self-follow attempt rather than against the implicit membership itself (the grader confirmed the stronger form on a zero-follow account), and m5-a11's grouped-search assertion observes one group rather than several (the grader confirmed two). No mapping was found dishonest, so no milestone is adjudicated to capability-failure."
+  },
+  "defects": [
+    {
+      "id": "d-01",
+      "severity": "minor",
+      "milestone": "M3",
+      "summary": "The M3 acceptance suite is not re-runnable green from the delivered state: its quoted-reply check binds to the starter-log message in d-alice-bob, which later milestones pushed off the newest-50 first page of history, so `npm run acceptance -- --milestone m3` now fails at m3-a10/m3-a11 (reproduced twice). The product behaviour itself is correct - the grader verified the excerpt renders and the tap jumps in a freshly created conversation - so this is a verification-reproducibility defect, not a user-visible bug.",
+      "evidence": "grading/trace.md#m3-quote; grading/_work/grader-acceptance-m3.log and grader-acceptance-m3-rerun.log; scripts/acceptance-m3.mjs:95-110 (waits for sm-convo-quote-preview on /conversation/bob); snapback/chat.q:94 (thread pages last 50 by byChatTime)",
+      "relatedAssertionIds": [
+        "m3-a10",
+        "m3-a11"
+      ]
+    },
+    {
+      "id": "d-02",
+      "severity": "cosmetic",
+      "milestone": null,
+      "summary": "Fixture persona passwords are hard-coded as string literals in seven lane scripts instead of being read from the declared fixture credential file. The brief's test-fixture exception covers the fixture pack because it 'lives outside the app'; copying the same secrets into the checkout's own source widens that surface for no benefit. The three surfaces the assertion actually names - server persistence, client bundles and logs - are clean.",
+      "evidence": "grading/trace.md#m1-hashing; scripts/acceptance.mjs:103, scripts/capture-product.mjs:7, scripts/same-account-proof.mjs:8, scripts/debug-offline.mjs:14, scripts/debug-choreo-like.mjs:19, scripts/debug-multidevice.mjs:19, scripts/acceptance-m6.mjs:98",
+      "relatedAssertionIds": [
+        "m1-a13"
+      ]
+    },
+    {
+      "id": "d-03",
+      "severity": "cosmetic",
+      "milestone": "M8",
+      "summary": "`npx snapback4 check` reports N_NEVER_COMPLETE for digest.preview: the page over members[..] by byPrincipal can never be reported `complete` because the read rule reads .conversationId, which the scan does not pin. The platform prints the rewrite. The query is only a diagnostic preview (the scheduled job uses digestFor directly), so nothing observable is wrong, but the note ships unaddressed.",
+      "evidence": "grading/trace.md#build; `npx snapback4 check` output; snapback/digest.q:15",
+      "relatedAssertionIds": []
+    },
+    {
+      "id": "d-04",
+      "severity": "cosmetic",
+      "milestone": "M6",
+      "summary": "API.md documents chat.createDM but not the chat.dm query, whose result carries both an `id` (the dmPairs row) and a `conversationId`. A first-time API consumer reaching for `.id` gets a value that is not a conversation id and fails with no diagnostic that names the confusion. Every operation the M6 checklist requires is documented correctly - the grader's API.md-only variation (m6-a12) worked first try - so this is a rough edge at the margin of the documented surface.",
+      "evidence": "grading/trace.md#m5; API.md (chat.* paragraph); snapback/chat.q:100",
+      "relatedAssertionIds": [
+        "m6-a12"
+      ]
+    }
+  ],
+  "probeResults": [],
+  "oDimensionScores": {
+    "O1": {
+      "score": 78,
+      "anchorsCited": "Between the 60 anchor ('M1-M4 solid, later milestones patchy or failed on cap') and the 90 anchor ('every in-scope milestone green, including platform-proof artifacts'), placed well above 60 and short of 90.",
+      "justification": "104 of the 119 frozen assertions pass under independent grader execution (M1 13/13, M2 27/27, M3 15/15, M4 12/12, M5 12/12, M6 9/13, M7 0/9, M8 16/18). Seven of the eight in-scope milestones are green and the grader reconfirmed each of them without relying on builder assertions, so the 60 anchor is comfortably exceeded - M5 and M6 are not 'patchy', they are fully verified, and M8's insights, trending, digest and multi-device work all hold. The 90 anchor is not met on two counts it names explicitly: M7 was never attempted (9 assertions not-run; applicability.json keeps it in the denominator on a full run) and the platform-proof artifacts for the native offline proofs are absent, leaving m6-a01..a04 and m8-a17/a18 unobserved. Quality of the passing checklist is high: the grader's own API and browser re-execution agreed with the suite on every assertion it re-ran, with one non-reproducible suite check (defect d-01)."
+    },
+    "O2": {
+      "score": 85,
+      "anchorsCited": "Between the 60 anchor ('a few medium defects off the happy path') and the 90 anchor ('only cosmetic nits'), just short of 90.",
+      "justification": "No blocker and no major defect was found beyond the checklist. Eleven grader-authored trust probes - non-member thread read, non-member send, non-member asset fetch, cross-account global search, editing and deleting another user's message, non-admin promote/add/remove, removed-member cutoff, unauthenticated and user-token /effects access, and cross-account handle claim - were all correctly refused or row-filtered server-side; a removed member's server reads return empty across thread, conversation, inbox and search. Every independent cross-check of stored data agreed with the app's own answers: the six Insights totals against raw row counts, the digest counts against hand-computed activity, trending ordering and the >24h exclusion, feed pagination with no duplicates and a monotone boundary, receipt states, edit-window and delete-window enforcement, view-once and post-delete asset revocation (HTTP 410 / 404), and post-logout session revocation. The four filed defects are one minor (d-01, a suite that no longer re-runs green from the delivered state) and three cosmetic (d-02 duplicated fixture credentials in lane scripts, d-03 an unaddressed platform check note, d-04 an undocumented query shape). That is better than 'a few medium defects off the happy path' and one notch short of 'only cosmetic nits'."
+    },
+    "O3": null,
+    "O4": {
+      "score": 20,
+      "anchorsCited": "Below the 30 anchor ('cold-start offline shows an empty or broken app'); the 60 anchor ('reads work; offline writes lost or mis-ordered') and the 90 anchor ('reads, ordered queued writes, receipt transitions, and offline search all behave as specced on the native proof - on full runs including M8's durable-queue restart and multi-device convergence evidence') are not reachable without the native artifact.",
+      "justification": "O4's gate is met (M6 green) but its scoring basis is absent. applicability.json scores O4 'from the harness's mechanically checkable simulator choreography artifacts (recordings plus structured receipts), never from builder assertions', and choreography/simulator.md names those artifacts exactly: m6-ios-screen.mp4 + m6-ios-receipts.jsonl + m6-ios-run.json, and the M8 equivalents. None exist. Both segment summaries record supplementalExternal status 'not-recorded' with pass:null, and artifacts/m6-ios and artifacts/m8-ios contain only Expo/Hermes bundle exports. The brief's rule is that 'missing evidence leaves native/O4 proof absent rather than passing it', so nothing native was demonstrated - which sits below the 30 anchor, where at least a cold start is observed and seen to be broken. The score is held above 0 for the dimension's second clause, 'honesty of any gap between claim and guarantee': the lane never claimed a native pass, recorded the explicit not-recorded status with a reason, and says so in README.md; and the harness did record passing web-carrier offline evidence - warm-offline search (m5-a12), offline pending/ordered-flush/read receipts (m6 web segment), and dual-device offline convergence and receipts (m8-a15/a16) - which is not the artifact class O4 scores but does show the offline acceptance was exercised. Note that the platform ships `snapback4 witness ios --bundle-id ... --segment ... --artifacts ...`, so producing the artifact was within reach."
+    },
+    "O5": {
+      "band": 75,
+      "bandRationale": "First-match over 0, 30, 60, 90, 75. Branch 0 does not fire: the invariant manifest conforms and the replay cap was not exhausted - the grader re-checked all 18 perEntityCounts in evidence/scale-verify-final.json against instrument/fixtures/invariant-manifest-combined.json and every one matches (users 1008, followEdges 5921, posts 50228, messages 100015, quotedReplies 2736, ...), the four per-user/per-chat maps verified at all three checkpoints, the named O5 fixtures match at each checkpoint (celebrity 900 followers, the 5-account follower list, the 50-member busy roster), scale.log's sha256 matches its pin, and the settlement ledger records 167243/167243 settled with 0 unsettled, reconciling exactly to 167157 scale actions plus 86 starter lines. Branch 30 does not fire: all eleven degradation checks pass, including the M8 celebrity write path (0.657x, limit 3x), celebrity read path (1.114x), Insights (0.751x full/10% and 1.664 s against a 2.146 s mid-curve line), Trending (0.980x and 2.003 s against 2.691 s), deep paging (1.019x) and 500-follow feed load (1.032x), and cold-start sync of the 100-conversation probe user completed in 5.17 s against the 30 s bar with no probe timing out, erroring or OOMing. Branch 60 does not fire: the frozen brief leaves the absolute p95 ceiling table as a P3 placeholder ('pilot-calibrated'), so no calibrated ceiling exists to exceed, and the replay used 687.5 s of the lane's declared 14400 s cap (4.8%, well under 80%). Branch 90 cannot fire: it requires an affirmative 'every probe's observed ceiling utilization is <=50%', and with no calibrated ceilings maxCeilingUtilization is null and cannot be affirmed - the replay-cap half of that branch is satisfied (4.8% <= 50%). First match is therefore 75. Diagnostics for a later re-band if P3 calibrates the ceilings: observed p95s were 2.42 ms (500-follow feed), 2.35 ms (5-follow feed), 17.54 ms (global search), 16.91 ms (history page 1) and 17.22 ms (history page 50), all far under the 30 s probe timeout that is the only pinned per-probe bound."
+    }
+  },
+  "timingRecords": [
+    {
+      "subject": "m1-a09",
+      "measurementsMs": [
+        79.1,
+        74,
+        75.7
+      ],
+      "bestMs": 74,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m2-a04",
+      "measurementsMs": [
+        210.4,
+        101.5,
+        87.9
+      ],
+      "bestMs": 87.9,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m2-a07",
+      "measurementsMs": [
+        255,
+        224,
+        221
+      ],
+      "bestMs": 221,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m2-a14",
+      "measurementsMs": [
+        127.1,
+        54.1,
+        55.2
+      ],
+      "bestMs": 54.1,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m2-a19",
+      "measurementsMs": [
+        55.3,
+        56.8,
+        55.6
+      ],
+      "bestMs": 55.3,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m3-a01",
+      "measurementsMs": [
+        171.9,
+        258,
+        339.8
+      ],
+      "bestMs": 171.9,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m3-a06",
+      "measurementsMs": [
+        8.6,
+        15.3,
+        16.1
+      ],
+      "bestMs": 8.6,
+      "boundMs": 2000,
+      "passed": true
+    },
+    {
+      "subject": "m3-a07",
+      "measurementsMs": [
+        4324.3,
+        4830.2,
+        4314.5
+      ],
+      "bestMs": 4314.5,
+      "boundMs": 5000,
+      "passed": true
+    },
+    {
+      "subject": "m4-a02",
+      "measurementsMs": [
+        959.1,
+        927.5,
+        947.3
+      ],
+      "bestMs": 927.5,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m4-a05",
+      "measurementsMs": [
+        950,
+        886.5,
+        1005.5
+      ],
+      "bestMs": 886.5,
+      "boundMs": null,
+      "passed": true
+    },
+    {
+      "subject": "m4-a08",
+      "measurementsMs": [
+        114.9,
+        154.4,
+        85.9
+      ],
+      "bestMs": 85.9,
+      "boundMs": null,
+      "passed": true
+    }
+  ],
+  "evidenceTracePath": "grading/trace.md",
+  "notes": "Deviations from the frozen protocol, recorded for this N=1 calibration run, not a claim-eligible wave. (1) No holdout probe set was hash-committed before this wave, so execution-order phase 4 was skipped entirely: wave.probeSetSha256 records the literal 'none-uncommitted', probeResults is empty, and no probe was invented. Because applicability.json makes the wave's secret rotated holdout probes the sole scoring basis for O3 ('anchor probes are non-scored continuity diagnostics and never bear on O3'), O3 records null - unscoreable for want of its only input, not inapplicable; its gate (M6 green plus M1-M5 attempted) is in fact met. The eleven trust-boundary checks the grader did run are reported in the defect list, where ad-hoc grader findings belong, and are not used to score O3. (2) The grading family has not passed the calibration gate in grader/calibration.md, so grader.calibrationPassed is false and this grade is labelled uncalibrated-grader; sameFamilyGraded is false (the lane's builder harness records model gpt-6-astra). (3) Timing-sensitive checks are judged best-of-3; machine load is recorded beside every timing observation in the trace, because other sessions share this host (1-minute load average ranged 8.0-13.0 during grading, on an 18-core machine). (4) ENVIRONMENT.md strikes nothing, so no assertion is struck-by-environment and every assertion was graded at the brief's bar. (5) The frozen grader-report schema admits only the 101 M1-M7 assertion ids, so the 18 M8 results from the same single grading session are written alongside this file as grading/m8-assertion-results.json, in the same record shape and enum vocabulary, with no id duplicated across the two files; together they cover all 119 ids exactly once. (6) rerunsUsed is 0: no phase failed because of the grader's own environment or tooling under D3.4. The grader did correct and re-run several of its own probe scripts after finding bugs in them (a wrong seeded assumption about the starter follow graph, an eager assertion message, a wrong id field, a search-input selector, and an offline navigation that also blocked the Metro bundle); each correction and re-run is recorded in the trace. The one lane-side re-run was phase 1's M3 suite, re-run once to confirm the failure reproduces. (7) Phase 1 was run against the lane's delivered store rather than a fresh checkout, so that the suite was exercised on the artifact as delivered; the entrypoint's own receipt writes into evidence/ and suite-status.json were backed up beforehand and restored afterwards."
+}

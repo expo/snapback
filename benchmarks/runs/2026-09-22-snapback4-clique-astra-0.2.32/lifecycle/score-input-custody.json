@@ -1,0 +1,39 @@
+{
+  "recordedAt": "2026-09-22T21:06:38.827841+00:00",
+  "scope": "Five frozen narrative inputs compared by SHA-256 on M5 while the read-only scorer ran; all matched the complete pre-grade snapshot. Original prompt unchanged and excludes grading/ and other lanes.",
+  "scoreStartedAt": "2026-09-22T21:04:38Z",
+  "gradeOverlaps": true,
+  "reason": "The existing runner permits score after completed builder; scoring is read-only API/text work. Grade retains the only heavy host slot. Native integration waits for both.",
+  "files": [
+    {
+      "path": "diary.md",
+      "bytes": 8062,
+      "sha256": "d8203cac7207eb1590057366acc0ddebb78c63aea12ad10e9f6fe484c3915ca3",
+      "matchesPreGradeSnapshot": true
+    },
+    {
+      "path": "essay.md",
+      "bytes": 8424,
+      "sha256": "6d0f0da152ab89b10043b73661f3584647ea9a94b85819214616767bd0e91a30",
+      "matchesPreGradeSnapshot": true
+    },
+    {
+      "path": "final-report.md",
+      "bytes": 15875,
+      "sha256": "2174ea28079adf0352180c11a580eac7cfd756533cdd9f333dae67f8ead0c6f0",
+      "matchesPreGradeSnapshot": true
+    },
+    {
+      "path": "run-log.md",
+      "bytes": 12363,
+      "sha256": "289b809ef180e534ea7979276f0021def75d32e88de559fa5b386f042cc4e471",
+      "matchesPreGradeSnapshot": true
+    },
+    {
+      "path": "run-record.json",
+      "bytes": 16815,
+      "sha256": "53bfe0394224935c6f5edcf05cad1ae95b901a059679e056c10dc760451e4625",
+      "matchesPreGradeSnapshot": true
+    }
+  ]
+}

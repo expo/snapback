@@ -1,0 +1,6 @@
+{
+  "pid": 56439,
+  "startedAt": "2026-09-22T21:07:58.221486+00:00",
+  "intervalSeconds": 60,
+  "reason": "Original sampler completed at score end. Read-only scoring overlapped grading; resume the same load stream until grade end. Original timestamps are retained."
+}

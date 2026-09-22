@@ -6,6 +6,33 @@ Native reference qualification and the actual calibration-16 application are
 separate cells. The reference passed before and after the sign-out repair;
 the actual new Clique application remains pending.
 
+## Comparable Clique run, completed
+
+The [calibration-16 record](../../benchmarks/runs/2026-09-22-snapback4-clique-astra-0.2.32/README.md)
+retains the exact public package pins, unchanged instrument/template hashes,
+source custody, runner lifecycle and actual reviewer outputs. The Astra medium
+cold builder finished in 4,752.700 s. Independent Opus 5 grading finished in
+2,436.317 s with 104 passed, zero failed and 15 unrun assertions (nine M7 and
+six native). It recorded no blocker or major defect, one minor acceptance-test
+repeatability defect and three cosmetic findings. The independent Astra xhigh
+experience score was 88/100, versus 91 on 0.2.31. This descriptive single run
+does not isolate the effect of the release's individual changes.
+
+Typing expiry changes from fail to pass. Three other improved assertion labels
+come from this grader crediting browser choreography where the prior grader
+left the same scenario class unrun with native evidence absent. They do not
+establish an installed native result. Both complete replay attempts and the
+headless acquisition probe have their own receipts; none substitutes for the
+actual application's native acquisition below. The newly reproduced nullable
+object-array declaration defect is retained in a separate follow-up ticket;
+its emitter source is unchanged by the release.
+
+The original lane, complete stopped pre-grade copy and grade/score outputs
+remain frozen. Astra xhigh's separate native extension uses a copy of the
+final app and full final-M8 fixture at
+`/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension`.
+Its results will be reported separately without changing the frozen grade.
+
 ## Operational results
 
 Run on `ccheever@100.88.75.121`, checkout

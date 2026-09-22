@@ -1,0 +1,25 @@
+{
+  "start": 1790108105.998,
+  "end": 1790109006.696,
+  "wall": 900.6980001926422,
+  "excludedVerificationSeconds": 197.25593966700004,
+  "replaySeconds": 703.4420605256422,
+  "pass": true,
+  "settled": 167243,
+  "verbs": {
+    "register": 1000,
+    "profile-set": 1000,
+    "follow": 5909,
+    "group-create": 100,
+    "member-add": 48,
+    "dm-create": 900,
+    "post": 48200,
+    "reply": 2000,
+    "like": 5000,
+    "repost": 1000,
+    "send": 99090,
+    "send-media": 910,
+    "react": 2000
+  },
+  "verification": "pass"
+}

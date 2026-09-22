@@ -1,0 +1,67 @@
+[
+  {
+    "name": "history page50/page1",
+    "ratio": 1.0187462320200955,
+    "limit": 3,
+    "pass": true
+  },
+  {
+    "name": "500-follow/5-follow",
+    "ratio": 1.031956818222752,
+    "limit": 3,
+    "pass": true
+  },
+  {
+    "name": "global search full/10%",
+    "ratio": 0.8093553812965171,
+    "limit": 3,
+    "pass": true
+  },
+  {
+    "name": "global search 50% curve",
+    "observed": 16.46354099997552,
+    "limit": 19.83578699997775,
+    "pass": true
+  },
+  {
+    "name": "Insights full/10%",
+    "ratio": 0.7512043511710969,
+    "limit": 3,
+    "pass": true
+  },
+  {
+    "name": "Insights 50% curve",
+    "observed": 1.6636249999864958,
+    "limit": 2.1462916666366962,
+    "pass": true
+  },
+  {
+    "name": "Trending full/10%",
+    "ratio": 0.9797490055052567,
+    "limit": 3,
+    "pass": true
+  },
+  {
+    "name": "Trending 50% curve",
+    "observed": 2.0031249999883585,
+    "limit": 2.691471555558059,
+    "pass": true
+  },
+  {
+    "name": "celebrity following/5-follow",
+    "ratio": 1.113710839043853,
+    "limit": 3,
+    "pass": true
+  },
+  {
+    "name": "celebrity write/5-follower write",
+    "ratio": 0.6565430208622803,
+    "limit": 3,
+    "pass": true
+  },
+  {
+    "name": "cold sync under 30s",
+    "milliseconds": 5173.755333999987,
+    "pass": true
+  }
+]

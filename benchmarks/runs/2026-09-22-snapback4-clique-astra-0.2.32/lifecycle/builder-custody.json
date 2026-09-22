@@ -1,0 +1,23 @@
+{
+  "at": "2026-09-22T20:33:29.010608+00:00",
+  "builderEnd": {
+    "lane": "astra-snapback4",
+    "phase": "builder",
+    "pid": 5598,
+    "endedAt": "2026-09-22T20:31:50Z",
+    "endedEpoch": 1790109110,
+    "wallSeconds": 4752.7,
+    "exitCode": 0,
+    "stdout": "/Users/ccheever/clique-sb4-20260922-astra-cal16/logs/astra-snapback4.ndjson",
+    "stderr": "/Users/ccheever/clique-sb4-20260922-astra-cal16/logs/astra-snapback4.stderr.log"
+  },
+  "snapshot": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/builder-completed",
+  "copy": "APFS cp -cRp of complete lane after owned listeners stopped; symlinks preserved",
+  "copyAndManifestSeconds": 5.662,
+  "sourceManifest": "/Users/ccheever/clique-sb4-20260922-astra-cal16/logs/builder-source-manifest.json",
+  "sourceManifestSha256": "a405e89917c804eec79ad190aa1450693bf1664b4d312f2b59c5be7808a6a39a",
+  "sourceFiles": 290,
+  "instrumentAndTemplates": "unchanged",
+  "ports": "49360\u201349379 free",
+  "snapbackProcessCwdInLane": false
+}

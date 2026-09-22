@@ -1,0 +1,9 @@
+check: ok — 1 tables (1 synced), 1 operations, no problems, 2 notes, 0.7 ms
+note: schema.q:1:1 — N_NO_HORIZON: table things: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; measure what it costs with `check --residency`
+  rewrite: by byAt: at, id  -- then: sync public last 500 by byAt
+  guide: sync
+
+note: schema.q:5:1 — N_NO_CURSOR: query nullableArray returns a page of 10 things rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — nullableArray(.., c: cursor ?): return things[..] after c last 10 by <index>; read the whole group: `t[..]`, when its schema cap fits the examined ceiling; otherwise this page still needs continuation
+  guide: reads
+

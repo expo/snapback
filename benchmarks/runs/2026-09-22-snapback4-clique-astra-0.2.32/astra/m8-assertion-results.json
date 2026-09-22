@@ -1,0 +1,129 @@
+{
+  "reportVersion": 1,
+  "lane": "astra-snapback4",
+  "grader": {
+    "family": "claude",
+    "model": "claude-opus-5"
+  },
+  "assertionManifest": {
+    "path": "instrument/schema/social-messenger/assertions.json",
+    "version": "0.3.0-m8",
+    "sha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04"
+  },
+  "assertionResults": {
+    "m8-a01": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8-insights",
+      "note": "insights.mine totals matched the grader's own independent row counts over posts/likes/feedPosts/feedFollows exactly on all six figures, and social.relation agreed on followers/following. The /insights screen's six tiles showed the same six numbers."
+    },
+    "m8-a02": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m8",
+      "note": "Harness receipt m8-a02-insights-like-refresh: beforeLikes 69 -> afterLikes 70 after Bob's like and a refresh (refreshMs 192.9)."
+    },
+    "m8-a03": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8-insights",
+      "note": "insights.mine returns exactly 7 day buckets; the last bucket equals floor(asOf/86400000), i.e. the server-time UTC day, buckets are consecutive UTC days, and a post created now incremented that bucket by 1. The UI rendered 7 sm-insights-day-row rows."
+    },
+    "m8-a04": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8-insights",
+      "note": "5 of the 7 buckets carried explicit numeric posts:0 / likesReceived:0 rather than being omitted, and the UI rendered all 7 rows including the zero days."
+    },
+    "m8-a05": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8-trending",
+      "note": "insights.trending head was the newest of the two 8-like posts created in the trailing 24 h; ranking is non-increasing in likes throughout the 10 rows, and every row is inside now-24h."
+    },
+    "m8-a06": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8-trending",
+      "note": "A post backdated 25 h (snapback4 run --now) and then liked by all 8 fixture personas (8 likes, confirmed by row count) is absent from Trending; replies are absent too."
+    },
+    "m8-a07": {
+      "result": "pass",
+      "method": "api",
+      "suiteResult": "pass",
+      "evidence": "grading/trace.md#m8-trending",
+      "note": "The two 8-like posts tie and are ordered newest-first (rows[0].at > rows[1].at); the same tiebreak holds for every adjacent equal-likes pair in the list."
+    },
+    "m8-a08": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "note": "[grader, scheduled] Run on a grader-owned isolated backend (port 49366, shortened 2-minute digest config) so the measurement was not contaminated by the lane's live instance. All clients closed before the period ended. The period emitted exactly one digest per active user (2 users, 1 each) with newFollowers 1, newPostsInFollowing 2, unreadMessages 3, unreadChats 1 - matching the seeded activity exactly."
+    },
+    "m8-a09": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "note": "[grader, scheduled] A fourth persona with a profile but no activity in the period received zero digests."
+    },
+    "m8-a10": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "note": "[grader, scheduled] The following 2-minute period, in which no writes occurred, emitted zero digests for any user."
+    },
+    "m8-a11": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest-restart",
+      "note": "[grader, scheduled] Activity was seeded, then the backend was SIGTERMed mid-period and restarted (down 2.6 s) before the period closed. Exactly one digest per user for that period, and across all 3 observed periods on that instance no (user, period) pair ever received more than one. snapback/digest.q commits the digestMarkers row in the same chunk as the emit."
+    },
+    "m8-a12": {
+      "result": "pass",
+      "method": "api",
+      "evidence": "grading/trace.md#m8-digest",
+      "note": "[grader, trust-boundary] A fifth persona created a group with the sender (not with the target) and sent 5 messages there. The target's digest still read unreadMessages 3 / unreadChats 1 from its own DM only, while the sender - who is a member of that group - correctly counted 5/1. digestFor iterates only members[reader]."
+    },
+    "m8-a13": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m8",
+      "note": "Harness receipt m8-a13-same-account-message-live passed (visibleMs 624.7)."
+    },
+    "m8-a14": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m8",
+      "note": "Harness receipt m8-a14-cross-device-read-state passed (clearVisibleMs 390.3)."
+    },
+    "m8-a15": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m8",
+      "note": "Harness receipt m8-a15-dual-offline-convergence passed (firstFlushMs 228.8, secondFlushMs 343.5)."
+    },
+    "m8-a16": {
+      "result": "pass",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#choreo-m8",
+      "note": "Harness receipt m8-a16-dual-offline-receipts passed (firstReadMs 2.4, secondReadMs 2.3)."
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#m8-native",
+      "note": "No iOS-simulator choreography artifact exists for M8. The harness segment summary records choreography.supplementalExternal = [{id:'ios-simulator-m8', pass:null, receipt:null, status:'not-recorded'}]; artifacts/m8-ios holds only an Expo/Hermes bundle export, with no m8-ios-screen.mp4, m8-ios-receipts.jsonl or m8-ios-run.json. choreography/simulator.md makes this artifact the sole basis for m8-a17/m8-a18 and forbids inheriting a pass from the M8 web segment; the frozen grader prompt likewise forbids scoring it from builder assertions such as evidence/offline-restart-proof.json. Nothing was observed."
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#m8-native",
+      "note": "No iOS-simulator choreography artifact exists for M8. The harness segment summary records choreography.supplementalExternal = [{id:'ios-simulator-m8', pass:null, receipt:null, status:'not-recorded'}]; artifacts/m8-ios holds only an Expo/Hermes bundle export, with no m8-ios-screen.mp4, m8-ios-receipts.jsonl or m8-ios-run.json. choreography/simulator.md makes this artifact the sole basis for m8-a17/m8-a18 and forbids inheriting a pass from the M8 web segment; the frozen grader prompt likewise forbids scoring it from builder assertions such as evidence/offline-restart-proof.json. Nothing was observed."
+    }
+  }
+}

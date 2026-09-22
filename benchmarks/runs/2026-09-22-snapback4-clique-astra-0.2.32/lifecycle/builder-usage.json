@@ -1,0 +1,17 @@
+{
+  "source": "/Users/ccheever/clique-sb4-20260922-astra-cal16/logs/astra-snapback4.ndjson",
+  "bytes": 2160181,
+  "sha256": "b652806bc90b5fcb3a9fd4c273d803e5703bcab413462ae94e824526f322a57c",
+  "events": [
+    {
+      "type": "turn.completed",
+      "usage": {
+        "input_tokens": 34698491,
+        "cached_input_tokens": 34110464,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 119029,
+        "reasoning_output_tokens": 37167
+      }
+    }
+  ]
+}

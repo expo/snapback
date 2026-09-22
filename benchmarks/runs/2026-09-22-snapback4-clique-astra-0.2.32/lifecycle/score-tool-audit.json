@@ -1,0 +1,48 @@
+{
+  "recordedAt": "2026-09-22T21:11:13.261027+00:00",
+  "session": "/Users/ccheever/.codex/sessions/2026/09/22/rollout-2026-09-22T14-04-38-01a0caef-59d6-7061-a299-3e775a8cde4d.jsonl",
+  "sessionSha256": "1c92f63a1b72326ad1f815cdfe6ea3f154b05a43b6a052e26066459a650afccb",
+  "scopeAudit": "Root inspected all eight tool calls: two tool-registry lookups, then six read-only Node REPL calls. File reads are the five permitted narratives, the frozen brief, and four permitted lane source files. No grading, other-lane, prior-run or Snapback repository content was read; no tests or mutations were executed.",
+  "tools": [
+    {
+      "name": "exec",
+      "input": "text(ALL_TOOLS.filter(x => /read|file|directory|search/i.test(x.name+\" \"+x.description)).map(x=>({name:x.name,description:x.description.slice(0,170)})));\n"
+    },
+    {
+      "name": "exec",
+      "input": "text(ALL_TOOLS.find(x=>x.name===\"mcp__node_repl__js\"));\n"
+    },
+    {
+      "name": "exec",
+      "input": "text(await tools.mcp__node_repl__js({code:\"var fs = await import('node:fs/promises'); var root = '/Users/ccheever/clique-sb4-20260922-astra-cal16'; var lane = root + '/lanes/astra-snapback4'; var names = ['diary.md','essay.md','run-log.md','final-report.md','run-record.json']; var evidence = await Promise.allSettled(names.map(name => fs.readFile(lane + '/' + name, 'utf8'))); nodeRepl.write(evidence.map((r,i) => ({name:names[i],status:r.status,...(r.status==='fulfilled'?{characters:r.value.length}:{error:String(r.reason)})}))); nodeRepl.write(await fs.readFile(root + '/instrument/social-messenger.md', 'utf8'));\",title:\"Read the brief and load the five permitted lane narratives\"}));\n"
+    },
+    {
+      "name": "exec",
+      "input": "const r=await tools.mcp__node_repl__js({code:\"nodeRepl.write(evidence[0].value); nodeRepl.write(evidence[1].value);\",title:\"Read the complete diary and closing essay\"});for(const c of r.content??[])if(c.type===\"text\")text(c.text);\n"
+    },
+    {
+      "name": "exec",
+      "input": "const r=await tools.mcp__node_repl__js({code:\"nodeRepl.write(evidence[2].value);\",title:\"Read the full run log and attribution record\"});for(const c of r.content??[])if(c.type===\"text\")text(c.text);\n"
+    },
+    {
+      "name": "exec",
+      "input": "const r=await tools.mcp__node_repl__js({code:\"nodeRepl.write(evidence[3].value);\",title:\"Read the complete final report\"});for(const c of r.content??[])if(c.type===\"text\")text(c.text);\n"
+    },
+    {
+      "name": "exec",
+      "input": "const r=await tools.mcp__node_repl__js({code:\"nodeRepl.write(evidence[4].value);\",title:\"Read the full structured run record\"});for(const c of r.content??[])if(c.type===\"text\")text(c.text);\n"
+    },
+    {
+      "name": "exec",
+      "input": "const r=await tools.mcp__node_repl__js({code:\"var brief = await fs.readFile(root + '/instrument/social-messenger.md','utf8'); var begin = brief.indexOf('### M1'); var end = brief.indexOf('### M7', begin); nodeRepl.write(brief.slice(begin,end)); var specificSources = ['snapback/digest.q','snapback/push.q','snapback/chat.q','src/client.ts']; var sourceReads = await Promise.allSettled(specificSources.map(name => fs.readFile(lane + '/' + name,'utf8'))); sourceReads.forEach((r,i)=>nodeRepl.write({file:specificSources[i],...(r.status==='fulfilled'?{content:r.value}:{error:String(r.reason)})}));\",title:\"Check milestone scope and source claims about transactions, digest bounds, and client integration\"});for(const c of r.content??[])if(c.type===\"text\")text(c.text);\n"
+    }
+  ],
+  "lastTotalTokenUsage": {
+    "input_tokens": 298663,
+    "cached_input_tokens": 251392,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 3344,
+    "reasoning_output_tokens": 1329,
+    "total_tokens": 302007
+  }
+}
