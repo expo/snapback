@@ -10,11 +10,11 @@
 **Battery gate:** `guide-authoring-profile-fixtures`
 **Failure signature:** `sha256:4c29cc6363cbfb3940c5c1c84920c89e34a691b695b1b256bc52873e080d33ee`
 **First observed run:** `local.20260914T104118Z.86928d068765`
-**Last observed run:** `local.20260922T102119Z.50782b08ec43`
-**Last processed run:** `local.20260922T102119Z.50782b08ec43`
+**Last observed run:** `local.20260922T201104Z.e7c955d366a5`
+**Last processed run:** `local.20260922T201104Z.e7c955d366a5`
 **Detected at revision:** `86928d068765e3d57c68747e4f2359950b8ff7d1`
-**Last observed revision:** `50782b08ec432f5829644b2376245e937485fb7a`
-**Consecutive red runs:** `20`
+**Last observed revision:** `e7c955d366a57ba7005f500d2a396c63e92be141`
+**Consecutive red runs:** `21`
 **Escalation:** `AUTHOR_ESCALATION_REQUIRED`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 

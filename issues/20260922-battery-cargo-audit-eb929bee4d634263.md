@@ -10,12 +10,12 @@
 **Battery gate:** `cargo-audit`
 **Failure signature:** `sha256:eb929bee4d634263c1d91410aad25149bb33fe36c11061777e6e14734ff6032f`
 **First observed run:** `local.20260922T102119Z.50782b08ec43`
-**Last observed run:** `local.20260922T102119Z.50782b08ec43`
-**Last processed run:** `local.20260922T102119Z.50782b08ec43`
+**Last observed run:** `local.20260922T201104Z.e7c955d366a5`
+**Last processed run:** `local.20260922T201104Z.e7c955d366a5`
 **Detected at revision:** `50782b08ec432f5829644b2376245e937485fb7a`
-**Last observed revision:** `50782b08ec432f5829644b2376245e937485fb7a`
-**Consecutive red runs:** `1`
-**Escalation:** `pending (1/4)`
+**Last observed revision:** `e7c955d366a57ba7005f500d2a396c63e92be141`
+**Consecutive red runs:** `2`
+**Escalation:** `pending (2/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
