@@ -349,17 +349,20 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             let used = snapback4_core::engine::rules::deciding_fields(&scan.table, table, &table.rules.read);
             let unpinned: Vec<String> = used.difference(&pinned).cloned().collect();
             let mut leading = unpinned.clone();
-            for column in index.columns().into_iter().skip(scan.prefix.len()) {
+            // @ref LLP 3000.011.000.000#6 — prefer an existing compatible index without dropping the old equality prefix.
+            for column in index.columns().into_iter().skip(if index.is_plain() { 0 } else { scan.prefix.len() }) {
                 if !leading.contains(&column) { leading.push(column); }
             }
-            let leading = leading.join(", ");
+            let existing = index.is_plain().then(|| table.indexes.iter().find(|(_, candidate)| candidate.is_plain() && candidate.columns() == leading)).flatten();
+            let columns = leading.join(", ");
             let search_rewrite = matching_merge_rewrite(schema, scan, table);
+            let scope_rewrite = existing.map(|(name, _)| format!("use the existing index `{name}: {columns}`; pin {} as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")));
             notes.push(
                 Diagnostic::new(
                     &bound.site,
                     "N_NEVER_COMPLETE",
                     format!("{} {}: the page over {}[..] by {} is never `complete` — the read rule `{}` reads {}, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"", bound.program.kind.word(), bound.program.name, scan.table, scan.index, table.rules.read.quarry(), unpinned.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")),
-                    search_rewrite.clone().unwrap_or_else(|| format!("scan by an index leading with {leading} (`by by{}: {leading}`), or read the page on the device, where the partition holds exactly what the viewer may read", unpinned.iter().map(|c| { let mut cs = c.chars(); cs.next().map(|f| f.to_uppercase().collect::<String>() + cs.as_str()).unwrap_or_default() }).collect::<String>())),
+                    search_rewrite.clone().or(scope_rewrite).unwrap_or_else(|| format!("scan by an index leading with {columns} (`by by{}: {columns}`); pin the missing rule columns as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read", unpinned.iter().map(|c| { let mut cs = c.chars(); cs.next().map(|f| f.to_uppercase().collect::<String>() + cs.as_str()).unwrap_or_default() }).collect::<String>())),
                 )
                 .guide(if search_rewrite.is_some() { "search" } else { "reads" }),
             );

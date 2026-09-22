@@ -150,7 +150,10 @@ query typingNow(roomId: rooms):
 The first read examples use the language card's tables. A page's read rule is checked
 once when the prefix decides it, else per row, and a page whose rule still depends
 on a column the scan does not pin is never `complete` (N_NEVER_COMPLETE names
-the index that would decide it). With a total unique `(chatKey, principal)`
+the missing equality columns and an existing compatible index when one is
+available). Keep the current equality prefix when adding those pins; choosing
+a conversation narrows the answer to that scope. This is author guidance,
+not a `check --fix` repair, and it does not change the read rule. With a total unique `(chatKey, principal)`
 key on t, `.principal = viewer or exists t[.chatKey, viewer]` is decided by
 the chat alone because the row is its own witness, so a roster page pinned
 by the chat is complete and no second table is needed. An aborting mutation

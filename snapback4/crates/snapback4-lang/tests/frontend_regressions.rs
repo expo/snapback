@@ -73,7 +73,7 @@ fn self_witness_notes_name_only_the_unpinned_deciding_columns() {
     let residual = bound(&source.replace(rule, &format!("{rule} or .role = 'admin'")));
     let note = residual.notes.iter().find(|note| note.code == "N_NEVER_COMPLETE" && note.message.contains("query roster:")).unwrap();
     assert!(note.message.contains("reads .role, which the scan does not pin"), "{note:?}");
-    assert!(note.rewrite.contains("by byRole: role, principal"), "{note:?}");
+    assert!(note.rewrite.contains("by byRole: role, chatKey, principal"), "{note:?}");
 }
 
 fn engine(source: &str) -> Engine {

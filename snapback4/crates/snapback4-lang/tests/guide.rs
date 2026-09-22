@@ -1113,18 +1113,19 @@ fn structural_admission_cards_name_every_host_and_the_web_trust_boundary() {
 }
 
 #[test]
-fn w14b_digest_recipes_are_complete_and_share_the_period_helper() {
+fn digest_recipe_is_atomic_bounded_and_reachable_from_the_orientation() {
     let jobs = card("jobs").unwrap();
     let digest = quarry(jobs).into_iter().find(|b| b.contains("job digest(")).expect("a complete digest recipe");
     let recipes = quarry(readme_reference("jobs")).into_iter().filter(|b| b.contains("job digest(")).collect::<Vec<_>>();
     assert_eq!(recipes, [digest.clone()], "one intact digest, reached from the orientation");
     clean("digest", &digest);
-    let large = quarry(jobs).into_iter().find(|b| b.contains("job digestLarge(")).expect("past-the-envelope recipe");
-    clean("large digest", &large);
-    for source in [&digest, &large] {
-        assert!(source.contains("at >= periodStart, at < periodEnd"));
-        assert!(source.contains(".ordinal > readOrdinal"));
-    }
+    assert!(!quarry(jobs).iter().any(|b| b.contains("job digestLarge(")), "no live paged accumulator");
+    assert!(digest.contains("at >= periodStart, at < periodEnd"));
+    assert!(digest.contains(".ordinal > readOrdinal"));
+    assert!(digest.contains("require n <= 100 else DIGEST_CHAT_BOUND"));
+    assert!(digest.contains("insert digestMarkers { principal: p.principal, periodEnd }"));
+    assert_eq!(snapback4_lang::diag::guide_for("DIGEST_CHAT_BOUND"), "jobs");
+    assert!(explain_code("DIGEST_CHAT_BOUND").unwrap().contains("without an effect or marker"));
     let remind = quarry(jobs).into_iter().find(|b| b.contains("job remind(")).unwrap();
     assert!(remind.contains("immutable sentAt"));
     assert!(remind.contains("invites[sentAt >= periodStart, sentAt < periodEnd] first 100 by bySentAt"));

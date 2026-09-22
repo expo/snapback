@@ -12,16 +12,24 @@ const REWRITE: &str = "decide only the emit with presence; read it on the server
 
 // @ref LLP 3000.007#19.1 — only presence flows ending in effects preserve prediction; every other sink stays server-only.
 pub(super) fn inspect(program: &Program, fact: &mut Execution, ownership: &Ownership, sources: &[(Expr, crate::diag::Site, String)]) {
-    let mut flow = Flow { seen: false, sites: BTreeMap::new(), effect_control: Origins::new(), escaped: Env::new(), ownership, sources, program: &program.name, guards: BTreeSet::new() };
+    let mut flow = Flow { seen: false, sites: BTreeMap::new(), consumers: BTreeMap::new(), effect_control: Origins::new(), escaped: Env::new(), ownership, sources, program: &program.name, guards: BTreeSet::new() };
     flow.body(&program.body, &mut Env::new(), &Origins::new(), "", false);
     fact.connected_effects_only = flow.seen && flow.sites.is_empty();
     if fact.connected_effects_only { fact.prediction_guards = flow.guards.into_iter().collect(); }
-    fact.sites.extend(flow.sites.into_values());
+    for (key, site) in flow.sites {
+        if let Some(consumers) = flow.consumers.get(&key) {
+            for consumer in consumers {
+                let mut located = site.clone(); located.site = consumer.clone();
+                fact.sites.push(located);
+            }
+        } else { fact.sites.push(site); }
+    }
 }
 
 struct Flow<'a> {
     seen: bool,
     sites: BTreeMap<(String, String, String), ResidencySite>,
+    consumers: BTreeMap<(String, String, String), BTreeSet<String>>,
     effect_control: Origins,
     escaped: Env,
     ownership: &'a Ownership,
@@ -34,7 +42,8 @@ impl Flow<'_> {
     fn reject(&mut self, origins: &Origins, usage: &str, site: &str) {
         for (origin, location) in origins {
             self.sites.entry((site.into(), usage.into(), format!("{origin} {location}"))).or_insert_with(|| ResidencySite {
-                site: location.clone(), table: "connected".into(), index: "principal".into(), kind: "presence".into(), class: SiteClass::Server,
+                // @ref LLP 3000.011.000.000#6 — the existing read site locates the consumer; the reason retains its presence origin.
+                site: if site.starts_with("programs.") { site.into() } else { location.clone() }, table: "connected".into(), index: "principal".into(), kind: "presence".into(), class: SiteClass::Server,
                 reason: format!("{origin} decides {usage} (read at {location})"), rewrite: REWRITE.into(),
             });
         }
@@ -181,6 +190,18 @@ impl Flow<'_> {
             let mut controlled = control.clone();
             controlled.extend(self.effect_control.iter().cloned());
             self.reject(&controlled, "a fallible evaluation", site);
+            // @ref LLP 3000.011.000.000#6 — attach already-bound consumers to the existing cause, without changing its analysis or deduplication key.
+            let consumer = match value {
+                Expr::Get(read) | Expr::Exists(read) => Some(&read.site),
+                Expr::Scan(scan) => Some(&scan.site),
+                Expr::Merge(merge) => Some(&merge.site),
+                _ => None,
+            };
+            if let Some(consumer) = consumer {
+                for (origin, location) in &controlled {
+                    self.consumers.entry((site.into(), "a fallible evaluation".into(), format!("{origin} {location}"))).or_default().insert(consumer.clone());
+                }
+            }
         }
         match value {
             Expr::Variable(name) => env.get(name).cloned().unwrap_or_default(),

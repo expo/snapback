@@ -1,0 +1,18 @@
+reference terminal:
+schema.q:11:18 — E_QUARRY_TYPE: deliver's event is a events reference; got a posts row
+  rewrite: pass a events reference for event
+  guide: types
+reference JSON: [{"site":{"file":"schema.q","line":11,"col":18},"code":"E_QUARRY_TYPE","message":"deliver's event is a events reference; got a posts row","rewrite":"pass a events reference for event","guide":"types","mechanical":false}]
+membership terminal:
+schema.q:14:1 — N_NEVER_COMPLETE: query reactionsForMessage: the page over reactions[..] by byMessage is never `complete` — the read rule `exists members[.conversationId, viewer]` reads .conversationId, which the scan does not pin, so the server cannot tell "no more" from "more you may not read"
+  rewrite: scan by an index leading with conversationId, id (`by byConversationId: conversationId, id`), or read the page on the device, where the partition holds exactly what the viewer may read
+  guide: reads
+membership JSON: [{"site":{"file":"schema.q","line":14,"col":1},"code":"N_NEVER_COMPLETE","message":"query reactionsForMessage: the page over reactions[..] by byMessage is never `complete` — the read rule `exists members[.conversationId, viewer]` reads .conversationId, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"","rewrite":"scan by an index leading with conversationId, id (`by byConversationId: conversationId, id`), or read the page on the device, where the partition holds exactly what the viewer may read","guide":"reads","mechanical":false}]
+presence why:
+  send: predicts: never; queued without a row
+    Held: point notes by byN: held, no horizon (site schema.q:11:23 (notes[1]))
+    Server: connected[p] decides a fallible or variable-cost arm (read at schema.q:10:17) (site schema.q:10:17)
+      rewrite: decide only the emit with presence; read it on the server in a service mutation for anything else
+    Server: connected[p] decides a fallible evaluation (read at schema.q:10:17) (site schema.q:10:17)
+      rewrite: decide only the emit with presence; read it on the server in a service mutation for anything else
+presence JSON: {"predicts":"never","sites":[{"site":"schema.q:11:23 (notes[1])","table":"notes","index":"byN","kind":"point","class":"held","reason":"point notes by byN: held, no horizon","rewrite":""},{"site":"schema.q:10:17","table":"connected","index":"principal","kind":"presence","class":"server","reason":"connected[p] decides a fallible or variable-cost arm (read at schema.q:10:17)","rewrite":"decide only the emit with presence; read it on the server in a service mutation for anything else"},{"site":"schema.q:10:17","table":"connected","index":"principal","kind":"presence","class":"server","reason":"connected[p] decides a fallible evaluation (read at schema.q:10:17)","rewrite":"decide only the emit with presence; read it on the server in a service mutation for anything else"}],"requires":[]}

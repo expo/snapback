@@ -7,8 +7,8 @@ use snapback4_core::meter::{Ceilings, Cut, Meter};
 use std::collections::BTreeMap;
 use std::time::Instant;
 
-fn source(large: bool) -> String {
-    let needle = if large { "job digestLarge(" } else { "job digest(" };
+fn source() -> String {
+    let needle = "job digest(";
     snapback4_lang::guide::quarry(snapback4_lang::guide::card("jobs").unwrap()).into_iter()
         .find(|block| block.contains(needle)).expect("published digest recipe")
 }
@@ -64,7 +64,7 @@ fn payloads(e: &Engine) -> Vec<Json> {
 
 #[test]
 fn period_digest_and_viewer_inbox_agree_before_the_expiry_sweep() {
-    let mut e = engine(&source(false));
+    let mut e = engine(&source());
     small(&mut e);
     let mut expected = Vec::new();
     for (viewer, counts, examined) in [("alice", vec![1, 2], 11), ("bob", vec![0, 4, 2], 14), ("carol", vec![0, 0], 8)] {
@@ -88,8 +88,11 @@ fn period_digest_and_viewer_inbox_agree_before_the_expiry_sweep() {
     let before = e.store().rows("messages").unwrap();
     assert_eq!(before.len(), 12, "expired row is still physically present");
     let run = e.run_job("digest", period(10_000, 20_000), 20_000).unwrap();
-    assert_eq!((run.state, run.chunks, run.rows_written), (JobState::Done, 3, 0));
+    assert_eq!((run.state, run.chunks, run.rows_written), (JobState::Done, 3, 3));
     assert_eq!(payloads(&e), expected);
+    let markers = e.store().rows("digestMarkers").unwrap();
+    let marker_bytes = markers.iter().map(|row| snapback4_core::value::canonical_json(row).len()).sum::<usize>();
+    println!("atomic digest: chunks=3 writes=3 effects=2 markers={} canonical_marker_bytes={marker_bytes}", markers.len());
     assert_eq!(e.store().rows("messages").unwrap(), before);
     assert_eq!(e.sweep_expired(20_000, 100).unwrap(), 1);
 }
@@ -109,12 +112,13 @@ fn hub(e: &mut Engine, per: i64, in_period: i64, small_profile: bool) {
 }
 
 fn with_ordinal(source: &str) -> String {
-    let ordinal = source.split("fn unreadIn(").nth(1).unwrap().split("schedule daily").next().unwrap()
+    let helper = source.split("fn unreadIn(").nth(1).unwrap().split("table digestMarkers:").next().unwrap();
+    let job = source.split("job digest(").nth(1).unwrap().split("schedule daily").next().unwrap();
+    let ordinal = format!("fn unreadIn({helper}job digestByOrdinal({job}")
         .replace("unreadIn(", "unreadByOrdinal(").replace("query inbox(", "query ordinalInbox(")
-        .replace("job digest(", "job digestByOrdinal(")
-        .replace("messages[conversationId, at >= periodStart, at < periodEnd] first 100 by byConversationTime where not .tombstone and .senderId != reader and .ordinal > readOrdinal",
-            "messages[conversationId, ordinal > readOrdinal] first 100 by byConversationOrdinal where not .tombstone and .senderId != reader and .at >= periodStart and .at < periodEnd");
-    format!("{source}\nfn unreadByOrdinal({ordinal}")
+        .replace("messages[conversationId, at >= periodStart, at < periodEnd] first 101 by byConversationTime where not .tombstone and .senderId != reader and .ordinal > readOrdinal",
+            "messages[conversationId, ordinal > readOrdinal] first 101 by byConversationOrdinal where not .tombstone and .senderId != reader and .at >= periodStart and .at < periodEnd");
+    format!("{source}\n{ordinal}")
 }
 
 // JobRun does not expose its meter. Execute the compiled single-profile chunk
@@ -135,7 +139,7 @@ fn measured_chunk(e: &mut Engine, job: &str, examined: u64) -> Result<Value, Run
 
 #[test]
 fn hub_seeks_the_period_in_one_chunk_and_ordinal_history_parks_on_examined() {
-    let mut e = engine(&with_ordinal(&source(false)));
+    let mut e = engine(&with_ordinal(&source()));
     hub(&mut e, 20, 5, false);
     let error = measured_chunk(&mut e, "digestByOrdinal", 16_384).unwrap_err();
     assert!(matches!(error, RuntimeError::Bound { kind: MeterKind::Examined, actual: 16_385, ceiling: 16_384, .. }), "{error:?}");
@@ -145,19 +149,19 @@ fn hub_seeks_the_period_in_one_chunk_and_ordinal_history_parks_on_examined() {
     assert_eq!(ordinal.error.as_deref(), Some("E_BOUND: examined rows reached the ceiling 16384"));
     assert!(payloads(&e).is_empty());
     println!("hub 1000x20 ordinal: examined=16385, ceiling=16384, elapsed_ms={}", started.elapsed().as_millis());
-    measured_chunk(&mut e, "digest", 7_003).unwrap();
-    let error = measured_chunk(&mut e, "digest", 7_002).unwrap_err();
-    assert!(matches!(error, RuntimeError::Bound { kind: MeterKind::Examined, actual: 7_003, ceiling: 7_002, .. }), "{error:?}");
+    measured_chunk(&mut e, "digest", 7_004).unwrap();
+    let error = measured_chunk(&mut e, "digest", 7_003).unwrap_err();
+    assert!(matches!(error, RuntimeError::Bound { kind: MeterKind::Examined, actual: 7_004, ceiling: 7_003, .. }), "{error:?}");
     let started = Instant::now();
     let time = e.run_job("digest", period(10_000, 20_000), 20_000).unwrap();
-    assert_eq!((time.state, time.chunks, time.rows_written), (JobState::Done, 1, 0));
+    assert_eq!((time.state, time.chunks, time.rows_written), (JobState::Done, 1, 1));
     assert_eq!(payloads(&e), [json!({"targetUserId":"hub","kind":"digest","periodStart":10000,"periodEnd":20000,"unread":5000,"chats":1000})]);
-    println!("hub 1000x20 time: examined=7003, chunks=1, writes=0, effects=1, elapsed_ms={}", started.elapsed().as_millis());
+    println!("hub 1000x20 time: examined=7004, chunks=1, writes=1, effects=1, elapsed_ms={}", started.elapsed().as_millis());
 }
 
 #[test]
-fn parked_digest_queued_again_is_a_new_run_and_reemits_completed_profiles() {
-    let mut e = engine(&with_ordinal(&source(false)));
+fn parked_digest_replacement_skips_completed_profiles() {
+    let mut e = engine(&with_ordinal(&source()));
     hub(&mut e, 20, 5, true);
     let mut ids = Vec::new();
     for n in 1..=2 {
@@ -166,7 +170,8 @@ fn parked_digest_queued_again_is_a_new_run_and_reemits_completed_profiles() {
         assert_eq!(run.error.as_deref(), Some("E_BOUND: examined rows reached the ceiling 16384"));
         ids.push(run.id);
         let effects = payloads(&e);
-        assert_eq!(effects.len(), n as usize);
+        assert_eq!(effects.len(), 1);
+        assert_eq!(e.store().rows("digestMarkers").unwrap().len(), 1);
         assert!(effects.iter().all(|p| p["targetUserId"] == "a" && p["unread"] == 5));
         println!("parked retry {n}: committed chunks=1, effects={}", effects.len());
     }
@@ -174,17 +179,20 @@ fn parked_digest_queued_again_is_a_new_run_and_reemits_completed_profiles() {
 }
 
 #[test]
-fn schedule_and_chunk_cursor_survive_restart_but_manual_run_reemits() {
+fn schedule_cursor_and_markers_survive_restart_and_manual_rerun() {
     let dir = std::env::temp_dir().join(format!("sb4-digest-{}-{}", std::process::id(), snapback4_core::now_ms()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("store.sqlite");
-    let b = bound(&source(false).replace("schedule daily every 1d at 08:00", "schedule daily every 1m"));
+    let b = bound(&source().replace("schedule daily every 1d at 08:00", "schedule daily every 1m"));
     let mut e = Engine::new(Store::open(&path).unwrap(), b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     small(&mut e);
     assert!(e.fire_schedules(1_000).unwrap().is_empty());
     drop(e);
     let mut e = Engine::open(Store::open(&path).unwrap()).unwrap();
     assert_eq!(e.fire_schedules(60_000).unwrap(), ["daily"]);
+    // Restart after admission, before the first recipient transaction.
+    drop(e);
+    let mut e = Engine::open(Store::open(&path).unwrap()).unwrap();
     let first = e.run_job_chunk(60_000).unwrap().unwrap();
     assert_eq!((first.state, first.chunks), (JobState::Running, 1));
     assert_eq!(payloads(&e).len(), 1);
@@ -201,73 +209,177 @@ fn schedule_and_chunk_cursor_survive_restart_but_manual_run_reemits() {
     assert_eq!(e.job(&first.id).unwrap().unwrap().chunks, 3);
     let repeat = e.run_job("digest", period(0, 60_000), 60_002).unwrap();
     assert_ne!(repeat.id, first.id);
-    assert_eq!(payloads(&e).len(), 4);
+    assert_eq!(payloads(&e).len(), 2);
+    assert_eq!(repeat.rows_written, 0);
+    assert_eq!(e.store().rows("digestMarkers").unwrap().len(), 3);
     drop(e);
     std::fs::remove_dir_all(dir).unwrap();
 }
 
 #[test]
-fn membership_chunks_total_the_same_digest_and_delete_the_totals() {
-    let more_members = |e: &mut Engine| {
-        small(e);
-        let mut rows = Vec::new();
-        for c in 0..30 {
-            let chat = format!("extra{c:02}");
-            rows.push(("conversations", json!({"id":chat,"title":chat})));
-            rows.push(("members", json!({"id":chat,"conversationId":chat,"principal":"alice","readOrdinal":0})));
-            rows.push(("messages", message(&chat, 1, "bob", 15_000)));
-        }
-        seed(e, rows);
-    };
-    let mut single = engine(&source(false));
-    more_members(&mut single);
-    single.run_job("digest", period(10_000, 20_000), 20_000).unwrap();
-    let mut large = engine(&source(true));
-    more_members(&mut large);
-    seed(&mut large, vec![("members", json!({"id":"orphan","conversationId":"c1","principal":"no-profile","readOrdinal":0}))]);
-    let run = large.run_job("digestLarge", period(10_000, 20_000), 20_000).unwrap();
-    assert_eq!(run.state, JobState::Done, "{run:?}");
-    assert_eq!(payloads(&large), payloads(&single));
-    assert!(large.store().rows("digestTotals").unwrap().is_empty());
-    println!("large digest: chunks={}, writes={}, effects=2, totals left=0", run.chunks, run.rows_written);
+fn refusal_before_or_after_emit_or_marker_rolls_back_the_whole_recipient() {
+    let original = source();
+    let emit = "      emit push { targetUserId: p.principal, kind: 'digest', periodStart, periodEnd, unread, chats }";
+    let marker = "    insert digestMarkers { principal: p.principal, periodEnd }";
+    for source in [
+        original.replace(emit, &format!("      require false else DIGEST_TEST_ABORT\n{emit}")),
+        original.replace(marker, &format!("    require false else DIGEST_TEST_ABORT\n{marker}")),
+        original.replace(marker, &format!("{marker}\n    require false else DIGEST_TEST_ABORT")),
+    ] {
+        let mut e = engine(&source);
+        small(&mut e);
+        let refused = e.run_job("digest", period(10_000, 20_000), 20_000).unwrap();
+        assert_eq!((refused.state, refused.chunks, refused.rows_written), (JobState::Parked, 0, 0));
+        assert!(refused.error.unwrap().contains("DIGEST_TEST_ABORT"));
+        assert!(payloads(&e).is_empty());
+        assert!(e.store().rows("digestMarkers").unwrap().is_empty());
+        let b = bound(&original);
+        e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        let replacement = e.run_job("digest", period(10_000, 20_000), 20_001).unwrap();
+        assert_eq!((replacement.state, replacement.rows_written), (JobState::Done, 3));
+        assert_eq!(payloads(&e).len(), 2);
+        let updated = bound(&original.replace("kind: 'digest'", "kind: 'updatedDigest'"));
+        e.adopt(updated.schema, updated.programs.into_iter().map(|p| p.program)).unwrap();
+        let changed_policy = e.run_job("digest", period(10_000, 20_000), 20_002).unwrap();
+        assert_eq!(changed_policy.rows_written, 0);
+        assert_eq!(payloads(&e).len(), 2, "changing implementation cannot reopen the business period");
+    }
 }
 
 #[test]
-fn a_principal_cannot_write_the_job_written_totals() {
-    // The published block with one principal mutation appended: only the job,
-    // as the system, passes the totals table's `deny` rules.
-    let forged = format!("{}\nmutation forge(periodEnd: time):\n  insert digestTotals {{ principal: viewer, periodEnd, unread: 9, chats: 9 }}\n", source(true));
-    let b = snapback4_lang::compile(&[("schema.q".into(), forged)]);
-    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+fn two_queued_runs_share_markers_and_an_empty_period_stays_silent() {
+    let source = source().replace("schedule daily every 1d at 08:00: digest", "schedule daily every 1m: digest\nschedule duplicate every 1m: digest");
+    let mut e = engine(&source);
+    small(&mut e);
+    e.fire_schedules(1000).unwrap();
+    assert_eq!(e.fire_schedules(60_000).unwrap().len(), 2);
+    while e.run_job_chunk(60_000).unwrap().is_some() {}
+    assert_eq!(payloads(&e).len(), 2);
+    assert_eq!(e.store().rows("digestMarkers").unwrap().len(), 3);
+    assert!(e.jobs(10).unwrap().iter().all(|j| j.state == JobState::Done));
+    let empty = e.run_job("digest", period(60_000, 120_000), 120_000).unwrap();
+    assert_eq!(empty.rows_written, 3);
+    assert_eq!(payloads(&e).len(), 2);
+    assert_eq!(e.run_job("digest", period(60_000, 120_000), 120_001).unwrap().rows_written, 0);
+}
+
+#[test]
+fn chat_overflow_refuses_before_admitting_a_partial_total() {
+    for count in [100, 101] {
+        let mut e = engine(&source());
+        let mut rows = vec![("profiles", json!({"id":"p","principal":"alice"})), ("conversations", json!({"id":"c","title":"c"})),
+            ("members", json!({"id":"m","conversationId":"c","principal":"alice","readOrdinal":0}))];
+        rows.extend((1..=count).map(|n| ("messages", message("c", n, "bob", 15_000))));
+        seed(&mut e, rows);
+        let run = e.run_job("digest", period(10_000, 20_000), 20_000).unwrap();
+        if count == 100 {
+            assert_eq!(run.state, JobState::Done);
+            assert_eq!(payloads(&e)[0]["unread"], 100);
+        } else {
+            assert_eq!(run.state, JobState::Parked);
+            assert!(run.error.unwrap().contains("DIGEST_CHAT_BOUND"));
+            assert!(payloads(&e).is_empty());
+            assert!(e.store().rows("digestMarkers").unwrap().is_empty());
+        }
+    }
+}
+
+#[test]
+fn each_recipient_rechecks_live_state_after_earlier_chunks() {
+    let source = format!("{}\n{}", source()
+        .replace("schedule daily every 1d at 08:00", "schedule daily every 1m")
+        .replace("update <- .senderId = viewer", "update <- .senderId = viewer\n  delete <- .senderId = viewer"), r#"
+mutation readAll():
+  m = members[conversationId = 'c', principal = viewer]
+  update members[m.id] { readOrdinal: 99 }
+mutation leave():
+  m = members[conversationId = 'c', principal = viewer]
+  delete members[m.id]
+mutation addBob():
+  insert members { id: 'bob-rejoined', conversationId: 'c', principal: 'bob', readOrdinal: 0 }
+mutation tombstone():
+  update messages['c-m001'] { tombstone: true }
+  update messages['c-m002'] { tombstone: true }
+mutation remove():
+  delete messages['c-m001']
+  delete messages['c-m002']
+"#);
+    // Time advances between separate run_job_chunk transactions; one run_job
+    // call pins its clock and would not exercise expiry between recipients.
+    for change in ["expiry", "readAll", "leave", "rejoin", "tombstone", "remove"] {
+        let mut e = engine(&source);
+        let mut rows = vec![("conversations", json!({"id":"c","title":"c"}))];
+        for p in ["alice", "bob", "carol"] {
+            rows.push(("members", json!({"id":format!("m-{p}"),"conversationId":"c","principal":p,"readOrdinal":0})));
+            if p != "carol" { rows.push(("profiles", json!({"id":format!("p-{p}"),"principal":p}))); }
+        }
+        for ordinal in 1..=2 {
+            let mut m = message("c", ordinal, "carol", 15_000);
+            if change == "expiry" { m["expiresAt"] = json!(65_000); }
+            rows.push(("messages", m));
+        }
+        seed(&mut e, rows);
+        e.fire_schedules(1000).unwrap();
+        e.fire_schedules(60_000).unwrap();
+        e.run_job_chunk(60_000).unwrap().unwrap();
+        assert_eq!(payloads(&e)[0]["unread"], 2);
+        if change != "expiry" {
+            let (operation, viewer) = match change {
+                "rejoin" => ("leave", "bob"),
+                "readAll" | "leave" => (change, "bob"),
+                _ => (change, "carol"),
+            };
+            let result = e.mutate(operation, None, Context::new(viewer, BTreeMap::new()).at(65_000)).unwrap();
+            assert!(matches!(result.state, snapback4_core::WriteState::Sent { .. }), "{change}: {result:?}");
+            if change == "rejoin" {
+                let result = e.mutate("addBob", None, Context::new("alice", BTreeMap::new()).at(65_000)).unwrap();
+                assert!(matches!(result.state, snapback4_core::WriteState::Sent { .. }), "{result:?}");
+            }
+        }
+        while e.run_job_chunk(65_000).unwrap().is_some() {}
+        let effects = payloads(&e);
+        assert_eq!(effects.len(), if change == "rejoin" { 2 } else { 1 }, "{change}: {effects:?}");
+        if change == "rejoin" { assert_eq!(effects[1]["unread"], 2); }
+        assert_eq!(e.store().rows("digestMarkers").unwrap().len(), 2);
+    }
+}
+
+#[test]
+fn markers_are_private_unsynced_and_cannot_be_forged() {
+    let source = format!("{}\nmutation forge(periodEnd: time):\n  insert digestMarkers {{ principal: viewer, periodEnd }}\nquery marker(periodEnd: time):\n  return digestMarkers[viewer, periodEnd]\n", source());
+    let b = bound(&source);
+    assert!(b.schema.table("digestMarkers").unwrap().sync.is_none());
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     small(&mut e);
     let args: BTreeMap<String, Value> = [("periodEnd".into(), Value::Int(20_000))].into();
-    let outcome = e.mutate("forge", None, Context::new("alice", args).at(20_000)).unwrap();
-    let snapback4_core::WriteState::Failed { why, .. } = &outcome.state else { panic!("a principal wrote the job-written totals table: {:?}", outcome.state) };
+    let outcome = e.mutate("forge", None, Context::new("alice", args.clone()).at(20_000)).unwrap();
+    let snapback4_core::WriteState::Failed { why, .. } = &outcome.state else { panic!("forged marker: {:?}", outcome.state) };
     assert_eq!(why.code, "E_RULE", "{why:?}");
-    assert!(e.store().rows("digestTotals").unwrap().is_empty());
+    assert!(e.store().rows("digestMarkers").unwrap().is_empty());
+    e.run_job("digest", period(10_000, 20_000), 20_000).unwrap();
+    assert_eq!(e.query("marker", Context::new("alice", args).at(20_000)).unwrap().data, Value::Null);
 }
 
 #[test]
 fn single_profile_stops_at_the_exact_examined_envelope() {
-    let mut e = engine(&source(false));
+    let mut e = engine(&source());
     hub(&mut e, 20, 14, false);
-    // 14,381 period messages + 1,000 members + 1,002 scan attempts
-    // + one profile row = exactly 16,384 examinations.
-    let extra = (0..381).map(|c| ("messages", message(&format!("c{c:04}"), 21, &format!("peer{c}"), 15_000))).collect();
+    // 14,380 period messages + 1,000 members + 1,002 scan attempts
+    // + one profile row + one marker miss = exactly 16,384 examinations.
+    let extra = (0..380).map(|c| ("messages", message(&format!("c{c:04}"), 21, &format!("peer{c}"), 15_000))).collect();
     seed(&mut e, extra);
     measured_chunk(&mut e, "digest", 16_384).unwrap();
     let error = measured_chunk(&mut e, "digest", 16_383).unwrap_err();
     assert!(matches!(error, RuntimeError::Bound { kind: MeterKind::Examined, actual: 16_384, ceiling: 16_383, .. }), "{error:?}");
     let run = e.run_job("digest", period(10_000, 20_000), 20_000).unwrap();
     assert_eq!((run.state, run.chunks), (JobState::Done, 1));
-    assert_eq!(payloads(&e)[0]["unread"], 14_381);
-    seed(&mut e, vec![("messages", message("c0381", 21, "peer381", 15_000))]);
-    let run = e.run_job("digest", period(10_000, 20_000), 20_001).unwrap();
+    assert_eq!(payloads(&e)[0]["unread"], 14_380);
+    seed(&mut e, vec![("messages", message("c0380", 21, "peer380", 15_000))]);
+    let run = e.run_job("digest", period(10_000, 20_001), 20_001).unwrap();
     assert_eq!((run.state, run.chunks), (JobState::Parked, 0));
     assert_eq!(run.error.as_deref(), Some("E_BOUND: examined rows reached the ceiling 16384"));
     assert_eq!(payloads(&e).len(), 1, "the refused profile emitted nothing");
-    println!("time-seek boundary: 14381 period messages -> 16384 examined/done; 14382 -> 16385 attempted/parked; effects stay 1");
+    println!("time-seek boundary: 14380 period messages -> 16384 examined/done; 14381 -> 16385 attempted/parked; effects stay 1");
 }
 
 #[test]

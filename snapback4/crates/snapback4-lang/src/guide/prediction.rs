@@ -118,7 +118,11 @@ the acquired horizon.
 out of sync makes mutations reading it `predicts: never`. `notifyPost` stays
 eligible: the server decides the effects at commit. Presence deciding rows,
 a refusal or the returned value costs prediction; so does fallible presence
-work such as `falliblePost`, even inside an emit. See `guide presence`.
+work such as `falliblePost`, even inside an emit. For a presence-controlled
+read, `why` retains the presence origin and names the consuming read's source
+site. Moving that read before the guard is an author decision: it can refuse
+on a branch that previously did not read. `check --fix` does not hoist it.
+See `guide presence`.
 
 ## Set-state writes: likes and reactions
 

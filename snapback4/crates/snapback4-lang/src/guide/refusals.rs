@@ -40,6 +40,24 @@ shows the declaration; code validation is the same as `require … else CODE`.
 `dev` keeps failed schema adoption visible in `doctor`, repeats its reason on the first failing job or sweep, and retries locked stores and generation failures without another save. `doctor` compares the live host generation with the store; `--no-watch` hosts need a restart after another process adopts.
 While that adoption failure is pending, identical background store and generation failures are suppressed. Changed reasons print at most twice per error code in each 60-second window; further changes count as suppressed too. Recovery or a changed adoption failure reports the suppressed count and resets it.
 
+E_RUN_BUSY means local `run` spent its 15-second contention deadline waiting
+for SQLite BUSY/LOCKED during store opening or schema adoption. It reports the
+operation and elapsed time; no operation was admitted. Inspect `snapback4
+doctor` and the dev adoption log, wait for the writer or stop your dev host,
+run once, then restart dev. Watching dev reopens after external adoption;
+`--no-watch` needs that restart. Other store errors keep their original code.
+The deadline bounds contention retries; it cannot cancel an atomic activation
+already running or limit an admitted operation. An activation can complete
+while the operation remains unadmitted after a timeout or source edit, and
+total process time can exceed 15 seconds. Jobs and mutations are never retried
+by this mechanism. An interruption after admission may have committed work;
+inspect the job/operation before invoking it again.
+
+E_RUN_SOURCE_CHANGED means `run` saw a source edit or could no longer read
+its source before admission. Check the source and rerun with the intended
+arguments. No operation was admitted, although an activation that finished
+before the edit was detected may already be persisted.
+
 `dev` and `serve` also report process events on stderr: SNAPBACK4_EXIT
 (a returned startup/listener error or normal stop), SNAPBACK4_PANIC (any
 thread, with its name, location and abort/unwind action), SNAPBACK4_SIGNAL
