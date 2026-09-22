@@ -24,10 +24,12 @@ fn the_chat_schema_compiles_and_runs() {
     }
     assert!(bound.diagnostics.is_empty(), "the chat schema binds without diagnostics");
     let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).collect();
-    assert_eq!(names, ["thread", "inbox", "addMember", "leave", "send", "sendPhoto", "edit", "unsend", "invite"]);
+    assert_eq!(names, ["thread", "inbox", "addMember", "leave", "send", "sendPhoto", "edit", "unsend", "room", "markRead", "invite"]);
     let messages = &bound.schema.tables["messages"];
     assert!(messages.sync.is_some(), "messages sync to memberships");
     assert!(bound.schema.tables["messageCounts"].sync.is_some(), "the count inherits the audience");
+    assert!(bound.schema.tables["readMarkers"].sync.is_none(), "read markers remain server-only");
+    assert_eq!(bound.schema.operations["markRead"].predicts.as_deref(), Some("never"), "markRead demonstrates a write without a predicted row");
 
     let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
     let alice = "dev:alice";
@@ -60,6 +62,9 @@ fn the_chat_schema_compiles_and_runs() {
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].field("count").unwrap(), &Value::Int(1));
     assert_eq!(rows[0].field("conversation").unwrap().field("title").unwrap(), &Value::String("General".into()));
+    let room = engine.query("room", Context::new(bob, args(&[("conversationId", id("c1"))]))).unwrap();
+    assert_eq!(room.data.field("conversation").unwrap().field("id").unwrap(), &id("c1"));
+    assert_eq!(room.data.field("membership").unwrap().field("id").unwrap(), &id("m2"));
 
     // A stranger is refused by the require, with the author's code.
     let denied = engine.query("thread", Context::new("dev:mallory", args(&[("conversationId", id("c1")), ("c", Value::Null)]))).unwrap_err();
@@ -75,6 +80,14 @@ fn the_chat_schema_compiles_and_runs() {
     assert_eq!(watermark, *seq);
     let page = engine.stream(bob, 0, 100).unwrap();
     assert!(page.events.iter().any(|e| e.table == "messages" && e.id == "msg1" && e.kind == "put"));
+
+    // Marking read is authorized for a member but never adds a replica row.
+    let marked = engine.mutate("markRead", Some("read-1"), Context::new(bob, args(&[("conversationId", id("c1"))])).at(1_500).with_ids(["marker1".to_owned()])).unwrap();
+    assert!(matches!(marked.state, WriteState::Sent { result: Value::Null, .. }), "{:?}", marked.state);
+    let (snapshot, _) = engine.snapshot(bob).unwrap();
+    assert!(!snapback4_core::partition::holdings(&snapshot).contains_key("readMarkers"));
+    let refused = engine.mutate("markRead", Some("read-stranger"), Context::new("dev:mallory", args(&[("conversationId", id("c1"))])).at(1_600)).unwrap();
+    assert!(matches!(refused.state, WriteState::Failed { ref why, .. } if why.code == "NOT_MEMBER"), "{:?}", refused.state);
 
     // Bob leaves: a scope tombstone reaches him and nothing new does.
     engine.mutate("unsend", None, Context::new(bob, args(&[("messageId", id("msg1"))])).at(2_000)).map(|o| assert!(matches!(o.state, WriteState::Failed { .. }), "bob is not the author")).unwrap();

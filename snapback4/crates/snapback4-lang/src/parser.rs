@@ -1104,15 +1104,22 @@ mod tests {
     fn parses_the_chat_schema() {
         let (document, diagnostics) = parse_document("schema.q", CHAT);
         assert!(diagnostics.is_empty(), "{diagnostics:#?}");
-        assert_eq!(document.tables.len(), 4);
+        assert_eq!(document.tables.iter().map(|table| table.name.as_str()).collect::<Vec<_>>(), ["profiles", "conversations", "memberships", "messages", "readMarkers"]);
         assert_eq!(document.maintains.len(), 1);
-        assert_eq!(document.programs.len(), 8);
+        assert_eq!(document.programs.iter().map(|program| program.name.as_str()).collect::<Vec<_>>(), ["thread", "inbox", "addMember", "leave", "send", "sendPhoto", "edit", "unsend", "room", "markRead"]);
         let messages = &document.tables[3];
         assert_eq!(messages.name, "messages");
         let sync = messages.sync.as_ref().unwrap();
         assert_eq!(sync.audience, SyncAudience::Inferred { principal: None });
         assert_eq!(sync.horizon, Some((500, "byConvTime".into())));
         assert_eq!(messages.retain.as_ref().unwrap().0, "delivered-history");
+        let markers = document.tables.iter().find(|table| table.name == "readMarkers").unwrap();
+        assert!(markers.sync.is_none(), "the starter's read marker is not replicated");
+        let key = markers.indexes.iter().find(|index| index.name == "byConversationPrincipal").unwrap();
+        assert!(key.unique);
+        assert_eq!(key.columns, ["conversationId", "principal"]);
+        assert_eq!(document.programs.iter().find(|program| program.name == "room").unwrap().kind, ProgramKind::Query);
+        assert_eq!(document.programs.iter().find(|program| program.name == "markRead").unwrap().kind, ProgramKind::Mutation);
     }
 
     #[test]

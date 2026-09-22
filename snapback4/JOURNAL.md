@@ -46294,3 +46294,28 @@ type error in the starter was corrected before that final run. Both attempts
 remain in `/tmp/sb4-3011-20260922/signout-*-{1,2}.log`. The native reference is
 being rebuilt with this client; independent review closure and publication
 remain pending. See LLP 3000.011.003.000 §2.
+
+
+### 2026-09-22 — feed validation and release-suite repairs
+
+Independent code review found that the public feed bridge accepted follow and
+repost tables with denied deletion even though its removal helpers delete those
+rows. Astra xhigh narrowed installation to owner-authorized delete rules for
+those two mappings, without changing profile/post policy or runtime helpers.
+The ten bridge tests (including four denied-delete installer fixtures) and
+49 guide tests passed on M5. The new rule refuses before creating any files.
+
+The production-SQLite source suite on `8248194c8` ran to completion, preserved
+a clean source tree, and failed two chat inventories plus three codec-census
+tests (554.582 s, including cold test-target compilation). The chat expectations
+predated the new room query/read-marker mutation; their repair also checks
+server-only markers, nonprediction and member/stranger authorization. The
+census failure reproduces exactly on baseline `339ea0759`: three exceptions
+still named deleted `stream_inspected` after its SQLite-only body returned to
+`stream`. Correcting the exact owner names retains exact-call, exact-once and
+SQLite-gate enforcement; mutation tests now explicitly verify owner presence
+and removed cfg gates. Node 24.18.0: baseline 23/26 pass, repaired 26/26 pass.
+No runtime serde or parser behavior changed. Chat-target checks and the final
+publication suite remain pending at this entry; no red suite qualifies a
+publication. All source-suite and census logs are retained under the run's
+`/tmp/sb4-3011-20260922/` artifact directory.

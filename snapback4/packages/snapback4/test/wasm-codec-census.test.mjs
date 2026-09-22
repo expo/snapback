@@ -122,12 +122,19 @@ test('sqlite exceptions cannot move into a web function or lose their cfg', () =
     const original = mutant.get(entry.file);
     assert.ok(original.includes(entry.line));
     const owner = items(original).find(item => item.kind === 'fn' && item.name === entry.item);
+    assert.ok(owner, `stale exception owner: ${entry.file}::${entry.item}`);
     const offset = original.indexOf(entry.line, owner.start);
-    assert.ok(offset < owner.end);
+    assert.ok(offset >= owner.start && offset < owner.end, `exception escaped its owner: ${entry.file}::${entry.item}`);
     mutant.set(entry.file, original.slice(0, offset) + original.slice(offset + entry.line.length) + `\nfn moved() { ${entry.line} }`);
     const errors = census(mutant);
     assert.ok(errors.some(error => error.includes('fn moved()')));
     assert.ok(errors.some(error => error.includes(`exception ${entry.item} consumed 0 times`)));
+    // Remove every enclosing sqlite gate, including one on a containing impl.
+    // A named exact line alone must never exempt a now-web-reachable call.
+    mutant.set(entry.file, original.replaceAll('#[cfg(feature = "sqlite")]', ''));
+    const ungated = census(mutant);
+    assert.ok(ungated.some(error => error.startsWith(entry.file + ':') && error.includes(entry.line) && !error.includes('exception ')));
+    assert.ok(ungated.some(error => error.includes(`exception ${entry.item} consumed 0 times`)));
   }
 });
 
