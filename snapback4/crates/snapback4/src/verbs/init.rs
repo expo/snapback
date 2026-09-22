@@ -28,6 +28,27 @@ pub fn init(options: &Options) -> i32 {
     let expo = options.flags.contains_key("expo");
     let web = options.flags.contains_key("web");
     let recipe_only = recipe.is_some() && !expo && !online && !web && dir.join("snapback/schema.q").is_file();
+    // @ref LLP 3000.011.002.000#2 — mappings explicitly authorize the public model; never infer or rewrite the app.
+    let selectors = ["public-profiles", "public-posts", "public-follows", "public-reposts"];
+    let bridge = if selectors.iter().any(|flag| options.flags.contains_key(*flag)) {
+        if !recipe_only || prefix.is_none() || !selectors.iter().all(|flag| options.flags.contains_key(*flag)) {
+            eprintln!("E_RECIPE_BRIDGE: use all four --public-profiles/--public-posts/--public-follows/--public-reposts mappings with --recipe feeds --prefix <name> in an existing app; see snapback4 guide feeds");
+            return 2;
+        }
+        let result = (|| {
+            let mapping = snapback4_lang::recipe::bridge::Mapping::parse(&options.flags[selectors[0]], &options.flags[selectors[1]], &options.flags[selectors[2]], &options.flags[selectors[3]])?;
+            let sources = crate::project::Project { root: dir.to_path_buf() }.sources().map_err(|error| error.to_string())?;
+            let app = snapback4_lang::compile(&sources);
+            if !app.diagnostics.is_empty() {
+                return Err(format!("check the existing app before installing its bridge; no files written\n{}", app.diagnostics.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n")));
+            }
+            mapping.render(&app.schema, prefix.unwrap())
+        })();
+        match result {
+            Ok(source) => Some(source),
+            Err(error) => { eprintln!("E_RECIPE_BRIDGE: {error}; no files written; see snapback4 guide feeds"); return 1; }
+        }
+    } else { None };
     let mut files = if recipe_only { Vec::new() } else if web { web::files() } else if expo { expo_files() } else if online { online_files() } else { vec![("snapback/schema.q", snapback4_lang::guide::TEMPLATE.to_owned())] };
     if recipe.map(String::as_str) == Some("feeds") {
         let prefix = prefix.map(String::as_str).unwrap_or("");
@@ -37,6 +58,12 @@ pub fn init(options: &Options) -> i32 {
         };
         files.push(("snapback/feed.q", source));
         let mut client = include_str!("init/following.ts").to_owned();
+        if let Some(bridge) = &bridge {
+            files.push(("snapback/feed_bridge.q", bridge.clone()));
+            let imports = client.split_once("// Pass your app").unwrap().0;
+            let query = client.split_once("// Render the returned Read").unwrap().1;
+            client = format!("{imports}// Public app bridge: snapback/feed_bridge.q; see snapback4 guide feeds.\n// Call {prefix}AppRegister, {prefix}AppPublish, {prefix}AppRemove,\n// {prefix}AppRepost, {prefix}AppUnrepost, {prefix}AppFollow, {prefix}AppUnfollow\n// inside the app's existing mutations.\n// The bridge validates ownership and translates app references to event IDs.\n// Backfill explicitly before switching Following; keep the app's card join.\n// Publish only a new card or initial backfill; never resurrect a removed card.\n// Retry the original mutation with its original write ID.\n// Render the returned Read{query}");
+        }
         if !prefix.is_empty() {
             client = client.lines().filter(|line| !line.starts_with("export const registerForFollowing") && !line.starts_with("export const followAuthor") && !line.starts_with("export const unfollowAuthor"))
                 .collect::<Vec<_>>().join("\n") + "\n";

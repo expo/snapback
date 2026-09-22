@@ -2,6 +2,8 @@
 use crate::{ast::*, diag::Site, lexer::{Kind, Token}};
 use std::collections::{BTreeMap, BTreeSet};
 
+pub mod bridge;
+
 pub fn prefixed_name(prefix: &str, name: &str) -> String {
     if prefix.is_empty() { return name.into(); }
     let mut chars = name.chars();

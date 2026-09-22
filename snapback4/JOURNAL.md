@@ -46237,3 +46237,39 @@ dependency paths; cleaning only the five owned workspace crates and rebuilding
 resolved it. Final quoted results use the fresh build. Feed integration, scoped
 deployment/native evidence, independent code review, publication and calibration
 16 remain in progress; this entry does not claim their completion.
+
+
+## 2026-09-22 — Public feed bridge and operational evidence (LLP 3000.011)
+
+The explicit public-model bridge validates selected tables, reference kinds,
+ownership, public acquisition and immutable identity fields. Its fn helpers
+translate application references inside the application's own mutation; no
+second client write API or new state table is introduced. Original cards remain
+for independent reposts. Initial adoption pauses writes and uses bounded owner
+contexts; republishing removed cards after tombstone purge is unsupported. The
+nine bridge cases, 49 compiled-guide cases and 32 initializer cases pass. The
+final guard also checks a repost event's author before removal.
+
+For eight corresponding mutations, manual wiring is 36 nonblank lines and the
+generated path 28. Follow examines 5 versus 7 rows; publish 4 versus 7; recovered
+promotion 213 versus 215. Writes remain 2, 4 and 159 respectively. A separate
+single-test measurement, with no concurrent build and 20 samples after five
+warmups, reports publish p50/p95 0.211/0.358 ms for the manual control and
+0.355/0.459 ms for the generated bridge. This is a small local measurement,
+not a general latency claim. An earlier measurement overlapped native build
+scheduling and is retained but not used for this comparison.
+
+Four operational probes pass: full stopped deployment restore with password
+login/rotation and assets, schema activation/source-only rollback, a real queued
+scheduled job surviving SIGKILL and resuming once, and two provider-double
+outcomes after acceptance before settlement. The resolvable double accepts once
+under two submissions with one stable key; the unresolvable case parks without
+resending. Restored workers and prior device outboxes stay disconnected. These
+are WAL synchronous=NORMAL process-crash/stopped-copy observations, not power-loss
+or real-provider proofs. The application evidence report retains commands,
+limits and the actual-app native extension plan.
+
+Version files are synchronized for CLI/client/platform 0.2.32 and Expo 0.2.23.
+Neither is published yet. The native framework builds successfully; its installed
+Release reference witness, independent integrated code reviews, publication and
+new Clique run remain in progress.

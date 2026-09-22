@@ -606,6 +606,116 @@ without `by` bounds the whole table. `N_SPARSE_FILTER` warns when an
 unscoped `where` pins no index prefix; use this recipe for Following rather
 than filtering the global timeline.
 
+## Generate a bridge for an explicitly public app
+
+An existing, compilable public social app can install its identity translation
+instead of writing the manual bridge below. Select the actual table and column
+names; these example names are not inferred:
+
+```sh
+snapback4 init --recipe feeds --prefix feed \
+  --public-profiles profiles:principal \
+  --public-posts posts:authorId:at \
+  --public-follows follows:followerId:followedId \
+  --public-reposts reposts:actorId:postId:at
+```
+
+All four mappings and a nonempty prefix are required. This writes `feed.q`,
+`feed_bridge.q` and the Following query wrapper, after checking the existing
+schema and the combined result. Existing files, declarations, rules and
+mutations are preserved; conflicts refuse before any file is written. Install
+before adding calls to the new helpers. There is no inferred model migration.
+The unprefixed standalone recipe and the manual integration remain available.
+
+The supported shape is deliberately narrow:
+
+- Four distinct application tables, each explicitly `public` and fully
+  `sync public`, with no sync horizon, expiry or maintained-table definition.
+  Event metadata and the follow graph are public; types alone cannot grant
+  permission to disclose a private model.
+- Profiles have one required principal column with one total unique key on it.
+  Posts have required principal author and time columns. Reposts have required
+  principal actor, reference to the selected post table, and time columns,
+  with one total unique key on actor/post. Follows have two required principal
+  columns with one total unique key on follower/followed, in that order.
+- Insert rules require the selected owner to equal `viewer`. Update/delete
+  rules must deny or require that same ownership. If updates are allowed,
+  every mapped identity/time column must be immutable. Follows and reposts
+  deny updates. Post deletion is denied: removal retains cards for independent
+  reposts. Extra follow columns need defaults or must be optional, because
+  the bridge inserts that edge. The app still supplies its other row fields.
+
+For the manual schema below, add `immutable principal` to profiles before
+selecting this generated path. If these constraints do not fit the app, keep
+its current rules and use the manual integration; do not make private data
+public merely to use a recipe.
+
+Call the following helpers inside the existing app mutations. With prefix
+`feed`, their signatures and responsibilities are:
+
+| Helper | App mutation responsibility and generated behavior |
+|---|---|
+| `feedAppRegister(profileId: profiles)` | Insert/save the caller's profile first; checks existence and ownership, then registers the recipe author. |
+| `feedAppPublish(postId: posts)` | Insert a new card first; checks its owner/profile, copies its time, creates and delivers its reference event. |
+| `feedAppRemove(postId: posts)` | Checks card ownership, resolves and removes the actual original event ID; retains the card. |
+| `feedAppRepost(repostId: reposts)` | Insert the caller's attribution first; checks its owner and original card/event, creates and delivers a distinct event using attribution time. |
+| `feedAppUnrepost(repostId: reposts)` | Removes the caller's actual repost event and deletes its attribution; absent attribution is already removed. |
+| `feedAppFollow(authorId: principal)` | Checks both profiles, inserts the app edge and calls recipe follow atomically. |
+| `feedAppUnfollow(authorId: principal)` | Deletes the app edge and calls recipe unfollow atomically. |
+
+For example, after inserting `p` into the app post table, the creation mutation
+calls `feedAppPublish(p.id)` and can return the same app card as before. It no
+longer constructs `feedPosts` or passes a recipe event reference. A repost
+mutation checks for an existing attribution, inserts `r` if absent and calls
+`feedAppRepost(r.id)`. Follow/unfollow mutations call only their app helper.
+Do not expose a second client mutation for delivery. A refusal rolls back the
+app write and delivery together, including a failed shared-author promotion.
+Self-reposts remain distinct from originals. Existing reposts survive original
+removal; creating a new repost still requires the live original event.
+
+Keep the app's Following merge and card/attribution joins, shown below. The
+bridge does not change its cursor, acquisition, prediction boundary, 32 pull
+slots or promotion policy. Public cards, profiles and attributions still add
+rows to device acquisition; a small page does not bound those source rows.
+
+Publish is for a newly inserted card or the explicit initial backfill below.
+Retry an ordinary write with its original write ID. While a matching source
+event remains live, repeating publish/repost returns its actual ID without
+redelivery; that ID may differ from the app card ID in an older integration.
+Remove also resolves the actual ID before writing its tombstone. Never
+republish a removed card, even after tombstone purge. This helper is not a
+permanent publication ledger: an older event ID's tombstone cannot be found
+from the card ID, and purge intentionally erases removal markers. A new post
+needs a new card ID. A new repost after unrepost needs a new attribution row
+and a live original; replay the old write ID only to recover the old result.
+
+For initial adoption, pause app publishing, removals and follow changes.
+Register existing profiles as their owners, then backfill existing original
+cards, then repost attributions, and finally app edges through these helpers.
+Use bounded calls and checkpoints in that dependency order; repeating a live
+event or follow is safe. Original and attribution timestamps are preserved.
+Do not run this as an implicit system-viewer job: the helper requires the
+actual owner's mutation context. Resolve cap/promotion refusals before
+advancing a checkpoint or switching Following. Keep writes paused throughout
+adoption, so a removal cannot race a later backfill into resurrecting a card.
+The installed recipe's per-author follow backfill bound and caps still apply.
+
+E_RECIPE_BRIDGE means a selected table, type, public audience, owner rule,
+immutable identity or unique key does not fit this supported mapping. The
+installer names the mismatch and writes nothing. Use the manual path for a
+different model; it does not automatically widen a rule or rewrite a mutation.
+
+FEED_APP_NOT_FOUND means the mapped profile, post or attribution is absent.
+Refresh the reference or resume adoption in dependency order. A typed reference
+does not prove that its target still exists.
+
+FEED_APP_OWNER means the caller does not own the mapped row. Call the helper
+inside the owner's mutation; a reference does not grant another actor's rights.
+
+FEED_APP_EVENT means a live recipe event disagrees with the selected app author
+or timestamp. Reconcile that mapping before resuming; silently replacing it or
+delivering another event would change identity and ordering.
+
 ## Wire into an app with posts, media and reposts
 
 After installing with `--prefix feed`, keep the app's own `posts`, `follows`
