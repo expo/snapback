@@ -275,9 +275,10 @@ test("run says when a job ignores --as and executes as the system", (t) => {
 });
 
 // @ref LLP 3000.008.004#4-operational-completeness-on-the-supported-target — a stopped full-release copy is a new, isolated recovery boundary.
+// @ref LLP 3000.011.005.000#4 — password credentials and session rotation survive the same isolated recovery point.
 test("stopped full-release restore preserves its recovery point and stays separate from the original", { timeout: 20000 }, async (t) => {
   const { app, deployment, schema, invoke, run } = fixture(t);
-  const recoverySource = `use identity guests
+  const recoverySource = `use identity
 effect notify
 table items:
   body: text <=100
@@ -318,9 +319,12 @@ schedule checkpointDaily every 1d: checkpoint
   db.prepare("INSERT INTO _meta(key, value) VALUES ('schedule:checkpointDaily', '0')").run();
   db.close();
   const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1cAAAAASUVORK5CYII=", "base64");
+  const account = { email: "recovery@example.test", password: "disposable fixture password" };
   let asset, session, originalHeaders, committed;
-  await serve(deployment, async (url, headers, signedIn) => {
-    session = signedIn; originalHeaders = headers;
+  await serve(deployment, async (url) => {
+    session = (await post(url, {}, "/auth/signup", account)).session;
+    assert.equal(session?.kind, "user");
+    const headers = originalHeaders = { authorization: `Bearer ${session.token}` };
     const uploaded = await (await fetch(url + "/assets", { method: "POST", headers, body: png })).json();
     assert.ok(uploaded.asset?.id);
     asset = uploaded.asset.id;
@@ -340,6 +344,7 @@ schedule checkpointDaily every 1d: checkpoint
   assert.equal(before.durable._outbox[0].state, "queued");
   assert.equal(before.durable._ops.length, 1);
   assert.ok(before.durable._sessions.length > 0);
+  assert.equal(before.durable._credentials.length, 1, "the password verifier belongs to the recovery point");
   assert.equal(before.durable._assets.length, 1);
   // Model a legacy deployment, including its absolute generated store link.
   const storeLink = join("releases", "1", ".snapback4", "store.sqlite");
@@ -378,10 +383,20 @@ schedule checkpointDaily every 1d: checkpoint
     assert.equal(replay.seq, committed.seq);
     assert.equal(recoveryState(restored).durable._outbox.length, 1, "known pre-backup replay emits nothing again");
     assert.equal(recoveryState(restored).durable._ops.some((op) => op.id === "after-backup"), false, "post-backup dedup evidence is absent, not an exactly-once continuation promise");
+    // Recover the same account from its copied password verifier, then rotate
+    // that new session. Do not log bearer values or reuse an old device outbox.
+    const recovered = (await post(url, {}, "/auth/login", account)).session;
+    assert.equal(recovered?.principal, session.principal);
+    assert.notEqual(recovered.token, session.token);
+    const recoveredHeaders = { authorization: `Bearer ${recovered.token}` };
+    const rotated = (await post(url, recoveredHeaders, "/auth/refresh", {})).session;
+    assert.equal(rotated?.principal, session.principal);
+    assert.notEqual(rotated.token, recovered.token);
+    assert.equal((await fetch(url + "/schema", { headers: recoveredHeaders })).status, 401, "rotation revokes the exchanged bearer");
     // A fresh real process device acquires this recovery point: no old
     // watermarks or pending outbox are attached to the restored endpoint.
     const deviceDir = join(dirname(app), "fresh-restored-device"); mkdirSync(deviceDir);
-    const client = await createLocalClient({ url, session, waitSeconds: 1,
+    const client = await createLocalClient({ url, session: rotated, waitSeconds: 1,
       device: processDevice({ binary, dir: deviceDir,
         spawn: (cmd, args) => spawn(cmd, args, { stdio: ["pipe", "pipe", "inherit"] }),
         writeFile: async (path, text) => writeFileSync(path, text) }),
@@ -420,7 +435,90 @@ schedule checkpointDaily every 1d: checkpoint
     assert.deepEqual(rows.data.map((row) => row.body).sort(), ["at backup", "restored only"]);
   });
   assert.deepEqual(recoveryState(deployment), originalAfter);
-  t.diagnostic(`recovery point: release ${before.metadata.release}, generation ${before.metadata.generation}, sequence ${committed.seq}; post-backup original writes excluded; queued effects never delivered`);
+  t.diagnostic(`recovery point: release ${before.metadata.release}, generation ${before.metadata.generation}, sequence ${committed.seq}; password login and rotation passed; fresh process device only; post-backup original writes excluded; queued effects never delivered; process/stopped-copy recovery, WAL synchronous=NORMAL, no power-loss claim`);
+});
+
+// @ref LLP 3000.011.005.000#4 — real schedule admission is durable before any chunk, across a killed serving process.
+test("a queued scheduled job survives serving process death and runs once after restart", { timeout: 15000 }, async (t) => {
+  const { deployment, schema, run } = fixture(t);
+  writeFileSync(schema, `use identity guests
+effect notify
+table items:
+  runs: int
+  read <- allow
+  insert <- allow
+  update <- deny
+  sync public
+mutation add():
+  return insert items {runs: 0}
+query q():
+  return items first 10 by byId
+job resume():
+  chunk item in items first 1 by byId:
+    update items[item.id] {runs: item.runs + 1}
+    emit notify {id: item.id}
+schedule resumeDaily every 1d: resume
+`);
+  run("deploy", deployment);
+  await serve(deployment, async (url, headers) => {
+    const result = await (await fetch(url + "/m/add", { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: '{"args":{}}' })).json();
+    assert.equal(result.state, "sent");
+  });
+  const database = join(deployment, "store.sqlite");
+  const jobs = () => {
+    const db = new DatabaseSync(database, { readOnly: true });
+    try { return db.prepare("SELECT id, state, chunks, rows_written FROM _jobs ORDER BY id").all().map(row => ({ ...row })); }
+    finally { db.close(); }
+  };
+  // Only the schedule clock is fixture setup. The serving host itself admits
+  // the job; no synthetic _jobs row or altered continuation state is used.
+  const db = new DatabaseSync(database);
+  db.prepare("UPDATE _meta SET value = '0' WHERE key = 'schedule:resumeDaily'").run();
+  db.close();
+  const child = spawn(binary, ["serve", deployment, "--port", "0", "--bind", "127.0.0.1"], { stdio: ["ignore", "pipe", "pipe"] });
+  const exited = once(child, "exit");
+  let ready = false, log = "";
+  child.stdout.on("data", data => {
+    log += data;
+    if (!ready && /http:\/\/127\.0\.0\.1:\d+/.test(log)) {
+      // Startup admitted the schedule before it announced the listener. Stop
+      // this owned process before its one-second maintenance tick can run it.
+      ready = true;
+      child.kill("SIGSTOP");
+    }
+  });
+  child.stderr.on("data", data => { log += data; });
+  let queued;
+  try {
+    const deadline = Date.now() + 3000;
+    while (!ready && child.exitCode == null && Date.now() < deadline) await delay(5);
+    assert.ok(ready, log || "release server did not listen");
+    [queued] = jobs();
+    assert.equal(jobs().length, 1);
+    assert.equal(queued.state, "queued", "the crash cut must precede the first chunk");
+    assert.equal(queued.chunks, 0);
+    child.kill("SIGKILL");
+    await exited;
+  } finally {
+    if (child.exitCode == null && child.signalCode == null) child.kill("SIGKILL");
+    await exited;
+  }
+  assert.equal(jobs()[0].state, "queued");
+  await serve(deployment, async (url, headers) => {
+    const deadline = Date.now() + 4000;
+    while (jobs()[0]?.state !== "done" && Date.now() < deadline) await delay(20);
+    assert.deepEqual(jobs(), [{ id: queued.id, state: "done", chunks: 1, rows_written: 1 }]);
+    const rows = await (await fetch(url + "/q/q", { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: '{"args":{}}' })).json();
+    assert.deepEqual(rows.data.map(row => row.runs), [1]);
+  });
+  await serve(deployment, async () => { await delay(1100); });
+  assert.deepEqual(jobs(), [{ id: queued.id, state: "done", chunks: 1, rows_written: 1 }], "a second restart cannot re-admit the same schedule boundary");
+  const read = new DatabaseSync(database, { readOnly: true });
+  try {
+    const effects = read.prepare("SELECT state FROM _outbox").all().map(row => ({ ...row }));
+    assert.deepEqual(effects, [{ state: "queued" }]);
+  } finally { read.close(); }
+  t.diagnostic("owned serve SIGKILL after durable schedule admission, before first chunk; same job id resumed once; one queued effect; no external worker; WAL synchronous=NORMAL, no power-loss claim");
 });
 
 test("release serving repairs dangling legacy links and refuses an unexpected regular store file", { timeout: 10000 }, async (t) => {

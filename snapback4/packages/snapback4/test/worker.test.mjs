@@ -6,6 +6,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
+import { createServer } from "node:http";
 import { DatabaseSync } from "node:sqlite";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, symlinkSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -207,6 +208,104 @@ async function actionFixture(t, { worker, source = actionSource, flags = [] } = 
   };
   return { url, directory, child, token, stop, workers, clients, post, log: safeLog, stdout: () => stdout, stderr: () => stderr, stopServer, launch(options) { const w = runWorker({ url, token, wait: 1, signal: stop.signal, ...options }); workers.push(w); return w; } };
 }
+
+// @ref LLP 3000.011.005.000#4 — provider acceptance and local settlement are separate; a lost outcome reconciles or parks.
+for (const resolvable of [true, false]) test(`provider test double: killed accepted worker ${resolvable ? "reconciles one delivery" : "parks an unknown outcome"}`, { timeout: 20000 }, async t => {
+  const f = await actionFixture(t, { source: `${actionSource}\nmutation notify():\n  emit notify { message: 'disposable provider fixture' }\n` });
+  // Labeled loopback double, owned by this test. Its state survives only the
+  // worker crash tested here; this is no claim about a real provider/device.
+  const accepted = new Map();
+  let requests = 0;
+  const provider = createServer(async (request, response) => {
+    const chunks = []; for await (const chunk of request) chunks.push(chunk);
+    response.setHeader("content-type", "application/json");
+    if (request.method === "POST" && request.url === "/send") {
+      const { key, payload } = JSON.parse(Buffer.concat(chunks));
+      requests++;
+      if (!accepted.has(key)) accepted.set(key, { payload, result: { providerId: `double-${accepted.size + 1}` } });
+      response.end(JSON.stringify(accepted.get(key).result));
+    } else {
+      const found = resolvable && accepted.get(decodeURIComponent(request.url.slice("/outcome/".length)));
+      response.statusCode = found ? 200 : 404;
+      response.end(JSON.stringify(found ? found.result : { error: "outcome unavailable" }));
+    }
+  });
+  provider.listen(0, "127.0.0.1"); await once(provider, "listening");
+  t.after(async () => { provider.closeAllConnections(); await new Promise(resolve => provider.close(resolve)); });
+  const providerUrl = `http://127.0.0.1:${provider.address().port}`;
+  assert.equal((await f.post("/m/notify", { id: "provider-crash-fixture", args: {} })).state, "sent");
+  const worker = spawn(process.execPath, ["--input-type=module", "-e", `
+    const { FIXTURE_BACKEND: url, FIXTURE_TOKEN: token, FIXTURE_PROVIDER: provider } = process.env;
+    async function post(path, body, lease) {
+      const response = await fetch(url + path, { method: "POST", headers: {
+        "content-type": "application/json", authorization: "Bearer " + token,
+        ...(lease ? { "x-snapback-effect-lease": lease } : {}),
+      }, body: JSON.stringify(body) });
+      const reply = await response.json();
+      if (!response.ok || reply.denied) throw Error("fixture worker wire refusal");
+      return reply;
+    }
+    const claim = (await post("/effects/claim", { effect: "notify", limit: 1, lease: 1, fenced: true })).effects[0];
+    const step = (await post("/effects/" + claim.id + "/steps/provider/begin", { input: claim.payload }, claim.leaseToken)).step;
+    if (step.state !== "run") throw Error("first provider step did not run");
+    const response = await fetch(provider + "/send", { method: "POST", body: JSON.stringify({ key: step.key, payload: claim.payload }) });
+    if (!response.ok) throw Error("test double refused");
+    await response.json();
+    process.send({ claim, key: step.key });
+    // The provider accepted, but neither the step nor the parent effect has
+    // settled. Keep the owned worker alive for the parent's exact crash cut.
+    setInterval(() => {}, 1000);
+  `], { env: { ...process.env, FIXTURE_BACKEND: f.url, FIXTURE_TOKEN: f.token, FIXTURE_PROVIDER: providerUrl }, stdio: ["ignore", "ignore", "pipe", "ipc"] });
+  const exited = once(worker, "exit");
+  // Never include the child environment or private claim token in diagnostics.
+  let stderr = ""; worker.stderr.on("data", data => { stderr += data; });
+  t.after(async () => { if (worker.exitCode == null && worker.signalCode == null) worker.kill("SIGKILL"); await exited; });
+  const delivered = await Promise.race([
+    once(worker, "message").then(([message]) => message),
+    exited.then(() => { throw Error(`provider fixture worker exited before acceptance (${stderr.includes("refused") ? "refused" : "unexpected exit"})`); }),
+  ]);
+  assert.equal(accepted.size, 1);
+  assert.equal((await listEffects(f.url, f.token, "sent")).length, 0, "provider acceptance has not settled the effect");
+  worker.kill("SIGKILL"); await exited;
+  const first = delivered.claim;
+  await until(() => Date.now() > first.leaseUntil);
+  const second = await until(async () => (await f.post("/effects/claim", { effect: "notify", limit: 1, lease: 10, fenced: true }, f.token)).effects?.[0]);
+  assert.equal(second.id, first.id); assert.equal(second.attempt, 2);
+  assert.notEqual(second.leaseToken, first.leaseToken);
+  const post = async (path, body, lease = second.leaseToken) => {
+    const response = await fetch(f.url + path, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${f.token}`, "x-snapback-effect-lease": lease }, body: JSON.stringify(body) });
+    assert.equal(response.status, 200); return response.json();
+  };
+  const effect = `/effects/${second.id}`, stepPath = `${effect}/steps/provider`;
+  for (const path of [`${stepPath}/done`, `${effect}/done`]) {
+    assert.equal((await post(path, { result: "stale" }, first.leaseToken)).denied?.code, "E_EFFECT_LEASE");
+  }
+  const step = (await post(`${stepPath}/begin`, { input: second.payload, reconcile: true })).step;
+  assert.equal(step.state, "reconcile"); assert.equal(step.key, delivered.key);
+  const outcome = await fetch(`${providerUrl}/outcome/${encodeURIComponent(step.key)}`);
+  if (resolvable) {
+    assert.equal(outcome.status, 200);
+    const result = await outcome.json();
+    const replay = await (await fetch(providerUrl + "/send", { method: "POST", body: JSON.stringify({ key: step.key, payload: second.payload }) })).json();
+    assert.deepEqual(replay, result, "this double supports idempotent submission under the stable provider key");
+    assert.equal((await post(`${stepPath}/done`, { result })).ok, true);
+    const recorded = (await post(`${stepPath}/begin`, { input: second.payload })).step;
+    assert.equal(recorded.state, "done"); assert.deepEqual(recorded.result, result);
+    assert.equal((await post(`${effect}/done`, { result })).ok, true);
+    const sent = await listEffects(f.url, f.token, "sent");
+    assert.equal(sent.length, 1); assert.equal(sent[0].attempt, 2);
+    assert.deepEqual(sent[0].result, result); assert.equal(requests, 2);
+  } else {
+    assert.equal(outcome.status, 404);
+    assert.equal((await post(`${stepPath}/park`, { error: "test double cannot resolve the accepted outcome" })).ok, true);
+    const parked = await listEffects(f.url, f.token, "parked");
+    assert.equal(parked.length, 1); assert.equal(parked[0].errorCode, "E_STEP_PARKED");
+    assert.equal((await listEffects(f.url, f.token, "sent")).length, 0);
+    assert.equal(requests, 1, "an uncertain provider outcome must not trigger a blind resend");
+  }
+  assert.equal(accepted.size, 1);
+  t.diagnostic(`loopback provider double only: requests=${requests}, accepted=1, worker=SIGKILL before settlement, outcome=${resolvable ? "reconciled/sent" : "unknown/parked"}, stale claim refused; real provider and device receipt untested`);
+});
 
 test("w10c dev worker prints its one-time token on stdout, outside captured diagnostics", { timeout: 20_000 }, async t => {
   const f = await actionFixture(t, { worker: { ext: "mjs", text: "console.error(process.env.SNAPBACK_SERVICE_TOKEN); setInterval(() => {}, 1000);" } });
