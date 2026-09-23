@@ -8,6 +8,9 @@ pub(crate) fn refuse_fields(table: &Table, name: &str, row: &Value) -> Result<()
     if let Some(field) = row.as_object()?.keys().find(|field| table.recorded.contains_key(*field)) {
         return Err(RuntimeError::Structural { code: "E_RECORDED_FIELD", message: format!("{name}.{field} is engine-recorded; omit it from the write payload (guide maintains)") });
     }
+    if let Some(field) = row.as_object()?.keys().find(|field| table.maintained.contains_key(*field)) {
+        return Err(RuntimeError::Structural { code: "E_MAINTAINED_COLUMN", message: format!("{name}.{field} is engine-maintained; omit it and write the source rows (guide maintains)") });
+    }
     Ok(())
 }
 
@@ -147,7 +150,7 @@ impl super::Engine {
                 let dependencies: Vec<_> = maintain.dependencies().into_iter().filter(|path| source.recorded.contains_key(path)).collect();
                 if dependencies.is_empty() { None } else { Some((maintain, dependencies)) }
             }).collect();
-            for (maintain, _) in &maintains { counts.contributions.insert(maintain.target.clone(), 0); }
+            for (maintain, _) in &maintains { counts.contributions.insert(maintain.label(), 0); }
             let mut bounds = Bounds::default();
             loop {
                 let rows = tx.scan(name, "byId", &[], &bounds, Dir::Asc, 256)?;
@@ -160,7 +163,7 @@ impl super::Engine {
                     if source.expired(&row, now) { continue; }
                     for (maintain, dependencies) in &maintains {
                         if maintain.selected(&row) && dependencies.iter().any(|path| null(path)) {
-                            *counts.contributions.get_mut(&maintain.target).expect("initialized maintain") += 1;
+                            *counts.contributions.get_mut(&maintain.label()).expect("initialized maintain") += 1;
                         }
                     }
                 }

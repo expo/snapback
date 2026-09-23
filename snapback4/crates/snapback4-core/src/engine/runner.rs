@@ -138,6 +138,8 @@ pub struct Runner<'a> {
     pub(crate) maintain_prepaid: bool,
     pub(crate) maintain_heap: u64,
     pub(super) timeline_authority: Option<super::timeline_authority::Authority>,
+    pub(crate) column_heap: u64,
+    pub(crate) column_prepaid: bool,
 }
 
 impl<'a> Runner<'a> {
@@ -211,6 +213,8 @@ impl<'a> Runner<'a> {
             maintain_prepaid: false,
             maintain_heap: 0,
             timeline_authority: None,
+            column_heap: 0,
+            column_prepaid: false,
         }
     }
 

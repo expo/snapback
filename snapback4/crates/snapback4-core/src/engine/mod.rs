@@ -35,6 +35,7 @@ mod maintains;
 pub(crate) mod timeline;
 mod timeline_authority;
 mod recorded;
+pub(crate) mod columns;
 #[cfg(feature = "sqlite")]
 pub use recorded::RecordedNulls;
 mod write_target;
@@ -262,6 +263,7 @@ pub struct Engine {
 #[cfg(feature = "sqlite")]
 impl Engine {
     pub fn new(mut store: Store, mut schema: Schema, programs: impl IntoIterator<Item = Program>) -> Result<Self, RuntimeError> {
+        columns::validate_before_prepare(&schema)?;
         schema.prepare_contribution_indexes();
         let issues = crate::schema::validate(&schema);
         if let Some(issue) = issues.first() {
@@ -292,6 +294,7 @@ impl Engine {
     /// transaction as rows/programs/generation; the filesystem pointer is a
     /// checked convenience copy, never an independent authority.
     pub fn new_release(mut store: Store, mut schema: Schema, programs: impl IntoIterator<Item = Program>, release: u64, expected_previous: Option<u64>) -> Result<Self, RuntimeError> {
+        columns::validate_before_prepare(&schema)?;
         schema.prepare_contribution_indexes();
         if let Some(issue) = crate::schema::validate(&schema).first() { return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message))); }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
@@ -408,6 +411,7 @@ impl Engine {
     /// the store keeps every row and rebuilds changed indexes; the
     /// generation advances so every device re-derives its partition.
     pub fn adopt(&mut self, mut schema: Schema, programs: impl IntoIterator<Item = Program>) -> Result<u64, RuntimeError> {
+        columns::validate_before_prepare(&schema)?;
         schema.prepare_contribution_indexes();
         let issues = crate::schema::validate(&schema);
         if let Some(issue) = issues.first() {
@@ -422,6 +426,10 @@ impl Engine {
     }
 
     fn activate(store: &mut Store, schema: &Schema, programs: &BTreeMap<String, Program>, release: Option<(u64, Option<u64>)>) -> Result<u64, RuntimeError> {
+        schema.validate_column_owners()?;
+        for program in programs.values() {
+            for table in crate::ir::read_sites(program).into_iter().map(|s|s.table).chain(crate::ir::write_tables(program).into_iter().map(|(t,_)|t)) { schema.refuse_private(&table)?; }
+        }
         for schedule in &schema.schedules {
             if schedule.every_ms == 0 || schedule.every_ms > i64::MAX as u64 || schedule.offset_ms >= schedule.every_ms {
                 return Err(RuntimeError::Schema(format!("schedule {} has an invalid period or offset", schedule.name)));
@@ -1022,7 +1030,7 @@ impl Engine {
     /// cannot supply it. Device stores restore/page-apply at their own trusted
     /// transaction boundary with the same stored row representation.
     pub fn load_mode(&mut self, rows: impl IntoIterator<Item = (String, Value)>, mode: LoadMode) -> Result<u64, RuntimeError> {
-        if mode == LoadMode::Restore || self.schema.tables.values().all(|table| table.recorded.is_empty()) { return self.load_stored_rows(rows, mode); }
+        if mode == LoadMode::Restore || self.schema.tables.values().all(|table| table.recorded.is_empty() && table.maintained.is_empty()) { return self.load_stored_rows(rows, mode); }
         let now = crate::now_ms();
         let tx = self.store.transaction()?;
         let seq = tx.next_seq()?;
@@ -1032,6 +1040,8 @@ impl Engine {
         for (name, row) in rows {
             timeline::check_import(&self.schema, &name)?;
             let table = self.schema.table(&name).ok_or_else(|| RuntimeError::Schema(format!("missing table {name}")))?;
+            self.schema.refuse_private(&name)?;
+            let row = columns::write_result(table, row);
             if mode == LoadMode::Import { recorded::refuse_fields(table, &name, &row)?; }
             validate::validate_row(&self.schema, &name, &row)?;
             let old = tx.get(&name, row.field("id")?.as_str()?)?;
@@ -1056,9 +1066,10 @@ impl Engine {
                 tx.put(&name, table, &captured, Some(&row))?;
                 row = captured;
             }
-            partition::row_changed(&mut runner, &name, old.as_ref(), Some(&row))?;
+            partition::row_changed(&mut runner, &name, old.as_ref(), Some(&row), crate::engine::write::Origin::Source)?;
             runner.written_tables.insert(name);
         }
+        if count > 0 { runner.rebuild_imported_columns()?; }
         let events = std::mem::take(&mut runner.events);
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
         drop(runner);
@@ -1085,8 +1096,8 @@ impl Engine {
             let id = row.field("id")?.as_str()?.to_owned();
             let old = tx.get(&table_name, &id)?;
             tx.put(&table_name, &table, &row, old.as_ref())?;
-            partition::row_changed(&mut runner, &table_name, old.as_ref(), Some(&row))?;
-            runner.written_tables.insert(table_name);
+            partition::row_changed(&mut runner, &table_name, old.as_ref(), Some(&row), crate::engine::write::Origin::Source)?;
+            if self.schema.visible(&table_name) { runner.written_tables.insert(table_name); }
             count += 1;
         }
         let events = std::mem::take(&mut runner.events);

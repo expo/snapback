@@ -53,7 +53,7 @@ impl Step {
 /// Classify the difference between two schemas.
 pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
     let mut steps = Vec::new();
-    for (name, old) in &from.tables {
+    for (name, old) in from.visible_tables() {
         let path = format!("tables.{name}");
         let Some(new) = to.tables.get(name) else {
             steps.push(Step { path, change: Change::Destructive, message: format!("table {name} is removed; its rows are lost") });
@@ -126,7 +126,7 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
             steps.push(Step { path: format!("{path}.constraints"), change: Change::Narrowing, message: format!("{name}'s constraints change; existing rows must satisfy them") });
         }
     }
-    for name in to.tables.keys() {
+    for name in to.visible_tables().map(|(name,_)|name) {
         if !from.tables.contains_key(name) {
             steps.push(Step { path: format!("tables.{name}"), change: Change::Additive, message: format!("table {name} is added") });
         }
@@ -139,7 +139,7 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
         let indexes_changed = old.is_some_and(|_| from.tables[&maintain.target].indexes != to.tables[&maintain.target].indexes);
         if old != Some(maintain) || defaults_changed || indexes_changed {
             steps.push(Step { path: format!("maintains[{position}]"), change: Change::Additive,
-                message: format!("maintain {} needs a derived rebuild of its filter, keys, totals or indexes; adoption rebuilds from source rows without rewriting them", maintain.target) });
+                message: format!("maintain {} needs a derived rebuild of its filter, keys, totals or indexes; adoption rebuilds from source rows without rewriting them", maintain.label()) });
         }
     }
     if from.schedules != to.schedules {
@@ -190,7 +190,7 @@ pub fn worst(steps: &[Step]) -> Change {
 pub fn keeps_literal_default_images(from: &Schema, to: &Schema) -> bool {
     if from.maintains != to.maintains { return false; }
     let mut added_literal = false;
-    for (name, old) in &from.tables {
+    for (name, old) in from.visible_tables() {
         let Some(new) = to.table(name) else { return false };
         if new.columns.iter().any(|(column, kind)| !old.columns.contains_key(column) && !kind.is_optional()
             && !matches!(new.defaults.get(column), Some(ColumnDefault::Literal(_)))) { return false; }

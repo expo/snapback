@@ -41,7 +41,7 @@ pub(super) fn assess(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Step>, RuntimeE
                 fits &= totals.values().all(|total| (crate::value::I53_MIN as i128..=crate::value::I53_MAX as i128).contains(total));
                 if !fits {
                     step.change = Change::Narrowing;
-                    step.message = format!("maintain {} cannot adopt these source rows: an interpreted contribution is invalid or the final value is out of range", maintain.target);
+                    step.message = format!("maintain {} cannot adopt these source rows: an interpreted contribution is invalid or the final value is out of range", maintain.label());
                 } else { step.message.push_str("; assessed source rows fit the derived rebuild"); }
             }
             continue;

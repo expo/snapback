@@ -423,6 +423,9 @@ impl Binder<'_> {
                 (Ty::Ref(table), Ty::Row(row)) if table == row && (!ty.is_optional() || expected.is_optional()) => {
                     if expected.is_optional() { Ty::Row(row).optional() } else { Ty::Row(row) }
                 }
+                (Ty::Ref(table), Ty::WriteRow(row)) if table == row && (!ty.is_optional() || expected.is_optional()) => {
+                    if expected.is_optional() { Ty::WriteRow(row).optional() } else { Ty::WriteRow(row) }
+                }
                 _ => expected,
             };
             if !ty.assignable_to(&expected) {

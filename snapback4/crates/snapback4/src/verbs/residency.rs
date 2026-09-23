@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 pub fn facts(bound: &Bound) -> String {
     let mut lines = vec!["residency (facts)".to_owned()];
-    for (name, table) in &bound.schema.tables {
+    for (name, table) in bound.schema.visible_tables() {
         let caps = table.constraints.iter().filter_map(|constraint| match constraint {
             snapback4_core::schema::Constraint::Cap { by, max } => Some(format!("; cap {max} by {}", by.join(", "))), _ => None,
         }).collect::<String>();
@@ -82,7 +82,7 @@ pub fn measure(engine: &mut Engine, bound: &Bound, personas: &[String], verbose:
     tx.rollback()?;
     if verbose {
         for note in &bound.notes { println!("note (fact): {note}"); }
-        for maintain in &bound.schema.maintains {
+        for maintain in bound.schema.maintains.iter().filter(|m| bound.schema.visible(&m.target)) {
             if maintain.residency.inherited_from.is_some() {
                 let rows = engine.store().rows(&maintain.target)?.len();
                 let note = if bound.notes.iter().any(|note| residency::maintain_note_names(note, &maintain.target)) { " — N_MAINTAIN_SYNCED" } else { "" };

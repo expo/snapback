@@ -336,6 +336,7 @@ impl Runner<'_> {
 
     /// A row by id, materialized, without a rule check.
     pub(crate) fn fetch(&mut self, table_name: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
+        self.schema.refuse_private(table_name)?;
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
         let found = self.tx.get(table_name, id)?;
         if self.device && (table.sync.is_none() || (found.is_none() && table.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.unknown_fact(table_name, "byId", &[Value::Id(id.to_owned())], "write target"); }
@@ -348,6 +349,7 @@ impl Runner<'_> {
     /// A point read: the row when it exists and the viewer may read it, else
     /// `null`. Hidden and absent are the same word on purpose.
     pub(super) fn get(&mut self, read: &Read) -> Result<Value, RuntimeError> {
+        self.schema.refuse_private(&read.table)?;
         // @ref LLP 3000.007#20.21 — an unfinished maintained value is unavailable, never an absent group coerced to zero.
         let maintained = self.schema.maintain_for(&read.table).is_some();
         if maintained { self.meter.require_uncapped()?; }
@@ -693,6 +695,7 @@ impl Runner<'_> {
     }
 
     pub(super) fn scan_with_keys(&mut self, scan: &Scan) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
+        self.schema.refuse_private(&scan.table)?;
         if !scan.existence { return self.scan_with_words(scan, None); }
         self.page_depth += 1;
         let result = self.scan_with_words(scan, None);

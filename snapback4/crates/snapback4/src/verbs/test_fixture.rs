@@ -9,7 +9,7 @@ pub(super) fn engine(project: &Project, bound: &Bound, options: &Options) -> Res
     let started = std::time::Instant::now();
     let mut schema = bound.schema.clone();
     // Rebuild maintains once after bulk loading, through ordinary adoption.
-    if options.flags.contains_key("residency") { schema.maintains.clear(); }
+    if options.flags.contains_key("residency") { schema.maintains.retain(|m| m.private.is_some()); }
     let mut engine = Engine::memory(schema, bound.programs.iter().map(|p| p.program.clone())).map_err(|error| format!("cannot open a store: {error}"))?;
     let entries = std::fs::read_dir(fixture).map_err(|error| format!("cannot read fixture directory {fixture}: {error}"))?;
     let mut loaded = 0;

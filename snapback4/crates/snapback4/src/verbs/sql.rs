@@ -41,7 +41,7 @@ fn inspect(options: &Options) -> Result<()> {
     let schema: Schema = serde_json::from_str(&encoded).map_err(|e| ("E_SCHEMA", e.to_string()))?;
     let mut views = BTreeSet::new();
     let mut backing = BTreeSet::new();
-    for (name, table) in &schema.tables {
+    for (name, table) in schema.visible_tables() {
         if internal(name) { continue; }
         let number: i64 = conn.query_row("SELECT num FROM _catalog WHERE name = ?1", [name], |row| row.get(0)).map_err(store_error)?;
         let private = format!("{PRIVATE}{number}");
@@ -58,6 +58,7 @@ fn inspect(options: &Options) -> Result<()> {
             };
             let path = format!("$.Row.{}{tag}", ident(column));
             let mut value = format!("json_extract(data, {})", literal(&path));
+            if table.maintained.contains_key(column) { value = format!("coalesce({value}, 0)"); }
             // @ref LLP 3000.007#18.3 — inspection projects required literal defaults, while optional absence remains SQL null.
             if !kind.is_optional() && let Some(ColumnDefault::Literal(default)) = table.defaults.get(column) {
                 let default = format!("json_extract({}, {})", literal(&snapback4_core::value::canonical_json(default)), literal(&format!("${tag}")));
@@ -94,7 +95,12 @@ fn inspect(options: &Options) -> Result<()> {
     let query_error = |e: rusqlite::Error| match denied.load(Ordering::Relaxed) {
         1 => ("E_SQL_READ_ONLY", "sql accepts one read-only SELECT or WITH … SELECT; writes and side effects are refused".into()),
         2 => ("E_SQL_INTERNAL", "sql reads application views only; internal tables, r, i and SQLite metadata are refused".into()),
-        _ => ("E_INPUT", format!("SQL: {e}")),
+        _ => {
+            let message = e.to_string();
+            if let Some(m) = schema.maintains.iter().find(|m|m.private.is_some() && message.contains(&m.target)) {
+                ("E_MAINTAINED_COLUMN_PRIVATE", format!("{} is engine-maintained; read its parent column (guide maintains)",m.label()))
+            } else { ("E_INPUT", format!("SQL: {e}")) }
+        },
     };
     // Prepare the original as well: WITH … UPDATE must hit the authorizer
     // before wrapping, rather than surfacing as a generic subquery syntax error.

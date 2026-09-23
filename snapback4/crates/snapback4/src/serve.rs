@@ -875,7 +875,7 @@ fn handle(mut request: Request, shared: &Shared) {
             let body = {
                 let bound = lock(&shared.bound);
                 let ops: Vec<Json> = bound.programs.iter().map(|p| json!({ "name": p.program.name, "kind": p.program.kind.word() })).collect();
-                let tables: Vec<Json> = bound.schema.tables.iter().map(|(name, table)| json!({ "name": name, "sync": table.sync.as_ref().map(|s| s.line()) })).collect();
+                let tables: Vec<Json> = bound.schema.visible_tables().map(|(name, table)| json!({ "name": name, "sync": table.sync.as_ref().map(|s| s.line()) })).collect();
                 json!({ "snapback4": env!("CARGO_PKG_VERSION"), "generation": *lock(&shared.generation), "seq": seq, "ops": ops, "tables": tables })
             };
             respond(request, 200, body);
@@ -885,7 +885,7 @@ fn handle(mut request: Request, shared: &Shared) {
             // programs' IR, bound to a generation.
             let (schema, programs, generation, native) = {
                 let bound = lock(&shared.bound);
-                (bound.schema.clone(), snapback4_lang::emit::backend_programs(&bound), *lock(&shared.generation), lock(&shared.native).as_ref().map(|n| (n.digest.clone(), n.jobs.clone(), n.reads.clone())))
+                (bound.schema.public_projection(), snapback4_lang::emit::backend_programs(&bound), *lock(&shared.generation), lock(&shared.native).as_ref().map(|n| (n.digest.clone(), n.jobs.clone(), n.reads.clone())))
             };
             let native = native.map(|(digest, jobs, reads)| json!({ "digest": digest, "jobs": jobs, "reads": reads }));
             respond(request, 200, json!({ "generation": generation, "schema": schema, "programs": programs, "native": native }));

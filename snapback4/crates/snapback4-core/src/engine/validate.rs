@@ -18,7 +18,8 @@ pub fn validate_row(schema: &Schema, table_name: &str, row: &Value) -> Result<()
         return Err(RuntimeError::Input(format!("{table_name} row contains undeclared field {name}")));
     }
     for (name, kind) in &table.columns {
-        validate_column(table_name, name, kind, object.get(name))?;
+        let value = object.get(name).or_else(|| table.maintained.contains_key(name).then_some(&Value::Int(0)));
+        validate_column(table_name, name, kind, value)?;
     }
     for constraint in &table.constraints {
         if let Constraint::Text { field, min, format } = constraint

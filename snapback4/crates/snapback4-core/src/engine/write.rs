@@ -13,7 +13,7 @@ use crate::rows::index_values;
 use crate::value::{Value, canonical_json};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(super) enum Origin {
+pub(crate) enum Origin {
     Source,
     Maintained,
 }
@@ -28,6 +28,10 @@ impl Runner<'_> {
     }
 
     fn insert_mode(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
+        self.target_attempt(table_name, |runner|runner.insert_attempt(table_name, row, if_absent))
+    }
+
+    fn insert_attempt(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Insert)?;
         self.refuse_recorded(table_name, &row)?;
         let row = self.with_defaults(table_name, row)?;
@@ -35,6 +39,7 @@ impl Runner<'_> {
             return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Insert });
         }
         let row = self.record_insert(table_name, row)?;
+        let row = self.birth_columns(table_name, row)?;
         let row = self.with_asset_facts(table_name, row, None, None)?;
         validate_row(self.schema, table_name, &row)?;
         let table = self.schema.table(table_name).expect("validated").clone();
@@ -76,7 +81,7 @@ impl Runner<'_> {
     }
 
     pub(super) fn update(&mut self, table_name: &str, key: &Value, patch: Value) -> Result<(), RuntimeError> {
-        self.target_attempt(|runner| runner.update_attempt(table_name, key, patch))
+        self.target_attempt(table_name, |runner| runner.update_attempt(table_name, key, patch))
     }
 
     fn update_attempt(&mut self, table_name: &str, key: &Value, patch: Value) -> Result<(), RuntimeError> {
@@ -98,7 +103,7 @@ impl Runner<'_> {
     }
 
     pub(super) fn upsert(&mut self, table_name: &str, key: &Value, row: Value) -> Result<(), RuntimeError> {
-        self.target_attempt(|runner| runner.upsert_attempt(table_name, key, row))
+        self.target_attempt(table_name, |runner| runner.upsert_attempt(table_name, key, row))
     }
 
     fn upsert_attempt(&mut self, table_name: &str, key: &Value, row: Value) -> Result<(), RuntimeError> {
@@ -133,7 +138,7 @@ impl Runner<'_> {
         if let Err(error) = validate_row(self.schema, table_name, &row) {
             return Err(if matches!(error, RuntimeError::Input(_)) { self.no_write_target() } else { error });
         }
-        match self.insert(table_name, row) {
+        match self.insert_attempt(table_name, row, false).map(|_| ()) {
             Err(RuntimeError::Input(_)) => Err(self.no_write_target()),
             result => result,
         }
@@ -170,7 +175,7 @@ impl Runner<'_> {
     }
 
     pub(super) fn delete(&mut self, table_name: &str, id: &str) -> Result<(), RuntimeError> {
-        self.target_attempt(|runner| runner.delete_attempt(table_name, id))
+        self.target_attempt(table_name, |runner| runner.delete_attempt(table_name, id))
     }
 
     fn delete_attempt(&mut self, table_name: &str, id: &str) -> Result<(), RuntimeError> {
@@ -320,6 +325,7 @@ impl Runner<'_> {
     pub(super) fn refuse_engine_owned(&self, table: &str, effect: Effect) -> Result<(), RuntimeError> {
         self.refuse_condition_write()?;
         self.refuse_timeline_write(table, effect)?;
+        self.schema.refuse_private(table)?;
         if self.schema.maintain_for(table).is_some() {
             return Err(RuntimeError::Schema(format!("{table} is a maintained aggregate; write its source rows instead")));
         }
@@ -515,7 +521,12 @@ impl Runner<'_> {
     /// write meter, maintained aggregates, and the partition events.
     pub(super) fn row_changed(&mut self, table_name: &str, old: Option<&Value>, new: Option<&Value>, origin: Origin) -> Result<(), RuntimeError> {
         if old.is_some() && new.is_none() { self.timeline_purge_charge(table_name)?; }
-        self.written_tables.insert(table_name.to_owned());
+        if self.schema.visible(table_name) { self.written_tables.insert(table_name.to_owned()); }
+        if origin == Origin::Source {
+            for m in self.schema.maintains.iter().filter(|m|m.source == table_name) {
+                if let Some(owner) = &m.private { self.written_tables.insert(owner.table.clone()); }
+            }
+        }
         self.rows_written += 1;
         if origin == Origin::Maintained { self.charge_maintain(MeterKind::RowsWritten, 1)?; }
         else { self.meter.charge(MeterKind::RowsWritten, 1)?; }
@@ -548,12 +559,12 @@ impl Runner<'_> {
             }
         }
         #[cfg(all(feature = "sqlite", not(feature = "web-device-check")))]
-        if !self.event_free { partition::row_changed(self, table_name, old, new)?; }
+        if !self.event_free { partition::row_changed(self, table_name, old, new, origin)?; }
         #[cfg(not(feature = "sqlite"))]
-        if !self.event_free { partition::account_row_change::<false>(self, table_name, old, new)?; }
+        if !self.event_free { partition::account_row_change::<false>(self, table_name, old, new, origin)?; }
         #[cfg(all(feature = "sqlite", feature = "web-device-check"))]
-        if self.device { if !self.event_free { partition::account_row_change::<false>(self, table_name, old, new)?; } }
-        else if !self.event_free { partition::row_changed(self, table_name, old, new)?; }
+        if self.device { if !self.event_free { partition::account_row_change::<false>(self, table_name, old, new, origin)?; } }
+        else if !self.event_free { partition::row_changed(self, table_name, old, new, origin)?; }
         if origin == Origin::Source {
             self.place_assets(table_name, &table, old, new)?;
             self.maintain(table_name, old, new)?;

@@ -551,6 +551,7 @@ fn text_field<'r>(request: &'r Json, name: &str, op: &str) -> Result<&'r str, Ru
 }
 
 fn table_of<'s>(schema: &'s Schema, name: &str) -> Result<&'s Table, RuntimeError> {
+    schema.refuse_private(name)?;
     schema.table(name).ok_or_else(|| RuntimeError::Schema(format!("missing table {name}")))
 }
 
@@ -793,6 +794,35 @@ mod tests {
             assert_eq!(tx.get("likes","l").unwrap(),stored);
             assert_eq!(tx.get("likes","forged").unwrap(),None);
         }
+        tx.rollback().unwrap();
+    }
+
+    #[test]
+    fn native_column_results_and_private_targets() {
+        use crate::{Context, Engine, meter::{Cut, Meter}};
+        let bound = snapback4_lang::compile(&[("schema.q".into(),include_str!("../../../snapback4-lang/tests/fixtures/maintained-columns.q").into())]);
+        assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+        let schema: Schema = serde_json::from_str(&serde_json::to_string(&bound.schema).unwrap()).unwrap();
+        let mut engine = Engine::memory(schema.clone(),[]).unwrap();
+        let tx = engine.store.transaction().unwrap();
+        let mut runner = Runner::new(&tx,&schema,Context::system().at(1000),Meter::new(Ceilings::job(),Cut::Abort),1);
+        for op in ["insert","insert_if_absent","upsert","update"] {
+            let request = json!({"op":op,"table":"posts","id":"p","row":{"id":"p","at":1,"likeCount":0},"patch":{"likeCount":0}});
+            assert_eq!(dispatch(&mut runner,"job",op,&request).unwrap_err().code(),"E_MAINTAINED_COLUMN");
+        }
+        for op in ["get","scan","insert","delete"] {
+            let request = json!({"op":op,"table":schema.maintains[0].target,"id":"p","index":"byGroup","prefix":[],"first":1,"row":{"id":"p"}});
+            let error = dispatch(&mut runner,"job",op,&request).unwrap_err();
+            assert_eq!(error.code(),"E_MAINTAINED_COLUMN_PRIVATE","{error}");
+            assert!(error.to_string().contains("posts.likeCount"));
+            assert!(!error.to_string().contains("$column"));
+        }
+        let like = json!({"table":"likes","row":{"id":"l","postId":"p","active":true,"amount":4}});
+        dispatch(&mut runner,"job","insert",&like).unwrap();
+        let post = json!({"table":"posts","row":{"id":"p","at":1}});
+        let result = dispatch(&mut runner,"job","insert",&post).unwrap();
+        assert_eq!(result,json!({"id":"p","at":1}));
+        assert_eq!(tx.get("posts","p").unwrap().unwrap().field("likeCount").unwrap(),&Value::Int(1));
         tx.rollback().unwrap();
     }
 

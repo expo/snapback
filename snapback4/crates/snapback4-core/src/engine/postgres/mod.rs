@@ -58,6 +58,7 @@ impl PostgresEngine {
         programs: impl IntoIterator<Item = Program>,
     ) -> Result<Self, RuntimeError> {
         let name = namespace(name)?;
+        super::columns::validate_before_prepare(&schema)?;
         schema.prepare_contribution_indexes();
         let programs: BTreeMap<_, _> = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         supported(&schema, &programs)?;
@@ -293,7 +294,7 @@ impl PostgresEngine {
             let id = row.field("id")?.as_str()?.to_owned();
             let old = tx.get(&table_name, &id)?;
             tx.put(&table_name, &table, &row, old.as_ref())?;
-            partition::row_changed(&mut runner, &table_name, old.as_ref(), Some(&row))?;
+            partition::row_changed(&mut runner, &table_name, old.as_ref(), Some(&row), crate::engine::write::Origin::Source)?;
             runner.written_tables.insert(table_name);
             count += 1;
         }
@@ -369,6 +370,10 @@ fn retry_transaction(error: &RuntimeError) -> bool {
 }
 
 fn supported(schema: &Schema, programs: &BTreeMap<String, Program>) -> Result<(), RuntimeError> {
+    schema.validate_column_owners()?;
+    for program in programs.values() {
+        for table in crate::ir::read_sites(program).into_iter().map(|s|s.table).chain(crate::ir::write_tables(program).into_iter().map(|(t,_)|t)) { schema.refuse_private(&table)?; }
+    }
     if let Some(issue) = crate::schema::validate(schema).first() {
         return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
     }

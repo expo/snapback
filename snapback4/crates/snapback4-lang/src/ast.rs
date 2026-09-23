@@ -269,10 +269,19 @@ pub struct RuleDecl {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ColumnDecl {
+    pub maintained: Option<ColumnAggregate>,
     pub name: String,
     pub default: Option<Expr>,
     pub type_: ScalarType,
     pub site: Site,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ColumnAggregate {
+    pub source: String,
+    pub of: Option<String>,
+    pub filter: Option<Expr>,
+    pub by: String,
 }
 
 /// `sync public | to .column | to table[.a, .b] [by .principal] [last N by index]`.

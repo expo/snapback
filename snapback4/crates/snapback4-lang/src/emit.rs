@@ -19,7 +19,7 @@ pub fn typescript(bound: &Bound) -> String {
     let action = if bound.server { "Action, " } else { "" };
     out.push_str(&format!("import type {{ {action}Cursor, Mutation, Query }} from \"snapback4/contract\";\n\n"));
     out.push_str("export type Rows = {\n");
-    for (name, table) in &bound.schema.tables {
+    for (name, table) in bound.schema.visible_tables() {
         out.push_str(&format!("  {}: {{\n", property(name)));
         for (column, kind) in table.columns.iter().filter(|(name, _)| !table.recorded.contains_key(*name)) {
             out.push_str(&format!("    {}: {};\n", property(column), column_ts(kind, &bound.schema)));
@@ -28,6 +28,14 @@ pub fn typescript(bound: &Bound) -> String {
         out.push_str("  };\n");
     }
     out.push_str("};\n\n");
+    if bound.schema.visible_tables().any(|(_,table)| !table.maintained.is_empty()) {
+        out.push_str("export type WriteRows = {\n");
+        for (name,table) in bound.schema.visible_tables() {
+            let keys = table.maintained.keys().map(|key|string_literal(key)).collect::<Vec<_>>().join(" | ");
+            out.push_str(&format!("  {}: Omit<Rows[{}], {}>;\n",property(name),string_literal(name),if keys.is_empty() { "never" } else { &keys }));
+        }
+        out.push_str("};\n\n");
+    }
     let mut modules: BTreeMap<String, Vec<&BoundProgram>> = BTreeMap::new();
     for program in &bound.programs {
         if program.program.kind != ProgramKind::Job {
@@ -113,6 +121,7 @@ pub fn ty_ts(ty: &Ty) -> String {
         Ty::Optional(inner) => format!("{} | null", ty_ts(inner)),
         Ty::List(item, _) => format!("{}[]", wrap(item)),
         Ty::Row(table) => format!("Rows[{}]", string_literal(table)),
+        Ty::WriteRow(table) => format!("WriteRows[{}]", string_literal(table)),
         Ty::Page(table, _) => format!("Rows[{}][]", string_literal(table)),
         Ty::Collection(item, _) => format!("{}[]", wrap(item)),
         Ty::RowShape(fields) => {

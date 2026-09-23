@@ -236,6 +236,13 @@ impl Binder<'_> {
 
     pub(super) fn member(&mut self, base: Expr, ty: Ty, name: &str, site: &Site) -> Fallible<(Expr, Ty)> {
         let field_ty = match ty.required() {
+            Ty::WriteRow(table) => {
+                let info = self.table(&table, site)?;
+                if super::super::columns::fields(info).any(|f|f == name) {
+                    return Err(Diagnostic::new(site,"E_MAINTAINED_COLUMN_RESULT",format!("{table}.{name} is absent from a write result"),"read the row under its read rule").guide("maintains"));
+                }
+                return self.member(base, if ty.is_optional() { Ty::Row(table).optional() } else { Ty::Row(table) }, name, site);
+            }
             Ty::Row(table) => {
                 let info = self.table(&table, site)?;
                 if name == "id" {

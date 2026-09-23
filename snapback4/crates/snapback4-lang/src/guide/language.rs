@@ -538,6 +538,26 @@ and evaluating it once, including when it is a call or read.
 
 - Guessed spellings are refused with a canonical rewrite; `snapback4 check --fix` applies mechanical repairs (including missing indexes, argument `once`, repeated wildcard fields and empty operation parentheses): `cond ? a : b` → `a if cond else b`; `a?.b` → `a.b`; `len(x)` → `count(x)`; `elif` → `else if`; `proc` → `fn`; `//` and `#` → `--`; `==` → `=`.
 
+Maintained columns put an aggregate on the row it describes. Their source
+is ordinary and non-expiring, and `by` is one reference to the parent. The
+engine owns the column; a write result omits it. Read the row for its value.
+See `guide maintains` for disclosure, stream cost and the interim fresh-store
+activation boundary.
+
+```quarry
+table subjects:
+  at: time
+  voteCount: count votes by subjectId
+  by byVotes: voteCount, at, id
+  public
+  online only
+table votes:
+  subjectId: subjects
+  amount: int
+  public
+  online only
+```
+
 Cards: `snapback4 guide <keyword>` — app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,
 assets, reads, shapes, writes, programs, jobs, native, feeds, search,
 effects, actions, routes, services, presence, bounds, refusals, personas, witness. `snapback4 why

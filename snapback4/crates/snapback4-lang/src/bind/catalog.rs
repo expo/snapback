@@ -129,6 +129,8 @@ impl Catalog {
                 effects.insert(effect.name.clone(), effect.module.clone());
             }
         }
+        super::columns::resolve(&mut tables, diagnostics);
+        super::columns::recorded(&mut tables, diagnostics);
         // Resolve every path against application declarations before generating any target.
         for maintain in maintains.values() {
             match super::maintains::recorded_paths(&tables, maintain) {

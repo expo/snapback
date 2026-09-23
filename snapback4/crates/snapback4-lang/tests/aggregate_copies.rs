@@ -236,8 +236,8 @@ fn published_blocks() -> Vec<(String, String)> {
 }
 
 fn indexed_int_tables(schema: &Schema) -> Vec<(&String, &snapback4_core::schema::Table)> {
-    schema.tables.iter().filter(|(_, table)| table.indexes.values().any(|index|
-        index.columns().iter().any(|column| table.columns.get(column).is_some_and(|ty| *ty.required() == ColumnType::Int)))).collect()
+    schema.visible_tables().filter(|(_, table)| table.indexes.values().any(|index|
+        index.columns().iter().any(|column| !table.maintained.contains_key(column) && table.columns.get(column).is_some_and(|ty| *ty.required() == ColumnType::Int)))).collect()
 }
 
 fn unrestricted_rankings(schema: &Schema) -> Vec<String> {

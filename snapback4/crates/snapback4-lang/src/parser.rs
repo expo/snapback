@@ -372,13 +372,24 @@ impl Parser {
     fn parse_column(&mut self) -> Fallible<ColumnDecl> {
         let name = self.word()?;
         self.take(":")?;
+        if self.at("count") || self.at("sum") {
+            let sum = self.word()?.value == "sum";
+            let source = self.word()?.value;
+            let of = if sum { self.take("of")?; Some(self.word()?.value) } else { None };
+            let filter = if self.maybe("where") { Some(self.maintain_predicate(0)?) } else { None };
+            self.take("by")?;
+            let by = self.word()?.value;
+            self.newline()?;
+            return Ok(ColumnDecl { maintained: Some(ColumnAggregate { source, of, filter, by }),
+                name: name.value, type_: ScalarType { kind: TypeKind::Int, optional: false }, default: None, site: name.site });
+        }
         let type_ = self.parse_type(true)?;
         if matches!(type_.kind, TypeKind::Cursor) {
             return Err(syntax_with(&name.site, "cursor is an operation argument type, not a table column", "use c: cursor ? on a query"));
         }
         let default = if self.maybe("default") { Some(self.expression(0, &[])?) } else { None };
         self.newline()?;
-        Ok(ColumnDecl { name: name.value, type_, default, site: name.site })
+        Ok(ColumnDecl { maintained: None, name: name.value, type_, default, site: name.site })
     }
 
     fn parse_index(&mut self, unique: bool) -> Fallible<IndexDecl> {

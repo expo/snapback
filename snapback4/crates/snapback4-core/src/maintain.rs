@@ -79,7 +79,7 @@ impl Predicate {
 
 // @ref LLP 3000.007#20.9 — one evaluator supplies filters and Euclidean calendar keys on every host and lifecycle path.
 impl Maintain {
-    pub fn selected(&self, image: &Value) -> bool { self.filter.as_ref().is_none_or(|p| p.matches(image)) }
+    pub fn selected(&self, image: &Value) -> bool { if self.private.is_some() && self.by.iter().any(|f| matches!(image.field(f), Err(_) | Ok(Value::Null))) { return false; } self.filter.as_ref().is_none_or(|p| p.matches(image)) }
     pub fn source_key(&self, image: &Value) -> Vec<Value> {
         self.by.iter().map(|field| match self.computed.get(field) {
             Some(key) => key.value(image),

@@ -20,7 +20,11 @@ impl Runner<'_> {
             let source_bytes = super::write_target::row_copy_ceiling(&self.schema.tables[&maintain.source]);
             let target = &self.schema.tables[&maintain.target];
             let bytes = source_bytes.saturating_mul(2).saturating_add(super::write_target::row_copy_ceiling(target).saturating_mul(16 + 4 * target.indexes.len() as u64));
-            self.maintain_scratch(bytes, |runner| runner.maintain_one(&maintain, old, new))?;
+            let prepaid = self.maintain_prepaid;
+            if maintain.private.is_some() && self.column_prepaid { self.maintain_prepaid = true; }
+            let result = self.maintain_scratch(bytes, |runner| runner.maintain_one(&maintain, old, new));
+            self.maintain_prepaid = prepaid;
+            result?;
         }
         Ok(())
     }
@@ -191,17 +195,19 @@ impl Runner<'_> {
                 self.charge_maintain(MeterKind::IndexEntries, entries)?;
                 self.row_changed(&maintain.target, Some(&existing), None, Origin::Maintained)?;
             }
+            self.mirror_column(maintain, &key, 0)?;
             return Ok(());
         }
         let mut row = BTreeMap::from([("id".to_owned(), Value::Id(id.clone())), ("value".to_owned(), Value::Int(next as i64))]);
-        for (field, value) in maintain.by.iter().zip(key) {
+        for (field, value) in maintain.group_fields().iter().zip(key.iter().cloned()) {
             row.insert(field.clone(), value);
         }
         let row = Value::Row(row.into());
         if existing.as_ref() == Some(&row) { return Ok(()); }
         let entries = self.tx.put(&maintain.target, &target, &row, existing.as_ref())?;
         self.charge_maintain(MeterKind::IndexEntries, entries)?;
-        self.row_changed(&maintain.target, existing.as_ref(), Some(&row), Origin::Maintained)
+        self.row_changed(&maintain.target, existing.as_ref(), Some(&row), Origin::Maintained)?;
+        self.mirror_column(maintain, &key, next as i64)
     }
 }
 
@@ -214,7 +220,7 @@ fn delta(maintain: &Maintain, source: &Value, direction: i64) -> Result<i128, Ru
 
 // @ref LLP 3000.007#17 — an internal sum names its maintain and column, never a retained contribution or computed value.
 pub(super) fn aggregate_overflow(maintain: &Maintain) -> RuntimeError {
-    RuntimeError::AggregateOverflow { maintain: maintain.target.clone(), column: "value".into() }
+    RuntimeError::AggregateOverflow { maintain: maintain.private.as_ref().map_or_else(|| maintain.target.clone(), |o|o.table.clone()), column: maintain.private.as_ref().map_or_else(|| "value".into(), |o|o.column.clone()) }
 }
 
 #[cfg(all(test, feature = "sqlite"))]

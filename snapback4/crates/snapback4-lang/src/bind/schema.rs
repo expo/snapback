@@ -58,8 +58,9 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
         };
         let computed = match super::maintains::keys(&source, maintain) { Ok(keys) => keys, Err(d) => { diagnostics.push(d); continue; } };
         let filter = match maintain.filter.as_ref().map(|expr| super::maintains::predicate(&source, expr)).transpose() { Ok(p) => p, Err(d) => { diagnostics.push(d); continue; } };
-        schema.maintains.push(core::Maintain { filter, computed, residency: schema.tables[&maintain.name].residency.clone(), kind, source: maintain.source.clone(), by: maintain.by.clone(), target: maintain.name.clone(), readable: None });
+        schema.maintains.push(core::Maintain { private: None, filter, computed, residency: schema.tables[&maintain.name].residency.clone(), kind, source: maintain.source.clone(), by: maintain.by.clone(), target: maintain.name.clone(), readable: None });
     }
+    super::columns::lower(catalog, &mut schema, diagnostics);
     schema.prepare_contribution_indexes();
     for doc in &catalog.documents {
         for effect in &doc.effects {
@@ -83,7 +84,9 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
     if diagnostics.is_empty() {
         for issue in core::validate(&schema) {
             let site = catalog.site_for(&issue.path);
-            if issue.path.ends_with(".sync") {
+            if issue.message.contains("maintained column") || issue.message.contains("guide maintains") {
+                diagnostics.push(super::columns::refusal(&site, issue.message));
+            } else if issue.path.ends_with(".sync") {
                 let rewrite = if issue.message.contains("needs required group keys") { "remove `?` from every content and audience group column named by this sync" } else { "make the sync audience exactly match the table's read rule" };
                 diagnostics.push(Diagnostic::new(&site, "E_SYNC", issue.message, rewrite).guide("sync"));
             } else {
@@ -210,7 +213,7 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
     };
     let residency = core::Residency { online_only: decl.online_only, inferred: decl.sync.as_ref().is_some_and(|s| matches!(s.audience, SyncAudience::Inferred { .. })), inherited_from: None };
     let defaults = super::defaults::bind(info, diagnostics);
-    Table { recorded, columns, defaults, indexes, rules, constraints, leave, sync, expire, residency }
+    Table { maintained: BTreeMap::new(), recorded, columns, defaults, indexes, rules, constraints, leave, sync, expire, residency }
 }
 
 /// `expire at .column`: a `time` column (optional means "never" when null)
@@ -572,12 +575,12 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
             None => return Err(unknown(&site, format!("sum names unknown column {}.{column}", maintain.source), name_rewrite(column, source.columns.keys().map(String::as_str), None))),
         },
     };
-    columns.push(ColumnDecl { default: None, name: "value".into(), type_: value_type, site: site.clone() });
+    columns.push(ColumnDecl { maintained: None, default: None, name: "value".into(), type_: value_type, site: site.clone() });
     let computed = super::maintains::keys(&source, maintain)?;
     if let Some(expr) = &maintain.filter { super::maintains::predicate(&source, expr)?; }
     for field in &maintain.by {
         let ty = if computed.contains_key(field) { ScalarType { kind: TypeKind::Int, optional: computed[field].column.contains('.') } } else { source.columns[field].clone() };
-        columns.push(ColumnDecl { default: None, name: field.clone(), type_: ty, site: site.clone() });
+        columns.push(ColumnDecl { maintained: None, default: None, name: field.clone(), type_: ty, site: site.clone() });
     }
     let mut indexes = vec![IndexDecl { name: "byGroup".into(), columns: maintain.by.clone(), unique: true, refusal: None, words: None, computed: BTreeMap::new(), site: site.clone() }];
     let mut names = BTreeSet::from(["byGroup".to_owned(), "byId".to_owned()]);

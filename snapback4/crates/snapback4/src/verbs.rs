@@ -194,9 +194,9 @@ pub fn check(options: &Options) -> i32 {
     let elapsed = started.elapsed();
     let synced = bound.schema.synced().count();
     if options.json {
-        println!("{}", json!({ "ok": true, "tables": bound.schema.tables.len(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
+        println!("{}", json!({ "ok": true, "tables": bound.schema.visible_tables().count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
     } else {
-        println!("check: ok — {} tables ({synced} synced), {} operations, no problems{}, {:.1} ms{}", bound.schema.tables.len(), bound.programs.len(), if bound.notes.is_empty() { String::new() } else { format!(", {} note{}", bound.notes.len(), if bound.notes.len() == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0, match &native { Some(b) => format!("; native: {} → {} ({} B, {} ms)", b.jobs.join(", "), b.path.display(), b.bytes, b.ms), None => String::new() });
+        println!("check: ok — {} tables ({synced} synced), {} operations, no problems{}, {:.1} ms{}", bound.schema.visible_tables().count(), bound.programs.len(), if bound.notes.is_empty() { String::new() } else { format!(", {} note{}", bound.notes.len(), if bound.notes.len() == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0, match &native { Some(b) => format!("; native: {} → {} ({} B, {} ms)", b.jobs.join(", "), b.path.display(), b.bytes, b.ms), None => String::new() });
         if details {
             for report in diagnostic_reports(&bound.notes, "note: ", true) { println!("{report}"); }
         }
@@ -503,6 +503,7 @@ pub fn data(options: &Options) -> i32 {
         let tx = store.read_transaction()?;
         let encoded: String = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT value FROM _meta WHERE key = 'generation')", [], |row| row.get(0))?;
         let schema: snapback4_core::schema::Schema = serde_json::from_str(&encoded).map_err(|e| snapback4_core::RuntimeError::Store(e.to_string()))?;
+        schema.refuse_private(table)?;
         let definition = schema.table(table).ok_or_else(|| snapback4_core::RuntimeError::Schema(format!("no table {table}")))?;
         let mut rows: Vec<_> = tx.scan(table, "byId", &[], &Default::default(), snapback4_core::rows::Dir::Asc, limit.saturating_add(1))?.into_iter().map(|(row, _)| row).collect();
         let more = rows.len() > limit;
@@ -526,7 +527,7 @@ pub fn data(options: &Options) -> i32 {
             if error.to_string().starts_with(&format!("E_SCHEMA: no table {table}")) {
                 let tables = snapback4_core::Engine::open(store)
                     .ok()
-                    .map(|engine| engine.schema().tables.keys().cloned().collect::<Vec<_>>())
+                    .map(|engine| engine.schema().visible_tables().map(|(name,_)|name.clone()).collect::<Vec<_>>())
                     .unwrap_or_default();
                 let tables = if tables.is_empty() { "(none)".to_owned() } else { tables.join(", ") };
                 eprintln!("no table {table}; tables: {tables}");
@@ -578,7 +579,7 @@ pub fn doctor(options: &Options) -> i32 {
     lines.push(format!("worker    dev entry: {}; serve entry: --worker <path>", crate::dev_worker::source(&project).map(|p| p.display().to_string()).unwrap_or_else(|| "none (add snapback/worker.ts, .mts or .mjs)".into())));
     let (personas, native_jobs) = match project.compile() {
         Ok(bound) if bound.diagnostics.is_empty() => {
-            lines.push(format!("schema    ok: {} tables, {} synced, {} operations", bound.schema.tables.len(), bound.schema.synced().count(), bound.programs.len()));
+            lines.push(format!("schema    ok: {} tables, {} synced, {} operations", bound.schema.visible_tables().count(), bound.schema.synced().count(), bound.programs.len()));
             let native = crate::native::declared(&bound);
             (bound.personas, native)
         }
@@ -639,7 +640,7 @@ pub fn doctor(options: &Options) -> i32 {
             lines.push(format!("replay    {} — new effects {}; schedules {} (persisted dev policy)", if replay { "on" } else { "off" }, if replay { "suppressed" } else { "enabled" }, if held { "held" } else { "enabled" }));
             if let Ok(sizes) = store.sizes() {
                 storage = Some(sizes);
-                lines.push(format!("storage   rows {} ({} rows) · indexes {} · log {} ({} events, {:.1}× rows) · ops {} · file {}", human(sizes.rows), sizes.row_count, human(sizes.indexes), human(sizes.log), sizes.log_events, sizes.amplification(), human(sizes.ops), human(sizes.file)));
+                lines.push(format!("storage   rows {} ({} rows, including engine-internal storage) · indexes {} · log {} ({} events, {:.1}× rows) · ops {} · file {}", human(sizes.rows), sizes.row_count, human(sizes.indexes), human(sizes.log), sizes.log_events, sizes.amplification(), human(sizes.ops), human(sizes.file)));
             }
             match snapback4_core::Engine::open(store) {
                 Ok(mut engine) => {
@@ -723,6 +724,7 @@ pub fn why(options: &Options) -> i32 {
     // A broken working source must not make durable work uninspectable.
     let bound = project.compile().ok().filter(|bound| bound.diagnostics.is_empty());
     if let Some(bound) = &bound {
+        if let Err(error) = bound.schema.refuse_private(subject) { eprintln!("{error}"); return 1; }
         if let Some(program) = bound.programs.iter().find(|p| &p.program.name == subject) {
             println!("{} {}({})", program.program.kind.word(), program.program.name, program.args.iter().map(|(name, ty)| format!("{name}: {}", ty.name())).collect::<Vec<_>>().join(", "));
             println!("  returns {}", program.result.name());
@@ -730,7 +732,7 @@ pub fn why(options: &Options) -> i32 {
             println!("{}", cost_report(&bound, &program.program));
             return 0;
         }
-        if let Some(table) = bound.schema.tables.get(subject) {
+        if let Some(table) = bound.schema.tables.get(subject).filter(|_|bound.schema.visible(subject)) {
             println!("table {subject}");
             println!("  residency: {}", snapback4_lang::bind::residency::table_line(&bound.schema, subject));
             if table.residency.inferred { println!("  inferred from read <- {}", table.rules.read.quarry()); }

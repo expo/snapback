@@ -74,6 +74,12 @@ pub fn check(schema: &Schema, program: &Program) -> Result<(), RuntimeError> {
 
 // @ref LLP 3000.007#20 — admission reports the author's population and bound; source locations stay beside the IR.
 pub fn check_detail(schema: &Schema, program: &Program) -> Result<(), Problem> {
+    for table in crate::ir::read_sites(program).into_iter().map(|s|s.table).chain(crate::ir::write_tables(program).into_iter().map(|(t,_)|t)) {
+        if let Err(error) = schema.refuse_private(&table) {
+            return Err(Problem { code: "E_MAINTAINED_COLUMN_PRIVATE", site: program.name.clone(), page_site: None,
+                message: error.to_string(), rewrite: "read the parent row or write its source rows".into() });
+        }
+    }
     let (scans, has_merge) = crate::ir::read_structure(program);
     if program.kind == ProgramKind::Mutation {
         require_uniform_mutation_pages(schema, &scans)?;

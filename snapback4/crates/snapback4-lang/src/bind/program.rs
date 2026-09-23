@@ -605,12 +605,12 @@ impl<'a> Binder<'a> {
                 out.push_for(item, LoopDomain::DerivedArray { value: base_expr, max, bound_source: "shape".into() }, body);
                 Ok((ir::var(&list), Ty::Collection(Box::new(object_ty), max)))
             }
-            Ty::Row(_) | Ty::Object(_) | Ty::RowShape(_) => {
+            Ty::Row(_) | Ty::WriteRow(_) | Ty::Object(_) | Ty::RowShape(_) => {
                 let row = self.temp("row");
                 out.push(Stmt::Let { name: row.clone(), value: base_expr });
                 self.shape_object(&row, base_ty, fields, site, out)
             }
-            Ty::Optional(inner) if matches!(*inner, Ty::Row(_) | Ty::Object(_) | Ty::RowShape(_)) => {
+            Ty::Optional(inner) if matches!(*inner, Ty::Row(_) | Ty::WriteRow(_) | Ty::Object(_) | Ty::RowShape(_)) => {
                 let row = self.temp("row");
                 out.push(Stmt::Let { name: row.clone(), value: base_expr });
                 let result = self.temp("shaped");
@@ -686,7 +686,7 @@ impl<'a> Binder<'a> {
             }
             let _ = site;
             let fields = exprs.into_iter().collect();
-            if matches!(row_ty, Ty::Row(_) | Ty::RowShape(_)) {
+            if matches!(row_ty, Ty::Row(_) | Ty::WriteRow(_) | Ty::RowShape(_)) {
                 if types.contains_key("pending") { return Err(type_error(site, "pending is the device's row metadata", "omit pending from the shape; it is preserved from the row")); }
                 Ok((Expr::Shape { base: Box::new(ir::var(row_var)), fields }, Ty::RowShape(types)))
             } else { Ok((Expr::Object(fields), Ty::Object(types))) }
@@ -698,6 +698,12 @@ impl<'a> Binder<'a> {
 
     fn row_fields(&self, ty: &Ty, site: &Site) -> Fallible<Vec<(String, Ty)>> {
         match ty.required() {
+            Ty::WriteRow(table) => {
+                let info = self.table(&table, site)?;
+                let mut fields = vec![("id".to_owned(), Ty::Ref(table.clone()))];
+                fields.extend(info.columns.iter().filter(|(name,_)| !super::columns::fields(info).any(|f|f == *name)).map(|(name,scalar)|(name.clone(),Ty::from_scalar(scalar))));
+                Ok(fields)
+            }
             Ty::Row(table) => {
                 let info = self.table(&table, site)?;
                 let mut fields = vec![("id".to_owned(), Ty::Ref(table.clone()))];
@@ -724,6 +730,11 @@ impl<'a> Binder<'a> {
         let info = self.table(table, site)?;
         if info.maintained.is_some() {
             return Err(unknown(site, format!("{table} is a maintained aggregate; write its source rows instead"), format!("{} {}", op.word(), info.maintained.as_ref().map(|m| m.source.clone()).unwrap_or_default())));
+        }
+        for field in fields {
+            if super::columns::fields(info).any(|name|name == field.name) {
+                return Err(super::columns::refusal(&field.site,format!("{table}.{} is engine-maintained; write its source rows instead",field.name)));
+            }
         }
         // Writes share table-level residency facts, but every source occurrence
         // (including an expanded helper) belongs in a changed-prediction note.
@@ -770,7 +781,7 @@ impl<'a> Binder<'a> {
                 let result = valued.then(|| self.temp("written"));
                 let target = Read { site: site.to_string(), table: table.clone(), index: key.index, key: key.key, provenance: KeyProvenance::Shape };
                 out.push(Stmt::WriteTarget { target, patch, upsert, condition, result: result.clone() });
-                Ok(result.map(|name| (ir::var(&name), Ty::Row(table.clone()).optional())))
+                Ok(result.map(|name| (ir::var(&name), self.write_result_type(info).optional())))
             }
             WriteOp::Delete => {
                 let key = self.write_key(info, keys, site, out)?;
@@ -798,7 +809,7 @@ impl<'a> Binder<'a> {
         if keys.len() == 1 && keys[0].column.is_none() {
             let mut row_setup = setup::Body::default();
             let (e, t) = self.expr(&keys[0].value, &mut row_setup)?;
-            if let Ty::Row(table) = t.required()
+            if let Ty::Row(table) | Ty::WriteRow(table) = t.required()
                 && table == info.decl.name
             {
                 out.extend(row_setup);
@@ -890,11 +901,15 @@ impl<'a> Binder<'a> {
                 given.insert(column.name.clone());
             }
         }
-        let missing: Vec<&str> = info.columns.iter().filter(|(name, scalar)| !scalar.optional && !given.contains(*name)).map(|(name, _)| name.as_str()).collect();
+        let missing: Vec<&str> = info.columns.iter().filter(|(name, scalar)| !scalar.optional && !super::columns::fields(info).any(|f|f == *name) && !given.contains(*name)).map(|(name, _)| name.as_str()).collect();
         if !missing.is_empty() {
             return Err(type_error(site, format!("insert into {} omits required column{} {}", info.decl.name, if missing.len() == 1 { "" } else { "s" }, missing.join(", ")), format!("insert {} {{ {} }}", info.decl.name, given.iter().cloned().chain(missing.iter().map(|m| format!("{m}: <{}>", info.columns.get(*m).map(print::scalar_type).unwrap_or_default()))).collect::<Vec<_>>().join(", "))));
         }
-        Ok((Expr::Object(exprs.into_iter().collect()), Ty::Row(info.decl.name.clone())))
+        Ok((Expr::Object(exprs.into_iter().collect()), self.write_result_type(info)))
+    }
+
+    fn write_result_type(&self, info: &TableInfo) -> Ty {
+        if super::columns::fields(info).next().is_some() { Ty::WriteRow(info.decl.name.clone()) } else { Ty::Row(info.decl.name.clone()) }
     }
 
     fn field_value(&mut self, field: &ObjectField, expected: &Ty, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {

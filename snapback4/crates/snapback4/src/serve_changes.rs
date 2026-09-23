@@ -79,7 +79,7 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
 /// The notification's head, identity and invalidations share one read snapshot.
 fn check(engine: &mut snapback4_core::engine::Engine, since: u64) -> Result<(u64, Option<String>, Vec<String>), snapback4_core::error::RuntimeError> {
     use rusqlite::OptionalExtension;
-    let all_tables: Vec<_> = engine.schema().tables.keys().cloned().collect();
+    let all_tables: Vec<_> = engine.schema().visible_tables().map(|(n,_)|n.clone()).collect();
     let tx = engine.store_mut().read_transaction()?;
     let head = tx.next_seq()? - 1;
     let store_id = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'store_id'", [], |row| row.get(0)).optional()?;
@@ -137,5 +137,21 @@ impl Drop for PollResponse {
         // A failed or panicking stream cannot append a second response after
         // incomplete chunk framing, including on pipelined connections.
         if let Some(request) = self.request.take() { request.abort(); }
+    }
+}
+
+#[cfg(test)]
+mod column_tests {
+    #[test]
+    fn saturated_changes_uses_the_public_table_enumeration() {
+        let bound=snapback4_lang::compile(&[("schema.q".into(),include_str!("../../snapback4-lang/tests/fixtures/maintained-columns.q").into())]);
+        assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+        let mut engine=snapback4_core::Engine::memory(bound.schema,[]).unwrap();
+        let tx=engine.store_mut().transaction().unwrap();
+        for seq in 1..=501 {tx.record_commit(seq,1000,"like","alice","mutation",&["likes".into()],1).unwrap()}
+        tx.commit().unwrap();
+        let (seq,_,tables)=super::check(&mut engine,0).unwrap();
+        assert_eq!(seq,501);
+        assert_eq!(tables,["likes","posts"]);
     }
 }

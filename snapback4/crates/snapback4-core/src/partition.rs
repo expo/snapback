@@ -14,7 +14,7 @@
 //! members read it, and a membership costs one event however many rows it
 //! grants. A device with no watermark takes a snapshot first.
 
-use crate::engine::runner::Runner;
+use crate::engine::{runner::Runner, write::Origin};
 use crate::error::{MeterKind, RuntimeError};
 #[cfg(feature = "sqlite")]
 use crate::schema::Table;
@@ -149,13 +149,13 @@ mod log_events {
 
 // @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — logless devices retain partition accounting and refusals, but construct no events.
 #[cfg(feature = "sqlite")]
-pub fn row_changed(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
-    account_row_change::<true>(runner, table_name, old, new)
+pub(crate) fn row_changed(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value>, new: Option<&Value>, origin: Origin) -> Result<(), RuntimeError> {
+    account_row_change::<true>(runner, table_name, old, new, origin)
 }
 
 /// Every host pays the same partition work, including expired membership
 /// scans. Only a log-bearing host constructs the corresponding events.
-pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
+pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value>, new: Option<&Value>, origin: Origin) -> Result<(), RuntimeError> {
     let schema = runner.schema;
     let table = schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
     // @ref LLP 3000.007#18.3 — audience keys and lifetimes use the same interpreted image as rules and indexes.
@@ -201,7 +201,7 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
                 log_events::del(&mut runner.events, table_name, &id, &before, &after);
             }
         }
-        if schema.maintain_for(table_name).is_some() { runner.charge_maintain(MeterKind::Steps, (before.len() + after.len()) as u64)?; }
+        if origin == Origin::Maintained { runner.charge_maintain(MeterKind::Steps, (before.len() + after.len()) as u64)?; }
         else { runner.meter.charge(MeterKind::Steps, (before.len() + after.len()) as u64)?; }
     }
     #[cfg(feature = "sqlite")]

@@ -31,6 +31,7 @@ pub enum Ty {
     List(Box<Ty>, u32),
     /// One row of a table, present.
     Row(String),
+    WriteRow(String),
     /// A bounded page of rows, in index order.
     Page(String, u32),
     /// A shaped page: at most `max` objects.
@@ -150,6 +151,7 @@ impl Ty {
             Ty::Optional(inner) => format!("{} ?", inner.name()),
             Ty::List(item, max) => format!("[{}] <={max}", item.name()),
             Ty::Row(table) => format!("a {table} row"),
+            Ty::WriteRow(table) => format!("a {table} write result"),
             Ty::Page(table, max) => format!("a page of at most {max} {table} rows"),
             Ty::Collection(item, max) => format!("at most {max} of {}", item.name()),
             Ty::Object(fields) | Ty::RowShape(fields) => format!("{{ {} }}", fields.keys().cloned().collect::<Vec<_>>().join(", ")),

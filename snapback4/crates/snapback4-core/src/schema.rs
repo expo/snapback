@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
+pub mod columns;
 mod work;
 pub use work::{ActionSpec, WorkPolicy, WorkSpec};
 pub mod routes;
@@ -144,6 +145,7 @@ impl Schema {
     pub fn synced(&self) -> impl Iterator<Item = (&str, &Table, &Sync)> {
         self.tables
             .iter()
+            .filter(|(name, _)| self.visible(name))
             .filter_map(|(name, table)| table.sync.as_ref().map(|sync| (name.as_str(), table, sync)))
     }
 
@@ -205,6 +207,9 @@ fn prove_probe_row_readable(rule: &RuleExpr, table: &str, index: &str, index_col
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Table {
+    /// Engine-maintained readable fields, with their derivation identity.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub maintained: BTreeMap<String, String>,
     /// Engine-owned historical facts, keyed by their one-hop source path.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub recorded: BTreeMap<String, RecordedField>,
@@ -698,6 +703,8 @@ impl TextFormat {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Maintain {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub private: Option<columns::ColumnOwner>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub filter: Option<crate::maintain::Predicate>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub computed: BTreeMap<String, crate::maintain::CalendarKey>,
@@ -736,7 +743,7 @@ pub const BY_ID: &str = "byId";
 pub fn public_table(columns: BTreeMap<String, ColumnType>, indexes: BTreeMap<String, Index>) -> Table {
     let public = RuleExpr::Public { reason: "fixture".to_owned() };
     Table {
-        recorded: BTreeMap::new(),
+        maintained: BTreeMap::new(), recorded: BTreeMap::new(),
         residency: Residency::default(),
         defaults: BTreeMap::new(),
         columns,
@@ -760,7 +767,7 @@ pub struct SchemaIssue {
 /// indexable columns; every rule and constraint address exists; every
 /// maintain has the closed target shape; every `sync` is invertible.
 pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
-    let mut issues = Vec::new();
+    let mut issues = columns::validate(schema);
     timeline::validate(schema, &mut issues);
     let issue = |issues: &mut Vec<SchemaIssue>, path: String, message: String| issues.push(SchemaIssue { path, message });
     let mut route_paths = BTreeSet::new();
@@ -919,6 +926,12 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     for (position, maintain) in schema.maintains.iter().enumerate() {
         validate_maintain(schema, position, maintain, &mut issues);
     }
+    for issue in &mut issues {
+        for maintain in schema.maintains.iter().filter(|m|m.private.is_some()) {
+            issue.path = issue.path.replace(&maintain.target, &maintain.label());
+            issue.message = issue.message.replace(&maintain.target, &maintain.label());
+        }
+    }
     issues
 }
 
@@ -999,12 +1012,12 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
         issue(issues, "maintain by needs at least one source column".into());
     }
     if let Err(message) = maintain.validate_keys(source) { issue(issues, message); }
-    for field in &maintain.by {
+    for (field, target_field) in maintain.by.iter().zip(maintain.group_fields()) {
         let calendar_type = if maintain.computed.get(field).is_some_and(|key| source.recorded.contains_key(&key.column)) { ColumnType::Optional(Box::new(ColumnType::Int)) } else { ColumnType::Int };
         let expected = if maintain.computed.contains_key(field) { Some(&calendar_type) } else { source.columns.get(field) };
         match expected {
             None => issue(issues, format!("maintain names unknown source column {}.{field}", maintain.source)),
-            Some(kind) if target.columns.get(field) != Some(kind) => issue(issues, format!("maintain target column {field} must match the source type {kind}")),
+            Some(kind) if target.columns.get(&target_field) != Some(kind) => issue(issues, format!("maintain target column {field} must match the source type {kind}")),
             _ => {}
         }
     }
@@ -1027,12 +1040,13 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
     {
         issue(issues, format!("maintain target {}.value must be {expected}", maintain.target));
     }
-    let allowed: BTreeSet<&str> = ["id", "value"].into_iter().chain(maintain.by.iter().map(String::as_str)).collect();
+    let group_fields = maintain.group_fields();
+    let allowed: BTreeSet<&str> = ["id", "value"].into_iter().chain(group_fields.iter().map(String::as_str)).collect();
     let extra: Vec<_> = target.columns.keys().filter(|c| !allowed.contains(c.as_str())).cloned().collect();
     if !extra.is_empty() {
         issue(issues, format!("maintain target {} has non-aggregate columns {}", maintain.target, extra.join(", ")));
     }
-    if !target.indexes.values().any(|index| index.unique && index.columns() == maintain.by) {
+    if !target.indexes.values().any(|index| index.unique && index.columns() == maintain.group_fields()) {
         issue(issues, format!("maintain target {} needs a unique index over {}", maintain.target, maintain.by.join(", ")));
     }
     // A delivered aggregate reveals a count: every recipient must be able to
@@ -1327,7 +1341,9 @@ pub fn materialize_optional_fields(row: &mut Value, table: &Table) {
     };
     for (name, kind) in &table.columns {
         if !fields.contains_key(name) {
-            if kind.is_optional() {
+            if table.maintained.contains_key(name) {
+                fields.insert(name.clone(), Value::Int(0));
+            } else if kind.is_optional() {
                 fields.insert(name.clone(), Value::Null);
             } else if let Some(ColumnDefault::Literal(value)) = table.defaults.get(name) {
                 fields.insert(name.clone(), value.clone());

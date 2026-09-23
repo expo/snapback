@@ -263,3 +263,84 @@ winning target images and the import clock; an earlier committed null stays
 null when a target arrives in a later batch. Imports reject supplied recorded
 fields. Trusted restoration preserves stored captures without resolving them.
 Expired targets are absent at capture time, including before physical sweeping.
+
+## Maintained columns
+
+When the group is a row, put its aggregate on that row:
+
+```quarry
+table posts:
+  at: time
+  likeCount: count likes by postId
+  by byLikes: likeCount, at, id
+  public
+  insert <- allow
+  online only
+table likes:
+  postId: posts
+  principal: principal
+  unique byPostPrincipal: postId, principal
+  public
+  insert <- .principal = viewer
+  delete <- .principal = viewer
+  online only
+mutation like(postId: posts):
+  insert likes { postId, principal: viewer } if absent
+query trending(c: cursor ?):
+  return posts after c last 20 by byLikes { * }
+```
+
+The other form is `total: sum source of amount where .selected by parentId`.
+The predicate has the maintain grammar above. The one grouping column must
+reference this parent table; optional null references contribute nothing.
+The source is ordinary and cannot expire. The parent may expire. Zero-like
+parents are included in its indexes, and ties can use the parent's time.
+A deleted parent can be recreated with the current total. A missing field
+reads as 0. E_MAINTAINED_COLUMN refuses an application assignment, including
+an explicitly submitted 0, because the engine owns the field. Write the source
+rows instead.
+Rules, constraints, defaults, expiry, sync audiences and horizons, word
+tokenization and other aggregates cannot depend on it. Ordinary reads and ordered
+pages can. A cursor remains in the same generation across ordinary writes;
+counts can move a row across the cursor, so paging a moving ranking is not a
+snapshot and can repeat or miss rows.
+
+E_MAINTAINED_COLUMN_PRIVATE refuses addressing the column's private storage,
+including raw programs, native calls, seeds and imports under the system
+context. Read the parent row or write the source rows instead.
+
+Parent readers learn the count or sum of contributing rows, even when those
+rows are private; a predicate discloses selection and an index discloses
+relative order. N_MAINTAINED_COLUMN_DISCLOSURE prints when source readability
+is not proven for those readers. Source writers can observe aggregate
+overflow. The meter reserves the same schema-bounded ceiling for private
+aggregation and both mirror attempts whether the parent is present, absent,
+expired or differently valued. These are equal charged ceilings, not equal
+physical storage work.
+
+A contributing commit streams the whole parent image to each parent
+partition, coalesced once per row. N_MAINTAINED_COLUMN_STREAM names that cost
+on the parent's sync line. Use a column for a count readers want with the
+row; use `maintain … online only` when the counter changes far more often
+than the row is read. Include the parent's size in that choice: a 4,000-byte
+parent costs every holder about 4 KB per contributing commit.
+
+An insert, if-absent insert, upsert or update result has the ordinary fields
+and id, without maintained fields. It remains a write key. Read the row under
+its read rule to see the aggregate; selecting the field from a write result
+refuses with E_MAINTAINED_COLUMN_RESULT. Native results follow the same rule;
+the generated `PostsWrite` type contains the ordinary fields and id.
+
+The device receives server values and preserves them through page application
+and cold restoration. It never predicts the aggregate or accepts assignments
+to it. A predicted source write changes its own rows; the parent's aggregate
+changes when the server image arrives. A predicted parent insert reads 0 on
+a pending row until confirmation supplies its authoritative value.
+
+Interim activation boundary: declare the column before the parent table has
+rows; in dev, use a fresh store. E_MAINTAINED_COLUMN_ACTIVATION refuses adding,
+removing or redefining a column on a populated parent, changing its dependency
+interpretation on populated data, or changing a populated parent's lifetime.
+An empty parent can adopt the declaration. An unchanged declaration preserves
+private totals and stored values across generations. Populated-store
+activation is a later increment.

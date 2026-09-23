@@ -9,11 +9,16 @@ use crate::value::Value;
 
 impl Runner<'_> {
     // @ref LLP 3000.007#17 — absent and hidden-refused targets restore every logical meter field.
-    pub(super) fn target_attempt<T>(&mut self, attempt: impl FnOnce(&mut Self) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+    pub(super) fn target_attempt<T>(&mut self, table: &str, attempt: impl FnOnce(&mut Self) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
         let mark = self.meter.mark();
         let prepaid = std::mem::replace(&mut self.maintain_prepaid, false);
         let previous_heap = std::mem::take(&mut self.maintain_heap);
-        let result = attempt(self);
+        let column_prepaid = std::mem::replace(&mut self.column_prepaid, false);
+        let column_heap = std::mem::take(&mut self.column_heap);
+        let result = self.reserve_columns(table).and_then(|_|attempt(self));
+        self.meter.used.heap_bytes = self.meter.used.heap_bytes.saturating_sub(self.column_heap);
+        self.column_prepaid = column_prepaid;
+        self.column_heap = column_heap;
         self.meter.used.heap_bytes = self.meter.used.heap_bytes.saturating_sub(self.maintain_heap);
         self.maintain_heap = previous_heap;
         self.maintain_prepaid = prepaid;
@@ -111,7 +116,7 @@ impl Runner<'_> {
     }
 
     pub(super) fn write_target(&mut self, target: &Read, patch: &Expr, upsert: bool, condition: Option<&WriteCondition>, valued: bool) -> Result<Value, RuntimeError> {
-        self.target_attempt(|runner| runner.resolve_write_target(target, patch, upsert, condition, valued))
+        self.target_attempt(&target.table, |runner| runner.resolve_write_target(target, patch, upsert, condition, valued))
     }
 
     fn resolve_write_target(&mut self, target: &Read, patch: &Expr, upsert: bool, condition: Option<&WriteCondition>, valued: bool) -> Result<Value, RuntimeError> {
@@ -166,7 +171,8 @@ impl Runner<'_> {
         };
         // Only an ordinary read of the final row can enter the author's program.
         if !valued { return Ok(Value::Null); }
-        self.get(&Read { site: target.site.clone(), table: target.table.clone(), index: "byId".into(), key: vec![Expr::Literal(id)], provenance: KeyProvenance::Computed })
+        let value = self.get(&Read { site: target.site.clone(), table: target.table.clone(), index: "byId".into(), key: vec![Expr::Literal(id)], provenance: KeyProvenance::Computed })?;
+        Ok(super::columns::write_result(&definition, value))
     }
 
     // @ref LLP 3000.007#17 — ruling 17 (a), third pass: hidden immutable fields are ignored, never compared, on update and upsert.
@@ -290,7 +296,7 @@ impl Runner<'_> {
     // @ref LLP 3000.007#20.9 — pay for both hidden contributions before the old image; no predicate-dependent success/budget channel.
     pub(super) fn reserve_maintains(&mut self, table_name: &str, table: &Table) -> Result<(), RuntimeError> {
         if table.rules.read.is_uniformly_readable() || self.context.is_system() { return Ok(()); }
-        let maintains: Vec<_> = self.schema.maintains.iter().filter(|m| m.source == table_name).collect();
+        let maintains: Vec<_> = self.schema.maintains.iter().filter(|m| m.source == table_name && m.private.is_none()).collect();
         if !maintains.iter().any(|m| m.filter.is_some() || !m.computed.is_empty() || table.expire.is_some()) { return Ok(()); }
         let mut steps = 0_u64;
         let mut entries = 0_u64;

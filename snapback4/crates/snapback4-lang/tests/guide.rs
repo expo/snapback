@@ -482,7 +482,7 @@ fn every_card_compiles_clean() {
     assert_eq!(card("grammar"), Some(LANGUAGE));
     assert_eq!(card("quarry"), Some(LANGUAGE));
     assert_eq!(card("nonsense"), None);
-    assert_eq!(quarry(LANGUAGE).len(), 2, "the language card separates the server opt-in");
+    assert_eq!(quarry(LANGUAGE).len(), 3, "the language card separates the server opt-in and maintained-column example");
 }
 
 #[test]
@@ -1137,3 +1137,19 @@ fn host_unicode_refusal_explains_the_repair_and_search_contract() {
 
 #[path = "guide/feeds.rs"]
 mod feeds;
+
+#[test]
+fn maintained_column_notes_do_not_spread_to_existing_cards_recipes_or_templates() {
+    let docs = std::iter::once(("language", LANGUAGE)).chain(std::iter::once(("README",README)))
+        .chain(KEYWORDS.iter().filter_map(|name|card(name).map(|text|(*name,text))));
+    for (name,text) in docs {
+        for source in quarry(text) {
+            let bound=compile(&in_context(&source));
+            assert!(bound.notes.iter().all(|n|!n.code.starts_with("N_MAINTAINED_COLUMN")),"{name}: {:?}",bound.notes);
+        }
+    }
+    for source in [guide::TEMPLATE,guide::TEMPLATE_ONLINE] {
+        let bound=compile(source);
+        assert!(bound.notes.iter().all(|n|!n.code.starts_with("N_MAINTAINED_COLUMN")),"{:?}",bound.notes);
+    }
+}

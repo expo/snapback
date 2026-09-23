@@ -1391,3 +1391,35 @@ fn w15c_trending_cost_keeps_the_same_lane_and_head_counts() {
     assert_eq!(after.matches("merge trend: up to 25 lanes").count(), 2);
     println!("W15c check --cost before/after (identical):\n{after}");
 }
+
+#[test]
+fn maintained_column_inspection_is_public_and_missing_storage_reads_zero() {
+    use snapback4_core::{engine::LoadMode,value::{object,Value as V}};
+    let p=Project::new();
+    let source=include_str!("../../snapback4-lang/tests/fixtures/maintained-columns.q");
+    p.source(source);
+    fs::create_dir_all(p.0.join(".snapback4")).unwrap();
+    let b=snapback4_lang::compile(&[("schema.q".into(),source.into())]);
+    assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    let private=b.schema.maintains.iter().find(|m|m.private.as_ref().is_some_and(|o|o.column=="likeCount")).unwrap().target.clone();
+    let mut e=Engine::new(Store::open(&p.store()).unwrap(),b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    e.load_mode([("posts".into(),object([("id",V::Id("p".into())),("at",V::Int(1))]))],LoadMode::Restore).unwrap();
+    drop(e);
+    let sql=p.run(&["sql","SELECT likeCount, selected, total FROM posts","--json"]);
+    assert!(sql.status.success(),"{sql:?}");
+    assert_eq!(parsed(&sql)["rows"],json!([[0,0,0]]));
+    let data=p.run(&["data","posts","--json"]);
+    assert!(data.status.success(),"{data:?}");
+    let raw=String::from_utf8(data.stdout).unwrap();
+    assert!(raw.contains("likeCount"),"{raw}");
+    for command in ["data","why"] {
+        let result=p.run(&[command,&private]);
+        assert!(!result.status.success());
+        let text=String::from_utf8(result.stderr).unwrap();
+        assert!(text.contains("posts.likeCount") && !text.contains("$column"),"{text}");
+    }
+    let check=p.run(&["check","--json"]);let doctor=p.run(&["doctor","--json"]);
+    assert!(check.status.success() && doctor.status.success(),"{check:?} {doctor:?}");
+    assert_eq!(parsed(&check)["tables"],2);
+    assert!(parsed(&doctor)["lines"].as_array().unwrap().iter().any(|s|s.as_str().unwrap().starts_with("schema    ok: 2 tables")));
+}
