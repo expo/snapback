@@ -47318,3 +47318,47 @@ full-mode check of 900 stored followers has not yet run.
 
 The `SnapshotReply` struct moved, unchanged, from `serve.rs` to
 `sync_wire.rs` so that the measurement uses the production encoder.
+
+## 2026-09-23 — 0.3.0 published (snapback4, snapback4-darwin-arm64)
+
+`snapback4@0.3.0` and `snapback4-darwin-arm64@0.3.0` are published from
+qualified source `1a8165ae4`, "Prepare Snapback 4 0.3.0 and Expo 0.3.0".
+The registry integrities match the staged tarballs:
+
+| Package | Registry integrity |
+|---|---|
+| `snapback4` | `sha512-urVG+K0ND8U44J7QYMuLnJ9oGyLaEsl8LoOo6DcvhLlflVEzqZdTevyqzbRnzn5Nu47YsmZw79LqJ7S3OFfvEw==` |
+| `snapback4-darwin-arm64` | `sha512-dFFLHWvvZ/kUdtKOh6YLp6sr+wJjjnqWdfYsbLYCOTT3dpunZG3Wbl+UMmX0KJpEDFKxx2/hVXOZfFTZGnLdug==` |
+
+0.3.0 carries the 0.3 program's derived-data forms:
+- maintained columns (F1);
+- engine-recorded attribution (F2);
+- the declared Following timeline (F3).
+
+It also carries READAUTH, EDGES and the capability fence. Published 0.2.x
+devices and engines refuse backends that use these forms.
+
+**Qualification.**
+- `publish.mjs --dry-run` ran the complete suite: 0 failures in 1,340 s.
+  The three published-0.2.33 fence tests were enabled through
+  `SNAPBACK4_FENCE_PUBLISHED`.
+- The production binary was built, signed with Developer ID (not notarized,
+  like 0.2.32 and 0.2.33), packed, and proven from an installed consumer.
+  `--resume` then published those exact staged bytes.
+- The binary is 10,497,024 bytes, with sha256
+  `2f4d9487faf33e89450f67811ac650093b9633c94a7083738a0004b6a2e79046`.
+
+Headless signing used the same ephemeral launchd relay as 0.2.32. Only the
+unchanged `codesign --sign` call went to the logged-in session; nothing
+about the credentials or the keychain changed.
+
+**Gate 5**, the full re-run on the landed commit `a63c37f7b` with the
+strengthened harness, passed:
+- 100,000 parents and 1,000,000 sources;
+- 327 responses, the largest 16,764,471 B, every one within the ceiling;
+- two `E_BOUND` controls;
+- both devices adopted, with 100,000 of 100,000 stored counts equal to 10;
+- activation took 233 s on the loaded Office Mac.
+
+`snapback4-expo@0.3.0`, with its xcframework rebuilt from the same source,
+follows its native witness.
