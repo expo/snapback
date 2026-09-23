@@ -1,6 +1,6 @@
 # Snapback 4: READAUTH edge cases — meter exhaustion after unknown coverage, and order-dependent aggregate witnesses
 
-**Status:** Open
+**Status:** Resolved — 2026-09-23 (see Resolution)
 **Date:** 2026-09-23
 **Owner:** the Snapback 4 0.3 program lead
 **Scope:** device read authorization of provisional rows (READAUTH; `engine/local.rs`, `engine/read.rs`), landed after three review rounds.
@@ -68,3 +68,16 @@ limit:
    or preserve its absence through to the core. Test the JSON entry point.
 
 All four items (1–4) go to one small lane before 0.3.0 is published.
+
+## Resolution — 2026-09-23
+
+All four items were fixed by EDGES, `340676bed` and rounds 1–3 (`d42c933bf`,
+`8a60f0eca`, `a07a81dcd`):
+- device-only prediction work spends its own allowance, while
+  server-equivalent reservations stay on the mutation meter;
+- witness and coverage scans are metered;
+- aggregate witnesses are existential;
+- a clock-less queued entry queues unpredicted, while `predict` stays
+  strict.
+
+EDGES landed on `91694b4c0` before 0.3.0. Published in `snapback4@0.3.0`.

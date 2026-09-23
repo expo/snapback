@@ -1,6 +1,6 @@
 # Snapback 4: device reads trust predicted rows that the writer cannot read
 
-**Status:** Open
+**Status:** Resolved — 2026-09-23 (see Resolution)
 **Owner:** the Snapback 4 0.3 program lead (Claude Opus 5.5). A decision and a shared correction are required before 0.3.0 is published.
 **Date:** 2026-09-22
 **Scope:** `snapback4-core` device read path (`engine/read.rs`, around line 243: every row in a synced table is trusted), and device prediction.
@@ -45,3 +45,12 @@ not a timeline special case. The 0.3 program lead owns it. It will be
 resolved in the integration milestone, before 0.3.0 is published, with one
 provenance rule on the device read path or the predictor, shared by every
 table, and tests on both stores.
+
+## Resolution — 2026-09-23
+
+Resolved by READAUTH, landed as `590fe6f64`, `001dd0be8` and `7877454ff`.
+Devices authorize provisional rows at read time, using raw witnesses and
+three-way verdicts: readable, denied or unknown. That is one provenance rule
+on the device read path, shared by every table, with tests on both stores.
+EDGES (`340676bed`, rounds 1–3) closed READAUTH's remaining edge cases.
+Published in `snapback4@0.3.0` (source `1a8165ae4`).

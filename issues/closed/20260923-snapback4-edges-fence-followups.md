@@ -1,6 +1,6 @@
 # Snapback 4: EDGES and FENCE follow-ups before 0.3.0
 
-**Status:** Open — must land before 0.3.0 is published
+**Status:** Resolved — 2026-09-23 (see Resolution)
 **Date:** 2026-09-23
 **Owner:** the Snapback 4 0.3 program lead
 **Source:** Astra xhigh's delta reviews of EDGES (`63dab2a2f7`) and FENCE
@@ -54,3 +54,18 @@ fix round that includes the three items above and these regressions:
   - three orphan-import and adoption client tests.
 
 Neither lane has landed yet. The integrated suite is the gate.
+
+## Resolution — 2026-09-23 (before 0.3.0 was published)
+
+Every item landed before publication:
+- Items 1 and 2 (the authorization charge split, and metered witness scans):
+  EDGES round 2, `8a60f0eca`.
+- Item 3 (legacy F2+F3 schemas reopen): FENCE round 2. The legacy branch
+  infers the full capability set, re-emits one `Capabilities` carrier, and
+  is covered by a genuine legacy fixture.
+- The integrated-suite regressions (publication cleanup, device publication
+  store-read counts, w13g's boundary loads, orphan adoption): both second
+  rounds.
+
+The EDGES+FENCE landing's integrated suite passed. `snapback4@0.3.0` was
+published from `1a8165ae4`, with its complete suite at 0 failures.
