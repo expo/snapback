@@ -21,12 +21,20 @@ impl Runner<'_> {
     }
 
     pub(super) fn authorize_read(&mut self, table: &str, row: &Value, prepaid: bool) -> Result<bool, RuntimeError> {
-        self.device_work(|runner| runner.authorize_read_inner(table, row, prepaid))
+        self.device_work(|runner| {
+            let scratch = runner.meter.mark();
+            let result = runner.authorize_read_inner(table, row, prepaid);
+            // Only a verdict escapes; all fetched witnesses and cursors have
+            // been dropped. Keep physical work charged across authorizations.
+            if runner.device_work_active { runner.meter.release_heap(scratch); }
+            result
+        })
     }
 
     fn authorize_read_inner(&mut self, table: &str, row: &Value, prepaid: bool) -> Result<bool, RuntimeError> {
         let definition = &self.schema.tables[table];
         let rule = definition.rules.read.clone();
+        if self.device_work_active { self.meter.heap(crate::rows::word_heap::materialize(row, definition))?; }
         let mut row = row.clone();
         materialize_optional_fields(&mut row, definition);
         self.rule_dependencies(&rule);

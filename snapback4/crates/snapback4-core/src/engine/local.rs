@@ -148,7 +148,9 @@ impl Runner<'_> {
     pub(super) fn device_work<T>(&mut self, work: impl FnOnce(&mut Self) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
         let Some(mut allowance) = self.device_allowance.take() else { return work(self) };
         std::mem::swap(&mut self.meter, &mut allowance);
+        self.device_work_active = true;
         let result = self.meter.step(1).and_then(|_| work(self));
+        self.device_work_active = false;
         std::mem::swap(&mut self.meter, &mut allowance);
         self.device_allowance = Some(allowance);
         result.map_err(|error| match error {

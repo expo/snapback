@@ -163,6 +163,15 @@ impl Meter {
         { self.heap_once = mark.heap_once; }
     }
 
+    /// Release a scope whose allocated values have all been dropped, without
+    /// erasing work or a refusal. Once-only reservations made in that scope
+    /// must be paid again after their heap allowance is released.
+    pub(crate) fn release_heap(&mut self, mark: MeterMark) {
+        self.used.heap_bytes = mark.used.heap_bytes;
+        #[cfg(feature = "sqlite")]
+        { self.heap_once = mark.heap_once; }
+    }
+
     /// Whether `kind` has room for `amount` more without charging.
     pub fn room(&self, kind: MeterKind, amount: u64) -> bool {
         let used = match kind {

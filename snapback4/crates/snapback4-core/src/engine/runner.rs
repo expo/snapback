@@ -49,6 +49,7 @@ pub struct Runner<'a> {
     /// Prediction-only authority work has its own allowance. None on queries
     /// and while that allowance is active (nested checks share the same meter).
     pub(super) device_allowance: Option<Meter>,
+    pub(super) device_work_active: bool,
     pub(crate) env: BTreeMap<String, Value>,
     pub(crate) consts: BTreeSet<String>,
     /// Rows this transaction inserted, by (table, index, encoded key).
@@ -149,6 +150,7 @@ impl<'a> Runner<'a> {
             context,
             meter,
             device_allowance: None,
+            device_work_active: false,
             env,
             consts: BTreeSet::new(),
             created: BTreeMap::new(),

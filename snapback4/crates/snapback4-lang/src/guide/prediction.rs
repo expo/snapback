@@ -49,8 +49,12 @@ Delivered rows keep their server authorization.
 
 During prediction, membership coverage, retention checks and provisional-row
 authorization share a separate device allowance with the ordinary operation's
-ceilings. Exhausting it queues the mutation without predicted rows. Only
-server-equivalent work spends the mutation meter and can refuse with `E_BOUND`.
+ceilings. Physical witness scans, including expired siblings and aggregate
+sources, charge examinations and allocations to that allowance and stop when
+it runs out. Exhausting it queues the mutation without predicted rows.
+The server's point-read rule-probe reservation still spends the mutation meter,
+including when synced rows are trusted; only additional device authorization
+work spends the separate allowance. A mutation-meter cut can refuse with `E_BOUND`.
 Queries continue to charge authorization to their query meter.
 
 An unreadable output does not prevent prediction. For example, a moderation

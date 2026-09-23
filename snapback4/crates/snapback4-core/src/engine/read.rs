@@ -133,17 +133,27 @@ impl Runner<'_> {
             if let Some(maintain) = self.schema.maintain_for(table)
                 && let Some(source) = self.schema.table(&maintain.source).filter(|source| source.expire.is_some()) {
                 self.read_tables.insert(maintain.source.clone());
+                if self.device_work_active {
+                    let group_bytes = word_heap::slots::<Value>(maintain.by.len())
+                        + maintain.by.iter().map(|field| row.field(field).map_or(0, word_heap::value)).sum::<u64>();
+                    self.meter.heap(2 * group_bytes + word_heap::allocation("$contribution:".len() + maintain.target.len()))?;
+                }
                 let group = crate::schema::maintained_key(row, &maintain.by);
                 let (name, prefix) = maintain.source_scan(source, &group);
                 if self.device && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some()) { known = false; }
                 let mut bounds = Bounds::default();
                 live = false;
                 'sources: loop {
-                    let rows = self.tx.scan(&maintain.source, name, &prefix, &bounds, Dir::Asc, 32)?;
+                    let (rows, limit) = self.witness_scan(&maintain.source, name, &prefix, &bounds, 32)?;
                     let count = rows.len();
-                    for (candidate, stored) in rows {
-                        let candidate = crate::schema::row_image(&candidate, source);
-                        bounds.after = crate::key::decode(&stored).map(|v| v.into_iter().skip(prefix.len()).collect());
+                    for (mut candidate, stored) in rows {
+                        self.witness_materialize(&mut candidate, source)?;
+                        bounds.after = self.witness_position(&stored, (source.index(name).expect("source index").components.len() + 1).max(prefix.len() + 1), prefix.len())?;
+                        if self.device_work_active {
+                            self.meter.step(maintain.evaluation_steps())?;
+                            self.meter.heap(word_heap::slots::<Value>(maintain.by.len())
+                                + maintain.by.iter().map(|field| candidate.field(field).map_or(0, word_heap::value)).sum::<u64>())?;
+                        }
                         if !self.expired(source, &candidate) && maintain.selected(&candidate) && maintain.source_key(&candidate) == group {
                             if current && !self.witness_covered(&maintain.source, name, &prefix, &candidate)? { known = false; continue; }
                             // Existence is existential: one covered witness
@@ -154,7 +164,7 @@ impl Runner<'_> {
                             break 'sources;
                         }
                     }
-                    if count < 32 { break; }
+                    if count < limit { break; }
                 }
             }
         }
@@ -171,21 +181,43 @@ impl Runner<'_> {
 
     pub(super) fn lookup_live(&mut self, table_name: &str, name: &str, index: &Index, key: &[Value], charge: bool) -> Result<Option<Value>, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
-        if table.expire.is_none() {
+        if table.expire.is_none() && !self.device_work_active {
             return self.tx.lookup(table_name, name, index, key).map(|found| found.map(|mut row| { materialize_optional_fields(&mut row, table); row }));
         }
         let mut bounds = Bounds::default();
         loop {
-            let rows = self.tx.scan(table_name, name, key, &bounds, Dir::Asc, 32)?;
+            let (rows, limit) = self.witness_scan(table_name, name, key, &bounds, if table.expire.is_none() { 1 } else { 32 })?;
             let count = rows.len();
             for (mut row, stored) in rows {
-                materialize_optional_fields(&mut row, table);
-                if charge && !self.read_charge(MeterKind::Examined, 1)? { return Ok(None); }
-                bounds.after = crate::key::decode(&stored).map(|values| values.into_iter().skip(key.len()).collect());
+                self.witness_materialize(&mut row, table)?;
+                if charge && !self.device_work_active && !self.read_charge(MeterKind::Examined, 1)? { return Ok(None); }
                 if !self.expired(table, &row) { return Ok(Some(row)); }
+                bounds.after = self.witness_position(&stored, index.components.len() + 1, key.len())?;
             }
-            if count < 32 { return Ok(None); }
+            if count < limit { return Ok(None); }
         }
+    }
+
+    // Physical witness work is additional device authorization work. Queries
+    // and server rules keep their existing one-probe accounting.
+    fn witness_scan(&mut self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, batch: usize) -> Result<(Vec<(Value, Vec<u8>)>, usize), RuntimeError> {
+        if !self.device_work_active { return Ok((self.tx.scan(table, index, prefix, bounds, Dir::Asc, batch)?, batch)); }
+        let limit = self.meter.ceilings.examined.saturating_sub(self.meter.used.examined).min(batch as u64) as usize;
+        if limit == 0 { self.meter.charge(MeterKind::Examined, 1)?; }
+        let rows = self.tx.scan_metered(table, index, prefix, bounds, Dir::Asc, limit, &mut self.meter)?;
+        self.meter.charge(MeterKind::Examined, rows.len().max(1) as u64)?;
+        Ok((rows, limit))
+    }
+
+    fn witness_materialize(&mut self, row: &mut Value, table: &Table) -> Result<(), RuntimeError> {
+        if self.device_work_active { self.meter.heap(word_heap::materialize(row, table))?; }
+        materialize_optional_fields(row, table);
+        Ok(())
+    }
+
+    fn witness_position(&mut self, stored: &[u8], components: usize, prefix: usize) -> Result<Option<Vec<Value>>, RuntimeError> {
+        if self.device_work_active { self.meter.heap(word_heap::key_decode(components, stored.len()))?; }
+        Ok(crate::key::decode(stored).map(|values| values.into_iter().skip(prefix).collect()))
     }
 
     /// A maintain over expiring source rows is a live fact before the
@@ -342,7 +374,10 @@ impl Runner<'_> {
         }
         // @ref LLP 3000.007#20.12 — reserve authorization before knowing hit, miss or hidden; an exhausted probe is not a false verdict to roll back.
         let trusted = self.context.is_system() || self.trust_synced_read(table);
-        if !trusted && !self.read_charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? { return Ok(Value::Null); }
+        // Prediction keeps the server's reservation even for delivered rows.
+        // Only the additional physical authority work uses the device allowance.
+        let prepaid = !trusted || (self.device_allowance.is_some() && !self.context.is_system());
+        if prepaid && !self.read_charge(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))? { return Ok(Value::Null); }
         // Hidden and absent cost one examined row and the same static probe
         // allowance, including probes that a rule would short-circuit.
         let mark = self.meter.mark();
@@ -364,7 +399,7 @@ impl Runner<'_> {
         let provisional = self.is_provisional(&read.table, &row)?;
         let viewer = self.context.viewer.clone();
         let allowed = if provisional && !self.context.is_system() {
-            self.authorize_read(&read.table, &row, !trusted)?
+            self.authorize_read(&read.table, &row, prepaid)?
         } else { trusted || rules::evaluate(&table.rules.read, &viewer, None, &row, false, &mut PrefixProbe { runner: self })? };
         // A failed authorization owns its charges and its cut. Hidden-candidate
         // rollback must never erase exhaustion or convert it into coverage.

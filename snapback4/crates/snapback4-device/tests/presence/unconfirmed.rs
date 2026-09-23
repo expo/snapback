@@ -24,7 +24,9 @@ fn fifty<S: DeviceStore>(mut store: S, label: &str, boundary: bool, failures: &m
     let ctx = context("dev:alice", &[("conversationId", id("c1")), ("body", Value::String("hello".into()))]).at(11_000).with_ids(["msg".into()]);
     let meter = w15a_prediction_meter(&mut store, &backend.schema, program, ctx.clone());
     println!("w15a fifty prediction {label}: {meter:?}");
-    assert_eq!(meter.iter().map(|(_, n)| *n).collect::<Vec<_>>(), [52, 2, 1, 1367, 69843, 27, 1]);
+    // The membership point read reserves its server-equivalent probe even
+    // when the device trusts its delivered image, in addition to insertion.
+    assert_eq!(meter.iter().map(|(_, n)| *n).collect::<Vec<_>>(), [52, 2, 2, 1367, 69843, 27, 1]);
     let mut meters = Vec::new();
     for (state, live, deadline) in [("held", 1, 16_000), ("graced", 0, 36_000)] {
         let (mut engine, _) = compile(source);
@@ -35,7 +37,7 @@ fn fifty<S: DeviceStore>(mut store: S, label: &str, boundary: bool, failures: &m
         assert_eq!(engine.effects(None, 100).unwrap().len(), 49);
         meters.push(w15a_meter_fields(sent.metered));
         if boundary {
-            for ceiling in [3, 1] {
+            for ceiling in [3, 2] {
                 let limits = Ceilings { rule_probes: ceiling, ..Default::default() };
                 let tx = store.transaction().unwrap();
                 let prediction = local::predict(&tx, &backend.schema, program, ctx.clone(), limits);
@@ -51,7 +53,7 @@ fn fifty<S: DeviceStore>(mut store: S, label: &str, boundary: bool, failures: &m
                 else if !matches!(sent.state, WriteState::Sent { .. }) {
                     assert!(matches!(&sent.state, WriteState::Failed { why, .. } if why.code == "E_BOUND"));
                     assert!(engine.effects(None, 100).unwrap().is_empty());
-                    failures.push(format!("{label}/{state}: prediction accepts at rule_probes=1, server {:?}", sent.state));
+                    failures.push(format!("{label}/{state}: prediction accepts at rule_probes=2, server {:?}", sent.state));
                 }
             }
         }
