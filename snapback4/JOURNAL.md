@@ -46862,3 +46862,119 @@ The Office Mac was overloaded for much of this lane (load up to 158), with
 two lanes running full suites at once. Per the independent review's advice,
 fix rounds now run affected tests only, and the full suite runs once per
 integrated landing.
+
+## 2026-09-23 — exhaustive disclosure checking, and Kani on the key encoding
+
+Charlie asked whether Snapback should use formal verification, and
+commissioned two cheap trials before any Lean work. The first is exhaustive
+small-scope checking of disclosure. The second is Kani on `key.rs`. The
+simulator samples interleavings under seeds, but each of the 2026-09-12
+reviews' disclosure findings needed one exact shape, and sampling rarely
+produces one.
+
+**Exhaustive checking (`crates/snapback4-sim/tests/exhaustive.rs`).**
+The test enumerates every sequence of writes up to a depth against the real
+engine. The cast is two viewers (`dev:alice`, and a principal named `public`
+like the public partition), a stranger and two conversations. The chat
+schema gains eight test mutations shaped like the reviews' findings:
+
+- a grant that ends in its own commit;
+- a grant and content in one commit;
+- a grant replaced in one commit;
+- two rows in one commit;
+- three writes with no `require`, so that only the table rules stand between
+  a viewer and a row.
+
+A model of the chat rules, written in the test from the schema text and not
+taken from the engine, judges each write. Every write the model refuses is
+attempted at every state and must be refused without a commit. Every write
+it admits becomes a branch, and its effect is checked. At every state, for
+all three principals, the test checks the following:
+
+- the snapshot is exactly the rows the rules admit;
+- a stream requested from every watermark, at page sizes 1 and 1000:
+  - delivers only current readable images;
+  - labels none of them before the viewer's grant;
+  - names no delete or scope for anything the viewer never held;
+  - ends at the head;
+  - applies the same rows at either size;
+- every device schedule converges (bootstrap at any earlier state, then sync
+  at any subset of the states since, at page size 1);
+- `messageCounts` counts the messages;
+- the write that reached the state, resent under its operation id, applies
+  nothing new.
+
+Depth 2 is blocking: 353 states and 36,818 refused writes in 4 s. Depth 3 is
+opt-in: 7,131 states and 765,908 refused writes in 3 minutes on a loaded
+Mac. Engine creation dominates the cost, at about 10 ms each, and SQLite's
+allocator mutex serializes it, so the test uses two threads.
+
+**One finding, metadata only:**
+`issues/20260923-snapback4-in-commit-grant-names-ids.md`. When a grant ends
+inside its own commit, the grantee still receives `scope` events naming the
+group, and the group's members still receive a `del` naming the transient
+row. No row image leaks, so the review's fix holds for content. The test
+tolerates the finding by name and fails on anything else.
+
+**Mutation proof.** Each hunk was reintroduced in the lane, the test was
+run, and the file was restored byte-for-byte:
+
+- **Untagged principal partitions (review finding 1): caught.**
+- **No `scope` on revocation: caught** by three properties.
+- **A commit split across pages (review finding 3): caught** by three
+  properties.
+- **An unchecked delete rule: caught.** `public` could unsend alice's
+  message.
+- **`append` not coalescing: not caught, correctly.** The stream re-reads
+  current images, so for streams the coalescing is redundant.
+- **At-most-once: never fired.** Removing the replay lookup, and then also
+  the in-transaction receipt and the `_ops` key, changed nothing observable,
+  because a further layer holds.
+
+**Kani (`crates/snapback4-core/src/key_proofs.rs`, `scripts/kani.sh`,
+outside `test.sh`).** Ten harnesses verified with Kani 0.68 on
+`expo-build-450b`, from 4 s to 301 s each, all under 12 GB. This Mac, at load
+80–130, starved them. Proved:
+
+- over arbitrary byte strings of up to two bytes, text, id and byte bodies
+  keep order and are prefix-free;
+- `unescape` inverts `escape` whatever byte follows;
+- every four-byte input decodes canonically without panicking;
+- every `i64` pair orders and decodes;
+- nulls, bools, ints and bytes of up to two bytes order and are prefix-free
+  within their kind;
+- the kind tags lead every key and sort in the value model's kind order,
+  which decides every pair of different kinds.
+
+Nothing failed a proof. What Kani did not finish became exhaustive unit tests
+in `key::tests`:
+
+- **Canonical decoding:** every input of up to three bytes (16.8 million).
+- **Text and word scans:** every text of up to two characters over NUL, `a`,
+  `b` and `é`.
+- **Time scans:** boundary `i64`s, against every bound in both directions.
+
+Two mutations of `scan_range` and `word_range` fail the scan test.
+
+**Tooling fit.** The proofs themselves were quick to write. Making them
+finish took about fifteen rounds, and each lesson is written in the proof
+file's module comment:
+
+- **A kind must be a literal.** A symbolic `Value` kind makes CBMC explore
+  the recursive drop and comparison code of `Row` and `Map`, over
+  `BTreeMap`s, and pass 40 GB.
+- **So must a capacity.** `String` and `Vec` carry `Value`'s discriminant in
+  a niche of their capacity, so a symbolic capacity, whether from growth or
+  from a clone, is a symbolic kind.
+- **So must a loop index.** CBMC does not fold one.
+- **One heap payload per harness.** Several in one harness passed 40 GB.
+- **No symbolic UTF-8.** Even one symbolic byte of text passed 40 GB inside
+  `from_utf8`.
+- **Scan proofs did not finish.** `scan_range` over a symbolic `i64` ran an
+  hour without a verdict.
+
+`--jobs` needs `--output-format terse`. The fleet runs used a watchdog that
+stopped any CBMC above 40 GB, and it fired eight times. Kani fits pure
+integer and byte logic, in seconds to minutes. It fits heap-shaped `Value`
+code poorly. An exhaustive test over a well-chosen small alphabet gave the
+same assurance for the rest in milliseconds.

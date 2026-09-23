@@ -46,3 +46,7 @@ snapback4-lang = { path = "../snapback4-lang" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 js-sys = { version = "=0.3.104", optional = true }
+
+# `cfg(kani)` gates the key-encoding proofs (`src/key_proofs.rs`, `scripts/kani.sh`).
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }

@@ -159,6 +159,11 @@ pub fn agrees(left: &[Value], right: &[Value]) -> bool {
     encode(left).cmp(&encode(right)) == by_values
 }
 
+// Kani proofs of this module and of `rows::scan_range` (`scripts/kani.sh`).
+#[cfg(kani)]
+#[path = "key_proofs.rs"]
+mod proofs;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -204,6 +209,100 @@ mod tests {
         assert!(!outside.starts_with(&prefix));
         assert!(inside < upper_bound(&prefix));
         assert!(outside > upper_bound(&prefix));
+    }
+
+    /// Cursors and acquisition boundaries decode bytes that crossed the
+    /// wire: over every input of up to three bytes, `unescape` never panics
+    /// and accepts only what `escape` writes (the Kani proofs in
+    /// `key_proofs.rs` cover the rest of this module).
+    #[test]
+    fn unescape_accepts_only_what_escape_writes() {
+        let mut bytes = Vec::with_capacity(3);
+        let mut again = Vec::with_capacity(8);
+        for len in 0..=3u32 {
+            for n in 0..(1u32 << (8 * len)) {
+                bytes.clear();
+                bytes.extend((0..len).map(|k| (n >> (8 * k)) as u8));
+                if let Some((body, rest)) = unescape(&bytes) {
+                    again.clear();
+                    escape(&body, &mut again);
+                    again.extend_from_slice(rest);
+                    assert_eq!(again, bytes);
+                }
+            }
+        }
+    }
+
+    /// Scans over a group prefix, which the Kani proofs in `key_proofs.rs`
+    /// could not finish. Every entry `(group, first, id)` is checked against
+    /// every bound, and a word, in both directions. `first` is every text of
+    /// up to two characters over NUL, `a`, `b` and the two-byte `é`, or an
+    /// integer at the boundaries; ids and groups are `a` or `b`.
+    #[test]
+    fn scans_hold_exactly_their_bounds() {
+        use crate::rows::{Bounds, Dir, scan_range};
+        let letters = ["\0", "a", "b", "é"];
+        let mut texts = vec![String::new()];
+        for a in letters {
+            texts.push(a.to_owned());
+            for b in letters {
+                texts.push(format!("{a}{b}"));
+            }
+        }
+        let tuple_cmp = |left: &[Value], right: &[Value]| {
+            left.iter().zip(right).map(|(a, b)| a.total_cmp(b)).find(|o| *o != Ordering::Equal).unwrap_or_else(|| left.len().cmp(&right.len()))
+        };
+        let holds = |key: &[Value], prefix: &[Value], bounds: &Bounds, dir: Dir| {
+            let key = encode(key);
+            scan_range(prefix, bounds, dir).is_some_and(|(lo, hi)| lo <= key && key < hi)
+        };
+        let texts: Vec<Value> = texts.into_iter().map(Value::String).collect();
+        let ints: Vec<Value> = [i64::MIN, -1, 0, 1, i64::MAX].into_iter().map(Value::Int).collect();
+        for firsts in [&texts, &ints] {
+            for group in ["a", "b"] {
+                let prefix = [Value::Id(group.into())];
+                for key_group in ["a", "b"] {
+                    for first in firsts {
+                        for row in ["a", "b"] {
+                            let key = [Value::Id(key_group.into()), first.clone(), Value::Id(row.into())];
+                            let inside = key_group == group;
+                            for dir in [Dir::Asc, Dir::Desc] {
+                                for other in firsts {
+                                    let order = first.total_cmp(other);
+                                    let mut cases = vec![
+                                        (Bounds { gt: Some(other.clone()), ..Bounds::default() }, order == Ordering::Greater),
+                                        (Bounds { gte: Some(other.clone()), ..Bounds::default() }, order != Ordering::Less),
+                                        (Bounds { lt: Some(other.clone()), ..Bounds::default() }, order == Ordering::Less),
+                                        (Bounds { lte: Some(other.clone()), ..Bounds::default() }, order != Ordering::Greater),
+                                    ];
+                                    if let (Value::String(text), Value::String(word)) = (first, other) {
+                                        cases.push((Bounds { word: Some(word.clone()), ..Bounds::default() }, text.starts_with(word.as_str())));
+                                    }
+                                    for (bounds, wanted) in cases {
+                                        assert_eq!(holds(&key, &prefix, &bounds, dir), inside && wanted, "{key:?} {bounds:?} {dir:?}");
+                                    }
+                                    for position in [vec![other.clone()], vec![other.clone(), Value::Id("a".into())], vec![other.clone(), Value::Id("b".into())]] {
+                                        let order = tuple_cmp(&key[1..], &position);
+                                        let extends = key[1..].starts_with(&position);
+                                        let (after, at_or_after, before) = match dir {
+                                            Dir::Asc => (order == Ordering::Greater && !extends, order != Ordering::Less, order == Ordering::Less),
+                                            Dir::Desc => (order == Ordering::Less, order != Ordering::Greater || extends, order == Ordering::Greater && !extends),
+                                        };
+                                        for (bounds, wanted) in [
+                                            (Bounds { after: Some(position.clone()), ..Bounds::default() }, after),
+                                            (Bounds { at_or_after: Some(position.clone()), ..Bounds::default() }, at_or_after),
+                                            (Bounds { before: Some(position.clone()), ..Bounds::default() }, before),
+                                        ] {
+                                            assert_eq!(holds(&key, &prefix, &bounds, dir), inside && wanted, "{key:?} {bounds:?} {dir:?}");
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     #[test]
