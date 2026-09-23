@@ -49,7 +49,7 @@ impl Runner<'_> {
             };
             let live = found.as_ref().filter(|value| !self.expired(target, value));
             if self.device && matches!(source_image.field(&field.reference), Ok(Value::Id(_)))
-                && (target.sync.is_none() || !live.map(|value| self.tx.recording_covered(&field.table, value, &self.context.viewer, self.context.now.unwrap_or(0))).transpose()?.unwrap_or(false)) {
+                && (target.sync.is_none() || !live.zip(self.context.now).map(|(value, now)| self.tx.recording_covered(&field.table, value, &self.context.viewer, now)).transpose()?.unwrap_or(false)) {
                 return Err(RuntimeError::Prediction(format!("recorded path {path} needs a live, covered {} row; reconnect to resolve attribution", field.table)));
             }
             // Unknown coverage queues before a target-size resource refusal.
@@ -188,10 +188,13 @@ mod tests {
         let mut runner = Runner::new(&tx, &schema, Context::system(), Meter::new(Ceilings::unbounded(), Cut::Abort), 1);
         let row = object([("id", Value::Id("l".into())), ("postId",Value::Id("p".into())), ("principal",Value::Id("alice".into())), ("at",Value::Int(100)), ("postId.authorId",Value::Id("alice".into()))]);
         let mut replacement = row.clone();
-        if let Value::Row(fields) = &mut replacement { fields.remove("postId.authorId"); }
+        tx.put("likes",&schema.tables["likes"],&row,None).unwrap();
+        let stored=tx.get("likes","l").unwrap().unwrap();
+        match &mut replacement {Value::Row(fields) | Value::Map(fields) => {assert!(fields.remove("postId.authorId").is_some());}, _ => panic!("object")};
         let err = runner.replace_authorized("likes",row,replacement,false,&object([] as [(&str,Value);0])).unwrap_err();
         assert_eq!(err.refusal().code,"NOT_FOUND");
-        assert!(!err.to_string().contains("capture"));
+        for hidden in ["capture","alice","postId.authorId"] {assert!(!err.to_string().contains(hidden));}
+        assert_eq!(tx.get("likes","l").unwrap(),Some(stored));
     }
     #[test]
     fn device_runner_refuses_capture_activation() {
@@ -210,16 +213,53 @@ mod tests {
         let mut store = Store::memory().unwrap();
         store.activate(&schema, None, false, |_,_| Ok(())).unwrap();
         let tx = store.transaction().unwrap();
+        let row=object([("id",Value::Id("l".into())),("postId",Value::Id("p".into())),("principal",Value::Id("alice".into())),("at",Value::Int(100)),("until",Value::Null),("note",Value::String("".into())),("postId.authorId",Value::Id("alice".into())),("postId.at",Value::Int(100)),("postId.parentId",Value::Null)]);
+        tx.put("likes",&schema.tables["likes"],&row,None).unwrap();
         let maintains = schema.maintains.iter().collect::<Vec<_>>();
         let mut runner = Runner::new(&tx,&schema,Context::system(),Meter::new(Ceilings::unbounded(),Cut::Abort),1);
         runner.rebuild_recorded_activation(None,&maintains).unwrap();
         assert!(!runner.event_free);
+        assert!(runner.rows_written>0);
+        assert!(runner.events.is_empty(),"populated activation rebuild emits no events");
+        assert!(!tx.scan("receivedLikes","byId",&[],&Default::default(),crate::rows::Dir::Asc,10).unwrap().is_empty());
         for saved in [false,true] {
             runner.event_free=saved;
             runner.meter=Meter::new(Ceilings {heap_bytes:0,..Ceilings::unbounded()},Cut::Abort);
             assert!(runner.rebuild_recorded_activation(None,&maintains).is_err());
             assert_eq!(runner.event_free,saved);
         }
+    }
+
+    struct Target { row: Value, covered: bool, calls: std::cell::Cell<usize> }
+    impl crate::rows::Rows for Target {
+        fn recording_covered(&self, _: &str, _: &Value, _: &str, _: i64) -> Result<bool,RuntimeError> {self.calls.set(self.calls.get()+1);Ok(self.covered)}
+        fn get(&self, _: &str, _: &str) -> Result<Option<Value>,RuntimeError> {Ok(Some(self.row.clone()))}
+        fn lookup(&self, _: &str, _: &str, _: &crate::schema::Index, _: &[Value]) -> Result<Option<Value>,RuntimeError> {unreachable!()}
+        fn scan(&self, _: &str, _: &str, _: &[Value], _: &crate::rows::Bounds, _: crate::rows::Dir, _: usize) -> Result<Vec<(Value,Vec<u8>)>,RuntimeError> {unreachable!()}
+        fn count_prefix(&self, _: &str, _: &str, _: &[Value], _: u64) -> Result<u64,RuntimeError> {unreachable!()}
+        fn put(&self, _: &str, _: &Table, _: &Value, _: Option<&Value>) -> Result<u64,RuntimeError> {unreachable!()}
+        fn delete(&self, _: &str, _: &Table, _: &Value) -> Result<u64,RuntimeError> {unreachable!()}
+    }
+    #[test]
+    fn prediction_requires_a_clock_and_prices_covered_targets() {
+        let mut schema=schema();
+        schema.tables.get_mut("posts").unwrap().columns.insert("body".into(),crate::schema::ColumnType::Text {max:100000});
+        let source=object([("id",Value::Id("l".into())),("postId",Value::Id("p".into()))]);
+        let target=Target {row:object([("id",Value::Id("p".into())),("authorId",Value::Id("alice".into())),("until",Value::Int(100)),("body",Value::String("x".repeat(100000)))]),covered:true,calls:std::cell::Cell::new(0)};
+        let capture=|rows: &Target, now, heap_bytes| {
+            let mut context=Context::system();context.now=now;
+            let mut runner=Runner::new(rows,&schema,context,Meter::new(Ceilings{heap_bytes,..Ceilings::unbounded()},Cut::Abort),0);
+            runner.device=true;
+            runner.capture_recorded(&schema.tables["likes"],source.clone(),&["postId.authorId".into()])
+        };
+        assert_eq!(capture(&target,None,u64::MAX).unwrap_err().code(),"E_PREDICT");
+        assert_eq!(target.calls.get(),0,"a missing clock cannot query coverage at epoch zero");
+        let captured=capture(&target,Some(99),u64::MAX).unwrap();
+        assert_eq!(captured.field("postId.authorId").unwrap(),&Value::Id("alice".into()));
+        assert_eq!(capture(&target,Some(100),u64::MAX).unwrap_err().code(),"E_PREDICT");
+        assert_eq!(capture(&target,Some(99),32768).unwrap_err().code(),"E_BOUND");
+        let uncovered=Target{covered:false,..target};
+        assert_eq!(capture(&uncovered,Some(99),32768).unwrap_err().code(),"E_PREDICT");
     }
 
 }

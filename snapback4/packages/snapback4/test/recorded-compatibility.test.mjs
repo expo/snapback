@@ -39,7 +39,7 @@ test('published 0.2.33 rejects F2 stores, serving, backend opening and device ad
   });
   mkdirSync(join(dir, 'snapback'));
   writeFileSync(join(dir, 'snapback/schema.q'), source);
-  const run = (bin, args, input = '') => spawnSync(bin, args, {cwd:dir, input, encoding:'utf8', timeout:20_000});
+  const run = (bin, args, input = '', cwd = dir) => spawnSync(bin, args, {cwd, input, encoding:'utf8', timeout:20_000});
   const version = run(legacy, ['--version']);
   assert.match(version.stdout, /snapback4 0\.2\.33/);
   const child = spawn(binary, ['dev','--no-watch','--port','0'], {cwd:dir, stdio:['ignore','pipe','pipe']});
@@ -68,12 +68,16 @@ test('published 0.2.33 rejects F2 stores, serving, backend opening and device ad
   rejected(run(legacy,['device',join(dir,'old-open/device.sqlite'),'backend.json']));
   const stripped = structuredClone(backend);
   for (const table of Object.values(stripped.schema.tables)) table.constraints = table.constraints.filter(c => c !== 'Recorded');
+  assert.ok(Object.values(stripped.schema.tables).every(table => !table.constraints.includes('Recorded')));
   writeFileSync(join(dir,'unmarked.json'),JSON.stringify(stripped));
   // Positive control: only the strict marker distinguishes this simple F2
   // backend from a schema the old decoder silently accepted.
   const old = run(legacy,['device',join(dir,'old-adopt/device.sqlite'),'unmarked.json'], JSON.stringify({op:'adopt',backend})+'\n');
   const replies = old.stdout.trim().split('\n').map(line=>JSON.parse(line));
+  assert.equal(old.status,0,old.stdout+old.stderr);
+  assert.equal(replies.length,2,old.stdout+old.stderr);
   assert.ok(replies[0].ok,old.stdout+old.stderr);
+  assert.equal(replies[0].denied,undefined);
   assert.ok(replies.at(-1).denied,old.stdout+old.stderr);
   assert.match(JSON.stringify(replies.at(-1)),/unknown variant [`'"]?Recorded/);
   child.kill(); await exited;
@@ -87,6 +91,37 @@ test('published 0.2.33 rejects F2 stores, serving, backend opening and device ad
   // stored F2 generation rather than merely refusing the new Quarry syntax.
   writeFileSync(join(dir,'release/releases/1/snapback/schema.q'),source.split('maintain totals:')[0]);
   rejected(run(legacy,['serve',join(dir,'release'),'--port','0']));
+  const plain = join(dir,'plain');
+  mkdirSync(join(plain,'snapback'),{recursive:true});
+  writeFileSync(join(plain,'snapback/schema.q'),source.split('maintain totals:')[0]);
+  const start = async (bin,args,cwd) => {
+    const child=spawn(bin,args,{cwd,stdio:['ignore','pipe','pipe']});
+    const exited=once(child,'exit'); children.push({child,exited});
+    let log=''; for (const stream of [child.stdout,child.stderr]) stream.on('data',data=>{log+=data;});
+    for (let i=0;i<1500;i++) {
+      const url=log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];
+      if (url) return {child,exited,url};
+      assert.equal(child.exitCode,null,log); await delay(20);
+    }
+    assert.fail(log);
+  };
+  const plainDev=await start(binary,['dev','--no-watch','--port','0'],plain);
+  const plainResponse=await fetch(plainDev.url+'/schema',{headers:{'x-snapback-persona':'alice'}});
+  assert.equal(plainResponse.status,200);
+  const plainPayload=await plainResponse.json(); const plainBackend=plainPayload.backend??plainPayload;
+  assert.ok(Object.values(plainBackend.schema.tables).every(table=>!Object.keys(table.recorded??{}).length && !table.constraints.includes('Recorded')));
+  writeFileSync(join(plain,'backend.json'),JSON.stringify(plainBackend));
+  plainDev.child.kill();await plainDev.exited;
+  const accepted=run(legacy,['device',join(plain,'device.sqlite'),'backend.json'],JSON.stringify({op:'adopt',backend:plainBackend})+'\n',plain);
+  assert.equal(accepted.status,0,accepted.stdout+accepted.stderr);
+  const acceptedReplies=accepted.stdout.trim().split('\n').map(line=>JSON.parse(line));
+  assert.equal(acceptedReplies.length,2);assert.ok(acceptedReplies.every(reply=>Object.hasOwn(reply,'ok') && !reply.denied));
+  const plainDoctor=run(legacy,['doctor','--store',join(plain,'.snapback4/store.sqlite')],'',plain);
+  assert.equal(plainDoctor.status,0,plainDoctor.stdout+plainDoctor.stderr);
+  const plainDeploy=run(binary,['deploy',join(plain,'release')],'',plain);
+  assert.equal(plainDeploy.status,0,plainDeploy.stdout+plainDeploy.stderr);
+  const plainServe=await start(legacy,['serve',join(plain,'release'),'--port','0'],plain);
+  plainServe.child.kill();await plainServe.exited;
   const database = new DatabaseSync(join(dir,'.snapback4/store.sqlite'));
   database.exec("UPDATE r SET data = 'not-json' WHERE t = (SELECT num FROM _catalog WHERE name = 'likes')");
   database.close();

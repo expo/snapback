@@ -35,6 +35,7 @@ fn run<H: Host>(host: &mut H) {
         else { server.seed_delete("posts", "p").unwrap(); }
         let page = stream_page(&mut server,"alice",from);
         if replacement.is_some() { assert!(page.events.iter().any(|event|event.table=="posts" && event.id=="p" && event.data.as_ref().is_some_and(|row|row["authorId"]=="bob"))); }
+        if replacement.is_none() {assert!(page.events.iter().any(|event|event.table=="posts" && event.id=="p" && event.kind=="del"));}
         device.apply(&page, false).unwrap();
         assert_eq!(device.query("received","alice",&json!({"authorId":"alice"}),now).unwrap().data,Value::Int(1));
         assert_eq!(device.query("received","alice",&json!({"authorId":"bob"}),now).unwrap().data,Value::Int(0));
@@ -69,6 +70,12 @@ fn run<H: Host>(host: &mut H) {
     for (i,page) in snapshot_pages(&mut server,"alice",100).iter().enumerate() { device.apply(page,i==0).unwrap(); }
     assert_eq!(device.query("received","alice",&json!({"authorId":"alice"}),now).unwrap().data,Value::Int(0));
     assert_eq!(device.query("answers","alice",&json!({}),now).unwrap().data,server.query("answers",context("alice",&[]).at(now)).unwrap().data);
+    let from=server.seq().unwrap();
+    server.seed([("likes".into(),snapback4_core::value::object([("id",id("bob-like")),("postId",id("p")),("principal",id("alice")),("at",Value::Int(100)),("until",Value::Null)]))]).unwrap();
+    device.apply(&stream_page(&mut server,"alice",from),false).unwrap();
+    assert_eq!(device.query("received","alice",&json!({"authorId":"bob"}),now).unwrap().data,Value::Int(1));
+    assert_eq!(device.query("received","alice",&json!({"authorId":"alice"}),now).unwrap().data,Value::Int(0));
+    server.seed_delete("likes","bob-like").unwrap();
     let (_, next) = compile(SOURCE);
     server.adopt(next.schema.clone(),next.programs.clone()).unwrap();
     device.adopt(Backend { generation:server.generation(),..next }).unwrap();
@@ -172,13 +179,16 @@ mutation leave():
     assert!(device.query("allPosts", "alice", &json!({}), 1000).unwrap().data.as_array().unwrap().iter().any(|r| r.field("id").unwrap() == &id("p")));
     let again = device.admit(super::recorded::queued("p",2,1000)).unwrap();
     assert!(!again.predictable && again.predicted.is_empty(), "a rejoined group cannot certify an old retained image: {again:?}");
-    assert_eq!(device.queued().unwrap().len(), 2);
+    assert_eq!(device.queued().unwrap().iter().map(|q|(q.id.as_str(),q.args["postId"].as_str().unwrap())).collect::<Vec<_>>(),[("q1","p"),("q2","p")]);
+    assert!(device.query("allPosts","alice",&json!({}),1000).unwrap().data.as_array().unwrap().iter().any(|row|row.field("id").unwrap()==&id("z-new")));
+    let reacquired=device.admit(super::recorded::queued("z-new",3,1000)).unwrap();
+    assert!(reacquired.predictable && !reacquired.predicted.is_empty());
     let from=server.seq().unwrap();
     server.seed([post("zz-fresh","alice",Value::Null)]).unwrap();
     device.apply(&stream_page(&mut server,"alice",from),false).unwrap();
-    let fresh = device.admit(super::recorded::queued("zz-fresh",3,1000)).unwrap();
+    let fresh = device.admit(super::recorded::queued("zz-fresh",4,1000)).unwrap();
     assert!(fresh.predictable && !fresh.predicted.is_empty(), "a fresh covered image in a rejoined group predicts: {fresh:?}");
-    assert_eq!(device.query("received","alice",&json!({"authorId":"alice"}),1000).unwrap().data,Value::Int(1));
+    assert_eq!(device.query("received","alice",&json!({"authorId":"alice"}),1000).unwrap().data,Value::Int(2));
     host.close("retained",device);
 }
 #[test]
@@ -186,12 +196,12 @@ fn a_retained_only_public_target_does_not_predict_on_both_stores() { retained(&m
 
 fn forged<H: Host>(host: &mut H) {
     use snapback4_core::{Engine, ir::{Expr, Stmt}, value::object};
-    for kind in ["insert", "update", "upsert"] {
+    for (kind,forged_author) in ["insert", "update", "upsert"].into_iter().flat_map(|kind|["alice","mallory"].map(|author|(kind,author))) {
         let (_, mut backend) = compile(SOURCE);
         let program = backend.programs.iter_mut().find(|p| p.name == "like").unwrap();
-        let row = object([("id",id("forged")),("postId",id("p")),("principal",id("alice")),("at",Value::Int(100)),("postId.authorId",id("mallory"))]);
+        let row = object([("id",id("forged")),("postId",id("p")),("principal",id("alice")),("at",Value::Int(100)),("postId.authorId",id(forged_author))]);
         program.body = vec![match kind {
-            "update" => Stmt::Update { table:"likes".into(), key:Expr::Literal(id("l")), patch:Expr::Literal(object([("postId.authorId",id("mallory"))])) },
+            "update" => Stmt::Update { table:"likes".into(), key:Expr::Literal(id("l")), patch:Expr::Literal(object([("postId.authorId",id(forged_author))])) },
             "upsert" => Stmt::Upsert { table:"likes".into(), key:Expr::Literal(id("forged")), row:Expr::Literal(row) },
             _ => Stmt::Insert { table:"likes".into(), row:Expr::Literal(row) },
         }];
@@ -199,13 +209,14 @@ fn forged<H: Host>(host: &mut H) {
         let mut server = Engine::memory(backend.schema.clone(),backend.programs.clone()).unwrap();
         server.seed([post("p","alice",Value::Null),("likes".into(),object([("id",id("l")),("postId",id("p")),("principal",id("alice")),("at",Value::Int(100))]))]).unwrap();
         backend.generation = server.generation();
-        let mut device = host.open(kind,Some(backend)).unwrap();
+        let name=format!("{kind}-{forged_author}");
+        let mut device = host.open(&name,Some(backend)).unwrap();
         for (i,page) in snapshot_pages(&mut server,"alice",100).iter().enumerate() { device.apply(page,i==0).unwrap(); }
         let error = device.admit(queued("p",1,1000)).unwrap_err();
         assert_eq!(error.refusal().code,"E_RECORDED_FIELD", "{kind}");
         assert!(error.to_string().contains("postId.authorId"));
         assert!(device.queued().unwrap().is_empty());
-        host.close(kind,device);
+        host.close(&name,device);
     }
 }
 #[test]
@@ -256,7 +267,10 @@ fn membership_expiry<H: Host>(host: &mut H, retain: bool) {
     let mut device = host.open(name, Some(backend)).unwrap();
     for (i,page) in snapshot_pages(&mut server,"alice",100).iter().enumerate() { device.apply(page,i==0).unwrap(); }
     let good = device.admit(queued("p",1,expires-1)).unwrap();
-    assert!(good.predictable);
+    assert!(good.predictable && !good.predicted.is_empty());
+    assert_eq!(device.queued().unwrap().iter().map(|q|q.id.as_str()).collect::<Vec<_>>(),["q1"]);
+    let live_before=device.query("received","alice",&json!({"authorId":"alice"}),expires-1).unwrap().data;
+    assert_eq!(live_before,Value::Int(1));
     let before = device.query("received","alice",&json!({"authorId":"alice"}),expires+1).unwrap().data;
     let expired = device.admit(queued("p",2,expires+1)).unwrap();
     assert!(!expired.predictable && expired.predicted.is_empty(), "expired membership before sweep/scope delivery: {expired:?}");
@@ -266,8 +280,10 @@ fn membership_expiry<H: Host>(host: &mut H, retain: bool) {
     for (n,target) in [(3,"uncovered"),(4,"absent")] {
         let out = device.admit(queued(target,n,expires-1)).unwrap();
         assert!(!out.predictable && out.predicted.is_empty());
-        assert_eq!(device.query("received","alice",&json!({"authorId":"alice"}),expires-1).unwrap().data,before);
+        assert_eq!(device.query("received","alice",&json!({"authorId":"alice"}),expires-1).unwrap().data,live_before);
     }
+    let at_expiry=device.admit(queued("p",5,expires)).unwrap();
+    assert!(!at_expiry.predictable && at_expiry.predicted.is_empty());
     host.close(name,device);
 }
 #[test]

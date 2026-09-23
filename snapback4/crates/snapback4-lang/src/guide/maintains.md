@@ -156,9 +156,11 @@ with the source's retention policy, but are absent from query rows, * shapes
 and generated row types; sql and why expose them for inspection.
 A predicted insert needs a live target covered by the device's current
 partition. Unheld, retained-only and expired targets queue without a predicted
-row. After rejoining a retained group, only targets delivered again count as
-covered until its replacement snapshot arrives. The server's capture is authoritative. check --residency lists that
-implicit target dependency; check --cost lists the extra point reads.
+row. A continuous membership renewal preserves coverage. After a membership gap,
+only targets delivered again count as covered until a replacement snapshot.
+An unswept expired membership never hides a live replacement for the same key.
+The server's capture is authoritative. check --residency lists that implicit
+target dependency; check --cost lists the extra point reads.
 
 A UTC day is not a rolling 24-hour window. For posts younger than a day,
 group non-expiring likes by hour(.postAt), postAt, postId, index hour, value,
@@ -230,12 +232,12 @@ shape or predicate, `.postId.authorId` selects that literal column on
 ordinary source projections cannot select them.
 
 ```quarry
-table authors:
+table writers:
   principal: principal
   immutable principal
   read <- allow
 table articles:
-  authorId: authors
+  authorId: writers
   createdAt: time
   immutable authorId, createdAt
   read <- allow

@@ -37,6 +37,13 @@ pub(super) fn events<T: DeviceTx>(tx: &T, schema: &Schema, events: &[StreamEvent
     let joined: BTreeMap<String, BTreeSet<String>> = joined.iter().map(|(name, groups)| {
         Ok((name.clone(), groups.iter().map(encoded).collect::<Result<_, RuntimeError>>()?))
     }).collect::<Result<_, RuntimeError>>()?;
+    // The server includes actual acquisitions only, never continuous renewals.
+    // Reset every old epoch before collecting this page's delivered ids.
+    for (name, joined) in &joined {
+        for group in joined {
+            groups.entry(name.clone()).or_default().insert(group.clone(), Membership::Rejoined(BTreeSet::new()));
+        }
+    }
     for event in events {
         let Some(table) = schema.table(&event.table).filter(|table| table.sync.is_some() && table.leave == LeavePolicy::DeliveredHistory) else { continue };
         match event.kind.as_str() {
@@ -60,31 +67,50 @@ pub(super) fn events<T: DeviceTx>(tx: &T, schema: &Schema, events: &[StreamEvent
         for group in joined {
             let entries = groups.entry(name.clone()).or_default();
             let membership = entries.entry(group).or_insert(Membership::Left);
-            // A fresh join can race ahead of the old scope event. Previous
-            // Held state cannot certify images retained across that gap.
+            // An empty acquisition after a scope also starts a fresh epoch.
             if !matches!(membership, Membership::Rejoined(_)) { *membership = Membership::Rejoined(BTreeSet::new()); }
         }
     }
     tx.set_meta(meta, &encoded(&groups)?)
 }
 
+#[derive(Clone, Copy)]
 pub(super) enum Coverage<'a> { Row(&'a Value), Range(&'a str, &'a [Value]) }
 
-// @ref LLP 3000.007#18.2 — reads and predictions consult the same persisted held/left groups, including empty groups.
+#[derive(PartialEq, Eq)]
+pub(super) enum CoverageState { Unknown, Held, Retained }
+
 pub(super) fn retained(schema: &Schema, groups: &Groups, name: &str, coverage: Coverage<'_>) -> Result<bool, RuntimeError> {
-    let Some(table) = schema.table(name).filter(|table| table.sync.is_some() && table.leave == LeavePolicy::DeliveredHistory) else { return Ok(false) };
+    Ok(coverage_state(schema, groups, name, coverage)? == CoverageState::Retained)
+}
+
+// @ref LLP 3000.007#18.2 — reads and predictions consult the same persisted held/left groups, including empty groups.
+pub(super) fn coverage_state(schema: &Schema, groups: &Groups, name: &str, coverage: Coverage<'_>) -> Result<CoverageState, RuntimeError> {
+    let Some(table) = schema.table(name).filter(|table| table.sync.is_some()) else { return Ok(CoverageState::Unknown) };
+    if table.leave != LeavePolicy::DeliveredHistory { return Ok(CoverageState::Held); }
     let group = match coverage {
         Coverage::Row(row) => row_key(table, row)?,
         Coverage::Range(index, prefix) => {
-            let Some(index) = table.index(index) else { return Ok(false) };
+            let Some(index) = table.index(index) else { return Ok(CoverageState::Unknown) };
             let pinned: BTreeMap<_, _> = index.components.iter().zip(prefix).filter_map(|(part, value)| part.column().map(|column| (column, value))).collect();
-            let Some(group) = audience_prefix(table).iter().map(|column| pinned.get(column).map(|value| (*value).clone())).collect::<Option<Vec<_>>>() else { return Ok(false) };
+            let Some(group) = audience_prefix(table).iter().map(|column| pinned.get(column).map(|value| (*value).clone())).collect::<Option<Vec<_>>>() else { return Ok(CoverageState::Unknown) };
             // An empty audience is the whole public table, for every lookup key
             // and scan prefix, including a read that finds no rows.
             key(&group)?
         }
     };
-    Ok(is_left(groups, name, &group))
+    Ok(match groups.get(name).and_then(|groups| groups.get(&group)) {
+        Some(Membership::Held) => CoverageState::Held,
+        Some(Membership::Left) => CoverageState::Retained,
+        Some(Membership::Rejoined(ids)) => match coverage {
+            Coverage::Row(row) if row.field("id").ok().and_then(|id| id.as_str().ok()).is_some_and(|id| ids.contains(id)) => CoverageState::Held,
+            Coverage::Row(_) => CoverageState::Retained,
+            // A live rejoined range can miss current rows: allow fallback.
+            // Its individually retained images still cannot certify a capture.
+            Coverage::Range(..) => CoverageState::Unknown,
+        },
+        None => CoverageState::Unknown,
+    })
 }
 
 /// The core asks about the evaluated scan prefix, so arbitrary expressions,

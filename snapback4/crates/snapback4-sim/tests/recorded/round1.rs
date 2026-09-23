@@ -29,24 +29,34 @@ fn separate_import_commits_and_winning_forgery() {
     assert_eq!(saved[0].field("postId.authorId").unwrap(), &id("alice"));
     let (name, mut forged) = like("l", "p", Value::Null);
     if let Value::Row(fields) = &mut forged { fields.insert("postId.authorId".into(), id("mallory")); }
+    let seq = e.seq().unwrap();
     assert_eq!(e.load([like("l", "p", Value::Null), (name, forged)]).unwrap_err().refusal().code, "E_RECORDED_FIELD");
     assert_eq!(e.store().rows("likes").unwrap(), saved);
+    assert_eq!(e.seq().unwrap(),seq,"refused batch is atomic");
     e.seed_delete("posts", "p").unwrap();
-    e.load([like("l", "p", Value::Null)]).unwrap();
-    assert_eq!(e.store().rows("likes").unwrap(), saved);
+    let (name, mut revised) = like("l", "p", Value::Null);
+    if let Value::Row(fields) = &mut revised {fields.insert("note".into(),Value::String("changed".into()));}
+    e.load([(name,revised)]).unwrap();
+    let row = &e.store().rows("likes").unwrap()[0];
+    assert_eq!(row.field("note").unwrap(),&Value::String("changed".into()));
+    for field in ["postId.authorId","postId.at","postId.parentId"] {assert_eq!(row.field(field).unwrap(),saved[0].field(field).unwrap());}
     let mut e = engine(SOURCE);
     e.load([like("l", "p", Value::Null)]).unwrap();
     e.load([post("p", "alice", Value::Null)]).unwrap();
     e.load([like("l", "p", Value::Null)]).unwrap();
     assert_eq!(e.store().rows("likes").unwrap()[0].field("postId.authorId").unwrap(), &Value::Null);
-    for seed in [false, true] {
+    for seed in [false, true] { for expired in [false,true] { for target_first in [false,true] {
         let mut e = engine(SOURCE);
-        let (name, mut expired) = post("p", "alice", Value::Null);
-        if let Value::Row(fields) = &mut expired { fields.insert("until".into(), Value::Int(1)); }
-        let rows = [like("l", "p", Value::Null), (name, expired)];
-        if seed { e.seed(rows).unwrap(); } else { e.load(rows).unwrap(); }
-        assert_eq!(e.store().rows("likes").unwrap()[0].field("postId.at").unwrap(), &Value::Null);
-    }
+        let (name, mut target) = post("p", "alice", Value::Null);
+        if let Value::Row(fields) = &mut target { fields.insert("until".into(), Value::Int(if expired {1} else {snapback4_core::now_ms()+60_000})); fields.insert("at".into(),Value::Int(123456)); }
+        let mut batch = vec![like("l", "p", Value::Null), (name, target)];
+        if target_first {batch.reverse();}
+        if seed { e.seed(batch).unwrap(); } else { e.load(batch).unwrap(); }
+        let rows=e.store().rows("likes").unwrap(); let captured=&rows[0];
+        assert_eq!(captured.field("postId.at").unwrap(), &if expired {Value::Null} else {Value::Int(123456)});
+        assert_eq!(captured.field("postId.authorId").unwrap(), &if expired {Value::Null} else {id("alice")});
+    }}}
+
 }
 
 #[test]
@@ -69,12 +79,18 @@ fn later_unrelated_rebuild_and_live_sum_repair_log_their_changes() {
     let seq = e.seq().unwrap();
     let b = bound(&next); e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     assert_eq!(e.seq().unwrap(), seq + 1, "unrelated maintain rebuild records its commit");
-    assert!(e.stream("alice", seq, 100).unwrap().events.iter().any(|event| event.table == "amounts"));
-    e.store().conn().execute("DELETE FROM _meta WHERE key = 'live_sum_candidates'", []).unwrap();
+    let events=e.stream("alice",seq,100).unwrap().events;
+    assert!(!events.is_empty()); assert!(events.iter().all(|event|event.table=="amounts"));
+    let stable = e.seq().unwrap();
+    let b = bound(&next); e.adopt(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    assert_eq!(e.seq().unwrap(),stable,"unchanged activation with intact repair marker is a no-op");
+    assert!(e.stream("alice",stable,100).unwrap().events.is_empty());
+    assert_eq!(e.store().conn().execute("DELETE FROM _meta WHERE key = 'live_sum_candidates'", []).unwrap(),1);
     let seq = e.seq().unwrap();
     let b = bound(&next); e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     assert_eq!(e.seq().unwrap(), seq + 1, "live-sum repair records its commit");
-    assert!(e.stream("alice", seq, 100).unwrap().events.iter().any(|event| event.table == "amounts"));
+    let events=e.stream("alice",seq,100).unwrap().events;
+    assert!(!events.is_empty()); assert!(events.iter().all(|event|event.table=="amounts"));
 }
 
 #[test]
@@ -86,7 +102,13 @@ fn activation_capture_persists_after_reopen_and_empty_capture_has_no_gap() {
     let b = bound(bare);
     let mut e = Engine::new(snapback4_core::store::Store::open(&path).unwrap(), b.schema, b.programs.into_iter().map(|p|p.program)).unwrap();
     e.seed([post("p", "alice", Value::Null), like("l", "p", Value::Null)]).unwrap();
+    assert!(e.store().rows("likes").unwrap()[0].field("postId.authorId").is_err());
+    let seq=e.seq().unwrap();
     let b = bound(SOURCE); e.adopt(b.schema, b.programs.into_iter().map(|p|p.program)).unwrap();
+    assert_eq!(e.seq().unwrap(),seq,"populated capture is event-free");
+    assert!(e.stream("alice",seq,100).unwrap().events.is_empty());
+    assert_eq!(e.store().rows("likes").unwrap()[0].field("postId.authorId").unwrap(),&id("alice"));
+    e.seed_delete("posts","p").unwrap();
     drop(e);
     let e = Engine::open(snapback4_core::store::Store::open(&path).unwrap()).unwrap();
     assert_eq!(e.store().rows("likes").unwrap()[0].field("postId.authorId").unwrap(), &id("alice"));
@@ -95,8 +117,9 @@ fn activation_capture_persists_after_reopen_and_empty_capture_has_no_gap() {
     let seq = e.seq().unwrap();
     let b = bound(SOURCE); e.adopt(b.schema, b.programs.into_iter().map(|p|p.program)).unwrap();
     assert_eq!(e.seq().unwrap(), seq);
-    e.seed([post("p", "alice", Value::Null)]).unwrap();
+    e.seed([post("p", "alice", Value::Null),like("l","p",Value::Null)]).unwrap();
     assert_eq!(e.seq().unwrap(), seq+1);
+    assert_eq!(e.store().rows("likes").unwrap()[0].field("postId.authorId").unwrap(),&id("alice"));
 }
 
 #[test]
@@ -125,8 +148,12 @@ fn ranking_and_trending_project_recorded_keys() {
 #[test]
 fn a_recorded_column_cannot_have_an_application_default() {
     let mut b = bound(SOURCE);
+    assert!(snapback4_core::schema::validate(&b.schema).is_empty());
     b.schema.tables.get_mut("likes").unwrap().defaults.insert("postId.authorId".into(), snapback4_core::schema::ColumnDefault::Literal(id("forged")));
-    assert!(snapback4_core::schema::validate(&b.schema).iter().any(|issue| issue.path.contains("recorded")));
+    let issues=snapback4_core::schema::validate(&b.schema);
+    assert_eq!(issues.len(),1,"{issues:?}");
+    assert!(issues[0].path.contains("likes.recorded.postId.authorId"),"{issues:?}");
+    assert!(Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).is_err());
 }
 
 #[test]
@@ -164,10 +191,17 @@ fn malformed_target_fields_are_errors_not_null_captures() {
     let mut e = engine(SOURCE);
     e.seed([post("p","alice",Value::Null)]).unwrap();
     let mut malformed = e.store().rows("posts").unwrap().remove(0);
-    if let Value::Row(fields) = &mut malformed { fields.remove("authorId"); }
+    match &mut malformed { Value::Row(fields) | Value::Map(fields) => {assert!(fields.remove("authorId").is_some());}, _ => panic!("stored row object") }
     let bytes = serde_json::to_string(&malformed).unwrap();
-    e.store().conn().execute("UPDATE r SET data = ?1 WHERE t = (SELECT num FROM _catalog WHERE name = 'posts')",[bytes]).unwrap();
-    assert!(e.seed([like("l","p",Value::Null)]).is_err());
+    assert_eq!(e.store().conn().execute("UPDATE r SET data = ?1 WHERE t = (SELECT num FROM _catalog WHERE name = 'posts')",[bytes]).unwrap(),1);
+    assert!(e.store().rows("posts").unwrap()[0].field("authorId").is_err(),"stored codec remains decodable");
+    let err=e.seed([like("l","p",Value::Null)]).unwrap_err();
+    assert_eq!(err.code(),"E_FIELD");
+    assert!(err.to_string().contains("authorId"),"{err}");
+    let result=e.mutate("like",None,Context::new("alice",BTreeMap::from([("postId".into(),id("p")),("at".into(),Value::Int(100)),("until".into(),Value::Null)])).at(1000).with_ids(["l".into()])).unwrap();
+    let WriteState::Failed {why,..}=result.state else {panic!("malformed target accepted")};
+    assert_eq!(why.code,"E_FIELD");
+    assert!(why.message.contains("authorId"),"{why:?}");
     assert!(e.store().rows("likes").unwrap().is_empty());
 }
 
@@ -180,10 +214,39 @@ fn uncovered_large_target_returns_prediction_before_heap_refusal() {
     if let Value::Row(fields) = &mut row { fields.insert("body".into(),Value::String("x".repeat(100_000))); }
     e.seed([(table,row)]).unwrap();
     let b = bound(&source);
+    assert_eq!(b.schema.tables["posts"].columns["body"],snapback4_core::schema::ColumnType::Text {max:100000});
+    assert_eq!(e.store().rows("posts").unwrap()[0].field("body").unwrap(),&Value::String("x".repeat(100000)));
     let program = &b.programs.iter().find(|p|p.program.name=="like").unwrap().program;
     let tx = e.store_mut().read_transaction().unwrap();
     // A server Rows view supplies no device coverage witness.
     let context = Context::new("alice",BTreeMap::from([("postId".into(),id("p")),("at".into(),Value::Int(100)),("until".into(),Value::Null)])).at(1000).with_ids(["l".into()]);
     let error = snapback4_core::engine::local::predict(&tx,&b.schema,program,context,snapback4_core::meter::Ceilings {heap_bytes:32_768,..Default::default()}).unwrap_err();
     assert_eq!(error.refusal().code,"E_PREDICT","{error}");
+}
+
+#[test]
+fn mixed_capture_repair_and_unrelated_rebuild_keep_separate_event_scopes() {
+    let source=SOURCE.replace("  note: text","  amount: int default 1\n  note: text");
+    let independent="\ntable counters:\n  key: principal\n  read <- allow\n  sync public\n";
+    let sum="\nmaintain amounts: sum likes of amount by principal\n  read <- allow\n";
+    let bare=format!("{}{}{}",source.split("maintain receivedLikes:").next().unwrap(),independent,sum);
+    let mut e=engine(&bare);
+    e.seed([post("p","alice",Value::Null),like("l","p",Value::Null),("counters".into(),object([("id",id("c")),("key",id("alice"))]))]).unwrap();
+    let mut damaged=e.store().rows("amounts").unwrap().remove(0);
+    match &mut damaged {Value::Row(fields) | Value::Map(fields)=>{fields.insert("value".into(),Value::Int(99));},_=>panic!("aggregate object")};
+    assert_eq!(e.store().conn().execute("UPDATE r SET data = ?1 WHERE t = (SELECT num FROM _catalog WHERE name = 'amounts')",[serde_json::to_string(&damaged).unwrap()]).unwrap(),1);
+    assert_eq!(e.store().rows("amounts").unwrap()[0].field("value").unwrap(),&Value::Int(99));
+    assert_eq!(e.store().conn().execute("DELETE FROM _meta WHERE key = 'live_sum_candidates'",[]).unwrap(),1);
+    let next=format!("{source}{independent}{sum}\nmaintain independentTotal: count counters by key\n  read <- allow\n");
+    let seq=e.seq().unwrap();let b=bound(&next);
+    e.adopt(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    assert_eq!(e.seq().unwrap(),seq+1);
+    let events=e.stream("alice",seq,100).unwrap().events;
+    assert!(!events.is_empty());
+    assert!(events.iter().all(|event|event.table=="independentTotal"));
+    for name in ["amounts","receivedLikes","independentTotal"] {
+        let rows=e.store().rows(name).unwrap();assert_eq!(rows.len(),1,"{name}");
+        assert_eq!(rows[0].field("value").unwrap(),&Value::Int(1),"{name}");
+    }
+    assert_eq!(e.store().rows("likes").unwrap()[0].field("postId.authorId").unwrap(),&id("alice"));
 }

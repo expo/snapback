@@ -6,7 +6,8 @@ pub(super) fn covered<T: DeviceTx>(rows: &Predicting<'_, T>, name: &str, row: &V
     let Some(table) = rows.schema.table(name) else { return Ok(false) };
     let Some(sync) = &table.sync else { return Ok(false) };
     let row = row_image(row, table);
-    let Some(id) = row.field("id").ok().and_then(|id| id.as_str().ok()) else { return Ok(false) };
+    if row.field("id").ok().and_then(|id| id.as_str().ok()).is_none() { return Ok(false); }
+    if table.expired(&row, now) { return Ok(false); }
     // Held describes acquisition, not the lifetime of its audience witness.
     let live = match &sync.audience {
         Audience::Public => true,
@@ -17,17 +18,24 @@ pub(super) fn covered<T: DeviceTx>(rows: &Predicting<'_, T>, name: &str, row: &V
             let Some(index) = target_table.index(&binding.group_index) else { return Ok(false) };
             let mut key = prefix.iter().map(|column| row.field(column).cloned()).collect::<Result<Vec<_>, _>>()?;
             key.push(Value::Id(viewer.into()));
-            rows.tx.lookup(target, &binding.group_index, &index, &key)?.is_some_and(|member| !target_table.expired(&row_image(&member, target_table), now))
+            if target_table.expire.is_none() {
+                rows.tx.lookup(target, &binding.group_index, &index, &key)?.is_some()
+            } else {
+                // Like uniqueness's live_lookup, pass unswept physical siblings
+                // of this logical key, with a bounded page and suffix cursor.
+                let mut bounds = Bounds::default();
+                loop {
+                    let members = rows.tx.scan(target, &binding.group_index, &key, &bounds, Dir::Asc, 32)?;
+                    let count = members.len();
+                    if members.iter().any(|(member, _)| !target_table.expired(&row_image(member, target_table), now)) { break true; }
+                    if count < 32 { break false; }
+                    bounds.after = Some(snapback4_core::key::decode(&members.last().expect("full page").1).ok_or_else(|| RuntimeError::Store("invalid membership index key".into()))?.into_iter().skip(key.len()).collect());
+                }
+            }
         }
     };
     if !live { return Ok(false); }
-    if table.leave != LeavePolicy::DeliveredHistory { return Ok(true); }
-    let group = history::row_key(table, &row)?;
-    Ok(match rows.groups.get(name).and_then(|groups| groups.get(&group)) {
-        Some(history::Membership::Held) => true,
-        Some(history::Membership::Rejoined(ids)) => ids.contains(id),
-        _ => false,
-    })
+    Ok(history::coverage_state(rows.schema, &rows.groups, name, history::Coverage::Row(&row))? == history::CoverageState::Held)
 }
 
 #[cfg(test)]
@@ -65,8 +73,10 @@ mod tests {
         assert!(without.diagnostics.is_empty(),"{:?}",without.diagnostics);
         schema = without.schema;
         schema.tables.get_mut("posts").unwrap().leave = LeavePolicy::DeliveredHistory;
-        history::events(&tx,&schema,&[put("q")],&joined,false).unwrap();
+        history::events(&tx,&schema,&[put("q")],&BTreeMap::new(),false).unwrap();
         check(&["p","q"]);
+        history::events(&tx,&schema,&[],&joined,false).unwrap();
+        check(&[]);
         tx.set_meta(history::GROUPS,"{}").unwrap();
         history::events(&tx,&schema,&[put("q")],&joined,false).unwrap();
         check(&["q"]);
@@ -75,9 +85,27 @@ mod tests {
         tx.set_meta(history::GROUPS,r#"{"posts":{"[]":"Held"}}"#).unwrap();
         history::events(&tx,&schema,&[put("q")],&joined,false).unwrap();
         check(&["q"]);
+        history::events(&tx,&schema,&[],&joined,false).unwrap();
+        check(&[]);
+        tx.set_meta(history::GROUPS,r#"{"posts":{"[]":"Held"}}"#).unwrap();
+        history::events(&tx,&schema,&[],&joined,false).unwrap();
+        check(&[]);
+        history::events(&tx,&schema,&[put("q")],&joined,false).unwrap();
+        let groups=history::load(&tx,history::GROUPS).unwrap();
+        let row=|id|wire::row_from_json(schema.table("posts").unwrap(),put(id).data.as_ref().unwrap()).unwrap();
+        assert!(history::retained(&schema,&groups,"posts",history::Coverage::Row(&row("p"))).unwrap());
+        assert!(!history::retained(&schema,&groups,"posts",history::Coverage::Row(&row("q"))).unwrap());
+        assert!(!history::retained(&schema,&groups,"posts",history::Coverage::Range("byId",&[])).unwrap());
+        let rows=Predicting {tx:&tx,schema:&schema,groups,boundaries:boundary::Boundaries::load(&tx,false).unwrap(),written:std::cell::RefCell::new(Vec::new())};
+        assert!(!covered(&rows,"posts",&row("p"),"alice",100).unwrap());
+        assert!(covered(&rows,"posts",&row("q"),"alice",100).unwrap());
         // Only the replacement snapshot's held declaration grants full coverage.
         snapshot::retain(&tx,&schema,Some(&joined)).unwrap();
         assert!(matches!(history::load(&tx,history::STAGED_GROUPS).unwrap()["posts"]["[]"],history::Membership::Held));
+        history::events(&tx,&schema,&[put("q")],&BTreeMap::new(),true).unwrap();
+        assert!(matches!(history::load(&tx,history::STAGED_GROUPS).unwrap()["posts"]["[]"],history::Membership::Held),"snapshot puts preserve the held declaration");
+        history::events(&tx,&schema,&[],&joined,true).unwrap();
+        assert!(matches!(&history::load(&tx,history::STAGED_GROUPS).unwrap()["posts"]["[]"],history::Membership::Rejoined(ids) if ids.is_empty()),"a real catch-up acquisition resets staged coverage too");
         tx.rollback().unwrap();
     }
     #[test]

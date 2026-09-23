@@ -780,12 +780,13 @@ mod tests {
         engine.seed([row("posts",json!({"id":"p","authorId":"alice","at":100})),row("likes",json!({"id":"l","postId":"p","principal":"alice","at":100}))]).unwrap();
         let tx = engine.store.transaction().unwrap();
         let stored = tx.get("likes","l").unwrap();
+        assert_eq!(stored.as_ref().expect("seeded source").field("postId.authorId").unwrap(),&crate::Value::Id("alice".into()));
         let mut runner = Runner::new(&tx, &schema, Context::system().at(1000), Meter::new(Ceilings::job(), Cut::Abort), 1);
         for request in [
             json!({"op":"insert", "table":"likes", "row":{"id":"forged", "postId":"p", "principal":"alice", "at":100, "postId.authorId":"mallory"}}),
             json!({"op":"update", "table":"likes", "id":"l", "patch":{"postId.authorId":null}}),
-            json!({"op":"update", "table":"likes", "id":"l", "patch":{"postId.authorId":"alice"}}),
-            json!({"op":"upsert", "table":"likes", "id":"l", "row":{"id":"l","postId.authorId":"mallory"}}),
+            json!({"op":"update", "table":"likes", "id":"l", "patch":{"postId.authorId":"alice","note":"must roll back"}}),
+            json!({"op":"upsert", "table":"likes", "id":"l", "row":{"id":"l","postId.authorId":"mallory","note":"must roll back"}}),
         ] {
             let error = dispatch(&mut runner, "forger", request["op"].as_str().unwrap(), &request).unwrap_err();
             assert_eq!(error.code(), "E_RECORDED_FIELD", "{error}");

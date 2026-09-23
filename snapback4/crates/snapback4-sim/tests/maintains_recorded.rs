@@ -157,6 +157,7 @@ fn untrusted_import_refuses_forgery_and_trusted_restore_keeps_history() {
     assert_eq!(parent.as_object().unwrap().get("parentId"),None);
     assert_eq!(parent.field("parentId.authorId").unwrap(),&Value::Null);
     imported.load([post("p","bob",Value::Null)]).unwrap();
+    assert_eq!(imported.store().rows("posts").unwrap()[0].field("authorId").unwrap(),&id("bob"));
     imported.load([like("l","p",Value::Null)]).unwrap();
     assert_eq!(imported.store().rows("likes").unwrap()[0].field("postId.authorId").unwrap(),&id("alice"));
 
@@ -200,6 +201,7 @@ fn forged_program_payloads_and_system_jobs_are_refused_including_noop_updates() 
         b.schema.operations.clear();
         let mut e = Engine::memory(b.schema, [p]).unwrap();
         e.seed([post("p", "alice", Value::Null), like("l", "p", Value::Null)]).unwrap();
+        let stored=e.store().rows("likes").unwrap();
         if kind == "job" {
             let run = e.run_job("forge", BTreeMap::new(), 1000).unwrap();
             assert!(run.error.unwrap().contains("E_RECORDED_FIELD"));
@@ -208,6 +210,7 @@ fn forged_program_payloads_and_system_jobs_are_refused_including_noop_updates() 
             let WriteState::Failed { why, .. } = out.state else { panic!("forged {kind} passed") };
             assert_eq!(why.code, "E_RECORDED_FIELD", "{kind}: {why:?}");
         }
+        assert_eq!(e.store().rows("likes").unwrap(),stored);
         assert_eq!(e.store().rows("likes").unwrap().len(),1);
         assert_eq!(e.store().rows("likes").unwrap()[0].field("id").unwrap(),&id("l"));
         assert_eq!(e.store().rows("likes").unwrap()[0].field("postId.authorId").unwrap(),&id("alice"));
@@ -254,6 +257,10 @@ fn clique_fixture_matches_the_hand_copied_model() {
     let counts = answers(&mut recorded,1000);
     let received = counts.field("received").unwrap().as_array().unwrap();
     assert_eq!(received.len(),3);
+    for (author,total) in [(id("alice"),2),(id("bob"),2),(Value::Null,1)] {
+        let group=received.iter().find(|row|row.field("postId.authorId").unwrap()==&author).unwrap();
+        assert_eq!(group.field("value").unwrap(),&Value::Int(total));
+    }
     assert_eq!(received.iter().map(|r|r.field("value").unwrap().as_int().unwrap()).sum::<i64>(),5);
     let visible = recorded.query("allLikes", Context::new("alice", BTreeMap::new()).at(1000)).unwrap().data;
     assert!(!visible.as_array().unwrap().is_empty());

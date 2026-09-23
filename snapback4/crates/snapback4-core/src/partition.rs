@@ -642,15 +642,7 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
     }
     let mut next = page.last().map_or(watermark, |event| event.seq);
     let more = !tx.read_log_spans(&spans, next, None, 1)?.is_empty();
-    let mut joined = crate::wire::HeldGroups::new();
-    for event in page.iter().filter(|event| event.kind == "join") {
-        if !schema.table(&event.table).is_some_and(|table| table.leave == crate::schema::LeavePolicy::DeliveredHistory) { continue; }
-        if held.get(&(event.table.clone(), event.id.clone())).is_some_and(|spans| spans.last().is_some_and(|span| span.from == event.seq && span.from_ord == Some(event.ord) && span.to.is_none() && span.expires_at.is_none_or(|expiry| expiry > now))) {
-            let group: Vec<Value> = serde_json::from_str(&event.id).map_err(|e| RuntimeError::Store(e.to_string()))?;
-            joined.entry(event.table.clone()).or_default().push(group.iter().map(crate::wire::to_json).collect());
-        }
-    }
-    let (mut events, acquisitions) = expand_joins(tx, schema, principal, page, &held, now)?;
+    let (mut events, acquisitions, joined) = expand_joins(tx, schema, principal, page, &held, now)?;
     if !more {
         next = next.max(head);
         // Logical expiry is a revocation even before the physical sweep
@@ -688,8 +680,9 @@ fn live_join_chain(spans: &[Interval], start: usize, commit_times: &BTreeMap<u64
 /// acquires nothing, including for publicly readable retained-history tables.
 /// Membership intervals remain join-time; joins never reach a device.
 #[cfg(feature = "sqlite")]
-fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: Vec<LogEvent>, held: &BTreeMap<(String, String), Vec<Interval>>, now: i64) -> Result<(Vec<LogEvent>, Vec<crate::wire::Acquisition>), RuntimeError> {
+fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: Vec<LogEvent>, held: &BTreeMap<(String, String), Vec<Interval>>, now: i64) -> Result<(Vec<LogEvent>, Vec<crate::wire::Acquisition>, crate::wire::HeldGroups), RuntimeError> {
     let mut acquisitions = Vec::new();
+    let mut joined = crate::wire::HeldGroups::new();
     // The next renewal may be on a later raw-log page. Read every edge time
     // for the groups whose joins this page serves, in one storage call.
     let sequences: BTreeSet<_> = page.iter().filter(|event| event.kind == "join").flat_map(|event| {
@@ -732,6 +725,11 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
         }
         let continuous = predecessor.is_some_and(|span| continuous_renewal(span, event.seq, event.ord, &commit_times));
         if continuous { continue; }
+        // `joined` certifies this acquisition, including an empty one. A live
+        // renewal preserves its predecessor's coverage on every page boundary.
+        if table.leave == crate::schema::LeavePolicy::DeliveredHistory {
+            joined.entry(event.table.clone()).or_default().push(group.iter().map(crate::wire::to_json).collect());
+        }
         // @ref LLP 3000.007#18.2 — ruling 36: an acquisition selects the current readable rows at serve time; the boundary is the Nth delivered key by construction.
         if let Some(horizon) = &sync.horizon {
             acquisitions.push(acquisition(&event.table, &horizon.by, &group, out.len(), None));
@@ -750,7 +748,7 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
             acquisitions.push(acquisition(&event.table, &horizon.by, &group, out.len(), floor));
         }
     }
-    Ok((out, acquisitions))
+    Ok((out, acquisitions, joined))
 }
 
 #[cfg(feature = "sqlite")]
