@@ -17,6 +17,11 @@ pub(crate) fn report(schema: &Schema, program: &ir::Program, lines: &mut Vec<Str
             lines.push("      unfollow: per-(reader, actor) cap bounds <=1000 private-copy deletes + route, private total, public count + one app edge = 1004 writes; a refollow is a second transition".into());
         }
         if program.name == t.purge { lines.push("      purge: <=1001 private-copy deletes + 1 tombstone = 1002 writes per chunk".into()); }
+        lines.push("      derived stream contribution bounds (all recipient rows combined, event framing included; application rows, acknowledgements and outer reply excluded):".into());
+        if let Some(bounds) = stream_bounds(schema, t) {
+            for (operation, bytes) in bounds { lines.push(format!("        {operation}: <= {bytes} B")); }
+        } else { lines.push("        unknown: inspect the owned schemas".into()); }
+        lines.push("      a historical composed commit can outgrow 16777216 B; at limit 1 the SDK restarts by snapshot with pending writes preserved (no write-time byte guard)".into());
         lines.push("      owned row bounds: index entries / index-key bytes / tagged JSON bytes / wire JSON bytes (application rows and SQLite overhead excluded; updates price old and new keys)".into());
         for suffix in ["Authors", "Pulls", "PullCounts", "PullTotals", "Posts", "RemovedEvents", "Feed", "Broadcast"] {
             if let Some((entries, keys, tagged, wire)) = schema.table(&t.table(suffix)).and_then(|table| row_bounds(table, suffix == "Posts")) {
@@ -54,4 +59,33 @@ fn row_bounds(table: &Table, event: bool) -> Option<(usize, usize, usize, usize)
         bounds.3 = bounds.3.max(serde_json::to_vec(&snapback4_core::wire::to_json(&row)).ok()?.len());
     }
     Some(bounds)
+}
+
+/// A conservative sum across every recipient, so any one partition's derived
+/// events fit too. Online-only counts/totals do not enter the sync stream.
+/// Deletes carry no row image. Each event includes its trailing array comma.
+pub(crate) fn stream_bounds(schema: &Schema, t: &snapback4_core::schema::timeline::Timeline) -> Option<Vec<(&'static str, usize)>> {
+    let event = |suffix: &str, delete: bool| -> Option<usize> {
+        let name = t.table(suffix);
+        let table = schema.table(&name)?;
+        let row = if delete { 4 } else { row_bounds(table, suffix == "Posts")?.3 };
+        let id = "x".repeat(if suffix == "Posts" { 135 } else { 64 });
+        // u64::MAX also bounds all valid stream sequence encodings.
+        let envelope = serde_json::to_vec(&serde_json::json!({"seq":u64::MAX,"kind":if delete {"delete"} else {"upsert"},"table":name,"id":id,"data":null})).ok()?.len();
+        Some(envelope - 4 + row + 1)
+    };
+    let feed = event("Feed", false)?;
+    let source = event("Posts", false)?;
+    let broadcast = event("Broadcast", false)?;
+    Some(vec![
+        ("profile insert", event("Authors", false)?),
+        ("pushed event insert", source + 51 * feed),
+        ("shared event insert", source + broadcast + feed),
+        ("removal", event("RemovedEvents", false)? + event("Posts", true)? + event("Broadcast", true)?),
+        ("follow backfill", 865 * feed),
+        ("maximum-backfill promotion", 865 * feed + 52 * event("Pulls", false)? + event("Authors", false)?),
+        ("unfollow", 1000 * event("Feed", true)? + event("Pulls", true)?),
+        ("purge chunk", 1001 * event("Feed", true)? + event("RemovedEvents", true)?),
+        ("unchanged flag / profile delete / activation", 0),
+    ])
 }

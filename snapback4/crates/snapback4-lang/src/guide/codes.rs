@@ -24,7 +24,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_TIMELINE_REMOVAL", "the removal signal must be a required bool default false and may only change false to true. Insert new cards with false, retain removed cards, and use a fresh card for new content. guide feeds."),
     ("E_TIMELINE_READ", "a timeline reads one viewer newest first by time, then event id, excluding tombstoned events. Use NAME[viewer] after c last 20, then shape its event rows. guide feeds."),
     ("E_TIMELINE_OWNED", "timeline rows are engine-owned. Write the mapped application profiles, posts, reposts or follows instead; no principal or application job can write the projection. guide feeds."),
-    ("E_TIMELINE_SERVER", "timeline writes currently execute on the server. Queue the whole mutation without prediction; the server installs the authoritative derived rows. guide feeds."),
+    ("E_TIMELINE_SERVER", "follow and unfollow read online-only slot counts. Queue the whole mutation without predicted rows. Posting, reposting and removal predict when their inputs are held. guide feeds."),
     ("E_TIMELINE_IMPORT", "a fixture import cannot reconstruct timeline history. Seed mapped rows through application operations, or restore a complete trusted persistence image. guide feeds."),
     ("E_TIMELINE_ACTIVATE", "activation requires empty mapped event and edge tables and at most 1000 existing profiles. Declare the timeline before events or edges exist; in dev use a fresh store. guide feeds."),
     ("E_TIMELINE_REDEFINE", "a populated timeline cannot be removed or redefined because its history cannot be rebuilt. Keep the declaration unchanged, or start a fresh store in dev. guide feeds."),

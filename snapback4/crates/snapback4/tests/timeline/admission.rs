@@ -78,9 +78,12 @@ fn admission_refuses_every_unsupported_bridge_shape_and_missing_edge_bound() {
 }
 
 #[test]
-fn timeline_read_shape_and_server_run_classification() {
+fn timeline_read_shape_and_transition_classification() {
     let b=bound(true);
-    for name in ["register","deleteProfile","publish","repost","unrepost","follow","unfollow","refollow","remove"] {
+    for name in ["register","deleteProfile","publish","repost","unrepost","remove"] {
+        assert_eq!(b.schema.operations[name].predicts.as_deref(),Some("eligible"),"{name}");
+    }
+    for name in ["follow","unfollow","refollow"] {
         let fact=&b.schema.operations[name];
         assert_eq!(fact.predicts.as_deref(),Some("never"),"{name}: {fact:?}");
         assert!(fact.sites.iter().any(|s|s.kind=="timeline transition" && s.table=="feedPullCounts"));

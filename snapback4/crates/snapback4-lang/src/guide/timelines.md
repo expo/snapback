@@ -101,10 +101,30 @@ reader-private; modes, event metadata, tombstones and broadcasts are public;
 counts are public online-only; the internal total is unreadable. Posting
 never probes another reader's inbox. Non-event owned identities are full SHA-256 digests of the canonical domain tag, declaration name, table suffix and natural key; they consume no caller ids. Event ids remain the original post id or the recipe's fresh repost id. The recipe remains available.
 
-For this server implementation, every mutation touching any mapped table
-queues without prediction, including registration and posting.
-`check --residency --verbose` names the implicit timeline dependency; Following reads
-use the existing synced merge. Device transition prediction is a later lane.
+Registration predicts its profile and mode. Posting, reposting and removal
+predict their application and derived rows when every input is held: the
+profile, author's mode, follower edges, source event, live original for a
+repost, and any tombstone or own pull-route check the transition reads.
+Fresh copies for other readers predict too; those output rows need not be
+held already. An unheld input queues the whole mutation without any predicted
+rows. Partial acquisition never predicts from a partial follower set.
+
+Follow and unfollow always queue without rows, including the application
+edge: slot accounting reads online-only counts. `check --residency --verbose`
+names each transition's implicit dependencies. Following reads the reader's
+installed lanes with the recipe's completeness semantics. All predictions
+remain provisional: replay uses the admitted event IDs and the same digest
+function as the server for other owned rows; refusal withdraws every predicted
+row, and settlement installs the server's partition.
+
+`check --cost` reports each operation's bounded derived stream contribution
+separately from application rows. The maximum-backfill promotion is tested
+against the 16,777,216-byte stream ceiling. That is a derived-data bound, not
+a promise about arbitrary composed application writes: historical stream
+commits re-read current row images and can grow later. When an indivisible
+commit exceeds the ceiling at limit 1, the server replies with `snapshot: true`
+and the SDK restarts acquisition by snapshot, preserving pending writes.
+No write-time stream-byte guard is added.
 
 E_TIMELINE_SHAPE means the declaration does not fit the supported public feed bridge. Use four distinct tables with an explicit public audience and full sync public, no horizon, expiry or maintained definition, and the required identities, keys, ownership and immutability rules; keep another model on the manual recipe path.
 
@@ -116,7 +136,7 @@ E_TIMELINE_READ means a timeline reads one viewer newest first by time, then eve
 
 E_TIMELINE_OWNED means timeline rows are engine-owned. Write the mapped application profiles, posts, reposts or follows instead; no principal or application job can write the projection.
 
-E_TIMELINE_SERVER means timeline writes currently execute on the server. Queue the whole mutation without prediction; the server installs the authoritative derived rows.
+E_TIMELINE_SERVER identifies a server-only timeline transition. Follow and unfollow queue the whole mutation without predicted rows because slot accounting is online-only.
 
 E_TIMELINE_IMPORT means a fixture import cannot reconstruct timeline history. Seed mapped rows through application operations, or restore a complete trusted persistence image.
 

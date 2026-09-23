@@ -577,6 +577,16 @@ changes can still refuse a queued write.
 | `follow`, `unfollow` | Queue without rows: online slot accounting is server state |
 | `following` | Reads the reader's installed lanes on the device |
 
+The declared timeline has this prediction boundary too: profile insertion
+registers the mode; posting, reposting and removal run in the device's
+provisional transaction when all inputs are held. This includes author modes,
+follower edges, tombstone checks and a repost's live original. A one-follower
+post predicts four rows: its application card, source event, own inbox copy
+and follower copy. Foreign output copies need not already be held. An
+unheld input queues the whole mutation with zero predicted rows; follow and
+unfollow always do so because their slot counts are online-only. See
+`guide timelines` for the declaration.
+
 The standalone recipe has the same boundary: `register`, `createPost`,
 `repost`, `deletePost` and `unrepost` are eligible; `follow` and `unfollow`
 never predict. The purge is a system job.

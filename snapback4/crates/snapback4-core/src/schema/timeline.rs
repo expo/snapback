@@ -50,6 +50,31 @@ impl Timeline {
             && self.owned == other.owned && self.mapped == other.mapped
     }
     pub fn event_tables(&self) -> [&str; 3] { [&self.posts[0], &self.reposts[0], &self.edges[0]] }
+    /// Implicit transition reads. These are execution facts, not new wire IR.
+    /// Output inboxes are intentionally absent: fresh foreign copies need not
+    /// already be held. Slot reads keep any edge mutation server-run.
+    pub fn inputs(&self, table: &str, kind: &str) -> Vec<(String, String)> {
+        let mut inputs = Vec::new();
+        let mut owned = |suffix: &str, index: &str| inputs.push((self.table(suffix), index.into()));
+        if table == self.edges[0] {
+            owned("PullCounts", "byReader");
+        } else if table == self.authors[0] {
+            if matches!(kind, "insert" | "insert-if-absent" | "upsert") { owned("Authors", "byPrincipal"); }
+        } else if table == self.posts[0] || table == self.reposts[0] {
+            owned("Posts", "byActorPost");
+            owned("RemovedEvents", "byEvent");
+            owned("Broadcast", "byReaderEvent");
+            if matches!(kind, "insert" | "insert-if-absent" | "upsert") {
+                owned("Authors", "byPrincipal");
+                owned("Pulls", "byReaderAuthor");
+                inputs.push((self.authors[0].clone(), "byId".into()));
+                inputs.push((self.edges[0].clone(), self.followed_index.clone()));
+                if table == self.reposts[0] { inputs.push((self.posts[0].clone(), "byId".into())); }
+            }
+        }
+        inputs
+    }
+
 }
 
 /// Stored sets are a checked projection, never an authorization input.
