@@ -502,7 +502,7 @@ stdout/stderr, including across chunks. A missing secret refuses startup.
 that entry and its dependencies explicitly for `serve --worker`. This is not
 a bundled-release or publication claim.
 
-Deploying a backend that uses recorded attribution or declared timelines requires
+Deploying a backend that uses maintained columns, recorded attribution or declared timelines requires
 0.3 devices. Its schema carries engine-derived capability requirements: published
 0.2.33 devices refuse installation, adoption and kept-backend reopening with an
 unknown `Capabilities` enum variant, and 0.2.33 engines refuse to open or serve

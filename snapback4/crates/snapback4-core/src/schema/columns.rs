@@ -163,7 +163,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                     walk.index(target,index,&path);
                     for term in key { walk.term(name,term,&path); }
                 },
-                Constraint::AppendOnly | Constraint::Recorded => {},
+                Constraint::AppendOnly | Constraint::Recorded | Constraint::Capabilities(_) => {},
             }
         }
         if let Some(field) = &table.expire { walk.field(name,field,&format!("tables.{name}.expire")); }

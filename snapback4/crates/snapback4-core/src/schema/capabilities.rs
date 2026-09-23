@@ -35,6 +35,8 @@ struct Wire {
 // Add a capability and its schema predicate here in one line. This is both
 // the derivation and the decoder's allowlist; authors never declare it.
 const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
+    // Device projections keep column metadata but omit private maintains.
+    ("maintained-column", |s| s.tables.values().any(|t| !t.maintained.is_empty()) || s.maintains.iter().any(|m| m.private.is_some())),
     ("recorded-attribution", |s| s.tables.values().any(|t| !t.recorded.is_empty())),
     ("timeline", |s| !s.timelines.is_empty()),
 ];

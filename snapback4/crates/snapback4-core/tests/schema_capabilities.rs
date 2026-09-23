@@ -12,12 +12,24 @@ fn compile(source: &str) -> Schema {
 fn capabilities_are_derived_independently_and_together() {
     let recorded = compile(include_str!("../../snapback4-lang/tests/fixtures/recorded-attribution.q"));
     let timeline = compile(include_str!("../../snapback4-lang/tests/fixtures/timeline-capability.q"));
+    let columns = compile(include_str!("../../snapback4-lang/tests/fixtures/maintained-columns.q"));
+    let projection = columns.public_projection();
+    assert!(projection.maintains.is_empty());
+    let mut private_only = columns.clone();
+    for table in private_only.tables.values_mut() { table.maintained.clear(); }
+    assert!(private_only.maintains.iter().any(|m| m.private.is_some()));
+    for schema in [&columns, &projection, &private_only] {
+        assert_eq!(schema.required_capabilities(), ["maintained-column".into()].into());
+    }
     assert_eq!(recorded.required_capabilities(), ["recorded-attribution".into()].into());
     assert_eq!(timeline.required_capabilities(), ["timeline".into()].into());
     let mut both = timeline.clone();
     both.tables.get_mut("posts").unwrap().recorded = recorded.tables["likes"].recorded.clone();
     assert_eq!(both.required_capabilities(), ["recorded-attribution".into(), "timeline".into()].into());
-    for schema in [recorded, timeline, both] {
+    let mut all = both.clone();
+    all.tables.get_mut("posts").unwrap().maintained = columns.tables["posts"].maintained.clone();
+    assert_eq!(all.required_capabilities(), ["maintained-column".into(), "recorded-attribution".into(), "timeline".into()].into());
+    for schema in [recorded, timeline, both, columns, projection, private_only, all] {
         let bytes = serde_json::to_string(&schema).unwrap();
         assert_eq!(bytes.matches("Capabilities").count(), 1);
         let wire: serde_json::Value = serde_json::from_str(&bytes).unwrap();
@@ -59,21 +71,25 @@ fn legacy_recorded_fixture_decodes_and_emits_only_capabilities() {
 
 #[test]
 fn unknown_missing_and_duplicate_capabilities_refuse_decode() {
-    let schema = compile(include_str!("../../snapback4-lang/tests/fixtures/timeline-capability.q"));
-    let wire = serde_json::to_value(&schema).unwrap();
-    let table = schema.tables.keys().next().unwrap();
-    for mode in ["unknown", "missing", "duplicate", "empty"] {
-        let mut bad = wire.clone();
-        let constraints = bad["tables"][table]["constraints"].as_array_mut().unwrap();
-        let at = constraints.iter().position(|c| c.get("Capabilities").is_some()).unwrap();
-        match mode {
-            "unknown" => constraints[at] = json!({"Capabilities":["timeline", "future-derivation"]}),
-            "missing" => { constraints.remove(at); }
-            "duplicate" => constraints.push(constraints[at].clone()),
-            _ => constraints[at] = json!({"Capabilities":[]}),
+    for schema in [
+        compile(include_str!("../../snapback4-lang/tests/fixtures/timeline-capability.q")),
+        compile(include_str!("../../snapback4-lang/tests/fixtures/maintained-columns.q")),
+    ] {
+        let wire = serde_json::to_value(&schema).unwrap();
+        let table = schema.tables.keys().next().unwrap();
+        for mode in ["unknown", "missing", "duplicate", "empty"] {
+            let mut bad = wire.clone();
+            let constraints = bad["tables"][table]["constraints"].as_array_mut().unwrap();
+            let at = constraints.iter().position(|c| c.get("Capabilities").is_some()).unwrap();
+            match mode {
+                "unknown" => constraints[at]["Capabilities"].as_array_mut().unwrap().push(json!("future-derivation")),
+                "missing" => { constraints.remove(at); }
+                "duplicate" => constraints.push(constraints[at].clone()),
+                _ => constraints[at] = json!({"Capabilities":[]}),
+            }
+            let text = bad.to_string();
+            let error = serde_json::from_str::<Schema>(&text).unwrap_err();
+            assert!(error.to_string().starts_with("E_SCHEMA_CAPABILITY:"), "{mode}: {error}");
         }
-        let text = bad.to_string();
-        let error = serde_json::from_str::<Schema>(&text).unwrap_err();
-        assert!(error.to_string().starts_with("E_SCHEMA_CAPABILITY:"), "{mode}: {error}");
     }
 }

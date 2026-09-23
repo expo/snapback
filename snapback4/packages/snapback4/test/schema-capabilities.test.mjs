@@ -37,11 +37,14 @@ const recorded=`use personas alice
   return likes first 10
 `.replace(/^ /gm,'');
 const ordinary=recorded.replace(/maintain totals:[\s\S]*?mutation like/, 'mutation like');
+const maintained=ordinary.replace('table posts:\n','table posts:\n likeCount: count likes by postId\n');
 const fixtures=[
   {name:'timeline',source:timeline,plain:timeline.replace(/maintain feed:[\s\S]*?mutation register/,'mutation register').replace(/query following[\s\S]*?query posts/,'query posts'),
     seed:[{table:'profiles',row:{id:'profile',principal:'dev:alice'}}], query:'profiles',op:'publish',args:{postId:'offline'},predictions:3},
   {name:'recorded-attribution',source:recorded,plain:ordinary,
     seed:[{table:'posts',row:{id:'p',authorId:'dev:alice'}}],query:'posts',op:'like',args:{postId:'p'},predictions:2},
+  {name:'maintained-column',source:maintained,plain:ordinary,freshStore:true,
+    seed:[{table:'posts',row:{id:'p',authorId:'dev:alice'}}],query:'posts',op:'like',args:{postId:'p'},predictions:1},
 ];
 function storedSchema(path) {
   assert.ok(existsSync(path),`missing engine store ${path}`);
@@ -114,12 +117,17 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
   const h=await harness(t),{dir,legacy,current,run,native,app}=h;
   const old=await app('prior',f.plain,f.seed);
   await old.server.stop();
-  const next=await app('prior',f.source);
+  // F1a cannot activate a column on populated storage. Build generation 2
+  // on an empty server store, retaining the real prior data for device adoption.
+  if(f.freshStore) {
+    const empty=await app('candidate',f.plain);await empty.server.stop();
+  }
+  const next=await app(f.freshStore?'candidate':'prior',f.source,f.freshStore?f.seed:[]);
   assert.equal(next.backend.generation,old.backend.generation+1);
   const apply={op:'apply',page:next.page,first:true,viewer:'dev:alice'};
   const entry={id:'offline-write',seq:1,op:f.op,viewer:'dev:alice',args:f.args,now:1000,new_ids:[],predicted:[],predictable:true};
   const admit={op:'admit',entry};
-  // This assertion must fail when the timeline derivation is mutated away:
+  // This assertion must fail when the fixture's capability derivation is removed:
   // it interrogates the published native device before inspecting the marker.
   const fresh=join(dir,'legacy-fresh.sqlite');
   const refused=native(legacy.binary,fresh,next.backend,[apply,admit]);

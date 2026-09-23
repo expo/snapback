@@ -165,7 +165,7 @@ Change polls echo `store_id` and return immediately on a mismatch or a lower
 head. Reconnect probes carry the identity and head, checked before local
 freshness returns; a matching identity needs no extra sync.
 
-Backends using recorded attribution or declared timelines require 0.3 devices.
+Backends using maintained columns, recorded attribution or declared timelines require 0.3 devices.
 The engine derives their capability requirements from the schema. Published
 0.2.33 devices refuse installation, generation adoption and kept-backend reopening
 with an unknown `Capabilities` enum variant; 0.2.33 engines refuse to open or serve

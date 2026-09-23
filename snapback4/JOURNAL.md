@@ -47181,3 +47181,27 @@ and READAUTH. The 466,000 B limit was raised to 469,000 B (400 B headroom).
 These are not separately measured component costs. This records the earlier
 integration measurement; round-2 evidence is appended to
 `reports/20260923-f1a-integration.md`. No budget changes in this follow-up.
+
+## 2026-09-23 — F1a finalization on FENCE and EDGES
+
+F1a rebased onto main `91694b4c0`. The shared capability derivation now
+requires `maintained-column` for table column metadata or a private maintain,
+so both the public device projection and the engine's stored schema carry
+`Constraint::Capabilities`. The sync card and SERVER reference include it.
+The published 0.2.33 witness adds a maintained-column-only app to the
+existing install, adoption, kept-reopen, engine-reopen and serve matrix.
+
+`build-wasm.sh` measures **1,707,766 B raw / 473,306 B gzip** with Rust
+1.97.0 and wasm-bindgen 0.2.127, without wasm-opt. Compared with main's
+recorded EDGES+FENCE landing (1,693,862 B raw / 469,031 B gzip), this is
+**+13,904 B raw / +4,275 B gzip** for F1a plus its capability registration:
+maintained-column metadata/projection, implicit zero, ownership, write-result
+stripping and shared write/meter paths alongside the integrated derived forms,
+READAUTH and EDGES. Private-total rebuild and SQLite import remain server-only.
+This is a whole-artifact comparison to the recorded main baseline, not
+independent component measurements or a new baseline build.
+
+The artifact exceeds the 470,000 B ratchet by 3,306 B. The authorized
+ratchet increase to **474,000 B** leaves **694 B** headroom. Conflict and
+verification evidence is in `reports/20260923-f1a-finalize.md`; the
+supervisor runs the complete landing suite.
