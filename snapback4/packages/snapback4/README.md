@@ -290,11 +290,11 @@ card's single program also runs. The chat example is optional.
 | Device contents / prediction / acquisition costs | `guide sync` / `guide prediction` / `guide residency` |
 | Following or Trending / search | `guide feeds` / `guide search` |
 | Identity / media / expiry / seeds / clock | `guide personas` / `guide assets` / `guide expire` / `guide replay` / `guide clock` |
-| Background or network work | `guide jobs` / `guide effects` / `guide presence` / `guide native` / `guide services` |
+| Background or network work (no directive) | `guide jobs` / `guide effects` (effect handlers) / `guide presence` / `guide native` / `guide services` (`mintSession`, `revokeSessions`) |
 | Limits / failures / adoption / simulator proof | `guide bounds` / `guide refusals` / `guide evolution` / `guide witness`; `why <code>` |
 | Full client, React and auth | [CLIENT-AND-OPERATIONS.md §4](./CLIENT-AND-OPERATIONS.md#4-the-client) |
 | Development and wire | [§5](./CLIENT-AND-OPERATIONS.md#5-development) |
 | Release | [§6](./CLIENT-AND-OPERATIONS.md#6-release) |
 | Expo | [§7](./CLIENT-AND-OPERATIONS.md#7-expo) |
 | Exclusions | [§8](./CLIENT-AND-OPERATIONS.md#8-not-in-this-release) |
-| TypeScript handlers and identity integration (`use server`) | `guide actions` / `guide routes` / [SERVER.md](./SERVER.md) (OIDC bound-session recovery is protocol-double-only; repaired-engine qualification is pending) |
+| Actions, routes and action-bound identity (`use server`) | `guide actions` / `guide routes` / [SERVER.md](./SERVER.md) (OIDC bound-session recovery is protocol-double-only; repaired-engine qualification is pending) |

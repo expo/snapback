@@ -1,7 +1,9 @@
 # TypeScript server handlers
 
-Actions and routes require `use server` once in `snapback/schema.q`, covering
-every module. Generated effect handlers and service seats need no directive.
+One `use server` in any module (`schema.q` is usual) enables the whole
+project; repeating it is harmless. Actions, routes and schedules naming an
+action require it. Effects (including secrets, retry, backoff, deadline and
+cancellation), jobs, schedules naming a job and service seats need no directive.
 
 ## Declaring actions
 

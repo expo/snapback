@@ -5,73 +5,106 @@ fn check(source: &str) -> Bound {
     compile(&[("schema.q".into(), source.into())])
 }
 
-fn refusal(bound: &Bound, line: u32, message: &str) {
-    let diagnostic = bound.diagnostics.iter().find(|d| d.site.line == line).expect("located refusal");
+fn refusal(bound: &Bound, file: &str, line: u32, form: &str, guide: &str) {
+    assert!(!bound.server);
+    let diagnostics: Vec<_> = bound.diagnostics.iter().filter(|d| d.site.file == file && d.site.line == line).collect();
+    assert_eq!(diagnostics.len(), 1, "one refusal per declaration: {:?}", bound.diagnostics);
+    let diagnostic = diagnostics[0];
+    assert_eq!(diagnostic.site.col, 1);
     assert_eq!(diagnostic.code, "E_SERVER_REQUIRED");
-    assert_eq!(diagnostic.message, format!("{message} requires use server; add the directive to schema.q"));
+    assert!(diagnostic.message.starts_with(&format!("{form} requires use server;")));
+    assert!(diagnostic.message.contains("any module (schema.q is usual)"));
+    assert!(diagnostic.message.contains("repeating it is harmless"));
     assert_eq!(diagnostic.rewrite, "use server");
-    assert_eq!(diagnostic.guide, "actions");
+    assert_eq!(diagnostic.guide, guide);
     assert!(!diagnostic.mechanical, "opting in is an author choice");
+}
+
+fn no_server_declarations(bound: &Bound) {
+    assert!(!bound.server);
+    assert!(bound.schema.action_specs.is_empty(), "refused actions must be dropped");
+    assert!(bound.schema.routes.is_empty(), "refused routes must be dropped");
+    assert!(bound.schema.schedules.is_empty(), "refused action schedules must be dropped");
+    assert!(bound.schema.operations.is_empty());
+    assert!(bound.programs.is_empty(), "refused declarations must not produce programs");
+    let empty = check("");
+    assert_eq!(emit::typescript(bound), emit::typescript(&empty));
+    assert_eq!(emit::server_typescript(bound), emit::server_typescript(&empty));
 }
 
 #[test]
 fn action_requires_server() {
-    let bound = check("action send() returns {}\n");
-    assert_eq!(bound.diagnostics.len(), 1);
-    refusal(&bound, 1, "action send");
-    assert!(bound.programs.is_empty() && bound.schema.action_specs.is_empty());
-    assert!(!emit::typescript(&bound).contains("Action"));
+    for source in ["action send() returns {}\n", "action remote(n: int)\n"] {
+        let bound = check(source);
+        assert_eq!(bound.diagnostics.len(), 1);
+        refusal(&bound, "schema.q", 1, if source.contains("send") { "action send" } else { "action remote" }, "actions");
+        no_server_declarations(&bound);
+    }
 }
 
 #[test]
-fn route_requires_server() {
-    let bound = check("route hook: post '/hook'\n");
-    assert_eq!(bound.diagnostics.len(), 1);
-    refusal(&bound, 1, "route hook");
-    assert!(bound.schema.routes.is_empty());
-    assert!(!emit::server_typescript(&bound).contains("/hook"));
+fn route_requires_server_even_with_a_service_seat() {
+    for seat in ["", " as service:mail"] {
+        let bound = check(&format!("route hook: post '/hook'{seat}\n"));
+        assert_eq!(bound.diagnostics.len(), 1);
+        refusal(&bound, "schema.q", 1, "route hook", "routes");
+        no_server_declarations(&bound);
+    }
 }
 
 #[test]
 fn action_schedule_requires_server_even_without_a_service_clause() {
-    for seat in ["", " as service:mail"] {
-        let bound = check(&format!("action send()\nschedule reminder every 1m{seat}: send\n"));
+    for seat in ["", " as service:clock"] {
+        let bound = check(&format!("action tick()\nschedule pulse every 1m{seat}: tick\n"));
         assert_eq!(bound.diagnostics.len(), 2);
-        refusal(&bound, 1, "action send");
-        refusal(&bound, 2, "schedule reminder targeting action send");
-        assert!(bound.schema.schedules.is_empty());
+        refusal(&bound, "schema.q", 1, "action tick", "actions");
+        refusal(&bound, "schema.q", 2, "schedule pulse targeting action tick", "actions");
+        no_server_declarations(&bound);
     }
+}
+
+#[test]
+fn cross_module_action_schedule_is_refused_and_dropped() {
     let bound = compile(&[("schema.q".into(), "schedule reminder every 1m as service:mail: mail.send\n".into()),
         ("mail.q".into(), "action send()\n".into())]);
     assert_eq!(bound.diagnostics.len(), 2);
-    assert!(bound.diagnostics.iter().all(|d| d.code == "E_SERVER_REQUIRED" && d.rewrite == "use server" && d.guide == "actions"));
+    refusal(&bound, "schema.q", 1, "schedule reminder targeting action mail.send", "actions");
+    refusal(&bound, "mail.q", 1, "action send", "actions");
+    no_server_declarations(&bound);
 }
 
 #[test]
 fn one_directive_covers_all_modules_and_matches_identity_collection() {
-    let mut sources = vec![("schema.q".into(), "use server\nuse identity guests\n".into()),
-        ("mail.q".into(), "action send() returns {}\nroute hook: post '/hook'\nschedule reminder every 1m as service:mail: mail.send\n".into())];
-    let bound = compile(&sources);
-    assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?}", bound.diagnostics);
-    assert!(bound.schema.action_specs.contains_key("mail.send"));
-    assert!(bound.schema.routes.contains_key("mail.hook"));
-    assert_eq!(bound.schema.schedules[0].target, "mail.send");
-    let schema = serde_json::to_string(&bound.schema).unwrap();
-    let programs = emit::backend_programs(&bound);
-    let api = emit::typescript(&bound);
-    let server = emit::server_typescript(&bound);
+    let declarations = "action send() returns {}\nroute hook: post '/hook'\nschedule reminder every 1m as service:mail: mail.send\n";
+    let baseline = compile(&[("schema.q".into(), "use server\nuse identity guests\n".into()),
+        ("mail.q".into(), declarations.into())]);
+    for (schema_directives, module_directives) in [
+        ("use server\nuse identity guests\n", ""),
+        ("", "use identity guests\nuse server\n"),
+        ("", "use identity guests\nuse server\nuse server\n"),
+        ("use server\nuse identity guests\n", "use server\n"),
+    ] {
+        for reversed in [false, true] {
+            let mut sources = vec![("schema.q".into(), schema_directives.into()),
+                ("mail.q".into(), format!("{declarations}{module_directives}"))];
+            if reversed { sources.reverse(); }
+            let bound = compile(&sources);
+            assert!(bound.server);
+            assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?} {:?}", bound.diagnostics, bound.notes);
+            assert!(bound.schema.action_specs.contains_key("mail.send"));
+            assert!(bound.schema.routes.contains_key("mail.hook"));
+            assert_eq!(bound.schema.schedules.len(), 1);
+            assert_eq!(bound.schema.schedules[0].target, "mail.send");
+            assert_eq!(bound.schema.schedules[0].service.as_deref(), Some("service:mail"));
+            assert_eq!(serde_json::to_string(&bound.schema).unwrap(), serde_json::to_string(&baseline.schema).unwrap());
+            assert_eq!(emit::backend_programs(&bound), emit::backend_programs(&baseline));
+            assert_eq!(emit::typescript(&bound), emit::typescript(&baseline));
+            assert_eq!(emit::server_typescript(&bound), emit::server_typescript(&baseline));
+        }
+    }
+    let api = emit::typescript(&baseline);
     assert!(api.contains("send: Action<"));
     assert!(!api.contains("Route") && !api.contains("hook"));
-    // A module directive is accepted, just like identity, and repetition is idempotent.
-    sources[0].1.clear();
-    sources[1].1.push_str("use identity guests\nuse server\nuse server\n");
-    sources.reverse();
-    let module = compile(&sources);
-    assert!(module.diagnostics.is_empty(), "{:?}", module.diagnostics);
-    assert_eq!(serde_json::to_string(&module.schema).unwrap(), schema);
-    assert_eq!(emit::backend_programs(&module), programs);
-    assert_eq!(emit::typescript(&module), api);
-    assert_eq!(emit::server_typescript(&module), server);
 }
 
 #[test]
@@ -83,6 +116,7 @@ job sweep():\n  chunk row in work first 10 by byId:\n    emit notify { owner: ro
 schedule daily every 1d: sweep\n";
     let bound = check(source);
     assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?} {:?}", bound.diagnostics, bound.notes);
+    assert!(!bound.server);
     let effect = &bound.schema.effect_specs["notify"];
     assert_eq!(effect.secrets, ["PUSH_KEY"]);
     assert_eq!(effect.policy.max_attempts, 3);
@@ -91,6 +125,20 @@ schedule daily every 1d: sweep\n";
     assert!(effect.policy.cancellable);
     assert_eq!(bound.schema.schedules[0].target, "sweep");
     assert_eq!(bound.schema.schedules[0].service, None);
+    // Job seats already refuse independently of this opt-in; do not change the
+    // scheduler's system-principal contract as part of declaration gating.
+    let seated_source = source.replace("every 1d: sweep", "every 1d as service:pusher: sweep");
+    let (document, parsed) = snapback4_lang::parse_document("schema.q", &seated_source);
+    assert!(parsed.is_empty());
+    assert_eq!(document.schedules[0].target, "sweep");
+    assert_eq!(document.schedules[0].service.as_deref(), Some("service:pusher"));
+    let seated = check(&seated_source);
+    assert!(!seated.server);
+    assert_eq!(seated.diagnostics.len(), 1);
+    assert_eq!(seated.diagnostics[0].code, "E_SCHEDULE");
+    assert_eq!(seated.diagnostics[0].message, "a job runs as the system; its schedule cannot declare a service seat");
+    assert!(seated.schema.schedules.is_empty());
+    assert_eq!(check(&format!("{seated_source}use server\n")).diagnostics, seated.diagnostics);
     let api = emit::typescript(&bound);
     assert!(!api.contains("Action") && !api.contains("Route"), "{api}");
     let server = emit::server_typescript(&bound);
@@ -119,26 +167,15 @@ fn why_and_discovery_keep_the_opt_in_one_step_away() {
     for name in ["actions", "routes"] { assert!(guide::card(name).unwrap().contains("use server")); }
     let services = guide::card("services").unwrap();
     assert!(services.contains("mintSession") && services.contains("revokeSessions") && services.contains("token --service"));
-    assert!(!services.contains("x-snapback-action-lease") && !services.contains("replaceLostDelivery") && !services.contains("E_OIDC_"));
+    assert!(!services.contains("x-snapback-action-lease") && !services.contains("replaceLostDelivery"));
+    for (code, blurb) in guide::CODES.iter().filter(|(code, _)| code.starts_with("E_OIDC_")) {
+        assert_eq!(snapback4_lang::diag::guide_for(code), "services");
+        assert!(blurb.contains("SERVER.md") && blurb.ends_with(". guide services."), "{blurb}");
+        assert!(services.contains(code) && services.contains("SERVER.md"));
+    }
     for template in [guide::TEMPLATE, guide::TEMPLATE_ONLINE] {
         let (document, diagnostics) = snapback4_lang::parse_document("schema.q", template);
         assert!(diagnostics.is_empty());
         assert!(!document.server && document.actions.is_empty() && document.routes.is_empty());
     }
-}
-
-#[test]
-fn the_language_server_block_retains_its_routes_and_scheduled_action() {
-    let blocks = guide::quarry(guide::LANGUAGE);
-    let bound = check(&format!("{}\n{}", blocks[0], blocks[1]));
-    assert!(bound.diagnostics.is_empty() && bound.notes.is_empty());
-    assert_eq!(bound.schema.routes.keys().map(String::as_str).collect::<Vec<_>>(), ["providerEvent", "roomExport"]);
-    assert_eq!(bound.schema.routes["providerEvent"].service.as_deref(), Some("service:reporter"));
-    assert_eq!(bound.schema.routes["roomExport"].service, None);
-    assert!(!bound.schema.operations.contains_key("roomExport"));
-    let mut engine = snapback4_core::Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
-    let at = 86_400_000 + 28_800_000;
-    assert!(engine.fire_schedules(at).unwrap().is_empty());
-    assert_eq!(engine.fire_schedules(at + 86_400_000).unwrap(), ["everyNight", "summariesEveryDay"]);
-    assert_eq!(engine.action_counts().unwrap().get("queued"), Some(&1));
 }

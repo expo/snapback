@@ -5,11 +5,8 @@ use snapback4_lang::{Bound, emit, types::Ty};
 // Existing server-half fixtures all opt in; keep declaration line locations stable.
 fn compile(sources: &[(String, String)]) -> Bound {
     let mut sources = sources.to_vec();
-    if let Some((_, schema)) = sources.iter_mut().find(|(file, _)| file == "schema.q") {
-        schema.push_str("\nuse server\n");
-    } else {
-        sources.push(("schema.q".into(), "use server\n".into()));
-    }
+    let index = sources.iter().position(|(file, _)| file == "schema.q").unwrap_or(0);
+    if let Some((_, source)) = sources.get_mut(index) { source.push_str("\nuse server\n"); }
     snapback4_lang::compile(&sources)
 }
 

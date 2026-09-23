@@ -1,6 +1,7 @@
 // Compiler-to-runtime acceptance: an effect-only application needs no server directive.
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -30,22 +31,31 @@ mutation send():
   const { server, manifest } = await import(pathToFileURL(join(dir, "snapback/generated/server.ts")).href);
   assert.deepEqual(manifest.actions, {});
   assert.deepEqual(manifest.routes, {});
-  assert.deepEqual(manifest.effects.mail.secrets, ["MAIL_KEY"]);
+  // The manifest carries the digest of this structured WorkSpec, in Rust's
+  // declaration order; every policy field must survive compilation unchanged.
+  const declaration = {
+    secrets: ["MAIL_KEY"],
+    policy: { max_attempts: 3, backoff_ms: 1_000, deadline_ms: 3_600_000, cancellable: true },
+  };
+  const contract = createHash("sha256").update(JSON.stringify(["effect-payload:generic-value:v1", "mail", declaration])).digest("hex");
+  assert.deepEqual(manifest.effects.mail, { contract, secrets: declaration.secrets });
 
   // The generated module and production runtime run against a protocol double.
-  for (const mode of ["retry", "cancel", "authority"]) await t.test(mode, async () => {
-    const stop = new AbortController(), paths = [], errors = [], attempts = [], steps = new Map();
-    let claims = 0, failures = 0, providerCalls = 0, settled = 0, aborted = false;
+  for (const mode of ["retry", "cancel", "authority", "contract-mismatch"]) await t.test(mode, async () => {
+    const stop = new AbortController(), paths = [], errors = [], attempts = [], observations = [], statusCodes = [], steps = new Map();
+    let claims = 0, failures = 0, providerCalls = 0, settled = 0, handlerCalls = 0;
     const worker = server({ effects: { async mail(payload, ctx) {
+      handlerCalls++;
       assert.deepEqual(payload, { to: "member@example.test" });
       assert.deepEqual(Object.keys(ctx.secrets), ["MAIL_KEY"]);
       assert.equal(ctx.secrets.MAIL_KEY, "fixture-secret");
       for (const name of ["query", "mutate", "principal", "writeIdFor"]) assert.equal(name in ctx, false);
       attempts.push(ctx.invocation.attempt);
       if (mode !== "retry") {
-        await new Promise(resolve => ctx.invocation.signal.addEventListener("abort", resolve, { once: true }));
-        aborted = true;
-        if (mode === "cancel") assert.equal(ctx.invocation.cancelled, true);
+        const { signal } = ctx.invocation;
+        if (!signal.aborted) await new Promise(resolve => signal.addEventListener("abort", resolve, { once: true }));
+        observations.push({ aborted: signal.aborted, cancelled: ctx.invocation.cancelled,
+          code: signal.reason?.refusal?.code, attempt: ctx.invocation.attempt, deadline: ctx.invocation.deadline });
         stop.abort();
         return "must not settle";
       }
@@ -62,6 +72,7 @@ mutation send():
       signal: stop.signal, wait: 0, statusIntervalMs: 1, onError: error => errors.push(error),
       fetch: async (url, init) => {
         const path = new URL(url).pathname, body = JSON.parse(init.body); paths.push(path);
+        assert.equal(init.headers.authorization, "Bearer service-fixture");
         if (path === "/effects/claim") {
           assert.equal(body.declarationContract, manifest.effects.mail.contract);
           assert.equal(body.fenced, true);
@@ -69,14 +80,16 @@ mutation send():
           assert.ok(++claims <= (mode === "retry" ? 2 : 1), "no repoll after loss or settlement");
           return Response.json({ effects: [{ id: "mail-1", effect: "mail", payload: { to: "member@example.test" },
             attempt: claims, seq: 1, at: 10, deadline: 3_600_010, leaseToken: `lease-${claims}`,
-            declarationContract: manifest.effects.mail.contract }] });
+            declarationContract: mode === "contract-mismatch" ? "a-different-declaration" : manifest.effects.mail.contract }] });
         }
-        assert.equal(init.headers.authorization, "Bearer service-fixture");
         assert.equal(init.headers["x-snapback-effect-lease"], `lease-${claims}`);
         if (path.endsWith("/status")) {
-          if (mode === "authority") return Response.json({ denied: { code: "E_AUTH", family: "auth", message: "service authority revoked" } }, { status: 401 });
-          return Response.json({ id: "mail-1", attempt: claims, state: mode === "cancel" ? "failed" : "running",
-            cancelled: mode === "cancel", ...(mode === "cancel" ? { errorCode: "E_EFFECT_CANCELLED" } : {}) });
+          const response = mode === "authority"
+            ? Response.json({ denied: { code: "E_AUTH", family: "auth", message: "service authority revoked" } }, { status: 401 })
+            : Response.json({ id: "mail-1", attempt: claims, state: mode === "cancel" ? "failed" : "running",
+              cancelled: mode === "cancel", ...(mode === "cancel" ? { errorCode: "E_EFFECT_CANCELLED" } : {}) });
+          statusCodes.push(response.status);
+          return response;
         }
         if (path.endsWith("/steps/send/begin")) return Response.json({ step: steps.has("send")
           ? { state: "done", key: "stable-provider-key", result: steps.get("send") }
@@ -88,15 +101,32 @@ mutation send():
       },
     });
     t.after(() => stop.abort());
-    await worker.done;
+    if (mode === "contract-mismatch") await assert.rejects(worker.done, /E_EFFECT_GENERATION/);
+    // Status authority loss reports through onError; after our stop, done resolves.
+    // Only generation loss (including a mismatched claim) rejects done here.
+    else await assert.doesNotReject(worker.done);
     assert.ok(paths.every(path => path.startsWith("/effects/")));
     if (mode === "retry") {
       assert.deepEqual(attempts, [1, 2]);
       assert.equal(providerCalls, 1, "the second attempt reuses its completed durable step");
       assert.equal(failures, 1); assert.equal(settled, 1); assert.deepEqual(errors, []);
     } else {
-      assert.equal(aborted, true);
       assert.equal(failures, 0); assert.equal(settled, 0); assert.equal(claims, 1);
+      assert.equal(paths.some(path => path.endsWith("/done") || path.endsWith("/failed")), false);
+      if (mode === "contract-mismatch") {
+        assert.equal(handlerCalls, 0);
+        assert.deepEqual(paths, ["/effects/claim"]);
+        assert.deepEqual(observations, []);
+        assert.deepEqual(errors.map(error => error.message), ["E_EFFECT_GENERATION: claimed effect mail-1 did not match generated declaration mail"]);
+      } else {
+        assert.equal(handlerCalls, 1);
+        assert.deepEqual(attempts, [1]);
+        assert.deepEqual(observations, [{ aborted: true, cancelled: mode === "cancel",
+          code: mode === "cancel" ? "E_EFFECT_CANCELLED" : "E_AUTH", attempt: 1, deadline: 3_600_010 }]);
+        assert.deepEqual(statusCodes, [mode === "authority" ? 401 : 200]);
+        assert.deepEqual(errors.map(error => error.message), [mode === "cancel"
+          ? "E_EFFECT_CANCELLED: the effect was cancelled" : "E_AUTH: service authority revoked"]);
+      }
     }
   });
 });

@@ -2,9 +2,9 @@ pub(super) const CARD: &str = r##"# App: a complete chat backend
 
 Comments start with `--`. Blocks indent with two spaces. A file holds
 directives, tables, maintains, shapes, helpers, queries, mutations, jobs
-and schedules, in any order. `snapback4 guide` prints the card index; `guide language` prints the language card:
-every form in one file that compiles and runs, and the idiom for each
-thing the language leaves out on purpose.
+and schedules, in any order. `snapback4 guide` prints the card index;
+`guide language` prints the core program, followed by a "With `use server`"
+section, and the idiom for each thing the language leaves out on purpose.
 
 The example's §4 (identity) and §5 (personas) refer to CLIENT-AND-OPERATIONS.md.
 
@@ -77,6 +77,9 @@ mutation edit(messageId: messages, body: text <=4000):
 
 ## With `use server`
 
-Actions and routes are available after declaring `use server` in `schema.q`;
-see `guide actions` and `guide routes`.
+One `use server` in any module (`schema.q` is usual) enables the whole
+project; repeating it is harmless. Actions, routes and schedules naming an
+action require it. Effects (including secrets, retry, backoff, deadline and
+cancellation), jobs, schedules naming a job and service seats need no directive.
+See `guide actions`, `guide routes` and `guide jobs`.
 "##;

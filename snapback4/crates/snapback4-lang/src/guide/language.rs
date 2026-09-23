@@ -447,9 +447,11 @@ argument/expression, with one lane per value; `walk` is not admitted.
 
 ## With `use server`
 
-Declare `use server` once in `schema.q` to enable actions and routes in every
-module. As with `use identity`, a module may also supply the project-wide
-directive; repeating it is harmless. This block extends the core schema above.
+One `use server` in any module (`schema.q` is usual) enables the whole
+project; repeating it is harmless. Actions, routes and schedules naming an
+action require it. Effects (including secrets, retry, backoff, deadline and
+cancellation), jobs, schedules naming a job and service seats need no directive.
+This block extends the core schema above.
 
 ```quarry
 use server

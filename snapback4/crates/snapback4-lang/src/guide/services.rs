@@ -49,6 +49,8 @@ engine's namespaces (`dev:`, `guest:`, `user:`, `service:` and `system`
 are refused). `snapback4 dev` and `snapback4 serve` both take these
 tokens; the adapter that owned every request becomes an identity provider
 and a worker.
+For this unbound application mint, an absent or non-string `kind` defaults to
+`account`; an absent or non-integer `days` defaults to 7; integer days clamp to 1–3,650.
 
 ## Refused authentication
 
@@ -62,4 +64,7 @@ or sign in again for an expired session, and check that the token belongs
 to the backend the URL actually reaches.
 
 Action-bound session minting and OIDC: see the package’s [SERVER.md](./SERVER.md).
+For E_OIDC_BINDING, E_OIDC_CALLBACK, E_OIDC_CONFIG, E_OIDC_EXCHANGE,
+E_OIDC_HANDOFF, E_OIDC_MINT, E_OIDC_PROVIDER, E_OIDC_RECIPE, E_OIDC_REPLAY
+and E_OIDC_TRANSACTION, see its Identity refusal reference.
 "##;

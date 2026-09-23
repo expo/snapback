@@ -11,16 +11,16 @@ pub(super) fn admit(documents: &mut [Document], diagnostics: &mut Vec<Diagnostic
         let module = std::path::Path::new(&doc.file).file_stem().and_then(|s| s.to_str()).unwrap_or("schema");
         doc.actions.iter().map(move |decl| super::operation_name(module, &decl.name))
     }).collect();
-    let mut refuse = |site: &Site, form: String| {
+    let mut refuse = |site: &Site, form: String, guide: &str| {
         diagnostics.push(Diagnostic::new(site, "E_SERVER_REQUIRED",
-            format!("{form} requires use server; add the directive to schema.q"), "use server").guide("actions"));
+            format!("{form} requires use server; add it once in any module (schema.q is usual) to enable the whole project; repeating it is harmless. The directive gates actions, routes and schedules naming an action. Effects (including secrets, retry, backoff, deadline and cancellation), jobs, schedules naming a job and service seats need no directive."), "use server").guide(guide));
     };
     for doc in documents {
-        for decl in doc.actions.drain(..) { refuse(&decl.site, format!("action {}", decl.name)); }
-        for decl in doc.routes.drain(..) { refuse(&decl.site, format!("route {}", decl.name)); }
+        for decl in doc.actions.drain(..) { refuse(&decl.site, format!("action {}", decl.name), "actions"); }
+        for decl in doc.routes.drain(..) { refuse(&decl.site, format!("route {}", decl.name), "routes"); }
         doc.schedules.retain(|decl| {
             if !actions.contains(&decl.target) { return true; }
-            refuse(&decl.site, format!("schedule {} targeting action {}", decl.name, decl.target));
+            refuse(&decl.site, format!("schedule {} targeting action {}", decl.name, decl.target), "actions");
             false
         });
     }

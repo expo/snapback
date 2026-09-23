@@ -1,8 +1,10 @@
 pub const CARD: &str = r##"# Actions: declared results and typed server handlers
 
-Actions require `use server` once in `schema.q`; it covers every module.
-E_SERVER_REQUIRED refuses actions, routes and action-naming schedules without
-that opt-in; its rewrite is `use server`. Effects and service seats stay core.
+One `use server` in any module (`schema.q` is usual) enables the whole
+project; repeating it is harmless. Actions, routes and schedules naming an
+action require it. Effects (including secrets, retry, backoff, deadline and
+cancellation), jobs, schedules naming a job and service seats need no directive.
+E_SERVER_REQUIRED refuses each gated declaration; its rewrite is `use server`.
 
 ```quarry
 use server
