@@ -68,7 +68,7 @@ impl Probe for Runner<'_> {
 
 impl Runner<'_> {
     // @ref LLP 3000.007#17 — the dependency envelope is schema-derived too; short-circuit probes cannot disclose a hidden answer through tables.
-    fn rule_dependencies(&mut self, rule: &crate::schema::RuleExpr) {
+    pub(super) fn rule_dependencies(&mut self, rule: &crate::schema::RuleExpr) {
         let mut sites = Vec::new();
         rules::probe_sites(rule, &mut sites);
         for (table, _) in sites {
@@ -110,26 +110,32 @@ impl Runner<'_> {
 
     // @ref LLP 3000.007#17 — one rule probe, regardless of expired siblings or an expiring maintain's sources.
     fn rule_probe_exists(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)]) -> Result<bool, RuntimeError> {
-        self.aggregate_read_coverage(table, index, key, "rule probe");
+        let (present, known) = self.probe_witness(table, index, key, equalities, false)?;
+        if !known && !self.read_capped() { self.unknown_fact(table, index, key, "rule probe"); }
+        Ok(present)
+    }
+
+    /// Existence witnesses are raw data, never recursively authorized rows.
+    pub(super) fn probe_witness(&mut self, table: &str, index: &str, key: &[Value], equalities: &[(String, Value)], current: bool) -> Result<(bool, bool), RuntimeError> {
         let definition = self.schema.table(table).ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
         let index_def = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing index {table}.{index}")))?;
         self.read_tables.insert(table.to_owned());
         let found = self.lookup_live(table, index, index_def, key, false)?;
         let mut live = found.is_some();
-        if self.device && !self.authorizing_rows.is_empty()
-            && (self.tx.retained_group(table, index, key)? || found.as_ref().map(|row| self.tx.retained_row(table, row)).transpose()?.unwrap_or(false)) {
-            self.unknown_fact(table, index, key, "retained authorization witness");
-            return Ok(false);
-        }
+        let mut known = !self.device || if current {
+            match &found {
+                Some(row) => self.witness_covered(table, index, key, row)?,
+                None => self.authorization_absence_covered(table, index, key)?,
+            }
+        } else { definition.sync.as_ref().is_some_and(|s| live || s.horizon.is_none()) };
         if let Some(row) = &found {
-            if !self.provisional_readable(table, row)? { return Ok(false); }
             self.note_expiry(definition, row);
             if let Some(maintain) = self.schema.maintain_for(table)
                 && let Some(source) = self.schema.table(&maintain.source).filter(|source| source.expire.is_some()) {
                 self.read_tables.insert(maintain.source.clone());
                 let group = crate::schema::maintained_key(row, &maintain.by);
                 let (name, prefix) = maintain.source_scan(source, &group);
-                if self.device && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some()) { self.unknown_fact(&maintain.source, name, &prefix, "rule probe"); }
+                if self.device && source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some()) { known = false; }
                 let mut bounds = Bounds::default();
                 live = false;
                 'sources: loop {
@@ -138,7 +144,8 @@ impl Runner<'_> {
                     for (candidate, stored) in rows {
                         let candidate = crate::schema::row_image(&candidate, source);
                         bounds.after = crate::key::decode(&stored).map(|v| v.into_iter().skip(prefix.len()).collect());
-                        if !self.expired(source, &candidate) && self.provisional_readable(&maintain.source, &candidate)? && maintain.selected(&candidate) && maintain.source_key(&candidate) == group {
+                        if !self.expired(source, &candidate) && maintain.selected(&candidate) && maintain.source_key(&candidate) == group {
+                            if current && !self.witness_covered(&maintain.source, name, &prefix, &candidate)? { known = false; continue; }
                             self.note_expiry(source, &candidate);
                             live = true;
                             break 'sources;
@@ -148,9 +155,9 @@ impl Runner<'_> {
                 }
             }
         }
-        if self.device && (definition.sync.is_none() || (!live && definition.sync.as_ref().is_some_and(|s| s.horizon.is_some()))) { self.unknown_fact(table, index, key, "rule probe"); }
+        if self.device && self.schema.maintain_subset_unknown(table) { known = false; }
         // @ref LLP 3000.007#10 — the total unique probe reads once, then tests the remaining named equalities.
-        Ok(live && found.as_ref().is_some_and(|row| equalities.iter().all(|(column, value)| row.field(column).unwrap_or(&Value::Null) == value)))
+        Ok((live && found.as_ref().is_some_and(|row| equalities.iter().all(|(column, value)| row.field(column).unwrap_or(&Value::Null) == value)), known))
     }
 
     /// Point lookups must pass expired siblings, even on an index whose
@@ -209,7 +216,15 @@ impl Runner<'_> {
                 if !self.read_charge(MeterKind::Examined, 1)? { break 'sources; }
                 bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(prefix.len()).collect());
                 if !self.read_charge(MeterKind::Steps, maintain.evaluation_steps())? { break 'sources; }
-                if self.expired(source, &candidate) || !self.provisional_readable(&maintain.source, &candidate)? || !maintain.selected(&candidate) || maintain.source_key(&candidate) != group { continue; }
+                if self.expired(source, &candidate) || !maintain.selected(&candidate) || maintain.source_key(&candidate) != group { continue; }
+                let prior = std::mem::replace(&mut self.beyond_horizon, false);
+                let allowed = self.provisional_readable(&maintain.source, &candidate);
+                let unknown = self.beyond_horizon;
+                self.beyond_horizon |= prior;
+                if !allowed? {
+                    if unknown { return Ok(None); }
+                    continue;
+                }
                 any = true;
                 self.note_expiry(source, &candidate);
                 total += match &maintain.kind { crate::schema::MaintainKind::Count => 1, crate::schema::MaintainKind::Sum { of } => i128::from(candidate.field(of)?.as_int()?) };
@@ -259,11 +274,11 @@ impl Runner<'_> {
     /// store's owner and passes every rule; validation and constraints
     /// still run for it.
     pub(crate) fn check_rule(&mut self, table_name: &str, effect: Effect, old: Option<&Value>, next: &Value) -> Result<bool, RuntimeError> {
-        if effect == Effect::Read && !self.provisional_readable(table_name, next)? { return Ok(false); }
         if effect != Effect::Read && self.timeline_may_write(table_name, effect) { return Ok(true); }
         if self.context.is_system() {
             return Ok(true);
         }
+        if effect == Effect::Read && self.is_provisional(table_name, next)? { return self.provisional_readable(table_name, next); }
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
         // A device holds a synced table's rows because the server delivered
         // each under the read rule and withdraws what it revokes; what
@@ -282,46 +297,6 @@ impl Runner<'_> {
         });
         let viewer = self.context.viewer.clone();
         rules::evaluate(&rule, &viewer, old.as_ref(), &next, effect == Effect::Insert, self)
-    }
-
-    /// Only overlay images lack the server's delivery authorization. Check at
-    /// every read, against all predictions currently layered over delivery.
-    pub(super) fn provisional_readable(&mut self, table: &str, row: &Value) -> Result<bool, RuntimeError> {
-        if !self.device { return Ok(true); }
-        let key = (table.to_owned(), row.field("id")?.as_str()?.to_owned());
-        if !self.provisional_rows.contains(&key) && !self.tx.provisional_row(table, row)? { return Ok(true); }
-        if !self.authorizing_rows.insert(key.clone()) {
-            // A membership's positive self-audience is witnessed by this very
-            // row (the server's rule probes test existence, not recursive ACLs).
-            // Coverage was checked before reaching this recursion. Other cycles
-            // cannot establish authority here.
-            if matches!(&self.schema.tables[table].rules.read, crate::schema::RuleExpr::Exists { table: target, .. } if target == table) { return Ok(true); }
-            self.unknown_fact(table, "byId", &[Value::Id(key.1)], "cyclic provisional authority");
-            return Ok(false);
-        }
-        // An unrelated incomplete component must not hide a readable row.
-        let prior = std::mem::replace(&mut self.beyond_horizon, false);
-        let verdict = self.evaluate_read_rule(table, row);
-        let unknown = self.beyond_horizon;
-        self.beyond_horizon |= prior;
-        self.authorizing_rows.remove(&key);
-        let allowed = verdict? && !unknown && !self.read_capped();
-        if !allowed {
-            self.unknown_fact(table, "byId", &[Value::Id(key.1)], "provisional read authority");
-        }
-        Ok(allowed)
-    }
-
-    /// F3 also uses the evaluator before writing an engine-owned copy. Only
-    /// an explicit denial skips that copy; errors still abort prediction.
-    pub(super) fn evaluate_read_rule(&mut self, table: &str, row: &Value) -> Result<bool, RuntimeError> {
-        let table = &self.schema.tables[table];
-        let rule = table.rules.read.clone();
-        let mut row = row.clone();
-        materialize_optional_fields(&mut row, table);
-        self.rule_dependencies(&rule);
-        let viewer = self.context.viewer.clone();
-        rules::evaluate(&rule, &viewer, None, &row, false, self)
     }
 
     /// A row by id, materialized, without a rule check.
@@ -383,9 +358,14 @@ impl Runner<'_> {
             return Ok(Value::Null);
         }
         materialize_optional_fields(&mut row, table);
-        if !self.provisional_readable(&read.table, &row)? { return Ok(Value::Null); }
+        let provisional = self.is_provisional(&read.table, &row)?;
         let viewer = self.context.viewer.clone();
-        let allowed = trusted || rules::evaluate(&table.rules.read, &viewer, None, &row, false, &mut PrefixProbe { runner: self })?;
+        let allowed = if provisional && !self.context.is_system() {
+            self.authorize_read(&read.table, &row, !trusted)?
+        } else { trusted || rules::evaluate(&table.rules.read, &viewer, None, &row, false, &mut PrefixProbe { runner: self })? };
+        // A failed authorization owns its charges and its cut. Hidden-candidate
+        // rollback must never erase exhaustion or convert it into coverage.
+        if self.read_capped() { return Ok(Value::Null); }
         if allowed {
             // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
             if self.device && self.tx.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
@@ -393,8 +373,10 @@ impl Runner<'_> {
             Ok(self.live_aggregate(&read.table, row)?.unwrap_or(Value::Null))
         } else {
             self.next_expiry = expiry_mark;
-            self.meter.restore(mark);
-            self.read_charge(MeterKind::Examined, 1)?;
+            if !provisional {
+                self.meter.restore(mark);
+                self.read_charge(MeterKind::Examined, 1)?;
+            }
             Ok(Value::Null)
         }
     }

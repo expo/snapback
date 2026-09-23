@@ -27,6 +27,8 @@ fn predicted_lifecycle<H:Host>(h:&mut H,mut d:Device<H::Store>,e:&mut Engine,op:
     let q=admit(&mut d,op,input.clone());
     assert!(q.predictable && !q.predicted.is_empty(),"{op}: {q:?}");
     let inspect=|d:&mut Device<H::Store>| -> Vec<(String,Json)> {
+        if op=="edit" || op=="writeForms" {assert_eq!(d.query("raw","alice",&json!({"messageId":"message"}),100).unwrap().data,Value::Null);}
+
         q.predicted.iter().map(|key| {
             let (table,id)=key.split_once('/').unwrap();
             let out=d.query(&format!("inspect_{table}"),"alice",&json!({"id":id}),100).unwrap();
@@ -35,21 +37,42 @@ fn predicted_lifecycle<H:Host>(h:&mut H,mut d:Device<H::Store>,e:&mut Engine,op:
         }).collect()
     };
     let pending=inspect(&mut d);
-    let hidden=pending.iter().filter(|(_,v)|v["data"].is_null() && v["complete"]==false).count();
-    assert_eq!(hidden,if op=="writeForms" {3} else {1},"retained edit / unknown reaction inputs / foreign inbox: {pending:?}");
-    if op=="edit" { assert_eq!(pending.len(),1); }
-    else {assert!(pending.iter().any(|(_,v)|!v["data"].is_null()),"readable sibling remains visible");}
+    // Derive expected identities from independent stored images, never from
+    // the filtered result or just a hidden-row count.
+    let raw:std::collections::BTreeMap<String,Value>=d.schema().tables.keys().flat_map(|table| {
+        d.store().raw_rows(table).into_iter().filter(|row|row.field("pending")==Ok(&Value::Bool(true)))
+            .map(|row|(format!("{table}/{}",row.field("id").unwrap().as_str().unwrap()),row)).collect::<Vec<_>>()
+    }).collect();
+    let physical:std::collections::BTreeSet<_>=raw.keys().cloned().collect();
+    let declared:std::collections::BTreeSet<_>=q.predicted.iter().filter(|key|raw.contains_key(*key)).cloned().collect();
+    assert_eq!(physical,declared,"manifest accounts for every stored pending image");
+    let hidden_keys:std::collections::BTreeSet<_>=pending.iter().filter(|(_,v)|v["data"].is_null()).map(|(key,_)|key.clone()).collect();
+    let expected_hidden:std::collections::BTreeSet<_>=if op=="edit" {
+        ["messages/message".to_owned()].into()
+    } else if op=="writeForms" {
+        q.predicted.iter().filter(|key|key.as_str()=="messages/message" || key.starts_with("reactions/") || key.starts_with("reactionCounts/")).cloned().collect()
+    } else {
+        raw.iter().filter(|(_,row)|row.field("readerId").is_ok_and(|value|value!=&id("alice"))).map(|(key,_)|key.clone()).collect()
+    };
+    assert_eq!(hidden_keys,expected_hidden,"{op}: {pending:?}");
+    assert_eq!(hidden_keys.len(),if op=="writeForms" {3}else{1});
+    for (key,result) in &pending {
+        if let Some(row)=raw.get(key) {
+            if !hidden_keys.contains(key) {assert_eq!(result["data"],wire::to_json(row));let table=key.split_once('/').unwrap().0;
+                let horizon=d.schema().maintain_for(table).is_some_and(|m|d.schema().tables[&m.source].sync.as_ref().is_some_and(|s|s.horizon.is_some()));
+                assert_eq!(result["complete"],!horizon,"{key}");}
+            else if op!="edit" && op!="writeForms" {assert_eq!(result["complete"],true,"definite foreign denial: {key}");}
+        }
+    }
+    if op=="edit" || op=="writeForms" {assert_eq!(d.query("raw","alice",&json!({"messageId":"message"}),100).unwrap().data,Value::Null);}
     h.close("census",d); d=h.open("census",None).unwrap();
     assert!(d.queued().unwrap()[0].predictable);
     assert_eq!(inspect(&mut d),pending);
     let from=d.state().unwrap().0;
     // A real delivered update forces replay; the receipt alone is no witness.
-    let table=if d.schema().tables.contains_key("ticks") {"ticks"} else {"posts"};
-    if table=="ticks" {execute(e,&d.backend(),"tick","alice",json!({}),vec![]);}
-    let rows=e.store().rows(table).unwrap();
-    if let Some(row)=rows.first() {e.seed([(table.into(),row.clone())]).unwrap();}
+    execute(e,&d.backend(),"tick","alice",json!({}),vec![]);
     let page=stream_page(e,"alice",from);
-    assert!(!page.events.is_empty() && page.watermark>from);
+    assert!(page.events.iter().any(|e|e.table=="ticks") && page.watermark>from);
     d.apply(&page,false).unwrap();
     assert!(d.queued().unwrap()[0].predictable);
     assert_eq!(inspect(&mut d),pending);
@@ -58,6 +81,19 @@ fn predicted_lifecycle<H:Host>(h:&mut H,mut d:Device<H::Store>,e:&mut Engine,op:
     let from=d.state().unwrap().0;
     d.apply(&stream_page(e,"alice",from),false).unwrap();
     assert!(d.queued().unwrap().is_empty());
+    if op!="edit" {
+        for (key,_) in &pending {
+            let (table,row_id)=key.split_once('/').unwrap();
+            let out=d.query(&format!("inspect_{table}"),"alice",&json!({"id":row_id}),100).unwrap();
+            if out.data!=Value::Null {
+                let server=e.store().rows(table).unwrap().into_iter().find(|r|r.field("id")==Ok(&id(row_id)));
+                // Left delivered history may retain its old body after a blind
+                // authorized server patch; it is never promoted from the overlay.
+                if key=="messages/message" {assert_eq!(out.data.field("body"),Ok(&Value::String("Old".into())));}
+                else {assert_eq!(Some(out.data),server,"settled {key}");}
+            }
+        }
+    }
     if op=="edit" {
         assert_eq!(seq,0,"server refused the departed edit");
         assert_eq!(wire::to_json(&d.query("raw","alice",&json!({"messageId":"message"}),100).unwrap().data)["body"],"Old");
@@ -97,7 +133,9 @@ fn create_room<H:Host>(mut h:H) {
 #[test] fn create_room_sqlite() {create_room(Sqlite::new("census-room"));}
 
 fn recipe_fanout<H:Host>(mut h:H,op:&str) {
-    let b=recipe::built();
+    let mut b=recipe::built();
+    let tick=snapback4_lang::compile(&[("schema.q".into(),TICK.into())]);
+    b.schema.tables.extend(tick.schema.tables);b.schema.operations.extend(tick.schema.operations);b.programs.extend(tick.programs);
     let backend=Backend{generation:1,schema:b.schema,programs:b.programs.into_iter().map(|p|p.program).collect()};
     let mut e=Engine::memory(backend.schema.clone(),backend.programs.clone()).unwrap();
     for who in ["alice","bob"] {execute(&mut e,&backend,"social.register",who,json!({}),vec![]);}
@@ -157,7 +195,7 @@ retained_cases!(chat_edit_memory,chat_edit_sqlite,CHAT,false,false);
 retained_cases!(write_forms_memory,write_forms_sqlite,writes_card(),true,true);
 
 fn standalone<H:Host>(mut h:H,op:&str) {
-    let (mut e,b)=compile(&snapback4_lang::recipe::following("", "").unwrap());
+    let (mut e,b)=compile(&format!("{}\n{TICK}",snapback4_lang::recipe::following("", "").unwrap()));
     for who in ["alice","bob"] {execute(&mut e,&b,"register",who,json!({}),vec![]);}
     execute(&mut e,&b,"follow","bob",json!({"authorId":"alice"}),vec![]);
     execute(&mut e,&b,"createPost","bob",json!({"postId":"original"}),vec![]);
@@ -171,7 +209,9 @@ fn standalone<H:Host>(mut h:H,op:&str) {
 #[test] fn standalone_repost_sqlite() {standalone(Sqlite::new("standalone-repost"),"repost");}
 
 fn bridge<H:Host>(mut h:H,op:&str) {
-    let bound=super::census::installed_bridge();
+    let mut bound=super::census::installed_bridge();
+    let tick=snapback4_lang::compile(&[("schema.q".into(),TICK.into())]);
+    bound.schema.tables.extend(tick.schema.tables);bound.schema.operations.extend(tick.schema.operations);bound.programs.extend(tick.programs);
     let b=Backend {generation:1,schema:bound.schema,programs:bound.programs.into_iter().map(|p|p.program).collect()};
     let mut e=Engine::memory(b.schema.clone(),b.programs.clone()).unwrap();
     for who in ["alice","bob"] {execute(&mut e,&b,"social.saveProfile",who,json!({"name":who}),vec![]);}

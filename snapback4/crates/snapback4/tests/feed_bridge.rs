@@ -42,7 +42,6 @@ mutation repostExisting(repostId: reposts):
 fn manual() -> String {
     snapback4_lang::guide::quarry(include_str!("../../snapback4-lang/src/recipe/ADOPTION.md")).into_iter()
         .find(|s| s.starts_with("-- Existing installed feed module; not a new application starter\n")).unwrap()
-        .replace("  name: text <=100", "  name: text <=100\n  immutable principal")
 }
 fn tables() -> String { manual().split_once("mutation saveProfile").unwrap().0.to_owned() }
 fn mapping() -> Mapping { Mapping::parse(MAPPINGS[0], MAPPINGS[1], MAPPINGS[2], MAPPINGS[3]).unwrap() }

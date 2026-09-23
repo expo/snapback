@@ -175,14 +175,22 @@ pub fn checkpoint(host: &mut Memory, name: &str, device: &Device<MemoryStore>) {
 }
 
 /// Inspect persisted acquisition metadata without changing device API.
-pub trait BoundaryMetadata: DeviceStore { fn boundary_entries(&self) -> Vec<(String, String)>; }
+pub trait BoundaryMetadata: DeviceStore {
+    fn boundary_entries(&self) -> Vec<(String, String)>;
+    fn raw_rows(&self, table: &str) -> Vec<Value>;
+}
 impl BoundaryMetadata for snapback4_core::store::Store {
+    fn raw_rows(&self, table: &str) -> Vec<Value> { self.rows(table).unwrap() }
     fn boundary_entries(&self) -> Vec<(String, String)> {
         self.conn().prepare("SELECT key, value FROM _meta WHERE key LIKE 'device:acquisition-boundaries:%' ORDER BY key").unwrap()
             .query_map([], |r| Ok((r.get(0)?, r.get(1)?))).unwrap().collect::<Result<_, _>>().unwrap()
     }
 }
 impl BoundaryMetadata for MemoryStore {
+    fn raw_rows(&self, table: &str) -> Vec<Value> {
+        self.export().into_iter().filter(|c| c.s == 'r' && serde_json::from_str::<Vec<String>>(&c.k).unwrap()[0] == table)
+            .map(|c| serde_json::from_str(&c.v.unwrap()).unwrap()).collect()
+    }
     fn boundary_entries(&self) -> Vec<(String, String)> {
         self.export().into_iter().filter(|c| c.s == 'm' && c.k.starts_with("device:acquisition-boundaries:")).map(|c| (c.k, c.v.unwrap())).collect()
     }

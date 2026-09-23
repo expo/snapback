@@ -1,7 +1,7 @@
 //! The interpreter on a device (LLP 2000.000 §7.2, §9): the same programs
-//! the server runs, over the rows the device holds — its partition — with
+//! the server runs, over the rows the device holds — its partition — where
 //! delivered rows are readable as held; provisional images need current read
-//! authority. Hidden provisional images, unknown online-only facts and reads
+//! authority. Unknown authorization, unknown online-only facts and reads
 //! past a horizon make the result `complete: false`. A mutation
 //! predicts: its rows are written to the device's store for the host to
 //! mark pending, and the server judges the write when it arrives.
@@ -88,6 +88,10 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
         runner.check_final_exists()?;
         Ok(value)
     });
+    // An actual resource refusal is not a missing-authority diagnosis.
+    if matches!(&result, Err(RuntimeError::Bound { .. })) && !runner.charged_untaken {
+        return Err(result.unwrap_err());
+    }
     if runner.beyond_horizon {
         return Err(RuntimeError::Prediction(runner.missing_fact.clone().unwrap_or_else(|| format!("{}: this device cannot establish a read needed to predict", program.name))));
     }

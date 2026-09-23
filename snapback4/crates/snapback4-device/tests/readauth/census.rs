@@ -30,7 +30,7 @@ fn inspect(label: &str, b: &Bound, seen: &mut BTreeSet<String>, private: &mut BT
             if effect=="delete" || t.rules.read.is_uniformly_readable() {continue;}
             private.insert(format!("{}/{table}/{effect}",p.name));
             let rule=serde_json::to_string(&t.rules.read).unwrap();
-            seen.insert(format!("{label}:{} | {table}/{effect} | {rule} | read-time; unknown hides",p.name));
+            seen.insert(format!("{label}:{} | {table}/{effect} | {rule} | read rule",p.name));
         }
     }
 }
@@ -64,7 +64,7 @@ fn authoring_census() {
     }
     collect("recipe/standalone",vec![("schema.q".into(),snapback4_lang::recipe::following("", "").unwrap())],&mut seen,&mut private);
     inspect("recipe/generated-bridge",&installed_bridge(),&mut seen,&mut private);
-    let occurrences=seen.iter().filter(|s|!s.contains(" | read-time;")).count();
+    let occurrences=seen.iter().filter(|s|!s.ends_with(" | read rule")).count();
     println!("CENSUS {occurrences} mutation occurrences; {} distinct private write sites: {private:#?}",private.len());
     for item in &seen {println!("CENSUS_ITEM {item}");}
     let expected: BTreeSet<String>=include_str!("census.txt").lines().map(str::to_owned).collect();
@@ -76,8 +76,7 @@ fn authoring_census() {
 pub(super) fn installed_bridge() -> Bound {
     let original = guide::quarry(include_str!("../../../snapback4-lang/src/recipe/ADOPTION.md")).into_iter()
         .find(|b| b.starts_with("-- Existing installed feed module;")).unwrap();
-    assert_eq!(original.matches("  name: text <=100").count(),1);
-    let app=original.replace("  name: text <=100", "  name: text <=100\n  immutable principal");
+    let app=original;
     let mut sources=vec![("feed.q".into(),snapback4_lang::recipe::following("feed","feed").unwrap()),("social.q".into(),app)];
     let base=snapback4_lang::compile(&sources);
     assert!(base.diagnostics.is_empty(),"{:?}",base.diagnostics);

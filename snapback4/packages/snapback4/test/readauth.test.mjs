@@ -1,6 +1,7 @@
 // Real SDK watches, actual wasm/memory and native/SQLite devices. No mocked interpreter.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {isDeepStrictEqual} from 'node:util';
 import {spawn} from 'node:child_process';
 import {once} from 'node:events';
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
@@ -21,25 +22,30 @@ async function until(f,message) {
   for(let i=0;i<400;i++) {if(await f())return;await sleep(25);}
   assert.fail(message);
 }
-function oldReport(host,persist,name,dir) {
-  // Old on-disk shape, built without invoking either predictor or replay.
-  const image=JSON.stringify({Row:{id:{Id:'report'},writer:{Id:'dev:alice'},reader:{Id:'moderator'},body:{String:'old client'},pending:{Bool:true}}});
-  const entry=JSON.stringify({id:'legacy',seq:1,op:'submit',args:{reader:'moderator'},viewer:'dev:alice',now:100,predictable:true,new_ids:[],predicted:['reports/report']});
-  if(host==='wasm-memory')return persist.save(name,[{s:'r',k:'["reports","report"]',v:image},{s:'b',k:'["reports","report"]',v:'null'},{s:'o',k:'legacy',v:entry}]);
-  const db=new DatabaseSync(join(dir,`${name}.sqlite`));
+async function oldReport(host,persist,name,dir) {
+  // Both hosts load identical old-client rows and outbox records. Memory
+  // rebuilds its indexes on load; SQLite persists the corresponding keys.
+  const rows=[['report','moderator','old client','submit',{reader:'moderator'}],['own','dev:alice','old readable','legacyOwn',{}]];
+  const changes=[];
+  const db=host==='native-sqlite'?new DatabaseSync(join(dir,`${name}.sqlite`)):null;
   try {
+    db?.exec('BEGIN');
     const number=n=>db.prepare('SELECT num FROM _catalog WHERE name=?').get(n).num;
-    // These fixture keys contain no NUL: Id's tag is 6 and its terminator 0,0.
     const key=(...ids)=>Buffer.concat(ids.map(id=>Buffer.concat([Buffer.from([6]),Buffer.from(id),Buffer.from([0,0])])));
-    db.exec('BEGIN');
-    db.prepare('INSERT INTO r(t,id,data) VALUES (?,?,?)').run(number('reports'),'report',image);
-    for(const [index,values] of [['byId',['report']],['byReader',['moderator','report']]]) {
-      db.prepare('INSERT INTO i(ti,k,id) VALUES (?,?,?)').run(number(`reports.${index}`),key(...values,'report'),'report');
+    for(const [n,[id,reader,body,op,args]] of rows.entries()) {
+      const image=JSON.stringify({Row:{id:{Id:id},writer:{Id:'dev:alice'},reader:{Id:reader},body:{String:body},pending:{Bool:true}}});
+      const entry=JSON.stringify({id:`legacy-${id}`,seq:n+1,op,args,viewer:'dev:alice',now:100,predictable:true,new_ids:[],predicted:[`reports/${id}`]});
+      if(!db)changes.push({s:'r',k:JSON.stringify(['reports',id]),v:image},{s:'b',k:JSON.stringify(['reports',id]),v:'null'},{s:'o',k:`legacy-${id}`,v:entry});
+      else {
+        db.prepare('INSERT INTO r(t,id,data) VALUES (?,?,?)').run(number('reports'),id,image);
+        for(const [index,values] of [['byId',[id]],['byReader',[reader,id]]])db.prepare('INSERT INTO i(ti,k,id) VALUES (?,?,?)').run(number(`reports.${index}`),key(...values,id),id);
+        db.prepare('INSERT INTO _device_base(t,id,data) VALUES (?,?,NULL)').run('reports',id);
+        db.prepare('INSERT INTO _device_outbox(seq,id,entry) VALUES (?,?,?)').run(n+1,`legacy-${id}`,entry);
+      }
     }
-    db.prepare('INSERT INTO _device_base(t,id,data) VALUES (?,?,NULL)').run('reports','report');
-    db.prepare('INSERT INTO _device_outbox(seq,id,entry) VALUES (1,?,?)').run('legacy',entry);
-    db.exec('COMMIT');
-  } finally {db.close();}
+    db?.exec('COMMIT');
+    if(!db)await persist.save(name,changes);
+  } finally {db?.close();}
 }
 for(const host of ['wasm-memory','native-sqlite'])for(const mode of ['revocation','retained','upgrade','report','grant']) {
   test(`${host}: ${mode} filters every watched read`,{timeout:90000},async t=>{
@@ -47,8 +53,8 @@ for(const host of ['wasm-memory','native-sqlite'])for(const mode of ['revocation
     mkdirSync(join(directory,'snapback'));
     const reporting=mode==='upgrade'||mode==='report';
     let source=fixture(reporting?'reports.q':'authority.q');
-    if(mode==='retained')source=source.replace('read <- .principal = viewer\n  insert','read <- exists seats[.groupId, viewer]\n  insert')
-      .replace('  sync to .principal\ntable notes','  sync to seats[.groupId] by .principal\n  retain delivered-history\ntable notes')+'\nmutation leave():\n  delete seats[\'seat\']\n';
+    if(mode==='retained')source=fixture('retained.q');
+    if(mode==='upgrade')source+="\nmutation legacyOwn():\n  insert reports { id: 'own', writer: viewer, reader: viewer, body: 'old readable' }\n";
     writeFileSync(join(directory,'snapback/schema.q'),'use personas alice\n'+source);
     const server=spawn(binary,['dev','--port','0','--memory','--no-watch','--hold-schedules'],{cwd:directory,stdio:['ignore','pipe','pipe']});
     const exited=once(server,'exit');let log='',url,client,core,name,offline=false;
@@ -83,26 +89,52 @@ for(const host of ['wasm-memory','native-sqlite'])for(const mode of ['revocation
       await until(()=>Object.hasOwn(watch.getSnapshot(),'data'),`watch ${op} never answered`);
     }
     const mutate=async(op,args={})=>{const result=await client.mutate({kind:'mutation',name:op},args);assert.equal(result.state,'pending',JSON.stringify(result));const queue=(await core.call({op:'queued'})).ok;assert.equal(queue.at(-1).predictable,true,JSON.stringify(queue));};
+    const own={id:'own',writer:'dev:alice',reader:'dev:alice',body:'old readable',pending:true};
+    const note={id:'note',groupId:'group',owner:'dev:alice',body:'private',pending:true};
+    const check={id:'check',groupId:'group',pending:true};
+    async function verify(visible) {
+      for(let i=0;i<selectors.length;i++) {
+        const [op,args,empty]=selectors[i];
+        let data=empty,complete=true;
+        if(reporting) {
+          if(mode==='upgrade' && op==='merged')data=[own];
+        } else if(op==='ruleProbe')data=check; // raw pending note witnesses it
+        else if(visible)data=op==='point'?note:op==='probe'?true:op==='total'?1:[note];
+        else if(mode==='retained')complete=false;
+        const matches=r=>r&&isDeepStrictEqual(r.data,data)&&r.complete===complete&&!r.error&&!r.refusal;
+        await until(()=>matches(watches[i]?.getSnapshot()),`${op} watch mismatch: ${JSON.stringify(watches[i]?.getSnapshot())}; expected ${JSON.stringify(data)}/${complete}`);
+        const result=await client.query({kind:'query',name:op},args);
+        assert.deepEqual(result.data,data,op);assert.equal(result.complete,complete,op);
+        assert.ok(!result.error&&!result.refusal,JSON.stringify(result));
+      }
+      const queue=(await core.call({op:'queued'})).ok;
+      assert.ok(queue.length>0 && queue.every(q=>q.predictable),JSON.stringify(queue));
+      if(mode==='upgrade') {
+        assert.deepEqual(queue.map(q=>q.id),['legacy-report','legacy-own']);
+        assert.deepEqual(queue.map(q=>q.predicted),[['reports/report'],['reports/own']]);
+        // Prove that the planted hidden row is a point AND scan candidate,
+        // independently of Alice's deny verdict, after each load and replay.
+        for(const [name,args] of [['point',{id:'report'}],['scan',{reader:'moderator'}]]) {
+          const r=(await core.call({op:'query',name,viewer:'moderator',args,now:100})).ok;
+          assert.equal((Array.isArray(r.data)?r.data[0]:r.data).id,'report');assert.equal(r.complete,true);
+        }
+        for(const [name,args,expected] of [['point',{id:'own'},own],['scan',{reader:'dev:alice'},[own]],['page',{reader:'dev:alice',c:null},[own]],['total',{reader:'dev:alice'},1],['probe',{id:'own'},true]]) {
+          const r=await client.query({kind:'query',name},args);assert.deepEqual(r.data,expected);assert.equal(r.complete,true);
+        }
+      }
+    }
+    let visible=false;
     if(mode==='revocation') {
-      await mutate('publish');
-      await until(()=>watches[0].getSnapshot().data?.id==='note','published note did not render');
+      await mutate('publish');await verify(true);
       await mutate('revoke');
     } else if(mode==='retained'||mode==='grant')await mutate('noteOnly');
     else if(mode==='report')await mutate('submit',{reader:'moderator'});
-    async function hidden() {
-      for(let i=0;i<selectors.length;i++) {
-        const [op,args,empty]=selectors[i];
-        await until(()=>{const r=watches[i]?.getSnapshot();return r&&JSON.stringify(r.data)===JSON.stringify(empty)&&r.complete===false;},`${op} watch leaked or certified absence: ${JSON.stringify(watches[i]?.getSnapshot())}`);
-        const result=await client.query({kind:'query',name:op},args);
-        assert.deepEqual(result.data,empty,op);assert.equal(result.complete,false,op);
-      }
-    }
-    await hidden();
-    if(mode==='grant') {await mutate('grant');await until(()=>watches[0].getSnapshot().data?.id==='note','later grant did not refresh dependent watch');return;}
+    await verify(false);
+    if(mode==='grant') {await mutate('grant');visible=true;await verify(true);}
     for(const w of watches.splice(0))w.close();
     await client.close();client=await createLocalClient(options);
     for(const [op,args] of selectors){const w=client.observe({kind:'query',name:op},args);w.subscribe(()=>{});watches.push(w);}
-    await hidden();
+    await verify(visible);
     // A nonempty delivered commit triggers replay; reopen offline to inspect
     // watches without a server fallback answering for the device.
     const before=(await core.call({op:'state'})).ok.watermark;
@@ -111,7 +143,7 @@ for(const host of ['wasm-memory','native-sqlite'])for(const mode of ['revocation
     assert.ok((await core.call({op:'state'})).ok.watermark>before);
     for(const w of watches.splice(0))w.close();await client.close();client=await createLocalClient(options);
     for(const [op,args] of selectors){const w=client.observe({kind:'query',name:op},args);w.subscribe(()=>{});watches.push(w);}
-    await hidden();
+    await verify(visible);
     assert.ok((await core.call({op:'queued'})).ok.every(q=>q.predictable));
   });
 }

@@ -89,6 +89,8 @@ fn lifecycle<H: Host>(mut host: H, op: &str, predicts: bool, survives: bool) {
 
 #[test] fn grant_later_memory() { lifecycle(Memory::new(),"grantLater",true,true); }
 #[test] fn grant_later_sqlite() { lifecycle(Sqlite::new("grant-later"),"grantLater",true,true); }
+#[test] fn grant_once_memory() { lifecycle(Memory::new(),"grantOnce",true,true); }
+#[test] fn grant_once_sqlite() { lifecycle(Sqlite::new("grant-once"),"grantOnce",true,true); }
 #[test] fn revoke_later_memory() { lifecycle(Memory::new(),"revokeLater",true,false); }
 #[test] fn revoke_later_sqlite() { lifecycle(Sqlite::new("revoke-later"),"revokeLater",true,false); }
 #[test] fn write_then_delete_memory() { lifecycle(Memory::new(),"transient",true,false); }
@@ -96,7 +98,7 @@ fn lifecycle<H: Host>(mut host: H, op: &str, predicts: bool, survives: bool) {
 
 // A local query's provenance comes from its host; exercise the same query
 // against both underlying stores with a zero/one-probe ceiling.
-struct Overlay<'a>(&'a dyn Rows);
+pub(super) struct Overlay<'a>(pub(super) &'a dyn Rows);
 impl Rows for Overlay<'_> {
     fn provisional_row(&self,_:&str,_:&Value)->Result<bool,RuntimeError>{Ok(true)}
     fn get(&self,t:&str,id:&str)->Result<Option<Value>,RuntimeError>{self.0.get(t,id)}
@@ -121,7 +123,12 @@ fn probes<S:DeviceStore>(mut store:S) {
             if budget==0 {
                 assert!(!out.complete && out.capped_at.is_some(),"{name}: {out:?}");
                 assert!(matches!(out.data,Value::Null|Value::Bool(false)|Value::Int(0)) || out.data.as_array().is_ok_and(|a|a.is_empty()),"{name}: {out:?}");
-            } else {assert!(!matches!(out.data,Value::Null|Value::Bool(false)),"{name}: {out:?}");}
+            } else {
+                let note=tx.get("notes","note").unwrap().unwrap();
+                let expected=match name {"point"=>note,"probe"=>Value::Bool(true),"total"=>Value::Int(1),_=>Value::Array(vec![note])};
+                assert_eq!(out.data,expected,"{name}: {out:?}");
+                assert!(out.complete && out.cut.is_none() && out.capped_at.is_none(),"{name}: {out:?}");
+            }
         }
     }
     // Delivered control pays no read-rule probes, even at a zero ceiling.

@@ -56,8 +56,6 @@ pub struct Runner<'a> {
     pub(crate) inserted: Vec<(String, Value)>,
     /// Images written during this execution, including reads inside prediction.
     pub(super) provisional_rows: BTreeSet<(String, String)>,
-    /// Recursion guard for provisional witnesses that depend on one another.
-    pub(super) authorizing_rows: BTreeSet<(String, String)>,
     /// Tables read and tables written, for live subscriptions and commits.
     pub(crate) read_tables: BTreeSet<String>,
     pub(crate) written_tables: BTreeSet<String>,
@@ -150,7 +148,6 @@ impl<'a> Runner<'a> {
             created_rows: BTreeMap::new(),
             inserted: Vec::new(),
             provisional_rows: BTreeSet::new(),
-            authorizing_rows: BTreeSet::new(),
             read_tables: BTreeSet::new(),
             written_tables: BTreeSet::new(),
             rows_written: 0,

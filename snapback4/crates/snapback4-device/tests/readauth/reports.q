@@ -40,10 +40,25 @@ query scan(reader: principal):
   return reports[reader] first 100 by byReader
 query merged():
   return merge reports first 100 by byReader:
-    ['alice']
+    [viewer]
     ['moderator']
 query probe(id: reports):
   return exists reports[id]
 query total(reader: principal):
   rows = reports[reader] first 100 by byReader
+  return count(rows)
+
+mutation mixedAhead():
+  insert reports { id: 'a-hidden', writer: viewer, reader: 'moderator', body: 'private' }
+  insert reports { id: 'z-visible', writer: viewer, reader: viewer, body: 'visible' }
+query wide():
+  return reports[] first 1 by byId
+query widePage(c: cursor ?):
+  return reports[] after c first 1 by byId
+query wideMerge():
+  return merge reports first 1 by byId:
+    []
+    []
+query wideCount():
+  rows = reports[] first 100 by byId
   return count(rows)

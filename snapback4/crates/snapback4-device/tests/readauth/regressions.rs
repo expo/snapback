@@ -13,16 +13,24 @@ fn start<H:Host>(h:&mut H, e:&mut Engine, b:snapback4_device::device::Backend) -
     for (n,p) in snapshot_pages(e,"alice",100).iter().enumerate() { d.apply(p,n==0).unwrap(); }
     d
 }
-pub(super) fn reads<S:DeviceStore>(d:&mut Device<S>, visible:bool) {
-    for (op,empty) in [("point",json!(null)),("scan",json!([])),("merged",json!([])),("page",json!([])),("total",json!(0)),("probe",json!(false)),("ruleProbe",json!(null))] {
-        let out=d.query(op,"alice",&if op=="page" {json!({"c":null})} else {json!({})},100).unwrap();
-        let data=wire::to_json(&out.data);
-        if visible {
-            assert_ne!(data,empty,"{op}: {out:?}");
-        } else {
-            assert_eq!(data,empty,"{op}: hidden overlay is absent");
-            assert!(!out.complete,"{op}: hidden overlay must not certify absence");
-        }
+pub(super) fn reads<S:BoundaryMetadata>(d:&mut Device<S>, visible:bool, unknown:bool) {
+    let note=d.store().raw_rows("notes").into_iter().find(|row|row.field("id")==Ok(&id("note"))).expect("hidden is not discarded");
+    assert_eq!(note.field("pending"),Ok(&Value::Bool(true)));
+    let note=wire::to_json(&note);
+    let check=json!({"id":"check","groupId":"group","pending":true});
+    for (op,wanted) in [("point",if visible {note.clone()} else {json!(null)}),
+        ("scan",if visible {json!([note])} else {json!([])}),
+        ("merged",if visible {json!([note])} else {json!([])}),
+        ("page",if visible {json!([note])} else {json!([])}),
+        ("total",json!(usize::from(visible))), ("probe",json!(visible)),
+        // The pending note is a raw witness even when its own rule denies.
+        ("ruleProbe",check)] {
+        let (out,missing,_)=d.query_with_coverage(op,"alice",&if op=="page" {json!({"c":null})} else {json!({})},100);
+        let out=out.unwrap();
+        assert_eq!(wire::to_json(&out.data),wanted,"{op}: {out:?}");
+        assert_eq!(missing,unknown && op!="ruleProbe","{op}: {out:?}");
+        assert_eq!(out.complete,!(unknown && op!="ruleProbe"),"{op}: {out:?}");
+        assert!(out.cut.is_none());
     }
 }
 fn replay<S:DeviceStore>(e:&mut Engine,d:&mut Device<S>) {
@@ -39,16 +47,19 @@ fn two_mutation<H:Host>(mut h:H) {
     let (mut e,b)=compile(SOURCE);
     let mut d=start(&mut h,&mut e,b);
     assert!(enqueue(&mut d,"publish").predictable);
-    reads(&mut d,true);
+    reads(&mut d,true,false);
     assert!(enqueue(&mut d,"revoke").predictable);
     assert_eq!(d.query("grantRow","alice",&json!({}),100).unwrap().data,Value::Null);
-    reads(&mut d,false);
+    reads(&mut d,false,false);
+    let error=d.admit(serde_json::from_value(json!({"id":"read-later","seq":3,"op":"readLater","viewer":"alice","args":{},"now":100,"predictable":true})).unwrap()).unwrap_err();
+    assert_eq!(error.code(),"HIDDEN");
+    assert!(d.store().raw_rows("ticks").is_empty());
     h.close("astra",d); let mut d=h.open("astra",None).unwrap();
     assert_eq!(d.queued().unwrap().len(),2);
-    reads(&mut d,false);
+    reads(&mut d,false,false);
     replay(&mut e,&mut d);
     assert!(d.queued().unwrap().iter().all(|q|q.predictable));
-    reads(&mut d,false);
+    reads(&mut d,false,false);
 }
 #[test] fn two_mutation_revocation_memory() {two_mutation(Memory::new());}
 #[test] fn two_mutation_revocation_sqlite() {two_mutation(Sqlite::new("two-mutation"));}
@@ -59,18 +70,17 @@ fn later_grant<H:Host>(mut h:H) {
     seed_group(&mut e,&b);
     let mut d=start(&mut h,&mut e,b);
     assert!(enqueue(&mut d,"noteOnly").predictable);
-    reads(&mut d,false);
+    reads(&mut d,false,false);
     assert!(enqueue(&mut d,"grant").predictable);
-    reads(&mut d,true);
+    reads(&mut d,true,false);
     h.close("astra",d); let mut d=h.open("astra",None).unwrap();
-    reads(&mut d,true); replay(&mut e,&mut d); reads(&mut d,true);
+    reads(&mut d,true,false); replay(&mut e,&mut d); reads(&mut d,true,false);
 }
 #[test] fn later_grant_memory() {later_grant(Memory::new());}
 #[test] fn later_grant_sqlite() {later_grant(Sqlite::new("later-grant"));}
 
 fn retained_grant<H:Host>(mut h:H) {
-    let source=SOURCE.replacen("read <- .principal = viewer\n  insert", "read <- exists seats[.groupId, viewer]\n  insert",1)
-        .replace("  sync to .principal\ntable notes", "  sync to seats[.groupId] by .principal\n  retain delivered-history\ntable notes")+"\nmutation leave():\n  delete seats['seat']\n";
+    let source=include_str!("retained.q");
     let (mut e,b)=compile(&source);
     for (table,row) in [("groups",json!({"id":"group"})),("seats",json!({"id":"seat","groupId":"group","principal":"alice"})),("grants",json!({"id":"grant","groupId":"group","principal":"alice"}))] {
         e.seed([(table.into(),wire::row_from_json(&b.schema.tables[table],&row).unwrap())]).unwrap();
@@ -84,9 +94,9 @@ fn retained_grant<H:Host>(mut h:H) {
     assert!(d.store().meta("device:history:groups").unwrap().unwrap().contains("Left"));
     assert_ne!(d.query("grantRow","alice",&json!({}),100).unwrap().data,Value::Null,"delivered retained control");
     assert!(enqueue(&mut d,"noteOnly").predictable);
-    reads(&mut d,false);
+    assert_eq!(d.store().raw_rows("grants").len(),1,"group replacement never cascades the retained witness"); reads(&mut d,false,true);
     h.close("astra",d); let mut d=h.open("astra",None).unwrap();
-    reads(&mut d,false); replay(&mut e,&mut d); reads(&mut d,false);
+    assert_eq!(d.store().raw_rows("grants").len(),1,"group replacement never cascades the retained witness"); reads(&mut d,false,true); replay(&mut e,&mut d); assert_eq!(d.store().raw_rows("grants").len(),1,"group replacement never cascades the retained witness"); reads(&mut d,false,true);
 }
 #[test] fn retained_grant_memory() {retained_grant(Memory::new());}
 #[test] fn retained_grant_sqlite() {retained_grant(Sqlite::new("retained-grant"));}
@@ -94,9 +104,11 @@ fn retained_grant<H:Host>(mut h:H) {
 fn own_read<H:Host>(mut h:H) {
     let (mut e,b)=compile(SOURCE);
     let mut d=start(&mut h,&mut e,b);
-    let q=enqueue(&mut d,"readOwnHidden");
-    assert!(!q.predictable && q.predicted.is_empty(),"an unknown input queues, unlike an unreadable output");
-    assert_eq!(d.query("point","alice",&json!({}),100).unwrap().data,Value::Null);
+    let error=d.admit(serde_json::from_value(json!({"id":"own-read","seq":1,"op":"readOwnHidden","viewer":"alice","args":{},"now":100,"predictable":true})).unwrap()).unwrap_err();
+    assert_eq!(error.code(),"HIDDEN","definite denial is an ordinary require refusal");
+    assert!(d.queued().unwrap().is_empty());
+    assert!(d.store().raw_rows("notes").is_empty());
+    assert!(d.store().raw_rows("groups").is_empty());
 }
 #[test] fn hidden_inside_prediction_memory() {own_read(Memory::new());}
 #[test] fn hidden_inside_prediction_sqlite() {own_read(Sqlite::new("own-read"));}
@@ -125,18 +137,18 @@ fn legacy<S:DeviceStore>(mut store:S,b:&snapback4_device::device::Backend) -> De
     let mut store=snapback4_device::memory::MemoryStore::new();
     store.load(h.held("astra").into_iter().map(|((s,k),v)|snapback4_device::memory::Change{s,k,v})).unwrap();
     let mut d=legacy(store,&b);
-    assert_eq!(d.queued().unwrap()[0].id,"legacy"); reads(&mut d,false);
-    h.close("astra",d); let mut d=h.open("astra",None).unwrap(); reads(&mut d,false);
-    replay(&mut e,&mut d); reads(&mut d,false);
+    assert_eq!(d.queued().unwrap()[0].id,"legacy"); reads(&mut d,false,false);
+    h.close("astra",d); let mut d=h.open("astra",None).unwrap(); reads(&mut d,false,false);
+    replay(&mut e,&mut d); reads(&mut d,false,false);
 }
 #[test] fn offline_upgrade_sqlite() {
     let (mut e,b)=compile(SOURCE); let mut h=Sqlite::new("upgrade");
     seed_group(&mut e,&b);
     let d=start(&mut h,&mut e,b.clone()); h.close("astra",d);
     let mut d=legacy(snapback4_core::Store::open(&h.path("astra")).unwrap(),&b);
-    assert_eq!(d.queued().unwrap()[0].id,"legacy"); reads(&mut d,false);
-    h.close("astra",d); let mut d=h.open("astra",None).unwrap(); reads(&mut d,false);
-    replay(&mut e,&mut d); reads(&mut d,false);
+    assert_eq!(d.queued().unwrap()[0].id,"legacy"); reads(&mut d,false,false);
+    h.close("astra",d); let mut d=h.open("astra",None).unwrap(); reads(&mut d,false,false);
+    replay(&mut e,&mut d); reads(&mut d,false,false);
 }
 
 fn old_report<S:DeviceStore>(mut store:S,b:&snapback4_device::device::Backend) -> Device<S> {
@@ -145,15 +157,21 @@ fn old_report<S:DeviceStore>(mut store:S,b:&snapback4_device::device::Backend) -
     if let Value::Row(fields)=&mut row {fields.insert("pending".into(),Value::Bool(true));}
     tx.put("reports",&b.schema.tables["reports"],&row,None).unwrap();
     tx.base_remember("reports","report",None).unwrap();
-    let q:Queued=serde_json::from_value(json!({"id":"old-report","seq":1,"op":"submit","viewer":"alice","args":{"reader":"moderator"},"now":100,"predictable":true,"predicted":["reports/report"]})).unwrap();
+    let mut own=wire::row_from_json(&b.schema.tables["reports"],&json!({"id":"own","writer":"alice","reader":"alice","body":"own"})).unwrap();
+    if let Value::Row(fields)=&mut own {fields.insert("pending".into(),Value::Bool(true));}
+    tx.put("reports",&b.schema.tables["reports"],&own,None).unwrap();
+    tx.base_remember("reports","own",None).unwrap();
+    let q:Queued=serde_json::from_value(json!({"id":"old-report","seq":1,"op":"mixed","viewer":"alice","args":{},"now":100,"predictable":true,"predicted":["reports/report","reports/own"]})).unwrap();
     tx.outbox_insert(1,"old-report",&serde_json::to_string(&q).unwrap()).unwrap();
     tx.commit().unwrap();
     Device::open_store(store,None).unwrap()
 }
-fn check_old_report<S:DeviceStore>(d:&mut Device<S>) {
+fn check_old_report<S:BoundaryMetadata>(d:&mut Device<S>) {
     assert_eq!(d.queued().unwrap()[0].id,"old-report");
-    assert_eq!(observations(d),vec![json!(null),json!(null),json!([]),json!([]),json!([]),json!(false),json!(false),json!(0),json!(0),json!([]),json!([])]);
-    assert!(!d.query("point","alice",&json!({"id":"report"}),100).unwrap().complete);
+    assert_eq!(d.store().raw_rows("reports").len(),2);
+    let own=json!({"id":"own","writer":"alice","reader":"alice","body":"own","pending":true});
+    assert_eq!(observations(d),vec![json!(null),own.clone(),json!([own]),json!([]),json!([own]),json!(false),json!(true),json!(1),json!(0),json!([own]),json!([])]);
+    assert!(d.query("point","alice",&json!({"id":"report"}),100).unwrap().complete);
 }
 #[test] fn offline_moderation_upgrade_memory() {
     let (mut e,b)=compile(super::SOURCE); let mut h=Memory::new();
@@ -162,10 +180,12 @@ fn check_old_report<S:DeviceStore>(d:&mut Device<S>) {
     store.load(h.held("astra").into_iter().map(|((s,k),v)|snapback4_device::memory::Change{s,k,v})).unwrap();
     let mut d=old_report(store,&b); check_old_report(&mut d);
     h.close("astra",d); let mut d=h.open("astra",None).unwrap(); check_old_report(&mut d);
+    replay(&mut e,&mut d); check_old_report(&mut d);
 }
 #[test] fn offline_moderation_upgrade_sqlite() {
     let (mut e,b)=compile(super::SOURCE); let mut h=Sqlite::new("old-report");
     let d=start(&mut h,&mut e,b.clone()); h.close("astra",d);
     let mut d=old_report(snapback4_core::Store::open(&h.path("astra")).unwrap(),&b); check_old_report(&mut d);
     h.close("astra",d); let mut d=h.open("astra",None).unwrap(); check_old_report(&mut d);
+    replay(&mut e,&mut d); check_old_report(&mut d);
 }

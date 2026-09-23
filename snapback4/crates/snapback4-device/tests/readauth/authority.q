@@ -85,3 +85,11 @@ query grantRow():
   return grants['grant']
 query ticksRead():
   return ticks[] first 100 by byId
+
+query group():
+  return groups['group']
+mutation readLater():
+  require exists notes['note'] else HIDDEN
+  rows = notes['group'] first 100 by byGroup
+  require count(rows) = 1 else HIDDEN
+  insert ticks { id: 'read-succeeded' }

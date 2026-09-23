@@ -26,6 +26,7 @@ mod pages;
 mod shaping;
 pub use pages::returned_page_sites;
 pub mod read;
+mod read_auth;
 pub mod rules;
 pub mod runner;
 pub mod validate;

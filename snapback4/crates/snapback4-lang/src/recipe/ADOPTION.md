@@ -151,6 +151,7 @@ table reposts:
 table profiles:
   principal: principal
   name: text <=100
+  immutable principal
   unique byPrincipal: principal
   cap 32000
   public 'profile names are public'
@@ -271,9 +272,11 @@ with different privacy. Prediction is provisional: server caps and concurrent
 changes can still refuse a queued write.
 
 The standalone recipe's `createPost`/`repost` and installed generated-bridge
-calls to `feedAppPublish`/`feedAppRepost` have the same private-fan-out queue
-behavior. Their source event and readable copies roll back with the foreign
-copy; the server performs the whole mutation on reconnect.
+calls to `feedAppPublish`/`feedAppRepost` predict the whole ordinary fan-out,
+including foreign private copies. Reads hide copies whose `readerId = viewer`
+rule fails; the source event and readable copies stay predicted. Settlement
+commits or removes the overlay. The declared timeline separately skips foreign
+engine-owned copies before writing them.
 
 | Operation in the wired example | Offline behavior after acquisition |
 |---|---|

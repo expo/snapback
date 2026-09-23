@@ -39,16 +39,19 @@ that every call produces a predicted row. Native reads also need their module.
 Every device read authorizes a provisional row with its table's read rule for
 the device principal, against all pending predictions layered over delivered
 rows. This includes reads inside a predicting mutation, pages, counts, probes
-and watches. Denied or unknown provisional rows are absent and the read is
-incomplete; an exhausted read meter cuts the result without showing the row.
-Retained-only witnesses and left groups cannot establish current authority.
+and watches. A definite denial hides the row without making the read unknown.
+Unknown authorization hides the row and makes the read incomplete; an exhausted
+read meter cuts the result without showing the row. Rule probes see raw combined
+state, with no recursive read checks: pending witnesses count as present;
+delivered witnesses and absences need current coverage. Retained-only witnesses
+and Left groups are unknown. A decisive disjunct can still authorize the row.
 Delivered rows keep their server authorization.
 
 An unreadable output does not prevent prediction. For example, a moderation
 report predicts but stays invisible to its writer until settlement removes or
 replaces the overlay. A later pending grant can make a row visible; a later
-pending revocation hides it immediately. A mutation that reads an unreadable
-provisional input cannot establish that read and may queue without rows.
+pending revocation hides it immediately. A mutation may predict using a definitive denied input as absent.
+An unknown provisional input cannot establish that read and may queue without rows.
 
 The language card's `createRoom` predicts and its room is visible through the
 membership inserted later in that call. An edit of a message retained after

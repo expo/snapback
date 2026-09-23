@@ -1,58 +1,58 @@
 apps/chat (Expo/web init source):addMember | eligible
-apps/chat (Expo/web init source):addMember | memberships/insert | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+apps/chat (Expo/web init source):addMember | memberships/insert | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
 apps/chat (Expo/web init source):edit | eligible
-apps/chat (Expo/web init source):edit | messageCounts/maintain | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-apps/chat (Expo/web init source):edit | messages/update | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+apps/chat (Expo/web init source):edit | messageCounts/maintain | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
+apps/chat (Expo/web init source):edit | messages/update | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
 apps/chat (Expo/web init source):leave | eligible
 apps/chat (Expo/web init source):markRead | never
 apps/chat (Expo/web init source):send | eligible
-apps/chat (Expo/web init source):send | messageCounts/maintain | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-apps/chat (Expo/web init source):send | messages/insert | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+apps/chat (Expo/web init source):send | messageCounts/maintain | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
+apps/chat (Expo/web init source):send | messages/insert | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
 apps/chat (Expo/web init source):sendPhoto | eligible
-apps/chat (Expo/web init source):sendPhoto | messageCounts/maintain | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-apps/chat (Expo/web init source):sendPhoto | messages/insert | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+apps/chat (Expo/web init source):sendPhoto | messageCounts/maintain | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
+apps/chat (Expo/web init source):sendPhoto | messages/insert | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
 apps/chat (Expo/web init source):unsend | eligible
-apps/chat (Expo/web init source):unsend | messageCounts/maintain | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+apps/chat (Expo/web init source):unsend | messageCounts/maintain | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/actions/1:checkin | never
 card/actions/1:createRoom | eligible
-card/actions/1:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/actions/1:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/actions/1:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/actions/1:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/actions/1:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/actions/1:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
 card/actions/1:edit | eligible
-card/actions/1:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/actions/1:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/actions/1:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/actions/1:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/actions/1:join | eligible
-card/actions/1:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/actions/1:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/actions/1:leave | eligible
 card/actions/1:pagePass | never
 card/actions/1:post | eligible
 card/actions/1:react | eligible
-card/actions/1:react | postLikes/maintain | "Deny" | read-time; unknown hides
-card/actions/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
-card/actions/1:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
+card/actions/1:react | postLikes/maintain | "Deny" | read rule
+card/actions/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/actions/1:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 card/actions/1:registerProfile | never
 card/actions/1:sendBrief | eligible
-card/actions/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/actions/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/actions/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/actions/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/actions/1:split | never
 card/actions/1:timelineFollow | never
 card/actions/1:timelinePublish | eligible
 card/actions/1:timelineRegister | eligible
 card/actions/1:timelineRemove | eligible
 card/app/1:edit | eligible
-card/app/1:edit | messageCounts/maintain | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/app/1:edit | messages/update | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/app/1:edit | messageCounts/maintain | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/app/1:edit | messages/update | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/app/1:send | eligible
-card/app/1:send | messageCounts/maintain | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/app/1:send | messages/insert | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/assets/1:sendClip | clips/insert | {"Eq":[{"Field":"ownerId"},"Viewer"]} | read-time; unknown hides
+card/app/1:send | messageCounts/maintain | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/app/1:send | messages/insert | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/assets/1:sendClip | clips/insert | {"Eq":[{"Field":"ownerId"},"Viewer"]} | read rule
 card/assets/1:sendClip | eligible
 card/effects/1:send | eligible
-card/effects/1:send | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/effects/1:send | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/effects/2:send | eligible
-card/effects/2:send | messages/insert | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/effects/2:send | messages/insert | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/expire/1:postStory | eligible
-card/expire/1:postStory | stories/insert | {"Eq":[{"Field":"authorId"},"Viewer"]} | read-time; unknown hides
+card/expire/1:postStory | stories/insert | {"Eq":[{"Field":"authorId"},"Viewer"]} | read rule
 card/feeds/1:follow | never
 card/feeds/1:post | eligible
 card/feeds/1:register | eligible
@@ -62,43 +62,43 @@ card/feeds/1:repost | eligible
 card/feeds/1:unfollow | never
 card/feeds/1:unrepost | eligible
 card/feeds/2:markSeen | eligible
-card/feeds/2:markSeen | seen/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read-time; unknown hides
-card/feeds/2:setAffinity | affinity/upsert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read-time; unknown hides
+card/feeds/2:markSeen | seen/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read rule
+card/feeds/2:setAffinity | affinity/upsert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read rule
 card/feeds/2:setAffinity | eligible
 card/feeds/2:vote | eligible
-card/feeds/2:vote | votes/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
+card/feeds/2:vote | votes/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 card/feeds/3:create | never
 card/feeds/3:setLike | never
 card/feeds/4:create | eligible
 card/feeds/4:like | eligible
-card/feeds/4:like | likes/insert | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
+card/feeds/4:like | likes/insert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 card/feeds/4:unlike | eligible
 card/feeds/5:create | eligible
 card/feeds/5:setLike | eligible
-card/feeds/5:setLike | likes/insert | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
+card/feeds/5:setLike | likes/insert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 card/feeds/6:refresh | never
 card/indexes/2:checkin | never
 card/language/1:checkin | never
 card/language/1:createRoom | eligible
-card/language/1:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/language/1:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/language/1:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/language/1:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/1:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/1:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
 card/language/1:edit | eligible
-card/language/1:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/language/1:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/language/1:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/1:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/language/1:join | eligible
-card/language/1:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/language/1:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/language/1:leave | eligible
 card/language/1:pagePass | never
 card/language/1:post | eligible
 card/language/1:react | eligible
-card/language/1:react | postLikes/maintain | "Deny" | read-time; unknown hides
-card/language/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
-card/language/1:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
+card/language/1:react | postLikes/maintain | "Deny" | read rule
+card/language/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/language/1:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 card/language/1:registerProfile | never
 card/language/1:sendBrief | eligible
-card/language/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/language/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/language/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/language/1:split | never
 card/language/1:timelineFollow | never
 card/language/1:timelinePublish | eligible
@@ -106,25 +106,25 @@ card/language/1:timelineRegister | eligible
 card/language/1:timelineRemove | eligible
 card/language/2:checkin | never
 card/language/2:createRoom | eligible
-card/language/2:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/language/2:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/language/2:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/language/2:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/2:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/2:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
 card/language/2:edit | eligible
-card/language/2:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/language/2:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/language/2:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/2:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/language/2:join | eligible
-card/language/2:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/language/2:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/language/2:leave | eligible
 card/language/2:pagePass | never
 card/language/2:post | eligible
 card/language/2:react | eligible
-card/language/2:react | postLikes/maintain | "Deny" | read-time; unknown hides
-card/language/2:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
-card/language/2:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
+card/language/2:react | postLikes/maintain | "Deny" | read rule
+card/language/2:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/language/2:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 card/language/2:registerProfile | never
 card/language/2:sendBrief | eligible
-card/language/2:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/language/2:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/language/2:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/language/2:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/language/2:split | never
 card/language/2:timelineFollow | never
 card/language/2:timelinePublish | eligible
@@ -132,25 +132,25 @@ card/language/2:timelineRegister | eligible
 card/language/2:timelineRemove | eligible
 card/native/1:checkin | never
 card/native/1:createRoom | eligible
-card/native/1:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/native/1:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/native/1:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/native/1:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/native/1:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/native/1:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
 card/native/1:edit | eligible
-card/native/1:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/native/1:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/native/1:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/native/1:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/native/1:join | eligible
-card/native/1:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/native/1:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/native/1:leave | eligible
 card/native/1:pagePass | never
 card/native/1:post | eligible
 card/native/1:react | eligible
-card/native/1:react | postLikes/maintain | "Deny" | read-time; unknown hides
-card/native/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
-card/native/1:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
+card/native/1:react | postLikes/maintain | "Deny" | read rule
+card/native/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/native/1:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 card/native/1:registerProfile | never
 card/native/1:sendBrief | eligible
-card/native/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/native/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/native/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/native/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/native/1:split | never
 card/native/1:timelineFollow | never
 card/native/1:timelinePublish | eligible
@@ -159,41 +159,41 @@ card/native/1:timelineRemove | eligible
 card/prediction/1:countedPost | never
 card/prediction/1:falliblePost | never
 card/prediction/1:guardedPost | eligible
-card/prediction/1:guardedPost | noteCounts/maintain | {"Eq":[{"Field":"owner"},"Viewer"]} | read-time; unknown hides
-card/prediction/1:guardedPost | notes/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read-time; unknown hides
+card/prediction/1:guardedPost | noteCounts/maintain | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
+card/prediction/1:guardedPost | notes/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/prediction/1:notifyPost | eligible
-card/prediction/1:notifyPost | noteCounts/maintain | {"Eq":[{"Field":"owner"},"Viewer"]} | read-time; unknown hides
-card/prediction/1:notifyPost | notes/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read-time; unknown hides
+card/prediction/1:notifyPost | noteCounts/maintain | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
+card/prediction/1:notifyPost | notes/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/prediction/1:post | eligible
-card/prediction/1:post | noteCounts/maintain | {"Eq":[{"Field":"owner"},"Viewer"]} | read-time; unknown hides
-card/prediction/1:post | notes/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read-time; unknown hides
-card/prediction/1:saveDraft | drafts/update | {"Eq":[{"Field":"owner"},"Viewer"]} | read-time; unknown hides
+card/prediction/1:post | noteCounts/maintain | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
+card/prediction/1:post | notes/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
+card/prediction/1:saveDraft | drafts/update | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/prediction/1:saveDraft | eligible
 card/prediction/2:guardedLike | eligible
-card/prediction/2:guardedLike | likes/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read-time; unknown hides
+card/prediction/2:guardedLike | likes/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/prediction/2:setLike | eligible
-card/prediction/2:setLike | likes/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read-time; unknown hides
+card/prediction/2:setLike | likes/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/presence/1:checkin | never
 card/presence/1:createRoom | eligible
-card/presence/1:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/presence/1:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/presence/1:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/presence/1:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/presence/1:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/presence/1:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
 card/presence/1:edit | eligible
-card/presence/1:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/presence/1:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/presence/1:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/presence/1:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/presence/1:join | eligible
-card/presence/1:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/presence/1:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/presence/1:leave | eligible
 card/presence/1:pagePass | never
 card/presence/1:post | eligible
 card/presence/1:react | eligible
-card/presence/1:react | postLikes/maintain | "Deny" | read-time; unknown hides
-card/presence/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
-card/presence/1:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
+card/presence/1:react | postLikes/maintain | "Deny" | read rule
+card/presence/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/presence/1:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 card/presence/1:registerProfile | never
 card/presence/1:sendBrief | eligible
-card/presence/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/presence/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/presence/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/presence/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/presence/1:split | never
 card/presence/1:timelineFollow | never
 card/presence/1:timelinePublish | eligible
@@ -201,27 +201,27 @@ card/presence/1:timelineRegister | eligible
 card/presence/1:timelineRemove | eligible
 card/programs/1:checkin | never
 card/programs/1:createRoom | eligible
-card/programs/1:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/programs/1:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/programs/1:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/programs/1:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/programs/1:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/programs/1:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
 card/programs/1:edit | eligible
-card/programs/1:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/programs/1:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/programs/1:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/programs/1:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/programs/1:join | eligible
-card/programs/1:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/programs/1:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/programs/1:leave | eligible
 card/programs/1:pagePass | never
 card/programs/1:post | eligible
 card/programs/1:programWrites | eligible
-card/programs/1:programWrites | rooms/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/programs/1:programWrites | rooms/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
 card/programs/1:react | eligible
-card/programs/1:react | postLikes/maintain | "Deny" | read-time; unknown hides
-card/programs/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
-card/programs/1:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
+card/programs/1:react | postLikes/maintain | "Deny" | read rule
+card/programs/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/programs/1:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 card/programs/1:registerProfile | never
 card/programs/1:sendBrief | eligible
-card/programs/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/programs/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/programs/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/programs/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/programs/1:split | never
 card/programs/1:timelineFollow | never
 card/programs/1:timelinePublish | eligible
@@ -229,25 +229,25 @@ card/programs/1:timelineRegister | eligible
 card/programs/1:timelineRemove | eligible
 card/reads/1:checkin | never
 card/reads/1:createRoom | eligible
-card/reads/1:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/reads/1:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/reads/1:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/reads/1:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/reads/1:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/reads/1:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
 card/reads/1:edit | eligible
-card/reads/1:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/reads/1:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/reads/1:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/reads/1:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/reads/1:join | eligible
-card/reads/1:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/reads/1:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/reads/1:leave | eligible
 card/reads/1:pagePass | never
 card/reads/1:post | eligible
 card/reads/1:react | eligible
-card/reads/1:react | postLikes/maintain | "Deny" | read-time; unknown hides
-card/reads/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
-card/reads/1:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
+card/reads/1:react | postLikes/maintain | "Deny" | read rule
+card/reads/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/reads/1:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 card/reads/1:registerProfile | never
 card/reads/1:sendBrief | eligible
-card/reads/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/reads/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/reads/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/reads/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/reads/1:split | never
 card/reads/1:timelineFollow | never
 card/reads/1:timelinePublish | eligible
@@ -255,54 +255,54 @@ card/reads/1:timelineRegister | eligible
 card/reads/1:timelineRemove | eligible
 card/reads/2:checkin | never
 card/reads/2:createRoom | eligible
-card/reads/2:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/reads/2:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/reads/2:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/reads/2:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/reads/2:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/reads/2:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
 card/reads/2:edit | eligible
-card/reads/2:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/reads/2:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/reads/2:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/reads/2:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/reads/2:join | eligible
-card/reads/2:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/reads/2:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/reads/2:leave | eligible
 card/reads/2:pagePass | never
 card/reads/2:post | eligible
 card/reads/2:react | eligible
-card/reads/2:react | postLikes/maintain | "Deny" | read-time; unknown hides
-card/reads/2:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
-card/reads/2:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
+card/reads/2:react | postLikes/maintain | "Deny" | read rule
+card/reads/2:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/reads/2:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 card/reads/2:registerProfile | never
 card/reads/2:sendBrief | eligible
-card/reads/2:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/reads/2:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/reads/2:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/reads/2:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/reads/2:split | never
 card/reads/2:timelineFollow | never
 card/reads/2:timelinePublish | eligible
 card/reads/2:timelineRegister | eligible
 card/reads/2:timelineRemove | eligible
 card/reads/3:setTyping | eligible
-card/reads/3:setTyping | typing/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/reads/3:setTyping | typing/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/reads/4:checkin | never
 card/reads/4:createRoom | eligible
-card/reads/4:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/reads/4:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/reads/4:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/reads/4:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/reads/4:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/reads/4:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
 card/reads/4:edit | eligible
-card/reads/4:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/reads/4:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/reads/4:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/reads/4:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/reads/4:join | eligible
-card/reads/4:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/reads/4:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/reads/4:leave | eligible
 card/reads/4:pagePass | never
 card/reads/4:post | eligible
 card/reads/4:react | eligible
-card/reads/4:react | postLikes/maintain | "Deny" | read-time; unknown hides
-card/reads/4:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
-card/reads/4:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
+card/reads/4:react | postLikes/maintain | "Deny" | read rule
+card/reads/4:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/reads/4:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 card/reads/4:recentPass | never
 card/reads/4:registerProfile | never
 card/reads/4:sendBrief | eligible
-card/reads/4:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/reads/4:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/reads/4:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/reads/4:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/reads/4:split | never
 card/reads/4:timelineFollow | never
 card/reads/4:timelinePublish | eligible
@@ -311,25 +311,25 @@ card/reads/4:timelineRemove | eligible
 card/residency/1:post | eligible
 card/routes/1:checkin | never
 card/routes/1:createRoom | eligible
-card/routes/1:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/routes/1:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/routes/1:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/routes/1:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/routes/1:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/routes/1:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
 card/routes/1:edit | eligible
-card/routes/1:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/routes/1:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/routes/1:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/routes/1:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/routes/1:join | eligible
-card/routes/1:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/routes/1:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/routes/1:leave | eligible
 card/routes/1:pagePass | never
 card/routes/1:post | eligible
 card/routes/1:react | eligible
-card/routes/1:react | postLikes/maintain | "Deny" | read-time; unknown hides
-card/routes/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
-card/routes/1:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
+card/routes/1:react | postLikes/maintain | "Deny" | read rule
+card/routes/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/routes/1:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 card/routes/1:registerProfile | never
 card/routes/1:sendBrief | eligible
-card/routes/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/routes/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/routes/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/routes/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/routes/1:split | never
 card/routes/1:timelineFollow | never
 card/routes/1:timelinePublish | eligible
@@ -338,25 +338,25 @@ card/routes/1:timelineRemove | eligible
 card/services/1:rank | never
 card/shapes/1:checkin | never
 card/shapes/1:createRoom | eligible
-card/shapes/1:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/shapes/1:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/shapes/1:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/shapes/1:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/shapes/1:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/shapes/1:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
 card/shapes/1:edit | eligible
-card/shapes/1:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/shapes/1:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/shapes/1:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/shapes/1:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/shapes/1:join | eligible
-card/shapes/1:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/shapes/1:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/shapes/1:leave | eligible
 card/shapes/1:pagePass | never
 card/shapes/1:post | eligible
 card/shapes/1:react | eligible
-card/shapes/1:react | postLikes/maintain | "Deny" | read-time; unknown hides
-card/shapes/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
-card/shapes/1:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
+card/shapes/1:react | postLikes/maintain | "Deny" | read rule
+card/shapes/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/shapes/1:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 card/shapes/1:registerProfile | never
 card/shapes/1:sendBrief | eligible
-card/shapes/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/shapes/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/shapes/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/shapes/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/shapes/1:split | never
 card/shapes/1:timelineFollow | never
 card/shapes/1:timelinePublish | eligible
@@ -364,66 +364,66 @@ card/shapes/1:timelineRegister | eligible
 card/shapes/1:timelineRemove | eligible
 card/writes/1:checkin | never
 card/writes/1:createRoom | eligible
-card/writes/1:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/writes/1:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/writes/1:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/writes/1:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/writes/1:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/writes/1:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
 card/writes/1:edit | eligible
-card/writes/1:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/writes/1:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/writes/1:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/writes/1:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/writes/1:join | eligible
-card/writes/1:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/writes/1:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/writes/1:leave | eligible
 card/writes/1:pagePass | never
 card/writes/1:post | eligible
 card/writes/1:react | eligible
-card/writes/1:react | postLikes/maintain | "Deny" | read-time; unknown hides
-card/writes/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
-card/writes/1:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
+card/writes/1:react | postLikes/maintain | "Deny" | read rule
+card/writes/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/writes/1:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 card/writes/1:registerProfile | never
 card/writes/1:sendBrief | eligible
-card/writes/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/writes/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+card/writes/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/writes/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/writes/1:split | never
 card/writes/1:timelineFollow | never
 card/writes/1:timelinePublish | eligible
 card/writes/1:timelineRegister | eligible
 card/writes/1:timelineRemove | eligible
 card/writes/1:writeForms | eligible
-card/writes/1:writeForms | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/writes/1:writeForms | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/writes/1:writeForms | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-card/writes/1:writeForms | postLikes/maintain | "Deny" | read-time; unknown hides
-card/writes/1:writeForms | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
-card/writes/1:writeForms | reactions/insert | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
-card/writes/1:writeForms | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
+card/writes/1:writeForms | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/writes/1:writeForms | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/writes/1:writeForms | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/writes/1:writeForms | postLikes/maintain | "Deny" | read rule
+card/writes/1:writeForms | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/writes/1:writeForms | reactions/insert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/writes/1:writeForms | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 card/writes/2:addMember | never
 card/writes/2:createConversation | never
 card/writes/2:send | never
 package/CLIENT-AND-OPERATIONS/1:createProfile | never
 package/README/1:placeAvatar | eligible
-package/README/1:placeAvatar | profiles/update | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
+package/README/1:placeAvatar | profiles/update | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 package/README/1:saveProfile | never
 package/SERVER/1:checkin | never
 package/SERVER/1:createRoom | eligible
-package/SERVER/1:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-package/SERVER/1:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-package/SERVER/1:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+package/SERVER/1:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+package/SERVER/1:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+package/SERVER/1:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
 package/SERVER/1:edit | eligible
-package/SERVER/1:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-package/SERVER/1:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+package/SERVER/1:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+package/SERVER/1:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 package/SERVER/1:join | eligible
-package/SERVER/1:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+package/SERVER/1:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 package/SERVER/1:leave | eligible
 package/SERVER/1:pagePass | never
 package/SERVER/1:post | eligible
 package/SERVER/1:react | eligible
-package/SERVER/1:react | postLikes/maintain | "Deny" | read-time; unknown hides
-package/SERVER/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
-package/SERVER/1:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
+package/SERVER/1:react | postLikes/maintain | "Deny" | read rule
+package/SERVER/1:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+package/SERVER/1:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 package/SERVER/1:registerProfile | never
 package/SERVER/1:sendBrief | eligible
-package/SERVER/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-package/SERVER/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+package/SERVER/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+package/SERVER/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 package/SERVER/1:split | never
 package/SERVER/1:timelineFollow | never
 package/SERVER/1:timelinePublish | eligible
@@ -434,68 +434,68 @@ package/SERVER/2:identityClaim | never
 package/SERVER/2:identityVerified | never
 package/SERVER/3:checkin | never
 package/SERVER/3:createRoom | eligible
-package/SERVER/3:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-package/SERVER/3:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-package/SERVER/3:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+package/SERVER/3:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+package/SERVER/3:createRoom | rooms/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+package/SERVER/3:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
 package/SERVER/3:edit | eligible
-package/SERVER/3:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-package/SERVER/3:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+package/SERVER/3:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+package/SERVER/3:edit | messages/update | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 package/SERVER/3:join | eligible
-package/SERVER/3:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+package/SERVER/3:join | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 package/SERVER/3:leave | eligible
 package/SERVER/3:pagePass | never
 package/SERVER/3:post | eligible
 package/SERVER/3:react | eligible
-package/SERVER/3:react | postLikes/maintain | "Deny" | read-time; unknown hides
-package/SERVER/3:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
-package/SERVER/3:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read-time; unknown hides
+package/SERVER/3:react | postLikes/maintain | "Deny" | read rule
+package/SERVER/3:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+package/SERVER/3:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 package/SERVER/3:registerProfile | never
 package/SERVER/3:sendBrief | eligible
-package/SERVER/3:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
-package/SERVER/3:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read-time; unknown hides
+package/SERVER/3:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+package/SERVER/3:sendBrief | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 package/SERVER/3:split | never
 package/SERVER/3:timelineFollow | never
 package/SERVER/3:timelinePublish | eligible
 package/SERVER/3:timelineRegister | eligible
 package/SERVER/3:timelineRemove | eligible
 recipe/generated-bridge:social.createPost | eligible
-recipe/generated-bridge:social.createPost | feedFeed/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read-time; unknown hides
+recipe/generated-bridge:social.createPost | feedFeed/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read rule
 recipe/generated-bridge:social.deletePost | eligible
 recipe/generated-bridge:social.follow | never
 recipe/generated-bridge:social.publishExisting | eligible
-recipe/generated-bridge:social.publishExisting | feedFeed/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read-time; unknown hides
+recipe/generated-bridge:social.publishExisting | feedFeed/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read rule
 recipe/generated-bridge:social.register | eligible
 recipe/generated-bridge:social.repost | eligible
-recipe/generated-bridge:social.repost | feedFeed/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read-time; unknown hides
+recipe/generated-bridge:social.repost | feedFeed/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read rule
 recipe/generated-bridge:social.repostExisting | eligible
-recipe/generated-bridge:social.repostExisting | feedFeed/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read-time; unknown hides
+recipe/generated-bridge:social.repostExisting | feedFeed/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read rule
 recipe/generated-bridge:social.saveProfile | eligible
 recipe/generated-bridge:social.unfollow | never
 recipe/generated-bridge:social.unrepost | eligible
 recipe/installed/1:social.createPost | eligible
-recipe/installed/1:social.createPost | feedFeed/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read-time; unknown hides
+recipe/installed/1:social.createPost | feedFeed/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read rule
 recipe/installed/1:social.deletePost | eligible
 recipe/installed/1:social.follow | never
 recipe/installed/1:social.register | eligible
 recipe/installed/1:social.repost | eligible
-recipe/installed/1:social.repost | feedFeed/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read-time; unknown hides
+recipe/installed/1:social.repost | feedFeed/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read rule
 recipe/installed/1:social.saveProfile | eligible
 recipe/installed/1:social.unfollow | never
 recipe/installed/1:social.unrepost | eligible
 recipe/standalone:createPost | eligible
-recipe/standalone:createPost | feed/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read-time; unknown hides
+recipe/standalone:createPost | feed/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read rule
 recipe/standalone:deletePost | eligible
 recipe/standalone:follow | never
 recipe/standalone:register | eligible
 recipe/standalone:repost | eligible
-recipe/standalone:repost | feed/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read-time; unknown hides
+recipe/standalone:repost | feed/insert | {"Eq":[{"Field":"readerId"},"Viewer"]} | read rule
 recipe/standalone:unfollow | never
 recipe/standalone:unrepost | eligible
 template/local:add | eligible
-template/local:add | todos/insert | {"Eq":[{"Field":"ownerId"},"Viewer"]} | read-time; unknown hides
+template/local:add | todos/insert | {"Eq":[{"Field":"ownerId"},"Viewer"]} | read rule
 template/local:remove | eligible
 template/local:toggle | eligible
-template/local:toggle | todos/update | {"Eq":[{"Field":"ownerId"},"Viewer"]} | read-time; unknown hides
+template/local:toggle | todos/update | {"Eq":[{"Field":"ownerId"},"Viewer"]} | read rule
 template/online:add | never
 template/online:remove | never
 template/online:toggle | never

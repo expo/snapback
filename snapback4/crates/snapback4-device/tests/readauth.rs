@@ -8,6 +8,8 @@ mod outcomes;
 mod timing;
 #[path = "readauth/regressions.rs"]
 mod regressions;
+#[path = "readauth/round2.rs"]
+mod round2;
 use common::*;
 use serde_json::{Value as Json, json};
 use snapback4_core::{Engine, WriteState, wire};
@@ -27,6 +29,9 @@ fn sent(engine: &mut Engine, op: &str, args: Json, ids: Vec<String>) -> u64 {
     match outcome.state { WriteState::Sent { seq, .. } => seq, _ => panic!("{outcome:?}") }
 }
 fn observations<S: DeviceStore>(device: &mut Device<S>) -> Vec<Json> {
+    observations_with_coverage(device, false)
+}
+fn observations_with_coverage<S: DeviceStore>(device: &mut Device<S>, unknown: bool) -> Vec<Json> {
     [
         ("point",json!({"id":"report"})), ("point",json!({"id":"own"})),
         ("scan",json!({"reader":"alice"})), ("scan",json!({"reader":"moderator"})),
@@ -35,7 +40,14 @@ fn observations<S: DeviceStore>(device: &mut Device<S>) -> Vec<Json> {
         ("total",json!({"reader":"moderator"})),
         ("page",json!({"reader":"alice","c":null})), ("page",json!({"reader":"moderator","c":null})),
     ].into_iter().map(|(op,args)| {
-        let result = device.query(op,"alice",&args,100).unwrap();
+        let (result, missing, _) = device.query_with_coverage(op,"alice",&args,100);
+        let result = result.unwrap();
+        let affected = !matches!(op,"point"|"probe") || args["id"] == "report";
+        // Empty scans of a different reader never encounter the candidate.
+        let affected = affected && args.get("reader").is_none_or(|reader| reader == "moderator");
+        assert_eq!(missing, unknown && affected, "{op}/{args}: {result:?}");
+        assert_eq!(result.complete, !(unknown && affected), "{op}/{args}: {result:?}");
+        assert!(result.cut.is_none(), "{op}: {result:?}");
         wire::to_json(&result.data)
     }).collect()
 }
@@ -55,12 +67,6 @@ fn lifecycle<H: Host>(mut host: H, op: &str, input: Json, readable: bool, existi
     let visible=if readable {vec![row.clone()]} else if op=="mixed" {vec![own.clone()]} else {vec![]};
     assert_eq!(pending,vec![if readable {row} else {Json::Null},if op=="mixed" {own} else {Json::Null},
         json!(visible),json!([]),json!(visible),json!(readable),json!(op=="mixed"),json!(visible.len()),json!(0),json!(visible),json!([])]);
-    if !readable {
-        for (name,args) in [("point",json!({"id":"report"})),("scan",json!({"reader":"moderator"})),
-            ("total",json!({"reader":"moderator"})),("page",json!({"reader":"moderator","c":null})),("probe",json!({"id":"report"})),("merged",json!({}))] {
-            assert!(!device.query(name,"alice",&args,100).unwrap().complete,"hidden row is not known absence: {name}");
-        }
-    }
     host.close("read-auth",device);
     let mut device = host.open("read-auth",None).unwrap();
     assert_eq!(observations(&mut device),pending,"persisted reopen before settlement");
@@ -120,7 +126,10 @@ table grants:
 query grantAt():
   return grants['a']
 "#;
+    assert_eq!(SOURCE.matches("read <- .reader = viewer").count(),1);
+    assert_eq!(SOURCE.matches("sync to .reader").count(),1);
     let (mut engine,backend) = compile(&source);
+    assert!(matches!(&backend.schema.tables["reports"].rules.read, snapback4_core::schema::RuleExpr::Exists{table,..} if table=="grants"));
     for (key, group) in [("a","moderator"),("z","other")] {
         let row = json!({"id":key,"group":group,"principal":"alice"});
         engine.seed([("grants".into(),wire::row_from_json(&engine.schema().tables["grants"],&row).unwrap())]).unwrap();
@@ -132,15 +141,15 @@ query grantAt():
     assert!(!grant.complete,"the positive server grant is outside the acquired horizon");
     let queued = admit(&mut device,"submit",json!({"reader":"moderator"}));
     assert!(queued.predictable && queued.predicted.len()==1);
-    let pending = observations(&mut device);
+    let pending = observations_with_coverage(&mut device,true);
     assert_eq!(pending,vec![json!(null),json!(null),json!([]),json!([]),json!([]),json!(false),json!(false),json!(0),json!(0),json!([]),json!([])]);
     host.close("unknown",device);
     let mut device = host.open("unknown",None).unwrap();
-    assert_eq!(observations(&mut device),pending);
+    assert_eq!(observations_with_coverage(&mut device,true),pending);
     let from = device.state().unwrap().0;
     sent(&mut engine,"tick",json!({}),vec![]);
     device.apply(&stream_page(&mut engine,"alice",from),false).unwrap();
-    assert_eq!(observations(&mut device),pending);
+    assert_eq!(observations_with_coverage(&mut device,true),pending);
     let from = device.state().unwrap().0;
     let seq = sent(&mut engine,"submit",json!({"reader":"moderator"}),queued.new_ids);
     device.settle(&queued.id,Some(seq)).unwrap();

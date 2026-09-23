@@ -141,6 +141,8 @@ fn replay_and_refusal<H: Host>(mut h: H) where H::Store: Images {
     let q=admit(&mut d,"publish","alice",json!({"postId":"refused"}),1);
     assert_eq!(q.predicted.len(),3);
     let predicted=rows(&mut d);
+    assert_eq!(predicted["feedFeed"].len(),baseline["feedFeed"].len()+1,"one new own copy is present");
+    assert!(predicted["feedFeed"].iter().any(|row|row.field("postId")==Ok(&fixture::id("refused"))));
     assert!(predicted["feedFeed"].iter().all(|row| row.field("readerId").unwrap()==&fixture::id("alice")));
     h.close("alice",d);
     d=h.open("alice",None).unwrap();
