@@ -46684,3 +46684,51 @@ count, and the serve test modules. On the rebased tree, `scripts/test.sh` report
 
 Wasm is 449,347 B gzip on the lane's base, within the 452,000 budget. F3b
 raises the budget.
+
+## 2026-09-23 — 0.3 program: the declared timeline on devices (F3b) and its sizing (F3c)
+
+**F3b (devices).** Posting, reposting, removal and profile registration run
+in the device's provisional transaction, sharing one implementation with the
+server. They predict only when every input is held and covered. Retained
+history never counts: point hits, point misses, scans and empty ranges all
+check coverage by the actual key, and a retained input queues the whole
+mutation. Follow and unfollow always queue, because slot accounting reads
+online-only counts. Owned rows take the same digest ids on every host.
+
+Prediction writes no owned row the predictor's read rule denies. A
+one-follower post therefore predicts three rows on the author's device
+(post, event, own copy). The recipe's witness also predicted the follower's
+copy, which was locally readable by the author. The general gap in the
+device read path is
+`issues/20260922-snapback4-device-reads-trust-predicted-rows.md`, owned by
+the program lead and due before 0.3.0.
+
+Deliverability follows LLP 3000.007.003 revision 7. `check --cost` bounds
+each operation's derived stream bytes; the largest, a maximum-backfill
+promotion, is 888,757 B. SDK clients on WASM and native SQLite, left behind a
+timeline commit that grew past the ceiling, recover through the snapshot
+restart with pending writes intact.
+
+**F3c (sizing).** `size authors N, edges N` has the recipe's semantics
+(`init --recipe feeds --authors N --edges N`), so the declaration holds the
+Clique fixture's 1,008 authors and 5,921 edges. The recipe-trace oracle runs
+at both sizes.
+
+**Lanes and reviews.** Both were Astra xhigh lanes on the black M5 Max. F3b
+first stopped on a real counterexample: the stream re-reads current row
+images into old commits, which led to revision 7.
+
+- **F3b round 1:** Astra NOT READY. Its High, found under the partition
+  focus, was that a predicted foreign inbox copy was readable by its author.
+- **F3b round 2:** Astra NOT READY; retained absence justified a
+  prediction.
+- **F3b round 3:** Astra READY, with no findings.
+- **F3c:** Astra READY WITH CHANGES (one docs wording, fixed at landing);
+  Grok READY or READY WITH CHANGES on all packets.
+
+An independent Astra review of the program then found that the published
+0.2.33 device silently accepts a timeline backend and mispredicts. It
+predicts only the post, and Following comes back empty but marked complete.
+A shared capability fence (lane FENCE) must land before 0.3.0.
+
+Integrated suite on the rebased tree: `scripts/test.sh` reported `== 0 failure(s) in 597 s` on the M5. Wasm is 457,400 B gzip against the 458,000 ratchet: +7,899 from F3b's shared device transitions, and +371 from F3c.
