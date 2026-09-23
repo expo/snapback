@@ -29,10 +29,12 @@ impl Runner<'_> {
 
     fn insert_mode(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Insert)?;
+        self.refuse_recorded(table_name, &row)?;
         let row = self.with_defaults(table_name, row)?;
         if !self.check_rule(table_name, Effect::Insert, None, &row)? {
             return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Insert });
         }
+        let row = self.record_insert(table_name, row)?;
         let row = self.with_asset_facts(table_name, row, None, None)?;
         validate_row(self.schema, table_name, &row)?;
         let table = self.schema.table(table_name).expect("validated").clone();
@@ -79,6 +81,7 @@ impl Runner<'_> {
 
     fn update_attempt(&mut self, table_name: &str, key: &Value, patch: Value) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Update)?;
+        self.refuse_recorded(table_name, &patch)?;
         if patch.as_object()?.contains_key("id") {
             return Err(RuntimeError::Input(format!("{table_name} update patch cannot change id")));
         }
@@ -100,6 +103,7 @@ impl Runner<'_> {
 
     fn upsert_attempt(&mut self, table_name: &str, key: &Value, row: Value) -> Result<(), RuntimeError> {
         self.refuse_upsert_owned(table_name)?;
+        self.refuse_recorded(table_name, &row)?;
         let id = key.as_str()?;
         if row.field("id")?.as_str()? != id {
             return Err(RuntimeError::Input(format!("{table_name} upsert row id must equal its key")));
@@ -150,6 +154,10 @@ impl Runner<'_> {
 
     pub(super) fn replace_authorized(&mut self, table_name: &str, old: Value, new: Value, readable: bool, patch: &Value) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Update)?;
+        self.refuse_recorded(table_name, patch)?;
+        for path in self.schema.tables[table_name].recorded.keys() {
+            if old.field(path).ok() != new.field(path).ok() { return Err(RuntimeError::Structural { code: "E_RECORDED_FIELD", message: format!("{table_name}.{path} cannot change after capture; omit it from the update (guide maintains)") }); }
+        }
         let new = self.with_asset_facts(table_name, new, Some(&old), (!readable).then_some(patch))?;
         if let Err(error) = validate_row(self.schema, table_name, &new) { return Err(if readable { error } else { self.no_write_target() }); }
         self.check_constraints(table_name, Some(&old), &new, Effect::Update)?;
@@ -538,12 +546,12 @@ impl Runner<'_> {
             }
         }
         #[cfg(all(feature = "sqlite", not(feature = "web-device-check")))]
-        partition::row_changed(self, table_name, old, new)?;
+        if !self.event_free { partition::row_changed(self, table_name, old, new)?; }
         #[cfg(not(feature = "sqlite"))]
         partition::account_row_change::<false>(self, table_name, old, new)?;
         #[cfg(all(feature = "sqlite", feature = "web-device-check"))]
         if self.device { partition::account_row_change::<false>(self, table_name, old, new)?; }
-        else { partition::row_changed(self, table_name, old, new)?; }
+        else if !self.event_free { partition::row_changed(self, table_name, old, new)?; }
         if origin == Origin::Source {
             self.place_assets(table_name, &table, old, new)?;
             self.maintain(table_name, old, new)?;

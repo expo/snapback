@@ -107,7 +107,7 @@ impl Store {
                 for index in table.indexes.keys() { tx.tx.execute("DELETE FROM i WHERE ti = ?1", [catalog[&format!("{name}.{index}")]])?; }
                 walk(&tx, t, |id, mut row| {
                     let original = row.clone();
-                    if let Value::Row(fields) = &mut row { fields.retain(|column, _| table.columns.contains_key(column) || (programs.is_none() && column == "pending")); }
+                    if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.retain(|column, _| table.columns.contains_key(column) || (programs.is_none() && column == "pending")); }
                     // Persist only a destructive projection. Defaults and
                     // optionals are an interpretation of the stored image.
                     if row != original {

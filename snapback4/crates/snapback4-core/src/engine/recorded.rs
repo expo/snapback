@@ -1,0 +1,143 @@
+//! Historical reference attribution. Capture belongs to insertion/activation;
+//! every contribution evaluator continues to read the source row image.
+// @ref LLP 3000.007.003#3.2 — captures survive target deletion and generation rebuilds.
+use super::runner::Runner;
+use crate::{error::{MeterKind, RuntimeError}, schema::Table, value::Value};
+
+pub(crate) fn refuse_fields(table: &Table, name: &str, row: &Value) -> Result<(), RuntimeError> {
+    if let Some(field) = row.as_object()?.keys().find(|field| table.recorded.contains_key(*field)) {
+        return Err(RuntimeError::Structural { code: "E_RECORDED_FIELD", message: format!("{name}.{field} is engine-recorded; omit it from the write payload (guide maintains)") });
+    }
+    Ok(())
+}
+
+pub(crate) fn public_image(table: &Table, mut row: Value) -> Value {
+    if table.recorded.is_empty() { return row; }
+    if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.retain(|field, _| !table.recorded.contains_key(field)); }
+    row
+}
+
+impl Runner<'_> {
+    pub(super) fn refuse_recorded(&self, table: &str, row: &Value) -> Result<(), RuntimeError> {
+        let definition = self.schema.table(table).ok_or_else(|| RuntimeError::Schema(format!("missing table {table}")))?;
+        refuse_fields(definition, table, row)
+    }
+
+    pub(crate) fn capture_recorded(&mut self, table: &Table, mut row: Value, paths: &[String]) -> Result<Value, RuntimeError> {
+        if paths.is_empty() { return Ok(row); }
+        // A source image can share its map with a literal or stored image;
+        // stamping fields may copy it. Account for that copy and each read.
+        self.meter.heap(row.heap_bytes())?;
+        let source_image = crate::schema::row_image(&row, table).into_owned();
+        self.meter.heap(source_image.heap_bytes())?;
+        for path in paths {
+            let field = &table.recorded[path];
+            let target = &self.schema.tables[&field.table];
+            // Even a null reference has the same declared point-read charge.
+            self.meter.charge(MeterKind::Examined, 1)?;
+            self.read_tables.insert(field.table.clone());
+            let found = match source_image.field(&field.reference) {
+                Ok(Value::Id(id)) => {
+                    #[cfg(feature = "sqlite")]
+                    let imported = self.import_targets.and_then(|rows| rows.get(&(field.table.clone(), id.clone()))).cloned();
+                    #[cfg(not(feature = "sqlite"))]
+                    let imported: Option<Value> = None;
+                    match imported { Some(row) => Some(row), None => self.tx.get(&field.table, id)? }
+                },
+                _ => None,
+            };
+            if let Some(value) = &found { self.meter.heap(value.heap_bytes())?; }
+            let found = found.filter(|value| !self.expired(target, value));
+            if self.device && matches!(source_image.field(&field.reference), Ok(Value::Id(_)))
+                && (target.sync.is_none() || !found.as_ref().map(|value| self.tx.recording_covered(&field.table, value)).transpose()?.unwrap_or(false)) {
+                return Err(RuntimeError::Prediction(format!("recorded path {path} needs a live, covered {} row; reconnect to resolve attribution", field.table)));
+            }
+            let value = found.as_ref().map(|value| crate::schema::row_image(value, target).field(&field.column).cloned().unwrap_or(Value::Null)).unwrap_or(Value::Null);
+            self.meter.heap(80 + path.len() as u64 + value.heap_bytes())?;
+            if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.insert(path.clone(), value); }
+        }
+        Ok(row)
+    }
+
+    pub(super) fn record_insert(&mut self, name: &str, row: Value) -> Result<Value, RuntimeError> {
+        if self.schema.tables[name].recorded.is_empty() { return Ok(row); }
+        let table = self.schema.tables[name].clone();
+        let paths = table.recorded.keys().cloned().collect::<Vec<_>>();
+        self.capture_recorded(&table, row, &paths)
+    }
+}
+
+#[cfg(feature = "sqlite")]
+impl Runner<'_> {
+    /// Run after schema projection and before any aggregate rebuild. Only paths
+    /// absent from the predecessor are captured; existing nulls are history too.
+    pub(super) fn capture_activation(&mut self, previous: Option<&crate::schema::Schema>) -> Result<(), RuntimeError> {
+        use crate::rows::{Bounds, Dir};
+        for (name, table) in &self.schema.tables.clone() {
+            let paths: Vec<_> = table.recorded.keys().filter(|path| previous.and_then(|s| s.table(name)).is_none_or(|old| !old.recorded.contains_key(*path))).cloned().collect();
+            if paths.is_empty() { continue; }
+            let mut bounds = Bounds::default();
+            loop {
+                let page = self.tx.scan(name, "byId", &[], &bounds, Dir::Asc, 256)?;
+                if page.is_empty() { break; }
+                for (old, key) in page {
+                    bounds.after = crate::key::decode(&key);
+                    let row = self.capture_recorded(table, old.clone(), &paths)?;
+                    super::validate::validate_row(self.schema, name, &crate::schema::row_image(&row, table))?;
+                    let entries = self.tx.put(name, table, &row, Some(&old))?;
+                    self.meter.charge(MeterKind::IndexEntries, entries)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(feature = "sqlite")]
+#[derive(Default)]
+pub struct RecordedNulls {
+    /// Physical null captures by source table and path, including excluded rows.
+    pub captures: std::collections::BTreeMap<String, std::collections::BTreeMap<String, u64>>,
+    /// Live selected contributions with at least one null recorded dependency.
+    pub contributions: std::collections::BTreeMap<String, u64>,
+}
+
+#[cfg(feature = "sqlite")]
+impl super::Engine {
+    /// Capture history and current null-attributed contributions are distinct:
+    /// a predicate may exclude a captured null, and a source may have expired.
+    pub fn recorded_nulls(&mut self) -> Result<RecordedNulls, RuntimeError> {
+        use crate::rows::{Bounds, Dir};
+        let tx = self.store.read_transaction()?;
+        let now = crate::now_ms();
+        let mut counts = RecordedNulls::default();
+        for (name, source) in self.schema.tables.iter().filter(|(_, table)| !table.recorded.is_empty()) {
+            let mut paths: std::collections::BTreeMap<_, u64> = source.recorded.keys().cloned().map(|path| (path, 0)).collect();
+            let maintains: Vec<_> = self.schema.maintains.iter().filter(|m| &m.source == name).filter_map(|maintain| {
+                let dependencies: Vec<_> = maintain.dependencies().into_iter().filter(|path| source.recorded.contains_key(path)).collect();
+                if dependencies.is_empty() { None } else { Some((maintain, dependencies)) }
+            }).collect();
+            for (maintain, _) in &maintains { counts.contributions.insert(maintain.target.clone(), 0); }
+            let mut bounds = Bounds::default();
+            loop {
+                let rows = tx.scan(name, "byId", &[], &bounds, Dir::Asc, 256)?;
+                if rows.is_empty() { break; }
+                for (row, key) in rows {
+                    bounds.after = crate::key::decode(&key);
+                    let row = crate::schema::row_image(&row, source);
+                    let null = |path: &str| matches!(row.field(path), Ok(Value::Null) | Err(_));
+                    for (path, count) in &mut paths { if null(path) { *count += 1; } }
+                    if source.expired(&row, now) { continue; }
+                    for (maintain, dependencies) in &maintains {
+                        if maintain.selected(&row) && dependencies.iter().any(|path| null(path)) {
+                            *counts.contributions.get_mut(&maintain.target).expect("initialized maintain") += 1;
+                        }
+                    }
+                }
+            }
+            counts.captures.insert(name.clone(), paths);
+        }
+        tx.rollback()?;
+        Ok(counts)
+    }
+}

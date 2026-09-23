@@ -15,10 +15,12 @@ pub struct CalendarKey {
 
 impl CalendarKey {
     pub fn value(&self, row: &Value) -> Value {
+        if self.column.contains('.') && !matches!(row.field(&self.column), Ok(Value::Int(_))) { return Value::Null; }
         Value::Int(calendar_ordinal(row.field(&self.column).ok().and_then(|v| v.as_int().ok()).unwrap_or(0), self.millis, self.offset))
     }
     pub fn validate(&self, source: &Table) -> Result<(), String> {
-        if source.columns.get(&self.column) != Some(&ColumnType::Time) || self.millis <= 0 || self.offset < 0 || self.offset >= self.millis
+        if !source.columns.get(&self.column).is_some_and(|kind| kind == &ColumnType::Time
+            || (source.recorded.contains_key(&self.column) && kind.required() == &ColumnType::Time)) || self.millis <= 0 || self.offset < 0 || self.offset >= self.millis
             || !matches!(self.function.as_str(), "day" | "hour" | "bucket")
             || (self.function == "day" && self.millis != 86_400_000) || (self.function == "hour" && self.millis != 3_600_000) {
             return Err("computed time keys need a required time column, a positive calendar duration and a nonnegative offset smaller than the period".into());

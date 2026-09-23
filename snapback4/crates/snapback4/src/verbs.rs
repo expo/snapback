@@ -297,6 +297,9 @@ fn cost_report(bound: &Bound, program: &ir::Program) -> String {
         let audience = bound.schema.tables.get(table).and_then(|t| t.sync.as_ref()).map(|s| format!(", fans out to {}", match &s.audience { Audience::Public => "everyone".to_owned(), Audience::Column(c) => format!(".{c}"), Audience::Target { table, .. } => format!("the members in {table}") })).unwrap_or_default();
         lines.push(format!("    {kind} {table}{audience}"));
         if let Some(table) = bound.schema.tables.get(table) {
+            if matches!(*kind, "insert" | "insert-if-absent" | "upsert") && !table.recorded.is_empty() {
+                lines.push(format!("      recorded attribution: {} extra point reads per inserted row (one per path: {})", table.recorded.len(), table.recorded.keys().cloned().collect::<Vec<_>>().join(", ")));
+            }
             match *kind {
                 "insert" => probe_costs(&table.rules.insert, &mut lines),
                 "update" => probe_costs(&table.rules.update, &mut lines),
@@ -639,7 +642,13 @@ pub fn doctor(options: &Options) -> i32 {
                 lines.push(format!("storage   rows {} ({} rows) · indexes {} · log {} ({} events, {:.1}× rows) · ops {} · file {}", human(sizes.rows), sizes.row_count, human(sizes.indexes), human(sizes.log), sizes.log_events, sizes.amplification(), human(sizes.ops), human(sizes.file)));
             }
             match snapback4_core::Engine::open(store) {
-                Ok(engine) => {
+                Ok(mut engine) => {
+                    if let Ok(counts) = engine.recorded_nulls() {
+                        for (name, paths) in counts.captures {
+                            for (path, count) in paths { lines.push(format!("attribution {name}: {count} null captures at {path}")); }
+                        }
+                        for (name, count) in counts.contributions { lines.push(format!("attribution {name}: {count} null-attributed contributions")); }
+                    }
                     if let Ok(counts) = engine.action_counts() {
                         lines.push(format!("requests  {}", ["queued", "running", "done", "failed"].into_iter().map(|state| format!("{} {state}", counts.get(state).copied().unwrap_or(0))).collect::<Vec<_>>().join(", ")));
                     }
@@ -732,6 +741,9 @@ pub fn why(options: &Options) -> i32 {
             }
             if let Some(column) = &table.expire {
                 println!("  expire at .{column} — a row past it is absent to every reader, then swept; null never expires");
+            }
+            for (path, recorded) in &table.recorded {
+                println!("  engine-recorded {path}: {} — captured from {}.{} at insertion/activation; preserved across rebuilds; hidden from query rows", table.columns[path], recorded.table, recorded.column);
             }
             for (name, index) in &table.indexes {
                 println!("  {} {name}: {}", if index.unique { "unique" } else { "by" }, index.columns().join(", "));

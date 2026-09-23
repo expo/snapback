@@ -49,6 +49,13 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
         super::timeline::write_site(schema, &table, kind, &mut fact);
         if schema.tables.get(&table).is_none_or(|t| t.sync.is_none()) { fact.sites.push(site(schema, &format!("{kind} {table}"), &table, "byId", "write")); }
         if let Some(definition) = schema.tables.get(&table) {
+            if matches!(kind, "insert" | "insert-if-absent" | "upsert") {
+                for (path, recorded) in &definition.recorded {
+                    let mut dependency = site(schema, &format!("{kind} {table}"), &recorded.table, "byId", "recorded attribution");
+                    dependency.reason = format!("{table}.{path} implicitly reads {}.byId: prediction needs the target row live and covered by the current partition; otherwise queues without a row", recorded.table);
+                    fact.sites.push(dependency);
+                }
+            }
             let rule = match kind { "insert" | "insert-if-absent" => &definition.rules.insert, "delete" => &definition.rules.delete, _ => &definition.rules.update };
             rule_sites(schema, rule, &format!("{kind} {table} rule"), &mut fact.sites, &mut BTreeSet::new());
             if kind == "upsert" { rule_sites(schema, &definition.rules.insert, &format!("upsert {table} insert rule"), &mut fact.sites, &mut BTreeSet::new()); }

@@ -16,6 +16,50 @@ fn restricted(expr: &Expr) -> Diagnostic {
         "store this fact in a source field and compare .field with a literal, or use a bounded job")
 }
 
+/// Only maintain binding sees these synthetic columns; ordinary programs never do.
+pub(super) fn recorded_paths(tables: &BTreeMap<String, TableInfo>, maintain: &MaintainDecl) -> Fallible<BTreeMap<String, ScalarType>> {
+    fn visit(tables: &BTreeMap<String, TableInfo>, source: &TableInfo, expr: &Expr, out: &mut BTreeMap<String, ScalarType>) -> Fallible<()> {
+        match expr {
+            Expr::Member { base, name, .. } if !matches!(base.as_ref(), Expr::Focal { .. }) => {
+                let fail = |message: String| refusal(expr.site(), message, "use one immutable reference to a public table and an immutable target column (or id)");
+                let Expr::Name { name: reference, .. } = base.as_ref() else { return Err(fail("maintain reference paths have exactly one hop".into())); };
+                let Some(ScalarType { kind: TypeKind::Ref { table }, .. }) = source.columns.get(reference) else { return Err(fail(format!("{reference} must be a reference column of {}", source.decl.name))); };
+                if !source.decl.immutable.iter().any(|(fields, _)| fields.contains(reference)) { return Err(fail(format!("{}.{} must be immutable", source.decl.name, reference))); }
+                let target = tables.get(table).ok_or_else(|| fail(format!("unknown target table {table}")))?;
+                let public = target.decl.public.is_some() || target.decl.rules.iter().any(|rule| rule.effect == Effect::Read && (matches!(&rule.value, Expr::Name { name, .. } if name == "allow" || name == "public") || matches!(&rule.value, Expr::Call { name, .. } if name == "public")));
+                if !public { return Err(fail(format!("{table}'s read rule must be public or allow"))); }
+                let mut ty = if name == "id" { ScalarType { kind: TypeKind::Id, optional: false } }
+                    else { target.columns.get(name).cloned().ok_or_else(|| fail(format!("unknown column {table}.{name}")))? };
+                if name != "id" && !target.decl.immutable.iter().any(|(fields, _)| fields.contains(name)) { return Err(fail(format!("{table}.{name} must be immutable"))); }
+                ty.optional = true;
+                out.insert(format!("{reference}.{name}"), ty);
+            }
+            Expr::Call { args, .. } => for arg in args { visit(tables, source, arg, out)?; },
+            Expr::Binary { left, right, .. } => { visit(tables, source, left, out)?; visit(tables, source, right, out)?; }
+            Expr::Unary { value, .. } => visit(tables, source, value, out)?,
+            _ => {}
+        }
+        Ok(())
+    }
+    let mut out = BTreeMap::new();
+    if let Some(source) = tables.get(&maintain.source) {
+        for key in &maintain.keys { visit(tables, source, key, &mut out)?; }
+        if let Some(filter) = &maintain.filter { visit(tables, source, filter, &mut out)?; }
+    }
+    Ok(out)
+}
+
+fn path(expr: &Expr) -> Option<String> {
+    match expr {
+        Expr::Member { base, name, .. } => match base.as_ref() {
+            Expr::Focal { .. } => Some(name.clone()),
+            Expr::Name { name: reference, .. } => Some(format!("{reference}.{name}")),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 pub(super) fn keys(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<BTreeMap<String, CalendarKey>> {
     let mut computed = BTreeMap::new();
     let mut names = BTreeSet::from(["id".to_owned(), "value".to_owned()]);
@@ -23,11 +67,12 @@ pub(super) fn keys(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<BTre
         if !names.insert(field.clone()) { return Err(refusal(key.site(), format!("maintain output name {field} is duplicated or reserved"), "use distinct bare keys and at most one day, hour and bucket key; id and value are reserved")); }
         match key {
             Expr::Name { name, .. } if source.columns.contains_key(name) => {}
+            Expr::Member { .. } if path(key).is_some_and(|p| source.recorded.contains_key(&p)) => {}
             Expr::Call { name, args, .. } if matches!(name.as_str(), "day" | "hour" | "bucket") => {
                 let (millis, offset) = calendar(name, args, key.site())?;
-                let column = match &args[0] { Expr::Member { base, name, .. } if matches!(base.as_ref(), Expr::Focal { .. }) => name, _ => return Err(refusal(args[0].site(), "calendar group key needs a source time column", "day(.at), hour(.at), or bucket(.at, 2m)")) };
-                if source.columns.get(column) != Some(&ScalarType { kind: TypeKind::Time, optional: false }) {
-                    return Err(refusal(args[0].site(), format!("{}.{} must be a required time column for {name}", maintain.source, column), format!("{column}: time")));
+                let column = path(&args[0]).ok_or_else(|| refusal(args[0].site(), "calendar group key needs a source time column or recorded path", "day(.at), hour(postId.at), or bucket(.at, 2m)"))?;
+                if !source.columns.get(&column).is_some_and(|ty| ty.kind == TypeKind::Time && (!ty.optional || source.recorded.contains_key(&column))) {
+                    return Err(refusal(args[0].site(), format!("{}.{} must be a required time column or recorded time path for {name}", maintain.source, column), format!("{column}: time")));
                 }
                 computed.insert(field.clone(), CalendarKey { function: name.clone(), column: column.clone(), millis, offset });
             }
@@ -91,8 +136,9 @@ fn coerce(value: &mut Operand, ty: &Ty, expr: &Expr) -> Fallible<()> {
 }
 fn operand(source: &TableInfo, expr: &Expr) -> Fallible<(Operand, Ty)> {
     match expr {
-        Expr::Member { base, name, .. } if matches!(base.as_ref(), Expr::Focal { .. }) => {
-            let ty = if name == "id" { Ty::Id } else { source.columns.get(name).map(Ty::from_scalar).ok_or_else(|| restricted(expr))? };
+        Expr::Member { .. } if path(expr).is_some() => {
+            let name = path(expr).unwrap();
+            let ty = if name == "id" { Ty::Id } else { source.columns.get(&name).map(Ty::from_scalar).ok_or_else(|| restricted(expr))? };
             Ok((Operand::Field(name.clone()), ty))
         }
         Expr::Literal { value, site } => Ok(match value {

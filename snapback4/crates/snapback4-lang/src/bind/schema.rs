@@ -49,13 +49,15 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
     for maintain in catalog.maintains.values() {
         let source = catalog.tables.get(&maintain.source);
         let Some(source) = source else { continue };
+        let mut source = source.clone();
+        source.columns.extend(source.recorded.clone());
         if !schema.tables.contains_key(&maintain.name) { continue; }
         let kind = match &maintain.column {
             Some(column) => core::MaintainKind::Sum { of: column.clone() },
             None => core::MaintainKind::Count,
         };
-        let computed = match super::maintains::keys(source, maintain) { Ok(keys) => keys, Err(d) => { diagnostics.push(d); continue; } };
-        let filter = match maintain.filter.as_ref().map(|expr| super::maintains::predicate(source, expr)).transpose() { Ok(p) => p, Err(d) => { diagnostics.push(d); continue; } };
+        let computed = match super::maintains::keys(&source, maintain) { Ok(keys) => keys, Err(d) => { diagnostics.push(d); continue; } };
+        let filter = match maintain.filter.as_ref().map(|expr| super::maintains::predicate(&source, expr)).transpose() { Ok(p) => p, Err(d) => { diagnostics.push(d); continue; } };
         schema.maintains.push(core::Maintain { filter, computed, residency: schema.tables[&maintain.name].residency.clone(), kind, source: maintain.source.clone(), by: maintain.by.clone(), target: maintain.name.clone(), readable: None });
     }
     schema.prepare_contribution_indexes();
@@ -105,6 +107,13 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
             diagnostics.push(type_error(&column.site, format!("column {}.{} references unknown table {table}", decl.name, column.name), name_rewrite(table, catalog.tables.keys().map(String::as_str), Some("declare the table, or use id for an opaque identity"))));
         }
         columns.insert(column.name.clone(), scalar_to_column(&column.type_));
+    }
+    let mut recorded = BTreeMap::new();
+    for (path, kind) in &info.recorded {
+        let (reference, column) = path.split_once('.').expect("admitted path");
+        let TypeKind::Ref { table } = &info.columns[reference].kind else { unreachable!("admitted reference") };
+        recorded.insert(path.clone(), core::RecordedField { reference: reference.into(), table: table.clone(), column: column.into() });
+        columns.insert(path.clone(), scalar_to_column(kind));
     }
     let mut indexes = BTreeMap::new();
     let mut constraints = Vec::new();
@@ -201,7 +210,7 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
     };
     let residency = core::Residency { online_only: decl.online_only, inferred: decl.sync.as_ref().is_some_and(|s| matches!(s.audience, SyncAudience::Inferred { .. })), inherited_from: None };
     let defaults = super::defaults::bind(info, diagnostics);
-    Table { columns, defaults, indexes, rules, constraints, leave, sync, expire, residency }
+    Table { recorded, columns, defaults, indexes, rules, constraints, leave, sync, expire, residency }
 }
 
 /// `expire at .column`: a `time` column (optional means "never" when null)
@@ -564,10 +573,10 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
         },
     };
     columns.push(ColumnDecl { default: None, name: "value".into(), type_: value_type, site: site.clone() });
-    let computed = super::maintains::keys(source, maintain)?;
-    if let Some(expr) = &maintain.filter { super::maintains::predicate(source, expr)?; }
+    let computed = super::maintains::keys(&source, maintain)?;
+    if let Some(expr) = &maintain.filter { super::maintains::predicate(&source, expr)?; }
     for field in &maintain.by {
-        let ty = if computed.contains_key(field) { ScalarType { kind: TypeKind::Int, optional: false } } else { source.columns[field].clone() };
+        let ty = if computed.contains_key(field) { ScalarType { kind: TypeKind::Int, optional: computed[field].column.contains('.') } } else { source.columns[field].clone() };
         columns.push(ColumnDecl { default: None, name: field.clone(), type_: ty, site: site.clone() });
     }
     let mut indexes = vec![IndexDecl { name: "byGroup".into(), columns: maintain.by.clone(), unique: true, refusal: None, words: None, computed: BTreeMap::new(), site: site.clone() }];

@@ -147,7 +147,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "N_MAINTAIN_SYNCED" | "N_NOW_SERVER" | "N_NOT_PREDICTABLE" => "residency",
         "N_MAINTAIN_DELTA" | "E_RULE" => "rules",
         "E_NOT_PREDICTABLE" | "N_HORIZON_GUARD" | "E_PREDICT" => "prediction",
-        "E_QUARRY_MAINTAIN" => "maintains",
+        "E_RECORDED_FIELD" | "E_QUARRY_MAINTAIN" => "maintains",
         "E_QUARRY_MAINTAIN_EXPIRE" | "E_QUARRY_LIVE_MAINTAIN_PROBE" => "expire",
         "E_ADOPT" => "types",
         "E_TYPE" | "E_DIV_ZERO" | "E_OVERFLOW" | "E_FIELD" => "types",

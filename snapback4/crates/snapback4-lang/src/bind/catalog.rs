@@ -8,6 +8,7 @@ use std::collections::BTreeMap;
 
 #[derive(Clone, Debug)]
 pub struct TableInfo {
+    pub recorded: BTreeMap<String, ScalarType>,
     pub decl: TableDecl,
     pub columns: BTreeMap<String, ScalarType>,
     pub indexes: Vec<IndexDecl>,
@@ -94,7 +95,7 @@ impl Catalog {
                     }
                 }
                 if ok {
-                    tables.insert(table.name.clone(), TableInfo { decl: table.clone(), columns, indexes, maintained: None });
+                    tables.insert(table.name.clone(), TableInfo { recorded: BTreeMap::new(), decl: table.clone(), columns, indexes, maintained: None });
                 }
             }
             for maintain in &doc.maintains {
@@ -127,20 +128,28 @@ impl Catalog {
                 effects.insert(effect.name.clone(), effect.module.clone());
             }
         }
+        // Resolve every path against application declarations before generating any target.
+        for maintain in maintains.values() {
+            match super::maintains::recorded_paths(&tables, maintain) {
+                Ok(paths) => { if let Some(source) = tables.get_mut(&maintain.source) { source.recorded.extend(paths); } }
+                Err(diagnostic) => diagnostics.push(diagnostic),
+            }
+        }
         // Generated maintain targets join the catalog as tables.
         let names: Vec<String> = maintains.keys().cloned().collect();
         for name in names {
             let maintain = maintains[&name].clone();
-            let Some(source) = tables.get(&maintain.source).cloned() else {
+            let Some(mut source) = tables.get(&maintain.source).cloned() else {
                 diagnostics.push(unknown(&maintain.site, format!("maintain names unknown source table {}", maintain.source), name_rewrite(&maintain.source, tables.keys().map(String::as_str), None)));
                 continue;
             };
+            source.columns.extend(source.recorded.clone());
             match super::schema::maintain_target(&source, &maintain) {
                 Ok(decl) => {
                     let columns: BTreeMap<String, ScalarType> = decl.columns.iter().map(|c| (c.name.clone(), c.type_.clone())).collect();
                     let mut indexes = vec![IndexDecl { name: "byId".into(), columns: vec!["id".into()], unique: true, refusal: None, words: None, computed: BTreeMap::new(), site: decl.site.clone() }];
                     indexes.extend(decl.indexes.iter().cloned());
-                    tables.insert(name.clone(), TableInfo { decl, columns, indexes, maintained: Some(maintain) });
+                    tables.insert(name.clone(), TableInfo { recorded: BTreeMap::new(), decl, columns, indexes, maintained: Some(maintain) });
                 }
                 Err(diagnostic) => diagnostics.push(diagnostic),
             }

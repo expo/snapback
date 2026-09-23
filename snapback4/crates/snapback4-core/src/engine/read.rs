@@ -370,7 +370,7 @@ impl Runner<'_> {
             // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
             if self.device && self.tx.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
             self.note_expiry(table, &row);
-            Ok(self.live_aggregate(&read.table, row)?.unwrap_or(Value::Null))
+            Ok(super::recorded::public_image(table, self.live_aggregate(&read.table, row)?.unwrap_or(Value::Null)))
         } else {
             self.next_expiry = expiry_mark;
             if !provisional {
@@ -809,6 +809,7 @@ impl Runner<'_> {
                         break 'outer;
                     }
                     let Some(row) = aggregate else { continue; };
+                    let row = super::recorded::public_image(table, row);
                     if metered_word { self.meter.heap(word_heap::allocation(key.len()))?; }
                     last_rule_visible = Some(key.clone());
                     if let Some(filter) = &scan.filter {

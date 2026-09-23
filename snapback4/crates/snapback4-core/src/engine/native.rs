@@ -766,6 +766,27 @@ mod tests {
     ];
 
     #[test]
+    fn native_job_requests_cannot_forge_recorded_fields() {
+        use crate::{Context, Engine, meter::{Cut, Meter}};
+        let bound = snapback4_lang::compile(&[("schema.q".into(), include_str!("../../../snapback4-lang/tests/fixtures/recorded-attribution.q").into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        // The language dev-dependency links the non-test core; round-trip its
+        // schema into this unit-test crate's types at the normal text boundary.
+        let schema: crate::schema::Schema = serde_json::from_str(&serde_json::to_string(&bound.schema).unwrap()).unwrap();
+        let mut engine = Engine::memory(schema.clone(), []).unwrap();
+        let tx = engine.store.transaction().unwrap();
+        let mut runner = Runner::new(&tx, &schema, Context::system().at(1000), Meter::new(Ceilings::job(), Cut::Abort), 1);
+        for request in [
+            json!({"op":"insert", "table":"likes", "row":{"id":"l", "postId":"p", "principal":"alice", "at":100, "postId.authorId":"alice"}}),
+            json!({"op":"update", "table":"likes", "id":"l", "patch":{"postId.authorId":null}}),
+        ] {
+            let error = dispatch(&mut runner, "forger", request["op"].as_str().unwrap(), &request).unwrap_err();
+            assert_eq!(error.code(), "E_RECORDED_FIELD", "{error}");
+        }
+        tx.rollback().unwrap();
+    }
+
+    #[test]
     fn packed_lengths_and_catalog_growth_are_bounded_before_large_allocations() {
         for bytes in [HUGE_PACKED_LENGTH, CATALOG_GROWS_MEMORY] {
             let error = Module::compile(bytes).err().expect("malicious module refused");

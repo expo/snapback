@@ -261,3 +261,30 @@ fn w15c_cards_pin_the_interim_rule_and_newest_first_recipe() {
     let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
     assert!(b.diagnostics.is_empty() && b.notes.is_empty(), "{:?}", b.diagnostics);
 }
+
+#[test]
+fn recorded_attribution_admission_and_nullable_keys() {
+    let source = include_str!("fixtures/recorded-attribution.q");
+    let compile = |source: &str| snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    let good = compile(source);
+    assert!(good.diagnostics.is_empty(), "{:?}", good.diagnostics);
+    let likes = &good.schema.tables["likes"];
+    assert_eq!(likes.recorded.len(), 3);
+    assert!(likes.columns["postId.at"].is_optional());
+    assert!(good.schema.tables["trend"].columns["hour"].is_optional());
+    assert!(good.schema.operations["like"].sites.iter().any(|s| s.table == "posts" && s.kind == "recorded attribution"));
+    let types = snapback4_lang::emit::typescript(&good);
+    let likes_type = types.split("  likes: {").nth(1).unwrap().split("  };").next().unwrap();
+    assert!(!likes_type.contains("postId."), "{likes_type}");
+    for bad in [
+        source.replacen("read <- allow", "read <- .authorId = viewer", 1),
+        source.replace("  immutable postId\n", ""),
+        source.replace("immutable authorId, parentId, at", "immutable parentId, at"),
+        source.replace("by postId.authorId", "by postId.parentId.authorId"),
+        source.replace("by postId.authorId", "by postId.unknown"),
+        source.replace("where true by", "where postId.at > 0 by"),
+    ] {
+        let bound = compile(&bad);
+        assert!(bound.diagnostics.iter().any(|d| d.code == "E_QUARRY_MAINTAIN" && d.guide == "maintains" && !d.rewrite.is_empty()), "{:?}", bound.diagnostics);
+    }
+}

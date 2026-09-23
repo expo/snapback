@@ -77,6 +77,7 @@ table messages:
 
 table posts:
   authorId: principal
+  immutable authorId
   body: text <=500
   parentId: id ?
   score: int
@@ -136,6 +137,18 @@ table ledger:
   insert <- .ownerId = viewer
   update <- deny
   delete <- deny
+
+table likes:
+  postId: posts
+  principal: principal
+  at: time
+  immutable postId
+  public 'likes are public'
+  insert <- .principal = viewer
+  online only
+maintain receivedLikes: count likes by postId.authorId -- one immutable hop to a public target; attribution is recorded by the engine
+  read <- allow
+  online only
 
 maintain messageCounts: count messages by roomId       -- an aggregate the engine keeps: read it by group and get the number, 0 when the group has no row
   read <- exists members[.roomId, viewer]

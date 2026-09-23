@@ -34,6 +34,9 @@ pub mod write;
 mod maintains;
 pub(crate) mod timeline;
 mod timeline_authority;
+mod recorded;
+#[cfg(feature = "sqlite")]
+pub use recorded::RecordedNulls;
 mod write_target;
 mod receipt;
 pub(crate) mod presence;
@@ -81,6 +84,9 @@ pub trait Presence: std::fmt::Debug + Send + Sync {
         (live, if live > 0 { Some(now.saturating_add(PRESENCE_CONFIRMATION.as_millis() as i64)) } else { deadline })
     }
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LoadMode { Import, Restore }
 
 /// Who runs the program, with what, and when.
 #[derive(Clone, Debug)]
@@ -454,16 +460,20 @@ impl Engine {
                     || (repair_live_sums && matches!(m.kind, crate::schema::MaintainKind::Sum { .. }) && schema.table(&m.source).is_some_and(|source| source.expire.is_some()))
             }).collect();
             tx.set_meta("live_sum_candidates", "1")?;
-            if rebuild.is_empty() { return Ok(()); }
+            let attribution = schema.tables.values().any(|t| !t.recorded.is_empty())
+                || previous.as_ref().is_some_and(|s| s.tables.values().any(|t| !t.recorded.is_empty()));
+            if rebuild.is_empty() && !attribution { return Ok(()); }
             let now = crate::now_ms();
             let seq = tx.next_seq()?;
             let mut runner = Runner::new(tx, schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+            runner.event_free = attribution;
+            if attribution { runner.capture_activation(previous.as_ref())?; }
             for maintain in rebuild { runner.rebuild_maintain(maintain)?; }
             let events = std::mem::take(&mut runner.events);
             let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
             let written = runner.rows_written;
             drop(runner);
-            if written > 0 {
+            if written > 0 && !attribution {
                 tx.record_commit(seq, now, "rebuild", crate::SYSTEM_PRINCIPAL, "rebuild", &tables, written)?;
                 partition::append(tx, seq, &events)?;
             }
@@ -927,9 +937,27 @@ impl Engine {
 
     /// Development hosts supply their clock so seed commits share operation and stream time.
     pub fn seed_at(&mut self, rows: impl IntoIterator<Item = (String, Value)>, now: i64) -> Result<u64, RuntimeError> {
+        let targets: std::collections::BTreeSet<_> = self.schema.tables.values().flat_map(|table| table.recorded.values().map(|field| field.table.as_str())).collect();
         let tx = self.store.transaction()?;
+        let mut imports = BTreeMap::<(String, String), Value>::new();
+        let rows: Box<dyn Iterator<Item = (String, Value)> + '_> = if targets.is_empty() { Box::new(rows.into_iter()) } else {
+            let rows: Vec<_> = rows.into_iter().collect();
+            // A capture sees the imported target's eventual image, including
+            // fields retained by patches and defaults on fresh inserts.
+            for (name, row) in rows.iter().filter(|(name, _)| targets.contains(name.as_str())) {
+                let table = &self.schema.tables[name];
+                let id = row.field("id")?.as_str()?.to_owned();
+                let old = match imports.get(&(name.clone(), id.clone())) { Some(row) => Some(row.clone()), None => tx.get(name, &id)? }.filter(|row| !table.expired(row, now));
+                let mut fields = old.as_ref().map(|row| row.as_object().cloned()).transpose()?.unwrap_or_default();
+                fields.extend(row.as_object()?.clone());
+                if old.is_none() { for (field, default) in &table.defaults { fields.entry(field.clone()).or_insert_with(|| default.value(now, crate::SYSTEM_PRINCIPAL)); } }
+                imports.insert((name.clone(), id), Value::Row(fields.into()));
+            }
+            Box::new(rows.into_iter())
+        };
         let seq = tx.next_seq()?;
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+        runner.import_targets = Some(&imports);
         let mut count = 0;
         for (table, row) in rows {
             timeline::check_import(&self.schema, &table)?;
@@ -971,26 +999,79 @@ impl Engine {
         Ok(removed)
     }
 
-    /// Load rows exactly as given: validated and indexed, rules, constraints
-    /// and aggregates skipped, partition events emitted. For fixtures whose
-    /// aggregates are already computed and for the conformance corpus.
+    /// Untrusted fixture import. All targets are installed before attribution
+    /// is captured, so import order cannot invent dangling references.
     pub fn load(&mut self, rows: impl IntoIterator<Item = (String, Value)>) -> Result<u64, RuntimeError> {
-        self.load_timeline_rows(rows, false)
+        self.load_mode(rows, LoadMode::Import)
     }
 
-    /// Restore trusted durable images, including timeline history, without transitions.
+    /// Restore trusted durable images, including timeline and attribution history.
     pub fn load_trusted(&mut self, rows: impl IntoIterator<Item = (String, Value)>) -> Result<u64, RuntimeError> {
-        self.load_timeline_rows(rows, true)
+        self.load_mode(rows, LoadMode::Restore)
     }
 
-    fn load_timeline_rows(&mut self, rows: impl IntoIterator<Item = (String, Value)>, trusted: bool) -> Result<u64, RuntimeError> {
+    /// Persistence restores keep historical attribution verbatim; imports
+    /// cannot supply it. Device stores restore/page-apply at their own trusted
+    /// transaction boundary with the same stored row representation.
+    pub fn load_mode(&mut self, rows: impl IntoIterator<Item = (String, Value)>, mode: LoadMode) -> Result<u64, RuntimeError> {
+        if mode == LoadMode::Restore || self.schema.tables.values().all(|table| table.recorded.is_empty()) { return self.load_stored_rows(rows, mode); }
+        let now = crate::now_ms();
+        let tx = self.store.transaction()?;
+        let seq = tx.next_seq()?;
+        let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+        let mut imported = BTreeMap::new();
+        let mut count = 0;
+        for (name, row) in rows {
+            timeline::check_import(&self.schema, &name)?;
+            let table = self.schema.table(&name).ok_or_else(|| RuntimeError::Schema(format!("missing table {name}")))?;
+            if mode == LoadMode::Import { recorded::refuse_fields(table, &name, &row)?; }
+            validate::validate_row(&self.schema, &name, &row)?;
+            let old = tx.get(&name, row.field("id")?.as_str()?)?;
+            // Importing an existing source cannot erase its contribution history.
+            let mut row = row;
+            if mode == LoadMode::Import && let (Some(old), Value::Row(fields) | Value::Map(fields)) = (&old, &mut row) {
+                for path in table.recorded.keys() { fields.insert(path.clone(), old.field(path).cloned().unwrap_or(Value::Null)); }
+                for field in table.recorded.values() {
+                    if crate::schema::row_image(old, table).field(&field.reference).ok() != crate::schema::row_image(&row, table).field(&field.reference).ok() { return Err(RuntimeError::Structural { code: "E_RECORDED_FIELD", message: format!("{name}.{} cannot change after attribution capture; import a new source id (guide maintains)", field.reference) }); }
+                }
+            }
+            tx.put(&name, table, &row, old.as_ref())?;
+            imported.entry((name, row.field("id")?.as_str()?.to_owned())).or_insert(old);
+            count += 1;
+        }
+        for ((name, id), old) in imported {
+            let mut row = tx.get(&name, &id)?.expect("imported row exists in the writing transaction");
+            let table = &self.schema.tables[&name];
+            if mode == LoadMode::Import && old.is_none() {
+                let captured = runner.record_insert(&name, row.clone())?;
+                validate::validate_row(&self.schema, &name, &captured)?;
+                tx.put(&name, table, &captured, Some(&row))?;
+                row = captured;
+            }
+            partition::row_changed(&mut runner, &name, old.as_ref(), Some(&row))?;
+            runner.written_tables.insert(name);
+        }
+        let events = std::mem::take(&mut runner.events);
+        let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
+        drop(runner);
+        if count > 0 {
+            tx.record_commit(seq, now, "load", crate::SYSTEM_PRINCIPAL, "load", &tables, count)?;
+            partition::append(&tx, seq, &events)?;
+        }
+        tx.commit()?;
+        Ok(count)
+    }
+
+    // Persistence restoration and schemas without captures retain the streaming
+    // import path; attribution imports alone need staged target resolution.
+    fn load_stored_rows(&mut self, rows: impl IntoIterator<Item = (String, Value)>, mode: LoadMode) -> Result<u64, RuntimeError> {
         let now = crate::now_ms();
         let tx = self.store.transaction()?;
         let seq = tx.next_seq()?;
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
         let mut count = 0;
         for (table_name, row) in rows {
-            if !trusted { timeline::check_import(&self.schema, &table_name)?; }
+            if mode == LoadMode::Import { timeline::check_import(&self.schema, &table_name)?; }
             validate::validate_row(&self.schema, &table_name, &row)?;
             let table = self.schema.table(&table_name).expect("validated").clone();
             let id = row.field("id")?.as_str()?.to_owned();

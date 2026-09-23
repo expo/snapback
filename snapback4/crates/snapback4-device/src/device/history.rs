@@ -5,8 +5,13 @@ use std::cell::Cell;
 
 pub(super) const GROUPS: &str = "device:history:groups";
 pub(super) const STAGED_GROUPS: &str = "device:snapshot:groups";
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub(super) enum Membership { Held, Left }
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub(super) enum Membership {
+    Held, Left,
+    /// Rejoining can mix new deliveries with old retained images. Only ids
+    /// delivered again have current coverage until a replacement snapshot.
+    Rejoined(BTreeSet<String>),
+}
 pub(super) type Groups = BTreeMap<String, BTreeMap<String, Membership>>;
 
 pub(super) fn load<T: DeviceTx>(tx: &T, key: &str) -> Result<Groups, RuntimeError> {
@@ -29,19 +34,31 @@ pub(super) fn events<T: DeviceTx>(tx: &T, schema: &Schema, events: &[StreamEvent
     if joined.is_empty() && !events.iter().any(|event| schema.table(&event.table).is_some_and(|table| table.leave == LeavePolicy::DeliveredHistory)) { return Ok(()); }
     let meta = if staged { STAGED_GROUPS } else { GROUPS };
     let mut groups = load(tx, meta)?;
+    let recording_targets: BTreeSet<_> = schema.tables.values().flat_map(|table| table.recorded.values().map(|field| field.table.as_str())).collect();
     for event in events {
         let Some(table) = schema.table(&event.table).filter(|table| table.sync.is_some() && table.leave == LeavePolicy::DeliveredHistory) else { continue };
         match event.kind.as_str() {
             "scope" => { groups.entry(event.table.clone()).or_default().insert(key(&scope_group(table, event)?)?, Membership::Left); }
             "put" => {
                 let row = wire::row_from_json(table, event.data.as_ref().ok_or_else(|| RuntimeError::Input("event row is missing".into()))?).map_err(RuntimeError::Input)?;
-                groups.entry(event.table.clone()).or_default().insert(row_key(table, &row)?, Membership::Held);
+                let entries = groups.entry(event.table.clone()).or_default();
+                let key = row_key(table, &row)?;
+                let membership = entries.entry(key).or_insert(Membership::Held);
+                if staged || !recording_targets.contains(event.table.as_str()) { *membership = Membership::Held; }
+                if *membership == Membership::Left { *membership = Membership::Rejoined(BTreeSet::new()); }
+                if let Membership::Rejoined(ids) = membership { ids.insert(row.field("id")?.as_str()?.to_owned()); }
             }
             _ => {}
         }
     }
     for (name, joined) in joined {
-        for group in joined { groups.entry(name.clone()).or_default().insert(encoded(group)?, Membership::Held); }
+        for group in joined {
+            let entries = groups.entry(name.clone()).or_default();
+            let key = encoded(group)?;
+            let membership = entries.entry(key).or_insert(Membership::Held);
+            if staged || !recording_targets.contains(name.as_str()) { *membership = Membership::Held; }
+            else if *membership == Membership::Left { *membership = Membership::Rejoined(BTreeSet::new()); }
+        }
     }
     tx.set_meta(meta, &encoded(&groups)?)
 }

@@ -161,3 +161,5 @@ fn w6r1_rule_live_aggregate_prediction_on_both_stores() {
     }
     run(&mut Sqlite::new("w6r1-live")); run(&mut Memory::new());
 }
+
+mod recorded;

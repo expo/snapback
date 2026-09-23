@@ -194,6 +194,8 @@ pub enum AcquiredBoundary { Whole, Key(Vec<u8>) }
 pub trait Rows {
     /// Whether the current image comes from the device prediction overlay.
     fn provisional_row(&self, _table: &str, _row: &Value) -> Result<bool, RuntimeError> { Ok(false) }
+    /// A predicted attribution may use only a currently covered target image.
+    fn recording_covered(&self, _table: &str, _row: &Value) -> Result<bool, RuntimeError> { Ok(false) }
     /// The server-selected suffix of a device partition, independent of holdings.
     fn acquired_boundary(&self, _table: &str, _index: &str, _prefix: &[Value]) -> Result<Option<AcquiredBoundary>, RuntimeError> { Ok(None) }
     /// A device-only fact: this scan pins a delivered-history group it left.

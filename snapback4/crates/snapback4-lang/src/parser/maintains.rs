@@ -2,6 +2,12 @@
 use super::*;
 
 impl Parser {
+    pub(super) fn maintain_column(&mut self) -> Fallible<String> {
+        let mut column = self.word()?.value;
+        while self.maybe(".") { column.push('.'); column.push_str(&self.word()?.value); }
+        Ok(column)
+    }
+
     // @ref LLP 3000.007#20.9 — not binds to a predicate, including a scalar comparison.
     pub(super) fn maintain_predicate(&mut self, minimum: u8) -> Fallible<Expr> {
         let mut left = if self.at("not") {

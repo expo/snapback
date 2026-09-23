@@ -490,8 +490,8 @@ impl Parser {
                 if effect.value == "by" {
                     let name = self.word()?.value;
                     self.take(":")?;
-                    let mut columns = vec![self.word()?.value];
-                    while self.maybe(",") { columns.push(self.word()?.value); }
+                    let mut columns = vec![self.maintain_column()?];
+                    while self.maybe(",") { columns.push(self.maintain_column()?); }
                     self.newline()?;
                     indexes.push(IndexDecl { name, columns, unique: false, refusal: None, words: None, computed: std::collections::BTreeMap::new(), site: effect.site });
                     return Ok(());

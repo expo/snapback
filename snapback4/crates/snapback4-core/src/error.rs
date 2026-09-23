@@ -242,6 +242,10 @@ impl RuntimeError {
                 refusal.guide = Some("feeds".into());
                 refusal.rewrite = Some(message.clone());
             }
+            Self::Structural { code: "E_RECORDED_FIELD", .. } => {
+                refusal.guide = Some("maintains".into());
+                refusal.rewrite = Some("omit engine-recorded fields from the payload; write only application columns".into());
+            }
             Self::Structural { code: "E_SHAPE_EXCEEDS_METER", .. } => refusal.guide = Some("reads".into()),
             Self::Structural { code: "E_WRITE_ID_REUSE" | "E_ID_REUSED", message } => {
                 refusal.message = message.clone();

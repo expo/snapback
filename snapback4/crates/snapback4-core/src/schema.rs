@@ -214,6 +214,9 @@ fn prove_probe_row_readable(rule: &RuleExpr, table: &str, index: &str, index_col
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Table {
+    /// Engine-owned historical facts, keyed by their one-hop source path.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub recorded: BTreeMap<String, RecordedField>,
     #[serde(default, skip_serializing_if = "Residency::is_default")]
     pub residency: Residency,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -236,6 +239,14 @@ pub struct Table {
     /// to each device that holds it (LLP 3000 §7).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expire: Option<String>,
+}
+
+// @ref LLP 3000.007.003#3.2 — attribution is stored on the contributing row, never resolved by the aggregate evaluator.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecordedField {
+    pub reference: String,
+    pub table: String,
+    pub column: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -729,6 +740,7 @@ pub const BY_ID: &str = "byId";
 pub fn public_table(columns: BTreeMap<String, ColumnType>, indexes: BTreeMap<String, Index>) -> Table {
     let public = RuleExpr::Public { reason: "fixture".to_owned() };
     Table {
+        recorded: BTreeMap::new(),
         residency: Residency::default(),
         defaults: BTreeMap::new(),
         columns,
@@ -766,6 +778,17 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     }
     for (table_name, table) in &schema.tables {
         let path = format!("tables.{table_name}");
+        for (field, capture) in &table.recorded {
+            let target = schema.table(&capture.table);
+            let valid = field == &format!("{}.{}", capture.reference, capture.column)
+                && !capture.reference.contains('.') && !capture.column.contains('.')
+                && table.columns.get(&capture.reference).is_some_and(|kind| kind.required() == &ColumnType::Ref { table: capture.table.clone() })
+                && table.immutable_fields().any(|name| name == capture.reference)
+                && target.is_some_and(|target| target.rules.read.is_uniformly_readable()
+                    && (capture.column == "id" || target.immutable_fields().any(|name| name == capture.column))
+                    && target.columns.get(&capture.column).is_some_and(|kind| table.columns.get(field) == Some(&ColumnType::Optional(Box::new(kind.required().clone())))));
+            if !valid { issue(&mut issues, format!("{path}.recorded.{field}"), "recorded attribution requires one immutable reference to a public target's immutable column or id, with an optional stored type; guide maintains".into()); }
+        }
         if table.columns.get("id") != Some(&ColumnType::Id) {
             issue(&mut issues, format!("{path}.columns.id"), "every table has an intrinsic id column".into());
         }
@@ -981,7 +1004,8 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
     }
     if let Err(message) = maintain.validate_keys(source) { issue(issues, message); }
     for field in &maintain.by {
-        let expected = if maintain.computed.contains_key(field) { Some(&ColumnType::Int) } else { source.columns.get(field) };
+        let calendar_type = if maintain.computed.get(field).is_some_and(|key| source.recorded.contains_key(&key.column)) { ColumnType::Optional(Box::new(ColumnType::Int)) } else { ColumnType::Int };
+        let expected = if maintain.computed.contains_key(field) { Some(&calendar_type) } else { source.columns.get(field) };
         match expected {
             None => issue(issues, format!("maintain names unknown source column {}.{field}", maintain.source)),
             Some(kind) if target.columns.get(field) != Some(kind) => issue(issues, format!("maintain target column {field} must match the source type {kind}")),

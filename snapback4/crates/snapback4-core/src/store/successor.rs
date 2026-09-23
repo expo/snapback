@@ -17,10 +17,16 @@ pub(super) fn assess(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Step>, RuntimeE
             // read-only and use the same interpreted contribution, without a write.
             if previous.tables.contains_key(&maintain.source) {
                 let source = &schema.tables[&maintain.source];
+                let paths: Vec<_> = source.recorded.keys().filter(|path| !previous.tables[&maintain.source].recorded.contains_key(*path)).cloned().collect();
+                let mut capture = crate::engine::runner::Runner::new(tx, schema, crate::engine::Context::system().at(crate::now_ms()), crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort), 0);
                 let mut totals = BTreeMap::<Vec<u8>, i128>::new();
                 let mut fits = true;
-                super::activation::walk(tx, tx.num(&maintain.source)?, |_, row| {
-                    let row = crate::schema::row_image(&row, source);
+                super::activation::walk(tx, tx.num(&maintain.source)?, |_, mut row| {
+                    if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.retain(|field, _| source.columns.contains_key(field)); }
+                    // Assess the same activation-time capture that the atomic
+                    // migration will write; grouping uncaptured paths as null
+                    // could falsely reject sums that fit their real groups.
+                    let row = capture.capture_recorded(source, crate::schema::row_image(&row, source).into_owned(), &paths)?;
                     if validate_row(schema, &maintain.source, &row).is_err() { fits = false; return Ok(()); }
                     if maintain.selected(&row) {
                         let value = match &maintain.kind {
@@ -63,7 +69,7 @@ pub(super) fn assess(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Step>, RuntimeE
         let mut groups: BTreeMap<(String, Vec<u8>), u64> = BTreeMap::new();
         super::activation::walk(tx, t, |_, mut row| {
             if !fits { return Ok(()); }
-            if let Value::Row(fields) = &mut row { fields.retain(|column, _| table.columns.contains_key(column)); }
+            if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.retain(|column, _| table.columns.contains_key(column)); }
             materialize_optional_fields(&mut row, table);
             match path.as_slice() {
                 ["tables", _, "columns", column] => {
