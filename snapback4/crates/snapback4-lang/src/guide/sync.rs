@@ -130,12 +130,17 @@ fields return HTTP 400 `E_INPUT`. Continue snapshots with `after: next`;
 `stream: true` follows the log even from zero. There is no GET sync route.
 The client sends its device generation. A mismatch returns HTTP 200
 `E_SYNC_GENERATION` (family `generation`) with `generation`, `store_id` and
-the current `watermark`, before building a snapshot or stream page. The
+the current `watermark` when readable, before building a snapshot or stream page. The
 client observes identity, adopts `/schema`, then retries from the device's
 resulting position with its pending IDs intact. This refusal is never applied
-as a delivered page. Omitting `generation` preserves ordinary page behavior.
+as a delivered page: its watermark is head evidence, not delivered progress, and
+never moves the cursor. Retry only from the position adoption produced.
+Omitting `generation` preserves ordinary page behavior.
 Against 0.2.32, the client retries without the field once on that server's exact
-HTTP 400 sync-input refusal, then omits it for the rest of that client instance.
+HTTP 400 sync-input refusal. Only if the stripped retry answers something other
+than that refusal does this transport omit the field for that server origin.
+A failed retry leaves generation discovery enabled; another origin or transport
+still sends the field.
 An HTTP response above 16 MiB becomes `E_BOUND`, keeping `generation`,
 `store_id` and `watermark` from that page. The client checks identity before
 shrinking its limit; a refusal's watermark is never applied as delivered data.

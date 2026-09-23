@@ -8,7 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { createLocalClient } from "../dist/local.js";
-import { syncTransport } from "../dist/local-sync.js";
+import { legacyInputRefusal, syncTransport } from "../dist/local-sync.js";
 import { processDevice } from "../dist/native.js";
 import { memoryPersistence, webDevice } from "../dist/web.js";
 
@@ -26,8 +26,12 @@ mutation bump():
   c = counters['a'] ! else NOT_FOUND
   update counters['a'] {n: c.n + 1}
 `;
-const legacyMessage = "sync needs { from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes";
-const legacyRefusal = { denied: { code: "E_INPUT", family: "input", message: legacyMessage } };
+// Captured verbatim from published snapback4-darwin-arm64@0.2.32, SHA-256
+// c5e44f61065b3c23c82cba5fb20e993452c5b82c33fa24fbd1758d00aac00339.
+const legacyRefusal = JSON.parse(readFileSync(new URL("./fixtures/sync-input-0.2.32.json", import.meta.url), "utf8"));
+test("the legacy refusal constant matches the published 0.2.32 capture", () => {
+  assert.deepEqual(legacyInputRefusal, legacyRefusal);
+});
 
 function parkedChanges(signal) {
   let cleanup;
@@ -47,7 +51,7 @@ function parkedChanges(signal) {
 async function fixture(t, tier = "process", serverBinary = binary) {
   const dir = mkdtempSync(join(tmpdir(), "sb4-sync-generation-"));
   mkdirSync(join(dir, "snapback"));
-  let url, child, exited, client, core;
+  let url, child, exited, client, core, intercept;
   const trace = [], calls = [];
   async function stop() {
     if (child && child.exitCode == null && child.signalCode == null) child.kill();
@@ -88,13 +92,13 @@ async function fixture(t, tier = "process", serverBinary = binary) {
       if (request.op === "apply") assert.equal(request.page.denied, undefined, "never apply a refusal as a page");
       const reply = await core.call(request);
       calls.push({ request, reply, ...(request.op === "observe_store" && request.page.denied ? { state: await ok({ op: "state" }) } : {}) });
-      if (request.op === "adopt") trace.push({ op: "adopt", state: await ok({ op: "state" }), queued: await ok({ op: "queued" }) });
+      if (request.op === "adopt") trace.push({ op: "adopt", state: await ok({ op: "sync_state", capture: false }), queued: await ok({ op: "queued" }) });
       return reply;
     } };
   } }, fetch: async (input, init) => {
     const path = new URL(input).pathname;
     if (path === "/changes") return parkedChanges(init.signal);
-    const response = await fetch(input, init);
+    const response = await intercept?.(input, init) ?? await fetch(input, init);
     const text = await response.text(), reply = JSON.parse(text);
     trace.push({ path, request: init.body ? JSON.parse(init.body) : undefined, status: response.status, bytes: Buffer.byteLength(text), reply });
     return new Response(text, { status: response.status, headers: response.headers });
@@ -102,7 +106,7 @@ async function fixture(t, tier = "process", serverBinary = binary) {
   assert.equal(client.acquired, true);
   // Let the constructor's empty flush finish before injecting durable entries.
   await delay(20);
-  return { client, ok, start, post, trace, calls };
+  return { client, ok, start, post, trace, calls, intercept: fn => { intercept = fn; } };
 }
 
 for (const tier of ["wasm", "process"]) test(`${tier}: early generation adoption preserves unsent writes, known and lost acknowledgements`, { timeout: 90000 }, async t => {
@@ -122,6 +126,7 @@ for (const tier of ["wasm", "process"]) test(`${tier}: early generation adoption
   const queued = await f.ok({ op: "queued" });
   assert.deepEqual(queued.map(e => e.id), ids);
   assert.equal(queued[0].sent_seq, known.seq);
+  await f.start(source.replace("n: int", "n: int\n  intermediate: int default 0"));
   // Also change acquisition so adoption must discard its old row images.
   await f.start(source.replace("n: int", "n: int\n  added: int default 0").replace("sync public", "sync public last 100 by byId"));
   f.trace.length = 0; f.calls.length = 0;
@@ -131,19 +136,28 @@ for (const tier of ["wasm", "process"]) test(`${tier}: early generation adoption
   assert.equal(early.request.generation, 1);
   assert.equal(early.request.from, before.watermark);
   assert.equal(early.reply.denied?.code, "E_SYNC_GENERATION");
+  assert.deepEqual(Object.keys(early.reply).sort(), ["denied", "generation", "store_id", "watermark"]);
+  assert.ok(early.reply.generation > early.request.generation + 1);
+  assert.ok(before.watermark > 0);
+  assert.ok(early.reply.watermark > 0);
   assert.ok(early.bytes < 1024);
   assert.equal(f.calls.find(r => r.request.op === "observe_store").state.watermark, before.watermark,
     "observing the early answer must not advance delivered progress before adoption");
   const adopted = f.trace[2];
-  assert.equal(adopted.state.generation, 2);
+  assert.equal(adopted.state.generation, early.reply.generation);
+  assert.equal(adopted.state.store_id, early.reply.store_id);
+  assert.notEqual(adopted.state.watermark, early.reply.watermark);
   assert.equal(adopted.state.watermark, 0, "early head must never become delivered progress");
   assert.deepEqual(adopted.queued, queued, "adoption keeps every outbox entry and known receipt byte for byte");
   const retry = f.trace[3].request;
-  assert.equal(retry.generation, 2);
+  assert.equal(retry.generation, early.reply.generation);
+  assert.equal(retry.store_id, early.reply.store_id);
   assert.equal(retry.from, 0);
   assert.equal(retry.limit, early.request.limit);
   // Adoption recaptures the outbox; wasm can additionally capture an unsent
   // entry here. Every id awaiting an acknowledgement must still be present.
+  assert.ok(early.request.pending.includes("lost"));
+  assert.ok(retry.pending.includes("lost"));
   assert.ok(early.request.pending.every(id => retry.pending.includes(id)));
   assert.ok(f.trace.every(r => r.reply?.denied?.code !== "E_BOUND"));
   const receiptPage = f.trace.find(r => r.reply?.acknowledged?.lost);
@@ -153,7 +167,11 @@ for (const tier of ["wasm", "process"]) test(`${tier}: early generation adoption
   const unsent = remaining.find(e => e.id === "unsent");
   assert.deepEqual(unsent, queued[2], "unsent intent survives catch-up unchanged");
   const lost = remaining.find(e => e.id === "lost");
-  assert.ok(!lost || lost.observed_seq === receiptPage.reply.acknowledged.lost);
+  const lostOutcome = lost ? { state: "sent", id: lost.id, seq: lost.observed_seq }
+    : JSON.parse(await f.ok({ op: "meta", key: "write-history" }) ?? "[]").find(r => r.id === "lost");
+  assert.ok(lostOutcome, "the lost acknowledgement must be recorded in client state");
+  assert.equal(lostOutcome.state, "sent");
+  assert.equal(lostOutcome.seq, receiptPage.reply.acknowledged.lost);
   assert.equal((await f.ok({ op: "state" })).watermark, early.reply.watermark);
   // Complete the surviving intent under its original id; all three writes
   // must have happened exactly once and the client must skip no event.
@@ -168,26 +186,86 @@ for (const tier of ["wasm", "process"]) test(`${tier}: early generation adoption
   assert.equal((await f.ok({ op: "state" })).watermark, sent.seq);
 });
 
-test("legacy fallback is once per client, preserves the request, and recognizes only the exact refusal", async () => {
-  const input = { generation: 7, from: 31, limit: 2, after: "cursor", stream: false, pending: ["write"], store_id: "store" };
-  const requests = [];
-  const transport = syncTransport(async (_, init) => {
-    requests.push(JSON.parse(init.body));
-    return Response.json(legacyRefusal, { status: 400 });
+const legacyRequest = { generation: 7, from: 31, limit: 2, after: "cursor", stream: false, pending: ["write"], store_id: "store" };
+const { generation: omittedGeneration, ...strippedRequest } = legacyRequest;
+const legacyInit = { method: "POST", headers: { authorization: "Bearer fixture", "content-type": "application/json" } };
+const oldRefusal = () => Response.json(legacyRefusal, { status: 400 });
+const oldPage = () => Response.json({ generation: 7, store_id: "store", watermark: 31, snapshot: false, events: [], more: false });
+const record = (url, init) => ({ url, method: init.method, headers: Object.fromEntries(new Headers(init.headers)), body: JSON.parse(init.body) });
+
+test("legacy fallback returns the distinct successful retry and latches only its origin and transport", async () => {
+  const requests = [], page = oldPage(), first = oldRefusal();
+  const transport = syncTransport(async (url, init) => {
+    requests.push(record(url, init));
+    return requests.length === 1 ? first : page;
   });
-  assert.equal((await transport("http://legacy/sync", {}, input)).status, 400);
-  await transport("http://legacy/sync", {}, input);
-  const { generation: _, ...oldInput } = input;
-  assert.deepEqual(requests, [input, oldInput, oldInput], "one retry, no cursor, id or pending mutation");
+  assert.equal(first.status, 400);
+  assert.deepEqual(await first.clone().json(), legacyRefusal);
+  assert.equal(await transport("http://legacy/sync", legacyInit, legacyRequest), page);
+  assert.equal(page.status, 200);
+  assert.equal((await page.clone().json()).denied, undefined);
+  await transport("http://legacy/another/sync", legacyInit, legacyRequest);
+  await transport("http://modern/sync", legacyInit, legacyRequest);
+  await transport("http://legacy:8080/sync", legacyInit, legacyRequest);
+  const second = syncTransport(async (url, init) => { requests.push(record(url, init)); return oldPage(); });
+  await second("http://legacy/sync", legacyInit, legacyRequest);
+  assert.deepEqual(requests.map(r => r.body), [legacyRequest, strippedRequest, strippedRequest, legacyRequest, legacyRequest, legacyRequest]);
+  assert.deepEqual(requests.map(r => r.url), ["http://legacy/sync", "http://legacy/sync", "http://legacy/another/sync", "http://modern/sync", "http://legacy:8080/sync", "http://legacy/sync"]);
+  assert.ok(requests.every(r => r.method === "POST"));
+  assert.ok(requests.every(r => JSON.stringify(r.headers) === JSON.stringify(Object.fromEntries(new Headers(legacyInit.headers)))));
+});
+
+for (const failure of ["same E_INPUT", "throw"]) test(`legacy fallback does not latch on ${failure}`, async () => {
+  const requests = [], refusedRetry = oldRefusal();
+  const transport = syncTransport(async (url, init) => {
+    requests.push(record(url, init));
+    if (requests.length === 1) return oldRefusal();
+    if (requests.length === 2) { if (failure === "throw") throw new Error("retry offline"); return refusedRetry; }
+    return oldPage();
+  });
+  if (failure === "throw") await assert.rejects(transport("http://legacy/sync", legacyInit, legacyRequest), /retry offline/);
+  else assert.equal(await transport("http://legacy/sync", legacyInit, legacyRequest), refusedRetry);
+  assert.equal(requests.length, 2, "one retry, even when the same refusal persists");
+  await transport("http://legacy/sync", legacyInit, legacyRequest);
+  assert.deepEqual(requests.map(r => r.body), [legacyRequest, strippedRequest, legacyRequest]);
+});
+
+test("legacy fallback captures each overlapping attempt and waits for successful retry before latching", async () => {
+  const requests = [], replies = [];
+  const transport = syncTransport((url, init) => {
+    requests.push(record(url, init));
+    return new Promise(resolve => { replies.push(resolve); });
+  });
+  const first = transport("http://legacy/sync", legacyInit, legacyRequest);
+  const second = transport("http://legacy/sync", legacyInit, legacyRequest);
+  replies[0](oldRefusal());
+  while (replies.length < 3) await delay(1);
+  const third = transport("http://legacy/sync", legacyInit, legacyRequest);
+  assert.deepEqual(requests[3].body, legacyRequest, "an in-flight stripped retry has not latched");
+  replies[2](oldPage()); await first;
+  replies[1](oldRefusal());
+  while (replies.length < 5) await delay(1);
+  assert.deepEqual(requests[4].body, strippedRequest, "the second attempt sent generation and still gets its retry after another attempt latches");
+  replies[4](oldPage()); replies[3](oldPage());
+  await Promise.all([second, third]);
+  assert.equal(requests.length, 5);
+});
+
+test("legacy fallback ignores other refusals and never retries an attempt without generation", async () => {
   for (const [status, reply] of [[200, legacyRefusal], [413, legacyRefusal], [500, legacyRefusal],
-    [400, { denied: { ...legacyRefusal.denied, message: "other input error" } }],
+    [400, { denied: { ...legacyRefusal.denied, message: "the snapshot cursor is not one this server minted" } }],
     [400, { denied: { ...legacyRefusal.denied, family: "auth" } }],
     [400, { denied: { ...legacyRefusal.denied, code: "E_AUTH" } }]]) {
-    let calls = 0;
-    const fetchSync = syncTransport(async () => { calls++; return Response.json(reply, { status }); });
-    await fetchSync("http://legacy/sync", {}, input);
-    assert.equal(calls, 1, JSON.stringify({ status, reply }));
+    const requests = [];
+    const transport = syncTransport(async (url, init) => { requests.push(record(url, init)); return Response.json(reply, { status }); });
+    await transport("http://legacy/sync", legacyInit, legacyRequest);
+    await transport("http://legacy/sync", legacyInit, legacyRequest);
+    assert.deepEqual(requests.map(r => r.body), [legacyRequest, legacyRequest], "different E_INPUT must not latch");
   }
+  let calls = 0;
+  const transport = syncTransport(async () => { calls++; return oldRefusal(); });
+  await transport("http://legacy/sync", legacyInit, strippedRequest);
+  assert.equal(calls, 1);
 });
 
 test("new client syncs against the actual 0.2.32 server's deny_unknown_fields request contract", {
@@ -214,4 +292,77 @@ test("new client syncs against the actual 0.2.32 server's deny_unknown_fields re
   assert.ok(f.trace.filter(r => r.path === "/sync").every(r => !("generation" in r.request)));
   assert.equal((await f.ok({ op: "state" })).generation, 2);
   assert.equal((await f.client.query({ kind: "query", name: "counter" }, {})).data.n, 1);
+});
+
+for (const tier of ["wasm", "process"]) for (const transfer of ["deferred stream", "staged snapshot"]) {
+  test(`${tier}: early generation head preserves restore evidence from ${transfer}`, { timeout: 90000 }, async t => {
+    const f = await fixture(t, tier);
+    const storeId = (await f.ok({ op: "sync_state", capture: false })).store_id;
+    assert.ok(storeId);
+    const page = async (watermark, extra = {}) => {
+      const c = await f.ok({ op: "sync_state" });
+      return { snapshot: false, events: [], more: false, generation: 1, store_id: storeId, watermark, images_at: watermark,
+        requested_watermark: c.transfer_watermark, captured_watermark: c.watermark,
+        captured_restore_watermark: c.restore_watermark, captured_restore_images_at: c.restore_images_at,
+        send_revision: c.send_revision, pending_through: c.pending_through, pending_complete: c.pending_complete,
+        pending_bound: c.pending_bound, ...extra };
+    };
+    await f.ok({ op: "apply", page: await page(5) });
+    await f.ok({ op: "admit", entry: { id: "q", seq: 1, op: "bump", args: {}, new_ids: [], predicted: [], viewer: "dev:alice", now: 1000, predictable: true } });
+    const staged = transfer === "staged snapshot";
+    const applied = await f.ok({ op: "apply", first: staged, page: await page(staged ? 20 : 10, staged
+      ? { snapshot: true, stage_snapshot: true, more: true, next: "staged-continuation", requested_watermark: 0 }
+      : { images_at: 20, more: true, committed_above: { q: 20 } }) });
+    assert.equal(applied.published, false);
+    const before = await f.ok({ op: "sync_state", capture: false });
+    assert.equal(before.watermark, 5);
+    assert.equal(before.restore_images_at, 20);
+    if (!staged) {
+      assert.equal(before.transfer_watermark, 10);
+      assert.deepEqual(before.pending_ids, ["q"]);
+    }
+    const queued = await f.ok({ op: "queued" });
+    await f.start(source.replace("n: int", "n: int\n  added: int default 0"));
+    let syncs = 0;
+    f.intercept(input => {
+      if (new URL(input).pathname !== "/sync") return;
+      return Response.json(syncs++ === 0
+        ? { denied: { code: "E_SYNC_GENERATION", family: "generation", message: "adopt" }, generation: 2, store_id: storeId, watermark: 15 }
+        : { snapshot: false, events: [], more: false, images_at: 15, generation: 2, store_id: storeId, watermark: 15 });
+    });
+    f.trace.length = 0; f.calls.length = 0;
+    await f.client.sync();
+    const state = await f.ok({ op: "sync_state", capture: false });
+    assert.equal(state.restore_refusal?.code, "E_STORE_RESTORE");
+    assert.equal(state.generation, 1);
+    assert.equal(state.watermark, 5);
+    assert.equal(state.restore_images_at, 20);
+    assert.deepEqual(await f.ok({ op: "queued" }), queued);
+    assert.equal(f.calls.filter(c => c.request.op === "adopt").length, 0);
+    assert.equal(f.calls.filter(c => c.request.op === "begin_send").length, 0);
+    assert.equal(f.trace.filter(r => r.path?.startsWith("/m/")).length, 0);
+    assert.equal((await f.client.query({ kind: "query", name: "counter" }, {})).denied?.code, "E_STORE_RESTORE");
+    await f.client.sync();
+    assert.equal(syncs, 1, "the durable restore halt prevents retry and resend");
+    assert.equal(f.calls.filter(c => c.request.op === "adopt" || c.request.op === "begin_send").length, 0);
+  });
+}
+
+for (const tier of ["wasm", "process"]) test(`${tier}: missing early watermark still permits generation adoption`, { timeout: 90000 }, async t => {
+  const f = await fixture(t, tier);
+  await f.start(source.replace("n: int", "n: int\n  added: int default 0").replace("sync public", "sync public last 100 by byId"));
+  let syncs = 0;
+  f.intercept(async (input, init) => {
+    if (new URL(input).pathname !== "/sync" || syncs++ !== 0) return;
+    const response = await fetch(input, init);
+    const reply = await response.json();
+    assert.equal(reply.denied?.code, "E_SYNC_GENERATION");
+    delete reply.watermark;
+    return Response.json(reply);
+  });
+  f.trace.length = 0; f.calls.length = 0;
+  await f.client.sync();
+  assert.equal((await f.ok({ op: "state" })).generation, 2);
+  assert.equal(f.calls.filter(c => c.request.op === "adopt").length, 1);
+  assert.equal((await f.client.query({ kind: "query", name: "counter" }, {})).data.added, 0);
 });

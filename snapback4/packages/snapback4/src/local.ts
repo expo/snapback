@@ -717,7 +717,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           // Neither refusal delivers a row batch. An overflow watermark is
           // only an event cut; preserve explicit image-head evidence without
           // inventing terminality or treating a refusal as delivered progress.
-          const observed = await call({ op: "observe_store", page: denied ? { ...page, snapshot: false, events: [], more: true } : page });
+          // Generation discovery reports the current head, so it must check
+          // retained image evidence before adoption can clear that evidence.
+          // If unavailable, echo the requested position without asserting a head.
+          const observed = await call({ op: "observe_store", page: denied ? { ...page, snapshot: false, events: [], more: true,
+            ...(generationChanged ? { watermark: page.watermark ?? page.requested_watermark, images_at: page.watermark } : {}) } : page });
           if (observed.denied) { refuseRestore(observed.denied); return false; }
           const observation = observed.ok as { reset: boolean; backend_required?: boolean; send_revision: number; retired: Record<string, number>; adoption_capture?: Record<string, string | null> };
           page.send_revision = observation.send_revision;

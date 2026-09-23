@@ -11,23 +11,29 @@ enum SyncOutcome<T> {
 pub(super) static MATERIALIZATIONS: Mutex<BTreeMap<String, usize>> = Mutex::new(BTreeMap::new());
 
 // @ref LLP 3000.007.003#5 — learn the answering generation before materializing a stale page.
-fn under_generation<T>(engine: &mut Engine, requested: Option<u64>, store_id: &str,
+fn under_generation<T>(engine: &mut Engine, requested: Option<u64>, generation: u64, store_id: &str,
     materialize: impl FnOnce(&mut Engine) -> Result<T, RuntimeError>,
 ) -> Result<SyncOutcome<T>, RuntimeError> {
-    let generation = engine.generation();
     if requested.is_some_and(|requested| requested != generation) {
         let denied = Refusal::new("E_SYNC_GENERATION", "generation", "sync generation changed; adopt /schema before retrying this position").guide("sync");
-        return Ok(SyncOutcome::Generation(json!({
+        let mut reply = json!({
             "denied": refusal_json(&denied), "generation": generation,
-            "store_id": store_id, "watermark": engine.seq()?,
-        })));
+            "store_id": store_id,
+        });
+        // Same head as a caught-up page: MAX(_commits.seq), not a delivered cut.
+        // Identity/generation discovery remains available if this read fails.
+        if let Ok(watermark) = engine.seq() { reply["watermark"] = json!(watermark); }
+        return Ok(SyncOutcome::Generation(reply));
     }
+    let page = materialize(engine)?;
     #[cfg(test)]
     { *lock(&MATERIALIZATIONS).entry(store_id.to_owned()).or_default() += 1; }
-    materialize(engine).map(SyncOutcome::Page)
+    Ok(SyncOutcome::Page(page))
 }
 
 pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
+    // This is also the page path's request authorization. Partition rules
+    // filter unreadable rows/groups; they add no whole-request refusal.
     let principal = match principal_of(&request, shared) {
         Ok(principal) => principal,
         Err(refusal) => {
@@ -53,11 +59,13 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
             let reader = { lock(&shared.engine).reader() };
             match reader {
                 Ok(mut reader) => {
-                    (under_generation(&mut reader, requested_generation, &store_id, |reader| reader.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, shared.now()).and_then(|page| reader.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks)))), reader.generation())
+                    let generation = reader.generation();
+                    (under_generation(&mut reader, requested_generation, generation, &store_id, |reader| reader.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, shared.now()).and_then(|page| reader.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks)))), generation)
                 }
                 Err(_) => {
                     let mut engine = lock(&shared.engine);
-                    (under_generation(&mut engine, requested_generation, &store_id, |engine| engine.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, shared.now()).and_then(|page| engine.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks)))), engine.generation())
+                    let generation = engine.generation();
+                    (under_generation(&mut engine, requested_generation, generation, &store_id, |engine| engine.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, shared.now()).and_then(|page| engine.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks)))), generation)
                 }
             }
         };
@@ -79,11 +87,13 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
             let reader = { lock(&shared.engine).reader() };
             match reader {
                 Ok(mut reader) => {
-                    (under_generation(&mut reader, requested_generation, &store_id, |reader| reader.stream_at(&principal, from, limit, shared.now()).and_then(|page| reader.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| (page, acks)))), reader.generation())
+                    let generation = reader.generation();
+                    (under_generation(&mut reader, requested_generation, generation, &store_id, |reader| reader.stream_at(&principal, from, limit, shared.now()).and_then(|page| reader.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| (page, acks)))), generation)
                 }
                 Err(_) => {
                     let mut engine = lock(&shared.engine);
-                    (under_generation(&mut engine, requested_generation, &store_id, |engine| engine.stream_at(&principal, from, limit, shared.now()).and_then(|page| engine.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| (page, acks)))), engine.generation())
+                    let generation = engine.generation();
+                    (under_generation(&mut engine, requested_generation, generation, &store_id, |engine| engine.stream_at(&principal, from, limit, shared.now()).and_then(|page| engine.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| (page, acks)))), generation)
                 }
             }
         };

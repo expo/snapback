@@ -1,0 +1,1 @@
+{"denied":{"code":"E_INPUT","family":"input","message":"sync needs { from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes"}}
