@@ -336,8 +336,9 @@ the generated `PostsWrite` type contains the ordinary fields and id.
 The device receives server values and preserves them through page application
 and cold restoration. It never predicts the aggregate or accepts assignments
 to it. A predicted source write changes its own rows; the parent's aggregate
-changes when the server image arrives. A predicted parent insert reads 0 on
-a pending row until a server row image supplies its authoritative value.
+changes when the server image arrives. Provisional parent rows are authorized
+at read time. A readable predicted parent insert reads 0 on a pending row
+until a server row image supplies its authoritative value.
 A write acknowledgement carries no maintained fields; synchronization or an
 ordinary read supplies the row image.
 

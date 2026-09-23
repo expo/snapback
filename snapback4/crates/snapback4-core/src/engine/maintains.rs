@@ -236,7 +236,7 @@ mod timeline_tests {
         let mut guard = runner.timeline_scope(crate::engine::timeline_authority::Authority::Transition("feed".into()));
         for suffix in crate::schema::timeline::OWNED_SUFFIXES {
             let maintain = Maintain { target: format!("feed{suffix}"), source: "feedPulls".into(), by: vec!["readerId".into()],
-                kind: MaintainKind::Count, filter: None, computed: Default::default(), residency: Default::default(), readable: None };
+                kind: MaintainKind::Count, filter: None, computed: Default::default(), residency: Default::default(), readable: None, private: None };
             let result = guard.apply_aggregate(&maintain, vec![Value::Id("reader".into())], 1, None);
             if suffix == "PullTotals" {
                 result.unwrap();

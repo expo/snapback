@@ -159,3 +159,90 @@ fn oracle<H:Host>(host:&mut H) {
 }
 #[test]
 fn independent_source_model_matches_both_device_readers() {oracle(&mut Sqlite::new("column-oracle"));oracle(&mut Memory::new());}
+
+fn provisional_parent<H: Host>(mut host: H) {
+    let source = r#"
+table posts:
+  reader: principal
+  likeCount: count likes by postId
+  by byReader: reader, id
+  read <- .reader = viewer
+  insert <- allow
+  update <- allow
+  sync to .reader
+table likes:
+  postId: posts
+  public
+  sync public
+mutation post(id: id, reader: principal):
+  insert posts { id, reader }
+mutation hide(id: posts):
+  update posts[id] { reader: 'bob' }
+query postRow(id: posts):
+  return posts[id]
+query rows(reader: principal):
+  return posts[reader] first 10 by byReader { * }
+"#;
+    let (mut server, mut backend) = compile(source);
+    backend.schema = backend.schema.public_projection();
+    let mut device = host.open("provisional-parent", Some(backend)).unwrap();
+    for (i, page) in snapshot_pages(&mut server, "alice", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
+    for (seq, parent, reader) in [(1, "readable", "alice"), (2, "hidden", "bob")] {
+        let prediction = device.admit(queued(parent, "post", json!({"id":parent,"reader":reader}), seq)).unwrap();
+        assert!(prediction.predictable && prediction.predicted.len() == 1, "{prediction:?}");
+    }
+    let readable = device.query("postRow", "alice", &json!({"id":"readable"}), 1000).unwrap().data;
+    assert_eq!(readable.field("likeCount").unwrap(), &Value::Int(0));
+    assert_eq!(readable.field("pending").unwrap(), &Value::Bool(true));
+    assert_eq!(device.query("postRow", "alice", &json!({"id":"hidden"}), 1000).unwrap().data, Value::Null);
+    assert_eq!(device.query("rows", "alice", &json!({"reader":"alice"}), 1000).unwrap().data.as_array().unwrap().len(), 1);
+    assert!(device.query("rows", "alice", &json!({"reader":"bob"}), 1000).unwrap().data.as_array().unwrap().is_empty());
+    let hidden = device.admit(queued("hide", "hide", json!({"id":"readable"}), 3)).unwrap();
+    assert!(hidden.predictable, "{hidden:?}");
+    host.close("provisional-parent", device);
+    let mut device = host.open("provisional-parent", None).unwrap();
+    assert_eq!(device.queued().unwrap().len(), 3, "hidden parents remain predicted and queued");
+    for parent in ["readable", "hidden"] {
+        assert_eq!(device.query("postRow", "alice", &json!({"id":parent}), 1000).unwrap().data, Value::Null);
+    }
+    for reader in ["alice", "bob"] {
+        assert!(device.query("rows", "alice", &json!({"reader":reader}), 1000).unwrap().data.as_array().unwrap().is_empty());
+    }
+    host.close("provisional-parent", device);
+}
+
+#[test]
+fn provisional_parents_authorize_implicit_zero_at_read_time_on_both_stores() {
+    provisional_parent(Sqlite::new("column-readauth"));
+    provisional_parent(Memory::new());
+}
+
+fn recorded_projection<H: Host>(mut host: H) {
+    use snapback4_core::schema::Constraint;
+    let source = SOURCE.replace("  online only", "  sync public")
+        .replacen("  at: time", "  parentId: posts ?\n  immutable parentId\n  at: time", 1)
+        .replace("selected: count likes where .active by postId", "selected: count likes where postId.parentId = null by postId")
+        .replace("  active: bool", "  immutable postId\n  active: bool");
+    let (mut server, mut backend) = compile(&source);
+    backend.schema = backend.schema.public_projection();
+    assert!(backend.schema.maintains.is_empty());
+    let payload = snapback4_core::json_codec::to_text(&backend).unwrap();
+    assert!(!payload.contains("$column:"));
+    let backend: Backend = snapback4_core::json_codec::from_text(&payload).unwrap();
+    assert!(backend.schema.tables["likes"].constraints.contains(&Constraint::Recorded));
+    assert!(backend.schema.tables["likes"].recorded.contains_key("postId.parentId"));
+    let mut device = host.open("recorded-columns", Some(backend)).unwrap();
+    server.mutate("post", None, context("alice", &[("id", id("p")), ("at", Value::Int(1))]).at(1000)).unwrap();
+    for (i, page) in snapshot_pages(&mut server, "alice", 100).iter().enumerate() { device.apply(public_page(page), i == 0).unwrap(); }
+    let prediction = device.admit(queued("like", "like", json!({"id":"l","postId":"p","active":true,"amount":3}), 1)).unwrap();
+    assert!(prediction.predictable && prediction.predicted == ["likes/l"], "{prediction:?}");
+    let row = device.query("postRow", "alice", &json!({"id":"p"}), 1000).unwrap().data;
+    assert_eq!(triple(&row), [0, 0, 0], "recording predicts the source, never its maintained parent");
+    host.close("recorded-columns", device);
+}
+
+#[test]
+fn projected_columns_keep_recorded_decoder_fence_and_capture_on_both_stores() {
+    recorded_projection(Sqlite::new("column-recorded"));
+    recorded_projection(Memory::new());
+}

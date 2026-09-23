@@ -130,6 +130,7 @@ card/language/2:timelineFollow | never
 card/language/2:timelinePublish | eligible
 card/language/2:timelineRegister | eligible
 card/language/2:timelineRemove | eligible
+card/maintains/3:like | never
 card/native/1:checkin | never
 card/native/1:createRoom | eligible
 card/native/1:createRoom | members/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
