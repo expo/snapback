@@ -42,7 +42,7 @@ fn column_schema(parent: &str, source: &str) -> (Schema, crate::schema::Maintain
 }
 
 #[test]
-fn raw_columns_reject_timeline_owned_and_mapped_parents_and_sources() {
+fn raw_columns_reject_timeline_owned_parents_and_sources_and_admit_mapped_ones() {
     let timeline = schema().timelines.remove(0);
     for table in timeline.owned.iter().chain(&timeline.mapped) {
         for (role, parent, source) in [("parent", table.as_str(), "ordinarySources"), ("source", "ordinaryParents", table.as_str())] {
@@ -50,11 +50,16 @@ fn raw_columns_reject_timeline_owned_and_mapped_parents_and_sources() {
             let mut ordinary = raw.clone();
             ordinary.timelines.clear();
             assert!(crate::schema::validate(&ordinary).is_empty(), "ordinary control: {:?}", crate::schema::validate(&ordinary));
+            if timeline.maps(table) {
+                assert!(crate::schema::validate(&raw).is_empty(), "mapped {role} {table}: {:?}", crate::schema::validate(&raw));
+                crate::Engine::memory(raw, []).unwrap_or_else(|e| panic!("mapped {role} {table}: {e}"));
+                continue;
+            }
             let issues = crate::schema::validate(&raw);
-            assert!(issues.iter().any(|i| i.message.contains(&format!("timeline-governed {role} {table}"))), "{issues:?}");
+            assert!(issues.iter().any(|i| i.message.contains(&format!("timeline-owned {role} {table}"))), "{issues:?}");
             let error = crate::Engine::memory(raw, []).err().expect("timeline column admitted");
             assert_eq!(error.code(), "E_MAINTAINED_COLUMN", "{error}");
-            assert!(error.to_string().contains("ordinary parent and source tables"));
+            assert!(error.to_string().contains("use a table it maps"));
             assert!(!error.to_string().contains(&m.target));
         }
     }

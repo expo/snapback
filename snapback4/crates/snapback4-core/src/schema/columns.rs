@@ -103,17 +103,19 @@ impl Walk<'_> {
     }
 }
 
-/// Timeline inputs and owned rows have transition semantics outside the
-/// ordinary-table column form, even if their stored ownership sets are forged.
+/// Owned timeline rows are written only on the timeline's scoped transition
+/// path, even if their stored ownership sets are forged. Mapped application
+/// tables stay ordinary parents and sources: the mirror is not a source write,
+/// so it never enters a transition, and delivery copies no parent fields.
 // @ref LLP 3000.007.003#33-f3-the-following-recipes-contract-as-a-declaration — timeline writes require their scoped transition path.
 pub fn timeline_issues(schema: &Schema) -> Vec<SchemaIssue> {
     let mut issues = Vec::new();
     for m in &schema.maintains {
         let Some(owner) = &m.private else { continue };
         for (role, table) in [("parent", &owner.table), ("source", &m.source)] {
-            if let Some(timeline) = schema.timelines.iter().find(|t| t.owns(table) || t.maps(table)) {
+            if let Some(timeline) = schema.timelines.iter().find(|t| t.owns(table)) {
                 issues.push(SchemaIssue { path: format!("tables.{}.columns.{}", owner.table, owner.column),
-                    message: format!("maintained column {} has timeline-governed {role} {table} in {}; use ordinary parent and source tables outside the timeline, or a separate maintain for the aggregate (guide maintains)", owner.label(), timeline.name) });
+                    message: format!("maintained column {} has timeline-owned {role} {table} in {}; the timeline writes its own tables, so use a table it maps, such as its posts, or an ordinary table (guide maintains)", owner.label(), timeline.name) });
             }
         }
     }

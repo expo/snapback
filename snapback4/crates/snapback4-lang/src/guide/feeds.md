@@ -518,7 +518,9 @@ appropriate, over a time index that does not depend on the maintained field.
 Adding or redefining the column recounts existing sources in atomic activation.
 It publishes an event-free generation barrier, so devices reacquire by snapshot
 and server-run parent watches re-run, including when all totals are zero.
-See `guide maintains` for disclosure, cost and adoption details.
+Beside the declared Following timeline, add `likeCount` and `byHourLikes` to
+the posts table it maps; one table serves both. See `guide maintains` for
+disclosure, cost and adoption details.
 
 ## Trending: optional scheduled ranked-table recipe
 

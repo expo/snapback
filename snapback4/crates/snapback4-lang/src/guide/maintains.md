@@ -291,9 +291,9 @@ query trending(c: cursor ?):
 The other form is `total: sum source of amount where .selected by parentId`.
 The predicate has the maintain grammar above. The one grouping column must
 reference this parent table; optional null references contribute nothing.
-The source is ordinary and cannot expire. Neither parent nor source may be
-timeline-owned or mapped into a timeline: E_MAINTAINED_COLUMN refuses that
-combination. Use ordinary tables outside the timeline, or a separate maintain.
+The source is ordinary and cannot expire. A timeline's mapped tables are
+ordinary here: `likeCount` on the posts a Following timeline maps is the
+Trending form beside it. Its own tables refuse with E_MAINTAINED_COLUMN.
 The parent may expire; the mirror
 leaves expired rows and their stored values untouched. Zero-like parents are
 included in its indexes, and ties can use the parent's time.
