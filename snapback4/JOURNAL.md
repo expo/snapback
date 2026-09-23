@@ -46396,3 +46396,15 @@ score completion, in a separate preserved app/fixture copy with exact public
 pins. Its results remain pending. Full lifecycle, actual reports, interpretation
 boundaries and selected receipts are under
 benchmarks/runs/2026-09-22-snapback4-clique-astra-0.2.32/.
+
+## 2026-09-22 — 0.3 program: generated nullable-array types fixed
+
+The first landing of the 0.3 program (LLP 3000.012; LLP 3000.007 rulings 45–51)
+fixes the one Snapback-attributed defect from calibration #16. `ty_ts` now takes
+an array element's precedence from its `Ty`, so optional rows and objects emit
+`(T | null)[]`, not `T | null[]`. It adds 28 emission assertions and a
+generated-TypeScript consumer check under `tsc`. Implemented by an Astra xhigh
+lane on the black M5 Max; the full suite passed with 0 failures. Blind reviews:
+Astra xhigh READY WITH CHANGES, Grok 4.7 xhigh READY. Both noted the same Low
+item, the redundant nested parentheses now dropped, and that is accepted as
+the same type. The ticket is closed.

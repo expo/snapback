@@ -1,6 +1,6 @@
 # Snapback 4: generated arrays of nullable objects or rows lose union parentheses
 
-**Status:** Open
+**Status:** Closed 2026-09-22 — fixed in the Snapback 4 0.3 program, lane `emit-nullable`
 **Date:** 2026-09-22
 **Scope:** Snapback 4 TypeScript emission
 **Source:** [Clique calibration 16](../benchmarks/runs/2026-09-22-snapback4-clique-astra-0.2.32/README.md), published `snapback4@0.2.32`
@@ -52,3 +52,29 @@ enum/union elements, nested arrays, and the object-field control above, then
 typecheck a small generated consumer that indexes and iterates the nullable
 array. Keep the original published cal16 app, package pin and score intact;
 qualify a later package separately. No product code is changed by this ticket.
+
+## Resolution (2026-09-22)
+
+`ty_ts` now takes an array element's precedence from its `Ty`. `Optional` and
+multi-variant `Enum` elements are parenthesized; unions inside object or row
+braces are not. So optional rows emit `(Rows["posts"] | null)[]`, optional
+objects `({ … } | null)[]`, and nested cases are correct at every level.
+
+**Tests.** 28 emission assertions, plus a generated-TypeScript consumer check
+that runs the workspace `tsc` on generated `api.ts`, indexing, iterating and
+narrowing a nullable array. The mutation proof fails both. The full suite
+passed with 0 failures.
+
+**Reviews:**
+
+- Astra xhigh: READY WITH CHANGES.
+- Grok 4.7 xhigh: READY.
+
+Both noted one Low, identical point: nested arrays the old heuristic already
+parenthesized lose one redundant pair. `((number | null)[])[]` becomes
+`(number | null)[][]`, the same TypeScript type. That is accepted:
+generated files are never committed, and the nested-row test locks the minimal
+form.
+
+**Landed as** `fix(snapback4): parenthesize nullable array elements in generated
+types`. It ships with the first 0.3 publication.
