@@ -46550,3 +46550,48 @@ Implemented by an Astra xhigh lane on the black M5 Max, with one fix round.
 
 The rebase onto `f54b4c71d` was clean, and `cargo test -p snapback4-lang`
 passed on the rebased tree.
+
+## 2026-09-22 — 0.3 program: generation discovery before a sync page is materialized (LLP 3000.007 ruling 48)
+
+A `/sync` request can now carry the device's `generation`. When it differs,
+the server answers HTTP 200 `E_SYNC_GENERATION` before it builds any snapshot
+or stream page. The answer carries the generation, the store id and the
+current numeric head. The client adopts only when that head is a finite,
+nonnegative integer at or above its retained image-head evidence. A lower
+head halts with `E_STORE_RESTORE`, and a missing head is a retryable failure
+that keeps the evidence. Clients that send no generation see unchanged
+behavior. A new client against 0.2.32, which denies unknown fields, retries
+once without the field and latches that origin only after the stripped retry
+succeeds.
+
+MC1's gate 5 was re-measured with its own fixture, unchanged. A lagging device
+now gets a 234-byte generation refusal, adopts, and reacquires with no
+oversized response (`snapback4/reports/20260922-sync-generation.md`).
+Maintained columns are unblocked. `serve.rs`'s sync handling moved to
+`serve_sync.rs` to stay under the file cap.
+
+Implemented by an Astra xhigh lane on the black M5 Max, with two fix rounds.
+
+- **First review:** Astra NOT READY. Its High finding, reproduced on a real
+  WASM device, was that early adoption erased restore evidence: a restored
+  store resent a pending write. Grok NOT READY on an over-broad,
+  process-wide legacy latch.
+- **Second review:** Astra READY WITH CHANGES; relative backend URLs threw
+  before `fetch`. Grok NOT READY on a missing-head adoption path and on test
+  strength.
+- **Third review:** Astra READY with no findings; Grok READY WITH CHANGES.
+  Its docs finding was fixed at landing, and its test-precision items are
+  tracked in `issues/20260922-snapback4-sync-generation-test-precision.md`.
+
+The rebase onto `d34227259` was clean. On the rebased tree:
+
+- `cargo test -p snapback4`: 295 passed with two test threads. Eighteen
+  threads under the ssh session's 256-descriptor limit exhausted sockets in
+  the serve tests.
+- The guide tests: 49 passed.
+- The sync client tests: 63 passed, 1 skipped.
+- The typecheck passed.
+- Wasm: 443,447 B gzip.
+
+Two client tests that failed once in a loaded full-suite run passed when
+rerun alone.
