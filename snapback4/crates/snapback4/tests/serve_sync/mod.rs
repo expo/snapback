@@ -1,6 +1,6 @@
 use super::*;
 
-const SOURCE: &str = "use personas alice\ntable items:\n  n: int\n  public 'generation fixture'\n  sync public\n";
+const SOURCE: &str = "use personas alice\ntable items:\n  n: int\n  public 'generation fixture'\n  update <- allow\n  sync public\nmutation bump():\n  item = items['one'] ! else NOT_FOUND\n  update items['one'] {n: item.n + 1}\n";
 const PERSONA: &str = "x-snapback-persona: alice\r\n";
 static NEXT_DIRECTORY: AtomicUsize = AtomicUsize::new(0);
 
@@ -15,6 +15,10 @@ fn generation_case(reader: bool, stream: bool) {
     assert_eq!(lock(&host.shared.engine).reader().is_ok(), reader, "exercise the intended owner");
     let seed = host.request("POST", "/seed", "", r#"[{"table":"items","row":{"id":"one","n":1}}]"#);
     assert_eq!(body(&seed)["seeded"], 1);
+    let committed = host.request("POST", "/m/bump", PERSONA, r#"{"id":"committed-write","args":{}}"#);
+    assert_eq!(status(&committed), 200);
+    let receipt = body(&committed);
+    assert_eq!(receipt["state"], "sent");
     let (generation, store_id, watermark) = {
         let mut engine = lock(&host.shared.engine);
         let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.replace("n: int", "n: int\n  added: int default 0"))]);
@@ -28,14 +32,14 @@ fn generation_case(reader: bool, stream: bool) {
     lock(&sync::MATERIALIZATIONS).remove(&store_id);
     let count = || *lock(&sync::MATERIALIZATIONS).get(&store_id).unwrap_or(&0);
     let request = |generation: Option<u64>| {
-        let mut input = json!({ "from": 0, "limit": 4000, "stream": stream, "pending": ["unknown-write"], "store_id": store_id });
+        let mut input = json!({ "from": 0, "limit": 4000, "stream": stream, "pending": ["committed-write"], "store_id": store_id });
         if let Some(generation) = generation { input["generation"] = json!(generation); }
         let response = host.request("POST", "/sync", PERSONA, &input.to_string());
         assert_eq!(status(&response), 200, "{response}");
         body(&response)
     };
     let stale = request(Some(1));
-    assert_eq!(lock(&host.shared.engine).seq().unwrap(), watermark, "stale pending ids cannot write");
+    assert_eq!(lock(&host.shared.engine).seq().unwrap(), watermark, "acknowledgement lookup does not change the log");
     assert_eq!(count(), 0, "a stale request must never call the snapshot/stream materializer");
     assert_eq!(stale["denied"]["code"], "E_SYNC_GENERATION");
     assert_eq!(stale["denied"]["family"], "generation");
@@ -43,6 +47,7 @@ fn generation_case(reader: bool, stream: bool) {
     assert_eq!(stale["store_id"], store_id);
     assert_eq!(stale["watermark"], watermark);
     assert_early_keys(&stale);
+    assert!(stale.get("acknowledged").is_none());
     assert!(stale.to_string().len() < 1024);
 
     let ahead = request(Some(generation + 1));
@@ -52,9 +57,10 @@ fn generation_case(reader: bool, stream: bool) {
     let current = request(Some(generation));
     assert_eq!(count(), 1);
     assert!(current.get("denied").is_none(), "{current}");
+    assert_eq!(current["acknowledged"]["committed-write"], receipt["seq"]);
     assert_eq!(current["snapshot"], !stream);
     assert_eq!(current["watermark"], watermark, "engine.seq equals the caught-up page head");
-    assert_eq!(current["events"].as_array().unwrap().len(), 1);
+    assert_eq!(current["events"].as_array().unwrap().len(), if stream { 2 } else { 1 });
     assert_eq!(current["events"][0]["data"]["added"], 0);
     let absent = request(None);
     assert_eq!(count(), 2);
@@ -62,16 +68,20 @@ fn generation_case(reader: bool, stream: bool) {
 
     // Both snapshot and stream continuations stop before page materialization.
     let input = if stream {
-        json!({ "generation": 1, "from": watermark, "stream": true, "pending": ["unknown-write"] })
+        json!({ "generation": 1, "from": watermark, "stream": true, "pending": ["committed-write"] })
     } else {
-        json!({ "generation": 1, "after": "retired-generation-cursor", "pending": ["unknown-write"] })
+        json!({ "generation": 1, "after": "retired-generation-cursor", "pending": ["committed-write"] })
     };
     let response = host.request("POST", "/sync", PERSONA, &input.to_string());
     assert_eq!(status(&response), 200, "{response}");
     assert_eq!(body(&response), stale);
     assert_early_keys(&body(&response));
     assert!(body(&response).to_string().len() < 1024);
+    assert!(body(&response).get("acknowledged").is_none());
     assert_eq!(count(), 2);
+    let matching = request(Some(generation));
+    assert_eq!(matching["acknowledged"]["committed-write"], receipt["seq"]);
+    assert_eq!(count(), 3);
     assert_eq!(lock(&host.shared.engine).seq().unwrap(), watermark);
     lock(&sync::MATERIALIZATIONS).remove(&store_id);
 }
@@ -124,7 +134,7 @@ fn generation_discovery_keeps_page_authorization() {
 }
 
 #[test]
-fn failed_materialization_is_not_counted_and_unreadable_head_still_discovers_generation() {
+fn failed_materialization_is_not_counted_and_unreadable_head_fails_discovery() {
     let host = Host::new(true);
     let store_id = lock(&host.shared.engine).store().meta("store_id").unwrap().unwrap();
     lock(&sync::MATERIALIZATIONS).remove(&store_id);
@@ -135,13 +145,15 @@ fn failed_materialization_is_not_counted_and_unreadable_head_still_discovers_gen
     lock(&host.shared.engine).store().conn().execute("DROP TABLE _commits", []).unwrap();
     for stream in [false, true] {
         let response = host.request("POST", "/sync", PERSONA, &json!({ "generation": 0, "stream": stream }).to_string());
-        assert_eq!(status(&response), 200);
+        assert_eq!(status(&response), 503);
         let reply = body(&response);
-        assert_eq!(reply["denied"]["code"], "E_SYNC_GENERATION");
-        assert_eq!(reply["generation"], 1);
-        assert_eq!(reply["store_id"], store_id);
-        assert!(reply.get("watermark").is_none());
-        assert_eq!(reply.as_object().unwrap().len(), 3);
+        assert_eq!(reply["denied"]["code"], "E_STORE");
+        assert_eq!(reply["denied"]["retryable"], true);
+        assert!(reply["denied"]["message"].as_str().unwrap().contains("no such table: _commits"));
+        assert_eq!(reply.as_object().unwrap().keys().collect::<Vec<_>>(), ["denied"]);
+        let ordinary = host.request("POST", "/sync", PERSONA, &json!({ "generation": 1, "stream": stream }).to_string());
+        assert_eq!(status(&ordinary), 503);
+        assert_eq!(body(&ordinary)["denied"]["code"], "E_STORE");
     }
     assert_eq!(*lock(&sync::MATERIALIZATIONS).get(&store_id).unwrap_or(&0), 0);
     lock(&sync::MATERIALIZATIONS).remove(&store_id);

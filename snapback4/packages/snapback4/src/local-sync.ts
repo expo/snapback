@@ -14,14 +14,18 @@ async function legacyInput(response: Response): Promise<boolean> {
 export function syncTransport(doFetch: typeof fetch) {
   const legacyOrigins = new Set<string>();
   return async (url: string, init: RequestInit, body: Record<string, unknown>): Promise<Response> => {
-    const origin = new URL(url).origin;
+    let origin = url;
+    try {
+      const base = globalThis.document?.baseURI ?? globalThis.location?.href;
+      if (base) origin = new URL(url, base).origin;
+    } catch { /* Without a usable base, discovery stays keyed by the caller's URL. */ }
     const { generation: _, ...withoutGeneration } = body;
     const attempt = legacyOrigins.has(origin) ? withoutGeneration : body;
     const sentGeneration = Object.hasOwn(attempt, "generation") && attempt.generation !== undefined;
     const response = await doFetch(url, { ...init, body: JSON.stringify(attempt) });
     if (sentGeneration && response.status === 400 && await legacyInput(response)) {
       const retry = await doFetch(url, { ...init, body: JSON.stringify(withoutGeneration) });
-      if (!await legacyInput(retry)) legacyOrigins.add(origin);
+      if (retry.ok) legacyOrigins.add(origin);
       return retry;
     }
     return response;

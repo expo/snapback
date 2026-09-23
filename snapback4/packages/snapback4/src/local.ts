@@ -705,6 +705,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         const denied = page.denied as Refusal | undefined;
         // @ref LLP 3000.007.003#5 — early discovery enters the same identity/adoption path as overflow.
         const generationChanged = denied?.code === "E_SYNC_GENERATION" && denied.family === "generation";
+        if (generationChanged && (typeof page.watermark !== "number" || !Number.isFinite(page.watermark) || !Number.isInteger(page.watermark) || page.watermark < 0)) {
+          setLink("offline");
+          return false;
+        }
         // @ref LLP 3000.007.001#3.11 — adopt an oversized reply's identity before shrinking or retrying its position.
         if (denied && !generationChanged && !responsePageTooLarge(denied)) {
           await refusePartition(denied, pageRevision);
@@ -719,9 +723,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           // inventing terminality or treating a refusal as delivered progress.
           // Generation discovery reports the current head, so it must check
           // retained image evidence before adoption can clear that evidence.
-          // If unavailable, echo the requested position without asserting a head.
           const observed = await call({ op: "observe_store", page: denied ? { ...page, snapshot: false, events: [], more: true,
-            ...(generationChanged ? { watermark: page.watermark ?? page.requested_watermark, images_at: page.watermark } : {}) } : page });
+            ...(generationChanged ? { images_at: page.watermark } : {}) } : page });
           if (observed.denied) { refuseRestore(observed.denied); return false; }
           const observation = observed.ok as { reset: boolean; backend_required?: boolean; send_revision: number; retired: Record<string, number>; adoption_capture?: Record<string, string | null> };
           page.send_revision = observation.send_revision;

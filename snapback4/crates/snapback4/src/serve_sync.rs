@@ -16,13 +16,12 @@ fn under_generation<T>(engine: &mut Engine, requested: Option<u64>, generation: 
 ) -> Result<SyncOutcome<T>, RuntimeError> {
     if requested.is_some_and(|requested| requested != generation) {
         let denied = Refusal::new("E_SYNC_GENERATION", "generation", "sync generation changed; adopt /schema before retrying this position").guide("sync");
-        let mut reply = json!({
-            "denied": refusal_json(&denied), "generation": generation,
-            "store_id": store_id,
-        });
         // Same head as a caught-up page: MAX(_commits.seq), not a delivered cut.
-        // Identity/generation discovery remains available if this read fails.
-        if let Ok(watermark) = engine.seq() { reply["watermark"] = json!(watermark); }
+        let watermark = engine.seq()?;
+        let reply = json!({
+            "denied": refusal_json(&denied), "generation": generation,
+            "store_id": store_id, "watermark": watermark,
+        });
         return Ok(SyncOutcome::Generation(reply));
     }
     let page = materialize(engine)?;
