@@ -46632,3 +46632,55 @@ digests remain bounded; the count optimization was measured and rejected.
 The independent real-provider increment remains conditional/unrun in its
 Accepted RFC. Twelve completed working-set links are archived; all thirteen
 source LLPs and the original benchmark attempts remain available.
+
+## 2026-09-22 — 0.3 program: the declared Following timeline, server side (F3a; LLP 3000.007.003 §3.3)
+
+`maintain feed: timeline` maps the application's profiles, posts (with a
+one-way `removed` flag), reposts and follows. The feeds recipe's projection
+tables become **engine-owned**:
+
+- author modes, pull routes, slot counts and the route total;
+- events, tombstones, private inboxes and broadcasts.
+
+The engine runs the recipe's logic on each actual transition, inside the
+writing mutation's transaction and meter, through the ordinary validation,
+constraint, cap and index path. A scoped, restoring authority lets it write
+only those tables. The oracle is recipe-trace equivalence against the
+installed recipe and its generated bridge. It has two documented
+exceptions:
+
+- F3 keeps no duplicate follow-edge table, so a maximum-backfill promotion
+  is 1,023 writes against the recipe's 1,024;
+- F3 refuses a caller-chosen event id equal to a tombstoned event's id.
+
+Implemented by an Astra xhigh lane on the black M5 Max. It stopped twice
+with counterexamples that became RFC revisions:
+
+- **Revision 5:** the recipe's duplicate follow edge.
+- **Revision 6:** lazy author registration broke "never refuse what the
+  recipe admits" at the write ceiling, so authors register eagerly.
+
+Three review rounds followed:
+
+- **Round 1** (Astra NOT READY; Grok NOT READY on 11 of 19 packets). Owned
+  rows took caller-supplied ids, so a later collision could probe another
+  reader's private inbox. Owned rows now take SHA-256 digest ids of their
+  natural keys (revision 7); natural-key ids alone exceeded the 144-byte
+  identity limit, and the lane stopped on that as well. The purge job's
+  authority was ambient; redefinition compared a physical index; and
+  namespaces, admission and panics needed hardening.
+- **Round 2** (Astra NOT READY; Grok mixed). A repost could reuse a removed
+  event's id and collide with a copy still awaiting purge, so every new
+  event now refuses while its id is tombstoned. Authority is checked on every
+  write path, an upsert needs both grants, and core validation re-derives
+  the stored sets.
+- **Round 3:** Astra READY with no findings, including no remaining caller
+  path to place or probe an owned private row. Grok's remaining items were
+  test strength; the purge-atomicity regression moves to F3b's fix round.
+
+It landed after a rebase onto `556a86216`. Three conflicts were additive:
+the `use server` and timeline binder hooks, the language card's schedule
+count, and the serve test modules. On the rebased tree, `scripts/test.sh` reported `== 0 failure(s) in 672 s` on the M5. The main commits after the rebase base touched no Snapback 4 code.
+
+Wasm is 449,347 B gzip on the lane's base, within the 452,000 budget. F3b
+raises the budget.
