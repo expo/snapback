@@ -1,5 +1,6 @@
 //! Online-only slot accounting and promotion. Shared event transitions stay in the parent.
 use super::*;
+use crate::schema::timeline::{PUSH_FOLLOWERS, FOLLOW_BACKFILL, READER_ACTOR_COPIES};
 
 impl Runner<'_> {
     fn timeline_pull(&mut self, t: &Timeline, reader: &str, author: &str, caller: &str) -> Result<bool, RuntimeError> {
@@ -27,7 +28,7 @@ impl Runner<'_> {
         let mode = self.timeline_mode(t, &author)?;
         if field(&mode, "shared")? == Value::Bool(true) {
             require(self.timeline_pull(t, &reader, &author, &reader)?, "FEED_PULL_CAP")?;
-        } else if self.timeline_scan(&t.edges[0], &t.followed_index, vec![Value::Id(author.clone())], 51, false)?.len() > 50 {
+        } else if self.timeline_scan(&t.edges[0], &t.followed_index, vec![Value::Id(author.clone())], (PUSH_FOLLOWERS + 1) as u32, false)?.len() > PUSH_FOLLOWERS {
             require(self.timeline_pull(t, &reader, &author, &reader)?, "FEED_PULL_CAP")?;
             self.update(&t.table("Authors"), &field(&mode, "id")?, object([("shared", Value::Bool(true))]))?;
             self.timeline_pull(t, &author, &author, &reader)?;
@@ -36,7 +37,7 @@ impl Runner<'_> {
             }
         }
         // Membership is the newest 865 source events, not the newest pushed ones.
-        for event in self.timeline_scan(&t.table("Posts"), "byActorTime", vec![Value::Id(author)], 1000, true)?.into_iter().take(865) {
+        for event in self.timeline_scan(&t.table("Posts"), "byActorTime", vec![Value::Id(author)], 1000, true)?.into_iter().take(FOLLOW_BACKFILL) {
             if field(&event, "shared")? == Value::Bool(false) { self.timeline_copy(t, &event, &reader, false)?; }
         }
         Ok(())
@@ -45,7 +46,7 @@ impl Runner<'_> {
     pub(super) fn timeline_unfollow(&mut self, t: &Timeline, row: &Value) -> Result<(), RuntimeError> {
         let reader = field(row, &t.edges[1])?;
         let author = field(row, &t.edges[2])?;
-        for copy in self.timeline_scan(&t.table("Feed"), "byReaderActor", vec![reader.clone(), author.clone()], 1000, false)? {
+        for copy in self.timeline_scan(&t.table("Feed"), "byReaderActor", vec![reader.clone(), author.clone()], READER_ACTOR_COPIES as u32, false)? {
             self.delete(&t.table("Feed"), &text(&copy, "id")?)?;
         }
         if let Some(route) = self.timeline_get(&t.table("Pulls"), "byReaderAuthor", vec![reader.clone(), author])? {

@@ -127,3 +127,32 @@ fn purge_replays_read_and_application_setup_without_owned_authority() {
     }
     assert!(rows(&e,"feedRemovedEvents").is_empty());
 }
+
+#[test]
+fn purge_with_one_remaining_delete_rolls_back_copies_and_keeps_id_blocked() {
+    let mut b=bound(true);
+    let purge=b.programs.iter_mut().find(|p|p.program.name=="feedPurgeRemoved").unwrap();
+    let Stmt::For {body,..}=&mut purge.program.body[0] else {panic!("purge sweep")};
+    // Spend 1000 of the authority's 1001 copy deletes before the real two-copy
+    // event. This reduces the available budget to one without a product knob
+    // or exceeding an event's admitted copy count. The real purge body follows.
+    let mut spent=(0..1000).map(|n|Stmt::Delete {table:"feedFeed".into(),key:Expr::Literal(id(&format!("budget-{n}")))}).collect::<Vec<_>>();
+    spent.append(body);*body=spent;
+    let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    for (n,who) in ["a","b"].into_iter().enumerate() {assert!(matches!(e.mutate("register",None,context(who,&[],10+n as i64)).unwrap().state,WriteState::Sent{..}));}
+    for (op,who,args) in [("follow","b",vec![("authorId",id("a"))]),("publish","a",vec![("postId",id("original"))]),("repost","a",vec![("postId",id("original"))])] {
+        assert!(matches!(e.mutate(op,None,context(who,&args,2)).unwrap().state,WriteState::Sent{..}));
+    }
+    let event=rows(&e,"feedPosts").into_iter().find(|r|r.field("repost").unwrap()==&Value::Bool(true)).unwrap().field("id").unwrap().clone();
+    assert!(matches!(e.mutate("unrepost",None,context("a",&[("postId",id("original"))],3)).unwrap().state,WriteState::Sent{..}));
+    assert_eq!(rows(&e,"feedFeed").iter().filter(|r|r.field("eventId").unwrap()==&event).count(),2);
+    e.load_trusted((0..1000).map(|n|("feedFeed".into(),object([("id",id(&format!("budget-{n}"))),("readerId",id(&format!("padding-{n}"))),("eventId",id("padding")),("postId",id("padding")),("actorId",id("a")),("authorId",id("a")),("at",Value::Int(1)),("repost",Value::Bool(false))])))).unwrap();
+    let before=snapshot(&e);let seq=e.seq().unwrap();
+    e.enqueue_job("feedPurgeRemoved",Default::default(),4).unwrap();
+    let run=e.run_job_chunk(5).unwrap().unwrap();
+    assert!(matches!(run.state,snapback4_core::JobState::Parked));assert!(run.error.unwrap().contains("E_TIMELINE_OWNED"));
+    assert_eq!(run.rows_written,0);assert_eq!(run.chunks,0);assert_eq!(e.seq().unwrap(),seq);assert_eq!(snapshot(&e),before);
+    assert!(rows(&e,"feedRemovedEvents").iter().any(|r|r.field("eventId").unwrap()==&event));
+    let out=e.mutate("repost",None,Context::new("a",[("postId".into(),id("original"))].into()).at(6).with_ids(["new-attribution".into(),event.as_str().unwrap().into()])).unwrap();
+    assert!(matches!(out.state,WriteState::Failed {why,..} if why.code=="FEED_EVENT_REMOVED"));assert_eq!(snapshot(&e),before);
+}

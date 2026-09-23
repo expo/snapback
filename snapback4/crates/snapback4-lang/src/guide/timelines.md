@@ -101,21 +101,31 @@ reader-private; modes, event metadata, tombstones and broadcasts are public;
 counts are public online-only; the internal total is unreadable. Posting
 never probes another reader's inbox. Non-event owned identities are full SHA-256 digests of the canonical domain tag, declaration name, table suffix and natural key; they consume no caller ids. Event ids remain the original post id or the recipe's fresh repost id. The recipe remains available.
 
-Registration predicts its profile and mode. Posting, reposting and removal
-predict their application and derived rows when every input is held: the
-profile, author's mode, follower edges, source event, live original for a
-repost, and any tombstone or own pull-route check the transition reads.
-Fresh copies for other readers predict too; those output rows need not be
-held already. An unheld input queues the whole mutation without any predicted
-rows. Partial acquisition never predicts from a partial follower set.
+Registration predicts its profile and mode. Profile deletion keeps the mode.
+Posting, reposting, post removal and unrepost predict when every input the
+transition reads is currently held: the profile, author mode, follower edges,
+source event, live original, tombstone lookup and own pull route. Retained-only
+images never establish current input facts or range coverage. Any unknown or
+retained input queues the whole mutation with zero predicted rows; partial
+acquisition never predicts from a partial follower set.
 
-Follow and unfollow always queue without rows, including the application
-edge: slot accounting reads online-only counts. `check --residency --verbose`
-names each transition's implicit dependencies. Following reads the reader's
-installed lanes with the recipe's completeness semantics. All predictions
-remain provisional: replay uses the admitted event IDs and the same digest
-function as the server for other owned rows; refusal withdraws every predicted
-row, and settlement installs the server's partition.
+A device predicts only owned rows its principal may read. With one follower,
+a post predicts three rows: the app post, public source event and author's
+private inbox copy. The follower's private copy is written by the server to
+that follower's partition. This deliberately differs from the manual recipe's
+device witness, which predicted and locally exposed the follower's copy.
+Public events, broadcasts and tombstones still predict. For all rows the
+predicting principal can read, the device and server use the same transitions
+and identities.
+
+Follow, unfollow and refollow always queue the whole mutation without rows,
+including an unchanged application edge, even if classification metadata is
+removed: slot accounting is online-only. `check --residency --verbose` names
+each implicit dependency. Following reads held rows from installed lanes with
+the recipe's completeness semantics. Replay preserves admitted event IDs and
+uses the same owned-id digest as the server. Refusal withdraws every predicted
+change. Settlement replaces provisional images with the server's partition,
+including dropping any provisional row omitted by that partition.
 
 `check --cost` reports each operation's bounded derived stream contribution
 separately from application rows. The maximum-backfill promotion is tested
@@ -136,7 +146,7 @@ E_TIMELINE_READ means a timeline reads one viewer newest first by time, then eve
 
 E_TIMELINE_OWNED means timeline rows are engine-owned. Write the mapped application profiles, posts, reposts or follows instead; no principal or application job can write the projection.
 
-E_TIMELINE_SERVER identifies a server-only timeline transition. Follow and unfollow queue the whole mutation without predicted rows because slot accounting is online-only.
+E_TIMELINE_SERVER identifies a server-only timeline transition. Follow, unfollow and refollow queue the whole mutation without predicted rows because slot accounting is online-only.
 
 E_TIMELINE_IMPORT means a fixture import cannot reconstruct timeline history. Seed mapped rows through application operations, or restore a complete trusted persistence image.
 

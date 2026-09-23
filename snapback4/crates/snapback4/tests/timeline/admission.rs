@@ -82,6 +82,7 @@ fn timeline_read_shape_and_transition_classification() {
     let b=bound(true);
     for name in ["register","deleteProfile","publish","repost","unrepost","remove"] {
         assert_eq!(b.schema.operations[name].predicts.as_deref(),Some("eligible"),"{name}");
+        assert!(b.schema.operations[name].sites.iter().filter(|s|s.kind=="timeline transition").all(|s|s.class!=snapback4_core::schema::SiteClass::Server && s.table!="feedPullCounts"));
     }
     for name in ["follow","unfollow","refollow"] {
         let fact=&b.schema.operations[name];

@@ -16,7 +16,7 @@ impl Authority {
     #[cfg(feature = "sqlite")]
     pub(super) fn purge(schema: &Schema, program: &str) -> Self {
         Self::Purge(schema.timelines.iter().filter(|t| t.purge == program)
-            .flat_map(|t| [(t.table("Feed"), 1001), (t.table("RemovedEvents"), 1)]).collect())
+            .flat_map(|t| [(t.table("Feed"), crate::schema::timeline::EVENT_COPIES as u64), (t.table("RemovedEvents"), 1)]).collect())
     }
 }
 

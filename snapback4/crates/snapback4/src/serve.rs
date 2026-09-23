@@ -588,37 +588,7 @@ impl io::Write for JsonBuffer {
     fn flush(&mut self) -> io::Result<()> { Ok(()) }
 }
 
-// @ref LLP 3000#7-decisions-during-execution — encode borrowed plain values without a second JSON tree
-#[derive(serde::Serialize)]
-struct SyncEvent<'a> {
-    data: Option<wire::Plain<'a>>,
-    id: &'a str,
-    kind: &'a str,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    seq: Option<u64>,
-    table: &'a str,
-}
-
-// Own the reply so `respond` drops its rows after encoding, before socket I/O.
-enum SyncEvents {
-    Snapshot(Vec<snapback4_core::partition::Event>),
-    Stream(Vec<snapback4_core::store::LogEvent>),
-}
-
-impl serde::Serialize for SyncEvents {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        match self {
-            Self::Snapshot(events) => serializer.collect_seq(events.iter().map(|event| SyncEvent {
-                data: event.data.as_ref().map(wire::Plain), id: &event.id,
-                kind: event.kind.word(), seq: None, table: &event.table,
-            })),
-            Self::Stream(events) => serializer.collect_seq(events.iter().map(|event| SyncEvent {
-                data: event.data.as_ref().map(wire::Plain), id: &event.id,
-                kind: &event.kind, seq: Some(event.seq), table: &event.table,
-            })),
-        }
-    }
-}
+use crate::sync_wire::{SyncEvents, StreamReply};
 
 #[derive(serde::Serialize)]
 struct SnapshotReply {
@@ -631,26 +601,6 @@ struct SnapshotReply {
     held: Option<wire::HeldGroups>,
     more: bool,
     next: Option<String>,
-    snapshot: bool,
-    store_id: String,
-    watermark: u64,
-}
-
-#[derive(serde::Serialize)]
-struct StreamReply {
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    acquisitions: Vec<wire::Acquisition>,
-    acknowledged: BTreeMap<String, u64>,
-    // Serialized order is alphabetical among the always-present fields, which
-    // is what the byte-exact encoding test compares against `json!`.
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
-    committed_above: BTreeMap<String, u64>,
-    events: SyncEvents,
-    generation: u64,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    images_at: Option<u64>,
-    joined: wire::HeldGroups,
-    more: bool,
     snapshot: bool,
     store_id: String,
     watermark: u64,

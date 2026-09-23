@@ -132,10 +132,10 @@ pub fn write_site(schema: &Schema, table: &str, kind: &str, fact: &mut snapback4
     for timeline in schema.timelines.iter().filter(|timeline| timeline.maps(table)) {
         for (input, index) in timeline.inputs(table, kind) {
             let online = schema.tables[&input].sync.is_none();
-            fact.sites.push(ResidencySite { site: format!("{kind} {table}"), table: input.clone(), index,
+            fact.sites.push(ResidencySite { site: format!("{kind} {table}: {input}/{index}"), table: input.clone(), index,
                 kind: "timeline transition".into(), class: if online { SiteClass::Server } else { SiteClass::Held },
                 reason: format!("timeline {} implicit input {input}: {}", timeline.name, if online { "online-only slot accounting" } else { "must be held to predict" }),
-                rewrite: if online { "queue the whole mutation without predicted rows".into() } else { String::new() } });
+                rewrite: "queue the whole mutation without predicted rows when any input is online, unheld or retained-only".into() });
         }
     }
 }

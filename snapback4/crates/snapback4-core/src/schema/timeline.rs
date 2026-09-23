@@ -5,6 +5,11 @@ use crate::Value;
 
 pub const OWNED_SUFFIXES: [&str; 8] = ["Authors", "Pulls", "PullCounts", "PullTotals", "Posts", "RemovedEvents", "Feed", "Broadcast"];
 
+pub const PUSH_FOLLOWERS: usize = 50;
+pub const FOLLOW_BACKFILL: usize = 865; // 1024 writes minus the recipe's 159-write promotion reserve.
+pub const READER_ACTOR_COPIES: usize = 1000;
+pub const EVENT_COPIES: usize = 1001;
+
 /// Public, canonical inputs only; shared by native and device derivation.
 /// Canonical Value arrays tag identities and frame/escape each component; this
 /// is not concatenation of reader/event strings. Domain, name and role are

@@ -577,15 +577,20 @@ changes can still refuse a queued write.
 | `follow`, `unfollow` | Queue without rows: online slot accounting is server state |
 | `following` | Reads the reader's installed lanes on the device |
 
-The declared timeline has this prediction boundary too: profile insertion
-registers the mode; posting, reposting and removal run in the device's
-provisional transaction when all inputs are held. This includes author modes,
-follower edges, tombstone checks and a repost's live original. A one-follower
-post predicts four rows: its application card, source event, own inbox copy
-and follower copy. Foreign output copies need not already be held. An
-unheld input queues the whole mutation with zero predicted rows; follow and
-unfollow always do so because their slot counts are online-only. See
-`guide timelines` for the declaration.
+The declared timeline predicts registration (profile plus mode), profile
+deletion (mode retained), posting, reposting, removal and unrepost when every
+input is currently held. Retained-only profiles, modes, follow edges,
+tombstones and original events never establish current facts or range coverage;
+an unknown input queues the whole mutation with zero rows. A one-follower
+post predicts three rows: app card, public source event and author's own copy.
+Foreign private owned rows are omitted from prediction and written only by
+the server. This deliberately differs from the manual recipe witness above,
+which predicted and locally exposed the follower's copy. Public owned rows
+still predict, with server equivalence for every row the predictor may read.
+Follow, unfollow and refollow queue without rows even with classification
+metadata stripped. Following reads held rows; settlement drops provisional
+rows the server omits and replaces the rest, and refusal withdraws all changes.
+See `guide timelines` for the declaration.
 
 The standalone recipe has the same boundary: `register`, `createPost`,
 `repost`, `deletePost` and `unrepost` are eligible; `follow` and `unfollow`

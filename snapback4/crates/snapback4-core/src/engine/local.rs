@@ -77,6 +77,11 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
         let reason = fact.sites.iter().find(|site| site.class == crate::schema::SiteClass::Server).map(|site| format!("site {}: {}", site.site, site.reason)).unwrap_or_else(|| program.name.clone());
         return Err(RuntimeError::Prediction(format!("{reason}; queued without a predicted row")));
     }
+    // Classification metadata is advisory. Even an edge no-op queues as a
+    // whole mutation; no actual transition hook would run for that case.
+    if !schema.timelines.is_empty() && crate::ir::write_tables(program).iter().any(|(table, _)| schema.timelines.iter().any(|t| &t.edges[0] == table)) {
+        return Err(RuntimeError::Prediction("timeline follow/unfollow/refollow requires online-only slot accounting".into()));
+    }
     let mut runner = Runner::new(rows, schema, context, Meter::new(ceilings, Cut::Abort), 0);
     runner.device = true;
     let result = runner.run(program).and_then(|value| { runner.check_final_exists()?; Ok(value) });

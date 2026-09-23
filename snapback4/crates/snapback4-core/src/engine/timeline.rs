@@ -79,10 +79,10 @@ impl Runner<'_> {
     // @ref LLP 3000.007.003#33-f3-the-following-recipes-contract-as-a-declaration — process actual transitions, including delete/reinsert in one mutation.
     pub(super) fn timeline_transition(&mut self, table: &str, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
         let timelines: Vec<_> = self.schema.timelines.iter().filter(|timeline| timeline.maps(table)).cloned().collect();
+        if self.device && timelines.iter().any(|timeline| table == timeline.edges[0]) {
+            return Err(RuntimeError::Prediction("timeline follow/unfollow/refollow reads online-only slot counts; queue the whole mutation without prediction".into()));
+        }
         for timeline in timelines {
-            if self.device && table == timeline.edges[0] {
-                return Err(RuntimeError::Prediction("timeline follow/unfollow reads online-only slot counts; queue the whole mutation without prediction".into()));
-            }
             let mut guard = self.timeline_scope(super::timeline_authority::Authority::Transition(timeline.name.clone()));
             let runner = &mut *guard;
             // Internal scans cannot take ownership of an application's returned page.
@@ -160,6 +160,8 @@ impl Runner<'_> {
                 _ => {}
             }
         } else if table == t.edges[0] {
+            #[cfg(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite")))]
+            return Err(RuntimeError::Prediction("timeline edge transitions require the server".into()));
             #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
             match (old, new) {
                 (None, Some(row)) => self.timeline_follow(t, row)?,
@@ -242,6 +244,16 @@ impl Runner<'_> {
         let mut fields = row.as_object()?.clone();
         fields.insert("id".into(), Value::Id(crate::schema::timeline::owned_id(&t.name, suffix, key)));
         let row = Value::Row(fields.into());
+        // A device holds only its principal's partition. Foreign private outputs
+        // are left to the server; public owned rows still predict. This guard is
+        // timeline-local: ordinary device reads still trust synced row images.
+        if self.device {
+            let rule = self.schema.tables[&t.table(suffix)].rules.read.clone();
+            let viewer = self.context.viewer.clone();
+            // Evaluate the rule itself: check_rule trusts already delivered
+            // synced images, which this new provisional row is not.
+            if !super::rules::evaluate(&rule, &viewer, None, &row, false, self)? { return Ok(row); }
+        }
         self.meter.heap(row.heap_bytes())?;
         self.insert(&t.table(suffix), row.clone())?;
         Ok(row)
@@ -249,22 +261,34 @@ impl Runner<'_> {
 
     fn timeline_get(&mut self, table: &str, index: &str, key: Vec<Value>) -> Result<Option<Value>, RuntimeError> {
         let value = self.get(&Read { site: format!("timeline/{table}/{index}"), table: table.into(), index: index.into(),
-            key: key.into_iter().map(Expr::Literal).collect(), provenance: KeyProvenance::Shape })?;
+            key: key.iter().cloned().map(Expr::Literal).collect(), provenance: KeyProvenance::Shape })?;
         // Point inputs must be covered, including an absent tombstone. Retained
         // history is not current coverage and cannot justify a prediction.
         if self.device && value != Value::Null && self.tx.retained_row(table, &value)? {
-            self.unknown_fact(table, index, &[], "timeline input");
+            self.unknown_fact(table, index, &key, "timeline input");
         }
         self.timeline_known()?;
         Ok((value != Value::Null).then_some(value))
     }
 
     fn timeline_scan(&mut self, table: &str, index: &str, prefix: Vec<Value>, take: u32, reverse: bool) -> Result<Vec<Value>, RuntimeError> {
+        if self.device && self.tx.retained_group(table, index, &prefix)? {
+            self.unknown_fact(table, index, &prefix, "timeline input range");
+            self.timeline_known()?;
+        }
         let rows = self.scan(&Scan { site: format!("timeline/{table}/{index}"), table: table.into(), index: index.into(),
-            prefix: prefix.into_iter().map(|value| IndexKeyExpr::Scalar(Expr::Literal(value))).collect(),
+            prefix: prefix.iter().cloned().map(|value| IndexKeyExpr::Scalar(Expr::Literal(value))).collect(),
             order: if reverse { ir::Order::Desc } else { ir::Order::Asc }, take: ir::Bound::Literal(take),
             existence: false, after: None, before: None, range: None, filter: None, opaque_cursor: false,
             merge_site: None, provenance: KeyProvenance::Shape })?;
+        if self.device {
+            for row in &rows {
+                if self.tx.retained_row(table, row)? {
+                    self.unknown_fact(table, index, &prefix, "timeline input range");
+                    break;
+                }
+            }
+        }
         self.timeline_known()?;
         Ok(rows)
     }

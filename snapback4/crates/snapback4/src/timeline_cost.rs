@@ -71,21 +71,28 @@ pub(crate) fn stream_bounds(schema: &Schema, t: &snapback4_core::schema::timelin
         let row = if delete { 4 } else { row_bounds(table, suffix == "Posts")?.3 };
         let id = "x".repeat(if suffix == "Posts" { 135 } else { 64 });
         // u64::MAX also bounds all valid stream sequence encodings.
-        let envelope = serde_json::to_vec(&serde_json::json!({"seq":u64::MAX,"kind":if delete {"delete"} else {"upsert"},"table":name,"id":id,"data":null})).ok()?.len();
+        let envelope = serde_json::to_vec(&crate::sync_wire::SyncEvent {seq:Some(u64::MAX), kind:if delete {"del"} else {"put"}, table:&name, id:&id, data:None}).ok()?.len();
         Some(envelope - 4 + row + 1)
     };
     let feed = event("Feed", false)?;
     let source = event("Posts", false)?;
     let broadcast = event("Broadcast", false)?;
+    use snapback4_core::schema::timeline::{PUSH_FOLLOWERS, FOLLOW_BACKFILL, READER_ACTOR_COPIES, EVENT_COPIES};
+    let follow = FOLLOW_BACKFILL * feed + event("Pulls", false)?;
+    let promotion = FOLLOW_BACKFILL * feed + (PUSH_FOLLOWERS + 2) * event("Pulls", false)? + event("Authors", false)?;
+    // Refollow is two transitions. This composition bound deliberately sums
+    // both; the ordinary 1024-write meter may refuse a dense composition.
+    let unfollow = READER_ACTOR_COPIES * event("Feed", true)? + event("Pulls", true)?;
     Some(vec![
         ("profile insert", event("Authors", false)?),
-        ("pushed event insert", source + 51 * feed),
+        ("pushed event insert", source + (PUSH_FOLLOWERS + 1) * feed),
         ("shared event insert", source + broadcast + feed),
         ("removal", event("RemovedEvents", false)? + event("Posts", true)? + event("Broadcast", true)?),
-        ("follow backfill", 865 * feed),
-        ("maximum-backfill promotion", 865 * feed + 52 * event("Pulls", false)? + event("Authors", false)?),
-        ("unfollow", 1000 * event("Feed", true)? + event("Pulls", true)?),
-        ("purge chunk", 1001 * event("Feed", true)? + event("RemovedEvents", true)?),
+        ("follow backfill", follow),
+        ("maximum-backfill promotion", promotion),
+        ("unfollow", unfollow),
+        ("refollow composition (may refuse at row ceiling)", unfollow + promotion),
+        ("purge chunk", EVENT_COPIES * event("Feed", true)? + event("RemovedEvents", true)?),
         ("unchanged flag / profile delete / activation", 0),
     ])
 }

@@ -225,7 +225,15 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
     fn acquired_boundary(&self, table: &str, index: &str, prefix: &[Value]) -> Result<Option<snapback4_core::rows::AcquiredBoundary>, RuntimeError> {
         boundary::read(&self.boundaries, self.schema, table, index, prefix)
     }
+    fn retained_row(&self, name: &str, row: &Value) -> Result<bool, RuntimeError> {
+        let Some(table) = self.schema.table(name).filter(|table| table.sync.is_some() && table.leave == LeavePolicy::DeliveredHistory) else { return Ok(false) };
+        Ok(history::is_left(&self.groups, name, &history::row_key(table, row)?))
+    }
     fn retained_group(&self, table: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> {
+        // Public groups have an empty audience key. An empty retained range
+        // still cannot establish current absence for prediction.
+        if self.schema.table(table).is_some_and(|t| t.leave == LeavePolicy::DeliveredHistory && audience_prefix(t).is_empty())
+            && history::is_left(&self.groups, table, "[]") { return Ok(true); }
         history::retained_group(self.schema, &self.groups, table, index, prefix)
     }
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {

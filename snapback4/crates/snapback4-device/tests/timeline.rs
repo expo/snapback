@@ -1,5 +1,10 @@
-//! Declared Following through the real device on both persistent stores.
+#[path = "../../snapback4/tests/timeline/identity.rs"]
+#[allow(dead_code)]
+mod identity;
+// Declared Following through the real device on both persistent stores.
 mod common;
+#[path = "timeline/round1.rs"]
+mod round1;
 #[path = "../../snapback4/tests/timeline/common.rs"]
 #[allow(dead_code)]
 mod fixture;
@@ -58,15 +63,15 @@ fn lifecycle<H: Host>(mut h: H) where H::Store: Images {
     let (mut e,b) = server();
     let mut d = open(&mut h,&mut e,b.clone(),"alice");
     for (n,op,args,count) in [
-        (1,"publish",json!({"postId":"offline"}),4),
-        (2,"repost",json!({"postId":"original"}),4),
+        (1,"publish",json!({"postId":"offline"}),3),
+        (2,"repost",json!({"postId":"original"}),3),
         (3,"remove",json!({"postId":"offline"}),3),
         (4,"unrepost",json!({"postId":"original"}),3),
     ] {
         let q=admit(&mut d,op,"alice",args.clone(),n);
         assert!(q.predictable,"{q:?}");
         assert_eq!(q.predicted.len(),count,"{op}: {q:?}");
-        assert_eq!(q.new_ids.len(),if op=="repost" {2} else {0},"only application inserts and fresh events consume supplied ids");
+        assert_eq!(q.new_ids.len(),if op=="repost" {2} else {0},"repost attribution and its public event consume ids; digest-owned copies do not");
         let predicted = rows(&mut d);
         let before=e.seq().unwrap();
         let seq=sent(&mut e,op,"alice",args,10+n as i64,q.new_ids.clone());
@@ -90,7 +95,11 @@ fn lifecycle<H: Host>(mut h: H) where H::Store: Images {
         let after=rows(&mut d);
         // Foreign provisional copies are withdrawn; only the viewer's partition remains.
         assert!(after["feedFeed"].iter().all(|r| r.field("readerId").unwrap()==&fixture::id("alice")));
-        for table in ["posts","reposts","feedPosts","feedRemovedEvents","feedBroadcast"] { assert_eq!(after[table],fixture::rows(&e,table),"settled {table}"); }
+        round1::assert_partition(&mut d, &e, "alice");
+        let mut bob = open(&mut h, &mut e, d.backend(), &format!("bob-{n}"));
+        // Acquire Bob's actual partition into a separate device.
+        for (i,p) in snapshot_pages(&mut e,"bob",1000).iter().enumerate() { bob.apply(p,i==0).unwrap(); }
+        assert_eq!(page(&mut bob,"bob"), e.query("following",Context::new("bob",BTreeMap::new()).at(100)).unwrap().data);
     }
 }
 #[test] fn declared_timeline_lifecycle_memory() { lifecycle(Memory::new()); }
@@ -100,21 +109,22 @@ fn replay_and_refusal<H: Host>(mut h: H) where H::Store: Images {
     let (mut e,b)=server(); let mut d=open(&mut h,&mut e,b,"alice");
     let baseline=rows(&mut d);
     let q=admit(&mut d,"publish","alice",json!({"postId":"refused"}),1);
-    assert_eq!(q.predicted.len(),4);
+    assert_eq!(q.predicted.len(),3);
     let predicted=rows(&mut d);
     let before=e.seq().unwrap();
     sent(&mut e,"publish","carol",json!({"postId":"other"}),20,vec![]);
     d.apply(&stream_page(&mut e,"alice",before),false).unwrap();
     let replayed=rows(&mut d);
     for key in &q.predicted { let (table,id)=key.split_once('/').unwrap();
-        assert_eq!(predicted[table].iter().find(|r|r.field("id").unwrap()==&fixture::id(id)),replayed[table].iter().find(|r|r.field("id").unwrap()==&fixture::id(id))); }
+        assert_eq!(round1::present(&predicted, table, id),round1::present(&replayed, table, id)); }
     assert_eq!(d.queued().unwrap()[0].new_ids,q.new_ids);
     let before=e.seq().unwrap();
     // Concurrent server insert makes the submitted app id refuse atomically.
     sent(&mut e,"publish","alice",json!({"postId":"refused"}),21,vec![]);
-    let out=e.mutate("publish",Some(&q.id),Context::new("alice",[("postId".into(),fixture::id("refused"))].into()).at(11).with_ids(q.new_ids.clone())).unwrap();
-    assert!(matches!(out.state,WriteState::Failed{..}));
+    let out=e.mutate("publish",Some(&q.id),Context::new("alice",[("postId".into(),fixture::id("refused"))].into()).at(22).with_ids(q.new_ids.clone())).unwrap();
+    assert!(matches!(out.state,WriteState::Failed{why,..} if why.code=="E_CONSTRAINT"));
     d.settle(&q.id,None).unwrap();
+    assert!(d.queued().unwrap().is_empty());
     let withdrawn=rows(&mut d);
     for key in &q.predicted { let (table,id)=key.split_once('/').unwrap(); assert!(!withdrawn[table].iter().any(|r|r.field("id").unwrap()==&fixture::id(id)),"orphan {key}"); }
     assert_eq!(withdrawn["feedFeed"],baseline["feedFeed"]);
@@ -132,14 +142,29 @@ fn classification<H: Host>(mut h:H) where H::Store: Images {
         assert!(f.sites.iter().any(|s| s.table=="feedPullCounts" && s.class==snapback4_core::schema::SiteClass::Server));
     }
     let mut d=open(&mut h,&mut e,b.clone(),"bob"); let before=rows(&mut d);
-    for (n,op) in [(1,"follow"),(2,"unfollow")] { let q=admit(&mut d,op,"bob",json!({"authorId":"alice"}),n); assert!(!q.predictable && q.predicted.is_empty()); assert_eq!(rows(&mut d),before); }
+    for (n,op,author) in [(1,"follow","carol"),(2,"follow","alice"),(3,"unfollow","alice"),(4,"unfollow","carol"),(5,"refollow","alice")] {
+        let q=admit(&mut d,op,"bob",json!({"authorId":author}),n); round1::queued_only(&mut d,&q,&before);
+    }
     let mut registering=open(&mut h,&mut e,b.clone(),"new");
     let q=admit(&mut registering,"register","new",json!({}),1);assert_eq!(q.predicted.len(),2); assert!(q.predictable);
     assert_eq!(q.new_ids.len(),1,"the mode takes owned_id, not a caller id");
+    let mode=snapback4_core::schema::timeline::owned_id("feed","Authors",&[fixture::id("new")]);
+    assert!(q.predicted.contains(&format!("feedAuthors/{mode}"))); assert!(!q.new_ids.contains(&mode));
+    let from=e.seq().unwrap(); let seq=sent(&mut e,"register","new",json!({}),11,q.new_ids.clone());
+    registering.settle(&q.id,Some(seq)).unwrap();registering.apply(&stream_page(&mut e,"new",from),false).unwrap();
+    round1::assert_partition(&mut registering,&e,"new");
     // Runtime guard must hold even if a caller strips classification metadata.
-    let mut stripped=b; stripped.schema.operations.clear();
-    let mut d=open(&mut h,&mut e,stripped,"carol"); let before=rows(&mut d);
-    let q=admit(&mut d,"follow","carol",json!({"authorId":"alice"}),1);assert!(!q.predictable);assert_eq!(rows(&mut d),before);
+    let mut stripped=b;
+    for op in ["follow","unfollow","refollow"] {
+        let fact=stripped.schema.operations.get_mut(op).unwrap();
+        fact.predicts=Some("eligible".into()); fact.sites.clear();
+    }
+    let mut d=open(&mut h,&mut e,stripped,"bob-stripped");
+    for (i,p) in snapshot_pages(&mut e,"bob",1000).iter().enumerate() {d.apply(p,i==0).unwrap();}
+    let before=rows(&mut d);
+    for (n,op,author) in [(1,"follow","carol"),(2,"follow","alice"),(3,"unfollow","alice"),(4,"unfollow","carol"),(5,"refollow","alice")] {
+        let q=admit(&mut d,op,"bob",json!({"authorId":author}),n); round1::queued_only(&mut d,&q,&before);
+    }
 }
 #[test] fn declared_timeline_classification_memory() { classification(Memory::new()); }
 #[test] fn declared_timeline_classification_sqlite() { classification(Sqlite::new("timeline-classes")); }
@@ -166,16 +191,17 @@ fn unheld<H:Host>(mut h:H) where H::Store: Images {
         for (n,p) in pages.iter().enumerate() {d.apply(p,n==0).unwrap();}
         let before=rows(&mut d);let q=admit(&mut d,op,viewer,args,1);
         assert!(!q.predictable && q.predicted.is_empty(),"unheld {table}: {q:?}");
-        assert_eq!(rows(&mut d),before,"partial derivation from {table}");
+        round1::queued_only(&mut d,&q,&before);
         h.close(&name,d);
     }
     let (mut e,b)=server();let mut d=h.open("partial",Some(b)).unwrap();
     let pages=snapshot_pages(&mut e,"alice",1);assert!(pages.len()>1);
     d.apply(&pages[0],true).unwrap();
-    let (partial,unknown,_)=d.query_with_coverage("following","alice",&json!({}),100);
-    assert!(partial.is_err() && unknown,"an interrupted snapshot must report unacquired coverage");
+    let before=rows(&mut d);
+    let (partial,unknown,retained)=d.query_with_coverage("following","alice",&json!({}),100);
+    assert_eq!(partial.unwrap_err().code,"E_PREDICT"); assert!(unknown && !retained);
     let q=admit(&mut d,"publish","alice",json!({"postId":"partial"}),1);
-    assert!(!q.predictable && q.predicted.is_empty());
+    round1::queued_only(&mut d,&q,&before);
 }
 #[test] fn declared_timeline_unheld_memory() { unheld(Memory::new()); }
 #[test] fn declared_timeline_unheld_sqlite() { unheld(Sqlite::new("timeline-unheld")); }
@@ -190,23 +216,32 @@ fn shared_and_pages<H: Host>(mut h:H) where H::Store: Images {
     let mut d=open(&mut h,&mut e,b,"alice");
     let q=admit(&mut d,"publish","alice",json!({"postId":"shared-offline"}),1);
     assert!(q.predictable);assert_eq!(q.predicted.len(),3);
-    assert!(q.predicted.iter().any(|k|k.starts_with("feedBroadcast/")));
+    let predicted=rows(&mut d);
+    let broadcast=snapback4_core::schema::timeline::owned_id("feed","Broadcast",&[fixture::id("shared-offline")]);
+    assert_eq!(q.predicted.iter().cloned().collect::<std::collections::BTreeSet<_>>(), ["posts/shared-offline".into(),"feedPosts/shared-offline".into(),format!("feedBroadcast/{broadcast}")].into());
+    assert_eq!(page(&mut d,"alice").as_array().unwrap().iter().filter(|r|r.field("postId").unwrap()==&fixture::id("shared-offline")).count(),1);
+    assert_eq!(round1::present(&predicted,"feedBroadcast",&broadcast).field("eventId").unwrap(),&fixture::id("shared-offline"));
     let before=e.seq().unwrap();
     let seq=sent(&mut e,"publish","alice",json!({"postId":"shared-offline"}),11,q.new_ids);
     d.settle(&q.id,Some(seq)).unwrap();d.apply(&stream_page(&mut e,"alice",before),false).unwrap();
     let before=e.seq().unwrap();
     for n in 0..25 {sent(&mut e,"publish","alice",json!({"postId":format!("page{n}")}),20+n,vec![]);}
     d.apply(&stream_page(&mut e,"alice",before),false).unwrap();
+    round1::assert_partition(&mut d,&e,"alice");
     let mut cursor=None::<String>;
+    let mut pages=0;let mut ended=false;
     for _ in 0..3 {
         let args=json!({"c":cursor});
         let local=d.query("following","alice",&args,100).unwrap();
         let online=e.query("following",Context::new("alice",[("c".into(),cursor.clone().map(Value::String).unwrap_or(Value::Null))].into()).at(100)).unwrap();
         assert_eq!((&local.data,local.complete,&local.next),(&online.data,online.complete,&online.next));
-        if local.next.is_none() {break;}cursor=local.next;
+        pages+=1; if local.next.is_none() {ended=true;break;}cursor=local.next;
     }
+    assert!(pages>1 && ended,"must follow a cursor to exhaustion");
     let q=admit(&mut d,"remove","alice",json!({"postId":"shared-offline"}),2);
     assert!(q.predictable);assert_eq!(q.predicted.len(),4,"app update, tombstone, source and broadcast removal");
+    let tombstone=snapback4_core::schema::timeline::owned_id("feed","RemovedEvents",&[fixture::id("shared-offline")]);
+    assert_eq!(q.predicted.iter().cloned().collect::<std::collections::BTreeSet<_>>(),["posts/shared-offline".into(),"feedPosts/shared-offline".into(),format!("feedBroadcast/{broadcast}"),format!("feedRemovedEvents/{tombstone}")].into());
     assert!(!page(&mut d,"alice").as_array().unwrap().iter().any(|r|r.field("postId").unwrap()==&fixture::id("shared-offline")));
 }
 #[test] fn declared_timeline_shared_pages_memory() {shared_and_pages(Memory::new());}
@@ -215,16 +250,19 @@ fn shared_and_pages<H: Host>(mut h:H) where H::Store: Images {
 fn repost_replay<H:Host>(mut h:H) where H::Store:Images {
     let (mut e,b)=server();let mut d=open(&mut h,&mut e,b,"alice");
     let q=admit(&mut d,"repost","alice",json!({"postId":"original"}),1);
-    assert_eq!(q.new_ids.len(),2);assert_eq!(q.predicted.len(),4);
+    assert_eq!(q.new_ids.len(),2);assert_eq!(q.predicted.len(),3);
     let original=rows(&mut d);let from=e.seq().unwrap();
     sent(&mut e,"publish","carol",json!({"postId":"intervening"}),20,vec![]);
-    d.apply(&stream_page(&mut e,"alice",from),false).unwrap();
+    let stream=stream_page(&mut e,"alice",from);assert!(stream.watermark>from && !stream.events.is_empty());
+    d.apply(&stream,false).unwrap();
+    h.close("alice",d);d=h.open("alice",None).unwrap();
+    assert_eq!(d.queued().unwrap()[0].id,q.id);
     let replayed=rows(&mut d);
     assert_eq!(d.queued().unwrap()[0].new_ids,q.new_ids);
     assert_eq!(d.queued().unwrap()[0].predicted,q.predicted);
     for key in &q.predicted {
         let (table,key)=key.split_once('/').unwrap();
-        assert_eq!(original[table].iter().find(|r|r.field("id").unwrap()==&fixture::id(key)),replayed[table].iter().find(|r|r.field("id").unwrap()==&fixture::id(key)));
+        assert_eq!(round1::present(&original,table,key),round1::present(&replayed,table,key));
     }
 }
 #[test] fn declared_timeline_repost_replay_memory() {repost_replay(Memory::new());}

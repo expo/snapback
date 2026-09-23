@@ -1,22 +1,28 @@
 //! Preserved historical-image counterexample. The positive SDK recovery
 //! regression lives in packages/snapback4/test/timeline-delivery.test.mjs.
 use snapback4_core::{Context, Engine, Value, WriteState, MutationOutcome};
-use serde_json::json;
+#[path = "../src/sync_wire.rs"]
+#[allow(dead_code)]
+mod sync_wire;
+#[path = "timeline/delivery_wire.rs"]
+mod delivery_wire;
 const CEILING: usize = 16 << 20;
 fn engine() -> Engine {
-    let b=snapback4_lang::compile(&[("schema.q".into(),include_str!("../../../experiments/f3b-deliverability/schema.q").into())]);
+    let b=snapback4_lang::compile(&[("schema.q".into(),include_str!("../../../packages/snapback4/test/helpers/timeline-recovery.q").into())]);
     assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
     Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap()
 }
 fn sent(out:MutationOutcome) { assert!(matches!(out.state,WriteState::Sent{..}),"{out:?}"); }
 fn encoded(e:&mut Engine,who:&str,from:u64)->usize {
     let p=e.stream(who,from,1).unwrap();
-    // Exact serve::StreamReply fields with no request acknowledgements. Byte
-    // lengths use plain wire values, not tagged storage or estimated row widths.
-    serde_json::to_vec(&json!({"acknowledged":{},"events":p.events.iter().map(|ev|json!({"data":ev.data.as_ref().map(snapback4_core::wire::to_json),"id":ev.id,"kind":ev.kind,"seq":ev.seq,"table":ev.table})).collect::<Vec<_>>(),"generation":e.generation(),"images_at":p.images_at,"joined":p.joined,"more":p.more,"snapshot":false,"store_id":e.store().meta("store_id").unwrap().unwrap(),"watermark":p.watermark})).unwrap().len()
+    assert!(p.events.iter().all(|ev|ev.seq==from+1),"only the requested historical commit");
+    if from==1 {
+        assert_eq!(p.events.iter().filter(|ev|ev.table=="notes").count(),1021);
+        assert!(p.events.iter().any(|ev|ev.table=="feedPosts"));
+    }
+    serde_json::to_vec(&delivery_wire::reply(e,p)).unwrap().len()
 }
 #[test]
-#[ignore = "historical-image byte measurement; SDK recovery is covered by the package regression"]
 fn historical_commit_uses_later_images() {
     let mut e=engine();sent(e.mutate("register",None,Context::new("author",Default::default()).at(100)).unwrap());
     let before=e.seq().unwrap();
@@ -26,6 +32,7 @@ fn historical_commit_uses_later_images() {
     let first=[encoded(&mut e,"reader",before),encoded(&mut e,"author",before)];
     assert!(first.iter().all(|bytes| *bytes<CEILING));
     let notes=e.store().rows("notes").unwrap();
+    assert_eq!(notes.len(),1021);
     let body=Value::String("\n".repeat(9000));
     let mut largest_update=0;
     for note in notes {
@@ -37,7 +44,7 @@ fn historical_commit_uses_later_images() {
     }
     for (who,first) in ["reader","author"].into_iter().zip(first) {
         let later=encoded(&mut e,who,before);
-        println!("HISTORICAL partition={who} original_commit_bytes={first} largest_later_commit_bytes={largest_update} original_commit_after_updates_bytes={later} ceiling={CEILING} excess={}",later-CEILING);
+        println!("HISTORICAL partition={who} original_commit_bytes={first} largest_later_commit_bytes={largest_update} original_commit_after_updates_bytes={later} ceiling={CEILING} excess={}",later.saturating_sub(CEILING));
         assert!(later>CEILING,"the old commit was not bounded by its insertion images");
     }
     assert!(largest_update<CEILING);

@@ -4,7 +4,8 @@ RFC revision 7 resolves the original stop: each derived form bounds its own
 rows; a historical composed commit that outgrows the stream ceiling uses the
 existing SDK snapshot restart. There is no write-time stream-byte guard.
 
-The preserved fixture still reproduces the same sequence under default meters:
+The maintained fixture, `packages/snapback4/test/helpers/timeline-recovery.q`,
+reproduces the same sequence under default meters:
 
 1. Register and acquire the author on WASM/memory and native/SQLite SDK clients.
 2. Keep them offline, with one predicted timeline post pending on each.
@@ -26,15 +27,15 @@ cargo build -p snapback4
 bash scripts/build-wasm.sh
 bun run --cwd packages/snapback4 build
 cargo test -p snapback4 --test timeline_delivery -- --nocapture
-cargo test -p snapback4 --test timeline_delivery_counterexample -- --ignored --nocapture --test-threads=1
+cargo test -p snapback4 --test timeline_delivery_counterexample -- --nocapture --test-threads=1
 node --test packages/snapback4/test/timeline-delivery.test.mjs
 # The same SDK regression, as a standalone experiment:
 node experiments/f3b-deliverability/reproduce.mjs
 ```
 
-The Rust historical measurement remains explicitly ignored in the ordinary
-suite; it asserts the established stream-image semantics and counts the exact
-plain reply fields. `timeline_delivery` asserts the bounded derived contribution
+The Rust historical measurement runs in the ordinary suite; it pins the
+original commit and all 1,021 later row images and uses the production HTTP
+serializer. `timeline_delivery` asserts the bounded derived contribution
 and measures the maximum-backfill promotion's actual recipient pages. The
 package test runs the positive SDK recovery regression in the ordinary suite.
 
