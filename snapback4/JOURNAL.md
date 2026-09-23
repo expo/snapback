@@ -46978,3 +46978,46 @@ stopped any CBMC above 40 GB, and it fired eight times. Kani fits pure
 integer and byte logic, in seconds to minutes. It fits heap-shaped `Value`
 code poorly. An exhaustive test over a well-chosen small alphabet gave the
 same assurance for the rest in milliseconds.
+
+## 2026-09-23 — 0.3 program: old engines and devices fail closed on 0.3 derived forms (FENCE)
+
+The independent Astra review of the 0.3 program reproduced a P1: the
+published 0.2.33 native device silently accepted a timeline-only backend. It
+predicted only the application post, and answered Following `[]` with
+`complete: true`. `Schema` has no `deny_unknown_fields`, so an ignored
+metadata field is no fence.
+
+- **One shared fence.** A schema that needs a 0.3 engine capability carries
+  `Constraint::Capabilities`, a new enum variant that the published 0.2.33
+  decoder rejects, in the device `Backend` decode and the engine's
+  stored-schema decode alike.
+- **Derived capabilities.** They come from the schema, never from the
+  author: `recorded-attribution` and `timeline`. F1 adds `maintained-column`
+  when it lands.
+- **Strict 0.3 decoders.** They refuse unknown capabilities with
+  `E_SCHEMA_CAPABILITY`.
+- **Kept backends validated on every opening.** Current devices check the
+  kept backend's capabilities before replacing it, on explicit-backend
+  openings too.
+- **Legacy compatibility.** The legacy `Recorded` marker still decodes,
+  including in combination with timelines.
+- **Nothing else changes.** Capability-free schemas serialize exactly as
+  before.
+- **Tested with the published binaries.** Integrity-verified native and WASM
+  builds refuse install, adoption and reopen for each capability. A
+  capability-free control stays compatible, and downgrading a device below
+  its store's version is documented as unsupported.
+
+**Review rounds.**
+
+- **Round 1:** Astra READY WITH CHANGES; an explicit-backend opening
+  bypassed the kept fence. Grok found the legacy marker, over-claiming docs
+  and a weak control test.
+- **Round 2:** Astra READY WITH CHANGES; legacy F2+F3 stores could not
+  reopen.
+- **The integrated gate.** The full suite on EDGES+FENCE then caught FENCE
+  regressions in device publication store-read counts and w13g boundary
+  loading. Round 2 fixed them without extra store reads.
+
+FENCE's own suite on the rebased tree (M5): `== 0 failure(s) in 676 s`.
+Wasm is 466,824 B gzip against a 467,000 ratchet.
