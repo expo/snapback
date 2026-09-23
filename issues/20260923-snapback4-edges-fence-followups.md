@@ -40,3 +40,17 @@ FENCE's capability registry.
    keep strict validation of modern carriers, add a genuine legacy F2+F3
    fixture with reopen coverage, and re-emit one `Capabilities` carrier
    holding both.
+
+## Update (2026-09-23, 06:58)
+
+The integrated suite on EDGES+FENCE, before landing, also found regressions
+that neither lane's affected-test run covered. Both lanes now run a second
+fix round that includes the three items above and these regressions:
+
+- **EDGES:** `publication_round7::cleanup_failure_preserves_the_original_apply_and_observe_error`.
+- **FENCE:**
+  - both device publication tests;
+  - `w13g_probe`'s `thousand_lane_merge_loads_boundaries_once`;
+  - three orphan-import and adoption client tests.
+
+Neither lane has landed yet. The integrated suite is the gate.
