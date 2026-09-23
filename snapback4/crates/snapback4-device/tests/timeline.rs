@@ -141,6 +141,10 @@ fn replay_and_refusal<H: Host>(mut h: H) where H::Store: Images {
     let q=admit(&mut d,"publish","alice",json!({"postId":"refused"}),1);
     assert_eq!(q.predicted.len(),3);
     let predicted=rows(&mut d);
+    assert!(predicted["feedFeed"].iter().all(|row| row.field("readerId").unwrap()==&fixture::id("alice")));
+    h.close("alice",d);
+    d=h.open("alice",None).unwrap();
+    assert_eq!(rows(&mut d),predicted,"read-authorized timeline prediction survives persisted reopen");
     let before=e.seq().unwrap();
     sent(&mut e,"publish","carol",json!({"postId":"other"}),20,vec![]);
     d.apply(&stream_page(&mut e,"alice",before),false).unwrap();

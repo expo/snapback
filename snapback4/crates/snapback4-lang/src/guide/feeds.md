@@ -332,6 +332,11 @@ to the declaration in 0.3: activation needs empty event and edge tables.
 The [existing adoption instructions](https://github.com/expo/snapback/blob/main/snapback4/crates/snapback4-lang/src/recipe/ADOPTION.md)
 still apply to those apps, including paused writes and dependency-ordered backfill.
 
+An installed recipe's `createPost` or `repost` now queues the whole mutation
+when its final provisional state includes another reader's private inbox copy. The declared
+timeline's engine-owned copies keep the skip behavior described above.
+See `guide prediction` for the shared read-authorization rule.
+
 The installed recipe trusts its principals with permissive projection writes:
 `authors` allows updates, `pulls` allows inserts, and `broadcast` inserts do not
 pin `readerId`. New apps should use the declaration, which strips non-read rules

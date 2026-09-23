@@ -277,6 +277,32 @@ impl Runner<'_> {
         rules::evaluate(&rule, &viewer, old.as_ref(), &next, effect == Effect::Insert, self)
     }
 
+    // @ref LLP 2000.000#73-prediction-ids-generations — provisional outputs need read authority before publication; E_PREDICT rolls back the whole mutation.
+    pub(super) fn check_prediction_readable(&mut self) -> Result<(), RuntimeError> {
+        // Later writes may grant or revoke access to an earlier output.
+        // Check each surviving row once, after all statements and transitions.
+        for (table, id) in std::mem::take(&mut self.prediction_rows) {
+            if let Some(row) = self.tx.get(&table, &id)? && !self.prediction_readable(&table, &row) {
+                return Err(RuntimeError::Prediction(format!("{table}: the final written row's read rule is denied or unknown on this device; queued without predicted rows")));
+            }
+        }
+        Ok(())
+    }
+
+    /// Provisional images have no server read authorization. Evaluate the
+    /// actual rule, including its probes, without the delivered-row shortcut.
+    /// A missing fact or any evaluation failure cannot justify prediction.
+    pub(super) fn prediction_readable(&mut self, table: &str, row: &Value) -> bool {
+        let table = &self.schema.tables[table];
+        let rule = table.rules.read.clone();
+        let mut row = row.clone();
+        materialize_optional_fields(&mut row, table);
+        self.rule_dependencies(&rule);
+        let viewer = self.context.viewer.clone();
+        matches!(rules::evaluate(&rule, &viewer, None, &row, false, self), Ok(true))
+            && !self.beyond_horizon
+    }
+
     /// A row by id, materialized, without a rule check.
     pub(crate) fn fetch(&mut self, table_name: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;

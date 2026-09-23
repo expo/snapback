@@ -54,6 +54,8 @@ pub struct Runner<'a> {
     /// rows can share a key; counts preserve their independent ownership.
     pub(crate) created_rows: BTreeMap<(String, String), Vec<(String, String, String)>>,
     pub(crate) inserted: Vec<(String, Value)>,
+    /// Distinct provisional outputs to authorize against the final state.
+    pub(super) prediction_rows: BTreeSet<(String, String)>,
     /// Tables read and tables written, for live subscriptions and commits.
     pub(crate) read_tables: BTreeSet<String>,
     pub(crate) written_tables: BTreeSet<String>,
@@ -145,6 +147,7 @@ impl<'a> Runner<'a> {
             created: BTreeMap::new(),
             created_rows: BTreeMap::new(),
             inserted: Vec::new(),
+            prediction_rows: BTreeSet::new(),
             read_tables: BTreeSet::new(),
             written_tables: BTreeSet::new(),
             rows_written: 0,

@@ -24,7 +24,8 @@ fn fifty<S: DeviceStore>(mut store: S, label: &str, boundary: bool, failures: &m
     let ctx = context("dev:alice", &[("conversationId", id("c1")), ("body", Value::String("hello".into()))]).at(11_000).with_ids(["msg".into()]);
     let meter = w15a_prediction_meter(&mut store, &backend.schema, program, ctx.clone());
     println!("w15a fifty prediction {label}: {meter:?}");
-    assert_eq!(meter.iter().map(|(_, n)| *n).collect::<Vec<_>>(), [52, 2, 1, 1367, 69843, 27, 1]);
+    // Prediction now also proves the written message's read authorization.
+    assert_eq!(meter.iter().map(|(_, n)| *n).collect::<Vec<_>>(), [52, 2, 2, 1367, 69843, 27, 1]);
     let mut meters = Vec::new();
     for (state, live, deadline) in [("held", 1, 16_000), ("graced", 0, 36_000)] {
         let (mut engine, _) = compile(source);
@@ -60,7 +61,7 @@ fn fifty<S: DeviceStore>(mut store: S, label: &str, boundary: bool, failures: &m
 }
 
 #[test]
-fn w15a_fifty_member_prediction_reservation_is_unchanged_on_both_stores() {
+fn w15a_fifty_member_prediction_includes_read_authorization_on_both_stores() {
     fifty(snapback4_core::Store::memory().unwrap(), "sqlite", false, &mut Vec::new());
     fifty(snapback4_device::memory::MemoryStore::new(), "memory", false, &mut Vec::new());
 }

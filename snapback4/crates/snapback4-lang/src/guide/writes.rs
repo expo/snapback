@@ -12,6 +12,11 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
   return { a: a.id, b }
 ```
 
+If `messageId` in `writeForms` addresses retained history from a room the
+writer has left, its final updated image lacks read authority. The entire call
+queues without predicted rows, including the earlier readable inserts.
+See `guide prediction` for the per-call read check.
+
 For replay adapters and retry-safe intents, pass a `mintId()` you stored with
 the intent or fixture; arbitrary fixture strings still need an application ledger.
 Pass it as `{ id }`; a retry returns the original outcome and never applies twice:

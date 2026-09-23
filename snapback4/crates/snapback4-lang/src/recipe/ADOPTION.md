@@ -261,16 +261,25 @@ On the server and both device stores,
 Following at 5 and 500 follows returns 20 entries, complete, with 82
 examinations and 21 probes. On the same acquired shape, offline `saveProfile`
 and `createPost` produce 2 and 3 predicted rows in the two-person witness;
-posting with one follower produces 4. `follow` produces 0 predicted rows
+posting with a foreign private follower now queues the entire mutation with
+0 predicted rows, as does reposting to a foreign private follower. Application
+recipe rows still present at the end of the call must pass the predicting
+principal's read rule against that final state; only the declared
+timeline skips its engine-owned foreign inbox copies. `follow` produces 0 predicted rows
 and backfills when the server commits it. Thus the acquisition counts above
 apply to both the predicting writes and the queued follow, not two variants
 with different privacy. Prediction is provisional: server caps and concurrent
 changes can still refuse a queued write.
 
+The standalone recipe's `createPost`/`repost` and installed generated-bridge
+calls to `feedAppPublish`/`feedAppRepost` have the same private-fan-out queue
+behavior. Their source event and readable copies roll back with the foreign
+copy; the server performs the whole mutation on reconnect.
+
 | Operation in the wired example | Offline behavior after acquisition |
 |---|---|
 | `saveProfile`, `register` | Predict |
-| `createPost`, `repost`, `deletePost`, `unrepost` | Predict when the required app cards and source events are held |
+| `createPost`, `repost` | Predict when the required app cards and source events are held and every surviving written row is readable by the principal in the final state; private fan-out to another reader queues the whole mutation |
+| `deletePost`, `unrepost` | Predict when the required app cards and source events are held |
 | `follow`, `unfollow` | Queue without rows: online slot accounting is server state |
 | `following` | Reads the reader's installed lanes on the device |
-

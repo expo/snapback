@@ -75,6 +75,11 @@ mutation edit(messageId: messages, body: text <=4000):
   return null
 ```
 
+Offline `edit` queues without predicted rows after the author leaves the
+conversation: the retained old message stays readable, but the new image
+needs current read authority at the end of the call. The server still judges the queued operation.
+See `guide prediction`.
+
 ## With `use server`
 
 One `use server` in any module (`schema.q` is usual) enables the whole

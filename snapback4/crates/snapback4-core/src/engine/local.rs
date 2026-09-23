@@ -84,7 +84,11 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
     }
     let mut runner = Runner::new(rows, schema, context, Meter::new(ceilings, Cut::Abort), 0);
     runner.device = true;
-    let result = runner.run(program).and_then(|value| { runner.check_final_exists()?; Ok(value) });
+    let result = runner.run(program).and_then(|value| {
+        runner.check_final_exists()?;
+        runner.check_prediction_readable()?;
+        Ok(value)
+    });
     if runner.beyond_horizon {
         return Err(RuntimeError::Prediction(runner.missing_fact.clone().unwrap_or_else(|| format!("{}: this device cannot establish a read needed to predict", program.name))));
     }

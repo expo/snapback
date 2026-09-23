@@ -245,16 +245,9 @@ impl Runner<'_> {
         let mut fields = row.as_object()?.clone();
         fields.insert("id".into(), Value::Id(crate::schema::timeline::owned_id(&t.name, suffix, key)));
         let row = Value::Row(fields.into());
-        // A device holds only its principal's partition. Foreign private outputs
-        // are left to the server; public owned rows still predict. This guard is
-        // timeline-local: ordinary device reads still trust synced row images.
-        if self.device {
-            let rule = self.schema.tables[&t.table(suffix)].rules.read.clone();
-            let viewer = self.context.viewer.clone();
-            // Evaluate the rule itself: check_rule trusts already delivered
-            // synced images, which this new provisional row is not.
-            if !super::rules::evaluate(&rule, &viewer, None, &row, false, self)? { return Ok(TimelineInsert::Skipped); }
-        }
+        // F3's foreign owned rows alone are skipped instead of queuing the
+        // whole mutation. Share the predictor's read authorization check.
+        if self.device && !self.prediction_readable(&t.table(suffix), &row) { return Ok(TimelineInsert::Skipped); }
         self.meter.heap(row.heap_bytes())?;
         self.insert(&t.table(suffix), row)?;
         Ok(TimelineInsert::Written)

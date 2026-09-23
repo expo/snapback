@@ -137,9 +137,12 @@ fn w7a_wired_mutations_predict_or_queue_offline_on_both_stores() {
         assert_eq!(post_ids(&local), vec![app::id("offline-post"), app::id("held-post")]);
         let mut author = host.open("w7a-fanout", Some(backend)).unwrap();
         for (n, page) in snapshot_pages(&mut engine, "alice", 100).iter().enumerate() { author.apply(page, n == 0).unwrap(); }
-        let prediction = author.predict("social.createPost", "alice", &serde_json::json!({"postId":"fanout-post", "body":"fanout"}), 20, vec![], 99).unwrap();
-        assert_eq!(prediction.predicted.len(), 4, "app post, event, own inbox and another reader's inbox");
-        println!("W7a host={} offline_fanout_predicted_rows=4", host.label());
+        let prediction = author.admit(serde_json::from_value(serde_json::json!({
+            "id":"fanout", "seq":1, "op":"social.createPost", "viewer":"alice",
+            "args":{"postId":"fanout-post", "body":"fanout"}, "now":20, "predictable":true,
+        })).unwrap()).unwrap();
+        assert!(!prediction.predictable && prediction.predicted.is_empty(), "a recipe's foreign inbox write queues the whole mutation");
+        println!("W7a host={} offline_fanout_predicted_rows=0", host.label());
     }
     run(Memory::new()); run(Sqlite::new("w7a-predict"));
 }
