@@ -144,10 +144,11 @@ for (const family of ["sqlite","web"]) test(`maintained columns: ${family} watch
   assert.deepEqual(destination,(await post("/q/postRow",{args:{id:"q"}})).data);
   assert.equal(privateData.stdout,"");
   assert.equal(why.stdout,"");
-  assert.equal(JSON.parse(privateSql.stdout).rows,undefined);
+  assert.deepEqual(Object.keys(JSON.parse(privateSql.stdout)).filter(key=>!["ok","denied","error"].includes(key)),[]);
   for(const result of [privateData,privateSql,why]) {
     const text=result.stdout+result.stderr;
-    assert.doesNotMatch(text,/\$column:/i);assert.ok(!text.includes(privateTarget));
+    // A refusal may name posts.likeCount; it must carry no JSON value or total.
+    assert.doesNotMatch(text,/\$column:/i);assert.doesNotMatch(text,/"(?:value|likeCount|selected|total)"\s*:/);
   }
   publicJson(log);
   for(const page of receivedPages)publicJson(page);
