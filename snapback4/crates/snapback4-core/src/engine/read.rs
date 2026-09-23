@@ -253,6 +253,7 @@ impl Runner<'_> {
     /// store's owner and passes every rule; validation and constraints
     /// still run for it.
     pub(crate) fn check_rule(&mut self, table_name: &str, effect: Effect, old: Option<&Value>, next: &Value) -> Result<bool, RuntimeError> {
+        if effect != Effect::Read && self.timeline_may_write(table_name) { return Ok(true); }
         if self.context.is_system() {
             return Ok(true);
         }

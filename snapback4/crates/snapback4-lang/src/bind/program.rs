@@ -226,6 +226,9 @@ impl<'a> Binder<'a> {
     // ----- reads -----
 
     fn read(&mut self, read: &ReadExpr, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        if let Some(timeline) = self.schema.timelines.iter().find(|timeline| timeline.name == read.table) {
+            return self.expr(&super::timeline::read(timeline, read)?, out);
+        }
         if let Some(shaped) = self.page_shape(read) { return self.expr(&shaped, out); }
         if self.is_page(read, ReadMode::FilteredPoint)? {
             let (scan, take) = self.scan(read, out)?;

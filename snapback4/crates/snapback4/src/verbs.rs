@@ -237,6 +237,7 @@ fn cost_report(bound: &Bound, program: &ir::Program) -> String {
         });
         return lines.join("\n");
     }
+    crate::timeline_cost::report(&bound.schema, program, &mut lines);
     range_costs(&program.body, &mut lines);
     for merge in snapback4_lang::bind::merges(&program.body) {
         let matching = merge.lanes.iter().any(|lane| lane.scan.prefix.iter().any(|key| matches!(key, ir::IndexKeyExpr::WordPrefix(_))));

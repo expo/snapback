@@ -399,6 +399,68 @@ query roomWindow(roomId: id, c: cursor ?):
 mutation checkin():
   return insert checkins { principal: viewer, at: now }
 
+-- A declared public Following; the feeds card states its lifetime and caps.
+table timelineProfiles:
+  principal: principal
+  unique byPrincipal: principal
+  cap 1000
+  immutable principal
+  public 'timelineProfiles'
+  insert <- .principal = viewer
+  sync public
+table timelineCards:
+  authorId: principal
+  at: time
+  removed: bool default false
+  cap 60000
+  immutable authorId, at
+  public 'cards'
+  insert <- .authorId = viewer
+  update <- .authorId = viewer
+  sync public
+table timelineReposts:
+  actorId: principal
+  postId: timelineCards
+  at: time
+  unique byActorPost: actorId, postId
+  cap 60000
+  immutable actorId, postId, at
+  public 'timelineReposts'
+  insert <- .actorId = viewer
+  delete <- .actorId = viewer
+  sync public
+table timelineFollows:
+  followerId: principal
+  followedId: principal
+  at: time default 0
+  unique byPair: followerId, followedId
+  by byFollowed: followedId, followerId
+  immutable followerId, followedId, at
+  cap 1000 by followerId
+  cap 1000 by followedId
+  cap 100000
+  public 'edges'
+  insert <- .followerId = viewer
+  delete <- .followerId = viewer
+  sync public
+
+maintain timeline: timeline
+  authors timelineProfiles by principal
+  events timelineCards by authorId, at removed by removed
+  reposts timelineReposts by actorId, postId, at
+  edges timelineFollows by followerId, followedId
+
+mutation timelineRegister():
+  insert timelineProfiles { principal: viewer }
+mutation timelinePublish():
+  return insert timelineCards { authorId: viewer, at: now }
+mutation timelineFollow(authorId: principal):
+  insert timelineFollows { followerId: viewer, followedId: authorId } if absent
+mutation timelineRemove(postId: timelineCards):
+  update timelineCards[postId] { removed: true }
+query timelineHome(c: cursor ?):
+  return timeline[viewer] after c last 20 { *, post: timelineCards[.postId] }
+
 ```
 
 Helpers expand at each call: a table-typed parameter keeps a row argument as a row (fields need no lookup), while a reference argument stays a reference.
@@ -518,4 +580,11 @@ keep its operation, ID and raw arguments exactly; for a new invitation,
 use a new ID. Explicit null and an omitted optional argument are different
 raw inputs even when validation gives them the same value. See `guide
 actions` for durable invocation collection and `guide writes` for mutations.
+
+## Timelines
+
+`maintain name: timeline` maps a public profile, original, repost and follow
+model to engine-owned Following state. `guide feeds` states the caps,
+removal, eager registration, lifecycle and server execution contract.
+
 "##;

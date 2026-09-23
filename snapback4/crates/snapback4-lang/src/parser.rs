@@ -9,6 +9,7 @@ use crate::print;
 
 mod expr;
 mod maintains;
+mod timeline;
 mod expected;
 mod programs;
 mod actions;
@@ -69,6 +70,11 @@ impl Parser {
                 Ok(())
             }
             "maintain" => {
+                if self.tokens.get(self.position + 3).is_some_and(|token| token.value == "timeline") {
+                    let timeline = self.parse_timeline()?;
+                    self.document.timelines.push(timeline);
+                    return Ok(());
+                }
                 let maintain = self.parse_maintain()?;
                 self.document.maintains.push(maintain);
                 Ok(())

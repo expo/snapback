@@ -301,6 +301,9 @@ impl Runner<'_> {
     /// Programs never write a maintained target; the engine does.
     pub(super) fn refuse_engine_owned(&self, table: &str) -> Result<(), RuntimeError> {
         self.refuse_condition_write()?;
+        if self.schema.timelines.iter().any(|timeline| timeline.owns(table)) && !self.timeline_may_write(table) {
+            return Err(super::timeline::refusal("E_TIMELINE_OWNED", format!("{table} belongs to a timeline; write its mapped application rows instead")));
+        }
         if self.schema.maintain_for(table).is_some() {
             return Err(RuntimeError::Schema(format!("{table} is a maintained aggregate; write its source rows instead")));
         }
@@ -536,6 +539,7 @@ impl Runner<'_> {
         if origin == Origin::Source {
             self.place_assets(table_name, &table, old, new)?;
             self.maintain(table_name, old, new)?;
+            self.timeline_transition(table_name, old, new)?;
         }
         Ok(())
     }

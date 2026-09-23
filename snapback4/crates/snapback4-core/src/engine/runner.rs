@@ -118,6 +118,7 @@ pub struct Runner<'a> {
     pub(crate) charged_untaken: bool,
     pub(crate) maintain_prepaid: bool,
     pub(crate) maintain_heap: u64,
+    pub(super) timeline_authority: Option<String>,
 }
 
 impl<'a> Runner<'a> {
@@ -180,6 +181,7 @@ impl<'a> Runner<'a> {
             charged_untaken: false,
             maintain_prepaid: false,
             maintain_heap: 0,
+            timeline_authority: None,
         }
     }
 

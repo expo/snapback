@@ -13,6 +13,7 @@ mod server;
 mod key_bound;
 mod aggregate_copies;
 mod time_indexes;
+mod timeline;
 
 use crate::ast::Document;
 use crate::diag::Diagnostic;
@@ -37,9 +38,11 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     let mut diagnostics = Vec::new();
     let server = documents.iter().any(|doc| doc.server);
     server::admit(&mut documents, &mut diagnostics);
+    let documents = timeline::expand(documents, &mut diagnostics);
     let personas: Vec<String> = documents.iter().flat_map(|d| d.personas.iter().cloned()).collect();
     let catalog = Catalog::build(documents, &mut diagnostics);
     let mut schema = schema::bind_schema(&catalog, &mut diagnostics);
+    timeline::admit(&catalog, &mut schema, &mut diagnostics);
     key_bound::check(&catalog, &schema, &mut diagnostics);
     let mut programs = Vec::new();
     let mut names = std::collections::BTreeMap::new();

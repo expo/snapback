@@ -16,11 +16,14 @@ use std::fmt;
 mod work;
 pub use work::{ActionSpec, WorkPolicy, WorkSpec};
 pub mod routes;
+pub mod timeline;
 pub use routes::RouteSpec;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Schema {
     pub tables: BTreeMap<String, Table>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub timelines: Vec<timeline::Timeline>,
     #[serde(default)]
     pub maintains: Vec<Maintain>,
     #[serde(default, skip_serializing_if = "Auth::is_default")]

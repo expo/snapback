@@ -420,6 +420,7 @@ pub struct Document {
     pub server: bool,
     pub tables: Vec<TableDecl>,
     pub maintains: Vec<MaintainDecl>,
+    pub timelines: Vec<TimelineDecl>,
     pub effects: Vec<EffectDecl>,
     pub shapes: Vec<ShapeDecl>,
     pub functions: Vec<FunctionDecl>,
@@ -429,4 +430,14 @@ pub struct Document {
     pub schedules: Vec<ScheduleDecl>,
     /// Personas declared with `use personas alice, bob`.
     pub personas: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TimelineDecl {
+    pub name: String,
+    pub authors: [String; 2],
+    pub posts: [String; 4],
+    pub reposts: [String; 4],
+    pub edges: [String; 3],
+    pub site: Site,
 }

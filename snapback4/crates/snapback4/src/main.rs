@@ -13,6 +13,7 @@ mod dev_replay;
 mod dev_clock;
 mod lifecycle;
 mod verbs;
+mod timeline_cost;
 
 use snapback4_lang::guide;
 use std::process::ExitCode;

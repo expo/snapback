@@ -31,6 +31,7 @@ pub mod runner;
 pub mod validate;
 pub mod write;
 mod maintains;
+pub(crate) mod timeline;
 mod write_target;
 mod receipt;
 pub(crate) mod presence;
@@ -444,6 +445,7 @@ impl Engine {
             if !changed && !repair_live_sums { return Ok(()); }
             let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
             let previous: Option<Schema> = previous.map(|text| serde_json::from_str(&text).map_err(|e| RuntimeError::Store(e.to_string()))).transpose()?;
+            timeline::activate_profiles(tx, schema, previous.as_ref())?;
             let rebuild: Vec<_> = schema.maintains.iter().filter(|m| {
                 (changed && previous.as_ref().is_none_or(|old| !old.maintains.contains(m) || old.table(&m.source).and_then(|s| s.expire.as_ref()) != schema.table(&m.source).and_then(|s| s.expire.as_ref())
                     || m.dependencies().iter().any(|column| old.table(&m.source).and_then(|s| s.defaults.get(column)) != schema.table(&m.source).and_then(|s| s.defaults.get(column)))))
@@ -928,6 +930,7 @@ impl Engine {
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
         let mut count = 0;
         for (table, row) in rows {
+            timeline::check_import(&self.schema, &table)?;
             runner.upsert(&table, &row.field("id")?.clone(), row)?;
             count += 1;
         }
@@ -945,6 +948,7 @@ impl Engine {
     /// Delete a row as the system principal: constraints, aggregates and
     /// partition events apply. Returns the number of rows removed (0 or 1).
     pub fn seed_delete(&mut self, table: &str, id: &str) -> Result<u64, RuntimeError> {
+        timeline::check_import(&self.schema, table)?;
         let now = crate::now_ms();
         let tx = self.store.transaction()?;
         let seq = tx.next_seq()?;
@@ -969,12 +973,22 @@ impl Engine {
     /// and aggregates skipped, partition events emitted. For fixtures whose
     /// aggregates are already computed and for the conformance corpus.
     pub fn load(&mut self, rows: impl IntoIterator<Item = (String, Value)>) -> Result<u64, RuntimeError> {
+        self.load_timeline_rows(rows, false)
+    }
+
+    /// Restore trusted durable images, including timeline history, without transitions.
+    pub fn load_trusted(&mut self, rows: impl IntoIterator<Item = (String, Value)>) -> Result<u64, RuntimeError> {
+        self.load_timeline_rows(rows, true)
+    }
+
+    fn load_timeline_rows(&mut self, rows: impl IntoIterator<Item = (String, Value)>, trusted: bool) -> Result<u64, RuntimeError> {
         let now = crate::now_ms();
         let tx = self.store.transaction()?;
         let seq = tx.next_seq()?;
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
         let mut count = 0;
         for (table_name, row) in rows {
+            if !trusted { timeline::check_import(&self.schema, &table_name)?; }
             validate::validate_row(&self.schema, &table_name, &row)?;
             let table = self.schema.table(&table_name).expect("validated").clone();
             let id = row.field("id")?.as_str()?.to_owned();

@@ -277,11 +277,11 @@ fn failed(outcome: &snapback4_core::MutationOutcome) -> &str {
 fn the_language_card_compiles_and_runs() {
     let source = in_context(&quarry(LANGUAGE)[1]);
     let bound = clean("the language card", &source);
-    let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).collect();
+    let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).filter(|name| !name.starts_with("timeline")).collect();
     assert_eq!(names, ["daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "heldRoom", "room", "helperRows", "thread", "inbox", "following", "ancestors", "digest", "mentions", "tokenDigest", "search", "everywhere", "wholeRoster", "memberTotal", "hasMessages", "groupedMessages", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative", "roomHour", "roomWindow", "checkin", "summarizeRoom", "scheduledSummary"]);
     assert_eq!(bound.schema.effects, ["notify", "sendDigest"]);
     assert!(bound.server);
-    assert_eq!(bound.schema.schedules.len(), 2);
+    assert_eq!(bound.schema.schedules.len(), 3);
     assert_eq!(bound.schema.routes.keys().map(String::as_str).collect::<Vec<_>>(), ["providerEvent", "roomExport"]);
     assert_eq!(bound.schema.routes["providerEvent"].service.as_deref(), Some("service:reporter"));
     assert_eq!(bound.schema.routes["roomExport"].service, None);
@@ -470,7 +470,7 @@ fn the_language_card_compiles_and_runs() {
     // everyNight: the schedule fires from its next boundary, once.
     let (day, three) = (86_400_000, 10_800_000);
     assert_eq!(engine.fire_schedules(day + three + 1_000).unwrap(), Vec::<String>::new());
-    assert_eq!(engine.fire_schedules(2 * day + three + 1_000).unwrap(), vec!["everyNight".to_owned(), "summariesEveryDay".to_owned()]);
+    assert_eq!(engine.fire_schedules(2 * day + three + 1_000).unwrap(), vec!["everyNight".to_owned(), "summariesEveryDay".to_owned(), "timelinePurgeRemovedEvery".to_owned()]);
     assert_eq!(engine.action_counts().unwrap().get("queued"), Some(&1));
     assert!(engine.fire_schedules(2 * day + three + 1_000).unwrap().is_empty());
 }

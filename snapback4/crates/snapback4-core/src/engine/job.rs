@@ -257,6 +257,7 @@ impl Engine {
         let mut context = Context::system().at(now).with_presence(presence);
         context.args = head.args.clone();
         let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(Ceilings::job(), Cut::Abort), seq);
+        runner.timeline_authority = self.schema.timelines.iter().find(|timeline| timeline.purge == program.name).map(|timeline| timeline.name.clone());
         // The sweep's upper key is captured when it begins: a row the body
         // inserts beyond it is never visited, so a sweep over its own
         // table ends.
