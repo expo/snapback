@@ -88,8 +88,9 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
         runner.check_final_exists()?;
         Ok(value)
     });
-    // An actual resource refusal is not a missing-authority diagnosis.
-    if matches!(&result, Err(RuntimeError::Bound { .. })) && !runner.charged_untaken {
+    // Unknown input can select a branch the server will never execute. Its
+    // exhaustion cannot refuse the write; a cut with known inputs still can.
+    if matches!(&result, Err(RuntimeError::Bound { .. })) && !runner.charged_untaken && runner.missing_fact.is_none() {
         return Err(result.unwrap_err());
     }
     if runner.beyond_horizon {

@@ -49,7 +49,14 @@ impl Runner<'_> {
             };
             let live = found.as_ref().filter(|value| !self.expired(target, value));
             if self.device && matches!(source_image.field(&field.reference), Ok(Value::Id(_)))
-                && (target.sync.is_none() || !live.zip(self.context.now).map(|(value, now)| self.tx.recording_covered(&field.table, value, &self.context.viewer, now)).transpose()?.unwrap_or(false)) {
+                && (target.sync.is_none() || !live.zip(self.context.now).map(|(value, now)| {
+                    match self.tx.recording_covered(&field.table, value, &self.context.viewer, now, &mut self.meter) {
+                        // The coverage proof is unfinished, not false. The
+                        // server may capture without this device-only scan.
+                        Err(RuntimeError::Bound { .. }) => Ok(false),
+                        result => result,
+                    }
+                }).transpose()?.unwrap_or(false)) {
                 return Err(RuntimeError::Prediction(format!("recorded path {path} needs a live, covered {} row; reconnect to resolve attribution", field.table)));
             }
             // Unknown coverage queues before a target-size resource refusal.
@@ -232,7 +239,7 @@ mod tests {
 
     struct Target { row: Value, covered: bool, calls: std::cell::Cell<usize> }
     impl crate::rows::Rows for Target {
-        fn recording_covered(&self, _: &str, _: &Value, _: &str, _: i64) -> Result<bool,RuntimeError> {self.calls.set(self.calls.get()+1);Ok(self.covered)}
+        fn recording_covered(&self, _: &str, _: &Value, _: &str, _: i64, _: &mut Meter) -> Result<bool,RuntimeError> {self.calls.set(self.calls.get()+1);Ok(self.covered)}
         fn get(&self, _: &str, _: &str) -> Result<Option<Value>,RuntimeError> {Ok(Some(self.row.clone()))}
         fn lookup(&self, _: &str, _: &str, _: &crate::schema::Index, _: &[Value]) -> Result<Option<Value>,RuntimeError> {unreachable!()}
         fn scan(&self, _: &str, _: &str, _: &[Value], _: &crate::rows::Bounds, _: crate::rows::Dir, _: usize) -> Result<Vec<(Value,Vec<u8>)>,RuntimeError> {unreachable!()}

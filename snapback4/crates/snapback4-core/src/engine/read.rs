@@ -146,6 +146,9 @@ impl Runner<'_> {
                         bounds.after = crate::key::decode(&stored).map(|v| v.into_iter().skip(prefix.len()).collect());
                         if !self.expired(source, &candidate) && maintain.selected(&candidate) && maintain.source_key(&candidate) == group {
                             if current && !self.witness_covered(&maintain.source, name, &prefix, &candidate)? { known = false; continue; }
+                            // Existence is existential: one covered witness
+                            // settles it even after an uncertain candidate.
+                            if current { known = true; }
                             self.note_expiry(source, &candidate);
                             live = true;
                             break 'sources;

@@ -136,3 +136,109 @@ fn hidden_before_visible<H:Host>(mut h:H) {
 }
 #[test] fn hidden_before_visible_memory(){hidden_before_visible(Memory::new());}
 #[test] fn hidden_before_visible_sqlite(){hidden_before_visible(Sqlite::new("siblings"));}
+
+// The unknown check selects an expensive arm that the server can skip.
+fn counterfactual_branch<H: Host>(mut h: H) {
+    let source = regressions::SOURCE.replace("sync to grants[.groupId] by .principal", "sync to grants[.groupId] by .principal\n  retain delivered-history") + r#"
+mutation counterfactual(work: int):
+  insert checks { id: 'probe', groupId: 'group' }
+  if not exists checks['probe']:
+    for i in range(0, work):
+      ignored = groups['group']
+  return null
+"#;
+    for state in ["held", "unknown", "absent"] {
+        for work in [0, 8192] {
+            let (mut e, b) = compile(&source);
+            sent(&mut e, "publish", json!({}), vec![]);
+            let mut d = h.open(&format!("branch-{state}-{work}"), Some(b)).unwrap();
+            for (n, p) in snapshot_pages(&mut e, "alice", 100).iter().enumerate() { d.apply(p, n == 0).unwrap(); }
+            let from = d.state().unwrap().0;
+            if state == "unknown" { sent(&mut e, "revoke", json!({}), vec![]); }
+            if state == "absent" { e.seed_delete("notes", "note").unwrap(); }
+            if state != "held" { d.apply(&stream_page(&mut e, "alice", from), false).unwrap(); }
+            if state == "unknown" {
+                assert_eq!(d.store().raw_rows("notes").len(), 1);
+                assert!(d.store().meta("device:history:groups").unwrap().unwrap().contains("Left"));
+            }
+            let reply = snapback4_device::call::call(&mut d, json!({"op":"admit", "entry":{
+                "id":"branch", "seq":1, "op":"counterfactual", "args":{"work":work},
+                "viewer":"alice", "now":100, "predictable":true
+            }}));
+            if state == "absent" && work == 8192 {
+                assert_eq!(reply["denied"]["code"], "E_BOUND", "{state}/{work}: {reply}");
+                assert!(d.queued().unwrap().is_empty());
+            } else {
+                let queued: Queued = serde_json::from_value(reply["ok"].clone()).expect(&reply.to_string());
+                assert_eq!(queued.predictable, state != "unknown", "{state}/{work}: {reply}");
+                assert_eq!(queued.predicted.is_empty(), state == "unknown");
+                assert_eq!(d.queued().unwrap().len(), 1);
+            }
+            if state == "unknown" {
+                let authoritative = e.mutate("counterfactual", Some("branch"), context("alice", &[("work", Value::Int(work))]).at(100)).unwrap();
+                assert!(matches!(authoritative.state, WriteState::Sent { .. }), "server skips the counterfactual arm: {authoritative:?}");
+            }
+            assert_eq!(d.store().raw_rows("checks").iter().any(|row| row.field("id") == Ok(&id("probe"))),
+                state == "held" || (state == "absent" && work == 0), "failed/unknown prediction rolls back its insert");
+        }
+    }
+}
+#[test] fn counterfactual_branch_memory() { counterfactual_branch(Memory::new()); }
+#[test] fn counterfactual_branch_sqlite() { counterfactual_branch(Sqlite::new("counterfactual")); }
+
+fn existential_aggregate<H: Host>(mut h: H) {
+    let source = r#"table groups:
+  public 'groups'
+  sync public
+table notes:
+  groupId: groups
+  owner: principal
+  until: time ?
+  by byExpiry: until, id
+  by byOwner: owner, id
+  expire at .until
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  sync to .owner
+  retain delivered-history
+maintain counts: count notes by groupId, owner
+  read <- .owner = viewer
+  by byOwner: owner, groupId
+table checks:
+  groupId: groups
+  by byGroup: groupId, id
+  read <- exists counts[.groupId, viewer]
+  insert <- allow
+  sync to counts[.groupId] by .owner
+mutation check():
+  insert checks { id: 'check', groupId: 'group' }
+mutation add(noteId: id):
+  insert notes { id: noteId, groupId: 'group', owner: viewer, until: null }
+query checkRow():
+  return checks['check']
+"#;
+    for (retained, pending) in [("a", "z"), ("z", "a")] {
+        let (mut e, b) = compile(source);
+        e.seed([("groups".into(), snapback4_core::value::object([("id", id("group"))])),
+            ("notes".into(), snapback4_core::value::object([("id", id(retained)), ("groupId", id("group")), ("owner", id("alice")), ("until", Value::Null)]))]).unwrap();
+        let mut d = h.open(retained, Some(b)).unwrap();
+        for (n, p) in snapshot_pages(&mut e, "alice", 100).iter().enumerate() { d.apply(p, n == 0).unwrap(); }
+        let from = d.state().unwrap().0;
+        let left = serde_json::from_value(json!({"snapshot":false,"requested_watermark":from,"images_at":from+1,
+            "watermark":from+1,"more":false,"events":[{"table":"notes","kind":"scope","id":"scope","data":["alice"]}]})).unwrap();
+        d.apply(&left, false).unwrap();
+        assert!(d.store().meta("device:history:groups").unwrap().unwrap().contains("Left"));
+        assert!(regressions::enqueue(&mut d, "check").predictable);
+        let (out, unknown, _) = d.query_with_coverage("checkRow", "alice", &json!({}), 100);
+        let out = out.unwrap();
+        assert!(unknown && !out.complete && out.data == Value::Null, "retained witness alone: {out:?}");
+        let queued = admit(&mut d, "add", json!({"noteId":pending}));
+        assert!(queued.predictable, "{queued:?}");
+        let reply = snapback4_device::call::call(&mut d, json!({"op":"query", "name":"checkRow", "viewer":"alice", "now":100}));
+        assert_eq!(reply["ok"]["data"]["id"], "check", "{retained}/{pending}: {reply}");
+        assert_eq!(reply["ok"]["complete"], true, "{reply}");
+        assert_eq!(reply["ok"]["unknown"], false, "{reply}");
+    }
+}
+#[test] fn existential_aggregate_memory() { existential_aggregate(Memory::new()); }
+#[test] fn existential_aggregate_sqlite() { existential_aggregate(Sqlite::new("existential")); }

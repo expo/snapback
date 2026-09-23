@@ -155,3 +155,65 @@ fn gaps<H: Host>(mut host: H, split: bool) where H::Store: Images {
 }
 #[test] fn actual_gaps_reset_held_and_rejoined_memory() {for split in [false,true] {gaps(Memory::new(),split);}}
 #[test] fn actual_gaps_reset_held_and_rejoined_sqlite() {for split in [false,true] {gaps(Sqlite::new("f2-gap"),split);}}
+
+fn over_budget<H: Host>(mut host: H) where H::Store: Images {
+    let (mut e, b) = backend(true, false);
+    e.seed_at([member("z-live", 500), post("p")], 100).unwrap();
+    let mut d = host.open("over-budget", Some(b)).unwrap();
+    snapshot(&mut e, &mut d, 100);
+    let from = d.state().unwrap().0;
+    // Reproduce unswept physical history without 9,000 server commits: these
+    // are the delivered images each sequential membership would leave behind.
+    let events: Vec<_> = (0..9000).map(|n| json!({"table":"members", "kind":"put", "id":format!("m{n:05}"),
+        "data":{"id":format!("m{n:05}"),"authorId":"alice","principal":"alice","until":200}})).collect();
+    let p: StreamPage = serde_json::from_value(json!({"snapshot":false, "requested_watermark":from,
+        "images_at":from+1,"watermark":from+1,"more":false,"generation":e.generation(),"events":events})).unwrap();
+    d.apply(&p, false).unwrap();
+    let members = d.store().images("members");
+    assert_eq!(members.len(), 9001);
+    assert_eq!(members.iter().filter(|row| row.field("until").unwrap().as_int().unwrap() <= 300).count(), 9000);
+    let reply = snapback4_device::call::call_text(&mut d, &json!({"op":"admit", "entry":intent("p",1,300)}).to_string());
+    let q: Queued = serde_json::from_value(reply["ok"].clone()).expect(&reply.to_string());
+    assert!(!q.predictable && q.predicted.is_empty(), "coverage must stop at its meter and queue: {q:?}");
+    assert_eq!(d.queued().unwrap().len(), 1);
+    assert!(d.store().images("likes").is_empty(), "unpredicted admission rolls back the source");
+    assert!(d.store().images("totals").is_empty(), "unpredicted admission rolls back the aggregate");
+    assert_eq!(d.store().images("members"), members, "coverage never sweeps");
+}
+#[test] fn membership_over_budget_memory() { over_budget(Memory::new()); }
+#[test] fn membership_over_budget_sqlite() { over_budget(Sqlite::new("f2-over-budget")); }
+
+// JSON counterpart to core::engine::recorded's direct Runner clock guard.
+fn prediction_clock<H: Host>(mut host: H) where H::Store: Images {
+    let (mut e, b) = backend(true, false);
+    e.seed_at([member("m", 200), post("p")], 100).unwrap();
+    let mut d = host.open("clock", Some(b)).unwrap();
+    snapshot(&mut e, &mut d, 100);
+    for clock in [None, Some(json!(null)), Some(json!("100")), Some(json!(true)), Some(json!(1.5)), Some(json!(u64::MAX))] {
+        for op in ["predict", "admit", "enqueue"] {
+            let mut entry = serde_json::to_value(intent("p", 1, 100)).unwrap();
+            entry.as_object_mut().unwrap().remove("now");
+            let mut request = if op == "predict" {
+                json!({"op":op,"name":"like","viewer":"alice","args":{"postId":"p"},"newIds":["l1"]})
+            } else { json!({"op":op,"entry":entry}) };
+            if let Some(clock) = &clock {
+                if op == "predict" { request["now"] = clock.clone(); } else { request["entry"]["now"] = clock.clone(); }
+            }
+            for text in [false, true] {
+                let reply = if text { snapback4_device::call::call_text(&mut d, &request.to_string()) }
+                    else { snapback4_device::call::call(&mut d, request.clone()) };
+                assert_eq!(reply["denied"]["code"], "E_INPUT", "{request}: {reply}");
+                assert!(d.store().images("likes").is_empty());
+                assert!(d.queued().unwrap().is_empty());
+            }
+        }
+    }
+    let request = |now| json!({"op":"predict","name":"like","viewer":"alice","args":{"postId":"p"},"newIds":["l1"],"now":now});
+    let expired = snapback4_device::call::call_text(&mut d, &request(300).to_string());
+    assert_eq!(expired["ok"]["denied"]["code"], "E_PREDICT", "{expired}");
+    let live = snapback4_device::call::call_text(&mut d, &request(100).to_string());
+    assert!(live["ok"]["denied"].is_null(), "a valid clock remains accepted: {live}");
+    assert_eq!(d.store().images("likes").len(), 1);
+}
+#[test] fn prediction_clock_json_memory() { prediction_clock(Memory::new()); }
+#[test] fn prediction_clock_json_sqlite() { prediction_clock(Sqlite::new("f2-clock")); }

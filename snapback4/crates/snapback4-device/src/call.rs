@@ -26,6 +26,10 @@ fn text<'a>(request: &'a Json, name: &str) -> Result<&'a str, RuntimeError> {
     arg(request, name)?.as_str().ok_or_else(|| RuntimeError::Input(format!("{name} is text")))
 }
 
+fn prediction_clock(request: &Json) -> Result<i64, RuntimeError> {
+    arg(request, "now")?.as_i64().ok_or_else(|| RuntimeError::Input("now is an integer prediction clock".into()))
+}
+
 fn parse<T: serde::de::DeserializeOwned>(value: Json) -> Result<T, RuntimeError> {
     #[cfg(test)]
     OWNED_DECODES.set(OWNED_DECODES.get() + 1);
@@ -104,6 +108,7 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
             "asset_home" => device.asset_home(text(&request, "id")?, text(&request, "viewer")?, request.get("now").and_then(Json::as_i64).unwrap_or(0))?,
             "admit" => {
                 let entry = take(&mut request, "entry")?;
+                if entry.get("predictable").and_then(Json::as_bool) == Some(true) { prediction_clock(&entry)?; }
                 let replay = entry.get("replay_candidate").and_then(Json::as_bool).unwrap_or(false);
                 encoded(&device.admit_with_replay(parse::<Queued>(entry)?, replay)?)?
             }
@@ -113,7 +118,7 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
             }
             "predict" => {
                 let args = request.get("args").cloned().unwrap_or(json!({}));
-                let now = request.get("now").and_then(Json::as_i64).unwrap_or(0);
+                let now = prediction_clock(&request)?;
                 let new_ids: Vec<String> = request.get_mut("newIds").map(Json::take).map(parse).transpose()?.unwrap_or_default();
                 let entropy = request.get("entropy").and_then(Json::as_u64).unwrap_or(1);
                 match device.predict(text(&request, "name")?, text(&request, "viewer")?, &args, now, new_ids, entropy) {
@@ -128,7 +133,9 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 Json::Null
             }
             "enqueue" => {
-                device.enqueue(&parse::<Queued>(take(&mut request, "entry")?)?)?;
+                let entry = take(&mut request, "entry")?;
+                if entry.get("predictable").and_then(Json::as_bool) == Some(true) { prediction_clock(&entry)?; }
+                device.enqueue(&parse::<Queued>(entry)?)?;
                 Json::Null
             }
             "queued" => encoded(&device.queued()?)?,

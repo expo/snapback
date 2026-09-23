@@ -228,8 +228,8 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
     }
 
     // @ref LLP 3000.007.003#3.2 — retained images cannot establish current attribution coverage.
-    fn recording_covered(&self, name: &str, row: &Value, viewer: &str, now: i64) -> Result<bool, RuntimeError> {
-        recorded::covered(self, name, row, viewer, now)
+    fn recording_covered(&self, name: &str, row: &Value, viewer: &str, now: i64, meter: &mut snapback4_core::meter::Meter) -> Result<bool, RuntimeError> {
+        recorded::covered(self, name, row, viewer, now, meter)
     }
     fn acquired_boundary(&self, table: &str, index: &str, prefix: &[Value]) -> Result<Option<snapback4_core::rows::AcquiredBoundary>, RuntimeError> {
         boundary::read(&self.boundaries, self.schema, table, index, prefix)
