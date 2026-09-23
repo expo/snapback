@@ -87,8 +87,8 @@ The profiles table's cap belongs to the application and need not equal
 
 The read yields `{ id, postId, actorId, authorId, repost, at }` event rows.
 Shape them with the application's cards and profiles; `id` is the event id,
-including a fresh id for each repost. Ordering, the newest-865-event follow
-window, permanent promotion at follower 51, capacities, tombstone filtering,
+including a fresh id for each repost. Ordering, the follow window of the
+newest `clamp(authors, 200, 865)` source events (865 by default), permanent promotion at follower 51, capacities, tombstone filtering,
 cursors and meter-cut completeness follow the recipe above. A declaration
 keeps the mapped edge only. Maximum-backfill promotion uses 1,023 writes;
 one further app write reaches 1,024 and another refuses atomically. No history
