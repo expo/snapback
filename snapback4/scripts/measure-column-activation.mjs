@@ -31,9 +31,12 @@ const log = value => { console.log(JSON.stringify(value)); appendFileSync(join(o
 let phase = "setup", server, exited, url, serverSerial = 0;
 const devices = [], trace = [];
 const record = value => {
-  if (value.bytes !== undefined) assert.ok(value.bytes <= ceiling, `oversized HTTP response: ${value.bytes} B`);
   const row = { ordinal: trace.length, phase, ...value };
-  trace.push(row); appendFileSync(join(output, "requests.jsonl"), JSON.stringify(row) + "\n"); return row;
+  trace.push(row); appendFileSync(join(output, "requests.jsonl"), JSON.stringify(row) + "\n");
+  // Record first: a device fetch wrapper's caller swallows this throw, and the
+  // final audit must still see the oversized response in the trace.
+  if (value.bytes !== undefined) assert.ok(value.bytes <= ceiling, `oversized HTTP response: ${value.bytes} B`);
+  return row;
 };
 const seedSchema = readFileSync(join(here, "before.q"), "utf8");
 const activationSchema = readFileSync(join(here, "after.q"), "utf8").replace("likeCount: int", "likeCount: count likes by postId");
