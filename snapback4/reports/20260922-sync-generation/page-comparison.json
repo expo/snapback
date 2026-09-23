@@ -1,0 +1,15 @@
+{
+  "before_bytes": 16744164,
+  "after_reconstructed_bytes": 16804164,
+  "delta_bytes": 60000,
+  "ceiling_bytes": 16777216,
+  "excess_bytes": 26948,
+  "actual_refusal_bytes": 234,
+  "denial": {
+    "code": "E_SYNC_GENERATION",
+    "family": "generation",
+    "guide": "sync",
+    "message": "sync generation changed; adopt /schema before retrying this position"
+  },
+  "event_count": 4000
+}

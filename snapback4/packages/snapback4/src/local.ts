@@ -9,6 +9,7 @@
 
 import { MutationIds, WriteHistory } from "./writes.ts";
 import { changeFeed } from "./changes.ts";
+import { syncTransport } from "./local-sync.ts";
 import { exitTransport, type PendingSend } from "./local-exit.ts";
 import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, Refusal, Write } from "./contract.ts";
 import { MediaCache, type MediaStorage, type AssetRetention } from "./local-assets.ts";
@@ -170,6 +171,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   const retention = options.assets ?? { keep: "none", maxBytes: 0 };
   if (!["none", "viewed"].includes(retention.keep) || !Number.isSafeInteger(retention.maxBytes) || retention.maxBytes < 0) throw new Error("assets needs keep: viewed | none and a nonnegative maxBytes");
   const doFetch = options.fetch ?? globalThis.fetch.bind(globalThis);
+  const fetchSync = syncTransport(doFetch);
   const base = options.url.replace(/\/$/, "");
   const headers: Record<string, string> = { "content-type": "application/json" };
   const sessions = options.sessionStore ?? defaultSessionStore;
@@ -669,7 +671,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         try {
           const captured = await call({ op: "sync_state" });
           if (captured.denied) return false;
-          const { pending_ids: pending, send_revision, store_id, transfer_store_id, watermark: capturedWatermark, transfer_watermark, restore_watermark, restore_images_at, snapshot_catchup, pending_through, pending_complete, pending_bound, backend_required, restore_refusal } = captured.ok as { pending_ids: string[]; pending_through: number; pending_complete: boolean; pending_bound: number; transfer_watermark: number; restore_watermark?: number; restore_images_at?: number; snapshot_catchup?: boolean; send_revision: number; store_id?: string | null; transfer_store_id?: string | null; watermark: number; backend_required?: boolean; restore_refusal?: Refusal };
+          const { generation: capturedGeneration, pending_ids: pending, send_revision, store_id, transfer_store_id, watermark: capturedWatermark, transfer_watermark, restore_watermark, restore_images_at, snapshot_catchup, pending_through, pending_complete, pending_bound, backend_required, restore_refusal } = captured.ok as { generation: number; pending_ids: string[]; pending_through: number; pending_complete: boolean; pending_bound: number; transfer_watermark: number; restore_watermark?: number; restore_images_at?: number; snapshot_catchup?: boolean; send_revision: number; store_id?: string | null; transfer_store_id?: string | null; watermark: number; backend_required?: boolean; restore_refusal?: Refusal };
           if (restore_refusal) { refuseRestore(restore_refusal); return false; }
           backendRequired = !!backend_required;
           requestedStore = transfer_store_id ?? store_id;
@@ -682,7 +684,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           catchingUp = !snapshotRequest && (snapshot_catchup ?? catchingUp);
           publicationOutstanding ||= watermark > capturedWatermark;
           const request = requestCredentials();
-          const response = await doFetch(`${base}/sync`, { method: "POST", headers: request.headers, body: JSON.stringify({ from: watermark, limit: pageLimit, after: after ?? null, stream: !snapshotRequest && (catchingUp || (after === undefined && publicationOutstanding)), pending, ...(requestedStore ? { store_id: requestedStore } : {}) }), signal: aborter.signal });
+          const response = await fetchSync(`${base}/sync`, { method: "POST", headers: request.headers, signal: aborter.signal }, { generation: capturedGeneration, from: watermark, limit: pageLimit, after: after ?? null, stream: !snapshotRequest && (catchingUp || (after === undefined && publicationOutstanding)), pending, ...(requestedStore ? { store_id: requestedStore } : {}) });
           if (response.status >= 500) { setLink("offline"); return false; }
           page = (await response.json()) as SyncPage;
           if (!response.ok && !page.denied) { setLink("offline"); return false; }
@@ -701,8 +703,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
         if (closed || pageIncarnation !== incarnation || pageRevision !== credentialRevision) return false;
         const denied = page.denied as Refusal | undefined;
+        // @ref LLP 3000.007.003#5 — early discovery enters the same identity/adoption path as overflow.
+        const generationChanged = denied?.code === "E_SYNC_GENERATION" && denied.family === "generation";
+        if (generationChanged && (typeof page.watermark !== "number" || !Number.isFinite(page.watermark) || !Number.isInteger(page.watermark) || page.watermark < 0)) {
+          setLink("offline");
+          return false;
+        }
         // @ref LLP 3000.007.001#3.11 — adopt an oversized reply's identity before shrinking or retrying its position.
-        if (denied && !responsePageTooLarge(denied)) {
+        if (denied && !generationChanged && !responsePageTooLarge(denied)) {
           await refusePartition(denied, pageRevision);
           return false;
         }
@@ -710,10 +718,13 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         let replacedStore = false;
         let adoptionCapture: Record<string, string | null> | undefined;
         {
-          // An overflow watermark is an event cut, not proof of the server
-          // head. Preserve explicit image-head evidence if provided; never
-          // invent terminality for a refusal with no row batch.
-          const observed = await call({ op: "observe_store", page: denied ? { ...page, snapshot: false, events: [], more: true } : page });
+          // Neither refusal delivers a row batch. An overflow watermark is
+          // only an event cut; preserve explicit image-head evidence without
+          // inventing terminality or treating a refusal as delivered progress.
+          // Generation discovery reports the current head, so it must check
+          // retained image evidence before adoption can clear that evidence.
+          const observed = await call({ op: "observe_store", page: denied ? { ...page, snapshot: false, events: [], more: true,
+            ...(generationChanged ? { images_at: page.watermark } : {}) } : page });
           if (observed.denied) { refuseRestore(observed.denied); return false; }
           const observation = observed.ok as { reset: boolean; backend_required?: boolean; send_revision: number; retired: Record<string, number>; adoption_capture?: Record<string, string | null> };
           page.send_revision = observation.send_revision;
@@ -743,7 +754,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         if (link !== "online") setLink("online");
         if (!denied) partitionDenied = null;
         const pageGeneration = Number(page.generation ?? generation);
-        if (pageGeneration !== generation || replacedStore || backendRequired) {
+        if (generationChanged || pageGeneration !== generation || replacedStore || backendRequired) {
           // Generation counters restart with a new store. Reload the backend
           // even when its number matches, then acquire its current partition.
           let backendRevision = credentialRevision;

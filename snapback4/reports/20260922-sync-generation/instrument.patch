@@ -1,0 +1,68 @@
+--- MC1/measure.mjs
++++ generation-discovery/measure.mjs
+@@ -10,12 +10,12 @@
+ import { fileURLToPath } from "node:url";
+ import { setTimeout as delay } from "node:timers/promises";
+ import { gzipSync } from "node:zlib";
+-import { createLocalClient } from "../../../snapback4/packages/snapback4/dist/local.js";
+-import { processDevice } from "../../../snapback4/packages/snapback4/dist/native.js";
++import { createLocalClient } from "../../packages/snapback4/dist/local.js";
++import { processDevice } from "../../packages/snapback4/dist/native.js";
+ 
+-const here = dirname(fileURLToPath(import.meta.url));
++const here = resolve(dirname(fileURLToPath(import.meta.url)), "../../../benchmarks/runs/2026-09-19-snapback4-column-activation");
+ const root = resolve(here, "../../..");
+-const output = process.env.MC1_OUTPUT ? resolve(process.env.MC1_OUTPUT) : join(here, "evidence");
++const output = process.env.MC1_OUTPUT ? resolve(process.env.MC1_OUTPUT) : join(dirname(fileURLToPath(import.meta.url)), "rerun");
+ mkdirSync(output, { recursive: true });
+ const binary = process.env.SNAPBACK4_BIN ?? join(root, "snapback4/target/debug/snapback4");
+ const dir = mkdtempSync(join(tmpdir(), "sb4-mc1-activation-"));
+@@ -148,7 +148,7 @@
+     for (let offset = 0; offset < pageRows; offset += 1000) await seed(Array.from({ length: 1000 }, (_, n) => row(offset + n, width)));
+   }
+   await updatePage(4000);
+-  const syncRequest = { from, limit: pageRows, after: null, stream: true, pending: [] };
++  const syncRequest = { generation: 1, from, limit: pageRows, after: null, stream: true, pending: [] };
+   const calibration = await request("/sync", syncRequest);
+   assert.equal(calibration.page.denied, undefined);
+   assert.equal(calibration.page.events.length, pageRows);
+@@ -184,11 +184,17 @@
+   phase = "post-activation-large-page";
+   const after = await request("/sync", syncRequest);
+   save("after-large-page-refusal.json", after.page);
++  assert.equal(after.page.denied?.code, "E_SYNC_GENERATION");
++  assert.ok(after.bytes < 1024);
++  const { generation: ignoredGeneration, ...legacyRequest } = syncRequest;
++  const legacyControl = await request("/sync", legacyRequest, "legacy-control");
++  assert.equal(legacyControl.page.denied?.code, "E_BOUND");
++  save("legacy-control.json", { request: legacyRequest, bytes: legacyControl.bytes, reply: legacyControl.page });
+   // Keep two real successful halves, allowing the attempted full body to be
+   // reconstructed and compared with the formerly deliverable response.
+   const halves = [];
+   for (let cursor = from, i = 0; i < 2; i++) {
+-    const half = await request("/sync", { ...syncRequest, from: cursor, limit: 2000 });
++    const half = await request("/sync", { ...syncRequest, generation: 2, from: cursor, limit: 2000 });
+     assert.equal(half.page.denied, undefined); assert.equal(half.page.events.length, 2000);
+     writeFileSync(join(output, `after-half-${i}.json.gz`), gzipSync(half.text));
+     halves.push(half.page); cursor = half.page.watermark;
+@@ -223,7 +229,7 @@
+     assert.ok(ownTrace.some(t => t.path === "/schema"));
+     assert.equal(ownTrace.filter(t => t.path?.startsWith("/q/")).length, 0, "no server query fallback");
+     if (f.name === "lagging") {
+-      assert.equal(ownTrace[0].path, "/sync"); assert.equal(ownTrace[0].denied?.code, "E_BOUND");
++      assert.equal(ownTrace[0].path, "/sync"); assert.equal(ownTrace[0].denied?.code, "E_SYNC_GENERATION");
+       assert.deepEqual(ownTrace.filter(t => t.path).slice(0, 3).map(t => t.path), ["/sync", "/schema", "/sync"]);
+       assert.equal(ownTrace.filter(t => t.path === "/sync")[1].request.from, 0);
+       assert.equal(ownTrace.filter(t => t.path === "/sync")[1].request.limit, 4000, "adopts before shrinking");
+@@ -238,9 +244,9 @@
+       resource: JSON.parse(readFileSync(join(output, `${f.name}.resources.json`))) };
+     results.push(result); log({ device_adoption: result });
+   }
+-  const passed = !after.page.denied && results.every(r => r.oversized_sync_responses === 0);
++  const passed = after.page.denied?.code === "E_SYNC_GENERATION" && results.every(r => r.oversized_sync_responses === 0);
+   const result = { gate5: passed ? "PASS" : "FAIL", device_adopts: true,
+-    no_response_exceeds_ceiling_because_of_form: !after.page.denied,
++    no_response_exceeds_ceiling_because_of_form: passed,
+     backfill, activation, activation_resources: activationResources, devices: results,
+     end_load: loadavg(), host_process_peak_rss_bytes: process.resourceUsage().maxRSS * 1024 };
+   save("result.json", result);

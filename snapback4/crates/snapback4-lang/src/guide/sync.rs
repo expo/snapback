@@ -123,11 +123,28 @@ Inspect the table's `sync`, horizon and group `cap` with `check --residency --ve
 A snapshot arrives in pages the client
 asks for 4,000 events at a time (2,000 by default on the wire, 10,000 at
 most), each applied in its own transaction. `POST /sync` takes JSON
-`{ from, limit, after, stream, pending, store_id? }`: up to 256 pending write IDs of
+`{ from, limit, after, stream, pending, store_id?, generation? }`: up to 256 pending write IDs of
 1–128 UTF-8 bytes, with the cursor, in at most 262,144 body bytes (256 KiB).
 Oversize bodies, including chunked ones, return HTTP 413 `E_INPUT`; malformed
 fields return HTTP 400 `E_INPUT`. Continue snapshots with `after: next`;
 `stream: true` follows the log even from zero. There is no GET sync route.
+The client sends its device generation. A mismatch returns HTTP 200
+`E_SYNC_GENERATION` (family `generation`) with `generation`, `store_id` and
+the current numeric `watermark`, before building a snapshot or stream page. A
+head-read failure fails the request. The client adopts `/schema` only when that
+watermark is a finite, nonnegative integer at or above its retained image-head
+evidence (equal adopts); a lower head halts with `E_STORE_RESTORE`, and a missing
+or invalid head is a retryable failure that neither adopts nor clears the evidence.
+After adopting, it retries from the device's resulting position with its pending
+IDs intact. This refusal is never applied
+as a delivered page: its watermark is head evidence, not delivered progress, and
+never moves the cursor. Retry only from the position adoption produced.
+Omitting `generation` preserves ordinary page behavior.
+Against 0.2.32, the client retries without the field once on that server's exact
+HTTP 400 sync-input refusal. This transport omits `generation` for that server
+origin only after a stripped retry returns a successful (2xx) response.
+Anything else leaves discovery enabled, so the next attempt probes again;
+another origin or transport still sends the field.
 An HTTP response above 16 MiB becomes `E_BOUND`, keeping `generation`,
 `store_id` and `watermark` from that page. The client checks identity before
 shrinking its limit; a refusal's watermark is never applied as delivered data.

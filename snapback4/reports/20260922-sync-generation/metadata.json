@@ -1,0 +1,22 @@
+{
+  "base": "559b63f72150f58666502599f21a5b7e49b9a30d",
+  "binary": "/Users/ccheever/projects/snapback-w13d/snapback4/target/debug/snapback4",
+  "binary_sha256": "99daaacbc3c132ab36de0795c404cd52ffc96379ec094bc46687b374eaed6427",
+  "node": "v24.18.0",
+  "platform": "darwin",
+  "arch": "arm64",
+  "cpus": 18,
+  "start_load": [
+    70.52587890625,
+    73.02392578125,
+    50.87158203125
+  ],
+  "started": "2026-09-23T00:45:24.920Z",
+  "fixture_dir": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-mc1-activation-YOubmI",
+  "parents": 100000,
+  "sources": 1000000,
+  "pageRows": 4000,
+  "http_ceiling_bytes": 16777216,
+  "before_sha256": "6ac89a2b4944ea58ac06b126a6f8c0ea6ff99354536c65fe3348ed4f2efefceb",
+  "after_sha256": "51fafec6aaf3de98f577ea8f827f817cb279bdcd5474a5910e6d81b169fc1bb7"
+}

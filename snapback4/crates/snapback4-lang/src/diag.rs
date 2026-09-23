@@ -136,7 +136,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_QUARRY_AMBIGUOUS" | "E_CURSOR_INDEX" | "E_CONSTRAINT" => "indexes",
         "E_QUARRY_PLACEMENT" | "E_INTERNAL" => "programs",
         "E_UNBOUND_LOOP" | "E_UNBOUND_SCAN" | "E_QUARRY_BOUND" => "bounds",
-        "E_SYNC" => "sync",
+        "E_SYNC" | "E_SYNC_GENERATION" => "sync",
         "E_SCHEMA_CONSTRAINT" | "E_INDEX_KEY_BYTES" => "indexes",
         "E_EMIT_IN_QUERY" => "programs",
         "E_QUARRY_MODIFIER_SCOPE" | "N_NO_CURSOR" | "N_SEEK" | "N_NEVER_COMPLETE" | "E_SHAPE_EXCEEDS_METER" => "reads",

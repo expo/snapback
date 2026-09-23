@@ -30,6 +30,9 @@ mod routes;
 #[path = "serve_changes.rs"]
 mod changes;
 
+#[path = "serve_sync.rs"]
+mod sync;
+
 #[path = "serve_maintenance.rs"]
 mod maintenance;
 use maintenance::maintain;
@@ -1089,82 +1092,7 @@ fn handle(mut request: Request, shared: &Shared) {
             }
         }
         (Method::Get, "/changes") => changes::serve(request, shared, &url),
-        (Method::Post, "/sync") => {
-            let principal = match principal_of(&request, shared) {
-                Ok(principal) => principal,
-                Err(refusal) => {
-                    respond(request, 401, json!({ "denied": refusal_json(&refusal) }));
-                    return;
-                }
-            };
-            let input = match serde_json::from_str::<SyncRequest>(&body) {
-                Ok(input) if input.pending.len() <= 256 && input.pending.iter().all(|id| !id.is_empty() && id.len() <= 128) => input,
-                _ => return respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "sync needs { from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes")) })),
-            };
-            let SyncRequest { from, limit, mut after, stream, pending, store_id: requested_store } = input;
-            let store_id = match lock(&shared.engine).store().meta("store_id") {
-                Ok(Some(id)) => id,
-                _ => return respond(request, 503, json!({ "denied": refusal_json(&snapback4_core::error::RuntimeError::Store("the server store has no identity".into()).refusal()) })),
-            };
-            // An old snapshot cursor belongs to its database, not merely its schema.
-            if requested_store.as_ref().is_some_and(|id| id != &store_id) { after = None; }
-            let limit = limit.clamp(1, 10_000);
-            if from == 0 && !stream {
-                // `after` is the previous snapshot page's opaque `next` token.
-                let (outcome, generation) = {
-                    let reader = { lock(&shared.engine).reader() };
-                    match reader {
-                        Ok(mut reader) => {
-                            let generation = reader.generation();
-                            (reader.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, shared.now()).and_then(|page| reader.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))), generation)
-                        }
-                        Err(_) => {
-                            let mut engine = lock(&shared.engine);
-                            (engine.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, shared.now()).and_then(|page| engine.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))), *lock(&shared.generation))
-                        }
-                    }
-                };
-                match outcome {
-                    Ok((page, acknowledged)) => {
-                        let next = page.next.map(|next| next.encode());
-                        let (events, watermark, held) = (page.events, page.watermark, page.held);
-                        let overflow = json!({ "generation": generation, "store_id": store_id, "watermark": watermark });
-                        respond_with_sync(request, 200, SnapshotReply {
-                            acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Snapshot(events), generation, store_id,
-                            held, more: next.is_some(), next, after, snapshot: true, watermark,
-                        }, true, Some(overflow));
-                    }
-                    Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else if refusal.code == "E_INPUT" { 400 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
-                }
-            } else {
-                let (outcome, generation) = {
-                    let reader = { lock(&shared.engine).reader() };
-                    match reader {
-                        Ok(mut reader) => {
-                            let generation = reader.generation();
-                            (reader.stream_at(&principal, from, limit, shared.now()).and_then(|page| reader.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| (page, acks))), generation)
-                        }
-                        Err(_) => {
-                            let mut engine = lock(&shared.engine);
-                            (engine.stream_at(&principal, from, limit, shared.now()).and_then(|page| engine.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| (page, acks))), *lock(&shared.generation))
-                        }
-                    }
-                };
-                match outcome {
-                    Ok((page, (acknowledged, committed_above))) => {
-                        let mut overflow = json!({ "generation": generation, "store_id": store_id, "watermark": page.watermark });
-                        // Whole commits cannot be split by lowering the stream limit.
-                        // A snapshot pages their current rows individually instead.
-                        if limit == 1 { overflow["snapshot"] = json!(true); }
-                        respond_with_sync(request, 200, StreamReply {
-                            images_at: page.images_at, committed_above, acquisitions: page.acquisitions, acknowledged, events: SyncEvents::Stream(page.events), generation, store_id,
-                            joined: page.joined, more: page.more, snapshot: false, watermark: page.watermark,
-                        }, true, Some(overflow));
-                    }
-                    Err(error) => { let refusal = error.refusal(); respond(request, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
-                }
-            }
-        }
+        (Method::Post, "/sync") => sync::serve(request, shared, &body),
         (Method::Post, "/auth/session") => {
             // An application that authenticates its own accounts (a phone
             // it verified, a directory it owns) mints their sessions through
@@ -1327,21 +1255,3 @@ mod poison_tests {
         assert!(!shared.engine.is_poisoned());
     }
 }
-
-#[derive(serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-struct SyncRequest {
-    #[serde(default)]
-    from: u64,
-    #[serde(default = "sync_limit")]
-    limit: usize,
-    #[serde(default)]
-    after: Option<String>,
-    #[serde(default)]
-    stream: bool,
-    #[serde(default)]
-    pending: Vec<String>,
-    #[serde(default)]
-    store_id: Option<String>,
-}
-fn sync_limit() -> usize { 2_000 }

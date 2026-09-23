@@ -1,0 +1,200 @@
+{
+  "gate5": "PASS",
+  "device_adopts": true,
+  "no_response_exceeds_ceiling_because_of_form": true,
+  "backfill": {
+    "mode": "backfill",
+    "before": {
+      "rows": {
+        "posts": 100000,
+        "likes": 1000000
+      },
+      "generation": "1",
+      "log_rows": 108000,
+      "commits": 208,
+      "parents_with_count": 0
+    },
+    "after": {
+      "rows": {
+        "posts": 100000,
+        "likes": 1000000
+      },
+      "generation": "1",
+      "log_rows": 108000,
+      "commits": 208,
+      "parents_with_count": 100000
+    },
+    "elapsed_ms": 1184.6895841881633,
+    "peak_rss_bytes": 35667968
+  },
+  "activation": {
+    "label": "activation-only",
+    "startup_ms": 5276.890125000002,
+    "resource_file": "2-activation-only.resources.json"
+  },
+  "activation_resources": {
+    "command": [
+      "/Users/ccheever/projects/snapback-w13d/snapback4/target/debug/snapback4",
+      "dev",
+      "--no-watch",
+      "--hold-effects",
+      "--hold-schedules",
+      "--port",
+      "54348"
+    ],
+    "pid": 54037,
+    "elapsed_ms": 5253.666917094961,
+    "user_seconds": 4.631971,
+    "system_seconds": 0.407018,
+    "peak_rss_bytes": 18006016,
+    "exit_status": -15
+  },
+  "devices": [
+    {
+      "name": "current",
+      "elapsed_ms": 2554.5907499999994,
+      "state": {
+        "generation": 2,
+        "native": null,
+        "watermark": 208
+      },
+      "reads": [
+        {
+          "id": "p000000",
+          "value": 10,
+          "fresh": true,
+          "local_value": 10
+        },
+        {
+          "id": "p003999",
+          "value": 10,
+          "fresh": true,
+          "local_value": 10
+        },
+        {
+          "id": "p099999",
+          "value": 10,
+          "fresh": true,
+          "local_value": 10
+        }
+      ],
+      "persisted": {
+        "mode": "inspect",
+        "before": {
+          "rows": {
+            "posts": 100000,
+            "likes": 0
+          },
+          "generation": "2",
+          "log_rows": 0,
+          "commits": 0,
+          "parents_with_count": 100000
+        },
+        "after": {
+          "rows": {
+            "posts": 100000,
+            "likes": 0
+          },
+          "generation": "2",
+          "log_rows": 0,
+          "commits": 0,
+          "parents_with_count": 100000
+        },
+        "elapsed_ms": 167.67312493175268,
+        "peak_rss_bytes": 20938752
+      },
+      "sync_requests": 27,
+      "oversized_sync_responses": 0,
+      "resource": {
+        "command": [
+          "/Users/ccheever/projects/snapback-w13d/snapback4/target/debug/snapback4",
+          "device",
+          "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-mc1-activation-YOubmI/current/snapback4-http%3A%2F%2F127.0.0.1%3A54348%3Adev%3Aalice.sqlite",
+          "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-mc1-activation-YOubmI/current/snapback4-http%3A%2F%2F127.0.0.1%3A54348%3Adev%3Aalice.sqlite.backend.json"
+        ],
+        "pid": 52910,
+        "elapsed_ms": 15483.695208095014,
+        "user_seconds": 2.065615,
+        "system_seconds": 0.9589989999999999,
+        "peak_rss_bytes": 143687680,
+        "exit_status": -15
+      }
+    },
+    {
+      "name": "lagging",
+      "elapsed_ms": 2833.698916999998,
+      "state": {
+        "generation": 2,
+        "native": null,
+        "watermark": 208
+      },
+      "reads": [
+        {
+          "id": "p000000",
+          "value": 10,
+          "fresh": true,
+          "local_value": 10
+        },
+        {
+          "id": "p003999",
+          "value": 10,
+          "fresh": true,
+          "local_value": 10
+        },
+        {
+          "id": "p099999",
+          "value": 10,
+          "fresh": true,
+          "local_value": 10
+        }
+      ],
+      "persisted": {
+        "mode": "inspect",
+        "before": {
+          "rows": {
+            "posts": 100000,
+            "likes": 0
+          },
+          "generation": "2",
+          "log_rows": 0,
+          "commits": 0,
+          "parents_with_count": 100000
+        },
+        "after": {
+          "rows": {
+            "posts": 100000,
+            "likes": 0
+          },
+          "generation": "2",
+          "log_rows": 0,
+          "commits": 0,
+          "parents_with_count": 100000
+        },
+        "elapsed_ms": 245.20374997518957,
+        "peak_rss_bytes": 20955136
+      },
+      "sync_requests": 27,
+      "oversized_sync_responses": 0,
+      "resource": {
+        "command": [
+          "/Users/ccheever/projects/snapback-w13d/snapback4/target/debug/snapback4",
+          "device",
+          "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-mc1-activation-YOubmI/lagging/snapback4-http%3A%2F%2F127.0.0.1%3A54348%3Adev%3Aalice.sqlite",
+          "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-mc1-activation-YOubmI/lagging/snapback4-http%3A%2F%2F127.0.0.1%3A54348%3Adev%3Aalice.sqlite.backend.json"
+        ],
+        "pid": 53232,
+        "elapsed_ms": 16435.43866602704,
+        "user_seconds": 2.081884,
+        "system_seconds": 0.983285,
+        "peak_rss_bytes": 76365824,
+        "exit_status": -15
+      }
+    }
+  ],
+  "end_load": [
+    55.27978515625,
+    69.3583984375,
+    50.19775390625
+  ],
+  "host_process_peak_rss_bytes": 914587648
+}

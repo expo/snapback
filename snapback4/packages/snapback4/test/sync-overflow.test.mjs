@@ -184,7 +184,7 @@ test("oversized sync identity, indivisible-commit snapshot recovery, and wedged 
   await f.start(source.replace("last 10000", "last 100"));
   for (const { tier, f: device } of wedged) await t.test(`${tier} a wedged device discovers generation before shrinking the oversized page`, async () => {
     await device.client.sync();
-    assert.equal(device.pages[0].page.denied?.code, "E_BOUND", "the generation is discovered in a real oversized response");
+    assert.equal(device.pages[0].page.denied?.code, "E_SYNC_GENERATION", "the stale generation is discovered before building the oversized page");
     assert.deepEqual(device.trace.slice(0, 3), ["/sync", "/schema", "/sync"], "adopt before retrying the undeliverable position");
     assert.equal(device.pages[1].request.from, 0);
     assert.equal(device.pages[1].request.limit, 4000, "generation adoption precedes shrinking");

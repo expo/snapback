@@ -13,6 +13,9 @@ mod route_tests;
 #[path = "../tests/serve_presence/mod.rs"]
 mod presence_tests;
 
+#[path = "../tests/serve_sync/mod.rs"]
+mod sync_generation_tests;
+
 
 const SCHEMA: &str = "use identity\ntable items:\n  n: int\n  photo: image <=1024 ?\n  read <- allow\n  insert <- deny\n  sync public\nquery who():\n  return viewer\n";
 

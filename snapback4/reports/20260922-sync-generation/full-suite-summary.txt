@@ -1,0 +1,14 @@
+-- ok: cargo build (40 s)
+-- ok: wasm build (2 s)
+-- ok: docs budget (0 s)
+-- ok: release guard (11 s)
+-- ok: package typecheck (2 s)
+-- ok: package build (2 s)
+-- ok: chat app check (1 s)
+-- ok: cargo test (1278 s)
+-- ok: chat app typecheck (1 s)
+-- ok: expo app typecheck (2 s)
+-- ok: fixture wrapper tests (13 s)
+-- FAIL: client tests (1128 s)
+== 1 failure(s) in 1336 s
+   client tests

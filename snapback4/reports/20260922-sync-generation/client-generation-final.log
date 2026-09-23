@@ -1,0 +1,12 @@
+✔ wasm: early generation adoption preserves unsent writes, known and lost acknowledgements (404.103833ms)
+✔ process: early generation adoption preserves unsent writes, known and lost acknowledgements (142.412708ms)
+✔ legacy fallback is once per client, preserves the request, and recognizes only the exact refusal (0.957417ms)
+✔ new client syncs against the actual 0.2.32 server's deny_unknown_fields request contract (126.858792ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 754.606417
