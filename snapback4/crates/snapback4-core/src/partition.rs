@@ -163,6 +163,15 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
     let new_image = new.map(|row| row_image(row, table));
     let old = old_image.as_deref();
     let new = new_image.as_deref();
+    // Rows born in this commit, in every table: synced ones log only their
+    // final image, and a born membership is no predecessor of a grant.
+    #[cfg(feature = "sqlite")]
+    let row_key = if LOG { Some((table_name.to_owned(), old.or(new).expect("a row change has an image").field("id")?.as_str()?.to_owned())) } else { None };
+    #[cfg(feature = "sqlite")]
+    if let Some(key) = &row_key && old.is_none() {
+        let earlier = runner.events.iter().filter(|event| matches!(event.kind, EventKind::Put | EventKind::Del) && event.table == key.0 && event.id == key.1).count();
+        runner.born_rows.insert(key.clone(), earlier);
+    }
     if let Some(sync) = &table.sync {
         let before: BTreeSet<String> = old.map(|old| partitions(table_name, sync, old)).unwrap_or_default().into_iter().collect();
         let after: BTreeSet<String> = new.map(|new| partitions(table_name, sync, new)).unwrap_or_default().into_iter().collect();
@@ -171,16 +180,29 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
         let id = if LOG { id.to_owned() } else { String::new() };
         #[cfg(not(feature = "sqlite"))]
         let _ = id;
-        #[cfg(feature = "sqlite")]
-        if LOG && let Some(new) = new {
-            log_events::put(&mut runner.events, table_name, &id, new, &after);
-        }
+        // @ref LLP 3000#7-decisions-during-execution — a row born in a commit logs only its image at the commit's end: no id of a row, or of a row's place, that existed at no commit boundary crosses the wire.
         #[cfg(feature = "sqlite")]
         if LOG {
-            log_events::del(&mut runner.events, table_name, &id, &before, &after);
+            let key = (table_name.to_owned(), id.clone());
+            let row_event = |event: &Event| matches!(event.kind, EventKind::Put | EventKind::Del) && event.table == key.0 && event.id == key.1;
+            if let Some(&earlier) = runner.born_rows.get(&key) {
+                withdraw(&mut runner.events, earlier, row_event);
+                if let Some(new) = new {
+                    log_events::put(&mut runner.events, table_name, &id, new, &after);
+                }
+            } else {
+                if let Some(new) = new {
+                    log_events::put(&mut runner.events, table_name, &id, new, &after);
+                }
+                log_events::del(&mut runner.events, table_name, &id, &before, &after);
+            }
         }
         if schema.maintain_for(table_name).is_some() { runner.charge_maintain(MeterKind::Steps, (before.len() + after.len()) as u64)?; }
         else { runner.meter.charge(MeterKind::Steps, (before.len() + after.len()) as u64)?; }
+    }
+    #[cfg(feature = "sqlite")]
+    if let Some(key) = &row_key && new.is_none() {
+        runner.born_rows.remove(key);
     }
     // This table as the target of other tables' audiences.
     let dependents: Vec<(String, Sync)> = schema
@@ -210,9 +232,13 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
         if was == is && expiry(old) == expiry(new) {
             continue;
         }
+        #[cfg(feature = "sqlite")]
+        let mut undone_born: Option<(String, String, String)> = None;
         // A grant that ends inside the commit that made it was never an
-        // authority: a group's interval is `[join, leave)`, so the same
-        // commit's join and scope deliver nothing.
+        // authority, and the principal never held the group at a commit
+        // boundary: its join and its scope are both withdrawn, so the
+        // principal learns nothing of the group. A renewal is not a new
+        // grant, so a revocation after one is always logged.
         if let Some((partition, group)) = &was {
             // Sweeping an expired predecessor must not revoke the live
             // replacement admitted under the same logical unique key.
@@ -242,16 +268,88 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
             let _ = (partition, replaced, renewed);
             #[cfg(feature = "sqlite")]
             if LOG && !replaced && !renewed {
-                log_events::scope(&mut runner.events, &content_name, partition, group);
+                let key = (partition.clone(), content_name.clone(), canonical_json(group));
+                match runner.born_grants.get(&key).copied() {
+                    Some(earlier) => {
+                        withdraw(&mut runner.events, earlier, |event| event.kind == EventKind::Join && event.partition == key.0 && event.table == key.1 && event.id == key.2);
+                        // Siblings born beside it still carry the birth.
+                        let row = old.expect("a revoked grant had an image");
+                        let own = row.field("id")?.as_str()?.to_owned();
+                        let bound = binding(schema, &content_name, &sync).expect("validated audience");
+                        let mut probe = group.clone();
+                        probe.push(row.field(&bound.principal)?.clone());
+                        if !key_has_row(runner, table_name, &bound.group_index, &probe, |other| other != own)? {
+                            runner.born_grants.remove(&key);
+                        }
+                        undone_born = Some(key);
+                    }
+                    None => log_events::scope(&mut runner.events, &content_name, partition, group),
+                }
             }
         }
+        // A grant born in this commit stays born through renewals, and
+        // through a new lifetime that ends it at once, until it is undone. A
+        // grant beside another row of its key that existed before the commit
+        // (an expired predecessor not yet swept, which the log still holds)
+        // is not born: it replaces that predecessor, whose revocation is
+        // still owed. Rows born in this commit held no authority before it,
+        // so they are passed over. The probe is log bookkeeping, not program
+        // work, so no host is charged for it (the device builds no log).
         #[cfg(feature = "sqlite")]
         if LOG && let Some((partition, group)) = &is {
+            let key = (partition.clone(), content_name.clone(), canonical_json(group));
+            if (was != is || undone_born.as_ref() == Some(&key)) && !runner.born_grants.contains_key(&key) {
+                let row = new.expect("a membership has an image");
+                let bound = binding(schema, &content_name, &sync).expect("validated audience");
+                let mut probe = group.clone();
+                probe.push(row.field(&bound.principal)?.clone());
+                let own = row.field("id")?.as_str()?;
+                let runner_now: &Runner<'_> = runner;
+                let predecessor = key_has_row(runner_now, table_name, &bound.group_index, &probe, |other| other != own && !runner_now.born_rows.contains_key(&(table_name.to_owned(), other.to_owned())))?;
+                if !predecessor {
+                    let earlier = runner.events.iter().filter(|event| event.kind == EventKind::Join && event.partition == key.0 && event.table == key.1 && event.id == key.2).count();
+                    runner.born_grants.insert(key, earlier);
+                }
+            }
             log_events::join(&mut runner.events, &content_name, partition, group, expiry(new));
         }
         runner.meter.charge(MeterKind::Steps, 1)?;
     }
     Ok(())
+}
+
+/// Whether a row of one audience key (the group columns and the principal)
+/// satisfies `wanted`, scanning the unique group index in batches until one
+/// does. Log bookkeeping on the log-bearing host: not metered.
+#[cfg(feature = "sqlite")]
+fn key_has_row(runner: &Runner<'_>, table_name: &str, index: &str, probe: &[Value], wanted: impl Fn(&str) -> bool) -> Result<bool, RuntimeError> {
+    let mut bounds = Bounds::default();
+    loop {
+        let rows = runner.tx.scan(table_name, index, probe, &bounds, Dir::Asc, 32)?;
+        for (other, stored) in &rows {
+            if wanted(other.field("id")?.as_str()?) {
+                return Ok(true);
+            }
+            bounds.after = crate::key::decode(stored).map(|values| values.into_iter().skip(probe.len()).collect());
+        }
+        if rows.len() < 32 {
+            return Ok(false);
+        }
+    }
+}
+
+/// Drop the events `matches` selects after the first `keep` of them: what a
+/// row or a grant logged since it was born in this commit.
+#[cfg(feature = "sqlite")]
+fn withdraw(events: &mut Vec<Event>, keep: usize, matches: impl Fn(&Event) -> bool) {
+    let mut seen = 0;
+    events.retain(|event| {
+        if !matches(event) {
+            return true;
+        }
+        seen += 1;
+        seen <= keep
+    });
 }
 
 /// The rows of one group within the horizon, newest first when a horizon
@@ -491,9 +589,10 @@ fn audience_index(table_name: &str, table: &Table, sync: &Sync) -> Result<String
 }
 
 /// Append a commit's events to the log. A row's events within one commit
-/// coalesce to the last (a put then a delete logs the delete alone, so an
-/// image that did not survive the commit never crosses the wire); joins
-/// and scopes keep their place.
+/// coalesce to the last (an update then a delete logs the delete alone, so
+/// an image that did not survive the commit never crosses the wire); joins
+/// and scopes keep their place. A row or a grant born and undone inside the
+/// commit has already been withdrawn by `account_row_change`.
 #[cfg(feature = "sqlite")]
 pub fn append(tx: &dyn PartitionRows, seq: u64, events: &[Event]) -> Result<(), RuntimeError> {
     let mut last: BTreeMap<(&str, &str, &str), usize> = BTreeMap::new();

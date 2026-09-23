@@ -55,13 +55,12 @@ const CONVERSATIONS: [&str; 2] = ["c1", "c2"];
 const BLOCKING_DEPTH: usize = 2;
 const NOW: i64 = 1_000_000_000;
 const MAX_FAILURES: usize = 25;
-/// A finding this checks for and tolerates until its ticket is fixed; remove
-/// the tolerance with the fix.
-const KNOWN: &str = "known, issues/20260923-snapback4-in-commit-grant-names-ids.md:";
 
 /// Writes the chat app does not have, shaped like the reviews' findings: a
 /// grant that ends in its own commit, a commit with a grant and content, a
-/// grant replaced in one commit, two rows in one commit, and writes with no
+/// grant replaced in one commit, two rows in one commit, a message deleted
+/// with a temporary one born and deleted beside it (its conversation's count
+/// row dies, is reborn under the same id and dies again), and writes with no
 /// `require` so that only the table rules stand between a viewer and a row.
 const EXTRA: &str = "
 mutation kick(conversationId: conversations, principal: principal):
@@ -104,6 +103,14 @@ mutation rawJoin(conversationId: conversations):
 
 mutation rawUnsend(messageId: messages):
   delete messages[messageId]
+  return null
+
+mutation churn(messageId: messages):
+  msg = messages[messageId] ! else NOT_FOUND
+  require msg.authorId = viewer else NOT_AUTHOR
+  delete messages[msg]
+  row = insert messages { conversationId: msg.conversationId, authorId: viewer, body: 'temp', at: now }
+  delete messages[row]
   return null
 ";
 
@@ -182,6 +189,7 @@ enum Op {
     Edit(&'static str, String),
     Unsend(&'static str, String),
     RawUnsend(&'static str, String),
+    Churn(&'static str, String),
 }
 
 impl Op {
@@ -189,7 +197,7 @@ impl Op {
         match self {
             Op::Send(a, _) | Op::Burst(a, _) | Op::RawSend(a, _) | Op::RawJoin(a, _) | Op::Leave(a, _) => a,
             Op::Add(a, ..) | Op::AddAndSend(a, ..) | Op::Blip(a, ..) | Op::Kick(a, ..) | Op::Rejoin(a, ..) => a,
-            Op::Edit(a, _) | Op::Unsend(a, _) | Op::RawUnsend(a, _) => a,
+            Op::Edit(a, _) | Op::Unsend(a, _) | Op::RawUnsend(a, _) | Op::Churn(a, _) => a,
         }
     }
 
@@ -211,6 +219,7 @@ impl Op {
             Op::Edit(_, m) => ("edit", vec![msg(m), ("body", text("edited"))]),
             Op::Unsend(_, m) => ("unsend", vec![msg(m)]),
             Op::RawUnsend(_, m) => ("rawUnsend", vec![msg(m)]),
+            Op::Churn(_, m) => ("churn", vec![msg(m)]),
         }
     }
 
@@ -225,7 +234,7 @@ impl Op {
                 }
             }
             for m in messages {
-                out.extend([Op::Edit(a, m.clone()), Op::Unsend(a, m.clone()), Op::RawUnsend(a, m.clone())]);
+                out.extend([Op::Edit(a, m.clone()), Op::Unsend(a, m.clone()), Op::RawUnsend(a, m.clone()), Op::Churn(a, m.clone())]);
             }
         }
         out
@@ -321,7 +330,7 @@ impl Tables {
             Op::Kick(a, c, p) => self.member(c, a) && self.member(c, p) && (a == p || self.admin(c, a)),
             // Deleting one's own admin row first leaves no admin to insert.
             Op::Rejoin(a, c, p) => self.admin(c, a) && self.member(c, p) && a != p,
-            Op::Edit(a, m) | Op::Unsend(a, m) => self.message(m).is_some_and(|(c, author)| author == *a && self.member(c, a)),
+            Op::Edit(a, m) | Op::Unsend(a, m) | Op::Churn(a, m) => self.message(m).is_some_and(|(c, author)| author == *a && self.member(c, a)),
             Op::RawUnsend(a, m) => match self.message(m) {
                 Some((c, author)) if author == *a && !self.member(c, a) => return None,
                 Some((_, author)) => author == *a,
@@ -357,7 +366,7 @@ fn check_effect(before: &Tables, after: &Tables, op: &Op) -> Result<(), String> 
         Op::Blip(..) => quiet_members && quiet_messages,
         Op::Rejoin(_, c, p) => quiet_messages && m_chg.is_empty() && m_add.len() == 1 && m_del.len() == 1 && membership(&m_add[0], c, p) && membership(&m_del[0], c, p) && field(&m_add[0], "role") == "member",
         Op::Edit(_, m) => quiet_members && x_add.is_empty() && x_del.is_empty() && x_chg.len() == 1 && field(&x_chg[0].1, "id") == m && field(&x_chg[0].1, "body") == "edited",
-        Op::Unsend(_, m) | Op::RawUnsend(_, m) => quiet_members && x_add.is_empty() && x_chg.is_empty() && x_del.len() == 1 && field(&x_del[0], "id") == m,
+        Op::Unsend(_, m) | Op::RawUnsend(_, m) | Op::Churn(_, m) => quiet_members && x_add.is_empty() && x_chg.is_empty() && x_del.len() == 1 && field(&x_del[0], "id") == m,
         Op::RawJoin(..) => false,
     };
     if ok { Ok(()) } else { Err(format!("a write had the wrong effect [memberships +{m_add:?} -{m_del:?} ~{m_chg:?}; messages +{x_add:?} -{x_del:?} ~{x_chg:?}]")) }
@@ -404,15 +413,6 @@ struct Node<'a> {
     now: &'a Tables,
     history: &'a BTreeMap<&'static str, History>,
     grants: &'a Grants,
-    transient: &'a Transient,
-}
-
-/// Rows and grants that lived only inside one commit (a `blip`).
-#[derive(Clone, Default)]
-struct Transient {
-    rows: BTreeSet<(String, String)>,
-    /// (principal, conversation)
-    grants: BTreeSet<(String, String)>,
 }
 
 impl Device {
@@ -537,18 +537,13 @@ fn drain(engine: &mut Engine, viewer: &'static str, from: u64, limit: usize, nod
                     }
                 }
                 "del" => {
-                    let row = (event.table.clone(), event.id.clone());
-                    if node.transient.rows.contains(&row) && !history.ids.contains(&row) {
-                        errs.push(format!("{KNOWN} a delete names a row that lived only inside one commit [{at}]"));
-                    } else if !history.ids.contains(&row) {
+                    if !history.ids.contains(&(event.table.clone(), event.id.clone())) {
                         errs.push(format!("a delete names a row the viewer never could read [{at}]"));
                     }
                 }
                 "scope" => {
                     let group = event.data.as_ref().and_then(|d| d.as_array().ok()).and_then(|g| g.first()).and_then(|v| v.as_str().ok()).unwrap_or("");
-                    if !history.groups.contains(group) && node.transient.grants.contains(&(viewer.to_owned(), group.to_owned())) {
-                        errs.push(format!("{KNOWN} a scope names a group the viewer held only inside one commit [{at}]"));
-                    } else if !history.groups.contains(group) {
+                    if !history.groups.contains(group) {
                         errs.push(format!("a scope names a group the viewer never held [{at}]"));
                     }
                 }
@@ -575,16 +570,11 @@ struct Report {
     probes: usize,
     /// Per property: how many nodes broke it, and the shortest path that did.
     failures: BTreeMap<String, (usize, String)>,
-    known: BTreeMap<String, usize>,
 }
 
 impl Report {
     fn fail(&mut self, path: &[Op], message: String) {
         let property = message.split(" [").next().unwrap_or(&message).to_owned();
-        if property.starts_with(KNOWN) {
-            *self.known.entry(property).or_default() += 1;
-            return;
-        }
         let example = format!("after {path:?}:\n    {message}");
         let entry = self.failures.entry(property).or_insert((0, example.clone()));
         entry.0 += 1;
@@ -603,9 +593,6 @@ impl Report {
                 entry.1 = example;
             }
         }
-        for (property, n) in other.known {
-            *self.known.entry(property).or_default() += n;
-        }
     }
 
     fn failed(&self) -> bool {
@@ -622,7 +609,6 @@ struct PathState {
     devices: Vec<Device>,
     history: BTreeMap<&'static str, History>,
     grants: Grants,
-    transient: Transient,
 }
 
 /// Operation ids and minted row ids are unique per attempt: a refused
@@ -675,10 +661,6 @@ fn visit(path: &mut Vec<Op>, parent: &PathState, depth: usize, report: &mut Repo
         other => report.fail(path, format!("a resent operation id applied again or changed its answer [{other:?}; first {outcome:?}]")),
     }
     let mut state = parent.clone();
-    if let Op::Blip(_, c, p) = &last {
-        state.transient.rows.insert(("memberships".to_owned(), format!("s{step}a")));
-        state.transient.grants.insert(((*p).to_owned(), (*c).to_owned()));
-    }
     match check_node(&mut engine, head, &after, &mut state) {
         Ok(errs) => errs.into_iter().for_each(|e| report.fail(path, e)),
         Err(e) => return report.fail(path, e),
@@ -706,7 +688,7 @@ fn check_node(engine: &mut Engine, head: u64, now: &Tables, state: &mut PathStat
         }
         history.groups.extend(now.groups(p));
     }
-    let node = Node { head, now, history: &state.history, grants: &state.grants, transient: &state.transient };
+    let node = Node { head, now, history: &state.history, grants: &state.grants };
     let mut devices = Vec::new();
     let mut seen = BTreeSet::new();
     let mut keep = |device: Device| {
@@ -824,9 +806,6 @@ fn exhaust(depth: usize) -> Report {
 
 fn assert_clean(report: Report, depth: usize) {
     eprintln!("exhaustive depth {depth}: {} nodes, {} refused writes attempted", report.nodes, report.probes);
-    for (property, n) in &report.known {
-        eprintln!("  tolerated {n} times: {property}");
-    }
     assert!(!report.failed(), "{} kind(s) of failure:\n{}", report.failures.len(), report.summary());
 }
 

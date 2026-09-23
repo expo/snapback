@@ -1,6 +1,6 @@
 # Snapback 4: a grant that ends inside its own commit still puts ids on the wire
 
-Status: Open
+Status: Closed — fixed 2026-09-23 (option (a) below)
 Priority: P3
 Observed: 2026-09-23
 Baseline: `440973d7f` (0.2.33)
@@ -60,3 +60,42 @@ Choose one:
 In either case, remove the `KNOWN` tolerance in
 `snapback4/crates/snapback4-sim/tests/exhaustive.rs` so the explorer enforces
 the outcome.
+
+## Resolution — 2026-09-23
+
+Fixed as option (a), commissioned by Charlie Cheever. The rule and its
+reasons are recorded in
+[LLP 3000 §7](../../llp/3000-snapback4.explainer.md#7-decisions-during-execution):
+
+- a born row logs only its final image;
+- a born grant stays born through renewals and expiry until undone, and
+  shares its birth with born siblings of its key;
+- events from before a birth stay;
+- a renewal is not a birth;
+- a replacement beside a pre-commit predecessor is not a birth.
+
+Both comments this ticket named are corrected.
+
+Astra reviewed the change over five rounds
+([record](../../llp/reviews/3000-in-commit-grant-names-ids.astra.md)). Rounds
+1–4 were NOT READY, with six findings, two of them High; every one is fixed,
+and each is a test. Round 5 was READY.
+
+- **A pinned behavior changed.** The W13g same-commit `rejoin` fixture and
+  its JS twin had pinned the old log. They now expect one join and no scope.
+- **One inherited Medium is fix-forward:**
+  `issues/20260923-snapback4-already-expired-grant-names-ids.md`.
+
+Tests:
+
+- **`exhaustive.rs`.**
+  - It no longer tolerates the finding.
+  - It gained `churn`, which re-creates a count row within one commit.
+  - Without the fix it fails on both original kinds (688 and 2,592 events
+    at depth 2).
+- **`reviews.rs`.**
+  - p4 asserts its name: the grantee's stream is empty, and no member sees
+    the transient row's id.
+  - Eight new cases cover renewals, re-grants, expiry, replacements,
+    same-commit siblings, re-created rows and moved rows. Each fails on the
+    version before its fix, or on an over-eager variant.

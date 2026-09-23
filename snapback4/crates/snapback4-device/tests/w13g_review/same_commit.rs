@@ -25,9 +25,10 @@ fn fixture(kind: &str, horizon: bool, split: bool, retained: bool) -> Json {
     let transitions = engine.store_mut().transaction().unwrap().membership_transitions("p:dev:bob", 1).unwrap();
     let transitions: Vec<_> = transitions.iter().filter(|e| e.table == "posts").collect();
     let kinds: Vec<_> = transitions.iter().map(|e| e.kind.as_str()).collect();
-    assert_eq!(kinds, match kind { "rejoin" => vec!["join","scope","join"], "twice" | "later" => vec!["join","join","join"], _ => vec!["join","join"] });
+    // @ref LLP 3000#7-decisions-during-execution — `rejoin`'s first grant is born and undone in its commit, so its join and scope are withdrawn: one join survives.
+    assert_eq!(kinds, match kind { "rejoin" => vec!["join"], "twice" | "later" => vec!["join","join","join"], _ => vec!["join","join"] });
     assert!(transitions.windows(2).all(|w| (w[0].seq, w[0].ord) < (w[1].seq, w[1].ord)));
-    let acquiring = if kind == "rejoin" { transitions[2] } else { transitions[0] };
+    let acquiring = transitions[0];
     assert_eq!(acquiring.seq, 2);
     let position = json!([acquiring.seq, acquiring.ord]);
     let mut from = 1; let mut pages = Vec::new(); let mut positions = Vec::new();
@@ -53,8 +54,7 @@ fn check_wire(f: &Json) {
     assert_eq!(puts, expected, "one acquisition per live chain");
     assert_eq!(f["positions"], json!(vec![f["position"].clone(); expected.len()]), "acquire at the chain's first join ordinal");
     let scopes: Vec<_> = events.iter().filter(|e| e["kind"] == "scope").collect();
-    assert_eq!(scopes.len(), if f["kind"] == "rejoin" { 1 } else { 0 });
-    if f["kind"] == "rejoin" { assert_eq!(events[0]["kind"], "scope", "the revoked first grant delivers nothing before scope"); }
+    assert_eq!(scopes.len(), 0, "a grant born and undone in its commit delivers nothing, not even a scope");
     let markers: Vec<_> = pages.iter().flat_map(|p| p["acquisitions"].as_array().unwrap()).collect();
     assert_eq!(markers.len(), if f["horizon"] == true { 2 } else { 0 });
     if f["horizon"] == true {

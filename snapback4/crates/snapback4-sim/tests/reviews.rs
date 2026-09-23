@@ -73,13 +73,15 @@ fn p4_a_grant_that_ends_in_its_commit_delivers_nothing() {
     sent(&mut engine, "s1", "dev:alice", "send", &[("conversationId", id("c1")), ("body", Value::String("secret".into()))], &["m-secret"]);
     let before = engine.seq().unwrap();
     sent(&mut engine, "b1", "dev:alice", "blip", &[("conversationId", id("c1")), ("principal", id("dev:mallory"))], &["mem-mallory"]);
+    // Nothing at all: no row, and no scope naming the group mallory never
+    // held at a commit boundary (issues/closed/20260923-snapback4-in-commit-grant-names-ids.md).
     let page = engine.stream("dev:mallory", before, 1_000).unwrap();
-    assert!(page.events.iter().all(|e| e.kind != "put"), "a temporary grant delivered rows: {:?}", page.events);
+    assert!(page.events.is_empty(), "a temporary grant reached its grantee: {:?}", page.events);
     let (events, _) = engine.snapshot("dev:mallory").unwrap();
     assert!(holdings(&events).values().all(|ids| ids.is_empty()), "{:?}", holdings(&events));
-    // The members' partitions never saw the blip's membership row either.
+    // The members' partitions never saw the blip's membership row, nor its id.
     let page = engine.stream("dev:bob", before, 1_000).unwrap();
-    assert!(page.events.iter().all(|e| e.kind != "put"), "{:?}", page.events);
+    assert!(page.events.iter().all(|e| e.id != "mem-mallory"), "{:?}", page.events);
 }
 
 /// Findings 2, 5, 7, 8: the validator refuses an audience the read rule does
@@ -293,5 +295,240 @@ fn a_truncated_own_page_never_grants_a_later_membership_early() {
         assert!(page.events.iter().all(|e| e.table != "messages" || e.seq >= join), "early disclosure: {:?}", page.events);
         from = page.watermark;
         if !page.more { break; }
+    }
+}
+
+// ---- grants born and undone inside one commit, with renewals ----
+
+const EXPIRING: &str = "table members:
+  group: text <=10
+  person: principal
+  until: time ?
+  unique byGroupPerson: group, person
+  by byPerson: person, group
+  by byExpiry: until
+  expire at .until
+  immutable group, person
+  read <- .person = viewer
+  insert <- exists members[.group, viewer]
+  update <- .person = viewer
+  sync to .person
+table notes:
+  group: text <=10
+  body: text <=10
+  by byGroup: group, id
+  read <- exists members[.group, viewer]
+  insert <- allow
+  sync to members[.group]
+mutation join(person: principal):
+  return insert members {group: 'g', person, until: 100}
+mutation add():
+  insert notes {group: 'g', body: 'n'}
+  return null
+mutation blink(person: principal):
+  row = insert members {group: 'g', person, until: 100}
+  update members[row] {until: 200}
+  delete members[row]
+  return null
+mutation renewThenRevoke(m: members):
+  update members[m] {until: 200}
+  delete members[m]
+  return null
+mutation revokeRegrantRevoke(m: members, person: principal):
+  delete members[m]
+  row = insert members {group: 'g', person, until: 100}
+  delete members[row]
+  return null
+mutation replaceThenUndo(old: members, person: principal):
+  temporary = insert members {group: 'g', person, until: 300}
+  upsert members[old] {group: 'h', person, until: 300}
+  delete members[old]
+  delete members[temporary]
+  return null
+mutation blinkTwice(person: principal):
+  expired = insert members {group: 'g', person, until: 0}
+  first = insert members {group: 'g', person, until: 300}
+  delete members[first]
+  second = insert members {group: 'g', person, until: 300}
+  upsert members[expired] {group: 'h', person, until: 300}
+  delete members[expired]
+  delete members[second]
+  return null
+mutation retireTwoExpired(person: principal):
+  a = insert members {group: 'g', person, until: 0}
+  b = insert members {group: 'g', person, until: 0}
+  upsert members[a] {group: 'h', person, until: 300}
+  delete members[a]
+  upsert members[b] {group: 'h', person, until: 300}
+  delete members[b]
+  return null
+mutation expireRecreateRevoke(person: principal):
+  row = insert members {group: 'g', person, until: 100}
+  update members[row] {until: 0}
+  upsert members[row] {group: 'g', person, until: 200}
+  delete members[row]
+  return null
+";
+
+fn expiring() -> Engine {
+    let bound = snapback4_lang::compile(&[("schema.q".to_owned(), EXPIRING.to_owned())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap()
+}
+
+fn at(engine: &mut Engine, op: &str, name: &str, a: &[(&str, Value)], ids: &[&str], now: i64) -> u64 {
+    let outcome = engine.mutate(name, Some(op), Context::new(snapback4_core::SYSTEM_PRINCIPAL, args(a)).at(now).with_ids(ids.iter().map(|s| (*s).to_owned()))).unwrap();
+    match outcome.state {
+        WriteState::Sent { seq, .. } => seq,
+        WriteState::Failed { why, .. } => panic!("{name} failed: {why:?}"),
+    }
+}
+
+/// A fresh grant renewed and revoked in one commit was never held at a
+/// commit boundary: its grantee's stream carries nothing, not even a scope.
+#[test]
+fn a_grant_born_renewed_and_revoked_in_one_commit_reaches_nobody() {
+    let mut engine = expiring();
+    at(&mut engine, "n1", "add", &[], &["note"], 5);
+    let before = engine.seq().unwrap();
+    at(&mut engine, "b1", "blink", &[("person", id("dev:alice"))], &["m-alice"], 6);
+    let page = engine.stream_at("dev:alice", before, 1_000, 7).unwrap();
+    assert!(page.events.is_empty(), "{:?}", page.events);
+}
+
+/// A renewal is not a new grant: a grant held before the commit, renewed and
+/// revoked inside it, still revokes.
+#[test]
+fn a_held_grant_renewed_and_revoked_in_one_commit_still_revokes() {
+    let mut engine = expiring();
+    at(&mut engine, "j1", "join", &[("person", id("dev:alice"))], &["m-alice"], 5);
+    at(&mut engine, "n1", "add", &[], &["note"], 6);
+    let held = engine.seq().unwrap();
+    at(&mut engine, "r1", "renewThenRevoke", &[("m", id("m-alice"))], &[], 7);
+    let page = engine.stream_at("dev:alice", held, 1_000, 8).unwrap();
+    assert!(page.events.iter().any(|e| e.kind == "scope" && e.table == "notes"), "the revocation was dropped: {:?}", page.events);
+    assert!(page.events.iter().any(|e| e.kind == "del" && e.id == "m-alice"), "{:?}", page.events);
+}
+
+/// Revoking a held grant, granting it afresh and revoking that in one commit
+/// leaves exactly the first revocation: the fresh grant is withdrawn whole.
+#[test]
+fn revoke_regrant_revoke_in_one_commit_revokes_once() {
+    let mut engine = expiring();
+    at(&mut engine, "j1", "join", &[("person", id("dev:alice"))], &["m-alice"], 5);
+    at(&mut engine, "n1", "add", &[], &["note"], 6);
+    let held = engine.seq().unwrap();
+    at(&mut engine, "r1", "revokeRegrantRevoke", &[("m", id("m-alice")), ("person", id("dev:alice"))], &["m-again"], 7);
+    let page = engine.stream_at("dev:alice", held, 1_000, 8).unwrap();
+    let scopes = page.events.iter().filter(|e| e.kind == "scope" && e.table == "notes").count();
+    assert_eq!(scopes, 1, "{:?}", page.events);
+    assert!(page.events.iter().all(|e| e.id != "m-again"), "the transient grant's row crossed the wire: {:?}", page.events);
+    let (events, _) = engine.snapshot_at("dev:alice", 8).unwrap();
+    assert!(holdings(&events).values().all(|ids| ids.is_empty()), "{:?}", holdings(&events));
+}
+
+// Astra's review of the first fix (NOT READY, three findings), each as its
+// reproduction.
+
+/// A grant born in the commit, shortened to expiry, re-created and revoked,
+/// stays born throughout: no scope reaches its grantee.
+#[test]
+fn a_born_grant_expired_recreated_and_revoked_reaches_nobody() {
+    let mut engine = expiring();
+    at(&mut engine, "n1", "add", &[], &["note"], 5);
+    let before = engine.seq().unwrap();
+    at(&mut engine, "e1", "expireRecreateRevoke", &[("person", id("dev:alice"))], &["m-alice"], 6);
+    let page = engine.stream_at("dev:alice", before, 1_000, 7).unwrap();
+    assert!(page.events.is_empty(), "{:?}", page.events);
+}
+
+/// A row that existed before the commit, deleted, re-created under its id
+/// and deleted again, still reaches its readers as a deletion. A maintained
+/// count has a deterministic id, so a churn of its only source does this.
+#[test]
+fn a_recreated_row_keeps_the_deletion_of_its_first_incarnation() {
+    let source = format!("{CHAT}\nmutation churn(m: messages, c: conversations):\n  delete messages[m]\n  row = insert messages {{ conversationId: c, authorId: viewer, body: 'temp', at: now }}\n  delete messages[row]\n  return null\n");
+    let mut engine = chat_engine_from(&source, &["dev:alice", "dev:bob"]);
+    sent(&mut engine, "s1", "dev:alice", "send", &[("conversationId", id("c1")), ("body", Value::String("only".into()))], &["original"]);
+    let before = engine.seq().unwrap();
+    let (events, _) = engine.snapshot("dev:bob").unwrap();
+    assert!(holdings(&events)["messageCounts"].len() == 1, "{:?}", holdings(&events));
+    sent(&mut engine, "c1", "dev:alice", "churn", &[("m", id("original")), ("c", id("c1"))], &["temporary"]);
+    let page = engine.stream_at("dev:bob", before, 1_000, 5_000).unwrap();
+    assert!(page.events.iter().any(|e| e.table == "messageCounts" && e.kind == "del"), "the count's deletion was lost: {:?}", page.events);
+    assert!(page.events.iter().all(|e| e.id != "temporary"), "{:?}", page.events);
+}
+
+/// A row born in the commit and moved to another recipient before the
+/// commit ends reaches only its final recipient: the first learns nothing.
+#[test]
+fn a_born_row_moved_to_another_recipient_reaches_only_it() {
+    let schema = "table docs:\n  owner: principal\n  by byOwner: owner, id\n  read <- .owner = viewer\n  insert <- allow\n  update <- allow\n  sync to .owner\nmutation reroute():\n  row = insert docs {owner: 'dev:alice'}\n  update docs[row] {owner: 'dev:bob'}\n  return null\n";
+    let bound = snapback4_lang::compile(&[("schema.q".to_owned(), schema.to_owned())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
+    let before = engine.seq().unwrap();
+    at(&mut engine, "r1", "reroute", &[], &["transient"], 6);
+    let alice = engine.stream_at("dev:alice", before, 1_000, 7).unwrap();
+    assert!(alice.events.is_empty(), "{:?}", alice.events);
+    let bob = engine.stream_at("dev:bob", before, 1_000, 7).unwrap();
+    assert!(bob.events.iter().any(|e| e.kind == "put" && e.id == "transient"), "{:?}", bob.events);
+}
+
+// Astra's delta review (round 2, NOT READY): a new High.
+
+/// A temporary replacement of an expired, unswept grant is not a birth: the
+/// predecessor's revocation is still owed, so undoing the replacement leaves
+/// it in the log, at either page size.
+#[test]
+fn undoing_a_replacement_keeps_the_predecessors_revocation() {
+    let mut engine = expiring();
+    at(&mut engine, "j1", "join", &[("person", id("dev:alice"))], &["old-member"], 5);
+    at(&mut engine, "n1", "add", &[], &["note"], 6);
+    let held = engine.seq().unwrap();
+    let (events, _) = engine.snapshot_at("dev:alice", 7).unwrap();
+    assert!(holdings(&events)["notes"].contains("note"), "{:?}", holdings(&events));
+    at(&mut engine, "u1", "replaceThenUndo", &[("old", id("old-member")), ("person", id("dev:alice"))], &["temporary"], 150);
+    for limit in [1, 1_000] {
+        let mut from = held;
+        let mut scoped = false;
+        loop {
+            let page = engine.stream_at("dev:alice", from, limit, 151).unwrap();
+            scoped |= page.events.iter().any(|e| e.kind == "scope" && e.table == "notes");
+            from = page.watermark;
+            if !page.more { break; }
+        }
+        assert!(scoped, "the expired grant's revocation was lost at limit {limit}");
+    }
+}
+
+// Astra's second delta review (round 3, NOT READY): a new Medium.
+
+/// An expired sibling born earlier in the same commit is no predecessor: it
+/// held no authority before the commit, so a grant beside it is still born,
+/// and undoing everything leaves its grantee nothing.
+#[test]
+fn a_same_commit_expired_sibling_is_no_predecessor() {
+    let mut engine = expiring();
+    let before = engine.seq().unwrap();
+    at(&mut engine, "b1", "blinkTwice", &[("person", id("dev:alice"))], &["expired", "first", "second"], 150);
+    for limit in [1, 1_000] {
+        let page = engine.stream_at("dev:alice", before, limit, 151).unwrap();
+        assert!(page.events.is_empty(), "limit {limit}: {:?}", page.events);
+    }
+}
+
+// Astra's third delta review (round 4, NOT READY): a residual Medium.
+
+/// Two expired siblings born in one commit share one key's birth: retiring
+/// the first keeps it for the second, so its grantee learns nothing.
+#[test]
+fn two_born_siblings_share_their_birth() {
+    let mut engine = expiring();
+    let before = engine.seq().unwrap();
+    at(&mut engine, "t1", "retireTwoExpired", &[("person", id("dev:alice"))], &["a", "b", "a2", "b2"], 150);
+    for limit in [1, 1_000] {
+        let page = engine.stream_at("dev:alice", before, limit, 151).unwrap();
+        assert!(page.events.is_empty(), "limit {limit}: {:?}", page.events);
     }
 }

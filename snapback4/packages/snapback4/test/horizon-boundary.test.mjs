@@ -497,8 +497,7 @@ for (const kind of ["renew", "rejoin", "twice", "later"]) for (const horizon of 
     const puts = events.filter(e => e.kind === "put");
     assert.deepEqual(puts.map(e => e.id), horizon ? ["p3", "p2"] : ["p3", "p2", "p1"], "one acquisition per live chain");
     assert.deepEqual(f.positions, puts.map(() => f.position), "acquire at the chain's first join ordinal");
-    assert.equal(events.filter(e => e.kind === "scope").length, kind === "rejoin" ? 1 : 0);
-    if (kind === "rejoin") assert.equal(events[0].kind, "scope", "the revoked first grant delivers nothing before scope");
+    assert.equal(events.filter(e => e.kind === "scope").length, 0, "a grant born and undone in its commit delivers nothing, not even a scope");
     assert.equal(markers.length, horizon ? 2 : 0);
     if (horizon) {
       const start = f.pages[0].events.findIndex(e => e.table === "posts" && e.kind === "put");

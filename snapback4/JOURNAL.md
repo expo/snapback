@@ -47051,3 +47051,66 @@ its session on its own", passes three of three when run alone. It flaked in
 READAUTH's landing too
 (`issues/20260923-snapback4-flaky-session-restore-test.md`). Wasm is
 469,031 B gzip against a 470,000 ratchet.
+## 2026-09-23 — rows and grants born and undone inside one commit log nothing
+
+This closes `issues/closed/20260923-snapback4-in-commit-grant-names-ids.md`,
+which the exhaustive explorer found. Charlie commissioned the fix, the
+ticket's option (a). The rule is in LLP 3000 §7.
+
+For each commit, `account_row_change` now tracks:
+
+- the rows the commit inserted, in every table;
+- the grants it newly made, where the partition or the group changed.
+
+Each records the events it already had in the commit before its birth. The
+rule:
+
+- a born row logs only its image at the commit's end;
+- a born grant stays born through renewals and expiry until it is undone,
+  and undoing it withdraws its joins since birth and logs no scope;
+- a replacement beside a pre-commit predecessor is not a birth;
+- born siblings of one key share their birth.
+
+**Review.** Astra reviewed blind, read-only, over five rounds
+(`llp/reviews/3000-in-commit-grant-names-ids.astra.md`):
+
+- **Round 1: NOT READY, three findings.**
+  - A High: a re-created row erased its first deletion, which happens
+    naturally for a maintained count.
+  - A born row moved between recipients leaked a `del`.
+  - A born grant lost its birth across expiry.
+- **Round 2: a High present since the first version.** Undoing a replacement
+  erased an unswept predecessor's revocation.
+- **Round 3: a Medium.** A same-commit sibling was taken for a predecessor.
+- **Round 4: a Medium.** Two born siblings shared one marker.
+
+Round 5 was READY and saw no risk warranting another round. It named one
+inherited Medium, a grant inserted already expired still naming its row and
+group, now `issues/20260923-snapback4-already-expired-grant-names-ids.md`.
+Every finding is a test in `snapback4-sim/tests/reviews.rs`
+(eight new cases). Each fails on the version before its fix, and `churn` in
+the explorer catches round 1's High on its own.
+
+**A pinned behavior changed.** The W13g same-commit `rejoin` fixture
+(`snapback4-device/tests/w13g_review/same_commit.rs`) and its JS twin
+(`packages/snapback4/test/horizon-boundary.test.mjs`) pinned the old log
+`join, scope, join` and one scope on the wire. The first grant is born and
+undone in its commit, so the log now holds one join and no scope reaches the
+device. Both are updated. All eight JS rejoin cases pass on the wasm device.
+
+**Verification.** This Mac's load reached 190, so the complete Rust suite ran
+on `expo-build-450b` from a copy of the tree:
+
+- **Round-3 code:** the complete suite passed 811 targets. Its two
+  50-minute device measurement tests (following calibration, search forms)
+  were stopped, not completed.
+- **The landed revision, rebased onto EDGES and FENCE:** core, every
+  simulator target except Clique's benchmarks, and the device `w13g_probe`,
+  `device` and `retained_history` targets passed 1,050 tests in 43
+  binaries, with no failures, skipping those two measurement groups. The
+  pre-rebase round-4 code passed 1,043 in 41.
+- The only failures were four TypeScript-toolchain tests, which need the
+  `node_modules` the copy lacked: three in `snapback4-lang` and `check.rs`'s
+  w11r1c. The three lang tests pass here.
+- `reviews.rs`, the explorer at depth 2 and the core tests pass here on the
+  final tree.

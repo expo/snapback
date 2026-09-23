@@ -68,6 +68,16 @@ pub struct Runner<'a> {
     /// Partition events, accumulated for the commit; a logless host builds none.
     #[cfg(feature = "sqlite")]
     pub(crate) events: Vec<Event>,
+    /// Synced rows this commit inserted, by (table, id), and grants it newly
+    /// made, by (partition, content table, group), each with the number of
+    /// its events logged before its birth (a row deleted and re-inserted, a
+    /// grant revoked and re-made). What was born and undone before the
+    /// commit ends existed at no commit boundary, so only those earlier
+    /// events stay.
+    #[cfg(feature = "sqlite")]
+    pub(crate) born_rows: BTreeMap<(String, String), usize>,
+    #[cfg(feature = "sqlite")]
+    pub(crate) born_grants: BTreeMap<(String, String, String), usize>,
     /// Queued effects with their grace dependencies.
     pub(crate) outbox: Vec<super::presence::Emission>,
     pub(super) effect_presence: super::presence::EffectPresence,
@@ -163,6 +173,10 @@ impl<'a> Runner<'a> {
             next_expiry: None,
             #[cfg(feature = "sqlite")]
             events: Vec::new(),
+            #[cfg(feature = "sqlite")]
+            born_rows: BTreeMap::new(),
+            #[cfg(feature = "sqlite")]
+            born_grants: BTreeMap::new(),
             outbox: Vec::new(),
             effect_presence: Default::default(),
             page_depth: 0,
