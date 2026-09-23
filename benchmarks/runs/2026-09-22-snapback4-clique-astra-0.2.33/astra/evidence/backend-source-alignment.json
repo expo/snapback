@@ -1,0 +1,30 @@
+{
+  "identical": true,
+  "differences": [],
+  "files": [
+    {
+      "file": "chat.q",
+      "sha256": "1c3826b605ff1fba6031248c1fb2673b0cc1a4b219a996943a5b42a147c2aeab"
+    },
+    {
+      "file": "config.q",
+      "sha256": "28a48f071098bc33453608d425b7a0009fbc296a66d6460f20486b5debb148d1"
+    },
+    {
+      "file": "digest-config.q",
+      "sha256": "a4ac99b9489c5192f45bc1ad77de925ed9e223ad790313fd44a5a2a78957c0dd"
+    },
+    {
+      "file": "digest.q",
+      "sha256": "1858d3676b693c413b878d7b37e650b644d437bc006f7161d00057a1c4b81b9f"
+    },
+    {
+      "file": "insights.q",
+      "sha256": "7cc1e32a73a822955a8c90f2f017cd1e9d02de545ca6abffa340bd670ac3f290"
+    },
+    {
+      "file": "schema.q",
+      "sha256": "f8bcf7bcd508696fe256f06cd2c4152a61a5205a06899cc07e530a07aee83329"
+    }
+  ]
+}

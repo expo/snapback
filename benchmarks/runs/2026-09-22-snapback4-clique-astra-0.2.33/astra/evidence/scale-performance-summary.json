@@ -1,0 +1,53 @@
+{
+  "method": "Sequential 3 warmups +20 measured calls; p95 nearest rank; builder-visible probes, not hidden grader certification",
+  "curves": {
+    "search": {
+      "p95ms": [
+        3.524790999999823,
+        3.4708749999990687,
+        2.6094159999629483
+      ],
+      "fullWithinThreeTimesBaseline": true,
+      "midpointLineMs": 3.117957666650101,
+      "midpointAtOrBelowLine": false
+    },
+    "insights": {
+      "p95ms": [
+        2.117540999999619,
+        1.8794999999809079,
+        1.7560419999063015
+      ],
+      "fullWithinThreeTimesBaseline": true,
+      "midpointLineMs": 1.9568747777359223,
+      "midpointAtOrBelowLine": true
+    },
+    "trending": {
+      "p95ms": [
+        2.8038330000017595,
+        2.584166999964509,
+        2.730416000005789
+      ],
+      "fullWithinThreeTimesBaseline": true,
+      "midpointLineMs": 2.7712032222257728,
+      "midpointAtOrBelowLine": true
+    }
+  },
+  "finalRules": {
+    "following": true,
+    "celebrityRead": true,
+    "deepPaging": true,
+    "celebrityWrite": true
+  },
+  "coldSync": {
+    "ms": 629.6409579999745,
+    "acquired": true,
+    "memory": {
+      "rss": 740737024,
+      "heapTotal": 362201088,
+      "heapUsed": 198801544,
+      "external": 22316738,
+      "arrayBuffers": 15232690
+    }
+  },
+  "allMeasuredRelativeRulesPass": false
+}

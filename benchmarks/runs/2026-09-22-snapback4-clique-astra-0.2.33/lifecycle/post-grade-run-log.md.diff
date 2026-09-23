@@ -1,0 +1,11 @@
+--- pre-grade/run-log.md
+
++++ post-grade/run-log.md
+
+@@ -140,3 +140,5 @@
+
+ 1790135891 server-stop scale pid=81849 reason=retained-fixture-verified-final
+ 1790135892 final retained fixture audit passed at epoch1790135850 after exact probe cleanup; all entity counts match and celebrityposts=200; root and retained scale Quarry sources byte-identical. source=fixture evidence=evidence/scale-retained-state.json,evidence/scale-restored-final-full-audit.json,evidence/backend-source-alignment.json
+ end=1790135892
++1790136389 server-start trending-test pid=76815 port=49363
++1790136390 server-stop trending-test pid=76815

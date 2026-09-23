@@ -1364,6 +1364,12 @@ time-ordered 128-bit form.
   xhigh, and authorized a new npm publication followed by another Clique run.
   Existing mechanism owners and qualification requirements remain in force;
   the new family records review dispositions and actual completion separately.
+  The [selected program is complete](./3000.011-recent-builder-friction.research.md#10-selected-program-completion):
+  SDK/CLI 0.2.33 and Expo 0.2.24 are published, the actual application passes
+  three native scenarios on those public packages, and the final cold Clique
+  run scores 92/100 with 101 passed, zero failed and 18 not run. One search
+  performance rule still misses; the busy-chat limit remains. The evidence RFC
+  keeps its independent real-provider increment conditional and unrun.
 
 - **2026-09-22 — the application still owns derived data (author).** After
   calibration #16 (0.2.32, holistic 88, `data_modeling` 82), Charlie asked three

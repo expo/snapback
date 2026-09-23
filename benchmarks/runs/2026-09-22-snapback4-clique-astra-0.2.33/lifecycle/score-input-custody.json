@@ -1,0 +1,18 @@
+{
+  "at": "2026-09-23T05:03:49.296618+00:00",
+  "sourceSessionSha256": "3b813ebd98a04608ed6239e420df706fa74fa8e707caca1ff302f87b517e1a1f",
+  "actualRunLogOutputCallId": "call_psSgi9HikasUWZWAu6A3YqQv",
+  "actualOutputAt": "2026-09-23T04:02:42.011Z",
+  "readCallAt": "2026-09-23T04:02:25.182Z",
+  "sourceReadOutputsSha256": "0026e2f4535d892e987988f4a16dae90284137296b738f2e18bc27d81c894707",
+  "runLogReadMatchesPreGradeBytes": true,
+  "runLogBytes": 20007,
+  "runLogSha256": "f723a7c247c2acadd5e33a32871daa94b832e9b2f492fdef37df5d0d36eb294e",
+  "subsequentAppendEpochs": [
+    1790136389,
+    1790136390
+  ],
+  "scorerEndedAt": "2026-09-23T04:04:42Z",
+  "postGradeNarrativeDisposition": "Only run-log.md changed: two acceptance-script start/stop entries at04:06:29/30, after scorer exit. Other delivered narratives and application code unchanged; originals remain in immutable pre-grade snapshot.",
+  "relatedDiff": "post-grade-run-log.md.diff"
+}

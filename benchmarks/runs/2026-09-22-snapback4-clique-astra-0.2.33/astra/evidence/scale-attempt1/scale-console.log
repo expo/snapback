@@ -1,0 +1,58 @@
+settled 1000 epoch 1790133651
+settled 2000 epoch 1790133663
+settled 3000 epoch 1790133665
+settled 4000 epoch 1790133667
+settled 5000 epoch 1790133669
+settled 6000 epoch 1790133671
+settled 7000 epoch 1790133673
+settled 8000 epoch 1790133675
+settled 9000 epoch 1790133677
+settled 10000 epoch 1790133679
+settled 11000 epoch 1790133682
+settled 12000 epoch 1790133684
+settled 13000 epoch 1790133686
+settled 14000 epoch 1790133688
+settled 15000 epoch 1790133690
+settled 16000 epoch 1790133692
+settled 17000 epoch 1790133695
+settled 18000 epoch 1790133697
+settled 19000 epoch 1790133699
+settled 20000 epoch 1790133702
+settled 21000 epoch 1790133704
+settled 22000 epoch 1790133707
+settled 23000 epoch 1790133709
+settled 24000 epoch 1790133712
+settled 25000 epoch 1790133719
+settled 26000 epoch 1790133721
+settled 27000 epoch 1790133723
+settled 28000 epoch 1790133725
+settled 29000 epoch 1790133727
+settled 30000 epoch 1790133730
+settled 31000 epoch 1790133732
+settled 32000 epoch 1790133735
+settled 33000 epoch 1790133737
+settled 34000 epoch 1790133739
+settled 35000 epoch 1790133741
+settled 36000 epoch 1790133744
+settled 37000 epoch 1790133746
+settled 38000 epoch 1790133748
+settled 39000 epoch 1790133750
+settled 40000 epoch 1790133752
+settled 41000 epoch 1790133755
+settled 42000 epoch 1790133757
+settled 43000 epoch 1790133759
+settled 44000 epoch 1790133761
+settled 45000 epoch 1790133764
+settled 46000 epoch 1790133768
+settled 47000 epoch 1790133770
+file:///Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4/scripts/replay.mjs:21
+  const write=async(op,args,suffix='')=>{const w=await c.mutate(op,args,{id:suffix?mintId():mutationId});if(w.state!=='sent')throw Error(JSON.stringify(w));receipt.seq=w.seq;return w.result;};
+                                                                                                                                   ^
+
+Error: {"state":"failed","id":"01M364K6MQTE2T8S8PKVPD2HWP","why":{"code":"OWN_POST","family":"rule","guide":"programs","message":"the program refused with OWN_POST","rule":"OWN_POST","site":"schema.q:145:3"}}
+    at write (file:///Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4/scripts/replay.mjs:21:132)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async replay (file:///Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4/scripts/replay.mjs:28:42)
+    at async file:///Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4/scripts/scale.mjs:30:13
+
+Node.js v24.18.0

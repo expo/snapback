@@ -1,0 +1,180 @@
+{
+  "at": "2026-09-23T04:57:29.982531+00:00",
+  "scope": "Descriptive Astra-only tally of actual emitted artifacts; no outcome edits, no all-lane aggregation claim.",
+  "manifestSha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04",
+  "expectedIds": 119,
+  "observedIds": 119,
+  "documents": [
+    {
+      "path": "/Users/ccheever/clique-sb4-20260922-astra-cal17/attempts/grade-terminal-primary/grader-report.json",
+      "sha256": "48bc71ba2bd5fe050df99bd81883c3afafcf63fd7327ecfddc0af12da907be0b",
+      "count": 101,
+      "grader": {
+        "family": "claude",
+        "model": "claude-opus-5",
+        "sameFamilyGraded": false,
+        "calibrationPassed": false,
+        "sessionOutcome": "completed",
+        "rerunsUsed": 1,
+        "contaminated": false
+      },
+      "reportKeys": [
+        "reportVersion",
+        "lane",
+        "wave",
+        "grader",
+        "assertionManifest",
+        "assertionResults",
+        "coverageSpotVerification",
+        "defects",
+        "probeResults",
+        "oDimensionScores",
+        "timingRecords",
+        "evidenceTracePath",
+        "notes"
+      ]
+    },
+    {
+      "path": "/Users/ccheever/clique-sb4-20260922-astra-cal17/attempts/grade-terminal-primary/m8-assertion-results.json",
+      "sha256": "5623b347b51de598da80f1fdd1c8c487e17605c1e0e622dbe8f9b947df2e3df5",
+      "count": 18,
+      "grader": {
+        "family": "claude",
+        "model": "claude-opus-5"
+      },
+      "reportKeys": [
+        "reportVersion",
+        "lane",
+        "grader",
+        "assertionManifest",
+        "assertionResults"
+      ]
+    }
+  ],
+  "missingIds": [],
+  "extraIds": [],
+  "duplicates": [],
+  "invalidStatuses": {},
+  "complete119": {
+    "pass": 101,
+    "not-run": 18
+  },
+  "priorComparable101": {
+    "pass": 85,
+    "not-run": 16
+  },
+  "m8Only18": {
+    "pass": 16,
+    "not-run": 2
+  },
+  "nonPassing": {
+    "m6-a01": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#native",
+      "note": "No iOS-simulator artifact exists. The harness's own record for this segment carries supplementalExternal {id:'ios-simulator-m6', pass:null, receipt:null, status:'not-recorded'}; simulator.md requires a bound recording + schema-valid receipts + run manifest, and evidence/native-artifacts.json lists only Hermes .hbc bundle exports. Per the frozen prompt this assertion is scored only from harness recordings/receipts, never from builder assertions and never by the grader re-running the simulator."
+    },
+    "m6-a02": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#native",
+      "note": "No iOS-simulator artifact exists. The harness's own record for this segment carries supplementalExternal {id:'ios-simulator-m6', pass:null, receipt:null, status:'not-recorded'}; simulator.md requires a bound recording + schema-valid receipts + run manifest, and evidence/native-artifacts.json lists only Hermes .hbc bundle exports. Per the frozen prompt this assertion is scored only from harness recordings/receipts, never from builder assertions and never by the grader re-running the simulator."
+    },
+    "m6-a03": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#native",
+      "note": "No iOS-simulator artifact exists. The harness's own record for this segment carries supplementalExternal {id:'ios-simulator-m6', pass:null, receipt:null, status:'not-recorded'}; simulator.md requires a bound recording + schema-valid receipts + run manifest, and evidence/native-artifacts.json lists only Hermes .hbc bundle exports. Per the frozen prompt this assertion is scored only from harness recordings/receipts, never from builder assertions and never by the grader re-running the simulator."
+    },
+    "m6-a04": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#native",
+      "note": "No iOS-simulator artifact exists. The harness's own record for this segment carries supplementalExternal {id:'ios-simulator-m6', pass:null, receipt:null, status:'not-recorded'}; simulator.md requires a bound recording + schema-valid receipts + run manifest, and evidence/native-artifacts.json lists only Hermes .hbc bundle exports. Per the frozen prompt this assertion is scored only from harness recordings/receipts, never from builder assertions and never by the grader re-running the simulator."
+    },
+    "m6-a05": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#native",
+      "note": "No iOS-simulator artifact exists. The harness's own record for this segment carries supplementalExternal {id:'ios-simulator-m6', pass:null, receipt:null, status:'not-recorded'}; simulator.md requires a bound recording + schema-valid receipts + run manifest, and evidence/native-artifacts.json lists only Hermes .hbc bundle exports. Per the frozen prompt this assertion is scored only from harness recordings/receipts, never from builder assertions and never by the grader re-running the simulator."
+    },
+    "m6-a06": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#native",
+      "note": "No iOS-simulator artifact exists. The harness's own record for this segment carries supplementalExternal {id:'ios-simulator-m6', pass:null, receipt:null, status:'not-recorded'}; simulator.md requires a bound recording + schema-valid receipts + run manifest, and evidence/native-artifacts.json lists only Hermes .hbc bundle exports. Per the frozen prompt this assertion is scored only from harness recordings/receipts, never from builder assertions and never by the grader re-running the simulator."
+    },
+    "m6-a07": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#native",
+      "note": "No iOS-simulator artifact exists. The harness's own record for this segment carries supplementalExternal {id:'ios-simulator-m6', pass:null, receipt:null, status:'not-recorded'}; simulator.md requires a bound recording + schema-valid receipts + run manifest, and evidence/native-artifacts.json lists only Hermes .hbc bundle exports. Per the frozen prompt this assertion is scored only from harness recordings/receipts, never from builder assertions and never by the grader re-running the simulator."
+    },
+    "m7-a01": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#m7",
+      "note": "M7 was never attempted in this session: ENVIRONMENT.md directs the lane to skip it ('M7 is a separate fresh session run later by the orchestrator after grading; do not attempt it'). No M7 coverage manifest, suite receipt or choreography segment exists. Scored not-passed in O1's denominator."
+    },
+    "m7-a02": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#m7",
+      "note": "M7 was never attempted in this session: ENVIRONMENT.md directs the lane to skip it ('M7 is a separate fresh session run later by the orchestrator after grading; do not attempt it'). No M7 coverage manifest, suite receipt or choreography segment exists. Scored not-passed in O1's denominator."
+    },
+    "m7-a03": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#m7",
+      "note": "M7 was never attempted in this session: ENVIRONMENT.md directs the lane to skip it ('M7 is a separate fresh session run later by the orchestrator after grading; do not attempt it'). No M7 coverage manifest, suite receipt or choreography segment exists. Scored not-passed in O1's denominator."
+    },
+    "m7-a04": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#m7",
+      "note": "M7 was never attempted in this session: ENVIRONMENT.md directs the lane to skip it ('M7 is a separate fresh session run later by the orchestrator after grading; do not attempt it'). No M7 coverage manifest, suite receipt or choreography segment exists. Scored not-passed in O1's denominator."
+    },
+    "m7-a05": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#m7",
+      "note": "M7 was never attempted in this session: ENVIRONMENT.md directs the lane to skip it ('M7 is a separate fresh session run later by the orchestrator after grading; do not attempt it'). No M7 coverage manifest, suite receipt or choreography segment exists. Scored not-passed in O1's denominator."
+    },
+    "m7-a06": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#m7",
+      "note": "M7 was never attempted in this session: ENVIRONMENT.md directs the lane to skip it ('M7 is a separate fresh session run later by the orchestrator after grading; do not attempt it'). No M7 coverage manifest, suite receipt or choreography segment exists. Scored not-passed in O1's denominator."
+    },
+    "m7-a07": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#m7",
+      "note": "M7 was never attempted in this session: ENVIRONMENT.md directs the lane to skip it ('M7 is a separate fresh session run later by the orchestrator after grading; do not attempt it'). No M7 coverage manifest, suite receipt or choreography segment exists. Scored not-passed in O1's denominator."
+    },
+    "m7-a08": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#m7",
+      "note": "M7 was never attempted in this session: ENVIRONMENT.md directs the lane to skip it ('M7 is a separate fresh session run later by the orchestrator after grading; do not attempt it'). No M7 coverage manifest, suite receipt or choreography segment exists. Scored not-passed in O1's denominator."
+    },
+    "m7-a09": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#m7",
+      "note": "M7 was never attempted in this session: ENVIRONMENT.md directs the lane to skip it ('M7 is a separate fresh session run later by the orchestrator after grading; do not attempt it'). No M7 coverage manifest, suite receipt or choreography segment exists. Scored not-passed in O1's denominator. m7-a09 is conditionalOn previously-green milestones; M1-M6 and M8 were green before M7 would have run, so the condition would have been live - it is recorded not-run (never executed), not not-applicable."
+    },
+    "m8-a17": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#native",
+      "note": "No iOS-simulator artifact exists. The harness's own record for this segment carries supplementalExternal {id:'ios-simulator-m8', pass:null, receipt:null, status:'not-recorded'}; simulator.md requires a bound recording + schema-valid receipts + run manifest, and evidence/native-artifacts.json lists only Hermes .hbc bundle exports. Per the frozen prompt this assertion is scored only from harness recordings/receipts, never from builder assertions and never by the grader re-running the simulator."
+    },
+    "m8-a18": {
+      "result": "not-run",
+      "method": "choreography-artifacts",
+      "evidence": "grading/trace.md#native",
+      "note": "No iOS-simulator artifact exists. The harness's own record for this segment carries supplementalExternal {id:'ios-simulator-m8', pass:null, receipt:null, status:'not-recorded'}; simulator.md requires a bound recording + schema-valid receipts + run manifest, and evidence/native-artifacts.json lists only Hermes .hbc bundle exports. Per the frozen prompt this assertion is scored only from harness recordings/receipts, never from builder assertions and never by the grader re-running the simulator."
+    }
+  }
+}

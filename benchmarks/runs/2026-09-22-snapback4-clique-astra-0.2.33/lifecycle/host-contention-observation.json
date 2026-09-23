@@ -1,0 +1,138 @@
+{
+  "at": "2026-09-23T03:36:29.426497+00:00",
+  "scope": "Passive host context; no process stopped, no benchmark input modified",
+  "load": "20:36  up 20 days, 9 hrs, 76 users, load averages: 75.90 65.83 44.25",
+  "topCpu": [
+    {
+      "pid": 342,
+      "ppid": 1,
+      "cpu": 102.1,
+      "rssKiB": 9609968,
+      "executable": "/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/FSEvents.framework/Versions/A/Support/fseventsd"
+    },
+    {
+      "pid": 32768,
+      "ppid": 7263,
+      "cpu": 89.3,
+      "rssKiB": 1078432,
+      "executable": "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/153.0.8010.52/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)"
+    },
+    {
+      "pid": 84535,
+      "ppid": 61988,
+      "cpu": 83.4,
+      "rssKiB": 1035072,
+      "executable": "/Users/ccheever/projects/snapback-w12a/snapback4/target/debug/deps/device-58ae95a956470b11"
+    },
+    {
+      "pid": 84714,
+      "ppid": 61988,
+      "cpu": 81.7,
+      "rssKiB": 967328,
+      "executable": "/Users/ccheever/projects/snapback-w12a/snapback4/target/debug/deps/device-58ae95a956470b11"
+    },
+    {
+      "pid": 77608,
+      "ppid": 1,
+      "cpu": 81.1,
+      "rssKiB": 39136,
+      "executable": "/System/Library/PrivateFrameworks/XprotectFramework.framework/Versions/A/XPCServices/XprotectService.xpc/Contents/MacOS/XprotectService"
+    },
+    {
+      "pid": 85828,
+      "ppid": 61988,
+      "cpu": 77.1,
+      "rssKiB": 106848,
+      "executable": "/Users/ccheever/projects/snapback-w12a/snapback4/target/debug/deps/device-58ae95a956470b11"
+    },
+    {
+      "pid": 84536,
+      "ppid": 61988,
+      "cpu": 75.9,
+      "rssKiB": 699328,
+      "executable": "/Users/ccheever/projects/snapback-w12a/snapback4/target/debug/deps/device-58ae95a956470b11"
+    },
+    {
+      "pid": 85837,
+      "ppid": 61988,
+      "cpu": 71.8,
+      "rssKiB": 100144,
+      "executable": "/Users/ccheever/projects/snapback-w12a/snapback4/target/debug/deps/device-58ae95a956470b11"
+    },
+    {
+      "pid": 85829,
+      "ppid": 61988,
+      "cpu": 69.6,
+      "rssKiB": 104608,
+      "executable": "/Users/ccheever/projects/snapback-w12a/snapback4/target/debug/deps/device-58ae95a956470b11"
+    },
+    {
+      "pid": 85840,
+      "ppid": 61988,
+      "cpu": 65.8,
+      "rssKiB": 75392,
+      "executable": "/Users/ccheever/projects/snapback-w12a/snapback4/target/debug/deps/device-58ae95a956470b11"
+    },
+    {
+      "pid": 85832,
+      "ppid": 61988,
+      "cpu": 65.3,
+      "rssKiB": 89344,
+      "executable": "(device-58ae95a95)"
+    },
+    {
+      "pid": 85825,
+      "ppid": 61988,
+      "cpu": 64.5,
+      "rssKiB": 91376,
+      "executable": "(device-58ae95a95)"
+    },
+    {
+      "pid": 84840,
+      "ppid": 61988,
+      "cpu": 60.4,
+      "rssKiB": 427744,
+      "executable": "/Users/ccheever/projects/snapback-w12a/snapback4/target/debug/deps/device-58ae95a956470b11"
+    },
+    {
+      "pid": 85892,
+      "ppid": 61988,
+      "cpu": 57.7,
+      "rssKiB": 77200,
+      "executable": "/Users/ccheever/projects/snapback-w12a/snapback4/target/debug/deps/device-58ae95a956470b11"
+    },
+    {
+      "pid": 85646,
+      "ppid": 61988,
+      "cpu": 57.0,
+      "rssKiB": 86064,
+      "executable": "/Users/ccheever/projects/snapback-w12a/snapback4/target/debug/deps/device-58ae95a956470b11"
+    },
+    {
+      "pid": 75448,
+      "ppid": 6781,
+      "cpu": 55.0,
+      "rssKiB": 263888,
+      "executable": "/Applications/Exact2 Fleet.app/Contents/Resources/bin/fleet"
+    },
+    {
+      "pid": 85919,
+      "ppid": 61988,
+      "cpu": 54.2,
+      "rssKiB": 61600,
+      "executable": "/Users/ccheever/projects/snapback-w12a/snapback4/target/debug/deps/device-58ae95a956470b11"
+    },
+    {
+      "pid": 84715,
+      "ppid": 61988,
+      "cpu": 49.2,
+      "rssKiB": 790384,
+      "executable": "/Users/ccheever/projects/snapback-w12a/snapback4/target/debug/deps/device-58ae95a956470b11"
+    }
+  ],
+  "observedCargoParent62002": {
+    "identity": "  PID  PPID COMM\n",
+    "cwd": ""
+  },
+  "installedChromeVersion": "154.0.8037.57"
+}

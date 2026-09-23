@@ -1,0 +1,66 @@
+{
+  "manifestSha256": "e15c3952856148fef9872f9d509159b47fe0066bdca904330ae96196ba732d04",
+  "expectedIds": 119,
+  "observedIds": 119,
+  "noMissingExtraDuplicateIds": true,
+  "counts": {
+    "pass": 101,
+    "not-run": 18
+  },
+  "byMilestone": {
+    "m1": {
+      "pass": 13
+    },
+    "m2": {
+      "pass": 27
+    },
+    "m3": {
+      "pass": 15
+    },
+    "m4": {
+      "pass": 12
+    },
+    "m5": {
+      "pass": 12
+    },
+    "m6": {
+      "not-run": 7,
+      "pass": 6
+    },
+    "m7": {
+      "not-run": 9
+    },
+    "m8": {
+      "pass": 16,
+      "not-run": 2
+    }
+  },
+  "changesFrom": {
+    "0.2.31": [
+      {
+        "id": "m3-a07",
+        "before": "fail",
+        "after": "pass"
+      }
+    ],
+    "0.2.32": [
+      {
+        "id": "m6-a05",
+        "before": "pass",
+        "after": "not-run"
+      },
+      {
+        "id": "m6-a06",
+        "before": "pass",
+        "after": "not-run"
+      },
+      {
+        "id": "m6-a07",
+        "before": "pass",
+        "after": "not-run"
+      }
+    ]
+  },
+  "reportSha256": "48bc71ba2bd5fe050df99bd81883c3afafcf63fd7327ecfddc0af12da907be0b",
+  "m8Sha256": "5623b347b51de598da80f1fdd1c8c487e17605c1e0e622dbe8f9b947df2e3df5"
+}

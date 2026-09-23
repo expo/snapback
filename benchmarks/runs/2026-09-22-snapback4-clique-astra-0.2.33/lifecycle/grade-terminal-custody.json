@@ -1,0 +1,40 @@
+{
+  "at": "2026-09-23T04:56:51.644823+00:00",
+  "phase": {
+    "lane": "astra-snapback4",
+    "phase": "grade",
+    "pid": 32202,
+    "endedAt": "2026-09-23T04:55:44Z",
+    "endedEpoch": 1790139344,
+    "wallSeconds": 3226.682,
+    "exitCode": 0,
+    "stdout": "/Users/ccheever/clique-sb4-20260922-astra-cal17/logs/astra-snapback4.grade.ndjson",
+    "stderr": "/Users/ccheever/clique-sb4-20260922-astra-cal17/logs/astra-snapback4.grade.stderr.log"
+  },
+  "files": [
+    {
+      "source": "/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4/grading/grader-report.json",
+      "name": "grader-report.json",
+      "bytes": 56790,
+      "sha256": "48bc71ba2bd5fe050df99bd81883c3afafcf63fd7327ecfddc0af12da907be0b"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4/grading/m8-assertion-results.json",
+      "name": "m8-assertion-results.json",
+      "bytes": 7578,
+      "sha256": "5623b347b51de598da80f1fdd1c8c487e17605c1e0e622dbe8f9b947df2e3df5"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4/grading/trace.md",
+      "name": "trace.md",
+      "bytes": 51377,
+      "sha256": "9761469f734e130c594c8bf2362b884f6dbabe1a6d224aa905a1300b729750b9"
+    },
+    {
+      "source": "/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4/grading/DONE",
+      "name": "DONE",
+      "bytes": 15,
+      "sha256": "3666faa69d5ed5f1d79e960febd0a4ecdca3ef50374add0dcf443c30a5808de3"
+    }
+  ]
+}

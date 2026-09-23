@@ -1,0 +1,35 @@
+{
+  "diary.md": {
+    "mode": 420,
+    "kind": "file",
+    "bytes": 9158,
+    "sha256": "a1c8cd4f35c7938e43d3de3a82cc277d5bb625fdf57067c26ae53091119990a4"
+  },
+  "essay.md": {
+    "mode": 420,
+    "kind": "file",
+    "bytes": 9569,
+    "sha256": "dc1cbb43fed8b4132397e24711fe11f6d265eda84703908acc72569e97f3a0e1"
+  },
+  "run-log.md": {
+    "mode": 420,
+    "kind": "file",
+    "bytes": 20007,
+    "sha256": "f723a7c247c2acadd5e33a32871daa94b832e9b2f492fdef37df5d0d36eb294e"
+  },
+  "final-report.md": {
+    "mode": 420,
+    "kind": "file",
+    "bytes": 28349,
+    "sha256": "30facd03611f50d18f902e93fcf2c386b560cf211be7aa482b86d5a23494f28a"
+  },
+  "run-record.json": {
+    "missing": true
+  },
+  "FINAL.md": {
+    "mode": 420,
+    "kind": "file",
+    "bytes": 287,
+    "sha256": "82c16abd390c8a3d2b27aabb5b260dff8a25904156793e307ba673e2c14b420e"
+  }
+}

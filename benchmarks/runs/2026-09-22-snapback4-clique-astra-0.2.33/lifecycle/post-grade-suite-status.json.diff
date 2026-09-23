@@ -1,0 +1,43 @@
+--- pre-grade/suite-status.json
+
++++ post-grade/suite-status.json
+
+@@ -1,30 +1,30 @@
+
+ {
+   "m1": {
+     "pass": true,
+-    "receipt": "evidence/m1-suite.json"
++    "receipt": "evidence/m1-suite-1790136317488.json"
+   },
+   "m2": {
+     "pass": true,
+-    "receipt": "evidence/m2-suite.json"
++    "receipt": "evidence/m2-suite-1790136322854.json"
+   },
+   "m3": {
+     "pass": true,
+-    "receipt": "evidence/m3-suite.json"
++    "receipt": "evidence/m3-suite-1790136326842.json"
+   },
+   "m4": {
+     "pass": true,
+-    "receipt": "evidence/m4-suite.json"
++    "receipt": "evidence/m4-suite-1790136333591.json"
+   },
+   "m5": {
+     "pass": true,
+-    "receipt": "evidence/m5-suite.json"
++    "receipt": "evidence/m5-suite-1790136335949.json"
+   },
+   "m6": {
+     "pass": true,
+-    "receipt": "evidence/m6-suite.json"
++    "receipt": "evidence/m6-suite-1790136413710.json"
+   },
+   "m8": {
+     "pass": true,
+-    "receipt": "evidence/m8-suite-1790135333915.json"
++    "receipt": "evidence/m8-suite-1790136391247.json"
+   }
+ }

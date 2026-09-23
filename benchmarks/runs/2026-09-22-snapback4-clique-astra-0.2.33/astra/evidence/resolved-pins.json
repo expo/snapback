@@ -1,0 +1,21 @@
+{
+  "version": "1.0.0",
+  "name": "clique-astra-snapback4",
+  "dependencies": {
+    "snapback4-expo": {
+      "version": "0.2.24",
+      "resolved": "https://registry.npmjs.org/snapback4-expo/-/snapback4-expo-0.2.24.tgz",
+      "overridden": false,
+      "dependencies": {
+        "snapback4": {
+          "version": "0.2.33"
+        }
+      }
+    },
+    "snapback4": {
+      "version": "0.2.33",
+      "resolved": "https://registry.npmjs.org/snapback4/-/snapback4-0.2.33.tgz",
+      "overridden": false
+    }
+  }
+}

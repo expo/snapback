@@ -1,0 +1,1826 @@
+{
+  "label": "50%",
+  "epoch": 1790134959,
+  "posture": "local dev binary; sequential; 3 warmups +20 samples",
+  "following5": {
+    "p95": 3.4235420000040904,
+    "ms": [
+      1.736957999994047,
+      3.268625000026077,
+      3.4672499999869615,
+      3.1381669999682344,
+      2.883458000025712,
+      3.338958999956958,
+      3.234833000053186,
+      3.149416000000201,
+      2.9699580000014976,
+      3.4235420000040904,
+      3.254499999980908,
+      3.0649589999811724,
+      3.3065000000060536,
+      2.731167000019923,
+      2.8403749999706633,
+      2.590874999994412,
+      2.672791999997571,
+      2.60775000002468,
+      3.016750000009779,
+      3.117082999960985
+    ],
+    "meters": [
+      {
+        "cut": null,
+        "examined": 289,
+        "heapBytes": 523568,
+        "indexEntries": 0,
+        "outputBytes": 30672,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2002
+      },
+      {
+        "cut": null,
+        "examined": 289,
+        "heapBytes": 523568,
+        "indexEntries": 0,
+        "outputBytes": 30672,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2002
+      },
+      {
+        "cut": null,
+        "examined": 289,
+        "heapBytes": 523568,
+        "indexEntries": 0,
+        "outputBytes": 30672,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2002
+      },
+      {
+        "cut": null,
+        "examined": 289,
+        "heapBytes": 523568,
+        "indexEntries": 0,
+        "outputBytes": 30672,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2002
+      },
+      {
+        "cut": null,
+        "examined": 289,
+        "heapBytes": 523568,
+        "indexEntries": 0,
+        "outputBytes": 30672,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2002
+      },
+      {
+        "cut": null,
+        "examined": 289,
+        "heapBytes": 523568,
+        "indexEntries": 0,
+        "outputBytes": 30672,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2002
+      },
+      {
+        "cut": null,
+        "examined": 289,
+        "heapBytes": 523568,
+        "indexEntries": 0,
+        "outputBytes": 30672,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2002
+      },
+      {
+        "cut": null,
+        "examined": 289,
+        "heapBytes": 523568,
+        "indexEntries": 0,
+        "outputBytes": 30672,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2002
+      },
+      {
+        "cut": null,
+        "examined": 289,
+        "heapBytes": 523568,
+        "indexEntries": 0,
+        "outputBytes": 30672,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2002
+      },
+      {
+        "cut": null,
+        "examined": 289,
+        "heapBytes": 523568,
+        "indexEntries": 0,
+        "outputBytes": 30672,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2002
+      },
+      {
+        "cut": null,
+        "examined": 289,
+        "heapBytes": 523568,
+        "indexEntries": 0,
+        "outputBytes": 30672,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2002
+      },
+      {
+        "cut": null,
+        "examined": 289,
+        "heapBytes": 523568,
+        "indexEntries": 0,
+        "outputBytes": 30672,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2002
+      },
+      {
+        "cut": null,
+        "examined": 289,
+        "heapBytes": 523568,
+        "indexEntries": 0,
+        "outputBytes": 30672,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2002
+      },
+      {
+        "cut": null,
+        "examined": 289,
+        "heapBytes": 523568,
+        "indexEntries": 0,
+        "outputBytes": 30672,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2002
+      },
+      {
+        "cut": null,
+        "examined": 289,
+        "heapBytes": 523568,
+        "indexEntries": 0,
+        "outputBytes": 30672,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2002
+      },
+      {
+        "cut": null,
+        "examined": 289,
+        "heapBytes": 523568,
+        "indexEntries": 0,
+        "outputBytes": 30672,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2002
+      },
+      {
+        "cut": null,
+        "examined": 289,
+        "heapBytes": 523568,
+        "indexEntries": 0,
+        "outputBytes": 30672,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2002
+      },
+      {
+        "cut": null,
+        "examined": 289,
+        "heapBytes": 523568,
+        "indexEntries": 0,
+        "outputBytes": 30672,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2002
+      },
+      {
+        "cut": null,
+        "examined": 289,
+        "heapBytes": 523568,
+        "indexEntries": 0,
+        "outputBytes": 30672,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2002
+      },
+      {
+        "cut": null,
+        "examined": 289,
+        "heapBytes": 523568,
+        "indexEntries": 0,
+        "outputBytes": 30672,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2002
+      }
+    ]
+  },
+  "following500": {
+    "p95": 9.724125000007916,
+    "ms": [
+      9.724125000007916,
+      8.259874999988824,
+      8.667249999998603,
+      8.142166999983601,
+      8.84312500001397,
+      7.434332999982871,
+      9.665250000020023,
+      10.122999999963213,
+      8.118916999956127,
+      9.103457999997772,
+      8.674041000020225,
+      7.493959000043105,
+      7.09658400004264,
+      7.368999999947846,
+      7.203957999998238,
+      6.85633300000336,
+      7.9154579999740236,
+      8.333041000005323,
+      7.488124999974389,
+      7.245541999989655
+    ],
+    "meters": [
+      {
+        "cut": null,
+        "examined": 1702,
+        "heapBytes": 548814,
+        "indexEntries": 0,
+        "outputBytes": 30655,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 3996
+      },
+      {
+        "cut": null,
+        "examined": 1702,
+        "heapBytes": 548814,
+        "indexEntries": 0,
+        "outputBytes": 30655,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 3996
+      },
+      {
+        "cut": null,
+        "examined": 1702,
+        "heapBytes": 548814,
+        "indexEntries": 0,
+        "outputBytes": 30655,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 3996
+      },
+      {
+        "cut": null,
+        "examined": 1702,
+        "heapBytes": 548814,
+        "indexEntries": 0,
+        "outputBytes": 30655,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 3996
+      },
+      {
+        "cut": null,
+        "examined": 1702,
+        "heapBytes": 548814,
+        "indexEntries": 0,
+        "outputBytes": 30655,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 3996
+      },
+      {
+        "cut": null,
+        "examined": 1702,
+        "heapBytes": 548814,
+        "indexEntries": 0,
+        "outputBytes": 30655,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 3996
+      },
+      {
+        "cut": null,
+        "examined": 1702,
+        "heapBytes": 548814,
+        "indexEntries": 0,
+        "outputBytes": 30655,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 3996
+      },
+      {
+        "cut": null,
+        "examined": 1702,
+        "heapBytes": 548814,
+        "indexEntries": 0,
+        "outputBytes": 30655,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 3996
+      },
+      {
+        "cut": null,
+        "examined": 1702,
+        "heapBytes": 548814,
+        "indexEntries": 0,
+        "outputBytes": 30655,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 3996
+      },
+      {
+        "cut": null,
+        "examined": 1702,
+        "heapBytes": 548814,
+        "indexEntries": 0,
+        "outputBytes": 30655,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 3996
+      },
+      {
+        "cut": null,
+        "examined": 1702,
+        "heapBytes": 548814,
+        "indexEntries": 0,
+        "outputBytes": 30655,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 3996
+      },
+      {
+        "cut": null,
+        "examined": 1702,
+        "heapBytes": 548814,
+        "indexEntries": 0,
+        "outputBytes": 30655,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 3996
+      },
+      {
+        "cut": null,
+        "examined": 1702,
+        "heapBytes": 548814,
+        "indexEntries": 0,
+        "outputBytes": 30655,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 3996
+      },
+      {
+        "cut": null,
+        "examined": 1702,
+        "heapBytes": 548814,
+        "indexEntries": 0,
+        "outputBytes": 30655,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 3996
+      },
+      {
+        "cut": null,
+        "examined": 1702,
+        "heapBytes": 548814,
+        "indexEntries": 0,
+        "outputBytes": 30655,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 3996
+      },
+      {
+        "cut": null,
+        "examined": 1702,
+        "heapBytes": 548814,
+        "indexEntries": 0,
+        "outputBytes": 30655,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 3996
+      },
+      {
+        "cut": null,
+        "examined": 1702,
+        "heapBytes": 548814,
+        "indexEntries": 0,
+        "outputBytes": 30655,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 3996
+      },
+      {
+        "cut": null,
+        "examined": 1702,
+        "heapBytes": 548814,
+        "indexEntries": 0,
+        "outputBytes": 30655,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 3996
+      },
+      {
+        "cut": null,
+        "examined": 1702,
+        "heapBytes": 548814,
+        "indexEntries": 0,
+        "outputBytes": 30655,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 3996
+      },
+      {
+        "cut": null,
+        "examined": 1702,
+        "heapBytes": 548814,
+        "indexEntries": 0,
+        "outputBytes": 30655,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 3996
+      }
+    ]
+  },
+  "celebrityFollower": {
+    "p95": 2.8033749999594875,
+    "ms": [
+      2.8033749999594875,
+      2.438583999988623,
+      2.5861670000012964,
+      2.4480420000036247,
+      2.63695800001733,
+      2.460957999981474,
+      2.7002079999656416,
+      2.8798339999630116,
+      2.372791999951005,
+      2.0691249999799766,
+      2.355582999996841,
+      2.3275839999550954,
+      2.389499999990221,
+      2.3489580000168644,
+      2.7875419999472797,
+      2.4321669999626465,
+      2.536833000020124,
+      2.7126660000067204,
+      2.5135840000002645,
+      2.364625000045635
+    ],
+    "meters": [
+      {
+        "cut": null,
+        "examined": 291,
+        "heapBytes": 522692,
+        "indexEntries": 0,
+        "outputBytes": 30649,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2001
+      },
+      {
+        "cut": null,
+        "examined": 291,
+        "heapBytes": 522692,
+        "indexEntries": 0,
+        "outputBytes": 30649,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2001
+      },
+      {
+        "cut": null,
+        "examined": 291,
+        "heapBytes": 522692,
+        "indexEntries": 0,
+        "outputBytes": 30649,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2001
+      },
+      {
+        "cut": null,
+        "examined": 291,
+        "heapBytes": 522692,
+        "indexEntries": 0,
+        "outputBytes": 30649,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2001
+      },
+      {
+        "cut": null,
+        "examined": 291,
+        "heapBytes": 522692,
+        "indexEntries": 0,
+        "outputBytes": 30649,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2001
+      },
+      {
+        "cut": null,
+        "examined": 291,
+        "heapBytes": 522692,
+        "indexEntries": 0,
+        "outputBytes": 30649,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2001
+      },
+      {
+        "cut": null,
+        "examined": 291,
+        "heapBytes": 522692,
+        "indexEntries": 0,
+        "outputBytes": 30649,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2001
+      },
+      {
+        "cut": null,
+        "examined": 291,
+        "heapBytes": 522692,
+        "indexEntries": 0,
+        "outputBytes": 30649,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2001
+      },
+      {
+        "cut": null,
+        "examined": 291,
+        "heapBytes": 522692,
+        "indexEntries": 0,
+        "outputBytes": 30649,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2001
+      },
+      {
+        "cut": null,
+        "examined": 291,
+        "heapBytes": 522692,
+        "indexEntries": 0,
+        "outputBytes": 30649,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2001
+      },
+      {
+        "cut": null,
+        "examined": 291,
+        "heapBytes": 522692,
+        "indexEntries": 0,
+        "outputBytes": 30649,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2001
+      },
+      {
+        "cut": null,
+        "examined": 291,
+        "heapBytes": 522692,
+        "indexEntries": 0,
+        "outputBytes": 30649,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2001
+      },
+      {
+        "cut": null,
+        "examined": 291,
+        "heapBytes": 522692,
+        "indexEntries": 0,
+        "outputBytes": 30649,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2001
+      },
+      {
+        "cut": null,
+        "examined": 291,
+        "heapBytes": 522692,
+        "indexEntries": 0,
+        "outputBytes": 30649,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2001
+      },
+      {
+        "cut": null,
+        "examined": 291,
+        "heapBytes": 522692,
+        "indexEntries": 0,
+        "outputBytes": 30649,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2001
+      },
+      {
+        "cut": null,
+        "examined": 291,
+        "heapBytes": 522692,
+        "indexEntries": 0,
+        "outputBytes": 30649,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2001
+      },
+      {
+        "cut": null,
+        "examined": 291,
+        "heapBytes": 522692,
+        "indexEntries": 0,
+        "outputBytes": 30649,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2001
+      },
+      {
+        "cut": null,
+        "examined": 291,
+        "heapBytes": 522692,
+        "indexEntries": 0,
+        "outputBytes": 30649,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2001
+      },
+      {
+        "cut": null,
+        "examined": 291,
+        "heapBytes": 522692,
+        "indexEntries": 0,
+        "outputBytes": 30649,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2001
+      },
+      {
+        "cut": null,
+        "examined": 291,
+        "heapBytes": 522692,
+        "indexEntries": 0,
+        "outputBytes": 30649,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 2001
+      }
+    ]
+  },
+  "search": {
+    "p95": 3.4708749999990687,
+    "ms": [
+      2.678124999976717,
+      2.6482499999692664,
+      2.465582999982871,
+      3.155542000022251,
+      3.22179199999664,
+      2.7611249999608845,
+      3.3519159999559633,
+      3.2688750000088476,
+      2.5676250000251457,
+      3.042333999997936,
+      2.539667000004556,
+      3.309084000007715,
+      3.337874999968335,
+      3.4708749999990687,
+      3.534125000005588,
+      3.052832999965176,
+      3.1925000000046566,
+      3.0697500000242144,
+      2.535083000024315,
+      2.537708999996539
+    ],
+    "meters": [
+      {
+        "cut": null,
+        "examined": 100,
+        "heapBytes": 324025,
+        "indexEntries": 100,
+        "outputBytes": 12,
+        "probes": 100,
+        "rowsWritten": 0,
+        "steps": 712
+      },
+      {
+        "cut": null,
+        "examined": 100,
+        "heapBytes": 324025,
+        "indexEntries": 100,
+        "outputBytes": 12,
+        "probes": 100,
+        "rowsWritten": 0,
+        "steps": 712
+      },
+      {
+        "cut": null,
+        "examined": 100,
+        "heapBytes": 324025,
+        "indexEntries": 100,
+        "outputBytes": 12,
+        "probes": 100,
+        "rowsWritten": 0,
+        "steps": 712
+      },
+      {
+        "cut": null,
+        "examined": 100,
+        "heapBytes": 324025,
+        "indexEntries": 100,
+        "outputBytes": 12,
+        "probes": 100,
+        "rowsWritten": 0,
+        "steps": 712
+      },
+      {
+        "cut": null,
+        "examined": 100,
+        "heapBytes": 324025,
+        "indexEntries": 100,
+        "outputBytes": 12,
+        "probes": 100,
+        "rowsWritten": 0,
+        "steps": 712
+      },
+      {
+        "cut": null,
+        "examined": 100,
+        "heapBytes": 324025,
+        "indexEntries": 100,
+        "outputBytes": 12,
+        "probes": 100,
+        "rowsWritten": 0,
+        "steps": 712
+      },
+      {
+        "cut": null,
+        "examined": 100,
+        "heapBytes": 324025,
+        "indexEntries": 100,
+        "outputBytes": 12,
+        "probes": 100,
+        "rowsWritten": 0,
+        "steps": 712
+      },
+      {
+        "cut": null,
+        "examined": 100,
+        "heapBytes": 324025,
+        "indexEntries": 100,
+        "outputBytes": 12,
+        "probes": 100,
+        "rowsWritten": 0,
+        "steps": 712
+      },
+      {
+        "cut": null,
+        "examined": 100,
+        "heapBytes": 324025,
+        "indexEntries": 100,
+        "outputBytes": 12,
+        "probes": 100,
+        "rowsWritten": 0,
+        "steps": 712
+      },
+      {
+        "cut": null,
+        "examined": 100,
+        "heapBytes": 324025,
+        "indexEntries": 100,
+        "outputBytes": 12,
+        "probes": 100,
+        "rowsWritten": 0,
+        "steps": 712
+      },
+      {
+        "cut": null,
+        "examined": 100,
+        "heapBytes": 324025,
+        "indexEntries": 100,
+        "outputBytes": 12,
+        "probes": 100,
+        "rowsWritten": 0,
+        "steps": 712
+      },
+      {
+        "cut": null,
+        "examined": 100,
+        "heapBytes": 324025,
+        "indexEntries": 100,
+        "outputBytes": 12,
+        "probes": 100,
+        "rowsWritten": 0,
+        "steps": 712
+      },
+      {
+        "cut": null,
+        "examined": 100,
+        "heapBytes": 324025,
+        "indexEntries": 100,
+        "outputBytes": 12,
+        "probes": 100,
+        "rowsWritten": 0,
+        "steps": 712
+      },
+      {
+        "cut": null,
+        "examined": 100,
+        "heapBytes": 324025,
+        "indexEntries": 100,
+        "outputBytes": 12,
+        "probes": 100,
+        "rowsWritten": 0,
+        "steps": 712
+      },
+      {
+        "cut": null,
+        "examined": 100,
+        "heapBytes": 324025,
+        "indexEntries": 100,
+        "outputBytes": 12,
+        "probes": 100,
+        "rowsWritten": 0,
+        "steps": 712
+      },
+      {
+        "cut": null,
+        "examined": 100,
+        "heapBytes": 324025,
+        "indexEntries": 100,
+        "outputBytes": 12,
+        "probes": 100,
+        "rowsWritten": 0,
+        "steps": 712
+      },
+      {
+        "cut": null,
+        "examined": 100,
+        "heapBytes": 324025,
+        "indexEntries": 100,
+        "outputBytes": 12,
+        "probes": 100,
+        "rowsWritten": 0,
+        "steps": 712
+      },
+      {
+        "cut": null,
+        "examined": 100,
+        "heapBytes": 324025,
+        "indexEntries": 100,
+        "outputBytes": 12,
+        "probes": 100,
+        "rowsWritten": 0,
+        "steps": 712
+      },
+      {
+        "cut": null,
+        "examined": 100,
+        "heapBytes": 324025,
+        "indexEntries": 100,
+        "outputBytes": 12,
+        "probes": 100,
+        "rowsWritten": 0,
+        "steps": 712
+      },
+      {
+        "cut": null,
+        "examined": 100,
+        "heapBytes": 324025,
+        "indexEntries": 100,
+        "outputBytes": 12,
+        "probes": 100,
+        "rowsWritten": 0,
+        "steps": 712
+      }
+    ]
+  },
+  "insights": {
+    "p95": 1.8794999999809079,
+    "ms": [
+      1.8108340000035241,
+      0.3685410000034608,
+      1.877165999962017,
+      1.852290999959223,
+      1.771874999976717,
+      1.7148339999839664,
+      1.8614169999491423,
+      1.7255410000216216,
+      1.63533300004201,
+      1.6530830000410788,
+      1.7351660000276752,
+      1.8194999999832362,
+      0.32183400000212714,
+      1.8197500000242144,
+      1.6641250000102445,
+      1.6009590000030585,
+      1.8794999999809079,
+      1.947249999968335,
+      1.7356659999932162,
+      1.705958999984432
+    ],
+    "meters": [
+      {
+        "cut": null,
+        "examined": 20,
+        "heapBytes": 14445,
+        "indexEntries": 0,
+        "outputBytes": 641,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 265
+      },
+      {
+        "cut": null,
+        "examined": 20,
+        "heapBytes": 14445,
+        "indexEntries": 0,
+        "outputBytes": 641,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 265
+      },
+      {
+        "cut": null,
+        "examined": 20,
+        "heapBytes": 14445,
+        "indexEntries": 0,
+        "outputBytes": 641,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 265
+      },
+      {
+        "cut": null,
+        "examined": 20,
+        "heapBytes": 14445,
+        "indexEntries": 0,
+        "outputBytes": 641,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 265
+      },
+      {
+        "cut": null,
+        "examined": 20,
+        "heapBytes": 14445,
+        "indexEntries": 0,
+        "outputBytes": 641,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 265
+      },
+      {
+        "cut": null,
+        "examined": 20,
+        "heapBytes": 14445,
+        "indexEntries": 0,
+        "outputBytes": 641,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 265
+      },
+      {
+        "cut": null,
+        "examined": 20,
+        "heapBytes": 14445,
+        "indexEntries": 0,
+        "outputBytes": 641,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 265
+      },
+      {
+        "cut": null,
+        "examined": 20,
+        "heapBytes": 14445,
+        "indexEntries": 0,
+        "outputBytes": 641,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 265
+      },
+      {
+        "cut": null,
+        "examined": 20,
+        "heapBytes": 14445,
+        "indexEntries": 0,
+        "outputBytes": 641,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 265
+      },
+      {
+        "cut": null,
+        "examined": 20,
+        "heapBytes": 14445,
+        "indexEntries": 0,
+        "outputBytes": 641,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 265
+      },
+      {
+        "cut": null,
+        "examined": 20,
+        "heapBytes": 14445,
+        "indexEntries": 0,
+        "outputBytes": 641,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 265
+      },
+      {
+        "cut": null,
+        "examined": 20,
+        "heapBytes": 14445,
+        "indexEntries": 0,
+        "outputBytes": 641,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 265
+      },
+      {
+        "cut": null,
+        "examined": 20,
+        "heapBytes": 14445,
+        "indexEntries": 0,
+        "outputBytes": 641,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 265
+      },
+      {
+        "cut": null,
+        "examined": 20,
+        "heapBytes": 14445,
+        "indexEntries": 0,
+        "outputBytes": 641,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 265
+      },
+      {
+        "cut": null,
+        "examined": 20,
+        "heapBytes": 14445,
+        "indexEntries": 0,
+        "outputBytes": 641,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 265
+      },
+      {
+        "cut": null,
+        "examined": 20,
+        "heapBytes": 14445,
+        "indexEntries": 0,
+        "outputBytes": 641,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 265
+      },
+      {
+        "cut": null,
+        "examined": 20,
+        "heapBytes": 14445,
+        "indexEntries": 0,
+        "outputBytes": 641,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 265
+      },
+      {
+        "cut": null,
+        "examined": 20,
+        "heapBytes": 14445,
+        "indexEntries": 0,
+        "outputBytes": 641,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 265
+      },
+      {
+        "cut": null,
+        "examined": 20,
+        "heapBytes": 14445,
+        "indexEntries": 0,
+        "outputBytes": 641,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 265
+      },
+      {
+        "cut": null,
+        "examined": 20,
+        "heapBytes": 14445,
+        "indexEntries": 0,
+        "outputBytes": 641,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 265
+      }
+    ]
+  },
+  "trending": {
+    "p95": 2.584166999964509,
+    "ms": [
+      2.047500000044238,
+      1.923624999995809,
+      2.069083000009414,
+      1.9250420000171289,
+      2.0080420000012964,
+      2.4153750000405125,
+      2.1317079999716952,
+      1.0465410000178963,
+      2.3177079999586567,
+      2.1642080000019632,
+      2.4712500000023283,
+      1.9832920000189915,
+      1.0731669999659061,
+      2.086957999970764,
+      2.584166999964509,
+      2.4472079999977723,
+      2.1118750000023283,
+      2.390332999988459,
+      3.009874999988824,
+      2.3927919999696314
+    ],
+    "meters": [
+      {
+        "cut": null,
+        "examined": 81,
+        "heapBytes": 226988,
+        "indexEntries": 0,
+        "outputBytes": 8933,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 1120
+      },
+      {
+        "cut": null,
+        "examined": 81,
+        "heapBytes": 226988,
+        "indexEntries": 0,
+        "outputBytes": 8933,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 1120
+      },
+      {
+        "cut": null,
+        "examined": 81,
+        "heapBytes": 226988,
+        "indexEntries": 0,
+        "outputBytes": 8933,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 1120
+      },
+      {
+        "cut": null,
+        "examined": 81,
+        "heapBytes": 226988,
+        "indexEntries": 0,
+        "outputBytes": 8933,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 1120
+      },
+      {
+        "cut": null,
+        "examined": 81,
+        "heapBytes": 226988,
+        "indexEntries": 0,
+        "outputBytes": 8933,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 1120
+      },
+      {
+        "cut": null,
+        "examined": 81,
+        "heapBytes": 226988,
+        "indexEntries": 0,
+        "outputBytes": 8933,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 1120
+      },
+      {
+        "cut": null,
+        "examined": 81,
+        "heapBytes": 226988,
+        "indexEntries": 0,
+        "outputBytes": 8933,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 1120
+      },
+      {
+        "cut": null,
+        "examined": 81,
+        "heapBytes": 226988,
+        "indexEntries": 0,
+        "outputBytes": 8933,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 1120
+      },
+      {
+        "cut": null,
+        "examined": 81,
+        "heapBytes": 226988,
+        "indexEntries": 0,
+        "outputBytes": 8933,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 1120
+      },
+      {
+        "cut": null,
+        "examined": 81,
+        "heapBytes": 226988,
+        "indexEntries": 0,
+        "outputBytes": 8933,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 1120
+      },
+      {
+        "cut": null,
+        "examined": 81,
+        "heapBytes": 226988,
+        "indexEntries": 0,
+        "outputBytes": 8933,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 1120
+      },
+      {
+        "cut": null,
+        "examined": 81,
+        "heapBytes": 226988,
+        "indexEntries": 0,
+        "outputBytes": 8933,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 1120
+      },
+      {
+        "cut": null,
+        "examined": 81,
+        "heapBytes": 226988,
+        "indexEntries": 0,
+        "outputBytes": 8933,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 1120
+      },
+      {
+        "cut": null,
+        "examined": 81,
+        "heapBytes": 226988,
+        "indexEntries": 0,
+        "outputBytes": 8933,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 1120
+      },
+      {
+        "cut": null,
+        "examined": 81,
+        "heapBytes": 226988,
+        "indexEntries": 0,
+        "outputBytes": 8933,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 1120
+      },
+      {
+        "cut": null,
+        "examined": 81,
+        "heapBytes": 226988,
+        "indexEntries": 0,
+        "outputBytes": 8933,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 1120
+      },
+      {
+        "cut": null,
+        "examined": 81,
+        "heapBytes": 226988,
+        "indexEntries": 0,
+        "outputBytes": 8933,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 1120
+      },
+      {
+        "cut": null,
+        "examined": 81,
+        "heapBytes": 226988,
+        "indexEntries": 0,
+        "outputBytes": 8933,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 1120
+      },
+      {
+        "cut": null,
+        "examined": 81,
+        "heapBytes": 226988,
+        "indexEntries": 0,
+        "outputBytes": 8933,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 1120
+      },
+      {
+        "cut": null,
+        "examined": 81,
+        "heapBytes": 226988,
+        "indexEntries": 0,
+        "outputBytes": 8933,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 1120
+      }
+    ]
+  },
+  "history1": {
+    "p95": 33.94862500001909,
+    "ms": [
+      29.55408400000306,
+      29.28020799998194,
+      33.94862500001909,
+      35.32712500001071,
+      31.252875000005588,
+      31.70008300000336,
+      28.930374999996275,
+      26.21737500000745,
+      30.071583000011742,
+      26.531083000008948,
+      26.258832999970764,
+      29.027999999991152,
+      28.7393339999835,
+      27.88858299999265,
+      27.19745800003875,
+      23.629332999989856,
+      24.386375000001863,
+      21.09362499997951,
+      20.81208299996797,
+      19.53329200000735
+    ],
+    "meters": [
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6232352,
+        "indexEntries": 0,
+        "outputBytes": 150007,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6232352,
+        "indexEntries": 0,
+        "outputBytes": 150007,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6232352,
+        "indexEntries": 0,
+        "outputBytes": 150007,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6232352,
+        "indexEntries": 0,
+        "outputBytes": 150007,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6232352,
+        "indexEntries": 0,
+        "outputBytes": 150007,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6232352,
+        "indexEntries": 0,
+        "outputBytes": 150007,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6232352,
+        "indexEntries": 0,
+        "outputBytes": 150007,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6232352,
+        "indexEntries": 0,
+        "outputBytes": 150007,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6232352,
+        "indexEntries": 0,
+        "outputBytes": 150007,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6232352,
+        "indexEntries": 0,
+        "outputBytes": 150007,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6232352,
+        "indexEntries": 0,
+        "outputBytes": 150007,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6232352,
+        "indexEntries": 0,
+        "outputBytes": 150007,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6232352,
+        "indexEntries": 0,
+        "outputBytes": 150007,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6232352,
+        "indexEntries": 0,
+        "outputBytes": 150007,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6232352,
+        "indexEntries": 0,
+        "outputBytes": 150007,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6232352,
+        "indexEntries": 0,
+        "outputBytes": 150007,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6232352,
+        "indexEntries": 0,
+        "outputBytes": 150007,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6232352,
+        "indexEntries": 0,
+        "outputBytes": 150007,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6232352,
+        "indexEntries": 0,
+        "outputBytes": 150007,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6232352,
+        "indexEntries": 0,
+        "outputBytes": 150007,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      }
+    ]
+  },
+  "history50": {
+    "p95": 21.721583000035025,
+    "ms": [
+      19.881999999983236,
+      19.96058399998583,
+      20.267833999998402,
+      20.47254200000316,
+      21.214624999964144,
+      23.07675000000745,
+      19.245666999951936,
+      19.998791999998502,
+      19.999167000001762,
+      20.85987500002375,
+      20.42016599996714,
+      20.256916999991518,
+      21.23804199998267,
+      19.63837500003865,
+      20.75670899997931,
+      20.787750000017695,
+      20.184459000010975,
+      21.721583000035025,
+      20.15125000005355,
+      19.81254200002877
+    ],
+    "meters": [
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6230618,
+        "indexEntries": 0,
+        "outputBytes": 149861,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6230618,
+        "indexEntries": 0,
+        "outputBytes": 149861,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6230618,
+        "indexEntries": 0,
+        "outputBytes": 149861,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6230618,
+        "indexEntries": 0,
+        "outputBytes": 149861,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6230618,
+        "indexEntries": 0,
+        "outputBytes": 149861,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6230618,
+        "indexEntries": 0,
+        "outputBytes": 149861,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6230618,
+        "indexEntries": 0,
+        "outputBytes": 149861,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6230618,
+        "indexEntries": 0,
+        "outputBytes": 149861,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6230618,
+        "indexEntries": 0,
+        "outputBytes": 149861,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6230618,
+        "indexEntries": 0,
+        "outputBytes": 149861,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6230618,
+        "indexEntries": 0,
+        "outputBytes": 149861,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6230618,
+        "indexEntries": 0,
+        "outputBytes": 149861,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6230618,
+        "indexEntries": 0,
+        "outputBytes": 149861,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6230618,
+        "indexEntries": 0,
+        "outputBytes": 149861,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6230618,
+        "indexEntries": 0,
+        "outputBytes": 149861,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6230618,
+        "indexEntries": 0,
+        "outputBytes": 149861,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6230618,
+        "indexEntries": 0,
+        "outputBytes": 149861,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6230618,
+        "indexEntries": 0,
+        "outputBytes": 149861,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6230618,
+        "indexEntries": 0,
+        "outputBytes": 149861,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      },
+      {
+        "cut": null,
+        "examined": 2601,
+        "heapBytes": 6230618,
+        "indexEntries": 0,
+        "outputBytes": 149861,
+        "probes": 2551,
+        "rowsWritten": 0,
+        "steps": 78107
+      }
+    ]
+  },
+  "rules": {
+    "following": true,
+    "celebrityRead": true,
+    "deepPaging": true
+  }
+}

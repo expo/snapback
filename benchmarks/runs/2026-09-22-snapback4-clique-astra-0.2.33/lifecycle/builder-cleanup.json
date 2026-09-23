@@ -1,0 +1,53 @@
+{
+  "at": "2026-09-23T04:00:28.961767+00:00",
+  "scope": "Passive post-builder/pre-snapshot ownership check; no processes stopped by operator",
+  "recordedPids": [
+    "12698",
+    "17958",
+    "18793",
+    "35271",
+    "37305",
+    "38044",
+    "49040",
+    "51449",
+    "54454",
+    "58729",
+    "63074",
+    "64886",
+    "67560",
+    "68959",
+    "70511",
+    "7072",
+    "74524",
+    "81849",
+    "85457",
+    "87951",
+    "87969",
+    "88061",
+    "92533",
+    "93943",
+    "94072",
+    "9524",
+    "9822",
+    "98508"
+  ],
+  "listeners": "",
+  "lsofExit": 1,
+  "recordedPidStatus": "",
+  "psExit": 1,
+  "retainedStore": {
+    "path": "/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4/scale-instance/.snapback4/store.sqlite",
+    "bytes": 700481536
+  },
+  "builder": {
+    "lane": "astra-snapback4",
+    "phase": "builder",
+    "pid": 25115,
+    "endedAt": "2026-09-23T03:58:37Z",
+    "endedEpoch": 1790135917,
+    "wallSeconds": 4924.23,
+    "exitCode": 0,
+    "stdout": "/Users/ccheever/clique-sb4-20260922-astra-cal17/logs/astra-snapback4.ndjson",
+    "stderr": "/Users/ccheever/clique-sb4-20260922-astra-cal17/logs/astra-snapback4.stderr.log"
+  }
+}

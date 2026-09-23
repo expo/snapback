@@ -1,0 +1,34 @@
+{
+  "source": "/tmp/sb4-3011-20260922/cal17-final-evidence/results/host-load.jsonl",
+  "sourceSha256": "0d0676570a813a9234ee05eb666784507fef9586193068ab1e8a9d127a7f5005",
+  "sampleCount": 143,
+  "firstAt": "2026-09-23T02:36:16.771517+00:00",
+  "lastAt": "2026-09-23T04:59:18.474715+00:00",
+  "samplerEnd": {
+    "endedAt": "2026-09-23T04:59:34.604696+00:00",
+    "pid": 22592,
+    "stopMarkerPresent": true
+  },
+  "intervalSeconds": {
+    "min": 60.370245,
+    "max": 60.516414
+  },
+  "loads": {
+    "1minute": {
+      "min": 7.61474609375,
+      "median": 19.87255859375,
+      "max": 109.9814453125
+    },
+    "5minute": {
+      "min": 8.78662109375,
+      "median": 23.0703125,
+      "max": 68.185546875
+    },
+    "15minute": {
+      "min": 10.58740234375,
+      "median": 24.62109375,
+      "max": 44.404296875
+    }
+  },
+  "limits": "Descriptive host-load observations only; no exclusive-host or failure-causation claim. Grader ran concurrently with read-only scoring after the verified builder snapshot."
+}

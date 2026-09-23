@@ -1,0 +1,11 @@
+{
+  "lane": "astra-snapback4",
+  "phase": "builder",
+  "pid": 25115,
+  "endedAt": "2026-09-23T03:58:37Z",
+  "endedEpoch": 1790135917,
+  "wallSeconds": 4924.23,
+  "exitCode": 0,
+  "stdout": "/Users/ccheever/clique-sb4-20260922-astra-cal17/logs/astra-snapback4.ndjson",
+  "stderr": "/Users/ccheever/clique-sb4-20260922-astra-cal17/logs/astra-snapback4.stderr.log"
+}

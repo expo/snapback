@@ -1,0 +1,7 @@
+{
+  "start": 1790133633,
+  "end": 1790133770,
+  "pass": false,
+  "error": "Error: {\"state\":\"failed\",\"id\":\"01M364K6MQTE2T8S8PKVPD2HWP\",\"why\":{\"code\":\"OWN_POST\",\"family\":\"rule\",\"guide\":\"programs\",\"message\":\"the program refused with OWN_POST\",\"rule\":\"OWN_POST\",\"site\":\"schema.q:145:3\"}}",
+  "excludedProbeMs": 4707
+}

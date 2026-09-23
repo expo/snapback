@@ -1,0 +1,51 @@
+{
+  "m1": [
+    {
+      "path": "artifacts/m1-ios/_expo/static/js/ios/entry-28f70cf7d0d991e4b9f3a01bccbf80b2.hbc",
+      "bytes": 2777480,
+      "sha256": "68ad682f658c39c8f8d51340451b7e6927ef2c71c0d4d585b32f463ad156267f"
+    }
+  ],
+  "m2": [
+    {
+      "path": "artifacts/m2-ios/_expo/static/js/ios/entry-517c44a6e3547f2c8227841ea1051af0.hbc",
+      "bytes": 2802569,
+      "sha256": "d2abb6454fbd21872940eaa8eeb3792bd76ba8af3aefc1c27d0fab843cac9310"
+    }
+  ],
+  "m3": [
+    {
+      "path": "artifacts/m3-ios/_expo/static/js/ios/entry-1eaaa601eb3331cdab2ffa5625665afb.hbc",
+      "bytes": 2822787,
+      "sha256": "60254bd32b9716a93213f3139203582d84d1595b17973b08a32c4f57c4da47ef"
+    }
+  ],
+  "m4": [
+    {
+      "path": "artifacts/m4-ios/_expo/static/js/ios/entry-d6eedae7351a2e0be795a45a6513b4af.hbc",
+      "bytes": 2828161,
+      "sha256": "abd21b143e8ef0702963fea5af67d18df43ddad5e96095ddd59dfe962d2ef9dd"
+    }
+  ],
+  "m5": [
+    {
+      "path": "artifacts/m5-ios/_expo/static/js/ios/entry-ad0a84436c5cb75e050fe97e7efd9a8c.hbc",
+      "bytes": 2835888,
+      "sha256": "14516781b044b0f9e37f422f269d21ea528f5cf38e8ea96add49abb008c9d6eb"
+    }
+  ],
+  "m6": [
+    {
+      "path": "artifacts/m6-ios/_expo/static/js/ios/entry-96e883ca89f4fd95dd824238d96a7e34.hbc",
+      "bytes": 2837208,
+      "sha256": "4af5344bebd1bb1f7c3c112ccb80907edb194c31b66327ec3ca4ee4d8aeed345"
+    }
+  ],
+  "m8": [
+    {
+      "path": "artifacts/m8-ios/_expo/static/js/ios/entry-4afa9730edfef5245b1dc33fefc4e62f.hbc",
+      "bytes": 2844737,
+      "sha256": "7c1ee4a9053bb484336336ff72b6d84c0c65faac0b3511b3323f3ccd1fa84506"
+    }
+  ]
+}

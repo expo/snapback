@@ -1,0 +1,8 @@
+{
+  "pass": true,
+  "epoch": 1790135850,
+  "fixtureExact": true,
+  "probePostsRemoved": 46,
+  "celebrityPosts": 200,
+  "source": "evidence/scale-restored-final-full-audit.json"
+}

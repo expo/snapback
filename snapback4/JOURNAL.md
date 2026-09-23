@@ -46595,3 +46595,40 @@ The rebase onto `d34227259` was clean. On the rebased tree:
 
 Two client tests that failed once in a loaded full-suite run passed when
 rerun alone.
+
+## 2026-09-22 — recent-builder friction program complete (LLP 3000.011)
+
+The thirteen-document diary synthesis, selected changes, Grok xhigh and Astra
+max reviews, Astra xhigh implementation, publication and final Clique rerun
+are complete. The shipped increments improve compiler guidance, bounded atomic
+digest examples, public-feed integration, the offline web starter, development
+command contention and application/operational qualification. Review also caught
+and corrected authentication races. Actual Clique native execution then exposed
+three media defects; the shared SDK FileReader fallbacks and Swift MP4 cache
+naming/migration repair passed both requested review families.
+
+SDK/CLI 0.2.33 and Expo 0.2.24 are published from qualified source
+`f54b4c71dea34a428739199d25e09a301d06e988`, with all registry artifacts matching
+the qualified bytes. The full source suite passed with zero failures (client:
+965 passed, three skipped). Later changes on main are outside that release.
+The [public-package native qualification](./reports/20260922-clique-native-extension.md#final-public-package-result)
+passes restart/offline media, learned revocation and 10,000-ID offline acquisition
+on the actual Clique iOS simulator Release app. Physical-device, Android,
+power-loss and real-provider evidence remain absent.
+
+The [final cold Clique run](../benchmarks/runs/2026-09-22-snapback4-clique-astra-0.2.33/README.md)
+finished September 22 local time (September 23 UTC): 92/100, with 101 assertions
+passed, zero failed and 18 not run. The initial 0.2.32 run scored 88, and the
+preceding 0.2.31 run scored 91. The three fewer passes than the initial run
+reflect missing native artifacts that its grader had credited from browser
+evidence. Separate native qualification does not fill those benchmark cells.
+The search midpoint rule missed (objective performance band 30); no causal
+claim is made from the score or timing changes. All owned benchmark processes
+are stopped and the remote machine slot is released.
+
+The [umbrella completion record](../llp/3000.011-recent-builder-friction.research.md#10-selected-program-completion)
+distinguishes selected work from rejected and deferred proposals. Busy-chat
+digests remain bounded; the count optimization was measured and rejected.
+The independent real-provider increment remains conditional/unrun in its
+Accepted RFC. Twelve completed working-set links are archived; all thirteen
+source LLPs and the original benchmark attempts remain available.

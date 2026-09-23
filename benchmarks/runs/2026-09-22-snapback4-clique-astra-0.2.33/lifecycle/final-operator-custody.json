@@ -1,0 +1,67 @@
+{
+  "startedAt": "2026-09-23T04:59:25.653129+00:00",
+  "operatorPid": 89549,
+  "scope": "Original-byte custody and unchanged aggregators only; no app/product edits or benchmark rerun.",
+  "gradeCopy": {
+    "command": [
+      "/bin/cp",
+      "-cRp",
+      "/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4/grading",
+      "/Users/ccheever/clique-sb4-20260922-astra-cal17/attempts/grade-completed"
+    ],
+    "pid": 89560,
+    "startedAt": "2026-09-23T04:59:25.672488+00:00",
+    "endedAt": "2026-09-23T04:59:25.712550+00:00",
+    "exitCode": 0,
+    "verified": true,
+    "entries": 62
+  },
+  "sourceCustody": {
+    "changedExistingCount": 20,
+    "addedPathsCount": 78,
+    "changedAuthoredSource": [
+      "run-log.md",
+      "suite-status.json"
+    ],
+    "changedNarratives": [
+      "run-log.md"
+    ],
+    "missingNarratives": [
+      "run-record.json"
+    ]
+  },
+  "frozenInputs": {
+    "changed": [],
+    "instrumentExact": true,
+    "instrumentWritable": []
+  },
+  "aggregators": [
+    {
+      "command": [
+        "python3",
+        "scripts/summarize_grades.py"
+      ],
+      "pid": 90978,
+      "startedAt": "2026-09-23T04:59:34.249854+00:00",
+      "endedAt": "2026-09-23T04:59:34.291099+00:00",
+      "wallSeconds": 0.041,
+      "exitCode": 1,
+      "log": "/Users/ccheever/clique-sb4-20260922-astra-cal17/results/summarize_grades.py.operator.log",
+      "logSha256": "44f6dbc30e2cb8bb158dad19c27ffff944ebd875032cfeb7b04ca84e8f195281"
+    },
+    {
+      "command": [
+        "python3",
+        "scripts/aggregate_scores.py"
+      ],
+      "pid": 90979,
+      "startedAt": "2026-09-23T04:59:34.291666+00:00",
+      "endedAt": "2026-09-23T04:59:34.340818+00:00",
+      "wallSeconds": 0.049,
+      "exitCode": 1,
+      "log": "/Users/ccheever/clique-sb4-20260922-astra-cal17/results/aggregate_scores.py.operator.log",
+      "logSha256": "e8b77f382d80c2cc501431932eb6220f5be048c67b7ca91b44a944c5a1454b82"
+    }
+  ],
+  "endedAt": "2026-09-23T04:59:34.341256+00:00"
+}

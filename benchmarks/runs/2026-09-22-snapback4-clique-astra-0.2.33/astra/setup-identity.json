@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "social-messenger.setup-identity.v1",
+  "instrumentPin": "social-messenger@0.3.8-m8",
+  "backend": {
+    "kind": "snapback",
+    "version": "snapback4@0.2.33"
+  },
+  "runtime": {
+    "qualifiedBinary": {
+      "claimed": false,
+      "reason": "Public npm platform binary; independent binary qualification not supplied"
+    },
+    "wrapper": {
+      "claimed": false,
+      "reason": "Installed published npm wrapper; no independent qualification claim"
+    }
+  },
+  "packageClosure": {
+    "mode": "workspace",
+    "prepack": "not-applicable",
+    "artifacts": [
+      {
+        "name": "snapback4",
+        "version": "0.2.33",
+        "sha256": null
+      },
+      {
+        "name": "snapback4-expo",
+        "version": "0.2.24",
+        "sha256": null
+      }
+    ]
+  },
+  "toolchain": {
+    "node": {
+      "path": "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+      "version": "v24.18.0"
+    },
+    "bun": "1.4.2",
+    "npm": "11.16.0",
+    "playwright": "1.62.1",
+    "browser": "chromium"
+  },
+  "host": {
+    "id": "Charlies-MacBook-Pro-M5Max-Black.local",
+    "platform": "darwin",
+    "arch": "arm64"
+  }
+}

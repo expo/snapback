@@ -1,0 +1,29 @@
+{
+  "at": "2026-09-23T04:02:31.685829+00:00",
+  "source": "/Users/ccheever/clique-sb4-20260922-astra-cal17/logs/astra-snapback4.ndjson",
+  "sourceSha256": "782cbc5d622a47dac4a43bc05f6d6795a353810e353a97fa49ced9798ec98c4d",
+  "method": "Verbatim turn.completed events; sum of numeric usage fields across those events only. No inferred provider cost or per-step timing.",
+  "turnCompletedCount": 1,
+  "sum": {
+    "cache_write_input_tokens": 0,
+    "cached_input_tokens": 32514560,
+    "input_tokens": 33016405,
+    "output_tokens": 129501,
+    "reasoning_output_tokens": 40513
+  },
+  "events": [
+    {
+      "line": 505,
+      "event": {
+        "type": "turn.completed",
+        "usage": {
+          "input_tokens": 33016405,
+          "cached_input_tokens": 32514560,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 129501,
+          "reasoning_output_tokens": 40513
+        }
+      }
+    }
+  ]
+}

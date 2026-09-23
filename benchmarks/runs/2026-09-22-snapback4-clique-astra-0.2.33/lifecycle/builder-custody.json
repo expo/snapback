@@ -1,0 +1,111 @@
+{
+  "startedAt": "2026-09-23T04:00:40.407414+00:00",
+  "operatorPid": 19554,
+  "builder": {
+    "lane": "astra-snapback4",
+    "phase": "builder",
+    "pid": 25115,
+    "endedAt": "2026-09-23T03:58:37Z",
+    "endedEpoch": 1790135917,
+    "wallSeconds": 4924.23,
+    "exitCode": 0,
+    "stdout": "/Users/ccheever/clique-sb4-20260922-astra-cal17/logs/astra-snapback4.ndjson",
+    "stderr": "/Users/ccheever/clique-sb4-20260922-astra-cal17/logs/astra-snapback4.stderr.log"
+  },
+  "snapshot": "/Users/ccheever/clique-sb4-20260922-astra-cal17/attempts/builder-completed",
+  "source": "/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4",
+  "scope": "Complete pre-grade APFS clone; no exclusions. SHA256/mode/type/literal-symlink verification. No app repair or process killing.",
+  "copy": {
+    "command": [
+      "/bin/cp",
+      "-cRp",
+      "/Users/ccheever/clique-sb4-20260922-astra-cal17/lanes/astra-snapback4",
+      "/Users/ccheever/clique-sb4-20260922-astra-cal17/attempts/builder-completed"
+    ],
+    "pid": 21352,
+    "startedAt": "2026-09-23T04:00:49.818905+00:00",
+    "exitCode": 0,
+    "endedAt": "2026-09-23T04:00:56.659424+00:00",
+    "seconds": 6.844
+  },
+  "verified": true,
+  "entries": 44236,
+  "regularFiles": 38038,
+  "logicalFileBytes": 3488349291,
+  "narrative": {
+    "diary.md": {
+      "mode": 420,
+      "kind": "file",
+      "bytes": 9158,
+      "sha256": "a1c8cd4f35c7938e43d3de3a82cc277d5bb625fdf57067c26ae53091119990a4"
+    },
+    "essay.md": {
+      "mode": 420,
+      "kind": "file",
+      "bytes": 9569,
+      "sha256": "dc1cbb43fed8b4132397e24711fe11f6d265eda84703908acc72569e97f3a0e1"
+    },
+    "run-log.md": {
+      "mode": 420,
+      "kind": "file",
+      "bytes": 20007,
+      "sha256": "f723a7c247c2acadd5e33a32871daa94b832e9b2f492fdef37df5d0d36eb294e"
+    },
+    "final-report.md": {
+      "mode": 420,
+      "kind": "file",
+      "bytes": 28349,
+      "sha256": "30facd03611f50d18f902e93fcf2c386b560cf211be7aa482b86d5a23494f28a"
+    },
+    "run-record.json": {
+      "missing": true
+    },
+    "FINAL.md": {
+      "mode": 420,
+      "kind": "file",
+      "bytes": 287,
+      "sha256": "82c16abd390c8a3d2b27aabb5b260dff8a25904156793e307ba673e2c14b420e"
+    }
+  },
+  "builderLogs": {
+    "logs/astra-snapback4.end.json": {
+      "bytes": 364,
+      "sha256": "0039f63661dad17d80ad9569f234bf02761e40e25b77c57e1c57ea8b4807d50c"
+    },
+    "logs/astra-snapback4.ndjson": {
+      "bytes": 1770020,
+      "sha256": "782cbc5d622a47dac4a43bc05f6d6795a353810e353a97fa49ced9798ec98c4d"
+    },
+    "logs/astra-snapback4.pid": {
+      "bytes": 6,
+      "sha256": "d9c28a65308f55908ae67f0b12a5f6039c546191d6b06af874120da77916f98e"
+    },
+    "logs/astra-snapback4.start.json": {
+      "bytes": 1105,
+      "sha256": "8126fd632a4972cd6869bfe2a97f93f7554072531498fb97a829079e331fc15e"
+    },
+    "logs/astra-snapback4.stderr.log": {
+      "bytes": 1681,
+      "sha256": "c19921780ef8a4c53e7ab23ec81e9fadcdda821854b5ce9d11a9ecfb1c4618db"
+    }
+  },
+  "frozenInputs": {
+    "INSTRUMENT.sha256": "89b8c59d734334c015eaed025a52488e4c6266aabd40e21ade6a75ffd35381d2",
+    "PROMPT_TEMPLATES.sha256": "33e54d45d451400c38d9e1f738ebcd0181b0fc6c8fbf97de60e4fc15033b0f2e",
+    "INSTRUMENT_COMMIT": "b0e105d77cf623b915d518cd772561829b5170428e2f54d4540f08aad051e20c",
+    "scripts/aggregate_scores.py": "c46a9011ecc7f06f199849636685d8a3eb6335d38143bb3956807a75aeba0a3b",
+    "scripts/render.py": "d5c2f678b368bdae9655d0b8fea3533fc6a045372f591fd28cedfe42d7d22b02",
+    "scripts/run_phase.py": "c2d4bde00c0b876ececf6fc895fe5a584dc74987d471af43530a6e5714dca3a5",
+    "scripts/summarize_grades.py": "afe2432995a4e570b792478296313da96f1b994f3b789c5616beb4c3fc7f6a3c",
+    "scripts/verify.py": "73aba5c4eccb0bf267fed4dd9ecf48c4147d2540fe313563931aba9439e6ba62",
+    "prompts/grade.template.md": "2021a6292d3f4b9a4313d5daf1af27fbe129f6a0978334a21c9de8e619adb88a",
+    "prompts/holistic.template.md": "5fa1a22a21ca614544fad4fdd81e6300f9b355d39a4be7e79afdabd0e7c5d4f3",
+    "prompts/m7.template.md": "af72982e03b62771e774d98c0b2e6c5eb0fad8baaed1ccb97e4905311405f712",
+    "prompts/score.previous.template.md": "cb93bdd7b7907419b5aa2b243cc34cde07deb2a91055e33d84d32824e38f52ce",
+    "prompts/template.md": "10a7006f2145b3fed7ce1d736e73b4a3fcbc8ddeb88354a81a052ea169b843f6"
+  },
+  "missingNarratives": [
+    "run-record.json"
+  ],
+  "endedAt": "2026-09-23T04:01:15.052920+00:00"
+}
