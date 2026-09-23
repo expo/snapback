@@ -1,8 +1,8 @@
 //! The interpreter on a device (LLP 2000.000 §7.2, §9): the same programs
 //! the server runs, over the rows the device holds — its partition — with
-//! the device's three words: a synced table's rows are readable as held, an
-//! online-only table's are not here, and a page at the horizon may continue
-//! on the server; each of the last two is `complete: false`. A mutation
+//! delivered rows are readable as held; provisional images need current read
+//! authority. Hidden provisional images, unknown online-only facts and reads
+//! past a horizon make the result `complete: false`. A mutation
 //! predicts: its rows are written to the device's store for the host to
 //! mark pending, and the server judges the write when it arrives.
 
@@ -86,7 +86,6 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
     runner.device = true;
     let result = runner.run(program).and_then(|value| {
         runner.check_final_exists()?;
-        runner.check_prediction_readable()?;
         Ok(value)
     });
     if runner.beyond_horizon {

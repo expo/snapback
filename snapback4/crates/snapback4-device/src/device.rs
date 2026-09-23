@@ -222,6 +222,9 @@ struct Predicting<'a, T: DeviceTx> {
 }
 
 impl<T: DeviceTx> Rows for Predicting<'_, T> {
+    fn provisional_row(&self, table: &str, row: &Value) -> Result<bool, RuntimeError> {
+        Ok(self.tx.get(table, row.field("id")?.as_str()?)?.is_some_and(|image| image.field("pending") == Ok(&Value::Bool(true))))
+    }
     fn acquired_boundary(&self, table: &str, index: &str, prefix: &[Value]) -> Result<Option<snapback4_core::rows::AcquiredBoundary>, RuntimeError> {
         boundary::read(&self.boundaries, self.schema, table, index, prefix)
     }

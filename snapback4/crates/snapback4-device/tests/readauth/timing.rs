@@ -1,9 +1,15 @@
-//! Final-state authorization: later grants, revocations, rewrites and deletes.
+//! Read-time authorization: final state and the reading operation's meter.
 use super::*;
-use snapback4_core::{Ceilings, RuntimeError, Value, engine::local, rows::Rows};
+use snapback4_core::{Ceilings, RuntimeError, Value, engine::local, rows::{Rows, Bounds, Dir}, schema::{Table, Index}};
 use snapback4_device::store::DeviceTx;
 
 const SOURCE: &str = r#"
+table ticks:
+  public 'replay witness'
+  insert <- allow
+  sync public
+mutation tick():
+  insert ticks { id: new }
 table groups:
   public 'timing control groups'
   insert <- allow
@@ -30,9 +36,9 @@ table grants:
 mutation grantLater():
   insert groups { id: 'group' }
   insert notes { id: 'note', owner: viewer, groupId: 'group', body: 'first' }
+  insert grants { id: 'grant', groupId: 'group', principal: viewer }
   update notes['note'] { body: 'middle' }
   update notes['note'] { body: 'final' }
-  insert grants { id: 'grant', groupId: 'group', principal: viewer }
 mutation grantOnce():
   insert groups { id: 'group' }
   insert notes { id: 'note', owner: viewer, groupId: 'group', body: 'final' }
@@ -64,7 +70,10 @@ fn lifecycle<H: Host>(mut host: H, op: &str, predicts: bool, survives: bool) {
     assert_eq!(device.queued().unwrap()[0].predictable,predicts);
     assert_eq!(device.query("note","alice",&json!({}),100).unwrap().data,pending);
     let from=device.state().unwrap().0;
-    device.apply(&stream_page(&mut engine,"alice",from),false).unwrap();
+    sent(&mut engine,"tick",json!({}),vec![]);
+    let page=stream_page(&mut engine,"alice",from);
+    assert!(!page.events.is_empty() && page.watermark>from);
+    device.apply(&page,false).unwrap();
     assert_eq!(device.queued().unwrap()[0].predictable,predicts,"replay");
     assert_eq!(device.query("note","alice",&json!({}),100).unwrap().data,pending);
     let seq=sent(&mut engine,op,json!({}),queued.new_ids);
@@ -80,23 +89,49 @@ fn lifecycle<H: Host>(mut host: H, op: &str, predicts: bool, survives: bool) {
 
 #[test] fn grant_later_memory() { lifecycle(Memory::new(),"grantLater",true,true); }
 #[test] fn grant_later_sqlite() { lifecycle(Sqlite::new("grant-later"),"grantLater",true,true); }
-#[test] fn revoke_later_memory() { lifecycle(Memory::new(),"revokeLater",false,false); }
-#[test] fn revoke_later_sqlite() { lifecycle(Sqlite::new("revoke-later"),"revokeLater",false,false); }
+#[test] fn revoke_later_memory() { lifecycle(Memory::new(),"revokeLater",true,false); }
+#[test] fn revoke_later_sqlite() { lifecycle(Sqlite::new("revoke-later"),"revokeLater",true,false); }
 #[test] fn write_then_delete_memory() { lifecycle(Memory::new(),"transient",true,false); }
 #[test] fn write_then_delete_sqlite() { lifecycle(Sqlite::new("write-delete"),"transient",true,false); }
 
-fn probes<S: DeviceStore>(mut store: S) {
-    let (_,backend)=compile(SOURCE);
-    store.install(&backend.schema,&Default::default(),false).unwrap();
-    for (op,budget,accepted) in [("grantOnce",0,false),("grantOnce",1,true),("grantLater",2,true),("transient",0,true)] {
-        let tx=store.transaction().unwrap();
-        let program=backend.programs.iter().find(|p|p.name==op).unwrap();
-        let prediction=local::predict(&tx,&backend.schema,program,context("alice",&[]).at(100),Ceilings { rule_probes:budget,..Default::default() });
-        assert_eq!(prediction.is_ok(),accepted,"{op}/{budget}: {prediction:?}");
-        if !accepted { assert!(matches!(prediction,Err(RuntimeError::Prediction(_))),"probe exhaustion queues: {prediction:?}"); }
-        if op=="transient" { assert!(tx.get("notes","note").unwrap().is_none()); }
-        tx.rollback().unwrap();
-    }
+// A local query's provenance comes from its host; exercise the same query
+// against both underlying stores with a zero/one-probe ceiling.
+struct Overlay<'a>(&'a dyn Rows);
+impl Rows for Overlay<'_> {
+    fn provisional_row(&self,_:&str,_:&Value)->Result<bool,RuntimeError>{Ok(true)}
+    fn get(&self,t:&str,id:&str)->Result<Option<Value>,RuntimeError>{self.0.get(t,id)}
+    fn lookup(&self,t:&str,n:&str,i:&Index,k:&[Value])->Result<Option<Value>,RuntimeError>{self.0.lookup(t,n,i,k)}
+    fn scan(&self,t:&str,n:&str,k:&[Value],b:&Bounds,d:Dir,l:usize)->Result<Vec<(Value,Vec<u8>)>,RuntimeError>{self.0.scan(t,n,k,b,d,l)}
+    fn count_prefix(&self,t:&str,n:&str,k:&[Value],l:u64)->Result<u64,RuntimeError>{self.0.count_prefix(t,n,k,l)}
+    fn put(&self,t:&str,d:&Table,r:&Value,o:Option<&Value>)->Result<u64,RuntimeError>{self.0.put(t,d,r,o)}
+    fn delete(&self,t:&str,d:&Table,r:&Value)->Result<u64,RuntimeError>{self.0.delete(t,d,r)}
 }
-#[test] fn final_probes_once_memory() { probes(snapback4_device::memory::MemoryStore::new()); }
-#[test] fn final_probes_once_sqlite() { probes(snapback4_core::Store::memory().unwrap()); }
+fn probes<S:DeviceStore>(mut store:S) {
+    let (_,b)=compile(super::regressions::SOURCE);
+    store.install(&b.schema,&Default::default(),false).unwrap();
+    let tx=store.transaction().unwrap();
+    let program=|name:&str| b.programs.iter().find(|p|p.name==name).unwrap();
+    // There is no output-read admission charge: this predicts with zero probes.
+    local::predict(&tx,&b.schema,program("publish"),context("alice",&[]).at(100),Ceilings{rule_probes:0,..Default::default()}).unwrap();
+    for name in ["point","scan","merged","page","total","probe"] {
+        for budget in [0,1] {
+            let out=local::query(&Overlay(&tx),&b.schema,program(name),context("alice",if name=="page" {&[("c",Value::Null)]} else {&[]}).at(100),Ceilings{rule_probes:budget,..Default::default()});
+            let out=out.unwrap();
+            assert_eq!(out.metered.rule_probes,1,"{name}/{budget}");
+            if budget==0 {
+                assert!(!out.complete && out.capped_at.is_some(),"{name}: {out:?}");
+                assert!(matches!(out.data,Value::Null|Value::Bool(false)|Value::Int(0)) || out.data.as_array().is_ok_and(|a|a.is_empty()),"{name}: {out:?}");
+            } else {assert!(!matches!(out.data,Value::Null|Value::Bool(false)),"{name}: {out:?}");}
+        }
+    }
+    // Delivered control pays no read-rule probes, even at a zero ceiling.
+    let out=local::query(&tx,&b.schema,program("point"),context("alice",&[]).at(100),Ceilings{rule_probes:0,..Default::default()}).unwrap();
+    assert!(out.complete && out.data!=Value::Null);
+    assert_eq!(out.metered.rule_probes,0);
+    tx.rollback().unwrap();
+}
+#[test] fn reading_probe_meter_memory(){probes(snapback4_device::memory::MemoryStore::new());}
+#[test] fn reading_probe_meter_sqlite(){
+    let host=Sqlite::new("reading-probes");
+    probes(snapback4_core::Store::open(&host.path("meter")).unwrap());
+}

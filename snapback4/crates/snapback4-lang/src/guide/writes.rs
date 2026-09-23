@@ -13,9 +13,10 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
 ```
 
 If `messageId` in `writeForms` addresses retained history from a room the
-writer has left, its final updated image lacks read authority. The entire call
-queues without predicted rows, including the earlier readable inserts.
-See `guide prediction` for the per-call read check.
+writer has left, the call still predicts. Reads hide the updated message
+because current membership is absent, while readable inserts remain visible.
+Unknown reaction authority also hides that provisional reaction.
+See `guide prediction` for authorization on each device read.
 
 For replay adapters and retry-safe intents, pass a `mintId()` you stored with
 the intent or fixture; arbitrary fixture strings still need an application ledger.

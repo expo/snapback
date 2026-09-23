@@ -3,6 +3,7 @@ use snapback4_core::{Context, Value};
 use snapback4_device::device::Backend;
 #[path = "../../../snapback4-sim/tests/common/following_app.rs"]
 mod recipe;
+const TICK:&str="table ticks:\n  public 'replay'\n  insert <- allow\n  sync public\nmutation tick():\n  insert ticks { id: new }\n";
 
 fn execute(e: &mut Engine, b: &Backend, op: &str, viewer: &str, input: Json, ids: Vec<String>) -> u64 {
     let p=b.programs.iter().find(|p|p.name==op).unwrap();
@@ -10,29 +11,61 @@ fn execute(e: &mut Engine, b: &Backend, op: &str, viewer: &str, input: Json, ids
     let out=e.mutate(op,None,Context::new(viewer,args).at(100).with_ids(ids)).unwrap();
     match out.state { WriteState::Sent{seq,..}=>seq, WriteState::Failed{why,..} if op=="edit" && why.code=="NOT_FOUND" => 0, _=>panic!("{op}: {out:?}") }
 }
-fn acquire<H:Host>(h:&mut H,e:&mut Engine,b:Backend) -> Device<H::Store> {
+fn acquire<H:Host>(h:&mut H,e:&mut Engine,mut b:Backend) -> Device<H::Store> {
+    // Real point queries for every predicted output, including private fan-out.
+    use snapback4_core::ir::*;
+    for table in b.schema.tables.keys() {
+        b.programs.push(Program { name:format!("inspect_{table}"), kind:ProgramKind::Query,
+            args:[("id".into(),ArgType::Id)].into(), read_time_granularity_ms:None, native:false, returned_shapes:Default::default(),
+            body:vec![Stmt::Return(Expr::Get(Read {site:"inspect".into(),table:table.clone(),index:"byId".into(),key:vec![Expr::Variable("id".into())],provenance:KeyProvenance::Arg}))] });
+    }
     let mut d=h.open("census",Some(b)).unwrap();
     for (n,p) in snapshot_pages(e,"alice",1000).iter().enumerate() {d.apply(p,n==0).unwrap();}
     d
 }
-fn queued_lifecycle<H:Host>(h:&mut H,mut d:Device<H::Store>,e:&mut Engine,op:&str,input:Json) {
+fn predicted_lifecycle<H:Host>(h:&mut H,mut d:Device<H::Store>,e:&mut Engine,op:&str,input:Json) {
     let q=admit(&mut d,op,input.clone());
-    assert!(!q.predictable && q.predicted.is_empty(),"{op}: {q:?}");
+    assert!(q.predictable && !q.predicted.is_empty(),"{op}: {q:?}");
+    let inspect=|d:&mut Device<H::Store>| -> Vec<(String,Json)> {
+        q.predicted.iter().map(|key| {
+            let (table,id)=key.split_once('/').unwrap();
+            let out=d.query(&format!("inspect_{table}"),"alice",&json!({"id":id}),100).unwrap();
+            let data=wire::to_json(&out.data);
+            (key.clone(),json!({"data":data,"complete":out.complete}))
+        }).collect()
+    };
+    let pending=inspect(&mut d);
+    let hidden=pending.iter().filter(|(_,v)|v["data"].is_null() && v["complete"]==false).count();
+    assert_eq!(hidden,if op=="writeForms" {3} else {1},"retained edit / unknown reaction inputs / foreign inbox: {pending:?}");
+    if op=="edit" { assert_eq!(pending.len(),1); }
+    else {assert!(pending.iter().any(|(_,v)|!v["data"].is_null()),"readable sibling remains visible");}
     h.close("census",d); d=h.open("census",None).unwrap();
-    assert!(!d.queued().unwrap()[0].predictable);
-    // Reconnect replays every outstanding mutation before its response arrives.
+    assert!(d.queued().unwrap()[0].predictable);
+    assert_eq!(inspect(&mut d),pending);
     let from=d.state().unwrap().0;
-    d.apply(&stream_page(e,"alice",from),false).unwrap();
-    assert!(!d.queued().unwrap()[0].predictable);
+    // A real delivered update forces replay; the receipt alone is no witness.
+    let table=if d.schema().tables.contains_key("ticks") {"ticks"} else {"posts"};
+    if table=="ticks" {execute(e,&d.backend(),"tick","alice",json!({}),vec![]);}
+    let rows=e.store().rows(table).unwrap();
+    if let Some(row)=rows.first() {e.seed([(table.into(),row.clone())]).unwrap();}
+    let page=stream_page(e,"alice",from);
+    assert!(!page.events.is_empty() && page.watermark>from);
+    d.apply(&page,false).unwrap();
+    assert!(d.queued().unwrap()[0].predictable);
+    assert_eq!(inspect(&mut d),pending);
     let seq=execute(e,&d.backend(),op,"alice",input,q.new_ids);
     d.settle(&q.id,(seq!=0).then_some(seq)).unwrap();
     let from=d.state().unwrap().0;
     d.apply(&stream_page(e,"alice",from),false).unwrap();
     assert!(d.queued().unwrap().is_empty());
+    if op=="edit" {
+        assert_eq!(seq,0,"server refused the departed edit");
+        assert_eq!(wire::to_json(&d.query("raw","alice",&json!({"messageId":"message"}),100).unwrap().data)["body"],"Old");
+    }
     h.close("census",d);
 }
 fn create_room<H:Host>(mut h:H) {
-    let (mut e,b)=compile(&snapback4_lang::guide::language());
+    let (mut e,b)=compile(&format!("{}\n{TICK}",snapback4_lang::guide::language()));
     let mut d=acquire(&mut h,&mut e,b);
     let input=json!({"name":"New","kind":"open","tags":[]});
     let q=admit(&mut d,"createRoom",input.clone());
@@ -46,7 +79,10 @@ fn create_room<H:Host>(mut h:H) {
     assert!(d.queued().unwrap()[0].predictable);
     assert_eq!(d.query("room","alice",&args,100).unwrap().data,pending);
     let from=d.state().unwrap().0;
-    d.apply(&stream_page(&mut e,"alice",from),false).unwrap();
+    execute(&mut e,&d.backend(),"tick","alice",json!({}),vec![]);
+    let page=stream_page(&mut e,"alice",from);
+    assert!(!page.events.is_empty() && page.watermark>from);
+    d.apply(&page,false).unwrap();
     assert!(d.queued().unwrap()[0].predictable,"createRoom still predicts during replay");
     assert_eq!(d.query("room","alice",&args,100).unwrap().data,pending);
     let seq=execute(&mut e,&d.backend(),"createRoom","alice",input,q.new_ids);
@@ -69,7 +105,7 @@ fn recipe_fanout<H:Host>(mut h:H,op:&str) {
     execute(&mut e,&backend,"social.createPost","bob",json!({"postId":"original","body":"Original"}),vec![]);
     let input=if op=="social.createPost" {json!({"postId":"new","body":"New"})} else {json!({"postId":"original"})};
     let d=acquire(&mut h,&mut e,backend);
-    queued_lifecycle(&mut h,d,&mut e,op,input);
+    predicted_lifecycle(&mut h,d,&mut e,op,input);
 }
 #[test] fn recipe_post_memory() {recipe_fanout(Memory::new(),"social.createPost");}
 #[test] fn recipe_post_sqlite() {recipe_fanout(Sqlite::new("census-post"),"social.createPost");}
@@ -80,7 +116,7 @@ fn retained_edit<H:Host>(mut h:H,source:&str,language:bool,write_forms:bool) {
     let group=if language {"roomId"} else {"conversationId"};
     let members=if language {"members"} else {"memberships"};
     let rooms=if language {"rooms"} else {"conversations"};
-    let source=format!("{source}\nquery raw(messageId: messages):\n  return messages[messageId]\nmutation depart():\n  delete {members}[\"member\"]\n");
+    let source=format!("{source}\n{TICK}\nquery raw(messageId: messages):\n  return messages[messageId]\nmutation depart():\n  delete {members}[\"member\"]\n");
     let (mut e,b)=compile(&source);
     let room=if language {json!({"id":"left","name":"Left","ownerId":"alice","kind":"open","tags":[],"createdAt":1})} else {json!({"id":"left","title":"Left","creatorId":"alice"})};
     let rows=[(rooms,room),(members,json!({"id":"member",group:"left","principal":"alice","role":"admin","joinedAt":1})),
@@ -99,10 +135,12 @@ fn retained_edit<H:Host>(mut h:H,source:&str,language:bool,write_forms:bool) {
     let from=d.state().unwrap().0;
     execute(&mut e,&b,"depart","alice",json!({}),vec![]);
     d.apply(&stream_page(&mut e,"alice",from),false).unwrap();
+    assert!(!e.store().rows(members).unwrap().iter().any(|r|r.field("id")==Ok(&id("member"))));
+    assert_eq!(e.query("raw",context("alice",&[("messageId",id("message"))]).at(100)).unwrap().data,Value::Null);
     assert_eq!(d.query("raw","alice",&json!({"messageId":"message"}),100).unwrap().data.field("body").unwrap(),&Value::String("Old".into()),"delivered retained image remains readable");
     let op=if write_forms {"writeForms"} else {"edit"};
     let input=if write_forms {json!({"roomId":"active","messageId":"message","postId":"post","body":"New"})} else if language {json!({"messageId":"message","body":"New","expected":"Old"})} else {json!({"messageId":"message","body":"New"})};
-    queued_lifecycle(&mut h,d,&mut e,op,input);
+    predicted_lifecycle(&mut h,d,&mut e,op,input);
 }
 fn language() -> String { snapback4_lang::guide::language() }
 fn app_card() -> String { snapback4_lang::guide::quarry(snapback4_lang::guide::card("app").unwrap())[0].clone() }
@@ -125,7 +163,7 @@ fn standalone<H:Host>(mut h:H,op:&str) {
     execute(&mut e,&b,"createPost","bob",json!({"postId":"original"}),vec![]);
     let input=if op=="createPost" {json!({"postId":"new"})} else {json!({"eventId":"original"})};
     let d=acquire(&mut h,&mut e,b);
-    queued_lifecycle(&mut h,d,&mut e,op,input);
+    predicted_lifecycle(&mut h,d,&mut e,op,input);
 }
 #[test] fn standalone_post_memory() {standalone(Memory::new(),"createPost");}
 #[test] fn standalone_post_sqlite() {standalone(Sqlite::new("standalone-post"),"createPost");}
@@ -143,7 +181,7 @@ fn bridge<H:Host>(mut h:H,op:&str) {
         else {("reposts",json!({"id":"repost","actorId":"alice","postId":"original","at":100}),json!({"repostId":"repost"}))};
     e.seed([(table.into(),wire::row_from_json(&b.schema.tables[table],&row).unwrap())]).unwrap();
     let d=acquire(&mut h,&mut e,b);
-    queued_lifecycle(&mut h,d,&mut e,op,input);
+    predicted_lifecycle(&mut h,d,&mut e,op,input);
 }
 #[test] fn bridge_publish_memory() {bridge(Memory::new(),"social.publishExisting");}
 #[test] fn bridge_publish_sqlite() {bridge(Sqlite::new("bridge-publish"),"social.publishExisting");}

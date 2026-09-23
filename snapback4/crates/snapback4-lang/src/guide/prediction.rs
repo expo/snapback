@@ -36,22 +36,28 @@ causes with deduplicated sites and rewrites.
 Every mutation can queue on the local client; eligibility is not a promise
 that every call produces a predicted row. Native reads also need their module.
 
-At the end of prediction, every distinct row inserted, updated or upserted
-that still exists must pass its table's read rule for the predicting principal.
-The check uses the final provisional state, including grants written later in
-the same call. Rows written and then deleted do not count. A denied or
-unevaluable rule queues the whole mutation without predicted rows, even if
-other writes are readable. These checks consume the prediction's rule probes;
-insufficient budget also queues. A rule that needs an unheld row cannot
-authorize prediction. Delivered rows keep their server authorization. The
-declared timeline alone skips foreign engine-owned inbox copies while
-predicting its other rows; application-authored fan-out has no such exception.
+Every device read authorizes a provisional row with its table's read rule for
+the device principal, against all pending predictions layered over delivered
+rows. This includes reads inside a predicting mutation, pages, counts, probes
+and watches. Denied or unknown provisional rows are absent and the read is
+incomplete; an exhausted read meter cuts the result without showing the row.
+Retained-only witnesses and left groups cannot establish current authority.
+Delivered rows keep their server authorization.
 
-For example, the language card's `createRoom` predicts: the membership written
-later in the call authorizes its room in the final state. Editing a retained
-message after leaving its conversation queues, even though the delivered old
-image remains readable. These are per-call outcomes; static eligibility and
-`predicts:` assertions are unchanged.
+An unreadable output does not prevent prediction. For example, a moderation
+report predicts but stays invisible to its writer until settlement removes or
+replaces the overlay. A later pending grant can make a row visible; a later
+pending revocation hides it immediately. A mutation that reads an unreadable
+provisional input cannot establish that read and may queue without rows.
+
+The language card's `createRoom` predicts and its room is visible through the
+membership inserted later in that call. An edit of a message retained after
+leaving its conversation also predicts, but its new image is hidden; refusing
+the write restores the readable delivered history. `writeForms` keeps its
+readable outputs while hiding unreadable or unknown ones. Static eligibility
+and `predicts:` assertions are unchanged. The declared timeline still skips
+foreign engine-owned inbox copies before writing them. Ordinary recipe fan-out
+predicts all its copies and hides those whose `readerId` differs from the viewer.
 
 ```quarry
 table drafts:

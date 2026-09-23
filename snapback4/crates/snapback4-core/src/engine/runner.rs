@@ -54,8 +54,10 @@ pub struct Runner<'a> {
     /// rows can share a key; counts preserve their independent ownership.
     pub(crate) created_rows: BTreeMap<(String, String), Vec<(String, String, String)>>,
     pub(crate) inserted: Vec<(String, Value)>,
-    /// Distinct provisional outputs to authorize against the final state.
-    pub(super) prediction_rows: BTreeSet<(String, String)>,
+    /// Images written during this execution, including reads inside prediction.
+    pub(super) provisional_rows: BTreeSet<(String, String)>,
+    /// Recursion guard for provisional witnesses that depend on one another.
+    pub(super) authorizing_rows: BTreeSet<(String, String)>,
     /// Tables read and tables written, for live subscriptions and commits.
     pub(crate) read_tables: BTreeSet<String>,
     pub(crate) written_tables: BTreeSet<String>,
@@ -94,9 +96,9 @@ pub struct Runner<'a> {
     /// First scope whose word expansion exceeded 32; incomplete, without
     /// stopping later lanes or setting the query's meter cut.
     pub(crate) word_cut_at: Option<String>,
-    /// Running on a device over its partition (`engine::local`): a synced
-    /// table's rows are readable as held, an online-only table's are not
-    /// here, and a page at the horizon may continue on the server.
+    /// Running on a device over its partition (`engine::local`):
+    /// delivered rows are trusted; provisional images need current read
+    /// authority. Online-only and horizon reads may need the server.
     pub(crate) device: bool,
     /// The device touched an online-only table or a horizon: `complete: false`.
     pub(crate) beyond_horizon: bool,
@@ -147,7 +149,8 @@ impl<'a> Runner<'a> {
             created: BTreeMap::new(),
             created_rows: BTreeMap::new(),
             inserted: Vec::new(),
-            prediction_rows: BTreeSet::new(),
+            provisional_rows: BTreeSet::new(),
+            authorizing_rows: BTreeSet::new(),
             read_tables: BTreeSet::new(),
             written_tables: BTreeSet::new(),
             rows_written: 0,

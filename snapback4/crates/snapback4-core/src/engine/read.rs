@@ -116,7 +116,13 @@ impl Runner<'_> {
         self.read_tables.insert(table.to_owned());
         let found = self.lookup_live(table, index, index_def, key, false)?;
         let mut live = found.is_some();
+        if self.device && !self.authorizing_rows.is_empty()
+            && (self.tx.retained_group(table, index, key)? || found.as_ref().map(|row| self.tx.retained_row(table, row)).transpose()?.unwrap_or(false)) {
+            self.unknown_fact(table, index, key, "retained authorization witness");
+            return Ok(false);
+        }
         if let Some(row) = &found {
+            if !self.provisional_readable(table, row)? { return Ok(false); }
             self.note_expiry(definition, row);
             if let Some(maintain) = self.schema.maintain_for(table)
                 && let Some(source) = self.schema.table(&maintain.source).filter(|source| source.expire.is_some()) {
@@ -132,7 +138,7 @@ impl Runner<'_> {
                     for (candidate, stored) in rows {
                         let candidate = crate::schema::row_image(&candidate, source);
                         bounds.after = crate::key::decode(&stored).map(|v| v.into_iter().skip(prefix.len()).collect());
-                        if !self.expired(source, &candidate) && maintain.selected(&candidate) && maintain.source_key(&candidate) == group {
+                        if !self.expired(source, &candidate) && self.provisional_readable(&maintain.source, &candidate)? && maintain.selected(&candidate) && maintain.source_key(&candidate) == group {
                             self.note_expiry(source, &candidate);
                             live = true;
                             break 'sources;
@@ -203,7 +209,7 @@ impl Runner<'_> {
                 if !self.read_charge(MeterKind::Examined, 1)? { break 'sources; }
                 bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(prefix.len()).collect());
                 if !self.read_charge(MeterKind::Steps, maintain.evaluation_steps())? { break 'sources; }
-                if self.expired(source, &candidate) || !maintain.selected(&candidate) || maintain.source_key(&candidate) != group { continue; }
+                if self.expired(source, &candidate) || !self.provisional_readable(&maintain.source, &candidate)? || !maintain.selected(&candidate) || maintain.source_key(&candidate) != group { continue; }
                 any = true;
                 self.note_expiry(source, &candidate);
                 total += match &maintain.kind { crate::schema::MaintainKind::Count => 1, crate::schema::MaintainKind::Sum { of } => i128::from(candidate.field(of)?.as_int()?) };
@@ -253,6 +259,7 @@ impl Runner<'_> {
     /// store's owner and passes every rule; validation and constraints
     /// still run for it.
     pub(crate) fn check_rule(&mut self, table_name: &str, effect: Effect, old: Option<&Value>, next: &Value) -> Result<bool, RuntimeError> {
+        if effect == Effect::Read && !self.provisional_readable(table_name, next)? { return Ok(false); }
         if effect != Effect::Read && self.timeline_may_write(table_name, effect) { return Ok(true); }
         if self.context.is_system() {
             return Ok(true);
@@ -277,30 +284,44 @@ impl Runner<'_> {
         rules::evaluate(&rule, &viewer, old.as_ref(), &next, effect == Effect::Insert, self)
     }
 
-    // @ref LLP 2000.000#73-prediction-ids-generations — provisional outputs need read authority before publication; E_PREDICT rolls back the whole mutation.
-    pub(super) fn check_prediction_readable(&mut self) -> Result<(), RuntimeError> {
-        // Later writes may grant or revoke access to an earlier output.
-        // Check each surviving row once, after all statements and transitions.
-        for (table, id) in std::mem::take(&mut self.prediction_rows) {
-            if let Some(row) = self.tx.get(&table, &id)? && !self.prediction_readable(&table, &row) {
-                return Err(RuntimeError::Prediction(format!("{table}: the final written row's read rule is denied or unknown on this device; queued without predicted rows")));
-            }
+    /// Only overlay images lack the server's delivery authorization. Check at
+    /// every read, against all predictions currently layered over delivery.
+    pub(super) fn provisional_readable(&mut self, table: &str, row: &Value) -> Result<bool, RuntimeError> {
+        if !self.device { return Ok(true); }
+        let key = (table.to_owned(), row.field("id")?.as_str()?.to_owned());
+        if !self.provisional_rows.contains(&key) && !self.tx.provisional_row(table, row)? { return Ok(true); }
+        if !self.authorizing_rows.insert(key.clone()) {
+            // A membership's positive self-audience is witnessed by this very
+            // row (the server's rule probes test existence, not recursive ACLs).
+            // Coverage was checked before reaching this recursion. Other cycles
+            // cannot establish authority here.
+            if matches!(&self.schema.tables[table].rules.read, crate::schema::RuleExpr::Exists { table: target, .. } if target == table) { return Ok(true); }
+            self.unknown_fact(table, "byId", &[Value::Id(key.1)], "cyclic provisional authority");
+            return Ok(false);
         }
-        Ok(())
+        // An unrelated incomplete component must not hide a readable row.
+        let prior = std::mem::replace(&mut self.beyond_horizon, false);
+        let verdict = self.evaluate_read_rule(table, row);
+        let unknown = self.beyond_horizon;
+        self.beyond_horizon |= prior;
+        self.authorizing_rows.remove(&key);
+        let allowed = verdict? && !unknown && !self.read_capped();
+        if !allowed {
+            self.unknown_fact(table, "byId", &[Value::Id(key.1)], "provisional read authority");
+        }
+        Ok(allowed)
     }
 
-    /// Provisional images have no server read authorization. Evaluate the
-    /// actual rule, including its probes, without the delivered-row shortcut.
-    /// A missing fact or any evaluation failure cannot justify prediction.
-    pub(super) fn prediction_readable(&mut self, table: &str, row: &Value) -> bool {
+    /// F3 also uses the evaluator before writing an engine-owned copy. Only
+    /// an explicit denial skips that copy; errors still abort prediction.
+    pub(super) fn evaluate_read_rule(&mut self, table: &str, row: &Value) -> Result<bool, RuntimeError> {
         let table = &self.schema.tables[table];
         let rule = table.rules.read.clone();
         let mut row = row.clone();
         materialize_optional_fields(&mut row, table);
         self.rule_dependencies(&rule);
         let viewer = self.context.viewer.clone();
-        matches!(rules::evaluate(&rule, &viewer, None, &row, false, self), Ok(true))
-            && !self.beyond_horizon
+        rules::evaluate(&rule, &viewer, None, &row, false, self)
     }
 
     /// A row by id, materialized, without a rule check.
@@ -362,6 +383,7 @@ impl Runner<'_> {
             return Ok(Value::Null);
         }
         materialize_optional_fields(&mut row, table);
+        if !self.provisional_readable(&read.table, &row)? { return Ok(Value::Null); }
         let viewer = self.context.viewer.clone();
         let allowed = trusted || rules::evaluate(&table.rules.read, &viewer, None, &row, false, &mut PrefixProbe { runner: self })?;
         if allowed {
@@ -783,7 +805,7 @@ impl Runner<'_> {
                 }
                 let row_expiry_mark = self.next_expiry;
                 let allowed = match uniform_verdict {
-                    Some(verdict) => verdict,
+                    Some(verdict) => verdict && self.provisional_readable(&scan.table, &row)?,
                     None => {
                         let verdict = self.check_rule(&scan.table, Effect::Read, None, &row)?;
                         verdict

@@ -515,7 +515,7 @@ impl Runner<'_> {
         // and deletes remove only that row's contributions in O(index count).
         let id = old.or(new).expect("a row change has an image").field("id")?.as_str()?;
         let owner = (table_name.to_owned(), id.to_owned());
-        if self.device && new.is_some() { self.prediction_rows.insert(owner.clone()); }
+        if self.device && new.is_some() { self.provisional_rows.insert(owner.clone()); }
         let previous = self.created_rows.remove(&owner);
         let was_created = previous.is_some() || old.is_none();
         if let Some(keys) = previous {

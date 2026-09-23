@@ -76,6 +76,9 @@ pub(super) struct Reading<'a, T: DeviceTx> {
 }
 
 impl<T: DeviceTx> Rows for Reading<'_, T> {
+    fn provisional_row(&self, _table: &str, row: &Value) -> Result<bool, RuntimeError> {
+        Ok(row.field("pending") == Ok(&Value::Bool(true)))
+    }
     fn acquired_boundary(&self, table: &str, index: &str, prefix: &[Value]) -> Result<Option<snapback4_core::rows::AcquiredBoundary>, RuntimeError> {
         boundary::read(&self.boundaries, self.schema, table, index, prefix)
     }

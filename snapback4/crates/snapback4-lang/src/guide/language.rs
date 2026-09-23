@@ -14,9 +14,10 @@ and `now - .at` is elapsed time; `day(now)`, `hour(now)` and `bucket(now, 2m)`
 produce UTC calendar ordinals. See `guide jobs` for scheduled work.
 
 `createRoom` below predicts: its room is readable through the membership
-inserted later in the same call. Read authority is checked against the final
-provisional state. `edit` queues when its message is retained history after
-leaving the room; the server judges the queued call. See `guide prediction`.
+inserted later in the same call. Reads authorize the current provisional
+image against all pending writes. `edit` of retained history after leaving
+the room also predicts, but the edited image is hidden until settlement.
+See `guide prediction`.
 
 ```quarry
 use identity                          -- guests and password accounts; `use identity guests` or `use identity password` admits one kind

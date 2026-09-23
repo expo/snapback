@@ -332,9 +332,10 @@ to the declaration in 0.3: activation needs empty event and edge tables.
 The [existing adoption instructions](https://github.com/expo/snapback/blob/main/snapback4/crates/snapback4-lang/src/recipe/ADOPTION.md)
 still apply to those apps, including paused writes and dependency-ordered backfill.
 
-An installed recipe's `createPost` or `repost` now queues the whole mutation
-when its final provisional state includes another reader's private inbox copy. The declared
-timeline's engine-owned copies keep the skip behavior described above.
+An installed recipe's `createPost` or `repost` predicts its ordinary fan-out
+writes. Each device read hides foreign inbox copies: their `readerId = viewer`
+read rule fails for the author. The declared timeline still skips foreign
+engine-owned copies before writing them, as described above.
 See `guide prediction` for the shared read-authorization rule.
 
 The installed recipe trusts its principals with permissive projection writes:

@@ -141,8 +141,9 @@ fn w7a_wired_mutations_predict_or_queue_offline_on_both_stores() {
             "id":"fanout", "seq":1, "op":"social.createPost", "viewer":"alice",
             "args":{"postId":"fanout-post", "body":"fanout"}, "now":20, "predictable":true,
         })).unwrap()).unwrap();
-        assert!(!prediction.predictable && prediction.predicted.is_empty(), "a recipe's foreign inbox write queues the whole mutation");
-        println!("W7a host={} offline_fanout_predicted_rows=0", host.label());
+        assert!(prediction.predictable);
+        assert_eq!(prediction.predicted.len(), 4, "ordinary recipe writes predict; foreign copies are hidden on read");
+        println!("W7a host={} offline_fanout_predicted_rows=4", host.label());
     }
     run(Memory::new()); run(Sqlite::new("w7a-predict"));
 }

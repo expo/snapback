@@ -75,9 +75,9 @@ mutation edit(messageId: messages, body: text <=4000):
   return null
 ```
 
-Offline `edit` queues without predicted rows after the author leaves the
-conversation: the retained old message stays readable, but the new image
-needs current read authority at the end of the call. The server still judges the queued operation.
+Offline `edit` predicts after the author leaves the conversation. Its new
+image is hidden because the membership read rule no longer holds; a server
+refusal restores the delivered retained image, which remains trusted.
 See `guide prediction`.
 
 ## With `use server`

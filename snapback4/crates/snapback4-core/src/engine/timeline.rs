@@ -246,8 +246,8 @@ impl Runner<'_> {
         fields.insert("id".into(), Value::Id(crate::schema::timeline::owned_id(&t.name, suffix, key)));
         let row = Value::Row(fields.into());
         // F3's foreign owned rows alone are skipped instead of queuing the
-        // whole mutation. Share the predictor's read authorization check.
-        if self.device && !self.prediction_readable(&t.table(suffix), &row) { return Ok(TimelineInsert::Skipped); }
+        // whole mutation. Evaluation errors still abort the prediction.
+        if self.device && !self.evaluate_read_rule(&t.table(suffix), &row)? { return Ok(TimelineInsert::Skipped); }
         self.meter.heap(row.heap_bytes())?;
         self.insert(&t.table(suffix), row)?;
         Ok(TimelineInsert::Written)
