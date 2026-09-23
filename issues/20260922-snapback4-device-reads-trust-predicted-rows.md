@@ -1,6 +1,7 @@
 # Snapback 4: device reads trust predicted rows that the writer cannot read
 
 **Status:** Open
+**Owner:** the Snapback 4 0.3 program lead (Claude Opus 5.5). A decision and a shared correction are required before 0.3.0 is published.
 **Date:** 2026-09-22
 **Scope:** `snapback4-core` device read path (`engine/read.rs`, around line 243: every row in a synced table is trusted), and device prediction.
 **Source:** Astra xhigh's review of lane F3b (the declared timeline on devices), under LLP 3000 decision 4's partition review focus.
@@ -35,3 +36,12 @@ a row its principal's read rule denies (lane F3b, fix round 1).
   every provisional row a read touches.
 - Census the existing cards, recipes and templates for insert rules that
   admit unreadable rows.
+
+## Ownership (2026-09-22)
+
+An independent Astra review of the 0.3 program asked for a named owner and a
+shared correction: this is a provisional-versus-delivered provenance problem,
+not a timeline special case. The 0.3 program lead owns it. It will be
+resolved in the integration milestone, before 0.3.0 is published, with one
+provenance rule on the device read path or the predictor, shared by every
+table, and tests on both stores.

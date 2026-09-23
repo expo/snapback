@@ -21,6 +21,25 @@ levers**, whatever its number. The fit, bands and thresholds below are frozen
 as filed. They are not refit on #17's result, and #17 is read as one more
 level observation, not as this file's test.
 
+**Interpretation note (2026-09-22, added before any 0.3 lever was published;
+predictions unchanged).** The corrective 0.2.33 control, calibration #17
+(`benchmarks/runs/2026-09-22-snapback4-clique-astra-0.2.33/`), scored
+data_modeling **86** and queries_and_live **89** (holistic 92) with no 0.3
+lever. Both already meet this file's confirm thresholds (≥86 and ≥87).
+A 0.3 pin crossing them is therefore **not** evidence of a 0.3 effect. The
+predictions stay frozen and their outcome is reported as filed, but the
+reading will:
+
+- lead with the mechanism criteria: whether the application-maintained
+  projection tables, copied attribution fields, verification clauses,
+  backfills, feed helpers and the zero-like Trending fill actually
+  disappear from the built app;
+- compare levels against 0.2.33 as well as 0.2.32;
+- use source size, engine-budget constants, guide reading, correction loops
+  and correctness as direct evidence.
+
+(Raised by an independent Astra review of the program, 2026-09-22.)
+
 This file follows #15's method: one threshold per category with an explicit
 null band, taken from the fitted line **before** any lever exists in a
 published pin. The holistic number is not a criterion.
