@@ -343,7 +343,9 @@ The installed recipe trusts its principals with permissive projection writes:
 pin `readerId`. New apps should use the declaration, which strips non-read rules
 from those projections and makes them engine-owned.
 The recipe's private inbox also trusts an actor to write recipient copies
-without proving a follow edge.
+without proving a follow edge. Only the recipe's own mutations write these
+tables, and they pin the fields those rules leave open: do not add mutations
+that write `authors`, `pulls`, `broadcast` or `feed`.
 
 ## Other feed shapes
 
