@@ -35,6 +35,10 @@ produces one `N_NOT_PREDICTABLE` note per mutation, listing distinct root
 causes with deduplicated sites and rewrites.
 Every mutation can queue on the local client; eligibility is not a promise
 that every call produces a predicted row. Native reads also need their module.
+Persisted writes without a valid integer prediction clock queue without rows;
+their write and row IDs survive for submission to the server. Direct device
+`predict` calls require an explicit integer `now`; `admit` and `enqueue` clear
+prediction eligibility and predicted rows when that clock is missing or invalid.
 
 Every device read authorizes a provisional row with its table's read rule for
 the device principal, against all pending predictions layered over delivered

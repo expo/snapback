@@ -30,6 +30,23 @@ fn prediction_clock(request: &Json) -> Result<i64, RuntimeError> {
     arg(request, "now")?.as_i64().ok_or_else(|| RuntimeError::Input("now is an integer prediction clock".into()))
 }
 
+fn queued_entry(mut value: Json) -> Result<Queued, RuntimeError> {
+    let has_clock = value.get("now").and_then(Json::as_i64).is_some();
+    if !has_clock {
+        if let Some(now) = value.get_mut("now") {
+            *now = json!(0);
+        }
+    }
+    let mut entry: Queued = parse(value)?;
+    if !has_clock {
+        // Persisted intents may predate clocks. Keep them sendable, but
+        // never use Queued's default clock to predict or replay their rows.
+        entry.predictable = false;
+        entry.predicted.clear();
+    }
+    Ok(entry)
+}
+
 fn parse<T: serde::de::DeserializeOwned>(value: Json) -> Result<T, RuntimeError> {
     #[cfg(test)]
     OWNED_DECODES.set(OWNED_DECODES.get() + 1);
@@ -108,9 +125,8 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
             "asset_home" => device.asset_home(text(&request, "id")?, text(&request, "viewer")?, request.get("now").and_then(Json::as_i64).unwrap_or(0))?,
             "admit" => {
                 let entry = take(&mut request, "entry")?;
-                if entry.get("predictable").and_then(Json::as_bool) == Some(true) { prediction_clock(&entry)?; }
                 let replay = entry.get("replay_candidate").and_then(Json::as_bool).unwrap_or(false);
-                encoded(&device.admit_with_replay(parse::<Queued>(entry)?, replay)?)?
+                encoded(&device.admit_with_replay(queued_entry(entry)?, replay)?)?
             }
             "settle" => {
                 device.settle(text(&request, "id")?, request.get("seq").and_then(Json::as_u64))?;
@@ -134,8 +150,7 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
             }
             "enqueue" => {
                 let entry = take(&mut request, "entry")?;
-                if entry.get("predictable").and_then(Json::as_bool) == Some(true) { prediction_clock(&entry)?; }
-                device.enqueue(&parse::<Queued>(entry)?)?;
+                device.enqueue(&queued_entry(entry)?)?;
                 Json::Null
             }
             "queued" => encoded(&device.queued()?)?,

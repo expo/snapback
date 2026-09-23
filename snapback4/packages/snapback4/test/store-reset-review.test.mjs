@@ -416,6 +416,38 @@ test("finding 3: orphan import retires foreign receipts and disables unknown pre
   assert.equal(queue[0].predictable, false); assert.deepEqual(queue[0].predicted, []); assert.deepEqual(queue[0].new_ids, ["unknown"]);
 });
 
+test("legacy clock-less predictable orphan imports without local rows and survives replay", async t => {
+  locks(t);
+  const persist = memoryPersistence(), opener = webDevice({ wasm, persist }), name = "legacy-clock-orphan";
+  let primary = await opener.open(name, backend("A"));
+  ok(await primary.call({ op: "apply", first: true, page: snapshot("A") }));
+  await primary.close();
+  const entry = { id: "legacy", seq: 1, op: "send", viewer: "dev:alice",
+    args: { conversationId: "c1", body: "legacy" }, new_ids: ["legacy-row"],
+    predictable: true, predicted: ["messages/legacy-row"] };
+  // Persist the old record directly, bypassing current enqueue normalization.
+  await persist.save(`${name}:tab-old`, [
+    { s: "m", k: "device:store_id", v: "A" },
+    { s: "o", k: entry.id, v: JSON.stringify(entry) },
+  ]);
+  primary = await opener.open(name, null);
+  t.after(() => primary.close());
+  const verify = async () => {
+    const queue = ok(await primary.call({ op: "queued" }));
+    assert.equal(queue.length, 1);
+    assert.equal(queue[0].predictable, false);
+    assert.deepEqual(queue[0].predicted, []);
+    for (const key of ["id", "op", "viewer", "args", "new_ids"]) assert.deepEqual(queue[0][key], entry[key]);
+    const read = ok(await primary.call({ op: "query", name: "thread", viewer: "dev:alice", args, now: 100 }));
+    assert.ok(read.data.every(row => row.id !== "legacy-row"), JSON.stringify(read));
+  };
+  await verify();
+  assert.deepEqual(await persist.load(`${name}:tab-old`), [], "the orphan transferred successfully");
+  await primary.close(); primary = await opener.open(name, null);
+  ok(await primary.call({ op: "apply", first: true, page: snapshot("A") }));
+  await verify();
+});
+
 
 test("finding 2: a delayed device read is retried before returning", async t => {
   const f = await fixture(t);

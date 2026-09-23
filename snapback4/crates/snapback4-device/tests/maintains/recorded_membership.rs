@@ -234,6 +234,7 @@ fn prediction_clock<H: Host>(mut host: H) where H::Store: Images {
         for op in ["predict", "admit", "enqueue"] {
             let mut entry = serde_json::to_value(intent("p", 1, 100)).unwrap();
             entry.as_object_mut().unwrap().remove("now");
+            entry["predicted"] = json!(["likes/l1"]);
             let mut request = if op == "predict" {
                 json!({"op":op,"name":"like","viewer":"alice","args":{"postId":"p"},"newIds":["l1"]})
             } else { json!({"op":op,"entry":entry}) };
@@ -243,8 +244,21 @@ fn prediction_clock<H: Host>(mut host: H) where H::Store: Images {
             for text in [false, true] {
                 let reply = if text { snapback4_device::call::call_text(&mut d, &request.to_string()) }
                     else { snapback4_device::call::call(&mut d, request.clone()) };
-                assert_eq!(reply["denied"]["code"], "E_INPUT", "{request}: {reply}");
+                if op == "predict" {
+                    assert_eq!(reply["denied"]["code"], "E_INPUT", "{request}: {reply}");
+                } else {
+                    assert!(reply.get("ok").is_some(), "{request}: {reply}");
+                    let queue = d.queued().unwrap();
+                    assert_eq!(queue.len(), 1);
+                    assert!(!queue[0].predictable && queue[0].predicted.is_empty(), "{queue:?}");
+                    assert_eq!(queue[0].new_ids, ["l1"]);
+                    // A later replay must not revive the defaulted clock.
+                    snapshot(&mut e, &mut d, 100);
+                    assert_eq!(d.queued().unwrap(), queue);
+                    d.dequeue("q1").unwrap();
+                }
                 assert!(d.store().images("likes").is_empty());
+                assert!(d.store().images("totals").is_empty());
                 assert!(d.queued().unwrap().is_empty());
             }
         }
@@ -258,3 +272,57 @@ fn prediction_clock<H: Host>(mut host: H) where H::Store: Images {
 }
 #[test] fn prediction_clock_json_memory() { prediction_clock(Memory::new()); }
 #[test] fn prediction_clock_json_sqlite() { prediction_clock(Sqlite::new("f2-clock")); }
+
+fn clockless_orphan<H: Host>(mut host: H, mut orphan: H::Store) where H::Store: Images {
+    use snapback4_device::store::DeviceTx;
+    let (mut e, b) = backend(true, false);
+    e.seed_at([member("m", 200), post("p")], 100).unwrap();
+    let mut legacy = serde_json::to_value(intent("p", 1, 100)).unwrap();
+    legacy.as_object_mut().unwrap().remove("now");
+    legacy["predicted"] = json!(["likes/l1"]);
+    // Plant an old outbox record directly: current enqueue must not sanitize
+    // the source before the import regression reaches the receiving device.
+    orphan.install(&b.schema, &Default::default(), false).unwrap();
+    let tx = orphan.transaction().unwrap();
+    tx.outbox_insert(1, "q1", &legacy.to_string()).unwrap();
+    tx.commit().unwrap();
+    let tx = orphan.read_transaction().unwrap();
+    let saved = tx.outbox_entries().unwrap();
+    tx.rollback().unwrap();
+    assert_eq!(saved.len(), 1);
+    let imported: serde_json::Value = serde_json::from_str(&saved[0]).unwrap();
+    assert!(imported.get("now").is_none(), "{imported}");
+    assert_eq!(imported["predictable"], true);
+    let mut d = host.open("clock-destination", Some(b)).unwrap();
+    snapshot(&mut e, &mut d, 100);
+    let reply = snapback4_device::call::call_text(&mut d, &json!({"op":"enqueue", "entry":imported}).to_string());
+    assert!(reply.get("ok").is_some(), "{reply}");
+    let queue = d.queued().unwrap();
+    assert_eq!(queue.len(), 1);
+    assert!(!queue[0].predictable && queue[0].predicted.is_empty(), "{queue:?}");
+    assert_eq!(queue[0].new_ids, ["l1"]);
+    assert_eq!(queue[0].id, "q1");
+    assert_eq!(queue[0].args, json!({"postId":"p"}));
+    assert!(d.store().images("likes").is_empty());
+    assert!(d.store().images("totals").is_empty());
+    host.close("clock-destination", d);
+    let mut d = host.open("clock-destination", None).unwrap();
+    snapshot(&mut e, &mut d, 100);
+    assert_eq!(d.queued().unwrap(), queue, "reopen and replay keep the write unpredicted");
+    assert!(d.store().images("likes").is_empty());
+    assert!(d.store().images("totals").is_empty());
+    // The original intent still executes with the server's authoritative clock.
+    let sent = e.mutate("like", Some("q1"), context("alice", &[("postId", id("p"))]).at(100).with_ids(queue[0].new_ids.clone())).unwrap();
+    assert!(matches!(sent.state, snapback4_core::WriteState::Sent { .. }), "{sent:?}");
+    let from = d.state().unwrap().0;
+    d.apply(&page(&mut e, from, 100, 100), false).unwrap();
+    assert_eq!(d.store().images("likes")[0].field("id").unwrap(), &id("l1"));
+}
+#[test] fn clockless_orphan_import_memory() { clockless_orphan(Memory::new(), snapback4_device::memory::MemoryStore::new()); }
+#[test] fn clockless_orphan_import_sqlite() {
+    let mut host = Sqlite::new("f2-clock-orphan");
+    let orphan = host.open("clock-orphan", Some(backend(true, false).1)).unwrap();
+    host.close("clock-orphan", orphan);
+    let store = snapback4_core::Store::open(&host.path("clock-orphan")).unwrap();
+    clockless_orphan(host, store);
+}
