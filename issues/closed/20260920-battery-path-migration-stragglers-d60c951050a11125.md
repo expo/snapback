@@ -1,0 +1,45 @@
+# complete battery red: path-migration-stragglers
+
+**Status:** Closed
+**Reopened by battery run:** `local.20260922T004103Z.6841e7dc8d89`
+**Closure:** `signature absent from determinate FAIL`
+**Closed at revision:** `d34227259c10034bf21325a9847fb907a63f15a3`
+**Impact:** 5
+**Urgency:** 5
+**Ease:** 4
+**Confidence:** 5
+**Systems:** Testing, CI
+**Date:** 2026-09-20
+**Battery gate:** `path-migration-stragglers`
+**Failure signature:** `sha256:d60c951050a11125c47bd80b2a3f00ee92c4d4700a48f49d5813e80b2da9846a`
+**First observed run:** `local.20260920T003721Z.7ef61e81a1bf`
+**Last observed run:** `local.20260922T201104Z.e7c955d366a5`
+**Last processed run:** `local.20260923T123621Z.d34227259c10`
+**Detected at revision:** `7ef61e81a1bf922f1a7984fc7c1cadfaeab1854c`
+**Last observed revision:** `e7c955d366a57ba7005f500d2a396c63e92be141`
+**Consecutive red runs:** `3`
+**Escalation:** `pending (3/4)`
+**Related:** LLP 0189 D-1, LLP 0175 D2.3
+
+## Summary
+
+The scheduled complete canonical battery reported `path-migration-stragglers` as a root
+failure (exit 1). This ticket is keyed by gate plus the normalized
+root-failure signature and remains idempotent while open. Dependent `BLOCKED`
+results do not create tickets.
+
+## Standing claim cross-references
+
+- None.
+
+These are the standing published claims whose recorded LLP 0189 D-4 scope
+derives `path-migration-stragglers` as claim-relevant for this battery revision.
+
+## Reproduce and repair
+
+```sh
+node scripts/check-path-migration-stragglers.mjs
+```
+
+Fix forward, rerun the complete battery, and let the next determinate pass close
+this signature. Four consecutive red observations require author escalation.

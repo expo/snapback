@@ -14,11 +14,11 @@
 **Failure signature:** `sha256:0747ead1cd4c0edebe7a8401b5dcab943438a697e489a07c76cc9d64b726800a`
 **First observed run:** `local.20260914T104118Z.86928d068765`
 **Last observed run:** `local.20260922T201104Z.e7c955d366a5`
-**Last processed run:** `local.20260922T201104Z.e7c955d366a5`
+**Last processed run:** `local.20260923T123621Z.d34227259c10`
 **Detected at revision:** `86928d068765e3d57c68747e4f2359950b8ff7d1`
 **Last observed revision:** `e7c955d366a57ba7005f500d2a396c63e92be141`
-**Consecutive red runs:** `13`
-**Escalation:** `AUTHOR_ESCALATION_REQUIRED`
+**Consecutive red runs:** `0`
+**Escalation:** `pending (0/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
@@ -43,8 +43,3 @@ node --test tests/drift_prone_gates_v0.mjs
 
 Fix forward, rerun the complete battery, and let the next determinate pass close
 this signature. Four consecutive red observations require author escalation.
-
-## Author escalation
-
-This root-failure signature remained red for 4 consecutive scheduled
-battery runs. Escalate to the author (Charlie Cheever) before the next run.

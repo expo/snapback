@@ -13,12 +13,12 @@
 **Battery gate:** `regression-multilive-scoped`
 **Failure signature:** `sha256:7a119b56d7802b7711fbadbc5f2863511a0c26eda5a5317bc7fc69c6a7eccf02`
 **First observed run:** `local.20260906T052615Z.c519d102c963`
-**Last observed run:** `local.20260922T201104Z.e7c955d366a5`
-**Last processed run:** `local.20260922T201104Z.e7c955d366a5`
+**Last observed run:** `local.20260923T123621Z.d34227259c10`
+**Last processed run:** `local.20260923T123621Z.d34227259c10`
 **Detected at revision:** `c519d102c963f1cc4e597feb9d799a5376a4c3eb`
-**Last observed revision:** `e7c955d366a57ba7005f500d2a396c63e92be141`
-**Consecutive red runs:** `1`
-**Escalation:** `pending (1/4)`
+**Last observed revision:** `d34227259c10034bf21325a9847fb907a63f15a3`
+**Consecutive red runs:** `2`
+**Escalation:** `pending (2/4)`
 **Related:** LLP 0189 D-1, LLP 0175 D2.3
 
 ## Summary
