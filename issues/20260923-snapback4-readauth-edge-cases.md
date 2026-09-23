@@ -46,3 +46,25 @@ Astra's reproduction, with an expiring source, a retained count grouped by
 **Fix:** combine source existence witnesses existentially, so that a covered
 positive witness supersedes uncertainty from other candidates. Test both
 orders.
+
+## F2 edge cases (added 2026-09-23, same fix-forward batch)
+
+Astra's final delta review of F2 (`67b113916`) closed the earlier findings
+and the rebase. It raised two more Mediums, again after the three-round
+limit:
+
+3. **Membership coverage scans are unmetered** (`device/recorded.rs`,
+   around line 28). The expiry-aware loop scans every expired sibling
+   without charging examinations or allocation. With 9,000 expired
+   memberships plus one live replacement, prediction succeeded past the
+   8,192-examination ceiling.
+   **Fix:** carry the prediction meter into the coverage lookup; when
+   coverage cannot be established within budget, queue or refuse within
+   bounds. Add an over-budget regression.
+4. **The missing-clock refusal is bypassable** (`call.rs`, around line
+   116). The device dispatcher turns an omitted clock into `0`, so the core
+   guard sees `Some(0)` and permits capture under an expired membership.
+   **Fix:** reject a missing or invalid prediction clock at the dispatcher,
+   or preserve its absence through to the core. Test the JSON entry point.
+
+All four items (1–4) go to one small lane before 0.3.0 is published.
