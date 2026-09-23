@@ -4,7 +4,9 @@
 15 not run.** The continuous cold builder completed successfully at
 20:31:50 UTC on 2026-09-22; independent grading finished at 21:14:10 UTC.
 The missing assertions cover M7 and six native observations. The separate
-actual-app native extension is still in progress.
+[actual-app native extension](../../../snapback4/reports/20260922-clique-native-extension.md#final-public-package-result)
+subsequently passed all three scenarios on corrective SDK/CLI 0.2.33 and Expo
+0.2.24; it does not alter this frozen run's grade or score.
 
 This run follows the author's instruction to review and implement the selected
 [LLP 3000.011](../../../llp/3000.011-recent-builder-friction.research.md)
@@ -29,8 +31,8 @@ Opus 5 independent grader and Astra xhigh holistic scorer.
 | Host | Shared M5 Max, 18 CPUs, macOS; benchmark ports 49360–49379 were free at launch. The [load stream](./host-load.jsonl) has 111 samples from 19:25:11 to 21:14:58 UTC: one-minute load min/median/max 7.03/9.07/24.51. Start load is separately retained in `RUN_QUALIFICATION.json`; the initial sampling gap is not reconstructed. The sampler resumed at 21:07:58 after stopping at score completion; both lifecycle records and actual timestamps are retained. |
 | Retained full packet | M5: `/Users/ccheever/clique-sb4-20260922-astra-cal16/`. |
 
-The separate actual-app native/acquisition extension starts only after the cold
-build and independent grading have finished. It uses a preserved copy of that
+The separate actual-app native/acquisition extension started after the cold
+build and independent grading finished. It uses a preserved copy of that
 application and the published packages, without altering the frozen instrument
 or retrospectively changing its score. A Hermes export alone does not count as
 an installed native witness.
@@ -150,8 +152,8 @@ Before grading, all assigned listeners were verified stopped and a complete
 APFS copy of the lane was preserved at `attempts/builder-completed/`. The
 instrument and prompt-template hashes were unchanged. The
 [custody record](./lifecycle/builder-custody.json) identifies that snapshot
-and its selected source/metadata manifest. The actual-app native extension
-remains separate and pending. The unmodified three-lane grade and score
+and its selected source/metadata manifest. The completed actual-app native
+extension remains separate. The unmodified three-lane grade and score
 aggregators each exit 1 because the Grok and Muse lifecycles are absent,
 as in the prior single-lane run; the completed Astra outputs and aggregation
 messages are retained without editing the frozen tools.
