@@ -1,0 +1,13 @@
+✔ Repair B carries both bounds and resumes a private transfer cursor (1054.630375ms)
+✔ catch-up requests adopt the device transfer cursor (1.51675ms)
+✔ interrupted snapshot catch-up resumes its durable mode (0.84225ms)
+✔ generation adoption compares published identity during private acquisition (0.842459ms)
+✔ row reset between A2 acquisition and B fetches B's backend and retires A's receipt (1067.013709ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2171.628167

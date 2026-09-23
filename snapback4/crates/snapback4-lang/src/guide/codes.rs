@@ -155,6 +155,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_QUARRY_PLACEMENT", "a statement stands where it cannot: a write or `new` in a query, `break` outside a loop. The rewrite says where it belongs."),
     ("E_QUARRY_RETAIN", "a table has more than one `retain` line, or its policy word is not `until-revoked` or `delivered-history`."),
     ("E_SYNC", "a sync line cannot be honoured; the message names the rule term, column or index to change."),
+    ("E_SYNC_GENERATION", "family generation — the sync request names another generation. No page was materialized. Observe store_id, adopt /schema and retry from the device's resulting position; the reply's watermark is not delivered progress. guide sync."),
     ("E_UNBOUND_LOOP", "a loop has no static bound; iterate a page, a bounded list argument, `range(a, b)` or `tokens(text)`."),
     ("E_SCHEDULE", "a schedule must name a job or an action taking only `periodStart: time` and `periodEnd: time`, or nothing. An action requires `as service:<seat>`; a job runs as the system and forbids as. guide actions, jobs."),
     ("E_JOB_CURSOR_INDEX", "a job's chunk sweeps an index a write could change under the cursor; declare its non-id columns `immutable`, including the time column beneath day, hour or bucket, or sweep by `byId`."),

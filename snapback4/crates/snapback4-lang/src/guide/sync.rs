@@ -123,11 +123,19 @@ Inspect the table's `sync`, horizon and group `cap` with `check --residency --ve
 A snapshot arrives in pages the client
 asks for 4,000 events at a time (2,000 by default on the wire, 10,000 at
 most), each applied in its own transaction. `POST /sync` takes JSON
-`{ from, limit, after, stream, pending, store_id? }`: up to 256 pending write IDs of
+`{ from, limit, after, stream, pending, store_id?, generation? }`: up to 256 pending write IDs of
 1–128 UTF-8 bytes, with the cursor, in at most 262,144 body bytes (256 KiB).
 Oversize bodies, including chunked ones, return HTTP 413 `E_INPUT`; malformed
 fields return HTTP 400 `E_INPUT`. Continue snapshots with `after: next`;
 `stream: true` follows the log even from zero. There is no GET sync route.
+The client sends its device generation. A mismatch returns HTTP 200
+`E_SYNC_GENERATION` (family `generation`) with `generation`, `store_id` and
+the current `watermark`, before building a snapshot or stream page. The
+client observes identity, adopts `/schema`, then retries from the device's
+resulting position with its pending IDs intact. This refusal is never applied
+as a delivered page. Omitting `generation` preserves ordinary page behavior.
+Against 0.2.32, the client retries without the field once on that server's exact
+HTTP 400 sync-input refusal, then omits it for the rest of that client instance.
 An HTTP response above 16 MiB becomes `E_BOUND`, keeping `generation`,
 `store_id` and `watermark` from that page. The client checks identity before
 shrinking its limit; a refusal's watermark is never applied as delivered data.

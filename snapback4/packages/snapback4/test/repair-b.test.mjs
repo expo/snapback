@@ -322,7 +322,16 @@ test("row reset between A2 acquisition and B fetches B's backend and retires A's
     fetch: async (input, init) => {
       const path = new URL(input).pathname;
       if (path === "/changes" || path === "/probe") throw new TypeError("fixture holds background polling");
-      const response = await fetch(`${switched ? b : a}${path}`, init);
+      // The fixture presents these generation-1 engines as generation 2.
+      // Translate the request as well as the response, so the real server's
+      // early check compares both sides in its own generation numbering.
+      let forwarded = init;
+      if (path === "/sync") {
+        const request = JSON.parse(init.body);
+        if (request.generation !== undefined) request.generation = Math.max(0, request.generation - 1);
+        forwarded = { ...init, body: JSON.stringify(request) };
+      }
+      const response = await fetch(`${switched ? b : a}${path}`, forwarded);
       if (path !== "/schema" && path !== "/sync") return response;
       let body = await response.json();
       if (path === "/schema") {

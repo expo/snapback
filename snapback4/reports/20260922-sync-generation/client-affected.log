@@ -1,0 +1,63 @@
+▶ HTTP admission, encoding, slow readers and idle changes polls
+  ✔ the liveness probe requires credentials and has an explicit success body (26.307917ms)
+  ✔ catalog, generated API, native module, and change activity refuse anonymous callers (11.240834ms)
+  ✔ declared/chunked oversize, truncation and invalid UTF-8 do not execute a write (16.73575ms)
+  ✔ seed and upload retain their separate larger request ceilings (24.878625ms)
+  ✔ one-view assets finalize only after a complete non-range response (43.045375ms)
+  ✔ eight idle polls leave health/schema/query work free and commits wake subscribers (126.90575ms)
+  ✔ oversized sync JSON is refused and a smaller page remains valid (325.088084ms)
+  ✔ Wasm and process clients acquire wide snapshots by shrinking the same cursor (1763.881208ms)
+  ✔ a paused large response releases the engine before network progress (31.763208ms)
+✔ HTTP admission, encoding, slow readers and idle changes polls (2447.187375ms)
+▶ oversized indivisible commit replaces deferred effects on wasm and SQLite
+  ✔ wasm (1281.673ms)
+  ✔ process (1188.506292ms)
+✔ oversized indivisible commit replaces deferred effects on wasm and SQLite (3058.567083ms)
+ℹ {"tier":"wasm","published":2,"transfer":3,"images_at":16,"inlineRefusals":12,"snapshotPages":46,"final":16}
+ℹ {"tier":"process","published":2,"transfer":3,"images_at":16,"inlineRefusals":12,"snapshotPages":46,"final":16}
+✔ wasm: early generation adoption preserves unsent writes, known and lost acknowledgements (279.817375ms)
+✔ process: early generation adoption preserves unsent writes, known and lost acknowledgements (147.786875ms)
+✔ legacy fallback is once per client, preserves the request, and recognizes only the exact refusal (0.672208ms)
+✔ new client syncs against the actual 0.2.32 server's deny_unknown_fields request contract (115.993417ms)
+▶ oversized sync identity, indivisible-commit snapshot recovery, and wedged generation adoption
+  ✔ snapshot overflow preserves generation and store identity (27.322833ms)
+  ✔ stream overflow preserves generation and store identity (37.039417ms)
+  ✔ limit 1 instructs a snapshot only for an indivisible stream page (34.083667ms)
+  ✔ wasm reacquires an indivisible commit by snapshot at the same generation (1346.254542ms)
+  ✔ process reacquires an indivisible commit by snapshot at the same generation (1101.633833ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+  ✔ wasm a wedged device discovers generation before shrinking the oversized page (460.006791ms)
+  ✔ process a wedged device discovers generation before shrinking the oversized page (419.4815ms)
+✔ oversized sync identity, indivisible-commit snapshot recovery, and wedged generation adoption (5746.42225ms)
+ℹ current row body bytes=17600000; HTTP ceiling=16777216; rows in indivisible commit=44; head=13
+ℹ wasm before generation change: watermark=1; terminal limit=1; refusal=E_BOUND
+ℹ process before generation change: watermark=1; terminal limit=1; refusal=E_BOUND
+▶ an oversized reply from a replacement store is observed before shrinking even at the same generation
+  ✔ wasm replaces the old store before shrinking (375.389625ms)
+  ✔ process replaces the old store before shrinking (391.208833ms)
+✔ an oversized reply from a replacement store is observed before shrinking even at the same generation (1029.746833ms)
+✔ wasm a new replica recovers its oversized first commit (696.698959ms)
+ℹ {"tier":"wasm","before":0,"after":1,"pages":[{"from":0,"stream":false,"limit":4000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":2000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":1000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":500,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":250,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":125,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":62,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":31,"snapshot":true},{"from":0,"stream":false,"limit":31,"snapshot":true},{"from":1,"stream":true,"limit":31,"snapshot":false}]}
+✔ process a new replica recovers its oversized first commit (701.213959ms)
+ℹ {"tier":"process","before":0,"after":1,"pages":[{"from":0,"stream":false,"limit":4000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":2000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":1000,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":500,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":250,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":125,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":62,"denied":"E_BOUND"},{"from":0,"stream":false,"limit":31,"snapshot":true},{"from":0,"stream":false,"limit":31,"snapshot":true},{"from":1,"stream":true,"limit":31,"snapshot":false}]}
+✔ wasm an oversized first commit arriving during zero-head snapshot catch-up restarts inline (1490.880292ms)
+✔ process an oversized first commit arriving during zero-head snapshot catch-up restarts inline (1387.76325ms)
+✔ wasm interrupted inline recovery retries after reopen, preserves delivered history and enforces the horizon (2910.895167ms)
+✔ process interrupted inline recovery retries after reopen, preserves delivered history and enforces the horizon (3002.990083ms)
+✔ wasm: many ordinary commits recover by halving without snapshot (1076.532084ms)
+✔ process: many ordinary commits recover by halving without snapshot (1036.495875ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ wasm a snapshot continuation overflow keeps its cursor and terminates at limit one (57.144583ms)
+snapback4: the server refused the partition: E_BOUND: the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values
+✔ process a snapshot continuation overflow keeps its cursor and terminates at limit one (74.399ms)
+✔ wasm bare refusals retain held rows beyond the horizon and allow a later sync retry (43.91175ms)
+✔ process bare refusals retain held rows beyond the horizon and allow a later sync retry (64.678375ms)
+ℹ tests 40
+ℹ suites 0
+ℹ pass 40
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 25632.416625
