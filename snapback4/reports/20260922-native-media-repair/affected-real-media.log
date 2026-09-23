@@ -1,0 +1,12 @@
+✔ ordinary media survives a process-device offline reopen; once never persists; home changes purge bytes (2170.407084ms)
+ℹ media: 68 B/image; maxBytes 136; 2 retained then 0 with keep:none; once bytes 0; deleted home bytes 0
+✔ id-only video predicts after offline reopen and its ordinary bytes are retained (2119.273583ms)
+ℹ video: 60 B retained; duration 1000 ms; id-only pending prediction agrees with sent.result after reopen
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4333.777708

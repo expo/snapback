@@ -1,0 +1,32 @@
+✔ native image/png bytes survive a fresh cache opener; response ownership ends after copying (560.613208ms)
+✔ native video/mp4 bytes survive a fresh cache opener; response ownership ends after copying (232.838333ms)
+✔ once responses remove stale ordinary bytes without reading or storing the once Blob (163.731708ms)
+✔ once falls back to a transient data URI without a second fetch or durable bytes (185.2125ms)
+✔ data URI fallback preserves supported media bytes and handles a missing object-URL function (7.1965ms)
+✔ data URI fallback rejects reader failures, unsupported media and malformed or mismatched copies (3.35625ms)
+✔ data URI fallback rejects trailing line terminators even when they fill the expected encoded length (1.001125ms)
+✔ a delayed transient conversion cannot publish an obsolete session's asset (16.724584ms)
+✔ FileReader errors, aborts, invalid results and synchronous failures settle and close response Blobs (72.475625ms)
+✔ modern Blob reads and browser URLs retain their behavior without FileReader (7.572583ms)
+✔ failed retention and URL creation close owned response Blobs; revoke cleans up even if URL disposal throws (0.613333ms)
+✔ upload keeps caller-owned Blobs open on both success and failure (6.385125ms)
+✔ README client card members are functions on both tiers, except device-only sync (294.654833ms)
+ℹ 16 README members; 1 device-only; 0 missing implementations
+✔ online session: rotation adopts the bearer before notification; revocation closes (6.856167ms)
+✔ online token: rotation adopts the bearer before notification; revocation closes (1.692166ms)
+✔ online session: signOut clears the session and notifies once (1.07225ms)
+✔ online session: current refusal clears the session; an obsolete refusal retries the same write id (9.909709ms)
+✔ online session: near-expiry rotates before a protected read; concurrent refreshes coalesce (1.38325ms)
+✔ online session: a refresh cannot change principal or resurrect a closed client (1.505792ms)
+✔ online assets revoke late credential-bound URLs across rotation, sign-out and close (3.593958ms)
+✔ mintId keeps burst and rollback ids monotonic without advancing their timestamp (147.569333ms)
+✔ mintId refuses entropy-field exhaustion without poisoning a later millisecond (12.590916ms)
+✔ mintId does not publish timestamp state when secure entropy throws (6.094084ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1935.295208

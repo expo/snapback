@@ -591,6 +591,9 @@ are checked before sync completes, and reopening checks lifetimes before reads.
 A `once` response never enters storage. This cache does not change the server's
 `private, no-store` responses. `assetSource` supplies a network URI; use
 `client.asset` or `useAsset` to use SDK retention, including native file URIs.
+The Expo cache gives retained MP4 files a `.mp4` suffix for native playback;
+older extensionless MP4 entries migrate within the same cache when read.
+Rebuild the app with `snapback4-expo` 0.2.24 or later to include this host repair.
 
 Passing `null` or `undefined` to `useAsset` returns `{ status: "empty" }`
 without fetching. A client-side fetch or blob-URL failure returns a typed
@@ -615,8 +618,8 @@ duration != null else DURATION_UNKNOWN` before `require duration <=
 60000 else TOO_LONG`. One asset, one home: your own upload, placed once
 (`E_ASSET_UNKNOWN`, `E_ASSET_PLACED`). Serving is the home row's read
 rule: `client.asset(id)` fetches the bytes under the viewer's credentials
-and resolves `{ url, type, bytes, revoke }` — a blob URL, and `revoke()`
-for when the screen is done — or `{ denied }` (`useAsset` in React
+and resolves `{ url, type, bytes, revoke }` — a blob URL, transient data URL or
+retained file URI, and `revoke()` for when the screen is done — or `{ denied }` (`useAsset` in React
 revokes on unmount; `client.assetSource(id)` gives `{ uri, headers }`
 for native image and video views); a row that is deleted, whose column
 is cleared, that expired, or that the viewer may not read answers
@@ -626,6 +629,18 @@ is exempt. The second is `E_ASSET_VIEWED`. Range is refused before consuming a
 once view (`E_ASSET_RANGE`); ordinary unsatisfiable ranges return 416. Every
 asset response is `private, no-store`, and at most two uploads write at once
 outside the engine mutex. Uploads are online only; there is nothing to queue.
+
+The SDK owns fetched response Blobs: it releases them after an ordinary retained
+copy finishes, or when the transient handle is revoked. On React Native, byte
+copying uses `FileReader` when `Blob.arrayBuffer` is absent, and transient
+revocation also closes the native Blob. If the host cannot create an object URL,
+`FileReader` makes an in-memory data URL from that same response, then the SDK
+closes the Blob. Revoking that handle clears its URL; callers must drop any
+copied data strings when closing the view, since those copies cannot be revoked.
+Revoking a retained file handle leaves the ordinary cache's lifetime unchanged.
+Once bytes never enter that cache. Native release does not promise immediate
+memory zeroization or removal of decoder copies. Upload Blobs remain owned by
+the caller.
 
 ### Sign-in (`snapback4/auth`)
 

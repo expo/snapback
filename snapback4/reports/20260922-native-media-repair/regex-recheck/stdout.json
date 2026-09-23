@@ -1,0 +1,53 @@
+{
+  "node": "v24.18.0",
+  "source": "^[A-Za-z0-9+/]*={0,2}$",
+  "flags": "",
+  "rows": [
+    {
+      "terminator": "\"\\n\"",
+      "codePoints": [
+        10
+      ],
+      "encodedLength": 4,
+      "originalUnflaggedMatch": false,
+      "explicitMultilineControl": true
+    },
+    {
+      "terminator": "\"\\r\"",
+      "codePoints": [
+        13
+      ],
+      "encodedLength": 4,
+      "originalUnflaggedMatch": false,
+      "explicitMultilineControl": true
+    },
+    {
+      "terminator": "\"\\r\\n\"",
+      "codePoints": [
+        13,
+        10
+      ],
+      "encodedLength": 4,
+      "originalUnflaggedMatch": false,
+      "explicitMultilineControl": true
+    },
+    {
+      "terminator": "\" \"",
+      "codePoints": [
+        8232
+      ],
+      "encodedLength": 4,
+      "originalUnflaggedMatch": false,
+      "explicitMultilineControl": true
+    },
+    {
+      "terminator": "\" \"",
+      "codePoints": [
+        8233
+      ],
+      "encodedLength": 4,
+      "originalUnflaggedMatch": false,
+      "explicitMultilineControl": true
+    }
+  ]
+}

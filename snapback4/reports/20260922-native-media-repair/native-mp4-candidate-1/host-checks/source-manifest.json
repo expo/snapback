@@ -1,0 +1,6 @@
+{
+  "packages/snapback4-expo/ios/MediaFiles.swift": "7529cd218563c475c107c752eb31e451a32decc510cee3a342b69ab4328df60c",
+  "packages/snapback4-expo/ios/Snapback4Module.swift": "dbae25a5d21e2b2f193cb9f00bbc252fbfabab5b9208516da5e90c8336f61bfe",
+  "packages/snapback4-expo/test/MediaFilesTests.swift": "83d2f2fc04339afc2f521b4d53af8524c82d8c3cd19cc3d1b4a9cea874334441",
+  "packages/snapback4/test/expo-media-storage.test.mjs": "0bc4174f4db38c5e9e17bad29eb773074508240eab9e71088ef74f99959d5dcc"
+}

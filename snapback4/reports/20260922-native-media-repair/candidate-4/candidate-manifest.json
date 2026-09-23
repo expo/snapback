@@ -1,0 +1,25 @@
+{
+  "frozenAt": "2026-09-23T00:58:01.288966+00:00",
+  "base": "272deaea60a4496cc80ae232da310e452ea6929b",
+  "previous_runtime_candidate_patch_sha256": "59408cfb668697adf7c145ddd933ec861d3c5dd0055b60a38d6ff8b0823bc75c",
+  "patch_sha256": "fd540b33587d95d811a06e624f4d786a0cc885c5317b1b05dbbbcc02dd8ab60b",
+  "delta_sha256": "1d5e7fedd7ced181835a6d8387b6bbd44aad7d6c93bd1525b7e085acf1f3ca05",
+  "changed_from_candidate_2": [
+    "snapback4/packages/snapback4/test/asset-blob-lifecycle.test.mjs"
+  ],
+  "runtime_exactly_candidate_2": true,
+  "discarded_candidate_3_patch_sha256": "ce357e2f999e8bcf43c354f00b75253298523706176353368d46e29e01eb63a6",
+  "files": {
+    "snapback4/Cargo.toml": "cd97fc28f70531d0f5763cb38b5586cb4de86f676c96b24a9cc866dd868fc802",
+    "snapback4/Cargo.lock": "e0bfaa11f485499fb7693518a7dc53201e97a40b48caf759d0afdf4c80038ae8",
+    "snapback4/bun.lock": "bd34b77a4bb1bccc3e4b54dc63510af5c1c6493a89a4ca0edb1777ee0026f670",
+    "snapback4/packages/snapback4/package.json": "f17c8e419183e45a248a5f597fafc1e63704e62cc87ac8ec7033c1a227cf8a6c",
+    "snapback4/packages/snapback4-darwin-arm64/package.json": "81a161a26b360a2847269180fe1d4c27d5cd802067eea77eecfe4b4d188d8cfb",
+    "snapback4/packages/snapback4/src/assets.ts": "2d59c5be80f9a015a63f91e6eee27b13fe86811da731c63bfdbc63927cbd766a",
+    "snapback4/packages/snapback4/src/local-assets.ts": "331dcd6d2aa4ccfdd0352890deecfdd7ee4a41548aed8fbe29809a588894e5ee",
+    "snapback4/packages/snapback4/test/online-session.test.mjs": "7f2bd549e3e24aa493c6667e6e98e90c3e491ff71d2c4fffceebcf0b76feab74",
+    "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md": "f955f2575cd5f78dc80e545b7ab8e5049b09e53a325a245b3eef7f409774f11d",
+    "snapback4/packages/snapback4/test/asset-blob-lifecycle.test.mjs": "d3cfe206df5cfe639c3dbaa72529f7c26c23c66a9c8e4c4eb7afc6021fa49f89"
+  },
+  "dist_assets_sha256": "ad3cacc6a3b15e41786509de386cd05c7ababb7bb7d76f5f732913f7cb51bbb6"
+}

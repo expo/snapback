@@ -1,0 +1,16 @@
+{
+  "started": "2026-09-23T00:56:46.685Z",
+  "ended": "2026-09-23T00:56:57.419Z",
+  "runtime": "v24.18.0",
+  "typescript": "5.9.3",
+  "cwd": "/Users/ccheever/projects/snapback-worktrees/sb4-3011-integration-20260922/snapback4/packages/snapback4",
+  "argv": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "--test",
+    "test/asset-blob-lifecycle.test.mjs",
+    "test/online-session.test.mjs"
+  ],
+  "exitCode": 0,
+  "typecheck": "Strict affected dependency closure only; not a full package build/typecheck",
+  "scope": "Local only; no remote source, package, native, or simulator changes"
+}

@@ -1,0 +1,269 @@
+--- a/snapback4/packages/snapback4/src/assets.ts
++++ b/snapback4/packages/snapback4/src/assets.ts
+@@ -1,6 +1,6 @@
+ // Assets on the client: `upload` posts the bytes and returns the facts the
+ // server established; `asset` fetches the bytes under the viewer's own
+-// credentials and hands back a blob URL, so a screen never puts a token in
++// credentials and hands back a display URL, so a screen never puts a token in
+ // an <img src> and a one-view photo is never durably cached anywhere
+ // (LLP 1006 carried into Snapback 4).
+ 
+@@ -13,19 +13,36 @@
+ // @ref LLP 3000.011.005.000#8 — React Native Blobs use the public FileReader fallback
+ export function blobArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
+   if (typeof blob.arrayBuffer === "function") return blob.arrayBuffer();
++  return readBlob(blob, "readAsArrayBuffer");
++}
++
++function readBlob(blob: Blob, method: "readAsArrayBuffer"): Promise<ArrayBuffer>;
++function readBlob(blob: Blob, method: "readAsDataURL"): Promise<string>;
++function readBlob(blob: Blob, method: "readAsArrayBuffer" | "readAsDataURL"): Promise<ArrayBuffer | string> {
+   return new Promise((resolve, reject) => {
+     const reader = new FileReader();
+     const clear = () => { reader.onload = reader.onerror = reader.onabort = null; };
+     reader.onload = () => {
+       const result = reader.result;
+       clear();
+-      if (result instanceof ArrayBuffer) resolve(result);
+-      else reject(new Error("the Blob reader returned no bytes"));
++      if (method === "readAsArrayBuffer" && result instanceof ArrayBuffer) resolve(result);
++      else if (method === "readAsDataURL" && typeof result === "string") resolve(result);
++      else reject(new Error("the Blob reader returned an unexpected result"));
+     };
+     reader.onerror = () => { const error = reader.error; clear(); reject(error ?? new Error("the Blob read failed")); };
+     reader.onabort = () => { clear(); reject(new Error("the Blob read was aborted")); };
+-    try { reader.readAsArrayBuffer(blob); } catch (error) { clear(); reject(error); }
++    try { reader[method](blob); } catch (error) { clear(); reject(error); }
+   });
++}
++
++async function blobDataURL(blob: Blob, type: string, bytes: number): Promise<string> {
++  if (!["image/jpeg", "image/png", "image/webp", "video/mp4"].includes(type)) throw new Error("unsupported asset media type");
++  const result = await readBlob(blob, "readAsDataURL"), prefix = `data:${type};base64,`;
++  const encoded = result.slice(prefix.length), padding = (3 - bytes % 3) % 3;
++  if (!result.startsWith(prefix) || encoded.length !== 4 * Math.ceil(bytes / 3)
++    || !/^[A-Za-z0-9+/]*={0,2}$/.test(encoded)
++    || (encoded.endsWith("==") ? 2 : encoded.endsWith("=") ? 1 : 0) !== padding) throw new Error("invalid asset data URI");
++  return result;
+ }
+ 
+ // A response Blob belongs to the SDK. Keep it alive until its copy or handle
+@@ -73,7 +90,12 @@
+     const retained = await viewed?.(blob, response);
+     if (retained) return retained;
+     const type = response.headers.get("content-type") ?? blob.type, bytes = blob.size;
+-    const url = URL.createObjectURL(blob);
++    let url: string;
++    try { url = URL.createObjectURL(blob); } catch {
++      // @ref LLP 3000.011.005.000#8 — a host without working object URLs uses a transient copy, never a file
++      let dataURL = await blobDataURL(blob, type, bytes);
++      return { get url() { return dataURL; }, type, bytes, revoke: () => { dataURL = ""; } };
++    }
+     const releaseHandle = release;
+     release = undefined;
+     let revoked = false;
+--- a/snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md
++++ b/snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md
+@@ -615,8 +615,8 @@
+ 60000 else TOO_LONG`. One asset, one home: your own upload, placed once
+ (`E_ASSET_UNKNOWN`, `E_ASSET_PLACED`). Serving is the home row's read
+ rule: `client.asset(id)` fetches the bytes under the viewer's credentials
+-and resolves `{ url, type, bytes, revoke }` — a blob URL or retained file URI,
+-and `revoke()` for when the screen is done — or `{ denied }` (`useAsset` in React
++and resolves `{ url, type, bytes, revoke }` — a blob URL, transient data URL or
++retained file URI, and `revoke()` for when the screen is done — or `{ denied }` (`useAsset` in React
+ revokes on unmount; `client.assetSource(id)` gives `{ uri, headers }`
+ for native image and video views); a row that is deleted, whose column
+ is cleared, that expired, or that the viewer may not read answers
+@@ -630,10 +630,14 @@
+ The SDK owns fetched response Blobs: it releases them after an ordinary retained
+ copy finishes, or when the transient handle is revoked. On React Native, byte
+ copying uses `FileReader` when `Blob.arrayBuffer` is absent, and transient
+-revocation also closes the native Blob. Revoking a retained file handle leaves
+-the ordinary cache's lifetime unchanged. Once bytes never enter that cache;
+-native release does not promise immediate memory zeroization or removal of
+-decoder copies. Upload Blobs remain owned by the caller.
++revocation also closes the native Blob. If the host cannot create an object URL,
++`FileReader` makes an in-memory data URL from that same response, then the SDK
++closes the Blob. Revoking that handle clears its URL; callers must drop any
++copied data strings when closing the view, since those copies cannot be revoked.
++Revoking a retained file handle leaves the ordinary cache's lifetime unchanged.
++Once bytes never enter that cache. Native release does not promise immediate
++memory zeroization or removal of decoder copies. Upload Blobs remain owned by
++the caller.
+ 
+ ### Sign-in (`snapback4/auth`)
+ 
+--- a/snapback4/packages/snapback4/test/asset-blob-lifecycle.test.mjs
++++ b/snapback4/packages/snapback4/test/asset-blob-lifecycle.test.mjs
+@@ -6,9 +6,10 @@
+ import { pathToFileURL } from "node:url";
+ import { blobArrayBuffer, fetchAsset, uploadAsset } from "../dist/assets.js";
+ import { MediaCache } from "../dist/local-assets.js";
++import { createClient } from "../dist/client.js";
+ 
+ const nativeBytes = new WeakMap();
+-function nativeBlob(bytes, type = "image/png", mode = "load") {
++function nativeBlob(bytes, type = "image/png", mode = "load", dataResult) {
+   let closes = 0;
+   const blob = {
+     get size() { assert.equal(closes, 0); return bytes.length; },
+@@ -16,22 +17,31 @@
+     get closes() { return closes; },
+     close() { closes++; assert.equal(closes, 1, "a response Blob must only be closed once"); },
+   };
+-  nativeBytes.set(blob, { bytes, mode });
++  nativeBytes.set(blob, { bytes, mode, dataResult });
+   return blob;
+ }
+ function installReader(t) {
+   const previous = Object.getOwnPropertyDescriptor(globalThis, "FileReader"), readers = [];
+   Object.defineProperty(globalThis, "FileReader", { configurable: true, value: class {
+     constructor() { readers.push(this); }
+-    readAsArrayBuffer(blob) {
++    readAsArrayBuffer(blob) { this.read(blob, "buffer"); }
++    readAsDataURL(blob) { this.read(blob, "data"); }
++    read(blob, method) {
++      this.method = method;
+       assert.equal(blob.closes, 0, "the response Blob must stay alive during copying");
+-      const { bytes, mode } = nativeBytes.get(blob);
++      const { bytes, mode, dataResult } = nativeBytes.get(blob);
++      const type = blob.type;
+       if (mode === "throw") throw new Error("read failed synchronously");
+-      queueMicrotask(() => {
++      this.finish = () => {
+         if (mode === "error") { this.error = new Error("read failed"); this.onerror(); }
+         else if (mode === "abort") this.onabort();
+-        else { this.result = mode === "invalid" ? "not bytes" : Uint8Array.from(bytes).buffer; this.onload(); }
+-      });
++        else {
++          this.result = method === "buffer" ? (mode === "invalid" ? "not bytes" : Uint8Array.from(bytes).buffer)
++            : mode === "invalid" ? new ArrayBuffer(0) : dataResult ?? `data:${type};base64,${Buffer.from(bytes).toString("base64")}`;
++          this.onload();
++        }
++      };
++      if (mode !== "manual") queueMicrotask(this.finish);
+     }
+   } });
+   t.after(() => previous ? Object.defineProperty(globalThis, "FileReader", previous) : delete globalThis.FileReader);
+@@ -131,6 +141,120 @@
+   assert.equal((await reopened.cache.read("photo")).denied.code, "E_OFFLINE");
+ });
+ 
++test("once falls back to a transient data URI without a second fetch or durable bytes", async t => {
++  const readers = installReader(t), urls = installUrls(t), files = await deviceFiles(t);
++  // Expo 57's URL conversion can throw before inspecting an otherwise valid Blob.
++  URL.createObjectURL = () => { throw new TypeError("undefined is not a function"); };
++  files.homes.set("photo", home("image/png"));
++  const { cache } = await files.open();
++  const viewed = (body, reply) => cache.viewed("photo", body, reply);
++  (await fetchBlob(nativeBlob([1, 2]), viewed)).revoke();
++  const bytes = [0, 255, 128], once = nativeBlob(bytes);
++  let fetches = 0;
++  const result = await fetchAsset("https://assets.invalid", {}, async () => {
++    fetches++;
++    return response(once, "none");
++  }, "photo", viewed);
++  assert.equal(result.url, "data:image/png;base64,AP+A");
++  assert.equal(result.bytes, bytes.length);
++  assert.equal(once.closes, 1, "the native Blob is released as soon as the transient copy is ready");
++  assert.equal(fetches, 1);
++  assert.deepEqual(readers.map(reader => reader.method), ["buffer", "data"]);
++  assert.deepEqual(files.writes, ["photo"]);
++  assert.deepEqual(await files.manifest(), []);
++  await assert.rejects(readFile(files.bytesPath("photo")), { code: "ENOENT" });
++  const copied = result.url;
++  result.revoke(); result.revoke();
++  assert.equal(result.url, "", "revocation drops the handle's own reference");
++  assert.equal(copied, "data:image/png;base64,AP+A", "a caller's immutable string copy cannot be revoked");
++  assert.equal(once.closes, 1);
++  assert.deepEqual(urls.revoked, [], "data URLs have no object-URL registration to revoke");
++  await cache.close();
++  const reopened = await files.open();
++  assert.equal((await reopened.cache.read("photo")).denied.code, "E_OFFLINE");
++});
++
++test("data URI fallback preserves supported media bytes and handles a missing object-URL function", async t => {
++  const readers = installReader(t), urls = installUrls(t);
++  URL.createObjectURL = undefined;
++  for (const [index, type] of ["image/jpeg", "image/png", "image/webp", "video/mp4"].entries()) {
++    const bytes = [0, 255, 128, 4].slice(0, index + 1), blob = nativeBlob(bytes, type);
++    const result = await fetchBlob(blob);
++    assert.equal(result.type, type);
++    assert.equal(result.bytes, bytes.length);
++    assert.ok(result.url.startsWith(`data:${type};base64,`));
++    assert.deepEqual([...Buffer.from(result.url.split(",")[1], "base64")], bytes);
++    assert.equal(blob.closes, 1);
++    result.revoke();
++    assert.equal(result.url, "");
++  }
++  assert.equal(readers.length, 4);
++  assert.deepEqual(urls.revoked, []);
++});
++
++test("data URI fallback rejects reader failures, unsupported media and malformed or mismatched copies", async t => {
++  const readers = installReader(t);
++  installUrls(t);
++  URL.createObjectURL = () => { throw new TypeError("object URLs unavailable"); };
++  const blobs = [
++    ...["error", "abort", "invalid", "throw"].map(mode => nativeBlob([1], "image/png", mode)),
++    ...["not a URI", "https://assets.invalid/photo", "javascript:alert(1)", "data:text/html;base64,AQ==",
++      "data:image/jpeg;base64,AQ==", "data:image/png,AQ==", "data:image/png;base64,AQ",
++      "data:image/png;base64,A===", "data:image/png;base64,!!!!", "data:image/png;base64,AQID",
++      "data:image/png;base64,AQ==#fragment"].map(uri => nativeBlob([1], "image/png", "load", uri)),
++    nativeBlob([1], "text/html"),
++  ];
++  for (const blob of blobs) {
++    assert.equal((await fetchBlob(blob)).denied.code, "E_OFFLINE");
++    assert.equal(blob.closes, 1);
++  }
++  assert.equal(readers.length, blobs.length - 1, "unsupported media does not enter conversion");
++  for (const reader of readers) for (const name of ["onload", "onerror", "onabort"]) assert.equal(reader[name], null);
++  delete globalThis.FileReader;
++  const unavailable = nativeBlob([1]);
++  assert.equal((await fetchBlob(unavailable)).denied.code, "E_OFFLINE");
++  assert.equal(unavailable.closes, 1);
++});
++
++test("a delayed transient conversion cannot publish an obsolete session's asset", async t => {
++  const readers = installReader(t), urls = installUrls(t);
++  URL.createObjectURL = () => { throw new TypeError("object URLs unavailable"); };
++  const session = token => ({ principal: "user:alice", kind: "user", token, expiresAt: Date.now() + 86400_000 });
++  for (const ending of ["close", "sign-out", "rotation"]) {
++    const old = nativeBlob([1], "image/png", "manual"), next = nativeBlob([2]);
++    const before = readers.length;
++    let fetches = 0;
++    const client = createClient({ url: "https://assets.invalid", session: session("old"), fetch: async url => {
++      const path = new URL(url).pathname;
++      if (path === "/auth/refresh") return Response.json({ session: session("next") });
++      if (path === "/auth/logout") return Response.json({ ok: true });
++      return response(++fetches === 1 ? old : next, "none");
++    } });
++    t.after(() => client.close());
++    const reading = client.asset("photo");
++    await new Promise(resolve => setImmediate(resolve));
++    assert.equal(readers.length, before + 1);
++    assert.equal(old.closes, 0, "an in-progress reader still owns its Blob");
++    if (ending === "rotation") assert.equal((await client.refreshSession()).ok, true);
++    else await (ending === "close" ? client.close() : client.signOut());
++    readers[before].finish();
++    const result = await reading;
++    assert.equal(old.closes, 1);
++    if (ending === "rotation") {
++      assert.equal(result.url, "data:image/png;base64,Ag==");
++      assert.equal(fetches, 2, "only credential rotation retries the asset request");
++      assert.equal(next.closes, 1);
++      result.revoke();
++      assert.equal(result.url, "");
++    } else {
++      assert.equal(result.denied.code, "E_CLOSED");
++      assert.equal(fetches, 1);
++    }
++    await client.close();
++  }
++  assert.deepEqual(urls.revoked, []);
++});
++
+ test("FileReader errors, aborts, invalid results and synchronous failures settle and close response Blobs", async t => {
+   const readers = installReader(t), urls = installUrls(t), files = await deviceFiles(t);
+   files.homes.set("photo", home("image/png"));

@@ -46396,3 +46396,115 @@ score completion, in a separate preserved app/fixture copy with exact public
 pins. Its results remain pending. Full lifecycle, actual reports, interpretation
 boundaries and selected receipts are under
 benchmarks/runs/2026-09-22-snapback4-clique-astra-0.2.32/.
+
+## 2026-09-22 — actual Clique native media failure and corrective candidate
+
+The installed cal16 extension reached native acquisition on the published
+0.2.32 SDK and 0.2.23 Expo package. A real HTTP 200 ordinary image response
+produced a 2,062-byte React Native Blob with no arrayBuffer method. The SDK
+cache called that absent method, both ordinary image/video hooks refused,
+and no ordinary image bytes reached native storage. Restart attempt 3 preserves
+the failure; attempts 1–2 were distinct app-signing/entitlement setup failures.
+Normal simulator signing fixed the latter without changing package bytes.
+
+Astra xhigh's ten-file corrective candidate uses public FileReader only when
+the Blob direct method is absent, and retains/releases fetched native Blobs
+through the existing handle lifetime. Once bytes remain outside the durable
+cache; uploads remain caller-owned. The native ABI, Expo contents and resource
+limits do not change. CLI/client/platform/Cargo and lock versions select
+0.2.33. On the exact candidate, the normal package build/typecheck, 18 focused
+Blob/session tests and two existing real-server media cases passed. The server
+for those focused cases is the unchanged 0.2.32 runtime. Astra max marked the
+patch READY; Grok's independent review and full publication qualification are
+still pending at this checkpoint. The reproduction, source hashes and test
+receipts are retained in reports/20260922-native-media-repair.md.
+
+Original-pin acquisition runs reported acquired=true and cold-opened the
+real 100-conversation inbox. The exact 10,000-message-ID/248-member audit was
+performed after reconnect, so it does not establish the stronger full offline
+ID claim. A revised witness will enumerate all required local thread pages
+before allowing reconnect. The second fresh-store run measured first useful
+layout at 11,159.628 ms, acquired-on-opener-return upper bound 11,018.320 ms,
+cold open 68.269 ms, and sampled app RSS maximum 416,333,824 bytes across
+69 samples. Response copies totaled 59,280,702 UTF-8 body bytes and 161,275
+events including repeats. These are observed app costs, not wire bytes, exact
+peak footprint or a physical-floor comparison. Cal16's original grade and
+88/100 score remain frozen; another cold packet is prepared for the final
+corrected published pin, not as a retry to improve that score.
+
+
+### 2026-09-22 — native candidate progress and second media repair
+
+Both requested families independently marked native Blob patch
+`eb7a8ef75c53eaf6e87351299c8a2e8a8b744d5099bfa12767267c8281bf181f`
+READY; the actual reviews are retained in the LLP 3000.011 family artifacts.
+The candidate Release app rendered ordinary media and matched its retained
+image/video bytes. Its fresh full-fixture acquisition also enumerated all
+10,000 required message IDs across 100 conversation scopes and 299 actual
+query pages while offline, before reconnect, matching the fixture's canonical
+ID hash. This is stronger than the original-pin disk audit after reconnect.
+
+The first once-image open still failed. An ordinary-Blob-only diagnostic
+confirmed an online HTTP 200 response followed by Expo's `createObjectURL`
+throwing because its bridgeless native proxy was absent; it closed its own
+Blob and stopped before any once request. The selected public FileReader
+transient data-URI fallback and its explicit in-memory-copy/lifetime tradeoff
+are in LLP 3000.011.005.000 §8. Astra xhigh is implementing it; no 0.2.33
+publication stage exists yet. The original 0.2.32 benchmark remains frozen.
+Astra max also identified three native-witness false-pass paths (live once
+storage exclusion, confirmed reconnect before final revocation checks, and
+settlement revalidation at final completion); the witness owner is correcting
+them before the next actual-device run. Grok's independent witness review is
+still running. No pending native cell is counted as a pass.
+
+
+### 2026-09-22 — once rendering passes; native video naming repair selected
+
+Both reviewer families approved the shared SDK transient-media repair. Astra's
+optional JavaScript-regex concern failed direct reproduction and was withdrawn;
+the original response/addendum are retained. Final shared candidate 4 adds one
+regression test and is runtime-identical to candidate 2 (23 focused cases and
+affected typecheck pass). Its actual Release app rendered once media and passed
+live durable-cache exclusion, then failed real video playback during prime.
+
+The fixture is valid H.264 MP4, not a metadata-only substitute. Original and
+cached bytes match SHA256
+`7e22b943746b2c858910252162f624cac396eb9e4f4100ae80e70431b7883d5f`.
+Independent task-owned filename controls decoded the exact bytes as `.mp4`
+and reproduced AVFoundation -11828 / OSStatus -12847 without a suffix. The
+first-party Swift cache currently uses extensionless asset IDs. The bounded
+repair and legacy-file compatibility requirements are recorded in LLP
+3000.011.005.000 §8 and the native-media report. Expo 0.2.24 is now required;
+SDK/CLI stay 0.2.33, still unpublished. No diagnostic copy replaced the app's
+media path, and no pending native scenario became a pass. The original 0.2.32
+benchmark and all failed attempts remain immutable. A model-capacity/wall-clock
+gap occurred during follow-up; it produced no additional completed work.
+
+
+### 2026-09-22 — repaired actual Clique native candidate passes
+
+The SDK 0.2.33 / Expo 0.2.24 candidate passes the actual Release app's three
+scenarios. Restart (56.267 s) proves real ordinary offline image/video on both
+launches, live once exclusion, the exact two pending intents after process
+death, two ordered authoritative settlements and delivered/read progression.
+Revocation (32.341 s) retains text history, removes both owned media filename
+variants and excludes later delivery both offline and after explicit reconnect.
+The full-fixture run enumerates all 10,000 required IDs in 100 conversation
+scopes and 299 local query pages before reconnect; its ID hash matches the
+frozen fixture. Acquisition first useful layout is20,416.582 ms, acquired-on-
+opener-return upper bound20,212.121 ms, cold open115.107 ms;143 own-app RSS
+samples have maximum421,003,264 bytes. Those are observations, not absolute
+performance ceilings or exact peak memory. The native report keeps the
+42.742 s driver and44.441 s wrapper durations distinct.
+
+Both families approved the shared SDK runtime and final assertion delta.
+Grok also withdrew its false unflagged-regex claim after the direct Node24
+reproduction; original review and correction remain intact. Astra max approved
+the Swift cache repair; Grok's final native review is still running here.
+The candidate is not yet published, and these runs use the original0.2.32
+CLI. Full publisher qualification and final public-pin native checks follow.
+The original cal16 grade and score stay frozen.
+
+Grok subsequently marked both the exact Swift cache and host file-oracle
+deltas READY at01:37:53 UTC. Both requested review families now approve the
+complete frozen corrective implementation.

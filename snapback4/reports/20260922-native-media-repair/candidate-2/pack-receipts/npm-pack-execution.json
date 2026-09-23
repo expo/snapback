@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "npm",
+    "pack",
+    "--ignore-scripts",
+    "--json",
+    "--pack-destination",
+    "/tmp/sb4-3011-20260922/native-blob-candidate-sdk-2"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-3011-20260922/snapback4/packages/snapback4",
+  "started": "2026-09-22T22:25:09.364Z",
+  "ended": "2026-09-22T22:25:09.741Z",
+  "exitCode": 0,
+  "runtime": "v24.18.0"
+}

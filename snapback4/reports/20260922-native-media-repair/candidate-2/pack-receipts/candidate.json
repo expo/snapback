@@ -1,0 +1,53 @@
+{
+  "kind": "unpublished workspace SDK candidate for installed native qualification",
+  "name": "snapback4",
+  "version": "0.2.33",
+  "tarball": "/tmp/sb4-3011-20260922/native-blob-candidate-sdk-2/snapback4-0.2.33.tgz",
+  "bytes": 600202,
+  "sha256": "dab0e0b9830dc75a7a59ae28e5633b7af9180eb1fa1a6d3d0e03feeb26f15ddb",
+  "integrity": "sha512-X2RWuyyEA9BcU5t+wANEZEA/ixeF6fV2uaAwDPo22oRSm/MK9fv2VwNIGrARHqfRCtgnZKuELhGYfHCj1g74wA==",
+  "sourceBase": "272deaea60a4496cc80ae232da310e452ea6929b",
+  "fullPatchSha256": "59408cfb668697adf7c145ddd933ec861d3c5dd0055b60a38d6ff8b0823bc75c",
+  "deltaSha256": "640910fc6f8cf7a88e84739202eda8f223b3fdd17bf8c49d3bc996e91d68cd82",
+  "sourceManifest": {
+    "base": "272deaea60a4496cc80ae232da310e452ea6929b",
+    "previous_patch_sha256": "eb7a8ef75c53eaf6e87351299c8a2e8a8b744d5099bfa12767267c8281bf181f",
+    "patch_sha256": "59408cfb668697adf7c145ddd933ec861d3c5dd0055b60a38d6ff8b0823bc75c",
+    "delta_sha256": "640910fc6f8cf7a88e84739202eda8f223b3fdd17bf8c49d3bc996e91d68cd82",
+    "changed_from_previous": [
+      "snapback4/packages/snapback4/src/assets.ts",
+      "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md",
+      "snapback4/packages/snapback4/test/asset-blob-lifecycle.test.mjs"
+    ],
+    "files": {
+      "snapback4/Cargo.toml": "cd97fc28f70531d0f5763cb38b5586cb4de86f676c96b24a9cc866dd868fc802",
+      "snapback4/Cargo.lock": "e0bfaa11f485499fb7693518a7dc53201e97a40b48caf759d0afdf4c80038ae8",
+      "snapback4/bun.lock": "bd34b77a4bb1bccc3e4b54dc63510af5c1c6493a89a4ca0edb1777ee0026f670",
+      "snapback4/packages/snapback4/package.json": "f17c8e419183e45a248a5f597fafc1e63704e62cc87ac8ec7033c1a227cf8a6c",
+      "snapback4/packages/snapback4-darwin-arm64/package.json": "81a161a26b360a2847269180fe1d4c27d5cd802067eea77eecfe4b4d188d8cfb",
+      "snapback4/packages/snapback4/src/assets.ts": "2d59c5be80f9a015a63f91e6eee27b13fe86811da731c63bfdbc63927cbd766a",
+      "snapback4/packages/snapback4/src/local-assets.ts": "331dcd6d2aa4ccfdd0352890deecfdd7ee4a41548aed8fbe29809a588894e5ee",
+      "snapback4/packages/snapback4/test/online-session.test.mjs": "7f2bd549e3e24aa493c6667e6e98e90c3e491ff71d2c4fffceebcf0b76feab74",
+      "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md": "f955f2575cd5f78dc80e545b7ab8e5049b09e53a325a245b3eef7f409774f11d",
+      "snapback4/packages/snapback4/test/asset-blob-lifecycle.test.mjs": "f26876ac65c036d23dfaa38c6c916e905794a02804653b7c2957b08fd3e82ed8"
+    }
+  },
+  "distAssetsSha256": "ad3cacc6a3b15e41786509de386cd05c7ababb7bb7d76f5f732913f7cb51bbb6",
+  "sourceAssetsSha256": "2d59c5be80f9a015a63f91e6eee27b13fe86811da731c63bfdbc63927cbd766a",
+  "native": {
+    "expoVersion": "0.2.23",
+    "trackedExpoAndNativeSourcesUnchanged": true,
+    "nativeBuildExecuted": false
+  },
+  "realServerExecutable": {
+    "path": "/Users/ccheever/projects/snapback-3011-20260922/snapback4/target/debug/snapback4",
+    "version": "snapback4 0.2.32",
+    "sha256": "20cd5c22621945ffadd3dc4007bdd19f4363b26468fed0edfa1dbfe086e746a7",
+    "qualification": "existing workspace executable used by the real-server tests; not built by this repair check"
+  },
+  "pack": {
+    "started": "2026-09-22T22:25:09.364Z",
+    "ended": "2026-09-22T22:25:09.741Z",
+    "exitCode": 0
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "started": "2026-09-23T01:12:48.049443+00:00",
+  "ended": "2026-09-23T01:12:48.159573+00:00",
+  "argv": [
+    "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+    "/tmp/sb4-3011-20260922/final-test-regex-reproduction/probe.mjs"
+  ],
+  "exit": 0,
+  "probeSha256": "e625db9b1b83ff49563173cb385950ef7e3a4f2f841a935c015575166d35d2d7",
+  "purpose": "Independently execute the exact candidate2 unflagged regex after a static reviewer asserted final LF passes"
+}

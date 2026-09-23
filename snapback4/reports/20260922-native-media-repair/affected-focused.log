@@ -1,0 +1,27 @@
+✔ native image/png bytes survive a fresh cache opener; response ownership ends after copying (13.764292ms)
+✔ native video/mp4 bytes survive a fresh cache opener; response ownership ends after copying (1.839541ms)
+✔ once responses remove stale ordinary bytes without reading or storing the once Blob (2.113417ms)
+✔ FileReader errors, aborts, invalid results and synchronous failures settle and close response Blobs (0.781375ms)
+✔ modern Blob reads and browser URLs retain their behavior without FileReader (2.120291ms)
+✔ failed retention and URL creation close owned response Blobs; revoke cleans up even if URL disposal throws (0.157667ms)
+✔ upload keeps caller-owned Blobs open on both success and failure (0.326708ms)
+✔ README client card members are functions on both tiers, except device-only sync (13.331666ms)
+ℹ 16 README members; 1 device-only; 0 missing implementations
+✔ online session: rotation adopts the bearer before notification; revocation closes (1.036042ms)
+✔ online token: rotation adopts the bearer before notification; revocation closes (0.388584ms)
+✔ online session: signOut clears the session and notifies once (0.252167ms)
+✔ online session: current refusal clears the session; an obsolete refusal retries the same write id (1.004166ms)
+✔ online session: near-expiry rotates before a protected read; concurrent refreshes coalesce (0.210541ms)
+✔ online session: a refresh cannot change principal or resurrect a closed client (0.290625ms)
+✔ online assets revoke late credential-bound URLs across rotation, sign-out and close (0.51175ms)
+✔ mintId keeps burst and rollback ids monotonic without advancing their timestamp (16.007292ms)
+✔ mintId refuses entropy-field exhaustion without poisoning a later millisecond (0.897792ms)
+✔ mintId does not publish timestamp state when secure entropy throws (0.912875ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 130.612584

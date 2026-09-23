@@ -1,0 +1,31 @@
+✔ native image/png bytes survive a fresh cache opener; response ownership ends after copying (18.356334ms)
+✔ native video/mp4 bytes survive a fresh cache opener; response ownership ends after copying (3.051541ms)
+✔ once responses remove stale ordinary bytes without reading or storing the once Blob (10.417792ms)
+✔ once falls back to a transient data URI without a second fetch or durable bytes (2.481541ms)
+✔ data URI fallback preserves supported media bytes and handles a missing object-URL function (0.562209ms)
+✔ data URI fallback rejects reader failures, unsupported media and malformed or mismatched copies (0.441833ms)
+✔ a delayed transient conversion cannot publish an obsolete session's asset (2.757583ms)
+✔ FileReader errors, aborts, invalid results and synchronous failures settle and close response Blobs (1.373583ms)
+✔ modern Blob reads and browser URLs retain their behavior without FileReader (1.450458ms)
+✔ failed retention and URL creation close owned response Blobs; revoke cleans up even if URL disposal throws (0.133625ms)
+✔ upload keeps caller-owned Blobs open on both success and failure (0.160958ms)
+✔ README client card members are functions on both tiers, except device-only sync (17.038917ms)
+ℹ 16 README members; 1 device-only; 0 missing implementations
+✔ online session: rotation adopts the bearer before notification; revocation closes (1.30325ms)
+✔ online token: rotation adopts the bearer before notification; revocation closes (0.444584ms)
+✔ online session: signOut clears the session and notifies once (0.369708ms)
+✔ online session: current refusal clears the session; an obsolete refusal retries the same write id (1.845958ms)
+✔ online session: near-expiry rotates before a protected read; concurrent refreshes coalesce (0.46275ms)
+✔ online session: a refresh cannot change principal or resurrect a closed client (0.400708ms)
+✔ online assets revoke late credential-bound URLs across rotation, sign-out and close (1.237542ms)
+✔ mintId keeps burst and rollback ids monotonic without advancing their timestamp (15.917583ms)
+✔ mintId refuses entropy-field exhaustion without poisoning a later millisecond (0.818709ms)
+✔ mintId does not publish timestamp state when secure entropy throws (0.545292ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 84.792

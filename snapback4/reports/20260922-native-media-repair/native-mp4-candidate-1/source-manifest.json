@@ -1,0 +1,36 @@
+{
+  "frozenAt": "2026-09-23T01:16:52.791085+00:00",
+  "base": "272deaea60a4496cc80ae232da310e452ea6929b",
+  "nativePatchSha256": "a87144c533bed75ea4fbeeaa7c5415e66350c6d30151da5a3685b31062333cc9",
+  "fullPatchSha256": "82ef57eca122df982ed82c34785d7bac38fce494a205da372addda134899d6e7",
+  "sharedSdkRuntimeCandidate": "59408cfb668697adf7c145ddd933ec861d3c5dd0055b60a38d6ff8b0823bc75c",
+  "sharedSdkFinalTestCandidate": "fd540b33587d95d811a06e624f4d786a0cc885c5317b1b05dbbbcc02dd8ab60b",
+  "expoVersion": "0.2.24",
+  "sdkVersion": "0.2.33",
+  "nativeChangedPaths": [
+    "snapback4/packages/snapback4-expo/ios/MediaFiles.swift",
+    "snapback4/packages/snapback4-expo/ios/Snapback4Module.swift",
+    "snapback4/packages/snapback4-expo/test/MediaFilesTests.swift",
+    "snapback4/packages/snapback4/test/expo-media-storage.test.mjs",
+    "snapback4/packages/snapback4-expo/package.json",
+    "snapback4/bun.lock",
+    "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md"
+  ],
+  "files": {
+    "snapback4/Cargo.toml": "cd97fc28f70531d0f5763cb38b5586cb4de86f676c96b24a9cc866dd868fc802",
+    "snapback4/Cargo.lock": "e0bfaa11f485499fb7693518a7dc53201e97a40b48caf759d0afdf4c80038ae8",
+    "snapback4/bun.lock": "00d386d5f5e6457952927f09538e75ce3149316af0ed60f7a381f2ae5d0fb8b3",
+    "snapback4/packages/snapback4/package.json": "f17c8e419183e45a248a5f597fafc1e63704e62cc87ac8ec7033c1a227cf8a6c",
+    "snapback4/packages/snapback4-darwin-arm64/package.json": "81a161a26b360a2847269180fe1d4c27d5cd802067eea77eecfe4b4d188d8cfb",
+    "snapback4/packages/snapback4/src/assets.ts": "2d59c5be80f9a015a63f91e6eee27b13fe86811da731c63bfdbc63927cbd766a",
+    "snapback4/packages/snapback4/src/local-assets.ts": "331dcd6d2aa4ccfdd0352890deecfdd7ee4a41548aed8fbe29809a588894e5ee",
+    "snapback4/packages/snapback4/test/online-session.test.mjs": "7f2bd549e3e24aa493c6667e6e98e90c3e491ff71d2c4fffceebcf0b76feab74",
+    "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md": "574e3cc414276b7cc65c9ac9f596d9fccc14b0f0245013200bfad235718c58f6",
+    "snapback4/packages/snapback4/test/asset-blob-lifecycle.test.mjs": "d3cfe206df5cfe639c3dbaa72529f7c26c23c66a9c8e4c4eb7afc6021fa49f89",
+    "snapback4/packages/snapback4-expo/ios/MediaFiles.swift": "7529cd218563c475c107c752eb31e451a32decc510cee3a342b69ab4328df60c",
+    "snapback4/packages/snapback4-expo/ios/Snapback4Module.swift": "dbae25a5d21e2b2f193cb9f00bbc252fbfabab5b9208516da5e90c8336f61bfe",
+    "snapback4/packages/snapback4-expo/test/MediaFilesTests.swift": "83d2f2fc04339afc2f521b4d53af8524c82d8c3cd19cc3d1b4a9cea874334441",
+    "snapback4/packages/snapback4/test/expo-media-storage.test.mjs": "0bc4174f4db38c5e9e17bad29eb773074508240eab9e71088ef74f99959d5dcc",
+    "snapback4/packages/snapback4-expo/package.json": "c264e94124cbb9160dec6a48d7a34ada95a4918831467e58adbe11e4a9ea3aee"
+  }
+}

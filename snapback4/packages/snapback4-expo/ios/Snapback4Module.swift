@@ -6,7 +6,7 @@ import Snapback4Device
 // link and the transport. Handles are small integers the module hands out.
 public final class Snapback4Module: Module {
   private var devices: [Int: OpaquePointer] = [:]
-  private var mediaDirectories: [Int: URL] = [:]
+  private var mediaFiles: [Int: MediaFiles] = [:]
   private var nextHandle = 1
   private let lock = NSLock()
 
@@ -37,7 +37,7 @@ public final class Snapback4Module: Module {
       let handle = self.nextHandle
       self.nextHandle += 1
       self.devices[handle] = device
-      self.mediaDirectories[handle] = URL(fileURLWithPath: path + ".media", isDirectory: true)
+      self.mediaFiles[handle] = MediaFiles(directory: URL(fileURLWithPath: path + ".media", isDirectory: true))
       return handle
     }
 
@@ -57,52 +57,33 @@ public final class Snapback4Module: Module {
 
     // @ref LLP 3000.007#8 — the opener owns ordinary media in Documents
     AsyncFunction("readAsset") { (handle: Int, id: String) -> String? in
-      self.lock.lock()
-      defer { self.lock.unlock() }
-      let file = try self.assetFile(handle, id)
-      guard FileManager.default.fileExists(atPath: file.path) else { return nil }
-      return try Data(contentsOf: file).map { String(format: "%02x", $0) }.joined()
+      try self.withMedia(handle) { try $0.read(id) }
     }
     AsyncFunction("writeAsset") { (handle: Int, id: String, hex: String) in
-      self.lock.lock()
-      defer { self.lock.unlock() }
-      let file = try self.assetFile(handle, id)
-      let chars = Array(hex.utf8)
-      guard chars.count % 2 == 0 else { throw Snapback4OpenException("invalid media bytes") }
-      var bytes = Data(capacity: chars.count / 2)
-      for i in stride(from: 0, to: chars.count, by: 2) {
-        guard let byte = UInt8(String(bytes: chars[i...i+1], encoding: .utf8) ?? "", radix: 16) else { throw Snapback4OpenException("invalid media bytes") }
-        bytes.append(byte)
-      }
-      try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
-      try bytes.write(to: file, options: .atomic)
+      try self.withMedia(handle) { try $0.write(id, hex: hex) }
     }
     AsyncFunction("removeAsset") { (handle: Int, id: String) in
-      self.lock.lock()
-      defer { self.lock.unlock() }
-      let file = try self.assetFile(handle, id)
-      if FileManager.default.fileExists(atPath: file.path) { try FileManager.default.removeItem(at: file) }
+      try self.withMedia(handle) { try $0.remove(id) }
     }
     Function("assetUri") { (handle: Int, id: String) -> String in
-      self.lock.lock()
-      defer { self.lock.unlock() }
-      return try self.assetFile(handle, id).absoluteString
+      try self.withMedia(handle) { try $0.uri(id) }
     }
 
     Function("close") { (handle: Int) in
       self.lock.lock()
       defer { self.lock.unlock() }
-      self.mediaDirectories.removeValue(forKey: handle)
+      self.mediaFiles.removeValue(forKey: handle)?.close()
       if let device = self.devices.removeValue(forKey: handle) {
         sb4_close(device)
       }
     }
   }
-  private func assetFile(_ handle: Int, _ id: String) throws -> URL {
-    guard let directory = mediaDirectories[handle], !id.isEmpty,
-      id.utf8.allSatisfy({ ($0 >= 48 && $0 <= 57) || ($0 >= 65 && $0 <= 90) || ($0 >= 97 && $0 <= 122) })
-    else { throw Snapback4OpenException("invalid media id or closed device") }
-    return directory.appendingPathComponent(id)
+  private func withMedia<T>(_ handle: Int, _ body: (MediaFiles) throws -> T) throws -> T {
+    lock.lock()
+    defer { lock.unlock() }
+    guard let files = mediaFiles[handle] else { throw Snapback4OpenException("invalid media id or closed device") }
+    do { return try body(files) }
+    catch let failure as MediaFiles.Failure { throw Snapback4OpenException(failure.rawValue) }
   }
 }
 

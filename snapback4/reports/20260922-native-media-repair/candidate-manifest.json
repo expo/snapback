@@ -1,0 +1,16 @@
+{
+  "base": "272deaea60a4496cc80ae232da310e452ea6929b",
+  "patch_sha256": "eb7a8ef75c53eaf6e87351299c8a2e8a8b744d5099bfa12767267c8281bf181f",
+  "files": {
+    "snapback4/Cargo.toml": "cd97fc28f70531d0f5763cb38b5586cb4de86f676c96b24a9cc866dd868fc802",
+    "snapback4/Cargo.lock": "e0bfaa11f485499fb7693518a7dc53201e97a40b48caf759d0afdf4c80038ae8",
+    "snapback4/bun.lock": "bd34b77a4bb1bccc3e4b54dc63510af5c1c6493a89a4ca0edb1777ee0026f670",
+    "snapback4/packages/snapback4/package.json": "f17c8e419183e45a248a5f597fafc1e63704e62cc87ac8ec7033c1a227cf8a6c",
+    "snapback4/packages/snapback4-darwin-arm64/package.json": "81a161a26b360a2847269180fe1d4c27d5cd802067eea77eecfe4b4d188d8cfb",
+    "snapback4/packages/snapback4/src/assets.ts": "8d1f94544307051fc09d0b71085fefa606630a4435a58bacac87e32c55fd56a0",
+    "snapback4/packages/snapback4/src/local-assets.ts": "331dcd6d2aa4ccfdd0352890deecfdd7ee4a41548aed8fbe29809a588894e5ee",
+    "snapback4/packages/snapback4/test/online-session.test.mjs": "7f2bd549e3e24aa493c6667e6e98e90c3e491ff71d2c4fffceebcf0b76feab74",
+    "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md": "b72edd764127ec16fc9b79276ba1ea99314660e1c8997f372f09aec1540c5065",
+    "snapback4/packages/snapback4/test/asset-blob-lifecycle.test.mjs": "8b173af997f0b1ecd7d90211424d6d0d360cc4d0df89aaca6f23fedd167ea77b"
+  }
+}

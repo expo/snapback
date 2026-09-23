@@ -1,6 +1,7 @@
 // @ref LLP 3000.007#8 — ordinary viewed media belongs to its current home row
 import type { AssetRead } from "./contract.ts";
 import type { DeviceCore } from "./local.ts";
+import { blobArrayBuffer } from "./assets.ts";
 
 /** A host's private byte storage. Hex crosses the native JSON bridge; native
  * hosts may also serve a file URI. The client has no dependency on Expo. */
@@ -125,7 +126,7 @@ export class MediaCache {
       if (this.stopped) return;
       const home = await this.home(id);
       if (!home) { await this.drop(id); await this.save(); return; }
-      const bytes = new Uint8Array(await blob.arrayBuffer());
+      const bytes = new Uint8Array(await blobArrayBuffer(blob));
       const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
       const entry = { id, home: { ...home, type: blob.type }, bytes: blob.size, used: Date.now() };
       // Keep the manifest first so an interrupted byte write is removed on reopen.

@@ -1,0 +1,25 @@
+--- a/snapback4/packages/snapback4/test/asset-blob-lifecycle.test.mjs
++++ b/snapback4/packages/snapback4/test/asset-blob-lifecycle.test.mjs
+@@ -214,6 +214,22 @@
+   const unavailable = nativeBlob([1]);
+   assert.equal((await fetchBlob(unavailable)).denied.code, "E_OFFLINE");
+   assert.equal(unavailable.closes, 1);
++});
++
++test("data URI fallback rejects trailing line terminators even when they fill the expected encoded length", async t => {
++  const readers = installReader(t);
++  installUrls(t);
++  URL.createObjectURL = () => { throw new TypeError("object URLs unavailable"); };
++  for (const terminator of ["\n", "\r", "\r\n", "\u2028", "\u2029"]) {
++    const encoded = (terminator.length === 2 ? "AQ" : "AQI") + terminator;
++    assert.equal(encoded.length, 4, "a three-byte Blob expects four encoded characters");
++    assert.ok(Buffer.from(encoded, "base64").length < 3, "a permissive decoder would return too few bytes");
++    const blob = nativeBlob([1, 2, 3], "image/png", "load", `data:image/png;base64,${encoded}`);
++    assert.equal((await fetchBlob(blob)).denied.code, "E_OFFLINE");
++    assert.equal(blob.closes, 1);
++  }
++  assert.equal(readers.length, 5);
++  for (const reader of readers) for (const name of ["onload", "onerror", "onabort"]) assert.equal(reader[name], null);
+ });
+ 
+ test("a delayed transient conversion cannot publish an obsolete session's asset", async t => {

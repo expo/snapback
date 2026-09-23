@@ -1,0 +1,361 @@
+[
+  {
+    "id": "snapback4@0.2.33",
+    "name": "snapback4",
+    "version": "0.2.33",
+    "size": 600202,
+    "unpackedSize": 2165407,
+    "shasum": "84434a9f39d6fa8ee97fe1ceab05c1a772976df2",
+    "integrity": "sha512-X2RWuyyEA9BcU5t+wANEZEA/ixeF6fV2uaAwDPo22oRSm/MK9fv2VwNIGrARHqfRCtgnZKuELhGYfHCj1g74wA==",
+    "filename": "snapback4-0.2.33.tgz",
+    "files": [
+      {
+        "path": "CLIENT-AND-OPERATIONS.md",
+        "size": 98923,
+        "mode": 420
+      },
+      {
+        "path": "README.md",
+        "size": 15674,
+        "mode": 420
+      },
+      {
+        "path": "SERVER.md",
+        "size": 46564,
+        "mode": 420
+      },
+      {
+        "path": "bin/snapback4.js",
+        "size": 894,
+        "mode": 493
+      },
+      {
+        "path": "dist/actions.d.ts",
+        "size": 395,
+        "mode": 420
+      },
+      {
+        "path": "dist/actions.js",
+        "size": 1565,
+        "mode": 420
+      },
+      {
+        "path": "dist/assets.d.ts",
+        "size": 829,
+        "mode": 420
+      },
+      {
+        "path": "dist/assets.js",
+        "size": 5624,
+        "mode": 420
+      },
+      {
+        "path": "dist/auth.d.ts",
+        "size": 2545,
+        "mode": 420
+      },
+      {
+        "path": "dist/auth.js",
+        "size": 5968,
+        "mode": 420
+      },
+      {
+        "path": "dist/backend.d.ts",
+        "size": 1835,
+        "mode": 420
+      },
+      {
+        "path": "dist/backend.js",
+        "size": 916,
+        "mode": 420
+      },
+      {
+        "path": "dist/changes.d.ts",
+        "size": 468,
+        "mode": 420
+      },
+      {
+        "path": "dist/changes.js",
+        "size": 3670,
+        "mode": 420
+      },
+      {
+        "path": "dist/client.d.ts",
+        "size": 1224,
+        "mode": 420
+      },
+      {
+        "path": "dist/client.js",
+        "size": 28854,
+        "mode": 420
+      },
+      {
+        "path": "dist/contract.d.ts",
+        "size": 10068,
+        "mode": 420
+      },
+      {
+        "path": "dist/contract.js",
+        "size": 418,
+        "mode": 420
+      },
+      {
+        "path": "dist/identity-principal.d.ts",
+        "size": 80,
+        "mode": 420
+      },
+      {
+        "path": "dist/identity-principal.js",
+        "size": 312,
+        "mode": 420
+      },
+      {
+        "path": "dist/identity-runtime.d.ts",
+        "size": 544,
+        "mode": 420
+      },
+      {
+        "path": "dist/identity-runtime.js",
+        "size": 4709,
+        "mode": 420
+      },
+      {
+        "path": "dist/identity.d.ts",
+        "size": 3797,
+        "mode": 420
+      },
+      {
+        "path": "dist/identity.js",
+        "size": 28994,
+        "mode": 420
+      },
+      {
+        "path": "dist/local-assets.d.ts",
+        "size": 1277,
+        "mode": 420
+      },
+      {
+        "path": "dist/local-assets.js",
+        "size": 6595,
+        "mode": 420
+      },
+      {
+        "path": "dist/local-exit.d.ts",
+        "size": 411,
+        "mode": 420
+      },
+      {
+        "path": "dist/local-exit.js",
+        "size": 2342,
+        "mode": 420
+      },
+      {
+        "path": "dist/local.d.ts",
+        "size": 3086,
+        "mode": 420
+      },
+      {
+        "path": "dist/local.js",
+        "size": 86132,
+        "mode": 420
+      },
+      {
+        "path": "dist/mock.d.ts",
+        "size": 1535,
+        "mode": 420
+      },
+      {
+        "path": "dist/mock.js",
+        "size": 8792,
+        "mode": 420
+      },
+      {
+        "path": "dist/native.d.ts",
+        "size": 866,
+        "mode": 420
+      },
+      {
+        "path": "dist/native.js",
+        "size": 5159,
+        "mode": 420
+      },
+      {
+        "path": "dist/react.d.ts",
+        "size": 3154,
+        "mode": 420
+      },
+      {
+        "path": "dist/react.js",
+        "size": 15103,
+        "mode": 420
+      },
+      {
+        "path": "dist/resolve-binary.d.ts",
+        "size": 49,
+        "mode": 420
+      },
+      {
+        "path": "dist/resolve-binary.js",
+        "size": 1209,
+        "mode": 420
+      },
+      {
+        "path": "dist/server-context.d.ts",
+        "size": 570,
+        "mode": 420
+      },
+      {
+        "path": "dist/server-context.js",
+        "size": 6820,
+        "mode": 420
+      },
+      {
+        "path": "dist/server-effect-context.d.ts",
+        "size": 694,
+        "mode": 420
+      },
+      {
+        "path": "dist/server-effect-context.js",
+        "size": 5805,
+        "mode": 420
+      },
+      {
+        "path": "dist/server-json.d.ts",
+        "size": 735,
+        "mode": 420
+      },
+      {
+        "path": "dist/server-json.js",
+        "size": 4182,
+        "mode": 420
+      },
+      {
+        "path": "dist/server-lifetime.d.ts",
+        "size": 1344,
+        "mode": 420
+      },
+      {
+        "path": "dist/server-lifetime.js",
+        "size": 3915,
+        "mode": 420
+      },
+      {
+        "path": "dist/server-private.d.ts",
+        "size": 1444,
+        "mode": 420
+      },
+      {
+        "path": "dist/server-private.js",
+        "size": 339,
+        "mode": 420
+      },
+      {
+        "path": "dist/server-routes.d.ts",
+        "size": 1795,
+        "mode": 420
+      },
+      {
+        "path": "dist/server-routes.js",
+        "size": 7364,
+        "mode": 420
+      },
+      {
+        "path": "dist/server-steps.d.ts",
+        "size": 630,
+        "mode": 420
+      },
+      {
+        "path": "dist/server-steps.js",
+        "size": 3637,
+        "mode": 420
+      },
+      {
+        "path": "dist/server-verify.d.ts",
+        "size": 790,
+        "mode": 420
+      },
+      {
+        "path": "dist/server-verify.js",
+        "size": 7384,
+        "mode": 420
+      },
+      {
+        "path": "dist/server.d.ts",
+        "size": 3385,
+        "mode": 420
+      },
+      {
+        "path": "dist/server.js",
+        "size": 11929,
+        "mode": 420
+      },
+      {
+        "path": "dist/wasm/snapback4_device_bg.wasm",
+        "size": 1599837,
+        "mode": 420
+      },
+      {
+        "path": "dist/wasm/snapback4_device_bg.wasm.d.ts",
+        "size": 819,
+        "mode": 420
+      },
+      {
+        "path": "dist/wasm/snapback4_device.d.ts",
+        "size": 2627,
+        "mode": 420
+      },
+      {
+        "path": "dist/wasm/snapback4_device.js",
+        "size": 14057,
+        "mode": 420
+      },
+      {
+        "path": "dist/web-journal.d.ts",
+        "size": 1345,
+        "mode": 420
+      },
+      {
+        "path": "dist/web-journal.js",
+        "size": 9133,
+        "mode": 420
+      },
+      {
+        "path": "dist/web.d.ts",
+        "size": 2396,
+        "mode": 420
+      },
+      {
+        "path": "dist/web.js",
+        "size": 35397,
+        "mode": 420
+      },
+      {
+        "path": "dist/worker.d.ts",
+        "size": 6015,
+        "mode": 420
+      },
+      {
+        "path": "dist/worker.js",
+        "size": 19281,
+        "mode": 420
+      },
+      {
+        "path": "dist/writes.d.ts",
+        "size": 1601,
+        "mode": 420
+      },
+      {
+        "path": "dist/writes.js",
+        "size": 7208,
+        "mode": 420
+      },
+      {
+        "path": "package.json",
+        "size": 2349,
+        "mode": 420
+      }
+    ],
+    "entryCount": 69,
+    "bundled": []
+  }
+]

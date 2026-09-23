@@ -189,6 +189,13 @@ test("online assets revoke late credential-bound URLs across rotation, sign-out 
   const originalCreate = URL.createObjectURL, originalRevoke = URL.revokeObjectURL;
   let serial = 0;
   const revoked = [];
+  const closed = [];
+  function assetResponse(bytes) {
+    const blob = new Blob([new Uint8Array(bytes)], { type: "image/png" });
+    const id = `blob:asset-${serial + 1}`;
+    blob.close = () => closed.push(id);
+    return { ok: true, headers: new Headers(), blob: async () => blob };
+  }
   URL.createObjectURL = () => `blob:asset-${++serial}`;
   URL.revokeObjectURL = url => revoked.push(url);
   t.after(() => { URL.createObjectURL = originalCreate; URL.revokeObjectURL = originalRevoke; });
@@ -199,7 +206,7 @@ test("online assets revoke late credential-bound URLs across rotation, sign-out 
       const path = new URL(url).pathname;
       if (path === "/auth/logout") return Response.json({ ok: true });
       entered.resolve(); await release.promise;
-      return new Response(new Uint8Array([1, 2, 3]), { headers: { "content-type": "image/png" } });
+      return assetResponse([1, 2, 3]);
     } });
     const reading = client.asset("photo");
     await entered.promise;
@@ -209,6 +216,7 @@ test("online assets revoke late credential-bound URLs across rotation, sign-out 
     assert.equal(result.denied?.code, "E_CLOSED");
   }
   assert.deepEqual(revoked, ["blob:asset-1", "blob:asset-2"]);
+  assert.deepEqual(closed, revoked, "obsolete response Blobs are released with their URLs");
 
   const oldEntered = deferred(), oldRelease = deferred();
   const bearers = [];
@@ -217,7 +225,7 @@ test("online assets revoke late credential-bound URLs across rotation, sign-out 
     if (path === "/auth/refresh") return Response.json({ session: session("next") });
     bearers.push(bearer(init));
     if (bearers.length === 1) { oldEntered.resolve(); await oldRelease.promise; }
-    return new Response(new Uint8Array([4]), { headers: { "content-type": "image/png" } });
+    return assetResponse([4]);
   } });
   t.after(() => client.close());
   const reading = client.asset("photo");
@@ -228,7 +236,10 @@ test("online assets revoke late credential-bound URLs across rotation, sign-out 
   assert.deepEqual(bearers, ["Bearer old", "Bearer next"]);
   assert.equal(result.url, "blob:asset-4");
   assert.deepEqual(revoked, ["blob:asset-1", "blob:asset-2", "blob:asset-3"]);
+  assert.deepEqual(closed, revoked, "the replacement asset remains live until its handle is revoked");
   result.revoke();
+  result.revoke();
+  assert.deepEqual(closed, ["blob:asset-1", "blob:asset-2", "blob:asset-3", "blob:asset-4"]);
 });
 
 test("mintId keeps burst and rollback ids monotonic without advancing their timestamp", () => {

@@ -1,0 +1,164 @@
+{
+  "kind": "unpublished Expo native-host candidate, not registry qualification",
+  "name": "snapback4-expo",
+  "version": "0.2.24",
+  "tarball": "/tmp/sb4-3011-20260922/native-mp4-candidate-expo-1/snapback4-expo-0.2.24.tgz",
+  "bytes": 4609484,
+  "sha256": "aa3a7037a65598d1c014b28136debe023d856140c6871d6fbed54607f489ccb1",
+  "integrity": "sha512-IExI9pchHDjww3J4gCUPqDX5E2RnjIaPYVotEEM0KWFWrydsht6VBejyUOtrlcBnrhT8haHDszwaP/UAFm+LZA==",
+  "files": [
+    {
+      "path": "README.md",
+      "size": 3144,
+      "mode": 420
+    },
+    {
+      "path": "expo-module.config.json",
+      "size": 82,
+      "mode": 420
+    },
+    {
+      "path": "ios/MediaFiles.swift",
+      "size": 4191,
+      "mode": 420
+    },
+    {
+      "path": "ios/Snapback4Device.xcframework/Info.plist",
+      "size": 1257,
+      "mode": 420
+    },
+    {
+      "path": "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/module.modulemap",
+      "size": 61,
+      "mode": 420
+    },
+    {
+      "path": "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/snapback4.h",
+      "size": 2204,
+      "mode": 420
+    },
+    {
+      "path": "ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a",
+      "size": 5780968,
+      "mode": 420
+    },
+    {
+      "path": "ios/Snapback4Device.xcframework/ios-arm64/Headers/module.modulemap",
+      "size": 61,
+      "mode": 420
+    },
+    {
+      "path": "ios/Snapback4Device.xcframework/ios-arm64/Headers/snapback4.h",
+      "size": 2204,
+      "mode": 420
+    },
+    {
+      "path": "ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a",
+      "size": 5787096,
+      "mode": 420
+    },
+    {
+      "path": "ios/Snapback4Expo.podspec",
+      "size": 1222,
+      "mode": 420
+    },
+    {
+      "path": "ios/Snapback4Module.swift",
+      "size": 3928,
+      "mode": 420
+    },
+    {
+      "path": "ios/WitnessContainer.swift",
+      "size": 2095,
+      "mode": 420
+    },
+    {
+      "path": "package.json",
+      "size": 818,
+      "mode": 420
+    },
+    {
+      "path": "src/index.ts",
+      "size": 2464,
+      "mode": 420
+    },
+    {
+      "path": "src/witness-core.ts",
+      "size": 3019,
+      "mode": 420
+    },
+    {
+      "path": "src/witness.ts",
+      "size": 518,
+      "mode": 420
+    }
+  ],
+  "sourceBase": "272deaea60a4496cc80ae232da310e452ea6929b",
+  "nativePatchSha256": "a87144c533bed75ea4fbeeaa7c5415e66350c6d30151da5a3685b31062333cc9",
+  "combinedPatchSha256": "82ef57eca122df982ed82c34785d7bac38fce494a205da372addda134899d6e7",
+  "sourceManifest": {
+    "frozenAt": "2026-09-23T01:16:52.791085+00:00",
+    "base": "272deaea60a4496cc80ae232da310e452ea6929b",
+    "nativePatchSha256": "a87144c533bed75ea4fbeeaa7c5415e66350c6d30151da5a3685b31062333cc9",
+    "fullPatchSha256": "82ef57eca122df982ed82c34785d7bac38fce494a205da372addda134899d6e7",
+    "sharedSdkRuntimeCandidate": "59408cfb668697adf7c145ddd933ec861d3c5dd0055b60a38d6ff8b0823bc75c",
+    "sharedSdkFinalTestCandidate": "fd540b33587d95d811a06e624f4d786a0cc885c5317b1b05dbbbcc02dd8ab60b",
+    "expoVersion": "0.2.24",
+    "sdkVersion": "0.2.33",
+    "nativeChangedPaths": [
+      "snapback4/packages/snapback4-expo/ios/MediaFiles.swift",
+      "snapback4/packages/snapback4-expo/ios/Snapback4Module.swift",
+      "snapback4/packages/snapback4-expo/test/MediaFilesTests.swift",
+      "snapback4/packages/snapback4/test/expo-media-storage.test.mjs",
+      "snapback4/packages/snapback4-expo/package.json",
+      "snapback4/bun.lock",
+      "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md"
+    ],
+    "files": {
+      "snapback4/Cargo.toml": "cd97fc28f70531d0f5763cb38b5586cb4de86f676c96b24a9cc866dd868fc802",
+      "snapback4/Cargo.lock": "e0bfaa11f485499fb7693518a7dc53201e97a40b48caf759d0afdf4c80038ae8",
+      "snapback4/bun.lock": "00d386d5f5e6457952927f09538e75ce3149316af0ed60f7a381f2ae5d0fb8b3",
+      "snapback4/packages/snapback4/package.json": "f17c8e419183e45a248a5f597fafc1e63704e62cc87ac8ec7033c1a227cf8a6c",
+      "snapback4/packages/snapback4-darwin-arm64/package.json": "81a161a26b360a2847269180fe1d4c27d5cd802067eea77eecfe4b4d188d8cfb",
+      "snapback4/packages/snapback4/src/assets.ts": "2d59c5be80f9a015a63f91e6eee27b13fe86811da731c63bfdbc63927cbd766a",
+      "snapback4/packages/snapback4/src/local-assets.ts": "331dcd6d2aa4ccfdd0352890deecfdd7ee4a41548aed8fbe29809a588894e5ee",
+      "snapback4/packages/snapback4/test/online-session.test.mjs": "7f2bd549e3e24aa493c6667e6e98e90c3e491ff71d2c4fffceebcf0b76feab74",
+      "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md": "574e3cc414276b7cc65c9ac9f596d9fccc14b0f0245013200bfad235718c58f6",
+      "snapback4/packages/snapback4/test/asset-blob-lifecycle.test.mjs": "d3cfe206df5cfe639c3dbaa72529f7c26c23c66a9c8e4c4eb7afc6021fa49f89",
+      "snapback4/packages/snapback4-expo/ios/MediaFiles.swift": "7529cd218563c475c107c752eb31e451a32decc510cee3a342b69ab4328df60c",
+      "snapback4/packages/snapback4-expo/ios/Snapback4Module.swift": "dbae25a5d21e2b2f193cb9f00bbc252fbfabab5b9208516da5e90c8336f61bfe",
+      "snapback4/packages/snapback4-expo/test/MediaFilesTests.swift": "83d2f2fc04339afc2f521b4d53af8524c82d8c3cd19cc3d1b4a9cea874334441",
+      "snapback4/packages/snapback4/test/expo-media-storage.test.mjs": "0bc4174f4db38c5e9e17bad29eb773074508240eab9e71088ef74f99959d5dcc",
+      "snapback4/packages/snapback4-expo/package.json": "c264e94124cbb9160dec6a48d7a34ada95a4918831467e58adbe11e4a9ea3aee"
+    }
+  },
+  "verifiedRemotePaths": [
+    "snapback4/packages/snapback4-expo/ios/MediaFiles.swift",
+    "snapback4/packages/snapback4-expo/ios/Snapback4Module.swift",
+    "snapback4/packages/snapback4-expo/test/MediaFilesTests.swift",
+    "snapback4/packages/snapback4/test/expo-media-storage.test.mjs",
+    "snapback4/packages/snapback4-expo/package.json",
+    "snapback4/bun.lock",
+    "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md"
+  ],
+  "sharedSdkRuntimeCandidate": "59408cfb668697adf7c145ddd933ec861d3c5dd0055b60a38d6ff8b0823bc75c",
+  "sharedSdkFinalTestCandidate": "fd540b33587d95d811a06e624f4d786a0cc885c5317b1b05dbbbcc02dd8ab60b",
+  "sharedSdkRuntimeSourceSha256": "2d59c5be80f9a015a63f91e6eee27b13fe86811da731c63bfdbc63927cbd766a",
+  "frameworkFiles": {
+    "Info.plist": "7356f52904a89e04d6e32abafe6d521d97fd5b413de85b330bd608e58da805e4",
+    "ios-arm64/libsnapback4_device.a": "955a754124d377db631940220d96efe47ce634373342926981665a831a778e62",
+    "ios-arm64-simulator/libsnapback4_device.a": "4f3f319a166b93b89284f5a080c0f5e7094fd9aafbd77c67f7932e2136767af5",
+    "ios-arm64/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "ios-arm64/Headers/snapback4.h": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab",
+    "ios-arm64-simulator/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "ios-arm64-simulator/Headers/snapback4.h": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab"
+  },
+  "frameworkBytesUnchanged": true,
+  "rustBuildExecuted": false,
+  "nativeAppBuildExecuted": false,
+  "pack": {
+    "started": "2026-09-23T01:19:41.725Z",
+    "ended": "2026-09-23T01:19:42.667Z",
+    "exitCode": 0
+  }
+}
