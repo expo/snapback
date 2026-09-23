@@ -47266,3 +47266,55 @@ narrowing READY.
 Follow-ups, including the finding that the published-binary fence is skipped
 unless its cache variable is set:
 `issues/20260923-snapback4-f1-review-followups.md`.
+
+## 2026-09-23 — 0.3 program: one Clique-shaped application on F1 + F2 + F3 (INTEGRATION)
+
+`examples/clique-03` is the product check before 0.3.0 is published. It is a
+134-line Quarry application built only from the published cards, with:
+- the declared Following timeline;
+- Trending on `posts.likeCount` and `by byHourLikes`, which excludes removed
+  posts;
+- received likes and replies, by engine-recorded attribution, with daily
+  variants by arrival day;
+- replies outside the timeline, with cursor-paged threads.
+
+The census finds no application-maintained projection table, no copied
+attribution, no verification clause, no repair or backfill job, no feed
+helper and no zero-like fill. It covers all 18 parser declaration kinds and
+rejects 33 negative fixtures.
+
+**It found a real defect first.** F1 refused `posts.likeCount` on the posts
+the timeline maps. The fix is the F1 x F3 ruling (LLP 3000.007.003
+revision 8), which landed with F1.
+
+**Checked against independent models,** by replaying the committed fixture
+pack's `scale.log` through operations:
+- Following for sparse, dense and celebrity readers, Trending, received
+  counts, and threads past 20 replies with equal timestamps;
+- populated-store adoption of new derived columns, with zero activation row
+  events, and engine and device maps that agree;
+- five pending offline writes surviving a process exit and settling;
+- the published 0.2.33 native and WASM devices refusing the backend before
+  prediction.
+
+Full-fixture measurements, through the production encoders, with a start
+load of 54:
+
+| Measure | Result |
+|---|---|
+| Stream bytes per like, `likeCount` column vs a separate maintain row | 1,111 vs 611 B on a 500-byte post (1.82×); 4,611 vs 611 B on a 4,000-byte post (7.55×) |
+| Following, examined rows | sparse 102, dense 102, celebrity reader 145 |
+| Following p95 | 0.51, 0.72 and 0.66 ms (ratios 1.42× and 1.29×) |
+| Post acknowledgement p95, celebrity / ordinary author | 0.85× (a celebrity's posts are shared, not fanned out) |
+| Activation | 29.4 s, 0 row events |
+| Cold snapshot | 114,993 rows, 20.3 MB |
+| WASM | 473,091 B gzip, +29,669 over published 0.2.33 |
+
+**Reviews.** Astra rated READY WITH CHANGES three times: four Mediums, then
+two, then the final round. Grok ran 8 packets, then 13. Every printed claim
+is now a comparison that fails when false. Round 2's new checks ran at the
+reduced fixture only. The full-fixture timings are round 1's, and the
+full-mode check of 900 stored followers has not yet run.
+
+The `SnapshotReply` struct moved, unchanged, from `serve.rs` to
+`sync_wire.rs` so that the measurement uses the production encoder.
