@@ -944,159 +944,115 @@ default of an existing required column rechecks the unique indexes and
 caps over it, and a group that no longer fits is `E_ADOPT` like any other
 step.
 
-- **`snapback4 init [dir] [--online|--expo] [--recipe feeds [--prefix <name>] [--authors N --edges N]]`** starts a project without
-  overwriting existing files. An existing `package.json` keeps its metadata;
-  required dependencies, devDependencies and scripts merge into it through an
-  atomic replacement, so a failed package write leaves the original intact. A different
-  value for the same required key refuses with the key and both values before
-  any file is written. Run `npm install` again after merging a starter.
-  The default writes the local-first todo
-  schema and `.gitignore`; `--online` adds an online client, package.json
-  and README. `--expo` copies the chat starter with its backend, invitation worker, screens,
-  secure session store and native/online tier selection. Its toolchain
-  matches the reference app: Expo **57.0.22**, React Native **0.86.3**,
-  React **19.2.3**, expo-sqlite **57.0.3**, babel-preset-expo **57.0.11**.
-  Keep Expo and its Babel preset on the same major; a mismatch can leave
-  private fields in the bundle that Hermes cannot compile. The generated
-  README gives the install and run commands.
-  `--recipe feeds [--prefix <name>]` adds the Following module and typed client example above;
-  it also works after the starter has been initialized, without rewriting its files.
+- **`snapback4 init [dir] [--online|--expo|--web]`** starts a project without overwriting existing files. An
+  existing `package.json` keeps its metadata; required dependencies, devDependencies and scripts merge into it
+  through an atomic replacement, so a failed package write leaves the original intact. A different value for
+  the same required key refuses with the key and both values before any file is written. Run `npm install`
+  again after merging a starter. The default writes the local-first todo schema and `.gitignore`; `--online`
+  adds an online client, package.json and README. `--expo` copies the chat starter with its backend,
+  invitation worker, screens, secure session store and native/online tier selection. Its toolchain matches the
+  reference app: Expo **57.0.22**, React Native **0.86.3**, React **19.2.3**, expo-sqlite **57.0.3**,
+  babel-preset-expo **57.0.11**. Keep Expo and its Babel preset on the same major; a mismatch can leave
+  private fields in the bundle that Hermes cannot compile. The generated README gives the install and run
+  commands. For Following, declare `maintain feed: timeline` with `size authors N, edges N` before adding
+  events or edges; `guide feeds` has the complete program.
 
-- **`snapback4 dev [--port N] [--no-watch] [--fresh|--memory] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h]`** serves
-  `snapback/*.q` on `127.0.0.1:4400`, recompiling and re-adopting on
-  every save (the watcher polls every 400 ms; a save with problems keeps
-  the previous generation serving and prints the diagnostics); the store
-  lives in `.snapback4/store.sqlite` and persists across runs, and
-  `--fresh` (alias `--memory`) uses one in memory that dies with the process (acceptance
-  scripts start from nothing). The stderr banner prints `store: in memory — dies with this process`
-  for either flag, or `store: <SQLite path>` for persistent dev. For dev and serve,
-  readiness is the first stdout line: the listening URL, emitted after store and
-  native-module setup. Wait for that line before requests; lifecycle logs use stderr.
-  For a replay mode that must not emit notifications,
-  run `snapback4 dev --replay`: new emits are never delivered. The
-  startup banner says effects are suppressed and schedules held; `doctor`
-  reports the persisted dev replay and schedule policy. The write's
-  transaction keeps only a durable `suppressed` count, shown by `doctor`,
-  with no queued payload. Mutations, explicitly run jobs, results and meters
-  behave normally. Replay also holds schedule admission; restarting without
-  it resumes at the next boundary and skips held periods, including when the
-  schedule changed while held. Already queued jobs still run, with new emits
-  suppressed. Effects queued before replay keep their ordinary lifecycle.
-  `--hold-effects` only prevents worker claims: effects remain durable and
-  become claimable after restarting without the flag. `--hold-schedules`
-  only prevents schedule admission and skips held periods on restart.
-  The holds are independent; choose `--replay` when new effects must never
-  be delivered. Suppressed effects never become deliverable after any restart.
-  The policy stays on the dev store for local `run` invocations until the
-  next host start; restarting without `--replay` restores normal emission for
-  new writes and preserves the count. With `--fresh`, the count dies with the
-  in-memory store; `doctor` and local `run` inspect the separate on-disk store.
-  `serve`, deployment and `--release` invocations refuse `--replay` with
-  `E_REPLAY_DEV_ONLY`; production always emits normally.
-  `dev` writes `api.ts` on start and on
-  every adoption, and refuses a store that belongs to a deployment
-  (`E_GENERATION`). Personas (`use personas ..`) sign requests from the
-  same machine with the `x-snapback-persona: alice` header (the client's
-  `persona: "alice"`), acting as `dev:alice`. For loopback identity requests, `dev` removes the
-  per-peer and per-email minute counters and prints that fact and the host's
-  Argon2 slot count once at startup: available cores, capped at 16, minimum 2.
-  Connection/worker caps remain; `serve` keeps two Argon2 slots and the
-  30-per-peer and 10-per-email limits.
-  `dev` and `serve` print the listening URL and one newline first on stdout;
-  with an application worker, `dev` also prints its one-time token after that URL.
-  Startup explanations, lifecycle messages and supervised worker logs go to stderr.
-  Process exits carry a one-line stderr diagnostic with the verb, serving
-  generation and reason: `SNAPBACK4_EXIT` for returned errors/stops,
-  `SNAPBACK4_PANIC` for panics on any thread (including abort builds),
-  `SNAPBACK4_SIGNAL` for signals, and `SNAPBACK4_THREAD_EXIT` if the watcher
-  or maintenance thread stops. An unexpected background stop ends the server.
-  Generation `0` means this process has not served yet. `SIGINT`, `SIGTERM`
-  and `SIGHUP` report immediately; with an application worker they clean it
-  up and exit `128 + signal`. Otherwise, and for fatal signals such as
-  `SIGBUS`, termination is immediate with the OS signal status.
-  `SIGKILL`, power loss and an unwritable stderr cannot be reported
-  from inside the process. `snapback4 why SNAPBACK4_SIGNAL` explains the code.
-- **Development clock:** `snapback4 dev --clock-offset +25h` starts 25 hours
-  ahead; `snapback4 clock advance 185s [--port N]` advances a running dev and
-  waits for expiry sweeps and queued jobs, so an `every 2m` schedule and a
-  three-minute expiry need no real wait. Missed periods fire once; held
-  schedules stay held. Each job chunk keeps its normal meter and commit.
-  The JSON response names `now`, `advancedMs` and `work` counts, including
-  parked jobs. A maintenance error leaves time advanced and pending work
-  retries on the normal tick; do not blindly repeat the advance.
-  Durations are positive whole numbers with `ms`, `s`, `m`, `h`, `d` or `w`,
-  optionally prefixed `+`; the startup offset alone may be negative.
-  Mutations at `POST /m/<op>` stamp `now` from this dev clock.
-  The dev clock keeps ticking monotonically and cannot advance backwards.
-  Its offset resets on process restart; supply it again to continue a test.
-  Rows stamped under an offset keep their times after restart; use a fresh store
-  per offset test.
-  Devices receive the ordinary sync deletion and row timestamps, and keep
-  their own local clocks. `serve` refuses every clock control with
-  `E_CLOCK_DEV_ONLY`; invalid or backward advances refuse `E_CLOCK_INPUT`.
-  Scripts may call the same loopback-only dev endpoint,
-  `POST /dev/clock/advance` with `{"duration":"+2m"}`. `guide clock` has the recipe.
-- **Adoption health.** A refused dev adoption stays visible in `doctor` and its
-  reason repeats on the first failing job or sweep. Writer-lock and generation
-  failures retry without another save, including reopening after a CLI adoption.
-  Identical background store and generation failures are then suppressed while
-  that adoption failure is pending; recovery or a changed adoption failure
-  reports the suppressed count and resets it. Changed reasons print at most twice
-  per error code in each 60-second window; further changes count as suppressed too.
-  `doctor` compares the live host generation with the store and uses the host's
-  dev clock for deferred pushes. A `--no-watch` host needs a restart after another
-  process adopts; a schema refusal needs a corrected save. A stopped host's
-  deferred deadlines use wall time.
-- **`POST /seed`** (dev only, same machine) takes `[{ "table": "t",
-  "row": { "id": "..", .. } }, ..]`, writes the rows as the system
-  principal in one commit (rules bypassed; validation, constraints,
-  aggregates and sync apply) and answers `{ "seeded": N }`.
-  For recorded-action replay that must not emit notifications, run
-  `snapback4 dev --replay`: new effects are never delivered and schedules
-  are held. `guide replay` explains the restart and explicit-job behaviour.
-- **`snapback4 run <op> ['<json args>'] [--as <persona|principal-id>] [--now <milliseconds|+duration>] [--json]`** runs one
-  operation against the local store (defaults to `dev:alice`; declared personas
-  get the `dev:` prefix and other principal ids are used verbatim) and
-  prints the result, the meter and, for a mutation, the partition events;
-  a job runs whole as the system (`--as` is ignored) and prints its run.
-  Before admission, store opening and schema adoption retry only SQLite
-  BUSY/LOCKED for up to 15 seconds, reporting the operation and elapsed wait.
-  `E_RUN_BUSY` stops without admitting the operation; other store errors keep
-  their meaning. The deadline bounds contention retries; it cannot cancel an
-  atomic activation already running or limit job execution time. A completed
-  activation can persist even when the operation remains unadmitted after a
-  timeout or source edit. Source changes during the wait refuse `E_RUN_SOURCE_CHANGED`
-  before admission; check the source and invoke the intended operation again.
-  Watching dev reopens after external CLI adoption; `--no-watch` must restart.
-  If a writer outlasts the deadline, inspect `doctor` and the adoption log,
-  wait for the writer or stop your dev host, run once, then restart dev.
-  There is no retry after job or mutation admission. After an interrupted
-  invocation, inspect its work before starting another one: a new job command
-  creates a new run ID.
-  `--now 1789352669447` pins the invocation to Unix milliseconds, so a post
-  can be created in the past without a special seed; `--now +25h` uses wall
-  time plus the duration. This pins queries, mutations and jobs equally;
-  it does not change a running dev clock or fire schedules.
-  Exit 1 on a refusal or a parked job, 2 on an engine error.
-- **`snapback4 test [--residency [--verbose]] [--fixture dir] [--as persona]`** loads a fixture
-  (one `<table>.jsonl` per table; a file for an unknown table is
-  skipped) into a fresh store in memory (without a fixture, the project's
-  dev store), runs every query as each persona with arguments derived
-  from the data (a reference is the table's first row, a principal the
-  persona, a text the shortest that fits, an int 0, a time now, a bool
-  false, an enum its first variant, an optional or a cursor null), prints
-  the meters beside the ceilings and the arguments it used, and names any
-  query it could not run (an `id`, list, json, bytes, image or video
-  argument cannot be derived). A query's own `require` refusing a
-  derived argument (the persona is not in that group) is reported, not
-  counted as a failure; run it with your arguments to see its meters.
-  `--residency` instead prints a bounded cold-acquisition report: the eight
-  largest table/persona pairs by row bytes, a summed remainder and totals.
-  Add `--verbose` for all tables, residency facts, notes and query meters.
-  Device-only `held` queries print `not run: <name> is held (device only)` once
-  and are skipped, including with `--residency --verbose`: a server fixture is not the
-  device's acquired partition. Exercise those queries through a local client.
-  In tests, use `snapback4 clock advance <dur>` or `POST /dev/clock/advance`; each example line advances the running dev once.
+- **`snapback4 dev [--port N] [--no-watch] [--fresh|--memory] [--replay] [--hold-effects] [--hold-schedules]
+  [--clock-offset +25h]`** serves `snapback/*.q` on `127.0.0.1:4400`, recompiling and re-adopting on every
+  save (the watcher polls every 400 ms; a save with problems keeps the previous generation serving and prints
+  the diagnostics); the store lives in `.snapback4/store.sqlite` and persists across runs, and `--fresh`
+  (alias `--memory`) uses one in memory that dies with the process (acceptance scripts start from nothing).
+  The stderr banner prints `store: in memory — dies with this process` for either flag, or `store: <SQLite
+  path>` for persistent dev. For dev and serve, readiness is the first stdout line: the listening URL, emitted
+  after store and native-module setup. Wait for that line before requests; lifecycle logs use stderr. For a
+  replay mode that must not emit notifications, run `snapback4 dev --replay`: new emits are never delivered.
+  The startup banner says effects are suppressed and schedules held; `doctor` reports the persisted dev replay
+  and schedule policy. The write's transaction keeps only a durable `suppressed` count, shown by `doctor`,
+  with no queued payload. Mutations, explicitly run jobs, results and meters behave normally. Replay also
+  holds schedule admission; restarting without it resumes at the next boundary and skips held periods,
+  including when the schedule changed while held. Already queued jobs still run, with new emits suppressed.
+  Effects queued before replay keep their ordinary lifecycle. `--hold-effects` only prevents worker claims:
+  effects remain durable and become claimable after restarting without the flag. `--hold-schedules` only
+  prevents schedule admission and skips held periods on restart. The holds are independent; choose `--replay`
+  when new effects must never be delivered. Suppressed effects never become deliverable after any restart. The
+  policy stays on the dev store for local `run` invocations until the next host start; restarting without
+  `--replay` restores normal emission for new writes and preserves the count. With `--fresh`, the count dies
+  with the in-memory store; `doctor` and local `run` inspect the separate on-disk store. `serve`, deployment
+  and `--release` invocations refuse `--replay` with `E_REPLAY_DEV_ONLY`; production always emits normally.
+  `dev` writes `api.ts` on start and on every adoption, and refuses a store that belongs to a deployment
+  (`E_GENERATION`). Personas (`use personas ..`) sign requests from the same machine with the
+  `x-snapback-persona: alice` header (the client's `persona: "alice"`), acting as `dev:alice`. For loopback
+  identity requests, `dev` removes the per-peer and per-email minute counters and prints that fact and the
+  host's Argon2 slot count once at startup: available cores, capped at 16, minimum 2. Connection/worker caps
+  remain; `serve` keeps two Argon2 slots and the 30-per-peer and 10-per-email limits. `dev` and `serve` print
+  the listening URL and one newline first on stdout; with an application worker, `dev` also prints its
+  one-time token after that URL. Startup explanations, lifecycle messages and supervised worker logs go to
+  stderr. Process exits carry a one-line stderr diagnostic with the verb, serving generation and reason:
+  `SNAPBACK4_EXIT` for returned errors/stops, `SNAPBACK4_PANIC` for panics on any thread (including abort
+  builds), `SNAPBACK4_SIGNAL` for signals, and `SNAPBACK4_THREAD_EXIT` if the watcher or maintenance thread
+  stops. An unexpected background stop ends the server. Generation `0` means this process has not served yet.
+  `SIGINT`, `SIGTERM` and `SIGHUP` report immediately; with an application worker they clean it up and exit
+  `128 + signal`. Otherwise, and for fatal signals such as `SIGBUS`, termination is immediate with the OS
+  signal status. `SIGKILL`, power loss and an unwritable stderr cannot be reported from inside the process.
+  `snapback4 why SNAPBACK4_SIGNAL` explains the code.
+- **Development clock:** `snapback4 dev --clock-offset +25h` starts 25 hours ahead; `snapback4 clock advance
+  185s [--port N]` advances a running dev and waits for expiry sweeps and queued jobs, so an `every 2m`
+  schedule and a three-minute expiry need no real wait. Missed periods fire once; held schedules stay held.
+  Each job chunk keeps its normal meter and commit. The JSON response names `now`, `advancedMs` and `work`
+  counts, including parked jobs. A maintenance error leaves time advanced and pending work retries on the
+  normal tick; do not blindly repeat the advance. Durations are positive whole numbers with `ms`, `s`, `m`,
+  `h`, `d` or `w`, optionally prefixed `+`; the startup offset alone may be negative. Mutations at `POST
+  /m/<op>` stamp `now` from this dev clock. The dev clock keeps ticking monotonically and cannot advance
+  backwards. Its offset resets on process restart; supply it again to continue a test. Rows stamped under an
+  offset keep their times after restart; use a fresh store per offset test. Devices receive the ordinary sync
+  deletion and row timestamps, and keep their own local clocks. `serve` refuses every clock control with
+  `E_CLOCK_DEV_ONLY`; invalid or backward advances refuse `E_CLOCK_INPUT`. Scripts may call the same
+  loopback-only dev endpoint, `POST /dev/clock/advance` with `{"duration":"+2m"}`. `guide clock` has the
+  recipe.
+- **Adoption health.** A refused dev adoption stays visible in `doctor` and its reason repeats on the first
+  failing job or sweep. Writer-lock and generation failures retry without another save, including reopening
+  after a CLI adoption. Identical background store and generation failures are then suppressed while that
+  adoption failure is pending; recovery or a changed adoption failure reports the suppressed count and resets
+  it. Changed reasons print at most twice per error code in each 60-second window; further changes count as
+  suppressed too. `doctor` compares the live host generation with the store and uses the host's dev clock for
+  deferred pushes. A `--no-watch` host needs a restart after another process adopts; a schema refusal needs a
+  corrected save. A stopped host's deferred deadlines use wall time.
+- **`POST /seed`** (dev only, same machine) takes `[{ "table": "t", "row": { "id": "..", .. } }, ..]`, writes
+  the rows as the system principal in one commit (rules bypassed; validation, constraints, aggregates and sync
+  apply) and answers `{ "seeded": N }`. For recorded-action replay that must not emit notifications, run
+  `snapback4 dev --replay`: new effects are never delivered and schedules are held. `guide replay` explains
+  the restart and explicit-job behaviour.
+- **`snapback4 run <op> ['<json args>'] [--as <persona|principal-id>] [--now <milliseconds|+duration>]
+  [--json]`** runs one operation against the local store (defaults to `dev:alice`; declared personas get the
+  `dev:` prefix and other principal ids are used verbatim) and prints the result, the meter and, for a
+  mutation, the partition events; a job runs whole as the system (`--as` is ignored) and prints its run.
+  Before admission, store opening and schema adoption retry only SQLite BUSY/LOCKED for up to 15 seconds,
+  reporting the operation and elapsed wait. `E_RUN_BUSY` stops without admitting the operation; other store
+  errors keep their meaning. The deadline bounds contention retries; it cannot cancel an atomic activation
+  already running or limit job execution time. A completed activation can persist even when the operation
+  remains unadmitted after a timeout or source edit. Source changes during the wait refuse
+  `E_RUN_SOURCE_CHANGED` before admission; check the source and invoke the intended operation again. Watching
+  dev reopens after external CLI adoption; `--no-watch` must restart. If a writer outlasts the deadline,
+  inspect `doctor` and the adoption log, wait for the writer or stop your dev host, run once, then restart
+  dev. There is no retry after job or mutation admission. After an interrupted invocation, inspect its work
+  before starting another one: a new job command creates a new run ID. `--now 1789352669447` pins the
+  invocation to Unix milliseconds, so a post can be created in the past without a special seed; `--now +25h`
+  uses wall time plus the duration. This pins queries, mutations and jobs equally; it does not change a
+  running dev clock or fire schedules. Exit 1 on a refusal or a parked job, 2 on an engine error.
+- **`snapback4 test [--residency [--verbose]] [--fixture dir] [--as persona]`** loads a fixture (one
+  `<table>.jsonl` per table; a file for an unknown table is skipped) into a fresh store in memory (without a
+  fixture, the project's dev store), runs every query as each persona with arguments derived from the data (a
+  reference is the table's first row, a principal the persona, a text the shortest that fits, an int 0, a time
+  now, a bool false, an enum its first variant, an optional or a cursor null), prints the meters beside the
+  ceilings and the arguments it used, and names any query it could not run (an `id`, list, json, bytes, image
+  or video argument cannot be derived). A query's own `require` refusing a derived argument (the persona is
+  not in that group) is reported, not counted as a failure; run it with your arguments to see its meters.
+  `--residency` instead prints a bounded cold-acquisition report: the eight largest table/persona pairs by row
+  bytes, a summed remainder and totals. Add `--verbose` for all tables, residency facts, notes and query
+  meters. Device-only `held` queries print `not run: <name> is held (device only)` once and are skipped,
+  including with `--residency --verbose`: a server fixture is not the device's acquired partition. Exercise
+  those queries through a local client. In tests, use `snapback4 clock advance <dur>` or `POST
+  /dev/clock/advance`; each example line advances the running dev once.
 
   ```sh
   snapback4 clock advance 36s
@@ -1104,164 +1060,116 @@ step.
   ```
 
 - **`snapback4 check [--cost|--residency|--fix|--json|--verbose]`** compiles, writes
-  `snapback/generated/api.ts` (`Rows`, `Ops`, `api`), and prints
-  diagnostics with their sites and rewrites; `--cost` adds each site's
-  structural class, and `--residency --verbose` names where operations run.
-  `--residency` measures the active dev store read-only, or add `--fixture dir`
-  to measure current source on a fresh fixture; `--as persona` selects the
-  viewer. It prints the same bounded acquisition report as test. With no dev
-  store it prints facts and a fixture command, never a zero-row measurement.
-  A parser recovery's empty-operation error is hidden when an earlier error
-  in that same operation already explains it and its rewrite adds no repair.
-  The summary counts the hidden cascades; `--verbose` shows them, and
-  `--json` always retains every diagnostic. Independent errors stay visible.
-  `--fix` applies only diagnostics explicitly marked `mechanical`: an
-  ambiguous key's `by`, a cursor index's missing `id`, and exact canonical
-  spelling rewrites, including `==` to `=` and `a?.b` to
-  `a.b`: ordinary field access already propagates null, and removing only
-  the `?` evaluates the base once even when it is a call or read. Before it edits, every compiled file must be
-  unchanged on disk, and every compiled file is read again just before the
-  write. This check is best effort: it refuses an edit it observes and names
-  the file; a save in the instant before the write can still be overwritten. It prints one
-  `fix:` line per change to stderr, re-reads the project, recompiles, and reports the remaining diagnostics normally (`--json`
-  remains one JSON result on stdout; `--cost` prose goes to stderr when
-  combined with `--json`). Unmarked design suggestions are
-  left for the author. **`snapback4 types`** writes `api.ts` alone and prints
-  its path plus one newline on stdout, with its status on stderr.
-- **`snapback4 sql "<SELECT …>" [--release dir] [--limit N] [--json]`**
-  inspects the developer's own store, **never rule-filtered**. It opens
-  `.snapback4/store.sqlite` read-only alongside `dev`, or a deployment's
-  store with `--release`; no schema adoption and no writer lock. Temporary
-  views expose each application table's `id` and columns from the active
-  compiled schema; a required column an old row lacks reads its literal
-  default, and an absent optional column reads null. Scalar tags are unwrapped; compound values remain
-  canonical tagged JSON. Only one `SELECT` or `WITH … SELECT` is allowed:
-  writes refuse `E_SQL_READ_ONLY`, and internal tables (including raw
-  `r`/`i` and SQLite metadata) refuse `E_SQL_INTERNAL`. The result is bounded
-  to 200 rows by default and says when more exist. The table is stdout;
-  the inspection header and row-count/truncation notice go to stderr. `--json` returns
-  `columns`, positional `rows` (retaining every selected column), `limit`,
-  `more`, `ruleFiltered: false`, and the same inspection header. For example:
+  `snapback/generated/api.ts` (`Rows`, `Ops`, `api`), and prints diagnostics with their sites and rewrites;
+  `--cost` adds each site's structural class, and `--residency --verbose` names where operations run.
+  `--residency` measures the active dev store read-only, or add `--fixture dir` to measure current source on a
+  fresh fixture; `--as persona` selects the viewer. It prints the same bounded acquisition report as test.
+  With no dev store it prints facts and a fixture command, never a zero-row measurement. A parser recovery's
+  empty-operation error is hidden when an earlier error in that same operation already explains it and its
+  rewrite adds no repair. The summary counts the hidden cascades; `--verbose` shows them, and `--json` always
+  retains every diagnostic. Independent errors stay visible. `--fix` applies only diagnostics explicitly
+  marked `mechanical`: an ambiguous key's `by`, a cursor index's missing `id`, and exact canonical spelling
+  rewrites, including `==` to `=` and `a?.b` to `a.b`: ordinary field access already propagates null, and
+  removing only the `?` evaluates the base once even when it is a call or read. Before it edits, every
+  compiled file must be unchanged on disk, and every compiled file is read again just before the write. This
+  check is best effort: it refuses an edit it observes and names the file; a save in the instant before the
+  write can still be overwritten. It prints one `fix:` line per change to stderr, re-reads the project,
+  recompiles, and reports the remaining diagnostics normally (`--json` remains one JSON result on stdout;
+  `--cost` prose goes to stderr when combined with `--json`). Unmarked design suggestions are left for the
+  author. **`snapback4 types`** writes `api.ts` alone and prints its path plus one newline on stdout, with its
+  status on stderr.
+- **`snapback4 sql "<SELECT …>" [--release dir] [--limit N] [--json]`** inspects the developer's own store,
+  **never rule-filtered**. It opens `.snapback4/store.sqlite` read-only alongside `dev`, or a deployment's
+  store with `--release`; no schema adoption and no writer lock. Temporary views expose each application
+  table's `id` and columns from the active compiled schema; a required column an old row lacks reads its
+  literal default, and an absent optional column reads null. Scalar tags are unwrapped; compound values remain
+  canonical tagged JSON. Only one `SELECT` or `WITH … SELECT` is allowed: writes refuse `E_SQL_READ_ONLY`, and
+  internal tables (including raw `r`/`i` and SQLite metadata) refuse `E_SQL_INTERNAL`. The result is bounded
+  to 200 rows by default and says when more exist. The table is stdout; the inspection header and
+  row-count/truncation notice go to stderr. `--json` returns `columns`, positional `rows` (retaining every
+  selected column), `limit`, `more`, `ruleFiltered: false`, and the same inspection header. For example:
   `snapback4 sql "SELECT conversationId, count(*) FROM messages GROUP BY conversationId"`.
 - **`snapback4 device <store.sqlite> [backend.json]`** runs the native
   device over stdin/stdout, one JSON request and answer per line.
-- **`snapback4 --help`** lists every verb and its flags; `deploy`,
-  `rollback` and `serve` are described in §6.
-- **`snapback4 token --service <name> [--days N] [--release <dir>]`**
-  mints a service's bearer token into the project's store (or a
-  deployment's) and prints it once.
-  The token and one newline are the whole of stdout (even with `--json`),
-  with prose on stderr, so capture it with `TOKEN=$(npx snapback4 token --service worker)`.
-  Stderr names the owning store; each isolated store needs its own token (§4, Workers and services).
-- **`snapback4 why <E_CODE | op | table>`** explains a refusal code, an
-  operation's arguments, result and cost, or a table's rules, sync line,
-  expire column and indexes; **`data <table> [--limit N]`** prints rows
-  as one JSON object per stdout line (50 by default), with any truncation
-  hint on stderr; **`doctor [--json]`** says what is in place: the
-  store, its size, schedules and their last boundary, the last job runs,
-  the effects by state and the failed ones;
-  **`guide [keyword]`** lists cards and aliases, or prints one card: language, app,
-  types, indexes, maintains, rules, sync, residency, prediction, evolution, expire, assets, reads, shapes, writes,
-  programs, jobs, native, feeds, search, effects, actions, routes, services, presence,
-  bounds, refusals, personas, witness (`guide <E_CODE>` explains a code);
-  Natural words resolve too: `offline` → prediction, `pagination` → reads,
-  `migration` → evolution, `sql` → personas, `push` → effects. An unknown
-  word prints three nearest cards and the list on stdout, then exits 1.
-  **`--version`** prints the binary's version, which equals the
-  package's. Every flag may be spelled `--flag=value`.
+- **`snapback4 --help`** lists every verb and its flags; `deploy`, `rollback` and `serve` are described in §6.
+- **`snapback4 token --service <name> [--days N] [--release <dir>]`** mints a service's bearer token into the
+  project's store (or a deployment's) and prints it once. The token and one newline are the whole of stdout
+  (even with `--json`), with prose on stderr, so capture it with `TOKEN=$(npx snapback4 token --service
+  worker)`. Stderr names the owning store; each isolated store needs its own token (§4, Workers and services).
+- **`snapback4 why <E_CODE | op | table>`** explains a refusal code, an operation's arguments, result and
+  cost, or a table's rules, sync line, expire column and indexes; **`data <table> [--limit N]`** prints rows
+  as one JSON object per stdout line (50 by default), with any truncation hint on stderr; **`doctor
+  [--json]`** says what is in place: the store, its size, schedules and their last boundary, the last job
+  runs, the effects by state and the failed ones; **`guide [keyword]`** lists cards and aliases, or prints one
+  card: language, app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,
+  assets, reads, shapes, writes, programs, jobs, native, feeds, search, effects, actions, routes, services,
+  presence, bounds, refusals, personas, witness (`guide <E_CODE>` explains a code); Natural words resolve too:
+  `offline` → prediction, `pagination` → reads, `migration` → evolution, `sql` → personas, `push` → effects.
+  An unknown word prints three nearest cards and the list on stdout, then exits 1. **`--version`** prints the
+  binary's version, which equals the package's. Every flag may be spelled `--flag=value`.
 
 ### The wire
 
-The client is the intended surface; the wire is plain JSON for anything
-else. The server card and compiled metadata require a live principal.
-`GET /` is the server's card (`{ snapback4, generation, seq, ops:
-[{ name, kind }], tables: [{ name, sync }] }`); `GET /api.ts` the
-generated TypeScript; `GET /schema` the compiled backend; `GET
-/native.wasm` the native module when the backend has one. Authenticated
-`GET /probe` answers HTTP 200 `{ ok: true, store_id, seq }`; clients require both the status
-and body before changing an offline link back to online. The local client checks
-the identity and head before restoring freshness or resuming a long poll. `POST /q/<op>`
-with `{ "args": {..} }` answers `{ data, complete, cut, seq, next, nextExpiry,
-tables, viewer }` or `{ denied }`; `nextExpiry` is the earliest future expiry
-the visible read encountered, or null. `POST /m/<op>` with `{ "id", "args",
-"newIds" }` answers `{ state: "sent", id, seq, result }` on fresh success,
-`{ state: "sent", id, seq, replayed: true }` on replay, or `{ state:
-"failed", id, why, current? }` (a client-minted `id` makes the write
-apply at most once). A replay adds `replayed: true` and omits both `result`
-and `current`; a fresh `E_CONFLICT` may carry the live row in `current`.
-A job is refused over the wire (`E_OP`).
-`POST /sync` takes JSON `{ from, limit, after, stream, pending, store_id? }` (defaults:
-`0`, `2000`, `null`, `false`, `[]`, absent). With `from: 0` it returns the paged
-snapshot: `{ snapshot: true, events: [{ table, kind, id, data }], watermark,
-more, next, generation, store_id, acknowledged }`. Continue with `after: next`;
-`limit` is clamped to 1–10,000. `pending` holds at most 256 write IDs,
-each 1–128 UTF-8 bytes, and reports which queued writes the server applied.
-The request body is at most **262,144 bytes (256 KiB)**, including the
-cursor and JSON escaping; this accommodates all 256 maximum-length IDs
-even with six-byte escapes. A larger body is HTTP 413 with `denied: E_INPUT`,
-including chunked bodies; malformed fields are HTTP 400 with `E_INPUT`.
-With `from: W` or `stream: true` it returns the stream from a watermark:
-`{ snapshot: false, events: [{ seq, table, kind, id, data }], watermark,
-more, generation, store_id, acknowledged }`. The optional `store_id` echoes
-the previous reply's database identity; a different identity invalidates old
-snapshot cursors and partition evidence, even if the watermark is equal or
-higher, while a server restart on the same database keeps its identity.
-An older server can omit this additive field; a backwards watermark still
-requires reacquisition, and a device with no stored identity reacquires once
-when it first learns one. There is no GET `/sync` route.
-`GET /changes?since=S&wait=N&store_id=ID` accepts the optional previous identity,
-requires the same principal and answers
-`{ seq, tables, generation, store_id }` when a commit lands or after N seconds (25
-at most; 0 answers at once; at most
-500 commits are summarised; beyond that, all tables are invalidated). `seq`
-is the actual committed head, read in the same transaction as the identity and
-changed tables. A different identity or a head below `since`
-answers immediately; a regressed head is returned as `seq`. A matching
-identity still waits for a commit or the deadline. With `heartbeat=1`, an idle HTTP/1.1 response
-starts immediately and sends JSON whitespace every 2 seconds before the
-final JSON object. Proxies must forward chunks without buffering. Once
-streaming starts, the status is 200; check the final object for `denied`,
-including `E_AUTH` if the session ended while waiting. `POST /assets` (the
-file's bytes as the body, 64 MiB at most) answers `{ asset }`; `GET
-/assets/<id>` serves them (404 hidden or gone, 410 viewed; `Range`
-works on ordinary assets, returns 416 when unsatisfiable, and is refused on
-view-once assets; every response uses `Cache-Control: private, no-store`).
-`POST /auth/guest` (`{}`), `POST /auth/signup` and `/auth/login`
-(`{ "email", "password" }`) answer `{ "session": { principal, kind,
-token, expiresAt } }` or `{ "denied": Refusal }`; `POST /auth/logout`
-atomically authenticates and closes the presented live refresh/recovery family,
-then answers `{ "ok": true }`; a stale replaced bearer is 401 and cannot close
-or pretend to close its replacement. `POST /auth/refresh`
-returns a replacement session and invalidates that bearer; `POST
-/auth/logout-all` revokes every session for its principal and answers
-`{ "ok": true, "revoked": N }`. With a service token:
-`POST /auth/session` (`{ "principal", "kind"?, "days"? }`) mints a session
-for an account the application authenticated, `POST /auth/revoke`
-(`{ "principal" }`) ends every session of one and answers `{ "revoked" }`,
-and an identity-verifying action may bind the mint to its current claim by
-also sending `x-snapback-action-lease` plus `binding: { invocationId,
-intent: "identity-session/v1", replaceLostDelivery?: true }`. A first bound
-call atomically creates one family. An ordinary replay refuses rather than
-returning a stale token. Explicit lost-delivery recovery from the current live
-claim invalidates every token in that family and returns one replacement with
-the original expiry; changed inputs or revoked, expired, logged-out, settled,
-cancelled, stale, cross-worker, or cross-invocation authority refuse. Binding
-records retain the family and input digest, never a raw token. The action's
-eventual protected result must contain the Session it actually delivered. Either
-the `binding` key or any action-lease header selects this exact bound shape; a
-missing, empty or duplicate counterpart refuses instead of legacy-minting. Only
-when both are absent does legacy coercion remain: non-string `kind` defaults to
-`account`, non-integer `days` defaults to seven, and integer days clamp to
-1–3,650. Bound integer days retain that clamp and its missing optionals retain
-the same defaults.
-`POST /effects/claim` (`{ "effect"?, "limit"?, "lease"?, "wait"? }`, the
-last two in seconds; `wait` long-polls until something is due) answers
-`{ "effects": [{ id, effect, payload, attempt, seq, at }] }`, `POST
-/effects/<id>/done` (`{ "result"? }`) and `POST /effects/<id>/failed`
-(`{ "error", "retry" }`) settle one (`E_EFFECT_LEASE` when this worker
-does not hold it, 404 `E_EFFECT_UNKNOWN` when no such effect is queued),
-and `GET /effects?state=queued` lists them; a user's token at any of these
-is 401 `E_AUTH`.
+The client is the intended surface; the wire is plain JSON for anything else. The server card and compiled
+metadata require a live principal. `GET /` is the server's card (`{ snapback4, generation, seq, ops: [{ name,
+kind }], tables: [{ name, sync }] }`); `GET /api.ts` the generated TypeScript; `GET /schema` the compiled
+backend; `GET /native.wasm` the native module when the backend has one. Authenticated `GET /probe` answers
+HTTP 200 `{ ok: true, store_id, seq }`; clients require both the status and body before changing an offline
+link back to online. The local client checks the identity and head before restoring freshness or resuming a
+long poll. `POST /q/<op>` with `{ "args": {..} }` answers `{ data, complete, cut, seq, next, nextExpiry,
+tables, viewer }` or `{ denied }`; `nextExpiry` is the earliest future expiry the visible read encountered, or
+null. `POST /m/<op>` with `{ "id", "args", "newIds" }` answers `{ state: "sent", id, seq, result }` on fresh
+success, `{ state: "sent", id, seq, replayed: true }` on replay, or `{ state: "failed", id, why, current? }`
+(a client-minted `id` makes the write apply at most once). A replay adds `replayed: true` and omits both
+`result` and `current`; a fresh `E_CONFLICT` may carry the live row in `current`. A job is refused over the
+wire (`E_OP`). `POST /sync` takes JSON `{ from, limit, after, stream, pending, store_id? }` (defaults: `0`,
+`2000`, `null`, `false`, `[]`, absent). With `from: 0` it returns the paged snapshot: `{ snapshot: true,
+events: [{ table, kind, id, data }], watermark, more, next, generation, store_id, acknowledged }`. Continue
+with `after: next`; `limit` is clamped to 1–10,000. `pending` holds at most 256 write IDs, each 1–128 UTF-8
+bytes, and reports which queued writes the server applied. The request body is at most **262,144 bytes (256
+KiB)**, including the cursor and JSON escaping; this accommodates all 256 maximum-length IDs even with
+six-byte escapes. A larger body is HTTP 413 with `denied: E_INPUT`, including chunked bodies; malformed fields
+are HTTP 400 with `E_INPUT`. With `from: W` or `stream: true` it returns the stream from a watermark: `{
+snapshot: false, events: [{ seq, table, kind, id, data }], watermark, more, generation, store_id, acknowledged
+}`. The optional `store_id` echoes the previous reply's database identity; a different identity invalidates
+old snapshot cursors and partition evidence, even if the watermark is equal or higher, while a server restart
+on the same database keeps its identity. An older server can omit this additive field; a backwards watermark
+still requires reacquisition, and a device with no stored identity reacquires once when it first learns one.
+There is no GET `/sync` route. `GET /changes?since=S&wait=N&store_id=ID` accepts the optional previous
+identity, requires the same principal and answers `{ seq, tables, generation, store_id }` when a commit lands
+or after N seconds (25 at most; 0 answers at once; at most 500 commits are summarised; beyond that, all tables
+are invalidated). `seq` is the actual committed head, read in the same transaction as the identity and changed
+tables. A different identity or a head below `since` answers immediately; a regressed head is returned as
+`seq`. A matching identity still waits for a commit or the deadline. With `heartbeat=1`, an idle HTTP/1.1
+response starts immediately and sends JSON whitespace every 2 seconds before the final JSON object. Proxies
+must forward chunks without buffering. Once streaming starts, the status is 200; check the final object for
+`denied`, including `E_AUTH` if the session ended while waiting. `POST /assets` (the file's bytes as the body,
+64 MiB at most) answers `{ asset }`; `GET /assets/<id>` serves them (404 hidden or gone, 410 viewed; `Range`
+works on ordinary assets, returns 416 when unsatisfiable, and is refused on view-once assets; every response
+uses `Cache-Control: private, no-store`). `POST /auth/guest` (`{}`), `POST /auth/signup` and `/auth/login` (`{
+"email", "password" }`) answer `{ "session": { principal, kind, token, expiresAt } }` or `{ "denied": Refusal
+}`; `POST /auth/logout` atomically authenticates and closes the presented live refresh/recovery family, then
+answers `{ "ok": true }`; a stale replaced bearer is 401 and cannot close or pretend to close its replacement.
+`POST /auth/refresh` returns a replacement session and invalidates that bearer; `POST /auth/logout-all`
+revokes every session for its principal and answers `{ "ok": true, "revoked": N }`. With a service token:
+`POST /auth/session` (`{ "principal", "kind"?, "days"? }`) mints a session for an account the application
+authenticated, `POST /auth/revoke` (`{ "principal" }`) ends every session of one and answers `{ "revoked" }`,
+and an identity-verifying action may bind the mint to its current claim by also sending
+`x-snapback-action-lease` plus `binding: { invocationId, intent: "identity-session/v1", replaceLostDelivery?:
+true }`. A first bound call atomically creates one family. An ordinary replay refuses rather than returning a
+stale token. Explicit lost-delivery recovery from the current live claim invalidates every token in that
+family and returns one replacement with the original expiry; changed inputs or revoked, expired, logged-out,
+settled, cancelled, stale, cross-worker, or cross-invocation authority refuse. Binding records retain the
+family and input digest, never a raw token. The action's eventual protected result must contain the Session it
+actually delivered. Either the `binding` key or any action-lease header selects this exact bound shape; a
+missing, empty or duplicate counterpart refuses instead of legacy-minting. Only when both are absent does
+legacy coercion remain: non-string `kind` defaults to `account`, non-integer `days` defaults to seven, and
+integer days clamp to 1–3,650. Bound integer days retain that clamp and its missing optionals retain the same
+defaults. `POST /effects/claim` (`{ "effect"?, "limit"?, "lease"?, "wait"? }`, the last two in seconds; `wait`
+long-polls until something is due) answers `{ "effects": [{ id, effect, payload, attempt, seq, at }] }`, `POST
+/effects/<id>/done` (`{ "result"? }`) and `POST /effects/<id>/failed` (`{ "error", "retry" }`) settle one
+(`E_EFFECT_LEASE` when this worker does not hold it, 404 `E_EFFECT_UNKNOWN` when no such effect is queued),
+and `GET /effects?state=queued` lists them; a user's token at any of these is 401 `E_AUTH`.
 
 `POST /a/<name> { id, args }` is the viewer's action door (`?wait=0..25`).
 Workers use `POST /actions/claim { action?, limit?, lease?, wait?, session? }`

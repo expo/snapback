@@ -107,7 +107,7 @@ impl Binder<'_> {
             } else { "sparse matches can exhaust the row meter and return short `complete: false` pages" };
             self.notes.push(Diagnostic::new(predicate.site(), "N_SPARSE_FILTER",
                 format!("{} by {}: this unscoped `where` pins no index prefix; {consequence}", read.table, index.name),
-                "pin a leading index key, or run `snapback4 init --recipe feeds --prefix feed` for Following (followed authors, own posts and reposts)").guide("feeds"));
+                "pin a leading index key, or declare `maintain feed: timeline` (see `snapback4 guide feeds`) for Following (followed authors, own posts and reposts)").guide("feeds"));
         }
         let prior = self.focal.replace(("$filter".into(), Ty::Row(read.table.clone())));
         let kind = std::mem::replace(&mut self.kind, ProgramKind::Query);

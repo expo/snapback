@@ -8,72 +8,22 @@ use std::{io::Write, path::Path};
 mod web;
 
 pub fn init(options: &Options) -> i32 {
-    let recipe = options.flags.get("recipe");
-    let prefix = options.flags.get("prefix");
-    if options.positionals.len() > 1 || (["online", "expo", "web"].iter().filter(|flag| options.flags.contains_key(**flag)).count() > 1) || recipe.is_some_and(|name| name != "feeds") || prefix.is_some_and(|p| recipe.is_none() || !snapback4_lang::recipe::valid_prefix(p)) {
-        eprintln!("usage: snapback4 init [dir] [--online|--expo|--web] [--recipe feeds [--prefix <name>] [--authors N --edges N]]");
+    // @ref LLP 3000.007.003#7 — new apps declare timelines; installed recipes retain their library support.
+    let retired = ["prefix", "authors", "edges", "public-profiles", "public-posts", "public-follows", "public-reposts"];
+    if options.flags.get("recipe").is_some_and(|name| name == "feeds")
+        || retired.iter().any(|flag| options.flags.contains_key(*flag)) {
+        eprintln!("E_RECIPE_RETIRED: the Following recipe installer is retired; no files written\n  rewrite: maintain feed: timeline\n    authors profiles by principal\n    events posts by authorId, at removed by removed\n    reposts reposts by actorId, postId, at\n    edges follows by followerId, followedId\n    size authors 1008, edges 5921\n  declare before event and edge data exists; see snapback4 guide feeds");
         return 2;
     }
-    let sizing = options.flags.contains_key("authors") || options.flags.contains_key("edges");
-    if sizing && recipe.map(String::as_str) != Some("feeds") {
-        eprintln!("E_RECIPE_CAPS: --authors and --edges require --recipe feeds; see snapback4 guide feeds");
+    if options.positionals.len() > 1 || (["online", "expo", "web"].iter().filter(|flag| options.flags.contains_key(**flag)).count() > 1) || options.flags.contains_key("recipe") {
+        eprintln!("usage: snapback4 init [dir] [--online|--expo|--web]");
         return 2;
     }
-    let caps = match snapback4_lang::recipe::FollowingCaps::parse(options.flags.get("authors").map(String::as_str), options.flags.get("edges").map(String::as_str)) {
-        Ok(caps) => caps,
-        Err(error) => { eprintln!("E_RECIPE_CAPS: {error}; see snapback4 guide feeds"); return 2; }
-    };
     let dir = options.positionals.first().map(Path::new).unwrap_or_else(|| Path::new("."));
     let online = options.flags.contains_key("online");
     let expo = options.flags.contains_key("expo");
     let web = options.flags.contains_key("web");
-    let recipe_only = recipe.is_some() && !expo && !online && !web && dir.join("snapback/schema.q").is_file();
-    // @ref LLP 3000.011.002.000#2 — mappings explicitly authorize the public model; never infer or rewrite the app.
-    let selectors = ["public-profiles", "public-posts", "public-follows", "public-reposts"];
-    let bridge = if selectors.iter().any(|flag| options.flags.contains_key(*flag)) {
-        if !recipe_only || prefix.is_none() || !selectors.iter().all(|flag| options.flags.contains_key(*flag)) {
-            eprintln!("E_RECIPE_BRIDGE: use all four --public-profiles/--public-posts/--public-follows/--public-reposts mappings with --recipe feeds --prefix <name> in an existing app; see snapback4 guide feeds");
-            return 2;
-        }
-        let result = (|| {
-            let mapping = snapback4_lang::recipe::bridge::Mapping::parse(&options.flags[selectors[0]], &options.flags[selectors[1]], &options.flags[selectors[2]], &options.flags[selectors[3]])?;
-            let sources = crate::project::Project { root: dir.to_path_buf() }.sources().map_err(|error| error.to_string())?;
-            let app = snapback4_lang::compile(&sources);
-            if !app.diagnostics.is_empty() {
-                return Err(format!("check the existing app before installing its bridge; no files written\n{}", app.diagnostics.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n")));
-            }
-            mapping.render(&app.schema, prefix.unwrap())
-        })();
-        match result {
-            Ok(source) => Some(source),
-            Err(error) => { eprintln!("E_RECIPE_BRIDGE: {error}; no files written; see snapback4 guide feeds"); return 1; }
-        }
-    } else { None };
-    let mut files = if recipe_only { Vec::new() } else if web { web::files() } else if expo { expo_files() } else if online { online_files() } else { vec![("snapback/schema.q", snapback4_lang::guide::TEMPLATE.to_owned())] };
-    if recipe.map(String::as_str) == Some("feeds") {
-        let prefix = prefix.map(String::as_str).unwrap_or("");
-        let source = match snapback4_lang::recipe::following_sized(prefix, "feed", caps) {
-            Ok(source) => source,
-            Err(error) => { eprintln!("init: {error}"); return 1; }
-        };
-        files.push(("snapback/feed.q", source));
-        let mut client = include_str!("init/following.ts").to_owned();
-        if let Some(bridge) = &bridge {
-            files.push(("snapback/feed_bridge.q", bridge.clone()));
-            let imports = client.split_once("// Pass your app").unwrap().0;
-            let query = client.split_once("// Render the returned Read").unwrap().1;
-            client = format!("{imports}// Public app bridge: snapback/feed_bridge.q; see snapback4 guide feeds.\n// Call {prefix}AppRegister, {prefix}AppPublish, {prefix}AppRemove,\n// {prefix}AppRepost, {prefix}AppUnrepost, {prefix}AppFollow, {prefix}AppUnfollow\n// inside the app's existing mutations.\n// The bridge validates ownership and translates app references to event IDs.\n// Backfill explicitly before switching Following; keep the app's card join.\n// Publish only a new card or initial backfill; never resurrect a removed card.\n// Retry the original mutation with its original write ID.\n// Render the returned Read{query}");
-        }
-        if !prefix.is_empty() {
-            client = client.lines().filter(|line| !line.starts_with("export const registerForFollowing") && !line.starts_with("export const followAuthor") && !line.starts_with("export const unfollowAuthor"))
-                .collect::<Vec<_>>().join("\n") + "\n";
-            client = client.replace("Client, Cursor, Principal", "Client, Cursor");
-        }
-        for name in ["register", "follow", "unfollow", "following"] {
-            client = client.replace(&format!("api.feed.{name}"), &format!("api.feed.{}", snapback4_lang::recipe::prefixed_name(prefix, name)));
-        }
-        files.push(("src/following.ts", client));
-    }
+    let mut files = if web { web::files() } else if expo { expo_files() } else if online { online_files() } else { vec![("snapback/schema.q", snapback4_lang::guide::TEMPLATE.to_owned())] };
     // @ref LLP 3000.007#20.2 — installed packages can receive a starter; only conflicting required entries refuse.
     for (name, text) in &mut files {
         if *name == "package.json" && dir.join(*name).exists() {
@@ -100,7 +50,7 @@ pub fn init(options: &Options) -> i32 {
         }
     }
     // @ref LLP 3000.007#20.2 — scope generated ESM to its artifacts, preserving existing application scripts' module interpretation.
-    if !recipe_only { files.push(("snapback/generated/package.json", GENERATED_PACKAGE.into())); }
+    files.push(("snapback/generated/package.json", GENERATED_PACKAGE.into()));
     // Check every destination before writing any starter file.
     for (name, _) in &files {
         if let Err(error) = preflight_parents(&dir.join(name)) { eprintln!("init: {error}"); return 1; }
@@ -118,9 +68,6 @@ pub fn init(options: &Options) -> i32 {
         }
     }
     if let Err(error) = preflight_parents(&dir.join(".gitignore")) { eprintln!("init: {error}"); return 1; }
-    if recipe.is_some() {
-        if let Err(error) = check_recipe(dir, &files) { eprintln!("init: {error}"); return 1; }
-    }
     let mut created = Vec::new();
     let mut write = || -> std::io::Result<()> {
         for (name, text) in &files {
@@ -149,11 +96,7 @@ pub fn init(options: &Options) -> i32 {
         }
         return 2;
     }
-    let cap_summary = if recipe.map(String::as_str) == Some("feeds") { format!(" — caps: {}", caps.summary()) } else { String::new() };
-    let recipe_label = "Following recipe";
-    println!("init: wrote {} files in {} — {}{}{cap_summary} — next: `snapback4 check`, then `snapback4 dev`{}", files.len(), dir.display(), if recipe_only { recipe_label } else if expo { "Expo: native when available, online in Expo Go" } else if web { "Vite web: production offline shell" } else if online { "online-only" } else { "local-first" }, if recipe.is_some() && !recipe_only { format!(" + {recipe_label}") } else { String::new() }, if expo || online || web { "; see README.md" } else { "" });
-    // @ref LLP 3000.007#6.8 — measure fixture acquisition when the recipe is installed; ordinary checks stay quiet.
-    if recipe.is_some() { println!("cold rows: snapback4 test --residency --fixture <fixture-directory> --as <principal>"); }
+    println!("init: wrote {} files in {} — {} — next: `snapback4 check`, then `snapback4 dev`{}", files.len(), dir.display(), if expo { "Expo: native when available, online in Expo Go" } else if web { "Vite web: production offline shell" } else if online { "online-only" } else { "local-first" }, if expo || online || web { "; see README.md" } else { "" });
     0
 }
 
@@ -168,56 +111,6 @@ fn preflight_parents(path: &Path) -> Result<(), String> {
         }
     }
     Ok(())
-}
-
-// @ref LLP 3000.007#20.3 — installing the Following module must preserve a compilable application.
-fn check_recipe(dir: &Path, files: &[(&str, String)]) -> Result<(), String> {
-    let project = crate::project::Project { root: dir.to_path_buf() };
-    let mut sources = match project.sources() {
-        Ok(sources) => sources,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Vec::new(),
-        Err(error) => return Err(format!("{}: {error}", project.schema_dir().display())),
-    };
-    // Compilation alone cannot catch a helper that binds ahead of a builtin.
-    // Check the syntax-selected names left unrenamed before adding any files.
-    let recipe_file = "snapback/feed.q";
-    let recipe = files.iter().find(|(name, _)| *name == recipe_file).unwrap();
-    let references = snapback4_lang::recipe::unrenamed_references(&recipe.1)?;
-    for (file, text) in &sources {
-        let (document, _) = snapback4_lang::parse_document(file, text);
-        for (kind, name, site) in document.functions.iter().map(|d| ("fn", &d.name, &d.site))
-            .chain(document.tables.iter().map(|d| ("table", &d.name, &d.site)))
-            .chain(document.maintains.iter().map(|d| ("maintain", &d.name, &d.site)))
-            .chain(document.shapes.iter().map(|d| ("shape", &d.name, &d.site)))
-            .chain(document.programs.iter().map(|d| ("operation", &d.name, &d.site)))
-            .chain(document.effects.iter().map(|d| ("effect", &d.name, &d.site)))
-            .chain(document.actions.iter().map(|d| ("action", &d.name, &d.site)))
-            .chain(document.schedules.iter().map(|d| ("schedule", &d.name, &d.site))) {
-            if references.contains(name) {
-                return Err(format!("recipe cannot be installed; no files written\n  {kind} {name} in {}:{}:{} would shadow the recipe's unrenamed reference `{name}` in {recipe_file}\n  rename the app declaration `{name}` and its callers, then run init again", project.schema_dir().join(&site.file).display(), site.line, site.col));
-            }
-        }
-    }
-    sources.extend(files.iter().filter(|(name, _)| name.ends_with(".q")).map(|(name, text)| (Path::new(name).file_name().unwrap().to_string_lossy().into_owned(), text.clone())));
-    let bound = snapback4_lang::compile(&sources);
-    if bound.diagnostics.is_empty() { return Ok(()); }
-    // The compiler locates the second declaration. Add both original sites
-    // here, without changing the language lane's diagnostic contract.
-    let mut declarations = std::collections::BTreeMap::new();
-    let mut collisions = Vec::new();
-    let retry = "feeds --prefix feed";
-    for (file, text) in &sources {
-        let (document, _) = snapback4_lang::parse_document(file, text);
-        for (kind, name, site) in document.tables.into_iter().map(|t| ("table", t.name, t.site))
-            .chain(document.maintains.into_iter().map(|m| ("maintain", m.name, m.site))) {
-            let location = format!("{}:{}:{}", project.schema_dir().join(&site.file).display(), site.line, site.col);
-            if let Some((previous_kind, previous)) = declarations.get(&name) {
-                collisions.push(format!("  {previous_kind} {name} in {previous} collides with {kind} {name} in {location}\n  run `snapback4 init --recipe {retry}` to keep the app's declarations and rename the recipe"));
-            } else { declarations.insert(name, (kind, location)); }
-        }
-    }
-    let details = if collisions.is_empty() { bound.diagnostics.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n") } else { collisions.join("\n") };
-    Err(format!("recipe cannot be installed; no files written\n{details}"))
 }
 
 // A new package boundary in an existing directory inherits the nearest

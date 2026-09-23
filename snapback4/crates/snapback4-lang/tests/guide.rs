@@ -37,36 +37,17 @@ fn readme_reference(name: &str) -> &'static str {
 }
 
 #[test]
-fn w11a_feeds_card_requires_delivery_preserving_promotion() {
+fn feeds_card_preserves_promotion_refusals_and_orientation() {
     let feeds = card("feeds").unwrap();
-    for text in [
-        "Promotion requires a pull lane for every follower, including the triggering\nreader. The caller is checked first: their own full 32 shared-author slots\nrefuse `FEED_PULL_CAP`. If another follower already uses all 32 slots,\n`FEED_PROMOTION_PULL_CAP` refuses the whole follow/promotion transaction,\nincluding the app edge, author mode, routes and counts. Existing followers\nkeep receiving private pushes; no follower is silently skipped.",
-        "Show the refusal in the app. Have each saturated follower unfollow a shared\nauthor to free a slot, then retry the refused follow with a new write ID.\nThe triggering reader freeing their own slot does not help a different\nsaturated follower. If those followers cannot free slots, decline the new\nfollow and keep the existing pushed delivery; more than 32 shared authors\nneeds a separate serving design, not a larger cap alone.",
-        "`complete` describes the queried lanes' coverage under the meter; promotion\nnever omits a subscribed follower's route.",
-        "Promotion uses that count to refuse a saturated follower without reading\ntheir routes.",
-        "The private maintained check adds one write per route. The allowance is\n159 writes with an 865-event backfill; a refusal rolls back attempted writes.",
-    ] { assert!(feeds.contains(text), "feeds card omits verbatim policy: {text}"); }
-    for doc in [feeds, readme_reference("feeds")] {
-        assert!(doc.contains("if count(near) > 50:\n      -- Check the caller first so their own full slots name their own repair.\n      require tryPull(viewer, authorId) else FEED_PULL_CAP\n      update authors"), "both published copies check the caller before promotion");
-        assert!(doc.contains("require tryPull(f.followerId, authorId) else FEED_PROMOTION_PULL_CAP"));
-        assert!(!doc.contains("skips a follower") && !doc.contains("skip saturated readers"));
-        assert!(!doc.contains("A skipped follower") && !doc.contains("not skipped\nauthors"));
+    assert_eq!(feeds, readme_reference("feeds"));
+    for fact in ["51st follower", "permanently", "FEED_PULL_CAP", "FEED_PROMOTION_PULL_CAP",
+        "no follower is silently skipped", "50 followers indefinitely", "51 reads",
+        "1,023 total writes", "865", "1,001", "empty", "size authors 1008, edges 5921"] {
+        assert!(feeds.contains(fact), "missing {fact}");
     }
-    assert_eq!(snapback4_lang::diag::guide_for("FEED_PROMOTION_PULL_CAP"), "feeds");
-    let explanation = guide::CODES.iter().find(|(code, _)| *code == "FEED_PROMOTION_PULL_CAP").unwrap().1;
-    assert_eq!(explanation, "another follower already uses all 32 shared-author slots. The triggering follow and promotion were rolled back; existing followers still receive private pushes. Show this refusal in the app. Have each saturated follower unfollow a shared author, then retry the refused follow with a new write ID. Freeing only the caller's slot cannot fix another follower's full slots; if they cannot free a slot, decline the new follow and keep pushed delivery. Until every saturated follower frees a slot, every later follow refuses the same way and the author stays at 50 followers, gaining no new followers. A server-run query over public follows and pullCounts identifies the blocker by used = 32 in 51 reads (one scan plus 50 count lookups). More than 32 shared authors needs a separate serving design. guide feeds.");
-    let why = explain_code("FEED_PROMOTION_PULL_CAP").unwrap();
-    assert!(why.contains(explanation) && why.contains("snapback4 guide feeds"));
-    assert!(!explain_code("FEED_PULL_CAP").unwrap().contains("skips saturated readers"));
-}
-
-#[test]
-fn w11r1c_promotion_names_the_persistent_block_and_its_discovery_path() {
-    for text in [card("feeds").unwrap().to_owned(), readme_reference("feeds").to_owned(), explain_code("FEED_PROMOTION_PULL_CAP").unwrap()] {
-        let prose = text.split_whitespace().collect::<Vec<_>>().join(" ");
-        for fact in ["every later follow", "50 followers", "follows", "pullCounts", "public", "server-run query", "51 reads", "used"] {
-            assert!(prose.contains(fact), "missing {fact}: {prose}");
-        }
+    for code in ["FEED_PULL_CAP", "FEED_PROMOTION_PULL_CAP", "E_RECIPE_RETIRED"] {
+        assert_eq!(snapback4_lang::diag::guide_for(code), "feeds");
+        assert!(explain_code(code).unwrap().contains("snapback4 guide feeds"));
     }
 }
 
@@ -230,10 +211,6 @@ fn compile(source: &str) -> snapback4_lang::Bound {
 /// A block that declares a table stands alone; another compiles beside the
 /// language card's schema.
 fn in_context(block: &str) -> String {
-    // This card block is explicitly a second file beside the installed recipe.
-    if block.starts_with("-- After: snapback4 init --recipe feeds --prefix feed\n") {
-        return format!("{}\n{block}", snapback4_lang::recipe::following("feed", "").unwrap());
-    }
     if block.lines().any(|line| line.starts_with("table ")) { block.to_owned() } else { format!("{}\n{block}", language()) }
 }
 
@@ -278,7 +255,7 @@ fn the_language_card_compiles_and_runs() {
     let source = in_context(&quarry(LANGUAGE)[1]);
     let bound = clean("the language card", &source);
     let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).filter(|name| !name.starts_with("timeline")).collect();
-    assert_eq!(names, ["daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "heldRoom", "room", "helperRows", "thread", "inbox", "following", "ancestors", "digest", "mentions", "tokenDigest", "search", "everywhere", "wholeRoster", "memberTotal", "hasMessages", "groupedMessages", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative", "roomHour", "roomWindow", "checkin", "summarizeRoom", "scheduledSummary"]);
+    assert_eq!(names, ["daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "heldRoom", "room", "helperRows", "thread", "inbox", "ancestors", "digest", "mentions", "tokenDigest", "search", "everywhere", "wholeRoster", "memberTotal", "hasMessages", "groupedMessages", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative", "roomHour", "roomWindow", "checkin", "summarizeRoom", "scheduledSummary"]);
     assert_eq!(bound.schema.effects, ["notify", "sendDigest"]);
     assert!(bound.server);
     assert_eq!(bound.schema.schedules.len(), 3);
@@ -400,7 +377,7 @@ fn the_language_card_compiles_and_runs() {
     assert_eq!(engine.query("online", Context::new(alice, args(&[("p", id(bob))])).at(2_200)).unwrap().data, Value::Int(0));
     // sendBrief emitted for the members with no connection: bob, once per send.
     assert_eq!(engine.effects(Some("queued"), 10).unwrap().len(), 2, "one effect per send, for the one other member");
-    // post: a loop over a bounded list argument; following: a merge over lanes, shaped.
+    // post: a loop over a bounded list argument.
     let posted = engine.mutate("post", Some("p1"), Context::new(alice, args(&[("bodies", Value::Array(vec![text("a"), text("b")]))])).at(3_000).with_ids(["post1".to_owned(), "post2".to_owned()])).unwrap();
     assert_eq!(sent(&posted), &Value::Int(2));
     // Calendar maintains share scalar keys with ordinary expressions; pages retain their group fields.
@@ -414,20 +391,6 @@ fn the_language_card_compiles_and_runs() {
     assert_eq!(calendar.field("hour").unwrap(), &Value::Int(-1));
     assert_eq!(calendar.field("bucket").unwrap(), &Value::Int(-1));
     engine.seed([("follows".to_owned(), snapback4_core::value::object([("id", id("f1")), ("followerId", id(bob)), ("followedId", id(alice))]))]).unwrap();
-    // The full delivery lifecycle is on the feeds card; exercise both projected lanes here.
-    let projected = |row_id: &str, event: &str, reader: &str| snapback4_core::value::object([
-        ("id", id(row_id)), ("eventId", id(event)), ("readerId", id(reader)), ("authorId", id(alice)), ("body", text(event)), ("at", Value::Int(3_000)),
-    ]);
-    engine.seed([
-        ("feed".into(), projected("private1", "post1", bob)),
-        ("feed".into(), projected("hidden", "hiddenPost", alice)),
-        ("broadcast".into(), projected("shared2", "post2", alice)),
-        ("pulls".into(), snapback4_core::value::object([("id", id("pull1")), ("readerId", id(bob)), ("authorId", id(alice))])),
-    ]).unwrap();
-    let following = engine.query("following", Context::new(bob, args(&[])).at(3_100)).unwrap();
-    let posts = following.data.as_array().unwrap();
-    assert_eq!(posts.len(), 2);
-    assert_eq!(posts[0].field("mine").unwrap(), &Value::Null);
     // react: a refusal with the program's code; upsert as the implicit return.
     assert_eq!(failed(&engine.mutate("react", Some("x1"), Context::new(bob, args(&[("postId", id("post1")), ("direction", Value::Int(2))])).at(3_200)).unwrap()), "BAD_DIRECTION");
     let reacted = engine.mutate("react", Some("x2"), Context::new(bob, args(&[("postId", id("post1")), ("direction", Value::Int(-1))])).at(3_300).with_ids(["react1".to_owned()])).unwrap();
@@ -440,8 +403,6 @@ fn the_language_card_compiles_and_runs() {
     assert_eq!(engine.query("digestToday", Context::new(alice, args(&[])).at(3_300)).unwrap().data, Value::Int(2));
     // A value index grants no read authority over a private vote aggregate.
     assert!(engine.query("mostLiked", Context::new(bob, args(&[])).at(3_300)).unwrap().data.as_array().unwrap().is_empty());
-    let following = engine.query("following", Context::new(bob, args(&[])).at(3_400)).unwrap();
-    assert!(following.data.as_array().unwrap().iter().any(|p| p.field("mine").unwrap() != &Value::Null));
     // edit: the presence assertion, a conditional update refused with the current row, then accepted.
     assert_eq!(failed(&engine.mutate("edit", Some("e1"), Context::new(bob, args(&[("messageId", id("msg2")), ("body", text("kept")), ("expected", text("nope"))])).at(3_500)).unwrap()), "E_CONFLICT");
     assert_eq!(failed(&engine.mutate("edit", Some("e2"), Context::new(alice, args(&[("messageId", id("msg2")), ("body", text("kept")), ("expected", text("keep"))])).at(3_500)).unwrap()), "NOT_AUTHOR");
@@ -496,6 +457,10 @@ fn every_card_compiles_clean() {
             }
             clean(&format!("card {keyword}, block {}", n + 1), &in_context(block));
         }
+    }
+    // The relocation preserves compiling adoption instructions for already installed apps.
+    for block in quarry(include_str!("../src/recipe/ADOPTION.md")) {
+        clean("existing feed adoption", &format!("{}\n{block}", snapback4_lang::recipe::following("feed", "").unwrap()));
     }
     assert_eq!(card("grammar"), Some(LANGUAGE));
     assert_eq!(card("quarry"), Some(LANGUAGE));
@@ -950,16 +915,12 @@ fn direct_and_merged_cursor_generation_contracts_are_distinct() {
 }
 
 #[test]
-fn language_following_uses_private_inbox_and_capped_pulls() {
-    let source = language();
-    let bound = clean("language", &source);
-    let fact = &bound.schema.operations["following"];
-    assert!(fact.sites.iter().any(|s| s.table == "feed"), "{:?}", fact.sites);
-    assert!(!fact.sites.iter().any(|s| s.table == "follows"));
-    assert_eq!(fact.runs.as_deref(), Some("device"));
-    assert!(source.contains("broadcast[p.authorId] for p in pulls[viewer]"));
+fn language_following_uses_the_declaration() {
+    let bound = clean("language", &language());
+    assert_eq!(bound.schema.timelines.len(), 1);
+    assert_eq!(bound.schema.operations["timelineHome"].runs.as_deref(), Some("device"));
     assert!(LANGUAGE.contains("guide feeds"));
-    assert!(source.lines().any(|line| line.trim_start().starts_with("online only") && line.contains("mutations reading this maintain never predict")));
+    assert!(!language().contains("table feed:"));
 }
 
 #[test]
@@ -990,12 +951,6 @@ fn following_cards_pin_examinations() {
         assert!(doc.contains("82 examinations"), "{name} must count examinations, including lookups");
         assert!(doc.contains("41 tombstone probes"), "{name} must pin the tombstone work");
     }
-}
-
-#[test]
-fn following_language_card_labels_the_syntax_example() {
-    assert!(LANGUAGE.contains("syntax example"), "Following's body predicate is syntax, not removal");
-    assert!(LANGUAGE.contains("removal recipe"));
 }
 
 #[test]
@@ -1154,3 +1109,6 @@ fn host_unicode_refusal_explains_the_repair_and_search_contract() {
         assert!(text.contains("E_HOST_UNICODE"));
     }
 }
+
+#[path = "guide/feeds.rs"]
+mod feeds;

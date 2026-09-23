@@ -273,7 +273,7 @@ fn review_manager_report_merge_note_describes_related_principals() {
     let note = b.notes.iter().find(|n| n.code == "N_WIDE_MERGE").unwrap();
     println!("{note}");
     assert_eq!(note.message, "query reports: read cost grows with the number of related principals (up to 1000 lanes); a read past the 8,192 examined ceiling returns `complete: false`");
-    assert_eq!(note.rewrite, "keep read-time merges for a bounded small number of related principals; for Following, `snapback4 init --recipe feeds --prefix feed`; measure with `snapback4 check --cost`; if a held query answers this read, delete the merge");
+    assert_eq!(note.rewrite, "keep read-time merges for a bounded small number of related principals; for Following, declare `maintain feed: timeline` (see `snapback4 guide feeds`); measure with `snapback4 check --cost`; if a held query answers this read, delete the merge");
     let small = clean(&source.replace("first 1000", "first 5"));
     assert!(small.notes.iter().all(|n| n.code != "N_WIDE_MERGE"));
 }

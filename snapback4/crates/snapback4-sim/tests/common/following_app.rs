@@ -1,4 +1,4 @@
-//! The published wiring block, installed beside the prefixed feeds module.
+//! The preserved adoption block for an already installed prefixed feeds module.
 #![allow(dead_code)]
 use snapback4_core::{Context, Engine, QueryOutcome, Value, WriteState};
 use std::collections::BTreeMap;
@@ -7,8 +7,8 @@ pub const READERS: [(&str, usize); 2] = [("dev:reader5", 5), ("dev:reader500", 5
 pub fn id(s: &str) -> Value { Value::Id(s.into()) }
 pub fn author(n: usize) -> String { format!("dev:author{n:03}") }
 pub fn app() -> String {
-    snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).into_iter()
-        .find(|block| block.starts_with("-- After: snapback4 init --recipe feeds --prefix feed\n")).unwrap()
+    snapback4_lang::guide::quarry(include_str!("../../../snapback4-lang/src/recipe/ADOPTION.md")).into_iter()
+        .find(|block| block.starts_with("-- Existing installed feed module; not a new application starter\n")).unwrap()
 }
 pub fn built() -> snapback4_lang::Bound {
     let bound = snapback4_lang::compile(&[("feed.q".into(), snapback4_lang::recipe::following("feed", "feed").unwrap()), ("social.q".into(), app())]);

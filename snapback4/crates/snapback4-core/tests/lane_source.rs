@@ -106,9 +106,7 @@ fn every_published_quarry_lane_source_matches_and_keeps_canonical_bytes() {
     let (mut blocks, mut sources, mut variants) = (0, Vec::new(), [0usize; 4]);
     for (name, doc) in docs {
         for block in quarry(doc) {
-            let source = if block.starts_with("-- After: snapback4 init --recipe feeds --prefix feed\n") {
-                format!("{}\n{block}", snapback4_lang::recipe::following("feed", "").unwrap())
-            } else if block.lines().any(|line| line.starts_with("table ")) { block } else { format!("{}\n{block}", language()) };
+            let source = if block.lines().any(|line| line.starts_with("table ")) { block } else { format!("{}\n{block}", language()) };
             let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
             assert!(bound.diagnostics.is_empty(), "{name}: {:?}", bound.diagnostics);
             blocks += 1;

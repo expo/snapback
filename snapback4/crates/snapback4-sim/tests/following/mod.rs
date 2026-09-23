@@ -141,11 +141,11 @@ fn following_is_full_and_complete_at_the_envelope() {
 }
 
 fn recipe() -> String {
-    snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).remove(0)
+    snapback4_lang::recipe::following("", "").unwrap()
 }
 
 #[test]
-fn following_card_has_complete_follow_lifecycle() {
+fn existing_recipe_has_complete_follow_lifecycle() {
     let bound = snapback4_lang::compile(&[("schema.q".into(), recipe())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     assert!(bound.notes.is_empty(), "{:?}", bound.notes);

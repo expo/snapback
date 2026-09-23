@@ -1,6 +1,6 @@
 use super::common::*;
 use snapback4_core::{Engine, WriteState, schema::Constraint, value::object};
-use snapback4_lang::recipe::{self, FollowingCaps, bridge::Mapping};
+use snapback4_lang::recipe::FollowingCaps;
 use std::{fs, path::PathBuf, process::Command};
 
 fn source(clause: &str, edges: u32) -> String {
@@ -166,20 +166,8 @@ impl Temp {
 impl Drop for Temp { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
 
 #[test]
-fn cli_installs_the_sized_oracle_recipe_and_bridge_and_reports_cost() {
+fn cli_reports_sized_timeline_cost() {
     let dir = Temp::new();
-    let app = APP.replace("  cap 100000\n", "  cap 5921\n");
-    fs::write(dir.0.join("snapback/schema.q"), &app).unwrap();
-    let out = Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir.0).args([
-        "init", "--recipe", "feeds", "--prefix", "feed", "--authors", "1008", "--edges", "5921",
-        "--public-profiles", "profiles:principal", "--public-posts", "posts:authorId:at",
-        "--public-follows", "follows:followerId:followedId", "--public-reposts", "reposts:actorId:postId:at",
-    ]).output().unwrap();
-    assert!(out.status.success(), "{out:?}");
-    assert_eq!(fs::read_to_string(dir.0.join("snapback/feed.q")).unwrap(), recipe::following_sized("feed", "feed", FollowingCaps::parse(Some("1008"), Some("5921")).unwrap()).unwrap());
-    let mapping = Mapping::parse("profiles:principal", "posts:authorId:at", "follows:followerId:followedId", "reposts:actorId:postId:at").unwrap();
-    assert_eq!(fs::read_to_string(dir.0.join("snapback/feed_bridge.q")).unwrap(), mapping.render(&compile(&app).schema, "feed").unwrap());
-    fs::remove_file(dir.0.join("snapback/feed.q")).unwrap(); fs::remove_file(dir.0.join("snapback/feed_bridge.q")).unwrap();
     for (a, e, bound) in [(1008, 5921, 865), (50, 1000, 200)] {
         fs::write(dir.0.join("snapback/schema.q"), format!("{}\nmutation register():\n  insert profiles {{ principal: viewer }}\nmutation follow(authorId: principal):\n  insert follows {{ followerId: viewer, followedId: authorId }} if absent\n", source(&format!("  size authors {a}, edges {e}\n"), e))).unwrap();
         let out = Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir.0).args(["check", "--cost"]).output().unwrap();

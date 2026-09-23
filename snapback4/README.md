@@ -100,3 +100,5 @@ p50/p95/max milliseconds for each variant (nearest-rank percentiles).
 `--timeout-ms 60000` bounds each launch; a timeout refuses partial results.
 Fresh paths test fresh-file assessment, not a purge of every macOS cache.
 Signing alone has not yet been shown to remove the `_dyld_start` stall.
+
+For a public Following feed, declare `maintain feed: timeline`; run `snapback4 guide feeds`.

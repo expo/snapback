@@ -2,10 +2,9 @@
 use serde_json::json;
 use snapback4_core::{Context, Engine, MutationOutcome, Value, WriteState, wire};
 use snapback4_lang::recipe::{self, bridge::Mapping};
-use std::{collections::BTreeMap, fs, path::PathBuf, process::Command, sync::atomic::{AtomicUsize, Ordering}};
+use std::collections::BTreeMap;
 
-const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
-const FLAGS: [&str; 12] = ["--recipe", "feeds", "--prefix", "feed", "--public-profiles", "profiles:principal", "--public-posts", "posts:authorId:at", "--public-follows", "follows:followerId:followedId", "--public-reposts", "reposts:actorId:postId:at"];
+const MAPPINGS: [&str; 4] = ["profiles:principal", "posts:authorId:at", "follows:followerId:followedId", "reposts:actorId:postId:at"];
 const WRITES: &str = r#"
 mutation saveProfile(name: text <=100):
   upsert profiles[viewer] { principal: viewer, name }
@@ -41,12 +40,12 @@ mutation repostExisting(repostId: reposts):
   return feedAppRepost(repostId)
 "#;
 fn manual() -> String {
-    snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).into_iter()
-        .find(|s| s.starts_with("-- After: snapback4 init --recipe feeds --prefix feed\n")).unwrap()
+    snapback4_lang::guide::quarry(include_str!("../../snapback4-lang/src/recipe/ADOPTION.md")).into_iter()
+        .find(|s| s.starts_with("-- Existing installed feed module; not a new application starter\n")).unwrap()
         .replace("  name: text <=100", "  name: text <=100\n  immutable principal")
 }
 fn tables() -> String { manual().split_once("mutation saveProfile").unwrap().0.to_owned() }
-fn mapping() -> Mapping { Mapping::parse(FLAGS[5], FLAGS[7], FLAGS[9], FLAGS[11]).unwrap() }
+fn mapping() -> Mapping { Mapping::parse(MAPPINGS[0], MAPPINGS[1], MAPPINGS[2], MAPPINGS[3]).unwrap() }
 fn bridge() -> String {
     let app = snapback4_lang::compile(&[("app.q".into(), tables())]);
     assert!(app.diagnostics.is_empty(), "{:?}", app.diagnostics);
@@ -68,48 +67,14 @@ fn engine(generated: bool) -> Engine {
     let b = built(generated);
     Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap()
 }
-struct Dir(PathBuf);
-impl Dir {
-    fn new() -> Self {
-        static SERIAL: AtomicUsize = AtomicUsize::new(0);
-        let path = std::env::temp_dir().join(format!("sb4-feed-bridge-{}-{}", std::process::id(), SERIAL.fetch_add(1, Ordering::Relaxed)));
-        fs::create_dir_all(path.join("snapback")).unwrap();
-        fs::write(path.join("snapback/schema.q"), tables()).unwrap(); Self(path)
-    }
-    fn install(&self, args: &[&str]) -> std::process::Output { Command::new(BIN).arg("init").args(args).current_dir(&self.0).output().unwrap() }
-}
-impl Drop for Dir { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
-
 #[test]
-fn public_bridge_installs_without_rewriting_and_checks_after_wiring() {
-    let dir = Dir::new();
-    let before = fs::read(dir.0.join("snapback/schema.q")).unwrap();
-    let output = dir.install(&FLAGS);
-    assert!(output.status.success(), "{output:?}");
-    assert_eq!(fs::read(dir.0.join("snapback/schema.q")).unwrap(), before);
-    assert_eq!(fs::read_to_string(dir.0.join("snapback/feed_bridge.q")).unwrap(), bridge());
-    assert!(!fs::read_to_string(dir.0.join("src/following.ts")).unwrap().contains("insert feedPosts"));
-    fs::write(dir.0.join("snapback/social.q"), WRITES).unwrap();
-    let check = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
-    assert!(check.status.success(), "{check:?}");
-    let api = fs::read_to_string(dir.0.join("snapback/generated/api.ts")).unwrap();
-    assert!(!api.contains("feed_bridge.feedApp") && !api.contains("feed.feedCreatePost"), "helpers must not become client mutations");
-    let dir = Dir::new();
-    fs::write(dir.0.join("snapback/feed_bridge.q"), "-- keep\n").unwrap();
-    let output = dir.install(&FLAGS);
-    assert!(!output.status.success(), "{output:?}");
-    assert!(String::from_utf8_lossy(&output.stderr).contains("feed_bridge.q already exists"));
-    assert_eq!(fs::read_to_string(dir.0.join("snapback/feed_bridge.q")).unwrap(), "-- keep\n");
-    assert!(!dir.0.join("snapback/feed.q").exists() && !dir.0.join("src").exists());
+fn existing_public_bridge_keeps_helpers_out_of_the_client_api() {
+    let bound = built(true);
+    assert!(bound.schema.operations.keys().all(|name| !name.contains("feedApp") && !name.contains("feedCreatePost")));
 }
 
 #[test]
-fn public_bridge_refuses_incomplete_private_ambiguous_and_unsafe_mappings_without_writes() {
-    for args in [&FLAGS[..6], &FLAGS[4..], &FLAGS[..10]] {
-        let dir = Dir::new(); let output = dir.install(args);
-        assert!(!output.status.success() && String::from_utf8_lossy(&output.stderr).contains("E_RECIPE_BRIDGE"), "{output:?}");
-        assert!(!dir.0.join("snapback/feed.q").exists());
-    }
+fn public_bridge_library_refuses_private_ambiguous_and_unsafe_mappings() {
     let cases = [
         ("public 'app post cards are public'", "read <- .authorId = viewer", "explicitly public"),
         ("  sync public", "", "fully `sync public`"),
@@ -122,20 +87,18 @@ fn public_bridge_refuses_incomplete_private_ambiguous_and_unsafe_mappings_withou
         ("table follows:", "table follows:\n  reason: text <=100", "needs an application value"),
     ];
     for (from, to, expected) in cases {
-        let dir = Dir::new();
         let mut source = tables().replacen(from, to, 1);
         if expected == "explicitly public" {
             source = source.replacen("  sync public", "  sync to .authorId", 1)
                 .replacen("  cap 60000", "  by byAuthor: authorId, id\n  cap 60000", 1);
         }
-        fs::write(dir.0.join("snapback/schema.q"), &source).unwrap();
-        let output = dir.install(&FLAGS); let error = String::from_utf8_lossy(&output.stderr);
-        assert!(!output.status.success() && error.contains("E_RECIPE_BRIDGE") && error.contains(expected), "{expected}: {output:?}");
-        assert_eq!(fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap(), source);
-        for path in ["snapback/feed.q", "snapback/feed_bridge.q", "src", ".gitignore"] { assert!(!dir.0.join(path).exists(), "wrote {path}"); }
+        let app = snapback4_lang::compile(&[("schema.q".into(), source)]);
+        assert!(app.diagnostics.is_empty(), "{:?}", app.diagnostics);
+        let error = mapping().render(&app.schema, "feed").unwrap_err();
+        assert!(error.contains(expected), "{expected}: {error}");
     }
     for selector in ["posts:authorId", "posts:authorId:authorId", "posts:authorId:at:extra", "posts:authorId:at;bad"] {
-        assert!(Mapping::parse("profiles:principal", selector, FLAGS[9], FLAGS[11]).is_err());
+        assert!(Mapping::parse("profiles:principal", selector, MAPPINGS[2], MAPPINGS[3]).is_err());
     }
 }
 
@@ -143,17 +106,12 @@ fn public_bridge_refuses_incomplete_private_ambiguous_and_unsafe_mappings_withou
 fn public_bridge_refuses_delete_denied_follow_and_repost_mappings_without_writes() {
     for (table, owner, helper) in [("follows", "followerId", "feedAppUnfollow"), ("reposts", "actorId", "feedAppUnrepost")] {
         for denied_rule in ["", "  delete <- deny\n"] {
-            let dir = Dir::new();
-            let source = tables().replace(&format!("  delete <- .{owner} = viewer\n"), denied_rule);
+                let source = tables().replace(&format!("  delete <- .{owner} = viewer\n"), denied_rule);
             let app = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
             assert!(app.diagnostics.is_empty(), "the refusal fixture must be a valid app: {:?}", app.diagnostics);
             assert_eq!(app.schema.tables[table].rules.delete, snapback4_core::schema::RuleExpr::Deny);
-            fs::write(dir.0.join("snapback/schema.q"), &source).unwrap();
-            let output = dir.install(&FLAGS); let error = String::from_utf8_lossy(&output.stderr);
-            assert_eq!(output.status.code(), Some(1), "{output:?}");
-            assert!(error.contains("E_RECIPE_BRIDGE") && error.contains(&format!("{table} delete must require .{owner} = viewer")) && error.contains(helper), "{error}");
-            assert_eq!(fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap(), source);
-            for path in ["snapback/feed.q", "snapback/feed_bridge.q", "src", ".gitignore"] { assert!(!dir.0.join(path).exists(), "wrote {path}"); }
+            let error = mapping().render(&app.schema, "feed").unwrap_err();
+            assert!(error.contains(&format!("{table} delete must require .{owner} = viewer")) && error.contains(helper), "{error}");
         }
     }
 }
@@ -322,7 +280,7 @@ fn generated_and_manual_saturated_promotion_roll_back_then_recover() {
 }
 
 #[test]
-fn explicit_mapping_uses_selected_names_and_refuses_helper_collisions() {
+fn explicit_mapping_uses_selected_names() {
     fn rename(source: &str) -> String {
         source.replace("reposts", "boosts").replace("posts", "cards").replace("follows", "subscriptions").replace("profiles", "people")
             .replace("authorId", "writer").replace("actorId", "actor").replace("postId", "cardRef")
@@ -337,11 +295,7 @@ fn explicit_mapping_uses_selected_names_and_refuses_helper_collisions() {
     let generated = Mapping::parse("people:account", "cards:writer:at", "subscriptions:reader:source", "boosts:actor:cardRef:at").unwrap().render(&b.schema, "feed").unwrap();
     let b = snapback4_lang::compile(&[("feed.q".into(), recipe::following("feed", "feed").unwrap()), ("bridge.q".into(), generated), ("app.q".into(), format!("{table_source}{}", rename(WRITES)))]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
-    let dir = Dir::new();
-    fs::write(dir.0.join("snapback/collision.q"), "fn feedAppPublish(postId: posts):\n  return null\n").unwrap();
-    let output = dir.install(&FLAGS); let error = String::from_utf8_lossy(&output.stderr);
-    assert!(!output.status.success() && error.contains("feedAppPublish"), "{output:?}");
-    assert!(!dir.0.join("snapback/feed.q").exists() && !dir.0.join("snapback/feed_bridge.q").exists());
+
 }
 
 #[test]

@@ -1,116 +1,192 @@
-# Feeds: complete Following with a small celebrity merge
+# Feeds: declare a Following timeline
 
-> Adopt: `snapback4 init --recipe feeds --prefix feed`\
-> Writes `snapback/feed.q` and typed `src/following.ts`; then run `snapback4 check`.\
-> After loading your fixture: `snapback4 test --residency --fixture <fixture-directory> --as <principal>`.\
-> A read-time merge is fine when the follow count is bounded small.
+For a new public social app, declare `maintain feed: timeline` before adding
+posts, reposts or follows. The engine keeps Following, delivery and cleanup;
+the application writes four source tables and reads shaped event cards.
 
-Add it to an existing project, including `init --expo`, or start an empty
-directory with the normal starter plus the recipe. If the app already owns
-`posts` or `follows`, run `snapback4 init --recipe feeds --prefix feed`.
-The prefix renames every recipe declaration and reference through its syntax
-tree: `posts` becomes `feedPosts`, `deliver` becomes `feedDeliver`, and
-`following` becomes `feedFollowing`. Index names are table-local and stay
-unchanged, including the matching inbox/broadcast indexes. Columns, local
-variables, comments and strings keep their spelling. Any Quarry identifier
-can be the prefix. The module remains `snapback/feed.q`, so the prefixed API
-is `api.feed.feedFollowing` and the schedule calls `feed.feedPurgeRemoved`.
+## What Following contains
 
-Existing destination files and non-directory parents refuse before any
-write. Init compiles the existing sources plus the recipe in memory first;
-unprefixed clashes name both declarations and print the prefixed command.
-An app declaration that shadows an unrenamed recipe reference, such as the
-builtin `count`, also refuses and names the declaration and its file. Rename
-that app declaration and its callers before installing; a prefix cannot
-rename a builtin. App helpers named `copy` or `deliver` remain separate
-from the prefixed recipe helpers.
-A write failure removes newly created files and preserves `.gitignore`.
-The block below is the unprefixed source; init qualifies its schedule target.
-With a prefix, init also converts its standalone mutations to `fn` helpers.
-Qualified schedule targets in another module keep their names, even when
-a recipe job has the same name.
+Your own events and those of authors you follow appear newest first, by event
+time and then event id. An event is an original or a repost. A repost carries
+the original post's id and author, with the reposter as actor; it has its own
+fresh event id. Repeating a repost while its attribution exists adds nothing.
+Unreposting and reposting again creates a new event, with a new id and time.
 
-Size the installation before replaying an existing app:
+Following an author examines the newest `clamp(authors, 200, 865)` source
+events and copies the pushed events among them. At the size below the window
+is 865. It is a window of source events, not of pushed events: 100 newer
+shared events leave room for only 765 older pushed events. Shared events are
+read directly from the public broadcast lane. Following is not an unlimited
+historical archive.
 
-```sh
-snapback4 init --recipe feeds --prefix feed --authors 1008 --edges 5921
-```
+The 51st follower permanently promotes an author to shared delivery, atomically
+with that follow. Every follower, including the newcomer, gets a pull route.
+Falling below 51 never demotes the author. Old pushed events keep their mode;
+promotion does not recopy history. An author's own events remain visible even
+when their shared-author slots are full.
 
-`init` prints every written cap, including the fixed per-account caps, on
-its stdout line, plus `backfill/author`. A successful install prints the
-cold-row measurement command once; subsequent checks do not repeat it.
-Replace `<fixture-directory>` and `<principal>` with your fixture directory and reader.
-A missing fixture directory refuses instead of measuring an empty store.
-`--authors N` and `--edges N` set the global author and
-follow-edge caps; omitted flags keep 1,000 and 100,000 respectively.
-The newest-event backfill bound is `clamp(authors, 200, 865)`: 865 by default
-and for `--authors 1008`, or 200 for `--authors 50`. The lower clamp preserves
-the earlier 200-event history window; no separate backfill flag is needed.
-An edges-only install uses the default author count. The upper bound reserves
-159 of the 1,024 mutation writes: three per pull route (route, private total and public count) for the
-author and 51 followers, one recipe edge, one promotion update and one app edge. Additional
-app writes need their own allowance. The 1,000-event per-actor cap and source
-scan/unfollow bounds stay coupled; growing the global author cap cannot
-exceed the backfill's write allowance. A smaller backfill reduces copied
-history and writes, but not the source page's metered cost: it still reads
-`last 1000`. A one-follower backfill examines 1,005 rows with either 200 or
-865 copies. Shrinking `--authors` is not a way to reduce that scan cost.
-They change only the installed module, not the app's own tables. For room
-beyond this fixture, use `--authors 2000 --edges 200000`. Grow the app's
-profile and follow caps too if they would otherwise refuse first.
+Unfollow removes that actor's private copies and pull route in the same
+transaction. Public cards remain readable elsewhere. Removal of an original
+sets its one-way `removed` flag from false to true and keeps its card for
+independent reposts. An initially true flag or a reversal refuses. Existing reposts survive; a new repost needs a live
+original event. Delete the app's repost row to remove a repost. Repeated
+original removal does no derived work. Never reuse event ids.
 
-Sizing refuses with `E_RECIPE_CAPS` before writing any file if a flag is
-missing its positive 32-bit integer, edges exceed authors × 1,000 (the
-fixed follower cap), or the derived route budget cannot fit one full
-follower group plus its author: `32 × authors >= min(edges, 1000) + 1`.
-Authors must be at most 134,217,727 so that multiplication fits a Quarry cap.
-These are schema bounds, not a promise the engine can process that many
-rows in one operation. The runtime meters still decide each operation.
+Removal hides the event through a public tombstone in the writing transaction,
+before deferred cleanup. Pages filter tombstones before emitting cards, with
+no null slots. The engine's minute job purges at most 1,001 private copies and
+their tombstone atomically per chunk; a refused chunk parks with its refusal.
+There is no application purge job.
 
-| Cap | What grows together; cost |
+Caps refuse the entire write, including the app's source change:
+
+| Limit | Value in the program below |
+|---|---:|
+| Registered authors | 1,008 |
+| Follow edges globally | 5,921 |
+| Follows per reader / followers per author | 1,000 / 1,000 |
+| Live source events per actor / globally | 1,000 / 60,000 |
+| Private entries per reader / per reader and actor | 50,000 / 1,000 |
+| Private copies per event | 1,001 |
+| Pulled authors per reader | 32 |
+| Pull routes / online count rows globally | 32,256 / 32,256 |
+| Public broadcasts | 32,000 |
+| Pending tombstones globally / per actor | 32,000 / 1,000 |
+
+### Cost
+
+The declared 1,008 authors and 5,921 edges fit Clique's graph fixture. The
+60,000-event capacity covers its roughly 50,000 posts; this remains a capped
+product envelope. A reader following 500 ordinary authors reads installed
+inbox and shared lanes, rather than merging all 500 authors on every page.
+
+| Transition | Work paid in the writing transaction |
 |---|---|
-| Authors / edges | The flags set their global caps; each stored row is public and reaches every device. The wired app also stores its own profile and edge rows. |
-| Pull routes / online counts | Both global caps grow to `32 × authors` (32,000 by default). Routes cost server storage and at most 32 acquired rows for their reader; each installed reader's count and its private maintained check cost two server-only rows and no acquisition. Unregistered readers can follow too, so this remains a finite global routing budget, not a guarantee for every possible graph. |
-| Source events / broadcast / tombstones | Fixed globals: 60,000 / 32,000 / 32,000. Every stored row reaches every device. Removal temporarily adds a tombstone until the purge finishes. App post cards and repost attribution add their own acquisition. |
-| Follows per reader / followers per author | Both stay at 1,000. The follower cap, promotion/delivery loops, inbox's 1,001 copies per event and purge loop must grow together if edited by hand; larger writes can hit the unchanged meter. |
-| Events and tombstones per actor / inbox per reader and actor | Each stays at 1,000. The source scan and unfollow loop cover 1,000 rows; a follow visits the newest `clamp(authors, 200, 865)` events, copying only pushed events. At the default backfill, 135 inbox slots remain for new deliveries before removal cleanup. |
-| Inbox per reader / pulls per reader | Fixed at 50,000 / 32. The former bounds private cold acquisition; the latter bounds the merge's pulled lanes and its per-read work. Growing them requires revisiting the query and its meter, not just global sizing. |
+| Register | Profile and engine author-mode row |
+| Post or repost, pushed author | Source event and at most 50 follower copies plus an own copy |
+| Post or repost, promoted author | Source event and broadcast, plus an own copy if the author has no self pull |
+| Follow | Reads at most 1,000 source events; backfills pushed events in the declared window |
+| Promotion at follow 51 | Routes and counts for all followers; maximum backfill uses 1,023 total writes including the app edge |
+| Unfollow | At most 1,000 private copies, plus route and count updates |
+| Remove | Tombstone, source-event and broadcast changes; private copies wait for cleanup |
 
-Small accounts write each reader's private inbox. On a successful 51st follow,
-future events go into one public broadcast projection; the earlier events
-keep their delivery mode. Follow backfills from the latest 865 source events by default,
-and unfollow deletes every private entry by that actor and drops the pull
-lane. The reader's own posts and reposts need no self-follow edge.
-Entries carry the app post ID and attribution, without copying a text body.
-Join the app's card at read time as shown below; its residency decides whether
-that card can answer on the device.
+All app and engine writes share the 1,024-row mutation ceiling. The reserved
+promotion allowance is 159 writes with an 865-event window; the declaration
+saves the duplicate edge write. Extra app writes can still cause `E_BOUND`;
+history is never shortened to make a write fit. `snapback4 check --cost`
+prints resolved caps, operation bounds, index work and derived stream bytes.
+The maximum-backfill promotion's measured derived contribution is 888,757
+bytes, below the 16,777,216-byte stream ceiling. Arbitrary app rows can grow
+later historical replies; the SDK recovers an oversized indivisible commit
+by snapshot acquisition, preserving pending writes.
 
-A merge with a non-uniform answer, an opening cut or a word-limit cut returns no
-`next`: its single cursor cannot safely advance every lane. A uniform lazy
-merge cut while draining established heads carries `next` after its last
-emitted row, with `complete: false, cut: 'meter'`. Following it keeps the
-aggregate incomplete in `usePage`.
-Non-uniform merges withhold the cursor even within budget, so its presence
-cannot reveal hidden rows; pin the columns that decide each lane's rule to
-get a pageable feed. The engine appends the row id to a merge position unless
-its ordering suffix already ends in `id`. IDs break equal ordering keys and identify copies
-across projections, which must keep the same ordering fields.
-A merge cursor from generation N is accepted on N+1 when its table, index,
-direction and typed ordering suffix still match; it is a position in the
-current data, not a snapshot or a generation token.
-Direct table and maintain page cursors bind the evaluated prefix and active
-generation; adoption or another prefix refuses them. Ordinary writes keep
-them valid, and rows can move between pages.
+Cold acquisition includes all four public application tables, public event
+metadata, modes, broadcasts and tombstones, plus only the reader's private
+inbox and routes. Counts are public but online-only; internal totals are
+unreadable. Page size does not bound acquisition or device storage. Measure
+your populated app with `snapback4 test --residency --as <principal>` and
+inspect dependencies with `snapback4 check --residency --verbose`.
+
+A removal-heavy page pays for tombstone probes. The 40-event case with the
+newest 20 removed takes 82 examinations, including 41 tombstone probes, to
+return 20 live rows and a continuation. With a 25-examination ceiling it
+returns no rows, `complete: false`, without `next`. A meter cut can end a
+page incomplete without a continuation; retry the same cursor after cleanup.
+Ordinary pages continue after their last emitted event. Cursors are not
+snapshots: intervening writes can change membership. A merge cursor from generation N
+can continue after compatible adoption; direct page cursors bind generation.
+
+### Refusals and supported boundaries
+
+This declaration supports four distinct, explicitly public, fully `sync public`
+tables, with the ownership, immutability and edge caps shown below. Private
+edges, expiry, horizons, maintained source tables, mutable identity or ordering
+fields, and hard deletion of original cards are outside this shape. The
+compiler names the mismatch; do not widen private data to fit it.
+
+FEED_PULL_CAP means the caller already uses all 32 shared-author slots.
+Unfollow a shared author, then retry the refused follow with a new write ID.
+
+FEED_PROMOTION_PULL_CAP means another follower has full slots. The whole
+follow and promotion roll back, including the app edge. Existing followers
+keep receiving private pushes; no follower is silently skipped. Show this
+refusal. Every saturated follower must free a slot; until then every later follow
+refuses and the author can remain at 50 followers indefinitely. Freeing only
+the newcomer's slot cannot fix another follower's slots. A server-run query
+over public `follows` and `feedPullCounts` can identify `used = 32` blockers
+in 51 reads (one scan and 50 count lookups); private route author ids stay hidden.
+More than 32 shared authors needs a different serving design.
+
+FEED_APP_NOT_FOUND means a mapped profile, card or repost is absent. Register
+both accounts before following; register the author before publishing.
+A typed reference does not establish current existence.
+
+FEED_POST_NOT_FOUND means there is no live original to repost. Refresh the
+card; a removed original cannot receive a new repost.
+
+FEED_EVENT_REMOVED means a new event id collides with a pending tombstone.
+Mint a fresh event id. Tombstones are purged; retained original cards and the
+one-way flag prevent original resurrection after that purge.
+
+FEED_CANNOT_FOLLOW_SELF means the requested follow is the reader's own account.
+Own events already belong to Following without an edge.
+
+FEED_AUTHOR_NOT_FOUND means the author mode is absent. Create the author's
+profile through registration before retrying.
+
+FEED_PULL_COUNT_MISSING means a route lacks its count. Restore consistent
+trusted state; the engine owns both and application code cannot repair them.
+
+FEED_ORIGINAL_REQUIRED means an original-event operation received a repost.
+FEED_NOT_AUTHOR means the caller does not own the event being removed.
+FEED_APP_OWNER means the caller does not own the mapped application row.
+FEED_APP_EVENT means an installed bridge's event disagrees with its card's
+author or time; reconcile that existing application's mapping.
+
+N_SPARSE_FILTER means an unscoped filter pins no index prefix and can return
+short incomplete pages. Use the declared timeline for Following, or pin the
+leading index key for another bounded read.
+
+## Complete public Following program
+
+Save this as `snapback/schema.q`, then run `snapback4 check`. The example's
+profile and card fields can grow while the mapped identities and rules keep
+this shape. Omitted write rules deny: profiles cannot update or delete,
+originals cannot delete, and reposts and follows cannot update.
 
 ```quarry
-table authors:
+table profiles:
   principal: principal
-  shared: bool default false
+  name: text <=80
   unique byPrincipal: principal
-  cap 1000
-  public 'delivery mode is public'
+  cap 1008
+  immutable principal
+  public 'public profiles'
   insert <- .principal = viewer
-  update <- allow
+  sync public
+
+table posts:
+  authorId: principal
+  body: text <=500
+  at: time
+  removed: bool default false
+  cap 60000
+  immutable authorId, at
+  public 'public cards retained for reposts'
+  insert <- .authorId = viewer
+  update <- .authorId = viewer
+  sync public
+
+table reposts:
+  actorId: principal
+  postId: posts
+  at: time
+  unique byActorPost: actorId, postId
+  cap 60000
+  immutable actorId, postId, at
+  public 'public repost attribution'
+  insert <- .actorId = viewer
+  delete <- .actorId = viewer
   sync public
 
 table follows:
@@ -119,766 +195,125 @@ table follows:
   at: time default 0
   unique byPair: followerId, followedId
   by byFollowed: followedId, followerId
+  immutable followerId, followedId, at
   cap 1000 by followerId
   cap 1000 by followedId
-  cap 100000
-  public 'the follow graph is public'
+  cap 5921
+  public 'public follow graph'
   insert <- .followerId = viewer
   delete <- .followerId = viewer
   sync public
 
-table pulls:
-  readerId: principal
-  authorId: principal
-  unique byReaderAuthor: readerId, authorId
-  cap 32 by readerId
-  cap 32000
-  read <- .readerId = viewer
-  insert <- allow
-  delete <- .readerId = viewer
-  sync
-
-table pullCounts:                 -- server-only slot accounting; never lists installed authors
-  readerId: principal
-  used: int
-  unique byReader: readerId
-  cap 32000
-  public 'only the number of installed pulls is public; routes stay reader-private'
-  insert <- exists pullTotals[readerId = .readerId, value = .used]
-  update (old, next) <- exists pullTotals[readerId = next.readerId, value = next.used]
-  delete <- .readerId = viewer
-  online only
-
-maintain pullTotals: count pulls by readerId
-  read <- deny
-  online only
-
-table posts:                       -- originals and attributed reposts, one source event each
-  actorId: principal
-  authorId: principal
-  postId: id
-  repost: bool
-  at: time
-  shared: bool
-  unique byActorPost: actorId, postId, repost
-  by byActorTime: actorId, at, id
-  by byTime: at, id
-  cap 1000 by actorId
-  cap 60000
-  immutable actorId, authorId, postId, repost, at, shared
-  public 'original posts and attributed reposts are public'
-  insert <- .actorId = viewer
-  delete <- .actorId = viewer
-  sync public
-
-table removedEvents:               -- compact tombstones for deleted public source events
-  eventId: id                       -- shared identity across source and tombstone tables; checked by the insert rule
-  actorId: principal
-  unique byEvent: eventId
-  by byActor: actorId, id
-  immutable eventId, actorId
-  cap 1000 by actorId
-  cap 32000
-  public 'removal of a public source event is public; id is the eventId'
-  insert <- .actorId = viewer and .id = .eventId and exists posts[id = .eventId, actorId = viewer]
-  sync public
-
-table feed:                        -- private inbox, with app post references
-  readerId: principal
-  eventId: posts
-  actorId: principal
-  authorId: principal
-  postId: id
-  repost: bool
-  at: time
-  unique byReaderEvent: readerId, eventId
-  unique byReaderTime: readerId, at, eventId
-  by byReaderActor: readerId, actorId, id
-  by byTime: at, eventId
-  by byEvent: eventId, id
-  immutable readerId, eventId, actorId, at
-  cap 1000 by readerId, actorId
-  cap 50000 by readerId
-  cap 1001 by eventId
-  read <- .readerId = viewer
-  insert <- .actorId = viewer or .readerId = viewer
-  delete <- .readerId = viewer
-  sync
-
-table broadcast:                   -- public celebrity events, stored once
-  readerId: principal
-  eventId: posts
-  actorId: principal
-  authorId: principal
-  postId: id
-  repost: bool
-  at: time
-  unique byReaderEvent: readerId, eventId
-  unique byReaderTime: readerId, at, eventId
-  by byReaderActor: readerId, actorId, id
-  by byTime: at, eventId
-  immutable readerId, eventId, actorId, at
-  cap 32000
-  public 'celebrity posts and reposts are public'
-  insert <- .actorId = viewer
-  delete <- .actorId = viewer
-  sync public
-
-fn copy(p: posts, readerId: principal, shared: bool):
-  if shared:
-    insert broadcast { readerId, eventId: p.id, actorId: p.actorId, authorId: p.authorId, postId: p.postId, repost: p.repost, at: p.at }
-  else:
-    insert feed { readerId, eventId: p.id, actorId: p.actorId, authorId: p.authorId, postId: p.postId, repost: p.repost, at: p.at }
-  return null
-
-mutation register():
-  insert authors { principal: viewer } if absent
-  return null
-
-fn tryPull(readerId: principal, authorId: principal):
-  if readerId = viewer:
-    if exists pulls[readerId, authorId]:
-      return true
-  slots = pullCounts[readerId]
-  used = 0
-  if slots != null:
-    used = slots.used
-  if used = 32:
-    return false
-  -- Foreign inserts happen only on an author's first promotion: no route
-  -- for that author exists yet. Never probe another reader's private route.
-  insert pulls { readerId, authorId }
-  upsert pullCounts[readerId] { readerId, used: used + 1 }
-  return true
-
-fn addFollow(authorId: principal):
-  require authorId != viewer else FEED_CANNOT_FOLLOW_SELF
-  a = authors[authorId] ! else FEED_AUTHOR_NOT_FOUND
-  if exists follows[followerId = viewer, followedId = authorId]:
-    return null
-  if a.shared:
-    require tryPull(viewer, authorId) else FEED_PULL_CAP
-  insert follows { followerId: viewer, followedId: authorId, at: now }
-  if not a.shared:
-    near = follows[authorId] first 51 by byFollowed
-    if count(near) > 50:
-      -- Check the caller first so their own full slots name their own repair.
-      require tryPull(viewer, authorId) else FEED_PULL_CAP
-      update authors[authorId] { shared: true }
-      tryPull(authorId, authorId)
-      for f in follows[authorId] by byFollowed:
-        require tryPull(f.followerId, authorId) else FEED_PROMOTION_PULL_CAP
-  visited = 0
-  for p in posts[authorId] last 1000 by byActorTime:
-    if visited = 865:
-      break
-    visited = visited + 1
-    if not p.shared:
-      copy(p, viewer, false)
-
-  return null
-
-mutation follow(authorId: principal):
-  return addFollow(authorId)
-
-fn dropFollow(authorId: principal):
-  if not exists follows[followerId = viewer, followedId = authorId]:
-    return null
-  for e in feed[viewer, authorId] by byReaderActor:
-    delete feed[e.id]
-  if exists pulls[viewer, authorId]:
-    delete pulls[viewer, authorId]
-    slots = pullCounts[viewer] ! else FEED_PULL_COUNT_MISSING
-    if slots.used = 1:
-      delete pullCounts[viewer]
-    else:
-      update pullCounts[viewer] { used: slots.used - 1 }
-  delete follows[followerId = viewer, followedId = authorId]
-
-  return null
-
-mutation unfollow(authorId: principal):
-  return dropFollow(authorId)
-
-fn deliver(p: posts):
-  if p.shared:
-    copy(p, viewer, true)
-    if not exists pulls[viewer, viewer]:
-      copy(p, viewer, false)
-  else:
-    copy(p, viewer, false)
-    for f in follows[viewer] by byFollowed:
-      copy(p, f.followerId, false)
-  return null
-
-mutation createPost(postId: id):
-  require not exists removedEvents[eventId = postId] else FEED_EVENT_REMOVED
-  a = authors[viewer] ! else FEED_AUTHOR_NOT_FOUND
-  p = insert posts { id: postId, postId, actorId: viewer, authorId: viewer, repost: false, at: now, shared: a.shared }
-  deliver(p)
-  return { id: p.id }
-
-mutation repost(eventId: posts):
-  original = posts[eventId] ! else FEED_POST_NOT_FOUND
-  require not original.repost else FEED_ORIGINAL_REQUIRED
-  if exists posts[viewer, original.postId, true]:
-    return null
-  a = authors[viewer] ! else FEED_AUTHOR_NOT_FOUND
-  p = insert posts { postId: original.postId, actorId: viewer, authorId: original.authorId, repost: true, at: now, shared: a.shared }
-  deliver(p)
-  return { id: p.id }
-
-fn removeEvent(p: posts):
-  require p.actorId = viewer else FEED_NOT_AUTHOR
-  insert removedEvents { id: p.id, eventId: p.id, actorId: viewer }
-  if p.shared:
-    delete broadcast[viewer, p.id]
-  delete posts[p.id]
-  return null
-
-mutation deletePost(postId: posts):
-  p = posts[postId]
-  if p != null:
-    require not p.repost else FEED_ORIGINAL_REQUIRED
-    removeEvent(p)
-  return null
-
-mutation unrepost(postId: id):
-  p = posts[viewer, postId, true]
-  if p != null:
-    removeEvent(p)
-  return null
+maintain feed: timeline
+  authors profiles by principal
+  events posts by authorId, at removed by removed
+  reposts reposts by actorId, postId, at
+  edges follows by followerId, followedId
+  size authors 1008, edges 5921
 
 query following(c: cursor ?):
-  return merge feed after c last 20 by byReaderTime where not exists removedEvents[eventId = .eventId]:
-    [viewer]
-    broadcast[p.authorId] for p in pulls[viewer] by byReaderAuthor
+  return feed[viewer] after c last 20 { *, post: posts[.postId], actor: profiles[.actorId], author: profiles[.authorId] }
 
-job purgeRemoved():
-  chunk p in removedEvents first 1 by byId:
-    for e in feed[p.eventId] by byEvent:
-      delete feed[e.id]
-    delete removedEvents[p.id]
-schedule purgeRemovedEvery every 1m: purgeRemoved
-```
-
-The installable Following recipe reserves `FEED_` for all its authored refusals.
-Generic application codes such as `POST_NOT_FOUND` have no global recipe meaning.
-
-FEED_EVENT_REMOVED means an event with this post ID was already removed.
-For example, republishing a deleted post while its removal marker is retained
-refuses. Mint a new post ID for a new event; do not resurrect the removed one.
-
-FEED_ORIGINAL_REQUIRED means the requested event is itself a repost.
-For example, reposting a repost refuses. Pass the original event instead;
-only an original event can be reposted or removed through the original path.
-
-FEED_NOT_AUTHOR means the caller does not own the event being removed.
-For example, removing another actor's repost refuses. Remove the caller's
-own event; the original author can remove the original through its own path.
-
-FEED_PULL_COUNT_MISSING means an installed pull route has no matching count row.
-For example, importing a route without its `pullCounts` row makes `unfollow`
-refuse atomically. Repair the imported count to match that reader's installed
-routes before retrying with a new write ID; normal helpers update both together.
-
-FEED_CANNOT_FOLLOW_SELF means the recipe was asked to follow the caller's own account.
-Keep the caller's own posts through the recipe's own delivery lane; follow a
-different author instead.
-
-FEED_AUTHOR_NOT_FOUND means the target author has not registered in the recipe.
-Call `register` during that author's profile creation, then retry the follow
-with a new write ID after registration succeeds.
-
-FEED_POST_NOT_FOUND means the recipe could not find the requested source post/event.
-For example, a repost of a deleted event refuses. Refresh the source lookup and
-pass an existing event reference; a prefixed app bridge validates its own post
-before calling the recipe helper.
-
-Call `register` during profile creation. `follow` and `unfollow` are
-idempotent; promotion is permanent and atomic with the follow that triggers
-it. Promotion requires a pull lane for every follower, including the triggering
-reader. The caller is checked first: their own full 32 shared-author slots
-refuse `FEED_PULL_CAP`. If another follower already uses all 32 slots,
-`FEED_PROMOTION_PULL_CAP` refuses the whole follow/promotion transaction,
-including the app edge, author mode, routes and counts. Existing followers
-keep receiving private pushes; no follower is silently skipped.
-
-Show the refusal in the app. Have each saturated follower unfollow a shared
-author to free a slot, then retry the refused follow with a new write ID.
-The triggering reader freeing their own slot does not help a different
-saturated follower. If those followers cannot free slots, decline the new
-follow and keep the existing pushed delivery; more than 32 shared authors
-needs a separate serving design, not a larger cap alone.
-Until every saturated follower frees a slot, every later follow of this author
-refuses the same way: the author stays at 50 followers and gains no new followers,
-possibly indefinitely if a blocking follower is dormant. The newcomer cannot
-free that other follower's slot. To tell the author who is stuck, use a
-server-run query: `follows` and `pullCounts` are both `public`, so enumerate
-`follows[authorId] by byFollowed`, then read each follower's
-`pullCounts[f.followerId]` and its `used`. After rollback there are 50 followers:
-51 reads (one follower scan plus 50 count lookups) identify those with `used = 32`.
-An absent count means zero routes. Installed prefixes rename these tables to
-`feedFollows` and `feedPullCounts`; the author IDs in private routes stay hidden.
-A new follow of an already-shared author with no slot refuses `FEED_PULL_CAP`
-atomically, including the app edge; that reader must free their own slot.
-`complete` describes the queried lanes' coverage under the meter; promotion
-never omits a subscribed follower's route.
-The private maintained check adds one write per route. The allowance is
-159 writes with an 865-event backfill; a refusal rolls back attempted writes.
-Promotion still attempts a self pull for the author.
-A saturated author's own new shared events also get
-an own-inbox copy, so their own posts remain visible without a self pull.
-Ordinary promotion copies no old entry. A later follow copies only recent pushed
-events and reads shared events directly. Private inboxes and the bounded
-public broadcast projection sync in full: no exhausted horizon can turn
-an empty lane into an incomplete device answer. Unfollow removes private
-copies in the same transaction; public broadcast rows remain public but
-its removed pull lane no longer reads them. Reposts carry the original
-post ID and author, with the reposter as actor, and repeated `repost` calls
-insert nothing twice.
-
-`deletePost` and `unrepost` delete the author's own public source event and
-broadcast entry, leaving a compact public tombstone with the same event ID.
-The tombstone's insert rule requires its ID to equal the event ID and the
-writer to own the existing source. Keep `removeEvent`, called by these two mutations,
-as the only tombstone insert: it writes the marker before deleting the source
-in the same transaction. A guessed foreign event ID cannot hide or purge it.
-The immutable inbox `eventId` joins that tombstone on every Following read:
-removal is visible immediately on the server and on a device once it applies
-that commit, before private copies are purged. An offline device sees its
-last synced state. Inbox entries and installed pull routes are readable and
-synced only by their reader. Author delivery modes, public follow edges and
-public reference events sync in full for registration and post prediction;
-app card reads still need the app's declared data. `pullCounts` is online-only:
-it exposes only a reader's installed-route count, never the author IDs.
-Promotion uses that count to refuse a saturated follower without reading
-their routes. The helpers update the count in the same transaction as each route
-insert/delete; importing routes directly must import the matching counts too.
-The reader deletes their count row when their final route goes; otherwise
-unfollow decrements it. Departed readers release the global accounting slot,
-and a later follow creates their count row again.
-This is an explicit aggregate disclosure, not a claim that routing was already
-public. The online count makes `follow` and `unfollow` queue without predicted
-rows, even for calls that would not promote an author.
-The private inbox retains its full schema-capped partition: a horizon would
-make an exhausted lane incomplete. There is no cold-start reduction claim. Repeating a removal is a no-op;
-re-reposting creates a fresh event ID and works before or after cleanup.
-Never reuse event IDs. A repost is an independent attributed event;
-deleting the original does not delete someone else's repost event.
-
-Following checks removal inside each merge lane's `where` predicate, after
-that lane's read rule and before emitting an entry. Each tombstone lookup
-is a metered probe against the public, fully synced `removedEvents` table.
-If the predicate cuts, the scan stops before that entry: no unchecked event
-ID is returned. Already checked live entries may remain in the page;
-a cut page reads `complete: false` and has no `next`, since the merge's
-shared cursor cannot safely advance every unfinished lane. Retry the same
-cursor after cleanup; there is no cut continuation. This recipe does not change ordinary point-read or read-rule
-probe semantics.
-
-Pages contain live rows without null slots. The cursor query fills up to
-20 live entries, continuing through removed entries under the same meter;
-with all lanes uniform and in budget it is complete at 20 matches or the
-end, and `next` continues after the last returned live entry. More removals
-cost more examinations and probes, so a long removed run can still cut the
-page. At the 40-event test with its newest 20 removed, the first live page
-uses 82 examinations and makes 41 tombstone probes, returning 20 live rows and
-a continuation; ceiling 25 returns no rows, incomplete, without a cursor.
-Following uses the eager merge path: its inbox and broadcast lanes read
-different tables. Filtered lanes discovered by `for` also use that path,
-so each predicate sees its own discovery row throughout pagination.
-Uniform lanes with fixed prefixes on one seekable plain index can still
-use the lazy merge path.
-
-The minute schedule runs `purgeRemoved` as the system, one removed event
-per chunk. The event index and cap bound each chunk to 1,001 private copies
-(the 1,000-follower cap plus the author's own copy), including old pushed
-events acquired after promotion. Each chunk deletes every remaining copy
-and its tombstone in the same transaction, so no stale copy can reappear.
-Source deletion prevents concurrent follows from backfilling it; unfollow
-can only reduce the work. A refused chunk stays parked with its refusal.
-The removal mutation enqueues no job; the existing bounded schedule does.
-
-Limits: 1,000 follows per account, 1,000 source events per actor, 50,000
-private entries per reader, 32 pulled authors per reader and 32,000 public
-broadcast entries, and 32,000 pending tombstones (1,000 per actor); reaching
-a cap refuses the write atomically, so archive
-or redesign before exceeding this envelope. A default follow backfills at most 865 events,
-not an unlimited historical archive. Public broadcast rows reach every
-device; at the measured envelope that is 200 rows, plus any pending removal
-tombstones. Cleanup is a bounded job; no exact horizon maintenance is involved.
-Public source references also reach every device; their cost is measured
-below, not included in the 200-row broadcast count. Each reader acquires only
-their own pull routes, at most 32; the online counts acquire zero rows.
-Default global metadata caps are 1,000 authors, 100,000 edges, 32,000 private pull
-routes, 32,000 online count rows and 60,000 source references.
-
-### Cold acquisition and the prediction boundary
-
-Measured by `snapback4 test --residency --fixture fixture --as dev:reader500`
-on the wired example below: 502 registered authors, 505 bridged edges
-(5 and 500 follows), 526 app cards including one image, and 2 reposts.
-Bytes are compact JSON row payloads, excluding transport framing.
-
-The calibration-shaped wired app uses `--authors 1008 --edges 5921`:
-1,008 profiles and registered authors, 5,921 bridged edges, 50,228 app post
-cards and source events, including a 900-follower celebrity with 49 broadcasts.
-The 500-follow reader follows ordinary authors. The fixture imports the
-graph before the posts, validates all caps by adoption, then exercises the
-real `saveProfile` and `createPost` bridges and streams their changes to
-both stores. It uses deterministic short text cards, no media or reposts;
-this is the published app wiring at the calibration's shape, not the full
-Clique app's chat, likes, media or exact replay history. Those add costs.
-Its command is `snapback4 test --residency --fixture fixture --as dev:u0003`.
-
-| Table | 502-author cold rows | Bytes | Calibration cold rows | Bytes |
-|---|---:|---:|---:|---:|
-| `feedAuthors` | 502 | 39,154 | 1,008 | 59,471 |
-| `feedFollows` | 505 | 50,490 | 5,921 | 485,522 |
-| `feedPosts` | 528 | 63,830 | 50,228 | 6,769,661 |
-| `feedFeed` | 527 | 90,565 | 25,050 | 4,528,458 |
-| `follows` (app) | 505 | 46,955 | 5,921 | 444,075 |
-| `posts` (app) | 526 | 44,235 | 50,228 | 5,514,010 |
-| `reposts` (app) | 2 | 174 | 0 | 0 |
-| `profiles` (app) | 0 | 0 | 1,008 | 66,528 |
-| `feedBroadcast` | 0 | 0 | 49 | 8,860 |
-| Pulls and tombstones | 0 | 0 | 0 | 0 |
-| **Total** | **3,095** | **335,403** | **139,413** | **17,876,585** |
-
-**139,413 rows / 17,876,585 bytes is large cold acquisition**, even with
-short text cards and no media bytes. Public source references alone add
-50,228 rows / 6,769,661 bytes, in addition to the app's post cards. This
-cost grows with the public corpus, not just this reader's follows. The CLI
-measurement and both-store snapshot test assert the card's rows and bytes.
-The calibration reader returns complete 20-entry pages on the server,
-memory and SQLite devices with 82 examinations and 21 probes. One shared-host
-sample measured 2,923 ms for the server snapshot and 6,404 / 6,700 ms for
-memory / SQLite application; these are observations, not timing thresholds
-or end-to-end browser startup measurements.
-
-The same fixture acquired 1,055 rows before the prediction change. Five
-follows now acquire 2,600 rows / 250,482 bytes. Neither reader has a pull
-route in this wired fixture, and online counts contribute 0 rows / 0 bytes.
-On the server and both device stores,
-Following at 5 and 500 follows returns 20 entries, complete, with 82
-examinations and 21 probes. On the same acquired shape, offline `saveProfile`
-and `createPost` produce 2 and 3 predicted rows in the two-person witness;
-posting with one follower produces 4. `follow` produces 0 predicted rows
-and backfills when the server commits it. Thus the acquisition counts above
-apply to both the predicting writes and the queued follow, not two variants
-with different privacy. Prediction is provisional: server caps and concurrent
-changes can still refuse a queued write.
-
-| Operation in the wired example | Offline behavior after acquisition |
-|---|---|
-| `saveProfile`, `register` | Predict |
-| `createPost`, `repost`, `deletePost`, `unrepost` | Predict when the required app cards and source events are held |
-| `follow`, `unfollow` | Queue without rows: online slot accounting is server state |
-| `following` | Reads the reader's installed lanes on the device |
-
-The declared timeline predicts registration (profile plus mode), profile
-deletion (the mode row stays in place), posting, reposting, removal and unrepost when every
-input it reads is currently held. Any unheld or retained-only input, point
-or scanned, queues the whole mutation with zero rows. Profile deletion does
-not read or change the mode row. A one-follower
-post predicts three rows: app card, public source event and author's own copy.
-Foreign private owned rows are omitted from prediction and written only by
-the server. This deliberately differs from the manual recipe witness above,
-which predicted and locally exposed the follower's copy. Public owned rows
-still predict, with server equivalence for every row the predictor may read.
-Follow, unfollow and refollow queue without rows even with classification
-metadata stripped. Following reads held rows; settlement drops provisional
-rows the server omits and replaces the rest, and refusal withdraws all changes.
-See `guide timelines` for the declaration.
-
-The standalone recipe classifies these operations: `register`, `createPost`,
-`repost`, `deletePost` and `unrepost` are eligible; `follow` and `unfollow`
-never predict. The purge is a system job.
-
-The larger recipe envelope (1,000 authors, 50,000 reference events and
-1,415 edges) acquires **77,665 rows** for its 500-follow reader, measured
-from real snapshots on both stores; 25,050 are private inbox entries and
-0 are pull routes. The prior public-routing version acquired 78,566 rows:
-901 foreign routes no longer arrive. A five-follow reader acquires 52,915
-rows; a celebrity-plus-four reader acquires 52,866, including 1 own pull.
-That envelope has no app-card joins. Acquisition still grows with the
-capped public source corpus, not only the reader's follow count. Neither
-shape predicts a follow that reads online slot accounting.
-
-`where predicate` follows `by index` in a merge header and applies to every
-lane, with `.` bound to that lane's row. Its expressions, reads and helper
-bodies follow ordinary filtered-scan rules. Keep `after c`: a merge without
-a cursor remains incomplete when more matches exist.
-
-A merge lane may name another table (`broadcast[p.authorId]`); it must
-have the header table's columns and the same plain index. The first lane
-uses the header table, which owns the cursor. Each lane keeps its own read
-rule and sync. IDs identify the same item across projections: give distinct
-items distinct IDs, and keep an item's ordering fields consistent when
-copying it. The merge deduplicates IDs and returns one cursor page. `cap N`
-without `by` bounds the whole table. `N_SPARSE_FILTER` warns when an
-unscoped `where` pins no index prefix; use this recipe for Following rather
-than filtering the global timeline.
-
-## Generate a bridge for an explicitly public app
-
-An existing, compilable public social app can install its identity translation
-instead of writing the manual bridge below. Select the actual table and column
-names; these example names are not inferred:
-
-```sh
-snapback4 init --recipe feeds --prefix feed \
-  --public-profiles profiles:principal \
-  --public-posts posts:authorId:at \
-  --public-follows follows:followerId:followedId \
-  --public-reposts reposts:actorId:postId:at
-```
-
-All four mappings and a nonempty prefix are required. This writes `feed.q`,
-`feed_bridge.q` and the Following query wrapper, after checking the existing
-schema and the combined result. Existing files, declarations, rules and
-mutations are preserved; conflicts refuse before any file is written. Install
-before adding calls to the new helpers. There is no inferred model migration.
-The unprefixed standalone recipe and the manual integration remain available.
-
-The supported shape is deliberately narrow:
-
-- Four distinct application tables, each explicitly `public` and fully
-  `sync public`, with no sync horizon, expiry or maintained-table definition.
-  Event metadata and the follow graph are public; types alone cannot grant
-  permission to disclose a private model.
-- Profiles have one required principal column with one total unique key on it.
-  Posts have required principal author and time columns. Reposts have required
-  principal actor, reference to the selected post table, and time columns,
-  with one total unique key on actor/post. Follows have two required principal
-  columns with one total unique key on follower/followed, in that order.
-- Insert rules require the selected owner to equal `viewer`. Update rules
-  must deny or require that same ownership; allowed updates require immutable
-  mapped identity/time columns. Follows and reposts deny updates and require
-  owner-equality delete rules: unfollow/unrepost delete their app rows.
-  Denied deletion on either table refuses installation. Profile deletion may
-  deny or require ownership. Post deletion is denied: removal retains cards
-  for independent reposts. Additional rule conditions still apply at runtime.
-  Extra follow columns need defaults or must be optional, because the bridge
-  inserts that edge. The app still supplies its other row fields.
-
-For the manual schema below, add `immutable principal` to profiles before
-selecting this generated path. If these constraints do not fit the app, keep
-its current rules and use the manual integration; do not make private data
-public merely to use a recipe.
-
-Call the following helpers inside the existing app mutations. With prefix
-`feed`, their signatures and responsibilities are:
-
-| Helper | App mutation responsibility and generated behavior |
-|---|---|
-| `feedAppRegister(profileId: profiles)` | Insert/save the caller's profile first; checks existence and ownership, then registers the recipe author. |
-| `feedAppPublish(postId: posts)` | Insert a new card first; checks its owner/profile, copies its time, creates and delivers its reference event. |
-| `feedAppRemove(postId: posts)` | Checks card ownership, resolves and removes the actual original event ID; retains the card. |
-| `feedAppRepost(repostId: reposts)` | Insert the caller's attribution first; checks its owner and original card/event, creates and delivers a distinct event using attribution time. |
-| `feedAppUnrepost(repostId: reposts)` | Removes the caller's actual repost event and deletes its attribution; absent attribution is already removed. |
-| `feedAppFollow(authorId: principal)` | Checks both profiles, inserts the app edge and calls recipe follow atomically. |
-| `feedAppUnfollow(authorId: principal)` | Deletes the app edge and calls recipe unfollow atomically. |
-
-For example, after inserting `p` into the app post table, the creation mutation
-calls `feedAppPublish(p.id)` and can return the same app card as before. It no
-longer constructs `feedPosts` or passes a recipe event reference. A repost
-mutation checks for an existing attribution, inserts `r` if absent and calls
-`feedAppRepost(r.id)`. Follow/unfollow mutations call only their app helper.
-Do not expose a second client mutation for delivery. A refusal rolls back the
-app write and delivery together, including a failed shared-author promotion.
-Self-reposts remain distinct from originals. Existing reposts survive original
-removal; creating a new repost still requires the live original event.
-
-Keep the app's Following merge and card/attribution joins, shown below. The
-bridge does not change its cursor, acquisition, prediction boundary, 32 pull
-slots or promotion policy. Public cards, profiles and attributions still add
-rows to device acquisition; a small page does not bound those source rows.
-
-Publish is for a newly inserted card or the explicit initial backfill below.
-Retry an ordinary write with its original write ID. While a matching source
-event remains live, repeating publish/repost returns its actual ID without
-redelivery; that ID may differ from the app card ID in an older integration.
-Remove also resolves the actual ID before writing its tombstone. Never
-republish a removed card, even after tombstone purge. This helper is not a
-permanent publication ledger: an older event ID's tombstone cannot be found
-from the card ID, and purge intentionally erases removal markers. A new post
-needs a new card ID. A new repost after unrepost needs a new attribution row
-and a live original; replay the old write ID only to recover the old result.
-
-For initial adoption, pause app publishing, removals and follow changes.
-Register existing profiles as their owners, then backfill existing original
-cards, then repost attributions, and finally app edges through these helpers.
-Use bounded calls and checkpoints in that dependency order; repeating a live
-event or follow is safe. Original and attribution timestamps are preserved.
-Do not run this as an implicit system-viewer job: the helper requires the
-actual owner's mutation context. Resolve cap/promotion refusals before
-advancing a checkpoint or switching Following. Keep writes paused throughout
-adoption, so a removal cannot race a later backfill into resurrecting a card.
-The installed recipe's per-author follow backfill bound and caps still apply.
-
-E_RECIPE_BRIDGE means a selected table, type, public audience, owner rule,
-immutable identity or unique key does not fit this supported mapping. The
-installer names the mismatch and writes nothing. Use the manual path for a
-different model; it does not automatically widen a rule or rewrite a mutation.
-
-FEED_APP_NOT_FOUND means the mapped profile, post or attribution is absent.
-Refresh the reference or resume adoption in dependency order. A typed reference
-does not prove that its target still exists.
-
-FEED_APP_OWNER means the caller does not own the mapped row. Call the helper
-inside the owner's mutation; a reference does not grant another actor's rights.
-
-FEED_APP_EVENT means a live recipe event disagrees with the selected app author
-or timestamp. Reconcile that mapping before resuming; silently replacing it or
-delivering another event would change identity and ordering.
-
-## Wire into an app with posts, media and reposts
-
-After installing with `--prefix feed`, keep the app's own `posts`, `follows`
-and `reposts`. Fold the corresponding statements below into its existing
-mutations; the example is `snapback/social.q` beside the installed module.
-Only `feedFollowing` remains client-callable in the prefixed recipe; the
-purge job runs as the system, and every former mutation is a `fn` helper
-so clients cannot bypass the app's post validation or follow bridge.
-Generated `src/following.ts` exports only the Following query wrapper.
-`createPost` inserts one reference event and calls `feedDeliver(event)`;
-`repost` resolves the original reference event and calls `feedRepost(event.id)`
-in the same transaction. The helper takes `eventId: feedPosts`, not an app
-`posts` reference; these IDs may differ. It creates and delivers the attributed
-event. The app checks the original card and owns its repost attribution.
-A new repost needs the original source event; existing reposts survive its removal.
-The recipe never owns or copies
-the media asset; Following joins `posts[.postId] postCard` and app repost
-attribution at read time. Keep the merge in the app's query so its cursor
-belongs to that query.
-
-The app's `follow`/`unfollow` mutations are the one-mutation bridge: they
-change the app edge and call `feedAddFollow`/`feedDropFollow` atomically.
-Route all future follow changes through them, and backfill existing edges
-through the same helpers before switching Following to this query. Register
-existing authors first; backfill their existing post/repost reference events
-before those edges so follow backfill can find them. Respect the recipe's
-installed backfill bound and caps. The unprefixed recipe keeps its standalone
-operations for a standalone reference-event model. A prefixed install exposes
-only the app's bridged mutations; `feedRegister()` belongs inside `saveProfile`.
-Call `feedDeliver` once per event the app inserts; `feedRepost` delivers its own
-new event. Copy inserts are unconditional:
-a new source or new follow already establishes that this delivery is new,
-without an unknowable `if absent` probe into another reader's private inbox.
-The backfill loop covers the 1,000-event schema cap and stops after the
-newest `clamp(authors, 200, 865)` events; promotion and delivery loops cover the graph cap.
-Follow and unfollow queue because their slot accounting is online-only;
-profile saves and post creation remain eligible after acquisition.
-New follow edges record `at: now`; an idempotent repeated follow preserves it.
-
-This example fully syncs public post cards and repost attribution under
-explicit caps. That adds their rows to acquisition; a private or online-only
-app card keeps its own rule/residency, and a horizon can make a card join
-incomplete. This is not a claim that the recipe makes arbitrary app cards
-available offline. Here `deletePost` removes the feed event and retains the
-app card so another author's independent repost can still render it. Choose
-an explicit deleted-card representation if the app also removes the content;
-never reuse an event ID. `unrepost` removes its event and app attribution.
-
-```quarry
--- After: snapback4 init --recipe feeds --prefix feed
--- These are the app's tables and mutations in snapback/social.q.
-table posts:
-  authorId: principal
-  body: text <=4000
-  media: image <=1000000 ?
-  at: time
-  cap 60000
-  public 'app post cards are public'
-  insert <- .authorId = viewer
-  sync public
-
-table follows:
-  followerId: principal
-  followedId: principal
-  unique byPair: followerId, followedId
-  cap 1000 by followerId
-  cap 100000
-  public 'the app follow graph is public'
-  insert <- .followerId = viewer
-  delete <- .followerId = viewer
-  sync public
-
-table reposts:
-  actorId: principal
-  postId: posts
-  at: time
-  unique byActorPost: actorId, postId
-  cap 32000
-  public 'app repost attribution is public'
-  insert <- .actorId = viewer
-  delete <- .actorId = viewer
-  sync public
-
-table profiles:
-  principal: principal
-  name: text <=100
-  unique byPrincipal: principal
-  cap 32000
-  public 'profile names are public'
-  insert <- .principal = viewer
-  update <- .principal = viewer
-  sync public
-
-shape postCard = { id, authorId, body, media, at }
-
-mutation saveProfile(name: text <=100):
-  upsert profiles[viewer] { principal: viewer, name }
-  feedRegister()
-
-mutation register():
-  feedRegister()
-
-mutation follow(authorId: principal):
-  insert follows { followerId: viewer, followedId: authorId } if absent
-  return feedAddFollow(authorId)
-
-mutation unfollow(authorId: principal):
-  delete follows[followerId = viewer, followedId = authorId]
-  return feedDropFollow(authorId)
-
-mutation createPost(postId: id, body: text <=4000, media: image <=1000000 ?):
-  require not exists feedRemovedEvents[eventId = postId] else FEED_EVENT_REMOVED
-  a = feedAuthors[viewer] ! else FEED_AUTHOR_NOT_FOUND
-  p = insert posts { id: postId, authorId: viewer, body, media, at: now }
-  event = insert feedPosts { id: postId, postId, actorId: viewer, authorId: p.authorId, repost: false, at: p.at, shared: a.shared }
-  feedDeliver(event)
-  return p postCard
-
+mutation register(name: text <=80):
+  return insert profiles { principal: viewer, name } if absent
+mutation post(body: text <=500):
+  return insert posts { authorId: viewer, body, at: now }
 mutation repost(postId: posts):
-  original = posts[postId] ! else FEED_POST_NOT_FOUND
-  if exists reposts[viewer, postId]:
-    return null
-  event = feedPosts[original.authorId, postId, false] ! else FEED_POST_NOT_FOUND
-  r = insert reposts { actorId: viewer, postId, at: now }
-  feedRepost(event.id)
-  return { id: r.id }
-
-mutation deletePost(postId: posts):
-  event = feedPosts[viewer, postId, false]
-  if event != null:
-    feedRemoveEvent(event)
-  return null
-
+  return insert reposts { actorId: viewer, postId, at: now } if absent
+mutation remove(postId: posts):
+  update posts[postId] { removed: true }
 mutation unrepost(postId: posts):
-  event = feedPosts[viewer, postId, true]
-  if event != null:
-    feedRemoveEvent(event)
-  delete reposts[viewer, postId]
-
-query following(c: cursor ?):
-  entries = merge feedFeed after c last 20 by byReaderTime where not exists feedRemovedEvents[eventId = .eventId]:
-    [viewer]
-    feedBroadcast[p.authorId] for p in feedPulls[viewer] by byReaderAuthor
-  return entries { *, post: posts[.postId] postCard, attribution: reposts[.actorId, .postId] }
+  if exists reposts[viewer, postId]:
+    delete reposts[viewer, postId]
+mutation follow(authorId: principal):
+  insert follows { followerId: viewer, followedId: authorId, at: now } if absent
+mutation unfollow(authorId: principal):
+  if exists follows[viewer, authorId]:
+    delete follows[viewer, authorId]
 ```
+
+The read yields `{ id, postId, actorId, authorId, repost, at }`, augmented here
+with card and profile joins. Key the rendered list by event `id`, so an
+original and a repost remain separate. `post.removed` describes the original;
+do not filter an independent repost out merely because its original was removed.
+Render `complete: false` as incomplete and pass `next` back as `c` when present.
+
+`size` accepts `authors`, `edges`, or both in either order; omitted keys default
+to 1,000 authors and 100,000 edges. Values are positive 32-bit integers, authors
+at most 134,217,727, edges at most authors × 1,000, and authors × 32 must fit
+min(edges, 1,000) + 1. Route and count caps are authors × 32. The follow window
+never exceeds 865 even when authors grows. The application's global follow cap
+must equal declared edges. Its profile cap can be lower, with a note that the
+application refuses first. Choose the size before populating events or edges.
+
+## Devices and offline behavior
+
+Registration, posting, reposting, removal and unrepost predict when every
+required input is currently held and covered: profiles, author modes, relevant
+edges, source events, live originals, tombstone lookups and own pull routes.
+Any retained-only or unheld input queues the whole mutation with zero predicted
+rows. Partial acquisition never predicts from a partial follower set.
+
+Follow and unfollow always queue without predicted rows, including their
+application edge, because slot accounting is online-only. A queued follow does
+not optimistically change Following offline. Posting predicts only owned rows
+its principal may read: with one follower, the author predicts the app post,
+public event and own private copy; the server delivers the follower's copy.
+
+Offline, Following reads installed lanes and held cards. The UI shows pending
+writes, freshness and completeness using the normal client contract. An offline
+device sees its last synced removals and follows; it learns remote changes on
+reconnect. Settlement replaces predictions with authoritative rows; a refusal
+withdraws all predicted changes. Retained history never proves current input
+coverage. See `guide prediction` and `guide app` for client rendering.
+
+## Lifecycle and diagnostics
+
+Declare before posts, reposts or follows exist. Activation requires those
+tables empty and at most the declared number of existing profiles; it eagerly
+registers those profiles in one activation transaction. Later profile inserts
+register their modes in the same mutation. Activation's generation barrier
+reacquires the new state; in development, use a fresh store.
+
+A timeline is durable history, not a rebuildable view: publication modes,
+permanent promotion and tombstones cannot be recovered from source rows.
+Unchanged adoption and trusted reopen or full persistence restoration preserve
+that state without publishing events again. A populated timeline cannot be
+removed or redefined, including changing `size`. Untrusted fixture import of
+the four application tables refuses; seed through application mutations or
+restore a complete trusted persistence image.
+
+| Code | Rewrite or next step |
+|---|---|
+| E_TIMELINE_SHAPE | Use the four public, fully synced source tables and required rules above |
+| E_TIMELINE_FOLLOWS | Add both endpoint caps, the followed-leading index and the declared global edge cap |
+| E_TIMELINE_SIZE | Use valid coupled `size authors N, edges N` values |
+| N_TIMELINE_PROFILE_CAP | Raise the profile cap or retain the intentional lower application limit |
+| E_TIMELINE_REMOVAL | Insert false; change only false → true; retain original cards |
+| E_TIMELINE_READ | Read one viewer: `feed[viewer] after c last 20` and shape events |
+| E_TIMELINE_OWNED | Write only the mapped application sources; the engine writes projections |
+| E_TIMELINE_SERVER | Queue follow and unfollow without rows |
+| E_TIMELINE_ACTIVATE | Declare before event and edge data exists |
+| E_TIMELINE_REDEFINE | Keep the populated declaration unchanged |
+| E_TIMELINE_IMPORT | Use app mutations or a trusted complete restore |
+| E_RECIPE_RETIRED | Declare `maintain feed: timeline` with `size authors N, edges N`; see `guide feeds` |
+
+## Existing apps with an installed recipe
+
+Installed recipes keep working. There is no migration from an installed recipe
+to the declaration in 0.3: activation needs empty event and edge tables.
+The [existing adoption instructions](https://github.com/expo/snapback/blob/main/snapback4/crates/snapback4-lang/src/recipe/ADOPTION.md)
+still apply to those apps, including paused writes and dependency-ordered backfill.
+
+## Other feed shapes
+
+Search uses `guide search`; bounded, atomic daily digests use `guide jobs`.
+
+**Pending:** maintained columns and engine-recorded attribution are not shipped
+in this card's baseline; see `guide maintains` for their eventual form, and keep
+today's Trending program below until they land.
+
+### Community ranking
 
 A ranked feed for a community keeps one shared candidate set instead of a
 row per reader: a job on a schedule scores the pool from maintains into a
@@ -1424,8 +859,6 @@ rules reject a forged score; keeping a copy fresh is still the application's
 responsibility. For another derived fact, pin the copied value to its source
 row with an `exists` rule. Maintains produce numeric counts and sums; the note
 leads with the pinning rule for a non-numeric copy, such as a nullable author.
-The Following recipe uses a private `pullTotals`
-maintain to check its public slot count without making private routes readable.
 
 The client calls declared operations, not arbitrary table writes. This note
 identifies latent table permission, not proof that a current mutation accepts

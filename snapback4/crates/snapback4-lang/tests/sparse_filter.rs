@@ -14,7 +14,7 @@ fn unscoped_sparse_filters_name_the_feed_recipe() {
         assert_eq!(notes[0].guide, "feeds");
         println!("{}", notes[0]);
         assert_eq!(notes[0].message, "entries by byTime: this unscoped `where` pins no index prefix; sparse matches can exhaust the row meter and return short `complete: false` pages");
-        assert_eq!(notes[0].rewrite, "pin a leading index key, or run `snapback4 init --recipe feeds --prefix feed` for Following (followed authors, own posts and reposts)");
+        assert_eq!(notes[0].rewrite, "pin a leading index key, or declare `maintain feed: timeline` (see `snapback4 guide feeds`) for Following (followed authors, own posts and reposts)");
     }
 }
 
@@ -33,7 +33,7 @@ fn follow_driven_wide_merge_names_the_cost_and_adoption_command() {
         let note = bound.notes.iter().find(|n| n.code == "N_WIDE_MERGE").unwrap();
         println!("{note}");
         assert_eq!(note.message, "query following: read cost grows with the number of related principals (up to 1001 lanes); a read past the 8,192 examined ceiling returns `complete: false`");
-        assert_eq!(note.rewrite, "keep read-time merges for a bounded small number of related principals; for Following, `snapback4 init --recipe feeds --prefix feed`; measure with `snapback4 check --cost`; if a held query answers this read, delete the merge");
+        assert_eq!(note.rewrite, "keep read-time merges for a bounded small number of related principals; for Following, declare `maintain feed: timeline` (see `snapback4 guide feeds`); measure with `snapback4 check --cost`; if a held query answers this read, delete the merge");
         assert_eq!(note.guide, "feeds");
     }
 }
@@ -42,7 +42,7 @@ fn follow_driven_wide_merge_names_the_cost_and_adoption_command() {
 fn bounded_small_follow_merge_and_the_adoptable_recipe_are_clean() {
     let small = following_merge("follows", 5, "");
     assert!(small.notes.is_empty(), "{:?}", small.notes);
-    let recipe = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).remove(0);
+    let recipe = snapback4_lang::recipe::following("", "").unwrap();
     let bound = snapback4_lang::compile(&[("schema.q".into(), recipe)]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     assert!(bound.notes.is_empty(), "{:?}", bound.notes);
@@ -72,12 +72,12 @@ fn w6a_follow_edge_filter_names_incomplete_pages_and_prefixed_install() {
     let note = bound.notes.iter().find(|n| n.code == "N_SPARSE_FILTER").unwrap();
     println!("{note}");
     assert_eq!(note.message, "events by byTime: this unscoped `where` pins no index prefix; pages come back short and incomplete when followed authors are sparse (`complete: false`)");
-    assert_eq!(note.rewrite, "pin a leading index key, or run `snapback4 init --recipe feeds --prefix feed` for Following (followed authors, own posts and reposts)");
+    assert_eq!(note.rewrite, "pin a leading index key, or declare `maintain feed: timeline` (see `snapback4 guide feeds`) for Following (followed authors, own posts and reposts)");
 }
 
 #[test]
 fn w6a_prefixing_uses_syntax_and_preserves_literals_fields_and_locals() {
-    let recipe = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).remove(0);
+    let recipe = snapback4_lang::recipe::following("", "").unwrap();
     let extra = "\n-- posts follows copy must stay unchanged here\nfn echo(posts: text <=100): posts\nquery quoted():\n  return { posts: echo('posts follows copy'), copy: 'é posts' }\n";
     let source = format!("{recipe}{extra}");
     assert!(snapback4_lang::compile(&[("schema.q".into(), source.clone())]).diagnostics.is_empty());
@@ -101,7 +101,7 @@ fn w6a_prefixing_uses_syntax_and_preserves_literals_fields_and_locals() {
 
 #[test]
 fn w6r1_qualified_schedule_targets_rename_only_local_operations() {
-    let recipe = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).remove(0);
+    let recipe = snapback4_lang::recipe::following("", "").unwrap();
     for prefix in ["", "feed"] {
         for module in ["", "feed"] {
             let source = recipe.replace(": purgeRemoved\n", ": feed.purgeRemoved\n");
@@ -122,7 +122,7 @@ fn w6r1_qualified_schedule_targets_rename_only_local_operations() {
 
 #[test]
 fn w6r2_foreign_schedule_targets_keep_their_module_with_any_output_module() {
-    let recipe = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).remove(0);
+    let recipe = snapback4_lang::recipe::following("", "").unwrap();
     let foreign = recipe.replace(": purgeRemoved\n", ": other.purgeRemoved\n");
     for module in ["feed", "", "other"] {
         let renamed = snapback4_lang::recipe::prefix_module(&foreign, "feed", module).unwrap();

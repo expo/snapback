@@ -229,9 +229,7 @@ fn published_blocks() -> Vec<(String, String)> {
     guide::KEYWORDS.iter().map(|name| (*name, guide::card(name).unwrap()))
         .chain([("README", README), ("CLIENT-AND-OPERATIONS", client), ("SERVER", server)])
         .flat_map(|(name, doc)| guide::quarry(doc).into_iter().enumerate().map(move |(index, block)| {
-            let source = if block.starts_with("-- After: snapback4 init --recipe feeds --prefix feed\n") {
-                format!("{}\n{block}", recipe::following("feed", "").unwrap())
-            } else if block.lines().any(|line| line.starts_with("table ")) { block }
+            let source = if block.lines().any(|line| line.starts_with("table ")) { block }
             else { format!("{}\n{block}", guide::language()) };
             (format!("{name} block {}", index + 1), source)
         })).collect()

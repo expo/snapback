@@ -382,12 +382,12 @@ fn a_new_optional_column_with_a_constraint_is_additive() {
     assert_eq!(snapback4_core::successor::worst(&steps), snapback4_core::successor::Change::Additive, "{steps:?}");
 }
 
-/// The `feeds` card's recipe, as the card prints it.
+/// The retained recipe library, also used by timeline expansion.
 fn feed() -> String {
-    snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").expect("the feeds card")).remove(0)
+    snapback4_lang::recipe::following("", "").unwrap()
 }
 
-/// The card's small-account write reaches all five followers and its author.
+/// The recipe's small-account write reaches all five followers and its author.
 #[test]
 fn a_feed_fans_out_on_write() {
     let bound = snapback4_lang::compile(&[("schema.q".to_owned(), feed())]);

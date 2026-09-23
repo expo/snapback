@@ -12,184 +12,6 @@ impl Dir {
 }
 impl Drop for Dir { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
 
-fn recipe(dir: &Dir, extra: &[&str]) -> std::process::Output {
-    Command::new(BIN).args(["init", "--recipe", "feeds"]).args(extra).current_dir(&dir.0).output().unwrap()
-}
-
-fn check_recipe(dir: &Dir) {
-    let written = fs::read_to_string(dir.0.join("snapback/feed.q")).unwrap();
-    let card = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).remove(0);
-    assert_eq!(written, card.replace(": purgeRemoved\n", ": feed.purgeRemoved\n"), "only the module's schedule target is qualified");
-    let bound = snapback4_lang::compile(&[("feed.q".into(), written.clone())]);
-    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
-    assert_eq!(bound.schema.operations["feed.following"].runs.as_deref(), Some("device"));
-    assert_eq!(bound.schema.schedules[0].target, "feed.purgeRemoved");
-    let output = Command::new(BIN).args(["check", "--json"]).current_dir(&dir.0).output().unwrap();
-    assert!(output.status.success(), "{output:?}");
-    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
-    let starter = snapback4_lang::compile(&[("schema.q".into(), fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap())]);
-    assert_eq!(report["notes"], serde_json::to_value(&starter.notes).unwrap(), "the recipe must add no notes: {report}");
-    let api = fs::read_to_string(dir.0.join("snapback/generated/api.ts")).unwrap();
-    assert!(api.contains("feed.following") && api.contains("feed.register"), "{api}");
-    assert!(dir.0.join("src/following.ts").is_file());
-    println!("recipe check: {} tables, {} operations, 0 diagnostics, 0 recipe notes ({} starter notes); module: {} lines, {} bytes; check: {} ms", report["tables"], report["operations"], starter.notes.len(), written.lines().count(), written.len(), report["ms"]);
-}
-
-#[test]
-fn feeds_recipe_initializes_empty_and_fresh_expo_projects() {
-    for extra in [&[][..], &["--expo"][..]] {
-        let dir = Dir::new();
-        let output = recipe(&dir, extra);
-        assert!(output.status.success(), "{output:?}");
-        assert!(dir.0.join("snapback/schema.q").is_file());
-        check_recipe(&dir);
-    }
-}
-
-#[test]
-fn feeds_recipe_adds_to_existing_starters_without_changing_their_files() {
-    for flag in ["", "--expo", "--online"] {
-        let dir = Dir::new();
-        assert!(dir.run(flag).status.success());
-        let source = fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap();
-        let (document, errors) = snapback4_lang::parse_document("schema.q", &source);
-        assert!(errors.is_empty());
-        assert!(!document.server && document.actions.is_empty() && document.routes.is_empty());
-        let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
-        assert!(!bound.server && bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-        assert!(bound.schema.schedules.iter().all(|schedule| !bound.schema.action_specs.contains_key(&schedule.target)));
-        assert!(document.schedules.iter().all(|schedule| schedule.target != "invite"));
-        let check = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
-        assert!(check.status.success(), "{check:?}");
-        fn snapshot(dir: &std::path::Path) -> Vec<(PathBuf, Vec<u8>)> {
-            let mut files = Vec::new();
-            for entry in fs::read_dir(dir).unwrap() {
-                let path = entry.unwrap().path();
-                if path.is_dir() { files.extend(snapshot(&path)); } else { files.push((path.clone(), fs::read(path).unwrap())); }
-            }
-            files
-        }
-        let before = snapshot(&dir.0);
-        for (path, bytes) in &before {
-            assert!(!path.file_name().unwrap().to_string_lossy().starts_with("worker."), "{}", path.display());
-            assert!(!String::from_utf8_lossy(bytes).contains("invite"), "{}", path.display());
-        }
-        let output = recipe(&dir, &[]);
-        assert!(output.status.success(), "{output:?}");
-        for (path, bytes) in before { assert_eq!(fs::read(&path).unwrap(), bytes, "{} changed", path.display()); }
-        check_recipe(&dir);
-    }
-}
-
-#[test]
-fn feeds_recipe_conflicts_leave_every_destination_untouched() {
-    for existing in [false, true] {
-        for name in ["snapback/feed.q", "src/following.ts"] {
-            let dir = Dir::new();
-            if existing { assert!(dir.run("--expo").status.success()); }
-            let path = dir.0.join(name);
-            fs::create_dir_all(path.parent().unwrap()).unwrap();
-            fs::write(&path, "kept").unwrap();
-            let output = recipe(&dir, &[]);
-            assert_eq!(output.status.code(), Some(1), "{output:?}");
-            assert_eq!(String::from_utf8_lossy(&output.stderr), format!("./{name} already exists\n"));
-            assert_eq!(fs::read_to_string(path).unwrap(), "kept");
-            let other = if name.ends_with(".q") { "src/following.ts" } else { "snapback/feed.q" };
-            assert!(!dir.0.join(other).exists());
-            assert_eq!(dir.0.join("snapback/schema.q").exists(), existing);
-        }
-    }
-    let dir = Dir::new();
-    assert!(recipe(&dir, &[]).status.success());
-    assert_eq!(recipe(&dir, &[]).status.code(), Some(1));
-}
-
-#[test]
-fn feeds_recipe_requires_a_known_name_before_writing() {
-    for args in [vec!["init", "--recipe"], vec!["init", "--recipe", "unknown"]] {
-        let dir = Dir::new();
-        let output = Command::new(BIN).args(args).current_dir(&dir.0).output().unwrap();
-        assert_eq!(output.status.code(), Some(2), "{output:?}");
-        assert!(String::from_utf8_lossy(&output.stderr).contains("--recipe feeds"));
-        assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0);
-    }
-}
-
-#[test]
-fn feeds_recipe_schema_collisions_refuse_before_writing() {
-    for (file, name) in [("schema.q", "posts"), ("social.q", "follows"), ("schema.q", "feed"), ("schema.q", "broadcast")] {
-        let dir = Dir::new();
-        fs::create_dir_all(dir.0.join("snapback")).unwrap();
-        fs::write(dir.0.join("snapback/schema.q"), "").unwrap();
-        let source = format!("table {name}:\n  title: text <=100\n  read <- allow\n");
-        fs::write(dir.0.join("snapback").join(file), &source).unwrap();
-        let output = recipe(&dir, &[]);
-        println!("collision {name}: stdout={}stderr={}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
-        assert_eq!(output.status.code(), Some(1), "{output:?}");
-        let error = String::from_utf8_lossy(&output.stderr);
-        assert!(error.contains(&format!("table {name}")) && error.contains(&format!("snapback/{file}:1:")) && error.contains("snapback/feed.q:"), "{error}");
-        assert!(error.contains("snapback4 init --recipe feeds --prefix feed"), "{error}");
-        assert_eq!(fs::read_to_string(dir.0.join("snapback").join(file)).unwrap(), source);
-        for name in ["snapback/feed.q", "src", ".gitignore"] { assert!(!dir.0.join(name).exists(), "{name} was written"); }
-    }
-}
-
-#[test]
-fn feeds_recipe_non_clashing_app_compiles_before_installing() {
-    let dir = Dir::new();
-    fs::create_dir_all(dir.0.join("snapback")).unwrap();
-    fs::write(dir.0.join("snapback/schema.q"), "table notes:\n  title: text <=100\n  read <- allow\n").unwrap();
-    fs::write(dir.0.join("snapback/extra.q"), "query notes(c: cursor ?):\n  return notes after c first 10\n").unwrap();
-    let output = recipe(&dir, &[]);
-    assert!(output.status.success(), "{output:?}");
-    check_recipe(&dir);
-}
-
-#[test]
-fn feeds_recipe_parent_file_refuses_before_writing() {
-    let dir = Dir::new();
-    fs::create_dir_all(dir.0.join("snapback")).unwrap();
-    fs::write(dir.0.join("snapback/schema.q"), "").unwrap();
-    fs::write(dir.0.join("src"), "kept").unwrap();
-    let output = recipe(&dir, &[]);
-    println!("parent conflict: {}", String::from_utf8_lossy(&output.stderr));
-    assert!(!dir.0.join("snapback/feed.q").exists(), "partial recipe left behind: {output:?}");
-    assert_eq!(output.status.code(), Some(1), "{output:?}");
-    assert_eq!(String::from_utf8_lossy(&output.stderr), "init: ./src is not a directory; rename it or choose another init directory\n");
-    assert_eq!(fs::read_to_string(dir.0.join("src")).unwrap(), "kept");
-    assert_eq!(fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap(), "");
-    assert!(!dir.0.join(".gitignore").exists());
-}
-
-#[cfg(unix)]
-#[test]
-fn feeds_recipe_late_write_failure_removes_new_files() {
-    use std::os::unix::process::CommandExt;
-    let dir = Dir::new();
-    fs::create_dir_all(dir.0.join("snapback")).unwrap();
-    fs::write(dir.0.join("snapback/schema.q"), "").unwrap();
-    // Both recipe files fit; extending the existing ignore file fails only
-    // after they were written. Inject a real OS write error, without a CLI hook.
-    let before = "# kept\n".repeat(10_000);
-    fs::write(dir.0.join(".gitignore"), &before).unwrap();
-    let mut command = Command::new(BIN);
-    command.args(["init", "--recipe", "feeds"]).current_dir(&dir.0);
-    unsafe { command.pre_exec(|| {
-        let limit = libc::rlimit { rlim_cur: 32_768, rlim_max: 32_768 };
-        if libc::setrlimit(libc::RLIMIT_FSIZE, &limit) != 0 { return Err(std::io::Error::last_os_error()); }
-        libc::signal(libc::SIGXFSZ, libc::SIG_IGN);
-        Ok(())
-    }); }
-    let output = command.output().unwrap();
-    println!("late write failure: {}", String::from_utf8_lossy(&output.stderr));
-    assert_eq!(output.status.code(), Some(2), "{output:?}");
-    for name in ["snapback/feed.q", "src/following.ts"] { assert!(!dir.0.join(name).exists(), "partial recipe: {name}"); }
-    assert_eq!(fs::read_to_string(dir.0.join(".gitignore")).unwrap(), before);
-    assert_eq!(fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap(), "");
-    assert!(!fs::read_dir(&dir.0).unwrap().any(|e| e.unwrap().file_name().to_string_lossy().ends_with(".tmp")));
-}
-
 #[test]
 fn expo_metro_blocks_store_files_and_preserves_expo_exclusions() {
     let dir = Dir::new();
@@ -354,255 +176,22 @@ fn init_preserves_inherited_module_type_when_creating_root_package() {
     }
 }
 
-#[test]
-fn w6a_prefixed_recipe_adopts_into_existing_media_app() {
-    let dir = Dir::new();
-    fs::create_dir_all(dir.0.join("snapback")).unwrap();
-    let app = "table posts:\n  body: text <=4000\n  media: image <=1000000 ?\n  read <- allow\ntable follows:\n  followerId: principal\n  followedId: principal\n  unique byPair: followerId, followedId\n  read <- allow\ntable reposts:\n  postId: posts\n  actorId: principal\n  read <- allow\n";
-    fs::write(dir.0.join("snapback/schema.q"), app).unwrap();
-    let refused = recipe(&dir, &[]);
-    assert_eq!(refused.status.code(), Some(1), "{refused:?}");
-    assert!(String::from_utf8_lossy(&refused.stderr).contains("snapback4 init --recipe feeds --prefix feed"), "{refused:?}");
-    let installed = recipe(&dir, &["--prefix", "feed"]);
-    assert!(installed.status.success(), "{installed:?}");
-    assert_eq!(fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap(), app);
-    let written = fs::read_to_string(dir.0.join("snapback/feed.q")).unwrap();
-    let bound = snapback4_lang::compile(&[("schema.q".into(), app.into()), ("feed.q".into(), written)]);
-    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
-    assert!(bound.schema.tables.contains_key("feedPosts"));
-    assert!(bound.schema.operations.contains_key("feed.feedFollowing"));
-    assert_eq!(bound.schema.schedules[0].target, "feed.feedPurgeRemoved");
-    let checked = Command::new(BIN).args(["check", "--json"]).current_dir(&dir.0).output().unwrap();
-    assert!(checked.status.success(), "{checked:?}");
-    println!("W6a init: 3 existing app tables, 0 diagnostics, 0 notes");
-}
-
-#[test]
-fn w6a_prefix_requires_a_recipe_and_a_valid_identifier_before_writing() {
-    for args in [vec!["init", "--prefix", "feed"], vec!["init", "--recipe", "feeds", "--prefix"],
-        vec!["init", "--recipe", "feeds", "--prefix", "feed.other"], vec!["init", "--recipe", "feeds", "--prefix", "1feed"],
-        vec!["init", "--recipe", "feeds", "--prefix", "feed-name"]] {
-        let dir = Dir::new();
-        let output = Command::new(BIN).args(args).current_dir(&dir.0).output().unwrap();
-        assert_eq!(output.status.code(), Some(2), "{output:?}");
-        assert!(String::from_utf8_lossy(&output.stderr).contains("--prefix <name>"));
-        assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0);
-    }
-}
-
-#[test]
-fn w6r1_recipe_refuses_builtin_shadow_before_writing_then_delivers_follower_51() {
-    use snapback4_core::{Context, Engine, Value as QValue, WriteState};
-    for prefix in ["", "feed"] {
-        let dir = Dir::new();
-        fs::create_dir_all(dir.0.join("snapback")).unwrap();
-        fs::write(dir.0.join("snapback/schema.q"), "-- existing app\n").unwrap();
-        let helper = "fn count(value: json <=100000): 0\n";
-        fs::write(dir.0.join("snapback/helpers.q"), helper).unwrap();
-        let flags = if prefix.is_empty() { vec![] } else { vec!["--prefix", prefix] };
-        let refused = recipe(&dir, &flags);
-        assert_eq!(refused.status.code(), Some(1), "{refused:?}");
-        let error = String::from_utf8_lossy(&refused.stderr);
-        println!("{error}");
-        assert!(error.contains("fn count") && error.contains("snapback/helpers.q:1:1") && error.contains("no files written"), "{error}");
-        for name in ["snapback/feed.q", "src/following.ts", ".gitignore"] { assert!(!dir.0.join(name).exists()); }
-        assert_eq!(fs::read_to_string(dir.0.join("snapback/helpers.q")).unwrap(), helper);
-        let mut helper = helper.replace("fn count", "fn appCount");
-        if !prefix.is_empty() { helper.push_str("fn copy(value: json <=100000): 0\nfn deliver(value: json <=100000): 0\n"); }
-        fs::write(dir.0.join("snapback/helpers.q"), &helper).unwrap();
-        let installed = recipe(&dir, &flags);
-        assert!(installed.status.success(), "{installed:?}");
-        if !prefix.is_empty() {
-            helper.push_str("mutation register():\n  feedRegister()\nmutation follow(authorId: principal):\n  feedFollow(authorId)\nmutation createPost(postId: id):\n  feedCreatePost(postId)\n");
-        }
-        let bound = snapback4_lang::compile(&[("helpers.q".into(), helper), ("feed.q".into(), fs::read_to_string(dir.0.join("snapback/feed.q")).unwrap())]);
-        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-        let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
-        let name = |n: &str| snapback4_lang::recipe::prefixed_name(prefix, n);
-        let mutate = |engine: &mut Engine, op: &str, viewer: &str, args| {
-            let out = engine.mutate(&if prefix.is_empty() { format!("feed.{op}") } else { format!("helpers.{op}") }, None, Context::new(viewer, args).at(100)).unwrap();
-            assert!(matches!(out.state, WriteState::Sent { .. }), "{:?}", out.state);
-        };
-        mutate(&mut engine, "register", "author", Default::default());
-        for n in 1..=51 { mutate(&mut engine, "follow", &format!("reader{n:02}"), [("authorId".into(), QValue::Id("author".into()))].into()); }
-        assert_eq!(engine.store().rows(&name("authors")).unwrap()[0].field("shared").unwrap(), &QValue::Bool(true));
-        mutate(&mut engine, "createPost", "author", [("postId".into(), QValue::Id("post51".into()))].into());
-        let read = engine.query(&format!("feed.{}", name("following")), Context::new("reader51", Default::default())).unwrap();
-        assert!(read.complete);
-        assert_eq!(read.data.as_array().unwrap().len(), 1);
-        assert_eq!(read.data.as_array().unwrap()[0].field("postId").unwrap(), &QValue::Id("post51".into()));
-        println!("W6R1 prefix={prefix:?}: followers=51 shared=true broadcast={} delivered51=1 examined={}", engine.store().rows(&name("broadcast")).unwrap().len(), read.metered.examined);
-    }
-}
-
-#[test]
-fn w6r1_prefixed_recipe_keeps_app_copy_and_deliver_helpers() {
-    let dir = Dir::new();
-    fs::create_dir_all(dir.0.join("snapback")).unwrap();
-    let source = "fn copy(value: int): value + 10\nfn deliver(value: int): value + 20\nquery helpers():\n  return { copy: copy(1), deliver: deliver(1) }\n";
-    fs::write(dir.0.join("snapback/schema.q"), source).unwrap();
-    let output = recipe(&dir, &["--prefix", "feed"]);
-    assert!(output.status.success(), "{output:?}");
-    let feed = fs::read_to_string(dir.0.join("snapback/feed.q")).unwrap();
-    assert!(feed.contains("feedCopy(p, viewer, true)") && feed.contains("feedDeliver(p)"));
-    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into()), ("feed.q".into(), feed)]);
-    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-    let mut engine = snapback4_core::Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
-    let read = engine.query("helpers", snapback4_core::Context::new("alice", Default::default())).unwrap();
-    assert_eq!(snapback4_core::wire::to_json(&read.data), json!({"copy":11,"deliver":21}));
-}
-
-#[test]
-fn w7a_prefixed_install_exposes_no_standalone_mutations() {
-    let dir = Dir::new();
-    let installed = recipe(&dir, &["--prefix", "feed"]);
-    assert!(installed.status.success(), "{installed:?}");
-    let source = fs::read_to_string(dir.0.join("snapback/feed.q")).unwrap();
-    let bound = snapback4_lang::compile(&[("feed.q".into(), source)]);
-    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-    let mut engine = snapback4_core::Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
-    engine.seed([("feedAuthors".into(), snapback4_core::value::object([("id", snapback4_core::Value::Id("attacker-author".into())), ("principal", snapback4_core::Value::Id("attacker".into())), ("shared", snapback4_core::Value::Bool(false))]))]).unwrap();
-    for op in ["CreatePost", "Register", "Follow", "Unfollow", "Repost", "DeletePost", "Unrepost"] {
-        let out = engine.mutate(&format!("feed.feed{op}"), None, snapback4_core::Context::new("attacker", [("postId".into(), snapback4_core::Value::Id("ghost".into()))].into()));
-        assert!(out.is_err(), "standalone {op} is client-callable: {out:?}");
-        if op == "CreatePost" { println!("W7a ghost call refused: {}", out.unwrap_err()); }
-    }
-    assert!(engine.store().rows("feedPosts").unwrap().is_empty());
-    assert!(engine.query("feed.feedFollowing", snapback4_core::Context::new("attacker", Default::default())).unwrap().complete);
-    let client = fs::read_to_string(dir.0.join("src/following.ts")).unwrap();
-    assert!(!client.contains("client.mutate("), "{client}");
-}
-
 #[path = "../../snapback4-sim/tests/common/following_app.rs"]
 mod following_fixture;
+#[path = "../../snapback4-sim/tests/common/following_calibration.rs"]
+mod calibration;
 
-#[test]
-fn w8b_init_prints_every_written_feed_cap() {
-    let dir = Dir::new();
-    let installed = recipe(&dir, &[]);
-    let output = String::from_utf8_lossy(&installed.stdout);
-    println!("{output}");
-    assert!(installed.status.success(), "{installed:?}");
-    for cap in ["authors=1000", "edges=100000", "pulls=32000", "pullCounts=32000", "sourceEvents=60000", "broadcast=32000", "tombstones=32000",
-        "follows/reader=1000", "followers/author=1000", "events/actor=1000", "tombstones/actor=1000", "pulls/reader=32", "inbox/reader=50000", "inbox/reader/actor=1000", "inbox/event=1001"] {
-        assert!(output.contains(cap), "missing {cap}: {output}");
-    }
-}
-
-#[test]
-fn w8b_sized_recipe_compiles_without_notes() {
-    use snapback4_core::schema::Constraint;
-    for prefix in ["", "feed"] {
-        let dir = Dir::new();
-        let mut flags = vec!["--authors", "1008", "--edges", "5921"];
-        if !prefix.is_empty() { flags.extend(["--prefix", prefix]); }
-        let installed = recipe(&dir, &flags);
-        assert!(installed.status.success(), "{installed:?}");
-        let source = fs::read_to_string(dir.0.join("snapback/feed.q")).unwrap();
-        let bound = snapback4_lang::compile(&[("feed.q".into(), source)]);
-        assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?} {:?}", bound.diagnostics, bound.notes);
-        for (name, expected) in [("authors", 1008), ("follows", 5921), ("pulls", 32256), ("pullCounts", 32256), ("posts", 60000)] {
-            let table = &bound.schema.tables[&snapback4_lang::recipe::prefixed_name(prefix, name)];
-            assert!(table.constraints.iter().any(|c| matches!(c, Constraint::Cap { by, max } if by.is_empty() && *max == expected)), "{name}: {:?}", table.constraints);
-        }
-        assert!(String::from_utf8_lossy(&installed.stdout).contains("authors=1008, edges=5921, pulls=32256, pullCounts=32256"));
-    }
-}
-
-#[test]
-fn w10b_sizing_carries_the_backfill_bound_and_refuses_incoherent_caps() {
-    for (flags, backfill) in [(vec![], 865), (vec!["--authors", "1008", "--edges", "5921"], 865),
-        (vec!["--authors", "2000"], 865), (vec!["--edges", "2000"], 865), (vec!["--authors", "50", "--edges", "1000"], 200)] {
-        for prefix in ["", "feed"] {
-            let dir = Dir::new();
-            let mut flags = flags.clone();
-            if !prefix.is_empty() { flags.extend(["--prefix", prefix]); }
-            let installed = recipe(&dir, &flags);
-            assert!(installed.status.success(), "{installed:?}");
-            let source = fs::read_to_string(dir.0.join("snapback/feed.q")).unwrap();
-            assert!(source.contains(&format!("    if visited = {backfill}:")), "{flags:?}: stale backfill bound");
-            let name = |n| snapback4_lang::recipe::prefixed_name(prefix, n);
-            let bridge = format!("mutation followForTest(authorId: principal):\n  {}(authorId)\nmutation unfollowForTest(authorId: principal):\n  {}(authorId)\n", name("addFollow"), name("dropFollow"));
-            let bound = snapback4_lang::compile(&[("feed.q".into(), source), ("test.q".into(), bridge)]);
-            assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?} {:?}", bound.diagnostics, bound.notes);
-            assert!(String::from_utf8_lossy(&installed.stdout).contains(&format!("backfill/author={backfill}")));
-            if flags.contains(&"--authors") && prefix == "feed" {
-                use snapback4_core::{Context, Engine, Value, WriteState, value::object};
-                let id = |s: &str| Value::Id(s.into());
-                let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
-                let mut rows = vec![(name("authors"), object([("id", id("author")), ("principal", id("author")), ("shared", Value::Bool(false))]))];
-                for n in 0..1000 {
-                    rows.push((name("posts"), object([("id", id(&format!("event-{n:04}"))), ("postId", id(&format!("post-{n:04}"))),
-                        ("actorId", id("author")), ("authorId", id("author")), ("repost", Value::Bool(false)), ("shared", Value::Bool(false)), ("at", Value::Int(n))])));
-                }
-                engine.seed(rows).unwrap();
-                let context = || Context::new("reader", [("authorId".into(), id("author"))].into()).at(2000);
-                let followed = engine.mutate("test.followForTest", None, context()).unwrap();
-                assert!(matches!(followed.state, WriteState::Sent { .. }), "{followed:?}");
-                let copied = engine.store().rows(&name("feed")).unwrap();
-                assert_eq!(copied.len(), backfill);
-                assert!(copied.iter().all(|row| row.field("at").unwrap().as_int().unwrap() >= 1000 - backfill as i64));
-                println!("W10b backfill={backfill} examined={} index={} written={}", followed.metered.examined, followed.metered.index_entries, followed.metered.rows_written);
-                assert!(matches!(engine.mutate("test.followForTest", None, context()).unwrap().state, WriteState::Sent { .. }));
-                assert_eq!(engine.store().rows(&name("feed")).unwrap().len(), backfill);
-                assert!(matches!(engine.mutate("test.unfollowForTest", None, context()).unwrap().state, WriteState::Sent { .. }));
-                assert!(engine.store().rows(&name("feed")).unwrap().is_empty());
-            }
-        }
-    }
-    let dir = Dir::new();
-    let refused = recipe(&dir, &["--authors", "50", "--edges", "50001"]);
-    assert_eq!(refused.status.code(), Some(2));
-    assert_eq!(String::from_utf8_lossy(&refused.stderr), "E_RECIPE_CAPS: --edges 50001 exceeds --authors 50 * 1000 followers/author; grow --authors or reduce --edges; see snapback4 guide feeds\n");
-    assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0);
-}
-
-#[test]
-fn w10b_residency_pointer_prints_once_at_recipe_install() {
-    let pointer = "cold rows: snapback4 test --residency --fixture <fixture-directory> --as <principal>";
-    for existing in [false, true] {
-        let dir = Dir::new();
-        if existing { assert!(dir.run("").status.success()); }
-        let installed = recipe(&dir, &["--prefix", "feed"]);
-        assert!(installed.status.success(), "{installed:?}");
-        assert_eq!(String::from_utf8_lossy(&installed.stdout).lines().filter(|line| *line == pointer).count(), 1);
-        let repeated = recipe(&dir, &["--prefix", "feed"]);
-        assert!(!repeated.status.success());
-        assert!(!String::from_utf8_lossy(&repeated.stdout).contains(pointer));
-        for _ in 0..2 {
-            let checked = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
-            assert!(checked.status.success(), "{checked:?}");
-            assert!(!String::from_utf8_lossy(&checked.stdout).contains(pointer));
-        }
-    }
-    let dir = Dir::new();
-    assert!(!String::from_utf8_lossy(&dir.run("").stdout).contains(pointer));
-}
-
-#[test]
-fn w8b_incoherent_feed_caps_refuse_before_writing() {
-    for flags in [vec!["--authors", "1", "--edges", "1001"], vec!["--authors", "0"], vec!["--edges", "0"],
-        vec!["--authors"], vec!["--edges", "nope"], vec!["--authors", "4294967295"], vec!["--edges", "-1"], vec!["--authors", "1", "--edges", "1000"]] {
-        let dir = Dir::new();
-        let output = recipe(&dir, &flags);
-        assert!(!output.status.success(), "{flags:?}: {output:?}");
-        let error = String::from_utf8_lossy(&output.stderr);
-        assert!(error.contains("E_RECIPE_CAPS") && error.contains("guide feeds"), "{error}");
-        println!("{error}");
-        assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0, "invalid sizing wrote files");
-    }
-    let dir = Dir::new();
-    let output = Command::new(BIN).args(["init", "--authors", "1008"]).current_dir(&dir.0).output().unwrap();
-    assert!(!output.status.success() && String::from_utf8_lossy(&output.stderr).contains("E_RECIPE_CAPS"));
-    assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0);
+fn existing_recipe_fixture(dir: &Dir, authors: &str, edges: &str) {
+    assert!(dir.run("").status.success());
+    let caps = snapback4_lang::recipe::FollowingCaps::parse(Some(authors), Some(edges)).unwrap();
+    fs::write(dir.0.join("snapback/feed.q"), snapback4_lang::recipe::following_sized("feed", "feed", caps).unwrap()).unwrap();
 }
 
 #[test]
 fn w7a_residency_measures_the_wired_500_follow_reader() {
     use std::io::Write;
     let dir = Dir::new();
-    assert!(recipe(&dir, &["--prefix", "feed"]).status.success());
+    existing_recipe_fixture(&dir, "1000", "100000");
     fs::write(dir.0.join("snapback/social.q"), following_fixture::app()).unwrap();
     let bound = following_fixture::built();
     let mut engine = snapback4_core::Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
@@ -625,15 +214,11 @@ fn w7a_residency_measures_the_wired_500_follow_reader() {
     assert!(output.contains("social.saveProfile: predicts: eligible") && output.contains("social.createPost: predicts: eligible") && output.contains("social.follow: predicts: never; queued without a row"), "{output}");
 }
 
-#[path = "../../snapback4-sim/tests/common/following_calibration.rs"]
-mod calibration;
-
 #[test]
 fn w8b_residency_measures_the_wired_calibration_shape() {
     use std::{collections::BTreeMap, io::{BufWriter, Write}};
     let dir = Dir::new();
-    let installed = recipe(&dir, &["--prefix", "feed", "--authors", "1008", "--edges", "5921"]);
-    assert!(installed.status.success(), "{installed:?}");
+    existing_recipe_fixture(&dir, "1008", "5921");
     fs::write(dir.0.join("snapback/social.q"), following_fixture::app()).unwrap();
     let fixture = dir.0.join("fixture");
     fs::create_dir(&fixture).unwrap();
@@ -761,4 +346,71 @@ fn web_starter_refuses_conflicts_before_writing() {
         assert_eq!(fs::read_to_string(path).unwrap(), "kept");
         assert!(!dir.0.join("snapback").exists());
     }
+}
+
+fn snapshot(dir: &std::path::Path) -> Vec<(PathBuf, Vec<u8>)> {
+    let mut files = Vec::new();
+    for entry in fs::read_dir(dir).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_dir() { files.extend(snapshot(&path)); }
+        else { files.push((path.clone(), fs::read(path).unwrap())); }
+    }
+    files.sort(); files
+}
+
+#[test]
+fn retired_feed_installer_and_all_its_options_refuse_without_writes() {
+    let variants = [
+        vec!["--recipe", "feeds"],
+        vec!["--recipe", "feeds", "--prefix", "feed"],
+        vec!["--recipe", "feeds", "--authors", "1008", "--edges", "5921"],
+        vec!["--recipe", "feeds", "--prefix", "feed", "--authors", "1008", "--edges", "5921",
+            "--public-profiles", "profiles:principal", "--public-posts", "posts:authorId:at",
+            "--public-follows", "follows:followerId:followedId", "--public-reposts", "reposts:actorId:postId:at"],
+        vec!["--prefix", "feed"], vec!["--authors", "1008"], vec!["--edges", "5921"],
+        vec!["--public-profiles", "profiles:principal"], vec!["--public-posts", "posts:authorId:at"],
+        vec!["--public-follows", "follows:followerId:followedId"], vec!["--public-reposts", "reposts:actorId:postId:at"],
+        vec!["--recipe", "feeds", "--authors", "0"], vec!["--recipe", "feeds", "--prefix", "bad-prefix"],
+    ];
+    for starter in [None, Some(""), Some("--expo"), Some("--online"), Some("--web")] {
+        for flags in &variants {
+            let dir = Dir::new();
+            if let Some(starter) = starter { assert!(dir.run(starter).status.success()); }
+            let before = snapshot(&dir.0);
+            let output = Command::new(BIN).arg("init").args(flags).current_dir(&dir.0).output().unwrap();
+            assert_eq!(output.status.code(), Some(2), "{flags:?}: {output:?}");
+            let error = String::from_utf8_lossy(&output.stderr);
+            for part in ["E_RECIPE_RETIRED", "maintain feed: timeline", "size authors 1008, edges 5921", "snapback4 guide feeds"] {
+                assert!(error.contains(part), "{flags:?}: missing {part}: {error}");
+            }
+            assert!(output.stdout.is_empty());
+            assert_eq!(snapshot(&dir.0), before, "retired command changed files");
+        }
+    }
+    let dir = Dir::new();
+    let output = Command::new(BIN).args(["init", "new-app", "--expo", "--recipe", "feeds"]).current_dir(&dir.0).output().unwrap();
+    assert_eq!(output.status.code(), Some(2));
+    assert!(!dir.0.join("new-app").exists());
+}
+
+#[test]
+fn ordinary_starters_still_check_and_preserve_their_server_opt_in() {
+    for flag in ["", "--online", "--expo", "--web"] {
+        let dir = Dir::new();
+        assert!(dir.run(flag).status.success());
+        let source = fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap();
+        let (document, errors) = snapback4_lang::parse_document("schema.q", &source);
+        assert!(errors.is_empty());
+        if flag == "--web" {
+            assert!(document.server && !document.actions.is_empty());
+        } else {
+            assert!(!document.server && document.actions.is_empty() && document.routes.is_empty());
+            assert!(document.schedules.iter().all(|schedule| schedule.target != "invite"));
+        }
+        let checked = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
+        assert!(checked.status.success(), "{checked:?}");
+        assert!(!dir.0.join("snapback/feed.q").exists());
+    }
+    let help = Command::new(BIN).arg("--help").output().unwrap();
+    assert!(!String::from_utf8_lossy(&help.stdout).contains("--recipe"));
 }

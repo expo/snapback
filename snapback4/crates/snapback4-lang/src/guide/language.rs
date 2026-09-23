@@ -83,38 +83,6 @@ table posts:
   delete <- .authorId = viewer
   sync public last 200 by byTime      -- everyone holds the same rows
 
-table feed:                         -- rendered private inbox; `guide feeds` covers delivery and removal
-  readerId: principal
-  eventId: posts
-  authorId: principal
-  body: text <=500
-  at: time
-  unique byReaderEvent: readerId, eventId
-  unique byReaderTime: readerId, at, eventId
-  cap 50000 by readerId
-  read <- .readerId = viewer
-  sync
-
-table broadcast:                    -- same rendered columns; one public lane per pulled author
-  readerId: principal
-  eventId: posts
-  authorId: principal
-  body: text <=500
-  at: time
-  unique byReaderEvent: readerId, eventId
-  unique byReaderTime: readerId, at, eventId
-  cap 32000
-  public 'celebrity events are public'
-  sync public
-
-table pulls:
-  readerId: principal
-  authorId: principal
-  unique byReaderAuthor: readerId, authorId
-  cap 32 by readerId
-  read <- .readerId = viewer
-  sync
-
 table follows:
   followerId: principal
   followedId: principal
@@ -240,12 +208,6 @@ query thread(roomId: rooms, c: cursor ?):                            -- `cursor 
 
 query inbox(c: cursor ?):
   return members[viewer] after c first 50 by byPrincipalRoom { roomId, room: rooms[.roomId], unread: messageCounts[.roomId] }
-
-query following(c: cursor ?):        -- syntax example: private inbox plus capped pulled authors; `snapback4 init --recipe feeds` writes the removal recipe (`snapback4 guide feeds`)
-  page = merge feed after c last 20 by byReaderTime where .body != '':
-    [viewer]
-    broadcast[p.authorId] for p in pulls[viewer]
-  return page { *, mine: reactions[.eventId, viewer] }
 
 query ancestors(roomId: rooms):
   chain = walk rooms[roomId] up .parentId depth 8                   -- the row, its parent, and so on: at most `depth` rows
@@ -399,7 +361,7 @@ query roomWindow(roomId: id, c: cursor ?):
 mutation checkin():
   return insert checkins { principal: viewer, at: now }
 
--- A declared public Following; the feeds card states its lifetime and caps.
+-- For Following, declare `maintain timeline: timeline`; `guide feeds` has the complete app.
 table timelineProfiles:
   principal: principal
   unique byPrincipal: principal
@@ -584,10 +546,6 @@ actions` for durable invocation collection and `guide writes` for mutations.
 
 ## Timelines
 
-`maintain name: timeline` maps a public profile, original, repost and follow
-model to engine-owned Following state. `guide feeds` states the caps,
-removal, eager registration, lifecycle and server execution contract. The
-optional `size authors 1008, edges 5921` clause uses the recipe's sizing;
-omitted keys default to 1000 authors and 100000 edges.
+For a public Following feed, use `maintain name: timeline` with `size authors 1008, edges 5921`; `guide feeds` covers the complete program, caps, devices and lifecycle.
 
 "##;

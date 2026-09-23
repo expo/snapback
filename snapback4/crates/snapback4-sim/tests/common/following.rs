@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub fn id(s: &str) -> Value { Value::Id(s.into()) }
 pub fn who(n: usize) -> String { format!("dev:u{n:04}") }
 pub fn args(pairs: &[(&str, Value)]) -> BTreeMap<String, Value> { pairs.iter().map(|(k, v)| ((*k).into(), v.clone())).collect() }
-pub fn source() -> String { snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).remove(0) }
+pub fn source() -> String { snapback4_lang::recipe::following("", "").unwrap() }
 
 pub fn with_pull_counts(mut rows: Vec<(String, Value)>) -> Vec<(String, Value)> {
     let mut counts = BTreeMap::<String, i64>::new();
