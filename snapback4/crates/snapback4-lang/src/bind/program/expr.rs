@@ -127,6 +127,18 @@ impl Binder<'_> {
                 Ok((ir::var(&temp), ty))
             }
             A::Member { base, name, .. } => {
+                // Generated maintain keys are literal path-named columns. Resolve
+                // the full chain before ordinary member/reference traversal.
+                if let Some((root, path)) = aggregate_path(expr) {
+                    let (e, t) = self.expr(root, out)?;
+                    if let Ty::Row(table) = t.required()
+                        && let Some(info) = self.catalog.tables.get(&table)
+                        && info.maintained.is_some() && info.columns.contains_key(&path)
+                    {
+                        let (value, ty) = self.member(e, t, &path, site)?;
+                        return Ok((value, self.field_refinement(expr).unwrap_or(ty)));
+                    }
+                }
                 let (e, t) = self.expr(base, out)?;
                 let (value, ty) = self.member(e, t, name, site)?;
                 Ok((value, self.field_refinement(expr).unwrap_or(ty)))
@@ -658,4 +670,14 @@ pub(super) fn allocates(expr: &Expr) -> bool {
         Expr::Unary { value, .. } | Expr::Field { base: value, .. } => allocates(value),
         _ => false,
     }
+}
+
+/// Only a named row or focal row can head a literal aggregate column chain.
+fn aggregate_path(expr: &A) -> Option<(&A, String)> {
+    let mut root = expr;
+    let mut fields = Vec::new();
+    while let A::Member { base, name, .. } = root { fields.push(name.as_str()); root = base; }
+    if fields.len() < 2 || !matches!(root, A::Focal { .. } | A::Name { .. }) { return None; }
+    fields.reverse();
+    Some((root, fields.join(".")))
 }

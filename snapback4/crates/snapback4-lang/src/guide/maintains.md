@@ -11,7 +11,7 @@ enforced.
 
 A predicate accepts scalar comparisons, and/or/not, boolean literals and bare
 required boolean columns. Equality permits null; ordering requires compatible
-non-optional scalars. It cannot read arbitrary tables, viewer, now, helpers or arithmetic:
+non-optional scalars. It cannot read tables, viewer, now, helpers or arithmetic:
 store that fact on the source, or use a bounded job. False rows contribute
 nothing; updates subtract and add once, coalescing equal groups. Literal
 defaults mean the same thing on writes, devices, expiry and adoption.
@@ -143,8 +143,10 @@ Adding a path captures existing rows once against live targets at activation;
 an id reused before capture supplies its new value. Rebuilding or changing a
 predicate over an existing path preserves all captures, including nulls.
 Removing every maintain that uses a path drops it; re-adding it captures anew.
-Activation emits no row events: a new generation discards old device images
-and reacquires snapshots. doctor reports null captures per source path and
+Capturing or dropping paths emits no row events for those sources and their
+aggregate rebuilds: a new generation discards old device images and reacquires
+snapshots. Later unrelated rebuilds still record their commits and events.
+doctor reports null captures per source path and
 live selected contributions with null attribution per maintain.
 
 Recorded fields belong to the engine. Any payload naming one refuses with
@@ -205,7 +207,7 @@ and the failed transaction rolls back.
 Adding or changing a filter, key, duration, offset, dependent literal default or index
 is a derived rebuild at its declaration. Today's atomic activation rebuilds
 populated stores before publishing the new generation; it is not resumable.
-Attribution capture runs separately before that rebuild, preserving existing paths.
+Attribution capture runs inside the same atomic activation, before that rebuild, preserving existing paths.
 
 
 ## Refused maintain expressions
@@ -219,3 +221,43 @@ source scalars, admitted recorded paths and literals; never viewer, now or helpe
 with every group key, such as `dailyPosts[viewer, day(now)]`; a partial key
 reads a prefix page under the ordinary bounds rules (`guide bounds`).
 The diagnostic names the expression to repair.
+
+A generated maintain target exposes its full path-named group columns. In a
+shape or predicate, `.postId.authorId` selects that literal column on
+`receivedLikes`; it does not traverse a reference. Named index keys use
+`receivedLikes[postId.authorId = author]`, and sort uses
+`sort(rows, 'postId.authorId')`. Source rows keep recorded fields internal;
+ordinary source projections cannot select them.
+
+```quarry
+table authors:
+  principal: principal
+  immutable principal
+  read <- allow
+table articles:
+  authorId: authors
+  createdAt: time
+  immutable authorId, createdAt
+  read <- allow
+table votes:
+  postId: articles
+  immutable postId
+  read <- allow
+maintain receivedLikes: count votes by postId.authorId
+  read <- allow
+  by ranking: value, postId.authorId
+maintain trend: count votes by hour(postId.createdAt), postId.createdAt, postId
+  read <- allow
+query ranking(c: cursor ?):
+  return receivedLikes after c last 10 by ranking { authorId: .postId.authorId, count: .value }
+query trending():
+  rows = trend first 100 by byGroup { post: .postId, at: .postId.createdAt, count: .value }
+  return sort(rows, '-at')
+```
+
+Insert capture resolves each path inside the write transaction before row
+validation, indexes and maintain deltas. An untrusted import uses its batch's
+winning target images and the import clock; an earlier committed null stays
+null when a target arrives in a later batch. Imports reject supplied recorded
+fields. Trusted restoration preserves stored captures without resolving them.
+Expired targets are absent at capture time, including before physical sweeping.

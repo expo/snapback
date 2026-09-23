@@ -23,6 +23,7 @@ mod deferred;
 mod media;
 mod snapshot;
 mod history;
+mod recorded;
 mod boundary;
 mod store_identity;
 pub use store_identity::StoreObservation;
@@ -227,15 +228,8 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
     }
 
     // @ref LLP 3000.007.003#3.2 — retained images cannot establish current attribution coverage.
-    fn recording_covered(&self, name: &str, row: &Value) -> Result<bool, RuntimeError> {
-        let Some(table) = self.schema.table(name).filter(|table| table.sync.is_some()) else { return Ok(false) };
-        if table.leave != LeavePolicy::DeliveredHistory { return Ok(true); }
-        let group = history::row_key(table, row)?;
-        Ok(match self.groups.get(name).and_then(|groups| groups.get(&group)) {
-            Some(history::Membership::Held) => true,
-            Some(history::Membership::Rejoined(ids)) => ids.contains(row.field("id")?.as_str()?),
-            _ => false,
-        })
+    fn recording_covered(&self, name: &str, row: &Value, viewer: &str, now: i64) -> Result<bool, RuntimeError> {
+        recorded::covered(self, name, row, viewer, now)
     }
     fn acquired_boundary(&self, table: &str, index: &str, prefix: &[Value]) -> Result<Option<snapback4_core::rows::AcquiredBoundary>, RuntimeError> {
         boundary::read(&self.boundaries, self.schema, table, index, prefix)

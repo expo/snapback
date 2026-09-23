@@ -27,9 +27,7 @@ fn rebuild(e: &mut Engine, revision: usize, now: i64) -> Value {
     for m in &mut b.schema.maintains {
         for _ in 0..revision { m.filter = Some(snapback4_core::maintain::Predicate::And(Box::new(snapback4_core::maintain::Predicate::Bool(true)), Box::new(m.filter.take().unwrap_or(snapback4_core::maintain::Predicate::Bool(true))))); }
     }
-    let seq = e.seq().unwrap();
     e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
-    assert_eq!(e.seq().unwrap(), seq, "activation must append no row commit");
     answers(e, now)
 }
 #[test]
@@ -138,7 +136,10 @@ fn untrusted_import_refuses_forgery_and_trusted_restore_keeps_history() {
     assert_eq!(stored.field("postId.authorId").unwrap(), &id("alice"));
     assert_eq!(e.load([("likes".into(), stored.clone())]).unwrap_err().refusal().code, "E_RECORDED_FIELD");
     assert_eq!(e.seed([("likes".into(), stored.clone())]).unwrap_err().refusal().code, "E_RECORDED_FIELD");
+    let before_delete = answers(&mut e,1000);
     e.seed_delete("posts", "p").unwrap();
+    assert_eq!(e.store().rows("likes").unwrap()[0],stored);
+    assert_eq!(answers(&mut e,1000),before_delete);
     let mut restored = engine(SOURCE);
     restored.load_mode([("likes".into(), stored.clone())], LoadMode::Restore).unwrap();
     assert_eq!(restored.store().rows("likes").unwrap()[0], stored);
@@ -152,6 +153,12 @@ fn untrusted_import_refuses_forgery_and_trusted_restore_keeps_history() {
     let (table, mut same) = post("p", "alice", Value::Null);
     if let Value::Row(fields) = &mut same { fields.remove("parentId"); }
     imported.load([(table, same)]).unwrap(); // Missing optional and explicit null are the same reference.
+    let parent = &imported.store().rows("posts").unwrap()[0];
+    assert_eq!(parent.as_object().unwrap().get("parentId"),None);
+    assert_eq!(parent.field("parentId.authorId").unwrap(),&Value::Null);
+    imported.load([post("p","bob",Value::Null)]).unwrap();
+    imported.load([like("l","p",Value::Null)]).unwrap();
+    assert_eq!(imported.store().rows("likes").unwrap()[0].field("postId.authorId").unwrap(),&id("alice"));
 
     let mut b = bound(SOURCE);
     b.schema.tables.get_mut("posts").unwrap().defaults.insert("parentId".into(),snapback4_core::schema::ColumnDefault::Literal(id("p")));
@@ -161,11 +168,13 @@ fn untrusted_import_refuses_forgery_and_trusted_restore_keeps_history() {
     if let Value::Row(fields) = &mut reply { fields.remove("parentId"); }
     defaults.load([(table,reply)]).unwrap();
     let reply=defaults.store().rows("posts").unwrap().into_iter().find(|row|row.field("id").unwrap()==&id("reply")).unwrap();
+    assert!(matches!(reply.as_object().unwrap().get("parentId"),None | Some(Value::Null)));
     assert_eq!(reply.field("parentId.authorId").unwrap(),&Value::Null,"missing optional fields in imported images read as null, including when inserts have a default");
     let (table, mut reply) = post("inserted-reply","bob",Value::Null);
     if let Value::Row(fields) = &mut reply { fields.remove("parentId"); }
     defaults.seed([(table,reply)]).unwrap();
     let reply=defaults.store().rows("posts").unwrap().into_iter().find(|row|row.field("id").unwrap()==&id("inserted-reply")).unwrap();
+    assert_eq!(reply.field("parentId").unwrap(),&id("p"));
     assert_eq!(reply.field("parentId.authorId").unwrap(),&id("alice"),"insert defaults precede capture");
 }
 
@@ -199,6 +208,9 @@ fn forged_program_payloads_and_system_jobs_are_refused_including_noop_updates() 
             let WriteState::Failed { why, .. } = out.state else { panic!("forged {kind} passed") };
             assert_eq!(why.code, "E_RECORDED_FIELD", "{kind}: {why:?}");
         }
+        assert_eq!(e.store().rows("likes").unwrap().len(),1);
+        assert_eq!(e.store().rows("likes").unwrap()[0].field("id").unwrap(),&id("l"));
+        assert_eq!(e.store().rows("likes").unwrap()[0].field("postId.authorId").unwrap(),&id("alice"));
     }
 }
 
@@ -210,7 +222,10 @@ fn clique_fixture_matches_the_hand_copied_model() {
         .replace("hour(postId.at)", "copiedHour").replace("postId.authorId", "copiedAuthor")
         .replace("postId.parentId", "copiedParent").replace("postId.at", "copiedAt").replace("parentId.authorId", "replyAuthor").replace("where copiedParent", "where .copiedParent");
     let mut copied = engine(&hand);
-    let rows = [post("a", "alice", Value::Null), post("b", "bob", Value::Null), post("reply", "bob", id("a")), like("la", "a", Value::Null), like("lb", "a", Value::Null), like("lc", "b", Value::Null), like("lr", "reply", Value::Null)];
+    let (name, mut later) = post("b", "bob", Value::Null);
+    if let Value::Row(fields) = &mut later { fields.insert("at".into(),Value::Int(7_200_100)); }
+    let rows = [post("a", "alice", Value::Null), (name,later), post("reply", "bob", id("a")), like("la", "a", Value::Null), like("lb", "a", Value::Null), like("lc", "b", Value::Null), like("lr", "reply", Value::Null), like("null","absent",Value::Null)];
+    let targets: BTreeMap<_,_> = rows.iter().filter(|(name,_)| name == "posts").map(|(_,row)|(row.field("id").unwrap().as_str().unwrap().to_owned(),row.clone())).collect();
     recorded.seed(rows.clone()).unwrap();
     let stored = &recorded.store().rows("likes").unwrap()[0];
     let mut visible = stored.as_object().unwrap().clone();
@@ -221,11 +236,12 @@ fn clique_fixture_matches_the_hand_copied_model() {
     for (table, mut row) in rows {
         if let Value::Row(fields) = &mut row {
             if table == "likes" {
-                let post = fields["postId"].as_str().unwrap();
-                let author = if post == "a" { "alice" } else { "bob" };
-                let parent = if post == "reply" { id("a") } else { Value::Null };
-                fields.insert("copiedAuthor".into(), id(author)); fields.insert("copiedAt".into(), Value::Int(100));
-                fields.insert("copiedHour".into(), Value::Int(0)); fields.insert("copiedParent".into(), parent);
+                let target = targets.get(fields["postId"].as_str().unwrap());
+                let value = |name| target.map(|row|row.field(name).unwrap().clone()).unwrap_or(Value::Null);
+                let at = value("at");
+                let hour = match at { Value::Int(at) => Value::Int(at.div_euclid(3_600_000)), _ => Value::Null };
+                fields.insert("copiedAuthor".into(), value("authorId")); fields.insert("copiedAt".into(), at);
+                fields.insert("copiedHour".into(), hour); fields.insert("copiedParent".into(), value("parentId"));
             } else { let author = if fields["id"] == id("reply") { id("alice") } else { Value::Null }; fields.insert("replyAuthor".into(), author); }
         }
         copied.seed([(table, row)]).unwrap();
@@ -235,6 +251,14 @@ fn clique_fixture_matches_the_hand_copied_model() {
     let actual: serde_json::Value = serde_json::from_str(&actual).unwrap();
     let expected: serde_json::Value = serde_json::from_str(&expected).unwrap();
     assert_eq!(actual, expected);
+    let counts = answers(&mut recorded,1000);
+    let received = counts.field("received").unwrap().as_array().unwrap();
+    assert_eq!(received.len(),3);
+    assert_eq!(received.iter().map(|r|r.field("value").unwrap().as_int().unwrap()).sum::<i64>(),5);
     let visible = recorded.query("allLikes", Context::new("alice", BTreeMap::new()).at(1000)).unwrap().data;
-    assert!(visible.as_array().unwrap().iter().all(|r| r.field("postId.authorId").is_err()));
+    assert!(!visible.as_array().unwrap().is_empty());
+    for path in ["postId.authorId","postId.at","postId.parentId"] { assert!(visible.as_array().unwrap().iter().all(|r| r.field(path).is_err())); }
 }
+
+#[path = "recorded/round1.rs"]
+mod round1;

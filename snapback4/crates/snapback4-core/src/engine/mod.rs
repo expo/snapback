@@ -460,20 +460,28 @@ impl Engine {
                     || (repair_live_sums && matches!(m.kind, crate::schema::MaintainKind::Sum { .. }) && schema.table(&m.source).is_some_and(|source| source.expire.is_some()))
             }).collect();
             tx.set_meta("live_sum_candidates", "1")?;
-            let attribution = schema.tables.values().any(|t| !t.recorded.is_empty())
-                || previous.as_ref().is_some_and(|s| s.tables.values().any(|t| !t.recorded.is_empty()));
+            let attribution = recorded::paths_changed(schema, previous.as_ref());
             if rebuild.is_empty() && !attribution { return Ok(()); }
             let now = crate::now_ms();
             let seq = tx.next_seq()?;
+            if attribution {
+                // This runner owns only activation rewrites; ordinary rebuilds
+                // below retain their commit and partition accounting.
+                let mut capture = Runner::new(tx, schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+                capture.capture_activation(previous.as_ref())?;
+                capture.rebuild_recorded_activation(previous.as_ref(), &rebuild)?;
+            }
             let mut runner = Runner::new(tx, schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
-            runner.event_free = attribution;
-            if attribution { runner.capture_activation(previous.as_ref())?; }
-            for maintain in rebuild { runner.rebuild_maintain(maintain)?; }
+            for maintain in rebuild {
+                if !recorded::table_paths_changed(schema.table(&maintain.source), previous.as_ref().and_then(|s| s.table(&maintain.source))) {
+                    runner.rebuild_maintain(maintain)?;
+                }
+            }
             let events = std::mem::take(&mut runner.events);
             let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
             let written = runner.rows_written;
             drop(runner);
-            if written > 0 && !attribution {
+            if written > 0 {
                 tx.record_commit(seq, now, "rebuild", crate::SYSTEM_PRINCIPAL, "rebuild", &tables, written)?;
                 partition::append(tx, seq, &events)?;
             }

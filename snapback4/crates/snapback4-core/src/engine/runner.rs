@@ -98,7 +98,6 @@ pub struct Runner<'a> {
     /// delivered rows are trusted; provisional images need current read
     /// authority. Online-only and horizon reads may need the server.
     pub(crate) device: bool,
-    #[cfg(feature = "sqlite")]
     pub(crate) event_free: bool,
     #[cfg(feature = "sqlite")]
     pub(crate) import_targets: Option<&'a BTreeMap<(String, String), Value>>,
@@ -174,7 +173,6 @@ impl<'a> Runner<'a> {
             page_overflow: false,
             word_cut_at: None,
             device: false,
-            #[cfg(feature = "sqlite")]
             event_free: false,
             #[cfg(feature = "sqlite")]
             import_targets: None,

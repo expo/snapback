@@ -22,6 +22,7 @@ impl TableInfo {
     }
 }
 
+#[derive(Default)]
 pub struct Catalog {
     pub documents: Vec<Document>,
     pub tables: BTreeMap<String, TableInfo>,

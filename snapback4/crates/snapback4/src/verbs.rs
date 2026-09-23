@@ -643,11 +643,14 @@ pub fn doctor(options: &Options) -> i32 {
             }
             match snapback4_core::Engine::open(store) {
                 Ok(mut engine) => {
-                    if let Ok(counts) = engine.recorded_nulls() {
-                        for (name, paths) in counts.captures {
-                            for (path, count) in paths { lines.push(format!("attribution {name}: {count} null captures at {path}")); }
+                    match engine.recorded_nulls() {
+                        Ok(counts) => {
+                            for (name, paths) in counts.captures {
+                                for (path, count) in paths { lines.push(format!("attribution {name}: {count} null captures at {path}")); }
+                            }
+                            for (name, count) in counts.contributions { lines.push(format!("attribution {name}: {count} null-attributed contributions")); }
                         }
-                        for (name, count) in counts.contributions { lines.push(format!("attribution {name}: {count} null-attributed contributions")); }
+                        Err(error) => { ok = false; lines.push(format!("attribution FAIL {error}")); }
                     }
                     if let Ok(counts) = engine.action_counts() {
                         lines.push(format!("requests  {}", ["queued", "running", "done", "failed"].into_iter().map(|state| format!("{} {state}", counts.get(state).copied().unwrap_or(0))).collect::<Vec<_>>().join(", ")));
@@ -743,7 +746,8 @@ pub fn why(options: &Options) -> i32 {
                 println!("  expire at .{column} — a row past it is absent to every reader, then swept; null never expires");
             }
             for (path, recorded) in &table.recorded {
-                println!("  engine-recorded {path}: {} — captured from {}.{} at insertion/activation; preserved across rebuilds; hidden from query rows", table.columns[path], recorded.table, recorded.column);
+                let Some(kind) = table.columns.get(path) else { eprintln!("why: recorded field {path} has no stored column; run doctor"); return 1; };
+                println!("  engine-recorded {path}: {kind} — captured from {}.{} at insertion/import/activation; trusted restore preserves it; absent from * and generated types, visible to sql", recorded.table, recorded.column);
             }
             for (name, index) in &table.indexes {
                 println!("  {} {name}: {}", if index.unique { "unique" } else { "by" }, index.columns().join(", "));

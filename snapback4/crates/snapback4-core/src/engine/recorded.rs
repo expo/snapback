@@ -25,6 +25,7 @@ impl Runner<'_> {
 
     pub(crate) fn capture_recorded(&mut self, table: &Table, mut row: Value, paths: &[String]) -> Result<Value, RuntimeError> {
         if paths.is_empty() { return Ok(row); }
+        row.as_object()?;
         // A source image can share its map with a literal or stored image;
         // stamping fields may copy it. Account for that copy and each read.
         self.meter.heap(row.heap_bytes())?;
@@ -46,13 +47,15 @@ impl Runner<'_> {
                 },
                 _ => None,
             };
-            if let Some(value) = &found { self.meter.heap(value.heap_bytes())?; }
-            let found = found.filter(|value| !self.expired(target, value));
+            let live = found.as_ref().filter(|value| !self.expired(target, value));
             if self.device && matches!(source_image.field(&field.reference), Ok(Value::Id(_)))
-                && (target.sync.is_none() || !found.as_ref().map(|value| self.tx.recording_covered(&field.table, value)).transpose()?.unwrap_or(false)) {
+                && (target.sync.is_none() || !live.map(|value| self.tx.recording_covered(&field.table, value, &self.context.viewer, self.context.now.unwrap_or(0))).transpose()?.unwrap_or(false)) {
                 return Err(RuntimeError::Prediction(format!("recorded path {path} needs a live, covered {} row; reconnect to resolve attribution", field.table)));
             }
-            let value = found.as_ref().map(|value| crate::schema::row_image(value, target).field(&field.column).cloned().unwrap_or(Value::Null)).unwrap_or(Value::Null);
+            // Unknown coverage queues before a target-size resource refusal.
+            // Covered/server reads still account for the full allocated image.
+            if let Some(value) = &found { self.meter.heap(value.heap_bytes())?; }
+            let value = live.map(|value| crate::schema::row_image(value, target).field(&field.column).cloned()).transpose()?.unwrap_or(Value::Null);
             self.meter.heap(80 + path.len() as u64 + value.heap_bytes())?;
             if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.insert(path.clone(), value); }
         }
@@ -68,11 +71,36 @@ impl Runner<'_> {
 }
 
 #[cfg(feature = "sqlite")]
+pub(super) fn table_paths_changed(next: Option<&Table>, old: Option<&Table>) -> bool {
+    next.into_iter().flat_map(|t| &t.recorded).ne(old.into_iter().flat_map(|t| &t.recorded))
+}
+
+#[cfg(feature = "sqlite")]
+pub(super) fn paths_changed(schema: &crate::schema::Schema, previous: Option<&crate::schema::Schema>) -> bool {
+    schema.tables.keys().chain(previous.into_iter().flat_map(|s| s.tables.keys()))
+        .any(|name| table_paths_changed(schema.table(name), previous.and_then(|s| s.table(name))))
+}
+
+#[cfg(feature = "sqlite")]
 impl Runner<'_> {
+    pub(super) fn rebuild_recorded_activation(&mut self, previous: Option<&crate::schema::Schema>, maintains: &[&crate::schema::Maintain]) -> Result<(), RuntimeError> {
+        let saved = self.event_free;
+        self.event_free = true;
+        let result = (|| {
+            for maintain in maintains {
+                if table_paths_changed(self.schema.table(&maintain.source), previous.and_then(|s| s.table(&maintain.source))) { self.rebuild_maintain(maintain)?; }
+            }
+            Ok(())
+        })();
+        self.event_free = saved;
+        result
+    }
+
     /// Run after schema projection and before any aggregate rebuild. Only paths
     /// absent from the predecessor are captured; existing nulls are history too.
     pub(super) fn capture_activation(&mut self, previous: Option<&crate::schema::Schema>) -> Result<(), RuntimeError> {
         use crate::rows::{Bounds, Dir};
+        if self.device { return Err(RuntimeError::Prediction("recorded activation requires the server's replacement snapshot".into())); }
         for (name, table) in &self.schema.tables.clone() {
             let paths: Vec<_> = table.recorded.keys().filter(|path| previous.and_then(|s| s.table(name)).is_none_or(|old| !old.recorded.contains_key(*path))).cloned().collect();
             if paths.is_empty() { continue; }
@@ -140,4 +168,58 @@ impl super::Engine {
         tx.rollback()?;
         Ok(counts)
     }
+}
+
+#[cfg(all(test, feature = "sqlite"))]
+mod tests {
+    use super::*;
+    use crate::{engine::Context, meter::{Meter, Ceilings, Cut}, schema::Schema, store::Store, value::object};
+    fn schema() -> Schema {
+        let b = snapback4_lang::compile(&[("recorded.q".into(), include_str!("../../../snapback4-lang/tests/fixtures/recorded-attribution.q").into())]);
+        assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+        crate::json_codec::from_text(&crate::json_codec::to_text(&b.schema).unwrap()).unwrap()
+    }
+    #[test]
+    fn hidden_replacement_does_not_disclose_a_stored_capture() {
+        let schema = schema();
+        let mut store = Store::memory().unwrap();
+        store.activate(&schema, None, false, |_,_| Ok(())).unwrap();
+        let tx = store.transaction().unwrap();
+        let mut runner = Runner::new(&tx, &schema, Context::system(), Meter::new(Ceilings::unbounded(), Cut::Abort), 1);
+        let row = object([("id", Value::Id("l".into())), ("postId",Value::Id("p".into())), ("principal",Value::Id("alice".into())), ("at",Value::Int(100)), ("postId.authorId",Value::Id("alice".into()))]);
+        let mut replacement = row.clone();
+        if let Value::Row(fields) = &mut replacement { fields.remove("postId.authorId"); }
+        let err = runner.replace_authorized("likes",row,replacement,false,&object([] as [(&str,Value);0])).unwrap_err();
+        assert_eq!(err.refusal().code,"NOT_FOUND");
+        assert!(!err.to_string().contains("capture"));
+    }
+    #[test]
+    fn device_runner_refuses_capture_activation() {
+        let schema = schema();
+        let mut store = Store::memory().unwrap();
+        store.activate(&schema, None, false, |_,_| Ok(())).unwrap();
+        let tx = store.transaction().unwrap();
+        let mut runner = Runner::new(&tx, &schema, Context::system(), Meter::new(Ceilings::unbounded(), Cut::Abort), 1);
+        runner.device = true;
+        assert_eq!(runner.capture_activation(None).unwrap_err().refusal().code,"E_PREDICT");
+        assert!(tx.scan("likes","byId",&[],&Default::default(),crate::rows::Dir::Asc,10).unwrap().is_empty());
+    }
+    #[test]
+    fn event_free_scope_restores_after_success_and_failure() {
+        let schema = schema();
+        let mut store = Store::memory().unwrap();
+        store.activate(&schema, None, false, |_,_| Ok(())).unwrap();
+        let tx = store.transaction().unwrap();
+        let maintains = schema.maintains.iter().collect::<Vec<_>>();
+        let mut runner = Runner::new(&tx,&schema,Context::system(),Meter::new(Ceilings::unbounded(),Cut::Abort),1);
+        runner.rebuild_recorded_activation(None,&maintains).unwrap();
+        assert!(!runner.event_free);
+        for saved in [false,true] {
+            runner.event_free=saved;
+            runner.meter=Meter::new(Ceilings {heap_bytes:0,..Ceilings::unbounded()},Cut::Abort);
+            assert!(runner.rebuild_recorded_activation(None,&maintains).is_err());
+            assert_eq!(runner.event_free,saved);
+        }
+    }
+
 }

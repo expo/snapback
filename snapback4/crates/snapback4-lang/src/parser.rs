@@ -393,6 +393,9 @@ impl Parser {
         let mut computed = std::collections::BTreeMap::new();
         loop {
             let component = self.word()?;
+            if self.at(".") {
+                return Err(syntax_with(&component.site, "table index columns cannot be reference paths", "index a column of this table; use recorded paths only on a maintain").guide("indexes"));
+            }
             if component.value == "words" && self.at("(") {
                 // `words(body, caption)`: one entry per distinct word of the
                 // named text columns, in this position.

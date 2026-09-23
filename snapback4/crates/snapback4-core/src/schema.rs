@@ -670,6 +670,8 @@ pub enum RuleTerm {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Constraint {
+    /// Required F2 decoder fence: older engines reject this enum variant.
+    Recorded,
     Unique { index: String },
     Cap { by: Vec<String>, max: u32 },
     AppendOnly,
@@ -778,9 +780,12 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     }
     for (table_name, table) in &schema.tables {
         let path = format!("tables.{table_name}");
+        if table.recorded.is_empty() == table.constraints.contains(&Constraint::Recorded) {
+            issue(&mut issues, format!("{path}.recorded"), "recorded attribution and its Recorded decoder constraint must occur together".into());
+        }
         for (field, capture) in &table.recorded {
             let target = schema.table(&capture.table);
-            let valid = field == &format!("{}.{}", capture.reference, capture.column)
+            let valid = !table.defaults.contains_key(field) && field == &format!("{}.{}", capture.reference, capture.column)
                 && !capture.reference.contains('.') && !capture.column.contains('.')
                 && table.columns.get(&capture.reference).is_some_and(|kind| kind.required() == &ColumnType::Ref { table: capture.table.clone() })
                 && table.immutable_fields().any(|name| name == capture.reference)
@@ -902,7 +907,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                         None => issue(&mut issues, cpath, format!("after insert names unknown {target}.{index}")),
                     }
                 }
-                Constraint::AppendOnly => {}
+                Constraint::AppendOnly | Constraint::Recorded => {}
             }
         }
         if let Some(sync) = &table.sync {

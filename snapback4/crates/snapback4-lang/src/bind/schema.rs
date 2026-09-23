@@ -117,6 +117,7 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
     }
     let mut indexes = BTreeMap::new();
     let mut constraints = Vec::new();
+    if !recorded.is_empty() { constraints.push(Constraint::Recorded); }
     for index in &info.indexes {
         let mut bound = core::Index::of(&index.columns.iter().map(String::as_str).collect::<Vec<_>>(), index.unique);
         for (position, column) in index.columns.iter().enumerate() {

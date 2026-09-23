@@ -26,8 +26,16 @@ pub(super) fn recorded_paths(tables: &BTreeMap<String, TableInfo>, maintain: &Ma
                 let Some(ScalarType { kind: TypeKind::Ref { table }, .. }) = source.columns.get(reference) else { return Err(fail(format!("{reference} must be a reference column of {}", source.decl.name))); };
                 if !source.decl.immutable.iter().any(|(fields, _)| fields.contains(reference)) { return Err(fail(format!("{}.{} must be immutable", source.decl.name, reference))); }
                 let target = tables.get(table).ok_or_else(|| fail(format!("unknown target table {table}")))?;
-                let public = target.decl.public.is_some() || target.decl.rules.iter().any(|rule| rule.effect == Effect::Read && (matches!(&rule.value, Expr::Name { name, .. } if name == "allow" || name == "public") || matches!(&rule.value, Expr::Call { name, .. } if name == "public")));
-                if !public { return Err(fail(format!("{table}'s read rule must be public or allow"))); }
+                let reads: Vec<_> = target.decl.rules.iter().filter(|rule| rule.effect == Effect::Read).collect();
+                let public = match (target.decl.public.is_some(), reads.as_slice()) {
+                    (true, []) => true,
+                    (false, [rule]) if !matches!(&rule.value, Expr::Call { name, args, .. } if name == "public" && !args.is_empty()) => {
+                        let catalog = super::catalog::Catalog { tables: tables.clone(), ..Default::default() };
+                        super::schema::bind_rule(&catalog, target, rule).is_ok_and(|rule| rule.is_uniformly_readable())
+                    }
+                    _ => false,
+                };
+                if !public { return Err(fail(format!("{table}'s effective read rule must be unconditionally public or allow; use one read policy without public(...) arguments"))); }
                 let mut ty = if name == "id" { ScalarType { kind: TypeKind::Id, optional: false } }
                     else { target.columns.get(name).cloned().ok_or_else(|| fail(format!("unknown column {table}.{name}")))? };
                 if name != "id" && !target.decl.immutable.iter().any(|(fields, _)| fields.contains(name)) { return Err(fail(format!("{table}.{name} must be immutable"))); }

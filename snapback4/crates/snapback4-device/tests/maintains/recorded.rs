@@ -24,13 +24,20 @@ fn run<H: Host>(host: &mut H) {
     let out = server.mutate("like", Some("q1"), context("alice", &[("postId", id("p")), ("at",Value::Int(100)), ("until",Value::Null)]).at(now).with_ids(["l1".into()])).unwrap();
     let WriteState::Sent { seq, .. } = out.state else { panic!("{out:?}") };
     device.settle("q1", Some(seq)).unwrap();
-    device.apply(&stream_page(&mut server, "alice", from), false).unwrap();
+    let delivered = stream_page(&mut server,"alice",from);
+    let like_image = delivered.events.iter().find(|event|event.table=="likes" && event.id=="l1").unwrap().data.as_ref().unwrap();
+    assert_eq!(like_image["postId.authorId"],json!("alice"));
+    device.apply(&delivered, false).unwrap();
     // Server deletion/recreation never changes historical captures on a source.
     for (revision, replacement) in [None, Some("bob")].into_iter().enumerate() {
         let from = server.seq().unwrap();
         if let Some(author) = replacement { server.seed([post("p", author, Value::Null)]).unwrap(); }
         else { server.seed_delete("posts", "p").unwrap(); }
-        device.apply(&stream_page(&mut server, "alice", from), false).unwrap();
+        let page = stream_page(&mut server,"alice",from);
+        if replacement.is_some() { assert!(page.events.iter().any(|event|event.table=="posts" && event.id=="p" && event.data.as_ref().is_some_and(|row|row["authorId"]=="bob"))); }
+        device.apply(&page, false).unwrap();
+        assert_eq!(device.query("received","alice",&json!({"authorId":"alice"}),now).unwrap().data,Value::Int(1));
+        assert_eq!(device.query("received","alice",&json!({"authorId":"bob"}),now).unwrap().data,Value::Int(0));
         let incremental = device.query("answers", "alice", &json!({}), now).unwrap().data;
         assert_eq!(incremental, server.query("answers", context("alice", &[]).at(now)).unwrap().data);
         let predicate = vec!["true";revision + 2].join(" and ");
@@ -50,13 +57,27 @@ fn run<H: Host>(host: &mut H) {
     let (_, next) = compile(&SOURCE.replace("where true by postId.authorId", "where postId.authorId = 'alice' by postId.authorId"));
     let seq = server.seq().unwrap();
     server.adopt(next.schema.clone(), next.programs.clone()).unwrap();
-    assert_eq!(server.seq().unwrap(), seq);
+    assert_eq!(server.seq().unwrap(), seq + 1);
     device.adopt(Backend { generation:server.generation(), ..next }).unwrap();
     for (i,page) in snapshot_pages(&mut server,"alice",100).iter().enumerate() { device.apply(page,i==0).unwrap(); }
     assert_eq!(device.query("answers", "alice", &json!({}), now).unwrap().data, historical);
+    let excluded = SOURCE.replace("where true by postId.authorId", "where postId.authorId = 'bob' by postId.authorId");
+    assert_ne!(excluded,SOURCE);
+    let (_, next) = compile(&excluded);
+    server.adopt(next.schema.clone(),next.programs.clone()).unwrap();
+    device.adopt(Backend { generation:server.generation(),..next }).unwrap();
+    for (i,page) in snapshot_pages(&mut server,"alice",100).iter().enumerate() { device.apply(page,i==0).unwrap(); }
+    assert_eq!(device.query("received","alice",&json!({"authorId":"alice"}),now).unwrap().data,Value::Int(0));
+    assert_eq!(device.query("answers","alice",&json!({}),now).unwrap().data,server.query("answers",context("alice",&[]).at(now)).unwrap().data);
+    let (_, next) = compile(SOURCE);
+    server.adopt(next.schema.clone(),next.programs.clone()).unwrap();
+    device.adopt(Backend { generation:server.generation(),..next }).unwrap();
+    for (i,page) in snapshot_pages(&mut server,"alice",100).iter().enumerate() { device.apply(page,i==0).unwrap(); }
     let from = server.seq().unwrap();
     server.seed([("likes".into(), snapback4_core::value::object([("id",id("l1")), ("until",Value::Int(now + 60_000))]))]).unwrap();
     device.apply(&stream_page(&mut server,"alice",from),false).unwrap();
+    assert_eq!(device.query("received","alice",&json!({"authorId":"alice"}),now).unwrap().data,Value::Int(1));
+    assert_eq!(device.query("received","alice",&json!({"authorId":"alice"}),now+60_001).unwrap().data,Value::Int(0));
     let expired = device.query("answers", "alice", &json!({}), now + 60_001).unwrap().data;
     assert_eq!(expired, server.query("answers",context("alice",&[]).at(now + 60_001)).unwrap().data);
     let (_, next) = compile(SOURCE);
@@ -91,6 +112,9 @@ fn activation<H: Host>(host: &mut H) {
     assert_eq!(device.query("allLikes", "alice", &json!({}), 1000).unwrap_err().code, "E_PREDICT", "adoption requires a new snapshot");
     for (i,page) in snapshot_pages(&mut server,"alice",1).iter().enumerate() { device.apply(page,i==0).unwrap(); }
     assert_eq!(device.query("answers","alice",&json!({}),1000).unwrap().data,server.query("answers",context("alice",&[]).at(1000)).unwrap().data);
+    for (author, count) in [(json!("bob"),1),(json!("alice"),0),(serde_json::Value::Null,1)] {
+        assert_eq!(device.query("received","alice",&json!({"authorId":author}),1000).unwrap().data,Value::Int(count));
+    }
     let (_, removed) = compile(&bare);
     let seq = server.seq().unwrap();
     server.adopt(removed.schema.clone(), removed.programs.clone()).unwrap();
@@ -124,10 +148,10 @@ mutation leave():
 "#;
     // Public subset delivery is an admitted core schema form. Quarry currently
     // requires sync to invert the read rule, so exercise that wire form here.
-    let source = format!("{members}\n{}", SOURCE.replacen("  by byExpiry:", "  by byAuthor: authorId, id\n  by byExpiry:", 1));
+    let source = format!("{members}\n{}\nquery allPosts():\n  return posts first 100 by byId\n", SOURCE.replacen("  by byExpiry:", "  by byAuthor: authorId, id\n  by byExpiry:", 1));
     let (_, mut backend) = compile(&source);
     let posts = backend.schema.tables.get_mut("posts").unwrap();
-    posts.sync = Some(snapback4_core::schema::Sync { audience:snapback4_core::schema::Audience::Target { table:"members".into(),prefix:vec!["authorId".into()],principal:"principal".into() },horizon:None });
+    posts.sync = Some(snapback4_core::schema::Sync { audience:snapback4_core::schema::Audience::Target { table:"members".into(),prefix:vec!["authorId".into()],principal:"principal".into() },horizon:Some(snapback4_core::schema::Horizon { last:1, by:"byAuthor".into() }) });
     posts.leave = snapback4_core::schema::LeavePolicy::DeliveredHistory;
     backend.schema.tables.get_mut("receivedReplies").unwrap().sync = None;
     let mut server = snapback4_core::Engine::memory(backend.schema.clone(),backend.programs.clone()).unwrap();
@@ -141,16 +165,20 @@ mutation leave():
     let queued=device.admit(queued("p",1,1000)).unwrap();
     assert!(!queued.predictable && queued.predicted.is_empty(), "{}: {queued:?}",host.label());
     let from=server.seq().unwrap();
-    server.seed_delete("posts", "p").unwrap();
+    assert!(device.query("allPosts", "alice", &json!({}), 1000).unwrap().data.as_array().unwrap().iter().any(|r| r.field("id").unwrap() == &id("p")));
+    server.seed([post("z-new", "alice", Value::Null)]).unwrap();
     server.seed([("members".into(),snapback4_core::value::object([("id",id("m2")),("authorId",id("alice")),("principal",id("alice"))]))]).unwrap();
     device.apply(&stream_page(&mut server,"alice",from),false).unwrap();
+    assert!(device.query("allPosts", "alice", &json!({}), 1000).unwrap().data.as_array().unwrap().iter().any(|r| r.field("id").unwrap() == &id("p")));
     let again = device.admit(super::recorded::queued("p",2,1000)).unwrap();
     assert!(!again.predictable && again.predicted.is_empty(), "a rejoined group cannot certify an old retained image: {again:?}");
+    assert_eq!(device.queued().unwrap().len(), 2);
     let from=server.seq().unwrap();
-    server.seed([post("fresh","alice",Value::Null)]).unwrap();
+    server.seed([post("zz-fresh","alice",Value::Null)]).unwrap();
     device.apply(&stream_page(&mut server,"alice",from),false).unwrap();
-    let fresh = device.admit(super::recorded::queued("fresh",3,1000)).unwrap();
+    let fresh = device.admit(super::recorded::queued("zz-fresh",3,1000)).unwrap();
     assert!(fresh.predictable && !fresh.predicted.is_empty(), "a fresh covered image in a rejoined group predicts: {fresh:?}");
+    assert_eq!(device.query("received","alice",&json!({"authorId":"alice"}),1000).unwrap().data,Value::Int(1));
     host.close("retained",device);
 }
 #[test]
@@ -161,19 +189,21 @@ fn forged<H: Host>(host: &mut H) {
     for kind in ["insert", "update", "upsert"] {
         let (_, mut backend) = compile(SOURCE);
         let program = backend.programs.iter_mut().find(|p| p.name == "like").unwrap();
-        let row = object([("id",id("forged")),("postId",id("p")),("principal",id("alice")),("at",Value::Int(100)),("postId.authorId",id("alice"))]);
+        let row = object([("id",id("forged")),("postId",id("p")),("principal",id("alice")),("at",Value::Int(100)),("postId.authorId",id("mallory"))]);
         program.body = vec![match kind {
-            "update" => Stmt::Update { table:"likes".into(), key:Expr::Literal(id("l")), patch:Expr::Literal(object([("postId.authorId",id("alice"))])) },
+            "update" => Stmt::Update { table:"likes".into(), key:Expr::Literal(id("l")), patch:Expr::Literal(object([("postId.authorId",id("mallory"))])) },
             "upsert" => Stmt::Upsert { table:"likes".into(), key:Expr::Literal(id("forged")), row:Expr::Literal(row) },
             _ => Stmt::Insert { table:"likes".into(), row:Expr::Literal(row) },
         }];
-        backend.schema.operations.clear();
+
         let mut server = Engine::memory(backend.schema.clone(),backend.programs.clone()).unwrap();
         server.seed([post("p","alice",Value::Null),("likes".into(),object([("id",id("l")),("postId",id("p")),("principal",id("alice")),("at",Value::Int(100))]))]).unwrap();
         backend.generation = server.generation();
         let mut device = host.open(kind,Some(backend)).unwrap();
         for (i,page) in snapshot_pages(&mut server,"alice",100).iter().enumerate() { device.apply(page,i==0).unwrap(); }
-        assert_eq!(device.admit(queued("p",1,1000)).unwrap_err().refusal().code,"E_RECORDED_FIELD", "{kind}");
+        let error = device.admit(queued("p",1,1000)).unwrap_err();
+        assert_eq!(error.refusal().code,"E_RECORDED_FIELD", "{kind}");
+        assert!(error.to_string().contains("postId.authorId"));
         assert!(device.queued().unwrap().is_empty());
         host.close(kind,device);
     }
@@ -209,3 +239,38 @@ fn clique<H: Host>(host: &mut H) {
 }
 #[test]
 fn clique_answers_on_both_stores() { clique(&mut Sqlite::new("recorded-clique")); clique(&mut Memory::new()); }
+
+fn membership_expiry<H: Host>(host: &mut H, retain: bool) {
+    use snapback4_core::{schema::{Audience, Sync, LeavePolicy}, value::object};
+    let source = format!("table members:\n  authorId: principal\n  principal: principal\n  until: time ?\n  unique byAuthorPrincipal: authorId, principal\n  by byPrincipal: principal, authorId\n  by byExpiry: until, id\n  expire at .until\n  read <- allow\n  sync public\n{}", SOURCE.replacen("  by byExpiry:", "  by byAuthor: authorId, id\n  by byExpiry:", 1));
+    let (_, mut backend) = compile(&source);
+    let posts = backend.schema.tables.get_mut("posts").unwrap();
+    posts.sync = Some(Sync { audience: Audience::Target { table: "members".into(), prefix: vec!["authorId".into()], principal: "principal".into() }, horizon: None });
+    posts.leave = if retain { LeavePolicy::DeliveredHistory } else { LeavePolicy::UntilRevoked };
+    backend.schema.tables.get_mut("receivedReplies").unwrap().sync = None;
+    let mut server = snapback4_core::Engine::memory(backend.schema.clone(), backend.programs.clone()).unwrap();
+    let expires = snapback4_core::now_ms() + 60_000;
+    server.seed([("members".into(), object([("id",id("m")), ("authorId",id("alice")), ("principal",id("alice")), ("until",Value::Int(expires))])),post("p","alice",Value::Null)]).unwrap();
+    backend.generation = server.generation();
+    let name = if retain { "expiry-retained" } else { "expiry-revoked" };
+    let mut device = host.open(name, Some(backend)).unwrap();
+    for (i,page) in snapshot_pages(&mut server,"alice",100).iter().enumerate() { device.apply(page,i==0).unwrap(); }
+    let good = device.admit(queued("p",1,expires-1)).unwrap();
+    assert!(good.predictable);
+    let before = device.query("received","alice",&json!({"authorId":"alice"}),expires+1).unwrap().data;
+    let expired = device.admit(queued("p",2,expires+1)).unwrap();
+    assert!(!expired.predictable && expired.predicted.is_empty(), "expired membership before sweep/scope delivery: {expired:?}");
+    assert_eq!(device.query("received","alice",&json!({"authorId":"alice"}),expires+1).unwrap().data, before);
+    assert_eq!(device.queued().unwrap().len(), 2);
+    server.seed([post("uncovered","alice",Value::Null)]).unwrap();
+    for (n,target) in [(3,"uncovered"),(4,"absent")] {
+        let out = device.admit(queued(target,n,expires-1)).unwrap();
+        assert!(!out.predictable && out.predicted.is_empty());
+        assert_eq!(device.query("received","alice",&json!({"authorId":"alice"}),expires-1).unwrap().data,before);
+    }
+    host.close(name,device);
+}
+#[test]
+fn membership_expiry_before_sweep_and_scope_on_both_stores() {
+    for retain in [true, false] { membership_expiry(&mut Sqlite::new("recorded-expiry"),retain); membership_expiry(&mut Memory::new(),retain); }
+}

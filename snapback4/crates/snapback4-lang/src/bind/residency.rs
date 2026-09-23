@@ -52,7 +52,7 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
             if matches!(kind, "insert" | "insert-if-absent" | "upsert") {
                 for (path, recorded) in &definition.recorded {
                     let mut dependency = site(schema, &format!("{kind} {table}"), &recorded.table, "byId", "recorded attribution");
-                    dependency.reason = format!("{table}.{path} implicitly reads {}.byId: prediction needs the target row live and covered by the current partition; otherwise queues without a row", recorded.table);
+                    dependency.reason = format!("{table}.{path} implicitly reads {}.byId: prediction needs the target row live and covered by the current partition; otherwise queues unpredicted", recorded.table);
                     fact.sites.push(dependency);
                 }
             }

@@ -773,15 +773,24 @@ mod tests {
         // The language dev-dependency links the non-test core; round-trip its
         // schema into this unit-test crate's types at the normal text boundary.
         let schema: crate::schema::Schema = serde_json::from_str(&serde_json::to_string(&bound.schema).unwrap()).unwrap();
+        assert_eq!(schema.tables["likes"].recorded["postId.authorId"].table,"posts");
+        assert_eq!(schema.tables["likes"].columns["postId.authorId"],crate::schema::ColumnType::Optional(Box::new(crate::schema::ColumnType::Principal)));
         let mut engine = Engine::memory(schema.clone(), []).unwrap();
+        let row = |table: &str, value: serde_json::Value| (table.to_owned(),crate::wire::row_from_json(&schema.tables[table],&value).unwrap());
+        engine.seed([row("posts",json!({"id":"p","authorId":"alice","at":100})),row("likes",json!({"id":"l","postId":"p","principal":"alice","at":100}))]).unwrap();
         let tx = engine.store.transaction().unwrap();
+        let stored = tx.get("likes","l").unwrap();
         let mut runner = Runner::new(&tx, &schema, Context::system().at(1000), Meter::new(Ceilings::job(), Cut::Abort), 1);
         for request in [
-            json!({"op":"insert", "table":"likes", "row":{"id":"l", "postId":"p", "principal":"alice", "at":100, "postId.authorId":"alice"}}),
+            json!({"op":"insert", "table":"likes", "row":{"id":"forged", "postId":"p", "principal":"alice", "at":100, "postId.authorId":"mallory"}}),
             json!({"op":"update", "table":"likes", "id":"l", "patch":{"postId.authorId":null}}),
+            json!({"op":"update", "table":"likes", "id":"l", "patch":{"postId.authorId":"alice"}}),
+            json!({"op":"upsert", "table":"likes", "id":"l", "row":{"id":"l","postId.authorId":"mallory"}}),
         ] {
             let error = dispatch(&mut runner, "forger", request["op"].as_str().unwrap(), &request).unwrap_err();
             assert_eq!(error.code(), "E_RECORDED_FIELD", "{error}");
+            assert_eq!(tx.get("likes","l").unwrap(),stored);
+            assert_eq!(tx.get("likes","forged").unwrap(),None);
         }
         tx.rollback().unwrap();
     }

@@ -156,7 +156,9 @@ impl Runner<'_> {
         self.refuse_engine_owned(table_name, Effect::Update)?;
         self.refuse_recorded(table_name, patch)?;
         for path in self.schema.tables[table_name].recorded.keys() {
-            if old.field(path).ok() != new.field(path).ok() { return Err(RuntimeError::Structural { code: "E_RECORDED_FIELD", message: format!("{table_name}.{path} cannot change after capture; omit it from the update (guide maintains)") }); }
+            if old.field(path).ok() != new.field(path).ok() {
+                return Err(if readable { RuntimeError::Structural { code: "E_RECORDED_FIELD", message: format!("engine replacement changed stored attribution at {table_name}.{path} (guide maintains)") } } else { self.no_write_target() });
+            }
         }
         let new = self.with_asset_facts(table_name, new, Some(&old), (!readable).then_some(patch))?;
         if let Err(error) = validate_row(self.schema, table_name, &new) { return Err(if readable { error } else { self.no_write_target() }); }
@@ -349,7 +351,7 @@ impl Runner<'_> {
         }
         for constraint in &table.constraints {
             match constraint {
-                Constraint::Unique { .. } | Constraint::Text { .. } | Constraint::FinalExistsOnInsert { .. } => {}
+                Constraint::Recorded | Constraint::Unique { .. } | Constraint::Text { .. } | Constraint::FinalExistsOnInsert { .. } => {}
                 Constraint::AppendOnly => {
                     if effect != Effect::Insert {
                         return Err(RuntimeError::Constraint(format!("{table_name} is append-only")));
@@ -548,9 +550,9 @@ impl Runner<'_> {
         #[cfg(all(feature = "sqlite", not(feature = "web-device-check")))]
         if !self.event_free { partition::row_changed(self, table_name, old, new)?; }
         #[cfg(not(feature = "sqlite"))]
-        partition::account_row_change::<false>(self, table_name, old, new)?;
+        if !self.event_free { partition::account_row_change::<false>(self, table_name, old, new)?; }
         #[cfg(all(feature = "sqlite", feature = "web-device-check"))]
-        if self.device { partition::account_row_change::<false>(self, table_name, old, new)?; }
+        if self.device { if !self.event_free { partition::account_row_change::<false>(self, table_name, old, new)?; } }
         else if !self.event_free { partition::row_changed(self, table_name, old, new)?; }
         if origin == Origin::Source {
             self.place_assets(table_name, &table, old, new)?;

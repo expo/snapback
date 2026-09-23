@@ -257,12 +257,16 @@ impl Parser {
         while !self.at("]") {
             let key_site = self.peek().site.clone();
             let mut column = None;
-            if self.at_kind(Kind::Word) && self.peek_at(1).value == "=" {
-                column = Some(self.word()?.value);
+            let mut end = 1;
+            if self.at_kind(Kind::Word) {
+                while self.peek_at(end).value == "." && self.peek_at(end + 1).kind == Kind::Word { end += 2; }
+            }
+            if self.at_kind(Kind::Word) && self.peek_at(end).value == "=" {
+                column = Some(self.maintain_column()?);
                 self.take("=")?;
             }
-            if column.is_none() && self.at_kind(Kind::Word) && matches!(self.peek_at(1).value.as_str(), ">" | ">=" | "<" | "<=") {
-                let column = self.word()?.value;
+            if column.is_none() && self.at_kind(Kind::Word) && matches!(self.peek_at(end).value.as_str(), ">" | ">=" | "<" | "<=") {
+                let column = self.maintain_column()?;
                 let op = self.peek().value.clone();
                 self.position += 1;
                 let value = self.expression(0, &[",", "]"])?;

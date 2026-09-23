@@ -34,7 +34,9 @@ pub(super) fn events<T: DeviceTx>(tx: &T, schema: &Schema, events: &[StreamEvent
     if joined.is_empty() && !events.iter().any(|event| schema.table(&event.table).is_some_and(|table| table.leave == LeavePolicy::DeliveredHistory)) { return Ok(()); }
     let meta = if staged { STAGED_GROUPS } else { GROUPS };
     let mut groups = load(tx, meta)?;
-    let recording_targets: BTreeSet<_> = schema.tables.values().flat_map(|table| table.recorded.values().map(|field| field.table.as_str())).collect();
+    let joined: BTreeMap<String, BTreeSet<String>> = joined.iter().map(|(name, groups)| {
+        Ok((name.clone(), groups.iter().map(encoded).collect::<Result<_, RuntimeError>>()?))
+    }).collect::<Result<_, RuntimeError>>()?;
     for event in events {
         let Some(table) = schema.table(&event.table).filter(|table| table.sync.is_some() && table.leave == LeavePolicy::DeliveredHistory) else { continue };
         match event.kind.as_str() {
@@ -43,10 +45,13 @@ pub(super) fn events<T: DeviceTx>(tx: &T, schema: &Schema, events: &[StreamEvent
                 let row = wire::row_from_json(table, event.data.as_ref().ok_or_else(|| RuntimeError::Input("event row is missing".into()))?).map_err(RuntimeError::Input)?;
                 let entries = groups.entry(event.table.clone()).or_default();
                 let key = row_key(table, &row)?;
-                let membership = entries.entry(key).or_insert(Membership::Held);
-                if staged || !recording_targets.contains(event.table.as_str()) { *membership = Membership::Held; }
-                if *membership == Membership::Left { *membership = Membership::Rejoined(BTreeSet::new()); }
-                if let Membership::Rejoined(ids) = membership { ids.insert(row.field("id")?.as_str()?.to_owned()); }
+                let joining = joined.get(&event.table).is_some_and(|groups| groups.contains(&key));
+                // A put alone proves neither full acquisition nor departure.
+                if joining { entries.entry(key.clone()).or_insert(Membership::Rejoined(BTreeSet::new())); }
+                if let Some(membership) = entries.get_mut(&key) {
+                    if joining && !matches!(membership, Membership::Rejoined(_)) { *membership = Membership::Rejoined(BTreeSet::new()); }
+                    if let Membership::Rejoined(ids) = membership { ids.insert(row.field("id")?.as_str()?.to_owned()); }
+                }
             }
             _ => {}
         }
@@ -54,10 +59,10 @@ pub(super) fn events<T: DeviceTx>(tx: &T, schema: &Schema, events: &[StreamEvent
     for (name, joined) in joined {
         for group in joined {
             let entries = groups.entry(name.clone()).or_default();
-            let key = encoded(group)?;
-            let membership = entries.entry(key).or_insert(Membership::Held);
-            if staged || !recording_targets.contains(name.as_str()) { *membership = Membership::Held; }
-            else if *membership == Membership::Left { *membership = Membership::Rejoined(BTreeSet::new()); }
+            let membership = entries.entry(group).or_insert(Membership::Left);
+            // A fresh join can race ahead of the old scope event. Previous
+            // Held state cannot certify images retained across that gap.
+            if !matches!(membership, Membership::Rejoined(_)) { *membership = Membership::Rejoined(BTreeSet::new()); }
         }
     }
     tx.set_meta(meta, &encoded(&groups)?)
