@@ -206,7 +206,9 @@ export const allow = [
   // Retirement of the duplicate oversized-sync path returned these exact
   // calls to `stream`; their named owner must still be sqlite-only.
   { file: core + 'partition.rs', item: 'stream', line: 'let group: Vec<Value> = serde_json::from_str(group).map_err(|e| RuntimeError::Store(e.to_string()))?;' },
-  ...['stream', 'expand_joins'].map(item => ({ file: core + 'partition.rs', item, line: 'let group: Vec<Value> = serde_json::from_str(&event.id).map_err(|e| RuntimeError::Store(e.to_string()))?;' })),
+  // F2 moved the held-join certification from `stream` into `expand_joins`,
+  // which reuses the group it already parsed; one sqlite-only call remains.
+  { file: core + 'partition.rs', item: 'expand_joins', line: 'let group: Vec<Value> = serde_json::from_str(&event.id).map_err(|e| RuntimeError::Store(e.to_string()))?;' },
   { file: core + 'partition.rs', item: 'stream', line: 'let group_values: Vec<Value> = serde_json::from_str(group).map_err(|e| RuntimeError::Store(e.to_string()))?;' },
   { file: core + 'engine/receipt.rs', item: 'from_receipt', line: 'let body: Json = serde_json::from_str(text).map_err(|e| RuntimeError::Store(e.to_string()))?;' },
   { file: core + 'engine/receipt.rs', item: 'from_receipt', line: 'let mut why: Refusal = serde_json::from_value(body["why"].clone()).map_err(|e| RuntimeError::Store(e.to_string()))?;' },
