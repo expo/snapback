@@ -118,7 +118,7 @@ pub struct Runner<'a> {
     pub(crate) charged_untaken: bool,
     pub(crate) maintain_prepaid: bool,
     pub(crate) maintain_heap: u64,
-    pub(super) timeline_authority: Option<String>,
+    pub(super) timeline_authority: Option<super::timeline_authority::Authority>,
 }
 
 impl<'a> Runner<'a> {

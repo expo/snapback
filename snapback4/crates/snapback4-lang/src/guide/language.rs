@@ -455,7 +455,7 @@ mutation timelineRegister():
 mutation timelinePublish():
   return insert timelineCards { authorId: viewer, at: now }
 mutation timelineFollow(authorId: principal):
-  insert timelineFollows { followerId: viewer, followedId: authorId } if absent
+  insert timelineFollows { followerId: viewer, followedId: authorId, at: now } if absent
 mutation timelineRemove(postId: timelineCards):
   update timelineCards[postId] { removed: true }
 query timelineHome(c: cursor ?):

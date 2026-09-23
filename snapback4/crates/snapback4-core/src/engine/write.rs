@@ -28,7 +28,7 @@ impl Runner<'_> {
     }
 
     fn insert_mode(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
-        self.refuse_engine_owned(table_name)?;
+        self.refuse_engine_owned(table_name, Effect::Insert)?;
         let row = self.with_defaults(table_name, row)?;
         if !self.check_rule(table_name, Effect::Insert, None, &row)? {
             return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Insert });
@@ -78,7 +78,7 @@ impl Runner<'_> {
     }
 
     fn update_attempt(&mut self, table_name: &str, key: &Value, patch: Value) -> Result<(), RuntimeError> {
-        self.refuse_engine_owned(table_name)?;
+        self.refuse_engine_owned(table_name, Effect::Update)?;
         if patch.as_object()?.contains_key("id") {
             return Err(RuntimeError::Input(format!("{table_name} update patch cannot change id")));
         }
@@ -99,7 +99,7 @@ impl Runner<'_> {
     }
 
     fn upsert_attempt(&mut self, table_name: &str, key: &Value, row: Value) -> Result<(), RuntimeError> {
-        self.refuse_engine_owned(table_name)?;
+        self.refuse_engine_owned(table_name, Effect::Update)?;
         let id = key.as_str()?;
         if row.field("id")?.as_str()? != id {
             return Err(RuntimeError::Input(format!("{table_name} upsert row id must equal its key")));
@@ -162,7 +162,7 @@ impl Runner<'_> {
     }
 
     fn delete_attempt(&mut self, table_name: &str, id: &str) -> Result<(), RuntimeError> {
-        self.refuse_engine_owned(table_name)?;
+        self.refuse_engine_owned(table_name, Effect::Delete)?;
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?.clone();
         // @ref LLP 3000.007#20.9 — delete prepays hidden contribution work before fetching its old image, with the same attempt lifetime as update.
         self.reserve_maintains(table_name, &table)?;
@@ -299,10 +299,11 @@ impl Runner<'_> {
     }
 
     /// Programs never write a maintained target; the engine does.
-    pub(super) fn refuse_engine_owned(&self, table: &str) -> Result<(), RuntimeError> {
+    pub(super) fn refuse_engine_owned(&self, table: &str, effect: Effect) -> Result<(), RuntimeError> {
         self.refuse_condition_write()?;
-        if self.schema.timelines.iter().any(|timeline| timeline.owns(table)) && !self.timeline_may_write(table) {
-            return Err(super::timeline::refusal("E_TIMELINE_OWNED", format!("{table} belongs to a timeline; write its mapped application rows instead")));
+        self.refuse_timeline_purge_write(table, effect)?;
+        if self.schema.timelines.iter().any(|timeline| timeline.owns(table)) && !self.timeline_may_write(table, effect) {
+            return Err(super::timeline::refusal("E_TIMELINE_OWNED", format!("{table} belongs to a timeline; write its mapped application profiles, posts, reposts or follows instead")));
         }
         if self.schema.maintain_for(table).is_some() {
             return Err(RuntimeError::Schema(format!("{table} is a maintained aggregate; write its source rows instead")));
@@ -498,6 +499,7 @@ impl Runner<'_> {
     /// The shared tail of every physical row change: creation facts, the
     /// write meter, maintained aggregates, and the partition events.
     pub(super) fn row_changed(&mut self, table_name: &str, old: Option<&Value>, new: Option<&Value>, origin: Origin) -> Result<(), RuntimeError> {
+        if old.is_some() && new.is_none() { self.timeline_purge_charge(table_name)?; }
         self.written_tables.insert(table_name.to_owned());
         self.rows_written += 1;
         if origin == Origin::Maintained { self.charge_maintain(MeterKind::RowsWritten, 1)?; }
@@ -539,7 +541,7 @@ impl Runner<'_> {
         if origin == Origin::Source {
             self.place_assets(table_name, &table, old, new)?;
             self.maintain(table_name, old, new)?;
-            self.timeline_transition(table_name, old, new)?;
+            if self.schema.timelines.iter().any(|t| t.maps(table_name)) { self.timeline_transition(table_name, old, new)?; }
         }
         Ok(())
     }

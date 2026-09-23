@@ -63,26 +63,27 @@ pub fn following(prefix: &str, module: &str) -> Result<String, String> {
 
 pub fn following_sized(prefix: &str, module: &str, caps: FollowingCaps) -> Result<String, String> {
     // @ref LLP 3000.007#20.3 — promotion requires every follower's route in the triggering follow transaction.
-    let source = crate::guide::quarry(crate::guide::card("feeds").unwrap()).remove(0);
+    let card = crate::guide::card("feeds").ok_or("Following recipe card is missing")?;
+    let source = crate::guide::quarry(card).into_iter().next().ok_or("Following recipe has no Quarry schema")?;
     // @ref LLP 3000.007#20.3 — size metadata while keeping backfill within the promotion write allowance.
     let (doc, errors) = crate::parse_document("feed.q", &source);
     if !errors.is_empty() { return Err(errors.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n")); }
     let mut lines = source.lines().map(str::to_owned).collect::<Vec<_>>();
     for (name, max) in [("authors", caps.authors), ("follows", caps.edges), ("pulls", caps.routes), ("pullCounts", caps.routes)] {
-        let table = doc.tables.iter().find(|t| t.name == name).expect("recipe table");
-        let cap = table.caps.iter().find(|c| c.by.is_empty()).expect("recipe global cap");
-        lines[cap.site.line as usize - 1] = format!("  cap {max}");
+        let table = doc.tables.iter().find(|t| t.name == name).ok_or_else(|| format!("Following recipe is missing table {name}"))?;
+        let cap = table.caps.iter().find(|c| c.by.is_empty()).ok_or_else(|| format!("Following recipe is missing {name}'s global cap"))?;
+        *lines.get_mut((cap.site.line as usize).saturating_sub(1)).ok_or("Following cap has an invalid source span")? = format!("  cap {max}");
     }
-    let follow = doc.functions.iter().find(|f| f.name == "addFollow").expect("recipe follow helper");
-    let FunctionBody::Block(body) = &follow.body else { unreachable!("recipe follow body") };
+    let follow = doc.functions.iter().find(|f| f.name == "addFollow").ok_or("Following recipe is missing addFollow")?;
+    let FunctionBody::Block(body) = &follow.body else { return Err("Following addFollow must have a block body".into()); };
     let stop = body.iter().find_map(|stmt| match stmt {
         Stmt::For { domain: Expr::Read(read), body, .. } if read.table == "posts" => body.iter().find_map(|stmt| match stmt {
             Stmt::If { condition: Expr::Binary { left, .. }, site, .. } if matches!(left.as_ref(), Expr::Name { name, .. } if name == "visited") => Some(site),
             _ => None,
         }),
         _ => None,
-    }).expect("recipe backfill stop");
-    lines[stop.line as usize - 1] = format!("    if visited = {}:", caps.backfill());
+    }).ok_or("Following recipe is missing its bounded backfill stop")?;
+    *lines.get_mut((stop.line as usize).saturating_sub(1)).ok_or("Following backfill has an invalid source span")? = format!("    if visited = {}:", caps.backfill());
     let source = lines.join("\n") + "\n";
     // @ref LLP 3000.007#20.3 — a wired app owns mutation authority; installed recipe operations are helpers, never a second client write API.
     let source = if prefix.is_empty() { source } else {

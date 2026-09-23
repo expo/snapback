@@ -32,6 +32,7 @@ pub mod validate;
 pub mod write;
 mod maintains;
 pub(crate) mod timeline;
+mod timeline_authority;
 mod write_target;
 mod receipt;
 pub(crate) mod presence;

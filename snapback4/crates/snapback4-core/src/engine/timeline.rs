@@ -26,13 +26,13 @@ pub(crate) fn check_activation(tx: &crate::store::Tx<'_>, schema: &crate::schema
         Ok(tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM r JOIN _catalog c ON r.t = c.num WHERE c.name = ?1)", [table], |row| row.get(0))?)
     };
     for old in &previous.timelines {
-        if schema.timelines.contains(old) { continue; }
+        if schema.timelines.iter().any(|new| old.same_declaration(new)) { continue; }
         for table in previous.tables.keys().filter(|name| old.owns(name) || old.event_tables().contains(&name.as_str())) {
             if populated(table)? { return Err(refusal("E_TIMELINE_REDEFINE", "a populated timeline cannot be removed or redefined; preserve its declaration, or use a fresh store in dev")); }
         }
     }
     for new in &schema.timelines {
-        if previous.timelines.contains(new) { continue; }
+        if previous.timelines.iter().any(|old| old.same_declaration(new)) { continue; }
         for table in new.event_tables() {
             if populated(table)? { return Err(refusal("E_TIMELINE_ACTIVATE", "declare the timeline before event and edge data exists; profiles may already exist; in dev use a fresh store")); }
         }
@@ -48,11 +48,11 @@ pub(crate) fn check_activation(tx: &crate::store::Tx<'_>, schema: &crate::schema
 #[cfg(feature = "sqlite")]
 pub(crate) fn activate_profiles(tx: &crate::store::Tx<'_>, schema: &crate::schema::Schema, previous: Option<&crate::schema::Schema>) -> Result<(), RuntimeError> {
     use crate::{Context, Ceilings, meter::{Meter, Cut}};
-    let added: Vec<_> = schema.timelines.iter().filter(|t| previous.is_none_or(|old| !old.timelines.contains(t))).collect();
+    let added: Vec<_> = schema.timelines.iter().filter(|t| previous.is_none_or(|old| !old.timelines.iter().any(|prior| prior.same_declaration(t)))).collect();
     if added.is_empty() { return Ok(()); }
     let mut runner = Runner::new(tx, schema, Context::system().at(crate::now_ms()), Meter::new(Ceilings::unbounded(), Cut::Abort), 0);
     for t in added {
-        runner.timeline_authority = Some(t.name.clone());
+        let mut runner = runner.timeline_scope(super::timeline_authority::Authority::Transition(t.name.clone()));
         let profiles = runner.timeline_scan(&t.authors[0], "byId", vec![], 1001, false)?;
         if profiles.len() > 1000 {
             return Err(refusal("E_TIMELINE_ACTIVATE", "activation can register at most 1000 authors; reduce the existing profiles before declaring the timeline"));
@@ -73,6 +73,11 @@ fn require(condition: bool, code: &str) -> Result<(), RuntimeError> {
     if condition { Ok(()) } else { Err(RuntimeError::Require { site: None, code: code.into() }) }
 }
 
+#[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
+fn required(value: Option<Value>, code: &str) -> Result<Value, RuntimeError> {
+    value.ok_or_else(|| RuntimeError::Require { site: None, code: code.into() })
+}
+
 impl Runner<'_> {
     // F3a queues these mutations. Do not ship the unreachable server transition
     // implementation in the web device; F3b owns enabling device derivation.
@@ -84,25 +89,21 @@ impl Runner<'_> {
         Ok(())
     }
 
-    pub(super) fn timeline_may_write(&self, table: &str) -> bool {
-        self.timeline_authority.as_ref().is_some_and(|name| self.schema.timelines.iter().any(|t| &t.name == name && t.owns(table)))
-    }
-
     // @ref LLP 3000.007.003#33-f3-the-following-recipes-contract-as-a-declaration — process actual transitions, including delete/reinsert in one mutation.
     #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
     pub(super) fn timeline_transition(&mut self, table: &str, old: Option<&Value>, new: Option<&Value>) -> Result<(), RuntimeError> {
         let timelines: Vec<_> = self.schema.timelines.iter().filter(|timeline| timeline.maps(table)).cloned().collect();
         for timeline in timelines {
             if self.device { return Err(refusal("E_TIMELINE_SERVER", "timeline transitions queue without prediction; execute this mutation on the server")); }
-            let authority = self.timeline_authority.replace(timeline.name.clone());
+            let mut guard = self.timeline_scope(super::timeline_authority::Authority::Transition(timeline.name.clone()));
+            let runner = &mut *guard;
             // Internal scans cannot take ownership of an application's returned page.
-            let page = self.page.take();
-            let depth = self.page_depth;
-            self.page_depth += 1;
-            let result = self.timeline_apply(&timeline, table, old, new);
-            self.page_depth = depth;
-            self.page = page;
-            self.timeline_authority = authority;
+            let page = runner.page.take();
+            let depth = runner.page_depth;
+            runner.page_depth += 1;
+            let result = runner.timeline_apply(&timeline, table, old, new);
+            runner.page_depth = depth;
+            runner.page = page;
             result?;
         }
         Ok(())
@@ -135,8 +136,13 @@ impl Runner<'_> {
                     let was_removed = field(old, &t.posts[3])? == Value::Bool(true);
                     if was_removed && !removed { return Err(refusal("E_TIMELINE_REMOVAL", "a removed post cannot be restored; keep its flag true and insert a new post for new content")); }
                     if removed && !was_removed {
-                        if let Some(event) = self.timeline_get(&t.table("Posts"), "byActorPost", vec![field(old, &t.posts[1])?, field(old, "id")?, Value::Bool(false)])? {
-                            self.timeline_remove(t, &event)?;
+                        let event = self.timeline_get(&t.table("Posts"), "byActorPost", vec![field(old, &t.posts[1])?, field(old, "id")?, Value::Bool(false)])?;
+                        if let Some(event) = event { self.timeline_remove(t, &event)?; }
+                        else {
+                            self.timeline_tombstone(t, field(old, "id")?, field(old, &t.posts[1])?)?;
+                            if let Some(copy) = self.timeline_get(&t.table("Broadcast"), "byReaderEvent", vec![field(old, &t.posts[1])?, field(old, "id")?])? {
+                                self.delete(&t.table("Broadcast"), &text(&copy, "id")?)?;
+                            }
                         }
                     }
                 }
@@ -147,8 +153,7 @@ impl Runner<'_> {
                     let actor = text(row, &t.reposts[1])?;
                     self.timeline_profile(t, &actor)?;
                     let post = self.timeline_get(&t.posts[0], "byId", vec![field(row, &t.reposts[2])?])?;
-                    require(post.is_some(), "FEED_APP_NOT_FOUND")?;
-                    let post = post.unwrap();
+                    let post = required(post, "FEED_APP_NOT_FOUND")?;
                     let original = self.timeline_get(&t.table("Posts"), "byActorPost", vec![field(&post, &t.posts[1])?, field(&post, "id")?, Value::Bool(false)])?;
                     require(original.is_some(), "FEED_POST_NOT_FOUND")?;
                     let mode = self.timeline_mode(t, &actor)?;
@@ -178,21 +183,22 @@ impl Runner<'_> {
 
     #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
     fn timeline_profile(&mut self, t: &Timeline, principal: &str) -> Result<(), RuntimeError> {
-        let index = self.schema.tables[&t.authors[0]].indexes.iter().find(|(_, index)| index.unique && index.is_plain() && index.columns() == [t.authors[1].clone()]).unwrap().0.clone();
+        let table = self.schema.table(&t.authors[0]).ok_or_else(|| refusal("E_TIMELINE_SHAPE", "timeline author table is missing"))?;
+        let index = table.indexes.iter().find(|(_, index)| index.unique && index.is_plain() && index.columns() == [t.authors[1].clone()])
+            .map(|(name, _)| name.clone()).ok_or_else(|| refusal("E_TIMELINE_SHAPE", "timeline author identity index is missing"))?;
         require(self.timeline_get(&t.authors[0], &index, vec![Value::Id(principal.into())])?.is_some(), "FEED_APP_NOT_FOUND")
     }
 
     #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
     fn timeline_register(&mut self, t: &Timeline, actor: &str) -> Result<Value, RuntimeError> {
         if let Some(mode) = self.timeline_get(&t.table("Authors"), "byPrincipal", vec![Value::Id(actor.into())])? { return Ok(mode); }
-        self.timeline_insert(&t.table("Authors"), object([("principal", Value::Id(actor.into())), ("shared", Value::Bool(false))]))
+        self.timeline_insert(t, "Authors", &[Value::Id(actor.into())], object([("principal", Value::Id(actor.into())), ("shared", Value::Bool(false))]))
     }
 
     #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
     fn timeline_mode(&mut self, t: &Timeline, actor: &str) -> Result<Value, RuntimeError> {
         let mode = self.timeline_get(&t.table("Authors"), "byPrincipal", vec![Value::Id(actor.into())])?;
-        require(mode.is_some(), "FEED_AUTHOR_NOT_FOUND")?;
-        Ok(mode.unwrap())
+        required(mode, "FEED_AUTHOR_NOT_FOUND")
     }
 
     #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
@@ -205,7 +211,7 @@ impl Runner<'_> {
             }
         } else {
             self.timeline_copy(t, event, &actor, false)?;
-            for edge in self.timeline_scan(&t.edges[0], &t.follower_index, vec![Value::Id(actor)], 1000, false)? {
+            for edge in self.timeline_scan(&t.edges[0], &t.followed_index, vec![Value::Id(actor)], 1000, false)? {
                 self.timeline_copy(t, event, &text(&edge, &t.edges[1])?, false)?;
             }
         }
@@ -218,14 +224,21 @@ impl Runner<'_> {
         let row = object([("readerId", Value::Id(reader.into())), ("eventId", field(event, "id")?),
             ("actorId", field(event, "actorId")?), ("authorId", field(event, "authorId")?),
             ("postId", field(event, "postId")?), ("repost", field(event, "repost")?), ("at", field(event, "at")?)]);
-        self.timeline_insert(&t.table(if shared { "Broadcast" } else { "Feed" }), row)?;
+        let key = if shared { vec![field(event, "id")?] } else { vec![Value::Id(reader.into()), field(event, "id")?] };
+        self.timeline_insert(t, if shared { "Broadcast" } else { "Feed" }, &key, row)?;
+        Ok(())
+    }
+
+    #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
+    fn timeline_tombstone(&mut self, t: &Timeline, event: Value, actor: Value) -> Result<(), RuntimeError> {
+        self.timeline_insert(t, "RemovedEvents", &[event.clone()], object([("eventId", event), ("actorId", actor)]))?;
         Ok(())
     }
 
     #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
     fn timeline_remove(&mut self, t: &Timeline, event: &Value) -> Result<(), RuntimeError> {
         let id = text(event, "id")?;
-        self.insert(&t.table("RemovedEvents"), object([("id", Value::Id(id.clone())), ("eventId", Value::Id(id.clone())), ("actorId", field(event, "actorId")?)]))?;
+        self.timeline_tombstone(t, Value::Id(id.clone()), field(event, "actorId")?)?;
         if field(event, "shared")? == Value::Bool(true) {
             if let Some(row) = self.timeline_get(&t.table("Broadcast"), "byReaderEvent", vec![field(event, "actorId")?, Value::Id(id.clone())])? {
                 self.delete(&t.table("Broadcast"), &text(&row, "id")?)?;
@@ -242,11 +255,11 @@ impl Runner<'_> {
         if used == 32 { return Ok(false); }
         // The ordinary source path deliberately executes Pulls -> PullTotals.
         // It is never an Origin::Maintained write that silently skips this edge.
-        self.timeline_insert(&t.table("Pulls"), object([("readerId", Value::Id(reader.into())), ("authorId", Value::Id(author.into()))]))?;
+        self.timeline_insert(t, "Pulls", &[Value::Id(reader.into()), Value::Id(author.into())], object([("readerId", Value::Id(reader.into())), ("authorId", Value::Id(author.into()))]))?;
         if let Some(slots) = slots {
             self.update(&t.table("PullCounts"), &field(&slots, "id")?, object([("used", Value::Int(used + 1))]))?;
         } else {
-            self.timeline_insert(&t.table("PullCounts"), object([("readerId", Value::Id(reader.into())), ("used", Value::Int(used + 1))]))?;
+            self.timeline_insert(t, "PullCounts", &[Value::Id(reader.into())], object([("readerId", Value::Id(reader.into())), ("used", Value::Int(used + 1))]))?;
         }
         Ok(true)
     }
@@ -261,11 +274,11 @@ impl Runner<'_> {
         let mode = self.timeline_mode(t, &author)?;
         if field(&mode, "shared")? == Value::Bool(true) {
             require(self.timeline_pull(t, &reader, &author, &reader)?, "FEED_PULL_CAP")?;
-        } else if self.timeline_scan(&t.edges[0], &t.follower_index, vec![Value::Id(author.clone())], 51, false)?.len() > 50 {
+        } else if self.timeline_scan(&t.edges[0], &t.followed_index, vec![Value::Id(author.clone())], 51, false)?.len() > 50 {
             require(self.timeline_pull(t, &reader, &author, &reader)?, "FEED_PULL_CAP")?;
             self.update(&t.table("Authors"), &field(&mode, "id")?, object([("shared", Value::Bool(true))]))?;
             self.timeline_pull(t, &author, &author, &reader)?;
-            for follower in self.timeline_scan(&t.edges[0], &t.follower_index, vec![Value::Id(author.clone())], 1000, false)? {
+            for follower in self.timeline_scan(&t.edges[0], &t.followed_index, vec![Value::Id(author.clone())], 1000, false)? {
                 require(self.timeline_pull(t, &text(&follower, &t.edges[1])?, &author, &reader)?, "FEED_PROMOTION_PULL_CAP")?;
             }
         }
@@ -286,8 +299,7 @@ impl Runner<'_> {
         if let Some(route) = self.timeline_get(&t.table("Pulls"), "byReaderAuthor", vec![reader.clone(), author])? {
             self.delete(&t.table("Pulls"), &text(&route, "id")?)?;
             let slots = self.timeline_get(&t.table("PullCounts"), "byReader", vec![reader])?;
-            require(slots.is_some(), "FEED_PULL_COUNT_MISSING")?;
-            let slots = slots.unwrap();
+            let slots = required(slots, "FEED_PULL_COUNT_MISSING")?;
             let used = slots.field("used")?.as_int()?;
             if used == 1 { self.delete(&t.table("PullCounts"), &text(&slots, "id")?)?; }
             else { self.update(&t.table("PullCounts"), &field(&slots, "id")?, object([("used", Value::Int(used - 1))]))?; }
@@ -296,12 +308,12 @@ impl Runner<'_> {
     }
 
     #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
-    fn timeline_insert(&mut self, table: &str, row: Value) -> Result<Value, RuntimeError> {
+    fn timeline_insert(&mut self, t: &Timeline, suffix: &str, key: &[Value], row: Value) -> Result<Value, RuntimeError> {
         let mut fields = row.as_object()?.clone();
-        fields.insert("id".into(), Value::Id(self.context.mint()?));
+        fields.insert("id".into(), Value::Id(crate::schema::timeline::owned_id(&t.name, suffix, key)));
         let row = Value::Row(fields.into());
         self.meter.heap(row.heap_bytes())?;
-        self.insert(table, row.clone())?;
+        self.insert(&t.table(suffix), row.clone())?;
         Ok(row)
     }
 

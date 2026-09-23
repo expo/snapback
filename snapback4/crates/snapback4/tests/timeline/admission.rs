@@ -4,6 +4,7 @@ use snapback4_core::{Context, Engine, Value, WriteState, ir::{Program,ProgramKin
 #[test]
 fn admission_refuses_every_unsupported_bridge_shape_and_missing_edge_bound() {
     let source=format!("{APP}{DECLARATION}");
+    compile(&source);
     let cases = [
         ("authors profiles by principal","authors posts by authorId","E_TIMELINE_SHAPE"),
         ("principal: principal","principal: text <=50","E_TIMELINE_SHAPE"),
@@ -23,6 +24,7 @@ fn admission_refuses_every_unsupported_bridge_shape_and_missing_edge_bound() {
         ("insert <- .followerId = viewer","insert <- allow","E_TIMELINE_SHAPE"),
         ("update <- .authorId = viewer","update <- allow","E_TIMELINE_SHAPE"),
         ("immutable authorId, at","immutable authorId","E_TIMELINE_SHAPE"),
+        ("postId: posts\n  at: time","postId: posts\n  at: int","E_TIMELINE_SHAPE"),
         ("insert <- .principal = viewer","insert <- .principal = viewer\n  delete <- allow","E_TIMELINE_SHAPE"),
         ("update <- .authorId = viewer","update <- .authorId = viewer\n  delete <- .authorId = viewer","E_TIMELINE_SHAPE"),
         ("delete <- .actorId = viewer","delete <- deny","E_TIMELINE_SHAPE"),
@@ -36,13 +38,21 @@ fn admission_refuses_every_unsupported_bridge_shape_and_missing_edge_bound() {
         ("cap 1000 by followerId","cap 999 by followerId","E_TIMELINE_FOLLOWS"),
         ("cap 1000 by followedId","cap 999 by followedId","E_TIMELINE_FOLLOWS"),
         ("cap 100000","cap 99999","E_TIMELINE_FOLLOWS"),
-        ("by byFollowed: followedId, followerId","by byFollowed: at, followerId","E_TIMELINE_FOLLOWS"),
+        ("by byFollowed: followedId, followerId","by byFollowed: followerId, followedId","E_TIMELINE_FOLLOWS"),
+        ("cap 1000 by followerId", "", "E_TIMELINE_FOLLOWS"),
+        ("cap 1000 by followedId", "", "E_TIMELINE_FOLLOWS"),
+        ("cap 100000", "", "E_TIMELINE_FOLLOWS"),
+        ("cap 1000 by followerId", "cap 1001 by followerId", "E_TIMELINE_FOLLOWS"),
+        ("cap 1000 by followedId", "cap 1001 by followedId", "E_TIMELINE_FOLLOWS"),
+        ("cap 100000", "cap 100001", "E_TIMELINE_FOLLOWS"),
+        ("delete <- .actorId = viewer", "delete <- allow", "E_TIMELINE_SHAPE"),
+        ("delete <- .followerId = viewer", "delete <- allow", "E_TIMELINE_SHAPE"),
     ];
     for (from,to,code) in cases {
         let changed=source.replacen(from,to,1);assert_ne!(changed,source);
         let b=snapback4_lang::compile(&[("schema.q".into(),changed)]);
         let d=b.diagnostics.iter().find(|d|d.code==code).unwrap_or_else(||panic!("{from}: {:?}",b.diagnostics));
-        assert_eq!(d.guide,"feeds");assert!(!d.rewrite.is_empty());
+        assert_eq!(d.guide,"feeds");assert!(!d.rewrite.is_empty());assert!(b.schema.timelines.is_empty());
     }
     for extra in ["table feedAuthors:\n  x: int\n", "mutation feedPurgeRemoved():\n  return null\n"] {
         let b=snapback4_lang::compile(&[("schema.q".into(),format!("{source}\n{extra}"))]);
@@ -83,14 +93,19 @@ fn timeline_read_shape_and_server_run_classification() {
 #[test]
 fn all_owned_tables_refuse_principal_and_system_program_writes() {
     for table in OWNED {
-        let b=bound(true);
-        let mut programs:Vec<_>=b.programs.into_iter().map(|p|p.program).collect();
-        let bad=Program { name: "bad".into(), kind: ProgramKind::Mutation, args: Default::default(), read_time_granularity_ms: None, body: vec![Stmt::Delete{table:table.into(),key:Expr::Literal(id("anything"))}], returned_shapes: Default::default(), native: false };
-        programs.push(bad);
-        let mut e=Engine::memory(b.schema,programs).unwrap();
-        for ctx in [context("a",&[],1),Context::system().at(1)] {
-            let out=e.mutate("bad",None,ctx).unwrap();
-            assert!(matches!(&out.state,WriteState::Failed{why,..} if why.code=="E_TIMELINE_OWNED"),"{table}: {out:?}");
+        for (kind, statement) in [
+            ("insert",Stmt::Insert{table:table.into(),row:Expr::Literal(snapback4_core::value::object([("id",id("anything"))]))}),
+            ("update",Stmt::Update{table:table.into(),key:Expr::Literal(id("anything")),patch:Expr::Literal(snapback4_core::value::object([] as [(&str,Value);0]))}),
+            ("delete",Stmt::Delete{table:table.into(),key:Expr::Literal(id("anything"))}),
+        ] {
+            for ctx in [context("a",&[],1),Context::system().at(2)] {
+                let b=bound(true); let mut programs:Vec<_>=b.programs.into_iter().map(|p|p.program).collect();
+                programs.push(Program { name: "bad".into(), kind: ProgramKind::Mutation, args: Default::default(), read_time_granularity_ms: None, body: vec![statement.clone()], returned_shapes: Default::default(), native: false });
+                let mut e=Engine::memory(b.schema,programs).unwrap();let before=snapshot(&e);
+                let out=e.mutate("bad",None,ctx).unwrap();
+                assert!(matches!(&out.state,WriteState::Failed{why,..} if why.code=="E_TIMELINE_OWNED"),"{table} {kind}: {out:?}");
+                assert_eq!(snapshot(&e),before);assert_eq!(out.metered.rows_written,0);
+            }
         }
     }
 }
@@ -114,10 +129,15 @@ mutation deletePost(postId: posts):
     let out=e.mutate("publish",None,context("a",&[("postId",id("initial")),("removed",Value::Bool(true))],1)).unwrap();
     assert!(matches!(&out.state,WriteState::Failed{why,..} if why.code=="E_TIMELINE_REMOVAL"));
     assert!(rows(&e,"posts").is_empty());
+    for table in ["feedPosts", "feedRemovedEvents", "feedFeed", "feedBroadcast"] {assert!(rows(&e,table).is_empty());}
     e.mutate("publish",None,context("a",&[("postId",id("p")),("removed",Value::Bool(false))],2)).unwrap();
-    for (who,flag,code,writes) in [("b",true,Some("E_RULE"),0),("a",false,None,1),("a",true,None,3),("a",true,None,1),("a",false,Some("E_TIMELINE_REMOVAL"),0)] {
-        let before=snapshot(&e);let out=e.mutate("flag",None,context(who,&[("postId",id("p")),("removed",Value::Bool(flag))],3)).unwrap();
+    for (n,(who,flag,code,writes)) in [("b",true,Some("E_RULE"),0),("a",false,None,1),("a",true,None,3),("a",true,None,1),("a",false,Some("E_TIMELINE_REMOVAL"),0)].into_iter().enumerate() {
+        let before=snapshot(&e);let out=e.mutate("flag",None,context(who,&[("postId",id("p")),("removed",Value::Bool(flag))],3+n as i64)).unwrap();
         if let Some(code)=code {assert!(matches!(&out.state,WriteState::Failed{why,..} if why.code==code),"{out:?}");assert_eq!(snapshot(&e),before);} else {assert!(matches!(out.state,WriteState::Sent{..}),"{out:?}");assert_eq!(out.metered.rows_written,writes);}
     }
-    for op in ["changeTime","deletePost"] {let out=e.mutate(op,None,context("a",&[("postId",id("p"))],4)).unwrap();assert!(matches!(out.state,WriteState::Failed{..}),"{op}: {out:?}");}
+    for (n,(op,code)) in [("changeTime","E_CONSTRAINT"),("deletePost","E_RULE")].into_iter().enumerate() {
+        let before=snapshot(&e);let out=e.mutate(op,None,context("a",&[("postId",id("p"))],20+n as i64)).unwrap();
+        assert!(matches!(&out.state,WriteState::Failed{why,..} if why.code==code),"{op}: {out:?}");
+        assert_eq!(snapshot(&e),before);assert_eq!(out.metered.rows_written,0);
+    }
 }

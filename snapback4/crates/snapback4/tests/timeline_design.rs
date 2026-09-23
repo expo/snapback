@@ -104,15 +104,21 @@ fn ruled_promotion_write_headroom_and_atomic_overflow() {
     }
 
     let mut single = engine(false);
-    let mut full_single = Engine::memory(single.schema().clone(), single.programs().cloned().collect::<Vec<_>>()).unwrap();
-    let durable = single.schema().tables.keys().flat_map(|t| single.store().rows(t).unwrap().into_iter().map(move |r| (t.clone(),r))).collect::<Vec<_>>();
-    full_single.load_trusted(durable).unwrap();
+    let mut full_single = engine(false);
     let full = run(&mut full_single,0);
     assert!(matches!(full.state,WriteState::Sent{..}));
     assert_eq!(full.metered.rows_written,1023);
+    assert_eq!(rows(&full_single,"follows"),51);assert_eq!(rows(&full_single,"notes"),0);
+    assert_eq!(rows(&full_single,"feedFeed"),1000+51*865);
+    for table in ["feedPulls","feedPullCounts","feedPullTotals"] {assert_eq!(rows(&full_single,table),52);}
+    let mut events=full_single.store().rows("feedFeed").unwrap().into_iter().filter(|r|r.field("readerId").unwrap()==&Value::Id("reader".into())).map(|r|r.field("eventId").unwrap().as_str().unwrap().to_string()).collect::<Vec<_>>();events.sort();
+    assert_eq!(events,(135..1000).map(|n|format!("event-{n:04}")).collect::<Vec<_>>());
     println!("one mapped edge: state={:?}, written={}, metered={:?}",full.state,full.metered.rows_written,full.metered);
     let before = rows(&single, "feedFeed");
+    let snapshot=|e:&Engine|e.schema().tables.keys().map(|t|(t.clone(),e.store().rows(t).unwrap())).collect::<std::collections::BTreeMap<_,_>>();
+    let before_all=snapshot(&single);
     let overflow = run(&mut single, 2);
+    assert_eq!(snapshot(&single),before_all);
     assert!(matches!(&overflow.state, WriteState::Failed { why, .. } if why.code == "E_BOUND"), "{overflow:?}");
     assert_eq!(rows(&single, "feedFeed"), before, "overflow must not shorten history");
     assert_eq!(rows(&single, "follows"), 50);
@@ -144,6 +150,8 @@ fn eager_registration_preserves_recipe_admitted_posting_ceiling() {
         let mapping = Mapping::parse("profiles:principal", "posts:authorId:at", "follows:followerId:followedId", "reposts:actorId:postId:at").unwrap();
         let register = if declared { "return p.id" } else { "feedAppRegister(p.id)" };
         let publish = if declared { "return p.id" } else { "feedAppPublish(p.id)" };
+        let read=if declared {"feed[viewer] last 20"} else {"merge feedFeed last 20 by byReaderTime where not exists feedRemovedEvents[eventId = .eventId]:\n    [viewer]\n    feedBroadcast[p.authorId] for p in feedPulls[viewer] by byReaderAuthor"};
+        let identity=if declared {".id"} else {".eventId"};
         // Literal bounded application work: exactly 1,021 ordinary notes.
         let operations = format!(r#"
 mutation register():
@@ -154,6 +162,14 @@ mutation firstPost():
     insert notes {{ owner: viewer }}
   p = insert posts {{ id: 'first', authorId: viewer, at: now }}
   {publish}
+mutation firstPostOverflow():
+  for i in range(0, 1022):
+    insert notes {{ owner: viewer }}
+  p = insert posts {{ id: 'first', authorId: viewer, at: now }}
+  {publish}
+query following():
+  events = {read}
+  return events {{ id: {identity} }}
 "#);
         let mut sources = vec![("schema.q".into(), format!("{APP}{}{operations}", if declared { DECLARATION } else { "" }))];
         if !declared {
@@ -164,12 +180,23 @@ mutation firstPost():
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
         let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
         sent(&mut engine, "register", "author", [], 0);
+        assert_eq!(rows(&engine,"feedAuthors"),1);assert_eq!(rows(&engine,"feedPosts"),0);
+        let before=engine.schema().tables.keys().map(|t|(t.clone(),engine.store().rows(t).unwrap())).collect::<std::collections::BTreeMap<_,_>>();
+        let overflow=engine.mutate("firstPostOverflow",None,Context::new("author",Default::default()).at(1)).unwrap();
+        assert!(matches!(&overflow.state,WriteState::Failed{why,..} if why.code=="E_BOUND"),"{overflow:?}");assert_eq!(overflow.metered.rows_written,1025);
+        assert_eq!(engine.schema().tables.keys().map(|t|(t.clone(),engine.store().rows(t).unwrap())).collect::<std::collections::BTreeMap<_,_>>(),before);
         let outcome = engine.mutate("firstPost", None, Context::new("author", Default::default()).at(1)).unwrap();
         println!("first post declared={declared}: state={:?}, rows_written={}, notes={}, posts={}, modes={}",
             outcome.state, outcome.metered.rows_written, rows(&engine, "notes"), rows(&engine, "posts"), rows(&engine, "feedAuthors"));
         assert_eq!(rows(&engine, "notes"), 1021);
         assert_eq!(rows(&engine, "posts"), 1);
         assert_eq!(rows(&engine, "feedAuthors"), 1);
+        assert_eq!(rows(&engine,"feedPosts"),1);assert_eq!(rows(&engine,"feedFeed"),1);
+        assert_eq!(engine.store().rows("feedFeed").unwrap()[0].field("readerId").unwrap(),&Value::Id("author".into()));
+        assert_eq!(engine.store().rows("feedFeed").unwrap()[0].field("eventId").unwrap(),&Value::Id("first".into()));
+        assert_eq!(rows(&engine,"feedBroadcast"),0);assert_eq!(rows(&engine,"feedRemovedEvents"),0);
+        let page=engine.query("following",Context::new("author",Default::default()).at(2)).unwrap();
+        assert_eq!(page.data.as_array().unwrap(),&[snapback4_core::value::object([("id",Value::Id("first".into()))])]);
         outcomes.push(outcome);
     }
     assert!(matches!(outcomes[0].state, WriteState::Sent { .. }));

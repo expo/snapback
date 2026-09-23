@@ -22,7 +22,7 @@ fn following_and_posting_latency_envelope() {
                 let start=std::time::Instant::now();
                 let page=e.query("following",Context::new(reader,Default::default()).at(100000)).unwrap();
                 if n>=3 {times.push(start.elapsed().as_secs_f64()*1000.0);}
-                assert!(page.complete);assert_eq!(page.data.as_array().unwrap().len(),20);last=Some(page);
+                assert!(page.complete); assert!(page.next.is_some());assert_eq!(page.data.as_array().unwrap().len(),20);last=Some(page);
             }
             times.sort_by(f64::total_cmp);
             let (cold,_)=e.snapshot_at(reader,100000).unwrap();

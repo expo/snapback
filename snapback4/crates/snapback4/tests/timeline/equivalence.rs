@@ -35,10 +35,13 @@ fn clique_trace_posts_reposts_removals_refollow_purge_and_profiles() {
     }
     p.equal();
     assert!(rows(&p.declared,"feedRemovedEvents").is_empty());
+    for e in [&p.recipe,&p.declared] {assert!(rows(e,"feedFeed").iter().all(|r|r.field("eventId").unwrap()!=&id("p000")));}
+    assert_eq!(p.pages("reader","following").len(),25);
     p.sent("deleteProfile","author",&[]);
     p.equal();
     assert_eq!(rows(&p.declared,"feedAuthors").len(),3);
     p.register("author");
+    assert_eq!(rows(&p.declared,"feedAuthors").len(),3);
     p.equal();
     p.pages("reader","following");
 }
@@ -55,13 +58,20 @@ fn backfill_visits_900_pushed_then_100_shared_and_keeps_765() {
     let full = p.step("publish","author",&[("postId",id("overflow"))]);
     assert!(matches!(&full[0].state,WriteState::Failed{why,..} if why.code=="E_CONSTRAINT"));
     p.equal();
-    let copies = rows(&p.declared,"feedFeed").into_iter().filter(|r| r.field("readerId").unwrap()==&id("late")).count();
-    assert_eq!(copies,765);
-    assert_eq!(p.pages("late","following").len(),865);
-    p.sent("unfollow","late",&[("authorId",id("author"))]);
-    p.follow("late","author");
-    p.equal(); p.pages("late","following");
-    // An established-head drain cut and an opening cut use the same merge.
+    for refollow in [false,true] {
+        if refollow {p.sent("unfollow","late",&[("authorId",id("author"))]);p.follow("late","author");}
+        for e in [&p.recipe,&p.declared] {
+            let mut copies:Vec<_>=rows(e,"feedFeed").into_iter().filter(|r|r.field("readerId").unwrap()==&id("late"))
+                .map(|r|r.field("eventId").unwrap().as_str().unwrap().to_string()).collect();
+            copies.sort();assert_eq!(copies,(135..900).map(|n|format!("p{n:04}")).collect::<Vec<_>>());
+        }
+        let page=p.pages("late","following");
+        assert_eq!(page.iter().map(|r|r.field("id").unwrap().clone()).collect::<Vec<_>>(),(135..1000).rev().map(|n|id(&format!("p{n:04}"))).collect::<Vec<_>>());
+        p.equal();
+    }
+    // Opening cuts may lack a lane head: compare both engines, without
+    // promising a prefix of lanes the meter has not opened.
+    let unlimited=p.pages("late","following");let mut cuts=Vec::new();
     for examined in [3,25] {
         for e in [&mut p.recipe,&mut p.declared] {
             let mut ceilings = snapback4_core::Ceilings::default(); ceilings.examined=examined; e.set_ceilings(ceilings);
@@ -70,7 +80,11 @@ fn backfill_visits_900_pushed_then_100_shared_and_keeps_765() {
         let b=p.declared.query("following",context("late",&[],p.at)).unwrap();
         assert_eq!((&a.data,a.complete,&a.next,&a.cut),(&b.data,b.complete,&b.next,&b.cut));
         assert!(!a.complete,"{a:?}");
+        assert!(a.next.is_none());
+        cuts.push(a.data.as_array().unwrap().to_vec());
     }
+    assert!(cuts[1].len()>cuts[0].len());assert!(cuts[1].starts_with(&cuts[0]));
+    for cut in cuts {assert!(cut.iter().all(|row|unlimited.contains(row)));}
 }
 
 #[test]
@@ -142,5 +156,13 @@ fn time_ties_page_by_event_id_and_tombstones_fill_the_page() {
     for n in 0..45 {p.sent("publishAt","a",&[("postId",id(&format!("tie{n:02}"))),("at",Value::Int(10))]);}
     let page=p.pages("r","following");assert_eq!(page[0].field("id").unwrap(),&id("tie44"));assert_eq!(page[44].field("id").unwrap(),&id("tie00"));
     for n in 20..45 {p.sent("remove","a",&[("postId",id(&format!("tie{n:02}")))]);}
-    p.equal();let page=p.pages("r","following");assert_eq!(page.len(),20);assert_eq!(page[0].field("id").unwrap(),&id("tie19"));
+    p.equal();
+    for e in [&mut p.recipe,&mut p.declared] {
+        let page=e.query("following",context("r",&[],p.at)).unwrap();
+        assert_eq!(page.data.as_array().unwrap().iter().map(|r|r.field("id").unwrap().clone()).collect::<Vec<_>>(),(0..20).rev().map(|n|id(&format!("tie{n:02}"))).collect::<Vec<_>>());
+    }
+    p.sent("publishAt","a",&[("postId",id("aaa-newest")),("at",Value::Int(30))]);
+    p.sent("publishAt","a",&[("postId",id("zzz-middle")),("at",Value::Int(20))]);
+    let page=p.pages("r","following");
+    assert_eq!(page[0].field("id").unwrap(),&id("aaa-newest"));assert_eq!(page[1].field("id").unwrap(),&id("zzz-middle"));
 }

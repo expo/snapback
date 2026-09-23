@@ -155,7 +155,8 @@ impl Runner<'_> {
     }
 
     fn apply_aggregate(&mut self, maintain: &Maintain, key: Vec<Value>, change: i128, source_present: Option<bool>) -> Result<(), RuntimeError> {
-        let id = maintained_id(&key);
+        let id = self.schema.timelines.iter().find(|t| t.owns(&maintain.target))
+            .map_or_else(|| maintained_id(&key), |t| crate::schema::timeline::owned_id(&t.name, "PullTotals", &key));
         let target = self.schema.table(&maintain.target).expect("validated").clone();
         self.charge_maintain(MeterKind::Examined, 1)?;
         let existing = self.tx.get(&maintain.target, &id)?;

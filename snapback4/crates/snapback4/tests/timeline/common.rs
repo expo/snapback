@@ -90,7 +90,7 @@ pub fn normalized(e: &Engine) -> BTreeMap<String, Vec<String>> {
         let mut rows: Vec<_> = rows(e, name).into_iter().map(|mut row| {
             // Storage identities of route/mode/copy/application edge rows are
             // independently minted. Event identities are public and stay exact.
-            if !matches!(name.as_str(), "feedPosts" | "feedRemovedEvents" | "posts") {
+            if !matches!(name.as_str(), "feedPosts" | "posts") {
                 if let Value::Row(fields) = &mut row { fields.remove("id"); }
             }
             snapback4_core::value::canonical_json(&row)
@@ -102,28 +102,52 @@ pub struct Pair { pub recipe: Engine, pub declared: Engine, pub at: i64 }
 impl Pair {
     pub fn new() -> Self { Self { recipe: engine(false), declared: engine(true), at: 1 } }
     pub fn step(&mut self, op: &str, viewer: &str, args: &[(&str,Value)]) -> [MutationOutcome;2] {
-        let before_edges = rows(&self.recipe, "feedFollows").len();
+        self.step_inner(op, viewer, args, true)
+    }
+    fn step_inner(&mut self, op: &str, viewer: &str, args: &[(&str,Value)], expecting_refusal: bool) -> [MutationOutcome;2] {
+        let before = expecting_refusal.then(|| [snapshot(&self.recipe), snapshot(&self.declared)]);
+        let before_edges = rows(&self.recipe, "feedFollows");
         let a = self.recipe.mutate(op, None, context(viewer,args,self.at)).unwrap();
         let b = self.declared.mutate(op, None, context(viewer,args,self.at)).unwrap();
         self.at += 1;
         match (&a.state,&b.state) {
             (WriteState::Sent{..},WriteState::Sent{..}) => {
-                let edge_writes = if op == "refollow" { 2 } else { before_edges.abs_diff(rows(&self.recipe,"feedFollows").len()) as u64 };
+                let after_edges = rows(&self.recipe, "feedFollows");
+                let edge_writes = before_edges.iter().filter(|r| !after_edges.contains(r)).count() as u64
+                    + after_edges.iter().filter(|r| !before_edges.contains(r)).count() as u64;
                 assert_eq!(a.metered.rows_written, b.metered.rows_written + edge_writes, "{op} for {viewer}: writes");
             }
-            (WriteState::Failed{why:a,..},WriteState::Failed{why:b,..}) => assert_eq!(a.code,b.code,"{op} for {viewer}"),
+            (WriteState::Failed{why:left,..},WriteState::Failed{why:right,..}) => {
+                assert_eq!(left.code,right.code,"{op} for {viewer}");
+                let before=before.expect("an expected-success step refused");
+                assert_eq!(snapshot(&self.recipe), before[0], "recipe refusal {op}");
+                assert_eq!(snapshot(&self.declared), before[1], "F3 refusal {op}");
+                // Refusal meters describe attempted work, not committed writes.
+                // The recipe executes interpreted guards; F3 has engine transitions.
+                let written=match (op,left.code.as_str()) {
+                    ("follow","FEED_APP_NOT_FOUND")=>[0,1],
+                    (_,"FEED_PULL_CAP")=>[2,1],
+                    (_,"FEED_PROMOTION_PULL_CAP")=>[9,8],
+                    (_,"FEED_PULL_COUNT_MISSING")=>[3,3],
+                    (_,"FEED_CANNOT_FOLLOW_SELF"|"FEED_APP_NOT_FOUND"|"FEED_POST_NOT_FOUND"|"FEED_EVENT_REMOVED"|"E_CONSTRAINT")=>[1,1],
+                    other=>panic!("price the refused trace {other:?}"),
+                };
+                assert_eq!([a.metered.rows_written,b.metered.rows_written],written,"{op}: {}",left.code);
+                assert!(a.tables.is_empty() && b.tables.is_empty());assert_eq!((a.events,b.events),(0,0));
+            },
             _ => panic!("{op} for {viewer}: recipe {:?}; F3 {:?}",a.state,b.state),
         }
         [a,b]
     }
     pub fn sent(&mut self, op: &str, viewer: &str, args: &[(&str,Value)]) -> [MutationOutcome;2] {
-        let out = self.step(op,viewer,args);
+        let out = self.step_inner(op,viewer,args,false);
         assert!(matches!(out[0].state,WriteState::Sent{..}),"{op}: {:?}",out[0]); out
     }
     pub fn register(&mut self, viewer: &str) { self.sent("register",viewer,&[]); }
     pub fn follow(&mut self, viewer: &str, author: &str) { self.sent("follow",viewer,&[("authorId",id(author))]); }
     pub fn publish(&mut self, actor: &str, post: &str) { self.sent("publish",actor,&[("postId",id(post))]); }
     pub fn equal(&self) {
+        assert!(!self.declared.schema().tables.contains_key("feedFollows"));
         let a=normalized(&self.recipe); let b=normalized(&self.declared);
         for (table,rows) in &a { assert_eq!(rows,&b[table],"table {table}"); }
         assert_eq!(a.len(),b.len());
@@ -148,7 +172,7 @@ impl Pair {
             })).collect();
             assert_eq!(cursors[0],cursors[1]);
             all.extend(pages[0].data.as_array().unwrap().iter().cloned());
-            if pages[0].next.is_none() { return all; }
+            if pages[0].next.is_none() && pages[1].next.is_none() { return all; }
             next = [pages[0].next.clone(),pages[1].next.clone()];
         }
         panic!("timeline did not terminate")

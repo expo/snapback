@@ -257,12 +257,15 @@ impl Engine {
         let mut context = Context::system().at(now).with_presence(presence);
         context.args = head.args.clone();
         let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(Ceilings::job(), Cut::Abort), seq);
-        runner.timeline_authority = self.schema.timelines.iter().find(|timeline| timeline.purge == program.name).map(|timeline| timeline.name.clone());
+
         // The sweep's upper key is captured when it begins: a row the body
         // inserts beyond it is never visited, so a sweep over its own
         // table ends.
         let site = format!("{}:{}", program.name, sweep + 1);
+        let authority = super::timeline_authority::Authority::purge(&self.schema, &program.name);
         let outcome = (|| {
+            let mut guard = runner.timeline_scope(authority);
+            let runner = &mut *guard;
             // @ref LLP 3000.007#5.2 — replay setup for every chunk, in its transaction and under its meter.
             if let Flow::Return(_) = runner.statements(setup, &format!("{site}:prelude"))? {
                 return Ok((Chunk { last_key: None, visited: 0, ended: true, finished: true }, None));
@@ -275,7 +278,7 @@ impl Engine {
                 }
             };
             match upper {
-                Some(upper) => sweep_chunk(&mut runner, scan, head.cursor.as_deref(), &upper, binding, body, &site).map(|chunk| (chunk, Some(upper))),
+                Some(upper) => sweep_chunk(runner, scan, head.cursor.as_deref(), &upper, binding, body, &site).map(|chunk| (chunk, Some(upper))),
                 None => Ok((Chunk { last_key: None, visited: 0, ended: true, finished: false }, None)),
             }
         })();
