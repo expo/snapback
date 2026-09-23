@@ -12,7 +12,7 @@
 **Failure signature:** `sha256:a26370abfb2ea9eaeb208ba2455d41de367fd678d741038694a2fb5ca27ff0aa`
 **Causal landing:** `none — record-epoch-off-first-parent`
 **Detected at:** `cca6a2d0b1fc14f337f592c880e260242b97fd9b`
-**Last observed:** `272deaea60a4496cc80ae232da310e452ea6929b`
+**Last observed:** `507a610cc644a9ef520153e634eb9cbd6ad72e8c`
 **Attribution:** `record-epoch-off-first-parent`
 **Related:** LLP 0175 §D2.1
 
