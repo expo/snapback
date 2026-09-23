@@ -46520,3 +46520,33 @@ The original cal16 grade and score stay frozen.
 Grok subsequently marked both the exact Swift cache and host file-oracle
 deltas READY at01:37:53 UTC. Both requested review families now approve the
 complete frozen corrective implementation.
+
+## 2026-09-22 — 0.3 program: the server half behind `use server` (LLP 3000.009.000)
+
+Action and route declarations, and schedules that name an action, now need a
+project-wide `use server`. It can be in any module, and repeating it is
+harmless. Otherwise they refuse with `E_SERVER_REQUIRED`, whose rewrite is the
+directive and whose guide pointer is actions or routes.
+
+Effects keep their full shared surface: contexts, secrets, retry, deadline,
+cancellation, `ctx.step` and parking. `snapback4/server` and `snapback4/worker`
+keep every export, and a new effect-only acceptance test runs generated code
+without the directive.
+
+The cards now teach the core first. The language card's server forms sit in a
+"With `use server`" section, and action-bound minting and OIDC moved to
+`SERVER.md`. The actions card's stale sentence on effect steps is fixed. The
+Expo starter drops its optional invitation action, derived by parsing the
+schema.
+
+Implemented by an Astra xhigh lane on the black M5 Max, with one fix round.
+
+- **First review:** Astra READY; Grok READY WITH CHANGES across 12 packets.
+  Three of Grok's "not ready" claims were refuted by running the code:
+  edition-2024 borrow rules, an existing import, and a rewrite that is not
+  mechanical.
+- **Fix round:** Astra READY; Grok's remaining items are test hardening,
+  tracked in issues/20260922-snapback4-use-server-test-hardening.md.
+
+The rebase onto `f54b4c71d` was clean, and `cargo test -p snapback4-lang`
+passed on the rebased tree.
