@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import { DatabaseSync } from 'node:sqlite';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -41,6 +42,7 @@ test('published 0.2.33 rejects F2 stores, serving, backend opening and device ad
   writeFileSync(join(dir, 'snapback/schema.q'), source);
   const run = (bin, args, input = '', cwd = dir) => spawnSync(bin, args, {cwd, input, encoding:'utf8', timeout:20_000});
   const version = run(legacy, ['--version']);
+  assert.equal(createHash('sha256').update(readFileSync(legacy)).digest('hex'),'6a7b34e8fe4b4e142a44aaeac37ddd76c8b5ebccff290088f290bb3770a710f6','published darwin-arm64 0.2.33 bytes');
   assert.match(version.stdout, /snapback4 0\.2\.33/);
   const child = spawn(binary, ['dev','--no-watch','--port','0'], {cwd:dir, stdio:['ignore','pipe','pipe']});
   const exited = once(child, 'exit'); children.push({child,exited});
@@ -66,9 +68,12 @@ test('published 0.2.33 rejects F2 stores, serving, backend opening and device ad
     assert.match(result.stdout+result.stderr,/unknown variant [`'"]?Capabilities/, result.stdout+result.stderr);
   };
   rejected(run(legacy,['device',join(dir,'old-open/device.sqlite'),'backend.json']));
+  const constraints = Object.values(backend.schema.tables).flatMap(table => table.constraints);
+  assert.ok(!constraints.some(c => c === 'Recorded' || c === 'Capabilities'));
+  assert.deepEqual(constraints.filter(c => c?.Capabilities), [{Capabilities:['recorded-attribution']}]);
   const stripped = structuredClone(backend);
   for (const table of Object.values(stripped.schema.tables)) table.constraints = table.constraints.filter(c => !c?.Capabilities);
-  assert.ok(Object.values(stripped.schema.tables).every(table => !table.constraints.some(c => c?.Capabilities)));
+  assert.ok(Object.values(stripped.schema.tables).every(table => !table.constraints.some(c => c === 'Recorded' || c === 'Capabilities' || c?.Capabilities)));
   writeFileSync(join(dir,'unmarked.json'),JSON.stringify(stripped));
   // Positive control: only the strict marker distinguishes this simple F2
   // backend from a schema the old decoder silently accepted.
@@ -109,7 +114,7 @@ test('published 0.2.33 rejects F2 stores, serving, backend opening and device ad
   const plainResponse=await fetch(plainDev.url+'/schema',{headers:{'x-snapback-persona':'alice'}});
   assert.equal(plainResponse.status,200);
   const plainPayload=await plainResponse.json(); const plainBackend=plainPayload.backend??plainPayload;
-  assert.ok(Object.values(plainBackend.schema.tables).every(table=>!Object.keys(table.recorded??{}).length && !table.constraints.some(c => c?.Capabilities)));
+  assert.ok(Object.values(plainBackend.schema.tables).every(table=>!Object.keys(table.recorded??{}).length && !table.constraints.some(c => c === 'Recorded' || c === 'Capabilities' || c?.Capabilities)));
   writeFileSync(join(plain,'backend.json'),JSON.stringify(plainBackend));
   plainDev.child.kill();await plainDev.exited;
   const accepted=run(legacy,['device',join(plain,'device.sqlite'),'backend.json'],JSON.stringify({op:'adopt',backend:plainBackend})+'\n',plain);

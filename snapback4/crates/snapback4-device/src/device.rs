@@ -360,15 +360,18 @@ impl<S: DeviceStore> Device<S> {
 
     fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeError> {
         let kept = store.meta(BACKEND)?;
-        let expected = if initial || backend.is_none() { BTreeMap::from([(BACKEND.to_owned(), kept.clone())]) } else { BTreeMap::new() };
+        // Every opening must understand the saved schema before replacing it,
+        // including an explicit backend. Installation checks this same capture.
+        let expected = BTreeMap::from([(BACKEND.to_owned(), kept.clone())]);
+        let previous = kept.as_deref().map(|text| snapback4_core::json_codec::from_text::<Backend>(text)
+            .map_err(|e| RuntimeError::decode(e, |e| RuntimeError::Store(format!("the kept backend does not parse: {e}")))))
+            .transpose()?;
         let mut backend = if backend.is_none() || (initial && kept.is_some()) {
-            let text = kept.as_ref().ok_or_else(|| RuntimeError::Auth("this device has never synced: the server must be reachable once to open".into()))?;
-            snapback4_core::json_codec::from_text(text).map_err(|e| RuntimeError::decode(e, |e| RuntimeError::Store(format!("the kept backend does not parse: {e}"))))?
+            previous.clone().ok_or_else(|| RuntimeError::Auth("this device has never synced: the server must be reachable once to open".into()))?
         } else { backend.unwrap() };
         backend.schema.prepare_contribution_indexes();
         let held = store.meta(GENERATION)?.and_then(|g| g.parse::<u64>().ok()).unwrap_or(0);
         let reset = held != 0 && held != backend.generation;
-        let previous = store.meta(BACKEND)?.and_then(|text| snapback4_core::json_codec::from_text::<Backend>(&text).ok());
         let keep_images = reset && previous.as_ref()
             .is_some_and(|old| snapback4_core::successor::keeps_literal_default_images(&old.schema, &backend.schema));
         let keep_acquired = keep_images && previous.as_ref().is_some_and(|old| old.schema.tables.len() == backend.schema.tables.len())

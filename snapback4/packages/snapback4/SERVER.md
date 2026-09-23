@@ -502,12 +502,15 @@ stdout/stderr, including across chunks. A missing secret refuses startup.
 that entry and its dependencies explicitly for `serve --worker`. This is not
 a bundled-release or publication claim.
 
-Deploying a 0.3 backend that uses recorded attribution, declared timelines, or
-maintained columns requires 0.3 devices. The schema carries engine-derived
-capability requirements: older devices refuse installation or adoption instead of
-misbehaving, and older engines refuse to open its persisted schema. Upgrade
-devices before deploying these forms. Unknown future requirements refuse with
-`E_SCHEMA_CAPABILITY`; schemas without these forms retain their 0.2.33 encoding.
+Deploying a backend that uses recorded attribution or declared timelines requires
+0.3 devices. Its schema carries engine-derived capability requirements: published
+0.2.33 devices refuse installation, adoption and kept-backend reopening with an
+unknown `Capabilities` enum variant, and 0.2.33 engines refuse to open or serve
+its persisted schema. Upgrade devices before deploying these forms. Current
+engines and devices refuse unknown requirements with `E_SCHEMA_CAPABILITY`,
+including when an explicit backend would replace an unsupported kept backend.
+Downgrading a device below the store's version is unsupported.
+Schemas without these forms retain their 0.2.33 encoding.
 
 `server()` returns a `Worker` with `done` and `principal()`. It reads
 `SNAPBACK_URL` and `SNAPBACK_SERVICE_TOKEN`; `ServerOptions` can supply explicit

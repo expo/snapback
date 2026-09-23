@@ -14,12 +14,15 @@ fn capabilities_are_derived_independently_and_together() {
     let timeline = compile(include_str!("../../snapback4-lang/tests/fixtures/timeline-capability.q"));
     assert_eq!(recorded.required_capabilities(), ["recorded-attribution".into()].into());
     assert_eq!(timeline.required_capabilities(), ["timeline".into()].into());
-    let mut both = timeline;
+    let mut both = timeline.clone();
     both.tables.get_mut("posts").unwrap().recorded = recorded.tables["likes"].recorded.clone();
     assert_eq!(both.required_capabilities(), ["recorded-attribution".into(), "timeline".into()].into());
-    for schema in [recorded, both] {
+    for schema in [recorded, timeline, both] {
         let bytes = serde_json::to_string(&schema).unwrap();
         assert_eq!(bytes.matches("Capabilities").count(), 1);
+        let wire: serde_json::Value = serde_json::from_str(&bytes).unwrap();
+        assert_eq!(wire["tables"][schema.tables.keys().next().unwrap()]["constraints"].as_array().unwrap().last().unwrap(),
+            &json!({"Capabilities":schema.required_capabilities()}));
         let decoded: Schema = serde_json::from_str(&bytes).unwrap();
         assert_eq!(schema, decoded, "wire carrier must not become a physical constraint");
         assert_eq!(serde_json::to_string(&decoded).unwrap(), bytes);
@@ -33,6 +36,25 @@ fn no_capabilities_keeps_the_exact_legacy_bytes() {
     assert_eq!(serde_json::to_string(&empty).unwrap(), r#"{"tables":{},"maintains":[]}"#);
     let schema = Schema { tables: BTreeMap::from([("t".into(), public_table(BTreeMap::new(), BTreeMap::new()))]), ..empty };
     assert_eq!(serde_json::to_string(&schema).unwrap(), r#"{"tables":{"t":{"columns":{},"indexes":{},"rules":{"read":{"Public":{"reason":"fixture"}},"insert":{"Public":{"reason":"fixture"}},"update":{"Public":{"reason":"fixture"}},"delete":{"Public":{"reason":"fixture"}}},"constraints":[],"leave":"until-revoked"}},"maintains":[]}"#);
+    for schema in [Schema::default(), schema] {
+        assert_eq!(serde_json::from_str::<Schema>(&serde_json::to_string(&schema).unwrap()).unwrap(), schema);
+    }
+    assert_eq!(serde_json::from_str::<Schema>(r#"{"tables":{},"future_ignorable":true}"#).unwrap(), Schema::default());
+}
+
+#[test]
+fn legacy_recorded_fixture_decodes_and_emits_only_capabilities() {
+    let text = include_str!("fixtures/legacy-recorded-schema.json");
+    let schema: Schema = serde_json::from_str(text).unwrap();
+    assert_eq!(schema.tables["likes"].recorded.len(), 3);
+    assert_eq!(schema.tables["posts"].recorded.len(), 1);
+    assert!(schema.tables.values().all(|t| !t.constraints.iter().any(|c|
+        matches!(c, snapback4_core::schema::Constraint::Recorded | snapback4_core::schema::Constraint::Capabilities(_)))));
+    assert_eq!(schema.required_capabilities(), ["recorded-attribution".into()].into());
+    let encoded = serde_json::to_string(&schema).unwrap();
+    assert!(!encoded.contains("Recorded"));
+    assert_eq!(encoded.matches("Capabilities").count(), 1);
+    assert_eq!(serde_json::from_str::<Schema>(&encoded).unwrap(), schema);
 }
 
 #[test]

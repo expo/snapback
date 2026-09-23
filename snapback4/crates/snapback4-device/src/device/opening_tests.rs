@@ -37,30 +37,38 @@ impl<S: DeviceStore> DeviceStore for BeforeInstall<S> {
     fn transaction(&mut self) -> Result<Self::Tx<'_>, RuntimeError> { self.store.transaction() }
 }
 
-fn interleaving<S: DeviceStore>(mut store: S, kept: bool) {
+fn interleaving<S: DeviceStore>(mut store: S, kept: bool, explicit: bool) {
     let backend = Backend { generation: 1, schema: Schema::default(), programs: vec![] };
     if kept { store = Device::open_store(store, Some(backend.clone())).unwrap().store; }
     let observed = Rc::new(RefCell::new(None));
     let wrapped = BeforeInstall { store, replacement: Backend { generation: 2, ..backend.clone() }, observed: observed.clone() };
-    let opened = if kept { Device::open_store(wrapped, None) } else { Device::open_store_initial(wrapped, backend) };
+    let opened = if explicit { Device::open_store(wrapped, Some(backend)) }
+        else if kept { Device::open_store(wrapped, None) } else { Device::open_store_initial(wrapped, backend) };
     assert!(matches!(opened, Err(RuntimeError::Generation(_))), "an expired opening observation must refuse");
     let (before, after) = observed.borrow_mut().take().unwrap();
     assert_eq!(before, after, "the refused installation must leave the winning backend and cuts intact");
 }
 
 #[test]
-fn first_install_checks_absence_memory() { interleaving(MemoryStore::new(), false); }
+fn first_install_checks_absence_memory() { interleaving(MemoryStore::new(), false, false); }
 
 #[cfg(feature = "native")]
 #[test]
-fn first_install_checks_absence_sqlite() { publication_tests::with_sqlite(|s| interleaving(s, false)); }
+fn first_install_checks_absence_sqlite() { publication_tests::with_sqlite(|s| interleaving(s, false, false)); }
 
 #[test]
-fn kept_open_checks_its_backend_memory() { interleaving(MemoryStore::new(), true); }
+fn kept_open_checks_its_backend_memory() { interleaving(MemoryStore::new(), true, false); }
 
 #[cfg(feature = "native")]
 #[test]
-fn kept_open_checks_its_backend_sqlite() { publication_tests::with_sqlite(|s| interleaving(s, true)); }
+fn kept_open_checks_its_backend_sqlite() { publication_tests::with_sqlite(|s| interleaving(s, true, false)); }
+
+#[test]
+fn explicit_open_checks_its_backend_memory() { interleaving(MemoryStore::new(), true, true); }
+
+#[cfg(feature = "native")]
+#[test]
+fn explicit_open_checks_its_backend_sqlite() { publication_tests::with_sqlite(|s| interleaving(s, true, true)); }
 
 #[test]
 fn first_install_envelope_is_not_a_legacy_backend() {

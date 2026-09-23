@@ -18,8 +18,10 @@ impl Opening {
             Some(text) => {
                 match json_codec::from_text::<Initial>(text) {
                     Ok(initial) => return Ok(Self::Initial(initial.initial_backend)),
-                    Err(error) if error.to_string().starts_with("E_SCHEMA_CAPABILITY:") => return Err(RuntimeError::decode(error, RuntimeError::Input)),
-                    Err(_) => {}
+                    Err(error) => {
+                        let decoded = RuntimeError::decode(error, RuntimeError::Input);
+                        if decoded.code() == "E_SCHEMA_CAPABILITY" { return Err(decoded); }
+                    }
                 }
                 json_codec::from_text(text).map(Self::Install).map_err(|e| RuntimeError::decode(e, RuntimeError::Input))
             }

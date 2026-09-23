@@ -663,6 +663,9 @@ pub enum RuleTerm {
 pub enum Constraint {
     /// Shared decoder fence. Only the schema codec writes this wire carrier.
     Capabilities(BTreeSet<String>),
+    /// Decode-only marker from unpublished F2 stores; the schema codec removes it.
+    #[serde(skip_serializing)]
+    Recorded,
     Unique { index: String },
     Cap { by: Vec<String>, max: u32 },
     AppendOnly,
@@ -895,7 +898,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                         None => issue(&mut issues, cpath, format!("after insert names unknown {target}.{index}")),
                     }
                 }
-                Constraint::AppendOnly | Constraint::Capabilities(_) => {}
+                Constraint::AppendOnly | Constraint::Capabilities(_) | Constraint::Recorded => {}
             }
         }
         if let Some(sync) = &table.sync {

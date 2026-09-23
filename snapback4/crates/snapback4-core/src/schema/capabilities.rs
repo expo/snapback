@@ -52,6 +52,9 @@ impl Serialize for Schema {
         // ordinary schemas, including the serialized conformance corpus.
         if required.is_empty() { return Wire::serialize(self, serializer); }
         let mut wire = self.clone();
+        for table in wire.tables.values_mut() {
+            table.constraints.retain(|c| !matches!(c, Constraint::Recorded));
+        }
         let mut carrier = wire.tables.first_entry().ok_or_else(||
             serde::ser::Error::custom("E_SCHEMA_CAPABILITY: required capabilities need a table carrier"))?;
         carrier.get_mut().constraints.push(Constraint::Capabilities(required));
@@ -66,14 +69,23 @@ impl<'de> Deserialize<'de> for Schema {
         let mut schema = Wire::deserialize(deserializer)?;
         let mut declared = BTreeSet::new();
         let mut carriers = 0;
+        let mut legacy = false;
         for table in schema.tables.values_mut() {
+            let mut recorded = 0;
             table.constraints.retain(|constraint| {
                 if let Constraint::Capabilities(names) = constraint {
                     carriers += 1;
                     declared.extend(names.iter().cloned());
                     false
+                } else if matches!(constraint, Constraint::Recorded) {
+                    recorded += 1;
+                    false
                 } else { true }
             });
+            if recorded > 1 || (recorded != 0 && table.recorded.is_empty()) {
+                return Err(serde::de::Error::custom("E_SCHEMA_CAPABILITY: invalid legacy Recorded marker"));
+            }
+            if recorded != 0 { legacy = true; declared.insert("recorded-attribution".into()); }
         }
         for name in &declared {
             if !CAPABILITIES.iter().any(|(known, _)| name == known) {
@@ -81,7 +93,7 @@ impl<'de> Deserialize<'de> for Schema {
             }
         }
         let required = schema.required_capabilities();
-        if declared != required || carriers != usize::from(!required.is_empty()) {
+        if declared != required || carriers + usize::from(legacy) != usize::from(!required.is_empty()) {
             return Err(serde::de::Error::custom(format!("E_SCHEMA_CAPABILITY: schema requires {required:?}, but declares {declared:?} in {carriers} carriers")));
         }
         Ok(schema)

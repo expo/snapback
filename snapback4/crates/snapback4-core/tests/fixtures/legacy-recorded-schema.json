@@ -1,0 +1,815 @@
+{
+  "maintains": [
+    {
+      "by": [
+        "postId.authorId",
+        "day"
+      ],
+      "computed": {
+        "day": {
+          "column": "at",
+          "function": "day",
+          "millis": 86400000
+        }
+      },
+      "kind": "Count",
+      "readable": null,
+      "residency": {
+        "inherited_from": "likes"
+      },
+      "source": "likes",
+      "target": "dailyLikes"
+    },
+    {
+      "by": [
+        "postId.authorId"
+      ],
+      "filter": {
+        "Bool": true
+      },
+      "kind": "Count",
+      "readable": null,
+      "residency": {
+        "inherited_from": "likes"
+      },
+      "source": "likes",
+      "target": "receivedLikes"
+    },
+    {
+      "by": [
+        "parentId.authorId"
+      ],
+      "filter": {
+        "Compare": {
+          "left": {
+            "Field": "parentId"
+          },
+          "op": "!=",
+          "right": {
+            "Literal": "Null"
+          }
+        }
+      },
+      "kind": "Count",
+      "readable": null,
+      "residency": {
+        "inherited_from": "posts"
+      },
+      "source": "posts",
+      "target": "receivedReplies"
+    },
+    {
+      "by": [
+        "hour",
+        "postId.at",
+        "postId"
+      ],
+      "computed": {
+        "hour": {
+          "column": "postId.at",
+          "function": "hour",
+          "millis": 3600000
+        }
+      },
+      "filter": {
+        "Compare": {
+          "left": {
+            "Field": "postId.parentId"
+          },
+          "op": "=",
+          "right": {
+            "Literal": "Null"
+          }
+        }
+      },
+      "kind": "Count",
+      "readable": null,
+      "residency": {
+        "inherited_from": "likes"
+      },
+      "source": "likes",
+      "target": "trend"
+    }
+  ],
+  "operations": {
+    "allLikes": {
+      "requires": [],
+      "runs": "device",
+      "sites": [
+        {
+          "class": "held",
+          "index": "byId",
+          "kind": "scan",
+          "reason": "scan likes by byId: held, no horizon",
+          "rewrite": "",
+          "site": "schema.q:48:10 (likes[])",
+          "table": "likes"
+        }
+      ]
+    },
+    "answers": {
+      "components": [
+        {
+          "field": "daily",
+          "statements": []
+        },
+        {
+          "field": "received",
+          "statements": []
+        },
+        {
+          "field": "replies",
+          "statements": []
+        },
+        {
+          "field": "trend",
+          "statements": []
+        }
+      ],
+      "requires": [],
+      "runs": "device",
+      "sites": [
+        {
+          "class": "held",
+          "index": "byGroup",
+          "kind": "scan",
+          "reason": "scan dailyLikes by byGroup: held, no horizon",
+          "rewrite": "",
+          "site": "schema.q:52:12 (dailyLikes[])",
+          "table": "dailyLikes"
+        },
+        {
+          "class": "held",
+          "index": "byId",
+          "kind": "aggregate source",
+          "reason": "aggregate source likes by byId: held, no horizon",
+          "rewrite": "",
+          "site": "schema.q:52:12 (dailyLikes[])",
+          "table": "likes"
+        },
+        {
+          "class": "held",
+          "index": "byGroup",
+          "kind": "scan",
+          "reason": "scan receivedLikes by byGroup: held, no horizon",
+          "rewrite": "",
+          "site": "schema.q:51:15 (receivedLikes[])",
+          "table": "receivedLikes"
+        },
+        {
+          "class": "held",
+          "index": "byId",
+          "kind": "aggregate source",
+          "reason": "aggregate source likes by byId: held, no horizon",
+          "rewrite": "",
+          "site": "schema.q:51:15 (receivedLikes[])",
+          "table": "likes"
+        },
+        {
+          "class": "held",
+          "index": "byGroup",
+          "kind": "scan",
+          "reason": "scan receivedReplies by byGroup: held, no horizon",
+          "rewrite": "",
+          "site": "schema.q:54:14 (receivedReplies[])",
+          "table": "receivedReplies"
+        },
+        {
+          "class": "held",
+          "index": "byId",
+          "kind": "aggregate source",
+          "reason": "aggregate source posts by byId: held, no horizon",
+          "rewrite": "",
+          "site": "schema.q:54:14 (receivedReplies[])",
+          "table": "posts"
+        },
+        {
+          "class": "held",
+          "index": "byGroup",
+          "kind": "scan",
+          "reason": "scan trend by byGroup: held, no horizon",
+          "rewrite": "",
+          "site": "schema.q:53:12 (trend[])",
+          "table": "trend"
+        },
+        {
+          "class": "held",
+          "index": "byId",
+          "kind": "aggregate source",
+          "reason": "aggregate source likes by byId: held, no horizon",
+          "rewrite": "",
+          "site": "schema.q:53:12 (trend[])",
+          "table": "likes"
+        }
+      ]
+    },
+    "edit": {
+      "predicts": "eligible",
+      "requires": [],
+      "sites": [
+        {
+          "class": "held",
+          "index": "byId",
+          "kind": "write target",
+          "reason": "write target likes by byId: held, no horizon",
+          "rewrite": "",
+          "site": "schema.q:42:3",
+          "table": "likes"
+        }
+      ]
+    },
+    "like": {
+      "predicts": "eligible",
+      "requires": [],
+      "sites": [
+        {
+          "class": "held",
+          "index": "byId",
+          "kind": "recorded attribution",
+          "reason": "likes.postId.at implicitly reads posts.byId: prediction needs the target row live and covered by the current partition; otherwise queues unpredicted",
+          "rewrite": "",
+          "site": "schema.q:40:3 (insert likes)",
+          "table": "posts"
+        },
+        {
+          "class": "held",
+          "index": "byId",
+          "kind": "recorded attribution",
+          "reason": "likes.postId.authorId implicitly reads posts.byId: prediction needs the target row live and covered by the current partition; otherwise queues unpredicted",
+          "rewrite": "",
+          "site": "schema.q:40:3 (insert likes)",
+          "table": "posts"
+        },
+        {
+          "class": "held",
+          "index": "byId",
+          "kind": "recorded attribution",
+          "reason": "likes.postId.parentId implicitly reads posts.byId: prediction needs the target row live and covered by the current partition; otherwise queues unpredicted",
+          "rewrite": "",
+          "site": "schema.q:40:3 (insert likes)",
+          "table": "posts"
+        }
+      ]
+    },
+    "received": {
+      "requires": [],
+      "runs": "device",
+      "sites": [
+        {
+          "class": "held",
+          "index": "byGroup",
+          "kind": "point",
+          "reason": "point receivedLikes by byGroup: held, no horizon",
+          "rewrite": "",
+          "site": "schema.q:46:10 (receivedLikes[authorId] by byGroup)",
+          "table": "receivedLikes"
+        },
+        {
+          "class": "held",
+          "index": "byId",
+          "kind": "aggregate source",
+          "reason": "aggregate source likes by byId: held, no horizon",
+          "rewrite": "",
+          "site": "schema.q:46:10 (receivedLikes[authorId] by byGroup)",
+          "table": "likes"
+        }
+      ]
+    },
+    "unlike": {
+      "predicts": "eligible",
+      "requires": [],
+      "sites": []
+    }
+  },
+  "tables": {
+    "dailyLikes": {
+      "columns": {
+        "day": "Int",
+        "id": "Id",
+        "postId.authorId": {
+          "Optional": "Principal"
+        },
+        "value": "Int"
+      },
+      "constraints": [
+        {
+          "Unique": {
+            "index": "byGroup"
+          }
+        }
+      ],
+      "indexes": {
+        "byGroup": {
+          "components": [
+            {
+              "Column": "postId.authorId"
+            },
+            {
+              "Column": "day"
+            }
+          ],
+          "unique": true
+        },
+        "byId": {
+          "components": [
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": true
+        }
+      },
+      "leave": "until-revoked",
+      "residency": {
+        "inherited_from": "likes"
+      },
+      "rules": {
+        "delete": "Deny",
+        "insert": "Deny",
+        "read": "Allow",
+        "update": "Deny"
+      },
+      "sync": {
+        "audience": "Public"
+      }
+    },
+    "likes": {
+      "columns": {
+        "at": "Time",
+        "id": "Id",
+        "note": {
+          "Text": {
+            "max": 20
+          }
+        },
+        "postId": {
+          "Ref": {
+            "table": "posts"
+          }
+        },
+        "postId.at": {
+          "Optional": "Time"
+        },
+        "postId.authorId": {
+          "Optional": "Principal"
+        },
+        "postId.parentId": {
+          "Optional": {
+            "Ref": {
+              "table": "posts"
+            }
+          }
+        },
+        "principal": "Principal",
+        "until": {
+          "Optional": "Time"
+        }
+      },
+      "constraints": [
+        {
+          "Immutable": {
+            "fields": [
+              "postId"
+            ]
+          }
+        },
+        "Recorded"
+      ],
+      "defaults": {
+        "note": {
+          "Literal": {
+            "String": ""
+          }
+        }
+      },
+      "expire": "until",
+      "indexes": {
+        "$contribution:dailyLikes": {
+          "components": [
+            {
+              "Contribution": {
+                "by": [
+                  "postId.authorId",
+                  "day"
+                ],
+                "computed": {
+                  "day": {
+                    "column": "at",
+                    "function": "day",
+                    "millis": 86400000
+                  }
+                },
+                "kind": "Count",
+                "readable": null,
+                "residency": {
+                  "inherited_from": "likes"
+                },
+                "source": "likes",
+                "target": "dailyLikes"
+              }
+            }
+          ],
+          "unique": false
+        },
+        "$contribution:receivedLikes": {
+          "components": [
+            {
+              "Contribution": {
+                "by": [
+                  "postId.authorId"
+                ],
+                "filter": {
+                  "Bool": true
+                },
+                "kind": "Count",
+                "readable": null,
+                "residency": {
+                  "inherited_from": "likes"
+                },
+                "source": "likes",
+                "target": "receivedLikes"
+              }
+            }
+          ],
+          "unique": false
+        },
+        "$contribution:trend": {
+          "components": [
+            {
+              "Contribution": {
+                "by": [
+                  "hour",
+                  "postId.at",
+                  "postId"
+                ],
+                "computed": {
+                  "hour": {
+                    "column": "postId.at",
+                    "function": "hour",
+                    "millis": 3600000
+                  }
+                },
+                "filter": {
+                  "Compare": {
+                    "left": {
+                      "Field": "postId.parentId"
+                    },
+                    "op": "=",
+                    "right": {
+                      "Literal": "Null"
+                    }
+                  }
+                },
+                "kind": "Count",
+                "readable": null,
+                "residency": {
+                  "inherited_from": "likes"
+                },
+                "source": "likes",
+                "target": "trend"
+              }
+            }
+          ],
+          "unique": false
+        },
+        "byExpiry": {
+          "components": [
+            {
+              "Column": "until"
+            },
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": false
+        },
+        "byId": {
+          "components": [
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": true
+        }
+      },
+      "leave": "until-revoked",
+      "recorded": {
+        "postId.at": {
+          "column": "at",
+          "reference": "postId",
+          "table": "posts"
+        },
+        "postId.authorId": {
+          "column": "authorId",
+          "reference": "postId",
+          "table": "posts"
+        },
+        "postId.parentId": {
+          "column": "parentId",
+          "reference": "postId",
+          "table": "posts"
+        }
+      },
+      "rules": {
+        "delete": {
+          "Eq": [
+            {
+              "Field": "principal"
+            },
+            "Viewer"
+          ]
+        },
+        "insert": {
+          "Eq": [
+            {
+              "Field": "principal"
+            },
+            "Viewer"
+          ]
+        },
+        "read": "Allow",
+        "update": {
+          "Eq": [
+            {
+              "Field": "principal"
+            },
+            "Viewer"
+          ]
+        }
+      },
+      "sync": {
+        "audience": "Public"
+      }
+    },
+    "posts": {
+      "columns": {
+        "at": "Time",
+        "authorId": "Principal",
+        "id": "Id",
+        "parentId": {
+          "Optional": {
+            "Ref": {
+              "table": "posts"
+            }
+          }
+        },
+        "parentId.authorId": {
+          "Optional": "Principal"
+        },
+        "until": {
+          "Optional": "Time"
+        }
+      },
+      "constraints": [
+        {
+          "Immutable": {
+            "fields": [
+              "authorId",
+              "parentId",
+              "at"
+            ]
+          }
+        },
+        "Recorded"
+      ],
+      "expire": "until",
+      "indexes": {
+        "$contribution:receivedReplies": {
+          "components": [
+            {
+              "Contribution": {
+                "by": [
+                  "parentId.authorId"
+                ],
+                "filter": {
+                  "Compare": {
+                    "left": {
+                      "Field": "parentId"
+                    },
+                    "op": "!=",
+                    "right": {
+                      "Literal": "Null"
+                    }
+                  }
+                },
+                "kind": "Count",
+                "readable": null,
+                "residency": {
+                  "inherited_from": "posts"
+                },
+                "source": "posts",
+                "target": "receivedReplies"
+              }
+            }
+          ],
+          "unique": false
+        },
+        "byExpiry": {
+          "components": [
+            {
+              "Column": "until"
+            },
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": false
+        },
+        "byId": {
+          "components": [
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": true
+        }
+      },
+      "leave": "until-revoked",
+      "recorded": {
+        "parentId.authorId": {
+          "column": "authorId",
+          "reference": "parentId",
+          "table": "posts"
+        }
+      },
+      "rules": {
+        "delete": {
+          "Eq": [
+            {
+              "Field": "authorId"
+            },
+            "Viewer"
+          ]
+        },
+        "insert": {
+          "Eq": [
+            {
+              "Field": "authorId"
+            },
+            "Viewer"
+          ]
+        },
+        "read": "Allow",
+        "update": "Deny"
+      },
+      "sync": {
+        "audience": "Public"
+      }
+    },
+    "receivedLikes": {
+      "columns": {
+        "id": "Id",
+        "postId.authorId": {
+          "Optional": "Principal"
+        },
+        "value": "Int"
+      },
+      "constraints": [
+        {
+          "Unique": {
+            "index": "byGroup"
+          }
+        }
+      ],
+      "indexes": {
+        "byGroup": {
+          "components": [
+            {
+              "Column": "postId.authorId"
+            }
+          ],
+          "unique": true
+        },
+        "byId": {
+          "components": [
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": true
+        }
+      },
+      "leave": "until-revoked",
+      "residency": {
+        "inherited_from": "likes"
+      },
+      "rules": {
+        "delete": "Deny",
+        "insert": "Deny",
+        "read": "Allow",
+        "update": "Deny"
+      },
+      "sync": {
+        "audience": "Public"
+      }
+    },
+    "receivedReplies": {
+      "columns": {
+        "id": "Id",
+        "parentId.authorId": {
+          "Optional": "Principal"
+        },
+        "value": "Int"
+      },
+      "constraints": [
+        {
+          "Unique": {
+            "index": "byGroup"
+          }
+        }
+      ],
+      "indexes": {
+        "byGroup": {
+          "components": [
+            {
+              "Column": "parentId.authorId"
+            }
+          ],
+          "unique": true
+        },
+        "byId": {
+          "components": [
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": true
+        }
+      },
+      "leave": "until-revoked",
+      "residency": {
+        "inherited_from": "posts"
+      },
+      "rules": {
+        "delete": "Deny",
+        "insert": "Deny",
+        "read": "Allow",
+        "update": "Deny"
+      },
+      "sync": {
+        "audience": "Public"
+      }
+    },
+    "trend": {
+      "columns": {
+        "hour": {
+          "Optional": "Int"
+        },
+        "id": "Id",
+        "postId": {
+          "Ref": {
+            "table": "posts"
+          }
+        },
+        "postId.at": {
+          "Optional": "Time"
+        },
+        "value": "Int"
+      },
+      "constraints": [
+        {
+          "Unique": {
+            "index": "byGroup"
+          }
+        }
+      ],
+      "indexes": {
+        "byGroup": {
+          "components": [
+            {
+              "Column": "hour"
+            },
+            {
+              "Column": "postId.at"
+            },
+            {
+              "Column": "postId"
+            }
+          ],
+          "unique": true
+        },
+        "byId": {
+          "components": [
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": true
+        }
+      },
+      "leave": "until-revoked",
+      "residency": {
+        "inherited_from": "likes"
+      },
+      "rules": {
+        "delete": "Deny",
+        "insert": "Deny",
+        "read": "Allow",
+        "update": "Deny"
+      },
+      "sync": {
+        "audience": "Public"
+      }
+    }
+  }
+}
