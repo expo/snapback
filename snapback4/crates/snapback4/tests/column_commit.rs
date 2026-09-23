@@ -22,7 +22,7 @@ fn largest_composed_column_commit_at_the_row_ceiling_fits_and_next_attempt_rolls
         for prefix in ["p","q"] {
             rows.push(("posts".into(),object([("id",Value::Id(format!("{prefix}{n}"))),("body",Value::String("\u{1f600}".repeat(4000)))])));
         }
-        rows.push(("likes".into(),object([("id",Value::Id(format!("l{n}"))),("postId",Value::Id(format!("p{n}")))])));
+        rows.push(("likes".into(),object([("id",Value::Id(format!("l{n}"))),("postId",Value::Id(format!("{}{n}", if n == 204 { "q" } else { "p" })))])));
     }
     engine.seed(rows).unwrap();
     let from=engine.seq().unwrap();
@@ -33,6 +33,24 @@ fn largest_composed_column_commit_at_the_row_ceiling_fits_and_next_attempt_rolls
     let parents:Vec<_>=page.events.iter().filter(|e|e.table=="posts").collect();
     assert_eq!(parents.len(),408);
     assert_eq!(page.events.len(),612);
+    assert!(page.events.iter().all(|event| event.kind == "put"));
+    for n in 0..204 {
+        for (prefix, value) in [("p", 0), ("q", 1)] {
+            let id = format!("{prefix}{n}");
+            let images: Vec<_> = parents.iter().filter(|e| e.id == id).collect();
+            assert_eq!(images.len(), 1, "{id}");
+            assert_eq!(images[0].data.as_ref().unwrap().field("likeCount").unwrap(), &Value::Int(value));
+        }
+    }
+    let stored = engine.store().rows("posts").unwrap();
+    assert_eq!(stored.len(), 410);
+    for n in 0..205 {
+        for (prefix, value) in [("p", 0), ("q", 1)] {
+            let id = Value::Id(format!("{prefix}{n}"));
+            let row = stored.iter().find(|r| r.field("id").unwrap() == &id).unwrap();
+            assert_eq!(row.field("likeCount").unwrap(), &Value::Int(value));
+        }
+    }
     let derived:usize=parents.iter().map(|e|serde_json::to_vec(&sync_wire::SyncEvent {
         data:e.data.as_ref().map(snapback4_core::wire::Plain),id:&e.id,kind:&e.kind,seq:Some(e.seq),table:&e.table,
     }).unwrap().len()+1).sum();
@@ -46,9 +64,11 @@ fn largest_composed_column_commit_at_the_row_ceiling_fits_and_next_attempt_rolls
     assert!(bytes<16<<20,"{bytes}");
     println!("largest column commit: 204 source moves + 408 parent images; derived={derived} B, derived bound={derived_bound} B, composed={bytes} B, margin={} B",(16<<20)-bytes);
     let before=engine.store().rows("posts").unwrap();
+    let before_likes=engine.store().rows("likes").unwrap();
     let seq=engine.seq().unwrap();
     let result=engine.mutate("overflow",None,Context::new("alice",Default::default()).at(1000)).unwrap();
     assert!(matches!(&result.state,WriteState::Failed {why,..} if why.code=="E_BOUND"),"{result:?}");
     assert_eq!(engine.store().rows("posts").unwrap(),before);
+    assert_eq!(engine.store().rows("likes").unwrap(),before_likes);
     assert_eq!(engine.seq().unwrap(),seq);
 }

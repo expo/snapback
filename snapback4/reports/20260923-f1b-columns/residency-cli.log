@@ -1,0 +1,104 @@
+    Blocking waiting for file lock on build directory
+   Compiling snapback4-core v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4-core)
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-lang v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4-device)
+   Compiling snapback4 v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4)
+    Finished `test` profile [optimized + debuginfo] target(s) in 1m 53s
+     Running tests/check.rs (target/debug/deps/check-36751bb434951deb)
+
+running 4 tests
+query all()
+  returns a page of at most 10 messages rows
+  all: runs: server
+    Server: scan messages by byId: online only (site schema.q:5:10 (messages[]))
+      rewrite: sync messages to its read-rule audience, or read a compact synced projection
+  query all:
+    scan messages.byId first 10 — rule decided by the prefix: no probes
+      sort/group/sum/count consume this page, not the whole population
+
+test w9b_why_operation_keeps_residency_and_cost_output ... ok
+["test"]
+test: operation (persona)          examined  entries   probes    steps     heap B   output B
+      ceilings                         8192    16384     8192  1000000   16777216    1048576
+      all (alice)                         0        0        0        2          0         12  complete in 1.2 ms
+      all (bob)                           0        0        0        2          0         12  complete in 0.1 ms
+      not run: heldRows is held (device only)
+
+test:
+test: loaded 110 rows from fixture in 0.0 s
+residency (measurements): cold rows; bytes = compact JSON row payloads, excluding transport framing
+  largest acquired tables by bytes (1 persona; top 8, --verbose for all)
+  alice zzPayload: 10 rows, 10210 bytes
+  alice small000: 1 rows, 21 bytes
+  alice small001: 1 rows, 21 bytes
+  alice small002: 1 rows, 21 bytes
+  alice small003: 1 rows, 21 bytes
+  alice small004: 1 rows, 21 bytes
+  alice small005: 1 rows, 21 bytes
+  alice small006: 1 rows, 21 bytes
+  other 93 table/persona pairs: 93 rows, 1953 bytes
+  alice total: 110 rows, 12310 bytes
+  total across personas: 110 rows, 12310 bytes
+
+test w11r1c_help_describes_residency_without_query_meters ... ok
+["test", "--fixture", "/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-cu4-check-69523-2/fixture"]
+test: loaded 1 rows from /var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-cu4-check-69523-2/fixture in 0.0 s
+test: operation (persona)          examined  entries   probes    steps     heap B   output B
+      ceilings                         8192    16384     8192  1000000   16777216    1048576
+      all (alice)                         1        0        0        2        214         65  complete in 0.1 ms
+      all (bob)                           1        0        0        2        214         65  complete in 0.0 ms
+      not run: heldRows is held (device only)
+
+["test", "--residency", "--verbose", "--fixture", "/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-cu4-check-69523-2/fixture"]
+test: loaded 1 rows from /var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-cu4-check-69523-2/fixture in 0.0 s
+residency (facts)
+  messages: online only (no sync line)
+operations (facts)
+  all: runs: server
+    Server: scan messages by byId: online only (site schema.q:5:10 (messages[]))
+      rewrite: sync messages to its read-rule audience, or read a compact synced projection
+  heldRows: runs: device (held; server refuses E_QUERY_HELD; no server fallback)
+residency (measurements): cold rows; bytes = compact JSON row payloads, excluding transport framing
+  largest acquired tables by bytes (2 personas; top 8, --verbose for all)
+  alice total: 0 rows, 0 bytes
+  bob total: 0 rows, 0 bytes
+  total across personas: 0 rows, 0 bytes
+note (fact): schema.q:4:1 — N_NO_CURSOR: query all returns a page of 10 messages rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on
+  rewrite: declare `c: cursor ?` and page with `after c` — all(.., c: cursor ?): return messages[..] after c last 10 by <index>; read the whole group: `t[..]`, when its schema cap fits the examined ceiling; otherwise this page still needs continuation
+  guide: reads
+test: operation (persona)          examined  entries   probes    steps     heap B   output B
+      ceilings                         8192    16384     8192  1000000   16777216    1048576
+      all (alice)                         1        0        0        2        214         65  complete in 0.1 ms
+      all (bob)                           1        0        0        2        214         65  complete in 0.0 ms
+      not run: heldRows is held (device only)
+
+test w8r1b_test_names_held_queries_without_failing_other_queries_or_residency ... ok
+check:
+test: loaded 110 rows from fixture in 0.0 s
+check: ok — 101 tables (101 synced), 0 operations, no problems, 46.5 ms
+residency (measurements): cold rows; bytes = compact JSON row payloads, excluding transport framing
+  largest acquired tables by bytes (1 persona; top 8, --verbose for all)
+  alice zzPayload: 10 rows, 10210 bytes
+  alice small000: 1 rows, 21 bytes
+  alice small001: 1 rows, 21 bytes
+  alice small002: 1 rows, 21 bytes
+  alice small003: 1 rows, 21 bytes
+  alice small004: 1 rows, 21 bytes
+  alice small005: 1 rows, 21 bytes
+  alice small006: 1 rows, 21 bytes
+  other 93 table/persona pairs: 93 rows, 1953 bytes
+  alice total: 110 rows, 12310 bytes
+  total across personas: 110 rows, 12310 bytes
+
+test w11c_residency_cost_order_and_bounded_reconciled_totals_on_both_verbs ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 64 filtered out; finished in 1.86s

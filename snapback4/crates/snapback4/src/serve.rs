@@ -276,9 +276,9 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     // `--fresh`: a store in memory that dies with the process, for acceptance
     // scripts that must start from nothing every time.
     let mut engine = match &mode {
-        Mode::Dev { fresh: true, .. } => Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())),
-        Mode::Dev { .. } => adoption::open(&project, &bound),
-        Mode::Release { expected, .. } => project.open_release_engine(&bound, *expected),
+        Mode::Dev { fresh: true, .. } => Engine::new_at(snapback4_core::Store::memory().map_err(|e| e.to_string())?, bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()), clock.now()),
+        Mode::Dev { .. } => adoption::open(&project, &bound, &clock),
+        Mode::Release { expected, .. } => project.open_release_engine(&bound, *expected, clock.now()),
     }.map_err(|e| e.to_string())?;
     crate::dev_worker::clear_child_session(engine.store()).map_err(|e| e.to_string())?;
     // A native job's module (LLP 3000.005): built by `check`, in `dev` also

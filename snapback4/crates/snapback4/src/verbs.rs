@@ -406,7 +406,7 @@ pub fn run(options: &Options) -> i32 {
         Some(principal) => principal.clone(),
         None => persona_principal("alice"),
     };
-    let mut engine = match run_admission::open(&project, &bound, &source, op) {
+    let mut engine = match run_admission::open(&project, &bound, &source, op, now) {
         Ok(engine) => engine,
         Err(error) => {
             eprintln!("cannot open the store: {error}");

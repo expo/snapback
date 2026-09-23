@@ -1,0 +1,25 @@
+{
+  "mode": "inspect",
+  "before": {
+    "rows": {
+      "posts": 4000,
+      "likes": 40000
+    },
+    "generation": "1",
+    "log_rows": 12000,
+    "commits": 16,
+    "parents_with_count": 0
+  },
+  "after": {
+    "rows": {
+      "posts": 4000,
+      "likes": 40000
+    },
+    "generation": "1",
+    "log_rows": 12000,
+    "commits": 16,
+    "parents_with_count": 0
+  },
+  "elapsed_ms": 729.117167,
+  "peak_rss_bytes": 20627456
+}

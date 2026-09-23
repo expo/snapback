@@ -1,0 +1,29 @@
+   Compiling snapback4-core v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4-core)
+warning: unused variable: `now`
+   --> crates/snapback4-core/src/engine/mod.rs:447:128
+    |
+447 | ... Option<(u64, Option<u64>)>, now: i64) -> Result<u64, RuntimeError> {
+    |                                 ^^^ help: if this is intentional, prefix it with an underscore: `_now`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling snapback4-lang v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4-lang)
+warning: `snapback4-core` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+    Finished `test` profile [optimized + debuginfo] target(s) in 1m 42s
+     Running tests/maintained_columns.rs (target/debug/deps/maintained_columns-1d5b983155e0b268)
+
+running 1 test
+
+thread 'activation::activation_uses_host_clock_on_both_sides_of_parent_expiry' (173453377) panicked at crates/snapback4-lang/tests/maintained_columns/activation.rs:160:68:
+called `Result::unwrap()` on an `Err` value: MissingField("likeCount")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test activation::activation_uses_host_clock_on_both_sides_of_parent_expiry ... FAILED
+
+failures:
+
+failures:
+    activation::activation_uses_host_clock_on_both_sides_of_parent_expiry
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 41 filtered out; finished in 0.05s
+
+error: test failed, to rerun pass `-p snapback4-lang --test maintained_columns`

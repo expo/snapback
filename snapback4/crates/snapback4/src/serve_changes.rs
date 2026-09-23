@@ -150,6 +150,11 @@ mod column_tests {
         let private = engine.schema().maintains[0].target.clone();
         assert!(!engine.schema().visible(&private));
         let from = engine.seq().unwrap(); // Initial column activation has its own parent barrier.
+        assert_eq!(super::check(&mut engine, 0).unwrap().2, ["posts"]);
+        let touched: String = engine.store().conn().query_row("SELECT touched FROM _commits WHERE seq=?1", [from as i64], |r| r.get(0)).unwrap();
+        assert_eq!(serde_json::from_str::<Vec<String>>(&touched).unwrap(), ["posts"]);
+        let events: i64 = engine.store().conn().query_row("SELECT count(*) FROM _log WHERE seq=?1", [from as i64], |r| r.get(0)).unwrap();
+        assert_eq!(events, 0);
         let tx = engine.store_mut().transaction().unwrap();
         tx.record_commit(from + 1, 1000, "legacy", "alice", "mutation", &[private, "likes".into()], 1).unwrap();
         tx.commit().unwrap();

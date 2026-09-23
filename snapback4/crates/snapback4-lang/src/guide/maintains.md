@@ -349,8 +349,10 @@ Adding or redefining a column atomically rebuilds its private total and
 mirrors each live parent whose value differs, including nonzero to zero.
 An initial zero stays absent in storage and reads 0; it is not an authored
 literal default. Ordinary fields and other maintained columns are preserved.
-Resolved source type, optionality or default changes rebuild the total;
-changes to parent expiry or its column's interpretation re-run the mirror.
+Every rebuild re-runs the mirror: addition, kind, source, predicate or `by`
+changes, and changes to a depended-on source column's type, optionality or default.
+Only the mirror re-runs for changes to the parent's `expire at` or the named
+column's type, optionality or default.
 Expired unswept parents stay untouched. Removal drops the private totals;
 re-adding recounts from source rows.
 

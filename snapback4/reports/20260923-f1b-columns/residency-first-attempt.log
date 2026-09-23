@@ -1,0 +1,37 @@
+    Blocking waiting for file lock on build directory
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-device v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4-device)
+   Compiling snapback4 v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4)
+    Finished `test` profile [optimized + debuginfo] target(s) in 6m 13s
+     Running unittests src/main.rs (target/debug/deps/snapback4-a922f9d8ee11ae56)
+
+running 2 tests
+
+thread 'verbs::residency::tests::maintained_values_distinguish_payload_bytes_from_implicit_zeros' (173437523) panicked at crates/snapback4/src/verbs/residency.rs:148:9:
+residency (measurements): cold rows; bytes = compact JSON row payloads, excluding transport framing
+  largest acquired tables by bytes (1 persona; top 8, --verbose for all)
+  alice posts: 2 rows, 65 bytes
+  alice total: 2 rows, 65 bytes
+  maintained column alice posts.likeCount: 2 acquired parent values, 2 value bytes (included in parent payloads; no separate device rows); 0 implicit zeros from absent fields (no value bytes acquired)
+  maintained column posts.likeCount: Count from likes by postId; parent residency: sync public; server-derived, no device prediction; event-free activation reacquires snapshots
+  total across personas: 2 rows, 65 bytes
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test verbs::residency::tests::maintained_values_distinguish_payload_bytes_from_implicit_zeros ... FAILED
+test verbs::test_fixture::column_tests::residency_fixture_import_rebuilds_poisoned_columns ... ok
+
+failures:
+
+failures:
+    verbs::residency::tests::maintained_values_distinguish_payload_bytes_from_implicit_zeros
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 79 filtered out; finished in 0.08s
+
+error: test failed, to rerun pass `-p snapback4 --bin snapback4`

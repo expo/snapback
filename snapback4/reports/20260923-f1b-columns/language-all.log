@@ -1,0 +1,203 @@
+    Blocking waiting for file lock on build directory
+   Compiling snapback4-lang v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized + debuginfo] target(s) in 6m 30s
+     Running tests/aggregate_copies.rs (target/debug/deps/aggregate_copies-164b55ad5cd9030e)
+
+running 68 tests
+test aggregate_copy_claim_is_reached_from_the_orientation ... ok
+test aggregate_copy_card_section_is_verbatim_and_discoverable ... ok
+test copies_of_sums_and_repeated_cross_file_writes_are_not_name_heuristics ... ok
+test argument_or_ambient_writer_disqualifies_across_the_catalog ... ok
+test a_native_writer_makes_the_all_writers_proof_unknown ... ok
+test a_loop_carried_table_row_count_is_derived ... ok
+test aggregate_only_restricted_private_immutable_and_ambient_writes_stay_silent ... ok
+test a_named_upsert_key_is_a_written_value_on_insert ... ok
+test append_only_derived_insertions_are_silent ... ok
+test a_public_write_of_a_widened_recursive_value_is_silent ... ok
+test l26_a_constant_helper_called_in_a_read_loop_has_no_read_data ... ignored, L29: loops prefer silence
+test every_write_from_reads_including_prior_image_reports_once ... ok
+test l26_conditional_delta_is_control_and_toggle_message_names_both_arms ... ok
+test l26_break_chooses_how_many_read_values_are_summed ... ok
+test l26_slice_positions_choose_ambient_deltas_without_supplying_data ... ok
+test l26_optional_shape_presence_selects_a_read_derived_field ... ok
+test l29_unconditional_reset_precision ... ignored, L29: loops prefer silence
+test l26_sort_and_group_keys_choose_elements_without_supplying_their_fields ... ok
+test l26_control_alone_does_not_manufacture_read_data ... ok
+test l26_statement_constants_and_read_loop_counts_choose_deltas_without_supplying_data ... ok
+test loop_carried_recursive_shapes_have_a_finite_provenance ... ok
+test literal_birth_defaults_and_instantiated_helpers_preserve_the_column_proof ... ok
+test provenance_flows_through_helpers_shapes_aliases_sums_and_jobs ... ok
+test l26_selected_argument_fields_still_supply_data ... ok
+test ordinals_receipts_ambient_edits_and_denied_jobs_are_silent ... ok
+test malformed_helper_calls_never_panic_or_supply_read_evidence ... ok
+test l26_statement_helper_and_loop_control_choose_read_derived_writes ... ok
+test provenance_joins_thirty_nested_fields_with_an_unrelated_branch ... ok
+test ranking_guard_checks_bound_rules_for_both_upsert_arms ... ok
+test review_f12_read_and_minted_upsert_ids_keep_distinct_data ... ok
+test review_control_does_not_turn_ambient_writes_into_read_evidence ... ok
+test review_expansion_and_total_budget_abandon_read_proofs ... ok
+test review_f12_upsert_id_keeps_argument_data_through_helpers_and_cache ... ok
+test review_f13_different_conditions_of_the_same_arguments_name_both_arms ... ok
+test review_f15_helper_increment_over_read_rows_should_supply_cardinality_evidence ... ignored, F15: helper-mediated carried increments do not yet receive READ cardinality evidence
+test review_f14_rewrite_only_offers_maintains_for_supported_value_types ... ok
+test published_pinning_rule_accepts_zero_and_true_count_and_refuses_forgery ... ok
+test review_f16_exact_shaped_count_review_program_stays_silent ... ok
+test review_f16_accumulations_consume_argument_read_and_literal_cardinality ... ok
+test review_f17_appended_and_write_returned_lists_keep_cardinality ... ok
+test review_f17_collection_choices_cache_keys_and_consumers_keep_cardinality ... ok
+test installable_recipes_have_no_aggregate_copy_note ... ok
+test review_f17_implicit_prefix_projection_is_unknown_until_its_collection_shape_is_known ... ok
+test review_f16_shaped_argument_cardinality_is_supplied_even_when_every_item_is_read ... ok
+test review_f17_opaque_shapes_and_unmodelled_recurrences_stay_unknown ... ok
+test repeated_helper_provenance_is_cached_without_losing_writes ... ok
+test review_f16_read_and_literal_collections_keep_cardinality_separate_from_items ... ok
+test provenance_scales_with_two_thousand_bindings_and_sibling_branches ... ok
+test review_f17_text_length_and_filter_cardinality_use_the_consumed_channel ... ok
+test review_f19_conditional_reset_cannot_hide_argument_cardinality ... ok
+test review_f19_read_cardinality_still_notes_and_outside_assignments_stay_precise ... ok
+test review_f17_loop_recurrence_aliases_helpers_and_nonadditive_forms_stay_unknown ... ok
+test review_f19_inner_argument_loop_survives_a_read_loop_join ... ok
+test review_scalar_selection_and_projection_keep_dependence ... ok
+test review_f17_tokens_and_stored_lists_preserve_both_provenances ... ok
+test review_unknown_forms_stay_silent ... ok
+test round6_helpers_named_like_syntactic_builtins_are_unknown_where_the_binder_bypasses_them ... ok
+test survey_retained_calibration_schemas ... ignored, requires the retained calibration packets; set SNAPBACK4_CALIBRATION_PACKETS to their parent
+test review_thirty_branching_unused_helper_is_bounded ... ok
+test review_thirty_branching_called_helper_is_bounded ... ok
+test round6_seek_bounds_and_matching_text_shape_a_pages_cardinality_but_keys_only_select ... ok
+test review_f19_every_nested_assignment_consumes_argument_cardinality ... ok
+test templates_and_apps_census ... ok
+test unrestricted_rule_spellings_and_public_online_tables_are_covered ... ok
+test three_calibration_write_shapes_report_the_copied_column_once ... ok
+test no_published_indexed_int_table_has_unrestricted_writes ... ok
+test every_card_and_published_quarry_block_has_no_aggregate_copy_note ... ok
+test corpus_aggregate_copy_sites_are_pinned ... ok
+
+test result: ok. 64 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 0.81s
+
+     Running tests/guide.rs (target/debug/deps/guide-e2830d3a2b6e40e8)
+
+running 53 tests
+test composition_card_is_reachable_and_keeps_the_routing_boundary ... ok
+test calibration_effects_jobs_and_seed_cards_explain_replay_flags ... ok
+test expire_card_explains_maintained_value_order_refusal_and_rewrites ... ok
+test digest_recipe_is_atomic_bounded_and_reachable_from_the_orientation ... ok
+test feeds::existing_app_exemption_respects_headings_and_fenced_samples ... ok
+test calibration_guide_words_and_replay_holds_are_discoverable ... ok
+test every_alias_targets_a_keyword_and_nearest_uses_aliases ... ok
+test feeds_card_preserves_promotion_refusals_and_orientation ... ok
+test feeds::retirement_census_rejects_installers_helpers_and_projection_examples ... ok
+test following_cards_pin_examinations ... ok
+test host_unicode_refusal_explains_the_repair_and_search_contract ... ok
+test direct_and_merged_cursor_generation_contracts_are_distinct ... ok
+test natural_words_find_their_cards ... ok
+test arrival_recipe_orders_ties_and_retries_then_pages ... ok
+test language_following_uses_the_declaration ... ok
+test password_policy_and_guest_choice_are_on_the_card ... ok
+test prediction_card_compiles_clean ... ok
+test structural_admission_cards_name_every_host_and_the_web_trust_boundary ... ok
+test the_cards_state_the_engines_numbers_and_families ... ok
+test the_keywords_are_one_list ... ok
+test set_state_recipe_predicts_first_like_and_repeated_set_and_clear ... ok
+test onboarding_recipe_recovers_a_taken_handle_for_the_same_principal ... ok
+test the_language_card_also_compiles_as_a_module_with_qualified_schedules ... ok
+test every_guide_keyword_a_diagnostic_names_is_a_card ... ok
+test the_template_compiles_clean ... ok
+test time_waiting_cards_point_to_cli_and_http_clock_controls ... ok
+test w10a_readme_opening_is_one_way_into_the_published_surface ... ok
+test feeds::refusal_and_usage_sources_do_not_recommend_the_retired_installer ... ok
+test w10r2_common_refusal_examples_have_clean_repairs ... ok
+test w10a_effect_and_job_names_are_explained_where_a_module_declares_both ... ok
+test w11r1c_first_screen_generates_types_and_starts_the_backend ... ok
+test w11r1c_residency_fact_cards_require_verbose ... ok
+test w11r2_native_boundary_sentence_matches_both_published_copies ... ok
+test w10b_typing_card_compiles_and_expires_at_the_deadline ... ok
+test w13e_every_chat_search_has_two_single_cursor_forms_without_a_protocol ... ok
+test w14a_compact_reads_and_wide_note_qualify_word_expansion_and_continuation ... ok
+test w14b_first_account_screen_is_self_contained ... ok
+test w7c_meter_store_readiness_and_aggregate_discovery_are_on_the_cards ... ok
+test w11r2_recipe_refusals_have_reserved_names_and_dedicated_sections ... ok
+test w9a_held_search_leads_with_coverage_then_cost_then_refusal ... ok
+test w9a_reads_and_refusals_explain_hidden_pages_and_readable_membership ... ok
+test w9a_expiry_cards_explain_and_select_the_readers_deadline ... ok
+test w9r1b_diagnostic_card_overrides_the_code_default ... ok
+test writes_card_explains_the_whole_upsert_insert_proof ... ok
+test w9b_every_code_has_bounded_card_context_and_a_full_card_command ... ok
+test the_readme_quarry_compiles_clean ... ok
+test w11_every_registered_code_has_a_dedicated_section ... ok
+test the_language_card_compiles_and_runs ... ok
+test every_emitted_code_is_explained ... ok
+test every_card_compiles_clean ... ok
+test feeds::cards_readmes_and_templates_do_not_teach_the_retired_recipe ... ok
+test maintained_column_notes_do_not_spread_to_existing_cards_recipes_or_templates ... ok
+test feeds::complete_feeds_program_runs_at_clique_size ... ok
+
+test result: ok. 53 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.20s
+
+     Running tests/maintained_columns.rs (target/debug/deps/maintained_columns-1d5b983155e0b268)
+
+running 42 tests
+test activation::classify_keeps_ordinary_narrowing_and_never_keeps_pre_generation_images ... ok
+test a_generated_source_is_refused_even_in_an_otherwise_well_typed_raw_schema ... ok
+test a_public_ranking_cannot_be_moved_outside_source_write_authority ... ok
+test activation::expired_parent_skipped_on_activation_then_swept_and_recreated_right ... ok
+test activation::redefinition_zero_removal_and_readdition_preserve_other_fields ... ok
+test activation::source_default_widened_optional_recounts_missing_references ... ok
+test a_raw_schema_cannot_assign_two_derivations_to_a_generated_parents_value ... ok
+test adapter_failures_after_private_write_and_between_mirrors_roll_back_every_image ... ok
+test column_predicates_reuse_engine_recorded_attribution ... ok
+test clique_pages_match_independent_count_time_model ... ok
+test notes_name_disclosure_order_and_full_parent_stream_at_the_declaration ... ok
+test activation::activation_mirror_is_event_free_in_place_and_zero_additions_stay_unwritten ... ok
+test one_parent_image_per_commit_has_the_hand_kept_columns_log_cost ... ok
+test meter_review::deleting_a_synced_source_still_pays_its_partition_step_after_private_work ... ok
+test moving_key_cursor_is_a_key_boundary_not_a_frozen_ranking ... ok
+test null_references_are_excluded_before_sum_and_import_recounts ... ok
+test projected_derivation_identity_prevents_literal_default_image_retention ... ok
+test birth_recreation_expiry_and_transaction_rollback_follow_the_source ... ok
+test oracle_moves_filters_sums_birth_and_last_delete ... ok
+test private_targets_stay_bounded_for_long_table_and_column_names ... ok
+test resolved_dependencies_and_private_projection ... ok
+test review::bad_sources_and_references_refuse_without_panicking ... ok
+test review::cascades_refuse_the_maintained_field_with_a_valid_parent_reference ... ok
+test review::count_and_sum_remain_reference_type_names ... ok
+test review::expired_unswept_parent_is_never_physically_written_and_lifetime_edits_reconcile ... ok
+test activation::activation_uses_host_clock_on_both_sides_of_parent_expiry ... ok
+test raw_private_reads_and_every_resolved_dependency_are_refused ... ok
+test review::optional_materialization_and_all_write_arms_preserve_authoritative_columns ... ok
+test review::restore_preserves_values_import_rebuilds_and_neither_publishes_private_names ... ok
+test review::numeric_sums_use_integer_minor_units_on_birth_and_missing_images ... ok
+test raw_ir_system_and_seed_guard_and_overflow_are_owned_by_column ... ok
+test review::rust_write_structs_keep_id_and_ordinary_fields_without_private_storage ... ok
+test word_index_order_is_in_the_reserved_mirror_budget ... ok
+test self_reference_both_orders_and_reference_named_value ... ok
+test writes_and_result_fields_refuse_and_brand_stays_a_write_key ... ok
+test review::resolved_source_edits_rebuild_with_only_source_rows_populated ... ok
+test activation_redefinitions_empty_admission_and_unchanged_preservation ... ok
+test creators_cannot_observe_hidden_totals_in_write_results_or_budgets ... ok
+test raw_dependency_walk_covers_lifetime_delivery_constraints_and_capture ... ok
+test hidden_total_transitions_and_noop_reservation_lifetime_are_constant ... ok
+test paired_parent_worlds_have_equal_replies_receipts_meters_and_invalidations ... ok
+test meter_review::every_meter_field_matches_across_hidden_totals_and_parent_worlds_at_each_cut ... ok
+
+test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.81s
+
+     Running tests/maintains.rs (target/debug/deps/maintains-21c952ee6085eef9)
+
+running 14 tests
+test expiring_rank_rewrite_routes_by_window_intent ... ok
+test maintain_prefix_needs_a_bound_and_expiring_rank_is_refused ... ok
+test maintain_filter_calendar_pages_and_rank ... ok
+test maintain_not_negates_a_comparison_and_parentheses_group_predicates ... ok
+test cards_pin_retirement_and_newest_first_column_recipe ... ok
+test fresh_trending_has_no_writable_score_and_an_explicit_public_device_variant ... ok
+test maintain_refusals_point_to_the_expression_and_offer_a_rewrite ... ok
+test guessed_spelling_rewrite_keeps_calendar_duration_units ... ok
+test maintain_identity_literals_and_scoped_rank_prefix ... ok
+test calendar_offsets_preserve_zero_forms_and_refuse_outside_the_period ... ok
+test w15c_old_value_indexes_and_expiry_refusal_are_unchanged ... ok
+test retired_w15c_value_index_refusals_point_at_the_column ... ok
+test w14a_hour_lanes_are_the_first_trending_answer ... ok
+test recorded_attribution_admission_and_nullable_keys ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s

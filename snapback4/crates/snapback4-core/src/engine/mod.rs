@@ -264,7 +264,12 @@ pub struct Engine {
 
 #[cfg(feature = "sqlite")]
 impl Engine {
-    pub fn new(mut store: Store, mut schema: Schema, programs: impl IntoIterator<Item = Program>) -> Result<Self, RuntimeError> {
+    pub fn new(store: Store, schema: Schema, programs: impl IntoIterator<Item = Program>) -> Result<Self, RuntimeError> {
+        Self::new_at(store, schema, programs, crate::now_ms())
+    }
+
+    /// Activate using the owning host's clock for parent liveness and captures.
+    pub fn new_at(mut store: Store, mut schema: Schema, programs: impl IntoIterator<Item = Program>, now: i64) -> Result<Self, RuntimeError> {
         columns::validate_before_prepare(&schema)?;
         schema.prepare_contribution_indexes();
         let issues = crate::schema::validate(&schema);
@@ -272,7 +277,7 @@ impl Engine {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
         }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
-        let generation = Self::activate(&mut store, &schema, &programs, None)?;
+        let generation = Self::activate(&mut store, &schema, &programs, None, now)?;
         let dev_effects = store.meta("release")?.is_none();
         Ok(Self { store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
@@ -300,13 +305,17 @@ impl Engine {
         schema.prepare_contribution_indexes();
         if let Some(issue) = crate::schema::validate(&schema).first() { return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message))); }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
-        let generation = Self::activate(&mut store, &schema, &programs, Some((release, expected_previous)))?;
+        let generation = Self::activate(&mut store, &schema, &programs, Some((release, expected_previous)), crate::now_ms())?;
         Ok(Self { store, schema, programs, generation, dev_effects: false, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// Attach to an already activated semantic generation without installing
     /// caller source. Reads of its identity and compiled content are one snapshot.
-    pub fn open(mut store: Store) -> Result<Self, RuntimeError> {
+    pub fn open(store: Store) -> Result<Self, RuntimeError> {
+        Self::open_at(store, crate::now_ms())
+    }
+
+    pub fn open_at(mut store: Store, now: i64) -> Result<Self, RuntimeError> {
         let tx = store.transaction()?;
         let (generation, schema, programs): (i64, String, String) = tx.conn().query_row(
             "SELECT g.generation, g.schema, g.programs FROM _generations g JOIN _meta m ON m.key = 'generation' AND g.generation = CAST(m.value AS INTEGER)",
@@ -320,14 +329,18 @@ impl Engine {
         // Upgrade derived candidates from older binaries using the stored
         // backend, never a caller's source. The repair logs its row changes.
         let generation = if store.meta("live_sum_candidates")?.as_deref() == Some("1") { generation }
-            else { Self::activate(&mut store, &schema, &programs, None)? };
+            else { Self::activate(&mut store, &schema, &programs, None, now)? };
         Ok(Self { store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// Serving a selected immutable release may attach only while that release
     /// is still current. A racing deployment makes startup retry, never adopt.
     pub fn attach_release(store: Store, expected: u64) -> Result<Self, RuntimeError> {
-        let mut engine = Self::open(store)?;
+        Self::attach_release_at(store, expected, crate::now_ms())
+    }
+
+    pub fn attach_release_at(store: Store, expected: u64, now: i64) -> Result<Self, RuntimeError> {
+        let mut engine = Self::open_at(store, now)?;
         let tx = engine.store.transaction()?;
         let release: String = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'release'", [], |row| row.get(0))?;
         if release.parse::<u64>().ok() != Some(expected) {
@@ -412,7 +425,11 @@ impl Engine {
     /// Replace the schema and programs in place (a successor generation);
     /// the store keeps every row and rebuilds changed indexes; the
     /// generation advances so every device re-derives its partition.
-    pub fn adopt(&mut self, mut schema: Schema, programs: impl IntoIterator<Item = Program>) -> Result<u64, RuntimeError> {
+    pub fn adopt(&mut self, schema: Schema, programs: impl IntoIterator<Item = Program>) -> Result<u64, RuntimeError> {
+        self.adopt_at(schema, programs, crate::now_ms())
+    }
+
+    pub fn adopt_at(&mut self, mut schema: Schema, programs: impl IntoIterator<Item = Program>, now: i64) -> Result<u64, RuntimeError> {
         columns::validate_before_prepare(&schema)?;
         schema.prepare_contribution_indexes();
         let issues = crate::schema::validate(&schema);
@@ -420,14 +437,14 @@ impl Engine {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
         }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
-        let generation = Self::activate(&mut self.store, &schema, &programs, None)?;
+        let generation = Self::activate(&mut self.store, &schema, &programs, None, now)?;
         self.schema = schema;
         self.programs = programs;
         self.generation = generation;
         Ok(generation)
     }
 
-    fn activate(store: &mut Store, schema: &Schema, programs: &BTreeMap<String, Program>, release: Option<(u64, Option<u64>)>) -> Result<u64, RuntimeError> {
+    fn activate(store: &mut Store, schema: &Schema, programs: &BTreeMap<String, Program>, release: Option<(u64, Option<u64>)>, now: i64) -> Result<u64, RuntimeError> {
         schema.validate_column_owners()?;
         for program in programs.values() {
             for table in crate::ir::read_sites(program).into_iter().map(|s|s.table).chain(crate::ir::write_tables(program).into_iter().map(|(t,_)|t)) { schema.refuse_private(&table)?; }
@@ -472,7 +489,6 @@ impl Engine {
             let attribution = recorded::paths_changed(schema, previous.as_ref());
             let columns = column_activation::changed_parents(schema, previous.as_ref());
             if rebuild.is_empty() && !attribution && columns.is_empty() { return Ok(()); }
-            let now = crate::now_ms();
             let seq = tx.next_seq()?;
             if attribution {
                 // This runner owns only activation rewrites; ordinary rebuilds

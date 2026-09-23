@@ -500,7 +500,8 @@ even as 0 or as the system. Ordinary post fields keep their own write rules.
 
 Whole old hours are key ranges the merge never visits. The oldest included
 hour still charges candidates rejected by the exact time filter, so a crowded
-boundary can hit the meter. Render `complete: false`; pass `next` back as `c`.
+boundary can hit the meter. A meter cut returns `complete: false`; a finished
+page stays complete and returns `next` when more rows exist. Pass `next` as `c`.
 The upper time filter excludes future-dated imports in the current hour.
 A cursor binds the evaluated lanes and generation, not a snapshot: counts
 can move across it and cause repeats or omissions. Restart when the clock

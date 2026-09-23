@@ -11,10 +11,10 @@ fn locked(error: &RuntimeError) -> bool {
 
 fn retryable(error: &RuntimeError) -> bool { locked(error) || matches!(error, RuntimeError::Generation(_)) }
 
-pub(super) fn open(project: &Project, bound: &snapback4_lang::Bound) -> Result<snapback4_core::Engine, RuntimeError> {
+pub(super) fn open(project: &Project, bound: &snapback4_lang::Bound, clock: &crate::dev_clock::Clock) -> Result<snapback4_core::Engine, RuntimeError> {
     let mut reported = None;
     loop {
-        match project.open_engine(bound) {
+        match project.open_engine_at(bound, clock.now()) {
             Ok(engine) => return Ok(engine),
             Err(error) if locked(&error) && !crate::lifecycle::stopping() => {
                 let reason = error.to_string();
@@ -154,10 +154,10 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                 // @ref LLP 3000.007#18.3 — retries judge the persisted successor, retaining the generation lock.
                 // Reopen only after the generation guard refuses this owner. Adoption
                 // still judges the latest stored successor in its own transaction.
-                let adopted = engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()));
+                let adopted = engine.adopt_at(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()), shared.now());
                 let mut reopened = false;
                 let adopted = match adopted {
-                    Err(RuntimeError::Generation(_)) => project.open_engine(&bound).map(|mut next| {
+                    Err(RuntimeError::Generation(_)) => project.open_engine_at(&bound, shared.now()).map(|mut next| {
                         next.set_presence(Some(shared.presence.clone()));
                         *engine = next;
                         reopened = true;

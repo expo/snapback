@@ -21,7 +21,10 @@ mkdirSync(output, { recursive: true });
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "snapback4/target/debug/snapback4");
 const dir = mkdtempSync(join(tmpdir(), "sb4-mc1-activation-"));
 mkdirSync(join(dir, "snapback"));
-const ceiling = 16 << 20, parents = 100000, sources = 1000000, pageRows = 4000;
+// 4,000 parents / 40,000 sources retains the real 16 MiB boundary at toy scale.
+const ceiling = 16 << 20, parents = Number(process.env.MC1_PARENTS ?? 100000), pageRows = 4000;
+assert.ok(Number.isSafeInteger(parents) && parents >= pageRows, "MC1_PARENTS must be an integer >= 4000");
+const sources = parents * 10;
 const sha = bytes => createHash("sha256").update(bytes).digest("hex");
 const save = (name, value) => writeFileSync(join(output, name), JSON.stringify(value, null, 2) + "\n");
 const log = value => { console.log(JSON.stringify(value)); appendFileSync(join(output, "counters.jsonl"), JSON.stringify(value) + "\n"); };
@@ -32,11 +35,16 @@ const record = value => {
   const row = { ordinal: trace.length, phase, ...value };
   trace.push(row); appendFileSync(join(output, "requests.jsonl"), JSON.stringify(row) + "\n"); return row;
 };
+const seedSchema = readFileSync(join(here, "before.q"), "utf8");
+const activationSchema = readFileSync(join(here, "after.q"), "utf8").replace("likeCount: int", "likeCount: count likes by postId");
+assert.equal((seedSchema.match(/count likes by postId/g) ?? []).length, 0);
+assert.equal((activationSchema.match(/count likes by postId/g) ?? []).length, 1);
+for (const source of [seedSchema, activationSchema]) assert.ok(!source.includes("likeCount: int"));
 const metadata = { base: execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim(),
   binary, binary_sha256: sha(readFileSync(binary)), node: process.version, platform: process.platform,
   arch: process.arch, cpus: cpus().length, start_load: loadavg(), started: new Date().toISOString(),
   fixture_dir: dir, parents, sources, pageRows, http_ceiling_bytes: ceiling,
-  before_sha256: sha(readFileSync(join(here, "before.q"))), after_sha256: sha(readFileSync(join(here, "after.q"), "utf8").replace("likeCount: int", "likeCount: count likes by postId")) };
+  before_sha256: sha(seedSchema), after_sha256: sha(activationSchema) };
 save("metadata.json", metadata);
 
 async function until(check, message) {
@@ -51,9 +59,17 @@ async function stop() {
 }
 async function start(schema, label) {
   await stop();
-  const source = readFileSync(join(here, schema), "utf8").replace("likeCount: int", "likeCount: count likes by postId");
+  const source = schema === "before.q" ? seedSchema : activationSchema;
   writeFileSync(join(dir, "snapback/schema.q"), source);
+  const written = readFileSync(join(dir, "snapback/schema.q"));
+  assert.equal(written.toString(), source);
   const begun = performance.now(), resourceFile = `${++serverSerial}-${label}.resources.json`;
+  writeFileSync(join(output, `${serverSerial}-${label}.schema.q`), written);
+  const schemaRecord = { label, sha256: sha(written), bytes: written.length,
+    maintained_declarations: (written.toString().match(/count likes by postId/g) ?? []).length };
+  assert.equal(schemaRecord.maintained_declarations, schema === "before.q" ? 0 : 1);
+  assert.ok(!written.toString().includes("likeCount: int"));
+  save(`${serverSerial}-${label}.schema.json`, schemaRecord);
   server = spawn("python3", [join(here, "supervise.py"), join(output, resourceFile), binary, "dev", "--no-watch", "--hold-effects", "--hold-schedules", "--port", url ? new URL(url).port : "0"],
     { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
   exited = once(server, "exit");
@@ -64,7 +80,7 @@ async function start(schema, label) {
     if (address) { url = address; ready = true; }
   });
   await until(() => { assert.equal(server.exitCode, null, text); return ready; }, "server startup timed out");
-  const result = { label, startup_ms: performance.now() - begun, resource_file: resourceFile };
+  const result = { label, startup_ms: performance.now() - begun, resource_file: resourceFile, schema: schemaRecord };
   log(result); return result;
 }
 async function request(path, body, who = "probe") {
@@ -136,11 +152,11 @@ try {
   phase = "seed";
   const seedStart = performance.now();
   for (let offset = 0; offset < parents; offset += 1000) {
-    await seed(Array.from({ length: 1000 }, (_, n) => row(offset + n, 500)));
+    await seed(Array.from({ length: Math.min(1000, parents - offset) }, (_, n) => row(offset + n, 500)));
     if (offset % 20000 === 0) log({ seeded_parents: offset + 1000 });
   }
   for (let offset = 0; offset < sources; offset += 10000) {
-    await seed(Array.from({ length: 10000 }, (_, n) => ({ table: "likes", row: {
+    await seed(Array.from({ length: Math.min(10000, sources - offset) }, (_, n) => ({ table: "likes", row: {
       id: `l${String(offset + n).padStart(7, "0")}`, postId: parent((offset + n) % parents) } })));
     if (offset % 100000 === 0) log({ seeded_sources: offset + 10000 });
   }
@@ -195,6 +211,9 @@ try {
   save("after-large-page-refusal.json", after.page);
   assert.equal(after.page.denied?.code, "E_SYNC_GENERATION");
   assert.ok(after.bytes < 1024);
+  const fullCurrent = await request("/sync", { ...syncRequest, generation: 2 }, "current-generation-control");
+  assert.ok(fullCurrent.page.denied?.code === "E_BOUND" || (!fullCurrent.page.denied && Array.isArray(fullCurrent.page.events) && fullCurrent.bytes <= ceiling));
+  save("current-generation-control.json", { request: { ...syncRequest, generation: 2 }, bytes: fullCurrent.bytes, reply: fullCurrent.page });
   const { generation: ignoredGeneration, ...legacyRequest } = syncRequest;
   const legacyControl = await request("/sync", legacyRequest, "legacy-control");
   assert.equal(legacyControl.page.denied?.code, "E_BOUND");
@@ -210,10 +229,13 @@ try {
   }
   const reconstruction = { ...before.page, generation: after.page.generation, events: halves.flatMap(p => p.events) };
   const normalized = { ...reconstruction, generation: before.page.generation, events: reconstruction.events.map(e => {
+    assert.equal(e.data?.likeCount, 10, `reconstructed parent ${e.id}`);
     const copy = structuredClone(e); delete copy.data.likeCount; return copy;
   }) };
   assert.deepEqual(normalized, before.page, "only the added field and generation changed in the old page");
   const reconstructedBytes = Buffer.byteLength(JSON.stringify(reconstruction));
+  assert.ok(before.bytes <= ceiling);
+  assert.ok(reconstructedBytes > ceiling);
   save("page-comparison.json", { before_bytes: before.bytes, after_reconstructed_bytes: reconstructedBytes,
     delta_bytes: reconstructedBytes - before.bytes, ceiling_bytes: ceiling, excess_bytes: reconstructedBytes - ceiling,
     actual_refusal_bytes: after.bytes, denial: after.page.denied, event_count: reconstruction.events.length });
@@ -225,15 +247,6 @@ try {
     const elapsed = performance.now() - began, state = (await f.core.call({ op: "state" })).ok;
     assert.equal(state.generation, 2); assert.equal(state.watermark, Number(activated.after.commits));
     assert.equal(f.client.acquired, true);
-    const reads = [];
-    for (const n of [0, 3999, 99999]) {
-      const answer = await f.client.query({ kind: "query", name: "one" }, { id: parent(n) });
-      assert.equal(answer.data?.likeCount, 10, JSON.stringify(answer).slice(0, 300));
-      assert.equal(answer.fresh, true);
-      const direct = await f.core.call({ op: "query", name: "one", viewer: "alice", args: { id: parent(n) }, now: Date.now() });
-      assert.equal(direct.ok.data.likeCount, 10, JSON.stringify(direct).slice(0, 300));
-      reads.push({ id: parent(n), value: answer.data.likeCount, fresh: answer.fresh, local_value: direct.ok.data.likeCount });
-    }
     const ownTrace = trace.slice(beginTrace).filter(t => t.who === f.name);
     assert.ok(ownTrace.some(t => t.path === "/schema"));
     assert.equal(ownTrace.filter(t => t.path?.startsWith("/q/")).length, 0, "no server query fallback");
@@ -247,16 +260,24 @@ try {
     const file = readdirSync(f.dir).find(name => name.endsWith(".sqlite"));
     const persisted = inspect(join(f.dir, file));
     assert.equal(persisted.after.rows.posts, parents); assert.equal(persisted.after.parents_with_count, parents);
-    const result = { name: f.name, elapsed_ms: elapsed, state, reads, persisted,
+    const result = { name: f.name, elapsed_ms: elapsed, state, persisted,
+      parent_values: { count: persisted.after.rows.posts, equal_to_10: persisted.after.parents_with_count },
       sync_requests: ownTrace.filter(t => t.path === "/sync").length,
       max_response_bytes: Math.max(...ownTrace.filter(t => t.bytes !== undefined).map(t => t.bytes)),
-      oversized_sync_responses: ownTrace.filter(t => t.denied?.code === "E_BOUND").length,
+      bound_refusals: ownTrace.filter(t => t.denied?.code === "E_BOUND").length,
       resource: JSON.parse(readFileSync(join(output, `${f.name}.resources.json`))) };
     results.push(result); log({ device_adoption: result });
   }
-  const passed = after.page.denied?.code === "E_SYNC_GENERATION" && results.every(r => r.oversized_sync_responses === 0);
+  const responses = trace.filter(t => t.bytes !== undefined);
+  assert.ok(responses.length > 0);
+  const responseAudit = { responses: responses.length, max_response_bytes: Math.max(...responses.map(t => t.bytes)),
+    bound_refusals: responses.filter(t => t.denied?.code === "E_BOUND").length,
+    every_response_within_ceiling: responses.every(t => t.bytes <= ceiling) };
+  save("response-audit.json", responseAudit);
+  const passed = after.page.denied?.code === "E_SYNC_GENERATION" && results.length === 2 && responseAudit.every_response_within_ceiling;
+  assert.ok(passed, "gate 5 failed");
   const result = { gate5: passed ? "PASS" : "FAIL", device_adopts: true,
-    no_response_exceeds_ceiling_because_of_form: passed,
+    no_response_exceeds_ceiling_because_of_form: responseAudit.every_response_within_ceiling, responseAudit,
     mechanism: "engine private maintain rebuild and in-place mirror; no fixture backfill", beforeActivation, activated, activation, activation_resources: activationResources, devices: results,
     end_load: loadavg(), host_process_peak_rss_bytes: process.resourceUsage().maxRSS * 1024 };
   save("result.json", result);

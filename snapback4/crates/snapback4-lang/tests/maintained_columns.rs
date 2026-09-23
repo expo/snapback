@@ -176,6 +176,8 @@ fn activation_redefinitions_empty_admission_and_unchanged_preservation() {
         format!("{}\ntable otherLikes:\n  postId: posts ?\n  public\n  online only\n",MODEL.replace("likeCount: count likes by postId","likeCount: count otherLikes by postId")),
         MODEL.replace("  likeCount: count likes by postId\n","").replace("  by byLikes: likeCount, at, id","  by byLikes: at, id").replace("{ id, at, likeCount }","{ id, at }"),
     ] {
+        let mut e = engine(MODEL);
+        post(&mut e,"p",1); like(&mut e,"l",id("p"),true,3);
         let b = compile(&source);
         e.adopt(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
         let row = e.query("postRow",context(&[("id",id("p"))])).unwrap().data;

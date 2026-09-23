@@ -65,12 +65,12 @@ test("the largest row-bounded source batch recovers oversized parent mirrors by 
   const head=await post("/sync",{from:0,limit:1});
   for(const tier of ["sqlite","wasm"]){
     const opener=tier==="sqlite"?processDevice({binary,dir:join(dir,tier)}):webDevice({wasm:readFileSync(join(root,"packages/snapback4/src/wasm/snapback4_device_bg.wasm")),persist:memoryPersistence()});
-    const d={tier,pages:[],core:null,client:null,offline:false};
+    const d={tier,pages:[],core:null,client:null,offline:false,record:false};
     d.client=await createLocalClient({url,persona:"alice",waitSeconds:1,device:{open:async(...args)=>d.core=await opener.open(...args)},fetch:async(input,init)=>{
       if(new URL(input).pathname==="/changes")return parkedChanges(init.signal);
       if(d.offline)throw new TypeError("paused device");
       const response=await fetch(input,init);
-      if(new URL(input).pathname==="/sync"){
+      if(d.record && new URL(input).pathname==="/sync"){
         const bytes=await response.clone().arrayBuffer();assert.ok(bytes.byteLength<=ceiling);
         d.pages.push({request:JSON.parse(init.body),page:JSON.parse(new TextDecoder().decode(bytes)),bytes:bytes.byteLength});
       }
@@ -85,12 +85,17 @@ test("the largest row-bounded source batch recovers oversized parent mirrors by 
   assert.equal(refused.denied?.code,"E_BOUND");assert.equal(refused.snapshot,true);
   assert.equal(refused.generation,head.generation);
   for(const d of clients){
-    d.offline=false;await d.client.sync();
+    d.record=true;d.offline=false;await d.client.sync();
     const state=(await d.core.call({op:"state"})).ok;
     assert.equal(state.generation,head.generation);assert.equal(state.watermark,refused.watermark);
-    assert.ok(d.pages.some(({request,page})=>request.limit===1 && page.denied?.code==="E_BOUND" && page.snapshot));
-    assert.ok(d.pages.some(({request,page})=>request.from===0 && page.snapshot && !page.denied));
-    for(const [id,value] of [["p0",0],["q0",1],["q203",1]]){
+    const refusedPage=d.pages.find(({request,page})=>request.limit===1 && page.denied?.code==="E_BOUND" && page.snapshot);
+    assert.ok(refusedPage);
+    assert.equal(refusedPage.page.watermark,refused.watermark);
+    const accepted=d.pages.find(({request,page})=>request.from===0 && page.snapshot && !page.denied);
+    assert.ok(accepted);
+    assert.equal(accepted.page.watermark,refusedPage.page.watermark);
+    for(let n=0;n<moves;n++)for(const [prefix,value] of [["p",0],["q",1]]){
+      const id=prefix+n;
       const row=(await d.core.call({op:"query",name:"one",viewer:"dev:alice",args:{id},now:1000})).ok.data;
       assert.equal(row.likeCount,value);assert.equal(row.body.length,width);
     }

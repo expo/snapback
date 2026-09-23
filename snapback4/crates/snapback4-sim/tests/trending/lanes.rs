@@ -24,6 +24,18 @@ fn column_oracle_clock_and_zeros_in_one_merge() {
     assert!(fill.complete); let out = rows(&fill.data);
     assert_eq!(out.len(), 10);
     assert_eq!(names(&out), ["mid", "fresh", "edge", "quiet-00", "quiet-01", "quiet-02", "quiet-03", "quiet-04", "quiet-05", "quiet-06"]);
+    for row in out.iter().filter(|r| r.field("id").unwrap().as_str().unwrap().starts_with("quiet-")) {
+        assert_eq!(row.field("likeCount").unwrap(), &Value::Int(0));
+    }
+    for (step, liked) in [false, true, false].into_iter().enumerate() {
+        set_like(&mut engine, "bob", "quiet-00", liked, NOW, &format!("quiet-{step}"));
+        let stored = engine.store().rows("posts").unwrap();
+        let row = stored.iter().find(|r| r.field("id").unwrap() == &id("quiet-00")).unwrap();
+        assert_eq!(row.field("likeCount").unwrap(), &Value::Int(i64::from(liked)));
+        let ranked = ranking(&mut engine, NOW);
+        assert_eq!(names(&ranked).iter().position(|id| id == "quiet-00"), Some(if liked { 2 } else { 3 }));
+        assert_eq!(ranked[if liked { 2 } else { 3 }].field("likeCount").unwrap(), &Value::Int(i64::from(liked)));
+    }
     for n in 0..10 { seed_post(&mut engine, &format!("extra-{n}"), NOW - HOUR, 4); }
     set_like(&mut engine, "reader-2", "mid", false, NOW, "tie-mid");
     set_like(&mut engine, "alice", "edge", true, NOW, "tie-edge");
@@ -82,6 +94,11 @@ fn w14a_population_and_group_lifetime() {
     for n in 0..48_200 { seed_post(&mut engine, &format!("p{n:05}"), NOW - (n % 24) * HOUR - 1, 1); }
     let page = engine.query("trending", Context::new("bob", args(&[("c", Value::Null)])).at(NOW)).unwrap();
     assert!(page.complete && page.next.is_some()); assert_eq!(rows(&page.data).len(), 10); assert_eq!(page.metered.examined, 34);
+    let second = engine.query("trending", Context::new("bob", args(&[("c", Value::String(page.next.clone().unwrap()))])).at(NOW)).unwrap();
+    assert!(second.complete && second.next.is_some());
+    assert_eq!(rows(&second.data).len(), 10);
+    let first_ids = names(&rows(&page.data));
+    assert!(names(&rows(&second.data)).iter().all(|id| !first_ids.contains(id)));
     let before = engine.store().rows("posts").unwrap();
     let bytes: usize = before.iter().map(|r| serde_json::to_vec(&snapback4_core::wire::to_json(r)).unwrap().len()).sum();
     assert!(ranking(&mut engine, NOW + 2 * DAY).is_empty());
@@ -108,7 +125,7 @@ fn column_first_page_includes_unliked_posts_without_scanning_the_population() {
     let mut engine = engine("");
     seed_post(&mut engine, "winner", NOW - HOUR, 1);
     let mut previous = 1;
-    for population in [1, 4_096, 48_200] {
+    for population in [1, 10, 11, 4_096, 48_200] {
         engine.seed((previous..population).map(|n| post(&format!("quiet-{n:05}"), NOW - HOUR))).unwrap();
         let read = engine.query("trending", Context::new("bob", args(&[("c", Value::Null)])).at(NOW)).unwrap();
         assert!(read.complete);
@@ -116,6 +133,7 @@ fn column_first_page_includes_unliked_posts_without_scanning_the_population() {
         assert_eq!(got[0],("winner".into(),1));
         assert!(got[1..].iter().all(|(_,n)|*n==0));
         assert_eq!(got.len(),population.min(10));
+        assert_eq!(read.next.is_some(), population > 10);
         // One occupied lane: ten results plus the cursor's lookahead, regardless
         // of how many zero-like parents remain behind that boundary.
         assert_eq!(read.metered.examined,population.min(11) as u64);

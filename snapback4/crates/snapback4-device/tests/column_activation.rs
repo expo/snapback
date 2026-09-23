@@ -13,6 +13,7 @@ fn run<H: Host>(host: &mut H, edit: &str, reopen: bool) {
     let (mut server, mut backend) = compile(&before);
     server.seed([
         ("posts".into(), snapback4_core::value::object([("id",id("p")),("at",Value::Int(1))])),
+        ("posts".into(), snapback4_core::value::object([("id",id("zero")),("at",Value::Int(2))])),
         ("likes".into(), snapback4_core::value::object([("id",id("l")),("postId",id("p")),("other",id("missing")),("selected",Value::Bool(false)),("amount",Value::Int(7))])),
     ]).unwrap();
     backend.schema = backend.schema.public_projection();
@@ -28,6 +29,8 @@ fn run<H: Host>(host: &mut H, edit: &str, reopen: bool) {
         "by" => ("count likes by other",0),
         _ => ("count likes by postId",1),
     };
+    let (_, column_only) = compile(&schema(form));
+    assert!(!keeps_literal_default_images(&backend.schema, &column_only.schema.public_projection()), "column-only {edit}");
     // A literal addition alongside a redefinition must not activate retention.
     let (_, mut next) = compile(&schema(form).replace("  at: time", "  at: time\n  title: text <=10 default 'old'"));
     server.adopt(next.schema.clone(),next.programs.clone()).unwrap();
@@ -41,10 +44,18 @@ fn run<H: Host>(host: &mut H, edit: &str, reopen: bool) {
     // (or the old nonzero value). It is no longer a readable confirmed row.
     let refusal = device.query("one","alice",&json!({"id":"p"}),1000).unwrap_err();
     assert_eq!(refusal.code,"E_PREDICT","{} {edit}",host.label());
-    assert!(device.apply(&old_pages[0],false).is_err(),"reject old-generation pages");
+    assert_eq!(device.query("one","alice",&json!({"id":"zero"}),1000).unwrap_err().code, "E_PREDICT");
+    let stale = device.apply(&old_pages[0],true).unwrap_err();
+    assert_eq!(stale.code(), "E_GENERATION", "reject old-generation snapshot installation");
+    assert_eq!(device.state().unwrap().0, 0);
+    assert!(device.store().raw_rows("posts").is_empty());
+    for parent in ["p", "zero"] {
+        assert_eq!(device.query("one","alice",&json!({"id":parent}),1000).unwrap_err().code, "E_PREDICT");
+    }
     for (i,page) in snapshot_pages(&mut server,"alice",1).iter().enumerate() { device.apply(page,i==0).unwrap(); }
     let row=device.query("one","alice",&json!({"id":"p"}),1000).unwrap().data;
     assert_eq!(row.field("likes").unwrap(),&Value::Int(expected),"{edit}");
+    assert_eq!(device.query("one","alice",&json!({"id":"zero"}),1000).unwrap().data.field("likes").unwrap(), &Value::Int(0));
     host.close("adoption",device);
     let mut device=host.open("adoption",None).unwrap();
     assert_eq!(device.query("one","alice",&json!({"id":"p"}),1000).unwrap().data,row);

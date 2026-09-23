@@ -38,7 +38,7 @@ pub fn personas(bound: &Bound, options: &super::Options) -> Vec<String> {
 fn report(tx: &snapback4_core::store::Tx<'_>, schema: &snapback4_core::Schema, personas: &[String], verbose: bool) -> Result<String, snapback4_core::error::RuntimeError> {
     let mut counts = Vec::new();
     let mut totals = BTreeMap::new();
-    let mut columns = BTreeMap::<(String,String), (u64,u64)>::new();
+    let mut columns = BTreeMap::<(String,String), (u64,u64,u64)>::new();
     let now = snapback4_core::now_ms();
     for persona in personas {
         let principal = if persona.contains(':') { persona.clone() } else { crate::project::persona_principal(persona) };
@@ -51,11 +51,19 @@ fn report(tx: &snapback4_core::store::Tx<'_>, schema: &snapback4_core::Schema, p
                 if let Some(row) = &event.data && let Some(count) = tables.get_mut(&event.table) {
                     count.0 += 1;
                     count.1 += serde_json::to_vec(&wire::to_json(row)).expect("row JSON").len() as u64;
-                    for column in schema.tables[&event.table].maintained.keys() {
-                        let value=row.field(column).cloned().unwrap_or(snapback4_core::Value::Int(0));
-                        let n=columns.entry((persona.clone(),format!("{}.{column}",event.table))).or_default();
-                        n.0 += 1;
-                        n.1 += serde_json::to_vec(&wire::to_json(&value)).expect("value JSON").len() as u64;
+                    let maintained = &schema.tables[&event.table].maintained;
+                    if !maintained.is_empty() {
+                        // Snapshot images materialize implicit zeros; only the stored
+                        // image distinguishes those from acquired persisted values.
+                        let stored = tx.get(&event.table, &event.id)?.ok_or_else(||
+                            snapback4_core::RuntimeError::Store("residency snapshot parent is missing in the same transaction".into()))?;
+                        for column in maintained.keys() {
+                            let n=columns.entry((persona.clone(),format!("{}.{column}",event.table))).or_default();
+                            if let Ok(value) = stored.field(column) {
+                                n.0 += 1;
+                                n.1 += serde_json::to_vec(&wire::to_json(value)).expect("value JSON").len() as u64;
+                            } else { n.2 += 1; }
+                        }
                     }
                 }
             }
@@ -79,8 +87,8 @@ fn report(tx: &snapback4_core::store::Tx<'_>, schema: &snapback4_core::Schema, p
         for (persona, (rows, bytes)) in &totals { lines.push(format!("  {persona} total: {rows} rows, {bytes} bytes")); }
     }
     let (rows, bytes) = totals.values().fold((0, 0), |(rows, bytes), (r, b)| (rows + r, bytes + b));
-    for ((persona,column),(rows,bytes)) in columns {
-        lines.push(format!("  maintained column {persona} {column}: {rows} acquired parent values, {bytes} value bytes (included in parent payloads; no separate device rows)"));
+    for ((persona,column),(rows,bytes,implicit_zeros)) in columns {
+        lines.push(format!("  maintained column {persona} {column}: {rows} stored values in acquired parents, {bytes} stored-value bytes (included in parent payloads; no separate device rows); {implicit_zeros} implicit zeros (field absent from stored parent images)"));
     }
     for (name,_) in schema.visible_tables() { lines.extend(crate::column_cost::description(schema,name)); }
     lines.push(format!("  total across personas: {rows} rows, {bytes} bytes"));
@@ -124,4 +132,27 @@ pub fn at_check(project: &crate::project::Project, bound: &Bound, options: &supe
     let schema = serde_json::from_str(&encoded).map_err(|e| e.to_string())?;
     let measured = report(&tx, &schema, &personas, verbose).map_err(|e| e.to_string())?;
     Ok(Some(format!("{measured}\n  measured the active dev-store schema; current-source facts: check --residency --verbose")))
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn maintained_values_distinguish_payload_bytes_from_implicit_zeros() {
+        use snapback4_core::{Engine, Value, value::object};
+        let before = "table posts:\n  at: time\n  public\n  sync public\ntable likes:\n  postId: posts\n  public\n  online only\n";
+        let old = snapback4_lang::compile(&[("schema.q".into(), before.into())]);
+        let mut engine = Engine::memory(old.schema, []).unwrap();
+        engine.seed([
+            ("posts".into(), object([("id", Value::Id("p".into())), ("at", Value::Int(1))])),
+            ("posts".into(), object([("id", Value::Id("zero".into())), ("at", Value::Int(2))])),
+            ("likes".into(), object([("id", Value::Id("l".into())), ("postId", Value::Id("p".into()))])),
+        ]).unwrap();
+        let next = snapback4_lang::compile(&[("schema.q".into(), before.replace("  at: time", "  at: time\n  likeCount: count likes by postId"))]);
+        assert!(next.diagnostics.is_empty(), "{:?}", next.diagnostics);
+        engine.adopt(next.schema.clone(), []).unwrap();
+        let tx = engine.store_mut().read_transaction().unwrap();
+        let report = super::report(&tx, &next.schema, &["alice".into()], false).unwrap();
+        assert!(report.contains("posts.likeCount: 1 stored values in acquired parents, 1 stored-value bytes"), "{report}");
+        assert!(report.contains("1 implicit zeros (field absent from stored parent images)"), "{report}");
+    }
 }

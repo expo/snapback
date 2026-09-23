@@ -54,7 +54,7 @@ fn locked(error: &RuntimeError) -> bool {
 
 // @ref LLP 3000.011.004.000#2 — bind retries to source before admission, never retry the operation.
 // @ref LLP 3000.011.004.000#3 — external adoption remains supported; the watcher reopens and stale hosts refuse.
-pub(super) fn open(project: &Project, bound: &Bound, source: &Source, operation: &str) -> Result<Engine, Error> {
+pub(super) fn open(project: &Project, bound: &Bound, source: &Source, operation: &str, now: i64) -> Result<Engine, Error> {
     let started = Instant::now();
     let mut last = None;
     loop {
@@ -64,7 +64,7 @@ pub(super) fn open(project: &Project, bound: &Bound, source: &Source, operation:
         }
         // Do not stack SQLite's per-statement five-second waits behind this
         // deadline. Restore the ordinary policy before any operation executes.
-        match project.open_engine_with_busy_timeout(bound, Duration::ZERO) {
+        match project.open_engine_with_busy_timeout(bound, Duration::ZERO, now) {
             Ok(engine) => {
                 source.validate(project)?;
                 if started.elapsed() >= WAIT && let Some(reason) = last.take() {

@@ -1,0 +1,9 @@
+   Compiling snapback4-core v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized + debuginfo] target(s) in 1m 37s
+     Running tests/maintained_columns.rs (target/debug/deps/maintained_columns-1d5b983155e0b268)
+
+running 1 test
+test activation::activation_uses_host_clock_on_both_sides_of_parent_expiry ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 41 filtered out; finished in 0.15s

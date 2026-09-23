@@ -228,16 +228,20 @@ impl Project {
 
     /// Open (or create) the project's store and install the compiled schema.
     pub fn open_engine(&self, bound: &Bound) -> Result<Engine, RuntimeError> {
-        self.open_engine_with_busy_timeout(bound, std::time::Duration::from_secs(5))
+        self.open_engine_at(bound, snapback4_core::now_ms())
     }
 
-    pub fn open_engine_with_busy_timeout(&self, bound: &Bound, timeout: std::time::Duration) -> Result<Engine, RuntimeError> {
+    pub fn open_engine_at(&self, bound: &Bound, now: i64) -> Result<Engine, RuntimeError> {
+        self.open_engine_with_busy_timeout(bound, std::time::Duration::from_secs(5), now)
+    }
+
+    pub fn open_engine_with_busy_timeout(&self, bound: &Bound, timeout: std::time::Duration, now: i64) -> Result<Engine, RuntimeError> {
         snapback4_core::private_fs::directory(&self.data_dir()).map_err(|e| RuntimeError::Store(e.to_string()))?;
         let store = Store::open_with_busy_timeout(&self.store_path(), timeout)?;
         if store.meta("release")?.is_some() {
             return Err(RuntimeError::Generation("this store belongs to a deployment; use `deploy` to activate source and `serve` to run it".into()));
         }
-        Engine::new(store, bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()))
+        Engine::new_at(store, bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()), now)
     }
 
     /// Inspection attaches to existing data and never installs the working
@@ -255,12 +259,12 @@ impl Project {
     /// programs we attach to. Neither stale selection nor edited release
     /// source is permission to activate another backend during startup.
     // @ref LLP 3000.000#the-atomic-object-to-define — startup attaches to the persisted activation
-    pub fn open_release_engine(&self, bound: &Bound, release: u64) -> Result<Engine, RuntimeError> {
+    pub fn open_release_engine(&self, bound: &Bound, release: u64, now: i64) -> Result<Engine, RuntimeError> {
         let store = self.open_store()?;
         if store.meta("release")?.is_none() {
             return Err(RuntimeError::Generation("this deployment predates stored release activations; deploy its source once before serving".into()));
         }
-        let engine = Engine::attach_release(store, release)?;
+        let engine = Engine::attach_release_at(store, release, now)?;
         let same_programs = bound.programs.len() == engine.programs().count()
             && bound.programs.iter().all(|bound| engine.program(&bound.program.name) == Some(&bound.program));
         if engine.schema() != &bound.schema || !same_programs {

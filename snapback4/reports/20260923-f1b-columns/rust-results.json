@@ -1,0 +1,176 @@
+{
+  "cli.log": {
+    "results": [
+      {
+        "status": "ok",
+        "passed": 68,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "status": "ok",
+        "passed": 18,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    ]
+  },
+  "clock-mutation-red.log": {
+    "results": [
+      {
+        "status": "FAILED",
+        "passed": 0,
+        "failed": 1,
+        "ignored": 0
+      }
+    ],
+    "disposition": "Expected negative control: reintroduced wall-time activation."
+  },
+  "clock-mutation-restored.log": {
+    "results": [
+      {
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    ]
+  },
+  "core.log": {
+    "results": [
+      {
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      }
+    ]
+  },
+  "device-activation.log": {
+    "results": [
+      {
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    ]
+  },
+  "device-maintains.log": {
+    "results": [
+      {
+        "status": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "status": "ok",
+        "passed": 29,
+        "failed": 0,
+        "ignored": 0
+      }
+    ]
+  },
+  "device-trending.log": {
+    "results": [
+      {
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      }
+    ]
+  },
+  "language-all.log": {
+    "results": [
+      {
+        "status": "ok",
+        "passed": 64,
+        "failed": 0,
+        "ignored": 4
+      },
+      {
+        "status": "ok",
+        "passed": 53,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "status": "ok",
+        "passed": 42,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "status": "ok",
+        "passed": 14,
+        "failed": 0,
+        "ignored": 0
+      }
+    ]
+  },
+  "residency-cli.log": {
+    "results": [
+      {
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      }
+    ]
+  },
+  "residency-first-attempt.log": {
+    "results": [
+      {
+        "status": "FAILED",
+        "passed": 1,
+        "failed": 1,
+        "ignored": 0
+      }
+    ],
+    "disposition": "Superseded first fix: snapshot materialization masked physical absence; corrected implementation passes residency-restored.log and residency-cli.log."
+  },
+  "residency-restored.log": {
+    "results": [
+      {
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      }
+    ]
+  },
+  "serve-changes.log": {
+    "results": [
+      {
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    ]
+  },
+  "simulator.log": {
+    "results": [
+      {
+        "status": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      }
+    ]
+  }
+}

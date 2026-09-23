@@ -1,0 +1,15 @@
+✔ the largest row-bounded source batch recovers oversized parent mirrors by snapshot (67950.893042ms)
+ℹ {"tier":"sqlite","source_moves":204,"parent_images":408,"parent_body_bytes":17136000,"ceiling":16777216,"generation":1,"watermark":16,"max_response_bytes":42487}
+ℹ {"tier":"wasm","source_moves":204,"parent_images":408,"parent_body_bytes":17136000,"ceiling":16777216,"generation":1,"watermark":16,"max_response_bytes":42487}
+✔ column activation: sqlite, server watch (2762.185167ms)
+✔ column activation: sqlite, device watch (2265.234334ms)
+✔ column activation: wasm, server watch (4479.839083ms)
+✔ column activation: wasm, device watch (1420.823584ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 80118.277084

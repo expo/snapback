@@ -1,0 +1,6 @@
+{
+  "responses": 39,
+  "max_response_bytes": 16772312,
+  "bound_refusals": 2,
+  "every_response_within_ceiling": true
+}

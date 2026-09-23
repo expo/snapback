@@ -1,0 +1,229 @@
+   Compiling snapback4-core v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4-core)
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-lang v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4-device)
+   Compiling snapback4 v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4)
+    Finished `test` profile [optimized + debuginfo] target(s) in 5m 50s
+     Running tests/check.rs (target/debug/deps/check-36751bb434951deb)
+
+running 68 tests
+test b2_why_fanout_keeps_its_example_with_bounded_card_context ... ok
+test check_accepts_contextual_defaults_for_an_empty_dev_table ... ok
+test check_explains_held_dispatch_and_generates_the_client_marker ... ok
+test b2_predicts_assertion_refuses_check_and_is_quiet_when_satisfied ... ok
+test b2_maintain_note_points_to_the_measured_cold_snapshot ... ok
+test changed_default_rechecks_unchanged_cap ... ok
+test changed_default_rechecks_unchanged_unique_index ... ok
+test b2_l12_final_ranked_writes_and_entry_counts_remain_visible_in_json_and_text ... ok
+test guide_lists_aliases_and_resolves_them_on_stdout ... ok
+test guide_prediction_is_a_stdout_card ... ok
+test guide_unknown_word_suggests_cards_on_stdout ... ok
+test b2_every_check_summarizes_zero_one_and_three_never_mutations ... ok
+test check_reports_all_narrowing_sites_in_text_and_json_without_adopting ... ok
+test column_trending_cost_has_one_merge_and_derived_bounds ... ok
+test changed_default_that_still_fits_existing_groups_is_adoptable ... ok
+test check_uses_explicit_store_and_locates_index_and_table_refusals ... ok
+test w10a_inline_sections_have_a_check_wide_bound_and_stable_order ... ok
+test r3_cost_and_why_name_uniform_meter_and_nonuniform_word_bounds ... ok
+test check_preserves_database_and_wal_bytes_with_live_and_stopped_dev ... ok
+test w10c_check_keeps_independent_errors_and_other_operations ... ok
+test upsert_insert_proof_and_service_grants_reach_check_and_why ... ok
+test w10r1_empty_job_keeps_its_independent_repair ... ok
+test check_without_a_store_and_additive_or_fitting_adoption_are_quiet ... ok
+test inspection_materializes_required_literals_but_not_optional_defaults ... ok
+test w10r1_multiple_job_prelude_statements_keep_the_independent_repair ... ok
+test w10a_repeated_refusals_explain_once_and_preserve_json ... ok
+test w10r1_nested_job_prelude_keeps_its_independent_repair ... ok
+test w10r2_why_emit_in_query_has_its_own_section ... ok
+test horizon_check_and_why_keep_the_same_advice_across_checks ... ok
+test w10c_check_hides_only_the_redundant_operation_cascade ... ok
+test w10r1b_unscoped_cursor_note_never_proposes_a_whole_table_cap ... ok
+test w10r2_repeated_unknown_prints_its_section_under_the_first_site ... ok
+test w10r2_why_unknown_has_its_own_section ... ok
+test w10r2_why_placement_has_its_own_section ... ok
+test w10r2_why_syntax_has_its_own_section ... ok
+test w10r1_correcting_equality_still_requires_a_job_chunk ... ok
+test w10a_repeated_notes_explain_once_under_the_first_occurrence ... ok
+test w11_why_contextual_card_without_section_keeps_explicit_fallback_only ... ok
+test maintained_column_inspection_is_public_and_missing_storage_reads_zero ... ok
+test w10r1b_missing_fixture_refuses_instead_of_measuring_an_empty_store ... ok
+test w13b_near_ceiling_requires_more_than_half_and_reports_each_counter ... ok
+test w13b_cut_log_suppresses_per_operation_and_site_with_a_count ... ok
+test w11r1c_help_describes_residency_without_query_meters ... ok
+test w13c2_cost_folds_range_widths_and_keeps_unknown_lanes_meter_bounded ... ok
+test w13b_starter_has_no_near_ceiling_summary ... ok
+test w11r2_generic_application_refusals_do_not_claim_the_feed_recipe ... ok
+test w13c_cost_reports_meter_domains_and_prefix_existence_as_scans ... ok
+test w13cr1_cost_keeps_differently_grouped_range_expressions_dynamic ... ok
+test w11c_check_acquisition_uses_active_schema_read_only_and_fixture_uses_current_schema ... ok
+test w11c_residency_cost_order_and_bounded_reconciled_totals_on_both_verbs ... ok
+test w13c_check_fix_parenthesizes_an_inner_matching_read ... ok
+test w8c_doctor_names_live_generation_mismatch_even_when_source_matches_store ... ok
+test w11_repeated_quarry_refusals_show_sections_and_their_repairs_check_clean ... ok
+test r2_n4_inspection_defaults_equal_stored_values_and_group_together ... ok
+test w8r1b_release_from_a_used_dev_store_never_returns_read_meters ... ok
+test w9b_why_operation_keeps_residency_and_cost_output ... ok
+test w8r1b_test_names_held_queries_without_failing_other_queries_or_residency ... ok
+test w9b_new_maintains_share_one_note_without_pre_adoption_counts ... ok
+test w9a_check_states_held_source_coverage_only_without_horizons ... ok
+test w9b_why_prints_a_codes_card_paragraph ... ok
+test w9c_check_validates_unique_refusal_codes_like_require ... ok
+test w8c_watching_host_reopens_after_cli_adopts_the_pending_source ... ok
+test w9r1b_why_wide_merge_opens_the_notes_card ... ok
+test w13b_test_names_reads_past_half_a_ceiling_and_bounds_the_summary ... ok
+test w11r1c_toolchain_why_explains_node_start_failure_too ... ok
+test w11_why_every_registered_code_returns_its_dedicated_section ... ok
+test w8c_startup_waits_for_the_adoption_lock_to_clear ... ok
+test w8c_adoption_lock_failure_repeats_on_sweep_and_retries_without_another_save ... ok
+
+test result: ok. 68 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.10s
+
+     Running tests/clock.rs (target/debug/deps/clock-78fe334ff629515a)
+
+running 18 tests
+test clock_alias_and_refusals_are_discoverable ... ok
+snapback4 dev: http://127.0.0.1:55832  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-sweep/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-sweep/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:55828  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-presence/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-presence/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:55829  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-action-live/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-action-live/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:55830  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-action-expiry-dev/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-action-expiry-dev/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:55833  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-sync/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-sync/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:55835  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-grace-push/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-grace-push/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:55834  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-effect-retry/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-effect-retry/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:55836  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-hold/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-hold/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:55831  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-effect-live/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-effect-live/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:55838  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-grace-restart/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-grace-restart/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:55882  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-hold/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-hold/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4: schedule ticking fired
+snapback4: job tick done: 1 chunk, 1 row written
+test clock_advance_preserves_a_live_effect_claim_and_settlement ... ok
+snapback4: schedule ticking fired
+snapback4: job tick done: 1 chunk, 1 row written
+snapback4 dev: http://127.0.0.1:55907  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-grace-restart/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-grace-restart/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+test clock_advance_expires_presence_grace_and_a_new_poll_reconnects ... ok
+test advance_preserves_replay_holds_and_restart_does_not_replay_held_boundaries ... ok
+test effect_retry_next_at_still_follows_the_dev_clock ... ok
+snapback4 dev: http://127.0.0.1:55925  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-offset/snapback/generated/api.ts)
+store: in memory — dies with this process
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+test clock_advance_preserves_a_live_action_claim_session_and_settlement ... ok
+test grace_push_is_deferred_until_clock_advance_then_delivered_once ... ok
+snapback4 dev: http://127.0.0.1:55928  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-column-watch/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-column-watch/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:55927  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-effect-wall-dev/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-effect-wall-dev/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4: schedule ticking fired
+snapback4: job tick done: 1 chunk, 0 rows written
+snapback4 serve: http://127.0.0.1:55936  (release deployment/releases/1, generation 1, tokens only)
+test advancing_clock_expires_rows_and_fires_two_minute_schedule_on_server_and_both_stores ... ok
+snapback4 dev: http://127.0.0.1:55935  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-grace-reconnect/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-grace-reconnect/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4: schedule ticking fired
+snapback4: job tick done: 1 chunk, 0 rows written
+snapback4 dev: http://127.0.0.1:55939  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-run/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-run/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:55949  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-write-offset/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-write-offset/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+test advance_drains_expiry_across_multiple_bounded_sweeps ... ok
+test grace_push_serve_keeps_deadline_and_reconnect_record_for_claim_after_restart ... ok
+snapback4 dev: http://127.0.0.1:55987  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-grace-reconnect/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-grace-reconnect/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+note: schema.q:2:1 — N_NO_HORIZON: table posts: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; measure what it costs with `check --residency`
+  rewrite: by byAt: at, id  -- then: sync public last 500 by byAt
+  guide: sync
+note: schema.q:9:3 — N_MAINTAINED_COLUMN_STREAM: posts: each contributing commit logs and streams the whole parent image per destination partition, coalesced once per row; a 4,000-byte parent costs every holder about 4 KB per change
+  rewrite: use a column when readers want the count with the row; for a large row or a counter changing far more often than it is read, use maintain … online only
+  guide: maintains
+snapback4 dev: schema adopted as generation 2 (Additive) in 7 ms; types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-column-watch/snapback/generated/api.ts
+  Additive: required maintained column posts.likeCount added; activation derives its value, missing stored fields read 0
+  Additive: maintain posts.likeCount needs a derived rebuild of its filter, keys, totals or indexes; adoption rebuilds from source rows without rewriting them
+test grace_push_reconnect_is_satisfied_even_after_restart_and_disconnect ... ok
+test offset_cli_advance_and_rejected_inputs_keep_time_monotone ... ok
+snapback4 serve: http://127.0.0.1:56009  (release deployment/releases/1, generation 1, tokens only)
+test writes_use_dev_clock_for_timestamps_expiry_and_replay ... ok
+test release_refuses_clock_flags_and_the_endpoint ... ok
+snapback4 dev: http://127.0.0.1:56014  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-column-startup/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-column-startup/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+test run_now_pins_query_mutation_and_job_without_changing_running_dev ... ok
+snapback4 dev: http://127.0.0.1:56027  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-column-startup/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-column-startup/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:56030  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-column-cli/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-56439-column-cli/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4 serve: http://127.0.0.1:56035  (release deployment/releases/1, generation 1, tokens only)
+test maintained_column_activation_uses_offset_clock_in_watch_startup_and_cli ... ok
+test action_retry_times_follow_dev_clock_and_real_expiry_still_fences_dev_and_serve ... ok
+snapback4: 1 effect lease expired; queued again
+snapback4 serve: http://127.0.0.1:56099  (release deployment/releases/1, generation 1, tokens only)
+snapback4: 1 effect lease expired; queued again
+test real_time_effect_lease_loss_requeues_in_dev_and_serve ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.40s
+
+     Running tests/column_commit.rs (target/debug/deps/column_commit-f7269e88caeda2dd)
+
+running 1 test
+test largest_composed_column_commit_at_the_row_ceiling_fits_and_next_attempt_rolls_back ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.05s

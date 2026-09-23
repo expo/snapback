@@ -1,0 +1,208 @@
+{
+  "gate5": "PASS",
+  "device_adopts": true,
+  "no_response_exceeds_ceiling_because_of_form": true,
+  "responseAudit": {
+    "responses": 39,
+    "max_response_bytes": 16772312,
+    "bound_refusals": 2,
+    "every_response_within_ceiling": true
+  },
+  "mechanism": "engine private maintain rebuild and in-place mirror; no fixture backfill",
+  "beforeActivation": {
+    "mode": "inspect",
+    "before": {
+      "rows": {
+        "posts": 4000,
+        "likes": 40000
+      },
+      "generation": "1",
+      "log_rows": 12000,
+      "commits": 16,
+      "parents_with_count": 0
+    },
+    "after": {
+      "rows": {
+        "posts": 4000,
+        "likes": 40000
+      },
+      "generation": "1",
+      "log_rows": 12000,
+      "commits": 16,
+      "parents_with_count": 0
+    },
+    "elapsed_ms": 729.117167,
+    "peak_rss_bytes": 20627456
+  },
+  "activated": {
+    "mode": "inspect",
+    "before": {
+      "rows": {
+        "posts": 4000,
+        "likes": 40000
+      },
+      "generation": "2",
+      "log_rows": 12000,
+      "commits": 17,
+      "parents_with_count": 4000
+    },
+    "after": {
+      "rows": {
+        "posts": 4000,
+        "likes": 40000
+      },
+      "generation": "2",
+      "log_rows": 12000,
+      "commits": 17,
+      "parents_with_count": 4000
+    },
+    "elapsed_ms": 400.880083,
+    "peak_rss_bytes": 20627456
+  },
+  "activation": {
+    "label": "activation-only",
+    "startup_ms": 11323.580167,
+    "resource_file": "2-activation-only.resources.json",
+    "schema": {
+      "label": "activation-only",
+      "sha256": "0f8d377990dd5ef29e0457cf1f5b286cdcdbbdebd75d7df452a3999ca319a56e",
+      "bytes": 298,
+      "maintained_declarations": 1
+    }
+  },
+  "activation_resources": {
+    "command": [
+      "/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/target/debug/snapback4",
+      "dev",
+      "--no-watch",
+      "--hold-effects",
+      "--hold-schedules",
+      "--port",
+      "56160"
+    ],
+    "pid": 57294,
+    "elapsed_ms": 11270.267249999999,
+    "user_seconds": 1.979716,
+    "system_seconds": 0.371978,
+    "peak_rss_bytes": 28360704,
+    "exit_status": -15
+  },
+  "devices": [
+    {
+      "name": "current",
+      "elapsed_ms": 3947.873875000005,
+      "state": {
+        "generation": 2,
+        "native": null,
+        "watermark": 17
+      },
+      "persisted": {
+        "mode": "inspect",
+        "before": {
+          "rows": {
+            "posts": 4000,
+            "likes": 0
+          },
+          "generation": "2",
+          "log_rows": 0,
+          "commits": 0,
+          "parents_with_count": 4000
+        },
+        "after": {
+          "rows": {
+            "posts": 4000,
+            "likes": 0
+          },
+          "generation": "2",
+          "log_rows": 0,
+          "commits": 0,
+          "parents_with_count": 4000
+        },
+        "elapsed_ms": 168.37104199999996,
+        "peak_rss_bytes": 14254080
+      },
+      "parent_values": {
+        "count": 4000,
+        "equal_to_10": 4000
+      },
+      "sync_requests": 3,
+      "max_response_bytes": 16772312,
+      "bound_refusals": 0,
+      "resource": {
+        "command": [
+          "/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/target/debug/snapback4",
+          "device",
+          "/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-mc1-activation-kK5NTf/current/snapback4-http%3A%2F%2F127.0.0.1%3A56160%3Adev%3Aalice.sqlite",
+          "/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-mc1-activation-kK5NTf/current/snapback4-http%3A%2F%2F127.0.0.1%3A56160%3Adev%3Aalice.sqlite.backend.json"
+        ],
+        "pid": 56954,
+        "elapsed_ms": 45549.91675,
+        "user_seconds": 1.013791,
+        "system_seconds": 0.627915,
+        "peak_rss_bytes": 124993536,
+        "exit_status": -15
+      }
+    },
+    {
+      "name": "lagging",
+      "elapsed_ms": 6702.553915999997,
+      "state": {
+        "generation": 2,
+        "native": null,
+        "watermark": 17
+      },
+      "persisted": {
+        "mode": "inspect",
+        "before": {
+          "rows": {
+            "posts": 4000,
+            "likes": 0
+          },
+          "generation": "2",
+          "log_rows": 0,
+          "commits": 0,
+          "parents_with_count": 4000
+        },
+        "after": {
+          "rows": {
+            "posts": 4000,
+            "likes": 0
+          },
+          "generation": "2",
+          "log_rows": 0,
+          "commits": 0,
+          "parents_with_count": 4000
+        },
+        "elapsed_ms": 378.10166699999996,
+        "peak_rss_bytes": 14352384
+      },
+      "parent_values": {
+        "count": 4000,
+        "equal_to_10": 4000
+      },
+      "sync_requests": 3,
+      "max_response_bytes": 16772312,
+      "bound_refusals": 0,
+      "resource": {
+        "command": [
+          "/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/target/debug/snapback4",
+          "device",
+          "/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-mc1-activation-kK5NTf/lagging/snapback4-http%3A%2F%2F127.0.0.1%3A56160%3Adev%3Aalice.sqlite",
+          "/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-mc1-activation-kK5NTf/lagging/snapback4-http%3A%2F%2F127.0.0.1%3A56160%3Adev%3Aalice.sqlite.backend.json"
+        ],
+        "pid": 56993,
+        "elapsed_ms": 51001.35320899999,
+        "user_seconds": 0.565261,
+        "system_seconds": 0.463644,
+        "peak_rss_bytes": 76333056,
+        "exit_status": -15
+      }
+    }
+  ],
+  "end_load": [
+    60.59521484375,
+    56.65478515625,
+    42.84814453125
+  ],
+  "host_process_peak_rss_bytes": 597704704
+}

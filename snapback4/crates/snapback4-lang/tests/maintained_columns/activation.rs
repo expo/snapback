@@ -37,6 +37,10 @@ fn activation_mirror_is_event_free_in_place_and_zero_additions_stay_unwritten() 
         assert_eq!(totals(&mut e, "p"), if nonzero {(1,1,7)} else {(0,0,0)});
         assert_eq!(totals(&mut e, "zero"), (0,0,0));
         let rows = e.store().rows("posts").unwrap();
+        let p = rows.iter().find(|r| r.field("id").unwrap() == &id("p")).unwrap();
+        assert_eq!(p.field("at").unwrap(), &Value::Int(17));
+        if nonzero { assert_eq!(p.field("likeCount").unwrap(), &Value::Int(1)); }
+        else { assert!(p.field("likeCount").is_err()); }
         let zero = rows.iter().find(|r|r.field("id").unwrap() == &id("zero")).unwrap();
         assert!(zero.field("likeCount").is_err());
         assert_eq!(zero.field("at").unwrap(), &Value::Int(19));
@@ -50,10 +54,13 @@ fn activation_mirror_is_event_free_in_place_and_zero_additions_stay_unwritten() 
 fn redefinition_zero_removal_and_readdition_preserve_other_fields() {
     let mut e = engine(&MODEL.replace("  online only", "  sync public"));
     post(&mut e, "p", 17); like(&mut e, "l", id("p"), true, 7);
+    e.store().conn().execute_batch("CREATE TRIGGER no_parent_delete BEFORE DELETE ON r WHEN OLD.t = (SELECT num FROM _catalog WHERE name = 'posts') BEGIN SELECT RAISE(ABORT, 'mirror deleted parent'); END;
+        CREATE TRIGGER no_parent_insert BEFORE INSERT ON r WHEN NEW.t = (SELECT num FROM _catalog WHERE name = 'posts') AND EXISTS(SELECT 1 FROM r WHERE t=NEW.t AND id=NEW.id) BEGIN SELECT RAISE(ABORT, 'mirror replaced parent'); END;").unwrap();
     let target = e.schema().maintains.iter().find(|m|m.private.as_ref().unwrap().column == "likeCount").unwrap().target.clone();
     let from = e.seq().unwrap();
     adopt(&mut e, &MODEL.replace("count likes by postId", "count likes where .active = false by postId").replace("  online only", "  sync public"));
     no_events(&mut e, from);
+    e.store().conn().execute_batch("DROP TRIGGER no_parent_delete; DROP TRIGGER no_parent_insert;").unwrap();
     assert_eq!(totals(&mut e, "p"), (0,1,7));
     let row = e.store().rows("posts").unwrap().remove(0);
     assert_eq!(row.field("likeCount").unwrap(), &Value::Int(0));
@@ -106,11 +113,54 @@ fn expired_parent_skipped_on_activation_then_swept_and_recreated_right() {
     let mut e = engine(&before);
     e.load_mode([("posts".into(),object([("id",id("p")),("at",Value::Int(1)),("expiresAt",Value::Int(1))]))],LoadMode::Restore).unwrap();
     like(&mut e,"l",id("p"),true,4);
-    e.store().conn().execute_batch("CREATE TRIGGER no_expired_put BEFORE UPDATE ON r WHEN NEW.t=(SELECT num FROM _catalog WHERE name='posts') BEGIN SELECT RAISE(ABORT,'expired put'); END").unwrap();
-    adopt(&mut e,&after);
-    assert!(e.store().rows("posts").unwrap()[0].field("likeCount").is_err());
+    post(&mut e,"live",2); like(&mut e,"live-like",id("live"),true,5);
+    e.store().conn().execute_batch("CREATE TRIGGER no_expired_put BEFORE UPDATE ON r WHEN NEW.t=(SELECT num FROM _catalog WHERE name='posts') AND NEW.id='p' BEGIN SELECT RAISE(ABORT,'expired put'); END").unwrap();
+    let b = compile(&after);
+    e.adopt_at(b.schema, b.programs.into_iter().map(|p| p.program), 1000).unwrap();
+    let rows = e.store().rows("posts").unwrap();
+    assert!(rows.iter().find(|r| r.field("id").unwrap() == &id("p")).unwrap().field("likeCount").is_err());
+    assert_eq!(rows.iter().find(|r| r.field("id").unwrap() == &id("live")).unwrap().field("likeCount").unwrap(), &Value::Int(1));
     e.store().conn().execute_batch("DROP TRIGGER no_expired_put").unwrap();
     e.sweep_expired(1000, 100).unwrap();
     post(&mut e,"p",2);
     assert_eq!(totals(&mut e,"p"),(1,1,4));
+}
+
+#[test]
+fn activation_uses_host_clock_on_both_sides_of_parent_expiry() {
+    for live_on_host in [true, false] {
+        let wall = snapback4_core::now_ms();
+        let host = wall + if live_on_host { -7_200_000 } else { 7_200_000 };
+        let expires = wall + if live_on_host { -3_600_000 } else { 3_600_000 };
+        assert_eq!(host < expires, live_on_host);
+        assert_eq!(expires < wall, live_on_host);
+        let expiry = "  expiresAt: time ?\n  by byExpiry: expiresAt, id\n  expire at .expiresAt\n  at: time";
+        let before = bare().replacen("  at: time", expiry, 1);
+        let after = MODEL.replacen("  at: time", expiry, 1);
+        for reopen in [false, true] {
+            let dir = std::env::temp_dir().join(format!("sb4-activation-clock-{}-{live_on_host}-{reopen}", std::process::id()));
+            std::fs::create_dir_all(&dir).unwrap();
+            let path = dir.join("store.sqlite");
+            let b = compile(&before);
+            let mut e = Engine::new(snapback4_core::Store::open(&path).unwrap(), b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+            e.seed_at([("posts".into(), object([("id",id("p")),("at",Value::Int(17)),("expiresAt",Value::Int(expires))]))], host.min(expires - 1)).unwrap();
+            like(&mut e,"l",id("p"),true,4);
+            if !live_on_host {
+                e.store().conn().execute_batch("CREATE TRIGGER no_expired_put BEFORE UPDATE ON r WHEN NEW.t=(SELECT num FROM _catalog WHERE name='posts') BEGIN SELECT RAISE(ABORT,'expired parent written'); END").unwrap();
+            }
+            let b = compile(&after);
+            if reopen {
+                drop(e);
+                e = Engine::new_at(snapback4_core::Store::open(&path).unwrap(), b.schema, b.programs.into_iter().map(|p| p.program), host).unwrap();
+            } else {
+                e.adopt_at(b.schema, b.programs.into_iter().map(|p| p.program), host).unwrap();
+            }
+            let stored = e.store().rows("posts").unwrap().remove(0);
+            assert_eq!(stored.field("at").unwrap(), &Value::Int(17));
+            if live_on_host { assert_eq!(stored.field("likeCount").unwrap(), &Value::Int(1)); }
+            else { assert!(stored.field("likeCount").is_err()); }
+            drop(e);
+            std::fs::remove_dir_all(dir).unwrap();
+        }
+    }
 }

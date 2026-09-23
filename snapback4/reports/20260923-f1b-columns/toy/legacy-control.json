@@ -1,0 +1,21 @@
+{
+  "request": {
+    "from": 8,
+    "limit": 4000,
+    "after": null,
+    "stream": true,
+    "pending": []
+  },
+  "bytes": 235,
+  "reply": {
+    "denied": {
+      "code": "E_BOUND",
+      "family": "bound",
+      "guide": "reads",
+      "message": "the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values"
+    },
+    "generation": 2,
+    "store_id": "2e0f6f204f8ad240122e9f3e83d8431f",
+    "watermark": 12
+  }
+}

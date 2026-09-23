@@ -17,6 +17,22 @@ fn run<H: Host>(host: &mut H) {
     let fill = device.query("trending", "bob", &json!({"c":null}), f::NOW).unwrap();
     assert!(fill.complete);
     assert_eq!(f::names(&f::rows(&fill.data)), ["mid", "fresh", "edge", "quiet-00", "quiet-01", "quiet-02", "quiet-03", "quiet-04", "quiet-05", "quiet-06"]);
+    for row in f::rows(&fill.data).iter().filter(|r| r.field("id").unwrap().as_str().unwrap().starts_with("quiet-")) {
+        assert_eq!(row.field("likeCount").unwrap(), &Value::Int(0));
+    }
+    for (step, liked) in [false, true, false].into_iter().enumerate() {
+        let from = server.seq().unwrap();
+        f::set_like(&mut server, "bob", "quiet-00", liked, f::NOW, &format!("quiet-server-{step}"));
+        device.apply(&stream_page(&mut server, "bob", from), false).unwrap();
+        for stored in [server.store().rows("posts").unwrap(), device.store().raw_rows("posts")] {
+            let row = stored.iter().find(|r| r.field("id").unwrap() == &f::id("quiet-00")).unwrap();
+            assert_eq!(row.field("likeCount").unwrap(), &Value::Int(i64::from(liked)));
+        }
+        let ranked = device.query("trending", "bob", &json!({"c":null}), f::NOW).unwrap();
+        let rows = f::rows(&ranked.data);
+        assert_eq!(f::names(&rows).iter().position(|id| id == "quiet-00"), Some(if liked { 2 } else { 3 }));
+        assert_eq!(rows[if liked { 2 } else { 3 }].field("likeCount").unwrap(), &Value::Int(i64::from(liked)));
+    }
     for (n, liked) in [true, true, false, false].into_iter().enumerate() {
         let entry = device.admit(Queued { id: format!("q{n}"), seq:n as u64 + 1, op:"setLike".into(), args:json!({"postId":"quiet-00","liked":liked}),
             viewer:"bob".into(), now:f::NOW, new_ids:vec![format!("local-{n}")], predicted:vec![], predictable:true, sent_seq: None, receipt_store: None, observed_seq:None }).unwrap();
@@ -64,8 +80,14 @@ fn population<H: Host>(host: &mut H) {
     assert!(page.complete && page.next.is_some()); assert_eq!(f::rows(&page.data).len(), 10); assert_eq!(page.metered.examined, 34);
     let expected = server.query("trending", snapback4_core::Context::new("bob", args(&[("c", Value::Null)])).at(f::NOW)).unwrap();
     assert_eq!(page.data, expected.data);
+    assert!(expected.next.is_some());
+    let second = device.query("trending", "bob", &json!({"c":page.next}), f::NOW).unwrap();
+    assert!(second.complete && second.next.is_some());
+    assert_eq!(f::rows(&second.data).len(), 10);
+    let first_ids = f::names(&f::rows(&page.data));
+    assert!(f::names(&f::rows(&second.data)).iter().all(|id| !first_ids.contains(id)));
     let old = device.query("trending", "bob", &json!({"c":null}), f::NOW + 2 * f::DAY).unwrap();
-    assert!(old.complete && f::rows(&old.data).is_empty());
+    assert!(old.complete && old.next.is_none() && f::rows(&old.data).is_empty());
     println!("W14a {} population: in-window=10000; examined={}; complete=true; next=true; cold target rows={targets}", host.label(), page.metered.examined);
     host.close("w14a-population", device);
 }

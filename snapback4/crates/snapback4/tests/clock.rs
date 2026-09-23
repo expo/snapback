@@ -542,3 +542,42 @@ fn grace_push_serve_keeps_deadline_and_reconnect_record_for_claim_after_restart(
     assert_eq!(satisfied[0].result.as_ref().unwrap().field("outcome").unwrap().as_str().unwrap(), "presence_reconnected");
     println!("grace serve: immediate_delivered=1 deferred_delivered=0 satisfied=1 attempts=0 restarts=1");
 }
+
+#[test]
+fn maintained_column_activation_uses_offset_clock_in_watch_startup_and_cli() {
+    const BEFORE: &str = "use personas alice\ntable posts:\n  at: time\n  expiresAt: time ?\n  by byExpiry: expiresAt, id\n  expire at .expiresAt\n  public\n  sync public\ntable likes:\n  postId: posts\n  public\n  online only\nquery one():\n  return posts['p']\nquery time():\n  return now\n";
+    let after = BEFORE.replacen("  at: time", "  at: time\n  likeCount: count likes by postId", 1);
+    for path in ["watch", "startup", "cli"] {
+        let f = Fixture::new(&format!("column-{path}"));
+        fs::write(f.0.join("snapback/schema.q"), BEFORE).unwrap();
+        let host = f.start(&["dev", "--clock-offset", "-2h", "--hold-schedules"]);
+        let now = host.query("time").as_i64().unwrap();
+        let expires = now + 3_600_000;
+        assert!(now < expires && expires < snapback4_core::now_ms());
+        let seeded = host.post("/seed", json!([
+            {"table":"posts", "row":{"id":"p", "at":17, "expiresAt":expires}},
+            {"table":"likes", "row":{"id":"l", "postId":"p"}}
+        ]));
+        assert_eq!(seeded["seeded"], 2, "{seeded}");
+        if path == "watch" {
+            fs::write(f.0.join("snapback/schema.q"), &after).unwrap();
+            let end = Instant::now() + Duration::from_secs(15);
+            loop {
+                let row = host.query("one");
+                if row["likeCount"] == 1 { assert_eq!(row["at"], 17); break; }
+                assert!(Instant::now() < end, "offset-clock adoption did not mirror live parent: {row}");
+                std::thread::sleep(Duration::from_millis(20));
+            }
+        } else {
+            drop(host);
+            fs::write(f.0.join("snapback/schema.q"), &after).unwrap();
+            if path == "cli" {
+                let reply = output_json(f.command(&["run", "one", "--as", "alice", "--now", &now.to_string()]));
+                assert_eq!(reply["data"]["likeCount"], 1, "{reply}");
+            } else {
+                let host = f.start(&["dev", "--clock-offset", "-2h", "--no-watch", "--hold-schedules"]);
+                assert_eq!(host.query("one")["likeCount"], 1);
+            }
+        }
+    }
+}

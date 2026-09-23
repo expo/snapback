@@ -1,0 +1,49 @@
+    Blocking waiting for file lock on build directory
+   Compiling snapback4-device v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 8m 42s
+     Running tests/column_activation.rs (target/debug/deps/column_activation-2af78a90d768122e)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/device.rs (target/debug/deps/device-c45ef7291d1c437b)
+
+running 29 tests
+test maintains::review::review1_history_memory ... ok
+test maintains::columns::provisional_parents_authorize_implicit_zero_at_read_time_on_both_stores ... ok
+test maintains::review::review3_subset_memory ... ok
+test maintains::maintains_queue_unknown_bases_and_unheld_source_images_on_both_stores ... ok
+test maintains::review::review4_raw_adoption ... ok
+test maintains::columns::projected_columns_keep_recorded_decoder_fence_and_capture_on_both_stores ... ok
+test maintains::review::review4_raw_creation ... ok
+test maintains::retains_source_history_but_revokes_aggregate_and_replacement_snapshot_on_both_stores ... ok
+test maintains::review::review5_generation_memory ... ok
+test maintains::review::review5_prefix_memory ... ok
+test maintains::review::review5_old_cursor_after_value_change_memory ... ok
+test maintains::columns::columns_are_server_values_on_both_device_stores ... ok
+test maintains::review::review5_query_cursor_in_mutation_memory ... ok
+test maintains::review::review3_subset_sqlite ... ok
+test maintains::review::review5_table_generation_memory ... ok
+test maintains::review::review5_table_prefix_memory ... ok
+test maintains::review::review5_prefix_sqlite ... ok
+test maintains::columns::independent_source_model_matches_both_device_readers ... ok
+test maintains::review::review5_query_cursor_in_mutation_sqlite ... ok
+test maintains::review::review5_generation_sqlite ... ok
+test maintains::review::review1_history_sqlite ... ok
+test maintains::review::review5_table_prefix_sqlite ... ok
+test maintains::maintains_predict_new_groups_and_omit_online_side_effects_on_both_stores ... ok
+test maintains::review::review5_table_generation_sqlite ... ok
+W6R1 host=sqlite live rule horizon=false source_rows=1 predicted=true confirmed=1 expired_refused=1
+FOLD store=memory attempts=28 commits=26 overflow_rollbacks=2 groups_ranked_from_sources=true
+test maintains::review::review6_fold_memory ... ok
+test maintains::review::review5_old_cursor_after_value_change_sqlite ... ok
+W6R1 host=sqlite live rule horizon=true source_rows=1 predicted=false confirmed=1 expired_refused=1
+W6R1 host=memory live rule horizon=false source_rows=1 predicted=true confirmed=1 expired_refused=1
+W6R1 host=memory live rule horizon=true source_rows=1 predicted=false confirmed=1 expired_refused=1
+test maintains::w6r1_rule_live_aggregate_prediction_on_both_stores ... ok
+FOLD store=sqlite attempts=28 commits=26 overflow_rollbacks=2 groups_ranked_from_sources=true
+test maintains::review::review6_fold_sqlite ... ok
+test maintains::columns::projected_metadata_refuses_every_forged_write_arm_on_both_stores ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 409 filtered out; finished in 4.88s

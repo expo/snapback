@@ -1,0 +1,22 @@
+    Blocking waiting for file lock on build directory
+   Compiling snapback4-device v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 13.10s
+     Running tests/device.rs (target/debug/deps/device-c45ef7291d1c437b)
+
+running 6 tests
+W14a memory: oracle equal; offline 1h edge removed; zeros in one merge examined=12; 4/4 predicted source set/clear leave rank unchanged
+W15c memory: 48 ties, both cursor directions, 2/2 source predictions preserve rank until server mirrors arrive
+test trending::lanes::w15c_ties_on_memory ... ok
+W14a sqlite: oracle equal; offline 1h edge removed; zeros in one merge examined=12; 4/4 predicted source set/clear leave rank unchanged
+W15c sqlite: 48 ties, both cursor directions, 2/2 source predictions preserve rank until server mirrors arrive
+test trending::lanes::w15c_ties_on_sqlite ... ok
+W14a memory paging: 37 liked posts, each once across synced winner increment; first page examined=33
+test trending::lanes::w14a_hour_lanes_on_memory ... ok
+W14a sqlite paging: 37 liked posts, each once across synced winner increment; first page examined=33
+test trending::lanes::w14a_hour_lanes_on_sqlite ... ok
+W14a memory population: in-window=10000; examined=34; complete=true; next=true; cold target rows=10000
+test trending::lanes::w14a_population_on_memory ... ok
+W14a sqlite population: in-window=10000; examined=34; complete=true; next=true; cold target rows=10000
+test trending::lanes::w14a_population_on_sqlite ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 432 filtered out; finished in 5.73s

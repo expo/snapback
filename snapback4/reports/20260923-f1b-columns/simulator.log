@@ -1,0 +1,30 @@
+    Blocking waiting for file lock on build directory
+   Compiling snapback4-sim v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4-sim)
+    Finished `test` profile [optimized + debuginfo] target(s) in 10m 16s
+     Running tests/clique.rs (target/debug/deps/clique-41fd52b6d6274072)
+
+running 8 tests
+test trending::lanes::column_ranking_keeps_source_write_authority ... ok
+column lane: 3 tied parents; 2 score rewrites; zero retains all 3 entries
+test trending::lanes::column_lane_ties_rewrite_and_zero_stays_indexed ... ok
+W12INT sparse population: posts=1; likes=1; examined=1; complete=true
+W12INT sparse population: posts=10; likes=1; examined=10; complete=true
+W12INT sparse population: posts=11; likes=1; examined=11; complete=true
+column ranking: rows=10 examined=13; zeros share one merge
+test trending::lanes::column_oracle_clock_and_zeros_in_one_merge ... ok
+W15c tieFirst: rows=48 pages=7 meter_cuts=0
+W15c tieLast: rows=48 pages=7 meter_cuts=0
+W15c tieFirst: rows=48 pages=5 meter_cuts=4
+W15c tieLast: rows=48 pages=5 meter_cuts=4
+test trending::lanes::w15c_equal_scores_continue_across_page_and_drain_cuts_in_both_directions ... ok
+W14a server paging: 37 liked posts, each once across concurrent winner increment; cursor is not a snapshot
+test trending::lanes::w14a_one_cursor_with_a_concurrent_like_and_score_crossing_limit ... ok
+W12INT sparse population: posts=4096; likes=1; examined=11; complete=true
+W12INT sparse population: posts=48200; likes=1; examined=11; complete=true
+test trending::lanes::column_first_page_includes_unliked_posts_without_scanning_the_population ... ok
+W14a boundary: stale same-hour groups=8300; examined=8194; complete=false
+test trending::lanes::w14a_partial_boundary_hour_is_charged_and_can_cut ... ok
+W14a population: in-window=48200; liked=48200; examined=34; complete=true; next=true; parents after 48h=48200; parent row JSON bytes=3856000; parents after last unlike=48200
+test trending::lanes::w14a_population_and_group_lifetime ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 248 filtered out; finished in 21.94s

@@ -1,0 +1,20 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "snapback4-lang",
+    "--test",
+    "maintained_columns",
+    "activation_uses_host_clock_on_both_sides_of_parent_expiry",
+    "--",
+    "--nocapture"
+  ],
+  "mutation": "Restore the activation-local wall-time read, overriding host time for activation runners",
+  "original_sha256": "7cee61e25ef37bf906d37cd2f45595ae2c99e3a629514791e32e28a85b4cae9f",
+  "mutated_sha256": "9064f295fce2ccfdc59e94e232560228891cd80c4a27410d23eb81620bb511cd",
+  "mutated_exit": 101,
+  "restored_sha256": "7cee61e25ef37bf906d37cd2f45595ae2c99e3a629514791e32e28a85b4cae9f",
+  "byte_for_byte_restored": true,
+  "restored_exit": 0
+}

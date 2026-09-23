@@ -1,0 +1,9 @@
+    Blocking waiting for file lock on build directory
+   Compiling snapback4-device v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 6m 06s
+     Running tests/column_activation.rs (target/debug/deps/column_activation-2af78a90d768122e)
+
+running 1 test
+test additions_and_all_redefinitions_reacquire_on_both_stores ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.80s

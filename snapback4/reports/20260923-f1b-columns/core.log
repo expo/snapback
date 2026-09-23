@@ -1,0 +1,23 @@
+    Blocking waiting for file lock on build directory
+   Compiling snapback4-lang v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4-lang)
+   Compiling snapback4-core v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4-core)
+    Finished `test` profile [optimized + debuginfo] target(s) in 3m 54s
+     Running tests/maintained_columns_review.rs (target/debug/deps/maintained_columns_review-cee06c264a520e1a)
+
+running 4 tests
+test duplicate_target_never_changes_projection_or_system_read_privacy ... ok
+test duplicate_target_shadowing_is_rejected_at_admission ... ok
+test private_derivations_reject_malformed_raw_target_shapes ... ok
+test every_private_target_refuses_nested_ir_and_native_program_admission ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s
+
+     Running tests/schema_capabilities.rs (target/debug/deps/schema_capabilities-994f76f9493aef7b)
+
+running 4 tests
+test legacy_recorded_fixture_decodes_and_emits_only_capabilities ... ok
+test no_capabilities_keeps_the_exact_legacy_bytes ... ok
+test unknown_missing_and_duplicate_capabilities_refuse_decode ... ok
+test capabilities_are_derived_independently_and_together ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
