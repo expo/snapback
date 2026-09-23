@@ -212,8 +212,8 @@ export const allow = [
   { file: core + 'partition.rs', item: 'stream', line: 'let group_values: Vec<Value> = serde_json::from_str(group).map_err(|e| RuntimeError::Store(e.to_string()))?;' },
   { file: core + 'engine/receipt.rs', item: 'from_receipt', line: 'let body: Json = serde_json::from_str(text).map_err(|e| RuntimeError::Store(e.to_string()))?;' },
   { file: core + 'engine/receipt.rs', item: 'from_receipt', line: 'let mut why: Refusal = serde_json::from_value(body["why"].clone()).map_err(|e| RuntimeError::Store(e.to_string()))?;' },
-  { file: core + 'engine/mod.rs', item: 'open', line: 'let schema = serde_json::from_str(&schema).map_err(|e| RuntimeError::decode(e, |e| RuntimeError::Store(format!("invalid stored schema: {e}"))))?;' },
-  { file: core + 'engine/mod.rs', item: 'open', line: 'let programs = serde_json::from_str(&programs).map_err(|e| RuntimeError::Store(format!("invalid stored programs: {e}")))?;' },
+  { file: core + 'engine/mod.rs', item: 'open_at', line: 'let schema = serde_json::from_str(&schema).map_err(|e| RuntimeError::decode(e, |e| RuntimeError::Store(format!("invalid stored schema: {e}"))))?;' },
+  { file: core + 'engine/mod.rs', item: 'open_at', line: 'let programs = serde_json::from_str(&programs).map_err(|e| RuntimeError::Store(format!("invalid stored programs: {e}")))?;' },
   { file: core + 'engine/mod.rs', item: 'activate', line: 'let previous: Option<Schema> = previous.map(|text| serde_json::from_str(&text).map_err(|e| RuntimeError::decode(e, RuntimeError::Store))).transpose()?;' },
   { file: core + 'engine/mod.rs', item: 'mutate', line: 'tx.record_applied(&viewer, op, seq, &serde_json::to_string(&outcome.receipt(Some(op))).map_err(|e| RuntimeError::Store(e.to_string()))?)?;' },
 ];
