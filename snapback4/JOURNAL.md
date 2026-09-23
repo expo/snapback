@@ -47021,3 +47021,33 @@ metadata field is no fence.
 
 FENCE's own suite on the rebased tree (M5): `== 0 failure(s) in 676 s`.
 Wasm is 466,824 B gzip against a 467,000 ratchet.
+
+## 2026-09-23 — 0.3 program: four device edge cases closed before 0.3.0 (EDGES)
+
+These are the Mediums left after READAUTH's and F2's third review rounds.
+Each made a device refuse, hide or predict wrongly; none leaked.
+
+- **Unknown coverage before meter exhaustion** now queues the mutation
+  instead of refusing it.
+- **Aggregate existence witnesses combine existentially,** so the result no
+  longer depends on source-row order.
+- **Coverage and witness scans are metered.** Device-only prediction work
+  (coverage checks, provisional-row authorization) is charged to a separate
+  device allowance whose exhaustion queues. Server-equivalent reservations
+  stay on the mutation meter, so a device `E_BOUND` matches the server's.
+- **Prediction clocks are validated:** `predict` refuses a missing clock,
+  and a clock-less queued entry queues unpredicted.
+
+**Review rounds.** Astra returned READY WITH CHANGES twice, first on the
+device-only budget split, then on keeping reservations and metering witness
+scans. The integrated suite on EDGES+FENCE caught regressions that the
+affected-test runs had missed. The orphan-import tests failed because the
+new clock requirement refused clock-less persisted entries; round 3 fixed
+that.
+
+**Landing.** Rebased onto FENCE (`7c655d652`). The integrated suite on the
+M5 reported `== 1 failure(s) in 830 s`. The one failure, "a device restores
+its session on its own", passes three of three when run alone. It flaked in
+READAUTH's landing too
+(`issues/20260923-snapback4-flaky-session-restore-test.md`). Wasm is
+469,031 B gzip against a 470,000 ratchet.
