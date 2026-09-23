@@ -16,17 +16,18 @@ pub fn expand(mut documents: Vec<Document>, diagnostics: &mut Vec<Diagnostic>) -
         for name in all { *names.entry(name.clone()).or_default() += 1; }
     }
     let mut accepted = BTreeSet::new();
-    for decl in declarations {
+    for decl in declarations.iter().cloned() {
         let owned: BTreeSet<_> = snapback4_core::schema::timeline::OWNED_SUFFIXES.iter().map(|suffix| format!("{}{suffix}", decl.name)).collect();
         let purge = format!("{}PurgeRemoved", decl.name);
         let schedule = format!("{purge}Every");
         let generated: BTreeSet<_> = owned.iter().cloned().chain([purge.clone(), schedule.clone()]).collect();
-        if names.get(&decl.name) != Some(&1) || generated.iter().any(|name| names.contains_key(name)) {
-            diagnostics.push(refusal(&decl, "E_TIMELINE_SHAPE", "timeline or generated name collides with another declaration", "choose timeline and generated names unused by tables, maintains, programs, functions, schedules and timelines"));
+        let nested_collision = declarations.iter().any(|other| other.name != decl.name &&
+            snapback4_core::schema::timeline::OWNED_SUFFIXES.iter().copied().chain(["PurgeRemoved", "PurgeRemovedEvery"])
+                .any(|suffix| format!("{}{suffix}", other.name) == decl.name));
+        if nested_collision || names.get(&decl.name) != Some(&1) || generated.iter().any(|name| names.contains_key(name)) {
+            diagnostics.push(refusal(&decl, "E_TIMELINE_SHAPE", "timeline or generated name collides with another declaration", "choose timeline and generated names unused by tables, maintains, programs, functions, schedules, timelines, effects, shapes, actions and routes"));
             continue;
         }
-        // Reserve the whole namespace together, before publishing any expansion.
-        for name in &generated { names.insert(name.clone(), 1); }
         let source = match recipe::following(&decl.name, "schema") {
             Ok(source) => source,
             Err(error) => { diagnostics.push(refusal(&decl, "E_TIMELINE_SHAPE", error, "repair the Following recipe")); continue; }
@@ -39,7 +40,11 @@ pub fn expand(mut documents: Vec<Document>, diagnostics: &mut Vec<Diagnostic>) -
         }
         let expanded = projection(recipe, &decl, &owned, &purge, &schedule);
         match expanded {
-            Ok(doc) => { documents.push(doc); accepted.insert(decl.name); }
+            Ok(doc) => {
+                // Publish names only with the complete expansion; failures reserve nothing.
+                for name in &generated { names.insert(name.clone(), 1); }
+                documents.push(doc); accepted.insert(decl.name);
+            }
             Err(error) => diagnostics.push(error),
         }
     }
@@ -55,7 +60,11 @@ fn projection(recipe: Document, decl: &TimelineDecl, owned: &std::collections::B
     doc.maintains = recipe.maintains.into_iter().filter(|m| m.name == total).collect();
     doc.programs = recipe.programs.into_iter().filter(|p| p.name == purge && p.kind == ProgramKind::Job).collect();
     doc.schedules = recipe.schedules.into_iter().filter(|s| s.name == schedule && (s.target == purge || s.target == format!("schema.{purge}"))).collect();
-    if doc.tables.len() != owned.len() - 1 || doc.maintains.len() != 1 || doc.programs.len() != 1 || doc.schedules.len() != 1 {
+    // PullTotals is a maintain target; Follows remains the mapped application edge.
+    let expected: std::collections::BTreeSet<_> = snapback4_core::schema::timeline::OWNED_SUFFIXES
+        .iter().filter(|s| **s != "PullTotals").map(|s| format!("{}{s}", decl.name)).collect();
+    let actual = doc.tables.iter().map(|t| t.name.clone()).collect::<std::collections::BTreeSet<_>>();
+    if actual != expected || doc.tables.len() != expected.len() || actual.contains(&format!("{}Follows", decl.name)) || doc.maintains.len() != 1 || doc.programs.len() != 1 || doc.schedules.len() != 1 {
         return Err(refusal(decl, "E_TIMELINE_SHAPE", "timeline recipe is missing an owned projection, route total, purge job or schedule", "repair the named Following recipe declarations"));
     }
     // The recipe's tombstone id is its event id. Keep that event ordering
@@ -63,6 +72,9 @@ fn projection(recipe: Document, decl: &TimelineDecl, owned: &std::collections::B
     let Some(Stmt::For { domain: Expr::Read(read), .. }) = doc.programs.first_mut().and_then(|p| p.body.first_mut()) else {
         return Err(refusal(decl, "E_TIMELINE_SHAPE", "timeline purge is missing its event sweep", "repair the Following purge job"));
     };
+    if read.table != format!("{}RemovedEvents", decl.name) {
+        return Err(refusal(decl, "E_TIMELINE_SHAPE", "timeline purge must sweep its removed events", "repair the Following purge job"));
+    }
     read.index = Some("byEvent".into());
     for schedule in &mut doc.schedules { schedule.target = purge.into(); }
     for table in &mut doc.tables { table.rules.retain(|rule| rule.effect == Effect::Read); }
@@ -166,6 +178,20 @@ mod tests {
         assert_eq!(expanded.tables.len(), 7); assert_eq!(expanded.maintains.len(), 1);
         assert_eq!(expanded.programs.len(), 1); assert_eq!(expanded.schedules.len(), 1);
         assert!(expanded.functions.is_empty()); assert!(expanded.tables.iter().all(|t|t.name != "feedFollows"));
+        let expected: std::collections::BTreeSet<_> = snapback4_core::schema::timeline::OWNED_SUFFIXES.iter()
+            .filter(|s| **s != "PullTotals").map(|s|format!("feed{s}")).collect();
+        assert_eq!(expanded.tables.iter().map(|t|t.name.clone()).collect::<std::collections::BTreeSet<_>>(),expected);
+        for mutation in 0..5 {
+            let mut malformed=recipe.clone();
+            match mutation {
+                0 => { malformed.tables.iter_mut().find(|t|t.name=="feedFeed").unwrap().name="feedFollows".into(); }
+                1 => { let Stmt::For {domain:Expr::Read(read),..}=&mut malformed.programs.iter_mut().find(|p|p.name=="feedPurgeRemoved").unwrap().body[0] else {panic!("sweep")}; read.table="feedFeed".into(); }
+                2 => { malformed.programs.iter_mut().find(|p|p.name=="feedPurgeRemoved").unwrap().kind=ProgramKind::Mutation; }
+                3 => { malformed.schedules[0].target="callerJob".into(); }
+                _ => { malformed.tables.push(malformed.tables.iter().find(|t|t.name=="feedFeed").unwrap().clone()); }
+            }
+            assert_eq!(projection(malformed,decl,&owned,"feedPurgeRemoved","feedPurgeRemovedEvery").unwrap_err().code,"E_TIMELINE_SHAPE");
+        }
         let mut missing = recipe; missing.programs.clear();
         assert_eq!(projection(missing, decl, &owned, "feedPurgeRemoved", "feedPurgeRemovedEvery").unwrap_err().code, "E_TIMELINE_SHAPE");
     }

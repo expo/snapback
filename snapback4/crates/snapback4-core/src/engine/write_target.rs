@@ -115,7 +115,8 @@ impl Runner<'_> {
     }
 
     fn resolve_write_target(&mut self, target: &Read, patch: &Expr, upsert: bool, condition: Option<&WriteCondition>, valued: bool) -> Result<Value, RuntimeError> {
-        self.refuse_engine_owned(&target.table, Effect::Update)?;
+        if upsert { self.refuse_upsert_owned(&target.table)?; }
+        else { self.refuse_engine_owned(&target.table, Effect::Update)?; }
         if upsert && condition.is_some() { return Err(RuntimeError::Input("a condition belongs on update; an upsert inserts or patches".into())); }
         if let Some(condition) = condition { validate_condition(condition)?; }
         let key = target.key.iter().map(|e| self.expr(e)).collect::<Result<Vec<_>, _>>()?;

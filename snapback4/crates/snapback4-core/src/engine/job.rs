@@ -264,12 +264,12 @@ impl Engine {
         let site = format!("{}:{}", program.name, sweep + 1);
         let authority = super::timeline_authority::Authority::purge(&self.schema, &program.name);
         let outcome = (|| {
-            let mut guard = runner.timeline_scope(authority);
-            let runner = &mut *guard;
             // @ref LLP 3000.007#5.2 — replay setup for every chunk, in its transaction and under its meter.
             if let Flow::Return(_) = runner.statements(setup, &format!("{site}:prelude"))? {
                 return Ok((Chunk { last_key: None, visited: 0, ended: true, finished: true }, None));
             }
+            let mut guard = runner.timeline_scope(authority);
+            let runner = &mut *guard;
             let upper = match &head.upper {
                 Some(upper) => Some(upper.clone()),
                 None => {

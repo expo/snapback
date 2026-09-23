@@ -753,6 +753,7 @@ pub struct SchemaIssue {
 /// maintain has the closed target shape; every `sync` is invertible.
 pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     let mut issues = Vec::new();
+    timeline::validate(schema, &mut issues);
     let issue = |issues: &mut Vec<SchemaIssue>, path: String, message: String| issues.push(SchemaIssue { path, message });
     let mut route_paths = BTreeSet::new();
     for (name, route) in &schema.routes {

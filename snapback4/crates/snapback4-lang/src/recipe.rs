@@ -72,7 +72,7 @@ pub fn following_sized(prefix: &str, module: &str, caps: FollowingCaps) -> Resul
     for (name, max) in [("authors", caps.authors), ("follows", caps.edges), ("pulls", caps.routes), ("pullCounts", caps.routes)] {
         let table = doc.tables.iter().find(|t| t.name == name).ok_or_else(|| format!("Following recipe is missing table {name}"))?;
         let cap = table.caps.iter().find(|c| c.by.is_empty()).ok_or_else(|| format!("Following recipe is missing {name}'s global cap"))?;
-        *lines.get_mut((cap.site.line as usize).saturating_sub(1)).ok_or("Following cap has an invalid source span")? = format!("  cap {max}");
+        *lines.get_mut((cap.site.line as usize).checked_sub(1).ok_or("Following cap has an invalid source span")?).ok_or("Following cap has an invalid source span")? = format!("  cap {max}");
     }
     let follow = doc.functions.iter().find(|f| f.name == "addFollow").ok_or("Following recipe is missing addFollow")?;
     let FunctionBody::Block(body) = &follow.body else { return Err("Following addFollow must have a block body".into()); };
@@ -83,7 +83,7 @@ pub fn following_sized(prefix: &str, module: &str, caps: FollowingCaps) -> Resul
         }),
         _ => None,
     }).ok_or("Following recipe is missing its bounded backfill stop")?;
-    *lines.get_mut((stop.line as usize).saturating_sub(1)).ok_or("Following backfill has an invalid source span")? = format!("    if visited = {}:", caps.backfill());
+    *lines.get_mut((stop.line as usize).checked_sub(1).ok_or("Following backfill has an invalid source span")?).ok_or("Following backfill has an invalid source span")? = format!("    if visited = {}:", caps.backfill());
     let source = lines.join("\n") + "\n";
     // @ref LLP 3000.007#20.3 — a wired app owns mutation authority; installed recipe operations are helpers, never a second client write API.
     let source = if prefix.is_empty() { source } else {

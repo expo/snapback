@@ -88,8 +88,9 @@ pub fn snapshot(e: &Engine) -> BTreeMap<String, Vec<Value>> {
 pub fn normalized(e: &Engine) -> BTreeMap<String, Vec<String>> {
     e.schema().tables.keys().filter(|name| name.as_str() != "feedFollows").map(|name| {
         let mut rows: Vec<_> = rows(e, name).into_iter().map(|mut row| {
-            // Storage identities of route/mode/copy/application edge rows are
-            // independently minted. Event identities are public and stay exact.
+            // Recipe storage ids are minted; F3 storage ids are digest-derived.
+            // Public event ids stay exact (Posts.id and RemovedEvents.eventId).
+            // equal() separately checks every F3 storage id, including tombstones.
             if !matches!(name.as_str(), "feedPosts" | "posts") {
                 if let Value::Row(fields) = &mut row { fields.remove("id"); }
             }
@@ -125,6 +126,8 @@ impl Pair {
                 // Refusal meters describe attempted work, not committed writes.
                 // The recipe executes interpreted guards; F3 has engine transitions.
                 let written=match (op,left.code.as_str()) {
+                    // F3 attempts the mapped follows insert before its transition
+                    // checks the profile; that one application row rolls back.
                     ("follow","FEED_APP_NOT_FOUND")=>[0,1],
                     (_,"FEED_PULL_CAP")=>[2,1],
                     (_,"FEED_PROMOTION_PULL_CAP")=>[9,8],
@@ -147,6 +150,7 @@ impl Pair {
     pub fn follow(&mut self, viewer: &str, author: &str) { self.sent("follow",viewer,&[("authorId",id(author))]); }
     pub fn publish(&mut self, actor: &str, post: &str) { self.sent("publish",actor,&[("postId",id(post))]); }
     pub fn equal(&self) {
+        super::identity::assert_placement(&self.declared, &[]);
         assert!(!self.declared.schema().tables.contains_key("feedFollows"));
         let a=normalized(&self.recipe); let b=normalized(&self.declared);
         for (table,rows) in &a { assert_eq!(rows,&b[table],"table {table}"); }

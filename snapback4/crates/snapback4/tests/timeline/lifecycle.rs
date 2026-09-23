@@ -18,6 +18,7 @@ fn activation_registers_existing_profiles_atomically_up_to_1000() {
             assert_eq!(e.generation(),generation); assert_eq!(snapshot(&e),before);
         } else {
             result.unwrap();
+            assert_eq!(rows(&e,"feedAuthors").len(), n);
             assert_eq!(rows(&e,"feedAuthors").iter().map(|r|r.field("principal").unwrap().as_str().unwrap().to_string()).collect::<std::collections::BTreeSet<_>>(),(0..n).map(|n|format!("a{n}")).collect());
             assert!(rows(&e,"feedAuthors").iter().all(|r|r.field("shared").unwrap()==&Value::Bool(false)));
             let before=snapshot(&e);
@@ -71,23 +72,58 @@ fn durable_history_survives_adoption_reopen_and_trusted_restore() {
     sent(&mut e,"publish","a",&[("postId",id("broadcast"))]);
     let before=snapshot(&e);let generation=e.generation();let following=page(&mut e);
     for table in OWNED {assert!(!before[table].is_empty(),"history must populate {table}");}
-    assert_eq!(following.as_array().unwrap().len(),3);
+    let repost = rows(&e,"feedPosts").into_iter().find(|r|r.field("repost").unwrap()==&Value::Bool(true)).unwrap().field("id").unwrap().clone();
+    assert_eq!(following.as_array().unwrap().iter().map(|r|r.field("id").unwrap().clone()).collect::<Vec<_>>(), vec![id("broadcast"), repost, id("live")]);
+    for n in 1..51 {
+        let page = e.query("following",context(&format!("r{n}"),&[],10000)).unwrap();
+        assert_eq!(page.data.as_array().unwrap().iter().map(|r|r.field("id").unwrap().clone()).collect::<Vec<_>>(),vec![id("broadcast"),id("live")]);
+    }
+    assert_eq!(rows(&e,"feedRemovedEvents")[0].field("eventId").unwrap(),&id("removed"));
     assert!(following.as_array().unwrap().iter().all(|r|r.field("id").unwrap()!=&id("removed")));
     adopt(&mut e,bound(true)).unwrap();assert_eq!(snapshot(&e),before);assert_eq!(e.generation(),generation);assert_eq!(page(&mut e),following);
     adopt(&mut e,with_ping()).unwrap();assert_eq!(snapshot(&e),before);assert_eq!(e.generation(),generation+1);assert_eq!(page(&mut e),following);
     drop(e);let mut e=Engine::open(Store::open(&path).unwrap()).unwrap();assert_eq!(snapshot(&e),before);assert_eq!(e.generation(),generation+1);assert_eq!(page(&mut e),following);
+    assert_eq!(e.query("ping",context("r0",&[],10001)).unwrap().data, Value::Bool(true));
+    super::identity::assert_placement(&e,&(1..=at).flat_map(|at|(0..1100).map(move |n|format!("m{at:08}-{n:04}"))).collect::<Vec<_>>());
     let mut restored=engine(true);adopt(&mut restored,with_ping()).unwrap();
     restored.load_trusted(before.clone().into_iter().flat_map(|(t,rs)|rs.into_iter().map(move |r|(t.clone(),r)))).unwrap();
     assert_eq!(snapshot(&restored),before);assert_eq!(restored.generation(),generation+1);assert_eq!(page(&mut restored),following);
     for table in ["profiles","posts","reposts","follows"].into_iter().chain(OWNED) {
-        for seed in [false,true] {
-            let mut fresh=engine(true);let empty=snapshot(&fresh);
-            let mut row=before[table][0].clone();
-            if let Value::Row(fields)=&mut row {fields.insert("id".into(),id(&format!("import-{table}")));}
-            let err=if seed {fresh.seed([(table.into(),row)])} else {fresh.load([(table.into(),row)])}.unwrap_err();
-            assert_eq!(err.code(),"E_TIMELINE_IMPORT");let refusal=err.refusal();assert_eq!(refusal.guide.as_deref(),Some("feeds"));assert!(refusal.rewrite.is_some());
-            assert_eq!(snapshot(&fresh),empty);
+        let original = before[table][0].clone();
+        let mut absent = original.clone();
+        let Value::Row(fields) = &mut absent else { panic!("stored {table} is not a row") };
+        let suffix = table.strip_prefix("feed");
+        // A real natural-key digest, not a merely well-formed or tampered id.
+        let natural = match suffix {
+            Some("Authors") => "principal",
+            Some("Feed" | "Pulls" | "PullCounts" | "PullTotals") => "readerId",
+            Some("Broadcast" | "RemovedEvents") => "eventId",
+            _ => "id",
+        };
+        fields.insert(natural.into(), id("never-stored"));
+        let new_id = match suffix {
+            Some(role) if role != "Posts" => snapback4_core::schema::timeline::owned_id("feed", role, &super::identity::natural_key(role, &absent)),
+            _ => "never-stored".into(),
+        };
+        let Value::Row(fields) = &mut absent else { unreachable!("row above") };
+        fields.insert("id".into(), id(&new_id));
+        assert!(!before[table].iter().any(|r| r.field("id").unwrap() == &id(&new_id)));
+        let mut refusals = Vec::new();
+        for trusted in [false, true] {
+            for seed in [false, true] {
+                for row in [&original, &absent] {
+                    let mut fresh = engine(true);
+                    if trusted { fresh.load_trusted(before.clone().into_iter().flat_map(|(t,rs)|rs.into_iter().map(move |r|(t.clone(),r)))).unwrap(); }
+                    let saved = snapshot(&fresh); let generation = fresh.generation();
+                    let err = if seed { fresh.seed([(table.into(),row.clone())]) } else { fresh.load([(table.into(),row.clone())]) }.unwrap_err();
+                    assert_eq!(err.code(), "E_TIMELINE_IMPORT");
+                    let refusal = err.refusal(); assert_eq!(refusal.guide.as_deref(),Some("feeds")); assert!(refusal.rewrite.is_some());
+                    refusals.push((refusal.code, refusal.guide, refusal.rewrite));
+                    assert_eq!(snapshot(&fresh),saved); assert_eq!(fresh.generation(),generation);
+                }
+            }
         }
+        assert!(refusals.windows(2).all(|pair| pair[0] == pair[1]), "{table}: {refusals:?}");
     }
     let mut changed=bound(true);changed.schema.timelines[0].posts[3]="otherFlag".into();
     for b in [changed,compile(APP)] {
@@ -107,7 +143,25 @@ fn sqlite_activation_refusals_leave_reopened_file_unchanged() {
             _=>vec![object([("id",id("f")),("followerId",id("a")),("followedId",id("b")),("at",Value::Int(1))])],
         };
         e.load(images.into_iter().map(|r|(table.into(),r))).unwrap();let before=snapshot(&e);let generation=e.generation();
-        assert_eq!(adopt(&mut e,bound(true)).unwrap_err().code(),"E_TIMELINE_ACTIVATE");drop(e);
+        let schema=e.schema().clone();let programs=e.programs().cloned().collect::<Vec<_>>();
+        let catalog=|e:&Engine|e.store().conn().prepare("SELECT name FROM _catalog ORDER BY name").unwrap().query_map([],|r|r.get::<_,String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+        let tables=catalog(&e);
+        assert_eq!(adopt(&mut e,bound(true)).unwrap_err().code(),"E_TIMELINE_ACTIVATE");
+        assert_eq!(snapshot(&e),before);assert_eq!(e.generation(),generation);assert_eq!(e.schema(),&schema);assert_eq!(e.programs().cloned().collect::<Vec<_>>(),programs);assert_eq!(catalog(&e),tables);
+        drop(e);
         let e=Engine::open(Store::open(&path).unwrap()).unwrap();assert_eq!(snapshot(&e),before);assert_eq!(e.generation(),generation);assert!(e.schema().timelines.is_empty());
+        assert_eq!(e.schema(),&schema);assert_eq!(e.programs().cloned().collect::<Vec<_>>(),programs);assert_eq!(catalog(&e),tables);
     }
+}
+
+#[test]
+fn sqlite_activation_of_1000_profiles_survives_reopen() {
+    let dir=TempDir::new();let path=dir.0.join("store.sqlite");let b=compile(APP);
+    let mut e=Engine::new(Store::open(&path).unwrap(),b.schema,[]).unwrap();
+    e.load((0..1000).map(|n|("profiles".into(),object([("id",id(&format!("p{n}"))),("principal",id(&format!("a{n}")))])))).unwrap();
+    drop(e);let mut e=Engine::open(Store::open(&path).unwrap()).unwrap();
+    adopt(&mut e,bound(true)).unwrap();assert_eq!(rows(&e,"feedAuthors").len(),1000);
+    let before=snapshot(&e);let generation=e.generation();drop(e);
+    let e=Engine::open(Store::open(&path).unwrap()).unwrap();assert_eq!(snapshot(&e),before);assert_eq!(e.generation(),generation);
+    super::identity::assert_placement(&e,&[]);
 }

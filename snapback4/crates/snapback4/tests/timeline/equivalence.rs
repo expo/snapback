@@ -80,11 +80,12 @@ fn backfill_visits_900_pushed_then_100_shared_and_keeps_765() {
         let b=p.declared.query("following",context("late",&[],p.at)).unwrap();
         assert_eq!((&a.data,a.complete,&a.next,&a.cut),(&b.data,b.complete,&b.next,&b.cut));
         assert!(!a.complete,"{a:?}");
-        assert!(a.next.is_none());
+        assert!(a.next.is_none()); assert!(a.cut.is_some());
         cuts.push(a.data.as_array().unwrap().to_vec());
     }
     assert!(cuts[1].len()>cuts[0].len());assert!(cuts[1].starts_with(&cuts[0]));
     for cut in cuts {assert!(cut.iter().all(|row|unlimited.contains(row)));}
+    p.recipe.set_ceilings(snapback4_core::Ceilings::default()); p.declared.set_ceilings(snapback4_core::Ceilings::default());
 }
 
 #[test]
@@ -164,5 +165,38 @@ fn time_ties_page_by_event_id_and_tombstones_fill_the_page() {
     p.sent("publishAt","a",&[("postId",id("aaa-newest")),("at",Value::Int(30))]);
     p.sent("publishAt","a",&[("postId",id("zzz-middle")),("at",Value::Int(20))]);
     let page=p.pages("r","following");
-    assert_eq!(page[0].field("id").unwrap(),&id("aaa-newest"));assert_eq!(page[1].field("id").unwrap(),&id("zzz-middle"));
+    assert_eq!(page.iter().map(|r|r.field("id").unwrap().clone()).collect::<Vec<_>>(),[id("aaa-newest"),id("zzz-middle")].into_iter().chain((0..20).rev().map(|n|id(&format!("tie{n:02}")))).collect::<Vec<_>>());
+    p.equal();
+}
+
+// Oracle exception 2 (separate from the duplicate follow-edge write): the
+// recipe admits reuse when no destination retains an old copy; its unique
+// (reader, event) index still collides when that copy exists. F3
+// must refuse that exact case; Pair's general equivalence is not relaxed.
+#[test]
+fn oracle_exception_tombstoned_repost_id_refuses_only_in_f3() {
+    let mut p = Pair::new();
+    for who in ["a", "b", "c"] { p.register(who); }
+    p.follow("c", "a"); p.follow("c", "b");
+    p.publish("a", "removed"); p.publish("b", "live");
+    p.sent("remove", "a", &[("postId", id("removed"))]); p.equal();
+    // Remove C's already-hidden copy in both trusted worlds. The recipe can
+    // now commit despite the public tombstone; F3 must still refuse.
+    for e in [&mut p.recipe, &mut p.declared] {
+        let images = snapshot(e).into_iter().flat_map(|(t,rs)| rs.into_iter().filter(|r|
+            t != "feedFeed" || r.field("readerId").unwrap() != &id("c") || r.field("eventId").unwrap() != &id("removed"))
+            .map(|r|(t.clone(),r)).collect::<Vec<_>>());
+        let mut restored = snapback4_core::Engine::memory(e.schema().clone(),e.programs().cloned().collect::<Vec<_>>()).unwrap();
+        restored.load_trusted(images).unwrap(); *e=restored;
+    }
+    let before = snapshot(&p.declared);
+    let supplied = ["new-repost", "removed", "copy-b", "copy-c"].map(String::from);
+    let a = p.recipe.mutate("repost", None, context("b", &[("postId", id("live"))], p.at).with_ids(supplied.clone())).unwrap();
+    let b = p.declared.mutate("repost", None, context("b", &[("postId", id("live"))], p.at).with_ids(supplied.clone())).unwrap();
+    assert!(matches!(a.state, WriteState::Sent { .. }), "{a:?}");
+    assert!(matches!(&b.state, WriteState::Failed { why, .. } if why.code == "FEED_EVENT_REMOVED"), "{b:?}");
+    assert_eq!(snapshot(&p.declared), before);
+    assert!(b.tables.is_empty()); assert_eq!(b.events, 0);
+    assert_eq!(rows(&p.recipe, "feedPosts").iter().filter(|r| r.field("id").unwrap() == &id("removed")).count(), 1);
+    super::identity::assert_placement(&p.declared, &supplied);
 }

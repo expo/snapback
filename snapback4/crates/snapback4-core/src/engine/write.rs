@@ -99,7 +99,7 @@ impl Runner<'_> {
     }
 
     fn upsert_attempt(&mut self, table_name: &str, key: &Value, row: Value) -> Result<(), RuntimeError> {
-        self.refuse_engine_owned(table_name, Effect::Update)?;
+        self.refuse_upsert_owned(table_name)?;
         let id = key.as_str()?;
         if row.field("id")?.as_str()? != id {
             return Err(RuntimeError::Input(format!("{table_name} upsert row id must equal its key")));
@@ -119,6 +119,7 @@ impl Runner<'_> {
     }
 
     pub(super) fn insert_upsert(&mut self, table_name: &str, addressed_index: &str, row: Value) -> Result<(), RuntimeError> {
+        self.refuse_upsert_owned(table_name)?;
         // Defaults fill first, so a patch that leaves a defaulted column out is a complete row here.
         let row = self.with_defaults(table_name, row)?;
         if self.device { self.prove_upsert_insert(table_name, addressed_index, &row)?; }
@@ -148,6 +149,7 @@ impl Runner<'_> {
     }
 
     pub(super) fn replace_authorized(&mut self, table_name: &str, old: Value, new: Value, readable: bool, patch: &Value) -> Result<(), RuntimeError> {
+        self.refuse_engine_owned(table_name, Effect::Update)?;
         let new = self.with_asset_facts(table_name, new, Some(&old), (!readable).then_some(patch))?;
         if let Err(error) = validate_row(self.schema, table_name, &new) { return Err(if readable { error } else { self.no_write_target() }); }
         self.check_constraints(table_name, Some(&old), &new, Effect::Update)?;
@@ -182,6 +184,7 @@ impl Runner<'_> {
     /// no constraint stands between the engine and its own sweep, while
     /// aggregates and partition events apply as for any delete.
     pub(super) fn remove(&mut self, table_name: &str, old: &Value) -> Result<(), RuntimeError> {
+        self.refuse_engine_owned(table_name, Effect::Delete)?;
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?.clone();
         let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.delete(table_name, &table, old))?;
         self.charge_source_indexes(&table, Some(old), None, entries)?;
@@ -298,13 +301,15 @@ impl Runner<'_> {
         Ok(())
     }
 
+    pub(super) fn refuse_upsert_owned(&self, table: &str) -> Result<(), RuntimeError> {
+        self.refuse_engine_owned(table, Effect::Insert)?;
+        self.refuse_engine_owned(table, Effect::Update)
+    }
+
     /// Programs never write a maintained target; the engine does.
     pub(super) fn refuse_engine_owned(&self, table: &str, effect: Effect) -> Result<(), RuntimeError> {
         self.refuse_condition_write()?;
-        self.refuse_timeline_purge_write(table, effect)?;
-        if self.schema.timelines.iter().any(|timeline| timeline.owns(table)) && !self.timeline_may_write(table, effect) {
-            return Err(super::timeline::refusal("E_TIMELINE_OWNED", format!("{table} belongs to a timeline; write its mapped application profiles, posts, reposts or follows instead")));
-        }
+        self.refuse_timeline_write(table, effect)?;
         if self.schema.maintain_for(table).is_some() {
             return Err(RuntimeError::Schema(format!("{table} is a maintained aggregate; write its source rows instead")));
         }

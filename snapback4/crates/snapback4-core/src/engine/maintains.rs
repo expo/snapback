@@ -78,6 +78,7 @@ impl Runner<'_> {
             if page.is_empty() { break; }
             for (existing, key) in page {
                 bounds.after = crate::key::decode(&key);
+                self.refuse_timeline_write(&maintain.target, crate::schema::Effect::Delete)?;
                 let entries = self.tx.delete(&maintain.target, &target, &existing)?;
                 self.charge_maintain(MeterKind::IndexEntries, entries)?;
                 self.row_changed(&maintain.target, Some(&existing), None, Origin::Maintained)?;
@@ -155,8 +156,18 @@ impl Runner<'_> {
     }
 
     fn apply_aggregate(&mut self, maintain: &Maintain, key: Vec<Value>, change: i128, source_present: Option<bool>) -> Result<(), RuntimeError> {
-        let id = self.schema.timelines.iter().find(|t| t.owns(&maintain.target))
-            .map_or_else(|| maintained_id(&key), |t| crate::schema::timeline::owned_id(&t.name, "PullTotals", &key));
+        let id = if let Some(t) = self.schema.timelines.iter().find(|t| t.owns(&maintain.target)) {
+            // Only the route total is an engine-owned maintain, never a slot count.
+            let suffix = crate::schema::timeline::OWNED_SUFFIXES.into_iter()
+                .find(|suffix| t.table(suffix) == maintain.target);
+            if suffix != Some("PullTotals") {
+                return Err(super::timeline::refusal("E_TIMELINE_OWNED", "only a timeline's route total can be maintained"));
+            }
+            for effect in [crate::schema::Effect::Insert, crate::schema::Effect::Update, crate::schema::Effect::Delete] {
+                self.refuse_timeline_write(&maintain.target, effect)?;
+            }
+            crate::schema::timeline::owned_id(&t.name, suffix.expect("checked role"), &key)
+        } else { maintained_id(&key) };
         let target = self.schema.table(&maintain.target).expect("validated").clone();
         self.charge_maintain(MeterKind::Examined, 1)?;
         let existing = self.tx.get(&maintain.target, &id)?;
@@ -175,6 +186,7 @@ impl Runner<'_> {
         };
         if next == 0 && !keep_zero {
             if let Some(existing) = existing {
+                self.refuse_timeline_write(&maintain.target, crate::schema::Effect::Delete)?;
                 let entries = self.tx.delete(&maintain.target, &target, &existing)?;
                 self.charge_maintain(MeterKind::IndexEntries, entries)?;
                 self.row_changed(&maintain.target, Some(&existing), None, Origin::Maintained)?;
@@ -203,4 +215,28 @@ fn delta(maintain: &Maintain, source: &Value, direction: i64) -> Result<i128, Ru
 // @ref LLP 3000.007#17 — an internal sum names its maintain and column, never a retained contribution or computed value.
 pub(super) fn aggregate_overflow(maintain: &Maintain) -> RuntimeError {
     RuntimeError::AggregateOverflow { maintain: maintain.target.clone(), column: "value".into() }
+}
+
+#[cfg(all(test, feature = "sqlite"))]
+mod timeline_tests {
+    use super::*;
+    #[test]
+    fn only_route_totals_can_be_owned_maintain_targets() {
+        let mut schema = crate::engine::timeline_authority::write_tests::schema();
+        schema.tables.get_mut("feedPullTotals").unwrap().columns.insert("readerId".into(), crate::schema::ColumnType::Id);
+        let mut store = crate::Store::memory().unwrap(); store.install(&schema).unwrap();
+        let tx = store.transaction().unwrap();
+        let mut runner = Runner::new(&tx, &schema, crate::Context::system().at(1), crate::meter::Meter::new(crate::Ceilings::unbounded(),crate::meter::Cut::Abort),0);
+        let mut guard = runner.timeline_scope(crate::engine::timeline_authority::Authority::Transition("feed".into()));
+        for suffix in crate::schema::timeline::OWNED_SUFFIXES {
+            let maintain = Maintain { target: format!("feed{suffix}"), source: "feedPulls".into(), by: vec!["readerId".into()],
+                kind: MaintainKind::Count, filter: None, computed: Default::default(), residency: Default::default(), readable: None };
+            let result = guard.apply_aggregate(&maintain, vec![Value::Id("reader".into())], 1, None);
+            if suffix == "PullTotals" {
+                result.unwrap();
+                let id = crate::schema::timeline::owned_id("feed",suffix,&[Value::Id("reader".into())]);
+                assert_eq!(tx.get("feedPullTotals",&id).unwrap().unwrap().field("value").unwrap(),&Value::Int(1));
+            } else { assert_eq!(result.unwrap_err().code(), "E_TIMELINE_OWNED"); }
+        }
+    }
 }

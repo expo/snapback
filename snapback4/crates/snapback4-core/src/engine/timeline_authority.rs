@@ -1,10 +1,14 @@
 //! Scoped engine authority. Purge grants only bounded deletes, never inserts or updates.
 use super::{runner::Runner, timeline::refusal};
-use crate::{RuntimeError, schema::{Effect, Schema}};
+use crate::{RuntimeError, schema::Effect};
+#[cfg(feature = "sqlite")]
+use crate::schema::Schema;
 use std::{collections::BTreeMap, ops::{Deref, DerefMut}};
 
 pub(super) enum Authority {
     Transition(String),
+    #[cfg(test)]
+    UpdateOnly(String),
     Purge(BTreeMap<String, u64>),
 }
 
@@ -42,11 +46,23 @@ impl<'tx> Runner<'tx> {
         match &self.timeline_authority {
             Some(Authority::Transition(name)) => self.schema.timelines.iter().any(|t| &t.name == name && t.owns(table)),
             Some(Authority::Purge(tables)) => effect == Effect::Delete && tables.get(table).is_some_and(|left| *left > 0),
+            #[cfg(test)]
+            Some(Authority::UpdateOnly(name)) => effect == Effect::Update && self.schema.timelines.iter().any(|t| &t.name == name && t.owns(table)),
             None => false,
         }
     }
 
+    pub(super) fn refuse_timeline_write(&self, table: &str, effect: Effect) -> Result<(), RuntimeError> {
+        if effect == Effect::Read { return Ok(()); }
+        self.refuse_timeline_purge_write(table, effect)?;
+        if self.schema.timelines.iter().any(|t| t.owns(table)) && !self.timeline_may_write(table, effect) {
+            return Err(refusal("E_TIMELINE_OWNED", format!("{table} belongs to a timeline; write its mapped application profiles, posts, reposts or follows instead")));
+        }
+        Ok(())
+    }
+
     pub(super) fn refuse_timeline_purge_write(&self, table: &str, effect: Effect) -> Result<(), RuntimeError> {
+        if effect == Effect::Read { return Ok(()); }
         if matches!(&self.timeline_authority, Some(Authority::Purge(tables)) if !tables.is_empty())
             && !self.timeline_may_write(table, effect) {
             return Err(refusal("E_TIMELINE_OWNED", "a timeline purge may only delete its bounded inbox copies and tombstones"));
@@ -85,3 +101,7 @@ mod tests {
         assert!(runner.timeline_authority.is_none());assert!(fail(&mut runner).is_err());assert!(runner.timeline_authority.is_none());
     }
 }
+
+#[cfg(all(test, feature = "sqlite"))]
+#[path = "timeline_authority_tests.rs"]
+pub(super) mod write_tests;

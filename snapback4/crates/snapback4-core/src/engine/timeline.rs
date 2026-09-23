@@ -126,7 +126,7 @@ impl Runner<'_> {
                     self.timeline_profile(t, &actor)?;
                     let mode = self.timeline_mode(t, &actor)?;
                     let id = text(new, "id")?;
-                    require(self.timeline_get(&t.table("RemovedEvents"), "byEvent", vec![Value::Id(id.clone())])?.is_none(), "FEED_EVENT_REMOVED")?;
+                    self.timeline_require_live_id(t, &Value::Id(id.clone()))?;
                     let event = object([("id", Value::Id(id.clone())), ("postId", Value::Id(id)),
                         ("actorId", Value::Id(actor.clone())), ("authorId", Value::Id(actor)),
                         ("repost", Value::Bool(false)), ("at", field(new, &t.posts[2])?), ("shared", field(&mode, "shared")?)]);
@@ -158,6 +158,7 @@ impl Runner<'_> {
                     require(original.is_some(), "FEED_POST_NOT_FOUND")?;
                     let mode = self.timeline_mode(t, &actor)?;
                     let id = self.context.mint()?;
+                    self.timeline_require_live_id(t, &Value::Id(id.clone()))?;
                     let event = object([("id", Value::Id(id)), ("postId", field(&post, "id")?),
                         ("actorId", Value::Id(actor)), ("authorId", field(&post, &t.posts[1])?),
                         ("repost", Value::Bool(true)), ("at", field(row, &t.reposts[3])?), ("shared", field(&mode, "shared")?)]);
@@ -220,6 +221,7 @@ impl Runner<'_> {
 
     #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
     fn timeline_copy(&mut self, t: &Timeline, event: &Value, reader: &str, shared: bool) -> Result<(), RuntimeError> {
+        self.timeline_require_live_id(t, &field(event, "id")?)?;
         // Fresh delivery never probes a foreign private inbox.
         let row = object([("readerId", Value::Id(reader.into())), ("eventId", field(event, "id")?),
             ("actorId", field(event, "actorId")?), ("authorId", field(event, "authorId")?),
@@ -227,6 +229,15 @@ impl Runner<'_> {
         let key = if shared { vec![field(event, "id")?] } else { vec![Value::Id(reader.into()), field(event, "id")?] };
         self.timeline_insert(t, if shared { "Broadcast" } else { "Feed" }, &key, row)?;
         Ok(())
+    }
+
+    #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
+    fn timeline_require_live_id(&mut self, t: &Timeline, event: &Value) -> Result<(), RuntimeError> {
+        // A pending removal may still have private copies at this digest identity.
+        // Refuse using only its public tombstone before inserting an event or copy.
+        // Purge deletes all copies together with the tombstone: the per-event cap
+        // of 1,001 fits one chunk. A live id collides first on the public event row.
+        require(self.timeline_get(&t.table("RemovedEvents"), "byEvent", vec![event.clone()])?.is_none(), "FEED_EVENT_REMOVED")
     }
 
     #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]

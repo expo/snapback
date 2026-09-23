@@ -6,7 +6,9 @@ use crate::Value;
 pub const OWNED_SUFFIXES: [&str; 8] = ["Authors", "Pulls", "PullCounts", "PullTotals", "Posts", "RemovedEvents", "Feed", "Broadcast"];
 
 /// Public, canonical inputs only; shared by native and device derivation.
-/// Event identities are deliberately outside this function's contract.
+/// Canonical Value arrays tag identities and frame/escape each component; this
+/// is not concatenation of reader/event strings. Domain, name and role are
+/// separate array elements. Event identities are outside this contract.
 pub fn owned_id(timeline: &str, suffix: &str, key: &[Value]) -> String {
     let mut parts = vec![Value::String("snapback4.timeline.v1".into()),
         Value::String(timeline.into()), Value::String(suffix.into())];
@@ -35,10 +37,10 @@ pub struct Timeline {
 impl Timeline {
     pub fn table(&self, suffix: &str) -> String { format!("{}{suffix}", self.name) }
     pub fn owns(&self, table: &str) -> bool {
-        self.owned.contains(table)
+        table.strip_prefix(&self.name).is_some_and(|suffix| OWNED_SUFFIXES.contains(&suffix))
     }
     pub fn maps(&self, table: &str) -> bool {
-        self.mapped.contains(table)
+        [&self.authors[0], &self.posts[0], &self.reposts[0], &self.edges[0]].iter().any(|source| source.as_str() == table)
     }
     /// Physical index choice is refreshed by adoption, without reactivation.
     /// Caps are fixed by admission; they are not configurable declaration fields.
@@ -48,4 +50,49 @@ impl Timeline {
             && self.owned == other.owned && self.mapped == other.mapped
     }
     pub fn event_tables(&self) -> [&str; 3] { [&self.posts[0], &self.reposts[0], &self.edges[0]] }
+}
+
+/// Stored sets are a checked projection, never an authorization input.
+pub(super) fn validate(schema: &super::Schema, issues: &mut Vec<super::SchemaIssue>) {
+    let mut names = BTreeSet::new();
+    let mut owners = BTreeSet::new();
+    let all_mapped: BTreeSet<_> = schema.timelines.iter().flat_map(|t|
+        [&t.authors[0], &t.posts[0], &t.reposts[0], &t.edges[0]]).cloned().collect();
+    for t in &schema.timelines {
+        let owned: BTreeSet<_> = OWNED_SUFFIXES.iter().map(|s| t.table(s)).collect();
+        let mapped: BTreeSet<_> = [&t.authors[0], &t.posts[0], &t.reposts[0], &t.edges[0]].into_iter().cloned().collect();
+        let unique = owned.iter().all(|name| owners.insert(name.clone()));
+        if !names.insert(&t.name) || !unique || t.owned != owned || t.mapped != mapped
+            || mapped.len() != 4 || !owned.is_disjoint(&all_mapped)
+            || owned.iter().chain(&mapped).any(|name| !schema.tables.contains_key(name)) {
+            issues.push(super::SchemaIssue { path: format!("timelines.{}", t.name),
+                message: "timeline owned and mapped sets must equal the disjoint canonical declaration sets, with every table present and one owner".into() });
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn owned_digest_frames_and_separates_every_input() {
+        let key = [Value::Id("ab".into()), Value::Id("c".into())];
+        let original = owned_id("feed", "Feed", &key);
+        assert_eq!(original.len(), 64);
+        assert!(original.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase()));
+        assert_eq!(original, owned_id("feed", "Feed", &key));
+        for other in [owned_id("feed", "Feed", &[Value::Id("a".into()), Value::Id("bc".into())]),
+            owned_id("feed", "Feed", &[Value::Id("ab".into()), Value::Id("d".into())]),
+            owned_id("feed", "Pulls", &key), owned_id("other", "Feed", &key),
+            crate::value::digest(&[Value::String("other.domain".into()), Value::String("feed".into()),
+                Value::String("Feed".into()), key[0].clone(), key[1].clone()])] {
+            assert_ne!(original, other);
+        }
+        // Canonical Value arrays tag identities and delimit/escape each element:
+        // [reader="ab", event="c"] cannot alias [reader="a", event="bc"].
+        assert_ne!(crate::value::canonical_json(&key), crate::value::canonical_json(&[Value::Id("a".into()), Value::Id("bc".into())]));
+        let maximum = Value::Id("x".repeat(135));
+        assert_eq!(crate::value::canonical_json(&maximum).len(), 144);
+        assert_eq!(owned_id("feed", "Feed", &[maximum.clone(), maximum]).len(), 64);
+    }
 }

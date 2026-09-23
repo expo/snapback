@@ -39,6 +39,7 @@ fn admission_refuses_every_unsupported_bridge_shape_and_missing_edge_bound() {
         ("cap 1000 by followedId","cap 999 by followedId","E_TIMELINE_FOLLOWS"),
         ("cap 100000","cap 99999","E_TIMELINE_FOLLOWS"),
         ("by byFollowed: followedId, followerId","by byFollowed: followerId, followedId","E_TIMELINE_FOLLOWS"),
+        ("by byFollowed: followedId, followerId","by byFollowed: at, followerId","E_TIMELINE_FOLLOWS"),
         ("cap 1000 by followerId", "", "E_TIMELINE_FOLLOWS"),
         ("cap 1000 by followedId", "", "E_TIMELINE_FOLLOWS"),
         ("cap 100000", "", "E_TIMELINE_FOLLOWS"),
@@ -95,6 +96,8 @@ fn all_owned_tables_refuse_principal_and_system_program_writes() {
     for table in OWNED {
         for (kind, statement) in [
             ("insert",Stmt::Insert{table:table.into(),row:Expr::Literal(snapback4_core::value::object([("id",id("anything"))]))}),
+            ("if-absent",Stmt::InsertIfAbsent{table:table.into(),row:Expr::Literal(snapback4_core::value::object([("id",id("anything"))])),result:"inserted".into()}),
+            ("upsert",Stmt::Upsert{table:table.into(),key:Expr::Literal(id("anything")),row:Expr::Literal(snapback4_core::value::object([("id",id("anything"))]))}),
             ("update",Stmt::Update{table:table.into(),key:Expr::Literal(id("anything")),patch:Expr::Literal(snapback4_core::value::object([] as [(&str,Value);0]))}),
             ("delete",Stmt::Delete{table:table.into(),key:Expr::Literal(id("anything"))}),
         ] {
@@ -126,8 +129,10 @@ mutation deletePost(postId: posts):
 "#);
     let b=compile(&source);let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
     e.mutate("register",None,context("a",&[],0)).unwrap();
+    let before = snapshot(&e);
     let out=e.mutate("publish",None,context("a",&[("postId",id("initial")),("removed",Value::Bool(true))],1)).unwrap();
     assert!(matches!(&out.state,WriteState::Failed{why,..} if why.code=="E_TIMELINE_REMOVAL"));
+    assert_eq!(snapshot(&e),before);
     assert!(rows(&e,"posts").is_empty());
     for table in ["feedPosts", "feedRemovedEvents", "feedFeed", "feedBroadcast"] {assert!(rows(&e,table).is_empty());}
     e.mutate("publish",None,context("a",&[("postId",id("p")),("removed",Value::Bool(false))],2)).unwrap();

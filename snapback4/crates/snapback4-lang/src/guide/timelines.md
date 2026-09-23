@@ -112,7 +112,7 @@ E_TIMELINE_FOLLOWS means the mapped edge table lacks promotion bounds. Add an in
 
 E_TIMELINE_REMOVAL means the removal signal must be a required bool default false and may only change false to true. Insert new cards with false, retain removed cards, and use a fresh card for new content.
 
-E_TIMELINE_READ means a timeline reads one viewer newest first by time, then event id, excluding tombstoned events. Use <name>[viewer] after c last 20, then shape its event rows.
+E_TIMELINE_READ means a timeline reads one viewer newest first by time, then event id, excluding tombstoned events. Use `NAME[viewer] after c last 20`, then shape its event rows.
 
 E_TIMELINE_OWNED means timeline rows are engine-owned. Write the mapped application profiles, posts, reposts or follows instead; no principal or application job can write the projection.
 
@@ -123,3 +123,9 @@ E_TIMELINE_IMPORT means a fixture import cannot reconstruct timeline history. Se
 E_TIMELINE_ACTIVATE means activation requires empty mapped event and edge tables and at most 1000 existing profiles. Declare the timeline before events or edges exist; in dev use a fresh store.
 
 E_TIMELINE_REDEFINE means a populated timeline cannot be removed or redefined because its history cannot be rebuilt. Keep the declaration unchanged, or start a fresh store in dev.
+
+A caller-chosen event id equal to a pending tombstone refuses with
+`FEED_EVENT_REMOVED`, for originals and reposts alike. The equivalence oracle
+has two explicit exceptions: the recipe writes a duplicate follow edge, and
+the recipe can admit tombstoned repost-id reuse when no destination retains
+an old copy (its unique reader/event key otherwise still collides).
