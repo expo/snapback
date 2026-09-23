@@ -47205,3 +47205,64 @@ The artifact exceeds the 470,000 B ratchet by 3,306 B. The authorized
 ratchet increase to **474,000 B** leaves **694 B** headroom. Conflict and
 verification evidence is in `reports/20260923-f1a-finalize.md`; the
 supervisor runs the complete landing suite.
+
+## 2026-09-23 — 0.3 program: maintained columns land (F1a + F1b; LLP 3000.007.001)
+
+`likeCount: count likes by postId` is now a maintained column. A private
+maintain keeps the authoritative total, and the engine mirrors it onto live
+parent rows. Adding or redefining a column over a populated store:
+- rebuilds the total, and mirrors every live parent whose value differs,
+  in place;
+- emits no row events;
+- always commits a parent-naming barrier, so devices reacquire by snapshot.
+
+An initial zero stays absent, and reads 0. W15c's interim value-index rule
+is retired. Trending is one merge over 25 lanes of
+`by byHourLikes: hour(at), likeCount, at, id`. A schema with a maintained
+column derives the `maintained-column` capability, which the published
+0.2.33 device and engine refuse.
+
+**Reviews.** Both families reviewed every round:
+
+| Change | Astra | Grok |
+|---|---|---|
+| F1a, round 2 and finalize | READY, no findings | test-strength notes only |
+| F1b | READY WITH CHANGES: one Medium, the activation clock | 22 packets |
+| F1b, round 1 | READY WITH CHANGES: one Medium, fixed here | 10 packets |
+
+F1b's round 1 did three things:
+- threaded the host clock into every activation path, with a mutation proof;
+- made the gate-5 harness fail closed;
+- strengthened eight weak tests.
+
+Astra's round-1 Medium was the gate-5 harness's `record()`: it asserted a
+response's size before appending it to the trace, and the client swallowed
+the throw, so the audit could miss an oversized response.
+
+Every production claim in Grok's packets was checked against the code or
+run, and refuted. For example, "does not compile" twice, and "17 bytes is
+too small for an i53".
+
+**F1 x F3.** The INTEGRATION lane's first Clique-shaped app failed admission.
+F1a's round-2 fix had refused maintained columns on timeline-mapped tables as
+well as owned ones. Only the owned half guards anything, so only owned
+tables are refused now. The ruling is in LLP 3000.007.003 revision 8, §3.1.
+
+A differential test runs the same operations on the language card's timeline
+with and without counts on its mapped cards. The operations are follows,
+posts, a delivered repost, votes, removal, unvote and unfollow. Every
+timeline-owned row and every home page stays identical. Astra rated the
+narrowing READY.
+
+**Verification.**
+- The landing suite ran on the rebased branch, with the published 0.2.33
+  fence tests enabled (`SNAPBACK4_FENCE_PUBLISHED`): `cargo test` passed in 1,374 s. The client tests' only failures were four cases in one file, `wasm-codec-census`: F1b's clock threading moved the stored-schema decode from `Engine::open` into `open_at`, and the census's exception still named `open`. That is fixed, and the file passes 26/26. The published timeline, recorded-attribution and maintained-column fence tests ran against the npm artifacts and passed.
+- The strengthened gate-5 harness passes at a toy size of 4,000 parents: 39
+  responses, the largest 16,772,312 B, and both devices adopted with 4,000 of
+  4,000 stored counts equal to 10. The full 100,000 / 1,000,000 re-run
+  follows landing, before publication.
+- WASM is 473,115 B gzip, within the 474,000 B ratchet.
+
+Follow-ups, including the finding that the published-binary fence is skipped
+unless its cache variable is set:
+`issues/20260923-snapback4-f1-review-followups.md`.
