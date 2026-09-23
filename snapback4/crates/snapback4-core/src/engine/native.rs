@@ -798,6 +798,29 @@ mod tests {
     }
 
     #[test]
+    fn duplicate_target_cannot_shadow_native_privacy() {
+        use crate::{Context, Engine, meter::{Cut, Meter}};
+        let bound = snapback4_lang::compile(&[("schema.q".into(), include_str!("../../../snapback4-lang/tests/fixtures/maintained-columns.q").into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let mut schema: Schema = serde_json::from_str(&serde_json::to_string(&bound.schema).unwrap()).unwrap();
+        let mut engine = Engine::memory(schema.clone(), []).unwrap();
+        let target = schema.maintains[0].target.clone();
+        let mut shadow = schema.maintains[0].clone();
+        shadow.private = None;
+        schema.maintains.insert(0, shadow);
+        let tx = engine.store.transaction().unwrap();
+        let mut runner = Runner::new(&tx, &schema, Context::system(), Meter::new(Ceilings::job(), Cut::Abort), 1);
+        for op in ["get", "lookup", "scan", "insert", "insert_if_absent", "upsert", "update", "delete"] {
+            let request = json!({"table":target,"id":"p","index":"byGroup","key":["p"],"prefix":[],"first":1,"row":{"id":"p"},"patch":{}});
+            let error = dispatch(&mut runner, "job", op, &request).unwrap_err();
+            assert_eq!(error.code(), "E_MAINTAINED_COLUMN_PRIVATE", "{op}: {error}");
+            assert!(error.to_string().contains("posts.likeCount"));
+            assert!(!error.to_string().contains(&target));
+        }
+        tx.rollback().unwrap();
+    }
+
+    #[test]
     fn native_column_results_and_private_targets() {
         use crate::{Context, Engine, meter::{Cut, Meter}};
         let bound = snapback4_lang::compile(&[("schema.q".into(),include_str!("../../../snapback4-lang/tests/fixtures/maintained-columns.q").into())]);
@@ -822,6 +845,14 @@ mod tests {
         let post = json!({"table":"posts","row":{"id":"p","at":1}});
         let result = dispatch(&mut runner,"job","insert",&post).unwrap();
         assert_eq!(result,json!({"id":"p","at":1}));
+        let old=tx.get("posts","p").unwrap().unwrap();
+        let read=dispatch(&mut runner,"job","get",&json!({"table":"posts","id":"p"})).unwrap();
+        assert_eq!((read["likeCount"].as_i64(),read["selected"].as_i64(),read["total"].as_i64()),(Some(1),Some(1),Some(4)));
+        let legacy=crate::value::object([("id",Value::Id("legacy".into())),("at",Value::Int(1))]);
+        tx.put("posts",&schema.tables["posts"],&legacy,None).unwrap();
+        let read=dispatch(&mut runner,"job","get",&json!({"table":"posts","id":"legacy"})).unwrap();
+        assert_eq!((read["likeCount"].as_i64(),read["selected"].as_i64(),read["total"].as_i64()),(Some(0),Some(0),Some(0)));
+        assert_eq!(old.field("total").unwrap(),&Value::Int(4));
         assert_eq!(tx.get("posts","p").unwrap().unwrap().field("likeCount").unwrap(),&Value::Int(1));
         tx.rollback().unwrap();
     }

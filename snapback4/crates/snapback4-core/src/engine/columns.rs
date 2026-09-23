@@ -42,7 +42,7 @@ pub(crate) fn activation_boundary(tx: &crate::store::Tx<'_>, schema: &crate::sch
         let populated = |name: &str| -> Result<bool,RuntimeError> {
             Ok(tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM r JOIN _catalog c ON r.t = c.num WHERE c.name = ?1)",[name],|r|r.get(0))?)
         };
-        if populated(&owner.table)? || (dependency_changed && old.is_some() && populated(&m.source)?) {
+        if populated(&owner.table)? || (old.is_some() && (populated(&m.source)? || populated(&m.target)?)) {
             return Err(RuntimeError::Structural { code: "E_MAINTAINED_COLUMN_ACTIVATION", message: format!("{} requires maintained-column activation machinery on this populated store; declare it before the table has rows; in dev, use a fresh store (guide maintains)",owner.label()) });
         }
     }

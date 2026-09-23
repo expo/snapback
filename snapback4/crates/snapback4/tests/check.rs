@@ -1404,22 +1404,33 @@ fn maintained_column_inspection_is_public_and_missing_storage_reads_zero() {
     let private=b.schema.maintains.iter().find(|m|m.private.as_ref().is_some_and(|o|o.column=="likeCount")).unwrap().target.clone();
     let mut e=Engine::new(Store::open(&p.store()).unwrap(),b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
     e.load_mode([("posts".into(),object([("id",V::Id("p".into())),("at",V::Int(1))]))],LoadMode::Restore).unwrap();
+    let stored=e.store().rows("posts").unwrap();
+    assert!(stored[0].field("likeCount").is_err());
+    assert!(e.schema().tables["posts"].defaults.is_empty());
     drop(e);
     let sql=p.run(&["sql","SELECT likeCount, selected, total FROM posts","--json"]);
     assert!(sql.status.success(),"{sql:?}");
     assert_eq!(parsed(&sql)["rows"],json!([[0,0,0]]));
     let data=p.run(&["data","posts","--json"]);
     assert!(data.status.success(),"{data:?}");
-    let raw=String::from_utf8(data.stdout).unwrap();
-    assert!(raw.contains("likeCount"),"{raw}");
+    let data_json=parsed(&data);
+    for field in ["likeCount","selected","total"] {assert_eq!(data_json[field],json!(0),"{data_json}");}
     for command in ["data","why"] {
         let result=p.run(&[command,&private]);
         assert!(!result.status.success());
-        let text=String::from_utf8(result.stderr).unwrap();
+        let text=format!("{}{}",String::from_utf8_lossy(&result.stdout),String::from_utf8_lossy(&result.stderr));
         assert!(text.contains("posts.likeCount") && !text.contains("$column"),"{text}");
+    }
+    for identifier in [private.clone(), private.to_uppercase()] {
+        let sql = p.run(&["sql", &format!("SELECT * FROM \"{identifier}\""), "--json"]);
+        assert!(!sql.status.success());
+        let text = format!("{}{}", String::from_utf8_lossy(&sql.stdout), String::from_utf8_lossy(&sql.stderr));
+        assert!(text.contains("posts.likeCount"), "{text}");
+        assert!(!text.to_lowercase().contains("$column:"), "{text}");
     }
     let check=p.run(&["check","--json"]);let doctor=p.run(&["doctor","--json"]);
     assert!(check.status.success() && doctor.status.success(),"{check:?} {doctor:?}");
+    for result in [&check,&doctor] {assert!(!format!("{}{}",String::from_utf8_lossy(&result.stdout),String::from_utf8_lossy(&result.stderr)).contains(&private));}
     assert_eq!(parsed(&check)["tables"],2);
     assert!(parsed(&doctor)["lines"].as_array().unwrap().iter().any(|s|s.as_str().unwrap().starts_with("schema    ok: 2 tables")));
 }

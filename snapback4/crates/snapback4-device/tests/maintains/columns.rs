@@ -1,12 +1,21 @@
 //! Server-authoritative column values, through the same reader on both stores.
 use super::super::common::*;
 use snapback4_core::{Value,WriteState};
-use snapback4_device::device::{Backend,Queued};
+use snapback4_device::device::{Backend,Queued,StreamPage};
 use serde_json::json;
 
 const SOURCE: &str = include_str!("../../../snapback4-lang/tests/fixtures/maintained-columns.q");
 fn queued(name: &str, op: &str, args: serde_json::Value, n: u64) -> Queued {
     Queued { id:name.into(),seq:n,op:op.into(),args,viewer:"alice".into(),now:1000,new_ids:vec![],predicted:vec![],predictable:true,sent_seq:None,receipt_store:None,observed_seq:None }
+}
+
+fn public_page(page: &StreamPage) -> &StreamPage {
+    assert!(page.events.iter().all(|event| matches!(event.table.as_str(), "posts" | "likes")));
+    assert!(!serde_json::to_string(page).unwrap().contains("$column:"));
+    page
+}
+fn triple(row: &Value) -> [i64; 3] {
+    ["likeCount", "selected", "total"].map(|field| row.field(field).unwrap().as_int().unwrap())
 }
 
 fn run<H: Host>(host: &mut H) {
@@ -19,13 +28,13 @@ fn run<H: Host>(host: &mut H) {
     let projected: Backend = snapback4_core::json_codec::from_text(&payload).unwrap();
     let mut device = host.open("columns",Some(projected)).unwrap();
     server.mutate("post",None,context("alice",&[("id",id("p")),("at",Value::Int(1))]).at(1000)).unwrap();
-    for (i,page) in snapshot_pages(&mut server,"alice",1).iter().enumerate() { device.apply(page,i==0).unwrap(); }
+    for (i,page) in snapshot_pages(&mut server,"alice",1).iter().enumerate() { device.apply(public_page(page),i==0).unwrap(); }
     let query = |device: &mut snapback4_device::device::Device<H::Store>, p: &str| {
         device.query("postRow","alice",&json!({"id":p}),1000).unwrap().data
     };
     let prediction = device.admit(queued("like1","like",json!({"id":"l1","postId":"p","active":true,"amount":3}),1)).unwrap();
     assert!(prediction.predictable,"{}: {prediction:?}",host.label());
-    assert!(prediction.predicted.iter().all(|p|!p.starts_with("posts/")));
+    assert!(prediction.predicted.iter().all(|p|p.starts_with("likes/")));
     assert_eq!(query(&mut device,"p").field("likeCount").unwrap(),&Value::Int(0));
     let from = server.seq().unwrap();
     let result = server.mutate("like",Some("like1"),context("alice",&[("id",id("l1")),("postId",id("p")),("active",Value::Bool(true)),("amount",Value::Int(3))]).at(1000)).unwrap();
@@ -33,22 +42,28 @@ fn run<H: Host>(host: &mut H) {
     device.settle("like1",Some(seq)).unwrap();
     let page = stream_page(&mut server,"alice",from);
     assert!(!serde_json::to_string(&page).unwrap().contains("$column"));
-    device.apply(&page,false).unwrap();
+    device.apply(public_page(&page),false).unwrap();
     assert_eq!(query(&mut device,"p"),server.query("postRow",context("alice",&[("id",id("p"))]).at(1000)).unwrap().data);
     host.close("columns",device);
     let mut device = host.open("columns",None).unwrap();
     assert_eq!(query(&mut device,"p").field("likeCount").unwrap(),&Value::Int(1));
     assert_eq!(query(&mut device,"p").field("total").unwrap(),&Value::Int(3));
     // Read through filters, reference moves, deletes and a reopened page application.
-    for (op,args_json,args_typed) in [
+    for (step,(op,args_json,args_typed)) in [
         ("change",json!({"id":"l1","postId":"p","active":false,"amount":7}),vec![("id",id("l1")),("postId",id("p")),("active",Value::Bool(false)),("amount",Value::Int(7))]),
         ("change",json!({"id":"l1","postId":"q","active":true,"amount":2}),vec![("id",id("l1")),("postId",id("q")),("active",Value::Bool(true)),("amount",Value::Int(2))]),
-    ] {
-        let _ = args_json;
+    ].into_iter().enumerate() {
+        let before = query(&mut device,"p");
+        let queued_id = format!("change{step}");
+        let prediction = device.admit(queued(&queued_id,op,args_json,3+step as u64)).unwrap();
+        assert!(prediction.predictable);
+        assert!(prediction.predicted.iter().all(|path|path.starts_with("likes/")));
+        assert_eq!(query(&mut device,"p"), before, "prediction preserves all confirmed columns");
         let from = server.seq().unwrap();
         let result = server.mutate(op,None,context("alice",&args_typed).at(1000)).unwrap();
-        assert!(matches!(result.state,WriteState::Sent { .. }),"{result:?}");
-        device.apply(&stream_page(&mut server,"alice",from),false).unwrap();
+        let WriteState::Sent { seq, .. } = result.state else { panic!("{result:?}") };
+        device.settle(&queued_id,Some(seq)).unwrap();
+        device.apply(public_page(&stream_page(&mut server,"alice",from)),false).unwrap();
         assert_eq!(query(&mut device,"p"),server.query("postRow",context("alice",&[("id",id("p"))]).at(1000)).unwrap().data);
     }
     let pending = device.admit(queued("parent","post",json!({"id":"q","at":2}),2)).unwrap();
@@ -60,15 +75,19 @@ fn run<H: Host>(host: &mut H) {
     let result = server.mutate("post",Some("parent"),context("alice",&[("id",id("q")),("at",Value::Int(2))]).at(1000)).unwrap();
     let WriteState::Sent { seq,.. } = result.state else { panic!("{result:?}") };
     device.settle("parent",Some(seq)).unwrap();
-    device.apply(&stream_page(&mut server,"alice",from),false).unwrap();
-    assert_eq!(query(&mut device,"q").field("likeCount").unwrap(),&Value::Int(1));
+    device.apply(public_page(&stream_page(&mut server,"alice",from)),false).unwrap();
+    assert_eq!(triple(&query(&mut device,"q")),[1,1,2]);
     host.close("columns",device);
     let mut device = host.open("columns",None).unwrap();
     assert_eq!(query(&mut device,"q").field("total").unwrap(),&Value::Int(2));
     let from = server.seq().unwrap();
-    server.mutate("unlike",None,context("alice",&[("id",id("l1"))]).at(1000)).unwrap();
-    device.apply(&stream_page(&mut server,"alice",from),false).unwrap();
-    assert_eq!(query(&mut device,"q").field("likeCount").unwrap(),&Value::Int(0));
+    device.admit(queued("unlike","unlike",json!({"id":"l1"}),5)).unwrap();
+    assert_eq!(triple(&query(&mut device,"q")),[1,1,2]);
+    let result=server.mutate("unlike",None,context("alice",&[("id",id("l1"))]).at(1000)).unwrap();
+    let WriteState::Sent {seq,..}=result.state else {panic!("{result:?}")};
+    device.settle("unlike",Some(seq)).unwrap();
+    device.apply(public_page(&stream_page(&mut server,"alice",from)),false).unwrap();
+    assert_eq!(triple(&query(&mut device,"q")),[0,0,0]);
     host.close("columns",device);
 }
 
@@ -77,23 +96,27 @@ fn columns_are_server_values_on_both_device_stores() { run(&mut Sqlite::new("col
 
 fn forged<H:Host>(host:&mut H) {
     use snapback4_core::{ir::{Expr,Stmt},value::object};
-    for arm in ["insert","if_absent","update","upsert"] {
+    for (arm,field) in ["insert","if_absent","update","upsert"].into_iter().flat_map(|arm| ["likeCount","selected","total"].map(|field| (arm,field))) {
         let (mut server,mut backend)=compile(&SOURCE.replace("  online only","  sync public"));
         server.mutate("post",None,context("alice",&[("id",id("p")),("at",Value::Int(1))]).at(1000)).unwrap();
         backend.schema=backend.schema.public_projection();
         backend.schema.operations.clear();
-        let row=object([("id",id("p")),("at",Value::Int(1)),("likeCount",Value::Int(0))]);
+        let row=object([("id",id("p")),("at",Value::Int(1)),(field,Value::Int(9))]);
         backend.programs.iter_mut().find(|p|p.name=="post").unwrap().body=vec![match arm {
             "if_absent"=>Stmt::InsertIfAbsent {table:"posts".into(),row:Expr::Literal(row),result:"r".into()},
-            "update"=>Stmt::Update {table:"posts".into(),key:Expr::Literal(id("p")),patch:Expr::Literal(object([("likeCount",Value::Int(0))]))},
+            "update"=>Stmt::Update {table:"posts".into(),key:Expr::Literal(id("p")),patch:Expr::Literal(object([(field,Value::Int(9))]))},
             "upsert"=>Stmt::Upsert {table:"posts".into(),key:Expr::Literal(id("p")),row:Expr::Literal(row)},
             _=>Stmt::Insert {table:"posts".into(),row:Expr::Literal(row)},
         }];
-        let mut device=host.open(arm,Some(backend)).unwrap();
-        for (i,page) in snapshot_pages(&mut server,"alice",100).iter().enumerate(){device.apply(page,i==0).unwrap();}
+        let backend = snapback4_core::json_codec::from_text(&serde_json::to_string(&backend).unwrap()).unwrap();
+        let name=format!("{arm}-{field}");
+        let mut device=host.open(&name,Some(backend)).unwrap();
+        for (i,page) in snapshot_pages(&mut server,"alice",100).iter().enumerate(){device.apply(public_page(page),i==0).unwrap();}
+        let before=device.query("postRow","alice",&json!({"id":"p"}),1000).unwrap().data;
         assert_eq!(device.admit(queued("forged","post",json!({"id":"p","at":1}),1)).unwrap_err().refusal().code,"E_MAINTAINED_COLUMN","{arm}");
         assert!(device.queued().unwrap().is_empty());
-        host.close(arm,device);
+        assert_eq!(device.query("postRow","alice",&json!({"id":"p"}),1000).unwrap().data,before);
+        host.close(&name,device);
     }
 }
 #[test]
@@ -107,7 +130,7 @@ fn oracle<H:Host>(host:&mut H) {
     for p in ["a","b","c"] {
         server.mutate("post",None,context("alice",&[("id",id(p)),("at",Value::Int(1))]).at(1000)).unwrap();
     }
-    for (i,page) in snapshot_pages(&mut server,"alice",1).iter().enumerate(){device.apply(page,i==0).unwrap();}
+    for (i,page) in snapshot_pages(&mut server,"alice",1).iter().enumerate(){device.apply(public_page(page),i==0).unwrap();}
     let mut model=BTreeMap::<usize,(Option<String>,bool,i64)>::new();
     for step in 0..36 {
         let n=step%12;
@@ -122,7 +145,7 @@ fn oracle<H:Host>(host:&mut H) {
         let from=server.seq().unwrap();
         let out=server.mutate(op,None,context("alice",&args).at(1000)).unwrap();
         assert!(matches!(out.state,WriteState::Sent{..}),"{out:?}");
-        device.apply(&stream_page(&mut server,"alice",from),false).unwrap();
+        device.apply(public_page(&stream_page(&mut server,"alice",from)),false).unwrap();
         for p in ["a","b","c"] {
             let rows=model.values().filter(|(parent,_,_)|parent.as_deref()==Some(p)).collect::<Vec<_>>();
             let expected=[rows.len() as i64,rows.iter().filter(|(_,active,_)|*active).count() as i64,rows.iter().filter(|(_,active,_)|*active).map(|(_,_,n)|*n).sum()];

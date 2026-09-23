@@ -1,6 +1,7 @@
 pub const CODES: &[(&str, &str)] = &[
     ("E_MAINTAINED_COLUMN", "a maintained column belongs to the engine; omit submitted values and write the source rows. Authority, identity, lifetime, delivery and other aggregates cannot depend on it. Use an ordinary column or a separate maintain; guide maintains."),
-    ("E_MAINTAINED_COLUMN_PRIVATE", "the named parent column has private engine storage that programs, native calls, rules and imports cannot address. Read the parent row or write its source rows; guide maintains."),
+    ("E_POSTGRES_MAINTAINED_COLUMN", "the Postgres evaluation backend does not support maintained columns or their private maintains. Use the SQLite engine for maintained columns; guide maintains."),
+    ("E_MAINTAINED_COLUMN_PRIVATE", "no program, native call, rule, constraint, seed, fixture, import, or raw IR or schema can name the parent column's private storage, not even as the system. Read the parent row or write its source rows; guide maintains."),
     ("E_MAINTAINED_COLUMN_RESULT", "write results retain ordinary columns and id but omit maintained columns. Read the row under its read rule; guide maintains."),
     ("E_MAINTAINED_COLUMN_ACTIVATION", "this generation needs populated-store maintained-column adoption. Declare it before the parent has rows; in dev, use a fresh store. Unchanged declarations preserve their state; guide maintains."),
     ("N_MAINTAINED_COLUMN_STREAM", "each contributing commit streams the whole parent image per destination partition. Consider the parent's size and update frequency; a hot counter can stay a separate online-only maintain. guide maintains."),

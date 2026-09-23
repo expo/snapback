@@ -1,6 +1,33 @@
 use super::*;
 use crate::{authority::{AuthorityTransaction, test_cases}, rows::{Rows, PrefetchRequest}, schema::Index, value::object};
 
+#[test]
+fn maintained_columns_are_outside_postgres_evaluation() {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), include_str!("../../../../snapback4-lang/tests/fixtures/maintained-columns.q").into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let schema: Schema = serde_json::from_str(&serde_json::to_string(&bound.schema).unwrap()).unwrap();
+    let mut private_only = schema.clone();
+    for table in private_only.tables.values_mut() { table.maintained.clear(); }
+    for schema in [schema.clone(), schema.public_projection(), private_only] {
+        let error = supported(&schema, &BTreeMap::new()).unwrap_err();
+        assert_eq!(error.code(), "E_POSTGRES_MAINTAINED_COLUMN", "{error}");
+        assert!(error.to_string().contains("Postgres evaluation"));
+        assert!(!error.to_string().contains("$column:"));
+    }
+}
+
+#[test]
+fn postgres_evaluation_currently_admits_recorded_fields() {
+    let recorded = include_str!("../../../../snapback4-lang/tests/fixtures/recorded-attribution.q");
+    for source in [recorded] {
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let schema: Schema = serde_json::from_str(&serde_json::to_string(&bound.schema).unwrap()).unwrap();
+        let programs = bound.programs.into_iter().map(|p| (p.program.name.clone(), serde_json::from_str(&serde_json::to_string(&p.program).unwrap()).unwrap())).collect();
+        supported(&schema, &programs).unwrap();
+    }
+}
+
 fn engine() -> PostgresEngine {
     let schema: Schema = serde_json::from_value(serde_json::json!({"tables": {
         "items": {"columns": {"id": "Id", "key": {"Optional": {"Text": {"max": 100}}}},

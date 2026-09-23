@@ -17,7 +17,13 @@ impl ColumnOwner {
 }
 
 impl Schema {
-    pub fn visible(&self, name: &str) -> bool { self.maintain_for(name).is_none_or(|m| m.private.is_none()) }
+    fn private_owner(&self, name: &str) -> Option<&ColumnOwner> {
+        // Privacy also holds before admission: a duplicate ordinary declaration
+        // must never shadow a private one in a raw schema.
+        self.maintains.iter().filter(|m| m.target == name).find_map(|m| m.private.as_ref())
+    }
+
+    pub fn visible(&self, name: &str) -> bool { self.private_owner(name).is_none() }
 
     pub fn visible_tables(&self) -> impl Iterator<Item = (&String, &Table)> {
         self.tables.iter().filter(|(name, _)| self.visible(name))
@@ -32,7 +38,7 @@ impl Schema {
     }
 
     pub fn refuse_private(&self, name: &str) -> Result<(), crate::error::RuntimeError> {
-        if let Some(owner) = self.maintain_for(name).and_then(|m| m.private.as_ref()) {
+        if let Some(owner) = self.private_owner(name) {
             return Err(crate::error::RuntimeError::Structural { code: "E_MAINTAINED_COLUMN_PRIVATE",
                 message: format!("{} is maintained by the engine; read the parent row or write the source rows (guide maintains)", owner.label()) });
         }
@@ -68,7 +74,7 @@ impl Walk<'_> {
         self.issues.push(SchemaIssue { path: path.into(), message: format!("maintained column {label} is depended on by {path}; use an ordinary column for authority, identity, lifetime or delivery, or a separate maintain for an aggregate (guide maintains)") });
     }
     fn target(&mut self, table: &str, path: &str) {
-        if let Some(owner) = self.schema.maintain_for(table).and_then(|m| m.private.as_ref()) { self.issue(path, &owner.label()); }
+        if let Some(owner) = self.schema.private_owner(table) { self.issue(path, &owner.label()); }
     }
     fn field(&mut self, table: &str, field: &str, path: &str) {
         if self.schema.table(table).is_some_and(|t| t.maintained.contains_key(field)) { self.issue(path, &format!("{table}.{field}")); }
@@ -99,6 +105,14 @@ impl Walk<'_> {
 
 pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     let mut walk = Walk { schema, issues: Vec::new() };
+    let mut targets = BTreeSet::new();
+    for (position, m) in schema.maintains.iter().enumerate() {
+        if !targets.insert(&m.target) {
+            let label = schema.private_owner(&m.target).map_or_else(|| m.target.clone(), ColumnOwner::label);
+            walk.issues.push(SchemaIssue { path: format!("maintains[{position}]"),
+                message: format!("duplicate maintain target {label}; each target needs exactly one derivation (guide maintains)") });
+        }
+    }
     for (name, table) in schema.visible_tables() {
         for (field, identity) in &table.maintained {
             if identity.is_empty() || table.defaults.contains_key(field) || table.recorded.contains_key(field)

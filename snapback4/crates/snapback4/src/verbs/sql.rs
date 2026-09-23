@@ -97,7 +97,10 @@ fn inspect(options: &Options) -> Result<()> {
         2 => ("E_SQL_INTERNAL", "sql reads application views only; internal tables, r, i and SQLite metadata are refused".into()),
         _ => {
             let message = e.to_string();
-            if let Some(m) = schema.maintains.iter().find(|m|m.private.is_some() && message.contains(&m.target)) {
+            // SQLite identifiers are case-insensitive, including the spelling
+            // repeated by a missing-view diagnostic.
+            let folded = message.to_ascii_lowercase();
+            if let Some(m) = schema.maintains.iter().find(|m|m.private.is_some() && folded.contains(&m.target.to_ascii_lowercase())) {
                 ("E_MAINTAINED_COLUMN_PRIVATE", format!("{} is engine-maintained; read its parent column (guide maintains)",m.label()))
             } else { ("E_INPUT", format!("SQL: {e}")) }
         },

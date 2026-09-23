@@ -87,7 +87,7 @@ fn check(engine: &mut snapback4_core::engine::Engine, since: u64) -> Result<(u64
     // Advancing to the actual head must not skip invalidation beyond the
     // bounded commit page. Saturation conservatively invalidates every table.
     let mut tables = if changes.last().is_some_and(|(seq, _)| *seq < head) { all_tables }
-        else { changes.into_iter().flat_map(|(_, tables)| tables).collect() };
+        else { changes.into_iter().flat_map(|(_, tables)| tables).filter(|name| all_tables.contains(name)).collect() };
     tables.sort();
     tables.dedup();
     tx.rollback()?;
@@ -147,8 +147,14 @@ mod column_tests {
         let bound=snapback4_lang::compile(&[("schema.q".into(),include_str!("../../snapback4-lang/tests/fixtures/maintained-columns.q").into())]);
         assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
         let mut engine=snapback4_core::Engine::memory(bound.schema,[]).unwrap();
+        let private = engine.schema().maintains[0].target.clone();
+        assert!(!engine.schema().visible(&private));
+        let tx = engine.store_mut().transaction().unwrap();
+        tx.record_commit(1, 1000, "legacy", "alice", "mutation", &[private, "likes".into()], 1).unwrap();
+        tx.commit().unwrap();
+        assert_eq!(super::check(&mut engine, 0).unwrap().2, ["likes"]);
         let tx=engine.store_mut().transaction().unwrap();
-        for seq in 1..=501 {tx.record_commit(seq,1000,"like","alice","mutation",&["likes".into()],1).unwrap()}
+        for seq in 2..=501 {tx.record_commit(seq,1000,"like","alice","mutation",&["likes".into()],1).unwrap()}
         tx.commit().unwrap();
         let (seq,_,tables)=super::check(&mut engine,0).unwrap();
         assert_eq!(seq,501);

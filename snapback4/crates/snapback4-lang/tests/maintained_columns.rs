@@ -20,7 +20,7 @@ fn mutate(e: &mut Engine, op: &str, args: &[(&str,Value)]) -> Value {
 }
 fn post(e: &mut Engine, name: &str, at: i64) {
     let row = mutate(e,"post",&[("id",id(name)),("at",Value::Int(at))]);
-    assert!(row.field("likeCount").is_err());
+    for field in ["likeCount","selected","total"] { assert!(row.field(field).is_err()); }
     assert_eq!(row.field("id").unwrap(),&id(name));
 }
 fn like(e: &mut Engine, name: &str, parent: Value, active: bool, amount: i64) {
@@ -64,7 +64,7 @@ fn oracle_moves_filters_sums_birth_and_last_delete() {
 fn clique_pages_match_independent_count_time_model() {
     let mut e = engine(MODEL);
     let mut counts = BTreeMap::new();
-    for (p,at) in [("a",10),("b",30),("c",20),("d",40),("e",5)] { post(&mut e,p,at); counts.insert(p,(0,at)); }
+    for (p,at) in [("a",10),("b",30),("c",20),("d",40),("e",5),("f",20)] { post(&mut e,p,at); counts.insert(p,(0,at)); }
     let check = |e: &mut Engine, counts: &BTreeMap<&str,(i64,i64)>| {
         let mut expected: Vec<_> = counts.iter().map(|(p,(n,at))|(*n,*at,p.to_string())).collect();
         expected.sort(); expected.reverse();
@@ -93,25 +93,27 @@ fn writes_and_result_fields_refuse_and_brand_stays_a_write_key() {
         "insert posts { at: 0, likeCount: 0 } if absent",
         "update posts['p'] { likeCount: 0 }",
         "upsert posts['p'] { at: 0, likeCount: 0 }",
-    ] {
+    ].into_iter().flat_map(|body| ["likeCount","selected","total"].map(|field| body.replace("likeCount",field))) {
         let b = snapback4_lang::compile(&[("schema.q".into(),format!("{MODEL}\nmutation bad():\n  {body}\n"))]);
+        assert!(b.programs.iter().all(|p|p.program.name != "bad"));
         assert!(b.diagnostics.iter().any(|d|d.code == "E_MAINTAINED_COLUMN"),"{body}: {:?}",b.diagnostics);
     }
-    for body in ["return (insert posts { at: 0 }).likeCount","return (insert posts { at: 0 }) { likeCount }","return (update posts['p'] { at: 1 }).likeCount"] {
+    for body in ["return (insert posts { at: 0 }).likeCount","return (insert posts { at: 0 }) { likeCount }","return (update posts['p'] { at: 1 }).likeCount"].into_iter().flat_map(|body| ["likeCount","selected","total"].map(|field|body.replace("likeCount",field))) {
         let b = snapback4_lang::compile(&[("schema.q".into(),format!("{MODEL}\nmutation bad():\n  {body}\n"))]);
+        assert!(b.programs.iter().all(|p|p.program.name != "bad"));
         assert!(b.diagnostics.iter().any(|d|d.code == "E_MAINTAINED_COLUMN_RESULT"),"{body}: {:?}",b.diagnostics);
     }
     let source = MODEL.replacen("  delete <- allow","  update <- allow\n  delete <- allow",1)
         + "\nmutation chained():\n  row = insert posts { at: 0 }\n  return update posts[row] { at: 1 }\n";
     let bound = compile(&source);
     let ts = snapback4_lang::emit::typescript(&bound);
-    assert!(ts.contains("WriteRows[\"posts\"]"));
+    assert!(ts.lines().any(|line|line.contains("chained:") && line.contains("WriteRows[\"posts\"]")),"{ts}");
     assert!(!ts.contains("$column"));
     assert!(!snapback4_lang::emit::rust(&bound).contains("$column"));
     let mut e = engine(&source);
     let row = mutate(&mut e,"chained",&[]);
     assert_eq!(row.field("at").unwrap(),&Value::Int(1));
-    assert!(row.field("likeCount").is_err());
+    for field in ["likeCount","selected","total"] { assert!(row.field(field).is_err()); }
 }
 
 #[test]
@@ -122,11 +124,24 @@ fn resolved_dependencies_and_private_projection() {
         let source = base.replacen("  at: time",&format!("  at: time\n{line}"),1);
         let b = snapback4_lang::compile(&[("schema.q".into(),source)]);
         assert!(!b.diagnostics.is_empty(),"admitted {line}");
-        assert!(b.diagnostics.iter().any(|d|d.message.contains("likeCount")),"{line}: {:?}",b.diagnostics);
+        assert!(b.diagnostics.iter().any(|d|d.code == "E_MAINTAINED_COLUMN" && d.message.contains("likeCount")),"{line}: {:?}",b.diagnostics);
     }
     let bound = compile(MODEL);
     assert!(bound.schema.maintain_for("posts").is_none());
     let projection = bound.schema.public_projection();
+    assert_eq!(bound.schema.maintains.len(),3);
+    for m in &bound.schema.maintains {
+        let owner=m.private.as_ref().unwrap();
+        assert_eq!(owner.table,"posts");
+        assert!(["likeCount","selected","total"].contains(&owner.column.as_str()));
+        assert_eq!(m.source,"likes");assert_eq!(m.by,["postId"]);
+        assert_eq!(bound.schema.tables["posts"].maintained[&owner.column],m.derivation_identity());
+        assert!(!bound.schema.visible(&m.target));
+        assert!(bound.schema.tables[&m.target].sync.is_none());
+        for text in [serde_json::to_string(&projection).unwrap(),snapback4_lang::emit::typescript(&bound),snapback4_lang::emit::rust(&bound)] {assert!(!text.contains(&m.target));}
+    }
+    let synced=compile(&MODEL.replace("  online only","  sync public"));
+    assert!(synced.schema.maintains.iter().all(|m|synced.schema.tables[&m.target].sync.is_none()));
     assert_eq!(projection.tables.len(),2);
     assert!(projection.maintains.is_empty());
     assert_eq!(projection.tables["posts"].maintained.len(),3);
@@ -256,12 +271,16 @@ fn raw_ir_system_and_seed_guard_and_overflow_are_owned_by_column() {
     ] {
         let p = Program {name:"bad".into(),kind:ProgramKind::Mutation,args:BTreeMap::new(),read_time_granularity_ms:None,body:vec![stmt],native:false,returned_shapes:Default::default()};
         let mut e = Engine::memory(b.schema.clone(),[p]).unwrap();
+        e.load_mode([("posts".into(), object([("id",id("p")),("at",Value::Int(1))]))],snapback4_core::engine::LoadMode::Restore).unwrap();
+        let before=(e.seq().unwrap(),e.store().rows("posts").unwrap());
         for context in [context(&[]),Context::system().at(1000)] {
             let result = e.mutate("bad",None,context).unwrap();
             let WriteState::Failed {why,..}=result.state else {panic!("{result:?}")};
             assert_eq!(why.code,"E_MAINTAINED_COLUMN");
+            assert_eq!((e.seq().unwrap(),e.store().rows("posts").unwrap()),before);
         }
         assert_eq!(e.seed([("posts".into(),row.clone())]).unwrap_err().refusal().code,"E_MAINTAINED_COLUMN");
+        assert_eq!((e.seq().unwrap(),e.store().rows("posts").unwrap()),before);
     }
     let mut e = engine(MODEL);
     like(&mut e,"max",id("hidden"),true,snapback4_core::value::I53_MAX);
@@ -318,9 +337,11 @@ fn notes_name_disclosure_order_and_full_parent_stream_at_the_declaration() {
     let b = compile(&source);
     let notes:Vec<_> = b.notes.iter().filter(|n| n.code.starts_with("N_MAINTAINED_COLUMN")).collect();
     assert_eq!(notes.len(),4,"{notes:?}");
+    assert_eq!(notes.iter().filter(|n|n.code=="N_MAINTAINED_COLUMN_DISCLOSURE").count(),3);
+    for m in &b.schema.maintains { assert!(!serde_json::to_string(&notes).unwrap().contains(&m.target)); }
     let stream = notes.iter().find(|n|n.code == "N_MAINTAINED_COLUMN_STREAM").unwrap();
     assert_eq!(source.lines().nth((stream.site.line-1) as usize).unwrap().trim(),"sync public");
-    assert!(stream.message.contains("whole parent image") && stream.message.contains("4,000"));
+    assert!(stream.message.contains("posts") && stream.message.contains("whole parent image") && stream.message.contains("4,000"));
     assert!(notes.iter().any(|n|n.message.contains("sum of predicate-selected") && n.message.contains("overflow")));
     assert!(notes.iter().any(|n|n.message.contains("index discloses relative order")));
     assert!(compile(MODEL).notes.iter().all(|n|!n.code.starts_with("N_MAINTAINED_COLUMN")));
@@ -346,10 +367,13 @@ fn raw_private_reads_and_every_resolved_dependency_are_refused() {
         RuleExpr::Exists {table:"posts".into(),index:"byId".into(),key:vec![],equalities:vec![("likeCount".into(),RuleTerm::Literal(Value::Int(0)))],provenance:KeyProvenance::Computed},
     ];
     for rule in variants {
-        let mut schema = b.schema.clone();
-        schema.tables.get_mut("posts").unwrap().rules.update=rule;
-        let issues = snapback4_core::schema::validate(&schema);
-        assert!(issues.iter().any(|i|i.message.contains("posts.likeCount") && i.message.contains("rules.update") && i.message.contains("use an ordinary column")),"{issues:?}");
+        for arm in ["insert","update","delete"] {
+            let mut schema = b.schema.clone();
+            let rules=&mut schema.tables.get_mut("posts").unwrap().rules;
+            match arm {"insert"=>rules.insert=rule.clone(),"delete"=>rules.delete=rule.clone(),_=>rules.update=rule.clone()}
+            let issues = snapback4_core::schema::validate(&schema);
+            assert!(issues.iter().any(|i|i.message.contains("posts.likeCount") && i.message.contains(&format!("rules.{arm}")) && i.message.contains("use an ordinary column")),"{issues:?}");
+        }
     }
     for source in [
         MODEL.replace("  amount: int","  amount: int\n  expiry: time ?\n  by byExpiry: expiry\n  expire at .expiry"),
@@ -371,6 +395,13 @@ fn creators_cannot_observe_hidden_totals_in_write_results_or_budgets() {
             like(&mut e,"l",if nonzero {id("p")} else {id("other")},true,4);
             e.set_ceilings(ceilings);
             let out = e.mutate("post",Some("create"),context(&[("id",id("p")),("at",Value::Int(1))])).unwrap();
+            if matches!(out.state,WriteState::Sent {..}) {
+                let row=e.store().rows("posts").unwrap().into_iter().find(|r|r.field("id").unwrap()==&id("p")).unwrap();
+                let n=i64::from(nonzero);
+                assert_eq!(["likeCount","selected","total"].map(|field|row.field(field).unwrap().as_int().unwrap()),[n,n,n*4]);
+                assert_eq!(out.tables,["posts"]);
+                for m in &e.schema().maintains {assert!(!format!("{out:?}").contains(&m.target));}
+            }
             (out.reply(Some("create")),out.receipt(Some("create")),out.metered,out.tables)
         };
         let control = observe(false,Default::default());
@@ -406,7 +437,11 @@ fn adapter_failures_after_private_write_and_between_mirrors_roll_back_every_imag
         let condition=if column=="likeCount" {"1"} else {"json_extract(NEW.data, '$.Row.likeCount.Int') = 1 AND json_extract(NEW.data, '$.Row.selected.Int') = 1"};
         e.store().conn().execute_batch(&format!("CREATE TRIGGER fail_mirror BEFORE UPDATE ON r WHEN NEW.t = (SELECT num FROM _catalog WHERE name = 'posts') AND {condition} BEGIN SELECT RAISE(ABORT, 'injected mirror failure'); END;")).unwrap();
         let result=e.mutate("like",None,context(&[("id",id("l")),("postId",id("p")),("active",Value::Bool(true)),("amount",Value::Int(5))]));
-        assert!(result.is_err() || matches!(result.unwrap().state,WriteState::Failed{..}));
+        assert!(format!("{result:?}").contains("injected mirror failure"),"{result:?}");
+        assert_eq!(e.seq().unwrap(),seq);
+        assert_eq!(totals(&mut e,"p"),(0,0,0));
+        assert!(e.store().rows("likes").unwrap().is_empty());
+        for m in &e.schema().maintains {assert!(e.store().rows(&m.target).unwrap().is_empty());}
         e.store().conn().execute_batch("DROP TRIGGER fail_mirror").unwrap();
         assert_eq!(e.seq().unwrap(),seq);
         assert_eq!(totals(&mut e,"p"),(0,0,0));
@@ -459,7 +494,9 @@ fn column_predicates_reuse_engine_recorded_attribution() {
     let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
     post(&mut e,"p",1);like(&mut e,"l",id("p"),true,3);
     assert_eq!(totals(&mut e,"p"),(1,1,3));
-    mutate(&mut e,"deletePost",&[("id",id("p"))]);post(&mut e,"p",2);
+    mutate(&mut e,"deletePost",&[("id",id("p"))]);
+    e.seed_at([("posts".into(),snapback4_core::value::object([("id",id("p")),("at",Value::Int(2)),("parentId",id("other"))]))],1000).unwrap();
+    // The live parent now differs from the captured null without rewriting the like.
     assert_eq!(totals(&mut e,"p"),(1,1,3));
 }
 
@@ -497,6 +534,12 @@ fn one_parent_image_per_commit_has_the_hand_kept_columns_log_cost() {
         .query_map([from as i64],|r|Ok((r.get(0)?,r.get(1)?))).unwrap().map(Result::unwrap).collect();
     assert_eq!(rows.len(),2,"one source image and one full parent image: {rows:?}");
     assert_eq!(rows.iter().map(|(t,_)|t.as_str()).collect::<Vec<_>>(),["likes","posts"]);
+    let page=e.stream_at("alice",from,100,1000).unwrap();
+    let parent=page.events.iter().find(|event|event.table=="posts").unwrap();
+    assert_eq!(parent.kind,"put");
+    let image=parent.data.as_ref().unwrap();
+    assert_eq!(["likeCount","selected","total"].map(|f|image.field(f).unwrap().as_int().unwrap()),[1,1,4]);
+    assert!(!serde_json::to_string(&page).unwrap().contains("$column:"));
     assert_eq!(totals(&mut e,"p"),(1,1,4));
     mutate(&mut e,"unlike",&[("id",id("l"))]);
     assert_eq!(totals(&mut e,"p"),(0,0,0));
@@ -584,13 +627,23 @@ fn private_targets_stay_bounded_for_long_table_and_column_names() {
     let column="c".repeat(300);
     let source=MODEL.replace("posts",&parent).replace("likeCount",&column);
     let bound=compile(&source);
+    assert_eq!(bound.schema.maintains.len(),3);
     for m in &bound.schema.maintains {
+        assert_eq!(m.private.as_ref().unwrap().table,parent);
+        assert!(!bound.schema.visible(&m.target));
         assert!(m.target.len()+"byGroup".len()<=snapback4_core::rows::MAX_INDEX_LABEL_BYTES);
     }
     let mut e=engine(&source);
     like(&mut e,"before",id("p"),true,1);
+    assert!(e.store().rows(&parent).unwrap().is_empty());
     post(&mut e,"p",1);
+    assert_eq!(e.query("postRow",context(&[("id",id("p"))])).unwrap().data.field(&column).unwrap(),&Value::Int(1));
     like(&mut e,"after",id("p"),true,2);
     let row=e.query("postRow",context(&[("id",id("p"))])).unwrap().data;
     assert_eq!(row.field(&column).unwrap(),&Value::Int(2));
 }
+
+#[path = "maintained_columns/review.rs"]
+mod review;
+#[path = "maintained_columns/meter_review.rs"]
+mod meter_review;

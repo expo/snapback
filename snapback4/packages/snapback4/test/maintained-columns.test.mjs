@@ -17,6 +17,8 @@ const binary = process.env.SNAPBACK4_BIN ?? join(root,"target/debug/snapback4");
 const fixture = readFileSync(join(root,"crates/snapback4-lang/tests/fixtures/maintained-columns.q"),"utf8");
 const source = "use personas alice, bob\n" + fixture.replaceAll("  online only","  sync public");
 const api = { kind:"query",name:"postRow" };
+const triple = row => [row.likeCount,row.selected,row.total];
+const publicJson = value => assert.doesNotMatch(JSON.stringify(value),/\$column:/i);
 const privateTarget="$column:"+createHash("sha256").update(JSON.stringify(["posts","likeCount"])).digest("hex");
 async function until(check) {
   const deadline = Date.now()+30000;
@@ -55,21 +57,27 @@ for (const family of ["sqlite","web"]) test(`maintained columns: ${family} watch
   }
   assert.doesNotMatch(readFileSync(join(directory,"snapback/generated/api.ts"),"utf8"),/\$column/);
   const privateData=command(["data",privateTarget]);
-  assert.notEqual(privateData.status,0);assert.match(privateData.stderr,/posts.likeCount/);
+  assert.notEqual(privateData.status,0);assert.match(privateData.stderr,/posts.likeCount/);assert.doesNotMatch(privateData.stderr,/\$column/);
   const privateSql=command(["sql",`select * from "${privateTarget}"`,"--json"]);
   assert.notEqual(privateSql.status,0);assert.match(privateSql.stdout,/posts.likeCount/);assert.doesNotMatch(privateSql.stdout,/\$column/);
   const why=command(["why",privateTarget]);assert.notEqual(why.status,0);assert.match(why.stderr,/posts.likeCount/);assert.doesNotMatch(why.stderr,/\$column/);
-  const sql=command(["sql","select likeCount from posts","--json"]);assert.equal(sql.status,0,sql.stderr);assert.match(sql.stdout,/0/);
+  const sql=command(["sql","select likeCount from posts","--json"]);assert.equal(sql.status,0,sql.stderr);assert.deepEqual(JSON.parse(sql.stdout).rows,[[0]]);
   const opener=family==="sqlite"?processDevice({dir:join(directory,"devices"),binary}):webDevice({wasm:readFileSync(join(root,"packages/snapback4/src/wasm/snapback4_device_bg.wasm")),persist:memoryPersistence()});
-  let offline=false,interrupt=false,pages=0,interruptions=0,delivered=0;
+  let offline=false,interrupt=false,interruptions=0,delivered=0,interruptedPage;
   const open=()=>createLocalClient({url,persona:"alice",waitSeconds:1,device:{open:async(...args)=>{core=await opener.open(...args);return core}},fetch:async(input,init)=>{
     if(offline)throw new TypeError("offline");
     if(String(input).includes("/sync") && init?.body) {
       const catchup=interrupt;
-      if(catchup && pages++>0){interruptions++;throw new TypeError("interrupted catch-up")}
+      if(catchup && interruptedPage){interruptions++;throw new TypeError("interrupted catch-up")}
       const request=JSON.parse(init.body);request.limit=1;
       const response=await fetch(input,{...init,body:JSON.stringify(request)});
-      if(catchup && response.ok)delivered++;
+      if(response.ok) {
+        const page=await response.clone().json();publicJson(page);
+        if(catchup){
+          delivered++;
+          if(page.events?.some(event=>event.table==="posts" && event.id==="p" && event.kind==="put" && event.data?.likeCount===1))interruptedPage=page;
+        }
+      }
       return response;
     }
     return fetch(input,init);
@@ -77,7 +85,9 @@ for (const family of ["sqlite","web"]) test(`maintained columns: ${family} watch
   client=await open();
   assert.equal((await client.query(api,{id:"p"})).data.likeCount,0);
   watch=client.observe(api,{id:"p"});
-  const observed=[];watch.subscribe(()=>{const row=watch.getSnapshot().data;if(row)observed.push([row.likeCount,row.selected,row.total])});
+  const observed=[];
+  const record=()=>{const row=watch.getSnapshot().data;if(row)observed.push([row.likeCount,row.selected,row.total])};
+  watch.subscribe(record);
   await until(()=>watch.getSnapshot().data?.likeCount===0);
   await client.sync();
   offline=true;
@@ -90,14 +100,22 @@ for (const family of ["sqlite","web"]) test(`maintained columns: ${family} watch
   const predicted=await core.call({op:"query",name:"postRow",viewer:"dev:alice",args:{id:"p"},now:1000});
   assert.equal(predicted.ok.data.likeCount,0);
   await mutation("post","second-parent",{id:"q",at:2});
-  offline=false;interrupt=true;pages=0;
+  offline=false;interrupt=true;
   await until(async()=>{await client.sync();return interruptions>0});
-  assert.equal(delivered,1,"catch-up received a page before its next request was interrupted");
+  assert.ok(delivered>=1,"catch-up received the parent image before its next request was interrupted");
+  const deliveredParent=interruptedPage.events.find(event=>event.table==="posts" && event.id==="p" && event.kind==="put").data;
+  assert.deepEqual(triple(deliveredParent),[1,1,3],"interrupt only after receiving a nonzero authoritative parent image");
+  const interrupted=(await client.query(api,{id:"p"})).data;
+  assert.deepEqual(triple(interrupted),triple(deliveredParent),"the delivered image is readable before resuming sync");
+  await until(()=>JSON.stringify(triple(watch.getSnapshot().data??{}))===JSON.stringify(triple(interrupted)));
+  assert.deepEqual(triple(watch.getSnapshot().data),triple(interrupted));
   watch.close();await client.close();
-  interrupt=false;client=await open();
-  watch=client.observe(api,{id:"p"});watch.subscribe(()=>{});
+  offline=true;interrupt=false;client=await open();
+  assert.deepEqual(triple((await client.query(api,{id:"p"})).data),triple(interrupted),"interrupted page is restored before any network request");
+  offline=false;
+  watch=client.observe(api,{id:"p"});watch.subscribe(record);
   await until(async()=>{await client.sync();return watch.getSnapshot().data?.likeCount===1});
-  assert.equal(watch.getSnapshot().data.total,3);
+  assert.deepEqual(triple(watch.getSnapshot().data),[1,1,3]);
   // The earlier like can settle before the independently queued parent insert.
   const confirmedParent=await until(async()=>{
     await client.sync();
@@ -106,6 +124,7 @@ for (const family of ["sqlite","web"]) test(`maintained columns: ${family} watch
   });
   assert.equal(confirmedParent.likeCount,0);
   assert.notEqual(confirmedParent.pending,true);
+  assert.deepEqual(confirmedParent,(await post("/q/postRow",{args:{id:"pending-parent"}})).data);
   for(const [name,id,args,expected] of [
     ["change","filter",{id:"l",postId:"p",active:false,amount:9},[1,0,0]],
     ["change","move",{id:"l",postId:"q",active:true,amount:2},[0,0,0]],
@@ -116,7 +135,25 @@ for (const family of ["sqlite","web"]) test(`maintained columns: ${family} watch
     assert.deepEqual(watch.getSnapshot().data,serverRow);
   }
   const changes=await(await fetch(url+"/changes?since=0&wait=0",{headers:{"x-snapback-persona":"alice"}})).json();
-  assert.deepEqual(changes.tables,["likes","posts"]);
-  assert.ok(observed.every(([n])=>n===0||n===1));
+  assert.deepEqual(changes.tables,["likes","posts"]);publicJson(changes);
+  const destination=(await client.query(api,{id:"q"})).data;
+  assert.deepEqual(triple(destination),[1,1,2]);
+  assert.deepEqual(destination,(await post("/q/postRow",{args:{id:"q"}})).data);
+  for(const result of [privateData,privateSql,why]) {
+    const text=result.stdout+result.stderr;
+    assert.doesNotMatch(text,/\$column:/i);assert.doesNotMatch(text,/["']?(?:value|likeCount)["']?\s*:/);
+  }
+  publicJson(log);
+  let position=0;
+  for(const expected of [[0,0,0],[1,1,3],[1,0,0],[0,0,0]]) {
+    while(position<observed.length && !observed[position].every((n,i)=>n===expected[i]))position++;
+    assert.ok(position<observed.length,`watch missed ${JSON.stringify(expected)}: ${JSON.stringify(observed)}`);
+    position++;
+  }
+  watch.close();await client.close();client=undefined;
+  offline=true;client=await open();
+  watch=client.observe(api,{id:"q"});watch.subscribe(()=>{});
+  await until(()=>watch.getSnapshot().data?.likeCount===1);
+  assert.deepEqual(triple(watch.getSnapshot().data),[1,1,2],"cold offline watched row preserves the server image");
   watch.close();await client.close();client=undefined;
 });

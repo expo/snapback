@@ -372,7 +372,9 @@ impl Parser {
     fn parse_column(&mut self) -> Fallible<ColumnDecl> {
         let name = self.word()?;
         self.take(":")?;
-        if self.at("count") || self.at("sum") {
+        let aggregate = (self.at("count") && matches!(self.peek_at(2).value.as_str(), "by" | "where"))
+            || (self.at("sum") && self.peek_at(2).value == "of");
+        if aggregate && self.peek_at(1).kind == Kind::Word && self.peek_at(2).kind == Kind::Word {
             let sum = self.word()?.value == "sum";
             let source = self.word()?.value;
             let of = if sum { self.take("of")?; Some(self.word()?.value) } else { None };

@@ -58,6 +58,7 @@ impl PostgresEngine {
         programs: impl IntoIterator<Item = Program>,
     ) -> Result<Self, RuntimeError> {
         let name = namespace(name)?;
+        refuse_maintained_columns(&schema)?;
         super::columns::validate_before_prepare(&schema)?;
         schema.prepare_contribution_indexes();
         let programs: BTreeMap<_, _> = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
@@ -370,6 +371,7 @@ fn retry_transaction(error: &RuntimeError) -> bool {
 }
 
 fn supported(schema: &Schema, programs: &BTreeMap<String, Program>) -> Result<(), RuntimeError> {
+    refuse_maintained_columns(schema)?;
     schema.validate_column_owners()?;
     for program in programs.values() {
         for table in crate::ir::read_sites(program).into_iter().map(|s|s.table).chain(crate::ir::write_tables(program).into_iter().map(|(t,_)|t)) { schema.refuse_private(&table)?; }
@@ -391,6 +393,17 @@ fn supported(schema: &Schema, programs: &BTreeMap<String, Program>) -> Result<()
             .any(|p| p.native || !matches!(p.kind, ProgramKind::Query | ProgramKind::Mutation) || p.args.values().any(asset_arg))
     {
         return Err(RuntimeError::Schema("Postgres evaluation supports data queries/mutations and transactional emit records only; assets, native modules, jobs, actions, routes and schedules are not implemented".into()));
+    }
+    Ok(())
+}
+
+// @ref LLP 3000.007.001#3.11 — this evaluation backend claims no maintained-column parity.
+fn refuse_maintained_columns(schema: &Schema) -> Result<(), RuntimeError> {
+    if schema.tables.values().any(|table| !table.maintained.is_empty())
+        || schema.maintains.iter().any(|maintain| maintain.private.is_some())
+    {
+        return Err(RuntimeError::Structural { code: "E_POSTGRES_MAINTAINED_COLUMN",
+            message: "Postgres evaluation does not support maintained columns or their private maintains; use the SQLite engine for maintained columns (guide maintains)".into() });
     }
     Ok(())
 }

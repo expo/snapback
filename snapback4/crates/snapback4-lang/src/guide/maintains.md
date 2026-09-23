@@ -293,8 +293,9 @@ query trending(c: cursor ?):
 The other form is `total: sum source of amount where .selected by parentId`.
 The predicate has the maintain grammar above. The one grouping column must
 reference this parent table; optional null references contribute nothing.
-The source is ordinary and cannot expire. The parent may expire. Zero-like
-parents are included in its indexes, and ties can use the parent's time.
+The source is ordinary and cannot expire. The parent may expire; the mirror
+leaves expired rows and their stored values untouched. Zero-like parents are
+included in its indexes, and ties can use the parent's time.
 A deleted parent can be recreated with the current total. A missing field
 reads as 0. E_MAINTAINED_COLUMN refuses an application assignment, including
 an explicitly submitted 0, because the engine owns the field. Write the source
@@ -305,9 +306,10 @@ pages can. A cursor remains in the same generation across ordinary writes;
 counts can move a row across the cursor, so paging a moving ranking is not a
 snapshot and can repeat or miss rows.
 
-E_MAINTAINED_COLUMN_PRIVATE refuses addressing the column's private storage,
-including raw programs, native calls, seeds and imports under the system
-context. Read the parent row or write the source rows instead.
+E_MAINTAINED_COLUMN_PRIVATE refuses addressing the column's private storage.
+No program, native call, rule, constraint, seed, fixture, import, or raw IR or
+schema can name it, not even as the system. Read the parent row or write the
+source rows instead.
 
 Parent readers learn the count or sum of contributing rows, even when those
 rows are private; a predicate discloses selection and an index discloses
@@ -335,12 +337,18 @@ The device receives server values and preserves them through page application
 and cold restoration. It never predicts the aggregate or accepts assignments
 to it. A predicted source write changes its own rows; the parent's aggregate
 changes when the server image arrives. A predicted parent insert reads 0 on
-a pending row until confirmation supplies its authoritative value.
+a pending row until a server row image supplies its authoritative value.
+A write acknowledgement carries no maintained fields; synchronization or an
+ordinary read supplies the row image.
 
 Interim activation boundary: declare the column before the parent table has
 rows; in dev, use a fresh store. E_MAINTAINED_COLUMN_ACTIVATION refuses adding,
 removing or redefining a column on a populated parent, changing its dependency
 interpretation on populated data, or changing a populated parent's lifetime.
-An empty parent can adopt the declaration. An unchanged declaration preserves
-private totals and stored values across generations. Populated-store
+An empty parent can adopt a new declaration. Redefining an existing declaration
+also requires empty source and private-total storage. An unchanged declaration
+preserves private totals and stored values across generations. Populated-store
 activation is a later increment.
+
+The Postgres evaluation backend refuses maintained columns and their private
+maintains with E_POSTGRES_MAINTAINED_COLUMN. Use the SQLite engine for this form.
