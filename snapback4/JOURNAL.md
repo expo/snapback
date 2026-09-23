@@ -47362,3 +47362,33 @@ strengthened harness, passed:
 
 `snapback4-expo@0.3.0`, with its xcframework rebuilt from the same source,
 follows its native witness.
+
+## 2026-09-23 — snapback4-expo 0.3.0 published
+
+`snapback4-expo@0.3.0` is published from `1a8165ae4`, the same qualified source
+as `snapback4@0.3.0`. Its registry integrity matches the qualified tarball:
+`sha512-kbada+o/K0EieiQayAHtHSTuf784VONajq+vQLkQhyppIpw0IVFTikEx7gqoOFxdxGoxolEDDzzS2/2v7N74YQ==`
+(4,768,727 bytes, 17 files).
+
+The package embeds the Rust device as `Snapback4Device.xcframework`. The
+version 0.2.24 package's device would refuse every backend that uses a 0.3
+form, so the rebuild is required.
+
+**Qualification.**
+- `scripts/build-xcframework.sh` built both iOS slices.
+- The Swift and TypeScript sources, the C header and the module maps are
+  byte-identical to the published 0.2.24. Only `package.json`'s version
+  changed.
+- The `apps/chat-expo` Release app was built against the rebuilt framework.
+  The first build ran CocoaPods before the framework existed; rerunning
+  `pod install` fixed it.
+- The published-CLI native witness passed both segments on the owned
+  simulator:
+  - offline, 8.546 s;
+  - restart, 11.766 s, including an offline relaunch before reconnect and
+    settlement.
+- The file hashes are recorded in
+  `reports/20260923-expo-0.3.0/qualified.json`.
+
+Calibration #18 (`snapback4@0.3.0` / `snapback4-expo@0.3.0`) started at 15:30
+PDT on the M5.
