@@ -494,3 +494,11 @@ connections at 02:35:19.692 UTC. The final cold corrective-package benchmark
 started separately afterward. Native and operational qualification do not
 supply real-provider, Android, physical-device or power-loss evidence, and
 do not revise cal16's original grade.
+
+Astra max independently audited the final public packet and this report at
+`64e1a3ddd`, reproducing all 267 packet hashes, all 37 selected receipt hashes,
+the nine driver artifact bindings, exact IDs and measurements. The [actual
+review](../../llp/reviews/3000.011-recent-builder-friction.gpt.md) is READY with
+no material findings. It reviewed the retained custody chain for host-only
+Release binaries rather than independently hashing omitted binaries, and
+does not qualify the separate cold benchmark or real-provider cell.
