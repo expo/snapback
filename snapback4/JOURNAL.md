@@ -46732,3 +46732,38 @@ predicts only the post, and Following comes back empty but marked complete.
 A shared capability fence (lane FENCE) must land before 0.3.0.
 
 Integrated suite on the rebased tree: `scripts/test.sh` reported `== 0 failure(s) in 597 s` on the M5. Wasm is 457,400 B gzip against the 458,000 ratchet: +7,899 from F3b's shared device transitions, and +371 from F3c.
+
+## 2026-09-23 — 0.3 program: the feeds card leads with the declared timeline; the recipe leaves `init` (M7)
+
+LLP 3000.007.003 §7 step 5. The feeds card now reads, in order:
+
+- the declared timeline's contract, cost and refusals;
+- one complete compiling program at the Clique fixture's size
+  (`size authors 1008, edges 5921`), with no helpers, no projection tables
+  and no purge job of its own;
+- device behavior;
+- lifecycle;
+- other feed shapes.
+
+It states the boundary that every mapped post is a timeline event, so
+replies live in their own table. The program has a `replies` table and a
+thread query, and a test shows replies never reach Following. The feeds and
+timelines cards shrink from 1,649 to 898 lines.
+
+`snapback4 init --recipe feeds`, with any of its options, refuses with
+`E_RECIPE_RETIRED` and rewrites to the declaration. The recipe's library
+stays, because the declaration's expansion uses it. Existing installations
+are documented, including the write trust their projection tables grant
+principals
+(`issues/20260923-snapback4-retired-feeds-recipe-permissive-write-rules.md`).
+
+Implemented by an Astra xhigh lane on the black M5 Max, with one fix round.
+
+- **First review:** Astra READY WITH CHANGES: replies would enter Following.
+  Grok NOT READY on 6 of 18 packets, mostly deleted coverage for the
+  retirement.
+- **Delta review:** Astra READY WITH CHANGES; its one Low, thread paging,
+  moves to the integration lane. Astra's probes: 664 retirement invocations
+  returned the exact refusal.
+
+Integrated suite on the rebased tree (M5): `== 0 failure(s) in 623 s`.
