@@ -1,6 +1,6 @@
 # Snapback 4: a grant inserted already expired still names its row and group
 
-Status: Open
+Status: Open — partly fixed 2026-09-23. Nothing leaks before a sweep; the physical sweep's `del` and scope remain (see Progress).
 Priority: P3
 Observed: 2026-09-23
 Found by: Astra's fifth-round review of the in-commit grant fix
@@ -34,3 +34,45 @@ both page sizes, on a fresh stream and on catch-up. A grant held live at an
 earlier commit boundary must keep its revocation. Add the reproduction beside
 the in-commit cases in `reviews.rs`. The exhaustive explorer has no expiring
 audience, so consider an `EXPIRING` variant of it too.
+
+## Progress — 2026-09-23
+
+Fixed, recorded in LLP 3000 §7, with Astra's review in
+`llp/reviews/3000-already-expired-grant-names-ids.astra.md`:
+
+- **At commit.** A row born in the commit whose final image is already
+  expired logs no put. The stream would re-read it as absent and send its id
+  as a `del`.
+- **Before a sweep.** Logical expiry appends a scope only for a grant once
+  held live. A chain whose every join had ended by its own commit (compared
+  against the join's explicit lifetime) stays silent, including when the
+  watermark has passed the join.
+- **Held at the watermark.** For a span held at the watermark, the chain is
+  walked back to its last scope, so a live predecessor keeps its revocation.
+
+Tests in `reviews.rs`:
+
+- `a_grant_inserted_already_expired_reaches_nobody`
+- `a_never_live_grant_stays_silent_across_watermarks`: the next poll,
+  snapshot then poll, and a two-page catch-up.
+- `a_grant_live_at_its_commit_still_revokes_when_it_expires`
+- `a_never_live_replacement_keeps_its_live_predecessors_revocation`
+- `a_live_chain_still_revokes_when_a_page_ends_at_its_never_live_join`
+
+Each guard fails if the rule is loosened to the last span, or if the chain
+walk is removed.
+
+**Remaining: the physical sweep.** A later `sweep_expired` of such a row
+still logs `del members/<id>` and `scope notes/["g"]` in the sweep's commit,
+and the stream forwards both. Deciding that a swept grant was never live
+needs the principal's log history (the grant's joins and their lifetimes)
+at write time. `account_row_change` sees only `Rows`, which has no log
+access. Two ways forward, a decision for the engine's owner:
+
+- give the write path read access to the partition log;
+- record liveness where the sweep can see it.
+
+The same applies to any synced row with an `expire` column that was
+inserted already expired and later swept. Its `del` names a row no device
+received.
+

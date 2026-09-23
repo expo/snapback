@@ -47114,3 +47114,55 @@ on `expo-build-450b` from a copy of the tree:
   w11r1c. The three lang tests pass here.
 - `reviews.rs`, the explorer at depth 2 and the core tests pass here on the
   final tree.
+## 2026-09-23 — logical expiry revokes only a grant once held live
+
+This is a fix-forward from Astra's final review of the entry above,
+`issues/20260923-snapback4-already-expired-grant-names-ids.md`. A grant
+inserted with its lifetime already over used to reach its grantee twice:
+
+- its row, re-read as absent, arrived as a `del` naming its id;
+- logical expiry appended a scope naming its group.
+
+The rule is in LLP 3000 §7.
+
+**The fix.**
+
+- A born row whose final image is already expired logs no put.
+- `Interval` now carries its origin join and that join's explicit lifetime.
+- A chain whose every join had ended by its own commit gets no
+  logical-expiry scope. A span held at the watermark walks back to its last
+  scope, so a live predecessor keeps its revocation. A legacy join without a
+  lifetime counts as live.
+- The history walk runs only on that rare path. It reads the principal's
+  transitions once, groups them once, and fetches their commit times in one
+  query. The common path adds no SQL.
+
+**Review.** Astra reviewed over three rounds
+(`llp/reviews/3000-already-expired-grant-names-ids.astra.md`):
+
+- **Round 1: NOT READY.** The group leaked on the poll after the one that
+  consumed the join.
+- **Round 2 closed that, with no dropped revocation.** It flagged an
+  O(groups × history) rare path.
+- **Round 3: READY as a scoped improvement.**
+
+**Tests.** Five `reviews.rs` cases cover the reproduction, the next poll,
+snapshot then poll, a two-page catch-up, and three guards that a live grant
+still revokes. One guard resumes exactly at a never-live replacement's join
+with more to come. Each guard fails when the rule is loosened to the last
+span or the chain walk is removed. The mutation run left a cached test
+binary with the mutated walk; Astra caught it and distrusted it.
+
+**Not fixed: the physical sweep.** A later `sweep_expired` of such a row still
+logs its `del` and a scope, and the stream forwards both. Deciding that a
+swept grant was never live needs the principal's log at write time.
+`account_row_change` sees only `Rows`, so the ticket stays open with that
+design question for the engine's owner.
+
+**Verification.** On `expo-build-450b` (this Mac was at load 70–190), the
+same targeted set as the entry above passed 1,055 tests in 43 binaries, with
+no failures, skipping the device's two measurement groups: core, every
+simulator target except Clique's benchmarks, and the device `w13g_probe`,
+`device` and `retained_history` targets. `review_corrections` (expiring
+grants), `security`, `membership`, `write_authority` and the explorer also
+pass here.

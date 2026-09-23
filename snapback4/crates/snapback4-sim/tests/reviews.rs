@@ -325,6 +325,8 @@ mutation join(person: principal):
 mutation add():
   insert notes {group: 'g', body: 'n'}
   return null
+mutation joinUntil(person: principal, until: time):
+  return insert members {group: 'g', person, until}
 mutation blink(person: principal):
   row = insert members {group: 'g', person, until: 100}
   update members[row] {until: 200}
@@ -530,5 +532,120 @@ fn two_born_siblings_share_their_birth() {
     for limit in [1, 1_000] {
         let page = engine.stream_at("dev:alice", before, limit, 151).unwrap();
         assert!(page.events.is_empty(), "limit {limit}: {:?}", page.events);
+    }
+}
+
+// ---- a grant inserted already expired (issues/20260923-snapback4-already-expired-grant-names-ids.md) ----
+
+fn drained(engine: &mut Engine, viewer: &str, from: u64, limit: usize, now: i64) -> Vec<snapback4_core::store::LogEvent> {
+    let (mut from, mut events) = (from, Vec::new());
+    loop {
+        let page = engine.stream_at(viewer, from, limit, now).unwrap();
+        events.extend(page.events);
+        from = page.watermark;
+        if !page.more {
+            return events;
+        }
+    }
+}
+
+/// A grant whose lifetime ended before its own commit was never held live:
+/// its grantee learns neither its row id nor its group, at either page size.
+#[test]
+fn a_grant_inserted_already_expired_reaches_nobody() {
+    let mut engine = expiring();
+    at(&mut engine, "n1", "add", &[], &["note"], 5);
+    let before = engine.seq().unwrap();
+    at(&mut engine, "j1", "join", &[("person", id("dev:alice"))], &["expired-member"], 150);
+    for limit in [1, 1_000] {
+        let events = drained(&mut engine, "dev:alice", before, limit, 151);
+        assert!(events.is_empty(), "limit {limit}: {events:?}");
+    }
+}
+
+/// The guard: a grant live when it was made, and expired since, still
+/// revokes, so the device drops what the grant delivered.
+#[test]
+fn a_grant_live_at_its_commit_still_revokes_when_it_expires() {
+    let mut engine = expiring();
+    at(&mut engine, "n1", "add", &[], &["note"], 5);
+    let before = engine.seq().unwrap();
+    at(&mut engine, "j1", "join", &[("person", id("dev:alice"))], &["member"], 50);
+    for limit in [1, 1_000] {
+        let events = drained(&mut engine, "dev:alice", before, limit, 151);
+        assert!(events.iter().any(|e| e.kind == "scope" && e.table == "notes"), "limit {limit}: {events:?}");
+    }
+}
+
+/// A live grant that expired, then a replacement inserted already expired:
+/// the replacement was never live, but the first grant was, so its
+/// revocation still reaches the device.
+#[test]
+fn a_never_live_replacement_keeps_its_live_predecessors_revocation() {
+    let mut engine = expiring();
+    at(&mut engine, "n1", "add", &[], &["note"], 5);
+    let before = engine.seq().unwrap();
+    at(&mut engine, "j1", "joinUntil", &[("person", id("dev:alice")), ("until", Value::Int(100))], &["live"], 6);
+    at(&mut engine, "j2", "joinUntil", &[("person", id("dev:alice")), ("until", Value::Int(120))], &["never-live"], 150);
+    for limit in [1, 1_000] {
+        let events = drained(&mut engine, "dev:alice", before, limit, 151);
+        assert!(events.iter().any(|e| e.kind == "scope" && e.table == "notes"), "limit {limit}: the live grant's revocation was lost: {events:?}");
+    }
+}
+
+// Astra's review of the expiry fix (round 1, NOT READY): the group leaked on
+// the poll after the one that consumed the expired join.
+
+/// Consuming a never-live join leaves nothing to reveal later: the next
+/// poll, a fresh snapshot's first poll, and a two-page catch-up all stay
+/// silent, at both page sizes.
+#[test]
+fn a_never_live_grant_stays_silent_across_watermarks() {
+    let mut engine = expiring();
+    at(&mut engine, "n1", "add", &[], &["note"], 5);
+    let before = engine.seq().unwrap();
+    at(&mut engine, "j1", "join", &[("person", id("dev:alice"))], &["expired-member"], 150);
+    for limit in [1, 1_000] {
+        for from in [0, before] {
+            let first = drained(&mut engine, "dev:alice", from, limit, 151);
+            assert!(first.is_empty(), "limit {limit} from {from}: {first:?}");
+            let head = engine.seq().unwrap();
+            let next = drained(&mut engine, "dev:alice", head, limit, 151);
+            assert!(next.is_empty(), "limit {limit} from {from}, next poll: {next:?}");
+        }
+    }
+    let (events, watermark) = engine.snapshot_at("dev:alice", 151).unwrap();
+    assert!(holdings(&events).values().all(|ids| ids.is_empty()), "{:?}", holdings(&events));
+    assert!(drained(&mut engine, "dev:alice", watermark, 1, 151).is_empty());
+    at(&mut engine, "j2", "joinUntil", &[("person", id("dev:alice")), ("until", Value::Int(120))], &["expired-member-2"], 160);
+    for limit in [1, 1_000] {
+        let events = drained(&mut engine, "dev:alice", before, limit, 161);
+        assert!(events.iter().all(|e| e.kind != "scope"), "limit {limit}: {events:?}");
+    }
+}
+
+/// The guard across watermarks: a device that took the live grant's rows,
+/// then polled past a never-live replacement's join with more to come,
+/// still receives the live grant's revocation on a later page.
+#[test]
+fn a_live_chain_still_revokes_when_a_page_ends_at_its_never_live_join() {
+    let mut engine = expiring();
+    at(&mut engine, "n1", "add", &[], &["note"], 5);
+    let before = engine.seq().unwrap();
+    at(&mut engine, "j1", "joinUntil", &[("person", id("dev:alice")), ("until", Value::Int(100))], &["live"], 6);
+    let held = engine.seq().unwrap();
+    let got = drained(&mut engine, "dev:alice", before, 1_000, 50);
+    assert!(got.iter().any(|e| e.kind == "put" && e.id == "note"), "{got:?}");
+    at(&mut engine, "j2", "joinUntil", &[("person", id("dev:alice")), ("until", Value::Int(120))], &["never-live"], 150);
+    let replaced = engine.seq().unwrap();
+    // More to come after the replacement, in alice's own partition.
+    at(&mut engine, "j3", "joinUntil", &[("person", id("dev:alice")), ("until", Value::Int(120))], &["never-live-2"], 155);
+    for limit in [1, 1_000] {
+        // Page by page from the live watermark; also resume exactly at the
+        // replacement's join, as a device whose previous page ended there.
+        let mut scoped = drained(&mut engine, "dev:alice", held, limit, 151).iter().any(|e| e.kind == "scope" && e.table == "notes");
+        assert!(scoped, "limit {limit}: the live grant's revocation was lost");
+        scoped = drained(&mut engine, "dev:alice", replaced, limit, 151).iter().any(|e| e.kind == "scope" && e.table == "notes");
+        assert!(scoped, "limit {limit}: resuming at the never-live join lost the live grant's revocation");
     }
 }

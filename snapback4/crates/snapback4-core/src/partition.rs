@@ -187,7 +187,11 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
             let row_event = |event: &Event| matches!(event.kind, EventKind::Put | EventKind::Del) && event.table == key.0 && event.id == key.1;
             if let Some(&earlier) = runner.born_rows.get(&key) {
                 withdraw(&mut runner.events, earlier, row_event);
-                if let Some(new) = new {
+                // A born row whose lifetime has already ended is not live at
+                // this commit's end either: it logs nothing (the stream would
+                // re-read it as absent and send its id as a `del`).
+                let live = new.filter(|new| !runner.context.now.is_some_and(|now| table.expired(new, now)));
+                if let Some(new) = live {
                     log_events::put(&mut runner.events, table_name, &id, new, &after);
                 }
             } else {
@@ -639,6 +643,15 @@ struct Interval {
     to: Option<(u64, u32)>,
     expires_at: Option<i64>,
     ends_in_join: bool,
+    /// The join that began this span (or, held at the watermark, the last
+    /// join before it): its position and its explicit lifetime, if any.
+    origin: Option<(u64, u32, Option<i64>)>,
+}
+
+/// A join's explicit lifetime; a legacy join without one has none.
+#[cfg(feature = "sqlite")]
+fn join_lifetime(event: &LogEvent) -> Option<i64> {
+    event.data.as_ref().and_then(|data| data.field("expiresAt").ok()).and_then(|value| value.as_int().ok())
 }
 
 /// The groups a principal held during `(watermark, now]`, per content
@@ -680,7 +693,8 @@ fn intervals(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermark
             || steps.first().map_or_else(|| current.contains_key(&key), |event| event.kind == "scope"),
             |event| event.kind == "join");
         let initial_expiry = if steps.is_empty() { current.get(&key).copied().flatten() } else { previous.get(&key).map(&expiry).unwrap_or_else(fallback_expiry) };
-        let mut open = held_at_watermark.then_some(Interval { from: watermark.saturating_add(1), from_ord: None, to: None, expires_at: initial_expiry, ends_in_join: false });
+        let origin = previous.get(&key).filter(|event| event.kind == "join").map(|event| (event.seq, event.ord, join_lifetime(event)));
+        let mut open = held_at_watermark.then_some(Interval { from: watermark.saturating_add(1), from_ord: None, to: None, expires_at: initial_expiry, ends_in_join: false, origin });
         let mut spans = Vec::new();
         for event in steps {
             match event.kind.as_str() {
@@ -692,7 +706,7 @@ fn intervals(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermark
                         prior.ends_in_join = true;
                         spans.push(prior);
                     }
-                    open = Some(Interval { from: event.seq, from_ord: Some(event.ord), to: None, expires_at: expiry(event), ends_in_join: false });
+                    open = Some(Interval { from: event.seq, from_ord: Some(event.ord), to: None, expires_at: expiry(event), ends_in_join: false, origin: Some((event.seq, event.ord, join_lifetime(event))) });
                 }
                 "scope" => {
                     if let Some(mut prior) = open.take() {
@@ -746,9 +760,39 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
         next = next.max(head);
         // Logical expiry is a revocation even before the physical sweep
         // logs a scope. Append it after catch-up so retention sees the last
-        // authorized image and until-revoked rows leave the replica.
-        for ((table, group), spans) in &held {
-            if spans.last().is_some_and(|span| span.to.is_none() && span.expires_at.is_some_and(|at| at <= now)) {
+        // authorized image and until-revoked rows leave the replica. A chain
+        // whose every span is a join whose lifetime had ended by its own
+        // commit was never held live: there is nothing to revoke, and a scope
+        // would name a group the principal never held.
+        let expired: Vec<_> = held.iter().filter(|(_, spans)| spans.last().is_some_and(|span| span.to.is_none() && span.expires_at.is_some_and(|at| at <= now))).collect();
+        let joins: Vec<u64> = expired.iter().flat_map(|(_, spans)| spans.iter().filter_map(|span| span.origin.map(|(seq, _, _)| seq))).collect();
+        let commit_times = if joins.is_empty() { BTreeMap::new() } else { tx.commit_times(&joins)? };
+        let never_live = |span: &Interval| span.origin.is_some_and(|(seq, _, lifetime)| ended_by_its_commit(&commit_times, seq, lifetime));
+        // @ref LLP 3000#7-decisions-during-execution — logical expiry revokes only a grant once held live.
+        let silent: Vec<_> = expired.iter().map(|(_, spans)| spans.iter().all(never_live)).collect();
+        // A span held at the watermark continues the chain of joins that led
+        // to it: it is silent only if no join of that chain, back to its last
+        // scope, was live either (the device may hold its rows). The history
+        // is read once, grouped once, and its commit times fetched once.
+        let walks: Vec<usize> = (0..expired.len()).filter(|&n| silent[n] && expired[n].1.first().is_some_and(|span| span.from_ord.is_none() && span.origin.is_some())).collect();
+        let mut chains: BTreeMap<usize, Vec<LogEvent>> = BTreeMap::new();
+        if !walks.is_empty() {
+            let mut by_group: BTreeMap<(String, String), Vec<LogEvent>> = BTreeMap::new();
+            for event in tx.membership_transitions(&partition_of(principal), 0)? {
+                by_group.entry((event.table.clone(), event.id.clone())).or_default().push(event);
+            }
+            for &n in &walks {
+                let ((table, group), spans) = expired[n];
+                let origin = spans[0].origin.map(|(seq, ord, _)| (seq, ord)).expect("walks have an origin");
+                let history = by_group.get(&(table.clone(), group.clone())).map(Vec::as_slice).unwrap_or_default();
+                chains.insert(n, joins_before(history, origin));
+            }
+        }
+        let chain_seqs: Vec<u64> = chains.values().flatten().map(|event| event.seq).collect();
+        let chain_times = if chain_seqs.is_empty() { BTreeMap::new() } else { tx.commit_times(&chain_seqs)? };
+        for (n, ((table, group), _)) in expired.into_iter().enumerate() {
+            let quiet = silent[n] && chains.get(&n).is_none_or(|chain| chain.iter().all(|event| ended_by_its_commit(&chain_times, event.seq, join_lifetime(event))));
+            if !quiet {
                 let group_values: Vec<Value> = serde_json::from_str(group).map_err(|e| RuntimeError::Store(e.to_string()))?;
                 let event = LogEvent { seq: next, ord: u32::MAX, table: table.clone(), kind: "scope".into(), id: group.clone(), data: Some(Value::Array(group_values)) };
                 events.push(event);
@@ -756,6 +800,22 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
         }
     }
     Ok(StreamPage { images_at: Some(head), acquisitions, events, watermark: next, more, joined })
+}
+
+/// Whether a join's explicit lifetime had ended by its own commit: a grant
+/// never held live. A join without a lifetime, or without a recorded commit
+/// time, counts as live.
+#[cfg(feature = "sqlite")]
+fn ended_by_its_commit(commit_times: &BTreeMap<u64, i64>, seq: u64, lifetime: Option<i64>) -> bool {
+    lifetime.is_some_and(|at| commit_times.get(&seq).is_some_and(|committed| *committed >= at))
+}
+
+/// One group's joins before `origin`, walking back to its last scope: the
+/// chain a span held at the watermark continues. `history` is that group's
+/// transitions in (seq, ord) order.
+#[cfg(feature = "sqlite")]
+fn joins_before(history: &[LogEvent], origin: (u64, u32)) -> Vec<LogEvent> {
+    history.iter().rev().filter(|event| (event.seq, event.ord) < origin).take_while(|event| event.kind == "join").cloned().collect()
 }
 
 #[cfg(feature = "sqlite")]
