@@ -1,8 +1,8 @@
 pub(super) const CARD: &str = r##"# App: a complete chat backend
 
 Comments start with `--`. Blocks indent with two spaces. A file holds
-directives, tables, maintains, shapes, helpers, queries, mutations, actions, jobs
-and schedules, in any order. `snapback4 guide` prints the two-line index; `guide language` prints the language card:
+directives, tables, maintains, shapes, helpers, queries, mutations, jobs
+and schedules, in any order. `snapback4 guide` prints the card index; `guide language` prints the language card:
 every form in one file that compiles and runs, and the idiom for each
 thing the language leaves out on purpose.
 
@@ -73,4 +73,10 @@ mutation edit(messageId: messages, body: text <=4000):
   require msg.authorId = viewer else NOT_AUTHOR
   update messages[msg] { body, editedAt: now }
   return null
-```"##;
+```
+
+## With `use server`
+
+Actions and routes are available after declaring `use server` in `schema.q`;
+see `guide actions` and `guide routes`.
+"##;

@@ -30,7 +30,8 @@ export async function until(check, description, diagnostics = () => "", millisec
   }
 }
 
-const journal = `use personas alice, bob
+const journal = `use server
+use personas alice, bob
 use identity
 table journal:
   owner: principal

@@ -1,8 +1,8 @@
 //! Card discovery and the schema-evolution recipe.
-use super::{ALIASES, KEYWORDS};
+use super::{ALIASES, KEYWORDS, SERVER_KEYWORDS};
 
 pub fn listing() -> String {
-    format!("cards: {}\naliases: {}", KEYWORDS.join(", "), ALIASES.iter().map(|(word, target)| format!("{word} -> {target}")).collect::<Vec<_>>().join(", "))
+    format!("cards: {}\nwith use server: {}\naliases: {}", KEYWORDS.iter().filter(|word| !SERVER_KEYWORDS.contains(word)).copied().collect::<Vec<_>>().join(", "), SERVER_KEYWORDS.join(", "), ALIASES.iter().map(|(word, target)| format!("{word} -> {target}")).collect::<Vec<_>>().join(", "))
 }
 
 fn distance(a: &str, b: &str) -> usize {

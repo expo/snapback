@@ -9,6 +9,7 @@ pub mod schema;
 pub mod residency;
 mod actions;
 mod routes;
+mod server;
 mod key_bound;
 mod aggregate_copies;
 mod time_indexes;
@@ -21,6 +22,8 @@ pub use aggregate_copies::truth as rule_truth;
 use snapback4_core::schema::Schema;
 
 pub struct Bound {
+    /// Authoring-only opt-in; never stored in the core schema, IR or wire.
+    pub server: bool,
     pub schema: Schema,
     pub programs: Vec<BoundProgram>,
     pub personas: Vec<String>,
@@ -30,8 +33,10 @@ pub struct Bound {
     pub notes: Vec<Diagnostic>,
 }
 
-pub fn bind(documents: Vec<Document>) -> Bound {
+pub fn bind(mut documents: Vec<Document>) -> Bound {
     let mut diagnostics = Vec::new();
+    let server = documents.iter().any(|doc| doc.server);
+    server::admit(&mut documents, &mut diagnostics);
     let personas: Vec<String> = documents.iter().flat_map(|d| d.personas.iter().cloned()).collect();
     let catalog = Catalog::build(documents, &mut diagnostics);
     let mut schema = schema::bind_schema(&catalog, &mut diagnostics);
@@ -128,7 +133,7 @@ pub fn bind(documents: Vec<Document>) -> Bound {
     notes.extend(residency::maintain_notes(&catalog, &schema));
     notes.extend(residency::guard_notes(&schema, &programs));
     if diagnostics.is_empty() { notes.extend(aggregate_copies::notes(&catalog, &schema)); }
-    Bound { schema, programs, personas, diagnostics, notes }
+    Bound { server, schema, programs, personas, diagnostics, notes }
 }
 
 fn operation_name(module: &str, name: &str) -> String {

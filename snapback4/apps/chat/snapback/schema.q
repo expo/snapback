@@ -1,3 +1,4 @@
+use server
 -- The chat backend as Snapback 4 wants to read it. This file is the desired
 -- authoring surface (LLP 2000 §4: write the application in the interface we
 -- wish to provide); nothing compiles it until week 2. It is the Snapback 2

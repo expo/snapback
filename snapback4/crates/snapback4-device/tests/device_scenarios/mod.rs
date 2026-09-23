@@ -488,7 +488,12 @@ fn a_scope_retires_media_past_a_page_while_preserving_delivered_history() {
 #[test]
 fn actions_never_predict_query_or_enter_either_device_outbox() {
     on_both(|host| {
-        let source = "action remote(n: int)\nmutation answer(n: int):\n  return { n }\nquery answer():\n  return 7\n".replace("query answer()", "query number()");
+        for source in ["action remote(n: int)\n", "route hook: post '/hook'\n", "action tick()\nschedule pulse every 1m as service:clock: tick\n"] {
+            let refused = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+            assert!(!refused.diagnostics.is_empty());
+            assert!(refused.diagnostics.iter().all(|d| d.code == "E_SERVER_REQUIRED" && d.rewrite == "use server" && d.guide == "actions"));
+        }
+        let source = "use server\nroute hook: post '/hook'\naction tick()\nschedule pulse every 1m as service:clock: tick\naction remote(n: int)\nmutation answer(n: int):\n  return { n }\nquery answer():\n  return 7\n".replace("query answer()", "query number()");
         let (_, backend) = compile(&source);
         let mut device = host.open("actions", Some(backend)).unwrap();
         let predicted = ok(device.call(serde_json::json!({ "op": "predict", "name": "answer", "viewer": "dev:alice", "args": { "n": 42 }, "now": 1 })));

@@ -181,7 +181,7 @@ fn raced_mutation_id_refusal_keeps_its_terminal_http_status() {
 #[test]
 fn oidc_terminal_codes_survive_http_settlement_and_public_recollection() {
     let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
-        "use personas alice\naction signIn()\n");
+        "use server\nuse personas alice\naction signIn()\n");
     let service = { let engine = lock(&host.shared.engine);
         snapback4_core::identity::service_session(engine.store(), "worker", host.shared.now(), 1).unwrap() };
     let service_header = format!("Authorization: Bearer {}\r\n", service.token);
@@ -222,7 +222,7 @@ fn oidc_terminal_codes_survive_http_settlement_and_public_recollection() {
 
 #[test]
 fn bound_session_http_requires_exact_shape_and_current_action_lease() {
-    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), "use personas alice\naction signIn()\n");
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), "use server\nuse personas alice\naction signIn()\n");
     let (service, other) = { let engine = lock(&host.shared.engine); let now = host.shared.now(); (
         snapback4_core::identity::service_session(engine.store(), "worker", now, 1).unwrap(),
         snapback4_core::identity::service_session(engine.store(), "other", now, 1).unwrap()) };
@@ -313,7 +313,7 @@ fn bound_session_http_requires_exact_shape_and_current_action_lease() {
 
 #[test]
 fn public_live_logout_keeps_the_bound_family_tombstone_authoritative() {
-    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), "use personas alice\naction signIn()\n");
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), "use server\nuse personas alice\naction signIn()\n");
     let service = { let engine = lock(&host.shared.engine);
         snapback4_core::identity::service_session(engine.store(), "worker", host.shared.now(), 1).unwrap() };
     let service_header = format!("Authorization: Bearer {}\r\n", service.token);
@@ -342,7 +342,7 @@ fn public_live_logout_keeps_the_bound_family_tombstone_authoritative() {
 
 #[test]
 fn bound_session_http_refuses_stale_and_cancelled_claims_without_minting() {
-    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), "use personas alice\naction signIn()\n");
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), "use server\nuse personas alice\naction signIn()\n");
     let service = { let engine = lock(&host.shared.engine);
         snapback4_core::identity::service_session(engine.store(), "worker", host.shared.now(), 1).unwrap() };
     let service_header = format!("Authorization: Bearer {}\r\n", service.token);

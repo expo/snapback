@@ -52,6 +52,10 @@ fn feeds_recipe_adds_to_existing_starters_without_changing_their_files() {
     for flag in ["", "--expo", "--online"] {
         let dir = Dir::new();
         assert!(dir.run(flag).status.success());
+        let source = fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap();
+        let (document, errors) = snapback4_lang::parse_document("schema.q", &source);
+        assert!(errors.is_empty());
+        assert!(!document.server && document.actions.is_empty() && document.routes.is_empty());
         let check = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
         assert!(check.status.success(), "{check:?}");
         fn snapshot(dir: &std::path::Path) -> Vec<(PathBuf, Vec<u8>)> {
@@ -308,8 +312,7 @@ fn init_preserves_existing_commonjs_scripts_and_imports_generated_api() {
         let check = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
         assert!(check.status.success(), "{check:?}");
         if flag == "--expo" {
-            let output = Command::new("node").args(["--check", "snapback/worker.mts"]).current_dir(&dir.0).output().unwrap();
-            assert!(output.status.success(), "the generated ESM worker must parse inside the CommonJS app: {output:?}");
+            assert!(!dir.0.join("snapback/worker.mts").exists(), "the core starter has no invitation action or worker");
         }
         let operation = if flag == "--expo" { "send" } else { "add" };
         fs::write(dir.0.join("import.mjs"), "import {api} from './snapback/generated/api.ts';\nif (!api.OP) throw new Error('missing operation');\nconsole.log('generated api ESM import: ok');\n".replace("OP", operation)).unwrap();

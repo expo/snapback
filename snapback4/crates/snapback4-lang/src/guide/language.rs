@@ -2,12 +2,12 @@
 pub const LANGUAGE: &str = r##"# Quarry — the language card
 
 One file, `snapback/schema.q`, holds tables, maintains, shapes, helpers,
-programs, routes and schedules, in any order; more `.q` files beside it are modules
+programs and schedules, in any order; more `.q` files beside it are modules
 (their operations are `<module>.<name>`) sharing one namespace. Schedules use that
 qualified job name too: `schedule repair every 1m: timeline.repair`; an unambiguous
 bare module job gets this rewrite from `check --fix`. Comments
 start with `--`. Blocks indent with two spaces. Everything the compiler
-accepts is below, once; the suite compiles and runs this file.
+accepts is below; the suite compiles every block and runs the core program.
 
 Time arithmetic uses milliseconds: `now + 60000` is one minute from now,
 and `now - .at` is elapsed time; `day(now)`, `hour(now)` and `bucket(now, 2m)`
@@ -375,13 +375,7 @@ schedule everyNight every 1d at 03:00: nightly                       -- once per
 job rescoreNative(): native                                          -- a job whose body is the app's own Rust in snapback/native/, hosted as wasm (guide native)
 query personalizeNative(first: int): native                          -- a read in the same module: on the server as the viewer, on a device over its rows
 
--- Server handlers declare results, secrets and work settings (guide actions).
-action summarizeRoom(room: rooms) returns { summary: text <=4000, source: rooms, tags: [text <=30] <=8 ? } secrets [MODEL_API_KEY] retry 3 backoff 2s deadline 1h cancellation allow
-action scheduledSummary(periodStart: time, periodEnd: time) returns {} <- viewer = 'service:reporter'
-schedule summariesEveryDay every 1d at 08:00 as service:reporter: scheduledSummary
 effect sendDigest secrets [MAIL_API_KEY] retry 4 backoff 1m deadline 1d cancellation deny
-route roomExport: post "/room-export" wait 5s -- signed-in caller; no Quarry body or client operation
-route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM_SIGNING_KEY] retry 8 backoff 2s deadline 1h cancellation allow wait 5s
 table roomEntries:
   roomId: id
   at: time
@@ -450,6 +444,22 @@ A query merge's `for` takes a prefix page, `range(a, b)` or a bounded list
 argument/expression, with one lane per value; `walk` is not admitted.
 
 
+
+## With `use server`
+
+Declare `use server` once in `schema.q` to enable actions and routes in every
+module. As with `use identity`, a module may also supply the project-wide
+directive; repeating it is harmless. This block extends the core schema above.
+
+```quarry
+use server
+-- Server handlers declare results, secrets and work settings (guide actions).
+action summarizeRoom(room: rooms) returns { summary: text <=4000, source: rooms, tags: [text <=30] <=8 ? } secrets [MODEL_API_KEY] retry 3 backoff 2s deadline 1h cancellation allow
+action scheduledSummary(periodStart: time, periodEnd: time) returns {} <- viewer = 'service:reporter'
+schedule summariesEveryDay every 1d at 08:00 as service:reporter: scheduledSummary
+route roomExport: post "/room-export" wait 5s -- signed-in caller; no Quarry body or client operation
+route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM_SIGNING_KEY] retry 8 backoff 2s deadline 1h cancellation allow wait 5s
+```
 
 ## Fixing a refused line
 

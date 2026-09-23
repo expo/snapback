@@ -1,8 +1,19 @@
 //! A3 publishes declared HTTP paths without publishing private handler programs.
 use snapback4_core::schema::{RouteSpec, WorkPolicy, WorkSpec};
-use snapback4_lang::{Bound, compile, emit};
+use snapback4_lang::{Bound, emit};
 use std::path::PathBuf;
 use std::process::Command;
+
+// Existing server-half fixtures all opt in; keep declaration line locations stable.
+fn compile(sources: &[(String, String)]) -> Bound {
+    let mut sources = sources.to_vec();
+    if let Some((_, schema)) = sources.iter_mut().find(|(file, _)| file == "schema.q") {
+        schema.push_str("\nuse server\n");
+    } else {
+        sources.push(("schema.q".into(), "use server\n".into()));
+    }
+    snapback4_lang::compile(&sources)
+}
 
 fn clean(source: &str) -> Bound {
     let bound = compile(&[("schema.q".into(), source.into())]);

@@ -104,6 +104,7 @@ impl Parser {
         let site = self.take("use")?.site;
         let kind = self.word()?;
         match kind.value.as_str() {
+            "server" => self.document.server = true,
             "identity" => {
                 let mut password = true;
                 let mut guests = true;
@@ -124,7 +125,7 @@ impl Parser {
                     self.document.personas.push(next.value);
                 }
             }
-            other => return Err(unsupported(&kind.site, &format!("use {other}"), "use identity, use identity password, use identity guests, or use personas alice, bob")),
+            other => return Err(unsupported(&kind.site, &format!("use {other}"), "use server, use identity, use identity password, use identity guests, or use personas alice, bob")),
         }
         self.end_line(&site)
     }

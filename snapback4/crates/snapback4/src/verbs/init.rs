@@ -324,6 +324,10 @@ fn expo_files() -> Vec<(&'static str, String)> {
     let client = include_str!("../../../../apps/chat-expo/src/client.ts");
     let inbox = include_str!("../../../../apps/chat-expo/src/Inbox.tsx").replace("../../chat/snapback/generated/api", "../snapback/generated/api");
     let thread = include_str!("../../../../apps/chat-expo/src/Thread.tsx").replace("../../chat/snapback/generated/api", "../snapback/generated/api");
+    // @ref LLP 3000.009.000#3 — the Expo starter teaches the core; the reference app's invitation worker is optional server work.
+    let schema = include_str!("../../../../apps/chat/snapback/schema.q")
+        .replace("use server\n", "")
+        .replace("action invite(email: text <=200)\n", "");
     vec![
         ("package.json", pretty(&package)),
         ("app.json", include_str!("../../../../apps/chat-expo/app.json").to_owned()),
@@ -333,8 +337,7 @@ fn expo_files() -> Vec<(&'static str, String)> {
         ("index.js", include_str!("../../../../apps/chat-expo/index.js").to_owned()),
         ("tsconfig.json", include_str!("../../../../apps/chat-expo/tsconfig.json").to_owned()),
         ("App.tsx", app), ("src/client.ts", client.to_owned()), ("src/Inbox.tsx", inbox), ("src/Thread.tsx", thread),
-        ("snapback/schema.q", include_str!("../../../../apps/chat/snapback/schema.q").to_owned()),
-        ("snapback/worker.mts", include_str!("../../../../apps/chat/snapback/worker.ts").to_owned()),
+        ("snapback/schema.q", schema),
         ("README.md", format!("# Expo chat starter\n\n{TWO_WAYS}\n\nThis starter opens the native Rust device in development and production\nbuilds that carry `snapback4-expo`; Expo Go selects `createClient`, with\nno native module and no wasm. `src/client.ts` exports `tier`.\nFor a web client using `webDevice()`, keep the generated Metro config and\nmetro-wasm-transformer.cjs: Metro then emits the wasm asset URL.\n\nThe reference toolchain is Expo 57.0.22, React Native 0.86.3, React 19.2.3,\nexpo-sqlite 57.0.3 and babel-preset-expo 57.0.11. Keep the Expo and Babel\npreset major versions together; mixing them can fail Hermes compilation.\n\nRun `npm install`, `npx snapback4 check`, then `npx snapback4 dev` in one\nterminal. In another, run `EXPO_PUBLIC_SNAPBACK_PERSONA=alice npm start`\nfor Expo Go, or `EXPO_PUBLIC_SNAPBACK_PERSONA=alice npm run ios:dev` for\nthe native development build. The local server URL defaults to\nhttp://127.0.0.1:4400 (the iOS simulator on this machine). Set\nEXPO_PUBLIC_SNAPBACK_URL to your TLS deployment for a physical phone;\npersonas work on loopback only, and otherwise the client signs in as a guest.\nThe inbox starts empty: seed a conversation and its memberships through\n`POST /seed` during development. Change app.json's bundle IDs before shipping.\n")),
     ]
 }

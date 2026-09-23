@@ -53,6 +53,7 @@ mod indexes;
 #[path = "guide/types.rs"]
 mod types;
 pub use discovery::{listing, nearest};
+pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
 pub const KEYWORDS: &[&str] = &["language", "app", "types", "indexes", "maintains", "rules", "sync", "residency", "prediction", "evolution", "expire", "assets", "reads", "shapes", "writes", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "bounds", "refusals", "personas", "witness"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
@@ -96,16 +97,16 @@ pub fn quarry(text: &str) -> Vec<String> {
     blocks
 }
 
-/// The language card's one program: every form, once.
+/// The language card's core program; its server opt-in block is separate.
 pub fn language() -> String {
-    quarry(LANGUAGE).into_iter().next().expect("the language card has one block")
+    quarry(LANGUAGE).into_iter().next().expect("the language card has a core block")
 }
 
 #[path = "guide/templates.rs"]
 mod templates;
 pub use templates::{TEMPLATE, TEMPLATE_ONLINE};
 
-/// The language card: the whole grammar in one file that compiles and runs,
+/// The language card: a core program that compiles and runs, then the opt-in,
 /// then what is left out on purpose and the idiom for each.
 #[path = "guide/language.rs"]
 mod language_card;

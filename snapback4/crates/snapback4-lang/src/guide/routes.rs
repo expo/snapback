@@ -1,7 +1,10 @@
 // @ref LLP 3000.009#5.1 — declared routes verify authority before private durable handler admission.
 pub const CARD: &str = r##"# Routes and webhooks
 
+Routes require `use server` once in `schema.q`; it covers every module.
+
 ```quarry
+use server
 route exportReport: post "/reports/export" secrets [REPORT_KEY] wait 5s
 route billing: post "/hooks/billing" as service:billing secrets [BILLING_KEY] retry 8 backoff 2s deadline 1h cancellation allow wait 5s
 ```

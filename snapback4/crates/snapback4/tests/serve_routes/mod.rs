@@ -5,7 +5,7 @@ use snapback4_core::{identity, value::encode_bytes_hex};
 
 fn host(wait: &str) -> Host {
     Host::with_store(true, snapback4_core::Store::memory().unwrap(), &format!(
-        "use personas alice\nroute billing: post \"/hooks/billing\" as service:billing wait {wait}\nroute report: post \"/report\" wait 2s\nquery who():\n  return viewer\n"))
+        "use server\nuse personas alice\nroute billing: post \"/hooks/billing\" as service:billing wait {wait}\nroute report: post \"/report\" wait 2s\nquery who():\n  return viewer\n"))
 }
 fn worker(host: &Host) -> String {
     let engine = lock(&host.shared.engine);
@@ -263,7 +263,7 @@ fn registry_claims_have_bounded_input_and_recheck_worker_revision() {
 fn registry_claim_retains_long_action_and_maximum_route_names_over_http() {
     let action = "a".repeat(256); let route = "b".repeat(128);
     let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), &format!(
-        "use personas alice\naction {action}() returns {{}}\nroute {route}: post \"/long-name\" wait 2s\n"));
+        "use server\nuse personas alice\naction {action}() returns {{}}\nroute {route}: post \"/long-name\" wait 2s\n"));
     let worker = worker(&host);
     let address = host.address;
     let route_delivery = thread::spawn(move || {

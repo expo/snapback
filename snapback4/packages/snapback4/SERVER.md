@@ -1,8 +1,12 @@
 # TypeScript server handlers
 
+Actions and routes require `use server` once in `snapback/schema.q`, covering
+every module. Generated effect handlers and service seats need no directive.
+
 ## Declaring actions
 
 ```quarry
+use server
 action invite(email: text <=200) returns { invitation: id } secrets [MAIL_API_KEY]
 action refreshModel() <- viewer = 'service:ranker'
 ```
@@ -109,6 +113,7 @@ The application's managed transaction recipe is server-only. Names are
 adaptable; pass their generated operation handles to the helper:
 
 ```quarry
+use server
 use identity guests
 
 table oidcTransactions:
@@ -691,6 +696,7 @@ proof or complete B claim.
 ## Routes and webhooks
 
 ```quarry
+use server
 route reportDownload: post "/report-download" wait 5s
 route billingHook: post "/hooks/provider-billing" as service:billing secrets [BILLING_KEY] retry 8 backoff 2s wait 5s
 ```
@@ -792,3 +798,103 @@ Legacy `runWorker` keeps its per-name polling unless `actionRegistry: true`.
 Unverified
 tickets are ephemeral, bounded and fenced: a verifier/core crash before
 admission yields a retry, not an unauthorized durable invocation.
+
+## Action-bound session minting
+
+An action performing identity verification may bind that same `POST
+/auth/session` mint to its current claim by also sending
+`x-snapback-action-lease: <claim session.token>` and `binding: {
+invocationId, intent: "identity-session/v1" }`. The first call atomically
+records the intent and new session. An ordinary repeat refuses because token
+delivery is ambiguous. After a lost committed response, repeat from the
+current live claim with `replaceLostDelivery: true`; this invalidates the
+whole recorded family and returns one replacement capped at the original
+expiry. Changed inputs, stale or settled claims, revoked authority, and a
+logged-out or expired target family refuse. The record stores no raw token.
+The handler must return the delivered Session in its eventual protected result.
+Bound mode begins when either the `binding` key or any action-lease header is
+present; its object and single nonempty lease must be exact, so neither signal
+can fall back to an unbound mint. With both absent, the legacy route still
+defaults an absent or non-string `kind` to `account`, an absent or non-integer
+`days` to seven, and clamps integer days to 1–3,650. Bound integer days use the
+same clamp; missing bound optionals use the same `account` and seven-day defaults.
+
+## Identity refusal reference
+
+### Browser binding
+
+E_OIDC_BINDING means begin did not receive a 43-character base64url SHA-256
+binding hash. Hash the browser's fresh binding secret and supply that hash
+to begin; keep the secret in that browser for completion. This is not the
+provider client secret. Do not log either secret or substitute a fixed value.
+
+### Refused provider callback
+
+E_OIDC_CALLBACK means the provider returned an error, required callback values
+are missing, or state, browser binding or transaction admission did not match.
+Complete using the original browser's state and binding under the admitting
+session. Do not bypass these checks or automatically reuse an uncertain
+authorization code; start a fresh login when that context has been lost.
+
+### Invalid identity configuration
+
+E_OIDC_CONFIG means a fixed issuer, redirect URL, client secret-name, scope,
+transaction TTL or session setting is invalid. Check the identity helper's
+declared configuration and the matching provider registration. Keep issuer
+and redirect selection server-controlled, and supply secrets through the
+configured secret lookup rather than callback arguments or logs.
+
+### Refused code exchange
+
+E_OIDC_EXCHANGE means authorization-code exchange or ID-token verification
+failed. Check the fixed provider registration and the bounded refusal detail
+without logging codes, tokens or secrets. A one-time code is not a retryable
+write: do not turn an uncertain exchange into another token request. Begin a
+fresh login when the original exchange cannot safely complete.
+
+### Lost session handoff
+
+E_OIDC_HANDOFF means the live handler cannot deliver the minted session, or
+its recovered session disagrees with recorded completion metadata. Do not
+fall back to an unbound mint, clear durable receipts or create another family
+to force completion. Inspect the bound handoff and original invocation; a
+fresh login is the supported path for incompatible unpublished mint receipts.
+
+### Invalid mint response
+
+E_OIDC_MINT means the private session endpoint returned an invalid session
+shape or value. Check that the worker and backend implement the same bound
+identity contract; do not accept a partial response or treat an older unbound
+endpoint as compatible. Keep returned bearer material out of diagnostics.
+
+### Refused provider metadata
+
+E_OIDC_PROVIDER means discovered or durable provider metadata does not match
+the fixed secure configuration. Check the configured issuer and the provider's
+advertised endpoints. Do not relax issuer or endpoint validation to accept a
+callback-selected provider. Transient discovery before a token request is a
+separate retry path; this refusal does not authorize repeating a code exchange.
+
+### Invalid identity recipe
+
+E_OIDC_RECIPE means a configured generated query or mutation handle is invalid,
+the identity query returned no data, or a private transaction row has an
+invalid shape. Regenerate the API from the declared identity schema and check
+the recipe's exact operation mapping and returned fields. Do not replace the
+managed operations with unchecked callback data or expose private rows.
+
+### Refused completion replay
+
+E_OIDC_REPLAY means the transaction is already completing elsewhere or cannot
+be completed by this invocation. Collect the original invocation's outcome
+instead of racing another completion. Lost or expired admission is not
+permission to reset transaction state or repeat the provider's one-time code;
+use a fresh login when the original transaction can no longer complete.
+
+### Invalid identity transaction
+
+E_OIDC_TRANSACTION means the stored transaction is invalid or mismatched, or
+the verified transaction did not settle as expected. Check its admitting
+session, state and generated transition operations without exposing private
+transaction contents. Do not force a successful state or issue an unbound
+session to bypass failed settlement.

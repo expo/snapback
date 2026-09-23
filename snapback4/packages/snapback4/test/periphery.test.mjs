@@ -168,7 +168,8 @@ test("Expo starter copies reference pins, parses configs, and carries both clien
   const shipped = read(join(root, "packages/snapback4/dist/web.js"));
   assert.ok(transform({ src: shipped, options: { platform: "web" } }).src.includes('options.wasm ?? require("./wasm/snapback4_device_bg.wasm")'));
   assert.equal(read(join(dir, "src/client.ts")), read(join(reference, "src/client.ts")));
-  assert.equal(read(join(dir, "snapback/worker.mts")), read(join(root, "apps/chat/snapback/worker.ts")));
+  assert.equal(existsSync(join(dir, "snapback/worker.mts")), false, "the core starter omits the reference's invitation worker");
+  assert.doesNotMatch(read(join(dir, "snapback/schema.q")), /^(?:use server|action |route )/m);
   assert.match(read(join(dir, "src/client.ts")), /nativeAvailable\(\) \? "native" : "online"/);
   assert.doesNotMatch(read(join(dir, "App.tsx")), /runWitness|EXPO_PUBLIC_WITNESS/);
   for (const screen of ["Inbox", "Thread"]) assert.match(read(join(dir, `src/${screen}.tsx`)), /\.\.\/snapback\/generated\/api/);

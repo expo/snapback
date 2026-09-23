@@ -56,7 +56,8 @@ the period.
 `every 1h` and `every 1d at 08:00`; the shortest period is 1m.
 A job in `snapback/jobs.q` is named `jobs.<name>` in every schedule;
 `schema.q` jobs use bare names. `check --fix` qualifies an unambiguous
-bare module job. Jobs are not on `api.ts`.
+bare module job. Jobs are not on `api.ts`. A schedule naming an action requires `use server`
+in `schema.q` (guide actions); job schedules need no directive.
 
 A job is a sequence of sweeps, optionally preceded by statements. Those
 statements run at the start of every chunk under its meter; their bindings

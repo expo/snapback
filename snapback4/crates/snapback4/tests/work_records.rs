@@ -3,7 +3,7 @@ use serde_json::json;
 use std::{collections::BTreeMap, path::PathBuf, process::Command};
 
 const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
-const SOURCE: &str = "use identity\neffect notify\naction invite(message: text <=100)\nmutation answer(n: int):\n  emit notify { n }\n  return n\n";
+const SOURCE: &str = "use server\nuse identity\neffect notify\naction invite(message: text <=100)\nmutation answer(n: int):\n  emit notify { n }\n  return n\n";
 
 struct Fixture(PathBuf);
 impl Drop for Fixture { fn drop(&mut self) { let _ = std::fs::remove_dir_all(&self.0); } }
