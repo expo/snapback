@@ -2,7 +2,7 @@ use super::*;
 use snapback4_core::{engine::LoadMode, schema::{ColumnDefault, ColumnType}, value::object};
 
 #[test]
-fn expired_unswept_parent_is_never_physically_written_and_lifetime_edits_refuse() {
+fn expired_unswept_parent_is_never_physically_written_and_lifetime_edits_reconcile() {
     let source = MODEL.replacen("  at: time", "  until: time ?\n  by byUntil: until, id\n  expire at .until\n  at: time", 1);
     let mut b = compile(&source);
     let parent = b.schema.tables.get_mut("posts").unwrap();
@@ -35,27 +35,17 @@ fn expired_unswept_parent_is_never_physically_written_and_lifetime_edits_refuse(
     assert!(matches!(e.mutate("like", None, now_unspecified).unwrap().state, WriteState::Sent { .. }));
     check(&e,1,1);
     assert_eq!(e.store().rows("posts").unwrap(), before);
-    for change in 0..3 {
-        let mut candidate = b.schema.clone();
-        let parent = candidate.tables.get_mut("posts").unwrap();
-        match change {
-            0 => { parent.columns.insert("until".into(), ColumnType::Optional(Box::new(ColumnType::Time))); },
-            1 => { parent.defaults.insert("until".into(), ColumnDefault::Literal(Value::Int(2000))); },
-            _ => parent.expire = None,
-        }
-        let generation = e.generation();
-        let seq = e.seq().unwrap();
-        let error = e.adopt(candidate, b.programs.iter().map(|p| p.program.clone())).unwrap_err();
-        assert_eq!(error.code(), "E_MAINTAINED_COLUMN_ACTIVATION", "{error}");
-        assert_eq!((e.generation(), e.seq().unwrap()), (generation, seq));
-        assert_eq!(e.store().rows("posts").unwrap(), before);
-    }
-    e.store().conn().execute_batch("DROP TRIGGER no_expired_mirror").unwrap();
-    e.adopt(b.schema, b.programs.into_iter().map(|p|p.program)).unwrap();
+    // Reviving the defaulted missing expiry must mirror the current total.
+    e.store().conn().execute_batch("DROP TRIGGER no_expired_mirror;").unwrap();
+    let mut candidate = b.schema.clone();
+    candidate.tables.get_mut("posts").unwrap().columns.insert("until".into(), ColumnType::Optional(Box::new(ColumnType::Time)));
+    e.adopt(candidate, b.programs.iter().map(|p| p.program.clone())).unwrap();
+    assert_eq!(totals(&mut e,"p"),(1,1,1));
+
 }
 
 #[test]
-fn resolved_source_edits_refuse_with_only_source_rows_populated() {
+fn resolved_source_edits_rebuild_with_only_source_rows_populated() {
     for edit in ["kind", "predicate", "optional", "default"] {
         let mut e = engine(MODEL);
         like(&mut e, "l", id("missing"), true, 3);
@@ -72,12 +62,9 @@ fn resolved_source_edits_refuse_with_only_source_rows_populated() {
             b.schema.tables.get_mut("likes").unwrap().columns.insert("postId".into(), kind.clone());
             for maintain in &b.schema.maintains { b.schema.tables.get_mut(&maintain.target).unwrap().columns.insert(snapback4_core::schema::columns::GROUP.into(), kind.clone()); }
         }
-        let old = (e.generation(), e.seq().unwrap(), e.schema().clone());
-        let error = e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap_err();
-        assert_eq!(error.code(), "E_MAINTAINED_COLUMN_ACTIVATION", "{edit}: {error}");
-        assert_eq!((e.generation(), e.seq().unwrap(), e.schema().clone()), old);
+        e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
         post(&mut e, "missing", 1);
-        assert_eq!(totals(&mut e, "missing"), (1, 1, 3));
+        assert_eq!(totals(&mut e, "missing"), (if edit == "kind" {3} else {1}, 1, 3));
     }
 }
 

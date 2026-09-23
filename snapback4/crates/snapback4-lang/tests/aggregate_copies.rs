@@ -4,8 +4,10 @@ use snapback4_lang::{Bound, bind::rule_truth, compile, guide, recipe};
 // a public compiler API. This is the production implementation, not a test twin.
 use snapback4_lang::{ast, diag, print};
 mod bind { pub use snapback4_lang::bind::{catalog, schema, rule_truth}; }
-#[path = "../src/bind/aggregate_provenance.rs"]
-mod provenance;
+#[path = "../src/bind/aggregate_copies.rs"]
+#[allow(dead_code, unused_imports)]
+mod copies_impl;
+use copies_impl::provenance;
 
 const CODE: &str = "N_PUBLIC_AGGREGATE_COPY";
 const README: &str = include_str!("../../../packages/snapback4/README.md");
@@ -148,7 +150,9 @@ fn aggregate_copy_card_section_is_verbatim_and_discoverable() {
     assert!(section.contains("Every write to a public or"));
     assert!(section.contains("p.score + 1"));
     assert!(section.contains("but may not supply the value itself or how many values contribute to it."));
-    assert!(section.contains("Keep the count in a"));
+    let column = section.find("likeCount: count likes by postId").unwrap();
+    let pin = section.find("both insert and update rules").unwrap();
+    assert!(column < pin, "lead with the maintained column, then pinning for other derivations");
     assert!(guide::card("feeds").unwrap().ends_with(section));
     assert_eq!(snapback4_lang::diag::guide_for(CODE), "feeds");
     let explanation = guide::explain_code(CODE).unwrap();
@@ -164,7 +168,7 @@ fn aggregate_copy_claim_is_reached_from_the_orientation() {
     assert!(README.split_once("## Reference map").unwrap().1.contains("`guide feeds`"));
     assert!(!README.contains("## N_PUBLIC_AGGREGATE_COPY:"), "the claim is no longer duplicated in the README");
     let claim = guide::card("feeds").unwrap().split_once("## N_PUBLIC_AGGREGATE_COPY:").expect("published aggregate-copy section").1;
-    assert!(claim.contains("Every write to a public or") && claim.contains("Keep the count in a"));
+    assert!(claim.contains("Every write to a public or") && claim.contains("likeCount: count likes by postId"));
 }
 
 #[test]
@@ -932,7 +936,7 @@ fn review_f14_rewrite_only_offers_maintains_for_supported_value_types() {
         assert_eq!(notes.len(), 1, "{ty}");
         println!("F14 {ty}: {}", notes[0]);
         if matches!(ty, "int" | "decimal 2" | "money USD 2") {
-            assert!(notes[0].rewrite.starts_with("keep the count in a maintain"), "{ty}: {}", notes[0]);
+            assert!(notes[0].rewrite.starts_with("declare likeCount: count likes by postId"), "{ty}: {}", notes[0]);
         } else {
             assert_eq!(notes[0].rewrite, "pin copies.value to its source in both insert and update rules; see guide feeds for the rule", "{ty}");
         }

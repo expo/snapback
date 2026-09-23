@@ -38,7 +38,7 @@ fn exact_recorded_names_types_and_emission() {
 }
 #[test]
 fn dotted_aggregate_keys_in_projection_predicate_sort_and_index_read() {
-    let source = SOURCE.replace("  expire at .until\n", "").replace("  read <- allow\nmaintain dailyLikes", "  read <- allow\n  by ranking: value, postId.authorId\nmaintain dailyLikes");
+    let source = SOURCE.replace("  expire at .until\n", "").replace("  read <- allow\nmaintain dailyLikes", "  read <- allow\n  by ranking: value, id\nmaintain dailyLikes");
     bound(&format!("{source}\nquery ranking():\n  return receivedLikes last 10 by ranking {{ authorId: .postId.authorId, count: .value }}\nquery trending():\n  rows = trend first 100 by byGroup {{ post: .postId, at: .postId.at, count: .value }}\n  return sort(rows, '-at')\nquery guarded():\n  for r in trend first 100 by byGroup:\n    if r.postId.at != null:\n      return r.postId.at + 1\n  return null\nquery lookup(author: principal ?):\n  return receivedLikes[postId.authorId = author]\nquery selected(author: principal ?):\n  return receivedLikes first 10 by byGroup where .postId.authorId = author {{ authorId: .postId.authorId, count: .value }}\nquery ordered():\n  rows = receivedLikes first 100 by byGroup\n  return sort(rows, 'postId.authorId')\n"));
 }
 #[test]

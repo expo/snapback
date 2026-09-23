@@ -37,6 +37,8 @@ mod timeline_authority;
 mod recorded;
 pub(crate) mod columns;
 #[cfg(feature = "sqlite")]
+mod column_activation;
+#[cfg(feature = "sqlite")]
 pub use recorded::RecordedNulls;
 mod write_target;
 mod receipt;
@@ -463,13 +465,13 @@ impl Engine {
             let previous: Option<Schema> = previous.map(|text| serde_json::from_str(&text).map_err(|e| RuntimeError::decode(e, RuntimeError::Store))).transpose()?;
             timeline::activate_profiles(tx, schema, previous.as_ref())?;
             let rebuild: Vec<_> = schema.maintains.iter().filter(|m| {
-                (changed && previous.as_ref().is_none_or(|old| !old.maintains.contains(m) || old.table(&m.source).and_then(|s| s.expire.as_ref()) != schema.table(&m.source).and_then(|s| s.expire.as_ref())
-                    || m.dependencies().iter().any(|column| old.table(&m.source).and_then(|s| s.defaults.get(column)) != schema.table(&m.source).and_then(|s| s.defaults.get(column)))))
+                (changed && previous.as_ref().is_none_or(|old| crate::successor::maintain_rebuild_needed(old, schema, m)))
                     || (repair_live_sums && matches!(m.kind, crate::schema::MaintainKind::Sum { .. }) && schema.table(&m.source).is_some_and(|source| source.expire.is_some()))
             }).collect();
             tx.set_meta("live_sum_candidates", "1")?;
             let attribution = recorded::paths_changed(schema, previous.as_ref());
-            if rebuild.is_empty() && !attribution { return Ok(()); }
+            let columns = column_activation::changed_parents(schema, previous.as_ref());
+            if rebuild.is_empty() && !attribution && columns.is_empty() { return Ok(()); }
             let now = crate::now_ms();
             let seq = tx.next_seq()?;
             if attribution {
@@ -477,10 +479,11 @@ impl Engine {
                 // below retain their commit and partition accounting.
                 let mut capture = Runner::new(tx, schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
                 capture.capture_activation(previous.as_ref())?;
-                capture.rebuild_recorded_activation(previous.as_ref(), &rebuild)?;
+                capture.rebuild_recorded_activation(previous.as_ref(), &rebuild.iter().copied().filter(|m| m.private.is_none()).collect::<Vec<_>>())?;
             }
             let mut runner = Runner::new(tx, schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
-            for maintain in rebuild {
+            runner.activate_columns(previous.as_ref(), &rebuild, &columns)?;
+            for maintain in rebuild.into_iter().filter(|m| m.private.is_none()) {
                 if !recorded::table_paths_changed(schema.table(&maintain.source), previous.as_ref().and_then(|s| s.table(&maintain.source))) {
                     runner.rebuild_maintain(maintain)?;
                 }
@@ -489,7 +492,7 @@ impl Engine {
             let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
             let written = runner.rows_written;
             drop(runner);
-            if written > 0 {
+            if written > 0 || !columns.is_empty() {
                 tx.record_commit(seq, now, "rebuild", crate::SYSTEM_PRINCIPAL, "rebuild", &tables, written)?;
                 partition::append(tx, seq, &events)?;
             }

@@ -1,0 +1,77 @@
+check: ok — 2 tables (2 synced), 2 operations, no problems, 3 notes, 35.4 ms
+note: schema.q:8:1 — N_NO_HORIZON: table likes: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; measure what it costs with `check --residency`
+  rewrite: by byAt: at, id  -- then: sync public last 500 by byAt
+  guide: sync
+
+N_NO_HORIZON: a note, not an error — a synced table with no `last N by index` horizon delivers every row of every group a device holds, and keeps delivering as the table grows. Suppression is reader-dependent, even for an uncapped `sync public` table. Eligible mutations that require whole-partition coverage can suppress this advice. An absent note does not certify bounded acquisition or a safe cold-start size. Silent when whole-partition reads or insert proofs of eligible mutations depend on that absence of a horizon. For eligible mutations with ascending pages or pages on a different index, names the prediction a horizon would cost instead of recommending it. Otherwise declare `sync ... last 500 by <index>` (older rows remain online; local reads past them say `complete: false`), or bound the group with a `cap`. Inspect `check --residency`.
+
+# Sync: the viewer's partition is the unit of sync
+
+A synced table with no horizon delivers every row of
+every group a device holds, at every cold start, as the table grows;
+`check` notes it (N_NO_HORIZON) unless the group cannot grow (one row per
+group, or a `cap` over the group), or its whole partition supplies an eligible
+mutation's reads or insert proof (`guide prediction`). For an eligible mutation's
+ascending page or a page on a different index, the note names the prediction
+that a horizon would cost instead of recommending that horizon.
+Suppression is reader-dependent, even for an uncapped `sync public` table.
+Eligible mutations that require whole-partition coverage can suppress this
+advice. An absent note does not certify bounded acquisition or a safe
+cold-start size.
+Inspect the table's `sync`, horizon and group `cap` with `check --residency --verbose`.
+A snapshot arrives in pages the client
+asks for 4,000 events at a time (2,000 by default on the wire, 10,000 at
+most), each applied in its own transaction. `POST /sync` takes JSON
+`{ from, limit, after, stream, pending, store_id?, generation? }`: up to 256 pending write IDs of
+1–128 UTF-8 bytes, with the cursor, in at most 262,144 body bytes (256 KiB).
+Oversize bodies, including chunked ones, return HTTP 413 `E_INPUT`; malformed
+fields return HTTP 400 `E_INPUT`. Continue snapshots with `after: next`;
+`stream: true` follows the log even from zero. There is no GET sync route.
+The client sends its device generation. A mismatch returns HTTP 200
+`E_SYNC_GENERATION` (family `generation`) with `generation`, `store_id` and
+the current numeric `watermark`, before building a snapshot or stream page. A
+head-read failure fails the request. The client adopts `/schema` only when that
+watermark is a finite, nonnegative integer at or above its retained image-head
+evidence (equal adopts); a lower head halts with `E_STORE_RESTORE`, and a missing
+or invalid head is a retryable failure that neither adopts nor clears the evidence.
+After adopting, it retries from the device's resulting position with its pending
+IDs intact. This refusal is never applied
+as a delivered page: its watermark is head evidence, not delivered progress, and
+never moves the cursor. Retry only from the position adoption produced.
+Omitting `generation` preserves ordinary page behavior.
+Against 0.2.32, the client retries without the field once on that server's exact
+HTTP 400 sync-input refusal. This transport omits `generation` for that server
+origin only after a stripped retry returns a successful (2xx) response.
+Anything else leaves discovery enabled, so the next attempt probes again;
+another origin or transport still sends the field.
+An HTTP response above 16 MiB becomes `E_BOUND`, keeping `generation`,
+`store_id` and `watermark` from that page. The client checks identity before
+shrinking its limit; a refusal's watermark is never applied as delivered data.
+At limit 1 an oversized stream reply adds `snapshot: true`, instructing the
+client to restart at `from: 0, after: null, stream: false` with the reduced
+limit and finish snapshot catch-up before publication. Commits stay whole in
+the stream; snapshots page their
+[excerpt truncated]
+
+Full card: snapback4 guide sync
+
+note: schema.q:1:1 — N_NO_HORIZON: table posts: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; measure what it costs with `check --residency`
+  rewrite: by byAt: at, id  -- then: sync public last 500 by byAt
+  guide: sync
+
+note: schema.q:7:3 — N_MAINTAINED_COLUMN_STREAM: posts: each contributing commit logs and streams the whole parent image per destination partition, coalesced once per row; a 4,000-byte parent costs every holder about 4 KB per change
+  rewrite: use a column when readers want the count with the row; for a large row or a counter changing far more often than it is read, use maintain … online only
+  guide: maintains
+
+  mutation move:
+    maintained columns from likes: posts.likeCount
+      per source attempt: 1 application write + 4 reserved private/mirror writes; <= 2 whole-parent puts (old/new groups); all share the 1024-row mutation ceiling
+      composed mutation: <= 204 such source transitions, <= 408 parent puts; other writes and meters can lower this bound
+      posts.likeCount: <= 16417 B per parent put, including event framing; private total emits 0 B; mirror preserves other fields and maintains every parent index
+      own derived stream bytes: <= 6698136 B per composed mutation, per recipient (application events, acknowledgements and reply envelope excluded)
+      activation: private rebuild + in-place mirror, 0 row-event bytes; parent barrier always commits; device reacquires, no column prediction
+      schema bounds may exceed 16777216 B; no write-time byte guard; an oversized current-generation stream at limit 1 restarts by snapshot with pending writes preserved
+    write target likes.byId — engine-private lookup; the update rule decides
+    update likes, fans out to everyone
+  query one:
+    point posts.byId — one row, one rule check

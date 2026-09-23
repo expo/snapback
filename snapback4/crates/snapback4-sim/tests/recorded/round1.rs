@@ -124,7 +124,7 @@ fn activation_capture_persists_after_reopen_and_empty_capture_has_no_gap() {
 
 #[test]
 fn ranking_and_trending_project_recorded_keys() {
-    let source = SOURCE.replace("  expire at .until\n", "").replace("  read <- allow\nmaintain dailyLikes", "  read <- allow\n  by ranking: value, postId.authorId\nmaintain dailyLikes");
+    let source = SOURCE.replace("  expire at .until\n", "").replace("  read <- allow\nmaintain dailyLikes", "  read <- allow\n  by ranking: value, id\nmaintain dailyLikes");
     let source = format!("{source}\nquery ranking():\n  return receivedLikes last 10 by ranking {{authorId: .postId.authorId, count: .value}}\nquery trending():\n  rows = trend first 100 by byGroup {{post: .postId, at: .postId.at, count: .value}}\n  return sort(rows, '-at')\nquery guarded():\n  for r in trend first 100 by byGroup:\n    if r.postId.at != null:\n      return r.postId.at + 1\n  return null\nquery lookup(author: principal ?):\n  return receivedLikes[postId.authorId = author]\nquery selected(author: principal ?):\n  return receivedLikes first 10 by byGroup where .postId.authorId = author {{authorId: .postId.authorId, count: .value}}\n");
     let mut e = engine(&source);
     let (name, mut newer) = post("b", "bob", Value::Null);

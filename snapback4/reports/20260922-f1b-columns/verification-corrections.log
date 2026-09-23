@@ -1,0 +1,40 @@
+---- serve::changes::column_tests::saturated_changes_uses_the_public_table_enumeration stdout ----
+
+thread 'serve::changes::column_tests::saturated_changes_uses_the_public_table_enumeration' (173111479) panicked at crates/snapback4/src/serve_changes.rs:153:97:
+called `Result::unwrap()` on an `Err` value: Sql(SqliteFailure(Error { code: ConstraintViolation, extended_code: 1555 }, Some("UNIQUE constraint failed: _commits.seq")))
+
+---- offset_cli_advance_and_rejected_inputs_keep_time_monotone stdout ----
+
+thread 'offset_cli_advance_and_rejected_inputs_keep_time_monotone' (173116119) panicked at crates/snapback4/tests/clock.rs:131:9:
+an invalid advance changed the clock
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- abort_profile_reports_an_off_thread_panic_to_redirected_stderr stdout ----
+
+thread 'abort_profile_reports_an_off_thread_panic_to_redirected_stderr' (173128887) panicked at crates/snapback4/tests/lifecycle.rs:342:5:
+error[E0514]: found crate `libc` compiled by an incompatible version of rustc
+  --> /Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4/src/lifecycle.rs:19:18
+   |
+19 |         unsafe { libc::write(libc::STDERR_FILENO, self.bytes.as_ptr().cast(), self.len + 1); }
+   |                  ^^^^
+   |
+   = note: the following crate versions were found:
+           crate `libc` compiled by rustc 1.97.1 (8bab26f4f 2026-07-14): /Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/target/debug/deps/liblibc-c3d01eea9ba763ab.rlib
+   = help: please recompile that crate using this compiler (rustc 1.97.0 (2d8144b78 2026-07-07)) (consider running `cargo clean` first)
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0514`.
+
+
+---- aggregate_copy_card_section_is_verbatim_and_discoverable stdout ----
+
+thread 'aggregate_copy_card_section_is_verbatim_and_discoverable' (173213536) panicked at crates/snapback4-lang/tests/aggregate_copies.rs:153:5:
+assertion failed: section.contains("Keep the count in a")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- aggregate_copy_claim_is_reached_from_the_orientation stdout ----
+
+thread 'aggregate_copy_claim_is_reached_from_the_orientation' (173213537) panicked at crates/snapback4-lang/tests/aggregate_copies.rs:169:5:
+assertion failed: claim.contains("Every write to a public or") &&
+    claim.contains("Keep the count in a")

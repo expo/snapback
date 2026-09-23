@@ -9,7 +9,7 @@ pub const NOW: i64 = 100 * DAY + HOUR / 2;
 
 pub fn source(synced: bool) -> String {
     let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).into_iter()
-        .find(|s| s.contains("maintain trend: count likes by hour(.postAt), postAt, postId")).unwrap();
+        .find(|s| s.contains("likeCount: count likes by postId")).unwrap();
     if synced { source.replace("  insert <- .authorId = viewer", "  insert <- .authorId = viewer\n  sync public")
         .replace("  delete <- .principal = viewer", "  delete <- .principal = viewer\n  sync public") } else { source }
 }
@@ -22,7 +22,7 @@ pub fn post(name: &str, at: i64) -> (String, Value) {
 pub fn seed_post(engine: &mut Engine, name: &str, at: i64, likes: usize) {
     engine.seed([post(name, at)]).unwrap();
     engine.seed((0..likes).map(|n| ("likes".into(), object([
-        ("id", id(&format!("{name}-l{n}"))), ("postId", id(name)), ("principal", id(&format!("reader-{n}"))), ("postAt", Value::Int(at)),
+        ("id", id(&format!("{name}-l{n}"))), ("postId", id(name)), ("principal", id(&format!("reader-{n}"))),
     ])))).unwrap();
 }
 pub fn set_like(engine: &mut Engine, who: &str, post: &str, liked: bool, at: i64, write: &str) {
@@ -31,7 +31,7 @@ pub fn set_like(engine: &mut Engine, who: &str, post: &str, liked: bool, at: i64
     assert!(matches!(reply.state, WriteState::Sent { .. }), "{reply:?}");
 }
 pub fn rows(data: &Value) -> Vec<Value> { data.as_array().unwrap().to_vec() }
-pub fn names(rows: &[Value]) -> Vec<String> { rows.iter().map(|r| r.field("postId").unwrap().as_str().unwrap().to_string()).collect() }
+pub fn names(rows: &[Value]) -> Vec<String> { rows.iter().map(|r| r.field("id").unwrap().as_str().unwrap().to_string()).collect() }
 pub fn ranking(engine: &mut Engine, now: i64) -> Vec<Value> {
     let mut result = Vec::new(); let mut cursor = Value::Null;
     for _ in 0..100 {
@@ -51,14 +51,13 @@ pub fn oracle(engine: &Engine, now: i64) -> Vec<(String, i64)> {
         if *at <= now - DAY || *at > now { continue; }
         let name = post.field("id").unwrap();
         let count = likes.iter().filter(|l| l.field("postId").unwrap() == name).count() as i64;
-        if count == 0 { continue; }
         result.push((name.as_str().unwrap().to_owned(), count, *at));
     }
     result.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| b.2.cmp(&a.2)).then_with(|| b.0.cmp(&a.0)));
     result.into_iter().map(|(id, count, _)| (id, count)).collect()
 }
 pub fn scored(rows: &[Value]) -> Vec<(String, i64)> {
-    rows.iter().map(|r| { let Value::Int(n) = r.field("value").unwrap() else { panic!() }; (r.field("postId").unwrap().as_str().unwrap().into(), *n) }).collect()
+    rows.iter().map(|r| { let Value::Int(n) = r.field("likeCount").unwrap() else { panic!() }; (r.field("id").unwrap().as_str().unwrap().into(), *n) }).collect()
 }
 pub fn fixture(engine: &mut Engine) {
     for (name, age, count) in [("fresh", HOUR / 2, 2), ("mid", 10 * HOUR, 3), ("edge", 47 * HOUR / 2, 1),
@@ -82,7 +81,7 @@ pub fn tie_fixture(engine: &mut Engine) {
 pub fn tie_queries(take: usize) -> String {
     let mut source = String::new();
     for (name, direction) in [("tieFirst", "first"), ("tieLast", "last")] {
-        source.push_str(&format!("\nquery {name}(c: cursor ?):\n  return merge trend after c {direction} {take} by byScore where .postAt > now - 86400000 and .postAt <= now:\n    [h] for h in range(hour(now) - 24, hour(now) + 1)\n"));
+        source.push_str(&format!("\nquery {name}(c: cursor ?):\n  return merge posts after c {direction} {take} by byHourLikes where .at > now - 86400000 and .at <= now:\n    [h] for h in range(hour(now) - 24, hour(now) + 1)\n"));
     }
     source
 }

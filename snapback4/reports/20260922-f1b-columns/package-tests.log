@@ -1,0 +1,14 @@
+✔ column activation: sqlite, server watch (2529.846125ms)
+✔ column activation: sqlite, device watch (1861.1785ms)
+✔ column activation: wasm, server watch (2992.213708ms)
+✔ column activation: wasm, device watch (1364.918209ms)
+✔ maintained columns: sqlite watches use server values across interrupted sync and reopen (9103.094ms)
+✔ maintained columns: web watches use server values across interrupted sync and reopen (10699.085292ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 29936.728583

@@ -1,0 +1,26 @@
+{"label":"seed","startup_ms":3410.125,"resource_file":"1-seed.resources.json"}
+{"seeded_parents":1000}
+{"seeded_parents":21000}
+{"seeded_parents":41000}
+{"seeded_parents":61000}
+{"seeded_parents":81000}
+{"seeded_sources":10000}
+{"seeded_sources":110000}
+{"seeded_sources":210000}
+{"seeded_sources":310000}
+{"seeded_sources":410000}
+{"seeded_sources":510000}
+{"seeded_sources":610000}
+{"seeded_sources":710000}
+{"seeded_sources":810000}
+{"seeded_sources":910000}
+{"seeding_ms":331908.0675}
+{"initial_device":{"name":"current","elapsed_ms":73183.774875,"state":{"generation":1,"native":null,"watermark":200}}}
+{"initial_device":{"name":"lagging","elapsed_ms":43119.701040999964,"state":{"generation":1,"native":null,"watermark":200}}}
+{"pre_activation_page_bytes":16744164,"width":4077,"old_watermark":200,"current_watermark":208}
+{"label":"activation-only","startup_ms":206065.17437499994,"resource_file":"2-activation-only.resources.json"}
+{"activation":{"label":"activation-only","startup_ms":206065.17437499994,"resource_file":"2-activation-only.resources.json"},"activation_resources":{"command":["/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/target/debug/snapback4","dev","--no-watch","--hold-effects","--hold-schedules","--port","64055"],"pid":98356,"elapsed_ms":205956.61866600002,"user_seconds":170.698466,"system_seconds":4.666839,"peak_rss_bytes":274038784,"exit_status":-15}}
+{"label":"adoption-http","startup_ms":1376.6127499999711,"resource_file":"3-adoption-http.resources.json"}
+{"device_adoption":{"name":"current","elapsed_ms":111879.23487499997,"state":{"generation":2,"native":null,"watermark":209},"reads":[{"id":"p000000","value":10,"fresh":true,"local_value":10},{"id":"p003999","value":10,"fresh":true,"local_value":10},{"id":"p099999","value":10,"fresh":true,"local_value":10}],"persisted":{"mode":"inspect","before":{"rows":{"posts":100000,"likes":0},"generation":"2","log_rows":0,"commits":0,"parents_with_count":100000},"after":{"rows":{"posts":100000,"likes":0},"generation":"2","log_rows":0,"commits":0,"parents_with_count":100000},"elapsed_ms":1117.8485,"peak_rss_bytes":20660224},"sync_requests":27,"oversized_sync_responses":0,"resource":{"command":["/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/target/debug/snapback4","device","/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-mc1-activation-esrL0X/current/snapback4-http%3A%2F%2F127.0.0.1%3A64055%3Adev%3Aalice.sqlite","/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-mc1-activation-esrL0X/current/snapback4-http%3A%2F%2F127.0.0.1%3A64055%3Adev%3Aalice.sqlite.backend.json"],"pid":97044,"elapsed_ms":483296.414958,"user_seconds":77.672277,"system_seconds":5.606255,"peak_rss_bytes":116162560,"exit_status":-15}}}
+{"device_adoption":{"name":"lagging","elapsed_ms":95772.908833,"state":{"generation":2,"native":null,"watermark":209},"reads":[{"id":"p000000","value":10,"fresh":true,"local_value":10},{"id":"p003999","value":10,"fresh":true,"local_value":10},{"id":"p099999","value":10,"fresh":true,"local_value":10}],"persisted":{"mode":"inspect","before":{"rows":{"posts":100000,"likes":0},"generation":"2","log_rows":0,"commits":0,"parents_with_count":100000},"after":{"rows":{"posts":100000,"likes":0},"generation":"2","log_rows":0,"commits":0,"parents_with_count":100000},"elapsed_ms":1916.586375,"peak_rss_bytes":20725760},"sync_requests":27,"oversized_sync_responses":0,"resource":{"command":["/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/target/debug/snapback4","device","/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-mc1-activation-esrL0X/lagging/snapback4-http%3A%2F%2F127.0.0.1%3A64055%3Adev%3Aalice.sqlite","/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-mc1-activation-esrL0X/lagging/snapback4-http%3A%2F%2F127.0.0.1%3A64055%3Adev%3Aalice.sqlite.backend.json"],"pid":97701,"elapsed_ms":508102.148708,"user_seconds":66.178841,"system_seconds":4.638875,"peak_rss_bytes":79183872,"exit_status":-15}}}
+{"summary":"gate 5: PASS; devices adopted 2/2; no-oversize clause PASS"}

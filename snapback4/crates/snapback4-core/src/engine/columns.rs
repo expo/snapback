@@ -25,52 +25,14 @@ pub(super) fn validate_before_prepare(schema: &crate::schema::Schema) -> Result<
     Ok(())
 }
 
-#[cfg(feature = "sqlite")]
-pub(crate) fn activation_boundary(tx: &crate::store::Tx<'_>, schema: &crate::schema::Schema) -> Result<(),RuntimeError> {
-    use rusqlite::OptionalExtension;
-    let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')",[],|r|r.get(0)).optional()?;
-    let Some(previous) = previous else { return Ok(()) };
-    let previous: crate::schema::Schema = crate::json_codec::from_text(&previous).map_err(|e|RuntimeError::Store(e.to_string()))?;
-    for m in previous.maintains.iter().chain(&schema.maintains).filter(|m|m.private.is_some()) {
-        let owner = m.private.as_ref().unwrap();
-        let old = previous.maintains.iter().find(|other|other.private.as_ref() == Some(owner));
-        let new = schema.maintains.iter().find(|other|other.private.as_ref() == Some(owner));
-        let interpretation = |s: &crate::schema::Schema, table: &str, field: &str| s.table(table).map(|t|(t.columns.get(field).cloned(),t.defaults.get(field).cloned(),t.recorded.get(field).cloned()));
-        let dependency_changed = m.dependencies().iter().any(|field| interpretation(&previous,&m.source,field) != interpretation(schema,&m.source,field));
-        let old_parent = previous.table(&owner.table);
-        let new_parent = schema.table(&owner.table);
-        let lifetime_changed = old_parent.and_then(|t|t.expire.as_ref()) != new_parent.and_then(|t|t.expire.as_ref())
-            || old_parent.into_iter().chain(new_parent).filter_map(|t|t.expire.as_ref()).any(|field|interpretation(&previous,&owner.table,field) != interpretation(schema,&owner.table,field));
-        if old == new && !dependency_changed && !lifetime_changed { continue; }
-        let populated = |name: &str| -> Result<bool,RuntimeError> {
-            Ok(tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM r JOIN _catalog c ON r.t = c.num WHERE c.name = ?1)",[name],|r|r.get(0))?)
-        };
-        if populated(&owner.table)? || (old.is_some() && (populated(&m.source)? || populated(&m.target)?)) {
-            return Err(RuntimeError::Structural { code: "E_MAINTAINED_COLUMN_ACTIVATION", message: format!("{} requires maintained-column activation machinery on this populated store; declare it before the table has rows; in dev, use a fresh store (guide maintains)",owner.label()) });
-        }
-    }
-    Ok(())
-}
 
 impl Runner<'_> {
     #[cfg(feature = "sqlite")]
     pub(super) fn rebuild_imported_columns(&mut self) -> Result<(),RuntimeError> {
-        use crate::rows::{Bounds,Dir};
         let declarations: Vec<_> = self.schema.maintains.iter().filter(|m|m.private.is_some()).cloned().collect();
         for m in declarations {
             self.rebuild_maintain(&m)?;
-            let owner = m.private.as_ref().unwrap();
-            let mut bounds = Bounds::default();
-            loop {
-                let page = self.tx.scan(&owner.table,"byId",&[],&bounds,Dir::Asc,256)?;
-                if page.is_empty() { break }
-                for (row,key) in page {
-                    bounds.after = crate::key::decode(&key);
-                    let group = vec![row.field("id")?.clone()];
-                    let total = self.tx.get(&m.target,&maintained_id(&group))?.and_then(|r|r.field("value").ok().cloned()).unwrap_or(Value::Int(0)).as_int()?;
-                    self.mirror_column(&m,&group,total)?;
-                }
-            }
+            self.mirror_column_pass(&m)?;
         }
         Ok(())
     }
@@ -99,6 +61,7 @@ impl Runner<'_> {
 
     #[cfg(feature = "sqlite")]
     pub(super) fn mirror_column(&mut self, m: &Maintain, key: &[Value], total: i64) -> Result<(),RuntimeError> {
+        if self.column_rebuild { return Ok(()) }
         let Some(owner) = &m.private else { return Ok(()) };
         self.refuse_timeline_write(&owner.table, crate::schema::Effect::Update)?;
         let Some(Value::Id(id)) = key.first() else { return Ok(()) };
@@ -107,6 +70,7 @@ impl Runner<'_> {
         let table = self.schema.tables[&owner.table].clone();
         let Some(old) = self.tx.get(&owner.table,id)? else { return Ok(()) };
         if table.expired(&old,self.context.now.unwrap_or(0)) { return Ok(()) }
+        if old.field(&owner.column).cloned().unwrap_or(Value::Int(0)) == Value::Int(total) { return Ok(()) }
         let mut row = old.clone();
         if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.insert(owner.column.clone(),Value::Int(total)); }
         let entries = self.tx.put(&owner.table,&table,&row,Some(&old))?;

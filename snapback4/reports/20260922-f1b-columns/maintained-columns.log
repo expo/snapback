@@ -1,0 +1,46 @@
+Running tests/maintained_columns.rs (target/debug/deps/maintained_columns-0ec19a223399041f)
+
+running 41 tests
+test a_generated_source_is_refused_even_in_an_otherwise_well_typed_raw_schema ... ok
+test a_public_ranking_cannot_be_moved_outside_source_write_authority ... ok
+test a_raw_schema_cannot_assign_two_derivations_to_a_generated_parents_value ... ok
+test activation::classify_keeps_ordinary_narrowing_and_never_keeps_pre_generation_images ... ok
+test activation::expired_parent_skipped_on_activation_then_swept_and_recreated_right ... ok
+test activation::activation_mirror_is_event_free_in_place_and_zero_additions_stay_unwritten ... ok
+test activation::redefinition_zero_removal_and_readdition_preserve_other_fields ... ok
+test activation::source_default_widened_optional_recounts_missing_references ... ok
+test adapter_failures_after_private_write_and_between_mirrors_roll_back_every_image ... ok
+test birth_recreation_expiry_and_transaction_rollback_follow_the_source ... ok
+test activation_redefinitions_empty_admission_and_unchanged_preservation ... ok
+test column_predicates_reuse_engine_recorded_attribution ... ok
+test clique_pages_match_independent_count_time_model ... ok
+test creators_cannot_observe_hidden_totals_in_write_results_or_budgets ... ok
+test meter_review::deleting_a_synced_source_still_pays_its_partition_step_after_private_work ... ok
+test hidden_total_transitions_and_noop_reservation_lifetime_are_constant ... ok
+test moving_key_cursor_is_a_key_boundary_not_a_frozen_ranking ... ok
+test notes_name_disclosure_order_and_full_parent_stream_at_the_declaration ... ok
+test null_references_are_excluded_before_sum_and_import_recounts ... ok
+test one_parent_image_per_commit_has_the_hand_kept_columns_log_cost ... ok
+test oracle_moves_filters_sums_birth_and_last_delete ... ok
+test paired_parent_worlds_have_equal_replies_receipts_meters_and_invalidations ... ok
+test private_targets_stay_bounded_for_long_table_and_column_names ... ok
+test projected_derivation_identity_prevents_literal_default_image_retention ... ok
+test raw_dependency_walk_covers_lifetime_delivery_constraints_and_capture ... ok
+test raw_ir_system_and_seed_guard_and_overflow_are_owned_by_column ... ok
+test raw_private_reads_and_every_resolved_dependency_are_refused ... ok
+test resolved_dependencies_and_private_projection ... ok
+test review::bad_sources_and_references_refuse_without_panicking ... ok
+test review::cascades_refuse_the_maintained_field_with_a_valid_parent_reference ... ok
+test review::count_and_sum_remain_reference_type_names ... ok
+test review::expired_unswept_parent_is_never_physically_written_and_lifetime_edits_reconcile ... ok
+test review::numeric_sums_use_integer_minor_units_on_birth_and_missing_images ... ok
+test review::optional_materialization_preserves_columns_and_all_write_arms_birth_before_validation ... ok
+test review::resolved_source_edits_rebuild_with_only_source_rows_populated ... ok
+test review::restore_preserves_values_import_rebuilds_and_neither_publishes_private_names ... ok
+test review::rust_write_structs_keep_id_and_ordinary_fields_without_private_storage ... ok
+test self_reference_both_orders_and_reference_named_value ... ok
+test word_index_order_is_in_the_reserved_mirror_budget ... ok
+test writes_and_result_fields_refuse_and_brand_stays_a_write_key ... ok
+test meter_review::every_meter_field_matches_across_hidden_totals_and_parent_worlds_at_each_cut ... ok
+
+test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.96s

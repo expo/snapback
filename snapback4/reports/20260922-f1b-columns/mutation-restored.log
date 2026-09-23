@@ -1,0 +1,11 @@
+    Blocking waiting for file lock on build directory
+   Compiling snapback4-core v0.2.33 (/private/tmp/f1b-mutation-copy/crates/snapback4-core)
+   Compiling snapback4-lang v0.2.33 (/private/tmp/f1b-mutation-copy/crates/snapback4-lang)
+    Finished `test` profile [optimized + debuginfo] target(s) in 11m 06s
+     Running tests/maintained_columns.rs (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/target/debug/deps/maintained_columns-8ed335f187f72f6c)
+
+running 1 test
+test activation::activation_mirror_is_event_free_in_place_and_zero_additions_stay_unwritten ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 40 filtered out; finished in 0.15s
+

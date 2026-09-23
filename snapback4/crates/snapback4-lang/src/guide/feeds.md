@@ -261,7 +261,7 @@ original and a repost remain separate. `post.removed` describes the original;
 do not filter an independent repost out merely because its original was removed.
 Render `complete: false` as incomplete and pass `next` back as `c` when present.
 
-**Pending (F2, not on main yet):** for replies received by a post's author,
+For replies received by a post's author,
 see `guide maintains` for `count replies by postId.authorId`; the complete
 program above does not depend on that form.
 
@@ -349,9 +349,8 @@ without proving a follow edge.
 
 Search uses `guide search`; bounded, atomic daily digests use `guide jobs`.
 
-**Pending:** maintained columns and engine-recorded attribution are not shipped
-in this card's baseline; see `guide maintains` for their eventual form, and keep
-today's Trending program below until they land.
+Maintained columns rank parent rows directly; engine-recorded attribution
+keeps historical reference facts. See `guide maintains`.
 
 ### Community ranking
 
@@ -455,19 +454,18 @@ same.
 
 ## Trending: posts younger than a day, ranked in the like's own transaction
 
-Use a value-indexed maintain over non-expiring likes, grouped by the post's
-immutable time, and merge the last 25 hour lanes. Each committed like or
-unlike updates the count and its order in that same transaction: no schedule
-and no principal-writable score table. `trending(c)` pages liked posts on one
-cursor; `trendingWithZeros(null)` is a complete first-page query that appends
-zero-like posts only when the liked page is short.
+Put the count on the post, index its hour, count and time, and merge the
+last 25 hour lanes. Every like or unlike changes the order in its mutation.
+Zero-like posts participate in the same page. Equal scores put the newest post
+first, then break equal-time ties by id. There is no copied time or zero fill.
 
 ```quarry
 table posts:
   authorId: principal
   body: text <=500
   at: time
-  by byTime: at, id
+  likeCount: count likes by postId
+  by byHourLikes: hour(at), likeCount, at, id
   immutable authorId, at
   public 'posts are public'
   insert <- .authorId = viewer
@@ -475,141 +473,51 @@ table posts:
 table likes:
   postId: posts
   principal: principal
-  postAt: time                                   -- the one copied fact; the insert rule checks it against the post
   unique byPair: postId, principal
-  immutable postId, principal, postAt
+  immutable postId, principal
   public 'likes are public'
-  insert <- .principal = viewer and exists posts[id = .postId, at = .postAt]
+  insert <- .principal = viewer
   delete <- .principal = viewer
-
-maintain trend: count likes by hour(.postAt), postAt, postId
-  read <- allow
-  by byScore: hour, value, postAt, postId
 
 mutation create(body: text <=500):
   return insert posts { authorId: viewer, body, at: now }
 
 mutation setLike(postId: posts, liked: bool):
-  p = posts[postId] ! else POST_NOT_FOUND
+  require exists posts[postId] else POST_NOT_FOUND
   if liked:
-    insert likes { postId: p.id, principal: viewer, postAt: p.at } if absent
+    insert likes { postId, principal: viewer } if absent
   else if exists likes[postId, viewer]:
     delete likes[postId, viewer]
 
 query trending(c: cursor ?):
-  return merge trend after c last 10 by byScore where .postAt > now - 86400000 and .postAt <= now:
+  return merge posts after c last 10 by byHourLikes where .at > now - 86400000 and .at <= now:
     [h] for h in range(hour(now) - 24, hour(now) + 1)
-
-query trendingWithZeros(c: cursor ?):
-  since = now - 86400000
-  liked = merge trend after c last 10 by byScore where .postAt > since and .postAt <= now:
-    [h] for h in range(hour(now) - 24, hour(now) + 1)
-  out = []
-  if count(liked) = 10:
-    return liked { postId, score: .value, at: .postAt }
-  for l in liked:
-    out = out + [{ postId: l.postId, score: l.value, at: l.postAt }]
-  if count(out) < 10:
-    unliked = posts[at > since, at <= now] last 10 by byTime where trend[hour(.at), .at, .id] = 0
-    for p in unliked:
-      if count(out) < 10:
-        out = out + [{ postId: p.id, score: 0, at: p.at }]
-  return out
 ```
 
-The insert rule pins `principal` to `viewer` and checks `postAt` against the
-post with `exists posts[id = .postId, at = .postAt]`; `postId`, `principal`
-and `postAt` are immutable, and `unique byPair` allows one like per principal
-per post. `setLike` derives the copied time from that post; no declared
-mutation accepts a score, a time or an hour from a caller. Unlike needs its
-own delete rule or the score only rises; the rule above removes only the
-viewer's like, and repeated set/clear is idempotent. A declared
-`forgeLike(postId, postAt)` that tries a false time is refused `E_RULE`;
-the true time passes. A maintain's target cannot be written by a principal,
-but its score is only as trustworthy as the source rows' insert rule.
+The source rules pin the like to its writer and allow only that writer to
+remove it. Repeated set/clear is idempotent. No mutation may assign the count,
+even as 0 or as the system. Ordinary post fields keep their own write rules.
 
-- Equal scores put the newest post first: the key carries post time and
-  post id after the score; the fixture returns `fresh:2 mid:2 edge:2`.
-- A group with no like has no row, hence the fill; a full group-key lookup
-  returns zero for absence, so the fill never repeats a liked post.
-- Groups never age out: one row per liked post stays as long as any like
-  remains, because a maintain target can neither expire nor be capped;
-  a 48,200-liked-post Clique-envelope fixture retained all 48,200 target rows
-  after 48 hours, totaling 6,073,200 serialized row-JSON bytes (not SQLite
-  file or index bytes), and the last unlike removed one group.
-- `hour` is UTC, and the trailing edge is exact only because of `where`;
-  the upper check also excludes future-dated imports in the current hour.
+Whole old hours are key ranges the merge never visits. The oldest included
+hour still charges candidates rejected by the exact time filter, so a crowded
+boundary can hit the meter. Render `complete: false`; pass `next` back as `c`.
+The upper time filter excludes future-dated imports in the current hour.
+A cursor binds the evaluated lanes and generation, not a snapshot: counts
+can move across it and cause repeats or omissions. Restart when the clock
+changes the lanes; requery as time passes to drop posts at the trailing edge.
 
-For whole old buckets, dead data is a contiguous key range the lanes never
-enter. Nothing stale is ordered, charged or swept under a reader in those
-buckets. The oldest included hour is different: `where` rejects its old
-portion, and those rejected candidates are charged, so a crowded boundary
-hour can still hit the meter. The validated
-48,200-post fixture returned ten, complete with `next`, at 34 examinations;
-8,300 rejected groups in the oldest included hour instead reached 8,193
-examinations and returned incomplete. This is an exact indexed page when
-complete, not a population-independent worst-case bound.
+The standalone block runs on the server. Add `sync public` to posts for a
+local ranking over held rows; sync likes as well if source writes should
+predict. A predicted like never changes the count: the server's parent image
+supplies it. Every contributing commit streams that whole image, coalesced
+once per parent. `N_MAINTAINED_COLUMN_STREAM` names that cost. Reading ten
+winners does not reduce acquisition; use the parent's sync horizon when
+appropriate, over a time index that does not depend on the maintained field.
 
-The fill is also bounded: it seeks the post window and checks counts until
-it finds ten unliked posts or hits the meter, and `complete: false` must
-remain visible if that scan or the liked merge is cut. It is a first-page
-list; the full liked branch returns its page directly to preserve its
-continuation and completeness. Use `trending(c)` to walk liked posts, and
-pass null to `trendingWithZeros` for the first-page fill.
-A cursor continues the evaluated lanes and generation, not a snapshot:
-scores can move across its position between pages and cause omissions or
-repeats. Restart at the first page after a clock change changes the lanes;
-requery as the clock advances to drop a post at the exact trailing edge.
-
-A current-calendar-bucket ranking of positively-liked originals is the
-one-lane special case: use a validated original-post fact, group by the
-post's day and read that day alone; it does not span the trailing 24 hours.
-
-### Where the ranking runs
-
-The standalone block has no source sync and is server-run. An offline watch
-can retain its previous server answer with `fresh: false`, or refuse
-`E_OFFLINE` without one. For public local ranking, add `sync public` to
-both `posts` and `likes`; the maintain inherits it with no horizon.
-`setLike` remains eligible to predict once the post, source and aggregate
-proof are held. Remote likes still need sync, and offline results describe
-held data. This choice delivers all public posts, likes and count groups to
-every device, not only the ten winners.
-
-`check --residency --verbose` prints these operation and table lines for the
-server variant (bare `check --residency` summarizes rather than listing sites):
-
-```text
-residency (facts)
-  likes: online only (no sync line)
-  posts: online only (no sync line)
-  trend: online only (no sync line)
-operations (facts)
-  create: predicts: never; queued without a row
-  setLike: predicts: never; queued without a row
-  trending: runs: server
-    Server: scan trend by byScore: online only (site schema.q:36:5 (trend[h]))
-  trendingWithZeros: runs: server
-```
-
-With the two `sync public` lines, the same command prints:
-
-```text
-residency (facts)
-  likes: sync public
-  posts: sync public
-  trend: sync public (inherited from likes)
-operations (facts)
-  create: predicts: eligible
-  setLike: predicts: eligible
-  trending: runs: device
-    Held: scan trend by byScore: held, no horizon (site schema.q:38:5 (trend[h]))
-  trendingWithZeros: runs: device
-```
-
-The public-sync variant emits `N_MAINTAIN_SYNCED`: `one value row per hour,
-postAt, postId reaches every device`. Choose it when full public acquisition
-is acceptable; reading ten winners does not reduce that cost.
+Adding or redefining the column recounts existing sources in atomic activation.
+It publishes an event-free generation barrier, so devices reacquire by snapshot
+and server-run parent watches re-run, including when all totals are zero.
+See `guide maintains` for disclosure, cost and adoption details.
 
 ## Trending: optional scheduled ranked-table recipe
 
@@ -858,9 +766,10 @@ N_PUBLIC_AGGREGATE_COPY is a note, not an error. Every write to a public or
 uniformly readable column is computed from table or maintain reads, but
 `insert <- allow` or `update <- allow` (or a provably unrestricted equivalent)
 lets any principal run any mutation that writes it. The note names the column
-and a written expression, such as `p.score + 1` in `like`. Keep the count in a
-`maintain` and read it directly, as the Trending recipe does, or pin a copied
-score to the engine's count in both insert and update rules:
+and a written expression, such as `p.score + 1` in `like`. Declare
+`likeCount: count likes by postId` on the parent row, as Trending does above.
+For a derivation a column cannot express, pin a copied score to the engine's
+count in both insert and update rules:
 
 ```quarry
 table posts:

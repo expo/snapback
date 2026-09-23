@@ -238,6 +238,7 @@ fn cost_report(bound: &Bound, program: &ir::Program) -> String {
         return lines.join("\n");
     }
     crate::timeline_cost::report(&bound.schema, program, &mut lines);
+    crate::column_cost::report(&bound.schema, program, &mut lines);
     range_costs(&program.body, &mut lines);
     for merge in snapback4_lang::bind::merges(&program.body) {
         let matching = merge.lanes.iter().any(|lane| lane.scan.prefix.iter().any(|key| matches!(key, ir::IndexKeyExpr::WordPrefix(_))));
@@ -747,6 +748,7 @@ pub fn why(options: &Options) -> i32 {
             if let Some(column) = &table.expire {
                 println!("  expire at .{column} — a row past it is absent to every reader, then swept; null never expires");
             }
+            for line in crate::column_cost::description(&bound.schema, subject) { println!("{line}"); }
             for (path, recorded) in &table.recorded {
                 let Some(kind) = table.columns.get(path) else { eprintln!("why: recorded field {path} has no stored column; run doctor"); return 1; };
                 println!("  engine-recorded {path}: {kind} — captured from {}.{} at insertion/import/activation; trusted restore preserves it; absent from * and generated types, visible to sql", recorded.table, recorded.column);

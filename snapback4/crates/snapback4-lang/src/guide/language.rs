@@ -541,8 +541,10 @@ and evaluating it once, including when it is a call or read.
 Maintained columns put an aggregate on the row it describes. Their source
 is ordinary and non-expiring, and `by` is one reference to the parent. The
 engine owns the column; a write result omits it. Read the row for its value.
-See `guide maintains` for disclosure, stream cost and the interim fresh-store
-activation boundary.
+Adding or redefining it recounts existing sources in atomic activation.
+The event-free generation barrier makes devices reacquire; a missing stored
+field reads 0 without an authored literal default. See `guide maintains`
+for disclosure and stream cost, and `guide feeds` for hour-lane Trending.
 
 ```quarry
 table subjects:

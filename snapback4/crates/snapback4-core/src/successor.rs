@@ -90,6 +90,7 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
                         let (word, context) = match default { ColumnDefault::Now => ("now", "clock"), _ => ("viewer", "viewer") };
                         (Change::Narrowing, format!("column {name}.{column} is added as required with default {word}; existing rows would read the adoption's {context}"))
                     }
+                    (false, None) if new.maintained.contains_key(column) => (Change::Additive, format!("required maintained column {name}.{column} added; activation derives its value, missing stored fields read 0")),
                     (false, None) => (Change::Narrowing, format!("column {name}.{column} is added as required; existing rows must already carry it")),
                 };
                 steps.push(Step { path: format!("{path}.columns.{column}"), change, message });
@@ -134,10 +135,9 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
     // @ref LLP 3000.007#20.9 — derived changes report their declaration; activation still owns the existing atomic rebuild.
     for (position, maintain) in to.maintains.iter().enumerate() {
         let old = from.maintain_for(&maintain.target);
-        let defaults_changed = old.is_some_and(|old| maintain.dependencies().iter().any(|column|
-            from.tables[&old.source].defaults.get(column) != to.tables[&maintain.source].defaults.get(column)));
+        let interpretation_changed = maintain_rebuild_needed(from, to, maintain);
         let indexes_changed = old.is_some_and(|_| from.tables[&maintain.target].indexes != to.tables[&maintain.target].indexes);
-        if old != Some(maintain) || defaults_changed || indexes_changed {
+        if interpretation_changed || indexes_changed {
             steps.push(Step { path: format!("maintains[{position}]"), change: Change::Additive,
                 message: format!("maintain {} needs a derived rebuild of its filter, keys, totals or indexes; adoption rebuilds from source rows without rewriting them", maintain.label()) });
         }
@@ -211,4 +211,17 @@ pub fn keeps_literal_default_images(from: &Schema, to: &Schema) -> bool {
         if &projected != old { return false; }
     }
     added_literal
+}
+
+/// Aggregate inputs include the interpretation of absent fields, not only the
+/// declaration text. Optionality can override a formerly effective default.
+// @ref LLP 3000.007.001#3.11 — rebuild on resolved source dependency changes.
+pub(crate) fn maintain_rebuild_needed(from: &Schema, to: &Schema, maintain: &crate::schema::Maintain) -> bool {
+    from.maintain_for(&maintain.target) != Some(maintain)
+        || from.table(&maintain.source).and_then(|t| t.expire.as_ref()) != to.table(&maintain.source).and_then(|t| t.expire.as_ref())
+        || maintain.dependencies().iter().any(|field| interpretation(from, &maintain.source, field) != interpretation(to, &maintain.source, field))
+}
+
+pub(crate) fn interpretation<'a>(schema: &'a Schema, table: &str, field: &str) -> Option<(Option<&'a ColumnType>, Option<&'a ColumnDefault>, Option<&'a crate::schema::RecordedField>)> {
+    schema.table(table).map(|t| (t.columns.get(field), t.defaults.get(field), t.recorded.get(field)))
 }

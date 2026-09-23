@@ -251,10 +251,6 @@ impl RuntimeError {
                 refusal.guide = Some("feeds".into());
                 refusal.rewrite = Some(message.clone());
             }
-            Self::Structural { code: "E_MAINTAINED_COLUMN_ACTIVATION", .. } => {
-                refusal.guide = Some("maintains".into());
-                refusal.rewrite = Some("declare it before the table has rows; in dev, use a fresh store".into());
-            }
             Self::Structural { code: "E_MAINTAINED_COLUMN" | "E_MAINTAINED_COLUMN_PRIVATE", .. } => {
                 refusal.guide = Some("maintains".into());
                 refusal.rewrite = Some("omit the column; write the source rows or read the parent row".into());

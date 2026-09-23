@@ -1,0 +1,12 @@
+✔ column activation: sqlite, server watch (2620.208833ms)
+✔ column activation: sqlite, device watch (2210.037209ms)
+✔ column activation: wasm, server watch (2873.482625ms)
+✔ column activation: wasm, device watch (1210.630584ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9752.982708

@@ -778,11 +778,8 @@ fn notes_with_budget(catalog: &Catalog, schema: &snapback4_core::schema::Schema,
             format!("every write to {table}.{column} is computed from reads (`{expression}` in `{owner}`); {permission} any principal run any mutation that writes it")
         };
         let site = catalog.site_for(&format!("tables.{table}.columns.{column}"));
-        let rewrite = if target.columns.get(&column).is_some_and(|ty| matches!(ty.required(), ColumnType::Int | ColumnType::Decimal { .. } | ColumnType::Money { .. })) {
-            format!("keep the count in a maintain and read it directly, or pin {table}.{column} to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule")
-        } else {
-            format!("pin {table}.{column} to its source in both insert and update rules; see guide feeds for the rule")
-        };
+        let rewrite = super::rewrite(&table, &column, target.columns.get(&column).is_some_and(|ty|
+            matches!(ty.required(), ColumnType::Int | ColumnType::Decimal { .. } | ColumnType::Money { .. })));
         Some(crate::diag::Diagnostic::new(&site, "N_PUBLIC_AGGREGATE_COPY", message, rewrite).guide("feeds"))
     }).collect()
 }

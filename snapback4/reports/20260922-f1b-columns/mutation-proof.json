@@ -1,0 +1,10 @@
+{
+  "command": "cargo test --locked -p snapback4-lang --test maintained_columns activation::activation_mirror_is_event_free_in_place_and_zero_additions_stay_unwritten -- --exact --nocapture",
+  "original_sha256": "c286f7c9c9b7c49b6bde00bbbbc565b1d910c4b6c55dcf3e2a6403eb4c06b757",
+  "mutated_sha256": "4b26f9ff5b859b622a2ef2ac3f8f3a1e5fbfb03da9ec0b568eb1bc1028947740",
+  "restored_sha256": "c286f7c9c9b7c49b6bde00bbbbc565b1d910c4b6c55dcf3e2a6403eb4c06b757",
+  "byte_for_byte_restored": true,
+  "mutant_exit": 101,
+  "failed_for_row_events": true,
+  "restored_test_exit": 0
+}

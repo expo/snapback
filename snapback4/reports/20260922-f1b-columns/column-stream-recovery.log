@@ -1,0 +1,11 @@
+✔ the largest row-bounded source batch recovers oversized parent mirrors by snapshot (347745.881042ms)
+ℹ {"tier":"sqlite","source_moves":204,"parent_images":408,"parent_body_bytes":17136000,"ceiling":16777216,"generation":1,"watermark":16,"max_response_bytes":42487}
+ℹ {"tier":"wasm","source_moves":204,"parent_images":408,"parent_body_bytes":17136000,"ceiling":16777216,"generation":1,"watermark":16,"max_response_bytes":42487}
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 348476.0905

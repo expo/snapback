@@ -1,0 +1,120 @@
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4 v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4)
+    Finished `test` profile [optimized + debuginfo] target(s) in 28.43s
+     Running tests/clock.rs (target/debug/deps/clock-78fe334ff629515a)
+
+running 17 tests
+snapback4 dev: http://127.0.0.1:52494  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-sweep/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-sweep/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:52493  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-action-expiry-dev/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-action-expiry-dev/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4: schedule ticking fired
+snapback4: job tick done: 1 chunk, 0 rows written
+test advance_drains_expiry_across_multiple_bounded_sweeps ... ok
+snapback4 dev: http://127.0.0.1:52500  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-hold/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-hold/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:52504  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-hold/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-hold/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4: schedule ticking fired
+snapback4: job tick done: 1 chunk, 1 row written
+test advance_preserves_replay_holds_and_restart_does_not_replay_held_boundaries ... ok
+snapback4 dev: http://127.0.0.1:52508  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-sync/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-sync/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4: schedule ticking fired
+snapback4: job tick done: 1 chunk, 1 row written
+test advancing_clock_expires_rows_and_fires_two_minute_schedule_on_server_and_both_stores ... ok
+snapback4 dev: http://127.0.0.1:52520  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-presence/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-presence/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+test clock_advance_expires_presence_grace_and_a_new_poll_reconnects ... ok
+snapback4 dev: http://127.0.0.1:52544  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-action-live/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-action-live/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4 serve: http://127.0.0.1:52545  (release deployment/releases/1, generation 1, tokens only)
+test clock_advance_preserves_a_live_action_claim_session_and_settlement ... ok
+snapback4 dev: http://127.0.0.1:52565  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-effect-live/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-effect-live/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+test clock_advance_preserves_a_live_effect_claim_and_settlement ... ok
+test clock_alias_and_refusals_are_discoverable ... ok
+snapback4 dev: http://127.0.0.1:52572  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-effect-retry/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-effect-retry/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+test effect_retry_next_at_still_follows_the_dev_clock ... ok
+snapback4 dev: http://127.0.0.1:52582  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-grace-push/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-grace-push/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+test action_retry_times_follow_dev_clock_and_real_expiry_still_fences_dev_and_serve ... ok
+snapback4 dev: http://127.0.0.1:52595  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-grace-restart/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-grace-restart/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+test grace_push_is_deferred_until_clock_advance_then_delivered_once ... ok
+snapback4 dev: http://127.0.0.1:52603  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-grace-restart/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-grace-restart/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4 serve: http://127.0.0.1:52609  (release deployment/releases/1, generation 1, tokens only)
+snapback4 dev: http://127.0.0.1:52611  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-grace-reconnect/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-grace-reconnect/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+test grace_push_serve_keeps_deadline_and_reconnect_record_for_claim_after_restart ... ok
+snapback4 dev: http://127.0.0.1:52623  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-grace-reconnect/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-grace-reconnect/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+snapback4 dev: http://127.0.0.1:52625  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-offset/snapback/generated/api.ts)
+store: in memory — dies with this process
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+test grace_push_reconnect_is_satisfied_even_after_restart_and_disconnect ... ok
+snapback4: schedule ticking fired
+snapback4: job tick done: 1 chunk, 0 rows written
+snapback4 dev: http://127.0.0.1:52633  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-effect-wall-dev/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-effect-wall-dev/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+test offset_cli_advance_and_rejected_inputs_keep_time_monotone ... ok
+snapback4 serve: http://127.0.0.1:52671  (release deployment/releases/1, generation 1, tokens only)
+test release_refuses_clock_flags_and_the_endpoint ... ok
+snapback4 dev: http://127.0.0.1:52676  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-run/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-run/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+test run_now_pins_query_mutation_and_job_without_changing_running_dev ... ok
+snapback4 dev: http://127.0.0.1:52687  (schema: snapback/, types: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-write-offset/snapback/generated/api.ts)
+store: /private/var/folders/6j/y9g3pkzs2hj38_3mqwp9l_th0000gn/T/sb4-clock-81651-write-offset/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 10 on this host; connection/worker caps still apply
+test writes_use_dev_clock_for_timestamps_expiry_and_replay ... ok
+snapback4: 1 effect lease expired; queued again
+snapback4 serve: http://127.0.0.1:52747  (release deployment/releases/1, generation 1, tokens only)
+snapback4: 1 effect lease expired; queued again
+test real_time_effect_lease_loss_requeues_in_dev_and_serve ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.23s
+

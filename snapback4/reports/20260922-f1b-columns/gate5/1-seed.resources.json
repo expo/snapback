@@ -1,0 +1,17 @@
+{
+  "command": [
+    "/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/target/debug/snapback4",
+    "dev",
+    "--no-watch",
+    "--hold-effects",
+    "--hold-schedules",
+    "--port",
+    "0"
+  ],
+  "pid": 93833,
+  "elapsed_ms": 485441.219042,
+  "user_seconds": 244.50064,
+  "system_seconds": 6.464349,
+  "peak_rss_bytes": 148471808,
+  "exit_status": -15
+}

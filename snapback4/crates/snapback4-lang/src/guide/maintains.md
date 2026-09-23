@@ -112,11 +112,11 @@ query digestToday():
   return digestPosts[viewer, bucket(now, 1d, 8h)]
 ```
 
-Value indexes have a prefix of group fields, then value, then any remaining
-group fields, then id (implicit when every group field is present), until
-maintained columns ship; each field appears once.
+Value indexes have a prefix of group fields, then value, id; each field
+appears once. For post-time ties, declare `likeCount: count likes by postId`
+on posts and `by byLikes: likeCount, at, id` on that parent.
 Pin every scope field before value; use value, id alone for global ranking.
-last N descends by value, trailing group fields and id on both stores; pass next
+last N descends by value and id on both stores; pass next
 as the cursor. A direct page cursor binds its evaluated prefix and active
 generation; reuse after adoption or under another prefix is refused. It stays
 valid across ordinary writes in that generation; scores can move between pages. Only existing nonzero groups
@@ -163,12 +163,10 @@ The server's capture is authoritative. check --residency lists that implicit
 target dependency; check --cost lists the extra point reads.
 
 A UTC day is not a rolling 24-hour window. For posts younger than a day,
-group non-expiring likes by hour(.postAt), postAt, postId, index hour, value,
-postAt, postId, and merge the last 25 hours with `where .postAt > now - 86400000`:
-guide feeds gives the validated source rule, full query and zero-like fill.
-Equal scores put the newest post first; groups persist as long as any like remains.
-Whole old buckets are never visited; rejected rows in the oldest included
-hour still cost examinations. For contributions arriving in the last day on
+put `likeCount: count likes by postId` on posts and index
+`hour(at), likeCount, at, id`. Merge 25 hour lanes with the exact time filter;
+`guide feeds` gives the full query. Zero-like posts are included and equal
+scores put the newest post first. For contributions arriving in the last day on
 posts of any age, its `rollingLikes()` sorts live counts at read time;
 a meter cut makes that bounded ranking incomplete. The optional scheduled
 ranked-table recipe buys a job-computed score or stored device page, with
@@ -247,7 +245,7 @@ table votes:
   read <- allow
 maintain receivedLikes: count votes by postId.authorId
   read <- allow
-  by ranking: value, postId.authorId
+  by ranking: value, id
 maintain trend: count votes by hour(postId.createdAt), postId.createdAt, postId
   read <- allow
 query ranking(c: cursor ?):
@@ -347,14 +345,20 @@ A write acknowledgement carries no maintained fields; synchronization or an
 ordinary read supplies the row image. An acknowledgement does not replace a
 previously synchronized maintained value with a missing field.
 
-Interim activation boundary: declare the column before the parent table has
-rows; in dev, use a fresh store. E_MAINTAINED_COLUMN_ACTIVATION refuses adding,
-removing or redefining a column on a populated parent, changing its dependency
-interpretation on populated data, or changing a populated parent's lifetime.
-An empty parent can adopt a new declaration. Redefining an existing declaration
-also requires empty source and private-total storage. An unchanged declaration
-preserves private totals and stored values across generations. Populated-store
-activation is a later increment.
+Adding or redefining a column atomically rebuilds its private total and
+mirrors each live parent whose value differs, including nonzero to zero.
+An initial zero stays absent in storage and reads 0; it is not an authored
+literal default. Ordinary fields and other maintained columns are preserved.
+Resolved source type, optionality or default changes rebuild the total;
+changes to parent expiry or its column's interpretation re-run the mirror.
+Expired unswept parents stay untouched. Removal drops the private totals;
+re-adding recounts from source rows.
+
+Activation emits no row events and always commits a parent-table invalidation,
+even for all-zero totals. Devices discard old images and reacquire snapshots;
+server-run watches re-run. Unchanged declarations preserve totals.
+`check --cost` reports composed source/mirror work and derived byte bounds;
+`why` and `test --residency` attribute values and acquisition to the parent.
 
 The Postgres evaluation backend refuses maintained columns and their private
 maintains with E_POSTGRES_MAINTAINED_COLUMN. Use the SQLite engine for this form.

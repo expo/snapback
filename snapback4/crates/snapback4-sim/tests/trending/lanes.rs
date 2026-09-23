@@ -11,47 +11,41 @@ fn engine(extra: &str) -> Engine {
 }
 
 #[test]
-fn w14a_oracle_clock_and_zero_fill() {
+fn column_oracle_clock_and_zeros_in_one_merge() {
     let mut engine = engine(""); fixture(&mut engine);
     let original = ranking(&mut engine, NOW);
     assert_eq!(scored(&original), oracle(&engine, NOW));
     let later = ranking(&mut engine, NOW + HOUR);
-    let expected = original.into_iter().filter(|r| r.field("postId").unwrap() != &id("edge")).collect::<Vec<_>>();
+    let expected = original.into_iter().filter(|r| r.field("id").unwrap() != &id("edge")).collect::<Vec<_>>();
     assert_eq!(later, expected, "only the 23.5h-old post leaves when the clock advances one hour");
     seed_post(&mut engine, "future-current-hour", NOW + 1, 50);
     assert!(!names(&ranking(&mut engine, NOW)).contains(&"future-current-hour".to_string()));
-    let fill = engine.query("trendingWithZeros", Context::new("bob", args(&[("c", Value::Null)])).at(NOW)).unwrap();
+    let fill = engine.query("trending", Context::new("bob", args(&[("c", Value::Null)])).at(NOW)).unwrap();
     assert!(fill.complete); let out = rows(&fill.data);
     assert_eq!(out.len(), 10);
     assert_eq!(names(&out), ["mid", "fresh", "edge", "quiet-00", "quiet-01", "quiet-02", "quiet-03", "quiet-04", "quiet-05", "quiet-06"]);
     for n in 0..10 { seed_post(&mut engine, &format!("extra-{n}"), NOW - HOUR, 4); }
     set_like(&mut engine, "reader-2", "mid", false, NOW, "tie-mid");
     set_like(&mut engine, "alice", "edge", true, NOW, "tie-edge");
-    let tied = ranking(&mut engine, NOW).into_iter().filter(|r| ["fresh", "mid", "edge"].contains(&r.field("postId").unwrap().as_str().unwrap())).collect::<Vec<_>>();
+    let tied = ranking(&mut engine, NOW).into_iter().filter(|r| ["fresh", "mid", "edge"].contains(&r.field("id").unwrap().as_str().unwrap())).collect::<Vec<_>>();
     assert_eq!(scored(&tied), [("fresh".into(), 2), ("mid".into(), 2), ("edge".into(), 2)]);
-    let full = engine.query("trendingWithZeros", Context::new("bob", args(&[("c", Value::Null)])).at(NOW)).unwrap();
-    assert!(full.complete && rows(&full.data).iter().all(|r| r.field("score").unwrap() != &Value::Int(0)));
-    println!("W14a server fill: rows=10 examined={}; full liked page has zero fill rows", fill.metered.examined);
+    let full = engine.query("trending", Context::new("bob", args(&[("c", Value::Null)])).at(NOW)).unwrap();
+    assert!(full.complete && rows(&full.data).iter().all(|r| r.field("likeCount").unwrap() != &Value::Int(0)));
+    println!("column ranking: rows=10 examined={}; zeros share one merge", fill.metered.examined);
 }
 
 #[test]
-fn w14a_declared_forgery_refuses_false_time_and_accepts_true_time() {
-    let mut engine = engine("\nmutation forgeLike(postId: posts, postAt: time):\n  insert likes { postId, principal: viewer, postAt } if absent\nmutation forgePrincipal(postId: posts, principal: principal):\n  insert likes { postId, principal, postAt: (posts[postId] ! else POST_NOT_FOUND).at }\nmutation foreignUnlike(postId: posts, principal: principal):\n  delete likes[postId, principal]\n");
-    seed_post(&mut engine, "edge", NOW - 47 * HOUR / 2, 0);
-    for (write, time, accepted) in [("false", NOW, false), ("true", NOW - 47 * HOUR / 2, true)] {
-        let reply = engine.mutate("forgeLike", Some(write), Context::new("alice", args(&[("postId", id("edge")), ("postAt", Value::Int(time))]))
-            .at(NOW).with_ids([write.into()])).unwrap();
-        if accepted { assert!(matches!(reply.state, WriteState::Sent { .. })); }
-        else { assert!(matches!(&reply.state, WriteState::Failed { why, .. } if why.code == "E_RULE"), "{reply:?}"); }
+fn column_ranking_keeps_source_write_authority() {
+    let mut engine = engine("\nmutation forgePrincipal(postId: posts, principal: principal):\n  insert likes { postId, principal }\nmutation foreignUnlike(postId: posts, principal: principal):\n  delete likes[postId, principal]\n");
+    seed_post(&mut engine,"edge",NOW-HOUR,0);
+    set_like(&mut engine,"alice","edge",true,NOW,"initial");
+    for op in ["forgePrincipal","foreignUnlike"] {
+        let reply=engine.mutate(op,Some(op),Context::new("attacker",args(&[("postId",id("edge")),("principal",id("alice"))])).at(NOW).with_ids([op.into()])).unwrap();
+        assert!(matches!(&reply.state,WriteState::Failed {why,..} if why.code == "E_RULE"),"{reply:?}");
     }
-    for op in ["forgePrincipal", "foreignUnlike"] {
-        let reply = engine.mutate(op, Some(op), Context::new("attacker", args(&[("postId", id("edge")), ("principal", id("alice"))]))
-            .at(NOW).with_ids([op.into()])).unwrap();
-        assert!(matches!(&reply.state, WriteState::Failed { why, .. } if why.code == "E_RULE"), "{reply:?}");
-    }
-    for (n, liked) in [true, true, false, false].into_iter().enumerate() {
-        set_like(&mut engine, "alice", "edge", liked, NOW, &format!("set{n}"));
-        assert_eq!(ranking(&mut engine, NOW).len(), usize::from(liked));
+    for (n,liked) in [true,true,false,false].into_iter().enumerate() {
+        set_like(&mut engine,"alice","edge",liked,NOW,&format!("set{n}"));
+        assert_eq!(scored(&ranking(&mut engine,NOW)),vec![("edge".into(),i64::from(liked))]);
     }
 }
 
@@ -88,13 +82,14 @@ fn w14a_population_and_group_lifetime() {
     for n in 0..48_200 { seed_post(&mut engine, &format!("p{n:05}"), NOW - (n % 24) * HOUR - 1, 1); }
     let page = engine.query("trending", Context::new("bob", args(&[("c", Value::Null)])).at(NOW)).unwrap();
     assert!(page.complete && page.next.is_some()); assert_eq!(rows(&page.data).len(), 10); assert_eq!(page.metered.examined, 34);
-    let before = engine.store().rows("trend").unwrap();
+    let before = engine.store().rows("posts").unwrap();
     let bytes: usize = before.iter().map(|r| serde_json::to_vec(&snapback4_core::wire::to_json(r)).unwrap().len()).sum();
     assert!(ranking(&mut engine, NOW + 2 * DAY).is_empty());
-    assert_eq!(engine.store().rows("trend").unwrap(), before);
+    assert_eq!(engine.store().rows("posts").unwrap(), before);
     set_like(&mut engine, "reader-0", "p00000", false, NOW + 2 * DAY, "last-unlike");
-    assert_eq!(engine.store().rows("trend").unwrap().len(), 48_199);
-    println!("W14a population: in-window=48200; liked=48200; examined={}; complete=true; next=true; groups after 48h=48200; target row JSON bytes={bytes}; groups after last unlike=48199", page.metered.examined);
+    assert_eq!(engine.store().rows("posts").unwrap().len(), 48_200);
+    assert_eq!(engine.store().rows("posts").unwrap().iter().find(|r|r.field("id").unwrap() == &id("p00000")).unwrap().field("likeCount").unwrap(), &Value::Int(0));
+    println!("W14a population: in-window=48200; liked=48200; examined={}; complete=true; next=true; parents after 48h=48200; parent row JSON bytes={bytes}; parents after last unlike=48200", page.metered.examined);
 }
 
 #[test]
@@ -107,9 +102,9 @@ fn w14a_partial_boundary_hour_is_charged_and_can_cut() {
     println!("W14a boundary: stale same-hour groups=8300; examined={}; complete={}", read.metered.examined, read.complete);
 }
 
-// @ref LLP 3000.007#20.21 — the post window seeks maintained hour lanes without examining unliked candidates.
+// @ref LLP 3000.007.001#4 — the same merge includes zero-like posts.
 #[test]
-fn w12int_one_liked_post_cost_is_independent_of_unliked_population() {
+fn column_first_page_includes_unliked_posts_without_scanning_the_population() {
     let mut engine = engine("");
     seed_post(&mut engine, "winner", NOW - HOUR, 1);
     let mut previous = 1;
@@ -117,22 +112,27 @@ fn w12int_one_liked_post_cost_is_independent_of_unliked_population() {
         engine.seed((previous..population).map(|n| post(&format!("quiet-{n:05}"), NOW - HOUR))).unwrap();
         let read = engine.query("trending", Context::new("bob", args(&[("c", Value::Null)])).at(NOW)).unwrap();
         assert!(read.complete);
-        assert_eq!(scored(&rows(&read.data)), [("winner".into(), 1)]);
-        assert_eq!(read.metered.examined, 1);
+        let got=scored(&rows(&read.data));
+        assert_eq!(got[0],("winner".into(),1));
+        assert!(got[1..].iter().all(|(_,n)|*n==0));
+        assert_eq!(got.len(),population.min(10));
+        // One occupied lane: ten results plus the cursor's lookahead, regardless
+        // of how many zero-like parents remain behind that boundary.
+        assert_eq!(read.metered.examined,population.min(11) as u64);
         println!("W12INT sparse population: posts={population}; likes=1; examined={}; complete={}", read.metered.examined, read.complete);
         previous = population;
     }
 }
 
 #[test]
-fn w15c_lane_ties_rewrite_and_zero_delete() {
-    let mut engine = engine("\nquery lane(h: int, c: cursor ?):\n  return trend[h] after c last 10 by byScore\n");
+fn column_lane_ties_rewrite_and_zero_stays_indexed() {
+    let mut engine = engine("\nquery lane(h: int, c: cursor ?):\n  return posts[h] after c last 10 by byHourLikes\n");
     for (name, at) in [("older", 9_999_999), ("newer", 10_000_000), ("same-time-z", 10_000_000)] {
         seed_post(&mut engine, name, at, 2);
     }
     let lane = |engine: &mut Engine| engine.query("lane", Context::new("bob", args(&[("h", Value::Int(2)), ("c", Value::Null)])).at(NOW)).unwrap();
     let entries = |engine: &Engine| engine.store().conn().query_row(
-        "SELECT COUNT(*) FROM i WHERE ti = (SELECT num FROM _catalog WHERE name = 'trend.byScore')", [], |row| row.get::<_, i64>(0)).unwrap();
+        "SELECT COUNT(*) FROM i WHERE ti = (SELECT num FROM _catalog WHERE name = 'posts.byHourLikes')", [], |row| row.get::<_, i64>(0)).unwrap();
     assert_eq!(names(&rows(&lane(&mut engine).data)), ["same-time-z", "newer", "older"]);
     assert_eq!(entries(&engine), 3);
     set_like(&mut engine, "bob", "older", true, NOW, "up");
@@ -141,10 +141,10 @@ fn w15c_lane_ties_rewrite_and_zero_delete() {
     set_like(&mut engine, "bob", "older", false, NOW, "down");
     assert_eq!(names(&rows(&lane(&mut engine).data)), ["same-time-z", "newer", "older"]);
     for n in 0..2 { set_like(&mut engine, &format!("reader-{n}"), "same-time-z", false, NOW, &format!("zero-{n}")); }
-    assert_eq!(names(&rows(&lane(&mut engine).data)), ["newer", "older"]);
-    assert_eq!(engine.store().rows("trend").unwrap().len(), 2);
-    assert_eq!(entries(&engine), 2, "no orphaned key remains after zero deletion");
-    println!("W15c lane: 3 tied groups; 2 score rewrites; zero deletion leaves 2 entries");
+    assert_eq!(names(&rows(&lane(&mut engine).data)), ["newer", "older", "same-time-z"]);
+    assert_eq!(engine.store().rows("posts").unwrap().len(), 3);
+    assert_eq!(entries(&engine), 3, "zero-like parent remains indexed");
+    println!("column lane: 3 tied parents; 2 score rewrites; zero retains all 3 entries");
 }
 
 #[test]
@@ -169,27 +169,4 @@ fn w15c_equal_scores_continue_across_page_and_drain_cuts_in_both_directions() {
             println!("W15c {op}: rows={} pages={pages} meter_cuts={cuts}", actual.len());
         }
     }
-}
-
-#[test]
-fn w15c_recipe_meter_matches_the_old_key() {
-    let mut meters = Vec::new(); let mut pages = Vec::new();
-    for key in ["hour, value, id", "hour, value, postAt, postId"] {
-        let source = source(false).replace("by byScore: hour, value, postAt, postId", "by byScore: hour, value, id")
-            .replace("by byScore: hour, value, id", &format!("by byScore: {key}"));
-        let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
-        assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?}", bound.diagnostics);
-        let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
-        paging_fixture(&mut engine);
-        let page = engine.query("trending", Context::new("bob", args(&[("c", Value::Null)])).at(NOW)).unwrap();
-        assert!(page.complete && page.next.is_some());
-        println!("W15c recipe key={key}: {:?}", page.metered);
-        meters.push(page.metered); pages.push(page.data);
-    }
-    assert_eq!(pages[0], pages[1]);
-    assert_eq!(meters[0], meters[1]);
-    // The recorded page, not only equality: a charge added to both keys would otherwise pass.
-    // W14a's exact ledger is for word descriptors only. Ordinary range/list
-    // lanes keep their previous allowance: no non-word read changes cost.
-    assert_eq!(meters[1], snapback4_core::meter::Metered { examined: 33, index_entries: 0, rule_probes: 0, steps: 648, heap_bytes: 36_720, output_bytes: 1_691, rows_written: 0 });
 }

@@ -149,15 +149,16 @@ mod column_tests {
         let mut engine=snapback4_core::Engine::memory(bound.schema,[]).unwrap();
         let private = engine.schema().maintains[0].target.clone();
         assert!(!engine.schema().visible(&private));
+        let from = engine.seq().unwrap(); // Initial column activation has its own parent barrier.
         let tx = engine.store_mut().transaction().unwrap();
-        tx.record_commit(1, 1000, "legacy", "alice", "mutation", &[private, "likes".into()], 1).unwrap();
+        tx.record_commit(from + 1, 1000, "legacy", "alice", "mutation", &[private, "likes".into()], 1).unwrap();
         tx.commit().unwrap();
-        assert_eq!(super::check(&mut engine, 0).unwrap().2, ["likes"]);
+        assert_eq!(super::check(&mut engine, from).unwrap().2, ["likes"]);
         let tx=engine.store_mut().transaction().unwrap();
-        for seq in 2..=501 {tx.record_commit(seq,1000,"like","alice","mutation",&["likes".into()],1).unwrap()}
+        for seq in from + 2..=from + 501 {tx.record_commit(seq,1000,"like","alice","mutation",&["likes".into()],1).unwrap()}
         tx.commit().unwrap();
-        let (seq,_,tables)=super::check(&mut engine,0).unwrap();
-        assert_eq!(seq,501);
+        let (seq,_,tables)=super::check(&mut engine,from).unwrap();
+        assert_eq!(seq,from + 501);
         assert_eq!(tables,["likes","posts"]);
     }
 }

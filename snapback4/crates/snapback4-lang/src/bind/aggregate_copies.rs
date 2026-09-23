@@ -1,7 +1,7 @@
 //! A note about public columns whose values derive from reads.
 use snapback4_core::schema::{RuleExpr, RuleTerm};
 #[path = "aggregate_provenance.rs"]
-mod provenance;
+pub(crate) mod provenance;
 pub(super) use provenance::notes;
 
 /// Only prove simple unconditional rules; a row/probe-dependent rule is
@@ -27,5 +27,14 @@ pub fn truth(rule: &RuleExpr) -> Option<bool> {
             Some(if matches!(rule, RuleExpr::Eq(..)) { equal } else { !equal })
         }
         _ => None,
+    }
+}
+
+// @ref LLP 3000.007#14 — MC1 retires the interim aggregate-copy advice.
+pub(super) fn rewrite(table: &str, column: &str, numeric: bool) -> String {
+    if numeric {
+        format!("declare likeCount: count likes by postId on the parent row; for a derivation the column cannot express, pin {table}.{column} to its source in both insert and update rules (for a count, the engine's count, including zero when its group is absent); see guide feeds for the rule")
+    } else {
+        format!("pin {table}.{column} to its source in both insert and update rules; see guide feeds for the rule")
     }
 }

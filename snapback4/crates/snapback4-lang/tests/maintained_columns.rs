@@ -161,7 +161,7 @@ fn resolved_dependencies_and_private_projection() {
 }
 
 #[test]
-fn activation_refusals_empty_admission_and_unchanged_preservation() {
+fn activation_redefinitions_empty_admission_and_unchanged_preservation() {
     let mut e = engine(MODEL);
     post(&mut e,"p",1); like(&mut e,"l",id("p"),true,3);
     let before = totals(&mut e,"p");
@@ -177,9 +177,10 @@ fn activation_refusals_empty_admission_and_unchanged_preservation() {
         MODEL.replace("  likeCount: count likes by postId\n","").replace("  by byLikes: likeCount, at, id","  by byLikes: at, id").replace("{ id, at, likeCount }","{ id, at }"),
     ] {
         let b = compile(&source);
-        let error = e.adopt(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap_err();
-        assert_eq!(error.refusal().code,"E_MAINTAINED_COLUMN_ACTIVATION","{error}");
-        assert_eq!(totals(&mut e,"p"),before);
+        e.adopt(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+        let row = e.query("postRow",context(&[("id",id("p"))])).unwrap().data;
+        assert_eq!(row.field("selected").unwrap(), &Value::Int(1));
+        assert_eq!(row.field("total").unwrap(), &Value::Int(3));
     }
     let bare = MODEL.replace("  likeCount: count likes by postId\n","").replace("  selected: count likes where .active by postId\n","").replace("  total: sum likes of amount where .active by postId\n","")
         .replace("  by byLikes: likeCount, at, id","  by byLikes: at, id").replace("{ id, at, likeCount }","{ id, at }");
@@ -192,7 +193,8 @@ fn activation_refusals_empty_admission_and_unchanged_preservation() {
     let mut populated = engine(&bare);
     mutate(&mut populated,"post",&[("id",id("p")),("at",Value::Int(1))]);
     let b = compile(MODEL);
-    assert_eq!(populated.adopt(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap_err().refusal().code,"E_MAINTAINED_COLUMN_ACTIVATION");
+    populated.adopt(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    assert_eq!(totals(&mut populated,"p"),(0,0,0));
 }
 
 #[test]
@@ -680,3 +682,6 @@ fn private_targets_stay_bounded_for_long_table_and_column_names() {
 mod review;
 #[path = "maintained_columns/meter_review.rs"]
 mod meter_review;
+
+#[path = "maintained_columns/activation.rs"]
+mod activation;

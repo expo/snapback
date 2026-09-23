@@ -1,0 +1,11 @@
+{
+  "denied": {
+    "code": "E_SYNC_GENERATION",
+    "family": "generation",
+    "guide": "sync",
+    "message": "sync generation changed; adopt /schema before retrying this position"
+  },
+  "generation": 2,
+  "store_id": "44dcab4e757743742918e4ddb0e9b055",
+  "watermark": 209
+}

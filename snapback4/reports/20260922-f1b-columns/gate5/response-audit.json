@@ -1,0 +1,14 @@
+{
+  "current": {
+    "http_responses": 28,
+    "max_response_bytes": 16764471,
+    "ceiling_bytes": 16777216,
+    "over_ceiling": 0
+  },
+  "lagging": {
+    "http_responses": 28,
+    "max_response_bytes": 16764471,
+    "ceiling_bytes": 16777216,
+    "over_ceiling": 0
+  }
+}

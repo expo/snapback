@@ -1373,23 +1373,22 @@ fn w13cr1_cost_keeps_differently_grouped_range_expressions_dynamic() {
 }
 
 #[test]
-fn w15c_trending_cost_keeps_the_same_lane_and_head_counts() {
-    let recipe = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).into_iter().find(|s| s.contains("maintain trend:")).unwrap();
-    let old = recipe.replace("by byScore: hour, value, postAt, postId", "by byScore: hour, value, id");
-    let new = recipe.replace("by byScore: hour, value, id", "by byScore: hour, value, postAt, postId");
-    let p = Project::new();
-    p.source(&old); let before = p.run(&["check", "--cost"]);
-    p.source(&new); let after = p.run(&["check", "--cost"]);
-    assert!(before.status.success(), "{before:?}");
-    assert!(after.status.success(), "{after:?}");
-    let before = String::from_utf8(before.stdout).unwrap();
-    let after = String::from_utf8(after.stdout).unwrap();
-    // The first line reports elapsed check time, not structural cost.
-    let before = before.lines().skip(1).collect::<Vec<_>>().join("\n");
-    let after = after.lines().skip(1).collect::<Vec<_>>().join("\n");
-    assert_eq!(before, after);
-    assert_eq!(after.matches("merge trend: up to 25 lanes").count(), 2);
-    println!("W15c check --cost before/after (identical):\n{after}");
+fn column_trending_cost_has_one_merge_and_derived_bounds() {
+    let recipe = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).into_iter().find(|s| s.contains("likeCount: count likes by postId")).unwrap();
+    let p=Project::new(); p.source(&format!("{recipe}\njob prune():\n  chunk like in likes first 1000 by byId:\n    delete likes[like.id]\n"));
+    let out=p.run(&["check","--cost"]);
+    assert!(out.status.success(),"{out:?}");
+    let text=String::from_utf8(out.stdout).unwrap();
+    assert_eq!(text.matches("merge posts: up to 25 lanes").count(),1,"{text}");
+    assert!(text.contains("maintained columns from likes: posts.likeCount"),"{text}");
+    assert!(text.contains("own derived stream bytes") && text.contains("0 row-event bytes"),"{text}");
+    assert!(text.contains("8192-row job chunk ceiling") && text.contains("composed job chunk: <= 1638"),"{text}");
+    let why=p.run(&["why","posts"]);
+    assert!(why.status.success());
+    assert!(String::from_utf8_lossy(&why.stdout).contains("maintained column posts.likeCount"));
+    let residency=p.run(&["test","--residency"]);
+    assert!(residency.status.success(),"{residency:?}");
+    assert!(String::from_utf8_lossy(&residency.stdout).contains("maintained column posts.likeCount"));
 }
 
 #[test]

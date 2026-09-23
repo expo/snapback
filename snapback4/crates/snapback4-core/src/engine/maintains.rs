@@ -66,7 +66,10 @@ impl Runner<'_> {
     #[cfg(feature = "sqlite")]
     pub(crate) fn rebuild_maintain(&mut self, maintain: &Maintain) -> Result<(), RuntimeError> {
         let heap = self.meter.used.heap_bytes;
+        let saved = self.column_rebuild;
+        self.column_rebuild |= maintain.private.is_some();
         let result = self.rebuild_maintain_inner(maintain);
+        self.column_rebuild = saved;
         self.meter.used.heap_bytes = heap;
         result
     }

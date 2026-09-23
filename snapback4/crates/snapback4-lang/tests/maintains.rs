@@ -163,68 +163,39 @@ fn w14a_hour_lanes_are_the_first_trending_answer() {
     let first = feeds.split("## Trending:").nth(1).unwrap();
     assert!(first.starts_with(" posts younger than a day, ranked in the like's own transaction"));
     let source = snapback4_lang::guide::quarry(first).into_iter().next().unwrap();
-    assert!(source.contains("maintain trend: count likes by hour(.postAt), postAt, postId"));
-    assert!(source.contains("insert <- .principal = viewer and exists posts[id = .postId, at = .postAt]"));
-    assert!(source.contains("immutable postId, principal, postAt"));
+    assert!(source.contains("likeCount: count likes by postId"));
+    assert!(source.contains("insert <- .principal = viewer"));
+    assert!(source.contains("immutable postId, principal"));
     assert!(source.contains("unique byPair: postId, principal"));
     assert!(source.contains("delete <- .principal = viewer"));
     assert_eq!(source.lines().filter(|line| line.starts_with("mutation ")).collect::<Vec<_>>(),
         ["mutation create(body: text <=500):", "mutation setLike(postId: posts, liked: bool):"]);
-    assert_eq!(source.matches("[h] for h in range(hour(now) - 24, hour(now) + 1)").count(), 2);
+    assert_eq!(source.matches("[h] for h in range(hour(now) - 24, hour(now) + 1)").count(), 1);
     let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     assert!(bound.notes.is_empty(), "{:?}", bound.notes);
     assert!(bound.schema.schedules.is_empty());
     assert_eq!(bound.schema.operations["trending"].runs.as_deref(), Some("server"));
-    let forged = snapback4_lang::compile(&[("schema.q".into(), format!("{source}\nmutation forge():\n  update trend[0, 0, 'p'] {{ value: 999 }}\n"))]);
-    assert!(forged.diagnostics.iter().any(|d| d.message == "trend is a maintained aggregate; write its source rows instead"), "{:?}", forged.diagnostics);
+    let forged = snapback4_lang::compile(&[("schema.q".into(), format!("{source}\nmutation forge():\n  update posts['p'] {{ likeCount: 999 }}\n"))]);
+    assert!(forged.diagnostics.iter().any(|d| d.code == "E_MAINTAINED_COLUMN"), "{:?}", forged.diagnostics);
     let public = source.replace("  insert <- .authorId = viewer", "  insert <- .authorId = viewer\n  sync public")
         .replace("  delete <- .principal = viewer", "  delete <- .principal = viewer\n  sync public");
     let bound = snapback4_lang::compile(&[("schema.q".into(), public)]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-    assert_eq!(bound.notes.iter().map(|d| d.code.as_str()).collect::<Vec<_>>(), ["N_MAINTAIN_SYNCED"]);
+    assert_eq!(bound.notes.iter().map(|d| d.code.as_str()).collect::<Vec<_>>(), ["N_MAINTAINED_COLUMN_STREAM"]);
     assert_eq!(bound.schema.operations["trending"].runs.as_deref(), Some("device"));
     assert_eq!(bound.schema.operations["setLike"].predicts.as_deref(), Some("eligible"));
-    for name in ["posts", "likes", "trend"] { assert!(bound.schema.tables[name].sync.as_ref().unwrap().horizon.is_none()); }
+    for name in ["posts", "likes"] { assert!(bound.schema.tables[name].sync.as_ref().unwrap().horizon.is_none()); }
 }
 
 #[test]
-fn w15c_value_index_accepts_group_suffix_and_normalizes_total_group_key() {
-    for key in ["author, value, at, id", "author, value, at", "value, at, author", "at, value, author, id", "value, at, id"] {
+fn retired_w15c_value_index_refusals_point_at_the_column() {
+    for key in ["author, value, at, id", "author, value, at", "value, at, author", "at, value, author, id", "value, at, id", "author, value", "value, id, id", "author, author, value, id"] {
         let bound = compile(&format!("maintain totals: count posts by author, at\n  read <- allow\n  online only\n  by byCount: {key}\n"));
-        assert!(bound.diagnostics.is_empty(), "{key}: {:?}", bound.diagnostics);
-        assert!(bound.notes.is_empty());
-        let mut expected = key.split(", ").collect::<Vec<_>>();
-        if expected.last() != Some(&"id") { expected.push("id"); }
-        assert_eq!(bound.schema.tables["totals"].indexes["byCount"].columns(), expected);
-        assert_eq!(bound.schema.tables["totals"].indexes["byGroup"].columns(), ["author", "at"]);
-        assert_eq!(bound.schema.tables["totals"].indexes["byId"].columns(), ["id"]);
-    }
-}
-
-#[test]
-fn w15c_value_index_refusal_pins_the_rule_and_rewrite() {
-    // The rewrite is one pasteable `by` line: the author's group fields before `value` stay
-    // as the lane scope, the omitted ones follow `value`, and `id` closes it.
-    for (key, rewrite) in [
-        ("author, value, score, id", "by byCount: author, value, at, id"),
-        ("author, value, author, id", "by byCount: author, value, at, id"),
-        ("author, author, value, id", "by byCount: author, value, at, id"),
-        ("value, at, at, id", "by byCount: value, author, at, id"),
-        ("author, value, value, id", "by byCount: author, value, at, id"),
-        ("author, value, id, at", "by byCount: author, value, at, id"),
-        ("author, value", "by byCount: author, value, at, id"),
-        ("value, at", "by byCount: value, author, at, id"),
-        ("value, id, id", "by byCount: value, author, at, id"),
-    ] {
-        let bound = compile(&format!("maintain totals: count posts by author, at\n  read <- allow\n  online only\n  by byCount: {key}\n"));
-        let d = bound.diagnostics.iter().find(|d| d.code == "E_QUARRY_MAINTAIN").unwrap_or_else(|| panic!("{key}: {:?}", bound.diagnostics));
-        assert_eq!(d.message, "a maintain value index is a prefix of group fields, then value, then any remaining group fields, then id (id may be omitted only when every group field is present); fields cannot repeat");
-        assert_eq!(d.rewrite, rewrite, "{key}");
-        assert_eq!(d.guide, "maintains");
-        // The rewrite compiles, and keeps the author's scope.
-        let fixed = compile(&format!("maintain totals: count posts by author, at\n  read <- allow\n  online only\n  {rewrite}\n"));
-        assert!(fixed.diagnostics.is_empty(), "{rewrite}: {:?}", fixed.diagnostics);
+        let d=bound.diagnostics.iter().find(|d|d.code == "E_QUARRY_MAINTAIN").unwrap_or_else(||panic!("{key}: {:?}",bound.diagnostics));
+        assert_eq!(d.message,"a maintain value index is a prefix of group fields, then value, id; fields cannot repeat");
+        assert!(d.rewrite.contains("likeCount: count likes by postId"));
+        assert!(d.rewrite.contains("by byLikes: likeCount, at, id"));
     }
 }
 
@@ -245,18 +216,18 @@ fn w15c_old_value_indexes_and_expiry_refusal_are_unchanged() {
 }
 
 #[test]
-fn w15c_cards_pin_the_interim_rule_and_newest_first_recipe() {
+fn cards_pin_retirement_and_newest_first_column_recipe() {
     let maintains = snapback4_lang::guide::card("maintains").unwrap().split_whitespace().collect::<Vec<_>>().join(" ");
-    assert!(maintains.contains("Value indexes have a prefix of group fields, then value, then any remaining group fields, then id (implicit when every group field is present), until maintained columns ship; each field appears once."));
+    assert!(maintains.contains("Value indexes have a prefix of group fields, then value, id; each field appears once."));
     let feeds = snapback4_lang::guide::card("feeds").unwrap();
-    let source = snapback4_lang::guide::quarry(feeds).into_iter().find(|s| s.contains("maintain trend:")).unwrap();
-    assert!(source.contains("by byScore: hour, value, postAt, postId\n"));
-    assert!(feeds.contains("Equal scores put the newest post first"));
+    let source = snapback4_lang::guide::quarry(feeds).into_iter().find(|s| s.contains("likeCount: count likes by postId")).unwrap();
+    assert!(source.contains("by byHourLikes: hour(at), likeCount, at, id\n"));
+    assert!(feeds.split_whitespace().collect::<Vec<_>>().join(" ").contains("Equal scores put the newest post first"));
     let readme = include_str!("../../../packages/snapback4/README.md").split_whitespace().collect::<Vec<_>>().join(" ");
     assert!(readme.contains("`guide maintains`") && readme.contains("`guide feeds`"), "the orientation reaches both complete references");
     // The complete ordering law above and the recipe's key now live on these linked cards.
     let reference = format!("{maintains} {}", feeds.split_whitespace().collect::<Vec<_>>().join(" "));
-    assert!(reference.contains("by byScore: hour, value, postAt, postId") && reference.contains("Equal scores put the newest post first"));
+    assert!(reference.contains("by byHourLikes: hour(at), likeCount, at, id") && reference.contains("Equal scores put the newest post first"));
     assert!(!reference.contains("ties use maintained id") && !readme.contains("ties use maintained id"));
     let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
     assert!(b.diagnostics.is_empty() && b.notes.is_empty(), "{:?}", b.diagnostics);

@@ -1,0 +1,37 @@
+{
+  "combined_command": "CARGO_BUILD_JOBS=2 cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast -- --test-threads=2",
+  "combined_exit": 101,
+  "note": "Combined run retained the initial failures in three CLI targets and the aggregate-copy card target; the recorded target reruns resolve them. Counts below use those successful reruns.",
+  "packages": {
+    "snapback4": {
+      "passed": 346,
+      "failed": 0,
+      "ignored": 1,
+      "targets": 17
+    },
+    "snapback4-core": {
+      "passed": 191,
+      "failed": 0,
+      "ignored": 0,
+      "targets": 16
+    },
+    "snapback4-device": {
+      "passed": 1013,
+      "failed": 0,
+      "ignored": 3,
+      "targets": 27
+    },
+    "snapback4-lang": {
+      "passed": 419,
+      "failed": 0,
+      "ignored": 4,
+      "targets": 28
+    },
+    "snapback4-sim": {
+      "passed": 523,
+      "failed": 0,
+      "ignored": 4,
+      "targets": 23
+    }
+  }
+}

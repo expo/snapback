@@ -114,8 +114,11 @@ index only when that column and every other non-id key column are immutable.
 A cursor carries the ordinal. Adding a time key, or changing its period or
 offset, rebuilds the index at activation over existing rows.
 
-With a maintained count on the row (LLP 3000.007 §21.3 P2, in design), the
-same time key can serve Trending directly.
+With `likeCount: count likes by postId` on posts,
+`by byHourLikes: hour(at), likeCount, at, id` serves Trending directly.
+Zero-like posts participate; ties use post time. Activation builds this index
+with missing counts interpreted as 0, then mirrors authoritative totals.
+The generation change makes devices reacquire. `guide feeds` has the query.
 
 ## Refused index declarations and reads
 

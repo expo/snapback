@@ -1,0 +1,28 @@
+    Blocking waiting for file lock on build directory
+   Compiling snapback4-core v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.2.33 (/Users/ccheever/projects/snapback-worktrees/sb4-general-services-20260916/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized + debuginfo] target(s) in 77m 02s
+     Running tests/corpus.rs (target/debug/deps/corpus-b5f92c521a35e129)
+
+running 18 tests
+test adapter::expected_cursor_and_state_are_required_contract_fields ... ok
+test adapter::asset_exclusion_requires_an_argument_that_needs_uploaded_facts ... ok
+test adapter::capped_merge_cursor_oracle_keeps_the_frozen_absent_continuation ... ok
+test adapter::receipt_freshness_does_not_claim_an_unpaginated_limit_is_complete ... ok
+test adapter::receipt_specific_oracles_have_named_exclusions ... ok
+test adapter::auxiliary_preview_and_lane_discovery_limits_do_not_truncate_the_outer_page ... ok
+test adapter::refusal_state_mapping_preserves_application_rejection_and_engine_refusal ... ok
+test adapter::schema_and_program_regressions_cannot_turn_into_skips ... ok
+test adapter::exhausted_underfilled_result_pages_end_despite_a_limited_preview ... ok
+test adapter::capped_cursor_oracles_continue_from_the_golden_last_visible_row ... ok
+test adapter::independent_effect_ids_replace_only_the_frozen_shared_supply_oracle ... ok
+test adapter::typed_schema_admission_is_compared_with_the_refusal_oracle ... ok
+test adapter::current_sb4_asset_references_use_server_metadata_before_mutation_evaluation ... ok
+test adapter::a_capped_partial_query_is_executed_and_static_prices_are_distinct_from_structure ... ok
+test adapter::implicit_old_store_keys_are_executed_through_explicit_sb4_indexes ... ok
+test adapter::state_and_next_are_checked_even_when_the_result_matches ... ok
+test adapter::translated_asset_clearing_deletion_and_metadata_reads_still_execute ... ok
+test corpus ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.33s
+

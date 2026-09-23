@@ -95,3 +95,12 @@ Changing the maintain to read <- allow deliberately grants the filtered-delta
 channel and produces N_MAINTAIN_DELTA. Hidden-target attempts reserve both
 possible aggregate groups, predicate/key work and indexes before inspecting
 the old source image.
+
+
+A maintained column such as `likeCount: count likes by postId` belongs to the
+engine, while ordinary fields keep their existing writer rules. Source rules
+authorize contributions; parent readers receive the count, including counts
+over private sources. Rules and their probes cannot depend on maintained
+fields. Adding or redefining the column recounts and mirrors live parents
+without consulting parent write rules; its event-free generation barrier
+reacquires devices and wakes server-run parent watches. See `guide maintains`.

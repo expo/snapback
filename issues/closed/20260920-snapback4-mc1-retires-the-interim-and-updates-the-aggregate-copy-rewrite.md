@@ -1,6 +1,6 @@
 # Snapback 4: when maintained columns (MC1) land, retire W15c's interim and point the aggregate-copy note at the column form
 
-Status: Open — for the MC1 landing (the wave 12 lead's lane; LLP 3000.007 §14 ruling 41's addendum)
+Status: Resolved — F1b maintained-column adoption and surface, 2026-09-23 (supervisor owns review and commit)
 Priority: P3 (a coordination note, not a defect; nothing is wrong until MC1 lands without it)
 Date: 2026-09-20
 Systems: `snapback4-lang` `bind/schema.rs` (the maintain value-index rule), `bind/aggregate_copies.rs` (the note's rewrite), the feeds and maintains cards
@@ -22,3 +22,19 @@ Evidence status: the two landings below and the ruling
 ## Not doing here
 
 Nothing; filed so the MC1 landing does not have to rediscover either.
+
+## Resolution — 2026-09-23
+
+F1b restores the maintain value-index suffix `value, id`; its refusal points to
+`likeCount: count likes by postId` and the ordinary parent index
+`by byLikes: likeCount, at, id`. The aggregate-copy rewrite leads with that
+column form, followed by pinning both write rules for derivations it cannot
+express. The maintains card removes the interim exception. Trending now merges
+25 hour lanes of `by byHourLikes: hour(at), likeCount, at, id`, including zeros
+and breaking ties by post time. Activation, engine/device oracle, retirement
+refusal and compilable-card tests accompany the change.
+
+Real mechanism gate 5 passes with 100,000 parents, 1,000,000 sources and two
+HTTP devices: both adopt, including the device behind a 16,744,164-byte page;
+no device response exceeds the ceiling. Evidence, affected checks and wasm
+measurement are in [the F1b report](../../snapback4/reports/20260922-f1b-columns.md).

@@ -586,29 +586,20 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
     let mut names = BTreeSet::from(["byGroup".to_owned(), "byId".to_owned()]);
     for index in &maintain.indexes {
         if !names.insert(index.name.clone()) { return Err(super::maintains::refusal(&index.site, format!("duplicate maintain index {}", index.name), "use a distinct index name; byGroup and byId are generated")); }
-        let mut index = index.clone();
+        let index = index.clone();
         if index.columns.contains(&"value".into()) {
             // @ref LLP 3000.007#20.21 — stored order is stale; the sound server count upper-bound threshold read is not built.
             if source.decl.expire.is_some() { return Err(Diagnostic::new(&index.site, "E_QUARRY_MAINTAIN_EXPIRE", format!("maintain {} cannot order by value because source {} expires: stored order is stale before the physical sweep, so taking stored top-N can miss a live winner; a count upper-bound threshold scan is not built", maintain.name, maintain.source), "for a window over the entity's own immutable time, use guide feeds' hour-lanes Trending over a non-expiring source; for contributions arriving in the window, use its live bounded rollingLikes read: a candidate or contribution scan cut makes the ranking incomplete").guide("feeds")); }
-            // @ref LLP 3000.007#14 — ruling 41
-            let explicit_id = index.columns.last().is_some_and(|field| field == "id");
+            // @ref LLP 3000.007#14 — ruling 41's interim retires with maintained columns.
+            let value_at = index.columns.iter().position(|field| field == "value").unwrap();
             let fields = index.columns.iter().collect::<BTreeSet<_>>();
-            let whole_group = maintain.by.iter().all(|field| fields.contains(field));
             if !index.is_plain() || fields.len() != index.columns.len()
-                || index.columns.iter().any(|field| field != "value" && !(field == "id" && explicit_id) && !maintain.by.contains(field))
-                || (!explicit_id && !whole_group) {
-                // The rewrite is one pasteable `by` line: the author's fields before `value`
-                // stay (they are the lane scope), the group fields they omitted follow it.
-                let value_at = index.columns.iter().position(|field| field == "value").unwrap_or(index.columns.len());
-                let mut seen = BTreeSet::new();
-                let prefix = index.columns[..value_at].iter().filter(|field| maintain.by.contains(field) && seen.insert(field.as_str())).cloned().collect::<Vec<_>>();
-                let rest = maintain.by.iter().filter(|field| !seen.contains(field.as_str())).cloned().collect::<Vec<_>>();
-                let rewrite = prefix.into_iter().chain(["value".to_owned()]).chain(rest).chain(["id".to_owned()]).collect::<Vec<_>>().join(", ");
-                return Err(super::maintains::refusal(&index.site, "a maintain value index is a prefix of group fields, then value, then any remaining group fields, then id (id may be omitted only when every group field is present); fields cannot repeat",
-                    format!("by {}: {rewrite}", index.name)));
+                || index.columns[value_at..] != ["value", "id"]
+                || index.columns[..value_at].iter().any(|field| !maintain.by.contains(field)) {
+                return Err(super::maintains::refusal(&index.site,
+                    "a maintain value index is a prefix of group fields, then value, id; fields cannot repeat",
+                    "end this index with value, id; for post-time ties declare likeCount: count likes by postId on posts and by byLikes: likeCount, at, id (guide maintains)"));
             }
-            // Keep the existing total-key, lane and cursor path for the abbreviated declaration.
-            if !explicit_id { index.columns.push("id".into()); }
         }
         indexes.push(index);
     }

@@ -12,6 +12,7 @@ pub fn facts(bound: &Bound) -> String {
             snapback4_core::schema::Constraint::Cap { by, max } => Some(format!("; cap {max} by {}", by.join(", "))), _ => None,
         }).collect::<String>();
         lines.push(format!("  {name}: {}{caps}", residency::table_line(&bound.schema, name)));
+        lines.extend(crate::column_cost::description(&bound.schema,name));
     }
     lines.push("operations (facts)".into());
     for (name, fact) in &bound.schema.operations { lines.push(residency::operation_lines(name, fact)); }
@@ -37,6 +38,7 @@ pub fn personas(bound: &Bound, options: &super::Options) -> Vec<String> {
 fn report(tx: &snapback4_core::store::Tx<'_>, schema: &snapback4_core::Schema, personas: &[String], verbose: bool) -> Result<String, snapback4_core::error::RuntimeError> {
     let mut counts = Vec::new();
     let mut totals = BTreeMap::new();
+    let mut columns = BTreeMap::<(String,String), (u64,u64)>::new();
     let now = snapback4_core::now_ms();
     for persona in personas {
         let principal = if persona.contains(':') { persona.clone() } else { crate::project::persona_principal(persona) };
@@ -49,6 +51,12 @@ fn report(tx: &snapback4_core::store::Tx<'_>, schema: &snapback4_core::Schema, p
                 if let Some(row) = &event.data && let Some(count) = tables.get_mut(&event.table) {
                     count.0 += 1;
                     count.1 += serde_json::to_vec(&wire::to_json(row)).expect("row JSON").len() as u64;
+                    for column in schema.tables[&event.table].maintained.keys() {
+                        let value=row.field(column).cloned().unwrap_or(snapback4_core::Value::Int(0));
+                        let n=columns.entry((persona.clone(),format!("{}.{column}",event.table))).or_default();
+                        n.0 += 1;
+                        n.1 += serde_json::to_vec(&wire::to_json(&value)).expect("value JSON").len() as u64;
+                    }
                 }
             }
             cursor = page.next;
@@ -71,6 +79,10 @@ fn report(tx: &snapback4_core::store::Tx<'_>, schema: &snapback4_core::Schema, p
         for (persona, (rows, bytes)) in &totals { lines.push(format!("  {persona} total: {rows} rows, {bytes} bytes")); }
     }
     let (rows, bytes) = totals.values().fold((0, 0), |(rows, bytes), (r, b)| (rows + r, bytes + b));
+    for ((persona,column),(rows,bytes)) in columns {
+        lines.push(format!("  maintained column {persona} {column}: {rows} acquired parent values, {bytes} value bytes (included in parent payloads; no separate device rows)"));
+    }
+    for (name,_) in schema.visible_tables() { lines.extend(crate::column_cost::description(schema,name)); }
     lines.push(format!("  total across personas: {rows} rows, {bytes} bytes"));
     Ok(lines.join("\n"))
 }
