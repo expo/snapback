@@ -588,23 +588,7 @@ impl io::Write for JsonBuffer {
     fn flush(&mut self) -> io::Result<()> { Ok(()) }
 }
 
-use crate::sync_wire::{SyncEvents, StreamReply};
-
-#[derive(serde::Serialize)]
-struct SnapshotReply {
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    acquisitions: Vec<wire::Acquisition>,
-    acknowledged: BTreeMap<String, u64>,
-    after: Option<String>,
-    events: SyncEvents,
-    generation: u64,
-    held: Option<wire::HeldGroups>,
-    more: bool,
-    next: Option<String>,
-    snapshot: bool,
-    store_id: String,
-    watermark: u64,
-}
+use crate::sync_wire::{SnapshotReply, SyncEvents, StreamReply};
 
 pub(crate) fn respond(request: Request, status: u16, body: impl serde::Serialize) {
     respond_with_cors(request, status, body, true)

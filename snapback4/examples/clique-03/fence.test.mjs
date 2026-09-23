@@ -20,10 +20,14 @@ test('published 0.2.33 refuses the integrated app before prediction',async t=>{
   const backendFile=join(dir,'backend.json'),store=join(dir,'refused.sqlite');
   writeFileSync(backendFile,JSON.stringify(backend));
   const native=spawnSync(legacy.binary,['device',store,backendFile],{encoding:'utf8',input:JSON.stringify({op:'admit',entry:{id:'must-not-predict',seq:1,op:'post',viewer:'u0005',args:{body:'no prediction'},now:1,predictable:true}})+'\n',timeout:20000});
-  assert.notEqual(native.status,0);assert.match(native.stdout+native.stderr,/unknown variant [`'"]?Capabilities/);
+  const nativeRefused = native.status !== 0 && /unknown variant [`'"]?Capabilities/.test(native.stdout + native.stderr);
+  assert.ok(nativeRefused);
   assert.equal(existsSync(store),false,'refusal precedes store creation');
   assert.doesNotMatch(native.stdout,/"predicted"/);
-  assert.throws(()=>new legacy.wasm(JSON.stringify(backend),'[]'),/unknown variant [`'"]?Capabilities/);
+  let wasmRefusal;
+  try { new legacy.wasm(JSON.stringify(backend),'[]'); } catch (error) { wasmRefusal = String(error); }
+  const wasmRefused = /unknown variant [`'"]?Capabilities/.test(wasmRefusal ?? '');
+  assert.ok(wasmRefused);
   const bytes=readFileSync(join(dir,'snapback4/package/dist/wasm/snapback4_device_bg.wasm'));
-  t.diagnostic(JSON.stringify({published:'0.2.33',native:'refused before store creation or prediction',wasm:'constructor refused',raw:bytes.length,gzip:gzipSync(bytes,{level:9}).length,sha256:createHash('sha256').update(bytes).digest('hex')}));
+  t.diagnostic(JSON.stringify({published:'0.2.33',nativeRefused,storeAbsent:!existsSync(store),predictionAbsent:!native.stdout.includes('"predicted"'),wasmRefused,raw:bytes.length,gzip:gzipSync(bytes,{level:9}).length,sha256:createHash('sha256').update(bytes).digest('hex')}));
 });

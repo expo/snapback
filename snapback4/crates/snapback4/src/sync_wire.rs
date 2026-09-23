@@ -54,3 +54,18 @@ pub(crate) struct StreamReply {
     pub(crate) watermark: u64,
 }
 
+#[derive(serde::Serialize)]
+pub(crate) struct SnapshotReply {
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub(crate) acquisitions: Vec<wire::Acquisition>,
+    pub(crate) acknowledged: BTreeMap<String, u64>,
+    pub(crate) after: Option<String>,
+    pub(crate) events: SyncEvents,
+    pub(crate) generation: u64,
+    pub(crate) held: Option<wire::HeldGroups>,
+    pub(crate) more: bool,
+    pub(crate) next: Option<String>,
+    pub(crate) snapshot: bool,
+    pub(crate) store_id: String,
+    pub(crate) watermark: u64,
+}

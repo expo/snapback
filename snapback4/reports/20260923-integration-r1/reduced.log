@@ -1,0 +1,54 @@
+   Compiling snapback4-lang v0.2.33 (/Users/ccheever/projects/snapback-w12a/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized + debuginfo] target(s) in 3.00s
+     Running tests/clique_03.rs (target/debug/deps/clique_03-c2ac69b4ab41f3e2)
+
+running 1 test
+test application_fixture ... CLIQUE_SEED {"elapsed_s":0.208697708,"full":false,"replay":{"additional_equal_time_replies":45,"edges":159,"operations":{"follow":159,"like":9,"post":349,"register":73,"reply":4,"repost":5},"out_of_scope":{"dm-create":901,"group-create":101,"member-add":49,"profile-set":73,"react":2000,"send":58092,"send-media":73},"pack":"0.2.2-m8","posts":381,"profiles":73}}
+CLIQUE_FOLLOWING {"oracle":true,"pages":2,"reader":"u0005","rows":30}
+CLIQUE_FOLLOWING {"oracle":true,"pages":16,"reader":"u0500","rows":316}
+CLIQUE_FOLLOWING {"oracle":true,"pages":2,"reader":"u0901","rows":30}
+CLIQUE_COLD {"elapsed_s":0.015499416,"generation":1,"rows":1200,"wire_bytes":207080}
+CLIQUE_ADOPTION {"activation_row_events":0,"activation_s":0.041504167,"device_counts":{"implicit_zero_posts":0,"likes_checked":31,"posts_checked":381,"received_like_groups_checked":8},"device_queries":{"following":{"pages":2,"rows":30,"server_equal":true},"thread":{"pages":3,"rows":46,"server_equal":true},"trending":{"pages":3,"rows":30,"server_equal":true}},"generation":2,"old_generation":1,"reacquired_rows":1200,"reacquired_wire_bytes":213685,"reacquisition_s":0.017738833,"server_counts":{"implicit_zero_posts":362,"likes_checked":31,"posts_checked":381,"received_like_groups_checked":8}}
+CLIQUE_FOLLOWING {"oracle":true,"pages":2,"reader":"u0005","rows":30}
+CLIQUE_FOLLOWING {"oracle":true,"pages":16,"reader":"u0500","rows":316}
+CLIQUE_FOLLOWING {"oracle":true,"pages":2,"reader":"u0901","rows":30}
+CLIQUE_CORRECT {"authors_with_four_counts_checked":73,"count_values_checked":2336,"days":[20449,20450,20451,20452,20453,20454,20455,20456],"equal_timestamp_cursor":true,"thread_pages":3,"thread_rows":46,"trending_pages":3,"trending_rows":30}
+CLIQUE_READ {"metered":{"examined":102,"heap_bytes":150349,"index_entries":0,"output_bytes":10975,"rows_written":0,"rule_probes":21,"steps":899},"p95_ms":0.23083399999999998,"reader":"u0005","returned":20,"samples":20,"warmups":3}
+CLIQUE_READ {"metered":{"examined":102,"heap_bytes":150410,"index_entries":0,"output_bytes":10981,"rows_written":0,"rule_probes":21,"steps":899},"p95_ms":0.242083,"reader":"u0500","returned":20,"samples":20,"warmups":3}
+CLIQUE_READ {"metered":{"examined":113,"heap_bytes":150766,"index_entries":0,"output_bytes":10975,"rows_written":0,"rule_probes":26,"steps":930},"p95_ms":0.26045799999999997,"reader":"u0901","returned":20,"samples":20,"warmups":3}
+CLIQUE_RATIOS {"celebrity_sparse":1.1283346474089604,"dense_sparse":1.0487319892216918,"limit":3.0}
+CLIQUE_STORE {"includes":"rows, indexes, partition log, commits, recorded attribution","physical_rows":2374,"sqlite_bytes":3489792}
+CLIQUE_RESTART {"device_queries":{"following":{"pages":4,"rows":62,"server_equal":true},"thread":{"pages":3,"rows":47,"server_equal":true},"trending":{"pages":4,"rows":31,"server_equal":true}},"follow_unfollow_queue":true,"intents_survived_process_exit":true,"outbox_empty":true,"posting_predicts":true,"queued":5,"settled_post_like_count":3,"settled_reply_position":47,"store_checks":{"implicit_zero_posts":0,"likes_checked":32,"posts_checked":382,"received_like_groups_checked":8}}
+CLIQUE_FOLLOWING {"oracle":true,"pages":4,"reader":"u0005","rows":62}
+CLIQUE_FOLLOWING {"oracle":true,"pages":16,"reader":"u0500","rows":318}
+CLIQUE_FOLLOWING {"oracle":true,"pages":2,"reader":"u0901","rows":30}
+CLIQUE_FOLLOWING {"oracle":true,"pages":4,"reader":"u0005","rows":61}
+CLIQUE_FOLLOWING {"oracle":true,"pages":16,"reader":"u0500","rows":317}
+CLIQUE_FOLLOWING {"oracle":true,"pages":2,"reader":"u0901","rows":30}
+CLIQUE_FOLLOWING {"oracle":true,"pages":4,"reader":"u0005","rows":61}
+CLIQUE_FOLLOWING {"oracle":true,"pages":16,"reader":"u0500","rows":317}
+CLIQUE_FOLLOWING {"oracle":true,"pages":2,"reader":"u0901","rows":30}
+CLIQUE_TRANSITIONS {"duplicate_repost_idempotent":true,"following_after_unrepost":true,"original_removal_preserves_repost":true,"purge_chunks":2,"recorded_tombstones_gone":true,"removed_like_refusal":"FEED_POST_REMOVED","removed_not_trending":true,"removed_repost_refusal":"FEED_POST_REMOVED","schedule":"feedPurgeRemovedEvery","tombstone_ids":["308bcca67216f03541c58e8c45c5bd92a67ca45686b2043412673297c0833c3b","3deba77150e460cc1520c13d993c84f32fbae7015604372339f5b06e059a1aa3"],"tombstoned_events":["lifecycle-repost-event","rank-003"],"unlike_zero":true}
+CLIQUE_FOLLOWING {"oracle":true,"pages":4,"reader":"u0005","rows":61}
+CLIQUE_FOLLOWING {"oracle":true,"pages":16,"reader":"u0500","rows":317}
+CLIQUE_FOLLOWING {"oracle":true,"pages":2,"reader":"u0901","rows":30}
+CLIQUE_CORRECT {"authors_with_four_counts_checked":73,"count_values_checked":2336,"days":[20449,20450,20451,20452,20453,20454,20455,20456],"equal_timestamp_cursor":true,"thread_pages":3,"thread_rows":47,"trending_pages":3,"trending_rows":30}
+CLIQUE_ARRIVAL_DAYS {"arrival_day":20455,"like_at":1767392846010,"post":"rank-001","post_day":20454,"reply_at":1767392846010}
+CLIQUE_WRITE {"ack_p95_ms":0.445625,"author":"alice","followers":5,"samples":20,"warmups":3}
+CLIQUE_WRITE {"ack_p95_ms":0.12079100000000001,"author":"u0900","followers":62,"samples":20,"warmups":3}
+CLIQUE_WRITE_RATIO {"celebrity_followers":62,"celebrity_ordinary":0.2710597475455821,"limit":3.0,"ordinary_followers":5}
+CLIQUE_FOLLOWING {"oracle":true,"pages":5,"reader":"u0005","rows":84}
+CLIQUE_FOLLOWING {"oracle":true,"pages":16,"reader":"u0500","rows":317}
+CLIQUE_FOLLOWING {"oracle":true,"pages":3,"reader":"u0901","rows":53}
+CLIQUE_CORRECT {"authors_with_four_counts_checked":73,"count_values_checked":2336,"days":[20449,20450,20451,20452,20453,20454,20455,20456],"equal_timestamp_cursor":true,"thread_pages":3,"thread_rows":47,"trending_pages":8,"trending_rows":76}
+CLIQUE_AMPLIFICATION {"aggregate_event_bytes":647,"body_bytes":500,"events":3,"mode":"parent","stream_wire_bytes":1111}
+CLIQUE_AMPLIFICATION {"aggregate_event_bytes":147,"body_bytes":500,"events":3,"mode":"separate","stream_wire_bytes":611}
+CLIQUE_AMPLIFICATION_RATIO {"body_bytes":500,"parent_separate":1.8183306055646482}
+CLIQUE_AMPLIFICATION {"aggregate_event_bytes":4147,"body_bytes":4000,"events":3,"mode":"parent","stream_wire_bytes":4611}
+CLIQUE_AMPLIFICATION {"aggregate_event_bytes":147,"body_bytes":4000,"events":3,"mode":"separate","stream_wire_bytes":611}
+CLIQUE_AMPLIFICATION_RATIO {"body_bytes":4000,"parent_separate":7.546644844517185}
+CLIQUE_OK {"edges":159,"elapsed_s":0.558714875,"full":false,"likes":31,"posts":428,"replies":51}
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.56s
+

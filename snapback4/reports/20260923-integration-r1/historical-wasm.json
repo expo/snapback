@@ -1,0 +1,17 @@
+{
+  "current": {
+    "raw": 1707590,
+    "gzip_n9": 473091,
+    "sha256": "e0088029dde19c22fdd2b5b8779c28b5a62de9d2b81aaae0c3d4de1db5e02eae"
+  },
+  "c842dbaa5": {
+    "raw": 1599837,
+    "gzip_n9": 443526,
+    "sha256": "10697d6577ccc3286ed0cd5c8ec71aa375da73c5a06f4b84c35ee90cb0e16b5c"
+  },
+  "published_0.2.33": {
+    "raw": 1599837,
+    "gzip_n9": 443422,
+    "sha256": "7bd0e119cedcc9ff7eababb71023adf84e59e9978130a51705d0ddb15b282bfb"
+  }
+}

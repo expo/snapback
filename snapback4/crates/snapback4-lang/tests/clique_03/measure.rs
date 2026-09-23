@@ -1,20 +1,27 @@
+const WARMUPS: usize = 3;
+const SAMPLES: usize = 20;
+const RATIO_LIMIT: f64 = 3.0;
 use super::*;
 pub fn reads(e: &mut Engine, m: &Model) {
     let mut p95s = BTreeMap::new();
     for who in ["u0005", "u0500", "u0901"] {
         let mut times = Vec::new();
+        let mut warmups = 0;
         let mut last = None;
-        for n in 0..23 {
+        for n in 0..WARMUPS + SAMPLES {
             let start = Instant::now();
             let out = e.query("following", ctx(who, &[], m.now)).unwrap();
-            if n >= 3 {
+            if n >= WARMUPS {
                 times.push(start.elapsed().as_secs_f64() * 1000.0);
+            } else {
+                warmups += 1;
             }
             assert!(out.complete);
             last = Some(out);
         }
+        assert_eq!(warmups, WARMUPS);
         times.sort_by(f64::total_cmp);
-        p95s.insert(who, times[18]);
+        p95s.insert(who, p95(&mut times));
         let out = last.unwrap();
         let recipe_examined = if who == "u0901" { 85 } else { 42 };
         assert!(
@@ -23,12 +30,18 @@ pub fn reads(e: &mut Engine, m: &Model) {
         );
         println!(
             "CLIQUE_READ {}",
-            json!({"reader":who,"p95_ms":times[18],"samples":20,"warmups":3,"metered":out.metered,"returned":out.data.as_array().unwrap().len()})
+            json!({"reader":who,"p95_ms":p95(&mut times),"samples":times.len(),"warmups":warmups,"metered":out.metered,"returned":out.data.as_array().unwrap().len()})
         );
     }
+    let dense = p95s["u0500"] / p95s["u0005"];
+    let celebrity = p95s["u0901"] / p95s["u0005"];
+    assert!(
+        dense <= RATIO_LIMIT && celebrity <= RATIO_LIMIT,
+        "reader ratios: {dense}, {celebrity}"
+    );
     println!(
         "CLIQUE_RATIOS {}",
-        json!({"dense_sparse":p95s["u0500"]/p95s["u0005"],"celebrity_sparse":p95s["u0901"]/p95s["u0005"],"limit":3.0})
+        json!({"dense_sparse":dense,"celebrity_sparse":celebrity,"limit":RATIO_LIMIT})
     );
     let pages: i64 = e
         .store()
@@ -57,6 +70,7 @@ pub fn amplification() {
     let separate = without(&separate, "query trending(")
         + "\nmaintain likeTotals: count likes by postId\n  read <- allow\n";
     for width in [500, 4000] {
+        let mut sizes = BTreeMap::new();
         for (label, source) in [("parent", APP), ("separate", separate.as_str())] {
             let mut e = engine(source);
             for who in ["alice", "bob"] {
@@ -86,9 +100,12 @@ pub fn amplification() {
                 3,
                 "like-0001",
             );
-            let p = e.stream_at("alice", from, 1000, 4).unwrap();
-            let events:Vec<_>=p.events.iter().map(|r|json!({"table":r.table,"kind":r.kind,"id":r.id,"data":r.data.as_ref().map(snapback4_core::wire::to_json)})).collect();
-            let wire = json!({"snapshot":false,"requested_watermark":from,"images_at":p.images_at,"joined":p.joined,"acquisitions":p.acquisitions,"events":events,"watermark":p.watermark,"more":p.more,"generation":e.generation()});
+            let encoded = transport::stream(&mut e, "alice", from, 4);
+            let wire: serde_json::Value = serde_json::from_slice(&encoded).unwrap();
+            let events = wire["events"].as_array().unwrap();
+            assert!(events.iter().all(|r| r["seq"].is_u64()));
+            assert!(wire["acknowledged"].is_object() && wire["store_id"].is_string());
+            assert_eq!(events.len(), 3);
             let target = if label == "parent" {
                 "posts"
             } else {
@@ -105,10 +122,84 @@ pub fn amplification() {
                     .all(|r| !r["table"].as_str().unwrap().starts_with("feed")),
                 "a mirror must not republish a timeline event"
             );
+            sizes.insert(label, encoded.len());
             println!(
                 "CLIQUE_AMPLIFICATION {}",
-                json!({"mode":label,"body_bytes":width,"stream_wire_bytes":serde_json::to_vec(&wire).unwrap().len(),"aggregate_event_bytes":serde_json::to_vec(changed[0]).unwrap().len(),"events":events.len()})
+                json!({"mode":label,"body_bytes":width,"stream_wire_bytes":encoded.len(),"aggregate_event_bytes":serde_json::to_vec(changed[0]).unwrap().len(),"events":events.len()})
             );
         }
+        let ratio = sizes["parent"] as f64 / sizes["separate"] as f64;
+        assert!(ratio.is_finite() && ratio > 1.0);
+        println!(
+            "CLIQUE_AMPLIFICATION_RATIO {}",
+            json!({"body_bytes":width,"parent_separate":ratio})
+        );
     }
+}
+
+fn p95(samples: &mut [f64]) -> f64 {
+    assert_eq!(samples.len(), SAMPLES);
+    samples.sort_by(f64::total_cmp);
+    samples[(samples.len() * 95).div_ceil(100) - 1]
+}
+
+pub fn writes(e: &mut Engine, m: &mut Model, full: bool) {
+    let followers = |author: &str| m.edges.iter().filter(|(_, a)| a == author).count();
+    let ordinary = m
+        .profiles
+        .iter()
+        .find(|a| followers(a) == 5)
+        .expect("ordinary five-follower author")
+        .clone();
+    let celebrity_followers = followers("u0900");
+    if full {
+        assert_eq!(celebrity_followers, 900);
+    }
+    assert!(m.promoted.contains("u0900"));
+    let ordinary_followers = followers(&ordinary);
+    let mut values = BTreeMap::new();
+    for who in [&ordinary, &"u0900".to_owned()] {
+        let mut samples = Vec::new();
+        let mut warmups = 0;
+        for n in 0..WARMUPS + SAMPLES {
+            m.now += 1;
+            let key = format!("write-sample-{who}-{n:02}");
+            let body = "post acknowledgement sample";
+            let start = Instant::now();
+            sent(e, "post", who, &[("body", text(body))], m.now, &key);
+            let elapsed = start.elapsed().as_secs_f64() * 1000.0;
+            if n >= WARMUPS {
+                samples.push(elapsed);
+            } else {
+                warmups += 1;
+            }
+            m.posts.insert(
+                key.clone(),
+                model::Post {
+                    author: who.clone(),
+                    at: m.now,
+                    body: body.into(),
+                },
+            );
+            m.event(&key, &key, who, m.now, false);
+        }
+        assert_eq!(warmups, WARMUPS);
+        let latency = p95(&mut samples);
+        values.insert(who.clone(), latency);
+        println!(
+            "CLIQUE_WRITE {}",
+            json!({"author":who,"followers":m.edges.iter().filter(|(_, a)| a==who).count(),
+            "samples":samples.len(),"warmups":warmups,"ack_p95_ms":latency})
+        );
+    }
+    let ratio = values["u0900"] / values[&ordinary];
+    assert!(
+        ratio <= RATIO_LIMIT,
+        "celebrity write ratio {ratio} exceeds {RATIO_LIMIT}"
+    );
+    println!(
+        "CLIQUE_WRITE_RATIO {}",
+        json!({"celebrity_ordinary":ratio,"limit":RATIO_LIMIT,
+        "celebrity_followers":celebrity_followers,"ordinary_followers":ordinary_followers})
+    );
 }

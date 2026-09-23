@@ -6,7 +6,11 @@ use std::time::Instant;
 mod lifecycle;
 mod measure;
 mod model;
+mod probes;
 mod replay;
+#[path = "../../../snapback4/src/sync_wire.rs"]
+mod sync_wire;
+mod transport;
 use model::Model;
 pub const APP: &str = include_str!("../../../../examples/clique-03/snapback/schema.q");
 pub const BASE_TIME: i64 = 1_767_225_600_000;
@@ -68,8 +72,15 @@ fn prior() -> String {
     let s = without(&s, "query insights(");
     without(&s, "query trending(")
 }
-fn pages(e: &mut Engine, op: &str, who: &str, args: &[(&str, Value)], at: i64) -> Vec<Value> {
+fn walk(
+    e: &mut Engine,
+    op: &str,
+    who: &str,
+    args: &[(&str, Value)],
+    at: i64,
+) -> (Vec<Value>, usize) {
     let mut rows = Vec::new();
+    let mut page_count = 0;
     let mut cursor = Value::Null;
     let mut seen = BTreeSet::new();
     loop {
@@ -77,6 +88,7 @@ fn pages(e: &mut Engine, op: &str, who: &str, args: &[(&str, Value)], at: i64) -
         args.push(("c", cursor));
         let p = e.query(op, ctx(who, &args, at)).unwrap();
         assert!(p.complete && p.cut.is_none(), "{op} {who}: {p:?}");
+        page_count += 1;
         rows.extend(p.data.as_array().unwrap().iter().cloned());
         match p.next {
             Some(c) => {
@@ -87,7 +99,7 @@ fn pages(e: &mut Engine, op: &str, who: &str, args: &[(&str, Value)], at: i64) -
         }
         assert!(seen.len() < 5000, "unbounded paging");
     }
-    rows
+    (rows, page_count)
 }
 fn field<'a>(r: &'a Value, name: &str) -> &'a str {
     r.field(name).unwrap().as_str().unwrap()
@@ -107,6 +119,8 @@ pub fn run_fixture(full: bool) {
     measure::reads(&mut e, &m);
     lifecycle::pending_restart(&mut e, &mut m, device, path);
     lifecycle::removals(&mut e, &mut m);
+    lifecycle::arrival_days(&mut e, &mut m);
+    measure::writes(&mut e, &mut m, full);
     m.check(&mut e);
     measure::amplification();
     println!(

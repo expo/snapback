@@ -1,0 +1,13 @@
+CLIQUE_CENSUS {"sourceFiles":1,"applicationSourceLines":137,"nonblankNoncommentLines":122,"sourceTables":6,"applicationProjectionTables":0,"columns":20,"copiedAttributionFields":0,"verificationClauses":0,"repairOrBackfillJobs":0,"feedHelperCalls":0,"zeroLikeFill":0,"projectionWrites":0,"maintains":5,"helpers":0,"queries":4,"mutations":10,"jobs":0,"schedules":0,"files":[{"file":"schema.q","sha256":"b28b819006b872aa2415342332192c3853849da774d2b3544d396f9bae68d7d5"}]}
+CLIQUE_CENSUS_NEGATIVE {"fixtures":["projectionTable","projectionWrite","copiedAttribution","verification","repairMutation","backfillJob","feedHelper","helperDeclaration","schedule","extraQuery","zeroLikeFill","feedMapping","dailyLikePostDay","dailyReplyPostDay","nestedProjection"],"rejected":15}
+✔ complete recursive declaration census and exact derived/query/mutation blocks (4.056833ms)
+✔ whitespace, strings with comment markers, and nested source files stay visible (1.417ms)
+✔ each forbidden mechanism is rejected by an in-memory negative fixture (7.035542ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 90.626917

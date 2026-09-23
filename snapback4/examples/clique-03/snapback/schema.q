@@ -84,14 +84,13 @@ maintain feed: timeline
 
 maintain receivedLikes: count likes by postId.authorId
   read <- allow
-  online only
 maintain receivedReplies: count replies by postId.authorId
   read <- allow
   online only
-maintain dailyReceivedLikes: count likes by postId.authorId, day(postId.at)
+maintain dailyReceivedLikes: count likes by postId.authorId, day(.at)
   read <- allow
   online only
-maintain dailyReceivedReplies: count replies by postId.authorId, day(postId.at)
+maintain dailyReceivedReplies: count replies by postId.authorId, day(.at)
   read <- allow
   online only
 
@@ -102,7 +101,7 @@ query thread(postId: posts, c: cursor ?):
   return replies[postId] after c first 20 by byPost
 
 query trending(c: cursor ?):
-  return merge posts after c last 10 by byHourLikes where .at > now - 86400000 and .at <= now:
+  return merge posts after c last 10 by byHourLikes where .at > now - 86400000 and .at <= now and not .removed:
     [h] for h in range(hour(now) - 24, hour(now) + 1)
 
 query insights(authorId: principal, d: int):
@@ -116,11 +115,15 @@ mutation reply(postId: posts, body: text <=500):
   require exists posts[postId] else FEED_APP_NOT_FOUND
   return insert replies { postId, authorId: viewer, body, at: now }
 mutation like(postId: posts):
+  require exists posts[postId] else FEED_APP_NOT_FOUND
+  require posts[postId].removed = false else FEED_POST_REMOVED
   insert likes { postId, principal: viewer, at: now } if absent
 mutation unlike(postId: posts):
   if exists likes[postId, viewer]:
     delete likes[postId, viewer]
 mutation repost(postId: posts):
+  require exists posts[postId] else FEED_APP_NOT_FOUND
+  require posts[postId].removed = false else FEED_POST_REMOVED
   return insert reposts { actorId: viewer, postId, at: now } if absent
 mutation remove(postId: posts):
   update posts[postId] { removed: true }

@@ -148,7 +148,7 @@ pub fn seed(e: &mut Engine, m: &mut Model, full: bool) -> serde_json::Value {
                     sent(e, verb, who, &[("postId", id(&a[0]))], m.now, &a[2]);
                     if op == "like" {
                         if set {
-                            m.likes.insert((a[0].clone(), who.clone()));
+                            m.like(&a[0], who, m.now).unwrap();
                         } else {
                             m.likes.remove(&(a[0].clone(), who.clone()));
                         }
@@ -192,6 +192,7 @@ pub fn seed(e: &mut Engine, m: &mut Model, full: bool) -> serde_json::Value {
             assert_eq!(m.edges.iter().filter(|(r, _)| r == who).count(), n);
         }
         assert_eq!(m.edges.iter().filter(|(_, a)| a == "u0900").count(), 900);
+        assert_eq!(m.events.values().filter(|e| e.repost).count(), 1004);
     }
     // More than two pages of replies at exactly one timestamp; lexicographic ids
     // deliberately arrive in reverse order to test the tie-break and continuation.
@@ -251,8 +252,8 @@ pub fn seed(e: &mut Engine, m: &mut Model, full: bool) -> serde_json::Value {
                 m.now,
                 &format!("rank-like-{n:03}-{who}"),
             );
-            m.likes.insert((key.clone(), who.into()));
+            m.like(&key, who, m.now).unwrap();
         }
     }
-    json!({"pack":"0.2.2-m8","operations":count,"out_of_scope":skipped,"profiles":m.profiles.len(),"posts":m.posts.len(),"edges":m.edges.len(),"additional_equal_time_replies":45})
+    json!({"pack":"0.2.2-m8","operations":count,"out_of_scope":skipped,"profiles":m.profiles.len(),"posts":m.posts.len(),"edges":m.edges.len(),"additional_equal_time_replies":m.replies.keys().filter(|k| k.starts_with("thread-equal-")).count()})
 }

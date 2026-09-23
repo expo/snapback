@@ -1,296 +1,213 @@
-# Clique 0.3 integration
+# Clique 0.3 integration — review round 1
 
-2026-09-23 · `sb4-03/integration` · engine `dced7a7914` above
-`36f0048137` · black M5 Max (18 cores, 128 GB).
+2026-09-23 · `sb4-03/integration`, changes above `53950e084`, uncommitted.
 
-The requested F1 + F2 + F3 application is admitted. The reduced and single
-full-fixture product runs pass, including independent models, populated-store
-adoption, native process restart and the published-0.2.33 device fence. The
-historical absolute dense-reader latency comparison remains qualified below;
-no overall absolute-latency envelope pass is claimed.
+The strengthened reduced fixture and the single full fixture pass. Every result
+below is derived from asserted checks or measured values in the linked
+[evidence](./20260923-integration-r1/full.log). The report replaces the original
+first-page device claims and hand-built response byte totals. These are local
+engine/SQLite measurements, not HTTP/TLS, fsync, browser, or publication throughput.
+No absolute-latency envelope against the historical recipe is claimed.
 
-## Blocker found and resolved
+## Review disposition
 
-On `36f004813`, putting `likeCount: count likes by postId` on the posts mapped
-by `maintain feed: timeline` produced `E_MAINTAINED_COLUMN` at schema.q:19.
-The two forms admitted separately but not together. The lane stopped without
-an application workaround. The supervisor ruled the exclusion too broad and
-committed **`dced7a791`** on this branch.
+1. **Production bytes — done.** Both acquisitions and contribution streams use
+   the production `SnapshotReply`/`StreamReply` encoders. The snapshot type moved
+   unchanged from `serve.rs` into `sync_wire.rs`; the CLI and test share that file.
+   Production sequence, acknowledgement and store identity fields are included;
+   serde controls omitted empty fields. Request-only metadata is attached only
+   after measuring the response. Both existing wire encoding regressions pass.
+2. **Restart/adoption — done.** All device cursor pages are compared to the server
+   and independent model for Following, Trending and the thread. Each durable
+   record matches its admit's id, operation, viewer, arguments, clock, order and
+   prediction eligibility. Settlement consumes those durable records. Reply
+   47 is explicitly read, as are the settled like and
+   `sp0001.likeCount` (3). Complete id→value maps
+   validate every post and received-like aggregate in both stores. Unknown ids,
+   missing parents and missing nonzero fields fail. The documented implicit-zero
+   representation is accepted only for model-zero parents; absent nonzero groups
+   are never filled in.
+3. **Census — done.** Recurses through every `.q` file, tokenizes strings and
+   comments safely, inventories declarations and columns independent of whitespace,
+   and rejects any declaration outside the complete allowlist. The complete
+   timeline and both daily maintains are pinned, alongside every query and mutation.
+   All 15 negative fixtures are rejected, including a nested
+   projection file, copied fields, verification, repair/backfill, helper calls,
+   helper declarations, schedules, altered timeline, post-day grouping and zero fill.
+4. **Celebrity write — done.** Acknowledged posts by `u0900` and `alice` use
+   the same 3 warmups and 20 samples
+   as reads. Their actual follower counts are asserted; nearest-rank p95 and all
+   reader/write scaling bounds are checked against RFC §8's 3× limit.
+5. **Removal/unlike/unrepost — done.** Each unlike checks the source-like,
+   maintained-column and received-like models against storage. Following is checked
+   after unrepost and after cleanup. Removal and unrepost must produce their
+   tombstones before the timeline's own schedule fires; its queued job runs to
+   Done and the recorded ids must disappear. Printed flags use those check results.
+6. **App corrections — done.** Trending excludes removed posts. Like and repost
+   first require an existing card, then refuse removal with `FEED_POST_REMOVED`;
+   missing cards use `FEED_APP_NOT_FOUND`. Existing delivered reposts remain readable.
+   The independent model has the same admission rules. Both daily maintains use
+   **arrival day**, spelled `day(.at)` in the admitted Quarry grammar, replacing
+   post-day grouping. A later-day like and reply on `rank-001` are checked across
+   the seven-day window, post days, and the empty following day.
+7. **Serial reruns/report — done.** Load-gated reduced and full runs completed,
+   with one full invocation. Source, checks and results are retained below.
 
-Maintained columns now exclude only timeline-owned tables as parents or
-sources. Mapped application tables remain ordinary parents and sources.
-A parent mirror is not a source write and does not enter a timeline
-transition; delivery copies event IDs, authors and times, never parent
-fields. `refuse_timeline_write` protects only owned tables. The supervisor's
-`maintained_columns_compose_with_mapped_timeline_tables` test checks a mapped
-card's vote, mapped repost contribution, unchanged owned rows on mirroring,
-and removal not being a vote.
+## App and independent oracle
 
-Rebuilding passed. The app's `snapback4 check --json` exits 0 with no
-diagnostics. It emits `N_MAINTAINED_COLUMN_STREAM`, correctly identifying
-the cost of streaming a 4,000-byte parent image. Follow and unfollow are
-classified as never predicting because their count input is online-only.
+The [app](../examples/clique-03/snapback/schema.q) has
+137 physical and 122
+nonblank/noncomment lines. SHA-256:
+`b28b819006b872aa2415342332192c3853849da774d2b3544d396f9bae68d7d5`.
 
-## Application and census
+`receivedLikes` now inherits public sync from likes so the requested adoption
+comparison can inspect actual device aggregates. Other received/daily insights
+remain online-only. This adds a received-like row to each measured contribution
+stream and its nonzero groups to acquisition. Arrival-day grouping also removes
+the need to record the post's time on those source rows. The byte changes therefore
+include these deliberate schema corrections as well as the encoder correction.
 
-[The app](../examples/clique-03/snapback/schema.q) has **134 physical Quarry
-lines, 119 nonblank/noncomment lines**. It declares Following with
-`size authors 1008, edges 5921`, replies outside that mapping, cursor-paged
-threads, `posts.likeCount`, one 25-hour-lane Trending merge, both received
-counts and both daily variants. Daily variants mean **post day**, as requested;
-they do not implement the benchmark's distinct like-arrival-day activity.
-
-The [source census](../examples/clique-03/census.test.mjs) fixes each table's
-columns, the write targets, exact like insertion and single-merge ranking:
-
-| Mechanism | Count |
+| Census | Checked count |
 |---|---:|
-| Application source tables | 6 |
-| Application-maintained projection tables | 0 |
+| Quarry files | 1 |
+| Source tables | 6 |
+| Columns | 20 |
+| Maintains | 5 |
+| Queries | 4 |
+| Mutations | 10 |
+| Helpers | 0 |
+| Jobs | 0 |
+| Schedules | 0 |
+| Application projection tables | 0 |
 | Copied attribution fields | 0 |
 | Verification clauses | 0 |
-| Backfill or repair jobs | 0 |
+| Repair/backfill declarations | 0 |
 | Feed helper calls | 0 |
-| Zero-like fill | 0 |
+| Zero-like fills | 0 |
 
-Scope is this Quarry backend and its integration harness, not a new frontend
-or the benchmark's messaging/media features. The test-only separate-count
-control prices the requested alternative; it does not alter the application.
-Schema SHA-256: `07369b217b2e0d030bc9ae2cd12d5084130d9d169d4586eef44a9cb0fd626dc4`.
-The only tracked-file changes outside the new app/test/report are the language
-crate's test-only device dependency and its lockfile entry. No engine
-implementation or LLP is changed.
+The fixture version and scale-log digest remain verified against the committed
+social-messenger pack. Social operations use the application mutations and fixture
+principals/ids. Synthetic arrival time advances in replay order. The fixture's
+social cardinalities, named sparse/dense readers, promoted author and repost count
+are asserted before adding targeted cases. Messaging, media and profile editing
+remain outside this backend's scope. Expected counts and event membership come
+from the independent source model, not engine projections.
 
-## Fixture and independent oracle
+| Initial Following reader | Checked events | Actual cursor pages |
+|---|---:|---:|
+| u0005 | 261 | 14 |
+| u0500 | 24,555 | 1,228 |
+| u0901 | 433 | 22 |
 
-The harness reads the committed starter segments and `scale.log` from
-`benchmarks/fixtures/social-messenger/`, version `0.2.2-m8`, verifying SHA-256
-`b26bf1ae8ccf2d64c8ca34bca6562b63a5174956a40c33c123aff8050b6abba9`.
-Every social write goes through an application mutation, with the log principal
-and client-minted IDs. There is no row import. Arrival time advances one second
-per log action; documentary timestamps are not used as authoritative time.
+Initial Trending checks 24,130 rows across
+2,413 pages. Initial insights compare
+32,256 values across 1,008
+authors and 8 days. Adoption visits
+48,256 posts and
+996 received-like groups in
+both stores. Thread continuation reaches 47
+rows across 3 device pages after settlement.
+Final model totals, including the targeted arrivals and acknowledged-write samples:
+48,303 posts, 5,030 likes, 2,051 replies and
+5,921 edges; final Trending has 24,176 rows.
 
-The full social projection has 1,008 profiles, 5,921 edges, 48,224 originals,
-5,008 likes, 2,004 replies and 1,004 reposts. The harness asserts the named
-5-follow sparse reader, 500-follow dense reader, celebrity follower, and the
-900-followed celebrity's 200 posts. Registration uses the fixture principal
-as its display name. Profile editing, chats, messages, reactions and media are
-explicitly outside this backend's requested scope.
+The two checked tombstone ids are
+`308bcca67216f03541c58e8c45c5bd92a67ca45686b2043412673297c0833c3b` and
+`3deba77150e460cc1520c13d993c84f32fbae7015604372339f5b06e059a1aa3`. `feedPurgeRemovedEvery` fires and its job
+finishes in 2 chunks before both ids are confirmed absent.
 
-The default reduced projection keeps starter accounts, scale users 1–62,
-500, 900 and 901, the surviving edges, five posts per scale author, and
-contributions whose parents survive. It crosses promotion's 51-follower
-threshold. Both modes add 45 reverse-inserted, equal-timestamp replies and
-32 ranking parents covering zero likes, ties, exact 24-hour boundaries and a
-future post. These additions are reported separately from fixture conformance.
+## Updated measurement table
 
-The independent model stores source relationships, event publication mode and
-the contract's delivery window. It never reads engine projection tables to
-construct its expected answers. Every Following cursor page for all three
-readers and every Trending cursor page is compared, including joined card
-fields. Received likes, replies and post-day variants are checked for every
-profile. Thread continuation is compared through all replies. Lifecycle
-checks also cover repeated reposts, original removal with surviving reposts,
-unlike-to-zero, unrepost and deferred cleanup.
-
-## Adoption and restart
-
-The initial generation omits `likeCount`, its ranking index/query, and both
-received-reply maintains, so existing replies have no captured post-attribution
-path. It is populated first. A device acquires that generation, the server
-activates the complete app, and the device adopts and reacquires. The test
-requires zero activation row events, checks every acquired post's count and
-compares local Following, Trending and thread answers with the server.
-Received aggregates remain online-only and are checked on the server against
-the independent model.
-
-A native device queues a post, like, reply, unfollow and follow offline.
-Posting must predict; both edge operations must queue without predicted rows.
-The admitting CLI process exits, and a second process reopens the same SQLite
-store, preserving all five intents and the visible pending post. Reconnection
-settles each write and applies its stream. The outbox empties and device
-answers equal the server. Unfollow precedes follow to respect the already-full
-5,921-edge cap.
-
-## Measurement method
-
-Crate tests use Cargo's repository test profile and an in-memory SQLite engine.
-Seeding time includes compilation/admission inside the test, log parsing,
-operations, model updates and targeted cases; it excludes Cargo build time.
-Store size is SQLite `page_count × page_size`, including indexes, partition
-logs, commits and attribution. It is not an fsync throughput measurement.
-
-Following uses 3 warmups and 20 serial local-engine calls; p95 is sorted sample
-19. The census-shaped app joins a post and two profiles per event. The recorded
-recipe baseline in `20260922-f3a-timeline.md` examined 42 sparse/dense rows and
-85 celebrity-reader rows without those three card joins. The test requires
-current examinations within 3× that recorded envelope; absolute latency
-comparisons must retain the different query shape and shared-host conditions.
-
-Acquisition bytes are compact JSON snapshot page envelopes (1,000-row pages),
-including coverage metadata, measured while applying them to a native device.
-The complete-app measurement starts a new full snapshot after adoption clears
-old images; its request/response bytes are the same as a cold device's. Its
-elapsed time includes the subsequent local-answer and all-parent-value checks.
-Stream amplification includes compact JSON stream envelopes and the like's
-own event; the aggregate-event bytes are also reported separately. It measures
-real stream events from this composition, not a proxy parent update. No
-HTTP/TLS framing or compression is included.
-
-## Correctness results
-
-| Full-fixture check | Result |
-|---|---|
-| Pack social projection | Exact counts; all 63,169 social mutations admitted |
-| Sparse Following (`u0005`) | 261 events, 14 pages; independent model agrees |
-| Dense Following (`u0500`) | 24,555 events, 1,228 pages; independent model agrees |
-| Celebrity-reader Following (`u0901`) | 433 events, 22 pages; independent model agrees |
-| Trending | 24,130 in-window parents across all cursor pages; zero likes and time/ID ties agree |
-| Received counts | Four values checked for each of 1,008 authors; independent model agrees |
-| Thread | 46 replies before offline write, 47 after; 45 share one timestamp; cursor continuation agrees |
-| Adoption | Generation 1 → 2; zero activation row events; all device parent counts and three local query answers agree |
-| Pending/restart | Five intents persisted across two native processes; posting predicts, edge writes queue; settlement and subsequent models pass |
-| Removal/cleanup | Duplicate repost is idempotent; repost survives original removal; unlike reaches zero; unrepost and engine purge pass |
-| Published 0.2.33 | Native refuses before creating a store or prediction; WASM constructor refuses |
-
-Following and counts are checked again after pending-write settlement and
-removal/cleanup. Final model totals are 48,257 parents, 5,029 likes, 2,050
-replies and 5,921 edges, including the explicitly added cases. Trending then
-has 24,131 in-window parents. No full seed was repeated.
-
-## Measurement table
+Cargo's repository test profile, in-memory SQLite, serial operations. Seeding
+includes compilation, parsing, mutations and model construction; Cargo build time
+is excluded. Snapshot byte counts sum compact production JSON envelopes over
+1,000-row pages. Acquisition times exclude the subsequent oracle comparisons.
+Store allocation includes indexes, partition logs, commits and recorded attribution.
 
 | Measure | Full-fixture result |
 |---|---:|
-| Seeding and model construction | 113.662 s |
-| Entire serial fixture test | 137.330 s |
-| SQLite allocated size after adoption | 731,238,400 B (697.36 MiB) |
-| Physical stored rows after adoption | 420,549 |
-| Prior-generation cold acquisition, sparse reader | 113,997 rows / 19,524,910 JSON B / 1.997 s |
-| Complete-app acquisition, sparse reader | 113,997 rows / 20,307,039 JSON B / 2.185 s |
-| Populated-store activation | 12.464 s; 0 row events |
-| Following sparse: examined / p95 | 102 / 0.218208 ms |
-| Following dense: examined / p95 | 102 / 0.320333 ms |
-| Following celebrity reader: examined / p95 | 145 / 0.270834 ms |
-| Dense/sparse latency ratio | 1.468× (≤ 3×) |
-| Celebrity/sparse latency ratio | 1.241× (≤ 3×) |
-| Per-like stream, 500-byte body: column / separate count | 939 / 439 B (2.139×) |
-| Per-like stream, 4,000-byte body: column / separate count | 4,439 / 439 B (10.112×) |
-| Aggregate event alone, 500-byte body: column / separate | 639 / 139 B |
-| Aggregate event alone, 4,000-byte body: column / separate | 4,139 / 139 B |
+| Seeding and model construction | 314.956 s |
+| Entire serial full fixture | 484.496 s |
+| SQLite allocated bytes / physical rows after adoption | 730,181,632 B / 420,764 |
+| Prior snapshot: rows / production JSON bytes / acquisition | 114,993 / 19,539,296 B / 4.623 s |
+| Complete-app snapshot: rows / production JSON bytes / acquisition | 114,993 / 20,268,151 B / 4.793 s |
+| Populated activation / row events | 29.411 s / 0 |
+| Following sparse: examined / p95 | 102 / 0.510416 ms |
+| Following dense: examined / p95 | 102 / 0.724708 ms |
+| Following celebrity reader: examined / p95 | 145 / 0.657291 ms |
+| Dense/sparse read p95 ratio | 1.420× (asserted ≤ 3×) |
+| Celebrity/sparse read p95 ratio | 1.288× (asserted ≤ 3×) |
+| Post acknowledgement p95: alice, 5 followers | 5.666334 ms |
+| Post acknowledgement p95: u0900, 900 followers | 4.813000 ms |
+| Celebrity/ordinary write p95 ratio | 0.849× (asserted ≤ 3×) |
+| 500-byte parent: column / separate stream | 1,111 / 611 B (1.818×) |
+| 500-byte parent: column / separate aggregate event | 647 / 147 B |
+| 4,000-byte parent: column / separate stream | 4,611 / 611 B (7.547×) |
+| 4,000-byte parent: column / separate aggregate event | 4,147 / 147 B |
 
-Every measured like emits exactly two stream events: the like plus its parent
-or separate count row. It emits no timeline event. At the full envelope,
-public application data dominates acquisition: a 20-row feed page is not a
-20-row device partition. These byte observations are for native JSON protocol
-pages, not browser transport or gzip transfer sizes.
+Every measured contribution has 3 events: the like,
+received-like aggregate, and parent mirror or separate count. Checks require exactly
+one relevant aggregate event and no timeline event. The byte ratio is computed
+from the encoded totals. This app's three card joins differ from the historical
+raw-event recipe; the read tests assert examinations within its recorded envelope,
+while the table reports the directly measured scaling ratios.
 
-Comparison to the recorded recipe's raw event query:
+The [historical raw-event recipe](./20260922-f3a-timeline.md) had fewer joins and
+different shared-host load. Its absolute p95 comparisons remain visible below;
+they are computed from that report, not treated as a matched-load regression or
+as a passing absolute-latency gate. This full run began at one-minute load
+54.00.
 
-| Reader | Recipe examined | App / recipe examined | Recipe p95 ms | App / recipe p95 |
-|---|---:|---:|---:|---:|
-| Sparse | 42 | 2.429× | 0.0852 | 2.561× |
-| Dense | 42 | 2.429× | 0.0822 | **3.897×** |
-| Celebrity | 85 | 1.706× | 0.2204 | 1.229× |
+| Reader | Historical recipe p95 ms | This app p95 ms | App / recipe |
+|---|---:|---:|---:|
+| u0005 | 0.0852 | 0.510416 | 5.991× |
+| u0500 | 0.0822 | 0.724708 | 8.816× |
+| u0901 | 0.2204 | 0.657291 | 2.982× |
 
-Examinations and the requested reader-scaling ratios are within 3×. **The
-absolute dense p95 is above 3× the historical recipe number.** That old query
-returned events without the app's three joins; it also ran under 71.16/66.27
-one-minute starting/ending load. This is a reported comparison, not a matched
-query or matched-load regression attribution. No engine defect was inferred
-from it, and no latency gate was silently relaxed. The full app measurements
-are not publication or network-latency qualification.
+The retained original WASM artifacts were re-read and recompressed with Apple
+`gzip -n -9`; their byte counts and SHA-256 hashes still match the original report.
+These are historical builds, not new builds of this revision. Full hashes are in
+[the checked artifact record](./20260923-integration-r1/historical-wasm.json).
 
-### Combined device WASM
-
-Both source builds use the unmodified existing `build-wasm.sh`, Rust 1.97.0,
-wasm-bindgen 0.2.127 and wasm-opt 132 available on PATH. The current artifact
-contains all combined forms. The baseline was freshly extracted with
-`git archive c842dbaa5 snapback4` and rebuilt serially using the warm Cargo
-cache. After the baseline build, the shared top-level WASM output still
-named the baseline despite a fresh-looking Cargo invocation. Cleaning only
-the device crate's WASM build artifacts and rebuilding restored the current
-artifact with the exact original hash; a current-WASM constructor also
-accepted the full app's generation-2 backend. No source repair was needed.
-The published artifact is the npm package's actual WASM, checked against
-the SHA-256 established by the integrity-verified fence run.
-
-For comparable transfer bytes this table recompresses every artifact using
-Apple gzip 479 with `gzip -n -9`, excluding filename/mtime headers. The build
-script uses ordinary `gzip -9`, adding 25 bytes: current 473,116 B, baseline
-443,551 B. The unchanged 474,000-byte build ratchet passes with 884 B headroom.
-The fence test's Node zlib diagnostic is a different compressor and is not
-mixed into this comparison.
-
-| Artifact | Raw B | Gzip B | Current delta raw / gzip |
+| Historical artifact | Raw B | Gzip B | Integration delta raw / gzip B |
 |---|---:|---:|---:|
 | Published 0.2.33 | 1,599,837 | 443,422 | +107,753 / +29,669 |
-| Pre-program `c842dbaa5` | 1,599,837 | 443,526 | +107,753 / +29,565 |
-| Current `dced7a791` | **1,707,590** | **473,091** | — |
+| Pre-program c842dbaa5 | 1,599,837 | 443,526 | +107,753 / +29,565 |
+| Original integration build dced7a791 | 1,707,590 | 473,091 | — |
 
-SHA-256: current
-`e0088029dde19c22fdd2b5b8779c28b5a62de9d2b81aaae0c3d4de1db5e02eae`;
-pre-program
-`10697d6577ccc3286ed0cd5c8ec71aa375da73c5a06f4b84c35ee90cb0e16b5c`;
-published
-`7bd0e119cedcc9ff7eababb71023adf84e59e9978130a51705d0ddb15b282bfb`.
-These are whole-artifact deltas, not independently attributed feature costs.
+Whole-artifact deltas do not independently attribute feature costs.
 
-## Full-run load record
+## Load and verification
 
-The wait began **11:42:47 PDT**, with samples every 30 seconds. One-minute
-samples were **16.04, 18.09, 20.56, 15.19, 16.76, 13.06, 11.18**.
-The full test started once at **11:45:47 PDT**, after **180.126 seconds** of
-waiting. Starting load (1/5/15 minutes): **11.18 / 15.92 / 23.90**.
-It ended at **11:48:05 PDT**, with **22.18 / 18.41 / 23.70**. The 30-minute
-fallback was not needed. No other build or test was started by this lane
-during the full run. The machine remained shared with other sessions.
+[Reduced load samples](./20260923-integration-r1/reduced-load.json) and
+[full load samples](./20260923-integration-r1/full-load.json) record every waiting
+sample, start and end. Each run started below one-minute load 12 or after at least
+30 minutes; no other lane-owned test/build ran during either fixture invocation.
 
-## Verification and reproduction
+| Fixture | Wait began | Wait | Start load 1/5/15 | End load 1/5/15 |
+|---|---|---:|---|---|
+| Reduced | 2026-09-23 12:44:57 -0700 | 1800.474 s | 20.92 / 20.39 / 21.07 | 19.73 / 20.15 / 20.98 |
+| Full | 2026-09-23 13:15:02 -0700 | 1800.493 s | 54.00 / 59.65 / 41.27 | 13.59 / 35.78 / 39.77 |
 
-All shell commands used Node 24.18.0 on the brief's PATH. No `scripts/test.sh`,
-commit, push, stash or LLP edit was made. The full test ran exactly once.
-Every authored file is below 1,500 lines. `git diff --check` passes.
+| Check | Result | Evidence |
+|---|---|---|
+| App admission | 1 passed | [admission.log](./20260923-integration-r1/admission.log) |
+| CLI app check | ok=true | [check.log](./20260923-integration-r1/check.log) |
+| Focused lifecycle regression | 1 passed | [probe.log](./20260923-integration-r1/probe.log) |
+| Affected engine/compiler tests | 63 passed | [affected.log](./20260923-integration-r1/affected.log) |
+| Production wire encoding regressions | 2 passed | [wire.log](./20260923-integration-r1/wire.log) |
+| Census and negative fixtures | 3 passed | [census.log](./20260923-integration-r1/census.log) |
+| Published native/WASM refusal | 1 passed | [fence.log](./20260923-integration-r1/fence.log) |
+| Reduced fixture | 1 passed | [reduced.log](./20260923-integration-r1/reduced.log) |
+| Full fixture, one invocation | 1 passed | [full.log](./20260923-integration-r1/full.log) |
 
-| Check | Result |
-|---|---|
-| `cargo build -p snapback4` | Pass, 4.81 s |
-| App `snapback4 check --json` | Pass, no diagnostics; expected stream advisory |
-| Default crate app test | 2/2 pass |
-| Full flag, `application_fixture --exact`, serial | 1/1 pass in 137.33 s |
-| Affected Rust tests | 65/65 pass: app 2, maintained columns 41, maintains 14, recorded round 1 5, timeline guide 3 |
-| Node source census + published fence | 3/3 pass; neither skipped |
-| Current and baseline WASM builds | Both pass their existing ratchets; final current hash restored and full-app backend accepted |
+The report and its separate measurement table are generated from these logs by
+`python3 examples/clique-03/report.py`. Its `--check` mode recomputes the ratios,
+requires passing outcomes and compares both rendered files byte for byte; edited
+or stale printed values fail. The census also binds the current schema digest.
+The reduced fixture completes in 0.559 s.
+Node 24.18.0 and Rust 1.97.0 were used. No engine counterexample was found by these
+strengthened checks. The original cross-form admission blocker was already resolved
+by `dced7a791`; this revision changes no engine semantics.
 
-Commands from `snapback4/` are in the app's README. Affected Rust command:
-
-```sh
-cargo test -p snapback4-lang --test clique_03 --test maintained_columns --test timeline_guide --test maintains --test recorded_round1 --no-fail-fast -- --test-threads=1
-```
-
-The format-only pass after the full run is covered by the reduced/affected
-rerun. Two subsequent comments link the governing LLP sections; no test logic
-or app behavior changed after the full run. The raw
-measurement and test records remain at `/tmp/sb4-clique-full.log`,
-`/tmp/sb4-clique-full-load.json`, `/tmp/sb4-clique-reduced.log`,
-`/tmp/sb4-clique-affected.log`, `/tmp/sb4-clique-fence.log`,
-`/tmp/sb4-clique-wasm-current.log`, `/tmp/sb4-clique-wasm-baseline.log` and
-`/tmp/sb4-clique-wasm-sizes.json`. The report retains the durable results;
-these temporary paths are supporting local evidence.
-
-The npm integrity pins verified by the fence were:
-
-- `snapback4@0.2.33`: `sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==`.
-- `snapback4-darwin-arm64@0.2.33`: `sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==`.
-
-
-## Guide gaps
-
-The original cross-form refusal is now resolved in the engine and the
-maintains card explicitly permits mapped timeline tables. The cards already
-explain replies outside the mapping, distinct repost event IDs, queued
-follow/unfollow, whole-parent stream amplification, activation reacquisition
-and inherited maintain sync. No new authoring guide gap has been established
-by the reduced or full runs. The internal Rust test transport and native device
-JSON protocol required reading existing test helpers; that is harness setup,
-not an additional application mechanism.
+No commit, push, stash, LLP edit or `scripts/test.sh` invocation was made.

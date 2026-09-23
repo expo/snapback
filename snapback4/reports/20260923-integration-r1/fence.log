@@ -1,0 +1,12 @@
+✔ published 0.2.33 refuses the integrated app before prediction (780.177458ms)
+ℹ snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+ℹ snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+ℹ {"published":"0.2.33","nativeRefused":true,"storeAbsent":true,"predictionAbsent":true,"wasmRefused":true,"raw":1599837,"gzip":443422,"sha256":"7bd0e119cedcc9ff7eababb71023adf84e59e9978130a51705d0ddb15b282bfb"}
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 854.423875
