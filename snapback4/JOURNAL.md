@@ -46812,3 +46812,53 @@ Integrated suite on the M5: `== 1 failure(s) in 644 s`. The client failures
 were an Expo media-migration test and a session-restore test. Both pass when
 rerun alone, and their whole files pass. Wasm is 458,762 B gzip against a
 459,000 ratchet.
+
+## 2026-09-23 — 0.3 program: engine-recorded attribution (F2; LLP 3000.007.003 §3.2)
+
+A maintain may key or filter by a one-hop reference path through an
+immutable reference to a public target, for example
+`maintain receivedLikes: count likes by postId.authorId`.
+
+- **Capture.** At source insert, the engine records the target's value on
+  the source row. The field is engine-only and engine-internal, named by the
+  path, and never re-resolved.
+- **Evaluation.** Incremental maintenance, expiry and rebuild all read the
+  recorded value.
+- **Activation.** Adding a path to a populated table captures once, with no
+  row events, and devices reacquire. `doctor` reports null captures.
+- **Load modes.** `Engine::load` has trusted-restore and untrusted-import
+  modes.
+- **Devices** predict only against live, covered targets, with coverage
+  checked at the prediction clock through renewals and expiry.
+- **Dotted aggregate keys** (`.postId.authorId`) are selectable on maintain
+  targets.
+- **Old versions refuse.** A new `Recorded` marker makes the published
+  0.2.33 engine and device refuse F2 stores and backends, tested against the
+  real published binary.
+
+**Implementation.** An Astra xhigh lane on the Office M1 Max, with two fix
+rounds.
+
+- **Round 1:** Astra NOT READY. Its High: old engines and devices silently
+  ignored recorded fields. Its Mediums: expired memberships authorized
+  capture, and dotted keys were not selectable. Grok NOT READY on 8 of 16
+  packets.
+- **Round 2:** Astra NOT READY, with two Mediums: a membership renewal lost
+  coverage, and an expired row masked its live replacement.
+- **Round 3:** both earlier Mediums and the rebase onto the timeline code
+  are closed. Its two remaining Mediums, an unmetered coverage scan and a
+  bypassable missing-clock check, join the fix-forward batch
+  (`issues/20260923-snapback4-readauth-and-f2-edge-cases.md`) that lands
+  before 0.3.0.
+
+**Integration.** Rebased onto `7877454ff` (READAUTH). Two additive conflicts
+were resolved, both trait methods. The integrated suite on the M5 caught one
+real break, a codec-census exception that F2's partition change had moved
+out of its function; it was fixed at landing (census 26/26). Wasm is
+465,589 B gzip. The ratchet rises to 466,000 because F2 together with READAUTH
+costs about 1,800 B more than either measured alone.
+
+The Office Mac was overloaded for much of this lane (load up to 158), with
+two lanes running full suites at once. Per the independent review's advice,
+fix rounds now run affected tests only, and the full suite runs once per
+integrated landing.
