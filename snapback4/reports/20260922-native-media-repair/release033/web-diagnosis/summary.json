@@ -1,0 +1,126 @@
+{
+  "at": "2026-09-23T02:12:20.431107+00:00",
+  "source": "f54b4c71dea34a428739199d25e09a301d06e988",
+  "scope": "Bounded investigation only; no product changes, deadline/assertion changes, stage changes, repacking, publication, or full-suite rerun",
+  "attempts": [
+    {
+      "attempt": 1,
+      "browserPid": 17163,
+      "command": [
+        "node",
+        "witness/starter.mjs"
+      ],
+      "started": "2026-09-23T02:04:47.973757+00:00",
+      "ended": null,
+      "browserStep": {
+        "step": "browser",
+        "exit": 1,
+        "seconds": 40.85
+      },
+      "status": "failed; original wrapper did not record an ended field",
+      "path": "/tmp/sb4-3011-20260922/installed-web-033-1"
+    },
+    {
+      "attempt": 2,
+      "browserPid": 61089,
+      "command": [
+        "node",
+        "--import",
+        "/tmp/sb4-3011-20260922/observe_starter_navigation.mjs",
+        "witness/starter.mjs"
+      ],
+      "started": "2026-09-23T02:09:38.162680+00:00",
+      "ended": "2026-09-23T02:09:50.450908+00:00",
+      "browserStep": {
+        "step": "browser",
+        "exit": 0,
+        "seconds": 11.45
+      },
+      "status": "pass",
+      "path": "/tmp/sb4-3011-20260922/installed-web-033-2"
+    },
+    {
+      "attempt": 3,
+      "browserPid": 67813,
+      "command": [
+        "node",
+        "witness/starter.mjs"
+      ],
+      "started": "2026-09-23T02:10:19.557727+00:00",
+      "ended": "2026-09-23T02:10:30.856983+00:00",
+      "browserStep": {
+        "step": "browser",
+        "exit": 0,
+        "seconds": 10.567
+      },
+      "status": "pass",
+      "path": "/tmp/sb4-3011-20260922/installed-web-033-3"
+    }
+  ],
+  "sharedDependencyLockSha256": "176e1cd6d0869137fd2ed2bae44e46bb0bfc3cdd2caede295967a921380638b3",
+  "witnessHashes": {
+    "starter.mjs": "8796455c1541c6de3fc05d9e81fd956e2396e72e2d4464ad1fec57e871b10dc2",
+    "lib.mjs": "daa4b6af3591e917e32d7b3563ac80bf10f27887bad90c56cde6b51cbfbbb0a5"
+  },
+  "client": {
+    "name": "snapback4",
+    "version": "0.2.33",
+    "filename": "snapback4-0.2.33.tgz",
+    "integrity": "sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==",
+    "bytes": 600181,
+    "files": 69
+  },
+  "platform": {
+    "name": "snapback4-darwin-arm64",
+    "version": "0.2.33",
+    "filename": "snapback4-darwin-arm64-0.2.33.tgz",
+    "integrity": "sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==",
+    "bytes": 4856399,
+    "files": 3
+  },
+  "binarySha256": "6a7b34e8fe4b4e142a44aaeac37ddd76c8b5ebccff290088f290bb3770a710f6",
+  "runtime": {
+    "node": "24.18.0",
+    "playwright": "1.55.1",
+    "chromium": "153.0.8010.12",
+    "chromiumExecutableSha256": "8319963f6625accf51c0dd4f55091ceaf9f09ed39e7a52fed4fae12b2a6b668a",
+    "priorBrowserIdentityLimit": "Prior 0.2.32 result does not record browser hash. The identical witness selects the currently newest cached binary, whose mtime predates both attempts; no evidence of browser change was found."
+  },
+  "findings": [
+    "Prior 0.2.32 and failed 0.2.33 dependency locks differ only in the two Snapback package versions/integrities.",
+    "Git diff of apps/chat and witness/{starter,lib}.mjs is empty between the prior passing 0.2.32 source and current source.",
+    "Original failure was final page.goto default load wait after 5 passing stages; no network trace exists for that failure.",
+    "Observed rerun passed all 6 stages. Final document and new hashed JS were HTTP200 from the service worker, with DOMContentLoaded and load observed.",
+    "A separate fresh uninstrumented control passed all 6 stages. No failure cause reproduced; no attribution to load or product defect is supported."
+  ],
+  "disposition": "Retain original unknown-cause navigation timeout and both subsequent exact-artifact passes together; no product repair inferred. Stop after the bounded control.",
+  "cleanup": {
+    "ownedNodePidsAbsent": [
+      61089,
+      67813
+    ],
+    "browserAndBackendClosedByWitnessFinally": true,
+    "unownedProcessesKilled": false,
+    "remoteGitStatusAfter": " M snapback4/metrics/publish.jsonl",
+    "heavySlotReleased": true
+  },
+  "artifacts": {
+    "attempt-1/browser.log": "5741f87d90ac29ed619fcbca5cef38fd6997d4b2618591e937b6e54840adf922",
+    "attempt-1/package-lock.json": "176e1cd6d0869137fd2ed2bae44e46bb0bfc3cdd2caede295967a921380638b3",
+    "attempt-1/process.json": "bd34179d2b709213d9682fe75a8e573e450cfcd253d00427d00f8ecd9228c337",
+    "attempt-1/result.json": "b1be697526e0a74aa76e2eb1d26d516ed1c5decbed662134ff4bdb866e6013ca",
+    "attempt-2/browser.log": "cda2cfd5ec353f4f5334072064059fd2723315ee418ba3e3243978127c16ad01",
+    "attempt-2/navigation-events.jsonl": "788a5dd9140e6995abcef83e38bca844f53069227fcca178dede90dfd63923f7",
+    "attempt-2/package-lock.json": "176e1cd6d0869137fd2ed2bae44e46bb0bfc3cdd2caede295967a921380638b3",
+    "attempt-2/process.json": "4fc1a50984f4aea6e981161959e32ad09a7b03c546c8174863724949a402e50f",
+    "attempt-2/result.json": "a58974cba1ea5b2c41e1a9c6de4b9c8c0eac97c931347f50e6af9cd8e5c9a3de",
+    "attempt-3/browser.log": "8f874ff64598ef3c54bd1aa9d35655391a77942dddcc6c8be332d70bef44bf8a",
+    "attempt-3/package-lock.json": "176e1cd6d0869137fd2ed2bae44e46bb0bfc3cdd2caede295967a921380638b3",
+    "attempt-3/process.json": "e9fdcded9b07c8871aba472cfea1a306157b2fada999f00889529b71b352cd48",
+    "attempt-3/result.json": "1b17db7a1d0dd991b0d63f67efb74f34dce0a8e07d0dffb1573f814e294ec241",
+    "installed_web_proof_033_diagnostic2.py": "a43c151f17c1654690c0e3389a4bc3eb58c4b3720a6cc506f2a6b74e83a1b532",
+    "installed_web_proof_033_original.py": "914bb6ffe824419c9cf34cc0c8387d8257df12c2308143038f0b598609fe817c",
+    "installed_web_proof_033_plain3.py": "0b5737143561d51db228e76c1da38c004375559dbf554dd2e6c74005ed9bd8b6",
+    "observe_starter_navigation.mjs": "c7fc7f5720f6c4c7024905c349175e60b31a37af4d8c8f89f42a03ff9669bf88"
+  }
+}

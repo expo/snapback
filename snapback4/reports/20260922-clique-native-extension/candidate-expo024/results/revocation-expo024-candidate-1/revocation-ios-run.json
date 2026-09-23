@@ -1,0 +1,138 @@
+{
+  "appBuild": {
+    "CFBundleExecutable": "Clique",
+    "CFBundleIdentifier": "dev.clique.astra",
+    "CFBundleShortVersionString": "0.0.1",
+    "CFBundleVersion": "1"
+  },
+  "appPath": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/3ADCE896-A566-44FF-838E-95C20022B386/data/Containers/Bundle/Application/9811C0F0-5C68-4298-93CF-E76072A41B06/release-expo024-candidate-1.app",
+  "artifacts": {
+    "device.log": {
+      "bytes": 3340656,
+      "path": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/revocation-expo024-candidate-1/revocation-ios-device.log",
+      "sha256": "c1da4a8a0a0746e206fbb46025cd6206b9a535921d08d8631df41b493d99c471"
+    },
+    "receipts.jsonl": {
+      "bytes": 4609,
+      "path": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/revocation-expo024-candidate-1/revocation-ios-receipts.jsonl",
+      "sha256": "4e03974f321d9483f84df4ae1ac5601ac0ff700302660f8c6c51b588a76afa09"
+    },
+    "screen.mp4": {
+      "bytes": 806251,
+      "path": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/revocation-expo024-candidate-1/revocation-ios-screen.mp4",
+      "sha256": "002261f7189c39aad306d83a76503f2063dc3596b8eabe49c63d21c9346bf825"
+    }
+  },
+  "backend": {
+    "command": [
+      "/Users/ccheever/clique-sb4-20260922-astra-cal16/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4",
+      "dev",
+      "--port",
+      "49380",
+      "--no-watch"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/backend-expo024-candidate-1",
+    "origin": "http://127.0.0.1:49380",
+    "port": 49380,
+    "store": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/backend-expo024-candidate-1/.snapback4/store.sqlite"
+  },
+  "bundleId": "dev.clique.astra",
+  "container": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/3ADCE896-A566-44FF-838E-95C20022B386/data/Containers/Data/Application/2B880264-50EA-4EA5-8484-44B13DBEA4B8",
+  "endedAt": 1790127119356,
+  "error": null,
+  "events": [
+    {
+      "at": 1790127091802,
+      "step": "backend-ready"
+    },
+    {
+      "at": 1790127092321,
+      "pid": 92769,
+      "step": "prime-launched"
+    },
+    {
+      "at": 1790127092321,
+      "step": "waiting-primed"
+    },
+    {
+      "at": 1790127108729,
+      "step": "primed"
+    },
+    {
+      "at": 1790127109598,
+      "pid": 92769,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790127109658,
+      "step": "backend-refuses-connections"
+    },
+    {
+      "at": 1790127109872,
+      "step": "recording-started"
+    },
+    {
+      "at": 1790127110412,
+      "pid": 95703,
+      "step": "offline-launched"
+    },
+    {
+      "at": 1790127110412,
+      "step": "waiting-offline-done"
+    },
+    {
+      "at": 1790127114265,
+      "step": "offline-done"
+    },
+    {
+      "at": 1790127117159,
+      "step": "backend-ready"
+    },
+    {
+      "at": 1790127117159,
+      "step": "reconnect-signaled"
+    },
+    {
+      "at": 1790127117159,
+      "step": "waiting-done"
+    },
+    {
+      "at": 1790127118324,
+      "step": "done"
+    },
+    {
+      "at": 1790127118435,
+      "step": "recording-stopped"
+    },
+    {
+      "at": 1790127119286,
+      "pid": 95703,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790127119345,
+      "step": "backend-refuses-connections"
+    }
+  ],
+  "exitStatus": 0,
+  "outputs": [
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/revocation-expo024-candidate-1/revocation-ios-run.json",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/revocation-expo024-candidate-1/revocation-ios-screen.mp4",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/revocation-expo024-candidate-1/revocation-ios-receipts.jsonl",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/revocation-expo024-candidate-1/revocation-ios-device.log",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/revocation-expo024-candidate-1/revocation-ios-video.log",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/revocation-expo024-candidate-1/revocation-ios-launch.log",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/revocation-expo024-candidate-1/revocation-ios-backend.log",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/revocation-expo024-candidate-1/revocation-ios-backend-stdout.log",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/revocation-expo024-candidate-1/revocation-ios-log-stderr.log"
+  ],
+  "prime": true,
+  "relaunch": false,
+  "reservation": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/revocation-expo024-candidate-1/revocation-ios-reserved",
+  "run": "1790127088303-91965",
+  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+  "segment": "revocation",
+  "startedAt": 1790127088303,
+  "timestampUnit": "unix-ms",
+  "udid": "3ADCE896-A566-44FF-838E-95C20022B386"
+}

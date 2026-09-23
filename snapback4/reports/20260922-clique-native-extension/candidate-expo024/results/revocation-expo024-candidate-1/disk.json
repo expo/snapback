@@ -1,0 +1,25 @@
+{
+  "afterDriverExit": true,
+  "files": [
+    {
+      "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite",
+      "logicalBytes": 122359808,
+      "allocatedBytes": 134660096
+    },
+    {
+      "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite-shm",
+      "logicalBytes": 32768,
+      "allocatedBytes": 32768
+    },
+    {
+      "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite-wal",
+      "logicalBytes": 71650952,
+      "allocatedBytes": 84860928
+    },
+    {
+      "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite.media/01M35C3YVMASD2R6XVJCJSBRH2",
+      "logicalBytes": 758,
+      "allocatedBytes": 4096
+    }
+  ]
+}

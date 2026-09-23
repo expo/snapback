@@ -1,0 +1,44 @@
+{
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 1094,
+      "sha256": "c6823786305d1f78e45ee0c2c2043f7577e5a8647d3e92904ba80244fcd1dcc1"
+    },
+    {
+      "path": "capture-check.py",
+      "bytes": 2743,
+      "sha256": "121271637c3890f0b8d55d3419131d825fdeb28a98faf4f288f38ccd3114d34c"
+    },
+    {
+      "path": "check-stopped-native.py",
+      "bytes": 1073,
+      "sha256": "4d405bb02bfef30128e692a3230b921d72b6ca2568e72c0b3dfd01af941133fc"
+    },
+    {
+      "path": "receipt.json",
+      "bytes": 1977,
+      "sha256": "ec078fcb51076f970ad9bfc65b97774f97b0fab1c732795fe9dde1901bf3c447"
+    },
+    {
+      "path": "snapshot-after.json",
+      "bytes": 1533,
+      "sha256": "bed4b3a2e4fba5d3a3f16033db55561b9d1f7a497921a6b5d26de64a8c0855c8"
+    },
+    {
+      "path": "snapshot-before.json",
+      "bytes": 1533,
+      "sha256": "bed4b3a2e4fba5d3a3f16033db55561b9d1f7a497921a6b5d26de64a8c0855c8"
+    },
+    {
+      "path": "stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "stdout.json",
+      "bytes": 160,
+      "sha256": "0eaf7f9510c89c732a7f3ecda52afa00153fc8b18561f8e25dde556c562b9bd5"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{"stage":"reopen","newRealm":true,"stoppedBackend":true,"pendingIds":["01M3604K3RDQQTGTP0F0JQZSC0","01M3604K5WRWAWWD9DB7MX0S65","01M3604K8YF0H4P90G106366B0"],"nonpredicting":true,"stale":true}
+{"stage":"accountIsolation","pendingHidden":true,"referencesPreserved":true,"offlineSignOut":true}
+{"stage":"reconnect","rows":2,"ordered":true,"originalIds":true,"duplicateRows":0,"sequences":[2,3,4]}
+{"stage":"receipts","failedAfterRestart":true,"unknownRemainsUnknown":true}
+{"stage":"guest","samePrincipalOfflineReopen":true,"credentialsCleared":true,"replicaPreserved":true,"stalledLogoutOfflineReopenRefused":true}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+page.goto: Timeout 30000ms exceeded.
+Call log:
+  - navigating to "http://127.0.0.1:64934/chat/?as=bob", waiting until "load"
+
+    at /private/tmp/sb4-3011-20260922/installed-web-033-1/witness/starter.mjs:345:14 {
+  name: 'TimeoutError'
+}
+
+Node.js v24.18.0

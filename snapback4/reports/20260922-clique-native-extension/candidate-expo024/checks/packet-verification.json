@@ -1,0 +1,48 @@
+{
+  "passed": true,
+  "checks": {
+    "frozen-app": {
+      "filesVerified": 71
+    },
+    "extension-app": {
+      "filesVerified": 75
+    },
+    "restart": {
+      "driverSeconds": 54.498,
+      "wrapperSeconds": 56.26678013801575,
+      "driverArtifactsVerified": 3,
+      "hostOracle": true,
+      "messageIds": [
+        "01M35Y4G9Y3C19D40FC43VDJ7S",
+        "01M35Y4G9Y3C19D40FC43VDJ7V"
+      ],
+      "writeIds": [
+        "01M35Y4G9Y3C19D40FC43VDJ7T",
+        "01M35Y4G9Y3C19D40FC43VDJ7W"
+      ],
+      "settlementSeqs": [
+        177417,
+        177418
+      ],
+      "offlineImageLoads": 2,
+      "offlineVideoFirstFrames": 2,
+      "liveOnceExclusion": true
+    },
+    "revocation": {
+      "driverSeconds": 31.053,
+      "wrapperSeconds": 32.341310024261475,
+      "driverArtifactsVerified": 3,
+      "hostOracle": true,
+      "confirmedOnlineAfterLearnedLeave": true
+    },
+    "acquisition": {
+      "driverSeconds": 42.742,
+      "wrapperSeconds": 44.44095993041992,
+      "driverArtifactsVerified": 3,
+      "offlineExactIds": 10000,
+      "idSha256": "c18d2f7afba531ca5a0ee2feb32459153f07086ad2f986023cfce94bc87ddf50",
+      "queryPages": 299,
+      "beforeReconnect": true
+    }
+  }
+}

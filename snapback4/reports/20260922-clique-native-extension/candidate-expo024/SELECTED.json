@@ -1,0 +1,31 @@
+{
+  "scope": "Selected verbatim files from the independent-review packet; PACKET.json describes complete original packet retained outside Git, not only this subset",
+  "originalPacket": "/tmp/sb4-3011-20260922/clique-native-final-candidate-review",
+  "packetSha256": "a94cff875b5f6e3cce023dc508be2c3f52d9590760fe13939fe02fc898b6c120",
+  "files": {
+    "PACKET.json": "a94cff875b5f6e3cce023dc508be2c3f52d9590760fe13939fe02fc898b6c120",
+    "README.md": "df557c93acff04c2e100b145925503a0632bd64f8cc01523a795a30334d6491e",
+    "checks/packet-verification.json": "b345dd7f0b3c8cd99195f2a9a2d3a12d4985f78a9f1b5b00f38da1ecb586348e",
+    "custody/release-expo024-candidate-1.json": "3bdd9ffb34e4055f57b97db1b9f8109f5295579bef90a8a3b97340374805862f",
+    "custody/extension-source-expo024-candidate-1.json": "37cf7a853f5d7c15365937b723d84b225f2d1ca36f624a3592063ef8e0826b27",
+    "custody/retained-fixture.json": "c383f322cc71f2ec5fc10549aeb90f538e3087a146221d6991b7cc3db2b00e9e",
+    "custody/candidate-tarballs.json": "68d1c979a3f572b39b43cbd08a2134f0879ce00c336502acb98f4813a0b9819f",
+    "results/restart-expo024-candidate-1/restart-ios-run.json": "63eb39e2bad4b6f3601ed4e2b357488748bf548f314e07a65db6ce68283d8474",
+    "results/restart-expo024-candidate-1/restart-ios-receipts.jsonl": "2b68c54085a497924b25bff3685720db29c0a3495462c59ed0e9211a8091c7db",
+    "results/restart-expo024-candidate-1/wrapper-result.json": "440d5a1d57a388a30d77692bf51be75e6beeb72a18fb965656aa3febb5334e28",
+    "results/restart-expo024-candidate-1/media-files.json": "4b30e7729ec96d0e73334638fa10ececb33a48455484f1d7573622d4dc911de5",
+    "results/restart-expo024-candidate-1/disk.json": "77bd8169427b69d10c9a26770ffdcb90fbfdd69e32beeb79968cdeb242500d32",
+    "results/restart-expo024-candidate-1/memory.json": "da7a9dd81fa0038e759c22fffb8f7b5408289c46cec3bb5f2c10306d828c6f2a",
+    "results/revocation-expo024-candidate-1/revocation-ios-run.json": "e2fd04bd794e33f4c6aac3a22bc319563868f4af496875ddf90f659fe22daa6d",
+    "results/revocation-expo024-candidate-1/revocation-ios-receipts.jsonl": "4e03974f321d9483f84df4ae1ac5601ac0ff700302660f8c6c51b588a76afa09",
+    "results/revocation-expo024-candidate-1/wrapper-result.json": "263e080bd6d3f1e86ea8092e716ea5a7978e938e4e86fc761e8e9b1cbf10288b",
+    "results/revocation-expo024-candidate-1/media-files.json": "c0ece8623a42b37ea654ec65e70c2784d8f8bd86ae39c91b2f333512ee4d00b0",
+    "results/revocation-expo024-candidate-1/disk.json": "330f49e6f0e72da9917980f655ea3b2bccd6c3a52b66abf195bb9e0f679127d5",
+    "results/revocation-expo024-candidate-1/memory.json": "7ac6a36906570ce5b849bf0cb1fe39476d94c003e84012e112b482fa0712f28d",
+    "results/acquisition-expo024-candidate-1/acquisition-ios-run.json": "756399bdda9c926a0bfaa5687e474ba97c72e6e220de1d0b490365d33033d23c",
+    "results/acquisition-expo024-candidate-1/acquisition-ios-receipts.jsonl": "fded5f28a77dd13d60c8ba7ddbb58c5eba09c82f9c54a0cdf8de1dfd780bd753",
+    "results/acquisition-expo024-candidate-1/wrapper-result.json": "cad98b248d2789b18e1932916033529869aab0ec58b3c8f7261cf033ae5569bf",
+    "results/acquisition-expo024-candidate-1/disk.json": "04a2f8cb0ce9970c10a6bf1eac7f9311e21c1eeae4df329aaed8720d5fab8b38",
+    "results/acquisition-expo024-candidate-1/memory.json": "63979e103859fa28b4cc9f1e2ce9f0140dba26b0ad9bfb035bda6dc6981fa944"
+  }
+}

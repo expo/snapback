@@ -220,3 +220,68 @@ Full acquisition also passed: the actual offline query walk matched all
 execution and publication are
 still pending; the [native report](./20260922-clique-native-extension.md) retains
 the exact app, package, scenario and evidence identities.
+
+
+## Corrective release qualification
+
+The reviewed source and actual native candidate report landed in
+`f54b4c71dea34a428739199d25e09a301d06e988`, including the separate session's
+nullable-array emitter fix `8c5aeb5a4`. The isolated publication checkout
+preserves its prior native-candidate overlay in commit `f4523e3ad` and starts
+clean at that landed source. The [full source qualification](./20260922-native-media-repair/release033/source-qualification.json)
+passed with zero failures in 1,005 seconds: Rust 800 s; client 965 passed, zero
+failed, three skipped out of 968 in 932 s; fixture wrappers nine passed. The
+actual Foundation/AVFoundation helper regression also passed in the full suite.
+Concurrency was four Rust processes and serial client files on the loaded M5;
+coverage and test deadlines were unchanged.
+
+The complete dry run, production build, signing and exact installed-consumer
+proof passed in 1,142.286 seconds. The [SDK/CLI stage](./20260922-native-media-repair/release033/sdk-stage.json)
+holds a 600,181-byte SDK tarball and 4,856,399-byte platform tarball. The signed
+production executable is 9,921,632 bytes, SHA256
+`6a7b34e8fe4b4e142a44aaeac37ddd76c8b5ebccff290088f290bb3770a710f6`.
+Developer ID verification passed; notarization was not performed because no
+notary profile was configured, as with the preceding publication.
+
+The [Expo qualification](./20260922-native-media-repair/release033/expo-stage.json)
+retains the exact tested 17-file tarball rather than repacking it. Every member
+matches landed source or the seven unchanged qualified framework files. It
+binds the actual candidate app's compiled Swift inputs, three successful native
+runs and identical final native-capable SDK JavaScript. The candidate backend
+remains explicitly recorded as 0.2.32.
+
+The source-qualification checkpoint preceded publication. A separate unmodified
+production-web starter check passed offline reopen, account isolation, ordered
+reconnect, failed/unknown receipt handling and guest/sign-out behavior, then
+timed out after 30 seconds on the final new-service-worker navigation. The
+[first failed attempt](./20260922-native-media-repair/release033/web-attempt-1.json)
+and [actual log](./20260922-native-media-repair/release033/web-attempt-1.log) are
+preserved. A bounded investigation follows; neither that failure nor any
+subsequent pass is substituted for the original cal16 benchmark result.
+
+
+The [bounded web investigation](./20260922-native-media-repair/release033/web-diagnosis/summary.md)
+then passed all six unchanged stages with an external lifecycle observer
+(11.450 s), followed by a fresh uninstrumented control (10.567 s). All three
+attempts use identical exact tarballs, dependency locks, witness code,
+assertions and deadlines. The prior 0.2.32 app/witness source is also unchanged;
+third-party lock differences are absent. In the successful observed run, the
+final document and new hashed JavaScript returned HTTP 200 from the service
+worker and the load event fired. The initial timeout has no trace, so its
+cause remains unknown; neither load nor a product defect is inferred.
+No product repair or repack followed. The final uninstrumented pass qualifies
+the staged web artifact, and all three outcomes remain in the release record.
+
+The exact qualified SDK/platform pair was then published with the existing
+`--resume` path, which repeated the installed-consumer proof without repacking.
+The [publication execution](./20260922-native-media-repair/release033/sdk-publication.json)
+ran from 02:11:14.971 to 02:14:02.061 UTC on September 23 (September 22 locally),
+exited zero in 166.774 seconds, and verified both registry integrities against
+the stage. `snapback4@0.2.33` and `snapback4-darwin-arm64@0.2.33` are published.
+The [matching Expo publication](./20260922-native-media-repair/release033/expo-publication.json)
+uploaded the same tested 4,609,484-byte tarball as `snapback4-expo@0.2.24`.
+The [independent registry check](./20260922-native-media-repair/release033/registry-published.json)
+at 02:21:27 UTC verified all three version records, `latest` tags and exact
+qualified SHA-512 integrities. Final public-package native execution uses a
+new `attempts/native-extension-public` copy, preserving every candidate build,
+package and result. That execution remains pending at this checkpoint.

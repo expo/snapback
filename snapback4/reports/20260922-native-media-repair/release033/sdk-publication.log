@@ -1,0 +1,121 @@
+== resume exact qualified tarballs from /Users/ccheever/projects/snapback-3011-20260922/snapback4/target/publication/snapback4-darwin-arm64-0.2.33/resume.json
+== installed-consumer proof
+snapback4 0.2.33; production; 9921632 packed binary bytes; sha256 6a7b34e8fe4b4e142a44aaeac37ddd76c8b5ebccff290088f290bb3770a710f6
+consumer ok: query complete+fresh, online write sent, offline write pending
+== npm publish snapback4-darwin-arm64-0.2.33.tgz
+npm warn Ignoring workspaces for specified package(s)
+npm notice
+npm notice 📦  snapback4-darwin-arm64@0.2.33
+npm notice Tarball Contents
+npm notice 1.2kB THIRD-PARTY-NOTICES
+npm notice 458B package.json
+npm notice 9.9MB snapback4
+npm notice Tarball Details
+npm notice name: snapback4-darwin-arm64
+npm notice version: 0.2.33
+npm notice filename: snapback4-darwin-arm64-0.2.33.tgz
+npm notice package size: 4.9 MB
+npm notice unpacked size: 9.9 MB
+npm notice shasum: 6bdfaecda001fa356c7a10a0b0e68b44d8c12217
+npm notice integrity: sha512-gRXvTa7jSDMXV[...]90ZAXMF43cp6A==
+npm notice total files: 3
+npm notice
+npm notice Publishing to https://registry.npmjs.org/ with tag latest and public access
+npm notice Your package is being processed and may take a few minutes to become available.
+publish: waiting for snapback4-darwin-arm64@0.2.33 to become readable
+publish: waiting for snapback4-darwin-arm64@0.2.33 to become readable
+publish: waiting for snapback4-darwin-arm64@0.2.33 to become readable
+publish: waiting for snapback4-darwin-arm64@0.2.33 to become readable
+== npm publish snapback4-0.2.33.tgz
+npm warn Ignoring workspaces for specified package(s)
+npm notice
+npm notice 📦  snapback4@0.2.33
+npm notice Tarball Contents
+npm notice 99.2kB CLIENT-AND-OPERATIONS.md
+npm notice 15.7kB README.md
+npm notice 46.6kB SERVER.md
+npm notice 894B bin/snapback4.js
+npm notice 395B dist/actions.d.ts
+npm notice 1.6kB dist/actions.js
+npm notice 829B dist/assets.d.ts
+npm notice 5.6kB dist/assets.js
+npm notice 2.5kB dist/auth.d.ts
+npm notice 6.0kB dist/auth.js
+npm notice 1.8kB dist/backend.d.ts
+npm notice 916B dist/backend.js
+npm notice 468B dist/changes.d.ts
+npm notice 3.7kB dist/changes.js
+npm notice 1.2kB dist/client.d.ts
+npm notice 28.9kB dist/client.js
+npm notice 10.1kB dist/contract.d.ts
+npm notice 418B dist/contract.js
+npm notice 80B dist/identity-principal.d.ts
+npm notice 312B dist/identity-principal.js
+npm notice 544B dist/identity-runtime.d.ts
+npm notice 4.7kB dist/identity-runtime.js
+npm notice 3.8kB dist/identity.d.ts
+npm notice 29.0kB dist/identity.js
+npm notice 1.3kB dist/local-assets.d.ts
+npm notice 6.6kB dist/local-assets.js
+npm notice 411B dist/local-exit.d.ts
+npm notice 2.3kB dist/local-exit.js
+npm notice 3.1kB dist/local.d.ts
+npm notice 86.1kB dist/local.js
+npm notice 1.5kB dist/mock.d.ts
+npm notice 8.8kB dist/mock.js
+npm notice 866B dist/native.d.ts
+npm notice 5.2kB dist/native.js
+npm notice 3.2kB dist/react.d.ts
+npm notice 15.1kB dist/react.js
+npm notice 49B dist/resolve-binary.d.ts
+npm notice 1.2kB dist/resolve-binary.js
+npm notice 570B dist/server-context.d.ts
+npm notice 6.8kB dist/server-context.js
+npm notice 694B dist/server-effect-context.d.ts
+npm notice 5.8kB dist/server-effect-context.js
+npm notice 735B dist/server-json.d.ts
+npm notice 4.2kB dist/server-json.js
+npm notice 1.3kB dist/server-lifetime.d.ts
+npm notice 3.9kB dist/server-lifetime.js
+npm notice 1.4kB dist/server-private.d.ts
+npm notice 339B dist/server-private.js
+npm notice 1.8kB dist/server-routes.d.ts
+npm notice 7.4kB dist/server-routes.js
+npm notice 630B dist/server-steps.d.ts
+npm notice 3.6kB dist/server-steps.js
+npm notice 790B dist/server-verify.d.ts
+npm notice 7.4kB dist/server-verify.js
+npm notice 3.4kB dist/server.d.ts
+npm notice 11.9kB dist/server.js
+npm notice 1.6MB dist/wasm/snapback4_device_bg.wasm
+npm notice 819B dist/wasm/snapback4_device_bg.wasm.d.ts
+npm notice 2.6kB dist/wasm/snapback4_device.d.ts
+npm notice 14.1kB dist/wasm/snapback4_device.js
+npm notice 1.3kB dist/web-journal.d.ts
+npm notice 9.1kB dist/web-journal.js
+npm notice 2.4kB dist/web.d.ts
+npm notice 35.4kB dist/web.js
+npm notice 6.0kB dist/worker.d.ts
+npm notice 19.3kB dist/worker.js
+npm notice 1.6kB dist/writes.d.ts
+npm notice 7.2kB dist/writes.js
+npm notice 2.3kB package.json
+npm notice Tarball Details
+npm notice name: snapback4
+npm notice version: 0.2.33
+npm notice filename: snapback4-0.2.33.tgz
+npm notice package size: 600.2 kB
+npm notice unpacked size: 2.2 MB
+npm notice shasum: c073f0f997f49031a6462c2b1324e530bf873a2b
+npm notice integrity: sha512-z6nd0glf9qkms[...]dvgkitVBHQ1vQ==
+npm notice total files: 69
+npm notice
+npm notice Publishing to https://registry.npmjs.org/ with tag latest and public access
+npm notice Your package is being processed and may take a few minutes to become available.
+publish: waiting for snapback4@0.2.33 to become readable
+publish: waiting for snapback4@0.2.33 to become readable
+publish: waiting for snapback4@0.2.33 to become readable
+publish: waiting for snapback4@0.2.33 to become readable
+publish: waiting for snapback4@0.2.33 to become readable
+publish: waiting for snapback4@0.2.33 to become readable
+{"at":"2026-09-23T02:14:02.057Z","version":"0.2.33","tarballBytes":600181,"platformTarballBytes":4856399,"tarballIntegrity":"sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==","platformTarballIntegrity":"sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==","resume":"/Users/ccheever/projects/snapback-3011-20260922/snapback4/target/publication/snapback4-darwin-arm64-0.2.33/resume.json","files":69,"binaryBytes":9921632,"binarySha256":"6a7b34e8fe4b4e142a44aaeac37ddd76c8b5ebccff290088f290bb3770a710f6","binaryVersion":"snapback4 0.2.33","binaryProfile":"production","sqliteBuildFlags":"-USQLITE_ENABLE_MEMORY_MANAGEMENT","cargoProfile":{"opt_level":"3","debuginfo":0,"debug_assertions":false,"overflow_checks":false,"test":false},"signingAuthority":"Developer ID Application: Charles Cheever (UD2ZVW5WU5)","signingTeamId":"UD2ZVW5WU5","notarized":false,"notarySubmissionId":null,"platform":"darwin-arm64","publish_s":166.7,"dry":false}

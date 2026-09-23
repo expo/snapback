@@ -1,0 +1,42 @@
+{
+  "source": "f54b4c71dea34a428739199d25e09a301d06e988",
+  "started": "2026-09-23T02:09:38.162680+00:00",
+  "client": {
+    "name": "snapback4",
+    "version": "0.2.33",
+    "filename": "snapback4-0.2.33.tgz",
+    "integrity": "sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==",
+    "bytes": 600181,
+    "files": 69
+  },
+  "platform": {
+    "name": "snapback4-darwin-arm64",
+    "version": "0.2.33",
+    "filename": "snapback4-darwin-arm64-0.2.33.tgz",
+    "integrity": "sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==",
+    "bytes": 4856399,
+    "files": 3
+  },
+  "witnessHashes": {
+    "starter.mjs": "8796455c1541c6de3fc05d9e81fd956e2396e72e2d4464ad1fec57e871b10dc2",
+    "lib.mjs": "daa4b6af3591e917e32d7b3563ac80bf10f27887bad90c56cde6b51cbfbbb0a5"
+  },
+  "scope": "Unmodified production starter witness; actual init output and SDK from exact staged tarballs; pinned third-party tooling fresh install",
+  "steps": [
+    {
+      "step": "install",
+      "exit": 0,
+      "seconds": 0.831
+    },
+    {
+      "step": "browser",
+      "exit": 0,
+      "seconds": 11.45
+    }
+  ],
+  "operatorObserverSha256": "c7fc7f5720f6c4c7024905c349175e60b31a37af4d8c8f89f42a03ff9669bf88",
+  "dependencyLockSha256": "176e1cd6d0869137fd2ed2bae44e46bb0bfc3cdd2caede295967a921380638b3",
+  "binarySha256": "6a7b34e8fe4b4e142a44aaeac37ddd76c8b5ebccff290088f290bb3770a710f6",
+  "ended": "2026-09-23T02:09:50.450908+00:00",
+  "status": "pass"
+}

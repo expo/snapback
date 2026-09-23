@@ -137,7 +137,8 @@ The actual native video rendered its first frame from the canonical `.mp4`
 cache file, then did so from fresh player mounts in both offline processes.
 The ordinary image also loaded offline. The actual once image loaded while
 its bytes remained absent from file storage and the media manifest. Positive
-ordinary byte/digest controls accompany every absence check. The recipient
+ordinary byte controls accompany the live checks, with independent fixture-
+digest controls after the app stops. The recipient
 had never uploaded or picked the once fixture, so unrelated source files
 cannot confuse that result.
 

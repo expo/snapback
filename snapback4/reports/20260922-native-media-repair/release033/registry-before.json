@@ -1,0 +1,32 @@
+{
+  "at": "2026-09-23T02:03:23.159530+00:00",
+  "packages": {
+    "snapback4": {
+      "latest": {
+        "version": "0.2.32",
+        "integrity": "sha512-jSYdZLq8270Lgewu7CRvJ/gHM4RQiYgg0FMf37zxkyHETB3fxSsITa9fA8lzbPt9JQgvWtwnB5AuA4drJVqpRQ=="
+      },
+      "candidate": {
+        "status": 404
+      }
+    },
+    "snapback4-darwin-arm64": {
+      "latest": {
+        "version": "0.2.32",
+        "integrity": "sha512-LYGA0D8/07IVr5RFgHr6ljoasK/FPUxctk3SWJ/lzrvNksYdeVrWmuGsN9ydDSe73VhyP9FB4RuLsRV4qbYePw=="
+      },
+      "candidate": {
+        "status": 404
+      }
+    },
+    "snapback4-expo": {
+      "latest": {
+        "version": "0.2.23",
+        "integrity": "sha512-6Qjmfxr0EuOU1dxteQsOJkhYebh67au1blOTiIuRts1B2nRO3ZYPuQV6qFPXdk9iKGrJhEYatxgFLcJNOAMJpA=="
+      },
+      "candidate": {
+        "status": 404
+      }
+    }
+  }
+}

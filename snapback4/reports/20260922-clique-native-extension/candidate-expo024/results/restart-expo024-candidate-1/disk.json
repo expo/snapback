@@ -1,0 +1,35 @@
+{
+  "afterDriverExit": true,
+  "files": [
+    {
+      "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite",
+      "logicalBytes": 122310656,
+      "allocatedBytes": 134660096
+    },
+    {
+      "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite-shm",
+      "logicalBytes": 32768,
+      "allocatedBytes": 32768
+    },
+    {
+      "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite-wal",
+      "logicalBytes": 71580912,
+      "allocatedBytes": 84860928
+    },
+    {
+      "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite.media/01M35C3YVMASD2R6XVJCJSBRH2",
+      "logicalBytes": 758,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite.media/01M35Y3022EHN3F050H7SDNYN0",
+      "logicalBytes": 2062,
+      "allocatedBytes": 4096
+    },
+    {
+      "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite.media/01M35Y302EN6Q41D03EWDJYHCB.mp4",
+      "logicalBytes": 49779,
+      "allocatedBytes": 53248
+    }
+  ]
+}

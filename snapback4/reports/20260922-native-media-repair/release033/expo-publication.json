@@ -1,0 +1,41 @@
+{
+  "started": "2026-09-23T02:18:39.488850+00:00",
+  "source": "f54b4c71dea34a428739199d25e09a301d06e988",
+  "package": "snapback4-expo@0.2.24",
+  "qualifiedTarball": "/private/tmp/sb4-3011-20260922/expo-0.2.24-qualified/snapback4-expo-0.2.24.tgz",
+  "sha256": "aa3a7037a65598d1c014b28136debe023d856140c6871d6fbed54607f489ccb1",
+  "integrity": "sha512-IExI9pchHDjww3J4gCUPqDX5E2RnjIaPYVotEEM0KWFWrydsht6VBejyUOtrlcBnrhT8haHDszwaP/UAFm+LZA==",
+  "verifiedFileCount": 17,
+  "qualification": "/tmp/sb4-3011-20260922/expo-0.2.24-qualified/qualification.json",
+  "nativeEvidence": {
+    "restart": {
+      "run": "1790126964430-72044",
+      "exitStatus": 0
+    },
+    "revocation": {
+      "run": "1790127088303-91965",
+      "exitStatus": 0
+    },
+    "acquisition": {
+      "run": "1790127201762-13505",
+      "exitStatus": 0
+    }
+  },
+  "published": true,
+  "registryAlreadyIdentical": false,
+  "upload": {
+    "pid": 46947,
+    "command": [
+      "npm",
+      "publish",
+      "/private/tmp/sb4-3011-20260922/expo-0.2.24-qualified/snapback4-expo-0.2.24.tgz",
+      "--access",
+      "public"
+    ],
+    "started": "2026-09-23T02:18:40.008320+00:00",
+    "exit": 0,
+    "ended": "2026-09-23T02:18:43.764800+00:00"
+  },
+  "registryIntegrity": "sha512-IExI9pchHDjww3J4gCUPqDX5E2RnjIaPYVotEEM0KWFWrydsht6VBejyUOtrlcBnrhT8haHDszwaP/UAFm+LZA==",
+  "ended": "2026-09-23T02:21:06.941379+00:00"
+}

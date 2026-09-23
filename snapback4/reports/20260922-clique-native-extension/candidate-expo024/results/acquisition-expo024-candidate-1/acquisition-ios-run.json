@@ -1,0 +1,138 @@
+{
+  "appBuild": {
+    "CFBundleExecutable": "Clique",
+    "CFBundleIdentifier": "dev.clique.astra",
+    "CFBundleShortVersionString": "0.0.1",
+    "CFBundleVersion": "1"
+  },
+  "appPath": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/3ADCE896-A566-44FF-838E-95C20022B386/data/Containers/Bundle/Application/F51DA675-6738-4019-A3DD-9DC4D6B3F46A/release-expo024-candidate-1.app",
+  "artifacts": {
+    "device.log": {
+      "bytes": 4135602,
+      "path": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/acquisition-expo024-candidate-1/acquisition-ios-device.log",
+      "sha256": "8cfb1de503889e1b339a3e1d5efe4091dd80f2d4e573b5120fbc09ad96702237"
+    },
+    "receipts.jsonl": {
+      "bytes": 157331,
+      "path": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/acquisition-expo024-candidate-1/acquisition-ios-receipts.jsonl",
+      "sha256": "fded5f28a77dd13d60c8ba7ddbb58c5eba09c82f9c54a0cdf8de1dfd780bd753"
+    },
+    "screen.mp4": {
+      "bytes": 1015985,
+      "path": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/acquisition-expo024-candidate-1/acquisition-ios-screen.mp4",
+      "sha256": "51c41b7cd40ce43c3694c9db74d98a2f3a05368bcf96423ff5dd069f7e61de65"
+    }
+  },
+  "backend": {
+    "command": [
+      "/Users/ccheever/clique-sb4-20260922-astra-cal16/lanes/astra-snapback4/node_modules/snapback4-darwin-arm64/snapback4",
+      "dev",
+      "--port",
+      "49380",
+      "--no-watch"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/backend-acquisition-expo024-candidate-1",
+    "origin": "http://127.0.0.1:49380",
+    "port": 49380,
+    "store": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/backend-acquisition-expo024-candidate-1/.snapback4/store.sqlite"
+  },
+  "bundleId": "dev.clique.astra",
+  "container": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/3ADCE896-A566-44FF-838E-95C20022B386/data/Containers/Data/Application/896CC9B9-9666-4345-B392-3775AD98BF70",
+  "endedAt": 1790127244504,
+  "error": null,
+  "events": [
+    {
+      "at": 1790127202513,
+      "step": "backend-ready"
+    },
+    {
+      "at": 1790127203262,
+      "pid": 13949,
+      "step": "prime-launched"
+    },
+    {
+      "at": 1790127203262,
+      "step": "waiting-primed"
+    },
+    {
+      "at": 1790127226155,
+      "step": "primed"
+    },
+    {
+      "at": 1790127227455,
+      "pid": 13949,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790127227512,
+      "step": "backend-refuses-connections"
+    },
+    {
+      "at": 1790127227846,
+      "step": "recording-started"
+    },
+    {
+      "at": 1790127228606,
+      "pid": 18053,
+      "step": "offline-launched"
+    },
+    {
+      "at": 1790127228606,
+      "step": "waiting-offline-done"
+    },
+    {
+      "at": 1790127239227,
+      "step": "offline-done"
+    },
+    {
+      "at": 1790127241717,
+      "step": "backend-ready"
+    },
+    {
+      "at": 1790127241718,
+      "step": "reconnect-signaled"
+    },
+    {
+      "at": 1790127241718,
+      "step": "waiting-done"
+    },
+    {
+      "at": 1790127242799,
+      "step": "done"
+    },
+    {
+      "at": 1790127243025,
+      "step": "recording-stopped"
+    },
+    {
+      "at": 1790127244425,
+      "pid": 18053,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790127244504,
+      "step": "backend-refuses-connections"
+    }
+  ],
+  "exitStatus": 0,
+  "outputs": [
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/acquisition-expo024-candidate-1/acquisition-ios-run.json",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/acquisition-expo024-candidate-1/acquisition-ios-screen.mp4",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/acquisition-expo024-candidate-1/acquisition-ios-receipts.jsonl",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/acquisition-expo024-candidate-1/acquisition-ios-device.log",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/acquisition-expo024-candidate-1/acquisition-ios-video.log",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/acquisition-expo024-candidate-1/acquisition-ios-launch.log",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/acquisition-expo024-candidate-1/acquisition-ios-backend.log",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/acquisition-expo024-candidate-1/acquisition-ios-backend-stdout.log",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/acquisition-expo024-candidate-1/acquisition-ios-log-stderr.log"
+  ],
+  "prime": true,
+  "relaunch": false,
+  "reservation": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/acquisition-expo024-candidate-1/acquisition-ios-reserved",
+  "run": "1790127201762-13505",
+  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+  "segment": "acquisition",
+  "startedAt": 1790127201762,
+  "timestampUnit": "unix-ms",
+  "udid": "3ADCE896-A566-44FF-838E-95C20022B386"
+}

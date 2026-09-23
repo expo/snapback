@@ -1,0 +1,1 @@
+{"step": "browser", "pid": 61089, "command": ["node", "--import", "/tmp/sb4-3011-20260922/observe_starter_navigation.mjs", "witness/starter.mjs"]}

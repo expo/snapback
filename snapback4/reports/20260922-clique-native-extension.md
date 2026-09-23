@@ -2,13 +2,14 @@
 
 This is an extension of the frozen cal16 application, not a new score or a
 replacement for its independent grade. The original result remains **104 pass,
-0 fail, 15 not run; score 88**. All three installed Release scenarios now pass on the exact unpublished
+0 fail, 15 not run; score 88**. All three installed Release scenarios passed on the then-unpublished
 SDK 0.2.33 and native Expo 0.2.24 candidates: restart/offline media and
 settlement/read progression, learned revocation, and full retained-fixture
 acquisition with all 10,000 required message IDs checked before reconnect.
 The earlier published-pin failures remain recorded below. Candidate results
-are not registry publication or final public-pin qualification; that rerun
-remains pending publication.
+are not final public-pin qualification. The [corrective release](./20260922-native-media-repair.md#corrective-release-qualification)
+is now published as SDK/CLI 0.2.33 and Expo 0.2.24; all three registry hashes
+match the qualified packages. A separate installed public-pin rerun is underway.
 
 ## Custody and scope
 
@@ -394,3 +395,21 @@ is shut down. The final public package pair still needs publication and its
 own installed-pin rerun. Real-provider delivery remains **pending account and
 recipient**. Android, physical-device power loss, exact peak memory and wire
 bytes are unmeasured. The original cal16 grade and score remain unchanged.
+
+
+### Independent evidence audit and portable receipts
+
+Astra max independently verified the frozen 275-file candidate packet and
+marked all three stated candidate passes READY, with no material evidence
+contradictions. The [actual review](../../llp/reviews/3000.011-recent-builder-friction.gpt.md#actual-clique-native-candidate-evidence-review--2026-09-23)
+records its scope and limits. [Selected verbatim receipts and custody](./20260922-clique-native-extension/candidate-expo024/SELECTED.json)
+are retained here; the complete packet, including videos and full logs, stays
+at its recorded local path. The packet manifest still describes that complete
+packet, not just this portable subset.
+
+The separate [post-reconnect checker supplement](./20260922-clique-native-extension/post-reconnect-check/README.md)
+records a fresh read-only inspection of an APFS clone of the preserved stopped
+Documents snapshot. Its actual output confirms 10,000 messages and 248
+memberships; before/after hashes show the original snapshot was unchanged.
+It adds portable evidence for the ancillary membership count and does not
+replace or relabel the original offline message-query proof.

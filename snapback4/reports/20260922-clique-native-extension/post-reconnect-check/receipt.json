@@ -1,0 +1,32 @@
+{
+  "startedAt": "2026-09-23T01:56:48.472547+00:00",
+  "completedAt": "2026-09-23T01:56:49.202276+00:00",
+  "sourceSnapshot": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/acquisition-expo024-candidate-1/stopped-documents",
+  "sourceSnapshotUnchanged": true,
+  "snapshotManifestSha256": "bed4b3a2e4fba5d3a3f16033db55561b9d1f7a497921a6b5d26de64a8c0855c8",
+  "files": 8,
+  "bytes": 422522121,
+  "copyArgv": [
+    "/bin/cp",
+    "-cR",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/artifacts/acquisition-expo024-candidate-1/stopped-documents",
+    "/private/tmp/sb4-3011-20260922/clique-native-post-reconnect-check-1/stopped-documents-inspection-copy"
+  ],
+  "argv": [
+    "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+    "/private/tmp/sb4-3011-20260922/clique-native-post-reconnect-check-1/check-stopped-native.py",
+    "/private/tmp/sb4-3011-20260922/clique-native-post-reconnect-check-1/stopped-documents-inspection-copy",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/custody/retained-fixture.json"
+  ],
+  "checkerStartedAt": "2026-09-23T01:56:48.930479+00:00",
+  "checkerEndedAt": "2026-09-23T01:56:48.994621+00:00",
+  "checkerElapsedSeconds": 0.06415037500000004,
+  "exitCode": 0,
+  "checkerSha256": "4d405bb02bfef30128e692a3230b921d72b6ca2568e72c0b3dfd01af941133fc",
+  "fixture": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension/custody/retained-fixture.json",
+  "fixtureSha256": "c383f322cc71f2ec5fc10549aeb90f538e3087a146221d6991b7cc3db2b00e9e",
+  "stdoutSha256": "0eaf7f9510c89c732a7f3ecda52afa00153fc8b18561f8e25dde556c562b9bd5",
+  "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "phase": "stopped after reconnect; distinct from offline-ID enumeration",
+  "mode": "Existing mode=ro SQLite checker on APFS clone; preserved original only hashed before/after, never opened as SQLite"
+}

@@ -140,9 +140,11 @@ selected receipts are also retained under `astra/evidence/` here.
 | Digest | The small scheduled fixture passed with all clients closed, restart and an empty next period. The builder explicitly retains the one-recipient transaction's meter boundary; this does not establish full-scale busy-chat digest qualification. [Receipt](./astra/evidence/digest-proof.json). |
 
 The builder reproduced a nullable-object-array TypeScript emission defect.
-The [follow-up ticket](../../../issues/20260922-snapback4-generated-nullable-row-array-precedence.md)
+The [follow-up ticket](../../../issues/closed/20260922-snapback4-generated-nullable-row-array-precedence.md)
 records its small reproduction and the matching, unchanged emitter source.
 The application uses a workaround; the published package was not edited.
+A separate session subsequently fixed the emitter in `8c5aeb5a4` on September
+22. That later fix does not alter this run's frozen package or application.
 
 Before grading, all assigned listeners were verified stopped and a complete
 APFS copy of the lane was preserved at `attempts/builder-completed/`. The
