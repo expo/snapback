@@ -46767,3 +46767,48 @@ Implemented by an Astra xhigh lane on the black M5 Max, with one fix round.
   returned the exact refusal.
 
 Integrated suite on the rebased tree (M5): `== 0 failure(s) in 623 s`.
+
+## 2026-09-23 — 0.3 program: the device authorizes provisional rows at read time (READAUTH)
+
+Device reads trust every row in a synced table, because a delivered row was
+authorized by the server. A predicted row was not. A mutation whose writes
+produced a row its writer cannot read left that row readable until
+settlement (`issues/20260922-snapback4-device-reads-trust-predicted-rows.md`;
+owned by the program lead and due before 0.3.0). An independent Astra review
+of the program asked for this shared correction.
+
+**The mechanism.** A device read that touches a provisional row evaluates the
+table's read rule for the device's principal against the combined pending
+state.
+
+- Rule witnesses are raw, as on the server: the device's own pending writes
+  count as present, and delivered witnesses only when covered. A
+  retained-only witness is unknown, and unknown hides the row.
+- The verdict is three-way (readable, denied, unknown), evaluated once per
+  read. Meter exhaustion stays a meter cut.
+- This covers point reads, scans, merges, pages, counts, probes,
+  prediction's own reads and watches.
+- Delivered rows keep their trust. Mutations still predict; unreadable
+  provisional rows are simply invisible until settlement. The declared
+  timeline keeps its foreign-row skip.
+
+**Three review rounds.**
+
+- **v1 checked at prediction time and queued.** Astra NOT READY, with three
+  Highs that a prediction-time check cannot close: a retained grant
+  authorized a prediction, a later pending mutation revoked an earlier
+  prediction's authority, and old provisional rows survived an upgrade. The
+  mechanism moved to read time.
+- **v2** closed those three. Astra NOT READY on recursive witness
+  authorization: service-seat disjuncts were hidden and a meter cut was
+  erased. Witnesses became raw.
+- **The final round** closed those. Astra found no disclosure or format
+  regression. Its two remaining Mediums, both over-refusal or over-hiding
+  edge cases, are batched with F2's in
+  `issues/20260923-snapback4-readauth-and-f2-edge-cases.md` for a lane
+  before 0.3.0.
+
+Integrated suite on the M5: `== 1 failure(s) in 644 s`. The client failures
+were an Expo media-migration test and a session-restore test. Both pass when
+rerun alone, and their whole files pass. Wasm is 458,762 B gzip against a
+459,000 ratchet.
