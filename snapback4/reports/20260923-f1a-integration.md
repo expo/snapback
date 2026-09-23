@@ -1,5 +1,8 @@
 # F1a integration onto main — 2026-09-23
 
+**Review round 2:** the follow-up to integrated `c7e40c4ac` is recorded at
+the end of this report; the integration record below is historical.
+
 Branch: `sb4-03/f1a-columns`. Integration base: `e91f60c7f` (`origin/main`
 after `git fetch origin`). Original F1a commits: `40560fc56`, `61ae3b392`.
 The worktree was clean before rebasing. No push, stash, LLP edit, or
@@ -194,3 +197,154 @@ Final sequence above `e91f60c7f`, oldest first:
 3. `sb4-03/f1a-columns` at completion (this report's commit) — `fix(snapback4): integrate F1a with final F2 and READAUTH`; marker handling, neutral timeline test defaults, integration regressions, guide/census update, ratchet and this report. Its concrete hash is included in the handoff response.
 
 No old F2 commit remains in this branch's delta. No push was performed.
+
+## Review round 2 — timeline authority
+
+Base: `c7e40c4ac`, same branch and worktree. No commit, push, stash, rebase,
+or `scripts/test.sh`. F1b's populated-store work remains separate.
+Reviews read: `/Users/ccheever/sb4-03-lanes/f1a-columns/review-delta.md`
+and `grok-delta-all.md` in the same directory.
+
+The production fix is confined to maintained-column admission and mirroring.
+`schema::columns::timeline_issues` rejects either a parent or source owned
+or mapped by a timeline, using canonical `Timeline::owns/maps` rather than
+trusting stored sets. Raw `schema::validate` includes these issues;
+authoritative engine admission emits `E_MAINTAINED_COLUMN` and a rewrite
+to ordinary tables outside the timeline or a separate maintain. The binder
+checks after timeline declarations have been resolved. The mirror calls
+`refuse_timeline_write(&owner.table, Effect::Update)` before the key and
+parent lookup, including absent parents. It supplies no transition grant.
+
+The governing constraints remain LLP 3000.007.001 §2 (ordinary tables),
+§3.2 (private authority and mirrors), and LLP 3000.007.003 §3.3 (scoped
+timeline authority). These are in `llp/current/`; no new design decision or
+LLP hand-off is needed. The maintains guide and diagnostic entry now state
+the timeline exclusion and clarify authorized provisional zero and preserved
+server images. The journal records the earlier integration's WASM ratchet,
+resolving the historical journal omission above; the budget is unchanged.
+
+The raw regression checks all eight owned and all four mapped table roles,
+as both parent and source, against a valid ordinary-table control. The
+runtime regression installs hand-built state without engine validation:
+direct mirrors refuse before lookup, an ordinary source insert reaches the
+guarded mirror and refuses, rollback leaves source/private rows absent and
+the parent unchanged, and a scoped transition is a positive control.
+Binder regressions cover mapped parents, mapped sources and owned sources.
+
+### Disposition of every numbered Grok finding
+
+Packet 2 has no finding. Its unverified questions, and the other packets'
+unverified comments, are not additional asserted defects.
+
+| Finding | Disposition |
+| --- | --- |
+| 1.1 | Incorrect: `old == new && !dependency_changed && !lifetime_changed` already skips unchanged declarations; removal with populated source/private storage refuses, and activation deletes removed-table rows before reintroduction (`store/activation.rs`), so the proposed stale reattachment path does not exist. |
+| 1.2 | Strengthened native dispatch to test both duplicate orders; raw rejection and both-order system reads already run separately in `maintained_columns_review.rs`. |
+| 3.1 | Strengthened the device helper to reject `$column` throughout pages and queried row images, including reopen and forged-write controls. |
+| 3.2 | Strengthened the optimistic like to require exactly `likes/l1` and all three parent values equal zero; the predicted identifiers carry no row payload. |
+| 3.3 | Fixed the test's submission sequence to increase through changes, parent creation and unlike. |
+| 3.4 | Strengthened pending-parent triples, matching mutation IDs, final empty outbox and reopen after delete-to-zero; read-authority coverage lives in the dedicated both-store test. |
+| 4.1 | Added an immediate post-hide read, the exact predicted path and an unaffected readable pending control that remains the sole authorized row after reopen. |
+| 4.2 | Incorrect contract: `public_page` is an assertion, not a stripping transform; nonzero public parent mirrors must be delivered, and the existing run/oracle tests verify them. |
+| 4.3 | Added raw predicted capture checks and forged insert/update refusals; `= null` really selects the captured null (the server attribution test asserts selected=1), and device open has no `LoadMode` argument. |
+| 5.1 | Added a whole-projection target-string check; the existing precise `E_MAINTAINED_COLUMN_PRIVATE` assertion cannot be satisfied by an ordinary rule denial. |
+| 5.2 | Added a check over every raw validation issue, in addition to the engine-error check; `ColumnOwner::target` fixes the actual `$column:` prefix. |
+| 5.3 | The proposed legal-expiry fixture is impossible for the closed private shape: its only fields are id, parent reference and numeric value; time fields are extra and refused. Tightened projection rejection to require the missing-derivation reason and no private target. |
+| 6.1 (High) | Incorrect: Rust 1.97.0 compiles and runs `i64::from(true/false)` as 1/0; retained the original expression and ran the real creator test. |
+| 6.2 | Added unconditional wire reply/receipt/table privacy checks and explicit sent/default versus failed/cut assertions. |
+| 6.3 | Incorrect oracle criticism: `selected` is a filtered count, `total` the sum; predicate discrimination is already exercised with inactive rows and distinct amounts by `oracle_moves_filters_sums_birth_and_last_delete`, while this test isolates hidden-total disclosure. |
+| 6.4 | Expanded refusal rollback snapshots to every physical table, including sources/private totals; trusted restore semantics are covered separately. |
+| 6.5 | Expanded dependency and raw rule cases to every maintained field and require exactly one disclosure note per owning column. |
+| 6.6 | Added nonempty maintain cardinality and explicit public-table sync assertions before checking private targets remain unsynced. |
+| 7.1 | Added stored captures/private totals before and after deletion/recreation, replacement parent identity/liveness and the uncredited other-parent control; `seed_at` is the guarded seed write path, not inert image assignment. |
+| 7.2 | Added visible event-table checks, exact private-target exclusions and exactly one parent event, preserving the full image oracle. |
+| 8.1 | Incorrect remove/re-add scenario for the same reasons as 1.1; the guide already states both the populated-source/private restriction and the fresh-store remedy. |
+| 8.2 | Clarified that unreadable provisional parents stay hidden, implicit zero follows authorization and acknowledgements do not clear synchronized values. |
+| 9.1 (High) | Fixed: restore supplies one matching private image for every parent field and asserts every image; import independently recounts all three private totals and rescans touched metadata. |
+| 9.2 | Added raw source/private assertions after each write, verified the missing expiry field and effective expiry, and added an unchanged legal adoption control; the no-update trigger remains a hard physical-write witness. |
+| 9.3 | Corrected the overstated test name: legacy validation intentionally accepts missing maintained fields, and constraints on those fields are forbidden; strengthened all write-result, zero-materialization and preserved-value triples. |
+| 9.4 | Added the explicit empty-parent precondition before each source-only adoption refusal. |
+| 10.1 | Incorrect requirement to erase failed compiler output: diagnostics and notes are separate, and engine admission independently refuses the invalid schema; added that refusal plus accepted-derivation presence controls. |
+| 10.2 | Added exact maintain cardinality, parent metadata and `default` source assertions. |
+| 11.1 | Added actual private-target checks over alice/bob streams and exact synced-delete event tables/count. |
+| 11.2 | Added authoritative private-total assertions after successful writes in every parent world; `Store::rows` reads raw SQL images and includes expired rows. |
+| 12.1 | Removed the ineffective file-creation-order loop; the fixture test now claims only the actual directory-loader path. |
+| 12.2 | Added physical parent/private-total assertions and removed the unmeasured “once” claim. |
+| 12.3 | Trusted Restore must preserve supplied values (9.1), so refusing them would violate the contract; strengthened all missing-field, stdout/SQL-payload and successful-output privacy checks and added an absent-table SQL control. |
+| 13.1 | Appended the measured integration ratchet to the journal and replaced the budget's omission rationale with that pointer; no budget increase. |
+| 14.1 | The pre-existing package test already samples `pending=true`; strengthened it to all three zeros, with unreadable/readable authorization and reopen checked on both stores in the dedicated Rust test. |
+| 14.2 | Added query/watch privacy checks, retained pages asserted outside the fetch hook and one matching interrupted parent image; full-row equality is correct after confirmation, and sync limit=1 still delivers whole commits rather than exactly one event. |
+| 14.3 | Added value bounds for every watch sample, exact empty data/why stdout and no SQL rows, and escaped the public-label regex; removed the ambiguous total-text regex. |
+
+### Round-2 verification
+
+The affected Rust command, run from `snapback4/`, is:
+
+```sh
+CARGO_BUILD_JOBS=4 cargo test --no-fail-fast -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4 --features snapback4-core/postgres -- --test-threads=2
+```
+
+Final distinct Rust results, incorporating the corrected clock-target rerun
+described below:
+
+| Crate | Passed | Existing ignored |
+| --- | ---: | ---: |
+| `snapback4-core`, including corpus | 199 | 9 |
+| `snapback4-lang` | 416 | 4 |
+| `snapback4-device`, including both stores | 1,012 | 3 |
+| `snapback4` | 345 | 1 |
+| **Total** | **1,972** | **17** |
+
+The ignored cases are existing live-Postgres, isolated metrology, retained
+calibration or documented limitation cases; this change adds no ignores.
+All five maintained-column device cases passed on both stores. The creator
+disclosure test (Grok 6.1), strengthened restore/import test (9.1), and new
+binder regression passed. The focused authority suite separately passed
+**5/5** (`/tmp/f1a-r2-authority.log`). Doc-test targets passed with zero cases.
+Per-target initial results, corrected clock result and final distinct totals
+are recorded in `/tmp/f1a-r2-results.json`.
+
+The first broad run exposed an existing clock-test timing error:
+`offset_cli_advance_and_rejected_inputs_keep_time_monotone` placed the wall
+timestamp after its first server read, so scheduling that reply could make
+the server interval longer than the measured wall interval. An exact retry
+reproduced it. The test now starts its wall interval before both server reads,
+retaining the same 5 ms allowance. The entire corrected clock target passed
+**17/17**, using `cargo test -p snapback4 --features snapback4-core/postgres
+--test clock -- --test-threads=1`. The initial broad command exited **101**
+with this one failed target; it is not reported as a clean invocation.
+Logs: `/tmp/f1a-r2-rust.log`,
+`/tmp/f1a-r2-clock-retry.log`, `/tmp/f1a-r2-clock-fixed.log`.
+
+`bash scripts/build-wasm.sh` passed at **1,697,990 B raw / 468,599 B gzip**,
+under the unchanged **469,000 B** budget. `bun run --cwd packages/snapback4 build`
+passed, and the strengthened maintained-column package test passed separately
+on SQLite (**1/1**) and rebuilt web WASM (**1/1**), using Node 24.18.0.
+Logs: `/tmp/f1a-r2-wasm.log`, `/tmp/f1a-r2-package-build.log`,
+`/tmp/f1a-r2-package-sqlite.log`, `/tmp/f1a-r2-package-web.log`.
+Source and package `dist` WASM have identical SHA-256:
+`089e869e361a422f4928f36f189cad2626e0285abe0ea9875217ce48d0c3f04b`.
+
+### Admission mutation proof
+
+Used an isolated filesystem copy and separate Cargo target directory while
+the main tests ran. In that copy, replaced `timeline_issues` with an empty
+result, removing the shared admission rejection while retaining the runtime
+mirror guard. Ran the exact raw regression:
+
+```sh
+cargo test -p snapback4-core -p snapback4 --features snapback4-core/postgres --lib engine::timeline_authority::write_tests::raw_columns_reject_timeline_owned_and_mapped_parents_and_sources -- --exact --test-threads=2
+```
+
+The mutated build compiled, then the regression **failed** at
+`timeline_authority_tests.rs:54`: raw validation returned `[]` instead of a
+timeline-parent refusal. Result: **0 passed, 1 failed**, exit **101**.
+Restored the copy **byte for byte** from the saved original in a `finally`
+block. The saved original, restored copy and actual worktree file all have
+SHA-256 `8b07ea8cda81251aa898449ff6af97d40153551ce673738d02891e92ce6bde5e`.
+The restored regression **passed (1/1, exit 0)**. Proof records and logs:
+`/tmp/f1a-r2-mutation.json`, `/tmp/f1a-r2-mutation.log`,
+`/tmp/f1a-r2-restored.log`; driver `/tmp/f1a-r2-mutation.py`.
+
+Final `git diff --check` passed. HEAD remains `c7e40c4ac`; all round-2 edits
+are uncommitted. No commit, push, stash or `scripts/test.sh` occurred.

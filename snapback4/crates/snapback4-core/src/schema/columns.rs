@@ -103,8 +103,26 @@ impl Walk<'_> {
     }
 }
 
+/// Timeline inputs and owned rows have transition semantics outside the
+/// ordinary-table column form, even if their stored ownership sets are forged.
+// @ref LLP 3000.007.003#33-f3-the-following-recipes-contract-as-a-declaration — timeline writes require their scoped transition path.
+pub fn timeline_issues(schema: &Schema) -> Vec<SchemaIssue> {
+    let mut issues = Vec::new();
+    for m in &schema.maintains {
+        let Some(owner) = &m.private else { continue };
+        for (role, table) in [("parent", &owner.table), ("source", &m.source)] {
+            if let Some(timeline) = schema.timelines.iter().find(|t| t.owns(table) || t.maps(table)) {
+                issues.push(SchemaIssue { path: format!("tables.{}.columns.{}", owner.table, owner.column),
+                    message: format!("maintained column {} has timeline-governed {role} {table} in {}; use ordinary parent and source tables outside the timeline, or a separate maintain for the aggregate (guide maintains)", owner.label(), timeline.name) });
+            }
+        }
+    }
+    issues
+}
+
 pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     let mut walk = Walk { schema, issues: Vec::new() };
+    walk.issues.extend(timeline_issues(schema));
     let mut targets = BTreeSet::new();
     for (position, m) in schema.maintains.iter().enumerate() {
         if !targets.insert(&m.target) {

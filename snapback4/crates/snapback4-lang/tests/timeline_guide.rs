@@ -1,5 +1,22 @@
 //! The language card's timeline is part of its single executable program.
 use snapback4_core::{Context,Engine,Value,WriteState};
+
+#[test]
+fn maintained_columns_refuse_timeline_parents_and_sources_in_the_binder() {
+    let base = snapback4_lang::guide::language();
+    for (source, role, table) in [
+        (base.replace("table timelineCards:", "table timelineCards:\n  score: count votes by postId")
+            + "\ntable votes:\n  postId: timelineCards\n  public\n  online only\n", "parent", "timelineCards"),
+        (base.replace("table timelineCards:", "table timelineCards:\n  parentId: ordinaryParents ?")
+            + "\ntable ordinaryParents:\n  score: count timelineCards by parentId\n  public\n  online only\n", "source", "timelineCards"),
+        (base.replace("table timelineCards:", "table timelineCards:\n  score: count timelineFeed by postId"), "source", "timelineFeed"),
+    ] {
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+        assert!(bound.diagnostics.iter().any(|d| d.code == "E_MAINTAINED_COLUMN"
+            && d.message.contains(&format!("timeline-governed {role} {table}"))
+            && d.message.contains("ordinary parent and source tables")), "{:?}", bound.diagnostics);
+    }
+}
 #[test]
 fn language_timeline_registers_delivers_and_removes_without_helpers() {
     let b=snapback4_lang::compile(&[("schema.q".into(),snapback4_lang::guide::language())]);

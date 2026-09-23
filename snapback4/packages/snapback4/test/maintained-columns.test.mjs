@@ -17,7 +17,7 @@ const binary = process.env.SNAPBACK4_BIN ?? join(root,"target/debug/snapback4");
 const fixture = readFileSync(join(root,"crates/snapback4-lang/tests/fixtures/maintained-columns.q"),"utf8");
 const source = "use personas alice, bob\n" + fixture.replaceAll("  online only","  sync public");
 const api = { kind:"query",name:"postRow" };
-const triple = row => [row.likeCount,row.selected,row.total];
+const triple = row => { publicJson(row); return [row.likeCount,row.selected,row.total]; };
 const publicJson = value => assert.doesNotMatch(JSON.stringify(value),/\$column:/i);
 const privateTarget="$column:"+createHash("sha256").update(JSON.stringify(["posts","likeCount"])).digest("hex");
 async function until(check) {
@@ -39,7 +39,7 @@ for (const family of ["sqlite","web"]) test(`maintained columns: ${family} watch
     server.once("exit",()=>{clearTimeout(timer);reject(Error(log))});
     server.stdout.on("data",chunk=>{log+=chunk;const address=log.match(/http:\/\/127\.0\.0\.1:\d+/)?.[0];if(address){clearTimeout(timer);resolve(address)}});
   });
-  const post=async(path,body)=>{const response=await fetch(url+path,{method:"POST",headers:{"x-snapback-persona":"alice","content-type":"application/json"},body:JSON.stringify(body)});const answer=await response.json();assert.equal(response.status,200,JSON.stringify(answer));return answer};
+  const post=async(path,body)=>{const response=await fetch(url+path,{method:"POST",headers:{"x-snapback-persona":"alice","content-type":"application/json"},body:JSON.stringify(body)});const answer=await response.json();assert.equal(response.status,200,JSON.stringify(answer));publicJson(answer);return answer};
   const mutation=async(name,id,args)=>{const result=await post(`/m/${name}`,{id,args});assert.equal(result.state,"sent",JSON.stringify(result));return result};
   await mutation("post","parent",{id:"p",at:1});
   const schemaResponse=await fetch(url+"/schema",{headers:{"x-snapback-persona":"alice"}});
@@ -57,12 +57,13 @@ for (const family of ["sqlite","web"]) test(`maintained columns: ${family} watch
   }
   assert.doesNotMatch(readFileSync(join(directory,"snapback/generated/api.ts"),"utf8"),/\$column/);
   const privateData=command(["data",privateTarget]);
-  assert.notEqual(privateData.status,0);assert.match(privateData.stderr,/posts.likeCount/);assert.doesNotMatch(privateData.stderr,/\$column/);
+  assert.notEqual(privateData.status,0);assert.match(privateData.stderr,/posts\.likeCount/);assert.doesNotMatch(privateData.stderr,/\$column/);
   const privateSql=command(["sql",`select * from "${privateTarget}"`,"--json"]);
-  assert.notEqual(privateSql.status,0);assert.match(privateSql.stdout,/posts.likeCount/);assert.doesNotMatch(privateSql.stdout,/\$column/);
-  const why=command(["why",privateTarget]);assert.notEqual(why.status,0);assert.match(why.stderr,/posts.likeCount/);assert.doesNotMatch(why.stderr,/\$column/);
+  assert.notEqual(privateSql.status,0);assert.match(privateSql.stdout,/posts\.likeCount/);assert.doesNotMatch(privateSql.stdout,/\$column/);
+  const why=command(["why",privateTarget]);assert.notEqual(why.status,0);assert.match(why.stderr,/posts\.likeCount/);assert.doesNotMatch(why.stderr,/\$column/);
   const sql=command(["sql","select likeCount from posts","--json"]);assert.equal(sql.status,0,sql.stderr);assert.deepEqual(JSON.parse(sql.stdout).rows,[[0]]);
   const opener=family==="sqlite"?processDevice({dir:join(directory,"devices"),binary}):webDevice({wasm:readFileSync(join(root,"packages/snapback4/src/wasm/snapback4_device_bg.wasm")),persist:memoryPersistence()});
+  const receivedPages=[];
   let offline=false,interrupt=false,interruptions=0,delivered=0,interruptedPage;
   const open=()=>createLocalClient({url,persona:"alice",waitSeconds:1,device:{open:async(...args)=>{core=await opener.open(...args);return core}},fetch:async(input,init)=>{
     if(offline)throw new TypeError("offline");
@@ -72,7 +73,7 @@ for (const family of ["sqlite","web"]) test(`maintained columns: ${family} watch
       const request=JSON.parse(init.body);request.limit=1;
       const response=await fetch(input,{...init,body:JSON.stringify(request)});
       if(response.ok) {
-        const page=await response.clone().json();publicJson(page);
+        const page=await response.clone().json();receivedPages.push(page);publicJson(page);
         if(catchup){
           delivered++;
           if(page.events?.some(event=>event.table==="posts" && event.id==="p" && event.kind==="put" && event.data?.likeCount===1))interruptedPage=page;
@@ -86,7 +87,7 @@ for (const family of ["sqlite","web"]) test(`maintained columns: ${family} watch
   assert.equal((await client.query(api,{id:"p"})).data.likeCount,0);
   watch=client.observe(api,{id:"p"});
   const observed=[];
-  const record=()=>{const row=watch.getSnapshot().data;if(row)observed.push([row.likeCount,row.selected,row.total])};
+  const record=()=>{const row=watch.getSnapshot().data;if(row)observed.push(triple(row))};
   watch.subscribe(record);
   await until(()=>watch.getSnapshot().data?.likeCount===0);
   await client.sync();
@@ -95,7 +96,7 @@ for (const family of ["sqlite","web"]) test(`maintained columns: ${family} watch
   assert.equal((await client.query(api,{id:"p"})).data.likeCount,0,"a predicted like never increments its parent");
   await client.mutate({kind:"mutation",name:"post"},{id:"pending-parent",at:3});
   const pendingParent=(await client.query(api,{id:"pending-parent"})).data;
-  assert.equal(pendingParent.likeCount,0);
+  assert.deepEqual(triple(pendingParent),[0,0,0]);
   assert.equal(pendingParent.pending,true);
   const predicted=await core.call({op:"query",name:"postRow",viewer:"dev:alice",args:{id:"p"},now:1000});
   assert.equal(predicted.ok.data.likeCount,0);
@@ -103,7 +104,9 @@ for (const family of ["sqlite","web"]) test(`maintained columns: ${family} watch
   offline=false;interrupt=true;
   await until(async()=>{await client.sync();return interruptions>0});
   assert.ok(delivered>=1,"catch-up received the parent image before its next request was interrupted");
-  const deliveredParent=interruptedPage.events.find(event=>event.table==="posts" && event.id==="p" && event.kind==="put").data;
+  const deliveredParents=interruptedPage.events.filter(event=>event.table==="posts" && event.id==="p" && event.kind==="put" && event.data?.likeCount===1);
+  assert.equal(deliveredParents.length,1);
+  const deliveredParent=deliveredParents[0].data;
   assert.deepEqual(triple(deliveredParent),[1,1,3],"interrupt only after receiving a nonzero authoritative parent image");
   const interrupted=(await client.query(api,{id:"p"})).data;
   assert.deepEqual(triple(interrupted),triple(deliveredParent),"the delivered image is readable before resuming sync");
@@ -139,11 +142,21 @@ for (const family of ["sqlite","web"]) test(`maintained columns: ${family} watch
   const destination=(await client.query(api,{id:"q"})).data;
   assert.deepEqual(triple(destination),[1,1,2]);
   assert.deepEqual(destination,(await post("/q/postRow",{args:{id:"q"}})).data);
+  assert.equal(privateData.stdout,"");
+  assert.equal(why.stdout,"");
+  assert.equal(JSON.parse(privateSql.stdout).rows,undefined);
   for(const result of [privateData,privateSql,why]) {
     const text=result.stdout+result.stderr;
-    assert.doesNotMatch(text,/\$column:/i);assert.doesNotMatch(text,/["']?(?:value|likeCount)["']?\s*:/);
+    assert.doesNotMatch(text,/\$column:/i);assert.ok(!text.includes(privateTarget));
   }
   publicJson(log);
+  for(const page of receivedPages)publicJson(page);
+  for(const sample of observed) {
+    assert.equal(sample.length,3);
+    assert.ok(sample[0]===0 || sample[0]===1);
+    assert.ok(sample[1]===0 || sample[1]===1);
+    assert.ok(sample[2]===0 || sample[2]===3);
+  }
   let position=0;
   for(const expected of [[0,0,0],[1,1,3],[1,0,0],[0,0,0]]) {
     while(position<observed.length && !observed[position].every((n,i)=>n===expected[i]))position++;

@@ -14,6 +14,9 @@ pub(crate) fn write_result(table: &crate::schema::Table, mut row: Value) -> Valu
 /// while the caller's resolved declarations are still present.
 #[cfg(feature = "sqlite")]
 pub(super) fn validate_before_prepare(schema: &crate::schema::Schema) -> Result<(),RuntimeError> {
+    if let Some(issue) = crate::schema::columns::timeline_issues(schema).first() {
+        return Err(RuntimeError::Structural { code: "E_MAINTAINED_COLUMN", message: issue.message.clone() });
+    }
     if let Some(issue) = crate::schema::columns::validate(schema).first() {
         let mut message=format!("{}: {}",issue.path,issue.message);
         for m in schema.maintains.iter().filter(|m|m.private.is_some()) { message=message.replace(&m.target,&m.label()); }
@@ -97,6 +100,7 @@ impl Runner<'_> {
     #[cfg(feature = "sqlite")]
     pub(super) fn mirror_column(&mut self, m: &Maintain, key: &[Value], total: i64) -> Result<(),RuntimeError> {
         let Some(owner) = &m.private else { return Ok(()) };
+        self.refuse_timeline_write(&owner.table, crate::schema::Effect::Update)?;
         let Some(Value::Id(id)) = key.first() else { return Ok(()) };
         self.written_tables.insert(owner.table.clone());
         self.charge_maintain(MeterKind::Examined,1)?;

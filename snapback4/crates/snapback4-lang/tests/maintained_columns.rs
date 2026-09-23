@@ -118,13 +118,17 @@ fn writes_and_result_fields_refuse_and_brand_stays_a_write_key() {
 
 #[test]
 fn resolved_dependencies_and_private_projection() {
+    for field in ["likeCount","selected","total"] {
     for line in ["  read <- .likeCount = 0","  immutable likeCount","  unique byCount: likeCount","  cap 1 by likeCount","  sync public last 2 by byLikes"] {
-        let base = MODEL.replace("  public\n  insert <- allow", "  insert <- allow");
+        let line=line.replace("likeCount",field);
+        let model=MODEL.replace("by byLikes: likeCount",&format!("by byLikes: {field}"));
+        let base = model.replace("  public\n  insert <- allow", "  insert <- allow");
         let base = if line.starts_with("  sync") { base.replacen("  online only","  public",1) } else { base };
         let source = base.replacen("  at: time",&format!("  at: time\n{line}"),1);
         let b = snapback4_lang::compile(&[("schema.q".into(),source)]);
         assert!(!b.diagnostics.is_empty(),"admitted {line}");
-        assert!(b.diagnostics.iter().any(|d|d.code == "E_MAINTAINED_COLUMN" && d.message.contains("likeCount")),"{line}: {:?}",b.diagnostics);
+        assert!(b.diagnostics.iter().any(|d|d.code == "E_MAINTAINED_COLUMN" && d.message.contains(&format!("posts.{field}"))),"{line}: {:?}",b.diagnostics);
+    }
     }
     let bound = compile(MODEL);
     assert!(bound.schema.maintain_for("posts").is_none());
@@ -141,6 +145,8 @@ fn resolved_dependencies_and_private_projection() {
         for text in [serde_json::to_string(&projection).unwrap(),snapback4_lang::emit::typescript(&bound),snapback4_lang::emit::rust(&bound)] {assert!(!text.contains(&m.target));}
     }
     let synced=compile(&MODEL.replace("  online only","  sync public"));
+    assert_eq!(synced.schema.maintains.len(),3);
+    assert!(synced.schema.tables["posts"].sync.is_some() && synced.schema.tables["likes"].sync.is_some());
     assert!(synced.schema.maintains.iter().all(|m|synced.schema.tables[&m.target].sync.is_none()));
     assert_eq!(projection.tables.len(),2);
     assert!(projection.maintains.is_empty());
@@ -272,15 +278,16 @@ fn raw_ir_system_and_seed_guard_and_overflow_are_owned_by_column() {
         let p = Program {name:"bad".into(),kind:ProgramKind::Mutation,args:BTreeMap::new(),read_time_granularity_ms:None,body:vec![stmt],native:false,returned_shapes:Default::default()};
         let mut e = Engine::memory(b.schema.clone(),[p]).unwrap();
         e.load_mode([("posts".into(), object([("id",id("p")),("at",Value::Int(1))]))],snapback4_core::engine::LoadMode::Restore).unwrap();
-        let before=(e.seq().unwrap(),e.store().rows("posts").unwrap());
+        let snapshot = |e: &Engine| (e.seq().unwrap(), e.schema().tables.keys().map(|t| (t.clone(),e.store().rows(t).unwrap())).collect::<BTreeMap<_,_>>());
+        let before=snapshot(&e);
         for context in [context(&[]),Context::system().at(1000)] {
             let result = e.mutate("bad",None,context).unwrap();
             let WriteState::Failed {why,..}=result.state else {panic!("{result:?}")};
             assert_eq!(why.code,"E_MAINTAINED_COLUMN");
-            assert_eq!((e.seq().unwrap(),e.store().rows("posts").unwrap()),before);
+            assert_eq!(snapshot(&e),before);
         }
         assert_eq!(e.seed([("posts".into(),row.clone())]).unwrap_err().refusal().code,"E_MAINTAINED_COLUMN");
-        assert_eq!((e.seq().unwrap(),e.store().rows("posts").unwrap()),before);
+        assert_eq!(snapshot(&e),before);
     }
     let mut e = engine(MODEL);
     like(&mut e,"max",id("hidden"),true,snapback4_core::value::I53_MAX);
@@ -338,6 +345,9 @@ fn notes_name_disclosure_order_and_full_parent_stream_at_the_declaration() {
     let notes:Vec<_> = b.notes.iter().filter(|n| n.code.starts_with("N_MAINTAINED_COLUMN")).collect();
     assert_eq!(notes.len(),4,"{notes:?}");
     assert_eq!(notes.iter().filter(|n|n.code=="N_MAINTAINED_COLUMN_DISCLOSURE").count(),3);
+    for field in ["likeCount","selected","total"] {
+        assert_eq!(notes.iter().filter(|n|n.code=="N_MAINTAINED_COLUMN_DISCLOSURE" && n.message.starts_with(&format!("posts.{field} "))).count(),1);
+    }
     for m in &b.schema.maintains { assert!(!serde_json::to_string(&notes).unwrap().contains(&m.target)); }
     let stream = notes.iter().find(|n|n.code == "N_MAINTAINED_COLUMN_STREAM").unwrap();
     assert_eq!(source.lines().nth((stream.site.line-1) as usize).unwrap().trim(),"sync public");
@@ -360,20 +370,23 @@ fn raw_private_reads_and_every_resolved_dependency_are_refused() {
         assert_eq!(error.refusal().code,"E_MAINTAINED_COLUMN_PRIVATE");
         assert!(error.to_string().contains("posts.likeCount"));
     }
+    for field in ["likeCount","selected","total"] {
     let variants = [
-        RuleExpr::Eq(RuleTerm::OldField("likeCount".into()),RuleTerm::Literal(Value::Int(0))),
-        RuleExpr::Eq(RuleTerm::NextField("likeCount".into()),RuleTerm::Literal(Value::Int(0))),
+        RuleExpr::Eq(RuleTerm::OldField(field.into()),RuleTerm::Literal(Value::Int(0))),
+        RuleExpr::Eq(RuleTerm::NextField(field.into()),RuleTerm::Literal(Value::Int(0))),
         RuleExpr::Exists {table:"posts".into(),index:"byLikes".into(),key:vec![RuleTerm::Literal(Value::Int(0))],equalities:vec![],provenance:KeyProvenance::Computed},
-        RuleExpr::Exists {table:"posts".into(),index:"byId".into(),key:vec![],equalities:vec![("likeCount".into(),RuleTerm::Literal(Value::Int(0)))],provenance:KeyProvenance::Computed},
+        RuleExpr::Exists {table:"posts".into(),index:"byId".into(),key:vec![],equalities:vec![(field.into(),RuleTerm::Literal(Value::Int(0)))],provenance:KeyProvenance::Computed},
     ];
     for rule in variants {
         for arm in ["insert","update","delete"] {
             let mut schema = b.schema.clone();
+            schema.tables.get_mut("posts").unwrap().indexes.insert("byLikes".into(),Index::of(&[field,"at","id"],false));
             let rules=&mut schema.tables.get_mut("posts").unwrap().rules;
             match arm {"insert"=>rules.insert=rule.clone(),"delete"=>rules.delete=rule.clone(),_=>rules.update=rule.clone()}
             let issues = snapback4_core::schema::validate(&schema);
-            assert!(issues.iter().any(|i|i.message.contains("posts.likeCount") && i.message.contains(&format!("rules.{arm}")) && i.message.contains("use an ordinary column")),"{issues:?}");
+            assert!(issues.iter().any(|i|i.message.contains(&format!("posts.{field}")) && i.message.contains(&format!("rules.{arm}")) && i.message.contains("use an ordinary column")),"{issues:?}");
         }
+    }
     }
     for source in [
         MODEL.replace("  amount: int","  amount: int\n  expiry: time ?\n  by byExpiry: expiry\n  expire at .expiry"),
@@ -395,6 +408,8 @@ fn creators_cannot_observe_hidden_totals_in_write_results_or_budgets() {
             like(&mut e,"l",if nonzero {id("p")} else {id("other")},true,4);
             e.set_ceilings(ceilings);
             let out = e.mutate("post",Some("create"),context(&[("id",id("p")),("at",Value::Int(1))])).unwrap();
+            let public=serde_json::json!([out.reply(Some("create")),out.receipt(Some("create")),out.tables]).to_string();
+            for m in &e.schema().maintains { assert!(!public.contains(&m.target)); }
             if matches!(out.state,WriteState::Sent {..}) {
                 let row=e.store().rows("posts").unwrap().into_iter().find(|r|r.field("id").unwrap()==&id("p")).unwrap();
                 let n=i64::from(nonzero);
@@ -405,10 +420,13 @@ fn creators_cannot_observe_hidden_totals_in_write_results_or_budgets() {
             (out.reply(Some("create")),out.receipt(Some("create")),out.metered,out.tables)
         };
         let control = observe(false,Default::default());
+        assert_eq!(control.0["state"],"sent");
         assert_eq!(observe(true,Default::default()),control);
         assert!(control.0["result"].get("likeCount").is_none());
         for c in [snapback4_core::meter::Ceilings {examined:control.2.examined-1,..Default::default()},snapback4_core::meter::Ceilings {heap_bytes:1,..Default::default()}] {
-            assert_eq!(observe(false,c),observe(true,c));
+            let refused=observe(false,c);
+            assert_eq!(refused.0["state"],"failed");
+            assert_eq!(refused,observe(true,c));
         }
     }
 }
@@ -493,11 +511,23 @@ fn column_predicates_reuse_engine_recorded_attribution() {
     assert!(b.schema.tables["likes"].recorded.contains_key("postId.parentId"));
     let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
     post(&mut e,"p",1);like(&mut e,"l",id("p"),true,3);
+    let captured=e.store().rows("likes").unwrap();
+    assert_eq!(captured[0].field("postId.parentId").unwrap(),&Value::Null);
+    let private=e.schema().maintains.iter().map(|m|(m.target.clone(),e.store().rows(&m.target).unwrap())).collect::<BTreeMap<_,_>>();
     assert_eq!(totals(&mut e,"p"),(1,1,3));
     mutate(&mut e,"deletePost",&[("id",id("p"))]);
+    assert_eq!(e.store().rows("likes").unwrap(),captured);
+    for (target,rows) in &private {assert_eq!(e.store().rows(target).unwrap(),*rows);}
     e.seed_at([("posts".into(),snapback4_core::value::object([("id",id("p")),("at",Value::Int(2)),("parentId",id("other"))]))],1000).unwrap();
     // The live parent now differs from the captured null without rewriting the like.
     assert_eq!(totals(&mut e,"p"),(1,1,3));
+    assert_eq!(e.store().rows("likes").unwrap(),captured);
+    for (target,rows) in &private {assert_eq!(e.store().rows(target).unwrap(),*rows);}
+    let parent=e.query("postRow",context(&[("id",id("p"))])).unwrap().data;
+    assert_eq!(parent.field("parentId").unwrap(),&id("other"));
+    assert!(!e.schema().tables["posts"].expired(&parent,1000));
+    post(&mut e,"other",3);
+    assert_eq!(totals(&mut e,"other"),(0,0,0));
 }
 
 #[test]
@@ -535,6 +565,9 @@ fn one_parent_image_per_commit_has_the_hand_kept_columns_log_cost() {
     assert_eq!(rows.len(),2,"one source image and one full parent image: {rows:?}");
     assert_eq!(rows.iter().map(|(t,_)|t.as_str()).collect::<Vec<_>>(),["likes","posts"]);
     let page=e.stream_at("alice",from,100,1000).unwrap();
+    assert_eq!(page.events.iter().filter(|event|event.table=="posts").count(),1);
+    assert!(page.events.iter().all(|event|e.schema().visible(&event.table)));
+    for m in &e.schema().maintains {assert!(!serde_json::to_string(&page).unwrap().contains(&m.target));}
     let parent=page.events.iter().find(|event|event.table=="posts").unwrap();
     assert_eq!(parent.kind,"put");
     let image=parent.data.as_ref().unwrap();

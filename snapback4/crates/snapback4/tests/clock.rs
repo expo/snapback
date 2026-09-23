@@ -123,8 +123,9 @@ fn offset_cli_advance_and_rejected_inputs_keep_time_monotone() {
     assert_eq!(advanced["advancedMs"], 120_000);
     assert!(advanced["now"].as_i64().unwrap() >= now + 120_000);
     for duration in ["-1s", "0s", "1", "1.5m", "++2m", "-0s", "", "99999999999999999999999999d", "9007199254740991ms"] {
-        let before = host.query("time").as_i64().unwrap();
+        // Bracket both server reads so scheduling the first reply is counted.
         let wall = snapback4_core::now_ms();
+        let before = host.query("time").as_i64().unwrap();
         let refused = host.post("/dev/clock/advance", json!({"duration":duration}));
         assert_eq!(refused["denied"]["code"], "E_CLOCK_INPUT", "{duration}: {refused}");
         let after = host.query("time").as_i64().unwrap();

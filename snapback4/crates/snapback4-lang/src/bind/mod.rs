@@ -44,6 +44,10 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     let catalog = Catalog::build(documents, &mut diagnostics);
     let mut schema = schema::bind_schema(&catalog, &mut diagnostics);
     timeline::admit(&catalog, &mut schema, &mut diagnostics);
+    // Timeline ownership is resolved after the ordinary schema checks.
+    for issue in snapback4_core::schema::columns::timeline_issues(&schema) {
+        diagnostics.push(columns::refusal(&catalog.site_for(&issue.path), issue.message));
+    }
     key_bound::check(&catalog, &schema, &mut diagnostics);
     let mut programs = Vec::new();
     let mut names = std::collections::BTreeMap::new();

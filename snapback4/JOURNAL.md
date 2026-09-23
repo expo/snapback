@@ -47166,3 +47166,18 @@ simulator target except Clique's benchmarks, and the device `w13g_probe`,
 `device` and `retained_history` targets. `review_corrections` (expiring
 grants), `security`, `membership`, `write_authority` and the explorer also
 pass here.
+
+
+
+
+## 2026-09-23 — F1a integration WASM ratchet, review follow-up
+
+The F1a integration at `c7e40c4ac` measured 1,697,990 B raw / 468,600 B
+gzip with Rust 1.97.0 and wasm-bindgen 0.2.127, without wasm-opt. Against
+main’s recorded same-toolchain 465,589 B gzip, the whole-artifact delta is
++3,011 B: maintained-column metadata/projection, implicit zero, ownership,
+write-result stripping and shared write/meter paths alongside F2, timelines
+and READAUTH. The 466,000 B limit was raised to 469,000 B (400 B headroom).
+These are not separately measured component costs. This records the earlier
+integration measurement; round-2 evidence is appended to
+`reports/20260923-f1a-integration.md`. No budget changes in this follow-up.

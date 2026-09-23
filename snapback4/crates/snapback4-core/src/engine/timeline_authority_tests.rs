@@ -17,6 +17,79 @@ pub(in crate::engine) fn schema() -> Schema {
 }
 fn row(id: &str) -> Value { object([("id", Value::Id(id.into())), ("value", Value::Int(1))]) }
 
+fn column_schema(parent: &str, source: &str) -> (Schema, crate::schema::Maintain) {
+    use crate::schema::{columns::{ColumnOwner, GROUP}, Maintain, MaintainKind, Residency, public_table};
+    let mut schema = schema();
+    let owner = ColumnOwner { table: parent.into(), column: "value".into() };
+    let m = Maintain { target: owner.target(), source: source.into(), by: vec!["parentId".into()],
+        kind: MaintainKind::Count, private: Some(owner), filter: None, computed: Default::default(),
+        residency: Residency { online_only: true, ..Default::default() }, readable: None };
+    let mut parent_table = schema.tables["feedFeed"].clone();
+    parent_table.maintained.insert("value".into(), m.derivation_identity());
+    schema.tables.insert(parent.into(), parent_table);
+    let reference = ColumnType::Ref { table: parent.into() };
+    schema.tables.insert(source.into(), public_table(
+        [("id".into(), ColumnType::Id), ("parentId".into(), reference.clone())].into(),
+        [("byId".into(), Index::of(&["id"], true))].into()));
+    let mut private = public_table(
+        [("id".into(), ColumnType::Id), (GROUP.into(), reference), ("value".into(), ColumnType::Int)].into(),
+        [("byId".into(), Index::of(&["id"], true)), ("byGroup".into(), Index::of(&[GROUP], true))].into());
+    private.rules = Rules::deny();
+    private.residency.online_only = true;
+    schema.tables.insert(m.target.clone(), private);
+    schema.maintains.push(m.clone());
+    (schema, m)
+}
+
+#[test]
+fn raw_columns_reject_timeline_owned_and_mapped_parents_and_sources() {
+    let timeline = schema().timelines.remove(0);
+    for table in timeline.owned.iter().chain(&timeline.mapped) {
+        for (role, parent, source) in [("parent", table.as_str(), "ordinarySources"), ("source", "ordinaryParents", table.as_str())] {
+            let (raw, m) = column_schema(parent, source);
+            let mut ordinary = raw.clone();
+            ordinary.timelines.clear();
+            assert!(crate::schema::validate(&ordinary).is_empty(), "ordinary control: {:?}", crate::schema::validate(&ordinary));
+            let issues = crate::schema::validate(&raw);
+            assert!(issues.iter().any(|i| i.message.contains(&format!("timeline-governed {role} {table}"))), "{issues:?}");
+            let error = crate::Engine::memory(raw, []).err().expect("timeline column admitted");
+            assert_eq!(error.code(), "E_MAINTAINED_COLUMN", "{error}");
+            assert!(error.to_string().contains("ordinary parent and source tables"));
+            assert!(!error.to_string().contains(&m.target));
+        }
+    }
+}
+
+#[test]
+fn column_mirror_requires_timeline_authority_even_when_validation_is_bypassed() {
+    let (mut schema, m) = column_schema("feedFeed", "ordinarySources");
+    schema.prepare_contribution_indexes();
+    let mut store = Store::memory().unwrap();
+    store.install(&schema).unwrap(); // Hand-built state, deliberately bypassing Engine admission.
+    let tx = store.transaction().unwrap();
+    tx.put("feedFeed", &schema.tables["feedFeed"], &row("existing"), None).unwrap();
+    tx.commit().unwrap();
+    let tx = store.transaction().unwrap();
+    let mut runner = Runner::new(&tx, &schema, Context::system().at(1), Meter::new(Ceilings::unbounded(), Cut::Abort), 0);
+    for key in ["existing", "missing"] {
+        let meter = runner.meter.used.clone();
+        assert_eq!(runner.mirror_column(&m, &[Value::Id(key.into())], 2).unwrap_err().code(), "E_TIMELINE_OWNED");
+        assert_eq!(runner.meter.used, meter, "refuse before looking up a parent");
+    }
+    // The ordinary source write also reaches the guarded mirror via apply_aggregate.
+    let source = object([("id", Value::Id("s".into())), ("parentId", Value::Id("existing".into()))]);
+    assert_eq!(runner.insert("ordinarySources", source).unwrap_err().code(), "E_TIMELINE_OWNED");
+    assert_eq!(tx.get("feedFeed", "existing").unwrap(), Some(row("existing")));
+    drop(runner);
+    tx.rollback().unwrap();
+    assert!(store.rows("ordinarySources").unwrap().is_empty());
+    assert!(store.rows(&m.target).unwrap().is_empty());
+    let tx = store.transaction().unwrap();
+    let mut runner = Runner::new(&tx, &schema, Context::system().at(1), Meter::new(Ceilings::unbounded(), Cut::Abort), 0);
+    runner.timeline_scope(Authority::Transition("feed".into())).mirror_column(&m, &[Value::Id("existing".into())], 2).unwrap();
+    assert_eq!(tx.get("feedFeed", "existing").unwrap().unwrap().field("value").unwrap(), &Value::Int(2));
+}
+
 #[test]
 fn upsert_needs_insert_and_update_grants_on_both_addressing_paths() {
     let schema = schema(); let mut store = Store::memory().unwrap(); store.install(&schema).unwrap();

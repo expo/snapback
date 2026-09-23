@@ -40,21 +40,27 @@ mod column_tests {
     use super::*;
     use snapback4_core::{Context, Value};
     #[test]
-    fn residency_fixture_import_rebuilds_poisoned_columns_once() {
+    fn residency_fixture_import_rebuilds_poisoned_columns() {
         let source=include_str!("../../../snapback4-lang/tests/fixtures/maintained-columns.q");
         let bound=snapback4_lang::compile(&[("schema.q".into(),source.into())]);
         assert!(bound.diagnostics.is_empty());
         let root=std::env::temp_dir().join(format!("f1a-fixture-{}",std::process::id()));
         std::fs::create_dir_all(&root).unwrap();
-        for parent_first in [true,false] {
+        {
             let files=[("posts",r#"{"id":"p","at":1,"likeCount":999,"selected":999,"total":999}"#),
                 ("likes",r#"{"id":"l","postId":"p","active":true,"amount":7}"#)];
-            for index in if parent_first {[0,1]} else {[1,0]} {std::fs::write(root.join(format!("{}.jsonl",files[index].0)),files[index].1).unwrap();}
+            for index in [0,1] {std::fs::write(root.join(format!("{}.jsonl",files[index].0)),files[index].1).unwrap();}
             let options=Options {positionals:vec![],json:true,flags:[("fixture".into(),root.to_str().unwrap().into()),("residency".into(),String::new())].into()};
             let project=Project {root:root.clone()};
             let mut engine=engine(&project,&bound,&options).unwrap();
             let row=engine.query("postRow",Context::new("alice",[("id".into(),Value::Id("p".into()))].into()).at(1000)).unwrap().data;
             assert_eq!(["likeCount","selected","total"].map(|field|row.field(field).unwrap().as_int().unwrap()),[1,1,7]);
+            assert_eq!(engine.store().rows("posts").unwrap(),vec![row]);
+            for m in &engine.schema().maintains {
+                let rows=engine.store().rows(&m.target).unwrap();
+                assert_eq!(rows.len(),1);
+                assert_eq!(rows[0].field("value").unwrap(),&Value::Int(if m.private.as_ref().unwrap().column=="total" {7} else {1}));
+            }
             for (table,_) in files {std::fs::remove_file(root.join(format!("{table}.jsonl"))).unwrap();}
         }
         std::fs::remove_dir(&root).unwrap();

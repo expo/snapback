@@ -10,11 +10,12 @@ fn queued(name: &str, op: &str, args: serde_json::Value, n: u64) -> Queued {
 }
 
 fn public_page(page: &StreamPage) -> &StreamPage {
-    assert!(page.events.iter().all(|event| matches!(event.table.as_str(), "posts" | "likes")));
-    assert!(!serde_json::to_string(page).unwrap().contains("$column:"));
+    assert!(page.events.iter().all(|event| matches!(event.table.as_str(), "posts" | "likes")), "{page:?}");
+    assert!(!serde_json::to_string(page).unwrap().contains("$column"));
     page
 }
 fn triple(row: &Value) -> [i64; 3] {
+    assert!(!serde_json::to_string(row).unwrap().contains("$column"));
     ["likeCount", "selected", "total"].map(|field| row.field(field).unwrap().as_int().unwrap())
 }
 
@@ -30,12 +31,14 @@ fn run<H: Host>(host: &mut H) {
     server.mutate("post",None,context("alice",&[("id",id("p")),("at",Value::Int(1))]).at(1000)).unwrap();
     for (i,page) in snapshot_pages(&mut server,"alice",1).iter().enumerate() { device.apply(public_page(page),i==0).unwrap(); }
     let query = |device: &mut snapback4_device::device::Device<H::Store>, p: &str| {
-        device.query("postRow","alice",&json!({"id":p}),1000).unwrap().data
+        let row=device.query("postRow","alice",&json!({"id":p}),1000).unwrap().data;
+        assert!(!serde_json::to_string(&row).unwrap().contains("$column"));
+        row
     };
     let prediction = device.admit(queued("like1","like",json!({"id":"l1","postId":"p","active":true,"amount":3}),1)).unwrap();
     assert!(prediction.predictable,"{}: {prediction:?}",host.label());
-    assert!(prediction.predicted.iter().all(|p|p.starts_with("likes/")));
-    assert_eq!(query(&mut device,"p").field("likeCount").unwrap(),&Value::Int(0));
+    assert_eq!(prediction.predicted,["likes/l1"]);
+    assert_eq!(triple(&query(&mut device,"p")),[0,0,0]);
     let from = server.seq().unwrap();
     let result = server.mutate("like",Some("like1"),context("alice",&[("id",id("l1")),("postId",id("p")),("active",Value::Bool(true)),("amount",Value::Int(3))]).at(1000)).unwrap();
     let WriteState::Sent { seq,.. } = result.state else { panic!("{result:?}") };
@@ -55,21 +58,21 @@ fn run<H: Host>(host: &mut H) {
     ].into_iter().enumerate() {
         let before = query(&mut device,"p");
         let queued_id = format!("change{step}");
-        let prediction = device.admit(queued(&queued_id,op,args_json,3+step as u64)).unwrap();
+        let prediction = device.admit(queued(&queued_id,op,args_json,2+step as u64)).unwrap();
         assert!(prediction.predictable);
         assert!(prediction.predicted.iter().all(|path|path.starts_with("likes/")));
         assert_eq!(query(&mut device,"p"), before, "prediction preserves all confirmed columns");
         let from = server.seq().unwrap();
-        let result = server.mutate(op,None,context("alice",&args_typed).at(1000)).unwrap();
+        let result = server.mutate(op,Some(&queued_id),context("alice",&args_typed).at(1000)).unwrap();
         let WriteState::Sent { seq, .. } = result.state else { panic!("{result:?}") };
         device.settle(&queued_id,Some(seq)).unwrap();
         device.apply(public_page(&stream_page(&mut server,"alice",from)),false).unwrap();
         assert_eq!(query(&mut device,"p"),server.query("postRow",context("alice",&[("id",id("p"))]).at(1000)).unwrap().data);
     }
-    let pending = device.admit(queued("parent","post",json!({"id":"q","at":2}),2)).unwrap();
+    let pending = device.admit(queued("parent","post",json!({"id":"q","at":2}),4)).unwrap();
     assert!(pending.predictable,"{pending:?}");
     let row = query(&mut device,"q");
-    assert_eq!(row.field("likeCount").unwrap(),&Value::Int(0));
+    assert_eq!(triple(&row),[0,0,0]);
     assert_eq!(row.field("pending").unwrap(),&Value::Bool(true));
     let from = server.seq().unwrap();
     let result = server.mutate("post",Some("parent"),context("alice",&[("id",id("q")),("at",Value::Int(2))]).at(1000)).unwrap();
@@ -83,10 +86,14 @@ fn run<H: Host>(host: &mut H) {
     let from = server.seq().unwrap();
     device.admit(queued("unlike","unlike",json!({"id":"l1"}),5)).unwrap();
     assert_eq!(triple(&query(&mut device,"q")),[1,1,2]);
-    let result=server.mutate("unlike",None,context("alice",&[("id",id("l1"))]).at(1000)).unwrap();
+    let result=server.mutate("unlike",Some("unlike"),context("alice",&[("id",id("l1"))]).at(1000)).unwrap();
     let WriteState::Sent {seq,..}=result.state else {panic!("{result:?}")};
     device.settle("unlike",Some(seq)).unwrap();
     device.apply(public_page(&stream_page(&mut server,"alice",from)),false).unwrap();
+    assert_eq!(triple(&query(&mut device,"q")),[0,0,0]);
+    assert!(device.queued().unwrap().is_empty());
+    host.close("columns",device);
+    let mut device=host.open("columns",None).unwrap();
     assert_eq!(triple(&query(&mut device,"q")),[0,0,0]);
     host.close("columns",device);
 }
@@ -113,6 +120,7 @@ fn forged<H:Host>(host:&mut H) {
         let mut device=host.open(&name,Some(backend)).unwrap();
         for (i,page) in snapshot_pages(&mut server,"alice",100).iter().enumerate(){device.apply(public_page(page),i==0).unwrap();}
         let before=device.query("postRow","alice",&json!({"id":"p"}),1000).unwrap().data;
+        assert_eq!(triple(&before),[0,0,0]);
         assert_eq!(device.admit(queued("forged","post",json!({"id":"p","at":1}),1)).unwrap_err().refusal().code,"E_MAINTAINED_COLUMN","{arm}");
         assert!(device.queued().unwrap().is_empty());
         assert_eq!(device.query("postRow","alice",&json!({"id":"p"}),1000).unwrap().data,before);
@@ -185,9 +193,11 @@ query rows(reader: principal):
 "#;
     let (mut server, mut backend) = compile(source);
     backend.schema = backend.schema.public_projection();
+    assert!(backend.schema.maintains.is_empty());
+    assert!(!serde_json::to_string(&backend).unwrap().contains("$column"));
     let mut device = host.open("provisional-parent", Some(backend)).unwrap();
-    for (i, page) in snapshot_pages(&mut server, "alice", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
-    for (seq, parent, reader) in [(1, "readable", "alice"), (2, "hidden", "bob")] {
+    for (i, page) in snapshot_pages(&mut server, "alice", 100).iter().enumerate() { device.apply(public_page(page), i == 0).unwrap(); }
+    for (seq, parent, reader) in [(1, "readable", "alice"), (2, "hidden", "bob"), (3, "control", "alice")] {
         let prediction = device.admit(queued(parent, "post", json!({"id":parent,"reader":reader}), seq)).unwrap();
         assert!(prediction.predictable && prediction.predicted.len() == 1, "{prediction:?}");
     }
@@ -195,19 +205,23 @@ query rows(reader: principal):
     assert_eq!(readable.field("likeCount").unwrap(), &Value::Int(0));
     assert_eq!(readable.field("pending").unwrap(), &Value::Bool(true));
     assert_eq!(device.query("postRow", "alice", &json!({"id":"hidden"}), 1000).unwrap().data, Value::Null);
-    assert_eq!(device.query("rows", "alice", &json!({"reader":"alice"}), 1000).unwrap().data.as_array().unwrap().len(), 1);
+    assert_eq!(device.query("rows", "alice", &json!({"reader":"alice"}), 1000).unwrap().data.as_array().unwrap().len(), 2);
     assert!(device.query("rows", "alice", &json!({"reader":"bob"}), 1000).unwrap().data.as_array().unwrap().is_empty());
-    let hidden = device.admit(queued("hide", "hide", json!({"id":"readable"}), 3)).unwrap();
+    let hidden = device.admit(queued("hide", "hide", json!({"id":"readable"}), 4)).unwrap();
     assert!(hidden.predictable, "{hidden:?}");
+    assert_eq!(hidden.predicted,["posts/readable"]);
+    assert_eq!(device.query("postRow","alice",&json!({"id":"readable"}),1000).unwrap().data,Value::Null);
     host.close("provisional-parent", device);
     let mut device = host.open("provisional-parent", None).unwrap();
-    assert_eq!(device.queued().unwrap().len(), 3, "hidden parents remain predicted and queued");
+    assert_eq!(device.queued().unwrap().len(), 4, "hidden parents remain predicted and queued");
     for parent in ["readable", "hidden"] {
         assert_eq!(device.query("postRow", "alice", &json!({"id":parent}), 1000).unwrap().data, Value::Null);
     }
-    for reader in ["alice", "bob"] {
-        assert!(device.query("rows", "alice", &json!({"reader":reader}), 1000).unwrap().data.as_array().unwrap().is_empty());
-    }
+    let control=device.query("postRow","alice",&json!({"id":"control"}),1000).unwrap().data;
+    assert_eq!(control.field("pending").unwrap(),&Value::Bool(true));
+    assert_eq!(control.field("likeCount").unwrap(),&Value::Int(0));
+    assert_eq!(device.query("rows","alice",&json!({"reader":"alice"}),1000).unwrap().data.as_array().unwrap().as_ref(), &[control]);
+    assert!(device.query("rows","alice",&json!({"reader":"bob"}),1000).unwrap().data.as_array().unwrap().is_empty());
     host.close("provisional-parent", device);
 }
 
@@ -219,6 +233,7 @@ fn provisional_parents_authorize_implicit_zero_at_read_time_on_both_stores() {
 
 fn recorded_projection<H: Host>(mut host: H) {
     use snapback4_core::schema::Constraint;
+    use snapback4_core::{ir::{Expr,Stmt},value::object};
     let source = SOURCE.replace("  online only", "  sync public")
         .replacen("  at: time", "  parentId: posts ?\n  immutable parentId\n  at: time", 1)
         .replace("selected: count likes where .active by postId", "selected: count likes where postId.parentId = null by postId")
@@ -227,15 +242,33 @@ fn recorded_projection<H: Host>(mut host: H) {
     backend.schema = backend.schema.public_projection();
     assert!(backend.schema.maintains.is_empty());
     let payload = snapback4_core::json_codec::to_text(&backend).unwrap();
-    assert!(!payload.contains("$column:"));
-    let backend: Backend = snapback4_core::json_codec::from_text(&payload).unwrap();
+    assert!(!payload.contains("$column"));
+    let mut backend: Backend = snapback4_core::json_codec::from_text(&payload).unwrap();
     assert!(backend.schema.tables["likes"].constraints.contains(&Constraint::Recorded));
     assert!(backend.schema.tables["likes"].recorded.contains_key("postId.parentId"));
+    backend.schema.operations.clear();
+    for update in [false,true] {
+        let mut program=backend.programs.iter().find(|p|p.name=="like").unwrap().clone();
+        program.name=if update {"forgeUpdate"} else {"forgeInsert"}.into();
+        let patch=object([("postId.parentId",id("forged"))]);
+        program.body=vec![if update {Stmt::Update {table:"likes".into(),key:Expr::Literal(id("l")),patch:Expr::Literal(patch)}} else {
+            Stmt::Insert {table:"likes".into(),row:Expr::Literal(object([("id",id("forged")),("postId",id("p")),("active",Value::Bool(true)),("amount",Value::Int(3)),("postId.parentId",id("forged"))]))}
+        }];
+        backend.programs.push(program);
+    }
     let mut device = host.open("recorded-columns", Some(backend)).unwrap();
     server.mutate("post", None, context("alice", &[("id", id("p")), ("at", Value::Int(1))]).at(1000)).unwrap();
     for (i, page) in snapshot_pages(&mut server, "alice", 100).iter().enumerate() { device.apply(public_page(page), i == 0).unwrap(); }
     let prediction = device.admit(queued("like", "like", json!({"id":"l","postId":"p","active":true,"amount":3}), 1)).unwrap();
     assert!(prediction.predictable && prediction.predicted == ["likes/l"], "{prediction:?}");
+    let likes=device.store().raw_rows("likes");
+    assert_eq!(likes.len(),1);
+    assert_eq!(likes[0].field("postId.parentId").unwrap(),&Value::Null);
+    for (n,op) in [(2,"forgeInsert"),(3,"forgeUpdate")] {
+        let args=json!({"id":"forged","postId":"p","active":true,"amount":3});
+        assert_eq!(device.admit(queued(op,op,args,n)).unwrap_err().refusal().code,"E_RECORDED_FIELD");
+        assert_eq!(device.store().raw_rows("likes"),likes);
+    }
     let row = device.query("postRow", "alice", &json!({"id":"p"}), 1000).unwrap().data;
     assert_eq!(triple(&row), [0, 0, 0], "recording predicts the source, never its maintained parent");
     host.close("recorded-columns", device);

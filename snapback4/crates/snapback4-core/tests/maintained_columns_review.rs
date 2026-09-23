@@ -32,6 +32,7 @@ fn duplicate_target_shadowing_is_rejected_at_admission() {
     for first in [true, false] {
         let raw = shadowed(&schema(), first);
         let issues = schema::validate(&raw);
+        assert!(!format!("{issues:?}").contains(&schema().maintains[0].target));
         assert!(issues.iter().any(|i| i.message.contains("duplicate maintain target")), "{issues:?}");
         let error = Engine::memory(raw, []).err().expect("duplicate target admitted");
         assert!(error.to_string().contains("duplicate maintain target"), "{error}");
@@ -60,6 +61,7 @@ fn duplicate_target_never_changes_projection_or_system_read_privacy() {
         let projection = raw.public_projection();
         assert!(!projection.tables.contains_key(&target));
         assert!(projection.maintains.iter().all(|m| m.target != target));
+        assert!(!serde_json::to_string(&projection).unwrap().contains(&target));
         let read = Read { table: target.clone(), index: "byId".into(), key: vec![Expr::Literal(Value::Id(key.clone()))], site: "probe".into(), provenance: KeyProvenance::Computed };
         let scan = Scan { table: target.clone(), index: "byId".into(), prefix: vec![], order: Order::Asc, take: Bound::Literal(1), site: "probe".into(), provenance: KeyProvenance::Computed, existence: false, after: None, before: None, range: None, filter: None, opaque_cursor: false, merge_site: None };
         let tx = engine.store_mut().transaction().unwrap();
@@ -95,7 +97,9 @@ fn private_derivations_reject_malformed_raw_target_shapes() {
         assert!(!error.to_string().contains(&target), "case {case}: {error}");
     }
     let projected = base.public_projection();
-    assert!(Engine::memory(projected, []).is_err(), "a projection is not an authoritative schema");
+    let error=Engine::memory(projected, []).err().expect("a projection is not an authoritative schema");
+    assert!(error.to_string().contains("exactly one engine derivation"));
+    assert!(!error.to_string().contains(&base.maintains[0].target));
 }
 
 #[test]

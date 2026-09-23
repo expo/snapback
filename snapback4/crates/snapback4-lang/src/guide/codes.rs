@@ -1,5 +1,5 @@
 pub const CODES: &[(&str, &str)] = &[
-    ("E_MAINTAINED_COLUMN", "a maintained column belongs to the engine; omit submitted values and write the source rows. Authority, identity, lifetime, delivery and other aggregates cannot depend on it. Use an ordinary column or a separate maintain; guide maintains."),
+    ("E_MAINTAINED_COLUMN", "a maintained column belongs to the engine; omit submitted values and write the source rows. Parent and source must be ordinary tables outside timelines. Authority, identity, lifetime, delivery and other aggregates cannot depend on it. Use an ordinary column or a separate maintain; guide maintains."),
     ("E_POSTGRES_MAINTAINED_COLUMN", "the Postgres evaluation backend does not support maintained columns or their private maintains. Use the SQLite engine for maintained columns; guide maintains."),
     ("E_MAINTAINED_COLUMN_PRIVATE", "no program, native call, rule, constraint, seed, fixture, import, or raw IR or schema can name the parent column's private storage, not even as the system. Read the parent row or write its source rows; guide maintains."),
     ("E_MAINTAINED_COLUMN_RESULT", "write results retain ordinary columns and id but omit maintained columns. Read the row under its read rule; guide maintains."),

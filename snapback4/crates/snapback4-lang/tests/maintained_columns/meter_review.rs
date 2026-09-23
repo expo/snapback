@@ -33,6 +33,13 @@ fn every_meter_field_matches_across_hidden_totals_and_parent_worlds_at_each_cut(
             assert_eq!(e.seq().unwrap(), from);
             for (table, rows) in before { assert_eq!(e.store().rows(&table).unwrap(), rows); }
         } else {
+            let expected = n as i64 + if delete { -1 } else { 1 };
+            for m in &e.schema().maintains {
+                let private=e.store().rows(&m.target).unwrap();
+                if expected==0 {assert!(private.is_empty());} else {
+                    assert_eq!(private[0].field("value").unwrap(),&Value::Int(expected));
+                }
+            }
             let rows = e.store().rows("posts").unwrap();
             let row = rows.iter().find(|r| r.field("id").unwrap() == &id("p"));
             if world == 0 { assert!(row.is_none()); }
@@ -44,6 +51,12 @@ fn every_meter_field_matches_across_hidden_totals_and_parent_worlds_at_each_cut(
         }
         let public = format!("{:?}{:?}{:?}{:?}",out.reply(Some("attempt")),out.receipt(Some("attempt")),out.tables,retry);
         for m in &e.schema().maintains { assert!(!public.contains(&m.target)); }
+        for viewer in ["alice","bob"] {
+            let page=e.stream_at(viewer,from,100,1000).unwrap();
+            assert!(page.events.iter().all(|event|e.schema().visible(&event.table)));
+            let json=serde_json::to_string(&page).unwrap().to_lowercase();
+            for m in &e.schema().maintains {assert!(!json.contains(&m.target.to_lowercase()));}
+        }
         (out.reply(Some("attempt")), out.receipt(Some("attempt")), out.metered, out.tables, retry.reply(Some("attempt")), retry.metered, retry.tables,
             e.stream_at("alice", from, 100, 1000).unwrap().events)
     };
@@ -95,6 +108,8 @@ fn deleting_a_synced_source_still_pays_its_partition_step_after_private_work() {
         assert_eq!(totals(&mut e, "p"), (0, 0, 0));
         if sync {
             let events = e.stream_at("alice", from, 100, 1000).unwrap().events;
+            assert_eq!(events.iter().map(|event|event.table.as_str()).collect::<std::collections::BTreeSet<_>>(),["likes","posts"].into());
+            assert_eq!(events.len(),2);
             assert!(events.iter().any(|event| event.table == "likes" && event.kind == "del"));
             assert!(events.iter().any(|event| event.table == "posts" && event.kind == "put"));
         }

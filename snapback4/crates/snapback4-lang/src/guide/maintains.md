@@ -293,7 +293,10 @@ query trending(c: cursor ?):
 The other form is `total: sum source of amount where .selected by parentId`.
 The predicate has the maintain grammar above. The one grouping column must
 reference this parent table; optional null references contribute nothing.
-The source is ordinary and cannot expire. The parent may expire; the mirror
+The source is ordinary and cannot expire. Neither parent nor source may be
+timeline-owned or mapped into a timeline: E_MAINTAINED_COLUMN refuses that
+combination. Use ordinary tables outside the timeline, or a separate maintain.
+The parent may expire; the mirror
 leaves expired rows and their stored values untouched. Zero-like parents are
 included in its indexes, and ties can use the parent's time.
 A deleted parent can be recreated with the current total. A missing field
@@ -337,10 +340,12 @@ The device receives server values and preserves them through page application
 and cold restoration. It never predicts the aggregate or accepts assignments
 to it. A predicted source write changes its own rows; the parent's aggregate
 changes when the server image arrives. Provisional parent rows are authorized
-at read time. A readable predicted parent insert reads 0 on a pending row
+at read time; an unreadable provisional parent stays hidden. Implicit 0 applies
+only after the row passes read authorization. A readable predicted parent insert reads 0 on a pending row
 until a server row image supplies its authoritative value.
 A write acknowledgement carries no maintained fields; synchronization or an
-ordinary read supplies the row image.
+ordinary read supplies the row image. An acknowledgement does not replace a
+previously synchronized maintained value with a missing field.
 
 Interim activation boundary: declare the column before the parent table has
 rows; in dev, use a fresh store. E_MAINTAINED_COLUMN_ACTIVATION refuses adding,
