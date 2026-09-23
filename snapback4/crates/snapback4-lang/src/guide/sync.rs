@@ -131,9 +131,12 @@ fields return HTTP 400 `E_INPUT`. Continue snapshots with `after: next`;
 The client sends its device generation. A mismatch returns HTTP 200
 `E_SYNC_GENERATION` (family `generation`) with `generation`, `store_id` and
 the current numeric `watermark`, before building a snapshot or stream page. A
-head-read failure fails the request. The client compares the early watermark with
-retained image-head evidence before adopting `/schema`, then retries from the device's
-resulting position with its pending IDs intact. This refusal is never applied
+head-read failure fails the request. The client adopts `/schema` only when that
+watermark is a finite, nonnegative integer at or above its retained image-head
+evidence (equal adopts); a lower head halts with `E_STORE_RESTORE`, and a missing
+or invalid head is a retryable failure that neither adopts nor clears the evidence.
+After adopting, it retries from the device's resulting position with its pending
+IDs intact. This refusal is never applied
 as a delivered page: its watermark is head evidence, not delivered progress, and
 never moves the cursor. Retry only from the position adoption produced.
 Omitting `generation` preserves ordinary page behavior.
