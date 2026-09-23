@@ -29,7 +29,7 @@ fn text<'a>(request: &'a Json, name: &str) -> Result<&'a str, RuntimeError> {
 fn parse<T: serde::de::DeserializeOwned>(value: Json) -> Result<T, RuntimeError> {
     #[cfg(test)]
     OWNED_DECODES.set(OWNED_DECODES.get() + 1);
-    snapback4_core::json_codec::from_value(value).map_err(|e| RuntimeError::Input(e.to_string()))
+    snapback4_core::json_codec::from_value(value).map_err(|e| RuntimeError::decode(e, RuntimeError::Input))
 }
 
 fn encoded<T: serde::Serialize>(value: &T) -> Result<Json, RuntimeError> { #[cfg(test)] OWNED_ENCODES.set(OWNED_ENCODES.get() + 1);

@@ -165,6 +165,14 @@ Change polls echo `store_id` and return immediately on a mismatch or a lower
 head. Reconnect probes carry the identity and head, checked before local
 freshness returns; a matching identity needs no extra sync.
 
+Backends using 0.3 derived forms (recorded attribution, declared timelines, or
+maintained columns) require 0.3 devices. The engine derives their capability
+requirements from the schema. Older devices refuse installation and generation
+adoption instead of making incomplete predictions; older engines refuse to open
+these stored schemas. Update devices before deploying such a backend. A newer
+unknown capability refuses with `E_SCHEMA_CAPABILITY`. Backends without these
+forms keep their existing encoding and remain compatible with 0.2.33 devices.
+
 ## A restored backend store
 
 A matching

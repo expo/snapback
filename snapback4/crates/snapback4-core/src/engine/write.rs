@@ -351,7 +351,7 @@ impl Runner<'_> {
         }
         for constraint in &table.constraints {
             match constraint {
-                Constraint::Recorded | Constraint::Unique { .. } | Constraint::Text { .. } | Constraint::FinalExistsOnInsert { .. } => {}
+                Constraint::Capabilities(_) | Constraint::Unique { .. } | Constraint::Text { .. } | Constraint::FinalExistsOnInsert { .. } => {}
                 Constraint::AppendOnly => {
                     if effect != Effect::Insert {
                         return Err(RuntimeError::Constraint(format!("{table_name} is append-only")));

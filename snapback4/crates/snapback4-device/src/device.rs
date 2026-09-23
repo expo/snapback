@@ -363,7 +363,7 @@ impl<S: DeviceStore> Device<S> {
         let expected = if initial || backend.is_none() { BTreeMap::from([(BACKEND.to_owned(), kept.clone())]) } else { BTreeMap::new() };
         let mut backend = if backend.is_none() || (initial && kept.is_some()) {
             let text = kept.as_ref().ok_or_else(|| RuntimeError::Auth("this device has never synced: the server must be reachable once to open".into()))?;
-            snapback4_core::json_codec::from_text(text).map_err(|e| RuntimeError::Store(format!("the kept backend does not parse: {e}")))?
+            snapback4_core::json_codec::from_text(text).map_err(|e| RuntimeError::decode(e, |e| RuntimeError::Store(format!("the kept backend does not parse: {e}"))))?
         } else { backend.unwrap() };
         backend.schema.prepare_contribution_indexes();
         let held = store.meta(GENERATION)?.and_then(|g| g.parse::<u64>().ok()).unwrap_or(0);

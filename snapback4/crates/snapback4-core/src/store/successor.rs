@@ -8,7 +8,7 @@ use crate::engine::validate::{validate_column, validate_row};
 pub(super) fn assess(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Step>, RuntimeError> {
     let previous: Option<String> = tx.tx.query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
     let Some(previous) = previous else { return Ok(Vec::new()) };
-    let previous: Schema = serde_json::from_str(&previous).map_err(|e| RuntimeError::Store(e.to_string()))?;
+    let previous: Schema = serde_json::from_str(&previous).map_err(|e| RuntimeError::decode(e, RuntimeError::Store))?;
     let mut steps = crate::successor::classify(&previous, schema);
     for step in &mut steps {
         if let Some(position) = step.path.strip_prefix("maintains[").and_then(|s| s.strip_suffix(']')).and_then(|s| s.parse::<usize>().ok()) {

@@ -16,8 +16,12 @@ impl Opening {
         match text {
             None | Some("") | Some("null") => Ok(Self::Kept),
             Some(text) => {
-                if let Ok(initial) = json_codec::from_text::<Initial>(text) { return Ok(Self::Initial(initial.initial_backend)); }
-                json_codec::from_text(text).map(Self::Install).map_err(|e| RuntimeError::Input(e.to_string()))
+                match json_codec::from_text::<Initial>(text) {
+                    Ok(initial) => return Ok(Self::Initial(initial.initial_backend)),
+                    Err(error) if error.to_string().starts_with("E_SCHEMA_CAPABILITY:") => return Err(RuntimeError::decode(error, RuntimeError::Input)),
+                    Err(_) => {}
+                }
+                json_codec::from_text(text).map(Self::Install).map_err(|e| RuntimeError::decode(e, RuntimeError::Input))
             }
         }
     }

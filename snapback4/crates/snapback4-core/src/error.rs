@@ -139,6 +139,15 @@ pub enum RuntimeError {
 }
 
 impl RuntimeError {
+    /// Serde's error channel is text. Preserve the schema codec's stable
+    /// capability refusal when a host adds input or durable-store context.
+    pub fn decode(error: serde_json::Error, fallback: fn(String) -> Self) -> Self {
+        let message = error.to_string();
+        if let Some(message) = message.strip_prefix("E_SCHEMA_CAPABILITY: ") {
+            Self::Structural { code: "E_SCHEMA_CAPABILITY", message: message.into() }
+        } else { fallback(message) }
+    }
+
     pub fn code(&self) -> String {
         match self {
             Self::Structural { code, .. } => (*code).into(),
@@ -237,7 +246,7 @@ impl RuntimeError {
             }
             Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE" | "E_ACTION_AUTHORITY") => refusal.guide = Some("actions".into()),
             Self::Structural { code, .. } if code.starts_with(concat!("E_", "ROUTE_")) => refusal.guide = Some("routes".into()),
-            Self::Structural { code: "E_STORE_RESTORE", .. } => refusal.guide = Some("sync".into()),
+            Self::Structural { code: "E_STORE_RESTORE" | "E_SCHEMA_CAPABILITY", .. } => refusal.guide = Some("sync".into()),
             Self::Structural { code, message } if code.starts_with("E_TIMELINE_") => {
                 refusal.guide = Some("feeds".into());
                 refusal.rewrite = Some(message.clone());

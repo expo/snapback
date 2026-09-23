@@ -17,35 +17,26 @@ mod work;
 pub use work::{ActionSpec, WorkPolicy, WorkSpec};
 pub mod routes;
 pub mod timeline;
+mod capabilities;
 pub use routes::RouteSpec;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Schema {
     pub tables: BTreeMap<String, Table>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub timelines: Vec<timeline::Timeline>,
-    #[serde(default)]
     pub maintains: Vec<Maintain>,
-    #[serde(default, skip_serializing_if = "Auth::is_default")]
     pub auth: Auth,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub effects: Vec<String>,
     /// The owner's clock: each fires its job once per period.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub schedules: Vec<Schedule>,
     /// Compiled execution facts; absent on serialized conformance inputs.
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub operations: BTreeMap<String, Execution>,
     /// Author refusals keyed by table and unique index; changing wording is not a physical index migration.
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub unique_refusals: BTreeMap<String, BTreeMap<String, UniqueRefusal>>,
     /// Server work contracts; kept outside the interpreter/corpus IR.
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub action_specs: BTreeMap<String, ActionSpec>,
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub effect_specs: BTreeMap<String, WorkSpec>,
     /// Only these paths publish application HTTP handlers.
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub routes: BTreeMap<String, RouteSpec>,
 }
 
@@ -670,8 +661,8 @@ pub enum RuleTerm {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Constraint {
-    /// Required F2 decoder fence: older engines reject this enum variant.
-    Recorded,
+    /// Shared decoder fence. Only the schema codec writes this wire carrier.
+    Capabilities(BTreeSet<String>),
     Unique { index: String },
     Cap { by: Vec<String>, max: u32 },
     AppendOnly,
@@ -780,9 +771,6 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     }
     for (table_name, table) in &schema.tables {
         let path = format!("tables.{table_name}");
-        if table.recorded.is_empty() == table.constraints.contains(&Constraint::Recorded) {
-            issue(&mut issues, format!("{path}.recorded"), "recorded attribution and its Recorded decoder constraint must occur together".into());
-        }
         for (field, capture) in &table.recorded {
             let target = schema.table(&capture.table);
             let valid = !table.defaults.contains_key(field) && field == &format!("{}.{}", capture.reference, capture.column)
@@ -907,7 +895,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                         None => issue(&mut issues, cpath, format!("after insert names unknown {target}.{index}")),
                     }
                 }
-                Constraint::AppendOnly | Constraint::Recorded => {}
+                Constraint::AppendOnly | Constraint::Capabilities(_) => {}
             }
         }
         if let Some(sync) = &table.sync {

@@ -119,7 +119,7 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
             Constraint::Cap { .. } => true,
             Constraint::Immutable { fields } => fields.iter().all(|c| old.columns.contains_key(c)),
             Constraint::Text { field, .. } => old.columns.contains_key(field),
-            Constraint::Recorded | Constraint::AppendOnly | Constraint::FinalExistsOnInsert { .. } => true,
+            Constraint::Capabilities(_) | Constraint::AppendOnly | Constraint::FinalExistsOnInsert { .. } => true,
         };
         let binding: Vec<&Constraint> = new.constraints.iter().filter(|c| existed(c)).collect();
         if old.constraints.iter().collect::<Vec<_>>() != binding {

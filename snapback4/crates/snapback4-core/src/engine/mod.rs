@@ -308,7 +308,7 @@ impl Engine {
             [], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
             .map_err(|e| RuntimeError::Store(format!("no readable activated backend in this store: {e}")))?;
         let generation = u64::try_from(generation).map_err(|_| RuntimeError::Store("negative stored generation".into()))?;
-        let schema = serde_json::from_str(&schema).map_err(|e| RuntimeError::Store(format!("invalid stored schema: {e}")))?;
+        let schema = serde_json::from_str(&schema).map_err(|e| RuntimeError::decode(e, |e| RuntimeError::Store(format!("invalid stored schema: {e}"))))?;
         let programs = serde_json::from_str(&programs).map_err(|e| RuntimeError::Store(format!("invalid stored programs: {e}")))?;
         let dev_effects: bool = tx.conn().query_row("SELECT NOT EXISTS(SELECT 1 FROM _meta WHERE key = 'release')", [], |row| row.get(0))?;
         tx.rollback()?;
@@ -452,7 +452,7 @@ impl Engine {
             let repair_live_sums = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'live_sum_candidates'", [], |row| row.get::<_, String>(0)).optional()?.as_deref() != Some("1");
             if !changed && !repair_live_sums { return Ok(()); }
             let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
-            let previous: Option<Schema> = previous.map(|text| serde_json::from_str(&text).map_err(|e| RuntimeError::Store(e.to_string()))).transpose()?;
+            let previous: Option<Schema> = previous.map(|text| serde_json::from_str(&text).map_err(|e| RuntimeError::decode(e, RuntimeError::Store))).transpose()?;
             timeline::activate_profiles(tx, schema, previous.as_ref())?;
             let rebuild: Vec<_> = schema.maintains.iter().filter(|m| {
                 (changed && previous.as_ref().is_none_or(|old| !old.maintains.contains(m) || old.table(&m.source).and_then(|s| s.expire.as_ref()) != schema.table(&m.source).and_then(|s| s.expire.as_ref())

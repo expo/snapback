@@ -63,12 +63,12 @@ test('published 0.2.33 rejects F2 stores, serving, backend opening and device ad
   writeFileSync(join(dir,'backend.json'),JSON.stringify(backend));
   const rejected = result => {
     assert.notEqual(result.status,0, result.stdout+result.stderr);
-    assert.match(result.stdout+result.stderr,/unknown variant [`'"]?Recorded/, result.stdout+result.stderr);
+    assert.match(result.stdout+result.stderr,/unknown variant [`'"]?Capabilities/, result.stdout+result.stderr);
   };
   rejected(run(legacy,['device',join(dir,'old-open/device.sqlite'),'backend.json']));
   const stripped = structuredClone(backend);
-  for (const table of Object.values(stripped.schema.tables)) table.constraints = table.constraints.filter(c => c !== 'Recorded');
-  assert.ok(Object.values(stripped.schema.tables).every(table => !table.constraints.includes('Recorded')));
+  for (const table of Object.values(stripped.schema.tables)) table.constraints = table.constraints.filter(c => !c?.Capabilities);
+  assert.ok(Object.values(stripped.schema.tables).every(table => !table.constraints.some(c => c?.Capabilities)));
   writeFileSync(join(dir,'unmarked.json'),JSON.stringify(stripped));
   // Positive control: only the strict marker distinguishes this simple F2
   // backend from a schema the old decoder silently accepted.
@@ -79,12 +79,12 @@ test('published 0.2.33 rejects F2 stores, serving, backend opening and device ad
   assert.ok(replies[0].ok,old.stdout+old.stderr);
   assert.equal(replies[0].denied,undefined);
   assert.ok(replies.at(-1).denied,old.stdout+old.stderr);
-  assert.match(JSON.stringify(replies.at(-1)),/unknown variant [`'"]?Recorded/);
+  assert.match(JSON.stringify(replies.at(-1)),/unknown variant [`'"]?Capabilities/);
   child.kill(); await exited;
   // Doctor opens the active stored generation without adopting caller source.
   const opened = run(legacy,['doctor','--store',join(dir,'.snapback4/store.sqlite')]);
   assert.notEqual(opened.status,0,opened.stdout+opened.stderr);
-  assert.match(opened.stdout+opened.stderr,/invalid stored schema.*unknown variant [`'"]?Recorded/);
+  assert.match(opened.stdout+opened.stderr,/invalid stored schema.*unknown variant [`'"]?Capabilities/);
   const deployed = run(binary,['deploy',join(dir,'release')]);
   assert.equal(deployed.status,0,deployed.stdout+deployed.stderr);
   // Use source the old compiler understands, so serving must refuse the
@@ -109,7 +109,7 @@ test('published 0.2.33 rejects F2 stores, serving, backend opening and device ad
   const plainResponse=await fetch(plainDev.url+'/schema',{headers:{'x-snapback-persona':'alice'}});
   assert.equal(plainResponse.status,200);
   const plainPayload=await plainResponse.json(); const plainBackend=plainPayload.backend??plainPayload;
-  assert.ok(Object.values(plainBackend.schema.tables).every(table=>!Object.keys(table.recorded??{}).length && !table.constraints.includes('Recorded')));
+  assert.ok(Object.values(plainBackend.schema.tables).every(table=>!Object.keys(table.recorded??{}).length && !table.constraints.some(c => c?.Capabilities)));
   writeFileSync(join(plain,'backend.json'),JSON.stringify(plainBackend));
   plainDev.child.kill();await plainDev.exited;
   const accepted=run(legacy,['device',join(plain,'device.sqlite'),'backend.json'],JSON.stringify({op:'adopt',backend:plainBackend})+'\n',plain);
