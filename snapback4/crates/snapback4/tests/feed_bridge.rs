@@ -70,7 +70,36 @@ fn engine(generated: bool) -> Engine {
 #[test]
 fn existing_public_bridge_keeps_helpers_out_of_the_client_api() {
     let bound = built(true);
-    assert!(bound.schema.operations.keys().all(|name| !name.contains("feedApp") && !name.contains("feedCreatePost")));
+    assert_no_helpers_in_api(&bound);
+}
+
+fn assert_no_helpers_in_api(bound: &snapback4_lang::Bound) {
+    let api = snapback4_lang::emit::typescript(bound);
+    assert!(api.contains("export const api: Ops"));
+    let api_names: std::collections::BTreeSet<_> = api.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').collect();
+    let (recipe, errors) = snapback4_lang::parse_document("feed.q", &recipe::following("feed", "feed").unwrap());
+    assert!(errors.is_empty(), "{errors:?}");
+    let (bridge, errors) = snapback4_lang::parse_document("bridge.q", &bridge());
+    assert!(errors.is_empty(), "{errors:?}");
+    for helper in recipe.functions.iter().chain(&bridge.functions).map(|f| &f.name) {
+        assert!(bound.schema.operations.keys().all(|name| name.rsplit('.').next() != Some(helper.as_str())), "operation leaks {helper}");
+        assert!(!api_names.contains(helper.as_str()), "generated api.ts leaks {helper}");
+    }
+    for program in recipe.programs.iter().filter(|p| p.kind == snapback4_lang::ast::ProgramKind::Job) {
+        assert!(!api_names.contains(program.name.as_str()), "generated api.ts leaks {}", program.name);
+    }
+}
+
+#[test]
+fn declaration_expansion_binds_cleanly_and_emits_no_recipe_or_bridge_helpers() {
+    let source = snapback4_lang::guide::quarry(snapback4_lang::guide::card("feeds").unwrap()).remove(0);
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+    assert_eq!(bound.schema.timelines.len(), 1);
+    assert!(bound.schema.tables.contains_key("feedPosts"), "the declaration expanded");
+    assert!(bound.schema.operations.contains_key("following"), "the application bound");
+    assert_no_helpers_in_api(&bound);
 }
 
 #[test]
@@ -103,7 +132,7 @@ fn public_bridge_library_refuses_private_ambiguous_and_unsafe_mappings() {
 }
 
 #[test]
-fn public_bridge_refuses_delete_denied_follow_and_repost_mappings_without_writes() {
+fn public_bridge_refuses_delete_denied_follow_and_repost_mappings() {
     for (table, owner, helper) in [("follows", "followerId", "feedAppUnfollow"), ("reposts", "actorId", "feedAppUnrepost")] {
         for denied_rule in ["", "  delete <- deny\n"] {
                 let source = tables().replace(&format!("  delete <- .{owner} = viewer\n"), denied_rule);
@@ -114,6 +143,16 @@ fn public_bridge_refuses_delete_denied_follow_and_repost_mappings_without_writes
             assert!(error.contains(&format!("{table} delete must require .{owner} = viewer")) && error.contains(helper), "{error}");
         }
     }
+}
+
+#[test]
+fn retained_bridge_refuses_a_same_namespace_helper_collision() {
+    let bound = snapback4_lang::compile(&[
+        ("feed.q".into(), recipe::following("feed", "feed").unwrap()),
+        ("bridge.q".into(), format!("{}\nfn feedAppPublish(postId: posts):\n  return null\n", bridge())),
+        ("social.q".into(), format!("{}{}", tables(), WRITES)),
+    ]);
+    assert!(bound.diagnostics.iter().any(|d| d.message.contains("feedAppPublish")), "{:?}", bound.diagnostics);
 }
 
 fn id(value: &str) -> Value { Value::Id(value.into()) }

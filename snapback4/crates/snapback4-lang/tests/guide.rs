@@ -40,15 +40,31 @@ fn readme_reference(name: &str) -> &'static str {
 fn feeds_card_preserves_promotion_refusals_and_orientation() {
     let feeds = card("feeds").unwrap();
     assert_eq!(feeds, readme_reference("feeds"));
-    for fact in ["51st follower", "permanently", "FEED_PULL_CAP", "FEED_PROMOTION_PULL_CAP",
+    for fact in ["51st follower permanently promotes", "FEED_PULL_CAP", "FEED_PROMOTION_PULL_CAP",
         "no follower is silently skipped", "50 followers indefinitely", "51 reads",
-        "1,023 total writes", "865", "1,001", "empty", "size authors 1008, edges 5921"] {
+        "1,023 total writes including the app edge", "865-event window", "1,001 private copies",
+        "tables empty and at most the declared number of existing profiles", "size authors 1008, edges 5921",
+        "follow and promotion roll back, including the app edge", "Every saturated follower must free a slot",
+        "retry the refused follow with a new write ID", "server-run query", "public `follows` and `feedPullCounts`", "`used = 32`"] {
         assert!(feeds.contains(fact), "missing {fact}");
+    }
+    for bad in ["skips a follower", "skip saturated readers", "A skipped follower", "not skipped\nauthors"] {
+        assert!(!feeds.contains(bad), "{bad}");
     }
     for code in ["FEED_PULL_CAP", "FEED_PROMOTION_PULL_CAP", "E_RECIPE_RETIRED"] {
         assert_eq!(snapback4_lang::diag::guide_for(code), "feeds");
         assert!(explain_code(code).unwrap().contains("snapback4 guide feeds"));
+        assert!(codes().contains(&code));
     }
+    for (code, facts) in [
+        ("E_RECIPE_RETIRED", vec!["maintain feed: timeline", "size authors 1008, edges 5921"]),
+        ("FEED_PULL_CAP", vec!["32 shared authors", "rolled back", "new write ID"]),
+        ("FEED_PROMOTION_PULL_CAP", vec!["32 shared-author slots", "rolled back", "public", "pullCounts", "server-run query", "used = 32"]),
+    ] {
+        let explanation = explain_code(code).unwrap();
+        for fact in facts { assert!(explanation.contains(fact), "{code}: missing {fact}"); }
+    }
+    for retired in ["E_RECIPE_BRIDGE", "E_RECIPE_CAPS"] { assert!(!codes().contains(&retired)); }
 }
 
 #[test]
@@ -390,7 +406,6 @@ fn the_language_card_compiles_and_runs() {
     let calendar = engine.query("calendar", Context::new(alice, args(&[])).at(-1)).unwrap().data;
     assert_eq!(calendar.field("hour").unwrap(), &Value::Int(-1));
     assert_eq!(calendar.field("bucket").unwrap(), &Value::Int(-1));
-    engine.seed([("follows".to_owned(), snapback4_core::value::object([("id", id("f1")), ("followerId", id(bob)), ("followedId", id(alice))]))]).unwrap();
     // react: a refusal with the program's code; upsert as the implicit return.
     assert_eq!(failed(&engine.mutate("react", Some("x1"), Context::new(bob, args(&[("postId", id("post1")), ("direction", Value::Int(2))])).at(3_200)).unwrap()), "BAD_DIRECTION");
     let reacted = engine.mutate("react", Some("x2"), Context::new(bob, args(&[("postId", id("post1")), ("direction", Value::Int(-1))])).at(3_300).with_ids(["react1".to_owned()])).unwrap();
@@ -459,8 +474,10 @@ fn every_card_compiles_clean() {
         }
     }
     // The relocation preserves compiling adoption instructions for already installed apps.
-    for block in quarry(include_str!("../src/recipe/ADOPTION.md")) {
-        clean("existing feed adoption", &format!("{}\n{block}", snapback4_lang::recipe::following("feed", "").unwrap()));
+    let adoption = quarry(include_str!("../src/recipe/ADOPTION.md"));
+    assert!(!adoption.is_empty(), "installed-app adoption must remain executable");
+    for (index, block) in adoption.iter().enumerate() {
+        clean(&format!("existing feed adoption block {}", index + 1), &format!("{}\n{block}", snapback4_lang::recipe::following("feed", "").unwrap()));
     }
     assert_eq!(card("grammar"), Some(LANGUAGE));
     assert_eq!(card("quarry"), Some(LANGUAGE));
@@ -919,6 +936,14 @@ fn language_following_uses_the_declaration() {
     let bound = clean("language", &language());
     assert_eq!(bound.schema.timelines.len(), 1);
     assert_eq!(bound.schema.operations["timelineHome"].runs.as_deref(), Some("device"));
+    let sites = &bound.schema.operations["timelineHome"].sites;
+    for table in ["timelineFeed", "timelinePulls", "timelineBroadcast", "timelineRemovedEvents"] {
+        assert!(sites.iter().any(|site| site.table == table), "missing {table}: {sites:?}");
+    }
+    assert!(!sites.iter().any(|site| site.table == "timelineFollows" || site.table == "follows"));
+    assert_eq!(bound.schema.operations["timelineFollow"].predicts.as_deref(), Some("never"));
+    assert!(bound.schema.tables["timelinePulls"].constraints.iter().any(|constraint|
+        matches!(constraint, snapback4_core::schema::Constraint::Cap { by, max: 32 } if by == &["readerId"])));
     assert!(LANGUAGE.contains("guide feeds"));
     assert!(!language().contains("table feed:"));
 }

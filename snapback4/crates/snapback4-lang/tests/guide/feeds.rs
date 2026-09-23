@@ -47,10 +47,12 @@ fn complete_feeds_program_runs_at_clique_size() {
     let source = quarry(card("feeds").unwrap()).remove(0);
     let (doc, errors) = snapback4_lang::parse_document("schema.q", &source);
     assert!(errors.is_empty());
-    assert_eq!(doc.tables.len(), 4);
+    assert_eq!(doc.tables.len(), 5);
     assert!(doc.functions.is_empty() && doc.schedules.is_empty());
     let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
     assert!(b.diagnostics.is_empty() && b.notes.is_empty(), "{:?} {:?}", b.diagnostics, b.notes);
+    assert_eq!(b.schema.timelines.len(), 1);
+    assert_eq!(b.schema.timelines[0].name, "feed");
     assert_eq!(b.schema.timelines[0].author_cap, 1008);
     assert_eq!(b.schema.timelines[0].edge_cap, 5921);
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
@@ -65,6 +67,23 @@ fn complete_feeds_program_runs_at_clique_size() {
     for n in 0..500 { write(&mut e, &mut clock, "follow", "u1007", &[("authorId", id(&format!("u{n:04}")))]); }
     assert_eq!(pages(&mut e, "u1007").len(), 25);
     assert_eq!(pages(&mut e, "u1007").iter().map(|r| r.field("id").unwrap().clone()).collect::<Vec<_>>(), originals.iter().rev().cloned().collect::<Vec<_>>());
+    // Public threads are separate from events, even for the author and a follower.
+    let viewers = ["u0000", "u1007", "u0900"];
+    let before_replies = viewers.map(|viewer| pages(&mut e, viewer));
+    let events = e.store().rows("feedPosts").unwrap();
+    let mut replies = Vec::new();
+    for body in ["First reply", "Second reply"] {
+        replies.push(write(&mut e, &mut clock, "reply", "u0000", &[("postId", originals[0].clone()), ("body", text(body))]));
+    }
+    write(&mut e, &mut clock, "reply", "u0900", &[("postId", outsider.clone()), ("body", text("Another thread"))]);
+    for (viewer, before) in viewers.into_iter().zip(before_replies) {
+        let thread = e.query("thread", Context::new(viewer, [("postId".into(), originals[0].clone()), ("c".into(), Value::Null)].into()).at(clock)).unwrap();
+        assert!(thread.complete && thread.cut.is_none() && thread.next.is_none(), "{thread:?}");
+        assert_eq!(thread.data.as_array().unwrap(), &replies, "{viewer}: direct replies in chronological order");
+        assert_eq!(pages(&mut e, viewer), before, "{viewer}: replies must not enter Following");
+    }
+    assert_eq!(e.store().rows("feedPosts").unwrap(), events, "replies create no timeline events");
+    assert_eq!(e.store().rows("replies").unwrap().len(), 3);
     for n in 1..50 { write(&mut e, &mut clock, "follow", &format!("u{n:04}"), &[("authorId", id("u0000"))]); }
     let promoted = |e: &Engine| e.store().rows("feedAuthors").unwrap().iter().find(|r| r.field("principal") == Ok(&id("u0000"))).unwrap().field("shared").unwrap().clone();
     assert_eq!(promoted(&e), Value::Bool(false)); // 50 followers
@@ -91,7 +110,9 @@ fn complete_feeds_program_runs_at_clique_size() {
     assert_eq!(after[0].field("post").unwrap().field("removed").unwrap(), &Value::Bool(true));
     // Unfollow drops all of that actor's history, while the other actor's repost survives.
     write(&mut e, &mut clock, "unfollow", "u1007", &[("authorId", id("u0000"))]);
-    assert_eq!(pages(&mut e, "u1007").len(), 1);
+    let remaining = pages(&mut e, "u1007");
+    assert_eq!(remaining.len(), 1);
+    assert_eq!(remaining[0].field("id").unwrap(), repost.field("id").unwrap());
     assert_eq!(pages(&mut e, "u0000").len(), 25); // implicit own membership
     for n in 1..=50 { write(&mut e, &mut clock, "unfollow", &format!("u{n:04}"), &[("authorId", id("u0000"))]); }
     assert_eq!(promoted(&e), Value::Bool(true));
@@ -103,13 +124,26 @@ fn complete_feeds_program_runs_at_clique_size() {
 
 fn without_existing_apps(text: &str) -> String {
     let mut existing = false;
+    let mut fence = None;
     text.lines().filter(|line| {
-        if line.starts_with("## ") { existing = *line == "## Existing apps with an installed recipe"; }
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
+            let marker = &trimmed[..3];
+            if fence == Some(marker) { fence = None; }
+            else if fence.is_none() { fence = Some(marker); }
+        } else if fence.is_none() {
+            let level = trimmed.chars().take_while(|c| *c == '#').count();
+            if (1..=2).contains(&level) && trimmed.as_bytes().get(level) == Some(&b' ') {
+                let title = trimmed[level..].trim().trim_end_matches('#').trim_end();
+                existing = level == 2 && title == "Existing apps with an installed recipe";
+            }
+        }
         !existing
     }).collect::<Vec<_>>().join("\n")
 }
 fn census(label: &str, source: &str) {
-    let text = without_existing_apps(source);
+    // Only the feeds Markdown card owns the compatibility exemption; Rust literals do not.
+    let text = if source.starts_with("# Feeds:") { without_existing_apps(source) } else { source.to_owned() };
     assert!(!text.contains("--recipe"), "{label}: retired installer");
     // Use the library's own declaration names, covering every helper and owned table.
     let (recipe, errors) = snapback4_lang::parse_document("feed.q", include_str!("../../src/recipe/following.q"));
@@ -119,7 +153,7 @@ fn census(label: &str, source: &str) {
         assert!(!text.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|word| word == name), "{label}: helper {name}");
     }
     for helper in ["feedAppRegister", "feedAppPublish", "feedAppRemove", "feedAppRepost", "feedAppUnrepost", "feedAppFollow", "feedAppUnfollow"] {
-        assert!(!text.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|word| word == helper), "{label}: bridge helper {helper}");
+        assert!(!text.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|word| word.ends_with(&helper[4..])), "{label}: bridge helper {helper}");
     }
     for table in &recipe.tables {
         for name in [table.name.clone(), snapback4_lang::recipe::prefixed_name("feed", &table.name)] {
@@ -132,6 +166,10 @@ fn census(label: &str, source: &str) {
         let (doc, errors) = snapback4_lang::parse_document("card.q", &source);
         assert!(errors.is_empty(), "{label}: {errors:?}");
         for table in doc.tables {
+            for original in &recipe.tables {
+                if matches!(original.name.as_str(), "posts" | "follows") { continue; }
+                assert!(table.name != original.name && table.name != snapback4_lang::recipe::prefixed_name("feed", &original.name), "{label}: projection {}", table.name);
+            }
             assert!(!table.columns.iter().any(|c| c.name == "eventId") || !table.columns.iter().any(|c| c.name == "readerId"), "{label}: renamed private feed projection {}", table.name);
         }
     }
@@ -154,6 +192,7 @@ fn cards_readmes_and_templates_do_not_teach_the_retired_recipe() {
     }
     readmes(&root.join("packages"));
     readmes(&root.join("apps"));
+    readmes(&root.join("crates"));
     for path in ["README.md", "packages/snapback4/CLIENT-AND-OPERATIONS.md", "packages/snapback4/SERVER.md", "crates/snapback4-lang/src/guide/templates.rs", "crates/snapback4/src/verbs/init.rs", "crates/snapback4/src/verbs/init/web.rs"] {
         census(path, &std::fs::read_to_string(root.join(path)).unwrap());
     }
@@ -169,4 +208,42 @@ fn cards_readmes_and_templates_do_not_teach_the_retired_recipe() {
     }
     census("default template", guide::TEMPLATE);
     census("online template", guide::TEMPLATE_ONLINE);
+}
+
+#[test]
+fn retirement_census_rejects_installers_helpers_and_projection_examples() {
+    for source in ["Run init --recipe feeds", "Call feedAppPublish(post)", "Call myAppFollow(author)",
+        "```quarry\ntable feedAuthors :\n  principal: principal\n```",
+        "```quarry\ntable posts:\n  eventId: id\n  readerId: principal\n```",
+        "const TEMPLATE: &str = r#\"\n## Existing apps with an installed recipe\nRun init --recipe feeds\n\"#;"] {
+        assert!(std::panic::catch_unwind(|| census("negative fixture", source)).is_err(), "census missed {source}");
+    }
+}
+
+#[test]
+fn existing_app_exemption_respects_headings_and_fenced_samples() {
+    let section = "  ## Existing apps with an installed recipe ##\nlegacy\n# New apps\nnew\n";
+    assert_eq!(without_existing_apps(section), "# New apps\nnew");
+    let sample = "```text\n## Existing apps with an installed recipe\n```\nnew";
+    assert_eq!(without_existing_apps(sample), sample);
+}
+
+#[test]
+fn refusal_and_usage_sources_do_not_recommend_the_retired_installer() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    fn scan(path: &Path) {
+        for entry in std::fs::read_dir(path).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() { scan(&path); }
+            else if matches!(path.extension().and_then(|ext| ext.to_str()), Some("rs" | "md" | "q" | "js" | "mjs" | "ts")) {
+                let source = std::fs::read_to_string(&path).unwrap();
+                // Includes stderr emitters in main/verbs and compiler diagnostic rewrites.
+                let words = source.replace("\\n", " ").split_whitespace().collect::<Vec<_>>().join(" ");
+                assert!(!words.contains("init --recipe feeds"), "{} recommends the retired installer", path.display());
+            }
+        }
+    }
+    for path in ["crates/snapback4/src", "crates/snapback4-lang/src", "crates/snapback4-core/src", "crates/snapback4-device/src", "packages/snapback4/bin"] {
+        scan(&root.join(path));
+    }
 }

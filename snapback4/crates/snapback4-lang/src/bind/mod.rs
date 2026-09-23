@@ -324,7 +324,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                 (format!("{} {}: read cost grows with the number of related principals (up to {lanes} lanes); a read past the {ceiling} examined ceiling returns `complete: false`", bound.program.kind.word(), bound.program.name),
                     "keep read-time merges for a bounded small number of related principals; for Following, declare `maintain feed: timeline` (see `snapback4 guide feeds`); measure with `snapback4 check --cost`; if a held query answers this read, delete the merge")
             } else {
-                // @ref LLP 3000.007#18.1 — membership search needs scope lanes; a feeds recipe addresses relationship-driven reads.
+                // @ref LLP 3000.007#18.1 — membership search needs scope lanes; a timeline declaration addresses relationship-driven reads.
                 (format!("{} {}: the merge over {} reads {work}; a read past the {ceiling} examined ceiling returns `complete: false`", bound.program.kind.word(), bound.program.name, merge.table()),
                     "measure with `snapback4 check --cost`; bound lane discovery to the scopes this read needs, and pass a cursor to continue the result; fewer lanes reduce read cost; if a held query answers this read, delete the merge")
             };

@@ -181,9 +181,9 @@ mod following_fixture;
 #[path = "../../snapback4-sim/tests/common/following_calibration.rs"]
 mod calibration;
 
-fn existing_recipe_fixture(dir: &Dir, authors: &str, edges: &str) {
+fn existing_recipe_fixture(dir: &Dir, authors: Option<&str>, edges: Option<&str>) {
     assert!(dir.run("").status.success());
-    let caps = snapback4_lang::recipe::FollowingCaps::parse(Some(authors), Some(edges)).unwrap();
+    let caps = snapback4_lang::recipe::FollowingCaps::parse(authors, edges).unwrap();
     fs::write(dir.0.join("snapback/feed.q"), snapback4_lang::recipe::following_sized("feed", "feed", caps).unwrap()).unwrap();
 }
 
@@ -191,7 +191,8 @@ fn existing_recipe_fixture(dir: &Dir, authors: &str, edges: &str) {
 fn w7a_residency_measures_the_wired_500_follow_reader() {
     use std::io::Write;
     let dir = Dir::new();
-    existing_recipe_fixture(&dir, "1000", "100000");
+    existing_recipe_fixture(&dir, None, None);
+    assert!(fs::read_to_string(dir.0.join("snapback/feed.q")).unwrap().contains("if visited = 865"));
     fs::write(dir.0.join("snapback/social.q"), following_fixture::app()).unwrap();
     let bound = following_fixture::built();
     let mut engine = snapback4_core::Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
@@ -218,7 +219,7 @@ fn w7a_residency_measures_the_wired_500_follow_reader() {
 fn w8b_residency_measures_the_wired_calibration_shape() {
     use std::{collections::BTreeMap, io::{BufWriter, Write}};
     let dir = Dir::new();
-    existing_recipe_fixture(&dir, "1008", "5921");
+    existing_recipe_fixture(&dir, Some("1008"), Some("5921"));
     fs::write(dir.0.join("snapback/social.q"), following_fixture::app()).unwrap();
     let fixture = dir.0.join("fixture");
     fs::create_dir(&fixture).unwrap();
@@ -348,49 +349,95 @@ fn web_starter_refuses_conflicts_before_writing() {
     }
 }
 
-fn snapshot(dir: &std::path::Path) -> Vec<(PathBuf, Vec<u8>)> {
+fn snapshot(dir: &std::path::Path) -> Vec<(PathBuf, Option<Vec<u8>>)> {
     let mut files = Vec::new();
     for entry in fs::read_dir(dir).unwrap() {
         let path = entry.unwrap().path();
-        if path.is_dir() { files.extend(snapshot(&path)); }
-        else { files.push((path.clone(), fs::read(path).unwrap())); }
+        if path.is_dir() {
+            files.push((path.clone(), None));
+            files.extend(snapshot(&path));
+        } else { files.push((path.clone(), Some(fs::read(path).unwrap()))); }
     }
     files.sort(); files
 }
 
+const RETIRED: &str = "E_RECIPE_RETIRED: the Following recipe installer is retired; no files written\n  rewrite: maintain feed: timeline\n    authors profiles by principal\n    events posts by authorId, at removed by removed\n    reposts reposts by actorId, postId, at\n    edges follows by followerId, followedId\n    size authors 1008, edges 5921\n  declare before event and edge data exists; see snapback4 guide feeds\n";
+const RECIPE_OPTIONS: [[&str; 2]; 7] = [
+    ["--prefix", "feed"], ["--authors", "1008"], ["--edges", "5921"],
+    ["--public-profiles", "profiles:principal"], ["--public-posts", "posts:authorId:at"],
+    ["--public-follows", "follows:followerId:followedId"], ["--public-reposts", "reposts:actorId:postId:at"],
+];
+
+fn assert_retired(dir: &Dir, flags: &[&str]) {
+    let before = snapshot(&dir.0);
+    let output = Command::new(BIN).arg("init").args(flags).current_dir(&dir.0).output().unwrap();
+    assert_eq!(output.status.code(), Some(2), "{flags:?}: {output:?}");
+    assert_eq!(String::from_utf8_lossy(&output.stderr), RETIRED, "{flags:?}");
+    assert!(output.stdout.is_empty(), "{flags:?}: {output:?}");
+    assert_eq!(snapshot(&dir.0), before, "{flags:?}: retired command changed the directory tree");
+}
+
 #[test]
 fn retired_feed_installer_and_all_its_options_refuse_without_writes() {
-    let variants = [
-        vec!["--recipe", "feeds"],
-        vec!["--recipe", "feeds", "--prefix", "feed"],
-        vec!["--recipe", "feeds", "--authors", "1008", "--edges", "5921"],
-        vec!["--recipe", "feeds", "--prefix", "feed", "--authors", "1008", "--edges", "5921",
-            "--public-profiles", "profiles:principal", "--public-posts", "posts:authorId:at",
-            "--public-follows", "follows:followerId:followedId", "--public-reposts", "reposts:actorId:postId:at"],
-        vec!["--prefix", "feed"], vec!["--authors", "1008"], vec!["--edges", "5921"],
-        vec!["--public-profiles", "profiles:principal"], vec!["--public-posts", "posts:authorId:at"],
-        vec!["--public-follows", "follows:followerId:followedId"], vec!["--public-reposts", "reposts:actorId:postId:at"],
-        vec!["--recipe", "feeds", "--authors", "0"], vec!["--recipe", "feeds", "--prefix", "bad-prefix"],
-    ];
-    for starter in [None, Some(""), Some("--expo"), Some("--online"), Some("--web")] {
-        for flags in &variants {
-            let dir = Dir::new();
-            if let Some(starter) = starter { assert!(dir.run(starter).status.success()); }
-            let before = snapshot(&dir.0);
-            let output = Command::new(BIN).arg("init").args(flags).current_dir(&dir.0).output().unwrap();
-            assert_eq!(output.status.code(), Some(2), "{flags:?}: {output:?}");
-            let error = String::from_utf8_lossy(&output.stderr);
-            for part in ["E_RECIPE_RETIRED", "maintain feed: timeline", "size authors 1008, edges 5921", "snapback4 guide feeds"] {
-                assert!(error.contains(part), "{flags:?}: missing {part}: {error}");
+    for existing in [false, true] {
+        let dir = Dir::new();
+        if existing { assert!(dir.run("--expo").status.success()); }
+        // Every subset: standalone, each individual mapping, partial mappings and all options.
+        for mask in 0..(1 << RECIPE_OPTIONS.len()) {
+            for mode in [vec![], vec!["--expo"], vec!["--online"], vec!["--web"], vec!["--expo", "--online"]] {
+                let mut flags = vec!["--recipe", "feeds"];
+                flags.extend(mode);
+                for (bit, option) in RECIPE_OPTIONS.iter().enumerate() {
+                    if mask & (1 << bit) != 0 { flags.extend(option); }
+                }
+                assert_retired(&dir, &flags);
             }
-            assert!(output.stdout.is_empty());
-            assert_eq!(snapshot(&dir.0), before, "retired command changed files");
         }
     }
+    for starter in ["", "--online", "--web"] {
+        let dir = Dir::new();
+        assert!(dir.run(starter).status.success());
+        assert_retired(&dir, &["--recipe", "feeds"]);
+    }
     let dir = Dir::new();
-    let output = Command::new(BIN).args(["init", "new-app", "--expo", "--recipe", "feeds"]).current_dir(&dir.0).output().unwrap();
-    assert_eq!(output.status.code(), Some(2));
+    for mode in ["--expo", "--online", "--web"] {
+        assert_retired(&dir, &["new-app", mode, "--recipe", "feeds"]);
+    }
     assert!(!dir.0.join("new-app").exists());
+}
+
+#[test]
+fn orphan_and_invalid_recipe_options_keep_the_clear_retirement_refusal() {
+    for existing in [false, true] {
+        let dir = Dir::new();
+        if existing { assert!(dir.run("--online").status.success()); }
+        for option in RECIPE_OPTIONS {
+            assert_retired(&dir, &option);
+            assert_retired(&dir, &["--recipe", "feeds", option[0]]); // missing option value
+            let assigned = format!("{}={}", option[0], option[1]);
+            assert_retired(&dir, &["--recipe=feeds", &assigned]);
+        }
+        let orphan_mappings: Vec<_> = RECIPE_OPTIONS[3..].iter().flatten().copied().collect();
+        assert_retired(&dir, &orphan_mappings);
+        for flags in [["--recipe", "feeds", "--authors", "0"], ["--recipe", "feeds", "--prefix", "bad-prefix"]] {
+            assert_retired(&dir, &flags);
+        }
+    }
+}
+
+#[test]
+fn usage_stderr_never_recommends_the_retired_installer() {
+    let dir = Dir::new();
+    for flags in [vec!["--help"], vec!["init", "--help"], vec!["init", "--recipe"], vec!["init", "--recipe", "unknown"], vec!["init", "--recipe", "search"], vec!["init", "--expo", "--online"]] {
+        let before = snapshot(&dir.0);
+        let output = Command::new(BIN).args(&flags).current_dir(&dir.0).output().unwrap();
+        let expected = if flags.contains(&"--help") { 0 } else { 2 };
+        assert_eq!(output.status.code(), Some(expected), "{flags:?}: {output:?}");
+        let text = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+        assert!(text.contains("init [dir] [--online|--expo|--web]"), "{text}");
+        assert!(!text.contains("--recipe"), "{text}");
+        assert_eq!(snapshot(&dir.0), before);
+    }
 }
 
 #[test]
@@ -406,6 +453,10 @@ fn ordinary_starters_still_check_and_preserve_their_server_opt_in() {
         } else {
             assert!(!document.server && document.actions.is_empty() && document.routes.is_empty());
             assert!(document.schedules.iter().all(|schedule| schedule.target != "invite"));
+            for (path, bytes) in snapshot(&dir.0) {
+                assert!(!path.file_name().unwrap().to_string_lossy().starts_with("worker."));
+                if let Some(bytes) = bytes { assert!(!String::from_utf8_lossy(&bytes).contains("invite"), "{}", path.display()); }
+            }
         }
         let checked = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
         assert!(checked.status.success(), "{checked:?}");

@@ -46,6 +46,7 @@ Caps refuse the entire write, including the app's source change:
 | Follow edges globally | 5,921 |
 | Follows per reader / followers per author | 1,000 / 1,000 |
 | Live source events per actor / globally | 1,000 / 60,000 |
+| Replies globally (outside Following) | 60,000 |
 | Private entries per reader / per reader and actor | 50,000 / 1,000 |
 | Private copies per event | 1,001 |
 | Pulled authors per reader | 32 |
@@ -80,7 +81,7 @@ bytes, below the 16,777,216-byte stream ceiling. Arbitrary app rows can grow
 later historical replies; the SDK recovers an oversized indivisible commit
 by snapshot acquisition, preserving pending writes.
 
-Cold acquisition includes all four public application tables, public event
+Cold acquisition includes all public application tables, including replies below, public event
 metadata, modes, broadcasts and tombstones, plus only the reader's private
 inbox and routes. Counts are public but online-only; internal totals are
 unreadable. Page size does not bound acquisition or device storage. Measure
@@ -147,6 +148,10 @@ N_SPARSE_FILTER means an unscoped filter pins no index prefix and can return
 short incomplete pages. Use the declared timeline for Following, or pin the
 leading index key for another bounded read.
 
+Every insert into the mapped posts table publishes a timeline event; there is
+no event predicate. Keep replies, comments and any rows that must not appear
+in Following in their own table, outside the timeline mapping.
+
 ## Complete public Following program
 
 Save this as `snapback/schema.q`, then run `snapback4 check`. The example's
@@ -175,6 +180,18 @@ table posts:
   public 'public cards retained for reposts'
   insert <- .authorId = viewer
   update <- .authorId = viewer
+  sync public
+
+table replies:
+  postId: posts
+  authorId: principal
+  body: text <=500
+  at: time
+  by byPost: postId, at, id
+  cap 60000
+  immutable postId, authorId
+  public 'public thread replies outside Following'
+  insert <- .authorId = viewer
   sync public
 
 table reposts:
@@ -214,10 +231,16 @@ maintain feed: timeline
 query following(c: cursor ?):
   return feed[viewer] after c last 20 { *, post: posts[.postId], actor: profiles[.actorId], author: profiles[.authorId] }
 
+query thread(postId: posts, c: cursor ?):
+  return replies[postId] after c first 20 by byPost
+
 mutation register(name: text <=80):
   return insert profiles { principal: viewer, name } if absent
 mutation post(body: text <=500):
   return insert posts { authorId: viewer, body, at: now }
+mutation reply(postId: posts, body: text <=500):
+  require exists posts[postId] else FEED_APP_NOT_FOUND
+  return insert replies { postId, authorId: viewer, body, at: now }
 mutation repost(postId: posts):
   return insert reposts { actorId: viewer, postId, at: now } if absent
 mutation remove(postId: posts):
@@ -237,6 +260,10 @@ with card and profile joins. Key the rendered list by event `id`, so an
 original and a repost remain separate. `post.removed` describes the original;
 do not filter an independent repost out merely because its original was removed.
 Render `complete: false` as incomplete and pass `next` back as `c` when present.
+
+**Pending (F2, not on main yet):** for replies received by a post's author,
+see `guide maintains` for `count replies by postId.authorId`; the complete
+program above does not depend on that form.
 
 `size` accepts `authors`, `edges`, or both in either order; omitted keys default
 to 1,000 authors and 100,000 edges. Values are positive 32-bit integers, authors
@@ -304,6 +331,13 @@ Installed recipes keep working. There is no migration from an installed recipe
 to the declaration in 0.3: activation needs empty event and edge tables.
 The [existing adoption instructions](https://github.com/expo/snapback/blob/main/snapback4/crates/snapback4-lang/src/recipe/ADOPTION.md)
 still apply to those apps, including paused writes and dependency-ordered backfill.
+
+The installed recipe trusts its principals with permissive projection writes:
+`authors` allows updates, `pulls` allows inserts, and `broadcast` inserts do not
+pin `readerId`. New apps should use the declaration, which strips non-read rules
+from those projections and makes them engine-owned.
+The recipe's private inbox also trusts an actor to write recipient copies
+without proving a follow edge.
 
 ## Other feed shapes
 

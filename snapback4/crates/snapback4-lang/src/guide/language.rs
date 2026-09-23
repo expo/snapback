@@ -546,6 +546,6 @@ actions` for durable invocation collection and `guide writes` for mutations.
 
 ## Timelines
 
-For a public Following feed, use `maintain name: timeline` with `size authors 1008, edges 5921`; `guide feeds` covers the complete program, caps, devices and lifecycle.
+For a public Following feed, use `maintain name: timeline`. The optional `size` clause defaults to 1,000 authors and 100,000 edges; `size authors 1008, edges 5921` fits the Clique fixture. `guide feeds` covers the complete program, caps, devices and lifecycle.
 
 "##;
