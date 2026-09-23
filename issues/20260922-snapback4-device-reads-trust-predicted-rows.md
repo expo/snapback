@@ -1,0 +1,37 @@
+# Snapback 4: device reads trust predicted rows that the writer cannot read
+
+**Status:** Open
+**Date:** 2026-09-22
+**Scope:** `snapback4-core` device read path (`engine/read.rs`, around line 243: every row in a synced table is trusted), and device prediction.
+**Source:** Astra xhigh's review of lane F3b (the declared timeline on devices), under LLP 3000 decision 4's partition review focus.
+
+## What happens
+
+Device reads assume every row a device holds in a synced table was delivered
+by the server, and so is readable by the device's principal. Predicted rows
+break that assumption. A mutation whose insert rule admits a row that its
+writer cannot read is still predicted locally. Until settlement, the row is
+visible to that writer's point reads, scans and merges, and the page is
+marked complete. An example is a report row that only moderators can read.
+
+Astra reproduced it for the declared timeline. Alice's predicted post wrote
+Bob's private inbox copy into Alice's store, and Alice's reads of Bob's
+inbox returned it. The feeds recipe's device witness has the same exposure,
+because it expects the follower's copy to be predicted.
+
+## Resolution so far
+
+F3b stops predicting foreign private owned rows: the predictor never writes
+a row its principal's read rule denies (lane F3b, fix round 1).
+
+## Open
+
+- Decide the general fix. Either:
+  - (a) the device applies read rules to provisional rows; or
+  - (b) prediction never writes a row that the writing principal cannot
+    read.
+
+  (b) matches what a device can know. (a) costs a rule evaluation on
+  every provisional row a read touches.
+- Census the existing cards, recipes and templates for insert rules that
+  admit unreadable rows.
