@@ -815,6 +815,94 @@ void label; void name;
 }
 
 #[test]
+fn generated_array_elements_preserve_union_precedence() {
+    use snapback4_lang::emit::ty_ts;
+
+    let row = Ty::Row("posts".into());
+    let object = Ty::Object(BTreeMap::from([("id".into(), Ty::Id)]));
+    let fields = BTreeMap::from([("id".into(), Ty::Id.optional())]);
+    let cases = [
+        ("optional row", row.clone().optional(), "(Rows[\"posts\"] | null)[]"),
+        ("optional object", object.optional(), "({ id: string } | null)[]"),
+        ("optional projection", Ty::RowShape(fields.clone()).optional(), "({ id: string | null; pending?: boolean } | null)[]"),
+        ("enum", Ty::Enum(vec!["draft".into(), "published".into()]), "(\"draft\" | \"published\")[]"),
+        ("nested list", Ty::List(Box::new(row.clone().optional()), 10), "(Rows[\"posts\"] | null)[][]"),
+        ("nested collection", Ty::Collection(Box::new(row.clone().optional()), 10), "(Rows[\"posts\"] | null)[][]"),
+        ("optional nested list", Ty::List(Box::new(row.clone().optional()), 10).optional(), "((Rows[\"posts\"] | null)[] | null)[]"),
+        ("optional nested collection", Ty::Collection(Box::new(row.clone().optional()), 10).optional(), "((Rows[\"posts\"] | null)[] | null)[]"),
+        ("nullable field", Ty::Object(fields), "{ id: string | null }[]"),
+        ("row", row, "Rows[\"posts\"][]"),
+        ("single variant", Ty::Enum(vec!["draft".into()]), "\"draft\"[]"),
+        ("optional scalar", Ty::Int.optional(), "(number | null)[]"),
+        ("image", Ty::Image, "{ id: string; width?: number | null; height?: number | null; bytes?: number; type?: string; duration?: number | null }[]"),
+        ("video", Ty::Video, "{ id: string; width?: number | null; height?: number | null; bytes?: number; type?: string; duration?: number | null }[]"),
+    ];
+    let mut failures = Vec::new();
+    for (name, element, expected) in cases {
+        for array in [Ty::List(Box::new(element.clone()), 10), Ty::Collection(Box::new(element.clone()), 10)] {
+            let actual = ty_ts(&array);
+            if actual != expected {
+                failures.push(format!("{name}: {array:?}\nexpected: {expected}\nactual:   {actual}"));
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn generated_nullable_arrays_typecheck_with_the_real_contract() {
+    let compiled = bound(r#"
+table posts:
+  label: text <=50
+  read <- allow
+  sync public
+query nullableRows():
+  out = []
+  for post in posts first 10 by byId:
+    out = out + [posts[post.id]]
+  return out
+query nullableObjects():
+  out = []
+  for post in posts first 10 by byId:
+    out = out + [posts[post.id] { id, label }]
+  return out
+"#);
+    let scratch = Scratch::new();
+    let api = snapback4_lang::emit::typescript(&compiled);
+    std::fs::write(scratch.0.join("api.ts"), api.replace("\"snapback4/contract\"", "\"./contract\"")).unwrap();
+    std::fs::write(scratch.0.join("contract.ts"), include_str!("../../../packages/snapback4/src/contract.ts")).unwrap();
+    std::fs::write(scratch.0.join("check.ts"), r#"import { api, type Rows } from './api';
+type NullableRows = NonNullable<typeof api.nullableRows.__result>;
+type NullableObjects = NonNullable<typeof api.nullableObjects.__result>;
+const row: Rows['posts'] = { id: 'post', label: 'hello' };
+const rows: NullableRows = [row, null];
+const objects: NullableObjects = [null, row];
+// @ts-expect-error A single row is not an array.
+const singleRow: NullableRows = row;
+// @ts-expect-error A single object is not an array.
+const singleObject: NullableObjects = row;
+function labels(values: NullableRows | NullableObjects): string[] {
+  const first = values[0];
+  // @ts-expect-error Indexing must preserve nullability.
+  const required: Rows['posts'] = first;
+  const result: string[] = [];
+  if (first != null) result.push(first.id, first.label);
+  for (const value of values) {
+    // @ts-expect-error Iteration must preserve nullability.
+    const required: Rows['posts'] = value;
+    if (value !== null) result.push(value.id, value.label);
+  }
+  return result;
+}
+labels(rows); labels(objects);
+"#).unwrap();
+    let tsc = workspace().join("node_modules/typescript/bin/tsc");
+    assert!(tsc.exists(), "the emitted-TypeScript check uses the existing Bun workspace dependencies; run bun install --frozen-lockfile in snapback4");
+    let result = Command::new("node").arg(tsc).args(["--noEmit", "--strict", "--noUncheckedIndexedAccess", "--skipLibCheck", "--target", "es2022", "--module", "esnext", "--moduleResolution", "bundler", "api.ts", "check.ts"]).current_dir(&scratch.0).output().unwrap();
+    assert!(result.status.success(), "{}{}", String::from_utf8_lossy(&result.stdout), String::from_utf8_lossy(&result.stderr));
+}
+
+#[test]
 fn asset_metadata_narrowing_matches_nullable_server_facts() {
     use snapback4_lang::types::Ty;
     let source = "query metadata(photo: image <=1000, clip: video <=1000):\n  return { width: photo.width, height: clip.height, duration: photo.duration, bytes: photo.bytes, safeDuration: clip.duration ?? 0 }\n";
