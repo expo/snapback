@@ -12,6 +12,15 @@ line and a Clique run once there is a 0.3 release the lead is happy with.
 - [LLP 3000.009.000](../llp/3000.009.000-the-server-half-opt-in.plan.md), the server half behind `use server`;
 - [#15's pre-registration](./closed/20260919-pre-registered-predictions-for-calibration-15.md), the method, and W14c's rolled-forward prediction.
 
+**Numbering note (2026-09-22, added before any 0.3 lever was published).**
+Another program prepared calibration #17 as a corrective public-package rerun
+of 0.2.33, which carries no 0.3 lever
+(`/Users/ccheever/clique-sb4-20260922-astra-cal17/README.md` on the M5). This
+file's predictions apply to the **first calibration whose pin carries 0.3
+levers**, whatever its number. The fit, bands and thresholds below are frozen
+as filed. They are not refit on #17's result, and #17 is read as one more
+level observation, not as this file's test.
+
 This file follows #15's method: one threshold per category with an explicit
 null band, taken from the fitted line **before** any lever exists in a
 published pin. The holistic number is not a criterion.
