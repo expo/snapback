@@ -13,3 +13,4 @@ serde_json = "1"
 
 [dev-dependencies]
 sha2 = "0.10"
+snapback4-device = { path = "../snapback4-device" }
