@@ -93,6 +93,11 @@ impl<'de> Deserialize<'de> for Schema {
             }
         }
         let required = schema.required_capabilities();
+        // Before the shared fence, the binder emitted Recorded on F2 tables
+        // even when the same schema also declared timelines. Only that legacy
+        // representation infers its full requirements; modern carriers remain
+        // exact, including when mixed with a legacy marker.
+        if legacy && carriers == 0 { declared = required.clone(); }
         if declared != required || carriers + usize::from(legacy) != usize::from(!required.is_empty()) {
             return Err(serde::de::Error::custom(format!("E_SCHEMA_CAPABILITY: schema requires {required:?}, but declares {declared:?} in {carriers} carriers")));
         }

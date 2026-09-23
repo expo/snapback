@@ -362,7 +362,12 @@ impl<S: DeviceStore> Device<S> {
         let kept = store.meta(BACKEND)?;
         // Every opening must understand the saved schema before replacing it,
         // including an explicit backend. Installation checks this same capture.
-        let expected = BTreeMap::from([(BACKEND.to_owned(), kept.clone())]);
+        // An explicit first install has no saved backend to protect. Preserve
+        // the ordinary install contract there; conditional first installs must
+        // still compare absence, and every reopening compares the checked bytes.
+        let expected = if initial || backend.is_none() || kept.is_some() {
+            BTreeMap::from([(BACKEND.to_owned(), kept.clone())])
+        } else { BTreeMap::new() };
         let previous = kept.as_deref().map(|text| snapback4_core::json_codec::from_text::<Backend>(text)
             .map_err(|e| RuntimeError::decode(e, |e| RuntimeError::Store(format!("the kept backend does not parse: {e}")))))
             .transpose()?;

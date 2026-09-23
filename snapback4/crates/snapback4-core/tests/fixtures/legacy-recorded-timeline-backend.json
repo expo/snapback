@@ -1,0 +1,1430 @@
+{
+  "generation": 1,
+  "programs": [{"args":{},"body":[{"Let":{"name":"$value1","value":{"Input":"NewId"}}},{"Const":{"name":"$inserted2","value":{"Object":{"id":{"Variable":"$value1"},"principal":{"Input":"Viewer"}}}}},{"Insert":{"row":{"Variable":"$inserted2"},"table":"profiles"}},{"Return":{"Variable":"$inserted2"}}],"kind":"Mutation","name":"register","read_time_granularity_ms":null},{"args":{"postId":"Id"},"body":[{"Const":{"name":"$inserted1","value":{"Object":{"at":{"Input":"Now"},"authorId":{"Input":"Viewer"},"id":{"Variable":"postId"},"removed":{"Literal":{"Bool":false}}}}}},{"Insert":{"row":{"Variable":"$inserted1"},"table":"posts"}},{"Return":{"Variable":"$inserted1"}}],"kind":"Mutation","name":"publish","read_time_granularity_ms":null},{"args":{"c":{"Optional":"Cursor"}},"body":[{"Let":{"name":"$rows3","value":{"Array":[]}}},{"For":{"binding":"$row4","body":[{"Push":{"target":"$rows3","value":{"Shape":{"base":{"Variable":"$row4"},"fields":{"actorId":{"Field":{"base":{"Variable":"$row4"},"name":"actorId"}},"at":{"Field":{"base":{"Variable":"$row4"},"name":"at"}},"authorId":{"Field":{"base":{"Variable":"$row4"},"name":"authorId"}},"id":{"Field":{"base":{"Variable":"$row4"},"name":"eventId"}},"postId":{"Field":{"base":{"Variable":"$row4"},"name":"postId"}},"repost":{"Field":{"base":{"Variable":"$row4"},"name":"repost"}}}}}}}],"domain":{"DerivedArray":{"bound_source":"page","max":20,"value":{"Merge":{"lanes":[{"binding":"","scan":{"after":{"Variable":"c"},"before":null,"filter":{"Unary":{"op":"Not","value":{"Exists":{"index":"byEvent","key":[{"Field":{"base":{"Variable":"$filter"},"name":"eventId"}}],"provenance":"Shape","site":"programs.following.1","table":"feedRemovedEvents"}}}},"index":"byReaderTime","merge_site":"programs.following.0","opaque_cursor":true,"order":"Desc","prefix":[{"Scalar":{"Input":"Viewer"}}],"provenance":"Shape","range":null,"site":"programs.following.2","table":"feedFeed","take":{"Literal":20}},"source":null},{"binding":"$source2","scan":{"after":{"Variable":"c"},"before":null,"filter":{"Unary":{"op":"Not","value":{"Exists":{"index":"byEvent","key":[{"Field":{"base":{"Variable":"$filter"},"name":"eventId"}}],"provenance":"Shape","site":"programs.following.4","table":"feedRemovedEvents"}}}},"index":"byReaderTime","merge_site":"programs.following.0","opaque_cursor":true,"order":"Desc","prefix":[{"Scalar":{"Field":{"base":{"Variable":"$p1"},"name":"authorId"}}}],"provenance":"Shape","range":null,"site":"programs.following.5","table":"feedBroadcast","take":{"Literal":20}},"setup":[{"Let":{"name":"$p1","value":{"Variable":"$source2"}}}],"source":{"after":null,"before":null,"index":"byReaderAuthor","merge_site":null,"order":"Asc","prefix":[{"Scalar":{"Input":"Viewer"}}],"provenance":"Shape","range":null,"site":"programs.following.3","table":"feedPulls","take":{"Literal":32}}}],"site":"programs.following.0"}}}}}},{"Let":{"name":"$items5","value":{"Array":[]}}},{"For":{"binding":"$item6","body":[{"Push":{"target":"$items5","value":{"Shape":{"base":{"Variable":"$item6"},"fields":{"actorId":{"Field":{"base":{"Variable":"$item6"},"name":"actorId"}},"id":{"Field":{"base":{"Variable":"$item6"},"name":"id"}},"postId":{"Field":{"base":{"Variable":"$item6"},"name":"postId"}}}}}}}],"domain":{"DerivedArray":{"bound_source":"shape","max":20,"value":{"Variable":"$rows3"}}}}},{"Return":{"Variable":"$items5"}}],"kind":"Query","name":"following","read_time_granularity_ms":null},{"args":{},"body":[{"Return":{"Scan":{"after":null,"before":null,"index":"byId","merge_site":null,"order":"Desc","prefix":[],"provenance":"Shape","range":null,"site":"programs.posts.0","table":"posts","take":{"Literal":20}}}}],"kind":"Query","name":"posts","read_time_granularity_ms":null},{"args":{},"body":[{"Return":{"Scan":{"after":null,"before":null,"index":"byId","merge_site":null,"order":"Asc","prefix":[],"provenance":"Shape","range":null,"site":"programs.profiles.0","table":"profiles","take":{"Literal":10}}}}],"kind":"Query","name":"profiles","read_time_granularity_ms":null},{"args":{"postId":{"Ref":{"table":"posts"}}},"body":[{"Let":{"name":"$value1","value":{"Input":"NewId"}}},{"Const":{"name":"$inserted2","value":{"Object":{"id":{"Variable":"$value1"},"postId":{"Variable":"postId"},"principal":{"Input":"Viewer"}}}}},{"Insert":{"row":{"Variable":"$inserted2"},"table":"likes"}},{"Return":{"Variable":"$inserted2"}}],"kind":"Mutation","name":"like","read_time_granularity_ms":null},{"args":{"authorId":{"Optional":"Principal"}},"body":[{"Let":{"name":"$total1","value":{"Get":{"index":"byGroup","key":[{"Variable":"authorId"}],"provenance":"Shape","site":"programs.received.0","table":"receivedLikes"}}}},{"If":{"condition":{"Binary":{"left":{"Variable":"$total1"},"op":"Eq","right":{"Literal":"Null"}}},"else_body":[{"Assign":{"name":"$total1","value":{"Field":{"base":{"Variable":"$total1"},"name":"value"}}}}],"then_body":[{"Assign":{"name":"$total1","value":{"Literal":{"Int":0}}}}]}},{"Return":{"Variable":"$total1"}}],"kind":"Query","name":"received","read_time_granularity_ms":null},{"args":{},"body":[{"For":{"binding":"$p1","body":[{"For":{"binding":"$e2","body":[{"Let":{"name":"$key3","value":{"Field":{"base":{"Variable":"$e2"},"name":"id"}}}},{"Delete":{"key":{"Variable":"$key3"},"table":"feedFeed"}}],"domain":{"Page":{"after":null,"before":null,"index":"byEvent","merge_site":null,"order":"Asc","prefix":[{"Scalar":{"Field":{"base":{"Variable":"$p1"},"name":"eventId"}}}],"provenance":"Shape","range":null,"site":"programs.feedPurgeRemoved.1","table":"feedFeed","take":{"Literal":1001}}}}},{"Let":{"name":"$key4","value":{"Field":{"base":{"Variable":"$p1"},"name":"id"}}}},{"Delete":{"key":{"Variable":"$key4"},"table":"feedRemovedEvents"}}],"domain":{"Page":{"after":null,"before":null,"index":"byEvent","merge_site":null,"order":"Asc","prefix":[],"provenance":"Shape","range":null,"site":"programs.feedPurgeRemoved.0","table":"feedRemovedEvents","take":{"Literal":1}}}}}],"kind":"job","name":"feedPurgeRemoved","read_time_granularity_ms":null}],
+  "schema": {
+  "maintains": [
+    {
+      "by": [
+        "readerId"
+      ],
+      "kind": "Count",
+      "readable": null,
+      "residency": {
+        "online_only": true
+      },
+      "source": "feedPulls",
+      "target": "feedPullTotals"
+    },
+    {
+      "by": [
+        "postId.authorId"
+      ],
+      "kind": "Count",
+      "readable": null,
+      "residency": {
+        "inherited_from": "likes"
+      },
+      "source": "likes",
+      "target": "receivedLikes"
+    }
+  ],
+  "operations": {
+    "feedPurgeRemoved": {
+      "requires": [],
+      "runs": "server",
+      "sites": [
+        {
+          "class": "held",
+          "index": "byEvent",
+          "kind": "scan",
+          "reason": "scan feedRemovedEvents by byEvent: held, no horizon",
+          "rewrite": "",
+          "site": "schema.q:253:14 (feedRemovedEvents[])",
+          "table": "feedRemovedEvents"
+        },
+        {
+          "class": "held",
+          "index": "byEvent",
+          "kind": "scan",
+          "reason": "scan feedFeed by byEvent: held, no horizon",
+          "rewrite": "",
+          "site": "schema.q:254:14 (feedFeed[p.eventId])",
+          "table": "feedFeed"
+        }
+      ]
+    },
+    "following": {
+      "requires": [],
+      "runs": "device",
+      "sites": [
+        {
+          "class": "held",
+          "index": "byEvent",
+          "kind": "point",
+          "reason": "point feedRemovedEvents by byEvent: held, no horizon",
+          "rewrite": "",
+          "site": "timeline.q:2:74 (feedRemovedEvents[eventId = .eventId])",
+          "table": "feedRemovedEvents"
+        },
+        {
+          "class": "held",
+          "index": "byReaderTime",
+          "kind": "scan",
+          "reason": "scan feedFeed by byReaderTime: held, no horizon",
+          "rewrite": "",
+          "site": "timeline.q:3:5 (feedFeed[viewer])",
+          "table": "feedFeed"
+        },
+        {
+          "class": "held",
+          "index": "byReaderAuthor",
+          "kind": "scan",
+          "reason": "scan feedPulls by byReaderAuthor: held, no horizon",
+          "rewrite": "",
+          "site": "timeline.q:4:40 (feedPulls[viewer])",
+          "table": "feedPulls"
+        },
+        {
+          "class": "held",
+          "index": "byReaderTime",
+          "kind": "scan",
+          "reason": "scan feedBroadcast by byReaderTime: held, no horizon",
+          "rewrite": "",
+          "site": "timeline.q:4:5 (feedBroadcast[p.authorId])",
+          "table": "feedBroadcast"
+        }
+      ]
+    },
+    "like": {
+      "predicts": "eligible",
+      "requires": [],
+      "sites": [
+        {
+          "class": "held",
+          "index": "byId",
+          "kind": "recorded attribution",
+          "reason": "likes.postId.authorId implicitly reads posts.byId: prediction needs the target row live and covered by the current partition; otherwise queues unpredicted",
+          "rewrite": "",
+          "site": "schema.q:76:3 (insert likes)",
+          "table": "posts"
+        }
+      ]
+    },
+    "posts": {
+      "requires": [],
+      "runs": "device",
+      "sites": [
+        {
+          "class": "held",
+          "index": "byId",
+          "kind": "scan",
+          "reason": "scan posts by byId: held, no horizon",
+          "rewrite": "",
+          "site": "schema.q:60:10 (posts[])",
+          "table": "posts"
+        }
+      ]
+    },
+    "profiles": {
+      "requires": [],
+      "runs": "device",
+      "sites": [
+        {
+          "class": "held",
+          "index": "byId",
+          "kind": "scan",
+          "reason": "scan profiles by byId: held, no horizon",
+          "rewrite": "",
+          "site": "schema.q:63:10 (profiles[])",
+          "table": "profiles"
+        }
+      ]
+    },
+    "publish": {
+      "predicts": "eligible",
+      "requires": [],
+      "sites": [
+        {
+          "class": "held",
+          "index": "byActorPost",
+          "kind": "timeline transition",
+          "reason": "timeline feed implicit input feedPosts: must be currently held to predict; retained-only coverage queues without rows",
+          "rewrite": "queue the whole mutation without predicted rows when any input is online, unheld or retained-only",
+          "site": "insert posts: feedPosts/byActorPost",
+          "table": "feedPosts"
+        },
+        {
+          "class": "held",
+          "index": "byEvent",
+          "kind": "timeline transition",
+          "reason": "timeline feed implicit input feedRemovedEvents: must be currently held to predict; retained-only coverage queues without rows",
+          "rewrite": "queue the whole mutation without predicted rows when any input is online, unheld or retained-only",
+          "site": "insert posts: feedRemovedEvents/byEvent",
+          "table": "feedRemovedEvents"
+        },
+        {
+          "class": "held",
+          "index": "byReaderEvent",
+          "kind": "timeline transition",
+          "reason": "timeline feed implicit input feedBroadcast: must be currently held to predict; retained-only coverage queues without rows",
+          "rewrite": "queue the whole mutation without predicted rows when any input is online, unheld or retained-only",
+          "site": "insert posts: feedBroadcast/byReaderEvent",
+          "table": "feedBroadcast"
+        },
+        {
+          "class": "held",
+          "index": "byPrincipal",
+          "kind": "timeline transition",
+          "reason": "timeline feed implicit input feedAuthors: must be currently held to predict; retained-only coverage queues without rows",
+          "rewrite": "queue the whole mutation without predicted rows when any input is online, unheld or retained-only",
+          "site": "insert posts: feedAuthors/byPrincipal",
+          "table": "feedAuthors"
+        },
+        {
+          "class": "held",
+          "index": "byReaderAuthor",
+          "kind": "timeline transition",
+          "reason": "timeline feed implicit input feedPulls: must be currently held to predict; retained-only coverage queues without rows",
+          "rewrite": "queue the whole mutation without predicted rows when any input is online, unheld or retained-only",
+          "site": "insert posts: feedPulls/byReaderAuthor",
+          "table": "feedPulls"
+        },
+        {
+          "class": "held",
+          "index": "byId",
+          "kind": "timeline transition",
+          "reason": "timeline feed implicit input profiles: must be currently held to predict; retained-only coverage queues without rows",
+          "rewrite": "queue the whole mutation without predicted rows when any input is online, unheld or retained-only",
+          "site": "insert posts: profiles/byId",
+          "table": "profiles"
+        },
+        {
+          "class": "held",
+          "index": "byFollowed",
+          "kind": "timeline transition",
+          "reason": "timeline feed implicit input follows: must be currently held to predict; retained-only coverage queues without rows",
+          "rewrite": "queue the whole mutation without predicted rows when any input is online, unheld or retained-only",
+          "site": "insert posts: follows/byFollowed",
+          "table": "follows"
+        }
+      ]
+    },
+    "received": {
+      "requires": [],
+      "runs": "device",
+      "sites": [
+        {
+          "class": "held",
+          "index": "byGroup",
+          "kind": "point",
+          "reason": "point receivedLikes by byGroup: held, no horizon",
+          "rewrite": "",
+          "site": "schema.q:78:10 (receivedLikes[authorId] by byGroup)",
+          "table": "receivedLikes"
+        }
+      ]
+    },
+    "register": {
+      "predicts": "eligible",
+      "requires": [],
+      "sites": [
+        {
+          "class": "held",
+          "index": "byPrincipal",
+          "kind": "timeline transition",
+          "reason": "timeline feed implicit input feedAuthors: must be currently held to predict; retained-only coverage queues without rows",
+          "rewrite": "queue the whole mutation without predicted rows when any input is online, unheld or retained-only",
+          "site": "insert profiles: feedAuthors/byPrincipal",
+          "table": "feedAuthors"
+        }
+      ]
+    }
+  },
+  "schedules": [
+    {
+      "every_ms": 60000,
+      "name": "feedPurgeRemovedEvery",
+      "offset_ms": 0,
+      "target": "feedPurgeRemoved"
+    }
+  ],
+  "tables": {
+    "feedAuthors": {
+      "columns": {
+        "id": "Id",
+        "principal": "Principal",
+        "shared": "Bool"
+      },
+      "constraints": [
+        {
+          "Unique": {
+            "index": "byPrincipal"
+          }
+        },
+        {
+          "Cap": {
+            "by": [],
+            "max": 1000
+          }
+        }
+      ],
+      "defaults": {
+        "shared": {
+          "Literal": {
+            "Bool": false
+          }
+        }
+      },
+      "indexes": {
+        "byId": {
+          "components": [
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": true
+        },
+        "byPrincipal": {
+          "components": [
+            {
+              "Column": "principal"
+            }
+          ],
+          "unique": true
+        }
+      },
+      "leave": "until-revoked",
+      "rules": {
+        "delete": "Deny",
+        "insert": "Deny",
+        "read": {
+          "Public": {
+            "reason": "delivery mode is public"
+          }
+        },
+        "update": "Deny"
+      },
+      "sync": {
+        "audience": "Public"
+      }
+    },
+    "feedBroadcast": {
+      "columns": {
+        "actorId": "Principal",
+        "at": "Time",
+        "authorId": "Principal",
+        "eventId": {
+          "Ref": {
+            "table": "feedPosts"
+          }
+        },
+        "id": "Id",
+        "postId": "Id",
+        "readerId": "Principal",
+        "repost": "Bool"
+      },
+      "constraints": [
+        {
+          "Unique": {
+            "index": "byReaderEvent"
+          }
+        },
+        {
+          "Unique": {
+            "index": "byReaderTime"
+          }
+        },
+        {
+          "Cap": {
+            "by": [],
+            "max": 32000
+          }
+        },
+        {
+          "Immutable": {
+            "fields": [
+              "readerId",
+              "eventId",
+              "actorId",
+              "at"
+            ]
+          }
+        }
+      ],
+      "indexes": {
+        "byId": {
+          "components": [
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": true
+        },
+        "byReaderActor": {
+          "components": [
+            {
+              "Column": "readerId"
+            },
+            {
+              "Column": "actorId"
+            },
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": false
+        },
+        "byReaderEvent": {
+          "components": [
+            {
+              "Column": "readerId"
+            },
+            {
+              "Column": "eventId"
+            }
+          ],
+          "unique": true
+        },
+        "byReaderTime": {
+          "components": [
+            {
+              "Column": "readerId"
+            },
+            {
+              "Column": "at"
+            },
+            {
+              "Column": "eventId"
+            }
+          ],
+          "unique": true
+        },
+        "byTime": {
+          "components": [
+            {
+              "Column": "at"
+            },
+            {
+              "Column": "eventId"
+            }
+          ],
+          "unique": false
+        }
+      },
+      "leave": "until-revoked",
+      "rules": {
+        "delete": "Deny",
+        "insert": "Deny",
+        "read": {
+          "Public": {
+            "reason": "celebrity posts and reposts are public"
+          }
+        },
+        "update": "Deny"
+      },
+      "sync": {
+        "audience": "Public"
+      }
+    },
+    "feedFeed": {
+      "columns": {
+        "actorId": "Principal",
+        "at": "Time",
+        "authorId": "Principal",
+        "eventId": {
+          "Ref": {
+            "table": "feedPosts"
+          }
+        },
+        "id": "Id",
+        "postId": "Id",
+        "readerId": "Principal",
+        "repost": "Bool"
+      },
+      "constraints": [
+        {
+          "Unique": {
+            "index": "byReaderEvent"
+          }
+        },
+        {
+          "Unique": {
+            "index": "byReaderTime"
+          }
+        },
+        {
+          "Cap": {
+            "by": [
+              "readerId",
+              "actorId"
+            ],
+            "max": 1000
+          }
+        },
+        {
+          "Cap": {
+            "by": [
+              "readerId"
+            ],
+            "max": 50000
+          }
+        },
+        {
+          "Cap": {
+            "by": [
+              "eventId"
+            ],
+            "max": 1001
+          }
+        },
+        {
+          "Immutable": {
+            "fields": [
+              "readerId",
+              "eventId",
+              "actorId",
+              "at"
+            ]
+          }
+        }
+      ],
+      "indexes": {
+        "byEvent": {
+          "components": [
+            {
+              "Column": "eventId"
+            },
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": false
+        },
+        "byId": {
+          "components": [
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": true
+        },
+        "byReaderActor": {
+          "components": [
+            {
+              "Column": "readerId"
+            },
+            {
+              "Column": "actorId"
+            },
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": false
+        },
+        "byReaderEvent": {
+          "components": [
+            {
+              "Column": "readerId"
+            },
+            {
+              "Column": "eventId"
+            }
+          ],
+          "unique": true
+        },
+        "byReaderTime": {
+          "components": [
+            {
+              "Column": "readerId"
+            },
+            {
+              "Column": "at"
+            },
+            {
+              "Column": "eventId"
+            }
+          ],
+          "unique": true
+        },
+        "byTime": {
+          "components": [
+            {
+              "Column": "at"
+            },
+            {
+              "Column": "eventId"
+            }
+          ],
+          "unique": false
+        }
+      },
+      "leave": "until-revoked",
+      "residency": {
+        "inferred": true
+      },
+      "rules": {
+        "delete": "Deny",
+        "insert": "Deny",
+        "read": {
+          "Eq": [
+            {
+              "Field": "readerId"
+            },
+            "Viewer"
+          ]
+        },
+        "update": "Deny"
+      },
+      "sync": {
+        "audience": {
+          "Column": "readerId"
+        }
+      }
+    },
+    "feedPosts": {
+      "columns": {
+        "actorId": "Principal",
+        "at": "Time",
+        "authorId": "Principal",
+        "id": "Id",
+        "postId": "Id",
+        "repost": "Bool",
+        "shared": "Bool"
+      },
+      "constraints": [
+        {
+          "Unique": {
+            "index": "byActorPost"
+          }
+        },
+        {
+          "Cap": {
+            "by": [
+              "actorId"
+            ],
+            "max": 1000
+          }
+        },
+        {
+          "Cap": {
+            "by": [],
+            "max": 60000
+          }
+        },
+        {
+          "Immutable": {
+            "fields": [
+              "actorId",
+              "authorId",
+              "postId",
+              "repost",
+              "at",
+              "shared"
+            ]
+          }
+        }
+      ],
+      "indexes": {
+        "byActorPost": {
+          "components": [
+            {
+              "Column": "actorId"
+            },
+            {
+              "Column": "postId"
+            },
+            {
+              "Column": "repost"
+            }
+          ],
+          "unique": true
+        },
+        "byActorTime": {
+          "components": [
+            {
+              "Column": "actorId"
+            },
+            {
+              "Column": "at"
+            },
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": false
+        },
+        "byId": {
+          "components": [
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": true
+        },
+        "byTime": {
+          "components": [
+            {
+              "Column": "at"
+            },
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": false
+        }
+      },
+      "leave": "until-revoked",
+      "rules": {
+        "delete": "Deny",
+        "insert": "Deny",
+        "read": {
+          "Public": {
+            "reason": "original posts and attributed reposts are public"
+          }
+        },
+        "update": "Deny"
+      },
+      "sync": {
+        "audience": "Public"
+      }
+    },
+    "feedPullCounts": {
+      "columns": {
+        "id": "Id",
+        "readerId": "Principal",
+        "used": "Int"
+      },
+      "constraints": [
+        {
+          "Unique": {
+            "index": "byReader"
+          }
+        },
+        {
+          "Cap": {
+            "by": [],
+            "max": 32000
+          }
+        }
+      ],
+      "indexes": {
+        "byId": {
+          "components": [
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": true
+        },
+        "byReader": {
+          "components": [
+            {
+              "Column": "readerId"
+            }
+          ],
+          "unique": true
+        }
+      },
+      "leave": "until-revoked",
+      "residency": {
+        "online_only": true
+      },
+      "rules": {
+        "delete": "Deny",
+        "insert": "Deny",
+        "read": {
+          "Public": {
+            "reason": "only the number of installed pulls is public; routes stay reader-private"
+          }
+        },
+        "update": "Deny"
+      }
+    },
+    "feedPullTotals": {
+      "columns": {
+        "id": "Id",
+        "readerId": "Principal",
+        "value": "Int"
+      },
+      "constraints": [
+        {
+          "Unique": {
+            "index": "byGroup"
+          }
+        }
+      ],
+      "indexes": {
+        "byGroup": {
+          "components": [
+            {
+              "Column": "readerId"
+            }
+          ],
+          "unique": true
+        },
+        "byId": {
+          "components": [
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": true
+        }
+      },
+      "leave": "until-revoked",
+      "residency": {
+        "online_only": true
+      },
+      "rules": {
+        "delete": "Deny",
+        "insert": "Deny",
+        "read": "Deny",
+        "update": "Deny"
+      }
+    },
+    "feedPulls": {
+      "columns": {
+        "authorId": "Principal",
+        "id": "Id",
+        "readerId": "Principal"
+      },
+      "constraints": [
+        {
+          "Unique": {
+            "index": "byReaderAuthor"
+          }
+        },
+        {
+          "Cap": {
+            "by": [
+              "readerId"
+            ],
+            "max": 32
+          }
+        },
+        {
+          "Cap": {
+            "by": [],
+            "max": 32000
+          }
+        }
+      ],
+      "indexes": {
+        "byId": {
+          "components": [
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": true
+        },
+        "byReaderAuthor": {
+          "components": [
+            {
+              "Column": "readerId"
+            },
+            {
+              "Column": "authorId"
+            }
+          ],
+          "unique": true
+        }
+      },
+      "leave": "until-revoked",
+      "residency": {
+        "inferred": true
+      },
+      "rules": {
+        "delete": "Deny",
+        "insert": "Deny",
+        "read": {
+          "Eq": [
+            {
+              "Field": "readerId"
+            },
+            "Viewer"
+          ]
+        },
+        "update": "Deny"
+      },
+      "sync": {
+        "audience": {
+          "Column": "readerId"
+        }
+      }
+    },
+    "feedRemovedEvents": {
+      "columns": {
+        "actorId": "Principal",
+        "eventId": "Id",
+        "id": "Id"
+      },
+      "constraints": [
+        {
+          "Unique": {
+            "index": "byEvent"
+          }
+        },
+        {
+          "Cap": {
+            "by": [
+              "actorId"
+            ],
+            "max": 1000
+          }
+        },
+        {
+          "Cap": {
+            "by": [],
+            "max": 32000
+          }
+        },
+        {
+          "Immutable": {
+            "fields": [
+              "eventId",
+              "actorId"
+            ]
+          }
+        }
+      ],
+      "indexes": {
+        "byActor": {
+          "components": [
+            {
+              "Column": "actorId"
+            },
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": false
+        },
+        "byEvent": {
+          "components": [
+            {
+              "Column": "eventId"
+            }
+          ],
+          "unique": true
+        },
+        "byId": {
+          "components": [
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": true
+        }
+      },
+      "leave": "until-revoked",
+      "rules": {
+        "delete": "Deny",
+        "insert": "Deny",
+        "read": {
+          "Public": {
+            "reason": "removal of a public source event is public; id is the eventId"
+          }
+        },
+        "update": "Deny"
+      },
+      "sync": {
+        "audience": "Public"
+      }
+    },
+    "follows": {
+      "columns": {
+        "at": "Time",
+        "followedId": "Principal",
+        "followerId": "Principal",
+        "id": "Id"
+      },
+      "constraints": [
+        {
+          "Unique": {
+            "index": "byPair"
+          }
+        },
+        {
+          "Cap": {
+            "by": [
+              "followerId"
+            ],
+            "max": 1000
+          }
+        },
+        {
+          "Cap": {
+            "by": [
+              "followedId"
+            ],
+            "max": 1000
+          }
+        },
+        {
+          "Cap": {
+            "by": [],
+            "max": 100000
+          }
+        },
+        {
+          "Immutable": {
+            "fields": [
+              "followerId",
+              "followedId",
+              "at"
+            ]
+          }
+        }
+      ],
+      "defaults": {
+        "at": {
+          "Literal": {
+            "Int": 0
+          }
+        }
+      },
+      "indexes": {
+        "byFollowed": {
+          "components": [
+            {
+              "Column": "followedId"
+            },
+            {
+              "Column": "followerId"
+            }
+          ],
+          "unique": false
+        },
+        "byId": {
+          "components": [
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": true
+        },
+        "byPair": {
+          "components": [
+            {
+              "Column": "followerId"
+            },
+            {
+              "Column": "followedId"
+            }
+          ],
+          "unique": true
+        }
+      },
+      "leave": "until-revoked",
+      "rules": {
+        "delete": {
+          "Eq": [
+            {
+              "Field": "followerId"
+            },
+            "Viewer"
+          ]
+        },
+        "insert": {
+          "Eq": [
+            {
+              "Field": "followerId"
+            },
+            "Viewer"
+          ]
+        },
+        "read": {
+          "Public": {
+            "reason": "edges"
+          }
+        },
+        "update": "Deny"
+      },
+      "sync": {
+        "audience": "Public"
+      }
+    },
+    "likes": {
+      "columns": {
+        "id": "Id",
+        "postId": {
+          "Ref": {
+            "table": "posts"
+          }
+        },
+        "postId.authorId": {
+          "Optional": "Principal"
+        },
+        "principal": "Principal"
+      },
+      "constraints": [
+        "Recorded",
+        {
+          "Immutable": {
+            "fields": [
+              "postId"
+            ]
+          }
+        }
+      ],
+      "indexes": {
+        "byId": {
+          "components": [
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": true
+        }
+      },
+      "leave": "until-revoked",
+      "recorded": {
+        "postId.authorId": {
+          "column": "authorId",
+          "reference": "postId",
+          "table": "posts"
+        }
+      },
+      "rules": {
+        "delete": "Deny",
+        "insert": {
+          "Eq": [
+            {
+              "Field": "principal"
+            },
+            "Viewer"
+          ]
+        },
+        "read": "Allow",
+        "update": "Deny"
+      },
+      "sync": {
+        "audience": "Public"
+      }
+    },
+    "notes": {
+      "columns": {
+        "id": "Id",
+        "owner": "Principal"
+      },
+      "constraints": [],
+      "indexes": {
+        "byId": {
+          "components": [
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": true
+        }
+      },
+      "leave": "until-revoked",
+      "rules": {
+        "delete": "Deny",
+        "insert": {
+          "Eq": [
+            {
+              "Field": "owner"
+            },
+            "Viewer"
+          ]
+        },
+        "read": "Deny",
+        "update": "Deny"
+      }
+    },
+    "posts": {
+      "columns": {
+        "at": "Time",
+        "authorId": "Principal",
+        "id": "Id",
+        "removed": "Bool"
+      },
+      "constraints": [
+        {
+          "Immutable": {
+            "fields": [
+              "authorId",
+              "at"
+            ]
+          }
+        }
+      ],
+      "defaults": {
+        "removed": {
+          "Literal": {
+            "Bool": false
+          }
+        }
+      },
+      "indexes": {
+        "byId": {
+          "components": [
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": true
+        }
+      },
+      "leave": "until-revoked",
+      "rules": {
+        "delete": "Deny",
+        "insert": {
+          "Eq": [
+            {
+              "Field": "authorId"
+            },
+            "Viewer"
+          ]
+        },
+        "read": {
+          "Public": {
+            "reason": "cards"
+          }
+        },
+        "update": {
+          "Eq": [
+            {
+              "Field": "authorId"
+            },
+            "Viewer"
+          ]
+        }
+      },
+      "sync": {
+        "audience": "Public"
+      }
+    },
+    "profiles": {
+      "columns": {
+        "id": "Id",
+        "principal": "Principal"
+      },
+      "constraints": [
+        {
+          "Unique": {
+            "index": "byPrincipal"
+          }
+        },
+        {
+          "Immutable": {
+            "fields": [
+              "principal"
+            ]
+          }
+        }
+      ],
+      "indexes": {
+        "byId": {
+          "components": [
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": true
+        },
+        "byPrincipal": {
+          "components": [
+            {
+              "Column": "principal"
+            }
+          ],
+          "unique": true
+        }
+      },
+      "leave": "until-revoked",
+      "rules": {
+        "delete": "Deny",
+        "insert": {
+          "Eq": [
+            {
+              "Field": "principal"
+            },
+            "Viewer"
+          ]
+        },
+        "read": {
+          "Public": {
+            "reason": "profiles"
+          }
+        },
+        "update": "Deny"
+      },
+      "sync": {
+        "audience": "Public"
+      }
+    },
+    "receivedLikes": {
+      "columns": {
+        "id": "Id",
+        "postId.authorId": {
+          "Optional": "Principal"
+        },
+        "value": "Int"
+      },
+      "constraints": [
+        {
+          "Unique": {
+            "index": "byGroup"
+          }
+        }
+      ],
+      "indexes": {
+        "byGroup": {
+          "components": [
+            {
+              "Column": "postId.authorId"
+            }
+          ],
+          "unique": true
+        },
+        "byId": {
+          "components": [
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": true
+        }
+      },
+      "leave": "until-revoked",
+      "residency": {
+        "inherited_from": "likes"
+      },
+      "rules": {
+        "delete": "Deny",
+        "insert": "Deny",
+        "read": "Allow",
+        "update": "Deny"
+      },
+      "sync": {
+        "audience": "Public"
+      }
+    },
+    "reposts": {
+      "columns": {
+        "actorId": "Principal",
+        "at": "Time",
+        "id": "Id",
+        "postId": {
+          "Ref": {
+            "table": "posts"
+          }
+        }
+      },
+      "constraints": [
+        {
+          "Unique": {
+            "index": "byActorPost"
+          }
+        },
+        {
+          "Immutable": {
+            "fields": [
+              "actorId",
+              "postId",
+              "at"
+            ]
+          }
+        }
+      ],
+      "indexes": {
+        "byActorPost": {
+          "components": [
+            {
+              "Column": "actorId"
+            },
+            {
+              "Column": "postId"
+            }
+          ],
+          "unique": true
+        },
+        "byId": {
+          "components": [
+            {
+              "Column": "id"
+            }
+          ],
+          "unique": true
+        }
+      },
+      "leave": "until-revoked",
+      "rules": {
+        "delete": {
+          "Eq": [
+            {
+              "Field": "actorId"
+            },
+            "Viewer"
+          ]
+        },
+        "insert": {
+          "Eq": [
+            {
+              "Field": "actorId"
+            },
+            "Viewer"
+          ]
+        },
+        "read": {
+          "Public": {
+            "reason": "reposts"
+          }
+        },
+        "update": "Deny"
+      },
+      "sync": {
+        "audience": "Public"
+      }
+    }
+  },
+  "timelines": [
+    {
+      "authors": [
+        "profiles",
+        "principal"
+      ],
+      "edges": [
+        "follows",
+        "followerId",
+        "followedId"
+      ],
+      "followed_index": "byFollowed",
+      "mapped": [
+        "follows",
+        "posts",
+        "profiles",
+        "reposts"
+      ],
+      "name": "feed",
+      "owned": [
+        "feedAuthors",
+        "feedBroadcast",
+        "feedFeed",
+        "feedPosts",
+        "feedPullCounts",
+        "feedPullTotals",
+        "feedPulls",
+        "feedRemovedEvents"
+      ],
+      "posts": [
+        "posts",
+        "authorId",
+        "at",
+        "removed"
+      ],
+      "purge": "feedPurgeRemoved",
+      "reposts": [
+        "reposts",
+        "actorId",
+        "postId",
+        "at"
+      ]
+    }
+  ]
+}
+}
