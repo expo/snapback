@@ -68,3 +68,8 @@ query noteIds(c: cursor ?):
   return notes after c first 1000 { id }
 mutation post(postId: id):
   insert posts { id: postId, authorId: viewer, at: now }
+
+query noteRows(c: cursor ?):
+  return notes after c first 50
+query ownCopies():
+  return feedFeed[viewer] first 20 by byReaderTime

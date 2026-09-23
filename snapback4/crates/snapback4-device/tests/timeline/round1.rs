@@ -21,7 +21,7 @@ pub fn assert_partition<S: Images>(d: &mut Device<S>, e: &Engine, viewer: &str) 
         assert!(d.store().images(table).iter().all(|r|!r.as_object().unwrap().contains_key("pending")),"pending survives in {table}");
     }
 }
-fn add_probes(b: &mut Backend) {
+pub fn add_probes(b: &mut Backend) {
     let queries = r#"
 query inboxPoint(eventId: id):
   return feedFeed['bob', eventId] { readerId, eventId }
@@ -45,6 +45,16 @@ query routeProbe():
     let compiled=fixture::compile(&format!("{}{}{queries}",fixture::APP,fixture::DECLARATION));
     b.programs.extend(compiled.programs.into_iter().filter(|p|p.program.kind==snapback4_core::ir::ProgramKind::Query).map(|p|p.program));
 }
+pub fn assert_private<S: Images>(d: &mut Device<S>, post: &str) {
+        for query in ["inboxPoint","inboxScan","inboxMerge","inboxProbe","routePoint","routeScan","routeMerge","routeProbe"] {
+            let args=if query=="inboxPoint" || query=="inboxProbe" {json!({"eventId":post})} else {json!({})};
+            let answer=d.query(query,"alice",&args,100).unwrap();
+            assert!(answer.data==Value::Null || answer.data==Value::Bool(false) || answer.data==Value::Array(vec![]),"foreign disclosure via {query}: {answer:?}");
+        }
+    for table in ["feedFeed","feedPulls"] {
+        assert!(d.store().images(table).iter().all(|r| r.field("readerId").unwrap()==&fixture::id("alice")), "foreign row in raw {table}");
+    }
+}
 fn foreign_reads<H: Host>(mut h: H) where H::Store: Images {
     let (mut e,mut b)=server();add_probes(&mut b);
     let mut d=open(&mut h,&mut e,b,"alice");
@@ -52,23 +62,25 @@ fn foreign_reads<H: Host>(mut h: H) where H::Store: Images {
         let post=format!("foreign-{n}");let q=admit(&mut d,"publish","alice",json!({"postId":post}),n);
         // Check disclosure before the row-count witness, so the mutation proof
         // fails on the actual read, not merely a bookkeeping count.
-        for query in ["inboxPoint","inboxScan","inboxMerge","inboxProbe","routePoint","routeScan","routeMerge","routeProbe"] {
-            let args=if query=="inboxPoint" || query=="inboxProbe" {json!({"eventId":post})} else {json!({})};
-            let answer=d.query(query,"alice",&args,100).unwrap();
-            assert!(answer.data==Value::Null || answer.data==Value::Bool(false) || answer.data==Value::Array(vec![]),"foreign disclosure via {query}: {answer:?}");
-            // Complete empty answers are allowed for a fully acquired table;
-            // there is never a complete positive answer from a foreign overlay.
-            assert!(!(answer.complete && answer.data.as_object().is_ok()),"complete provisional foreign row via {query}");
-        }
+        assert_private(&mut d, &post);
         assert_eq!(q.predicted.len(),3);
         let own=owned_id("feed","Feed",&[fixture::id("alice"),fixture::id(&post)]);
         assert_eq!(q.predicted.iter().cloned().collect::<std::collections::BTreeSet<_>>(),[format!("posts/{post}"),format!("feedPosts/{post}"),format!("feedFeed/{own}")].into());
         assert!(d.store().images("feedFeed").iter().all(|r|r.field("readerId").unwrap()==&fixture::id("alice")));
         let before=e.seq().unwrap();
+        sent(&mut e,"publish","carol",json!({"postId":format!("replay-{n}")}),19,vec![]);
+        d.apply(&stream_page(&mut e,"alice",before),false).unwrap();
+        assert_private(&mut d,&post);
+        h.close("alice",d); d=h.open("alice",None).unwrap();
+        assert_private(&mut d,&post);
+        let before=e.seq().unwrap();
         let seq=settles.then(||sent(&mut e,"publish","alice",json!({"postId":post}),20+n as i64,q.new_ids.clone()));
         d.settle(&q.id,seq).unwrap();
         if settles {d.apply(&stream_page(&mut e,"alice",before),false).unwrap();}
         assert!(d.queued().unwrap().is_empty()); assert_partition(&mut d,&e,"alice");
+        assert_private(&mut d,&post);
+        for (i,p) in snapshot_pages(&mut e,"alice",1000).iter().enumerate() { d.apply(p,i==0).unwrap(); }
+        assert_private(&mut d,&post); assert_partition(&mut d,&e,"alice");
     }
 }
 #[test] fn foreign_reads_memory() {foreign_reads(Memory::new());}
@@ -100,7 +112,10 @@ fn retained<H: Host>(mut h: H) where H::Store: Images {
         d.apply(&left,false).unwrap();
         let history=d.store().meta("device:history:groups").unwrap().unwrap();
         assert_eq!(serde_json::from_str::<Json>(&history).unwrap()[table]["[]"],"Left");
-        let before=rows(&mut d);let q=admit(&mut d,op,"alice",args,1);
+        let before=rows(&mut d);
+        let error=d.predict(op,"alice",&args,11,vec![],1).unwrap_err();
+        assert!(matches!(error,RuntimeError::Prediction(ref reason) if reason.contains(table)),"{error:?}");
+        let q=admit(&mut d,op,"alice",args,1);
         queued_only(&mut d,&q,&before);
     }
 }

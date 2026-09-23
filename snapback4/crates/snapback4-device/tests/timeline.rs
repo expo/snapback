@@ -5,6 +5,8 @@ mod identity;
 mod common;
 #[path = "timeline/round1.rs"]
 mod round1;
+#[path = "timeline/round2.rs"]
+mod round2;
 #[path = "../../snapback4/tests/timeline/common.rs"]
 #[allow(dead_code)]
 mod fixture;
@@ -93,7 +95,7 @@ fn lifecycle<H: Host>(mut h: H) where H::Store: Images {
         assert!(d.queued().unwrap().is_empty());
         assert_eq!(page(&mut d,"alice"),e.query("following",Context::new("alice",BTreeMap::new()).at(100)).unwrap().data);
         let after=rows(&mut d);
-        // Foreign provisional copies are withdrawn; only the viewer's partition remains.
+        // Only the viewer's partition is ever predicted or installed.
         assert!(after["feedFeed"].iter().all(|r| r.field("readerId").unwrap()==&fixture::id("alice")));
         round1::assert_partition(&mut d, &e, "alice");
         let mut bob = open(&mut h, &mut e, d.backend(), &format!("bob-{n}"));
@@ -230,14 +232,18 @@ fn shared_and_pages<H: Host>(mut h:H) where H::Store: Images {
     round1::assert_partition(&mut d,&e,"alice");
     let mut cursor=None::<String>;
     let mut pages=0;let mut ended=false;
+    let mut seen=std::collections::BTreeSet::new();
     for _ in 0..3 {
         let args=json!({"c":cursor});
         let local=d.query("following","alice",&args,100).unwrap();
         let online=e.query("following",Context::new("alice",[("c".into(),cursor.clone().map(Value::String).unwrap_or(Value::Null))].into()).at(100)).unwrap();
         assert_eq!((&local.data,local.complete,&local.next),(&online.data,online.complete,&online.next));
+        assert!(local.complete);
+        for row in local.data.as_array().unwrap() { assert!(seen.insert(row.field("postId").unwrap().as_str().unwrap().to_owned()), "duplicate page event"); }
         pages+=1; if local.next.is_none() {ended=true;break;}cursor=local.next;
     }
     assert!(pages>1 && ended,"must follow a cursor to exhaustion");
+    assert_eq!(seen, ["original".to_owned(),"shared-offline".to_owned()].into_iter().chain((0..25).map(|n|format!("page{n}"))).collect());
     let q=admit(&mut d,"remove","alice",json!({"postId":"shared-offline"}),2);
     assert!(q.predictable);assert_eq!(q.predicted.len(),4,"app update, tombstone, source and broadcast removal");
     let tombstone=snapback4_core::schema::timeline::owned_id("feed","RemovedEvents",&[fixture::id("shared-offline")]);
@@ -251,13 +257,18 @@ fn repost_replay<H:Host>(mut h:H) where H::Store:Images {
     let (mut e,b)=server();let mut d=open(&mut h,&mut e,b,"alice");
     let q=admit(&mut d,"repost","alice",json!({"postId":"original"}),1);
     assert_eq!(q.new_ids.len(),2);assert_eq!(q.predicted.len(),3);
+    round2::assert_repost(&mut d, &q);
     let original=rows(&mut d);let from=e.seq().unwrap();
     sent(&mut e,"publish","carol",json!({"postId":"intervening"}),20,vec![]);
     let stream=stream_page(&mut e,"alice",from);assert!(stream.watermark>from && !stream.events.is_empty());
     d.apply(&stream,false).unwrap();
+    round2::assert_repost(&mut d, &q);
+    round1::present(&rows(&mut d),"posts","intervening");
     h.close("alice",d);d=h.open("alice",None).unwrap();
     assert_eq!(d.queued().unwrap()[0].id,q.id);
+    round2::assert_repost(&mut d, &q);
     let replayed=rows(&mut d);
+    round1::present(&replayed,"posts","intervening");
     assert_eq!(d.queued().unwrap()[0].new_ids,q.new_ids);
     assert_eq!(d.queued().unwrap()[0].predicted,q.predicted);
     for key in &q.predicted {

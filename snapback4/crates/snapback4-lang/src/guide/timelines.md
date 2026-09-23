@@ -101,8 +101,9 @@ reader-private; modes, event metadata, tombstones and broadcasts are public;
 counts are public online-only; the internal total is unreadable. Posting
 never probes another reader's inbox. Non-event owned identities are full SHA-256 digests of the canonical domain tag, declaration name, table suffix and natural key; they consume no caller ids. Event ids remain the original post id or the recipe's fresh repost id. The recipe remains available.
 
-Registration predicts its profile and mode. Profile deletion keeps the mode.
-Posting, reposting, post removal and unrepost predict when every input the
+Registration predicts its profile and mode. Profile deletion predicts its
+application deletion without reading or changing the mode row. Registration,
+posting, reposting, post removal and unrepost predict when every input the
 transition reads is currently held: the profile, author mode, follower edges,
 source event, live original, tombstone lookup and own pull route. Retained-only
 images never establish current input facts or range coverage. Any unknown or

@@ -134,8 +134,8 @@ pub fn write_site(schema: &Schema, table: &str, kind: &str, fact: &mut snapback4
             let online = schema.tables[&input].sync.is_none();
             fact.sites.push(ResidencySite { site: format!("{kind} {table}: {input}/{index}"), table: input.clone(), index,
                 kind: "timeline transition".into(), class: if online { SiteClass::Server } else { SiteClass::Held },
-                reason: format!("timeline {} implicit input {input}: {}", timeline.name, if online { "online-only slot accounting" } else { "must be held to predict" }),
-                rewrite: "queue the whole mutation without predicted rows when any input is online, unheld or retained-only".into() });
+                reason: format!("timeline {} implicit input {input}: {}", timeline.name, if online { "online-only slot accounting" } else { "must be currently held to predict; retained-only coverage queues without rows" }),
+                rewrite: if table == timeline.edges[0] { "queue the whole mutation without predicted rows: slot accounting is online-only".into() } else { "queue the whole mutation without predicted rows when any input is online, unheld or retained-only".into() } });
         }
     }
 }

@@ -46,15 +46,23 @@ pub(super) fn events<T: DeviceTx>(tx: &T, schema: &Schema, events: &[StreamEvent
     tx.set_meta(meta, &encoded(&groups)?)
 }
 
+pub(super) enum Coverage<'a> { Row(&'a Value), Range(&'a str, &'a [Value]) }
+
 // @ref LLP 3000.007#18.2 — reads and predictions consult the same persisted held/left groups, including empty groups.
-pub(super) fn retained_group(schema: &Schema, groups: &Groups, name: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> {
-    let Some(table) = schema.table(name).filter(|table| table.leave == LeavePolicy::DeliveredHistory) else { return Ok(false) };
-    let Some(index) = table.index(index) else { return Ok(false) };
-    let columns = audience_prefix(table);
-    if columns.is_empty() { return Ok(false); }
-    let pinned: BTreeMap<_, _> = index.components.iter().zip(prefix).filter_map(|(part, value)| part.column().map(|column| (column, value))).collect();
-    let Some(group) = columns.iter().map(|column| pinned.get(column).map(|value| (*value).clone())).collect::<Option<Vec<_>>>() else { return Ok(false) };
-    Ok(is_left(groups, name, &key(&group)?))
+pub(super) fn retained(schema: &Schema, groups: &Groups, name: &str, coverage: Coverage<'_>) -> Result<bool, RuntimeError> {
+    let Some(table) = schema.table(name).filter(|table| table.sync.is_some() && table.leave == LeavePolicy::DeliveredHistory) else { return Ok(false) };
+    let group = match coverage {
+        Coverage::Row(row) => row_key(table, row)?,
+        Coverage::Range(index, prefix) => {
+            let Some(index) = table.index(index) else { return Ok(false) };
+            let pinned: BTreeMap<_, _> = index.components.iter().zip(prefix).filter_map(|(part, value)| part.column().map(|column| (column, value))).collect();
+            let Some(group) = audience_prefix(table).iter().map(|column| pinned.get(column).map(|value| (*value).clone())).collect::<Option<Vec<_>>>() else { return Ok(false) };
+            // An empty audience is the whole public table, for every lookup key
+            // and scan prefix, including a read that finds no rows.
+            key(&group)?
+        }
+    };
+    Ok(is_left(groups, name, &group))
 }
 
 /// The core asks about the evaluated scan prefix, so arbitrary expressions,
@@ -72,11 +80,10 @@ impl<T: DeviceTx> Rows for Reading<'_, T> {
         boundary::read(&self.boundaries, self.schema, table, index, prefix)
     }
     fn retained_row(&self, name: &str, row: &Value) -> Result<bool, RuntimeError> {
-        let Some(table) = self.schema.table(name).filter(|table| table.sync.is_some() && table.leave == LeavePolicy::DeliveredHistory) else { return Ok(false) };
-        Ok(is_left(&self.groups, name, &row_key(table, row)?))
+        retained(self.schema, &self.groups, name, Coverage::Row(row))
     }
     fn retained_group(&self, name: &str, index: &str, prefix: &[Value]) -> Result<bool, RuntimeError> {
-        let retained = retained_group(self.schema, &self.groups, name, index, prefix)?;
+        let retained = retained(self.schema, &self.groups, name, Coverage::Range(index, prefix))?;
         if retained { self.retained.set(true); }
         Ok(retained)
     }

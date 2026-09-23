@@ -578,10 +578,10 @@ changes can still refuse a queued write.
 | `following` | Reads the reader's installed lanes on the device |
 
 The declared timeline predicts registration (profile plus mode), profile
-deletion (mode retained), posting, reposting, removal and unrepost when every
-input is currently held. Retained-only profiles, modes, follow edges,
-tombstones and original events never establish current facts or range coverage;
-an unknown input queues the whole mutation with zero rows. A one-follower
+deletion (the mode row stays in place), posting, reposting, removal and unrepost when every
+input it reads is currently held. Any unheld or retained-only input, point
+or scanned, queues the whole mutation with zero rows. Profile deletion does
+not read or change the mode row. A one-follower
 post predicts three rows: app card, public source event and author's own copy.
 Foreign private owned rows are omitted from prediction and written only by
 the server. This deliberately differs from the manual recipe witness above,
@@ -592,7 +592,7 @@ metadata stripped. Following reads held rows; settlement drops provisional
 rows the server omits and replaces the rest, and refusal withdraws all changes.
 See `guide timelines` for the declaration.
 
-The standalone recipe has the same boundary: `register`, `createPost`,
+The standalone recipe classifies these operations: `register`, `createPost`,
 `repost`, `deletePost` and `unrepost` are eligible; `follow` and `unfollow`
 never predict. The purge is a system job.
 

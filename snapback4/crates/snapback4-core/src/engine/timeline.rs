@@ -179,9 +179,10 @@ impl Runner<'_> {
         require(self.timeline_get(&t.authors[0], &index, vec![Value::Id(principal.into())])?.is_some(), "FEED_APP_NOT_FOUND")
     }
 
-    fn timeline_register(&mut self, t: &Timeline, actor: &str) -> Result<Value, RuntimeError> {
-        if let Some(mode) = self.timeline_get(&t.table("Authors"), "byPrincipal", vec![Value::Id(actor.into())])? { return Ok(mode); }
-        self.timeline_insert(t, "Authors", &[Value::Id(actor.into())], object([("principal", Value::Id(actor.into())), ("shared", Value::Bool(false))]))
+    fn timeline_register(&mut self, t: &Timeline, actor: &str) -> Result<(), RuntimeError> {
+        if self.timeline_get(&t.table("Authors"), "byPrincipal", vec![Value::Id(actor.into())])?.is_some() { return Ok(()); }
+        self.timeline_insert(t, "Authors", &[Value::Id(actor.into())], object([("principal", Value::Id(actor.into())), ("shared", Value::Bool(false))]))?;
+        Ok(())
     }
 
     fn timeline_mode(&mut self, t: &Timeline, actor: &str) -> Result<Value, RuntimeError> {
@@ -240,7 +241,7 @@ impl Runner<'_> {
         self.delete(&t.table("Posts"), &id)
     }
 
-    fn timeline_insert(&mut self, t: &Timeline, suffix: &str, key: &[Value], row: Value) -> Result<Value, RuntimeError> {
+    fn timeline_insert(&mut self, t: &Timeline, suffix: &str, key: &[Value], row: Value) -> Result<TimelineInsert, RuntimeError> {
         let mut fields = row.as_object()?.clone();
         fields.insert("id".into(), Value::Id(crate::schema::timeline::owned_id(&t.name, suffix, key)));
         let row = Value::Row(fields.into());
@@ -252,11 +253,11 @@ impl Runner<'_> {
             let viewer = self.context.viewer.clone();
             // Evaluate the rule itself: check_rule trusts already delivered
             // synced images, which this new provisional row is not.
-            if !super::rules::evaluate(&rule, &viewer, None, &row, false, self)? { return Ok(row); }
+            if !super::rules::evaluate(&rule, &viewer, None, &row, false, self)? { return Ok(TimelineInsert::Skipped); }
         }
         self.meter.heap(row.heap_bytes())?;
-        self.insert(&t.table(suffix), row.clone())?;
-        Ok(row)
+        self.insert(&t.table(suffix), row)?;
+        Ok(TimelineInsert::Written)
     }
 
     fn timeline_get(&mut self, table: &str, index: &str, key: Vec<Value>) -> Result<Option<Value>, RuntimeError> {
@@ -264,7 +265,8 @@ impl Runner<'_> {
             key: key.iter().cloned().map(Expr::Literal).collect(), provenance: KeyProvenance::Shape })?;
         // Point inputs must be covered, including an absent tombstone. Retained
         // history is not current coverage and cannot justify a prediction.
-        if self.device && value != Value::Null && self.tx.retained_row(table, &value)? {
+        if self.device && (self.tx.retained_group(table, index, &key)?
+            || (value != Value::Null && self.tx.retained_row(table, &value)?)) {
             self.unknown_fact(table, index, &key, "timeline input");
         }
         self.timeline_known()?;
@@ -272,22 +274,20 @@ impl Runner<'_> {
     }
 
     fn timeline_scan(&mut self, table: &str, index: &str, prefix: Vec<Value>, take: u32, reverse: bool) -> Result<Vec<Value>, RuntimeError> {
-        if self.device && self.tx.retained_group(table, index, &prefix)? {
-            self.unknown_fact(table, index, &prefix, "timeline input range");
-            self.timeline_known()?;
-        }
         let rows = self.scan(&Scan { site: format!("timeline/{table}/{index}"), table: table.into(), index: index.into(),
             prefix: prefix.iter().cloned().map(|value| IndexKeyExpr::Scalar(Expr::Literal(value))).collect(),
             order: if reverse { ir::Order::Desc } else { ir::Order::Asc }, take: ir::Bound::Literal(take),
             existence: false, after: None, before: None, range: None, filter: None, opaque_cursor: false,
             merge_site: None, provenance: KeyProvenance::Shape })?;
         if self.device {
+            let mut retained = self.tx.retained_group(table, index, &prefix)?;
             for row in &rows {
+                if retained { break; }
                 if self.tx.retained_row(table, row)? {
-                    self.unknown_fact(table, index, &prefix, "timeline input range");
-                    break;
+                    retained = true;
                 }
             }
+            if retained { self.unknown_fact(table, index, &prefix, "timeline input range"); }
         }
         self.timeline_known()?;
         Ok(rows)
@@ -300,3 +300,6 @@ impl Runner<'_> {
         Ok(())
     }
 }
+
+/// No row image escapes a skipped private delivery.
+enum TimelineInsert { Written, Skipped }

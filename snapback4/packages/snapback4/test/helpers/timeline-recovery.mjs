@@ -1,6 +1,7 @@
 // Revision 7: the original historical-image counterexample, driven through
 // the production SDK on both device stores, is a positive recovery regression.
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {spawn} from 'node:child_process';
 import {once} from 'node:events';
 import {mkdtemp, mkdir, copyFile, rm} from 'node:fs/promises';
@@ -53,9 +54,9 @@ export async function recoverTimeline() {
     const query={kind:'query',name:'following'};
     for(const host of ['wasm-memory','native-sqlite']) {
       const opener=host==='wasm-memory'?webDevice({wasm,persist:memoryPersistence()}):processDevice({binary,dir:join(directory,'device')});
-      const f={host,offline:false,holdWrites:true,pages:[],core:null,client:null};
+      const f={host,offline:false,holdWrites:true,pages:[],heldSubmissions:0,core:null,client:null};
       devices.push(f);
-      f.client=await createLocalClient({url,persona:'author',device:{open:async(...args)=>{
+      f.options={url,persona:'author',device:{open:async(...args)=>{
         f.core=await opener.open(...args);return f.core;
       }},fetch:async(input,init)=>{
         if(f.offline)throw new TypeError('offline witness');
@@ -63,14 +64,15 @@ export async function recoverTimeline() {
         if(path==='/changes')return parkedChanges(init.signal);
         // Delay mutation submission independently of reads. A retryable transport
         // response leaves the SDK's durable outbox live throughout reacquisition.
-        if(f.holdWrites&&path.startsWith('/m/'))return Response.json({denied:{code:'E_BUSY',family:'transport',message:'submission held by witness',retryable:true}});
+        if(f.holdWrites&&path.startsWith('/m/')) { f.heldSubmissions++; return Response.json({denied:{code:'E_BUSY',family:'transport',message:'submission held by witness',retryable:true}}); }
         const response=await fetch(input,init);
         if(path==='/sync') {
           const page=await response.clone().json();
           f.pages.push({request:JSON.parse(init.body),denied:page.denied?.code,snapshot:page.snapshot,watermark:page.watermark});
         }
         return response;
-      }});
+      }};
+      f.client=await createLocalClient(f.options);
       assert.equal(f.client.acquired,true);
       f.before=(await f.core.call({op:'state'})).ok.watermark;
       assert.deepEqual((await f.client.query(query,{})).data,[]);
@@ -80,7 +82,10 @@ export async function recoverTimeline() {
       f.queued=(await f.core.call({op:'queued'})).ok;
       assert.equal(f.queued.length,1);
       assert.equal(f.queued[0].predictable,true);
-      assert.equal(f.queued[0].predicted.length,3);
+      assert.equal(f.queued[0].op,'post');
+      assert.deepEqual(f.queued[0].args,{postId:'pending-'+host});
+      const own=createHash('sha256').update(JSON.stringify([{String:'snapback4.timeline.v1'},{String:'feed'},{String:'Feed'},{Id:f.queued[0].viewer},{Id:'pending-'+host}])).digest('hex');
+      assert.deepEqual(f.queued[0].predicted.toSorted(),['posts/pending-'+host,'feedPosts/pending-'+host,'feedFeed/'+own].toSorted());
       assert.equal((await f.client.query(query,{})).data.length,1);
       f.pages.length=0;
     }
@@ -107,6 +112,37 @@ export async function recoverTimeline() {
     const online=(await request('/q/following',{args:{}})).data;
     assert.equal(online.data.length,1);
     const observed=[];
+    const localQuery=async(f,name,args={})=>{
+      const answer=await f.core.call({op:'query',name,viewer:f.queued[0].viewer,args,now:Date.now()});
+      assert.equal(answer.denied,undefined,JSON.stringify(answer.denied));
+      assert.equal(answer.ok.denied,undefined,JSON.stringify(answer.ok.denied));
+      assert.equal(answer.ok.complete,true);
+      return answer.ok;
+    };
+    const checkNotes=async f=>{
+      const seen=new Set();let c=null;
+      do {
+        const page=await localQuery(f,'noteRows',{c});
+        for(const row of page.data) {
+          assert.ok(!seen.has(row.id));seen.add(row.id);
+          assert.equal(row.owner,f.queued[0].viewer);assert.equal(row.body,'\n'.repeat(9000));
+          assert.ok(row.pending===undefined || row.pending===false);
+        }
+        c=page.next;
+      } while(c);
+      assert.deepEqual([...seen].sort(),noteIds.toSorted());
+      return seen.size;
+    };
+    const checkCopies=async(f,pending)=>{
+      const copies=(await localQuery(f,'ownCopies')).data;
+      const expected=pending?['original','pending-'+f.host]:['original',...devices.map(d=>'pending-'+d.host)];
+      assert.deepEqual(copies.map(r=>r.eventId).sort(),expected.sort());
+      for(const row of copies) {
+        assert.equal(row.readerId,f.queued[0].viewer);
+        if(pending && row.eventId==='pending-'+f.host)assert.equal(row.pending,true);
+        else assert.ok(row.pending===undefined || row.pending===false);
+      }
+    };
     for(const f of devices) {
       assert.equal((await f.core.call({op:'state'})).ok.watermark,before);
       f.offline=false;await f.client.sync();
@@ -115,6 +151,13 @@ export async function recoverTimeline() {
       assert.equal(f.pages[terminal].snapshot,true);
       assert.equal(f.pages[terminal+1].request.from,0,'SDK restarted snapshot acquisition');
       assert.equal(f.pages[terminal+1].snapshot,true);
+      assert.equal(f.pages[terminal+1].denied,undefined);
+      await until(()=>f.heldSubmissions>0,'SDK did not attempt the held submission after reacquisition');
+      // Reopen the same persisted device while offline, before accepting its
+      // outbox and recovered images as durable evidence.
+      f.offline=true;await f.client.close();
+      f.client=await createLocalClient(f.options);
+      f.offline=false;
       const state=(await f.core.call({op:'state'})).ok;
       assert.equal(state.watermark,watermark);assert.equal(state.generation,backend.generation);
       assert.equal(f.client.acquired,true);
@@ -122,10 +165,17 @@ export async function recoverTimeline() {
       assert.deepEqual(queued.map(q=>[q.id,q.args,q.new_ids,q.predicted]),f.queued.map(q=>[q.id,q.args,q.new_ids,q.predicted]),'pending identity, arguments and predicted rows survived snapshot restart');
       const local=await f.client.query(query,{});
       assert.equal(local.complete,true);
+      assert.deepEqual(local.data.map(r=>r.postId).sort(),['original','pending-'+f.host].sort());
+      for(const row of local.data) {
+        if(row.postId==='original')assert.ok(row.pending===undefined || row.pending===false);
+        else assert.equal(row.pending,true);
+      }
       const committed=local.data.filter(r=>r.postId==='original').map(({pending,...r})=>r);
       assert.deepEqual(committed,online.data);
       assert.equal(local.data.filter(r=>r.postId==='pending-'+f.host).length,1);
-      observed.push({host:f.host,before,after:state.watermark,following:committed.length,pendingBefore:f.queued,pendingAfter:queued,restartLimit:f.pages[terminal].request.limit,restartFrom:f.pages[terminal+1].request.from,restartSnapshot:f.pages[terminal+1].snapshot});
+      assert.ok(f.heldSubmissions>0,'SDK attempted submission and received retryable E_BUSY');
+      const recoveredNotes=await checkNotes(f);await checkCopies(f,true);
+      observed.push({host:f.host,generation:state.generation,recoveredNotes,heldSubmissions:f.heldSubmissions,before,after:state.watermark,following:committed.length,pendingBefore:f.queued,pendingAfter:queued,restartLimit:f.pages[terminal].request.limit,restartFrom:f.pages[terminal+1].request.from,restartSnapshot:f.pages[terminal+1].snapshot});
     }
     // Release the retained writes and observe their ordinary receipts and exact
     // final page; the restart must neither duplicate nor orphan derived rows.
@@ -141,10 +191,12 @@ export async function recoverTimeline() {
       const local=await f.client.query(query,{});
       assert.equal(local.complete,true);
       assert.deepEqual(local.data,final.data);
-      observed.find(o=>o.host===f.host).finalFollowing=local.data;
+      const observation=observed.find(o=>o.host===f.host);
+      observation.finalFollowing=local.data;
+      observation.settledNotes=await checkNotes(f);await checkCopies(f,false);
       assert.deepEqual((await f.core.call({op:'queued'})).ok,[]);
     }
-    return {historicalCommitMinimumBytes,serverFollowing:final.data,originalCommitBytes:first.bytes,originalCommitEvents:1024,largestUpdateBytes,ceiling:16<<20,sameGeneration:true,devices:observed,settledFollowing:final.data.length};
+    return {historicalCommitMinimumBytes,serverFollowing:final.data,originalCommitBytes:first.bytes,originalCommitEvents:first.data.events.length,largestUpdateBytes,ceiling:16<<20,sameGeneration:observed.every(d=>d.generation===backend.generation),devices:observed,settledFollowing:final.data.length};
   } finally {
     for(const f of devices)await f.client?.close();
     if(server.exitCode==null&&server.signalCode==null)server.kill('SIGTERM');
