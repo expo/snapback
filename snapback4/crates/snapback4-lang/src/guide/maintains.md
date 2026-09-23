@@ -291,9 +291,9 @@ query trending(c: cursor ?):
 The other form is `total: sum source of amount where .selected by parentId`.
 The predicate has the maintain grammar above. The one grouping column must
 reference this parent table; optional null references contribute nothing.
-The source is ordinary and cannot expire. A timeline's mapped tables are
+The source is ordinary and cannot expire. Tables a timeline maps are
 ordinary here: `likeCount` on the posts a Following timeline maps is the
-Trending form beside it. Its own tables refuse with E_MAINTAINED_COLUMN.
+Trending form beside it. Tables the timeline owns refuse E_MAINTAINED_COLUMN.
 The parent may expire; the mirror
 leaves expired rows and their stored values untouched. Zero-like parents are
 included in its indexes, and ties can use the parent's time.
@@ -351,8 +351,8 @@ An initial zero stays absent in storage and reads 0; it is not an authored
 literal default. Ordinary fields and other maintained columns are preserved.
 Every rebuild re-runs the mirror: addition, kind, source, predicate or `by`
 changes, and changes to a depended-on source column's type, optionality or default.
-Only the mirror re-runs for changes to the parent's `expire at` or the named
-column's type, optionality or default.
+Only the mirror re-runs when the parent's `expire at` changes, or the type,
+optionality or default of the column it names.
 Expired unswept parents stay untouched. Removal drops the private totals;
 re-adding recounts from source rows.
 

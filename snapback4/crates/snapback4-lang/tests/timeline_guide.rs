@@ -1,7 +1,7 @@
 //! The language card's timeline is part of its single executable program.
 use snapback4_core::{Context,Engine,Value,WriteState};
 
-// @ref LLP 3000.007.003#33-f3-the-following-recipes-contract-as-a-declaration — mapped tables are ordinary column parents and sources; owned tables are not.
+// @ref LLP 3000.007.003#31-f1-maintained-columns — mapped tables are ordinary column parents and sources; owned tables are not.
 #[test]
 fn maintained_columns_refuse_timeline_owned_sources_in_the_binder() {
     let base = snapback4_lang::guide::language();
@@ -22,7 +22,7 @@ fn maintained_columns_compose_with_mapped_timeline_tables() {
         + "\ntable timelineVotes:\n  postId: timelineCards\n  voter: principal\n  unique byPair: postId, voter\n  immutable postId, voter\n  public 'votes'\n  insert <- .voter = viewer\n  delete <- .voter = viewer\n"
         + "\nmutation timelineVote(postId: timelineCards):\n  insert timelineVotes { postId, voter: viewer }\n"
         + "\nmutation timelineUnvote(postId: timelineCards):\n  delete timelineVotes[postId, viewer]\n"
-        + "\nmutation timelineRepost(postId: timelineCards):\n  insert timelineReposts { actorId: viewer, postId, at: now }\n"
+        + "\nmutation timelineRepost(postId: timelineCards):\n  return insert timelineReposts { actorId: viewer, postId, at: now }\n"
         + "\nquery timelineCard(id: timelineCards):\n  return timelineCards[id]\n";
     let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
@@ -38,7 +38,7 @@ fn maintained_columns_compose_with_mapped_timeline_tables() {
     let card = |e: &mut Engine| e.query("timelineCard", Context::new("b", [("id".into(), Value::Id("post".into()))].into()).at(9)).unwrap().data;
     assert_eq!((card(&mut e).field("votes").unwrap(), card(&mut e).field("reposts").unwrap()), (&Value::Int(0), &Value::Int(0)));
     run(&mut e, "timelineRepost", "b", vec![("postId".into(), Value::Id("post".into()))], &["repost"], 3);
-    assert_eq!(card(&mut e).field("reposts").unwrap(), &Value::Int(1), "a mapped source counts through its transition");
+    assert_eq!(card(&mut e).field("reposts").unwrap(), &Value::Int(1), "a mapped source updates its parent's count");
     let owned: Vec<String> = e.schema().timelines[0].owned.iter().cloned().collect();
     let snapshot = |e: &Engine| owned.iter().map(|t| (t.clone(), e.store().rows(t).unwrap())).collect::<Vec<_>>();
     let before = snapshot(&e);
@@ -50,6 +50,75 @@ fn maintained_columns_compose_with_mapped_timeline_tables() {
     assert_eq!(card(&mut e).field("votes").unwrap(), &Value::Int(1), "removal is not a vote");
     run(&mut e, "timelineUnvote", "b", vec![("postId".into(), Value::Id("post".into()))], &[], 7);
     assert_eq!(card(&mut e).field("votes").unwrap(), &Value::Int(0));
+}
+
+/// The language card's timeline with votes, reposts and unfollows. With `counted`, the mapped
+/// cards also carry two maintained columns and an index over one of them.
+fn voting_timeline(counted: bool) -> Engine {
+    let columns = if counted { "table timelineCards:\n  votes: count timelineVotes by postId\n  reposts: count timelineReposts by postId\n  by byVotes: votes, at, id\n" } else { "table timelineCards:\n" };
+    let source = snapback4_lang::guide::language().replace("table timelineCards:\n", columns)
+        + "\ntable timelineVotes:\n  postId: timelineCards\n  voter: principal\n  unique byPair: postId, voter\n  immutable postId, voter\n  public 'votes'\n  insert <- .voter = viewer\n  delete <- .voter = viewer\n"
+        + "\nmutation timelineVote(postId: timelineCards):\n  insert timelineVotes { postId, voter: viewer }\n"
+        + "\nmutation timelineUnvote(postId: timelineCards):\n  delete timelineVotes[postId, viewer]\n"
+        + "\nmutation timelineRepost(postId: timelineCards):\n  return insert timelineReposts { actorId: viewer, postId, at: now }\n"
+        + "\nmutation timelineUnfollow(authorId: principal):\n  if exists timelineFollows[viewer, authorId]:\n    delete timelineFollows[viewer, authorId]\n"
+        + "\nquery timelineCard(id: timelineCards):\n  return timelineCards[id]\n"
+        + "\nquery timelineMostVoted():\n  return timelineCards last 10 by byVotes\n";
+    let source = if counted { source } else { source.replace("\nquery timelineMostVoted():\n  return timelineCards last 10 by byVotes\n", "") };
+    let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap()
+}
+
+// The narrowing's safety claim, as a differential oracle: counts on mapped tables change no
+// timeline-owned row and no home page, through delivery, reposts, removal and unfollow.
+#[test]
+fn maintained_columns_on_mapped_tables_leave_timeline_state_identical() {
+    let (mut plain, mut counted) = (voting_timeline(false), voting_timeline(true));
+    let owned: Vec<String> = plain.schema().timelines[0].owned.iter().cloned().collect();
+    let state = |e: &mut Engine| {
+        let rows: Vec<_> = owned.iter().map(|t| (t.clone(), e.store().rows(t).unwrap())).collect();
+        let homes: Vec<Vec<Value>> = ["a", "b", "c"].iter().map(|viewer| {
+            let page = e.query("timelineHome", Context::new(*viewer, Default::default()).at(50)).unwrap();
+            page.data.as_array().unwrap().iter().map(|entry| entry.field("id").unwrap().clone()).collect()
+        }).collect();
+        (rows, homes)
+    };
+    let id = |s: &str| Value::Id(s.into());
+    let steps: Vec<(&str, &str, Vec<(String, Value)>, Vec<&str>)> = vec![
+        ("timelineRegister", "a", vec![], vec!["pa", "ma"]),
+        ("timelineRegister", "b", vec![], vec!["pb", "mb"]),
+        ("timelineRegister", "c", vec![], vec!["pc", "mc"]),
+        ("timelineFollow", "b", vec![("authorId".into(), id("a"))], vec!["edge-b", "copy-b"]),
+        ("timelineFollow", "c", vec![("authorId".into(), id("b"))], vec!["edge-c", "copy-c"]),
+        ("timelinePublish", "a", vec![], vec!["post", "own"]),
+        // A repost's event takes its own fresh id after the repost row's.
+        ("timelineRepost", "b", vec![("postId".into(), id("post"))], vec!["repost", "repost-event"]),
+        ("timelineVote", "c", vec![("postId".into(), id("post"))], vec!["vote-c"]),
+        ("timelineVote", "b", vec![("postId".into(), id("post"))], vec!["vote-b"]),
+        ("timelinePublish", "a", vec![], vec!["post2", "own2"]),
+        ("timelineRemove", "a", vec![("postId".into(), id("post"))], vec![]),
+        ("timelineUnvote", "c", vec![("postId".into(), id("post"))], vec![]),
+        ("timelineUnfollow", "c", vec![("authorId".into(), id("b"))], vec![]),
+    ];
+    for (at, (op, viewer, args, ids)) in steps.into_iter().enumerate() {
+        for e in [&mut plain, &mut counted] {
+            let ctx = Context::new(viewer, args.clone().into_iter().collect()).at(at as i64 + 1).with_ids(ids.iter().map(|s| s.to_string()));
+            let out = e.mutate(op, None, ctx).unwrap();
+            assert!(matches!(out.state, WriteState::Sent { .. }), "{op}: {out:?}");
+        }
+        assert_eq!(state(&mut plain), state(&mut counted), "timeline state diverged after {op} by {viewer}");
+        if (op, viewer) == ("timelineVote", "b") {
+            let card = counted.query("timelineCard", Context::new("b", [("id".into(), id("post"))].into()).at(50)).unwrap().data;
+            assert_eq!((card.field("votes").unwrap(), card.field("reposts").unwrap()), (&Value::Int(2), &Value::Int(1)));
+        }
+    }
+    assert!(state(&mut plain).1[1].contains(&id("post2")), "b still receives a's posts");
+    let card = counted.query("timelineCard", Context::new("b", [("id".into(), id("post"))].into()).at(50)).unwrap().data;
+    assert_eq!(card.field("votes").unwrap(), &Value::Int(1), "removal is not a vote; the unvote is");
+    let ranked = counted.query("timelineMostVoted", Context::new("b", Default::default()).at(50)).unwrap();
+    let ids: Vec<_> = ranked.data.as_array().unwrap().iter().map(|r| r.field("id").unwrap().clone()).collect();
+    assert_eq!(ids, [id("post"), id("post2")], "the index over a mapped count orders by votes");
 }
 
 #[test]
