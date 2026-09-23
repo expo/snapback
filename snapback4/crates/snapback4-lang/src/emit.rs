@@ -110,10 +110,10 @@ pub fn ty_ts(ty: &Ty) -> String {
         Ty::Enum(variants) => variants.iter().map(|v| string_literal(v)).collect::<Vec<_>>().join(" | "),
         Ty::Cursor => "Cursor".into(),
         Ty::Optional(inner) => format!("{} | null", ty_ts(inner)),
-        Ty::List(item, _) => format!("{}[]", wrap(&ty_ts(item))),
+        Ty::List(item, _) => format!("{}[]", wrap(item)),
         Ty::Row(table) => format!("Rows[{}]", string_literal(table)),
         Ty::Page(table, _) => format!("Rows[{}][]", string_literal(table)),
-        Ty::Collection(item, _) => format!("{}[]", wrap(&ty_ts(item))),
+        Ty::Collection(item, _) => format!("{}[]", wrap(item)),
         Ty::RowShape(fields) => {
             let fields = fields.iter().map(|(name, ty)| format!("{}: {}", property(name), ty_ts(ty))).chain(["pending?: boolean".into()]).collect::<Vec<_>>();
             format!("{{ {} }}", fields.join("; "))
@@ -127,9 +127,10 @@ pub fn ty_ts(ty: &Ty) -> String {
     }
 }
 
-fn wrap(text: &str) -> String {
-    let union_at_top = !text.starts_with('{') && !text.starts_with("Rows[") && text.contains(" | ");
-    if union_at_top { format!("({text})") } else { text.to_owned() }
+fn wrap(ty: &Ty) -> String {
+    let union_at_top = matches!(ty, Ty::Optional(_)) || matches!(ty, Ty::Enum(variants) if variants.len() > 1);
+    let text = ty_ts(ty);
+    if union_at_top { format!("({text})") } else { text }
 }
 
 fn column_ts(kind: &ColumnType, schema: &Schema) -> String {
