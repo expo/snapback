@@ -1379,6 +1379,14 @@ time-ordered 128-bit form.
   [LLP 3000.009.000](./3000.009.000-the-server-half-opt-in.plan.md) plans to put
   the server half behind `use server`. All three are Drafts. Nothing is
   accepted, commissioned or built, and no existing ruling changes.
+  The same day, [Astra at max effort](./reviews/3000.012-application-still-owns-derived-data.astra.md)
+  reviewed all three.
+  - The research and the plan were READY WITH CHANGES; the RFC was NOT READY.
+  - Each document records its dispositions. The RFC's revision 2 needs a delta
+    review before any implementation.
+  - The review also argued that these moves belong in Snapback 4, not in a
+    fenced Snapback 5. LLP 3000.012 §3 records that view, and the author has
+    not ruled on it.
 
 ## 8. Implementation map
 
