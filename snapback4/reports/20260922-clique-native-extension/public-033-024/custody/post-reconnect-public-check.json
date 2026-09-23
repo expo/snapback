@@ -1,0 +1,31 @@
+{
+  "phase": "stopped after reconnect; separate from complete offline message-ID audit",
+  "process": {
+    "label": "post-reconnect-public",
+    "argv": [
+      "python3",
+      "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/check-stopped-native.py",
+      "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/artifacts/acquisition-public-033-024-1/stopped-documents-inspection-copy",
+      "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/custody/retained-fixture.json"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public",
+    "pid": 13427,
+    "startedAt": 1790130916.063342,
+    "exitCode": 0,
+    "endedAt": 1790130916.414228,
+    "elapsedSeconds": 0.35088586807250977
+  },
+  "stdoutPath": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/artifacts/post-reconnect-public.log",
+  "stdoutSha256": "0eaf7f9510c89c732a7f3ecda52afa00153fc8b18561f8e25dde556c562b9bd5",
+  "result": {
+    "messages": 10000,
+    "members": 248,
+    "messageIdsSha256": "c18d2f7afba531ca5a0ee2feb32459153f07086ad2f986023cfce94bc87ddf50",
+    "phase": "stopped after reconnect"
+  },
+  "checkerSha256": "4d405bb02bfef30128e692a3230b921d72b6ca2568e72c0b3dfd01af941133fc",
+  "fixtureSha256": "c383f322cc71f2ec5fc10549aeb90f538e3087a146221d6991b7cc3db2b00e9e",
+  "snapshotManifest": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/custody/public-acquisition-stopped-snapshot.json",
+  "snapshotManifestSha256": "e2f3d880cc1458a0bd0b96a0c0f2e96e12cf7031292ab730b7dfea102358eefb",
+  "snapshotHashTiming": "after successful unchanged checker on a distinct APFS clone; preserved snapshot was never opened with SQLite"
+}

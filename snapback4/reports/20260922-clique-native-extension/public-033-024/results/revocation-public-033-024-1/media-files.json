@@ -1,0 +1,61 @@
+{
+  "afterDriverExit": true,
+  "driverExitCode": 0,
+  "checks": [
+    {
+      "assetId": "01M361R575SX4ZDZER4KAJMNH6",
+      "kind": "image",
+      "once": false,
+      "expectedPresent": false,
+      "expectedName": null,
+      "checkedVariants": [
+        "01M361R575SX4ZDZER4KAJMNH6",
+        "01M361R575SX4ZDZER4KAJMNH6.mp4"
+      ],
+      "cacheRoots": [
+        "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite.media"
+      ],
+      "expectedBytes": 2062,
+      "expectedSha256": "7afbd9d91e6f1197e9fd392ba0a53dce78a66ee5a3a528a6c2641a82b2a0417c",
+      "actual": [],
+      "passed": true
+    },
+    {
+      "assetId": "01M361R57KRJ155G24FMTAK601",
+      "kind": "video",
+      "once": false,
+      "expectedPresent": false,
+      "expectedName": null,
+      "checkedVariants": [
+        "01M361R57KRJ155G24FMTAK601",
+        "01M361R57KRJ155G24FMTAK601.mp4"
+      ],
+      "cacheRoots": [
+        "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite.media"
+      ],
+      "expectedBytes": 49779,
+      "expectedSha256": "7e22b943746b2c858910252162f624cac396eb9e4f4100ae80e70431b7883d5f",
+      "actual": [],
+      "passed": true
+    },
+    {
+      "assetId": "01M361R582M3B5FJYWMTTRJPNW",
+      "kind": "image",
+      "once": true,
+      "expectedPresent": false,
+      "expectedName": null,
+      "checkedVariants": [
+        "01M361R582M3B5FJYWMTTRJPNW",
+        "01M361R582M3B5FJYWMTTRJPNW.mp4"
+      ],
+      "cacheRoots": [
+        "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite.media"
+      ],
+      "expectedBytes": 2080,
+      "expectedSha256": "ef284acb000e375fa4cffc07b3e2d228e47a6bf3b1f9078b4b7399d23c440101",
+      "actual": [],
+      "passed": true
+    }
+  ],
+  "passed": true
+}

@@ -1,0 +1,130 @@
+[
+  {
+    "label": "node-public-1",
+    "argv": [
+      "node",
+      "--version"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/app",
+    "pid": 94199,
+    "startedAt": 1790130213.89747,
+    "exitCode": 0,
+    "endedAt": 1790130213.909794,
+    "elapsedSeconds": 0.012324094772338867
+  },
+  {
+    "label": "npm-public-1",
+    "argv": [
+      "npm",
+      "install",
+      "--save-exact",
+      "--include=optional",
+      "--registry=https://registry.npmjs.org",
+      "snapback4@0.2.33",
+      "snapback4-expo@0.2.24"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/app",
+    "pid": 94200,
+    "startedAt": 1790130213.910013,
+    "exitCode": 0,
+    "endedAt": 1790130218.111138,
+    "elapsedSeconds": 4.201125144958496
+  },
+  {
+    "label": "cli-version-public-1",
+    "argv": [
+      "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/app/node_modules/.bin/snapback4",
+      "--version"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/app",
+    "pid": 94869,
+    "startedAt": 1790130218.113535,
+    "exitCode": 0,
+    "endedAt": 1790130218.6500301,
+    "elapsedSeconds": 0.5364952087402344
+  },
+  {
+    "label": "check-public-1",
+    "argv": [
+      "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/app/node_modules/.bin/snapback4",
+      "check"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/app",
+    "pid": 94994,
+    "startedAt": 1790130218.6513228,
+    "exitCode": 0,
+    "endedAt": 1790130218.715932,
+    "elapsedSeconds": 0.06460905075073242
+  },
+  {
+    "label": "prebuild-public-1",
+    "argv": [
+      "npx",
+      "expo",
+      "prebuild",
+      "--platform",
+      "ios",
+      "--no-install"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/app",
+    "pid": 95015,
+    "startedAt": 1790130218.720105,
+    "exitCode": 0,
+    "endedAt": 1790130220.5128179,
+    "elapsedSeconds": 1.792712926864624
+  },
+  {
+    "label": "pods-public-1",
+    "argv": [
+      "pod",
+      "install"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/app/ios",
+    "pid": 95303,
+    "startedAt": 1790130220.513173,
+    "exitCode": 0,
+    "endedAt": 1790130240.860228,
+    "elapsedSeconds": 20.347054958343506
+  },
+  {
+    "label": "typecheck-public-1",
+    "argv": [
+      "npm",
+      "run",
+      "typecheck"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/app",
+    "pid": 98844,
+    "startedAt": 1790130240.860734,
+    "exitCode": 0,
+    "endedAt": 1790130242.071348,
+    "elapsedSeconds": 1.2106149196624756
+  },
+  {
+    "label": "build-public-1",
+    "argv": [
+      "xcodebuild",
+      "-workspace",
+      "ios/Clique.xcworkspace",
+      "-scheme",
+      "Clique",
+      "-configuration",
+      "Release",
+      "-destination",
+      "id=3ADCE896-A566-44FF-838E-95C20022B386",
+      "-derivedDataPath",
+      "../derived-data",
+      "-jobs",
+      "4",
+      "COCOAPODS_PARALLEL_CODE_SIGN=true",
+      "COMPILER_INDEX_STORE_ENABLE=NO",
+      "build"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/app",
+    "pid": 99092,
+    "startedAt": 1790130242.0716748,
+    "exitCode": 65,
+    "endedAt": 1790130248.7574909,
+    "elapsedSeconds": 6.685817241668701
+  }
+]

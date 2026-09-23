@@ -174,3 +174,39 @@ public pins await publication and an affected rerun. Real provider delivery
 still has no selected account/recipient. No Android, physical power-loss or
 instant decoder-memory erasure claim follows. The original grade/score stays
 frozen, and the owned simulator/backend are stopped while publication runs.
+
+## 2026-09-23 — final published packages reproduce the native passes
+
+The separate public-package copy installed SDK/CLI 0.2.33 and Expo 0.2.24 from
+npm with all three qualified integrity values. Only the two package files
+changed relative to the reviewed candidate's 75-file source snapshot; this
+application's generated API did not change. CLI check, Pods and full TypeScript
+checks passed. A copied Xcode cache initially referred to its old absolute
+Swift cache path and stopped the build. Preserving that failed attempt and
+using fresh DerivedData with the same settings produced a normally signed
+Release in 404.393 seconds. Copying build caches is therefore not a reliable
+shortcut across these app paths.
+
+All three public-package scenarios then passed: restart in 50.979 seconds,
+revocation in 32.466 seconds and acquisition in 30.048 seconds by the driver.
+The app rendered ordinary images and actual native video offline on both
+process launches, while the once image remained absent from durable files
+and metadata. The same two pending messages survived death, settled once in
+order, and reached delivered/read. Learned revocation retained delivered text
+and excluded new delivery both offline and after confirmed online reconnect.
+
+The full fixture again matched all 10,000 required message IDs across 100
+conversations and 299 local query pages before reconnect. First useful layout
+took 13.197 seconds, acquired opener return 13.062 seconds, and cold offline
+open 79 ms; the exact-ID walk took 5.304 seconds. Observed response bodies
+totaled 59.281 MB and maximum sampled own-app RSS was 424.673 MB. A separate
+stopped-store inspection after reconnect found 10,000 messages and 248
+memberships. The different timings from the candidate are retained as
+individual observations, without attributing the difference to a product change.
+
+This closes the installed public-package native increment. The [native report](../snapback4/reports/20260922-clique-native-extension.md#final-public-package-result)
+retains package/build custody, exact receipts, screen frames, failures and
+measurement limits. The original cal16 grade stays frozen; a separate cold
+benchmark now measures the final release. Real-provider delivery still has
+no selected account/recipient. The owned simulator and backend were stopped
+before that benchmark started.

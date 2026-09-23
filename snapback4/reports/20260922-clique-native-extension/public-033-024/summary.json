@@ -1,0 +1,142 @@
+{
+  "restart": {
+    "driverSeconds": 50.979,
+    "wrapperSeconds": 52.52165913581848,
+    "driverExitCode": 0,
+    "wrapperExitCode": 0,
+    "rssSamples": 162,
+    "rssMaxBytes": 371490816,
+    "disk": {
+      "afterDriverExit": true,
+      "files": [
+        {
+          "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite",
+          "logicalBytes": 122208256,
+          "allocatedBytes": 134639616
+        },
+        {
+          "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite-shm",
+          "logicalBytes": 32768,
+          "allocatedBytes": 32768
+        },
+        {
+          "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite-wal",
+          "logicalBytes": 71576792,
+          "allocatedBytes": 84922368
+        },
+        {
+          "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite.media/01M35C3YVMASD2R6XVJCJSBRH2",
+          "logicalBytes": 758,
+          "allocatedBytes": 4096
+        },
+        {
+          "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite.media/01M361R554KWYCFH7SVGRNDA6Z",
+          "logicalBytes": 2062,
+          "allocatedBytes": 4096
+        },
+        {
+          "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite.media/01M361R55M02BPGAN3FSEWV7A9.mp4",
+          "logicalBytes": 49779,
+          "allocatedBytes": 53248
+        }
+      ]
+    },
+    "appPids": [
+      93732,
+      96835,
+      98526
+    ]
+  },
+  "revocation": {
+    "driverSeconds": 32.466,
+    "wrapperSeconds": 33.82222318649292,
+    "driverExitCode": 0,
+    "wrapperExitCode": 0,
+    "rssSamples": 102,
+    "rssMaxBytes": 362725376,
+    "disk": {
+      "afterDriverExit": true,
+      "files": [
+        {
+          "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite",
+          "logicalBytes": 122159104,
+          "allocatedBytes": 134660096
+        },
+        {
+          "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite-shm",
+          "logicalBytes": 32768,
+          "allocatedBytes": 32768
+        },
+        {
+          "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite-wal",
+          "logicalBytes": 71461432,
+          "allocatedBytes": 84922368
+        },
+        {
+          "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite.media/01M35C3YVMASD2R6XVJCJSBRH2",
+          "logicalBytes": 758,
+          "allocatedBytes": 4096
+        }
+      ]
+    },
+    "appPids": [
+      2897,
+      5911
+    ]
+  },
+  "acquisition": {
+    "driverSeconds": 30.048,
+    "wrapperSeconds": 31.433715343475342,
+    "driverExitCode": 0,
+    "wrapperExitCode": 0,
+    "rssSamples": 102,
+    "rssMaxBytes": 424673280,
+    "disk": {
+      "afterDriverExit": true,
+      "files": [
+        {
+          "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C46TAW1VQM55TXGCP6GQW.sqlite",
+          "logicalBytes": 264450048,
+          "allocatedBytes": 268906496
+        },
+        {
+          "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C46TAW1VQM55TXGCP6GQW.sqlite-shm",
+          "logicalBytes": 32768,
+          "allocatedBytes": 32768
+        },
+        {
+          "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C46TAW1VQM55TXGCP6GQW.sqlite-wal",
+          "logicalBytes": 157730112,
+          "allocatedBytes": 168513536
+        },
+        {
+          "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C46TAW1VQM55TXGCP6GQW.sqlite.media/01M35C4EMY521YP2XZKVSH7D3D",
+          "logicalBytes": 729,
+          "allocatedBytes": 4096
+        }
+      ]
+    },
+    "appPids": [
+      8760,
+      11422
+    ],
+    "firstUsefulRenderMs": 13197.117208003998,
+    "acquiredUpperBoundMs": 13061.567208051682,
+    "coldOpenMs": 79.28004097938538,
+    "offlineMessageIds": 10000,
+    "scopes": 100,
+    "pages": 299,
+    "auditMs": 5304.010708093643,
+    "actualIdsSha256": "c18d2f7afba531ca5a0ee2feb32459153f07086ad2f986023cfce94bc87ddf50",
+    "responseBodies": 46,
+    "bodyBytes": 59280798,
+    "responseEvents": 161275,
+    "snapshotEvents": 161274,
+    "postReconnectCheck": {
+      "messages": 10000,
+      "members": 248,
+      "messageIdsSha256": "c18d2f7afba531ca5a0ee2feb32459153f07086ad2f986023cfce94bc87ddf50",
+      "phase": "stopped after reconnect"
+    }
+  }
+}

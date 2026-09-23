@@ -1,0 +1,65 @@
+{
+  "main.jsbundle": "11dc8975a0776c3e2c3e6931de88645c67e95c582756274df92e8badf0338901",
+  "Info.plist": "83bdf092791ced0234604481649ecfca53effb3e7c56c78119be3ac946395726",
+  "Clique": "5367499af0dbd6a32bc890c85be52cd855820524c741d3c9d7b5ca19d75c03db",
+  "React-timing_privacy.bundle/Info.plist": "fce0b6799df179164ffa7d42418cfa85960ca05f3c6731c6986ac360f89fc514",
+  "SplashScreen.storyboardc/Info.plist": "74dbceed6cf0a5e5c69834793328c9783ecab1de482d4954e257ca2132b743af",
+  "ExpoConstants_privacy.bundle/Info.plist": "e5caf109e50202c522729ae12f9ac7e20bcdc14cd77f870792c849d43a865fb7",
+  "React-cxxreact_privacy.bundle/Info.plist": "0d5de73e6860a2d8b440a6aa8e9a87b0fd61b2f66b71ea31a393a7155e591871",
+  "EXConstants.bundle/Info.plist": "36009a408e3c8e9f70bbcbc47bfd81be021b2667a5258fb42d396a9f5e0bc2e8",
+  "ExpoFileSystem_privacy.bundle/Info.plist": "977e1ed2f412a4815d1451212e7530b89186e22f8f56358615b837b59d72a91e",
+  "React-Core_privacy.bundle/Info.plist": "959b4defc805cb0a5a2a4ebf949aa96df1f5ffda051cc8abe102dd2d7b3e20c9",
+  "Frameworks/ExpoModulesJSI.framework/Info.plist": "cc9358bbed8b396933f3b542dad294e5dc234db8762d14f884ebf2908d0bba45",
+  "Frameworks/hermesvm.framework/Info.plist": "0767523a61a3ab293e6e39ea3de61622d833f2dacee418afd89f6a57d67c8119",
+  "Frameworks/ExpoFont.framework/Info.plist": "7f0220334b9f441a188a322be1848cccabfdbf269a11846db72d2ebe2db3fb1a",
+  "Frameworks/ExpoVideo.framework/Info.plist": "68c2383735f19f639d7c111973f1a3b8cc5dd29397f26af2d7b899b923b5e0f9",
+  "Frameworks/ExpoModulesCore.framework/Info.plist": "833b52eef7cd72d49a31a538e6b8982245a7708717f16fbbd52d63da6a89285c",
+  "Frameworks/React.framework/Info.plist": "c9be56123cc6ba97e94958755e20537471fd84b0c1cd579e4982ae9255816301",
+  "Frameworks/ReactNativeDependencies.framework/Info.plist": "043d66b265858b73ca23f8cbbf15e7043bb40f97e6104708e4f69d1f9d00fa96",
+  "Frameworks/ExpoModulesWorklets.framework/Info.plist": "0c895c38d244a8270b2092e876662b5a30004631df1e6457b691e1ba957515fc",
+  "Frameworks/ExpoFileSystem.framework/Info.plist": "5f9a269baff07c93ed53674b76667a8b84b8acd9aa6dd96d94c326bd1e7e6b7d",
+  "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/Info.plist": "5abf3977eef24726730e03a648dca022c8f993596e122cd94cf322985ac8ac76",
+  "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/Info.plist": "8b97a53cf72f56810fed094013c2f521c034e5267a495081570a861a0adc4c41",
+  "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/Info.plist": "16db1275ce3a9d70994d079ae4fe4e7f8894b2f92fb3c6b33b03fa3a2e5d0971",
+  "packages": {
+    "snapback4": {
+      "version": "0.2.33",
+      "resolved": "https://registry.npmjs.org/snapback4/-/snapback4-0.2.33.tgz",
+      "integrity": "sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==",
+      "license": "MIT",
+      "dependencies": {
+        "openid-client": "6.8.8"
+      },
+      "bin": {
+        "snapback4": "bin/snapback4.js"
+      },
+      "optionalDependencies": {
+        "snapback4-darwin-arm64": "0.2.33"
+      },
+      "peerDependencies": {
+        "react": "^19.0.0"
+      },
+      "peerDependenciesMeta": {
+        "react": {
+          "optional": true
+        }
+      }
+    },
+    "snapback4-expo": {
+      "version": "0.2.24",
+      "resolved": "https://registry.npmjs.org/snapback4-expo/-/snapback4-expo-0.2.24.tgz",
+      "integrity": "sha512-IExI9pchHDjww3J4gCUPqDX5E2RnjIaPYVotEEM0KWFWrydsht6VBejyUOtrlcBnrhT8haHDszwaP/UAFm+LZA==",
+      "peerDependencies": {
+        "expo": "*",
+        "snapback4": "*"
+      }
+    }
+  },
+  "nativeInputs": {
+    "ios/Podfile.lock": "07da68c010f0d4305f814aaed89bc1d860daab83abf681c999fcbcb3f0f9182e",
+    "ios/Pods/Manifest.lock": "07da68c010f0d4305f814aaed89bc1d860daab83abf681c999fcbcb3f0f9182e",
+    "ios/Pods/Pods.xcodeproj/project.pbxproj": "a45a1c4838d517b9c7ba4319ea048e5fed939d67938f1e356056ebf2d3fa2bcc",
+    "node_modules/snapback4-expo/ios/MediaFiles.swift": "7529cd218563c475c107c752eb31e451a32decc510cee3a342b69ab4328df60c",
+    "node_modules/snapback4-expo/ios/Snapback4Module.swift": "dbae25a5d21e2b2f193cb9f00bbc252fbfabab5b9208516da5e90c8336f61bfe"
+  }
+}

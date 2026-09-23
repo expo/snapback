@@ -1,0 +1,46 @@
+{
+  "snapshot": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/artifacts/acquisition-public-033-024-1/stopped-documents",
+  "observedAt": "2026-09-23T02:36:59.682449+00:00",
+  "files": [
+    {
+      "path": ".snapback4-witness/1790130885619-8370/receipts.jsonl",
+      "bytes": 157303,
+      "sha256": "97ecb508761116c6d3dad5a3d1630d289ffed8a67097e4dfe1b7eebacd9f96ac"
+    },
+    {
+      "path": ".snapback4-witness/1790130885619-8370/reconnect",
+      "bytes": 6,
+      "sha256": "ed1a545bb85e55816bbf9566b028b2a0bc456b88f49f6f266c0401048824194b"
+    },
+    {
+      "path": "clique-native-plan.json",
+      "bytes": 151064,
+      "sha256": "9f5b63bde7dd5f09ead746619fe020e8459c88759af0afc5412b6e3c68bb0020"
+    },
+    {
+      "path": "clique-native-state.json",
+      "bytes": 54,
+      "sha256": "e79fe5184762022e82d5e8d9d0f614089f069ac7a6a1c94043089489b34a7da9"
+    },
+    {
+      "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C46TAW1VQM55TXGCP6GQW.sqlite",
+      "bytes": 264450048,
+      "sha256": "69fa835602adc4cd05997366bacd61956763e01c5c6d818640ee5a9485475270"
+    },
+    {
+      "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C46TAW1VQM55TXGCP6GQW.sqlite-shm",
+      "bytes": 32768,
+      "sha256": "2b3f5f56741dddd41c706b0cca361717f6c4d41f0327aed025a80be07adf7a49"
+    },
+    {
+      "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C46TAW1VQM55TXGCP6GQW.sqlite-wal",
+      "bytes": 157730112,
+      "sha256": "2c0cfd13f6ac590b969b669f17571dc94dbcd1547dae7fdcda7dd94f26ca2fe1"
+    },
+    {
+      "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C46TAW1VQM55TXGCP6GQW.sqlite.media/01M35C4EMY521YP2XZKVSH7D3D",
+      "bytes": 729,
+      "sha256": "283773fb9ae8f07a00e335fdd37fd9f836845594d8be3352ee0fab542c4c9984"
+    }
+  ]
+}

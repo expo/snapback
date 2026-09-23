@@ -1,0 +1,309 @@
+[
+  {
+    "label": "boot-public",
+    "argv": [
+      "xcrun",
+      "simctl",
+      "boot",
+      "3ADCE896-A566-44FF-838E-95C20022B386"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public",
+    "pid": 90316,
+    "startedAt": 1790130775.900418,
+    "exitCode": 0,
+    "endedAt": 1790130776.493087,
+    "elapsedSeconds": 0.5926699638366699
+  },
+  {
+    "label": "bootstatus-public",
+    "argv": [
+      "xcrun",
+      "simctl",
+      "bootstatus",
+      "3ADCE896-A566-44FF-838E-95C20022B386",
+      "-b"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public",
+    "pid": 90445,
+    "startedAt": 1790130776.493464,
+    "exitCode": 0,
+    "endedAt": 1790130781.398201,
+    "elapsedSeconds": 4.9047369956970215
+  },
+  {
+    "label": "prepare-semantic-public-backend",
+    "argv": [
+      "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/app/node_modules/.bin/snapback4",
+      "dev",
+      "--port",
+      "49380",
+      "--no-watch"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/backend-public-033-024-1",
+    "pid": 91242,
+    "startedAt": 1790130781.830157
+  },
+  {
+    "label": "prepare-semantic-public",
+    "argv": [
+      "node",
+      "prepare-native.mjs"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/app",
+    "pid": 91253,
+    "startedAt": 1790130782.0490618,
+    "exitCode": 0,
+    "endedAt": 1790130787.659117,
+    "elapsedSeconds": 5.610056400299072
+  },
+  {
+    "label": "fixture-backend-stopped",
+    "pid": 91242,
+    "exitCode": 0,
+    "at": 1790130787.670263
+  },
+  {
+    "label": "uninstall-restart",
+    "argv": [
+      "xcrun",
+      "simctl",
+      "uninstall",
+      "3ADCE896-A566-44FF-838E-95C20022B386",
+      "dev.clique.astra"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public",
+    "pid": 92031,
+    "startedAt": 1790130787.670769,
+    "exitCode": 0,
+    "endedAt": 1790130788.2564108,
+    "elapsedSeconds": 0.5856418609619141
+  },
+  {
+    "label": "install-restart",
+    "argv": [
+      "xcrun",
+      "simctl",
+      "install",
+      "3ADCE896-A566-44FF-838E-95C20022B386",
+      "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/artifacts/release-public-033-024-1.app"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public",
+    "pid": 92103,
+    "startedAt": 1790130788.2568672,
+    "exitCode": 0,
+    "endedAt": 1790130791.614227,
+    "elapsedSeconds": 3.3573598861694336
+  },
+  {
+    "label": "witness-restart",
+    "argv": [
+      "python3",
+      "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/run-clique-native.py",
+      "restart",
+      "public-033-024-1"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public",
+    "pid": 92635,
+    "startedAt": 1790130791.614898,
+    "exitCode": 0,
+    "endedAt": 1790130844.8921049,
+    "elapsedSeconds": 53.277206897735596
+  },
+  {
+    "label": "restart-snapshot",
+    "path": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/artifacts/restart-public-033-024-1/stopped-documents",
+    "at": 1790130844.898271
+  },
+  {
+    "label": "uninstall-revocation",
+    "argv": [
+      "xcrun",
+      "simctl",
+      "uninstall",
+      "3ADCE896-A566-44FF-838E-95C20022B386",
+      "dev.clique.astra"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public",
+    "pid": 1867,
+    "startedAt": 1790130844.898596,
+    "exitCode": 0,
+    "endedAt": 1790130845.0465522,
+    "elapsedSeconds": 0.14795708656311035
+  },
+  {
+    "label": "install-revocation",
+    "argv": [
+      "xcrun",
+      "simctl",
+      "install",
+      "3ADCE896-A566-44FF-838E-95C20022B386",
+      "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/artifacts/release-public-033-024-1.app"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public",
+    "pid": 1900,
+    "startedAt": 1790130845.0470111,
+    "exitCode": 0,
+    "endedAt": 1790130845.4157052,
+    "elapsedSeconds": 0.3686940670013428
+  },
+  {
+    "label": "witness-revocation",
+    "argv": [
+      "python3",
+      "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/run-clique-native.py",
+      "revocation",
+      "public-033-024-1"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public",
+    "pid": 1930,
+    "startedAt": 1790130845.416265,
+    "exitCode": 0,
+    "endedAt": 1790130879.549593,
+    "elapsedSeconds": 34.13332796096802
+  },
+  {
+    "label": "revocation-snapshot",
+    "path": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/artifacts/revocation-public-033-024-1/stopped-documents",
+    "at": 1790130879.559752
+  },
+  {
+    "label": "prepare-acquisition-public-backend",
+    "argv": [
+      "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/app/node_modules/.bin/snapback4",
+      "dev",
+      "--port",
+      "49380",
+      "--no-watch"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/backend-acquisition-public-033-024-1",
+    "pid": 7560,
+    "startedAt": 1790130879.770355
+  },
+  {
+    "label": "prepare-acquisition-public",
+    "argv": [
+      "node",
+      "--input-type=module"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/app",
+    "pid": 7610,
+    "startedAt": 1790130879.879107,
+    "exitCode": 0,
+    "endedAt": 1790130883.6497731,
+    "elapsedSeconds": 3.77066707611084
+  },
+  {
+    "label": "fixture-backend-stopped",
+    "pid": 7560,
+    "exitCode": 0,
+    "at": 1790130883.6547682
+  },
+  {
+    "label": "uninstall-acquisition",
+    "argv": [
+      "xcrun",
+      "simctl",
+      "uninstall",
+      "3ADCE896-A566-44FF-838E-95C20022B386",
+      "dev.clique.astra"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public",
+    "pid": 8161,
+    "startedAt": 1790130883.655461,
+    "exitCode": 0,
+    "endedAt": 1790130883.822303,
+    "elapsedSeconds": 0.16684198379516602
+  },
+  {
+    "label": "install-acquisition",
+    "argv": [
+      "xcrun",
+      "simctl",
+      "install",
+      "3ADCE896-A566-44FF-838E-95C20022B386",
+      "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/artifacts/release-public-033-024-1.app"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public",
+    "pid": 8193,
+    "startedAt": 1790130883.822784,
+    "exitCode": 0,
+    "endedAt": 1790130884.202244,
+    "elapsedSeconds": 0.37946009635925293
+  },
+  {
+    "label": "witness-acquisition",
+    "argv": [
+      "python3",
+      "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/run-clique-native.py",
+      "acquisition",
+      "public-033-024-1"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public",
+    "pid": 8305,
+    "startedAt": 1790130884.2027829,
+    "exitCode": 0,
+    "endedAt": 1790130916.046659,
+    "elapsedSeconds": 31.84387731552124
+  },
+  {
+    "label": "acquisition-snapshot",
+    "path": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/artifacts/acquisition-public-033-024-1/stopped-documents",
+    "at": 1790130916.056407
+  },
+  {
+    "label": "post-reconnect-public",
+    "argv": [
+      "python3",
+      "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/check-stopped-native.py",
+      "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/artifacts/acquisition-public-033-024-1/stopped-documents-inspection-copy",
+      "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/custody/retained-fixture.json"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public",
+    "pid": 13427,
+    "startedAt": 1790130916.063342,
+    "exitCode": 0,
+    "endedAt": 1790130916.414228,
+    "elapsedSeconds": 0.35088586807250977
+  },
+  {
+    "label": "all-public-scenarios-passed",
+    "at": 1790130916.41469
+  },
+  {
+    "label": "terminate-public-final",
+    "argv": [
+      "xcrun",
+      "simctl",
+      "terminate",
+      "3ADCE896-A566-44FF-838E-95C20022B386",
+      "dev.clique.astra"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public",
+    "pid": 13543,
+    "startedAt": 1790130916.415057,
+    "exitCode": 3,
+    "endedAt": 1790130916.5352051,
+    "elapsedSeconds": 0.12014889717102051
+  },
+  {
+    "label": "shutdown-public-final",
+    "argv": [
+      "xcrun",
+      "simctl",
+      "shutdown",
+      "3ADCE896-A566-44FF-838E-95C20022B386"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public",
+    "pid": 13562,
+    "startedAt": 1790130916.535655,
+    "exitCode": 0,
+    "endedAt": 1790130919.691282,
+    "elapsedSeconds": 3.155627965927124
+  },
+  {
+    "label": "final-port-check",
+    "port": 49380,
+    "refusesConnections": true,
+    "at": 1790130919.692173
+  }
+]

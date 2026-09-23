@@ -284,4 +284,8 @@ The [independent registry check](./20260922-native-media-repair/release033/regis
 at 02:21:27 UTC verified all three version records, `latest` tags and exact
 qualified SHA-512 integrities. Final public-package native execution uses a
 new `attempts/native-extension-public` copy, preserving every candidate build,
-package and result. That execution remains pending at this checkpoint.
+package and result. That [final public-package execution](./20260922-clique-native-extension.md#final-public-package-result)
+now passes all three actual native scenarios, with no application source
+change beyond package pins. The complete report retains the first build's
+copied-cache setup failure, successful fresh Release build, exact public
+identities, media rendering, offline IDs, receipts and measurements.

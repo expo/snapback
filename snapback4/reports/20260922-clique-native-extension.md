@@ -2,14 +2,14 @@
 
 This is an extension of the frozen cal16 application, not a new score or a
 replacement for its independent grade. The original result remains **104 pass,
-0 fail, 15 not run; score 88**. All three installed Release scenarios passed on the then-unpublished
-SDK 0.2.33 and native Expo 0.2.24 candidates: restart/offline media and
+0 fail, 15 not run; score 88**. All three installed Release scenarios now pass on
+the published SDK/CLI 0.2.33 and native Expo 0.2.24 packages: restart/offline media and
 settlement/read progression, learned revocation, and full retained-fixture
 acquisition with all 10,000 required message IDs checked before reconnect.
-The earlier published-pin failures remain recorded below. Candidate results
-are not final public-pin qualification. The [corrective release](./20260922-native-media-repair.md#corrective-release-qualification)
-is now published as SDK/CLI 0.2.33 and Expo 0.2.24; all three registry hashes
-match the qualified packages. A separate installed public-pin rerun is underway.
+The earlier published-pin failures and candidate results remain recorded below.
+The [corrective release](./20260922-native-media-repair.md#corrective-release-qualification)
+and the final separate public-package rerun both match the qualified package
+hashes. See [the final result](#final-public-package-result) for exact scope.
 
 ## Custody and scope
 
@@ -390,9 +390,9 @@ all three receipts and preserved failure evidence, without private plans or
 other reviewers' conclusions. Each attempt's stopped Documents copy and the
 immutable Release app remain on M5 in the extension's `artifacts/` tree.
 
-The owned app/backend are stopped, port 49380 is free, and the owned simulator
-is shut down. The final public package pair still needs publication and its
-own installed-pin rerun. Real-provider delivery remains **pending account and
+At this candidate checkpoint, the owned app/backend were stopped, port 49380
+was free, and the owned simulator was shut down. Final package publication and
+the installed-pin rerun followed below. Real-provider delivery remains **pending account and
 recipient**. Android, physical-device power loss, exact peak memory and wire
 bytes are unmeasured. The original cal16 grade and score remain unchanged.
 
@@ -413,3 +413,84 @@ Documents snapshot. Its actual output confirms 10,000 messages and 248
 memberships; before/after hashes show the original snapshot was unchanged.
 It adds portable evidence for the ancillary membership count and does not
 replace or relabel the original offline message-query proof.
+
+## Final public-package result
+
+All three actual scenarios passed after a fresh registry installation of
+`snapback4@0.2.33`, `snapback4-darwin-arm64@0.2.33` and
+`snapback4-expo@0.2.24`. The new sibling packet is
+`attempts/native-extension-public`; the earlier candidate app, Release build,
+backend snapshots and results are preserved. The [installed-package receipt](./20260922-clique-native-extension/public-033-024/custody/installed-public-packages.json)
+binds all three registry URLs and integrities to the qualified release. The
+actual CLI reports 0.2.33. All 73 non-package application source files match
+the reviewed candidate; only `package.json` and its lock changed. Published
+CLI generation introduced no API source change in this application.
+
+CLI check, Pod generation and full application typecheck passed. The first
+build failed before app execution because copied Xcode caches contained an
+absolute Swift module-cache path to the candidate directory. That setup failure
+is preserved. A fresh owned DerivedData directory with identical source and
+normal signing passed in 404.393 seconds. The [immutable Release custody](./20260922-clique-native-extension/public-033-024/custody/release-public-033-024-1.json)
+records Hermes bundle SHA-256
+`11dc8975a0776c3e2c3e6931de88645c67e95c582756274df92e8badf0338901`
+and executable SHA-256
+`5367499af0dbd6a32bc890c85be52cd855820524c741d3c9d7b5ca19d75c03db`.
+
+| Public installed Release scenario | Result | Driver elapsed | Outer wrapper elapsed |
+| --- | --- | ---: | ---: |
+| `restart-public-033-024-1` | Pass | 50.979 s | 52.521659 s |
+| `revocation-public-033-024-1` | Pass | 32.466 s | 33.822223 s |
+| `acquisition-public-033-024-1` | Pass | 30.048 s | 31.433715 s |
+
+The unchanged revision-4 assertions completed against the public CLI. The
+actual once image loaded with no durable once bytes or manifest entry while
+its handle remained live. Ordinary images and native video rendered in both
+offline processes; the stopped host oracle verified exact ordinary bytes and
+canonical filenames, excluding both possible once variants. The same two
+pending message/write pairs survived death, settled exactly once in order at
+sequences 167308 and 167309, and reached delivered/read through the other
+participant. Learned revocation retained delivered text, purged ordinary
+media and excluded the later message offline and after an explicitly confirmed
+online reconnect.
+
+Root inspected the [two offline screen frames](./20260922-clique-native-extension/public-033-024/frames/frames.json).
+They show the blue-gray native player below the separate red IMG01 poster,
+matching the exact fixture's sampled source frames. Native first-frame receipts
+occur at 02:33:40.395 and 02:33:50.211 UTC, 3.209 and 13.025 seconds after
+recording began. The extracted frames are at 3.608333 and 13.411667 seconds;
+the first player is partly clipped and the second fully visible. Neither
+motion nor audio is claimed, and the unchanged status heading is not a timing
+measurement. The existing driver does not film priming or initial acquisition.
+
+| Public acquisition observation | Value |
+| --- | ---: |
+| Acquired on original opener return, upper bound | 13,061.567 ms |
+| First useful real chat-row layout | 13,197.117 ms |
+| Cold offline opener | 79.280 ms |
+| Offline message IDs / scopes / actual query pages | 10,000 / 100 / 299 |
+| Offline full-ID audit elapsed | 5,304.011 ms |
+| Observed response bodies / UTF-8 bytes | 46 / 59,280,798 |
+| Response events, including repeats | 161,275 |
+| Own-app RSS samples / sampled maximum | 102 / 424,673,280 bytes |
+| DB / WAL / SHM logical bytes | 264,450,048 / 157,730,112 / 32,768 |
+| DB / WAL / SHM allocated bytes | 268,906,496 / 168,513,536 / 32,768 |
+| Incidental ordinary media logical / allocated bytes | 729 / 4,096 |
+
+The complete offline query enumeration matches the required message-ID hash
+`c18d2f7afba531ca5a0ee2feb32459153f07086ad2f986023cfce94bc87ddf50`
+before reconnect. The separate [post-reconnect inspection](./20260922-clique-native-extension/public-033-024/custody/post-reconnect-public-check.json)
+of an APFS clone found 10,000 messages and 248 memberships; it did not open
+the preserved snapshot with SQLite. These are single observed runs with
+instrumentation overhead, not evidence of a causal performance improvement
+over the slower candidate. Response-body copies are not wire bytes, and
+sampled RSS is not an exact peak.
+
+[Selected verbatim receipts, custody and frames](./20260922-clique-native-extension/public-033-024/SELECTED.json)
+are retained in the repository. The complete packet is
+`/tmp/sb4-3011-20260922/clique-native-public-evidence`; full stopped Documents
+snapshots and the immutable Release remain on M5. Owned app/backend processes
+were stopped, the simulator shut down, and port 49380 confirmed refusing
+connections at 02:35:19.692 UTC. The final cold corrective-package benchmark
+started separately afterward. Native and operational qualification do not
+supply real-provider, Android, physical-device or power-loss evidence, and
+do not revise cal16's original grade.

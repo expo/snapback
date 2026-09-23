@@ -1,0 +1,77 @@
+{
+  "afterDriverExit": true,
+  "driverExitCode": 0,
+  "checks": [
+    {
+      "assetId": "01M361R554KWYCFH7SVGRNDA6Z",
+      "kind": "image",
+      "once": false,
+      "expectedPresent": true,
+      "expectedName": "01M361R554KWYCFH7SVGRNDA6Z",
+      "checkedVariants": [
+        "01M361R554KWYCFH7SVGRNDA6Z",
+        "01M361R554KWYCFH7SVGRNDA6Z.mp4"
+      ],
+      "cacheRoots": [
+        "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite.media"
+      ],
+      "expectedBytes": 2062,
+      "expectedSha256": "7afbd9d91e6f1197e9fd392ba0a53dce78a66ee5a3a528a6c2641a82b2a0417c",
+      "actual": [
+        {
+          "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite.media/01M361R554KWYCFH7SVGRNDA6Z",
+          "name": "01M361R554KWYCFH7SVGRNDA6Z",
+          "kind": "file",
+          "bytes": 2062,
+          "sha256": "7afbd9d91e6f1197e9fd392ba0a53dce78a66ee5a3a528a6c2641a82b2a0417c"
+        }
+      ],
+      "passed": true
+    },
+    {
+      "assetId": "01M361R55M02BPGAN3FSEWV7A9",
+      "kind": "video",
+      "once": false,
+      "expectedPresent": true,
+      "expectedName": "01M361R55M02BPGAN3FSEWV7A9.mp4",
+      "checkedVariants": [
+        "01M361R55M02BPGAN3FSEWV7A9",
+        "01M361R55M02BPGAN3FSEWV7A9.mp4"
+      ],
+      "cacheRoots": [
+        "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite.media"
+      ],
+      "expectedBytes": 49779,
+      "expectedSha256": "7e22b943746b2c858910252162f624cac396eb9e4f4100ae80e70431b7883d5f",
+      "actual": [
+        {
+          "path": "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite.media/01M361R55M02BPGAN3FSEWV7A9.mp4",
+          "name": "01M361R55M02BPGAN3FSEWV7A9.mp4",
+          "kind": "file",
+          "bytes": 49779,
+          "sha256": "7e22b943746b2c858910252162f624cac396eb9e4f4100ae80e70431b7883d5f"
+        }
+      ],
+      "passed": true
+    },
+    {
+      "assetId": "01M361R5641YJG12AC5WR5XYQY",
+      "kind": "image",
+      "once": true,
+      "expectedPresent": false,
+      "expectedName": null,
+      "checkedVariants": [
+        "01M361R5641YJG12AC5WR5XYQY",
+        "01M361R5641YJG12AC5WR5XYQY.mp4"
+      ],
+      "cacheRoots": [
+        "snapback4-http%3A%2F%2F127.0.0.1%3A49380%3Auser%3A01M35C3YTC734CP6JW9T40Z7JA.sqlite.media"
+      ],
+      "expectedBytes": 2080,
+      "expectedSha256": "ef284acb000e375fa4cffc07b3e2d228e47a6bf3b1f9078b4b7399d23c440101",
+      "actual": [],
+      "passed": true
+    }
+  ],
+  "passed": true
+}

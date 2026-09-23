@@ -1,0 +1,28 @@
+{
+  "label": "build-public-2",
+  "argv": [
+    "xcodebuild",
+    "-workspace",
+    "ios/Clique.xcworkspace",
+    "-scheme",
+    "Clique",
+    "-configuration",
+    "Release",
+    "-destination",
+    "id=3ADCE896-A566-44FF-838E-95C20022B386",
+    "-derivedDataPath",
+    "../derived-data",
+    "-jobs",
+    "4",
+    "COCOAPODS_PARALLEL_CODE_SIGN=true",
+    "COMPILER_INDEX_STORE_ENABLE=NO",
+    "build"
+  ],
+  "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/app",
+  "pid": 16634,
+  "startedAt": 1790130343.526307,
+  "reason": "Fresh owned DerivedData after preserved absolute-path module-cache error",
+  "exitCode": 0,
+  "endedAt": 1790130747.919638,
+  "elapsedSeconds": 404.3933358192444
+}

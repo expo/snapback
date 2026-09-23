@@ -1,0 +1,160 @@
+{
+  "appBuild": {
+    "CFBundleExecutable": "Clique",
+    "CFBundleIdentifier": "dev.clique.astra",
+    "CFBundleShortVersionString": "0.0.1",
+    "CFBundleVersion": "1"
+  },
+  "appPath": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/3ADCE896-A566-44FF-838E-95C20022B386/data/Containers/Bundle/Application/669123C1-DF92-4A42-8A53-C174C6B6467B/release-public-033-024-1.app",
+  "artifacts": {
+    "device.log": {
+      "bytes": 29160630,
+      "path": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/artifacts/restart-public-033-024-1/restart-ios-device.log",
+      "sha256": "dfbcfae92a74806453b51018b7f31e6a3a6c944d7f8a0cc55e6d0a01368b78bd"
+    },
+    "receipts.jsonl": {
+      "bytes": 12610,
+      "path": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/artifacts/restart-public-033-024-1/restart-ios-receipts.jsonl",
+      "sha256": "db18f2aed83a7617245419a825821fea5608fe31e1348304e0d225d70a0ecaeb"
+    },
+    "screen.mp4": {
+      "bytes": 5416284,
+      "path": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/artifacts/restart-public-033-024-1/restart-ios-screen.mp4",
+      "sha256": "9cf263357ce2e971211407b69baa555443582ab39d0f6c9041e74270e9f96a07"
+    }
+  },
+  "backend": {
+    "command": [
+      "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/app/node_modules/snapback4-darwin-arm64/snapback4",
+      "dev",
+      "--port",
+      "49380",
+      "--no-watch"
+    ],
+    "cwd": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/backend-public-033-024-1",
+    "origin": "http://127.0.0.1:49380",
+    "port": 49380,
+    "store": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/backend-public-033-024-1/.snapback4/store.sqlite"
+  },
+  "bundleId": "dev.clique.astra",
+  "container": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/3ADCE896-A566-44FF-838E-95C20022B386/data/Containers/Data/Application/AB34577F-EE2C-4FDE-AB14-B821C8B357DC",
+  "endedAt": 1790130844473,
+  "error": null,
+  "events": [
+    {
+      "at": 1790130797658,
+      "step": "backend-ready"
+    },
+    {
+      "at": 1790130798201,
+      "pid": 93732,
+      "step": "prime-launched"
+    },
+    {
+      "at": 1790130798201,
+      "step": "waiting-primed"
+    },
+    {
+      "at": 1790130815960,
+      "step": "primed"
+    },
+    {
+      "at": 1790130816805,
+      "pid": 93732,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790130816863,
+      "step": "backend-refuses-connections"
+    },
+    {
+      "at": 1790130817186,
+      "step": "recording-started"
+    },
+    {
+      "at": 1790130817725,
+      "pid": 96835,
+      "step": "offline-launched"
+    },
+    {
+      "at": 1790130817725,
+      "step": "waiting-relaunch"
+    },
+    {
+      "at": 1790130826515,
+      "step": "relaunch"
+    },
+    {
+      "at": 1790130827382,
+      "pid": 96835,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790130827912,
+      "pid": 98526,
+      "step": "offline-launched"
+    },
+    {
+      "at": 1790130827912,
+      "step": "offline-relaunched"
+    },
+    {
+      "at": 1790130827912,
+      "step": "waiting-offline-done"
+    },
+    {
+      "at": 1790130836361,
+      "step": "offline-done"
+    },
+    {
+      "at": 1790130839551,
+      "step": "backend-ready"
+    },
+    {
+      "at": 1790130839552,
+      "step": "reconnect-signaled"
+    },
+    {
+      "at": 1790130839552,
+      "step": "waiting-done"
+    },
+    {
+      "at": 1790130843390,
+      "step": "done"
+    },
+    {
+      "at": 1790130843554,
+      "step": "recording-stopped"
+    },
+    {
+      "at": 1790130844414,
+      "pid": 98526,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1790130844473,
+      "step": "backend-refuses-connections"
+    }
+  ],
+  "exitStatus": 0,
+  "outputs": [
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/artifacts/restart-public-033-024-1/restart-ios-run.json",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/artifacts/restart-public-033-024-1/restart-ios-screen.mp4",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/artifacts/restart-public-033-024-1/restart-ios-receipts.jsonl",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/artifacts/restart-public-033-024-1/restart-ios-device.log",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/artifacts/restart-public-033-024-1/restart-ios-video.log",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/artifacts/restart-public-033-024-1/restart-ios-launch.log",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/artifacts/restart-public-033-024-1/restart-ios-backend.log",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/artifacts/restart-public-033-024-1/restart-ios-backend-stdout.log",
+    "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/artifacts/restart-public-033-024-1/restart-ios-log-stderr.log"
+  ],
+  "prime": true,
+  "relaunch": true,
+  "reservation": "/Users/ccheever/clique-sb4-20260922-astra-cal16/attempts/native-extension-public/artifacts/restart-public-033-024-1/restart-ios-reserved",
+  "run": "1790130793494-92786",
+  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+  "segment": "restart",
+  "startedAt": 1790130793494,
+  "timestampUnit": "unix-ms",
+  "udid": "3ADCE896-A566-44FF-838E-95C20022B386"
+}

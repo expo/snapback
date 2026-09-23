@@ -1,0 +1,12 @@
+[
+  {
+    "path": "package-lock.json",
+    "candidateSha256": "0ab5270ac118e57bae6c666f43517bbe9a4f25a0dd92e9b215b41d8c1479a8d9",
+    "publicSha256": "d3ae47a1bd016b53ec384d49a799121d1c66c9ae9b7583581453599d44202ebc"
+  },
+  {
+    "path": "package.json",
+    "candidateSha256": "f676e059df77700cc6e461a6978e99ac21dd37bedddfa039989c552e89f55227",
+    "publicSha256": "21b8d980443d85aa7fedbfdf9ac418968cfc9abded8a337a278916906118acb7"
+  }
+]

@@ -1,0 +1,191 @@
+{
+  "sourcePacket": "/tmp/sb4-3011-20260922/clique-native-public-evidence",
+  "scope": "Selected verbatim receipt/custody/visual subset; full app source, full build logs, screen videos and backend logs remain in complete external packet",
+  "files": [
+    {
+      "path": "summary.json",
+      "bytes": 4559,
+      "sha256": "9196e88082f6094defe17c1983da4b2a188dc26a02913fc32b5b1e97ec8ceb9a"
+    },
+    {
+      "path": "checks/packet-verification.json",
+      "bytes": 1204,
+      "sha256": "4a6cf27b3ecbe3b772f0d65b7ee758481f45323169124c2bffb2f008c8d7ed7e"
+    },
+    {
+      "path": "custody/registry033-published.json",
+      "bytes": 774,
+      "sha256": "8c83c02f79915073896eaef3b99324cc1324097eeac46ed25e64836e3afc0b39"
+    },
+    {
+      "path": "custody/installed-public-packages.json",
+      "bytes": 815,
+      "sha256": "33dd5a7393fa64cfffe1e674b10ab2bbee930f90066fe924bdcd8921faeaee78"
+    },
+    {
+      "path": "custody/extension-source-public-033-024-1.json",
+      "bytes": 11575,
+      "sha256": "8cc65197ca46d8a18d0ce72bb99df7447c4962eb7f483a0f4f59dcd15085beaa"
+    },
+    {
+      "path": "custody/release-public-033-024-1.json",
+      "bytes": 4195,
+      "sha256": "ff6204b8042ba365f172206a840f3722d5b05a08e7252808c560f25029da3af1"
+    },
+    {
+      "path": "custody/public-from-candidate-source-delta.json",
+      "bytes": 437,
+      "sha256": "e93f5afbfe4a4cfb302a78421ba263a433d32136567b1023b204989d9311f788"
+    },
+    {
+      "path": "custody/retained-fixture.json",
+      "bytes": 205050,
+      "sha256": "c383f322cc71f2ec5fc10549aeb90f538e3087a146221d6991b7cc3db2b00e9e"
+    },
+    {
+      "path": "custody/post-reconnect-public-check.json",
+      "bytes": 1802,
+      "sha256": "4bfe36d030ef2c5d228555bdcd1b0b9e819398b690c259efd24fefc5749c2a03"
+    },
+    {
+      "path": "custody/public-acquisition-stopped-snapshot.json",
+      "bytes": 1835,
+      "sha256": "e2f3d880cc1458a0bd0b96a0c0f2e96e12cf7031292ab730b7dfea102358eefb"
+    },
+    {
+      "path": "build/public-build-processes.json",
+      "bytes": 3538,
+      "sha256": "43eb643d86d351d9f78c2d0606fbd0c83375c221993485c4bb6fb5a30b34086b"
+    },
+    {
+      "path": "build/build-public-2-process.json",
+      "bytes": 730,
+      "sha256": "b8343b2cccb363fe1542ec9681f994bee5afc26441e1ebb43390733b2bfc7440"
+    },
+    {
+      "path": "build/public-scenarios-processes.json",
+      "bytes": 9396,
+      "sha256": "343c56700255550c26f2100f4c9bf7d507607abcd0724c3a48973c95cf0c435e"
+    },
+    {
+      "path": "build/cli-version-public-1.log",
+      "bytes": 17,
+      "sha256": "00b031e2a5f2a2286aedd51d471233981d11bd3b0276912b000f62e628107d45"
+    },
+    {
+      "path": "build/typecheck-public-1.log",
+      "bytes": 68,
+      "sha256": "63105349a9ae140092aa344659935d5beb25df37602fab716b6469ae195caf23"
+    },
+    {
+      "path": "build/post-reconnect-public.log",
+      "bytes": 160,
+      "sha256": "0eaf7f9510c89c732a7f3ecda52afa00153fc8b18561f8e25dde556c562b9bd5"
+    },
+    {
+      "path": "build/shutdown-public-final.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "frames/frames.json",
+      "bytes": 1317,
+      "sha256": "f0d07c73f712cede4ff06ecf1d6fc7d46c36ec2cfe2b215e5571defc3073fa17"
+    },
+    {
+      "path": "frames/restart-offline-video-1.png",
+      "bytes": 217503,
+      "sha256": "3982a0c31a31698d1f5699d319b61ceb519b17d0da397b5e3a9cd33cb76b2996"
+    },
+    {
+      "path": "frames/restart-offline-video-2.png",
+      "bytes": 245738,
+      "sha256": "7b89bc51c3b37f560c623a4001962c67650b9fee92a254cea70fda36a146e437"
+    },
+    {
+      "path": "results/restart-public-033-024-1/restart-ios-receipts.jsonl",
+      "bytes": 12610,
+      "sha256": "db18f2aed83a7617245419a825821fea5608fe31e1348304e0d225d70a0ecaeb"
+    },
+    {
+      "path": "results/restart-public-033-024-1/restart-ios-run.json",
+      "bytes": 5622,
+      "sha256": "a9b354f3e8280ccab13e376d341663e5039a1fd167ad9082fc83015a9566b4e3"
+    },
+    {
+      "path": "results/restart-public-033-024-1/wrapper-result.json",
+      "bytes": 240,
+      "sha256": "8ee1fd1f1e15e5dde33f9cfed085e193708ee1c17acb583526af554fadabf273"
+    },
+    {
+      "path": "results/restart-public-033-024-1/memory.json",
+      "bytes": 15083,
+      "sha256": "f1da6276a2dec2f05b308ac0a8db6eb72207367abe4436b26477a11a58c7a570"
+    },
+    {
+      "path": "results/restart-public-033-024-1/disk.json",
+      "bytes": 1204,
+      "sha256": "1778d360f5bff948161aa8b7c695b5e9ffb8892ab7d0780ef1e3266a53eee686"
+    },
+    {
+      "path": "results/restart-public-033-024-1/media-files.json",
+      "bytes": 2565,
+      "sha256": "e445595c7ccbc7a5b2b42dc09f24dd225b38c2fae5d93dd5fb81989b8d62ee8d"
+    },
+    {
+      "path": "results/revocation-public-033-024-1/revocation-ios-receipts.jsonl",
+      "bytes": 4608,
+      "sha256": "97a955fbb36deb89662bb594a1e6efb0295d9e41a546361fbeadfdfa277e3854"
+    },
+    {
+      "path": "results/revocation-public-033-024-1/revocation-ios-run.json",
+      "bytes": 5299,
+      "sha256": "4f120f59dcaa76c83836ba18822f224a7528161a3cee150793e3b5e32e4f8f1e"
+    },
+    {
+      "path": "results/revocation-public-033-024-1/wrapper-result.json",
+      "bytes": 243,
+      "sha256": "a857c63dd9f60926472f17d23197aac9f71b8f5cb8b4194fcc6419c97004cce3"
+    },
+    {
+      "path": "results/revocation-public-033-024-1/memory.json",
+      "bytes": 9453,
+      "sha256": "2cb1aba30304e885b73074026091ef0a717f2aa07ad4db68e2a881ede2de07cd"
+    },
+    {
+      "path": "results/revocation-public-033-024-1/disk.json",
+      "bytes": 790,
+      "sha256": "aae9ef925e4140e7bb3cc3dc1faa86fe83d40eb2536d0beface14e5764608f24"
+    },
+    {
+      "path": "results/revocation-public-033-024-1/media-files.json",
+      "bytes": 1804,
+      "sha256": "c69160ec93c65caf0d709a7def4f0195771b78f5992112f8619835d983eac38f"
+    },
+    {
+      "path": "results/acquisition-public-033-024-1/acquisition-ios-receipts.jsonl",
+      "bytes": 157303,
+      "sha256": "97ecb508761116c6d3dad5a3d1630d289ffed8a67097e4dfe1b7eebacd9f96ac"
+    },
+    {
+      "path": "results/acquisition-public-033-024-1/acquisition-ios-run.json",
+      "bytes": 5354,
+      "sha256": "d55a3729c167088b63836ba27bc2bcc1f76aee6b2db4250d45b01008d142fd0c"
+    },
+    {
+      "path": "results/acquisition-public-033-024-1/wrapper-result.json",
+      "bytes": 245,
+      "sha256": "e4619325e7961cb5bec46f4496ca1a5a6ec362dd519e77ae50e639029173b3f0"
+    },
+    {
+      "path": "results/acquisition-public-033-024-1/memory.json",
+      "bytes": 9496,
+      "sha256": "af6608d6d910811280b7495d1dec4bbde23f2cfdce245d2fc280718f2dcdcee6"
+    },
+    {
+      "path": "results/acquisition-public-033-024-1/disk.json",
+      "bytes": 792,
+      "sha256": "04a2f8cb0ce9970c10a6bf1eac7f9311e21c1eeae4df329aaed8720d5fab8b38"
+    }
+  ]
+}

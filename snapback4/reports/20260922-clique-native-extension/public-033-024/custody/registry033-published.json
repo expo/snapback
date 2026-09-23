@@ -1,0 +1,21 @@
+{
+  "at": "2026-09-23T02:21:27.111092+00:00",
+  "source": "f54b4c71dea34a428739199d25e09a301d06e988",
+  "packages": {
+    "snapback4": {
+      "version": "0.2.33",
+      "dist.integrity": "sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==",
+      "dist-tags.latest": "0.2.33"
+    },
+    "snapback4-darwin-arm64": {
+      "version": "0.2.33",
+      "dist.integrity": "sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==",
+      "dist-tags.latest": "0.2.33"
+    },
+    "snapback4-expo": {
+      "version": "0.2.24",
+      "dist.integrity": "sha512-IExI9pchHDjww3J4gCUPqDX5E2RnjIaPYVotEEM0KWFWrydsht6VBejyUOtrlcBnrhT8haHDszwaP/UAFm+LZA==",
+      "dist-tags.latest": "0.2.24"
+    }
+  }
+}
