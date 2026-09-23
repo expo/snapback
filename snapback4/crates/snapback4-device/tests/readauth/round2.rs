@@ -88,6 +88,14 @@ fn nested_ladder<H:Host>(mut h:H,mut store:H::Store) {
     prediction.kind=snapback4_core::ir::ProgramKind::Mutation;
     let error=local::predict(&Renewed(&tx),&b.schema,&prediction,context("alice",&[]).at(100),Ceilings{rule_probes:4095,..Default::default()}).unwrap_err();
     assert!(matches!(error,snapback4_core::RuntimeError::Bound{kind:snapback4_core::error::MeterKind::RuleProbes,..}),"{error:?}");
+    // With non-expiring membership, the held audience is trusted and only
+    // provisional-row authorization needs a probe. It has its own allowance.
+    let mut schema = b.schema.clone();
+    schema.tables.get_mut("members").unwrap().expire = None;
+    prediction.body = vec![prediction.body[0].clone()];
+    local::predict(&Renewed(&tx),&schema,&prediction,context("alice",&[]).at(100),Ceilings{rule_probes:1,..Default::default()}).unwrap();
+    let error=local::predict(&Renewed(&tx),&schema,&prediction,context("alice",&[]).at(100),Ceilings{rule_probes:0,..Default::default()}).unwrap_err();
+    assert!(matches!(error,snapback4_core::RuntimeError::Prediction(_)),"{error:?}");
     tx.rollback().unwrap();
 }
 #[test] fn nested_read_ladder_memory(){nested_ladder(Memory::new(),snapback4_device::memory::MemoryStore::new());}

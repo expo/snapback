@@ -258,8 +258,8 @@ impl Runner<'_> {
             key: key.iter().cloned().map(Expr::Literal).collect(), provenance: KeyProvenance::Shape })?;
         // Point inputs must be covered, including an absent tombstone. Retained
         // history is not current coverage and cannot justify a prediction.
-        if self.device && (self.tx.retained_group(table, index, &key)?
-            || (value != Value::Null && self.tx.retained_row(table, &value)?)) {
+        if self.device && (self.retained_group(table, index, &key)?
+            || (value != Value::Null && self.retained_row(table, &value)?)) {
             self.unknown_fact(table, index, &key, "timeline input");
         }
         self.timeline_known()?;
@@ -273,10 +273,10 @@ impl Runner<'_> {
             existence: false, after: None, before: None, range: None, filter: None, opaque_cursor: false,
             merge_site: None, provenance: KeyProvenance::Shape })?;
         if self.device {
-            let mut retained = self.tx.retained_group(table, index, &prefix)?;
+            let mut retained = self.retained_group(table, index, &prefix)?;
             for row in &rows {
                 if retained { break; }
-                if self.tx.retained_row(table, row)? {
+                if self.retained_row(table, row)? {
                     retained = true;
                 }
             }

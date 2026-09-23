@@ -371,7 +371,7 @@ impl Runner<'_> {
         if self.read_capped() { return Ok(Value::Null); }
         if allowed {
             // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
-            if self.device && self.tx.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
+            if self.device && self.retained_row(&read.table, &row)? { self.components.note(|frame| frame.retained = true); }
             self.note_expiry(table, &row);
             Ok(super::recorded::public_image(table, self.live_aggregate(&read.table, row)?.unwrap_or(Value::Null)))
         } else {
@@ -471,7 +471,7 @@ impl Runner<'_> {
             // are bounded before the lookup or unknown_fact formats/clones them.
             if visibility.uniform && (table.leave == crate::schema::LeavePolicy::DeliveredHistory || table.sync.is_none()
                 || (!scan.existence && table.sync.as_ref().is_some_and(|sync| sync.horizon.is_some()))) {
-                self.meter.heap(256 * (192 + word_heap::values(&scope) + word_heap::text(&scan.table) + word_heap::text(&scan.index) + word_heap::text(&scan.site)))?;
+                self.device_work(|runner| runner.meter.heap(256 * (192 + word_heap::values(&scope) + word_heap::text(&scan.table) + word_heap::text(&scan.index) + word_heap::text(&scan.site))))?;
             }
             retained = self.retained_group(&scan.table, &scan.index, &scope)?;
             if table.sync.is_none() { self.unknown_fact(&scan.table, &scan.index, &scope, &scan.site); }
@@ -667,7 +667,7 @@ impl Runner<'_> {
         if result.as_ref().is_ok_and(|(rows, _)| rows.is_empty())
             && self.device && self.schema.tables[&scan.table].sync.as_ref().is_some_and(|sync| sync.horizon.is_some()) {
             let prefix = scan.prefix.iter().filter_map(IndexKeyExpr::scalar).map(|value| self.expr(value)).collect::<Result<Vec<_>, _>>()?;
-            let retained = self.tx.retained_group(&scan.table, &scan.index, &prefix)?;
+            let retained = self.retained_group(&scan.table, &scan.index, &prefix)?;
             self.horizon_coverage(scan, &prefix, retained);
         }
         result

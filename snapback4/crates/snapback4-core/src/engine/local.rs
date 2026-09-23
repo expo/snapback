@@ -84,6 +84,7 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
     }
     let mut runner = Runner::new(rows, schema, context, Meter::new(ceilings, Cut::Abort), 0);
     runner.device = true;
+    runner.device_allowance = Some(Meter::new(ceilings, Cut::Abort));
     let result = runner.run(program).and_then(|value| {
         runner.check_final_exists()?;
         Ok(value)
@@ -142,6 +143,20 @@ pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Mo
 
 
 impl Runner<'_> {
+    // @ref LLP 3000.007.003#3.2 — device-only authority work may prevent
+    // prediction, but cannot spend the server-equivalent mutation budget.
+    pub(super) fn device_work<T>(&mut self, work: impl FnOnce(&mut Self) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+        let Some(mut allowance) = self.device_allowance.take() else { return work(self) };
+        std::mem::swap(&mut self.meter, &mut allowance);
+        let result = self.meter.step(1).and_then(|_| work(self));
+        std::mem::swap(&mut self.meter, &mut allowance);
+        self.device_allowance = Some(allowance);
+        result.map_err(|error| match error {
+            RuntimeError::Bound { .. } => RuntimeError::Prediction("device authority allowance exhausted; queued without a predicted row".into()),
+            other => other,
+        })
+    }
+
     // @ref LLP 3000.007#18.2 — retained history suppresses fallback only when no independent unknown or incomplete reason remains.
     fn only_retained_incomplete(&self) -> bool {
         self.missing_fact.is_none() && self.meter.capped_at.is_none() && self.word_cut_at.is_none() && !self.non_uniform && !self.page_overflow && !self.page_position_lost() && !self.presence_unknown

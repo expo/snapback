@@ -47,6 +47,12 @@ delivered witnesses and absences need current coverage. Retained-only witnesses
 and Left groups are unknown. A decisive disjunct can still authorize the row.
 Delivered rows keep their server authorization.
 
+During prediction, membership coverage, retention checks and provisional-row
+authorization share a separate device allowance with the ordinary operation's
+ceilings. Exhausting it queues the mutation without predicted rows. Only
+server-equivalent work spends the mutation meter and can refuse with `E_BOUND`.
+Queries continue to charge authorization to their query meter.
+
 An unreadable output does not prevent prediction. For example, a moderation
 report predicts but stays invisible to its writer until settlement removes or
 replaces the overlay. A later pending grant can make a row visible; a later

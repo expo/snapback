@@ -183,6 +183,47 @@ fn over_budget<H: Host>(mut host: H) where H::Store: Images {
 #[test] fn membership_over_budget_memory() { over_budget(Memory::new()); }
 #[test] fn membership_over_budget_sqlite() { over_budget(Sqlite::new("f2-over-budget")); }
 
+fn boundary_ladder<H: Host>(mut host: H, reads: i64) where H::Store: Images {
+    for membership in [false, true] {
+        let source = format!("{SOURCE}\nmutation ladder(postId: posts, work: int):\n  insert likes {{postId}}\n  for i in range(0, work):\n    ignored = posts[postId]\n  return null\n");
+        let (_, mut b) = compile(&source);
+        if membership {
+            b.schema.tables.get_mut("posts").unwrap().sync = backend(false, false).1.schema.tables["posts"].sync.clone();
+        }
+        let mut e = Engine::memory(b.schema.clone(), b.programs.clone()).unwrap();
+        b.generation = e.generation();
+        e.seed_at([member("m", 500), post("p")], 100).unwrap();
+        let mut d = host.open(&format!("boundary-{reads}-{membership}"), Some(b)).unwrap();
+        snapshot(&mut e, &mut d, 100);
+        let mut entry = intent("p", 1, 100);
+        entry.op = "ladder".into();
+        entry.args = json!({"postId":"p", "work":reads});
+        let reply = snapback4_device::call::call_text(&mut d, &json!({"op":"admit", "entry":entry}).to_string());
+        let server = e.mutate("ladder", Some("server"), context("alice", &[("postId", id("p")), ("work", Value::Int(reads))]).at(100).with_ids(vec!["l1".into()])).unwrap();
+        assert_eq!(server.metered.examined, reads as u64 + 2, "one capture and one aggregate read");
+        if reads <= 8190 {
+            assert!(matches!(server.state, snapback4_core::WriteState::Sent { .. }), "{server:?}");
+            let queued: Queued = serde_json::from_value(reply["ok"].clone()).expect(&format!("reads={reads}, membership={membership}: {reply}"));
+            assert!(queued.predictable && queued.predicted.len() == 2, "{queued:?}");
+            assert_eq!(d.queued().unwrap().len(), 1);
+        } else {
+            let snapback4_core::WriteState::Failed { why, .. } = server.state else { panic!("{server:?}") };
+            assert_eq!(why.code, "E_BOUND");
+            assert_eq!(reply["denied"]["code"], "E_BOUND", "{reply}");
+            assert_eq!(reply["denied"]["message"], why.message, "same server-equivalent cut");
+            assert!(d.queued().unwrap().is_empty());
+            assert!(d.store().images("likes").is_empty());
+            assert!(d.store().images("totals").is_empty());
+        }
+    }
+}
+#[test] fn membership_boundary_8189_memory() { boundary_ladder(Memory::new(), 8189); }
+#[test] fn membership_boundary_8189_sqlite() { boundary_ladder(Sqlite::new("f2-boundary-8189"), 8189); }
+#[test] fn membership_boundary_8190_memory() { boundary_ladder(Memory::new(), 8190); }
+#[test] fn membership_boundary_8190_sqlite() { boundary_ladder(Sqlite::new("f2-boundary-8190"), 8190); }
+#[test] fn membership_boundary_8191_memory() { boundary_ladder(Memory::new(), 8191); }
+#[test] fn membership_boundary_8191_sqlite() { boundary_ladder(Sqlite::new("f2-boundary-8191"), 8191); }
+
 // JSON counterpart to core::engine::recorded's direct Runner clock guard.
 fn prediction_clock<H: Host>(mut host: H) where H::Store: Images {
     let (mut e, b) = backend(true, false);

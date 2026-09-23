@@ -50,12 +50,7 @@ impl Runner<'_> {
             let live = found.as_ref().filter(|value| !self.expired(target, value));
             if self.device && matches!(source_image.field(&field.reference), Ok(Value::Id(_)))
                 && (target.sync.is_none() || !live.zip(self.context.now).map(|(value, now)| {
-                    match self.tx.recording_covered(&field.table, value, &self.context.viewer, now, &mut self.meter) {
-                        // The coverage proof is unfinished, not false. The
-                        // server may capture without this device-only scan.
-                        Err(RuntimeError::Bound { .. }) => Ok(false),
-                        result => result,
-                    }
+                    self.device_work(|runner| runner.tx.recording_covered(&field.table, value, &runner.context.viewer, now, &mut runner.meter))
                 }).transpose()?.unwrap_or(false)) {
                 return Err(RuntimeError::Prediction(format!("recorded path {path} needs a live, covered {} row; reconnect to resolve attribution", field.table)));
             }

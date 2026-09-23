@@ -21,6 +21,10 @@ impl Runner<'_> {
     }
 
     pub(super) fn authorize_read(&mut self, table: &str, row: &Value, prepaid: bool) -> Result<bool, RuntimeError> {
+        self.device_work(|runner| runner.authorize_read_inner(table, row, prepaid))
+    }
+
+    fn authorize_read_inner(&mut self, table: &str, row: &Value, prepaid: bool) -> Result<bool, RuntimeError> {
         let definition = &self.schema.tables[table];
         let rule = definition.rules.read.clone();
         let mut row = row.clone();

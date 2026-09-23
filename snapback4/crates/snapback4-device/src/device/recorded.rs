@@ -26,7 +26,7 @@ pub(super) fn covered<T: DeviceTx>(rows: &Predicting<'_, T>, name: &str, row: &V
                 key.push(value.clone());
             }
             key.push(Value::Id(viewer.into()));
-            // Pass unswept siblings under the prediction's own meter. The
+            // Pass unswept siblings under the device authority allowance. The
             // store prepays row/key allocation, and no page can examine more
             // candidates than the remaining allowance.
             let mut bounds = Bounds::default();
