@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync, copyFileSync, realpathSync, symlinkSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync, existsSync, readdirSync, copyFileSync, realpathSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -168,11 +168,24 @@ test("Expo starter copies reference pins, parses configs, and carries both clien
   const shipped = read(join(root, "packages/snapback4/dist/web.js"));
   assert.ok(transform({ src: shipped, options: { platform: "web" } }).src.includes('options.wasm ?? require("./wasm/snapback4_device_bg.wasm")'));
   assert.equal(read(join(dir, "src/client.ts")), read(join(reference, "src/client.ts")));
-  assert.equal(read(join(dir, "snapback/worker.mts")), read(join(root, "apps/chat/snapback/worker.ts")));
+  const schema = read(join(dir, "snapback/schema.q"));
+  assert.doesNotMatch(schema, /^\s*(?:use\s+server\b|action\s|route\s)/m);
+  assert.doesNotMatch(schema, /^\s*schedule\b.*:\s*invite\b/m);
   assert.match(read(join(dir, "src/client.ts")), /nativeAvailable\(\) \? "native" : "online"/);
   assert.doesNotMatch(read(join(dir, "App.tsx")), /runWitness|EXPO_PUBLIC_WITNESS/);
   for (const screen of ["Inbox", "Thread"]) assert.match(read(join(dir, `src/${screen}.tsx`)), /\.\.\/snapback\/generated\/api/);
   run("check");
+  function assertCoreTree(directory) {
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) assertCoreTree(path);
+      else {
+        assert.doesNotMatch(entry.name, /^worker\./, path);
+        assert.doesNotMatch(read(path), /invite/, path);
+      }
+    }
+  }
+  assertCoreTree(dir);
 });
 
 test("Expo generated template typechecks against the reference toolchain", (t) => {

@@ -134,7 +134,7 @@ ${shutdown}`;
 const options = `{ signal: stop.signal, lease: 1, wait: 1, batch: 1, statusIntervalMs: 50 }`;
 
 test("check validates generated handler returns, arguments and declared secrets without executing the entry", { timeout: 30_000 }, t => {
-  const source = "action echo(message: text <=80) returns { value: text <=80 } secrets [MAIL_KEY]\n";
+  const source = "use server\naction echo(message: text <=80) returns { value: text <=80 } secrets [MAIL_KEY]\n";
   const p = project(t, source);
   const entry = body => `import { server } from "./generated/server.ts";\nthrow Error("typechecking must not execute the entry");\nexport default server({actions:{echo:${body}}});\n`;
   for (const [name, handler] of [
@@ -175,7 +175,7 @@ query mine():
 `;
 
 test("dev watches checked imports and configs outside snapback and keeps the last good worker through failed checks", { timeout: 70_000 }, async t => {
-  const p = project(t, "use personas alice\naction inspect() returns { value: text <=80 }\n", `${imports}
+  const p = project(t, "use server\nuse personas alice\naction inspect() returns { value: text <=80 }\n", `${imports}
 import { value } from "../src/provider.ts";
 const worker = server({actions:{async inspect() { return {value:value()}; }}}, ${options});
 export default worker; await worker.done;
@@ -246,7 +246,8 @@ test("dev discovers generated server handlers, preserves read/write receipts and
   // coalesced child writes must cross actual reader boundaries. Any leaked
   // byte is detectable, not only a contiguous copy of the complete secret.
   const secret = "\u001f".repeat(8193);
-  const p = project(t, `${notes}
+  const p = project(t, `use server
+${notes}
 action inspect(body: text <=200) returns { detail: json <=12000 } secrets [MAIL_KEY]
 action other() returns {} secrets [OTHER_KEY]
 action logSecret(sink: enum('stdout', 'stderr')) returns {} secrets [MAIL_KEY]
@@ -322,6 +323,7 @@ await worker.done;
 
 test("scheduled generated action runs under its declared service seat", { timeout: 20_000 }, async t => {
   const p = project(t, `${notes}
+use server
 action tick(periodStart: time, periodEnd: time) returns {} <- viewer = 'service:clock'
 schedule pulse every 1m as service:clock: tick
 `, `${imports}
@@ -343,7 +345,7 @@ export default worker; await worker.done;
 });
 
 test("raw HTTP settlement validates declared results terminally and never reclaims them", { timeout: 15_000 }, async t => {
-  const p = project(t, "use personas alice\naction shape() returns { ok: bool, text: text <=5 } retry 3 backoff 1s\n");
+  const p = project(t, "use server\nuse personas alice\naction shape() returns { ok: bool, text: text <=5 } retry 3 backoff 1s\n");
   const f = await p.start();
   for (const [index, result] of [{ ok: "wrong", text: "ok" }, { ok: true, text: "too long" }, { ok: true, text: "fine", extra: true }].entries()) {
     const id = `invalid-result-${index}`;
@@ -367,6 +369,7 @@ test("raw HTTP settlement validates declared results terminally and never reclai
 
 test("cancellation and admitting-session revocation abort an in-flight context before later writes", { timeout: 25_000 }, async t => {
   const p = project(t, `${notes}
+use server
 action wait() returns {} cancellation allow
 `, `${imports}
 const worker = server({actions:{async wait(_, ctx) {
@@ -448,6 +451,7 @@ async function provider(t, directory) {
 // @ref LLP 3000.009#11-verification-obligations — distinguish both external-work crash cuts and never infer provider absence from an uncertain lookup.
 test("actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes", { timeout: 60_000 }, async t => {
   const p = project(t, `${notes}
+use server
 action work(mode: enum('done', 'reconcile', 'park', 'changed', 'before', 'lookup-timeout', 'lookup-5xx', 'lookup-unreadable')) returns { value: text <=80, attempt: int, writeId: text <=26 } secrets [TEST_PROVIDER_URL] retry 4 backoff 1s
 `, `${imports}
 appendFileSync(new URL("../worker-starts.jsonl", import.meta.url), JSON.stringify({pid:process.pid}) + "\\n", {flush:true});
@@ -592,6 +596,7 @@ mutation recordDisposition(id: id, originalActionId: text <=128, providerKey: te
   return null
 query dispositionsFor(originalActionId: text <=128):
   return operatorDispositions[originalActionId] first 20 by byAction
+use server
 action send() returns { value: text <=80 } secrets [TEST_PROVIDER_URL] retry 4 backoff 1s
 `, `${imports}
 appendFileSync(new URL("../operator-worker-starts.jsonl", import.meta.url), JSON.stringify({pid:process.pid}) + "\\n", {flush:true});
@@ -669,7 +674,7 @@ export default worker; await worker.done;
 
 test("serve uses the same generated contract and declared environment across a supervised restart", { timeout: 25_000 }, async t => {
   const secret = "serve-a2-secret-value";
-  const p = project(t, "use identity\naction echo(message: text <=80) returns { value: text <=80, principal: principal } secrets [MAIL_KEY]\n", `${imports}
+  const p = project(t, "use server\nuse identity\naction echo(message: text <=80) returns { value: text <=80, principal: principal } secrets [MAIL_KEY]\n", `${imports}
 appendFileSync(new URL("../serve-starts.jsonl", import.meta.url), JSON.stringify({pid:process.pid, declared:process.env.MAIL_KEY === ${JSON.stringify(secret)}, unrelated:process.env.A2_PARENT_ONLY ?? null, keys:Object.keys(process.env).sort()}) + "\\n", {flush:true});
 const worker = server({actions:{async echo({message},ctx) { return {value:message,principal:ctx.principal}; }}}, ${options});
 export default worker; await worker.done;

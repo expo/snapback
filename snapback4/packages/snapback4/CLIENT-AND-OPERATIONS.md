@@ -776,7 +776,7 @@ On a pending profile write, wait for its terminal outcome before submitting
 again; after a failed write choose a new handle and retry `createProfile`.
 Apply `profileScreen` to the client created from `login` too.
 
-### Action results
+### Action results (`use server`)
 
 `client.act(op, args)` returns `Act<R>`: `{ state: "done", id, result }`,
 `{ state: "failed", id, why }`, or `{ state: "pending", id }`. A denial
@@ -861,7 +861,7 @@ idempotency key a provider should see.
 A read rule may grant `viewer = 'service:pusher'` beside its sync audience;
 `check --residency --verbose` lists the service grants, which admit server reads without adding device partitions.
 
-The same worker handles `actions: { invite: async (args, meta) => result }`.
+With `use server` in `schema.q`, the same worker handles `actions: { invite: async (args, meta) => result }`.
 Its `meta.session` is client-ready: `createClient({ url, session: meta.session })`
 runs reads and writes under the REQUEST's principal, never the worker's.
 The session cannot refresh or enter worker/minting routes, and dies on

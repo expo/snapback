@@ -271,15 +271,16 @@ fn failed(outcome: &snapback4_core::MutationOutcome) -> &str {
     }
 }
 
-/// The language card is one program that exercises every form; it binds
+/// The core and server fences together exercise every form; the program binds
 /// clean and every operation on it does what its comment says.
 #[test]
 fn the_language_card_compiles_and_runs() {
-    let source = language();
+    let source = in_context(&quarry(LANGUAGE)[1]);
     let bound = clean("the language card", &source);
     let names: Vec<&str> = bound.programs.iter().map(|p| p.program.name.as_str()).collect();
     assert_eq!(names, ["daily", "today", "calendar", "anchoredKeys", "digestToday", "mostLiked", "chips", "heldRoom", "room", "helperRows", "thread", "inbox", "following", "ancestors", "digest", "mentions", "tokenDigest", "search", "everywhere", "wholeRoster", "memberTotal", "hasMessages", "groupedMessages", "online", "pagePass", "registerProfile", "createRoom", "sendBrief", "edit", "join", "leave", "react", "post", "split", "nightly", "rescoreNative", "personalizeNative", "roomHour", "roomWindow", "checkin", "summarizeRoom", "scheduledSummary"]);
     assert_eq!(bound.schema.effects, ["notify", "sendDigest"]);
+    assert!(bound.server);
     assert_eq!(bound.schema.schedules.len(), 2);
     assert_eq!(bound.schema.routes.keys().map(String::as_str).collect::<Vec<_>>(), ["providerEvent", "roomExport"]);
     assert_eq!(bound.schema.routes["providerEvent"].service.as_deref(), Some("service:reporter"));
@@ -499,7 +500,7 @@ fn every_card_compiles_clean() {
     assert_eq!(card("grammar"), Some(LANGUAGE));
     assert_eq!(card("quarry"), Some(LANGUAGE));
     assert_eq!(card("nonsense"), None);
-    assert_eq!(quarry(LANGUAGE).len(), 1, "the language card is one program");
+    assert_eq!(quarry(LANGUAGE).len(), 2, "the language card separates the server opt-in");
 }
 
 #[test]
@@ -784,7 +785,9 @@ fn the_template_compiles_clean() {
 
 #[test]
 fn the_language_card_also_compiles_as_a_module_with_qualified_schedules() {
-    let source = language().replace(": nightly ", ": timeline.nightly ").replace(": scheduledSummary\n", ": timeline.scheduledSummary\n");
+    let source = in_context(&quarry(LANGUAGE)[1]).replace(": nightly ", ": timeline.nightly ").replace(": scheduledSummary\n", ": timeline.scheduledSummary\n");
+    assert!(source.contains(": timeline.nightly "));
+    assert!(source.contains(": timeline.scheduledSummary\n"));
     let bound = snapback4_lang::compile(&[("timeline.q".into(), source)]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     assert!(bound.notes.is_empty(), "{:?}", bound.notes);

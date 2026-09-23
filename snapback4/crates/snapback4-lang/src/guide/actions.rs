@@ -1,6 +1,13 @@
 pub const CARD: &str = r##"# Actions: declared results and typed server handlers
 
+One `use server` in any module (`schema.q` is usual) enables the whole
+project; repeating it is harmless. Actions, routes and schedules naming an
+action require it. Effects (including secrets, retry, backoff, deadline and
+cancellation), jobs, schedules naming a job and service seats need no directive.
+E_SERVER_REQUIRED refuses each gated declaration; its rewrite is `use server`.
+
 ```quarry
+use server
 action invite(email: text <=200) returns { invitation: id, providerId: text <=100 ? } secrets [MAIL_API_KEY] retry 3 backoff 2s deadline 1h cancellation allow
 action refreshModel(periodStart: time, periodEnd: time) returns {} <- viewer = 'service:ranker'
 action paused() <- deny
@@ -52,10 +59,9 @@ the ordinary `Read` and `Write` states; no transaction spans two calls.
 persists an external step's result and reuses it on a rerun; changing the input
 for the same name refuses. Send the step's stable key to the provider, and
 reconcile an uncertain provider outcome through that key. There is no `ctx.sql`.
-The engine keeps one typed transition policy for durable external steps, but
-this release wires only actions to it through the existing `_action_steps`
-records. Effects do not gain `ctx.step` or action authority from that internal
-extraction (guide effects).
+The engine keeps one typed transition policy for durable external steps.
+Actions use `_action_steps`; effects have their own `_effect_steps` records
+and `ctx.step`, without gaining action authority (guide effects).
 
 `secrets [ENV_NAME, ...]` exposes only the declared names on `ctx.secrets`.
 Use uppercase environment names; runtime names (`SNAPBACK_*`, `SNAPBACK4_*`,
@@ -299,4 +305,13 @@ different mutation; do not put a timestamp or random value in the label.
 Declare typed I/O operations in Quarry and implement them with generated
 TypeScript handlers. Read [actions and the server context](./SERVER.md) for
 the declaration, admission authority, durable steps, secrets and supervision,
-or run `snapback4 guide actions`."##;
+or run `snapback4 guide actions`.
+
+## Identity integration refusals
+
+E_OIDC_BINDING, E_OIDC_CALLBACK, E_OIDC_CONFIG, E_OIDC_EXCHANGE,
+E_OIDC_HANDOFF, E_OIDC_MINT, E_OIDC_PROVIDER, E_OIDC_RECIPE,
+E_OIDC_REPLAY and E_OIDC_TRANSACTION
+are explained in the package’s SERVER.md, under Identity refusal reference.
+
+"##;

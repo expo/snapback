@@ -52,6 +52,14 @@ fn feeds_recipe_adds_to_existing_starters_without_changing_their_files() {
     for flag in ["", "--expo", "--online"] {
         let dir = Dir::new();
         assert!(dir.run(flag).status.success());
+        let source = fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap();
+        let (document, errors) = snapback4_lang::parse_document("schema.q", &source);
+        assert!(errors.is_empty());
+        assert!(!document.server && document.actions.is_empty() && document.routes.is_empty());
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+        assert!(!bound.server && bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        assert!(bound.schema.schedules.iter().all(|schedule| !bound.schema.action_specs.contains_key(&schedule.target)));
+        assert!(document.schedules.iter().all(|schedule| schedule.target != "invite"));
         let check = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
         assert!(check.status.success(), "{check:?}");
         fn snapshot(dir: &std::path::Path) -> Vec<(PathBuf, Vec<u8>)> {
@@ -63,6 +71,10 @@ fn feeds_recipe_adds_to_existing_starters_without_changing_their_files() {
             files
         }
         let before = snapshot(&dir.0);
+        for (path, bytes) in &before {
+            assert!(!path.file_name().unwrap().to_string_lossy().starts_with("worker."), "{}", path.display());
+            assert!(!String::from_utf8_lossy(bytes).contains("invite"), "{}", path.display());
+        }
         let output = recipe(&dir, &[]);
         assert!(output.status.success(), "{output:?}");
         for (path, bytes) in before { assert_eq!(fs::read(&path).unwrap(), bytes, "{} changed", path.display()); }
@@ -308,8 +320,7 @@ fn init_preserves_existing_commonjs_scripts_and_imports_generated_api() {
         let check = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
         assert!(check.status.success(), "{check:?}");
         if flag == "--expo" {
-            let output = Command::new("node").args(["--check", "snapback/worker.mts"]).current_dir(&dir.0).output().unwrap();
-            assert!(output.status.success(), "the generated ESM worker must parse inside the CommonJS app: {output:?}");
+            assert!(!dir.0.join("snapback/worker.mts").exists(), "the core starter has no invitation action or worker");
         }
         let operation = if flag == "--expo" { "send" } else { "add" };
         fs::write(dir.0.join("import.mjs"), "import {api} from './snapback/generated/api.ts';\nif (!api.OP) throw new Error('missing operation');\nconsole.log('generated api ESM import: ok');\n".replace("OP", operation)).unwrap();

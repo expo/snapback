@@ -150,6 +150,7 @@ const action = name => ({ kind: "action", name });
 const actionSource = `use personas alice, bob
 use identity
 effect notify
+use server
 action echo(message: text <=200)
 action fail()
 action slow()

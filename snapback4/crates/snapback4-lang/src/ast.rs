@@ -416,6 +416,8 @@ pub struct EffectDecl {
 pub struct Document {
     pub file: String,
     pub identity: Option<(bool, bool)>,
+    /// Project-wide opt-in, collected across documents like `use identity`.
+    pub server: bool,
     pub tables: Vec<TableDecl>,
     pub maintains: Vec<MaintainDecl>,
     pub effects: Vec<EffectDecl>,

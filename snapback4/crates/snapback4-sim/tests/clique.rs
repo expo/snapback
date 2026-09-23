@@ -920,6 +920,7 @@ fn a_ranked_feed_is_scored_by_a_job_and_composed_on_the_device() {
 
 
 const ACTIONS: &str = r#"
+use server
 action invite(email: text <=200, label: text <=20 ?)
 action rank() <- viewer = 'service:ranker'
 action paused() <- deny

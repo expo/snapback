@@ -488,7 +488,7 @@ fn a_scope_retires_media_past_a_page_while_preserving_delivered_history() {
 #[test]
 fn actions_never_predict_query_or_enter_either_device_outbox() {
     on_both(|host| {
-        let source = "action remote(n: int)\nmutation answer(n: int):\n  return { n }\nquery answer():\n  return 7\n".replace("query answer()", "query number()");
+        let source = "use server\naction remote(n: int)\nmutation answer(n: int):\n  return { n }\nquery answer():\n  return 7\n".replace("query answer()", "query number()");
         let (_, backend) = compile(&source);
         let mut device = host.open("actions", Some(backend)).unwrap();
         let predicted = ok(device.call(serde_json::json!({ "op": "predict", "name": "answer", "viewer": "dev:alice", "args": { "n": 42 }, "now": 1 })));

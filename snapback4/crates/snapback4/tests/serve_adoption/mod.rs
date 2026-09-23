@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn a2_adoption_fences_supervised_claims_before_the_old_child_stops() {
-    let schema = "action work() returns { n: int } <- allow\neffect mail\nmutation emitMail():\n  emit mail {n: 1}\n";
+    let schema = "use server\naction work() returns { n: int } <- allow\neffect mail\nmutation emitMail():\n  emit mail {n: 1}\n";
     let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), schema);
     let (old, manual) = {
         let engine = lock(&host.shared.engine);

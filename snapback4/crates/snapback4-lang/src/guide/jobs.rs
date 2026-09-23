@@ -58,6 +58,12 @@ A job in `snapback/jobs.q` is named `jobs.<name>` in every schedule;
 `schema.q` jobs use bare names. `check --fix` qualifies an unambiguous
 bare module job. Jobs are not on `api.ts`.
 
+One `use server` in any module (`schema.q` is usual) enables the whole
+project; repeating it is harmless. Actions, routes and schedules naming an
+action require it. Effects (including secrets, retry, backoff, deadline and
+cancellation), jobs, schedules naming a job and service seats need no directive.
+See `guide actions` and `guide routes` for the gated declarations.
+
 A job is a sequence of sweeps, optionally preceded by statements. Those
 statements run at the start of every chunk under its meter; their bindings
 are visible in every chunk. A write belongs to a chunk, never the prelude.

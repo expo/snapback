@@ -1280,7 +1280,7 @@ mod poison_tests {
             adoption: Mutex::new(adoption::Status::new(String::new())),
             engine: Mutex::new(engine),
             readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()),
-            bound: Mutex::new(Bound { schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics: Vec::new(), notes: Vec::new() }),
+            bound: Mutex::new(Bound { server: false, schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics: Vec::new(), notes: Vec::new() }),
             generation: Mutex::new(1),
             worker_revision: AtomicUsize::new(0),
             committed: Condvar::new(),

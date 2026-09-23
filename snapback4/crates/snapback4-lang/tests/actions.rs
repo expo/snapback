@@ -1,6 +1,14 @@
 //! A2's declaration is shared by admission, settlement and both generated surfaces.
 use snapback4_core::{ir::ArgType, schema::{ActionSpec, WorkPolicy}};
-use snapback4_lang::{Bound, compile, emit, types::Ty};
+use snapback4_lang::{Bound, emit, types::Ty};
+
+// Existing server-half fixtures all opt in; keep declaration line locations stable.
+fn compile(sources: &[(String, String)]) -> Bound {
+    let mut sources = sources.to_vec();
+    let index = sources.iter().position(|(file, _)| file == "schema.q").unwrap_or(0);
+    if let Some((_, source)) = sources.get_mut(index) { source.push_str("\nuse server\n"); }
+    snapback4_lang::compile(&sources)
+}
 
 fn clean(source: &str) -> Bound {
     let bound = compile(&[("schema.q".into(), source.into())]);

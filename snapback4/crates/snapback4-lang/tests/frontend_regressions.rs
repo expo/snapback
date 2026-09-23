@@ -1014,7 +1014,7 @@ query post(postId: posts):
 
 #[test]
 fn actions_declare_typed_admission_and_unknown_results_without_a_quarry_body() {
-    let sources = [("schema.q".into(), "action invite(email: text <=200, tags: [text <=10] <=3 ?)\naction rank() <- viewer = 'service:ranker'\naction paused() <- deny\n".into()), ("mail.q".into(), "action send(to: text <=100) <- not (viewer = 'dev:blocked')\n".into())];
+    let sources = [("schema.q".into(), "use server\naction invite(email: text <=200, tags: [text <=10] <=3 ?)\naction rank() <- viewer = 'service:ranker'\naction paused() <- deny\n".into()), ("mail.q".into(), "action send(to: text <=100) <- not (viewer = 'dev:blocked')\n".into())];
     let bound = compile(&sources);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     assert!(bound.notes.is_empty(), "{:?}", bound.notes);
@@ -1029,13 +1029,13 @@ fn actions_declare_typed_admission_and_unknown_results_without_a_quarry_body() {
     assert!(api.contains("invite: Action<{ email: string; tags?: string[] | null }, unknown>"), "{api}");
     assert!(api.contains("name: \"mail.send\""), "{api}");
     assert!(api.contains("kind: \"action\""), "{api}");
-    for source in ["action x():\n  return 1\n", "action x(a: int, a: int)\n", "action x() <- exists profiles[viewer]\n", "action x(n: int) <- n = 1\n", "action x()\naction x()\n", "query x():\n  return 1\naction x()\n", "action x(item: missing)\n"] {
+    for source in ["use server\naction x():\n  return 1\n", "use server\naction x(a: int, a: int)\n", "use server\naction x() <- exists profiles[viewer]\n", "use server\naction x(n: int) <- n = 1\n", "use server\naction x()\naction x()\n", "use server\nquery x():\n  return 1\naction x()\n", "use server\naction x(item: missing)\n"] {
         assert!(!compile(&[("schema.q".into(), source.into())]).diagnostics.is_empty(), "accepted {source}");
     }
-    let conflict = compile(&[("schema.q".into(), "action mail()\n".into()), ("mail.q".into(), "query inbox():\n  return 1\n".into())]);
+    let conflict = compile(&[("schema.q".into(), "use server\naction mail()\n".into()), ("mail.q".into(), "query inbox():\n  return 1\n".into())]);
     assert!(!conflict.diagnostics.is_empty());
     // The parser recovers to the new declaration after an unrelated bad line.
-    let (document, diagnostics) = snapback4_lang::parser::parse_document("schema.q", "wat\naction recovered()\n");
+    let (document, diagnostics) = snapback4_lang::parser::parse_document("schema.q", "use server\nwat\naction recovered()\n");
     assert_eq!(diagnostics.len(), 1);
     assert_eq!(document.actions[0].name, "recovered");
 }

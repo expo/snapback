@@ -293,7 +293,7 @@ fn clock_advance_preserves_a_live_effect_claim_and_settlement() {
 #[test]
 fn clock_advance_preserves_a_live_action_claim_session_and_settlement() {
     let f = Fixture::new("action-live");
-    fs::write(f.0.join("snapback/schema.q"), format!("{SOURCE}\naction notify()\neffect ping\nmutation ping():\n  emit ping {{}}\n")).unwrap();
+    fs::write(f.0.join("snapback/schema.q"), format!("use server\n{SOURCE}\naction notify()\neffect ping\nmutation ping():\n  emit ping {{}}\n")).unwrap();
     let host = f.start(&["dev", "--no-watch", "--hold-schedules", "--clock-offset", "+25h"]);
     let auth = effect_token(&f, false);
     assert_eq!(host.post("/a/notify?wait=0", json!({"id":"action-live", "args":{}}))["state"], "pending");
@@ -356,7 +356,7 @@ fn clock_advance_preserves_a_live_action_claim_session_and_settlement() {
 fn action_retry_times_follow_dev_clock_and_real_expiry_still_fences_dev_and_serve() {
     for release in [false, true] {
         let f = Fixture::new(if release { "action-expiry-release" } else { "action-expiry-dev" });
-        fs::write(f.0.join("snapback/schema.q"), format!("{SOURCE}\naction notify()\n")).unwrap();
+        fs::write(f.0.join("snapback/schema.q"), format!("use server\n{SOURCE}\naction notify()\n")).unwrap();
         if release { assert!(f.command(&["deploy", "deployment"]).status.success()); }
         let host = f.start(if release { &["serve", "deployment"] } else { &["dev", "--no-watch", "--hold-schedules"] });
         let auth = effect_token(&f, release);

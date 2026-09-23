@@ -1,3 +1,4 @@
+use server
 use identity guests
 
 table oidcTransactions:
