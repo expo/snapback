@@ -4,6 +4,10 @@ import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 const directory = new URL('./snapback/', import.meta.url);
+// Follow the production parser's declaration vocabulary, including reserved refusals.
+const parser = readFileSync(new URL('../../crates/snapback4-lang/src/parser.rs', import.meta.url), 'utf8');
+const topLevel = new Set([...parser.match(/const TOP_LEVEL:[^=]+=[\s\S]*?\[([\s\S]*?)\];/)[1]
+  .matchAll(/"([^"]+)"/g)].map(m => m[1]));
 function sources(dir, prefix = '') {
   return readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))
     .flatMap(entry => entry.isDirectory() ? sources(new URL(`${entry.name}/`, dir), `${prefix}${entry.name}/`)
@@ -35,6 +39,7 @@ function lex(source) {
       i += word?.length ?? 1;
       tokens.push({ kind: word && /^[A-Za-z_]/.test(word) ? 'word' : 'symbol', text: source.slice(start, i) });
     }
+    tokens.at(-1).topLevel = start === 0 || source[start - 1] === '\n';
     code += source.slice(start, i);
   }
   return { tokens, code };
@@ -44,6 +49,76 @@ const columns = {
   profiles: ['principal', 'name'], posts: ['authorId', 'body', 'at', 'removed', 'likeCount'],
   replies: ['postId', 'authorId', 'body', 'at'], likes: ['postId', 'principal', 'at'],
   reposts: ['actorId', 'postId', 'at'], follows: ['followerId', 'followedId', 'at'],
+};
+const tables = {
+  profiles: `table profiles:
+  principal: principal
+  name: text <=80
+  unique byPrincipal: principal
+  cap 1008
+  immutable principal
+  public 'public profiles'
+  insert <- .principal = viewer
+  sync public`,
+  posts: `table posts:
+  authorId: principal
+  body: text <=4000
+  at: time
+  removed: bool default false
+  likeCount: count likes by postId
+  by byHourLikes: hour(at), likeCount, at, id
+  cap 60000
+  immutable authorId, at
+  public 'public cards retained for reposts'
+  insert <- .authorId = viewer
+  update <- .authorId = viewer
+  sync public`,
+  replies: `table replies:
+  postId: posts
+  authorId: principal
+  body: text <=500
+  at: time
+  by byPost: postId, at, id
+  cap 60000
+  immutable postId, authorId
+  public 'public thread replies outside Following'
+  insert <- .authorId = viewer
+  sync public`,
+  likes: `table likes:
+  postId: posts
+  principal: principal
+  at: time
+  unique byPair: postId, principal
+  immutable postId, principal, at
+  public 'public likes'
+  insert <- .principal = viewer
+  delete <- .principal = viewer
+  sync public`,
+  reposts: `table reposts:
+  actorId: principal
+  postId: posts
+  at: time
+  unique byActorPost: actorId, postId
+  cap 60000
+  immutable actorId, postId, at
+  public 'public repost attribution'
+  insert <- .actorId = viewer
+  delete <- .actorId = viewer
+  sync public`,
+  follows: `table follows:
+  followerId: principal
+  followedId: principal
+  at: time default 0
+  unique byPair: followerId, followedId
+  by byFollowed: followedId, followerId
+  immutable followerId, followedId, at
+  cap 1000 by followerId
+  cap 1000 by followedId
+  cap 5921
+  public 'public follow graph'
+  insert <- .followerId = viewer
+  delete <- .followerId = viewer
+  sync public`,
 };
 const maintains = {
   feed: `maintain feed: timeline
@@ -75,12 +150,13 @@ const mutations = {
   follow: `mutation follow(authorId: principal): insert follows { followerId: viewer, followedId: authorId, at: now } if absent`,
   unfollow: `mutation unfollow(authorId: principal): if exists follows[viewer, authorId]: delete follows[viewer, authorId]`,
 };
-const allowed = { table: columns, maintain: maintains, fn: {}, query: queries, mutation: mutations, job: {}, schedule: {} };
+const allowed = { ...Object.fromEntries([...topLevel].map(kind => [kind, {}])),
+  table: tables, maintain: maintains, query: queries, mutation: mutations };
 function census(files) {
   const blocks = [];
   const lexical = files.map(([name, source]) => ({ name, source, ...lex(source) }));
   for (const { name, tokens } of lexical) {
-    const starts = tokens.flatMap((t, i) => t.kind === 'word' && Object.hasOwn(allowed, t.text) ? [i] : []);
+    const starts = tokens.flatMap((t, i) => t.kind === 'word' && t.topLevel && topLevel.has(t.text) ? [i] : []);
     assert.equal(starts[0], 0, `${name}: only allowlisted declarations`);
     for (const [n, start] of starts.entries()) {
       const ts = tokens.slice(start, starts[n + 1] ?? tokens.length);
@@ -121,7 +197,7 @@ function census(files) {
     assert.deepEqual(declarations[kind].map(b => b.name).sort(), Object.keys(manifest).sort(), `${kind}: complete declaration allowlist`);
     for (const b of declarations[kind]) {
       if (kind === 'table') assert.deepEqual(tableColumns[b.name], columns[b.name], `${b.name}: all columns`);
-      else assert.equal(b.normalized, normalized(manifest[b.name]), `${kind} ${b.name}: exact block`);
+      assert.equal(b.normalized, normalized(manifest[b.name]), `${kind} ${b.name}: exact block`);
     }
   }
   const posts = declarations.table.find(b => b.name === 'posts');
@@ -140,7 +216,7 @@ test('complete recursive declaration census and exact derived/query/mutation blo
 test('whitespace, strings with comment markers, and nested source files stay visible', () => {
   const source = files.map(([,s]) => s).join('\n');
   const variant = source.replace(/table /g, 'table\t ').replace(/insert /g, 'insert   ')
-    .replace(/^  (\w+:)/gm, '\t    $1').replace("'public likes'", "'public -- likes'");
+    .replace(/^  (\w+:)/gm, '\t    $1');
   assert.deepEqual(census([['nested/schema.q', variant]]).sourceTables, Object.keys(columns).length);
   assert.deepEqual(lex(`'escaped \\' -- not a comment' -- comment\n"also -- quoted"`).tokens.map(t=>t.kind), ['string','string']);
 });
@@ -163,6 +239,23 @@ test('each forbidden mechanism is rejected by an in-memory negative fixture', ()
     dailyLikePostDay: source.replace('count likes by postId.authorId, day(.at)', 'count likes by postId.authorId, day(postId.at)'),
     dailyReplyPostDay: source.replace('count replies by postId.authorId, day(.at)', 'count replies by postId.authorId, day(postId.at)'),
   };
+  // Insert between a table and a maintain: these used to disappear into the table.
+  const declarations = {
+    use: 'use server', table: 'table copiedPost:\n  body: text',
+    maintain: 'maintain copiedCount: count posts by authorId',
+    query: 'query copiedPost():\n  return null', mutation: 'mutation repairCounts():\n  return null',
+    job: 'job repairCounts():\n  return null', action: 'action repairCounts() <- allow',
+    route: 'route repairCounts: post "/repair"', effect: 'effect repairCounts',
+    shape: 'shape copiedPost = { * }', fn: 'fn copiedPost():\n  return null',
+    schedule: 'schedule repair every 1m: repairCounts',
+    // The parser recognizes these reserved/invalid top-level forms too.
+    channel: 'channel copiedPost', proc: 'proc copiedPost', cursor: 'cursor copiedPost',
+    index: 'index copiedPost', unique: 'unique copiedPost', deliver: 'deliver copiedPost',
+  };
+  assert.deepEqual(Object.keys(declarations).sort(), [...topLevel].sort(), 'every parser kind has a negative fixture');
+  for (const [kind, declaration] of Object.entries(declarations)) {
+    fixtures[`declaration_${kind}`] = source.replace('maintain feed:', `${declaration}\n\nmaintain feed:`);
+  }
   let rejected = 0;
   for (const [name, variant] of Object.entries(fixtures)) {
     assert.throws(() => census([['schema.q',variant]]), { name: 'AssertionError' }, name);

@@ -342,12 +342,13 @@ pub fn pending_restart(e: &mut Engine, m: &mut Model, d: Device<Store>, path: Pa
         .iter()
         .all(|q| !q.predictable && q.predicted.is_empty());
     let persisted = reopened[1]["ok"] == serde_json::to_value(&queued).unwrap();
+    let settled_post_like_count = stored_int(d.store(), "posts", "sp0001", "likeCount");
     println!(
         "CLIQUE_RESTART {}",
         json!({"queued":stored.len(),"posting_predicts":posting_predicts,
         "follow_unfollow_queue":edges_queue,"intents_survived_process_exit":persisted,
         "outbox_empty":d.queued().unwrap().is_empty(),"device_queries":device_queries,
-        "settled_reply_position":reply_position,"settled_post_like_count":m.like_counts()["sp0001"],"store_checks":counts})
+        "settled_reply_position":reply_position,"settled_post_like_count":settled_post_like_count,"store_checks":counts})
     );
     drop(d);
     fs::remove_dir_all(path.parent().unwrap()).unwrap();
@@ -434,6 +435,11 @@ pub fn removals(e: &mut Engine, m: &mut Model) {
         .collect();
     assert!(event_ids.contains("rank-003") && event_ids.contains("lifecycle-repost-event"));
     assert_eq!(tombstone_ids.len(), 2);
+    assert!(!tombstone_ids.is_empty(), "purge must have real tombstones");
+    let tombstones_present = tombstone_ids
+        .iter()
+        .all(|id| stored_row(e.store(), &table, id).is_some());
+    assert!(tombstones_present);
     let schedule = e
         .schema()
         .schedules
@@ -441,22 +447,35 @@ pub fn removals(e: &mut Engine, m: &mut Model) {
         .find(|s| s.target == timeline.purge)
         .unwrap()
         .clone();
+    // Do not let a prior run with the same target stand in for this firing.
+    let job_ids = |e: &Engine| -> BTreeSet<String> {
+        let mut statement = e.store().conn().prepare("SELECT id FROM _jobs").unwrap();
+        statement
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .map(Result::unwrap)
+            .collect()
+    };
+    let jobs_before = job_ids(e);
     assert!(e.fire_schedules(m.now).unwrap().is_empty());
+    assert_eq!(job_ids(e), jobs_before);
     let fired = e.fire_schedules(m.now + schedule.every_ms as i64).unwrap();
     assert_eq!(fired, vec![schedule.name.clone()]);
-    let job = e
-        .jobs(10)
-        .unwrap()
-        .into_iter()
-        .find(|j| j.name == schedule.target)
-        .unwrap();
+    let jobs_after = job_ids(e);
+    let new_ids: Vec<_> = jobs_after.difference(&jobs_before).collect();
+    assert_eq!(new_ids.len(), 1, "schedule enqueues one new purge");
+    let job = e.job(new_ids[0]).unwrap().unwrap();
+    assert_eq!(job.name, timeline.purge);
+    assert_eq!(job.state, snapback4_core::JobState::Queued);
     let mut chunks = 0;
     while let Some(run) = e.run_job_chunk(m.now + schedule.every_ms as i64).unwrap() {
         assert_eq!(run.name, timeline.purge);
+        assert_eq!(run.id, job.id, "run the newly scheduled purge");
         assert_ne!(run.state, snapback4_core::JobState::Parked, "{run:?}");
         chunks += 1;
         assert!(chunks < 100);
     }
+    assert!(chunks > 0, "the new purge must execute a chunk");
     assert_eq!(
         e.job(&job.id).unwrap().unwrap().state,
         snapback4_core::JobState::Done
@@ -472,7 +491,9 @@ pub fn removals(e: &mut Engine, m: &mut Model) {
         "original_removal_preserves_repost":repost_preserved,"removed_not_trending":removed_not_trending,
         "removed_like_refusal":like_refusal,"removed_repost_refusal":repost_refusal,
         "unlike_zero":unlike_zero,"following_after_unrepost":following_after_unrepost,
-        "tombstone_ids":tombstone_ids,"tombstoned_events":event_ids,"schedule":schedule.name,
+        "tombstone_table":table,"tombstone_ids":tombstone_ids,"tombstones_present_before":tombstones_present,
+        "tombstoned_events":event_ids,"schedule":schedule.name,
+        "jobs_before":jobs_before,"purge_job_id":job.id,"purge_target":job.name,
         "purge_chunks":chunks,"recorded_tombstones_gone":purged})
     );
 }
@@ -483,6 +504,28 @@ pub fn arrival_days(e: &mut Engine, m: &mut Model) {
     let post_day = m.posts[post].at / 86400000;
     let arrival_day = at / 86400000;
     assert!(arrival_day > post_day);
+    let author = m.posts[post].author.clone();
+    let daily = |e: &mut Engine, day| -> [i64; 2] {
+        let p = e
+            .query(
+                "insights",
+                ctx(
+                    &author,
+                    &[("authorId", id(&author)), ("d", Value::Int(day))],
+                    at,
+                ),
+            )
+            .unwrap();
+        assert!(p.complete && p.cut.is_none());
+        ["dailyLikes", "dailyReplies"].map(|field| {
+            let Value::Int(n) = p.data.field(field).unwrap() else {
+                panic!("non-integer {field}")
+            };
+            *n
+        })
+    };
+    let post_before = daily(e, post_day);
+    let arrival_before = daily(e, arrival_day);
     sent(
         e,
         "like",
@@ -502,12 +545,28 @@ pub fn arrival_days(e: &mut Engine, m: &mut Model) {
     );
     m.replies
         .insert("later-day-reply".into(), (post.into(), "alice".into(), at));
+    let post_after = daily(e, post_day);
+    let arrival_after = daily(e, arrival_day);
+    let post_unchanged = post_after == post_before;
+    let arrival_gained_both = arrival_after == arrival_before.map(|n| n + 1);
+    assert!(post_unchanged, "post-day buckets changed");
+    assert!(
+        arrival_gained_both,
+        "arrival-day buckets did not gain both contributions"
+    );
+    let like_at = stored_int(e.store(), "likes", "later-day-like", "at");
+    let reply_at = stored_int(e.store(), "replies", "later-day-reply", "at");
+    assert_eq!(like_at, at);
+    assert_eq!(reply_at, at);
     // check() queries every author over the seven-day window, post days, and an empty day.
     m.check(e);
     println!(
         "CLIQUE_ARRIVAL_DAYS {}",
-        json!({"post":post,"post_day":post_day,"arrival_day":arrival_day,
-        "like_at":m.likes[&(post.into(),"alice".into())],"reply_at":m.replies["later-day-reply"].2})
+        json!({"post":post,"author":author,"post_day":post_day,"arrival_day":arrival_day,
+        "post_before":post_before,"post_after":post_after,
+        "arrival_before":arrival_before,"arrival_after":arrival_after,
+        "post_unchanged":post_unchanged,"arrival_gained_both":arrival_gained_both,
+        "like_at":like_at,"reply_at":reply_at})
     );
 }
 
@@ -517,4 +576,12 @@ fn stored_row(store: &Store, table: &str, key: &str) -> Option<Value> {
         .unwrap()
         .into_iter()
         .find(|r| field(r, "id") == key)
+}
+
+fn stored_int(store: &Store, table: &str, key: &str, column: &str) -> i64 {
+    let row = stored_row(store, table, key).unwrap();
+    let Value::Int(value) = row.field(column).unwrap() else {
+        panic!("{table}.{column}: expected stored integer")
+    };
+    *value
 }

@@ -261,19 +261,60 @@ impl Model {
         let (rows, thread_pages) =
             walk(e, "thread", "u0005", &[("postId", id("sp0001"))], self.now);
         self.check_rows("thread", "u0005", &rows);
-        let equal_time = self
+        let expected_equal: BTreeMap<_, _> = self
             .replies
             .iter()
             .filter(|(id, _)| id.starts_with("thread-equal-"))
-            .map(|(_, r)| r.2)
-            .collect::<BTreeSet<_>>();
-        assert_eq!(equal_time.len(), 1);
+            .map(|(id, r)| (id.clone(), Value::Int(r.2)))
+            .collect();
+        let actual_equal: BTreeMap<_, _> = rows
+            .iter()
+            .filter(|r| field(r, "id").starts_with("thread-equal-"))
+            .map(|r| (field(r, "id").to_owned(), r.field("at").unwrap().clone()))
+            .collect();
+        assert_eq!(expected_equal.len(), 45);
+        let same_time = actual_equal
+            .values()
+            .all(|v| Some(v) == actual_equal.values().next());
+        let equal_timestamp_cursor =
+            actual_equal == expected_equal && same_time && thread_pages >= 3;
+        assert!(equal_timestamp_cursor);
         println!(
             "CLIQUE_CORRECT {}",
             json!({"trending_rows":got.len(),"trending_pages":trending_pages,
             "authors_with_four_counts_checked":self.profiles.len(),"days":days,"count_values_checked":counts_checked,
-            "thread_rows":rows.len(),"thread_pages":thread_pages,"equal_timestamp_cursor":equal_time.len()==1})
+            "thread_rows":rows.len(),"thread_pages":thread_pages,"equal_timestamp_cursor":equal_timestamp_cursor})
         );
+    }
+    pub fn check_edges(&self, store: &snapback4_core::Store) -> BTreeSet<(String, String)> {
+        let rows = store.rows("follows").unwrap();
+        let edges: BTreeSet<_> = rows
+            .iter()
+            .map(|r| {
+                (
+                    field(r, "followerId").to_owned(),
+                    field(r, "followedId").to_owned(),
+                )
+            })
+            .collect();
+        assert_eq!(edges.len(), rows.len(), "no duplicate stored follow edges");
+        assert_eq!(edges, self.edges, "complete stored follows set");
+        edges
+    }
+    pub fn source_counts(&self, store: &snapback4_core::Store) -> serde_json::Value {
+        let mut counts = serde_json::Map::new();
+        for (table, expected) in [
+            ("profiles", self.profiles.len()),
+            ("posts", self.posts.len()),
+            ("replies", self.replies.len()),
+            ("likes", self.likes.len()),
+            ("follows", self.edges.len()),
+        ] {
+            let actual = store.rows(table).unwrap().len();
+            assert_eq!(actual, expected, "{table}: stored source cardinality");
+            counts.insert(table.into(), json!(actual));
+        }
+        counts.into()
     }
     pub fn like_counts(&self) -> BTreeMap<String, i64> {
         let mut out: BTreeMap<_, _> = self.posts.keys().map(|p| (p.clone(), 0)).collect();

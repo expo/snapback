@@ -1,0 +1,123 @@
+   Compiling snapback4-core v0.2.33 (/Users/ccheever/projects/snapback-worktrees/clique-cap-count/snapback4/crates/snapback4-core)
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:167:7
+    |
+167 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-lang v0.2.33 (/Users/ccheever/projects/snapback-worktrees/clique-cap-count/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.2.33 (/Users/ccheever/projects/snapback-worktrees/clique-cap-count/snapback4/crates/snapback4-device)
+   Compiling snapback4 v0.2.33 (/Users/ccheever/projects/snapback-worktrees/clique-cap-count/snapback4/crates/snapback4)
+    Finished `test` profile [optimized + debuginfo] target(s) in 7m 10s
+     Running unittests src/main.rs (target/debug/deps/snapback4-a922f9d8ee11ae56)
+
+running 8 tests
+test serve::tests::sync_generation_tests::failed_materialization_is_not_counted_and_unreadable_head_fails_discovery ... ok
+test serve::tests::sync_generation_tests::stale_generation_engine_snapshot ... ok
+test serve::tests::sync_generation_tests::stale_generation_engine_stream ... ok
+test serve::tests::sync_snapshot_encoding_preserves_plain_values_and_explicit_nulls ... ok
+test serve::tests::sync_stream_encoding_preserves_sequences_scopes_and_empty_groups ... ok
+test serve::tests::sync_generation_tests::generation_discovery_keeps_page_authorization ... ok
+test serve::tests::sync_generation_tests::stale_generation_reader_snapshot ... ok
+test serve::tests::sync_generation_tests::stale_generation_reader_stream ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 73 filtered out; finished in 0.35s
+
+     Running tests/check.rs (target/debug/deps/check-36751bb434951deb)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 68 filtered out; finished in 0.00s
+
+     Running tests/clock.rs (target/debug/deps/clock-78fe334ff629515a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+     Running tests/column_commit.rs (target/debug/deps/column_commit-f7269e88caeda2dd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/feed_bridge.rs (target/debug/deps/feed_bridge-a6539025f7df3218)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+     Running tests/fix.rs (target/debug/deps/fix-bede0f206a5b628c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 0.00s
+
+     Running tests/http.rs (target/debug/deps/http-0f18d77d30a5f687)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/init.rs (target/debug/deps/init-a0bc4b55d5af1997)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.00s
+
+     Running tests/lifecycle.rs (target/debug/deps/lifecycle-b70a07d4d11c8b82)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.00s
+
+     Running tests/replay.rs (target/debug/deps/replay-dfd2342490028f57)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running tests/run_admission.rs (target/debug/deps/run_admission-b0b19f6ffcc56830)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/timeline.rs (target/debug/deps/timeline-ed493dd7513658c5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 55 filtered out; finished in 0.00s
+
+     Running tests/timeline_delivery.rs (target/debug/deps/timeline_delivery-f160da9c82b666d8)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/timeline_delivery_counterexample.rs (target/debug/deps/timeline_delivery_counterexample-5612257c6584c192)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/timeline_design.rs (target/debug/deps/timeline_design-5fd91f553d5d65c6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/witness.rs (target/debug/deps/witness-4fec5d28dd93adc9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 0.00s
+
+     Running tests/work_records.rs (target/debug/deps/work_records-8334ea7f8cb6974f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s

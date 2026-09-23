@@ -144,7 +144,8 @@ fn p95(samples: &mut [f64]) -> f64 {
 }
 
 pub fn writes(e: &mut Engine, m: &mut Model, full: bool) {
-    let followers = |author: &str| m.edges.iter().filter(|(_, a)| a == author).count();
+    let edges = m.check_edges(e.store());
+    let followers = |author: &str| edges.iter().filter(|(_, a)| a == author).count();
     let ordinary = m
         .profiles
         .iter()
@@ -154,9 +155,17 @@ pub fn writes(e: &mut Engine, m: &mut Model, full: bool) {
     let celebrity_followers = followers("u0900");
     if full {
         assert_eq!(celebrity_followers, 900);
+    } else {
+        assert_eq!(celebrity_followers, 62);
     }
     assert!(m.promoted.contains("u0900"));
     let ordinary_followers = followers(&ordinary);
+    assert_eq!(ordinary_followers, 5);
+    println!(
+        "CLIQUE_FOLLOWERS {}",
+        json!({"stored_edges":edges.len(),"model_edges":m.edges.len(),"edges_equal":edges==m.edges,
+        "celebrity_followers":celebrity_followers,"ordinary":ordinary,"ordinary_followers":ordinary_followers})
+    );
     let mut values = BTreeMap::new();
     for who in [&ordinary, &"u0900".to_owned()] {
         let mut samples = Vec::new();
@@ -188,7 +197,7 @@ pub fn writes(e: &mut Engine, m: &mut Model, full: bool) {
         values.insert(who.clone(), latency);
         println!(
             "CLIQUE_WRITE {}",
-            json!({"author":who,"followers":m.edges.iter().filter(|(_, a)| a==who).count(),
+            json!({"author":who,"followers":followers(who),
             "samples":samples.len(),"warmups":warmups,"ack_p95_ms":latency})
         );
     }

@@ -1,0 +1,33 @@
+   Compiling snapback4-lang v0.2.33 (/Users/ccheever/projects/snapback-worktrees/clique-cap-count/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized + debuginfo] target(s) in 12.01s
+     Running tests/clique_03.rs (target/debug/deps/clique_03-c2ac69b4ab41f3e2)
+
+running 2 tests
+test admission ... ok
+CLIQUE_COLD {"elapsed_s":0.004759083,"generation":1,"rows":71,"wire_bytes":12129}
+CLIQUE_ADOPTION {"activation_row_events":0,"activation_s":0.012443958,"device_counts":{"implicit_zero_posts":0,"likes_checked":2,"posts_checked":3,"received_like_groups_checked":1},"device_queries":{"following":{"pages":1,"rows":3,"server_equal":true},"thread":{"pages":3,"rows":46,"server_equal":true},"trending":{"pages":1,"rows":2,"server_equal":true}},"generation":2,"old_generation":1,"reacquired_rows":71,"reacquired_wire_bytes":13367,"reacquisition_s":0.004201375,"server_counts":{"implicit_zero_posts":2,"likes_checked":2,"posts_checked":3,"received_like_groups_checked":1}}
+CLIQUE_RESTART {"device_queries":{"following":{"pages":1,"rows":1,"server_equal":true},"thread":{"pages":3,"rows":47,"server_equal":true},"trending":{"pages":1,"rows":3,"server_equal":true}},"follow_unfollow_queue":true,"intents_survived_process_exit":true,"outbox_empty":true,"posting_predicts":true,"queued":5,"settled_post_like_count":1,"settled_reply_position":47,"store_checks":{"implicit_zero_posts":0,"likes_checked":3,"posts_checked":4,"received_like_groups_checked":1}}
+CLIQUE_FOLLOWING {"oracle":true,"pages":1,"reader":"u0005","rows":2}
+CLIQUE_FOLLOWING {"oracle":true,"pages":1,"reader":"u0500","rows":0}
+CLIQUE_FOLLOWING {"oracle":true,"pages":1,"reader":"u0901","rows":0}
+CLIQUE_FOLLOWING {"oracle":true,"pages":1,"reader":"u0005","rows":1}
+CLIQUE_FOLLOWING {"oracle":true,"pages":1,"reader":"u0500","rows":0}
+CLIQUE_FOLLOWING {"oracle":true,"pages":1,"reader":"u0901","rows":0}
+CLIQUE_FOLLOWING {"oracle":true,"pages":1,"reader":"u0005","rows":1}
+CLIQUE_FOLLOWING {"oracle":true,"pages":1,"reader":"u0500","rows":0}
+CLIQUE_FOLLOWING {"oracle":true,"pages":1,"reader":"u0901","rows":0}
+CLIQUE_TRANSITIONS {"duplicate_repost_idempotent":true,"following_after_unrepost":true,"jobs_before":[],"original_removal_preserves_repost":true,"purge_chunks":2,"purge_job_id":"01KE0JKP6TSFTDE3QXBMH15HEE","purge_target":"feedPurgeRemoved","recorded_tombstones_gone":true,"removed_like_refusal":"FEED_POST_REMOVED","removed_not_trending":true,"removed_repost_refusal":"FEED_POST_REMOVED","schedule":"feedPurgeRemovedEvery","tombstone_ids":["308bcca67216f03541c58e8c45c5bd92a67ca45686b2043412673297c0833c3b","3deba77150e460cc1520c13d993c84f32fbae7015604372339f5b06e059a1aa3"],"tombstone_table":"feedRemovedEvents","tombstoned_events":["lifecycle-repost-event","rank-003"],"tombstones_present_before":true,"unlike_zero":true}
+CLIQUE_FOLLOWING {"oracle":true,"pages":1,"reader":"u0005","rows":1}
+CLIQUE_FOLLOWING {"oracle":true,"pages":1,"reader":"u0500","rows":0}
+CLIQUE_FOLLOWING {"oracle":true,"pages":1,"reader":"u0901","rows":0}
+CLIQUE_CORRECT {"authors_with_four_counts_checked":6,"count_values_checked":192,"days":[20450,20451,20452,20453,20454,20455,20456,20457],"equal_timestamp_cursor":true,"thread_pages":3,"thread_rows":47,"trending_pages":1,"trending_rows":2}
+CLIQUE_ARRIVAL_DAYS {"arrival_after":[2,48],"arrival_before":[1,47],"arrival_day":20456,"arrival_gained_both":true,"author":"alice","like_at":1767398502010,"post":"rank-001","post_after":[0,0],"post_before":[0,0],"post_day":20455,"post_unchanged":true,"reply_at":1767398502010}
+CLIQUE_AMPLIFICATION {"aggregate_event_bytes":647,"body_bytes":500,"events":3,"mode":"parent","stream_wire_bytes":1111}
+CLIQUE_AMPLIFICATION {"aggregate_event_bytes":147,"body_bytes":500,"events":3,"mode":"separate","stream_wire_bytes":611}
+CLIQUE_AMPLIFICATION_RATIO {"body_bytes":500,"parent_separate":1.8183306055646482}
+CLIQUE_AMPLIFICATION {"aggregate_event_bytes":4147,"body_bytes":4000,"events":3,"mode":"parent","stream_wire_bytes":4611}
+CLIQUE_AMPLIFICATION {"aggregate_event_bytes":147,"body_bytes":4000,"events":3,"mode":"separate","stream_wire_bytes":611}
+CLIQUE_AMPLIFICATION_RATIO {"body_bytes":4000,"parent_separate":7.546644844517185}
+test clique_03::probes::review_lifecycle_probe ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 3.74s

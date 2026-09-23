@@ -111,7 +111,7 @@ pub fn run_fixture(full: bool) {
     let stats = replay::seed(&mut e, &mut m, full);
     println!(
         "CLIQUE_SEED {}",
-        json!({"full":full,"elapsed_s":start.elapsed().as_secs_f64(),"replay":stats})
+        json!({"full":full,"elapsed_s":start.elapsed().as_secs_f64(),"replay":stats,"stored":m.source_counts(e.store())})
     );
     m.check_following(&mut e);
     let (device, path) = lifecycle::adopt(&mut e, &m);
@@ -123,8 +123,9 @@ pub fn run_fixture(full: bool) {
     measure::writes(&mut e, &mut m, full);
     m.check(&mut e);
     measure::amplification();
+    let counts = m.source_counts(e.store());
     println!(
         "CLIQUE_OK {}",
-        json!({"full":full,"elapsed_s":start.elapsed().as_secs_f64(),"posts":m.posts.len(),"replies":m.replies.len(),"likes":m.likes.len(),"edges":m.edges.len()})
+        json!({"full":full,"elapsed_s":start.elapsed().as_secs_f64(),"posts":counts["posts"],"replies":counts["replies"],"likes":counts["likes"],"edges":counts["follows"]})
     );
 }

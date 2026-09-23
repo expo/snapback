@@ -1,0 +1,10 @@
+false_restart: rejected before rendering; no evidence files changed
+missing_restart_claim: rejected before rendering; no evidence files changed
+model_only_followers: rejected before rendering; no evidence files changed
+empty_tombstones: rejected before rendering; no evidence files changed
+zero_chunks: rejected before rendering; no evidence files changed
+old_job: rejected before rendering; no evidence files changed
+missing_arrivals: rejected before rendering; no evidence files changed
+changed_post_day: rejected before rendering; no evidence files changed
+false_cursor: rejected before rendering; no evidence files changed
+9 malformed-evidence cases rejected

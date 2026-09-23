@@ -1,0 +1,5 @@
+   Compiling snapback4-core v0.2.33 (/Users/ccheever/projects/snapback-worktrees/clique-cap-count/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.2.33 (/Users/ccheever/projects/snapback-worktrees/clique-cap-count/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.2.33 (/Users/ccheever/projects/snapback-worktrees/clique-cap-count/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 4m 13s
+  Executable tests/clique_03.rs (target/debug/deps/clique_03-c2ac69b4ab41f3e2)
