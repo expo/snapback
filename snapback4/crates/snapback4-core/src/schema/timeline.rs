@@ -10,6 +10,11 @@ pub const FOLLOW_BACKFILL: usize = 865; // 1024 writes minus the recipe's 159-wr
 pub const READER_ACTOR_COPIES: usize = 1000;
 pub const EVENT_COPIES: usize = 1001;
 
+fn default_authors() -> u32 { 1000 }
+fn default_edges() -> u32 { 100000 }
+fn is_default_authors(value: &u32) -> bool { *value == default_authors() }
+fn is_default_edges(value: &u32) -> bool { *value == default_edges() }
+
 /// Public, canonical inputs only; shared by native and device derivation.
 /// Canonical Value arrays tag identities and frame/escape each component; this
 /// is not concatenation of reader/event strings. Domain, name and role are
@@ -33,6 +38,11 @@ pub struct Timeline {
     pub reposts: [String; 4],
     /// table, follower, followed
     pub edges: [String; 3],
+    // Omitted defaults preserve existing declarations' serialized form.
+    #[serde(default = "default_authors", skip_serializing_if = "is_default_authors")]
+    pub author_cap: u32,
+    #[serde(default = "default_edges", skip_serializing_if = "is_default_edges")]
+    pub edge_cap: u32,
     pub followed_index: String,
     pub purge: String,
     pub owned: BTreeSet<String>,
@@ -40,6 +50,8 @@ pub struct Timeline {
 }
 
 impl Timeline {
+    /// Same clamp as FollowingCaps: reserve 159 of the 1024 mutation writes.
+    pub fn backfill(&self) -> usize { (self.author_cap as usize).clamp(200, FOLLOW_BACKFILL) }
     pub fn table(&self, suffix: &str) -> String { format!("{}{suffix}", self.name) }
     pub fn owns(&self, table: &str) -> bool {
         table.strip_prefix(&self.name).is_some_and(|suffix| OWNED_SUFFIXES.contains(&suffix))
@@ -48,11 +60,12 @@ impl Timeline {
         [&self.authors[0], &self.posts[0], &self.reposts[0], &self.edges[0]].iter().any(|source| source.as_str() == table)
     }
     /// Physical index choice is refreshed by adoption, without reactivation.
-    /// Caps are fixed by admission; they are not configurable declaration fields.
+    /// Resolved sizes are semantic: spelling a default does not redefine it.
     pub fn same_declaration(&self, other: &Self) -> bool {
         self.name == other.name && self.authors == other.authors && self.posts == other.posts
             && self.reposts == other.reposts && self.edges == other.edges && self.purge == other.purge
             && self.owned == other.owned && self.mapped == other.mapped
+            && self.author_cap == other.author_cap && self.edge_cap == other.edge_cap
     }
     pub fn event_tables(&self) -> [&str; 3] { [&self.posts[0], &self.reposts[0], &self.edges[0]] }
     /// Implicit transition reads. These are execution facts, not new wire IR.

@@ -39,8 +39,35 @@ impl Parser {
         self.take(",")?;
         let followed = self.word()?.value;
         self.newline()?;
+        let size = self.timeline_size()?;
         self.take_kind(Kind::Dedent)?;
         Ok(TimelineDecl { name, authors: [author_table, principal], posts: [posts, author, at, removed],
-            reposts: [reposts, actor, original, repost_at], edges: [edges, follower, followed], site })
+            reposts: [reposts, actor, original, repost_at], edges: [edges, follower, followed], size, site })
+    }
+
+    fn timeline_size(&mut self) -> Fallible<crate::recipe::FollowingCaps> {
+        let site = self.peek().site.clone();
+        let refusal = |message| Diagnostic::new(&site, "E_TIMELINE_SIZE", message,
+            "use size authors 1008, edges 5921; either key may be omitted (defaults: authors 1000, edges 100000); keep the recipe's sizing bounds from guide feeds").guide("feeds");
+        let mut authors = None;
+        let mut edges = None;
+        if self.at("size") {
+            self.take("size")?;
+            loop {
+                let key = self.word().map_err(|_| refusal("expected authors or edges after size".into()))?;
+                let value = match key.value.as_str() {
+                    "authors" => &mut authors,
+                    "edges" => &mut edges,
+                    _ => return Err(refusal(format!("unknown timeline size key {}", key.value))),
+                };
+                if value.is_some() { return Err(refusal(format!("duplicate timeline size key {}", key.value))); }
+                *value = Some(self.take_kind(Kind::Number).map_err(|_| refusal(format!("{} needs a positive 32-bit integer", key.value)))?.value);
+                if !self.at(",") { break; }
+                self.take(",")?;
+            }
+            self.newline().map_err(|_| refusal("separate size keys with a comma and end the sizing line".into()))?;
+        }
+        crate::recipe::FollowingCaps::parse(authors.as_deref(), edges.as_deref())
+            .map_err(|message| refusal(message.replace("--authors", "size authors").replace("--edges", "size edges")))
     }
 }

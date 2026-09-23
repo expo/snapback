@@ -3,13 +3,13 @@
 For a new public social model, `maintain <name>: timeline` keeps Following
 from the application's actual writes. It uses the bridge's supported shape
 above, plus a required `bool default false` removal flag on posts. The mapped
-follows table must carry an index leading with the followed column, cap 1000 by each endpoint, and cap 100000 globally.
+follows table must carry an index leading with the followed column, cap 1000 by each endpoint, and a global cap equal to the declared `edges` (100000 by default).
 
 ```quarry
 table profiles:
   principal: principal
   unique byPrincipal: principal
-  cap 1000
+  cap 1008
   immutable principal
   public 'profiles'
   insert <- .principal = viewer
@@ -44,7 +44,7 @@ table follows:
   immutable followerId, followedId, at
   cap 1000 by followerId
   cap 1000 by followedId
-  cap 100000
+  cap 5921
   public 'edges'
   insert <- .followerId = viewer
   delete <- .followerId = viewer
@@ -55,6 +55,7 @@ maintain feed: timeline
   events posts by authorId, at removed by removed
   reposts reposts by actorId, postId, at
   edges follows by followerId, followedId
+  size authors 1008, edges 5921
 
 mutation register():
   insert profiles { principal: viewer }
@@ -67,6 +68,22 @@ mutation remove(postId: posts):
 query home(c: cursor ?):
   return feed[viewer] after c last 20 { *, post: posts[.postId] }
 ```
+
+The example sizes the timeline for Clique's 1,008 authors and 5,921 follow
+edges, exactly like `init --recipe feeds --authors 1008 --edges 5921`.
+The optional `size` line accepts `authors`, `edges`, or both in either order.
+Omitted keys default to 1,000 authors and 100,000 edges. Values and their
+coupling are the recipe's: positive 32-bit integers, authors at most
+134217727, edges at most authors × 1000, and authors × 32 pull slots enough
+for min(edges, 1000) + 1. Pull-route and count-row caps are authors × 32.
+
+Backfill visits `clamp(authors, 200, 865)` source events: 200 for authors 50,
+865 for authors 1008. It still scans at most 1,000 source events per actor.
+The 159-write promotion allowance and all per-actor and per-endpoint caps
+stay unchanged; growing authors cannot grow the window past its write budget.
+The profiles table's cap belongs to the application and need not equal
+`authors`; a lower cap gets a note because the application would refuse first.
+`check --cost` prints the resolved caps and backfill bound.
 
 The read yields `{ id, postId, actorId, authorId, repost, at }` event rows.
 Shape them with the application's cards and profiles; `id` is the event id,
@@ -81,12 +98,13 @@ Call register before publishing or following: a missing profile refuses with FEE
 
 Registration is eager: inserting a profile registers its mode in that same
 mutation. Deleting a profile, when its rule allows it, retains the mode,
-including promotion. Activation registers up to 1,000 existing profiles in
+including promotion. Activation registers up to the declared `authors` existing profiles in
 its single transaction; mapped posts, reposts and follows must be empty.
 The generation barrier reacquires the new state. Declare before those rows
 exist; in dev use a fresh store. Unchanged adoption and trusted reopen retain
 all history. Redefinition on a populated store and untrusted fixture imports
-refuse; seed through app mutations instead.
+refuse; seed through app mutations instead. In the first scope, size the timeline
+before data exists; changing `size` is a semantic redefinition.
 
 Post removal changes the flag from false to true; inserting true or reversing
 it refuses. Repeated removal does no derived work. Removing an original keeps
@@ -139,7 +157,7 @@ No write-time stream-byte guard is added.
 
 E_TIMELINE_SHAPE means the declaration does not fit the supported public feed bridge. Use four distinct tables with an explicit public audience and full sync public, no horizon, expiry or maintained definition, and the required identities, keys, ownership and immutability rules; keep another model on the manual recipe path.
 
-E_TIMELINE_FOLLOWS means the mapped edge table lacks promotion bounds. Add an index leading with the followed column, cap 1000 by each endpoint, and cap 100000 globally; the declaration prints the exact lines.
+E_TIMELINE_FOLLOWS means the mapped edge table lacks promotion bounds. Add an index leading with the followed column, cap 1000 by each endpoint, and a global cap equal to the declared edges (100000 by default); the declaration prints the exact lines.
 
 E_TIMELINE_REMOVAL means the removal signal must be a required bool default false and may only change false to true. Insert new cards with false, retain removed cards, and use a fresh card for new content.
 
@@ -151,12 +169,16 @@ E_TIMELINE_SERVER identifies a server-only timeline transition. Follow, unfollow
 
 E_TIMELINE_IMPORT means a fixture import cannot reconstruct timeline history. Seed mapped rows through application operations, or restore a complete trusted persistence image.
 
-E_TIMELINE_ACTIVATE means activation requires empty mapped event and edge tables and at most 1000 existing profiles. Declare the timeline before events or edges exist; in dev use a fresh store.
+E_TIMELINE_ACTIVATE means activation requires empty mapped event and edge tables and at most the declared authors existing profiles. Declare the timeline before events or edges exist; in dev use a fresh store.
 
-E_TIMELINE_REDEFINE means a populated timeline cannot be removed or redefined because its history cannot be rebuilt. Keep the declaration unchanged, or start a fresh store in dev.
+E_TIMELINE_REDEFINE means a populated timeline cannot be removed or redefined because its history cannot be rebuilt. The first scope sizes the timeline before data exists. Keep the declaration unchanged, or start a fresh store in dev.
 
 A caller-chosen event id equal to a pending tombstone refuses with
 `FEED_EVENT_REMOVED`, for originals and reposts alike. The equivalence oracle
 has two explicit exceptions: the recipe writes a duplicate follow edge, and
 the recipe can admit tombstoned repost-id reuse when no destination retains
 an old copy (its unique reader/event key otherwise still collides).
+
+E_TIMELINE_SIZE means a sizing key or value is invalid, or the recipe's coupled bounds do not fit. Use `size authors 1008, edges 5921`; either key may be omitted. Read "Size the installation" above for the bounds.
+
+N_TIMELINE_PROFILE_CAP means the application's profile cap is lower than the timeline's author cap. Raise the profile cap to the declared author count, or keep the intentional application limit.

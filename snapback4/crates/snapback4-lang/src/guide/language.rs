@@ -403,7 +403,7 @@ mutation checkin():
 table timelineProfiles:
   principal: principal
   unique byPrincipal: principal
-  cap 1000
+  cap 1008
   immutable principal
   public 'timelineProfiles'
   insert <- .principal = viewer
@@ -438,7 +438,7 @@ table timelineFollows:
   immutable followerId, followedId, at
   cap 1000 by followerId
   cap 1000 by followedId
-  cap 100000
+  cap 5921
   public 'edges'
   insert <- .followerId = viewer
   delete <- .followerId = viewer
@@ -449,6 +449,7 @@ maintain timeline: timeline
   events timelineCards by authorId, at removed by removed
   reposts timelineReposts by actorId, postId, at
   edges timelineFollows by followerId, followedId
+  size authors 1008, edges 5921
 
 mutation timelineRegister():
   insert timelineProfiles { principal: viewer }
@@ -585,6 +586,8 @@ actions` for durable invocation collection and `guide writes` for mutations.
 
 `maintain name: timeline` maps a public profile, original, repost and follow
 model to engine-owned Following state. `guide feeds` states the caps,
-removal, eager registration, lifecycle and server execution contract.
+removal, eager registration, lifecycle and server execution contract. The
+optional `size authors 1008, edges 5921` clause uses the recipe's sizing;
+omitted keys default to 1000 authors and 100000 edges.
 
 "##;

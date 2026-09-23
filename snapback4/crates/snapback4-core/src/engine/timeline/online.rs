@@ -1,6 +1,6 @@
 //! Online-only slot accounting and promotion. Shared event transitions stay in the parent.
 use super::*;
-use crate::schema::timeline::{PUSH_FOLLOWERS, FOLLOW_BACKFILL, READER_ACTOR_COPIES};
+use crate::schema::timeline::{PUSH_FOLLOWERS, READER_ACTOR_COPIES};
 
 impl Runner<'_> {
     fn timeline_pull(&mut self, t: &Timeline, reader: &str, author: &str, caller: &str) -> Result<bool, RuntimeError> {
@@ -36,8 +36,9 @@ impl Runner<'_> {
                 require(self.timeline_pull(t, &text(&follower, &t.edges[1])?, &author, &reader)?, "FEED_PROMOTION_PULL_CAP")?;
             }
         }
-        // Membership is the newest 865 source events, not the newest pushed ones.
-        for event in self.timeline_scan(&t.table("Posts"), "byActorTime", vec![Value::Id(author)], 1000, true)?.into_iter().take(FOLLOW_BACKFILL) {
+        // Membership counts source events, not just pushed ones, within the
+        // sized recipe's window. The per-actor source scan remains 1000.
+        for event in self.timeline_scan(&t.table("Posts"), "byActorTime", vec![Value::Id(author)], 1000, true)?.into_iter().take(t.backfill()) {
             if field(&event, "shared")? == Value::Bool(false) { self.timeline_copy(t, &event, &reader, false)?; }
         }
         Ok(())

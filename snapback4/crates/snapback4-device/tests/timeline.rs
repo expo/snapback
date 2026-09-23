@@ -61,6 +61,34 @@ fn page<S: DeviceStore>(d: &mut Device<S>, who: &str) -> Value {
     let p=d.query("following",who,&json!({}),100).unwrap(); assert!(p.complete,"{p:?}"); p.data
 }
 
+fn sized_registration<H: Host>(mut h: H) where H::Store: Images {
+    let b = fixture::sized_bound(true, Some((1008, 5921)));
+    let backend = Backend { generation: 1, schema: b.schema, programs: b.programs.into_iter().map(|p| p.program).collect() };
+    // Exercise the backend's wire codec as well as native persistent reopen.
+    let backend: Backend = serde_json::from_str(&serde_json::to_string(&backend).unwrap()).unwrap();
+    let mut e = Engine::memory(backend.schema.clone(), backend.programs.clone()).unwrap();
+    for n in 1..1008 { sent(&mut e, "register", &format!("a{n}"), json!({}), n, vec![]); }
+    let mut d = open(&mut h, &mut e, backend, "last");
+    let q = admit(&mut d, "register", "last", json!({}), 1);
+    assert!(q.predictable); assert_eq!(q.predicted.len(), 2);
+    assert_eq!(rows(&mut d)["feedAuthors"].len(), 1008);
+    h.close("last", d);
+    let mut d = h.open("last", None).unwrap();
+    let t = &d.schema().timelines[0];
+    assert_eq!((t.author_cap, t.edge_cap, t.backfill()), (1008, 5921, 865));
+    assert_eq!(rows(&mut d)["feedAuthors"].len(), 1008);
+    let from = e.seq().unwrap();
+    let seq = sent(&mut e, "register", "last", json!({}), 1010, q.new_ids.clone());
+    d.settle(&q.id, Some(seq)).unwrap();
+    d.apply(&stream_page(&mut e, "last", from), false).unwrap();
+    round1::assert_partition(&mut d, &e, "last");
+    let out = e.mutate("register", None, fixture::context("overflow", &[], 1011)).unwrap();
+    assert!(matches!(out.state, WriteState::Failed { why, .. } if why.code == "E_CONSTRAINT"));
+    assert_eq!(fixture::rows(&e, "feedAuthors").len(), 1008);
+}
+#[test] fn sized_timeline_registration_memory() { sized_registration(Memory::new()); }
+#[test] fn sized_timeline_registration_sqlite() { sized_registration(Sqlite::new("timeline-sized")); }
+
 fn lifecycle<H: Host>(mut h: H) where H::Store: Images {
     let (mut e,b) = server();
     let mut d = open(&mut h,&mut e,b.clone(),"alice");

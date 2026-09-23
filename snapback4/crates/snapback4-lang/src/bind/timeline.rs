@@ -28,7 +28,7 @@ pub fn expand(mut documents: Vec<Document>, diagnostics: &mut Vec<Diagnostic>) -
             diagnostics.push(refusal(&decl, "E_TIMELINE_SHAPE", "timeline or generated name collides with another declaration", "choose timeline and generated names unused by tables, maintains, programs, functions, schedules, timelines, effects, shapes, actions and routes"));
             continue;
         }
-        let source = match recipe::following(&decl.name, "schema") {
+        let source = match recipe::following_sized(&decl.name, "schema", decl.size) {
             Ok(source) => source,
             Err(error) => { diagnostics.push(refusal(&decl, "E_TIMELINE_SHAPE", error, "repair the Following recipe")); continue; }
         };
@@ -114,17 +114,30 @@ pub fn admit(catalog: &Catalog, schema: &mut Schema, diagnostics: &mut Vec<Diagn
             let edges = schema.table(&decl.edges[0]).ok_or_else(|| refusal(decl, "E_TIMELINE_SHAPE", "missing follows table", "declare the mapped follows table"))?;
             let followed_index = edges.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().first() == Some(&decl.edges[2]));
             let cap = |by: &[String], max| edges.constraints.iter().any(|c| matches!(c, Constraint::Cap { by: fields, max: bound } if fields == by && *bound == max));
-            if followed_index.is_none() || !cap(&[decl.edges[1].clone()], 1000) || !cap(&[decl.edges[2].clone()], 1000) || !cap(&[], 100000) {
+            if followed_index.is_none() || !cap(&[decl.edges[1].clone()], 1000) || !cap(&[decl.edges[2].clone()], 1000) || !cap(&[], decl.size.edges())
+                || edges.constraints.iter().any(|c| matches!(c, Constraint::Cap { by, max } if by.is_empty() && *max != decl.size.edges())) {
                 return Err(refusal(decl, "E_TIMELINE_FOLLOWS", "the mapped follows table must carry promotion's follower index and all three edge caps",
-                    format!("table {}:\n  by byTimelineFollowed: {}, {}\n  cap 1000 by {}\n  cap 1000 by {}\n  cap 100000",
-                        decl.edges[0], decl.edges[2], decl.edges[1], decl.edges[1], decl.edges[2])));
+                    format!("table {}:\n  by byTimelineFollowed: {}, {}\n  cap 1000 by {}\n  cap 1000 by {}\n  cap {}",
+                        decl.edges[0], decl.edges[2], decl.edges[1], decl.edges[1], decl.edges[2], decl.size.edges())));
             }
             let followed_index = followed_index.map(|(name, _)| name.clone()).ok_or_else(|| refusal(decl, "E_TIMELINE_FOLLOWS", "missing followed-leading index", "index the followed column first"))?;
             Ok(Timeline { name: decl.name.clone(), authors: decl.authors.clone(), posts: decl.posts.clone(),
-                reposts: decl.reposts.clone(), edges: decl.edges.clone(), followed_index, purge, owned, mapped })
+                reposts: decl.reposts.clone(), edges: decl.edges.clone(), author_cap: decl.size.authors(), edge_cap: decl.size.edges(), followed_index, purge, owned, mapped })
         })();
         match result { Ok(timeline) => schema.timelines.push(timeline), Err(error) => diagnostics.push(error) }
     }
+}
+
+pub fn notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
+    catalog.documents.iter().flat_map(|doc| &doc.timelines).filter_map(|decl| {
+        let table = schema.table(&decl.authors[0])?;
+        let cap = table.constraints.iter().filter_map(|c| match c {
+            Constraint::Cap { by, max } if by.is_empty() => Some(*max), _ => None,
+        }).min()?;
+        (cap < decl.size.authors()).then(|| refusal(decl, "N_TIMELINE_PROFILE_CAP",
+            format!("{} caps profiles at {cap}, below timeline {}'s {} authors; the application would refuse first", decl.authors[0], decl.name, decl.size.authors()),
+            format!("raise {}'s global cap to at least {}, or keep this intentional application limit", decl.authors[0], decl.size.authors())))
+    }).collect()
 }
 
 pub fn write_site(schema: &Schema, table: &str, kind: &str, fact: &mut snapback4_core::schema::Execution) {

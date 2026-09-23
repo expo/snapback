@@ -7,13 +7,14 @@ pub(crate) fn report(schema: &Schema, program: &ir::Program, lines: &mut Vec<Str
         let affected: std::collections::BTreeSet<_> = writes.iter().filter(|(table,_)|t.maps(table)).map(|(table,_)|table.as_str()).collect();
         if affected.is_empty() && program.name != t.purge { continue; }
         lines.push(format!("    timeline {}: derived + all application writes share the 1024-row mutation ceiling; composition beyond it refuses atomically",t.name));
-        if affected.contains(t.authors[0].as_str()) { lines.push("      profile insert: 1 app row + up to 1 mode = 2 writes; deletion keeps the mode; activation registers <=1000 existing profiles in one commit".into()); }
+        lines.push(format!("      sized caps: authors={}, edges={}, pulls={}, pullCounts={}; backfill/author={}; follows/reader=1000, followers/author=1000, events/actor=1000; promotion reserve=159 writes", t.author_cap, t.edge_cap, u64::from(t.author_cap) * 32, u64::from(t.author_cap) * 32, t.backfill()));
+        if affected.contains(t.authors[0].as_str()) { lines.push(format!("      profile insert: 1 app row + up to 1 mode = 2 writes; deletion keeps the mode; activation registers <={} existing profiles in one commit", t.author_cap)); }
         if affected.contains(t.posts[0].as_str()) || affected.contains(t.reposts[0].as_str()) {
             lines.push("      event insert: 1 app + 1 source + up to 51 private copies = 53 writes; shared: 1 app + 1 source + 1 broadcast + at most 1 own copy = 4 writes".into());
             lines.push("      removal: 1 app + tombstone + source delete + at most 1 broadcast delete = 4 writes; unchanged flag: no derived writes; identity/time updates and flag reversal refuse".into());
         }
         if affected.contains(t.edges[0].as_str()) {
-            lines.push("      follow: read <=1000 source events, visit newest 865; promotion installs <=52 routes at 3 writes each plus mode; with one app edge and 865 copies = 1023 writes".into());
+            lines.push(format!("      follow: read <=1000 source events, visit newest {}; promotion installs <=52 routes at 3 writes each plus mode; with one app edge and {} copies = {} writes", t.backfill(), t.backfill(), t.backfill() + 158));
             lines.push("      unfollow: per-(reader, actor) cap bounds <=1000 private-copy deletes + route, private total, public count + one app edge = 1004 writes; a refollow is a second transition".into());
         }
         if program.name == t.purge { lines.push("      purge: <=1001 private-copy deletes + 1 tombstone = 1002 writes per chunk".into()); }
@@ -77,9 +78,9 @@ pub(crate) fn stream_bounds(schema: &Schema, t: &snapback4_core::schema::timelin
     let feed = event("Feed", false)?;
     let source = event("Posts", false)?;
     let broadcast = event("Broadcast", false)?;
-    use snapback4_core::schema::timeline::{PUSH_FOLLOWERS, FOLLOW_BACKFILL, READER_ACTOR_COPIES, EVENT_COPIES};
-    let follow = FOLLOW_BACKFILL * feed + event("Pulls", false)?;
-    let promotion = FOLLOW_BACKFILL * feed + (PUSH_FOLLOWERS + 2) * event("Pulls", false)? + event("Authors", false)?;
+    use snapback4_core::schema::timeline::{PUSH_FOLLOWERS, READER_ACTOR_COPIES, EVENT_COPIES};
+    let follow = t.backfill() * feed + event("Pulls", false)?;
+    let promotion = t.backfill() * feed + (PUSH_FOLLOWERS + 2) * event("Pulls", false)? + event("Authors", false)?;
     // Refollow is two transitions. This composition bound deliberately sums
     // both; the ordinary 1024-write meter may refuse a dense composition.
     let unfollow = READER_ACTOR_COPIES * event("Feed", true)? + event("Pulls", true)?;

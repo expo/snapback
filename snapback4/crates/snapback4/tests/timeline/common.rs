@@ -15,14 +15,21 @@ pub fn compile(source: &str) -> Bound {
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     bound
 }
-pub fn bound(declared: bool) -> Bound {
+pub fn bound(declared: bool) -> Bound { sized_bound(declared, None) }
+pub fn sized_bound(declared: bool, size: Option<(u32, u32)>) -> Bound {
     let mut app = APP.replacen("  immutable principal", "  delete <- .principal = viewer\n  immutable principal", 1);
     app = app.replace("  removed: bool default false", "  body: text <=4000 default ''\n  removed: bool default false");
+    if let Some((_, edges)) = size { app = app.replace("  cap 100000\n", &format!("  cap {edges}\n")); }
     let mut sources = Vec::new();
-    if declared { app.push_str(DECLARATION); } else {
+    if declared {
+        app.push_str(DECLARATION);
+        if let Some((authors, edges)) = size { app.push_str(&format!("  size authors {authors}, edges {edges}\n")); }
+    } else {
         let schema = compile(&app).schema;
         let mapping = Mapping::parse("profiles:principal", "posts:authorId:at", "follows:followerId:followedId", "reposts:actorId:postId:at").unwrap();
-        sources.push(("feed.q".into(), recipe::following("feed", "feed").unwrap()));
+        let (authors, edges) = size.map(|(a,e)| (Some(a.to_string()), Some(e.to_string()))).unwrap_or_default();
+        let caps = recipe::FollowingCaps::parse(authors.as_deref(), edges.as_deref()).unwrap();
+        sources.push(("feed.q".into(), recipe::following_sized("feed", "feed", caps).unwrap()));
         sources.push(("bridge.q".into(), mapping.render(&schema, "feed").unwrap()));
     }
     let register = if declared { "" } else { "feedAppRegister(p.id)" };
@@ -102,20 +109,24 @@ pub fn normalized(e: &Engine) -> BTreeMap<String, Vec<String>> {
 pub struct Pair { pub recipe: Engine, pub declared: Engine, pub at: i64 }
 impl Pair {
     pub fn new() -> Self { Self { recipe: engine(false), declared: engine(true), at: 1 } }
+    pub fn sized(authors: u32, edges: u32) -> Self {
+        let engine = |declared| { let b = sized_bound(declared, Some((authors, edges))); Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap() };
+        Self { recipe: engine(false), declared: engine(true), at: 1 }
+    }
     pub fn step(&mut self, op: &str, viewer: &str, args: &[(&str,Value)]) -> [MutationOutcome;2] {
         self.step_inner(op, viewer, args, true)
     }
     fn step_inner(&mut self, op: &str, viewer: &str, args: &[(&str,Value)], expecting_refusal: bool) -> [MutationOutcome;2] {
         let before = expecting_refusal.then(|| [snapshot(&self.recipe), snapshot(&self.declared)]);
-        let before_edges = rows(&self.recipe, "feedFollows");
+        let edge_set = |e: &Engine| rows(e, "feedFollows").iter().map(snapback4_core::value::canonical_json).collect::<std::collections::BTreeSet<_>>();
+        let before_edges = edge_set(&self.recipe);
         let a = self.recipe.mutate(op, None, context(viewer,args,self.at)).unwrap();
         let b = self.declared.mutate(op, None, context(viewer,args,self.at)).unwrap();
         self.at += 1;
         match (&a.state,&b.state) {
             (WriteState::Sent{..},WriteState::Sent{..}) => {
-                let after_edges = rows(&self.recipe, "feedFollows");
-                let edge_writes = before_edges.iter().filter(|r| !after_edges.contains(r)).count() as u64
-                    + after_edges.iter().filter(|r| !before_edges.contains(r)).count() as u64;
+                let after_edges = edge_set(&self.recipe);
+                let edge_writes = before_edges.symmetric_difference(&after_edges).count() as u64;
                 assert_eq!(a.metered.rows_written, b.metered.rows_written + edge_writes, "{op} for {viewer}: writes");
             }
             (WriteState::Failed{why:left,..},WriteState::Failed{why:right,..}) => {
@@ -132,6 +143,7 @@ impl Pair {
                     (_,"FEED_PULL_CAP")=>[2,1],
                     (_,"FEED_PROMOTION_PULL_CAP")=>[9,8],
                     (_,"FEED_PULL_COUNT_MISSING")=>[3,3],
+                    ("follow","E_CONSTRAINT")=>[0,0],
                     (_,"FEED_CANNOT_FOLLOW_SELF"|"FEED_APP_NOT_FOUND"|"FEED_POST_NOT_FOUND"|"FEED_EVENT_REMOVED"|"E_CONSTRAINT")=>[1,1],
                     other=>panic!("price the refused trace {other:?}"),
                 };

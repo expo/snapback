@@ -15,7 +15,7 @@ pub fn valid_prefix(prefix: &str) -> bool {
     chars.next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_') && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FollowingCaps { authors: u32, edges: u32, routes: u32 }
 
 // @ref LLP 3000.007#20.3 — promotion and backfill share one unchanged mutation meter.
@@ -26,7 +26,9 @@ const BACKFILL_PROMOTION_ALLOWANCE: u64 = 3 * (51 + 1) + 3;
 const BACKFILL_MIN_EVENTS: u32 = 200;
 
 impl FollowingCaps {
-    fn backfill(self) -> u32 {
+    pub fn authors(self) -> u32 { self.authors }
+    pub fn edges(self) -> u32 { self.edges }
+    pub fn backfill(self) -> u32 {
         let write_bound = (snapback4_core::Ceilings::default().rows_written - BACKFILL_PROMOTION_ALLOWANCE) as u32;
         self.authors.max(BACKFILL_MIN_EVENTS).min(write_bound)
     }

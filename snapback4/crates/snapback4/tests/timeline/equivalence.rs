@@ -1,9 +1,7 @@
 use super::common::*;
 use snapback4_core::{Value, WriteState};
 
-#[test]
-fn clique_trace_posts_reposts_removals_refollow_purge_and_profiles() {
-    let mut p = Pair::new();
+fn clique_trace_posts_reposts_removals_refollow_purge_and_profiles(mut p: Pair) {
     for who in ["author","reader","third"] { p.register(who); }
     p.follow("reader","author");
     p.equal();
@@ -46,9 +44,7 @@ fn clique_trace_posts_reposts_removals_refollow_purge_and_profiles() {
     p.pages("reader","following");
 }
 
-#[test]
-fn backfill_visits_900_pushed_then_100_shared_and_keeps_765() {
-    let mut p = Pair::new();
+fn backfill_visits_900_pushed_then_100_shared_and_keeps_765(mut p: Pair) {
     p.register("author"); p.register("late");
     for n in 0..51 { p.register(&format!("f{n}")); }
     for n in 0..900 { p.publish("author",&format!("p{n:04}")); }
@@ -88,9 +84,7 @@ fn backfill_visits_900_pushed_then_100_shared_and_keeps_765() {
     p.recipe.set_ceilings(snapback4_core::Ceilings::default()); p.declared.set_ceilings(snapback4_core::Ceilings::default());
 }
 
-#[test]
-fn pull_caps_refuse_atomically_and_promotion_is_permanent() {
-    let mut p = Pair::new();
+fn pull_caps_refuse_atomically_and_promotion_is_permanent(mut p: Pair) {
     for n in 0..51 { p.register(&format!("f{n}")); }
     for n in 0..33 { p.register(&format!("a{n}")); }
     p.register("trigger");
@@ -120,9 +114,7 @@ fn pull_caps_refuse_atomically_and_promotion_is_permanent() {
     assert!(rows(&p.declared,"feedAuthors").iter().any(|r| r.field("principal").unwrap()==&id("a32") && r.field("shared").unwrap()==&Value::Bool(true)));
 }
 
-#[test]
-fn missing_pull_count_in_trusted_history_refuses_like_recipe() {
-    let mut p=Pair::new();
+fn missing_pull_count_in_trusted_history_refuses_like_recipe(mut p: Pair) {
     p.register("author");
     for n in 0..51 {p.register(&format!("f{n}"));p.follow(&format!("f{n}"),"author");}
     for e in [&mut p.recipe,&mut p.declared] {
@@ -141,9 +133,8 @@ fn missing_pull_count_in_trusted_history_refuses_like_recipe() {
     assert_eq!(normalized(&p.declared),before);p.equal();
 }
 
-#[test]
-fn ordinary_follow_refusals_match_without_partial_edges() {
-    let mut p=Pair::new();p.register("a");
+fn ordinary_follow_refusals_match_without_partial_edges(mut p: Pair) {
+    p.register("a");
     for (target,code) in [("a","FEED_CANNOT_FOLLOW_SELF"),("missing","FEED_APP_NOT_FOUND")] {
         let before=normalized(&p.declared);let out=p.step("follow","a",&[("authorId",id(target))]);
         assert!(matches!(&out[0].state,WriteState::Failed{why,..} if why.code==code),"{:?}",out[0]);
@@ -151,9 +142,8 @@ fn ordinary_follow_refusals_match_without_partial_edges() {
     }
 }
 
-#[test]
-fn time_ties_page_by_event_id_and_tombstones_fill_the_page() {
-    let mut p=Pair::new();p.register("a");p.register("r");p.follow("r","a");
+fn time_ties_page_by_event_id_and_tombstones_fill_the_page(mut p: Pair) {
+    p.register("a");p.register("r");p.follow("r","a");
     for n in 0..45 {p.sent("publishAt","a",&[("postId",id(&format!("tie{n:02}"))),("at",Value::Int(10))]);}
     let page=p.pages("r","following");assert_eq!(page[0].field("id").unwrap(),&id("tie44"));assert_eq!(page[44].field("id").unwrap(),&id("tie00"));
     for n in 20..45 {p.sent("remove","a",&[("postId",id(&format!("tie{n:02}")))]);}
@@ -173,9 +163,7 @@ fn time_ties_page_by_event_id_and_tombstones_fill_the_page() {
 // recipe admits reuse when no destination retains an old copy; its unique
 // (reader, event) index still collides when that copy exists. F3
 // must refuse that exact case; Pair's general equivalence is not relaxed.
-#[test]
-fn oracle_exception_tombstoned_repost_id_refuses_only_in_f3() {
-    let mut p = Pair::new();
+fn oracle_exception_tombstoned_repost_id_refuses_only_in_f3(mut p: Pair) {
     for who in ["a", "b", "c"] { p.register(who); }
     p.follow("c", "a"); p.follow("c", "b");
     p.publish("a", "removed"); p.publish("b", "live");
@@ -200,3 +188,21 @@ fn oracle_exception_tombstoned_repost_id_refuses_only_in_f3() {
     assert_eq!(rows(&p.recipe, "feedPosts").iter().filter(|r| r.field("id").unwrap() == &id("removed")).count(), 1);
     super::identity::assert_placement(&p.declared, &supplied);
 }
+
+// Every original oracle trace runs with both the default installation and
+// the Clique-sized installation. Neither oracle exception is broadened.
+macro_rules! trace_tests {
+    ($($name:ident),* $(,)?) => {
+        mod defaults { use super::*; $(#[test] fn $name() { super::$name(Pair::new()); })* }
+        mod sized { use super::*; $(#[test] fn $name() { super::$name(Pair::sized(1008, 5921)); })* }
+    };
+}
+trace_tests!(
+    clique_trace_posts_reposts_removals_refollow_purge_and_profiles,
+    backfill_visits_900_pushed_then_100_shared_and_keeps_765,
+    pull_caps_refuse_atomically_and_promotion_is_permanent,
+    missing_pull_count_in_trusted_history_refuses_like_recipe,
+    ordinary_follow_refusals_match_without_partial_edges,
+    time_ties_page_by_event_id_and_tombstones_fill_the_page,
+    oracle_exception_tombstoned_repost_id_refuses_only_in_f3,
+);

@@ -439,5 +439,6 @@ pub struct TimelineDecl {
     pub posts: [String; 4],
     pub reposts: [String; 4],
     pub edges: [String; 3],
+    pub size: crate::recipe::FollowingCaps,
     pub site: Site,
 }

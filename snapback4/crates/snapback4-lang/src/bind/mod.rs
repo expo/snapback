@@ -135,6 +135,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     notes.extend(completeness_notes(&catalog, &schema, &programs));
     notes.extend(residency::maintain_notes(&catalog, &schema));
     notes.extend(residency::guard_notes(&schema, &programs));
+    notes.extend(timeline::notes(&catalog, &schema));
     if diagnostics.is_empty() { notes.extend(aggregate_copies::notes(&catalog, &schema)); }
     Bound { server, schema, programs, personas, diagnostics, notes }
 }

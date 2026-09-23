@@ -29,7 +29,7 @@ pub(crate) fn check_activation(tx: &crate::store::Tx<'_>, schema: &crate::schema
     for old in &previous.timelines {
         if schema.timelines.iter().any(|new| old.same_declaration(new)) { continue; }
         for table in previous.tables.keys().filter(|name| old.owns(name) || old.event_tables().contains(&name.as_str())) {
-            if populated(table)? { return Err(refusal("E_TIMELINE_REDEFINE", "a populated timeline cannot be removed or redefined; preserve its declaration, or use a fresh store in dev")); }
+            if populated(table)? { return Err(refusal("E_TIMELINE_REDEFINE", "a populated timeline cannot be removed or redefined; the first scope sizes the timeline before data exists; preserve its declaration, or use a fresh store in dev")); }
         }
     }
     for new in &schema.timelines {
@@ -54,9 +54,9 @@ pub(crate) fn activate_profiles(tx: &crate::store::Tx<'_>, schema: &crate::schem
     let mut runner = Runner::new(tx, schema, Context::system().at(crate::now_ms()), Meter::new(Ceilings::unbounded(), Cut::Abort), 0);
     for t in added {
         let mut runner = runner.timeline_scope(super::timeline_authority::Authority::Transition(t.name.clone()));
-        let profiles = runner.timeline_scan(&t.authors[0], "byId", vec![], 1001, false)?;
-        if profiles.len() > 1000 {
-            return Err(refusal("E_TIMELINE_ACTIVATE", "activation can register at most 1000 authors; reduce the existing profiles before declaring the timeline"));
+        let profiles = runner.timeline_scan(&t.authors[0], "byId", vec![], t.author_cap.saturating_add(1), false)?;
+        if profiles.len() > t.author_cap as usize {
+            return Err(refusal("E_TIMELINE_ACTIVATE", format!("activation can register at most {} authors; size the timeline or reduce the existing profiles before declaring it", t.author_cap)));
         }
         for profile in profiles {
             runner.timeline_register(t, &text(&profile, &t.authors[1])?)?;
