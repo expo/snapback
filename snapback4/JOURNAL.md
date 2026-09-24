@@ -54779,3 +54779,55 @@ This branch is **not a qualified 0.4.1 release candidate**. Did not redesign the
 conflicting contracts, publish, push, bump versions, run an iOS simulator on
 Linux, or claim the stopped constant-card certificate. The final report lists
 every failing test and all inherited open limitations for the next round.
+
+
+### 2026-09-25 — LLP 3000.013 integration round 5 part h: ruled client outcomes
+
+Implemented the supervisor's two E/J rulings in `8c3515d68`. Close detaches
+network waits without aborting effectful requests, preserves outcomes known
+before local cleanup completes, and returns pending with the original id for
+unknown mutation/action responses. Real wasm/native tests cover replies arriving
+during cleanup and failed receipt persistence during close. Late bodies after
+close are consumed and discarded. Known terminal summaries and notification
+identity survive failed receipt saves independently of ordinary history eviction.
+
+Online durable intent records dispatch store ownership before transmission.
+Reopen dedupes only against that store; replacement and unprovable legacy intent
+retire with unknown-outcome refusals. A server precondition under the engine lock
+fences mutation/action execution and replay if the endpoint changes after probe.
+Failed identity persistence never authorizes dispatch. Existing device reset and
+action server-record recovery contracts are preserved. No Quarry form or refusal
+code was added; client docs, the writes card, contract comments and RFC §6 now
+state the rulings. Extracted local queue/capture interfaces keep local.ts at
+1,483 lines.
+
+Measured final `scripts/test.sh`: **`== 0 failure(s) in 345 s`**. All Rust targets
+and doctests pass. The main client process reports 1,478 tests, 1,468 pass, zero
+failures and ten explicit skips; the separately sharded groups also pass. E's
+online and production-wasm models each pass 5,000 sequences; J passes 3,000.
+The local model now actually fails keep_write (7,084 injected failures), and J
+covers safe repost after failed terminal persistence plus store fencing. Every
+guide block is clean (80 tests); Clique Following/digest passes 3/3 and the
+issue tracker passes 4/4 across server and memory/SQLite devices. Native smoke,
+witness driver and README JS pass 21/21. Reference check has zero errors and
+zero unchecked references. README remains 300/300 lines.
+
+Lane L's four ignored witness tests pass with the 1.5 ratio assertion: post p95
+2.043 ms at five followers and 2.314 ms at 900, ratio 1.133. All twenty large
+posts arrive in 5,848.682 ms; eight sustained foreground streams complete 6,875
+requests while all 901 copies arrive. Wasm remains 1,765,796 raw / 491,641 gzip
+bytes, leaving 359 bytes under the 492,000 ratchet. No device Rust or meter
+ceiling changed.
+
+The first completed part-h suite had one failing stage (`== 1 failure(s) in
+355 s`): 21 client fixture cases plus the React parent lacked the new mock probe
+or private dispatch boundary. All assertions were retained; 41 affected tests
+then passed before the final full run. Preliminary model failures exposed a
+close-cutoff bug and an action-delivery await, both fixed, plus dispatch-history
+and saturation-schedule oracle timing corrected without relaxing the other
+invariants. No new intermittent final-run failure or baseline waiver. The report
+`reports/20260924-intent-integration-r5-final.md` records every lane head, conflict,
+preliminary failure, final check and quoted inherited limitation. In particular,
+the issue-tracker card's independent authorization growth, E's consumed-bearer
+recovery limit and Linux's lack of a simulator remain explicit. Did not push,
+publish, bump versions, change device reset semantics or claim exhaustive proof.

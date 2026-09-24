@@ -1,9 +1,9 @@
 # LLP 3000.013 — integration round 5
 
 Branch `sb4-intent/integration`, worktree `~/sb4-intent/lane-i`.
-No push, version bump or publication. **Not a release candidate yet:** E and J
-specify incompatible close and receipt-persistence outcomes. This report records
-the concrete boundary instead of weakening either model to obtain a green suite.
+No push, version bump or publication. Updated 2026-09-25 for the supervisor's
+part-h rulings. The two E/J contract conflicts are resolved as specified; the
+release qualification below supersedes the part-g blocked result.
 
 ## Merge ledger
 
@@ -48,11 +48,11 @@ Part-g conflict resolutions, relative to `snapback4/`:
 | `guide/reads.rs` | Keep F's refusal prose and J's bounded local fallback; update the moved meter caption. |
 | `guide/sync.rs` | Keep F operations section, J online store-change and local restore instructions. |
 | `packages/snapback4/src/app.ts` | Combine E atomic prepare/commit/start and permanent facade fencing with J replacement retirement/reopen and cancellation custody. Native onClient receives the published guarded local client; retain O/E local options and assets. Late discarded sign-in uses E's revocation custody. |
-| `src/app-online.ts` | Keep J pinned retirement IDs/saturation and bulk retirement, E deferred activation and retained known outcomes after receipt-save failure. The incompatible outcome requirements remain explicitly blocked below. |
-| `src/client.ts` | Keep J store/read floor and response consumption without transport abort, O upload session validation/copy/retry, E dispatched-outcome guards. Terminal store changes retain their explicit action refusal. Close semantics remain blocked. |
+| `src/app-online.ts` | Keep J pinned retirement IDs/saturation and bulk retirement, E deferred activation and retained known outcomes after receipt-save failure. Part h resolves the outcome requirements under the supervisor rulings below. |
+| `src/client.ts` | Keep J store/read floor and response consumption without transport abort, O upload session validation/copy/retry, E dispatched-outcome guards. Terminal store changes retain their explicit action refusal. Part h applies the supervisor's close cutoff. |
 | `src/local.ts` | Keep J LocalReads/fallback and non-aborted effect transport, E deferred start/rotation and settlement tracking, O cleanup/refusal handling, N onClient hook. Exactly 1,500 lines after the merge. |
 | `test/app.test.mjs` | Keep both regression sets. |
-| `test/client-lifecycle.test.mjs` | Retain no-abort and late-body consumption checks; E's shared assertion expects pending for a cancelled unreceived result and sent for an already applying acknowledgment. J's separate effectful-cancellation tests retain E_CLOSED; they expose the unresolved conflict rather than being weakened. |
+| `test/client-lifecycle.test.mjs` | Retain no-abort and late-body consumption checks; E's shared assertion expects pending for a cancelled unreceived result and sent for an already applying acknowledgment. Part h updates cancelled mutation/action expectations to pending under the ruling; upload cancellation remains E_CLOSED. |
 | `bind/program/conditional.rs` | K refuses incompatible row kinds at the join; A still records presence variants, isolates setup and reuses logical read sites. |
 | `src/print.rs` | Retain H's single precedence/source-aware renderer and shared quoting, with K spread support. Remove the now-unused shape_fields wrapper. |
 | `guide/prediction.rs` | Keep F definition/example ordering and insert P's undelivered-sweep explanation at its new location. |
@@ -99,55 +99,149 @@ label-organization authority counterexample; declaring it constant would weaken
 the certificate. The scoped control is constant. See part f for the executable
 9,000-hidden-label reproduction and explicit sync-only companion adaptation.
 
-## Blocked client contracts
+## Supervisor rulings and implementation
 
-1. **Close versus held dispatched outcomes.** J's
-   `client-lifecycle.test.mjs` test `close cancels online write callers without
-   aborting committed delivery` awaits close before releasing the response and
-   requires the caller to stop waiting. J's local-close tests similarly reopen
-   while the body is held. E's `app-local-outcomes.test.mjs` requires close to
-   remain unfinished until that same held response is released, and its
-   `app-outcomes`/I12 tests require the original sent/failed result after close.
-   E's raw online action test also requires the later held result. A network
-   request has no observable "committed remotely" state before its response.
-   Satisfying both for the same event schedule needs a supervisor contract ruling;
-   waiting indefinitely or silently weakening either assertion is not integration.
-2. **Known terminal result versus durable retirement.** E I13 retains and returns
-   the server-confirmed terminal result when `.writes` receipt persistence fails,
-   leaving the durable pending intent for same-ID recovery. J R3 asserts that any
-   returned terminal result has already removed that durable pending intent and
-   cannot be reposted, including after restart. Seed 48 (app tier) commits a
-   write, fails retirement storage and observes its result. It cannot both
-   return terminal now and have committed a store write which failed. This is
-   independent of transport close. Reproduce the named E receipt-failure tests
-   and J's full model or seed 48 with its existing generator/options.
+1. **Close is bounded by local work, with a known-outcome cutoff.** Network
+   requests are not aborted. Caller waits detach immediately; close finishes
+   local cleanup without awaiting a held body. An unreceived mutation/action
+   result returns pending with its original id. A parsed result already being
+   applied, or arriving during local cleanup before close completes, remains
+   known. Later bodies are consumed and discarded. Durable mutations recover
+   with the same id; the server returns replayed:true instead of executing twice.
+   Raw online callers keep their own id, and actions collect the existing server
+   action record; no action is added to a device outbox.
+2. **Known terminal results survive failed receipt saves.** mutate, write(id)
+   and onWrite retain one consistent known outcome. Persisted terminal receipts
+   are not reposted. If receipt persistence fails, the durable online intent
+   may replay only to its original dispatch store, where idempotency dedupes it.
+   Intent and its known store identity are saved together; a second atomic gate
+   records dispatch ownership before transmission. Fresh staged offline intent
+   is marked undispatched. Legacy intent without a recorded identity may replay
+   only to the first store its journal has seen; mismatches retire with an
+   unknown-outcome refusal. The server checks the requested store under its
+   engine lock before execution and receipt lookup, covering replacement between
+   probe and dispatch. Failed identity writes never permit dispatch. The client
+   reference states the total-storage-failure admission limit.
 
-An asynchronous question requested a ruling; none is assumed from elapsed time.
-No invariant assertion is skipped, relaxed or changed to conceal these conflicts.
-Full-count audit runs the existing execute/generate functions, catches each
-sequence's assertion only to continue through all requested seeds, and reports
-failures. It is additional failure evidence, not a passing model run.
+Ruling 2's journal migration applies to J's online createApp journal. Existing
+local-device reset/outbox transfer behavior is unchanged. Actions retain their
+existing server-record recovery contract. These scope choices preserve the
+existing surfaces outside the ruled E/J journal conflict.
 
-The final full-count audit completed all 13,000 requested sequences:
+Part-h file map (paths relative to `snapback4/`):
 
-| Model | Attempted sequences | Failed sequences | Invariant |
-|---|---:|---:|---|
-| E online | 5,000 | 84 | I12: a dispatched result became pending at close. |
-| E real wasm local | 5,000 | 73 | I12: the same held-result conflict. |
-| J alternating raw/app | 3,000 | 11 | R3: seven terminal results retain durable pending intent; four terminal IDs repost after restart. |
-
-The audit uses the exact generators and journal options from the model tests;
-its runner is `~/sb4-intent/integration-r5g-model-audit.mjs`, and its complete
-output is `~/sb4-intent/integration-r5g-model-audit-final.log`. Each failing
-sequence stops at its first assertion, then the audit proceeds to the next seed.
-The ordinary test runner also remains red; neither the supplemental audit nor
-passing individual schedules is a claim that either complete model passes.
-The two R2 dispatch failures found in the first audit are fixed and named above;
-none remain in the final 3,000-sequence audit.
+| File | Change and evidence |
+|---|---|
+| `packages/snapback4/src/request-wait.ts`, new `closing-responses.ts` | Separate stopped caller waits from response consumption; retain replies through completion of local close cleanup. |
+| `src/client.ts`, `src/local.ts`, `src/actions.ts` | Preserve known outcomes; unknown close results become pending; action recovery adds no await to the ordinary delivered-result path. |
+| new `src/local-types.ts` | Extract unchanged queue/store-capture interfaces to keep local.ts below 1,500 lines. |
+| `src/writes.ts` | Retain failed-to-save receipt summaries and their notification identity independently of the 256-entry ordinary history. |
+| `src/app-journal.ts`, `src/app-online.ts`, new `src/online-dispatch.ts` | Atomic dispatch store binding, first-store history, same-store recovery, safe mismatch retirement and retained receipt notification deduplication. |
+| `crates/snapback4/src/serve.rs`, `src/actions.rs` | Optional wire store precondition before mutation/action replay and admission, without recording a refusal in the wrong store. |
+| `crates/snapback4/tests/serve_store/mod.rs` | Wrong-store mutation and action requests cannot execute or reserve an id; correct-store retry still executes and mutation replay is deduped. |
+| `packages/snapback4/test/app-local-outcomes.test.mjs`, `app-outcomes.test.mjs`, `effectful-cancellation.test.mjs` | Update ruled pending outcomes; wasm/native matrix proves held requests do not delay close and responses arriving during cleanup remain known. |
+| new `test/app-local-receipts.test.mjs` | Eight real wasm/native cases fail keep_write for sent/failed outcomes, with/without close; known result survives and restart settles once. |
+| new `test/online-intent-store.test.mjs`, `app-online.test.mjs` | Persisted receipt never reposts; failed save replays once on the original store and never executes on replacement; legacy first-store cases, admission failure, probe/dispatch replacement race, 257-notification regression. |
+| `test/app-retirement.test.mjs`, `app-storage.test.mjs`, `react.test.mjs` | Teach unit transports the private dispatch boundary and HTTP mocks the authenticated store probe; preserve every retirement, owner-isolation, quarantine and hook assertion. |
+| `test/helpers/app-session-model.mjs`, `app-session-model.test.mjs` | I12 tracks received bodies; I13 faults real wasm keep_write as well as online receipt storage. Preserve all other invariants and full counts. Pin local cleanup interleaving. |
+| `test/helpers/online-client-model.mjs`, `online-client-model.test.mjs` | R3 independently counts executions per id/store and durable ownership before dispatch, allowing server-deduped repost after failed receipt save. Assert coverage of unpersisted terminal, safe replay and store fencing. |
+| `CLIENT-AND-OPERATIONS.md`, `src/contract.ts`, `guide/writes.rs`, `../llp/3000.013-quarry-states-intent.rfc.md` | Document both rulings, recovery limits and unchanged read disclosure; no new Quarry form or refusal code. |
+| `metrics/wasm-budget.json`, `JOURNAL.md`, this report | Record unchanged device bytes, measurements and qualification. |
 
 ## Release checks and failure accounting
 
-The last full suite completed with exit 1 and this exact summary:
+### Part-h qualification
+
+Final implementation commit: **`8c3515d68`**. The final full suite exits 0:
+
+```text
+== 0 failure(s) in 345 s
+```
+
+Main client process: **1,478 tests, 1,468 pass, 0 fail, 10 explicit skips**;
+its separately sharded groups also pass. Every Rust target and doctest passes;
+no original-main baseline or environmental failure remains. No intermittent
+failure occurred in the final run. The historical typing race's isolated reruns
+and test-only repair remain documented below.
+
+| Release check | Final result |
+|---|---|
+| E online / real wasm local | 5,000 / 5,000 sequences pass, with actual device receipt-save faults. |
+| J online | 3,000 sequences pass, including safe deduplicated repost and different-store fencing. |
+| Guide | 80/80; every Quarry block compiles without diagnostic or note. |
+| Clique | 3/3, including Following and the digest sweep. |
+| Issue tracker | 4/4, server and memory/SQLite devices including reopen; the supplied card remains honestly classified grows. |
+| Native smoke / witness driver / README JS | 21/21; Rust witness unit tests also pass in the full suite. No Linux simulator claim. |
+| Docs budget | README 300/300 physical lines; changed source files at most 1,500 lines (local.ts 1,483). |
+| References | `ref-check: ok — 505 LLP docs, 9265 refs in 25823 files, 0 errors, 0 unchecked`. |
+| Wasm | Unchanged, 491,641 B gzip under 492,000 B; no ratchet increase. |
+| Lane L latency | 4/4 ignored witness tests pass with SNAPBACK4_BENCH_MAX_RATIO=1.5; measured ratio 1.133. |
+
+Named regressions passed before the full run: 93 outcome/lifecycle/store tests; 18 close-cutoff
+cases; 73 local-receipt/model-smoke tests; 41 retirement/storage/React tests;
+and 21 native-smoke/driver/README JS tests. The two HTTP store-precondition Rust
+regressions pass. The latency witness passes all four ignored tests with both
+assertion flags enabled: 5-follower post p95 2.043 ms, 900-follower p95 2.314 ms,
+**ratio 1.133**, under 1.5. All twenty large-audience posts arrive in 5,848.682 ms
+(5,815.287 ms after the last acknowledgment). Eight continuous foreground
+streams complete 6,875 home requests at p95 2.006 ms while all 901 copies arrive
+in 1,247.817 ms. Production retains synchronous=FULL.
+
+The unchanged artifact is **1,765,796 B raw / 491,641 B gzip**, with **359 B**
+headroom under the existing 492,000 B ratchet. Part h changes JavaScript and
+server HTTP dispatch, with no device Rust delta and no meter-ceiling change.
+The existing complete-list example and Read contract from part g remain valid.
+
+Part-h failure accounting:
+
+- The initial focused run failed J named seeds 16 and 2592 and generated seed 8:
+  the first draft incorrectly required a successful probe before durable offline
+  admission. Undispatched intent now stages durably, then binds atomically before
+  transmission. Its R6 saturation schedule also needed to release the newly
+  required probe before asserting recovery of a held mutation. That assertion
+  remains intact. All four were integration defects and pass in full runs.
+- The first full-model run found local E seed 4054 and J seed 2140. The former
+  was an integration bug: a body arriving during close cleanup was discarded.
+  The latter was an oracle timing error: ownership had been persisted before
+  dispatch, but a concurrent owner retired the pending entry before HTTP entry.
+  The independent model now records committed bindings and still forbids a
+  different-store execution or repost of a persisted terminal result.
+- The next model run found J seed 1073: an added action wrapper introduced a
+  delivery await across the terminal-store fence. The wrapper was removed from
+  the normal action path; close-only recovery preserves the original ordering.
+  A preliminary full suite was stopped when this code changed; it has no final
+  summary and is not passing evidence.
+- The first completed part-h full suite ended **`== 1 failure(s) in 355 s`**,
+  solely client tests. All Rust targets and the full 13,000 model sequences
+  passed. Its 22 client failures comprise 21 test cases plus the React parent:
+  six receipt-retirement unit cases lacked the new private dispatch registration;
+  twelve storage/SecureStore/quarantine cases and three React cases lacked the
+  new probe response in their mock servers. These are integration fixture
+  defects, not baseline or environmental waivers. All 41 affected tests passed
+  after adding the actual protocol boundary without weakening assertions.
+  No new intermittent failure occurred in that run. The complete log is
+  `integration-r5h-suite-2.log`. The failed fixture cases were:
+  `app-retirement`: settle/compact/reopen for E_STORE_REPLACED and E_STORE_RESTORE;
+  bulk retirement beyond the window; saturation with displaced sent id false and
+  true; admitted pending recovery while delivery is held.
+  `app-storage`: SecureStore pairs a!b/a~b, a*b/a'b, a(b/a)b,
+  user:01ABC/user_3A01ABC and ab/慢; foreign intent owner; foreign backend journal;
+  damaged `{`, `null`, ownerless pending/receipts, and non-array pending records;
+  unavailable quarantine preserving bytes while blocking writes.
+  `react`: AppProvider switches real clients and routes existing hooks; failed
+  receipt saves stay settled after remount; two online owners notify both hooks
+  when their shared journal settles. Their parent React test also reported red.
+
+The model evidence includes E online 5,000 and real-wasm local 5,000 sequences,
+with 3,750 online and 7,084 device receipt-save failures respectively; I12 covers
+79/74 unknown close outcomes and 1,691/1,659 known deliveries. J's 3,000 sequences
+cover seven unpersisted terminal observations, one subsequent safe terminal
+repost, 219 deduplicated sends and 147 store-precondition fences. These are
+seeded regression results, not an exhaustive proof.
+
+### Historical part-g qualification (superseded by part h)
+
+Before the supervisor rulings, the last full suite completed with exit 1:
 
 ```text
 == 1 failure(s) in 444 s
@@ -201,7 +295,7 @@ transition after the expiry render. The test now captures both ready reads and
 the DOM together in one browser turn; it keeps the original first-render
 expiry deadlines and no-early-polling assertions. Both ages then passed (2/2),
 with online/local lateness 5/1 ms and 3/2 ms. This is a test-only repair after
-the quoted full-suite run; no subsequent all-suite green result is claimed.
+the quoted full-suite run; part-h qualification below supplies the subsequent all-suite result.
 See `integration-r5g-typing-alone-2.log` and `integration-r5g-typing-fixed.log`.
 
 The first full suite ended `== 2 failure(s) in 409 s`: `cargo test` and
@@ -269,7 +363,7 @@ corrected that setup error before every qualification result reported here.
 The preliminary wasm gate correctly refused the inherited limit; the measured
 ratchet above resolves it, without hiding a size failure.
 
-Reproduce the contract failures from `snapback4/` after the package build:
+Re-run the formerly conflicting contracts from `snapback4/` after the package build:
 
 ```sh
 node --test packages/snapback4/test/app-local-outcomes.test.mjs packages/snapback4/test/app-outcomes.test.mjs packages/snapback4/test/effectful-cancellation.test.mjs
@@ -277,9 +371,8 @@ node --test packages/snapback4/test/app-session-model.test.mjs packages/snapback
 node --test packages/snapback4/test/app-receipts.test.mjs
 ```
 
-The last command currently passes E's intentional failed-persistence behavior;
-J seed 48 rejects that same boundary. No timeout increase, assertion removal or
-receipt loss is used to make the incompatible contracts appear compatible.
+Part h updates the model contracts only where the supervisor ruled and adds
+store-bound replay. These commands now qualify that implementation.
 
 
 ## Limits retained from the lanes and their reviews
@@ -314,9 +407,12 @@ These quotations identify remaining limits, not new capabilities:
   or complete 257 writes with failed receipt saves, then write(firstId), observing
   a duplicate notification. Grok reports a peer opening the consumed predecessor
   after rotation persistence failed can fence/revoke the live successor. These
-  remain review findings, not silently dismissed by the bounded model. Its
-  transport-abort finding meets J's non-aborted transport here; the incompatible
-  caller-wait policy still needs the ruling above.
+  are addressed as follows: part h fixes both Astra findings with real device
+  receipt-save failure and 257-receipt regressions. The Grok consumed-predecessor
+  scenario remains an inherited recovery limitation: a peer's authoritative
+  refusal can fence that account epoch after failed rotation persistence. No
+  authorization fence is relaxed to retain the successor. The non-aborted
+  transport and caller-wait policy now follow the explicit supervisor ruling.
 - **K**, final round-12 report: "The conservative handling of conditions and loop
   emptiness is the engineering choice requested by the soundness-first brief."
   Grok k-d10 identifies the precision limit: "an assignment after a conditional
@@ -353,6 +449,6 @@ These quotations identify remaining limits, not new capabilities:
 
 Review quotations refer to `~/sb4-intent/reviews/<lane>-<round>.<model>.md`.
 All part-g logs are `~/sb4-intent/integration-r5g-*.log`; earlier part reports
-retain their exact run names and failure dispositions. The design conflicts
-above prevent the requested 0-failure release claim; the integration branch
-must not be published on this evidence.
+retain their exact run names and failure dispositions. Part-h logs use
+`~/sb4-intent/integration-r5h-*.log`; the final qualification supersedes the
+historical blocked results without rewriting the journal.
