@@ -436,6 +436,7 @@ pub struct EffectDecl {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Document {
+    pub source: crate::source::SourceMap,
     pub file: String,
     pub identity: Option<(bool, bool)>,
     /// Project-wide opt-in, collected across documents like `use identity`.

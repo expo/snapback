@@ -16,7 +16,7 @@ mod programs;
 mod actions;
 mod routes;
 
-fn precedence(op: &str) -> Option<u8> {
+pub(crate) fn precedence(op: &str) -> Option<u8> {
     Some(match op {
         "??" => 1,
         "or" => 2,
@@ -30,12 +30,14 @@ fn precedence(op: &str) -> Option<u8> {
 
 pub fn parse_document(file: &str, source: &str) -> (Document, Vec<Diagnostic>) {
     let (tokens, diagnostics) = lex(file, source);
-    let mut parser = Parser { tokens, position: 0, diagnostics, document: Document { file: file.to_owned(), ..Document::default() } };
+    let source = source.replace("\r\n", "\n").replace('\r', "\n").split('\n').map(str::to_owned).collect();
+    let mut parser = Parser { source, tokens, position: 0, diagnostics, document: Document { file: file.to_owned(), ..Document::default() } };
     parser.document();
     (parser.document, parser.diagnostics)
 }
 
 struct Parser {
+    source: Vec<String>,
     tokens: Vec<Token>,
     position: usize,
     diagnostics: Vec<Diagnostic>,

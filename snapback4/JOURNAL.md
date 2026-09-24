@@ -49567,3 +49567,155 @@ Did not run scripts/test.sh, rebuild WASM or merge later lanes: the user
 explicitly deferred whole-round qualification until those lanes finish.
 The complete target fixture is unchanged and was not requalified in this part.
 No production follow-up change, new form, version bump, push or publication.
+
+
+## 2026-09-24 — LLP 3000.013 Lane H round 1: cost text keeps the authored meaning
+
+Fetched origin and fast-forwarded the lane to `ca6d975da`, including round 0.
+The issue-tracker board now quotes `(status = null or .status = status) and
+(assignee = null or .assignee = assignee)` in its growth reason and preserves
+the entire authored `issues where .org = org and ... last 50 by .at after c`
+read. Default/check-cost output labels its access path `index (org, at), chosen
+by the planner`; verbose output retains `$intent:byOrgAt:03280974970de35a`.
+JSON cost output retains canonical selections in a new `plans` object keyed
+by operation and IR read site. No Quarry syntax or refusal code was added.
+
+File map (paths under crates/ unless noted):
+- snapback4-lang/src/ast.rs and lib.rs attach/export compiler source metadata;
+  source.rs records token-bounded spellings, grouping and matching syntax;
+  parser.rs and parser/expr.rs collect them, including reads before shaping.
+  Changed syntax at a reused site cannot quote stale original text.
+- snapback4-lang/src/print.rs preserves precedence, associativity and escaped
+  strings when source text is unavailable; it groups residual disjunctions
+  when composing read predicates and comparisons in rewrites.
+- snapback4-lang/src/bind/catalog.rs carries document source maps; intent.rs
+  and intent_views.rs retain original read spellings before planning.
+  bind/program.rs retains scan filters/domains and merge-range source text;
+  bind/actions.rs initializes the additional metadata for action programs.
+  bind/program/control.rs and views.rs retain loop/lane domains; reads.rs
+  prints source-aware comparison operands; prefix.rs keeps source operands
+  in generated page/limit rewrites.
+- snapback4/src/scale.rs uses bound source metadata for filters, domains,
+  sweeps and data-dependent ranges. scale/display.rs keeps an IR fallback,
+  recovers lowered disjunctions and escapes literal strings. All numeric
+  certificate allowances, classes, authorization and runtime meters remain.
+- snapback4/src/presentation.rs labels synthesized indexes from their schema
+  components, preserving authored quoted literals. main.rs wires it in;
+  verbs.rs applies it to check/why details, notes and diagnostic output,
+  adds canonical JSON plans, and displays mutation pass predicates faithfully.
+- snapback4-lang/src/guide/bounds.rs and guide/indexes.rs describe the display
+  and the verbose/JSON escape hatch. snapback4/tests/check_cost_source.rs adds
+  five regressions. packages/snapback4/test/write-authority.test.mjs updates
+  the intentional pass-display expectation from counters[owner] to
+  counters where .owner = owner. JOURNAL.md appends this record.
+
+The five new tests prove: (1) exact board growth/read lines, friendly default
+and cost labels, and canonical verbose/JSON names; (2) original spacing,
+parentheses, 24h spelling and data-derived range expressions; (3) multiline
+CRLF/Unicode/escaped literals, even containing canonical index names and
+planner prose; (4) no stale source after syntax changes at the same site;
+(5) precedence-correct fallback with execution round trips, including
+`false and (false or true)` returning false (flattening it returns true),
+arithmetic, conditionals, coalescing and strings. The updated JS cost test
+passes independently. The CLI check/scale suites, language lib/guide/lookup
+suites pass; all 57 guide tests pass in the full run. The supplied complete
+`~/sb4-intent/target-clique.q` passes check --cost, retaining its existing
+classes and quoting authored 24h/filter/prefix spellings.
+
+First full run: `== 1 failure(s) in 277 s` (client tests; three failures).
+Ours: `write authority: check --cost prints the bounded uniform pass and its
+examined ceiling` pinned the former display; its assertion is updated and
+passes. Environmental/intermittent: `W5c process: pending writes recover by
+id through sent and failed, including settlement before reopen returns`
+observed sent instead of pending at acquisition.test.mjs:375; `shared logout
+fences a held online rotation while signed out` hit UND_ERR_SOCKET at
+app.test.mjs:437. Both unchanged tests pass in the supported serial-client
+rerun. Neither appears in the supplied baseline log. Reproduction of the
+observed concurrent-test flakes: ordinary `scripts/test.sh` on the shared
+host (intermittent). No acquisition/authentication/runtime fix was made.
+There is no open implementation problem; concurrent client-test flakiness
+remains an observed environmental limitation.
+
+Final full run: `SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 scripts/test.sh`:
+`== 0 failure(s) in 699 s`. Client: 1,088 passed, 10 existing skips, zero
+failures. The strengthened boolean witness was additionally rerun with all
+five new tests passing. No baseline failure recurred. Wasm is unchanged at
+1,744,842 B raw / 484,967 B gzip (486,000 B budget). Reference check: 504 LLP
+documents, 9,234 references, zero errors/unchecked. Whitespace checks pass;
+the largest changed source is parser.rs at 1,174 lines, below 1,500.
+
+Engineering choices where unspecified: retain source metadata only in the
+compiler and bound explanations; validate syntax before reusing a spelling;
+omit the implicit final id tiebreaker from friendly multi-column labels;
+add canonical JSON plans without changing schema index identities. No design
+deviation, authorization/disclosure/durability weakening, engine work or
+ceiling change. Package versions stay at inherited 0.4.0; no push/publication.
+Logs: /tmp/lane-h-round1-source.log, /tmp/lane-h-round1-cli.log,
+/tmp/lane-h-round1-lang.log, /tmp/lane-h-round1-cost-js.log,
+/tmp/lane-h-round1-clique.log, /tmp/lane-h-round1-full.log,
+/tmp/lane-h-round1-full-serial.log and /tmp/lane-h-round1-refs.log.
+
+
+## 2026-09-24 — LLP 3000.013 Lane H round 2: close certificate review
+
+Closed all three display findings and both requested coverage gaps from the
+Astra/Grok READY WITH CHANGES reviews, on top of 2968d8b9d.
+
+File map:
+- crates/snapback4-lang/src/parser/expr.rs carries the prefix token start into
+  postfix processing. Re-entering after grouping now records the opening
+  parenthesis as well as the consumed closing parenthesis. For example,
+  `return (issues where .org = viewer first 20 by .at) { id }` reports the
+  balanced source read `(issues where .org = viewer first 20 by .at)`.
+  Nested grouping and modifiers after a group retain their authored bounds.
+- crates/snapback4/src/presentation.rs treats `--` through newline as opaque,
+  preserving planner-looking prose, canonical names and unmatched quote
+  characters inside builder comments. Single- and double-quoted literals
+  remain opaque, including embedded `--`. A final id is omitted only when
+  at least two components remain: (org, at, id) displays (org, at), while
+  (org, id) stays (org, id), as requested.
+- crates/snapback4/tests/check_cost_source.rs adds three regressions: balanced
+  plain/single/double-grouped shaped reads and a range outside grouping;
+  unchanged comments plus correctly relabeled following lines; and the
+  (org, id) label for reads ordered by .id. It extends literal preservation
+  to both quote styles and adds the executed `not (false and false)` case.
+- crates/snapback4-lang/src/guide/indexes.rs documents the two-column label.
+  JOURNAL.md appends this entry. No authoring form or refusal code was added.
+
+Regression sensitivity was measured before applying the production fixes:
+the grouped-read and id-label tests failed against round 1, and the comment
+regression failed in its focused pre-fix run. The comment assertions target
+board's scale line and following scan/selection so another operation or a
+second copy of the predicate cannot hide a corrupted display. Two deliberate
+mutations also fail: disabling double-quote protection breaks the literal
+case; printing a not operand at precedence 0 produces `not false and false`,
+which executes to false instead of the required true. Both temporarily
+mutated files were restored byte-for-byte before final qualification.
+These are intentional negative checks for our reviewed defects, not suite
+failures left outstanding.
+
+Validation: 105 affected CLI tests passed (check, check_cost_source, scale,
+scale_intent, scale_windows_expiry), followed by all eight source/cost tests
+after mutation restoration. All 76 targeted language tests passed: 15 lib,
+57 guide and four lookup-selection tests. The complete supplied Clique
+target passes check --cost with its unchanged seven constant/six growing
+operation classes. Reference check: 504 LLP documents, 9,234 references,
+zero errors and zero unchecked. Whitespace checks pass; the largest changed
+source is parser/expr.rs at 544 lines, below 1,500. Wasm stays 1,744,842 B raw /
+484,967 B gzip under the unchanged 486,000 B budget.
+
+Ran the full suite once, with the supported serial-client setting used in
+round 1: `SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 scripts/test.sh`.
+Exact result: `== 0 failure(s) in 698 s`. Client: 1,088 passed, 10 existing
+skips, zero failures. No introduced, baseline or environmental full-suite
+failure occurred in this round. Logs: /tmp/lane-h-round2-before.log,
+/tmp/lane-h-round2-comment-red.log, /tmp/lane-h-round2-mutant-double-quotes.log,
+/tmp/lane-h-round2-mutant-not-precedence.log, /tmp/lane-h-round2-affected.log,
+/tmp/lane-h-round2-source-final.log, /tmp/lane-h-round2-lang.log,
+/tmp/lane-h-round2-clique.log, /tmp/lane-h-round2-refs.log and
+/tmp/lane-h-round2-full.log.
+
+No design deviation or open review item. The span implementation uses the
+actual prefix start and current postfix end rather than inferring boundaries
+from the table's site. No authorization, disclosure, durability, execution,
+certificate-bound or meter change. No version bump, push or publication.

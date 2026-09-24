@@ -21,7 +21,7 @@ pub(super) fn table_order(catalog: &mut Catalog) {
             && catalog.tables.contains_key(&read.table)
             && let Some(id) = read.order_keys.iter().position(|column| column == "id")
             && id + 1 < read.order_keys.len() {
-            catalog.read_origins.entry(read.site.to_string()).or_insert_with(|| crate::print::read_expr(read));
+            catalog.read_origins.entry(read.site.to_string()).or_insert_with(|| catalog.source.expression(&Expr::Read(read.clone())));
             read.order_keys.truncate(id + 1);
         }
     };

@@ -122,7 +122,7 @@ test("write authority: check --cost prints the bounded uniform pass and its exam
   const f = await fixture(t);
   const checked = spawnSync(binary, ["check", "--cost"], { cwd: f.directory, encoding: "utf8" });
   assert.equal(checked.status, 0, checked.stderr);
-  assert.match(checked.stdout, /a pass over the first 10 rows of counters\[owner\] by byOwner; examined ceiling 8192/);
+  assert.match(checked.stdout, /a pass over the first 10 rows of counters where \.owner = owner by byOwner; examined ceiling 8192/);
 });
 
 test("write authority: a lost readable key-collision reply cannot recover its key after revocation", { timeout: 20000 }, async (t) => {

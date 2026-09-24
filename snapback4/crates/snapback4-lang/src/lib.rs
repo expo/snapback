@@ -11,6 +11,7 @@ pub mod guide;
 pub mod lexer;
 pub mod parser;
 pub mod print;
+pub mod source;
 pub mod recipe;
 pub mod types;
 

@@ -7,7 +7,7 @@ impl<'a> Binder<'a> {
         let named = read.keys.iter().all(|key| key.column.is_some());
         let bindings = index.columns.iter().enumerate().filter_map(|(position, column)| {
             let key = if named { read.keys.iter().find(|key| key.column.as_ref() == Some(column)) } else { read.keys.get(position) }?;
-            Some(format!("{column} = {}", print::expression(&key.value)))
+            Some(format!("{column} = {}", self.catalog.source.operand(&key.value)))
         }).collect::<Vec<_>>().join(", ");
         let origin = if self.catalog.synthesized.contains(&(read.table.clone(), index.name.clone())) { "synthesized; " } else { "" };
         let source = if origin.is_empty() { String::new() } else { format!("; read: {}", self.catalog.read_origins.get(&read.site.to_string()).cloned().unwrap_or_else(|| print::read_expr(read))) };

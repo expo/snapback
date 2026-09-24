@@ -40,6 +40,10 @@ Run `snapback4 check --cost` for chosen and synthesized indexes and the reads
 that need them. `snapback4 why <operation>` shows each source site, selected
 index, key bindings and result form. These are structural facts; use the dev
 read meter to measure actual work (`guide reads`).
+The default output names planner indexes by their columns. `--verbose` and
+`--json` retain their canonical names; authored index names stay as written.
+Two-column labels keep a trailing `id`, as in `index (org, id)`; wider labels
+may omit the final `id` tiebreaker.
 
 Equality pins lead the index, then any time bucket, then the requested order.
 `id` breaks ties in the same direction. Identical index definitions are reused.

@@ -24,6 +24,9 @@ impl Binder<'_> {
                 let (source, ty) = self.lane_domain(domain, out)?;
                 (Some(source), self.declare(name, ty))
             } else { (None, String::new()) };
+            if let Some((_, domain)) = &lane.loop_ {
+                self.sources.insert(format!("for/{binding}"), (domain.site().clone(), self.catalog.source.expression(domain)));
+            }
             let distinct = lane.distinct.as_ref().map(|value| self.expr(value, out).map(|(value, _)| value)).transpose()?;
             let mut setup = setup::Body::default();
             // @ref LLP 3000.007#20.12 — as with authored merges, a lane-dependent

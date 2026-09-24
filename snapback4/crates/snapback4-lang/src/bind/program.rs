@@ -26,6 +26,7 @@ pub(crate) mod setup;
 #[derive(Clone, Debug)]
 pub struct BoundProgram {
     pub view_types: BTreeMap<String, Ty>,
+    pub(crate) filters: BTreeMap<String, String>,
     pub(crate) sources: BTreeMap<String, (Site, String)>,
     pub(crate) selections: BTreeMap<String, String>,
     pub program: Program,
@@ -38,12 +39,17 @@ pub struct BoundProgram {
 }
 
 impl BoundProgram {
+    pub fn filter_source(&self, site: &str) -> Option<&str> { self.filters.get(site).map(String::as_str) }
+    pub fn domain_source(&self, site: &str) -> Option<&str> { self.sources.get(&format!("domain/{site}")).map(|(_, text)| text.as_str()) }
+    pub fn loop_source(&self, binding: &str) -> Option<&str> { self.sources.get(&format!("for/{binding}")).map(|(_, text)| text.as_str()) }
+    pub fn selections(&self) -> &BTreeMap<String, String> { &self.selections }
     /// The actual binder choice, shared by `why` and structural cost reports.
     pub fn selection(&self, site: &str) -> Option<&str> { self.selections.get(site).map(String::as_str) }
 }
 
 #[derive(Clone)]
 pub struct Binder<'a> {
+    filters: BTreeMap<String, String>,
     view_types: BTreeMap<String, Ty>,
     sources: BTreeMap<String, (Site, String)>,
     selections: BTreeMap<String, String>,
@@ -93,7 +99,7 @@ impl<'a> Binder<'a> {
     /// Differential-test control: lowering is identical with the side map disabled.
     #[doc(hidden)]
     pub fn bind_with_ownership(catalog: &'a Catalog, schema: &'a snapback4_core::schema::Schema, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>, record_ownership: bool) -> Option<BoundProgram> {
-        let mut binder = Binder { view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, notes: Vec::new(), errors: Vec::new() };
+        let mut binder = Binder { filters: BTreeMap::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, notes: Vec::new(), errors: Vec::new() };
         let mut args = BTreeMap::new();
         let mut arg_types = Vec::new();
         for arg in &decl.args {
@@ -120,7 +126,7 @@ impl<'a> Binder<'a> {
                 ProgramKind::Query => (ir::ProgramKind::Query, Ty::Json),
                 _ => (ir::ProgramKind::Job, Ty::Null),
             };
-            return Some(BoundProgram { view_types: binder.view_types, selections: binder.selections, sources: binder.sources, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
+            return Some(BoundProgram { filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
         }
         let mut body = setup::Body::default();
         let mut shape_candidates = Vec::new();
@@ -199,7 +205,7 @@ impl<'a> Binder<'a> {
         let presence = if kind == ir::ProgramKind::Mutation {
             Some(super::residency::presence_facts(&program, &ownership, &binder.presence_sources))
         } else { None };
-        Some(BoundProgram { view_types: binder.view_types, selections: binder.selections, sources: binder.sources, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
+        Some(BoundProgram { filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
     }
 
     fn site(&mut self) -> String {
@@ -294,6 +300,7 @@ impl<'a> Binder<'a> {
         if range.take == 0 {
             return Err(type_error(&range.site, "a page holds at least one row", print::read_expr(&ReadExpr { range: Some(ast::RangeSpec { take: 50, ..range.clone() }), ..read.clone() })));
         }
+        let filter_text = read.filter.as_ref().map(|expr| self.catalog.source.expression(expr));
         let (read, filter) = self.scan_filter(read, &index)?;
         let read = &read;
         // Key expressions precede the seek bounds and cursor, including their setup.
@@ -323,6 +330,13 @@ impl<'a> Binder<'a> {
             prefix.push(IndexKeyExpr::WordPrefix(e));
         }
         let scan_site = self.site();
+        let pins = read.keys.iter().enumerate().map(|(position, key)| {
+            let column = key.column.as_ref().unwrap_or(&index.columns[position]);
+            format!(".{column} = {}", self.catalog.source.operand(&key.value))
+        }).collect::<Vec<_>>().join(" and ");
+        let domain = if pins.is_empty() { read.table.clone() } else { format!("{} where {pins}", read.table) };
+        self.sources.insert(format!("domain/{scan_site}"), (read.site.clone(), domain));
+        if filter.is_some() && let Some(text) = filter_text { self.filters.insert(scan_site.clone(), text); }
         self.record_selection(&scan_site, read, &index, if position == prefix::Position::Exists { "exists" } else { "page" }, &selection);
         let spelling = if !read.order_keys.is_empty() { self.catalog.read_origins.get(&read.site.to_string()).cloned() } else { None };
         self.sources.insert(scan_site.clone(), (read.site.clone(), spelling.unwrap_or_else(|| print::read_expr(&ReadExpr { index: None, range: None, matching: None, filter: None, seeks: Vec::new(), ..read.clone() }))));
@@ -363,7 +377,7 @@ impl<'a> Binder<'a> {
             if read.index.is_none() && mode == ReadMode::Range && read.order_keys.is_empty() && candidates.len() == 1 {
                 let scan = info.indexes.iter().filter(declared).find(|index| !index.unique && index.is_plain() && index.columns.len() > read.keys.len());
                 let columns = scan.map(|index| index.columns.as_slice()).unwrap_or(&candidates[0].columns);
-                let predicate = read.keys.iter().zip(columns).map(|(key, column)| format!(".{column} = {}", print::expression(&key.value))).collect::<Vec<_>>().join(" and ");
+                let predicate = read.keys.iter().zip(columns).map(|(key, column)| format!(".{column} = {}", self.catalog.source.operand(&key.value))).collect::<Vec<_>>().join(" and ");
                 return Err(Diagnostic::new(&read.site, "E_QUARRY_POSITIONAL_SCAN", "a positional key selects one declared unique row, not a scan prefix",
                     format!("{} where {predicate} first 20 by .id", read.table)).guide("reads"));
             }
@@ -465,7 +479,7 @@ impl<'a> Binder<'a> {
             1 => {
                 let index = candidates[0].clone();
                 if mode == ReadMode::Range && read.index.is_none() && !read.keys.is_empty() && !named {
-                    let predicate = read.keys.iter().zip(&index.columns).map(|(key, column)| format!(".{column} = {}", print::expression(&key.value))).collect::<Vec<_>>().join(" and ");
+                    let predicate = read.keys.iter().zip(&index.columns).map(|(key, column)| format!(".{column} = {}", self.catalog.source.operand(&key.value))).collect::<Vec<_>>().join(" and ");
                     let order = index.columns.iter().skip(read.keys.len()).map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ");
                     return Err(Diagnostic::new(&read.site, "E_QUARRY_POSITIONAL_SCAN", format!("{} would select non-unique prefix {}", print::read_expr(read), index.name), format!("{} where {predicate} first 50 by {order}", read.table)).guide("reads"));
                 }
@@ -629,6 +643,9 @@ impl<'a> Binder<'a> {
             scan.after = cursor_expr.clone().map(Box::new);
             scan.opaque_cursor = cursor_expr.is_some();
             scan.merge_site = Some(merge_site.clone());
+            if let Some((_, domain)) = &lane.loop_ {
+                self.sources.insert(format!("for/{binding}"), (domain.site().clone(), self.catalog.source.expression(domain)));
+            }
             lanes.push(MergeLane { guard: None, distinct: None, branch: None, project: None, setup: setup.code, scan, source, binding });
         }
         Ok((Expr::Merge(Merge { position: None, view: None, order_keys: Vec::new(), site: merge_site, lanes }), Ty::Page(merge.table.clone(), merge.take)))

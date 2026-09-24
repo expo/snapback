@@ -13,6 +13,7 @@ mod dependencies;
 #[path = "scale/windows.rs"]
 mod windows;
 pub(crate) use display::summary;
+pub(crate) use display::expr as expression;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -49,9 +50,17 @@ pub(crate) struct Growth {
 }
 
 pub(crate) fn analyze(schema: &Schema, program: &Program) -> Certificate {
+    analyze_sources(schema, program, None)
+}
+
+pub(crate) fn analyze_bound(schema: &Schema, bound: &snapback4_lang::BoundProgram) -> Certificate {
+    analyze_sources(schema, &bound.program, Some(bound))
+}
+
+fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4_lang::BoundProgram>) -> Certificate {
     let ceilings = if program.kind == ProgramKind::Job { Ceilings::job() } else { Ceilings::default() };
     let mut a = Analysis {
-        schema, program,
+        schema, program, source,
         result: Certificate {
             operation: program.name.clone(), class: Class::Constant,
             per_chunk: program.kind == ProgramKind::Job,
@@ -85,8 +94,9 @@ pub(crate) fn analyze(schema: &Schema, program: &Program) -> Certificate {
         }
         if program.kind == ProgramKind::Job {
             for stmt in &program.body {
-                if let Stmt::For { domain: LoopDomain::Page(scan), .. } = stmt {
-                    a.result.whole_job.push(format!("rows visited/written by the sweep over `{}`", display::domain(schema, scan)));
+                if let Stmt::For { binding, domain: LoopDomain::Page(scan), .. } = stmt {
+                    let domain = source.and_then(|p| p.loop_source(binding)).map(str::to_owned).unwrap_or_else(|| a.scan_domain(scan));
+                    a.result.whole_job.push(format!("rows visited/written by the sweep over `{domain}`"));
                 }
             }
         }
@@ -98,6 +108,7 @@ pub(crate) fn analyze(schema: &Schema, program: &Program) -> Certificate {
 }
 
 struct Analysis<'a> {
+    source: Option<&'a snapback4_lang::BoundProgram>,
     schema: &'a Schema,
     program: &'a Program,
     result: Certificate,
@@ -108,6 +119,10 @@ struct Analysis<'a> {
 }
 
 impl Analysis<'_> {
+    fn scan_domain(&self, scan: &Scan) -> String {
+        self.source.and_then(|p| p.domain_source(&scan.site)).map(str::to_owned).unwrap_or_else(|| display::domain(self.schema, scan))
+    }
+
     fn growth(&mut self, site: &str, reason: String, rewrite: &str) {
         let growth = Growth { site: site.into(), reason, rewrite: rewrite.into() };
         if !self.result.growth_sites.contains(&growth) { self.result.growth_sites.push(growth); }
@@ -164,7 +179,8 @@ impl Analysis<'_> {
                 Stmt::Require { condition, .. } => { self.expr(condition, times); }
                 Stmt::Check { condition, current } => { self.expr(condition, times); self.point(current, times, true); }
                 Stmt::For { binding, domain, body } => {
-                    let (max, data) = self.domain(domain, times);
+                    let spelling = self.source.and_then(|p| p.loop_source(binding));
+                    let (max, data) = self.domain(domain, times, spelling);
                     self.data.insert(binding.clone(), data);
                     // Later iterations can carry a dependency backwards
                     // through assignments. Resolve it before pricing once.
@@ -194,7 +210,7 @@ impl Analysis<'_> {
         }
     }
 
-    fn domain(&mut self, domain: &LoopDomain, times: u64) -> (u64, bool) {
+    fn domain(&mut self, domain: &LoopDomain, times: u64, spelling: Option<&str>) -> (u64, bool) {
         match domain {
             LoopDomain::Page(scan) => { self.scan(scan, times, false); (self.bound(&scan.take), true) }
             LoopDomain::LiteralRange { start, end_exclusive } => (end_exclusive.saturating_sub(*start).max(0) as u64, false),
@@ -202,7 +218,8 @@ impl Analysis<'_> {
                 let data = self.expr(start, times) | self.expr(end_exclusive, times);
                 let max = display::range_size(start, end_exclusive);
                 if max.is_none() && data {
-                    self.growth(&self.program.name, format!("iterations of range({}, {}) from stored data", display::expr(start), display::expr(end_exclusive)),
+                    let range = spelling.map(str::to_owned).unwrap_or_else(|| format!("range({}, {})", display::expr(start), display::expr(end_exclusive)));
+                    self.growth(&self.program.name, format!("iterations of {range} from stored data"),
                         "cap the domain or pass a bounded list argument");
                 }
                 // An input-only range is independent of corpus size; its
@@ -255,7 +272,8 @@ impl Analysis<'_> {
                         Some(LaneSource::Scan(scan)) => { self.scan(scan, times, false); self.bound(&scan.take) }
                         Some(LaneSource::List { value, max }) => { self.expr(value, times); u64::from(*max) }
                         Some(LaneSource::Range { start, end_exclusive, max }) => {
-                            self.domain(&LoopDomain::ExpressionRange { start: start.clone(), end_exclusive: end_exclusive.clone() }, times);
+                            let spelling = self.source.and_then(|p| p.loop_source(&lane.binding));
+                            self.domain(&LoopDomain::ExpressionRange { start: start.clone(), end_exclusive: end_exclusive.clone() }, times, spelling);
                             max.or_else(|| display::range_size(start, end_exclusive)).unwrap_or(self.result.bounds.meters.steps)
                         }
                     };
@@ -348,7 +366,7 @@ impl Analysis<'_> {
         let table = self.schema.table(&scan.table);
         let mut grows = false;
         if scan.take == Bound::Meter {
-            self.growth(&scan.site, format!("{} in the domain `{}`", scan.table, display::domain(self.schema, scan)),
+            self.growth(&scan.site, format!("{} in the domain `{}`", scan.table, self.scan_domain(scan)),
                 "cap the domain, page it, or add a maintained view for its aggregate");
             grows = true;
         }
@@ -357,7 +375,7 @@ impl Analysis<'_> {
             let rewrite = if window.is_some() { "" } else { "pin the filter column in the read, or add a view indexed by that predicate" };
             let reason = if let Some(window) = window { window } else if let Some(t) = timeline {
                 format!("Following `{}` entries skipped by retired follow epochs or removal tombstones before {} match", t.name, display::bound(&scan.take))
-            } else { format!("{} skipped by `{}` before {} match", scan.table, display::expr(filter), display::bound(&scan.take)) };
+            } else { format!("{} skipped by `{}` before {} match", scan.table, self.source.and_then(|source| source.filter_source(&scan.site)).map(str::to_owned).unwrap_or_else(|| display::expr(filter)), display::bound(&scan.take)) };
             self.growth(&scan.site, reason, rewrite);
             grows = true;
         }

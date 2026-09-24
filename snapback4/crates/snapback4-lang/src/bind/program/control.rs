@@ -200,7 +200,7 @@ impl Binder<'_> {
                         return Err(placement(site, format!("automatic sweep carries local {name} across iterations, but chunks commit independently"), format!("declare {name} inside the `for row in table:` body for per-item work, or store cross-chunk progress in a table")).guide("jobs"));
                     }
                 }
-                self.sources.insert(format!("for/{binding}"), (site.clone(), print::expression(domain)));
+                self.sources.insert(format!("for/{binding}"), (site.clone(), self.catalog.source.expression(domain)));
                 out.push_for(binding, loop_domain, body_out);
                 Ok(())
             }

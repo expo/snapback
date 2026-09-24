@@ -113,6 +113,12 @@ which grow with data. `check --cost` starts each operation with its verdict;
 A growth site's rewrite is empty when the shape needs no suggested change.
 The existing cost details follow each verdict.
 
+Filters and reads quote their authored text, including parentheses; generated
+expressions preserve precedence. Planner indexes appear by their columns,
+such as `index (org, at), chosen by the planner`. `--verbose` keeps canonical
+`$intent:` names; `check --json --cost` also retains them in `plans`, keyed
+by operation and read site.
+
 `scale: constant — at most 21 rows examined, 0 probes, 0 lanes` means the
 work is independent of corpus size for the declared input bounds. A page
 includes its lookahead; a merge includes opening and refilling every lane,
