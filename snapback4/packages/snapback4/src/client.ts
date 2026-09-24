@@ -4,6 +4,7 @@
 // and applies at most once, and waits as `pending` while the link is down.
 // Every word a screen reads is on the card (contract.ts).
 
+import { ReadObservation } from "./read-observation.ts";
 import { changeFeed } from "./changes.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
 import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, ReadMeter, Refusal, Write } from "./contract.ts";
@@ -27,16 +28,11 @@ export interface ClientOptions {
   readonly waitSeconds?: number;
 }
 
-type ReadyRead<T> = Extract<Read<T>, { data: T }>;
-
-interface Watch {
+interface Watch extends ReadObservation<unknown> {
   op: Query<unknown, unknown>;
   args: unknown;
   key: string;
   tables: Set<string>;
-  snapshot: Read<unknown>;
-  lastServer: ReadyRead<unknown> | null;
-  lastServerAt: number;
   subscribers: Set<() => void>;
   inFlight: boolean;
   dirty: boolean;
@@ -173,15 +169,12 @@ export function createClient(options: ClientOptions): Client {
       for (const watch of watches.values()) void refresh(watch);
     } else if (next === "signed-out") {
       failUnsentWrites(auth());
-      for (const watch of watches.values()) {
-        watch.lastServer = null;
-        watch.snapshot = { denied: auth() };
-        notify(watch);
-      }
+      for (const watch of watches.values()) watch.publish({ denied: auth() });
+      for (const watch of watches.values()) notify(watch);
     } else {
       for (const watch of watches.values()) {
-        if (watch.lastServer) {
-          watch.snapshot = { ...watch.lastServer, fresh: false, since: watch.lastServerAt };
+        if ("data" in watch.snapshot) {
+          watch.publish({ loading: true });
           notify(watch);
         }
       }
@@ -293,12 +286,12 @@ export function createClient(options: ClientOptions): Client {
     }
   }
 
-  async function runQuery<A, R>(op: Query<A, R>, args: A): Promise<{ read: Read<R>; tables: string[]; seq: number; nextExpiry: number | null }> {
+  async function runQuery<A, R>(op: Query<A, R>, args: A): Promise<{ read: Read<R>; tables: string[]; seq: number; nextExpiry: number | null; transportOffline?: boolean }> {
     if (closed) return { read: { denied: ended() }, tables: [], seq, nextExpiry: null };
     if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq, nextExpiry: null };
     const result = await post(`/q/${op.name}`, { args });
     if (!credentials) return { read: { denied: auth() }, tables: [], seq, nextExpiry: null };
-    if (!result.ok) return { read: { denied: offline() }, tables: [], seq, nextExpiry: null };
+    if (!result.ok) return { read: { denied: offline() }, tables: [], seq, nextExpiry: null, transportOffline: true };
     const json = result.json;
     if (json.denied) return { read: { denied: json.denied as Refusal }, tables: (json.tables as string[] | undefined) ?? [], seq, nextExpiry: null };
     const at = Number(json.seq ?? 0);
@@ -333,24 +326,15 @@ export function createClient(options: ClientOptions): Client {
     }
     watch.inFlight = true;
     try {
-      const { read, tables, nextExpiry } = await runQuery(watch.op, watch.args);
+      const { read, tables, nextExpiry, transportOffline } = await runQuery(watch.op, watch.args);
       if (closed || watches.get(watch.key) !== watch) return;
       if (!credentials) {
-        watch.snapshot = { denied: auth() };
+        watch.publish({ denied: auth() });
         notify(watch);
         return;
       }
       watch.tables = new Set(tables);
-      if ("data" in read) {
-        watch.lastServer = read;
-        watch.lastServerAt = Date.now();
-        watch.snapshot = read;
-      } else if ("denied" in read && read.denied.code === "E_OFFLINE" && watch.lastServer) {
-        watch.snapshot = { ...watch.lastServer, fresh: false, since: watch.lastServerAt };
-      } else {
-        if ("loading" in read) watch.lastServer = null;
-        watch.snapshot = read;
-      }
+      watch.publish(transportOffline && "data" in watch.snapshot ? { loading: true } : read);
       scheduleExpiry(watch, nextExpiry);
       notify(watch);
     } finally {
@@ -483,7 +467,7 @@ export function createClient(options: ClientOptions): Client {
       const key = `${op.name}:${JSON.stringify(args)}`;
       let watch = watches.get(key);
       if (!watch) {
-        watch = { op: op as Query<unknown, unknown>, args, key, tables: new Set(), snapshot: { loading: true }, lastServer: null, lastServerAt: 0, subscribers: new Set(), inFlight: false, dirty: false, expiryTimer: null };
+        watch = Object.assign(new ReadObservation<unknown>(), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), subscribers: new Set<() => void>(), inFlight: false, dirty: false, expiryTimer: null });
         watches.set(key, watch);
         void refresh(watch);
         void poll();
@@ -491,7 +475,7 @@ export function createClient(options: ClientOptions): Client {
       const own = watch;
       const mine = new Set<() => void>();
       return {
-        getSnapshot: () => own.snapshot as Read<R>,
+        getSnapshot: () => own.read(closed ? ended() : !credentials ? auth() : null) as Read<R>,
         subscribe(notifyMe) {
           mine.add(notifyMe);
           own.subscribers.add(notifyMe);
@@ -625,6 +609,8 @@ export function createClient(options: ClientOptions): Client {
       if (retry) clearTimeout(retry);
       if (refreshTimer) clearTimeout(refreshTimer);
       for (const watch of watches.values()) if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
+      for (const watch of watches.values()) watch.publish({ denied: ended() });
+      for (const watch of watches.values()) notify(watch);
       watches.clear();
       linkListeners.clear();
       viewerListeners.clear();

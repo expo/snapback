@@ -456,6 +456,9 @@ so that a hidden row cannot be probed. For access UI, use a membership query
 the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
+An unavailable observation rerun keeps the last answer with `fresh: false`
+and its `since`; refusals and account/client lifetime changes clear it.
+An unavailable device read asks the server while online even with pending writes.
 
 `complete` says this is everything the query can answer: false when the
 meter cut the page, when a scan's read rule is not decided by its prefix

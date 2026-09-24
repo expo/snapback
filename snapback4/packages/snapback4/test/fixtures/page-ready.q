@@ -49,6 +49,8 @@ mutation send(chat: chats, body: text <=100): server
   insert messages { chat, sender: viewer, body, at: now }
 mutation markRead(chat: chats):
   update members[chat, viewer] { readAt: now }
+mutation resetRead(chat: chats):
+  update members[chat, viewer] { readAt: 0 }
 query history(chat: chats, c: cursor ?):
   return messages where .chat = chat last 50 by .at after c { *, senderProfile: profiles[principal = .sender] }
 fn unread(m: members):

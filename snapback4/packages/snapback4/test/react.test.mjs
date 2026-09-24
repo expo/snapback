@@ -34,6 +34,7 @@ test("React hooks and reference-app lifetimes", async (t) => {
         { find: /^react-dom\/client$/, replacement: require.resolve("react-dom/client") },
         { find: "snapback4/app", replacement: join(root, "packages/snapback4/src/app.ts") },
         { find: "snapback4/auth", replacement: join(root, "packages/snapback4/src/auth.ts") },
+        { find: "snapback4/client", replacement: join(root, "packages/snapback4/src/client.ts") },
         { find: "snapback4/react", replacement: join(root, "packages/snapback4/src/react.tsx") },
         { find: "web-state", replacement: join(root, "apps/chat/src/state.ts") },
         { find: "web-composer", replacement: join(root, "apps/chat/src/Composer.tsx") },
@@ -102,6 +103,7 @@ import { StrictMode, act, useState, createElement as h } from "react";
 import { createRoot } from "react-dom/client";
 import { AppProvider, useAuth, useClient, SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, useAcquired, useAction, useViewer, useAsset } from "snapback4/react";
 import { createApp } from "snapback4/app";
+import { createClient } from "snapback4/client";
 import { memorySessionStore, keepSession } from "snapback4/auth";
 import { Composer } from "web-composer";
 import { ViewState } from "web-state";
@@ -494,6 +496,63 @@ const cases = {
     equal(latest.items, ["a", "b"], "new arguments reset the requested depth");
     check(active(client).length === 1, "new arguments close every old page");
     await unmount(); allClosed(client);
+  },
+  async "real observations retain every unavailable page, preserve since, and clear on refusal and close"() {
+    let phase = "ready", seq = 0, latest;
+    const client = createClient({ url: "http://observation.test", persona: "alice", fetch: async (input, init) => {
+      const path = new URL(input).pathname;
+      if (path === "/changes") return new Promise((_, reject) => {
+        if (init.signal.aborted) reject(Error("closed"));
+        else init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true });
+      });
+      if (path === "/m/write") return Response.json({ state: "sent", id: JSON.parse(init.body).id, seq: ++seq, result: null });
+      if (path === "/q/read") {
+        if (phase === "loading") return Response.json({ loading: true });
+        if (phase === "missing") return Response.json({});
+        if (phase === "denied") return Response.json({ denied: { code: "E_RULE", family: "rule", message: "access withdrawn" } });
+        const { c } = JSON.parse(init.body).args;
+        return Response.json({ data: c ? ["b"] : ["a"], next: c ? null : "a", complete: true, seq });
+      }
+      throw Error(path);
+    } });
+    function Probe() { latest = { query: useQuery(query, {}), page: usePage(query, {}) }; return null; }
+    const settle = async condition => {
+      for (let n = 0; n < 100; n++) {
+        await act(async () => { await new Promise(resolve => setTimeout(resolve, 5)); });
+        if (condition()) return;
+      }
+      throw Error("observation did not settle");
+    };
+    const rerun = async value => {
+      phase = value;
+      await act(async () => { await client.mutate(mutation, {}); });
+      await settle(() => true);
+    };
+    try {
+      await mount(h(Probe), client);
+      await settle(() => latest.page.hasMore);
+      await act(async () => latest.page.loadMore());
+      await settle(() => latest.page.items.length === 2);
+      equal(latest.page.items, ["a", "b"], "two published pages");
+      await rerun("loading");
+      equal(latest.page.items, ["a", "b"], "both unavailable pages remain visible");
+      equal(latest.query.data, ["a"], "useQuery keeps its answer too");
+      check(!latest.query.fresh && !latest.page.read.fresh, "all kept answers are stale");
+      const since = [latest.query.since, latest.page.read.since];
+      check(since.every(Number.isFinite), "kept answers have their publication time");
+      await rerun("missing");
+      equal([latest.query.since, latest.page.read.since], since, "missing-data reruns preserve timestamps");
+      equal(latest.page.items, ["a", "b"], "missing-data reruns preserve every page");
+      await rerun("denied");
+      check(latest.query.denied?.code === "E_RULE" && latest.page.read.denied?.code === "E_RULE", "refusals replace kept answers");
+      equal(latest.page.items, [], "refused first page clears visible items");
+      await rerun("loading");
+      check(latest.query.denied?.code === "E_RULE" && latest.page.read.denied?.code === "E_RULE", "an unavailable rerun cannot retract the refusal or resurrect its old data");
+      await rerun("ready");
+      await act(async () => client.close());
+      check(latest.query.denied?.code === "E_CLOSED" && latest.page.read.denied?.code === "E_CLOSED", "close clears both hooks");
+      equal(latest.page.items, [], "closed client retains no page");
+    } finally { await unmount(); await client.close(); }
   },
   async "usePage treats every non-array ready value as loading and keeps the earlier pages"() {
     for (const invalid of [null, undefined, {}, "text", 7, false]) {

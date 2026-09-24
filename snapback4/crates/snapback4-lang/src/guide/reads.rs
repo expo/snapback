@@ -44,13 +44,15 @@ Non-uniform server reads report `cut: null`: the reason is withheld, with `compl
 missing coverage or a page without continuation. For `complete: false` with
 `cut: null`, render "Results may be incomplete", even when empty; never "no matches".
 A complete empty page has `cut: null` and `complete: true`.
-If evaluation stops before producing a value, the client returns `loading`.
+If evaluation stops before producing a value, a new observation returns `loading`;
+an observation with a prior answer keeps it with `fresh: false` and its `since`.
 A ready list read always carries an array; an absent point can still be null.
 `usePage` keeps earlier pages visible while a later page is unavailable.
 For ordinary device reads, online fallback asks the server only for a missing
 fact or unknown presence; a meter or word cut and a cursorless page stay local,
 as do held queries and retained left groups, and pending predictable writes
-still prevent fallback.
+still prevent fallback when the device has an answer. An unavailable ordinary
+device read asks the server while online even with pending writes.
 
 A read denied by a table's rule answers as an empty page, not a refusal,
 and a client cannot tell it apart from an empty readable page — by design,

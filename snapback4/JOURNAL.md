@@ -49368,3 +49368,69 @@ is 1,490); whitespace checks pass. Evidence is in
 `/tmp/lane-j-full-suite-second.log` and
 `/tmp/lane-j-full-suite.log`. No open implementation problem found. No
 version bump, publication, push, acquisition redesign or benchmark rerun.
+
+### 2026-09-24 — Lane J round 1: keep published answers through unavailable reruns
+
+The M8 correction supersedes round 0's decision to discard remembered answers
+on unavailable replies. Both observation arms now use `ReadObservation`: an
+unavailable rerun keeps the last ready value, cursor and coverage flags with
+`fresh: false`, preserving its `since`. A fresh value without a public `since`
+records its publication time for a later stale answer; repeated unavailable
+reruns do not advance that time. An initial unavailable observation stays
+loading. A refusal replaces and discards the kept value; subsequent unavailable
+reruns retain that refusal until there is another answer. Explicit sign-out,
+close and account replacement fence snapshots, including an old observation
+handle that is no longer subscribed. Existing store-incarnation invalidation
+and held-query authority boundaries remain intact.
+
+An unavailable ordinary device read now asks the online server before checking
+pending predictions: it has no usable prediction to preserve. A transport
+failure on that attempt returns the unavailable local state, so an observation
+can keep its answer and a never-answered observation can keep loading. Existing
+server-only offline refusals remain. Available local predictions keep their
+previous routing. Composition may use the already-fetched server value if its
+second local read becomes unavailable. A no-change sync reevaluates kept
+answers instead of promoting them to fresh by changing their flag. Server
+answers remain remembered through unavailable replies; an explicit refusal
+still removes them. The online arm distinguishes transport loss from an
+explicit E_OFFLINE refusal, so the latter also replaces a kept answer.
+
+Files: added the small shared `src/read-observation.ts` helper and updated
+`src/client.ts` and `src/local.ts`. Updated only the Read comment in
+`src/contract.ts`, two sentences in `CLIENT-AND-OPERATIONS.md`, and the read
+card's availability/fallback description. Read's union, Quarry syntax, Rust,
+engine semantics, disclosure and meter ceilings are unchanged. local.ts is
+1,495 lines; every changed source remains below 1,500.
+
+Added `test/page-observation.test.mjs` and its shared
+`test/fixtures/page-observation.mjs` journey. Two real device owners send and
+read a three-message chat across a two-row horizon. The Node/native process
+journey and Chromium's real wasm/IndexedDB journey prove server fallback during
+an online pending send, an offline unavailable rerun retaining the inbox,
+stable since, loading for a never-answered offline query, and account-switch
+clearing. The browser mounts AppProvider with both useQuery and usePage; both
+keep their first page visible and move to the new account. Added resetRead to
+the shared Quarry fixture to trigger a predictable membership update. Updated
+round 0's page-ready tests for the corrected cache/fallback behavior. Extended
+the React harness with the actual online client to cover every page becoming
+unavailable, missing data, stable timestamps, refusal replacement and retention,
+recovery, and close. No React hook implementation change was needed.
+
+Affected tests passed 94/94, including lifecycle, local sign-out and existing
+store-reset cases; the final refusal refinement passed the React harness 19/19.
+An intermediate React test called loadMore before the asynchronous first page
+was ready; awaiting readiness corrected the harness. Initial typechecking also
+caught my local notify-name shadow, corrected before validation. The first full
+round-1 suite passed `== 0 failure(s) in 147 s`; final validation follows below.
+No iOS simulator, publication, version bump or push was performed.
+
+Final round-1 suite: `== 0 failure(s) in 99 s`. Both round-1 full runs had
+zero product, baseline or environmental failures. The main client shard
+reported 1,071 tests: 1,061 passed, 10 existing skips, zero failures; the
+remaining shards, Rust targets, guide compilation and typechecks also passed.
+The two new device journeys and the multipage React case ran in the final
+suite. Evidence: `/tmp/lane-j-r1-targeted.log`,
+`/tmp/lane-j-r1-refusal.log`, `/tmp/lane-j-r1-full-suite.log`, and
+`/tmp/lane-j-r1-full-suite-final.log`. Whitespace checks pass. No open
+implementation problem or design deviation found; native validation uses the
+real process device and the shared client arm, without an iOS simulator.

@@ -114,9 +114,9 @@ test("ready list reads survive account restoration, new chat acquisition and pen
   const raw = replies.filter(row => row.name === "inbox").at(-1).reply;
   t.diagnostic(`unavailable inbox device reply: ${JSON.stringify(raw)}`);
   listRead(local); // Before the fix: { data: null, complete: false, ... }.
-  assert.ok(!("data" in local), "the unread total has no valid partial answer");
-  assert.equal(app.client.link(), "online", "the unavailable read is blocked by prediction, not the link");
-  assert.equal(requests.filter(path => path === "/q/inbox").length, before, "pending prediction prevents server fallback");
+  assert.equal(local.data[0].unread, 3, "the server answers the unavailable device total");
+  assert.equal(app.client.link(), "online");
+  assert.ok(requests.filter(path => path === "/q/inbox").length > before, "unavailable predictions do not block server fallback");
   offline = true;
   await app.client.query(query("ping"), {});
   assert.equal(app.client.link(), "offline");
@@ -130,7 +130,7 @@ test("ready list reads survive account restoration, new chat acquisition and pen
   finally { await online.close(); }
 });
 
-test("unavailable server list replies are loading and invalidate remembered answers in both clients", { timeout: 30_000 }, async t => {
+test("unavailable server list reruns keep published answers in both clients", { timeout: 30_000 }, async t => {
   const dir = mkdtempSync(join(tmpdir(), "sb4-page-server-"));
   mkdirSync(join(dir, "snapback"));
   writeFileSync(join(dir, "snapback/schema.q"), source);
@@ -175,14 +175,21 @@ test("unavailable server list replies are loading and invalidate remembered answ
   queryOffline = false;
   await local.query(query("ping"), {});
   await setCost(true);
-  for (const watch of watches) await until(() => watch.getSnapshot().loading, "heap-aborted list is loading");
+  for (const watch of watches) await until(() => watch.getSnapshot().fresh === false, "heap-aborted rerun keeps the last answer");
+  const kept = watches.map(watch => watch.getSnapshot());
+  for (const read of kept) { assert.equal(read.data.length, 1); assert.ok(Number.isFinite(read.since)); }
   for (const client of clients) assert.deepEqual(await client.query(query("costly"), {}), { loading: true });
   assert.ok(fetched.some(reply => reply.loading === true && !("data" in reply)), "HTTP never encodes the abort placeholder as data");
   queryOffline = true;
   // Invalidate the online observation once more while its next query fails.
   await setCost(false);
-  for (const watch of watches) await until(() => watch.getSnapshot().denied?.code === "E_OFFLINE", "unavailable answer is not remembered");
-  assert.equal((await local.query(query("costly"), {})).denied?.code, "E_OFFLINE");
+  await until(() => clients.every(client => client.link() === "offline"), "transport loss");
+  for (const [n, watch] of watches.entries()) {
+    assert.deepEqual(watch.getSnapshot().data, kept[n].data);
+    assert.equal(watch.getSnapshot().fresh, false);
+    assert.ok(watch.getSnapshot().since >= kept[n].since);
+  }
+  assert.equal((await local.query(query("costly"), {})).fresh, false);
   for (const watch of watches) watch.close();
 });
 
