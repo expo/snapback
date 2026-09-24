@@ -13,6 +13,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   const key = storeKey("writes", url, viewer);
   let active = true;
   let storeRefusal: Refusal | undefined;
+  let retirement: Promise<void> | undefined;
   const ids = new MutationIds();
   const emissions = new WriteHistory();
   const listeners = new Set<(write: Terminal) => void>();
@@ -56,11 +57,18 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   const initial = await locked(key, read);
   for (const receipt of initial.receipts) ids.remember(receipt.id);
 
+  const refusedStore = async (id: string): Promise<Write> => {
+    // UI custody may already be paused. A terminal outcome still owns its
+    // durable intent until retirement commits, including admission in flight.
+    try { await retirement; return { state: "failed", id, why: storeRefusal! }; }
+    catch (error) { report(error); return { state: "pending", id, reason: "waiting to persist the terminal receipt" }; }
+  };
+
   const client: Client = {
     ...raw,
     mutate<A, R>(op: Mutation<A, R>, args: A, options?: import("./contract.ts").MutateOptions): Promise<Write<R>> {
       const id = options?.id ?? mintId();
-      if (storeRefusal) return Promise.resolve({ state: "failed", id, why: storeRefusal });
+      if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
       if (!active || raw.viewer() !== viewer) return Promise.resolve({ state: "failed", id, why: { code: "E_AUTH", family: "auth", message: "sign in to write", site: "app.mutate", rewrite: "await app.auth.login(email, password)" } });
       return ids.run<R>(id, op.name, args, () => client.write(id), async snapshot => {
         const refusal = await change(journal => {
@@ -77,10 +85,11 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           return undefined;
         });
         if (refusal?.state === "failed" || refusal?.state === "sent") return refusal as Write<R>;
-        if (storeRefusal) return { state: "failed", id, why: storeRefusal };
+        if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
         if (!active || raw.viewer() !== viewer) return { state: "pending", id };
         const result = await raw.mutate(op, snapshot as A, { id });
-        if (active && terminal(result)) {
+        if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
+        if (terminal(result)) {
           try { await settle(result); }
           catch (error) { report(error); return { state: "pending", id, reason: "waiting to persist the terminal receipt" }; }
         }
@@ -115,10 +124,11 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     client.mutate({ kind: "mutation", name: intent.op }, intent.args, { id: intent.id })));
   void recovery.catch(report);
   function refuseStore(why: Refusal): Promise<void> {
+    if (retirement) return retirement;
     storeRefusal = why;
     // Fence admissions synchronously, then retire the entire durable queue
     // before createApp can reopen. These intents must never cross stores.
-    return change(journal => {
+    retirement = change(journal => {
       const failed = journal.pending.map(intent => ({ state: "failed", id: intent.id,
         why: { code: why.code, family: why.family, message: "store changed; whether this write executed is unknown" } } as const));
       journal.pending = [];
@@ -126,6 +136,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       journal.receipts = journal.receipts.slice(-WRITE_HISTORY_LIMIT);
       return failed;
     }).then(failed => { for (const write of failed) notify(write); });
+    return retirement;
   }
   return { client, pause, refuseStore };
 }

@@ -119,3 +119,32 @@ test('direct online reads fence a generation change even when its sequence does 
   assert.deepEqual((await read).data, []);
   assert.equal(reads, 2);
 });
+
+for (const event of ['replacement', 'regression', 'revoke', 'close', 'sign-out'])
+  test(`direct query rechecks ${event} after fetch accepts its answer`, async t => {
+    const accepted = deferred(), resume = deferred(); let store = 'A', seq = 2, requests = 0;
+    const original = ReadObservation.prototype.fetch;
+    t.mock.method(ReadObservation.prototype, 'fetch', async function (...args) {
+      const result = await original.apply(this, args);
+      if (result.read.data?.[0] === 'buffered private') { accepted.resolve(); await resume.promise; }
+      return result;
+    });
+    const client = createClient({ url: 'http://order.test', persona: 'alice', fetch: async (url, init) => {
+      requests++;
+      if (url.includes('/m/')) return Response.json({ state: 'sent', id: JSON.parse(init.body).id, seq: ++seq, store_id: store });
+      return Response.json({ ...ready(JSON.parse(init.body).args.buffer ? ['buffered private'] : [], seq), store_id: store });
+    } });
+    t.after(async () => { resume.resolve(); await client.close(); });
+    await client.query(q, {});
+    const pending = client.query(q, { buffer: true }); await accepted.promise;
+    if (event === 'replacement' || event === 'regression') {
+      if (event === 'replacement') store = 'B'; else seq = 1;
+      assert.equal((await client.query(q, {})).denied.code, event === 'replacement' ? 'E_STORE_REPLACED' : 'E_STORE_RESTORE');
+    } else if (event === 'revoke') assert.equal((await client.mutate(m, {})).state, 'sent');
+    else await (event === 'close' ? client.close() : client.signOut());
+    const before = requests; resume.resolve();
+    const read = await pending;
+    if (event === 'revoke') assert.deepEqual(read, { loading: true });
+    else assert.equal(read.denied?.code, event === 'replacement' ? 'E_STORE_REPLACED' : event === 'regression' ? 'E_STORE_RESTORE' : 'E_CLOSED');
+    assert.equal(requests, before, 'the outer fence discards without starting another retry loop');
+  });

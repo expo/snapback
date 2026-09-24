@@ -385,8 +385,14 @@ export function createClient(options: ClientOptions): Client {
       const { tables, nextExpiry, retryExhausted } = result;
       exhausted = retryExhausted === true;
       if (closed || watches.get(watch.key) !== watch) return;
-      if (currentRead(result)) watch.tables = new Set(tables);
-      scheduleExpiry(watch, exhausted || storeRefusal || !currentRead(result) ? null : nextExpiry);
+      if (storeRefusal || !currentRead(result)) {
+        watch.reset(storeRefusal ? { denied: storeRefusal } : { loading: true });
+        scheduleExpiry(watch, null);
+        notify(watch);
+        return;
+      }
+      watch.tables = new Set(tables);
+      scheduleExpiry(watch, exhausted ? null : nextExpiry);
     } finally {
       watch.inFlight = false;
       const dirty = watch.dirty;
@@ -537,7 +543,12 @@ export function createClient(options: ClientOptions): Client {
     },
     async query(op, args) {
       const read = new ReadObservation<unknown>();
-      return (await read.fetch(() => runQuery(op, args), () => {}, { accept: currentRead })).read;
+      const result = await read.fetch(() => runQuery(op, args), () => {}, { accept: currentRead });
+      // A concurrent response or write can retire the accepted result before
+      // this continuation runs. Do not start an additional retry round here.
+      if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
+      if (!credentials) return { denied: auth() };
+      return currentRead(result) ? result.read : { loading: true };
     },
     observe<A, R>(op: Query<A, R>, args: A): Observed<R> {
       const key = `${op.name}:${JSON.stringify(args)}`;

@@ -69,7 +69,7 @@ for (const accepted of [true, false]) test(`online app reopens after replacement
   }
 });
 
-for (const end of ['logout', 'close']) test(`${end} cancels replacement verification without restoring the account`, async t => {
+for (const end of ['logout', 'close', 'login']) test(`${end} cancels replacement verification without restoring the old account`, async t => {
   const sessionStore = memorySessionStore(); await keepSession(url, session, sessionStore);
   let store = 'A', probing = false, aborted = false;
   const app = createApp({ url, sessionStore, fetch: async (input, init) => {
@@ -78,13 +78,69 @@ for (const end of ['logout', 'close']) test(`${end} cancels replacement verifica
       probing = true;
       try { return await blocked(init.signal); } finally { aborted = true; }
     }
+    if (path === '/auth/login') return Response.json({ session: { ...session, principal: 'bob', token: 'bob-token' } });
     if (path === '/auth/logout') return Response.json({ ok: true });
     return Response.json({ data: [], seq: 1, store_id: store });
   } });
   t.after(() => app.close()); await app.ready;
   await app.client.query(q, {}); store = 'B'; await app.client.query(q, {});
   await until(() => probing);
-  await (end === 'logout' ? app.auth.logout() : app.close());
+  await Promise.race([end === 'logout' ? app.auth.logout() : end === 'login' ? app.auth.login('bob@example.com', 'password') : app.close(),
+    delay(1000).then(() => assert.fail('auth operation stayed queued behind replacement probe'))]);
   await until(() => aborted);
-  assert.equal(app.auth.state, 'signed-out'); assert.equal(app.auth.viewer, null);
+  assert.equal(app.auth.state, end === 'login' ? 'signed-in' : 'signed-out');
+  assert.equal(app.auth.viewer, end === 'login' ? 'bob' : null);
+});
+
+for (const fail of [false, true]) test(`replacement waits for durable retirement of admitted writes; persistence fails: ${fail}`, async t => {
+  const storage = memorySessionStore(), key = storeKey('writes', url, 'alice');
+  let releaseAdmission, releaseRetirement, heldAdmission = false, heldRetirement = false, replacing = false;
+  const admission = new Promise(resolve => { releaseAdmission = resolve; });
+  const retirement = new Promise(resolve => { releaseRetirement = resolve; });
+  const sessionStore = { ...storage, async set(k, value) {
+    if (k === key) {
+      const next = JSON.parse(value);
+      if (replacing && next.receipts.some(write => write.why?.code === 'E_STORE_REPLACED')) {
+        heldRetirement = true; await retirement;
+        if (fail) throw Error('retirement storage failed');
+      }
+      await storage.set(k, value);
+      if (!heldAdmission && next.pending.length === 2) { heldAdmission = true; await admission; }
+    } else await storage.set(k, value);
+  } };
+  await keepSession(url, session, sessionStore);
+  let store = 'A', posts = 0, app;
+  const fetcher = async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === '/probe') return Response.json({ ok: true, store_id: store, seq: 1 });
+    if (path.startsWith('/m/')) { posts++; return blocked(init.signal); }
+    return Response.json({ data: [], store_id: store, seq: 1 });
+  };
+  app = createApp({ url, sessionStore, fetch: fetcher });
+  t.after(async () => { releaseAdmission(); releaseRetirement(); await app.close(); });
+  await app.ready; const prior = app.client; await prior.query(q, {});
+  const ids = [mintId(), mintId()], results = [];
+  const submitted = ids.map(id => app.mutate(m, {}, { id }).then(write => { results.push(write); return write; }));
+  await until(() => heldAdmission && posts === 1);
+  replacing = true; store = 'B';
+  assert.equal((await prior.query(q, {})).denied.code, 'E_STORE_REPLACED');
+  assert.equal(app.auth.state, 'restoring');
+  releaseAdmission(); await until(() => heldRetirement);
+  const repeated = prior.mutate(m, {}, { id: ids[0] }).then(write => { results.push(write); return write; });
+  await delay(20);
+  assert.deepEqual(results, [], 'neither dispatch, admission, nor repeated-id return may outrun retirement');
+  assert.deepEqual(JSON.parse(await storage.get(key)).pending.map(write => write.id), ids);
+  releaseRetirement(); await Promise.all([...submitted, repeated]);
+  const journal = JSON.parse(await storage.get(key));
+  for (const write of results) assert.equal(write.state, fail ? 'pending' : 'failed');
+  if (fail) {
+    assert.deepEqual(journal.pending.map(write => write.id), ids);
+    assert.equal(journal.receipts.length, 0, 'failed persistence must leave the outcome pending');
+  } else {
+    assert.deepEqual(journal.pending, []);
+    for (const id of ids) assert.equal(journal.receipts.find(write => write.id === id).why.code, 'E_STORE_REPLACED');
+    await until(() => app.auth.state === 'signed-in');
+    await app.close(); app = createApp({ url, sessionStore, fetch: fetcher }); await app.ready;
+    assert.equal(posts, 1, 'a terminal durable intent never replays on the replacement');
+  }
 });

@@ -462,6 +462,8 @@ queued and in-flight writes without retry; whether those writes executed is unkn
 Create a new client to recover; `createApp` automatically closes, reopens and
 publishes its online client on `E_STORE_REPLACED`, retaining the session if the
 replacement store accepts it and retiring outstanding intents before reopening.
+An admitted `createApp` write reports a terminal outcome only after its durable
+retirement is saved; a failed save leaves the outcome `pending`, even during replacement.
 Within a store, replayed mutation receipts never lower the read floor: their
 historical commit sequence is separate from the current store head.
 A stale response gets at most three refetches, after 25, 50 and 100 milliseconds;
