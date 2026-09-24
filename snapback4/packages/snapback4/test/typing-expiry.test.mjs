@@ -22,7 +22,7 @@ query typingNow(conversationId: conversations):
   return typing where .conversationId = conversationId
 `;
 
-test("useQuery removes 4.5 s typing indicators on the online client and an offline web device", { timeout: 30_000 }, async t => {
+for (const age of [0, 3000]) test(`useQuery expires 4.5 s typing rows aged ${age} ms before mount on both clients`, { timeout: 30_000 }, async t => {
   let executablePath;
   try { executablePath = chromiumExecutable(); }
   catch (error) { t.skip(`Chromium unavailable: ${error.message}`); return; }
@@ -61,22 +61,24 @@ test("useQuery removes 4.5 s typing indicators on the online client and an offli
       { table: "typing", row: { id: "typing", conversationId: "room", principal: "dev:alice", expiresAt } },
     ]) }).then(r => r.json());
     assert.equal(seeded.seeded, 1, JSON.stringify(seeded));
-    // The lifetime starts before mount. A fixed 4.5-second mount timer must
-    // miss the deadline below; only the row's absolute expiry can satisfy it.
-    await page.waitForTimeout(1600);
+    // Different remaining lifetimes plus the no-early-evaluation assertion
+    // below reject a fixed mount delay, including periodic fixed-delay polling.
+    if (age) await page.waitForTimeout(age);
     await page.evaluate(() => window.mount());
     await page.waitForFunction(() => ["online", "local"].every(tier => window.visibleAt[tier] != null));
     const deadline = expiresAt + 1000;
     await page.waitForFunction(() => ["online", "local"].every(tier => window.expiredAt[tier] != null));
     const result = await page.evaluate(() => ({ reads: window.reads, requests: window.requests, mountedAt: window.mountedAt,
-      visibleAt: window.visibleAt, expiredAt: window.expiredAt, rendered: document.getElementById("app").textContent }));
+      visibleAt: window.visibleAt, expiredAt: window.expiredAt, evaluations: window.evaluations, rendered: document.getElementById("app").textContent }));
     // Measure the React render, not when the runner receives a browser IPC reply.
     for (const tier of ["online", "local"]) {
       assert.ok(result.visibleAt[tier] < expiresAt, `${tier} renders the live row first`);
+      const early = result.evaluations[tier].filter(at => at > result.visibleAt[tier] + 100 && at < expiresAt - 20);
+      assert.deepEqual(early, [], `${tier} must schedule the row deadline, not poll before it`);
       assert.ok(result.expiredAt[tier] >= expiresAt && result.expiredAt[tier] <= deadline,
         `${tier} must render expiry at the row's deadline: ${JSON.stringify(result)}`);
     }
-    assert.ok(deadline < result.mountedAt + 4500, "a fixed mount delay cannot pass this fixture");
+    if (age) assert.ok(deadline < result.mountedAt + 2900, "the aged row must also reject a fixed 2.9-second delay");
     assert.equal(result.reads.local.fresh, false, "expiry is evaluated while offline");
     assert.equal(result.reads.online.fresh, true);
     assert.ok(result.requests.queries >= 2, "the online timer must refetch without /changes");
@@ -103,10 +105,14 @@ let online, local, offline = false, root;
 window.reads = {};
 window.visibleAt = {};
 window.expiredAt = {};
+window.evaluations = { online: [], local: [] };
 window.requests = { queries: 0, localQueries: 0 };
 const transport = tier => async (input, init) => {
   const path = new URL(input).pathname;
-  if (path.startsWith("/q/")) window.requests[tier === "local" ? "localQueries" : "queries"]++;
+  if (path.startsWith("/q/")) {
+    window.requests[tier === "local" ? "localQueries" : "queries"]++;
+    window.evaluations[tier].push(Date.now());
+  }
   if (tier === "local" && offline) throw new TypeError("offline witness");
   if (path === "/changes") return new Promise((_, reject) => {
     if (init?.signal?.aborted) reject(init.signal.reason);
@@ -116,7 +122,16 @@ const transport = tier => async (input, init) => {
 };
 window.openClients = async url => {
   online = createClient({ url, persona: "alice", fetch: transport("online") });
-  local = await createLocalClient({ url, persona: "alice", fetch: transport("local"), device: webDevice() });
+  const device = webDevice();
+  local = await createLocalClient({ url, persona: "alice", fetch: transport("local"), device: {
+    open: async (...args) => {
+      const core = await device.open(...args);
+      return { ...core, call: (request, ...rest) => {
+        if (request.op === "query") window.evaluations.local.push(Date.now());
+        return core.call(request, ...rest);
+      } };
+    },
+  } });
 };
 function Probe({ tier }) {
   const read = useQuery(op, { conversationId: "room" });

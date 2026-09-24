@@ -49481,3 +49481,85 @@ All eight DiskFull Rust cases and all three environmental client failures
 from the earlier attempts passed in this run. No failures are left in the
 required run. git diff --check passes; the work stays on sb4-intent/o-dx,
 committed for supervisor review without pushing or publishing.
+
+## 2026-09-24 — LLP 3000.013 Lane O, review round 2
+
+client.ts and local.ts now judge an upload against the authorization header
+it actually sent, plus the pending-refresh and closed/signed-out state.
+credentialRevision remains in use elsewhere; it is not a bearer identity,
+because even an unsuccessful refresh increments it. A completed transport
+failure or admission refusal that left the bearer unchanged preserves a
+stored upload's success and permits the remaining bounded admission retries.
+An in-progress refresh, a changed bearer, closure and sign-out still fence
+old upload results and retries. CLIENT-AND-OPERATIONS.md states the distinction.
+The local E_AUTH response handler uses the current revision after confirming
+the bearer is still current, so a prior failed refresh does not exempt a
+real authorization refusal from session cleanup.
+
+Receipt persistence and cleanup moved to keepUpload in local-assets.ts to
+keep local.ts below the source limit (1,499 lines). The local client tracks
+the entire operation as active, so closing waits for cleanup as well as the
+initial write. If the session check fails after upload_facts completes,
+keepUpload awaits deletion of that uploader/id receipt before returning the
+refusal. A cleanup refusal throws instead of claiming cleanup succeeded.
+
+Engineering decision: added the internal forget_upload_facts device operation
+in crates/snapback4-device/src/call.rs and device/media.rs. The existing host
+meta/set_meta API prefixes keys with client: and cannot delete the actual
+device:upload:[viewer,id] key. The new operation uses the same canonical key
+function as upload_facts and deletes exactly that key in one transaction.
+It neither exposes an arbitrary metadata deletion API nor changes server
+rules, client disclosure, the engine meters or their bounds.
+
+Regression evidence:
+
+- upload-lifetime.test.mjs now has 38 cases. Twelve new cases exercise failed
+  refreshes (transport and HTTP admission failure), for both clients, while
+  success/refusal responses are held and while a retry sleeps. Reading the
+  real web persistence key proves that a receipt is present during the held
+  device call and absent before an interrupted upload returns. Rotation,
+  sign-out and close delete it; an unchanged bearer after failed refresh
+  keeps it. Existing pending-refresh and changed-bearer cases still pass.
+  Thirteen assertions failed against round 1: the twelve failed-refresh cases
+  and the orphan-receipt assertion.
+- upload_receipts.rs verifies the device operation on both memory and SQLite:
+  raw metadata lookup returns None, another viewer's receipt and another
+  asset's receipt remain, id-only prediction stops, and deletion survives
+  reopen. Both tests pass.
+- upload-retry.test.mjs parameterizes mutable inputs over ArrayBuffer,
+  Uint8Array and a subarray with bytes outside its selected range. Mutation
+  between requests changes the caller's storage but both HTTP bodies remain
+  exactly [1, 2, 3]. Removing the Uint8Array snapshot branch fails both view
+  cases. All 18 retry tests pass, including the cumulative wait-budget test.
+- cursor_advice.rs adds cap 10 by messageId followed by cap 3 by assetId and
+  asserts the messageId cap/predicate is named. The existing first-declared
+  nonempty-cap policy required no production change. Reversing cap selection
+  makes that test fail; all six cursor-advice tests pass.
+- typing-expiry.test.mjs observes rows aged 0 ms and 3,000 ms before mount,
+  both with a 4.5-second lifetime, on online and offline web clients. It
+  records query/evaluation timestamps and refuses premature polling after
+  initial rendering as well as expiry later than the row deadline plus 1 s.
+  The disjoint remaining lifetimes defeat a fixed mount delay; the early
+  evaluation check defeats a short repeating delay. Replacing either client's
+  timer with 2,900 ms fails the aged-row deadline; replacing either with
+  1,500 ms fails the unaged-row early-evaluation assertion. Production expiry
+  logic is unchanged.
+
+The full targeted client run passes all 58 tests. Removing either pending
+refresh guard or skipping receipt deletion also fails its regression.
+Temporary mutation edits were restored before the full-suite run. The Wasm
+build is 1,745,360 B raw / 485,141 B gzip: +174 B gzip, under the unchanged
+486,000 B ceiling. There are no new Quarry forms or refusal codes, and the
+language card's existing forms remain applicable. No design deviation,
+package-version change, push or publication is part of this round. The
+baseline-test.log tail was checked before full-suite failure attribution.
+
+The first and only scripts/test.sh run this round passed every step:
+`== 0 failure(s) in 159 s` (/tmp/lane-o-r2-suite.log). There were no failures
+to classify as introduced, baseline or environmental. Across the client
+shards, 1,146 tests passed with the existing 10 skips; all nine CLI fixture
+tests passed. The two expiry fixtures rendered online/local at +3/+1 ms and
++70/+4 ms after their row deadlines. git diff --check passes. All review
+findings are closed; no new open problem remains from this round. Work is
+committed on sb4-intent/o-dx for supervisor review, without pushing or
+publishing.

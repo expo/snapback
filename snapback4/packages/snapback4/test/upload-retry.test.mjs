@@ -63,18 +63,19 @@ test("upload admission attempts are bounded and return the last refusal unchange
   assert.deepEqual(result, { ok: false, why: rateLimit });
 });
 
-test("upload snapshots a caller-owned ArrayBuffer before the first attempt", async t => {
+for (const kind of ["ArrayBuffer", "Uint8Array", "subarray"]) test(`upload snapshots a caller-owned ${kind} before the first attempt`, async t => {
   immediateTimers(t);
-  const original = new Uint8Array([1, 2, 3]);
+  const original = new Uint8Array(kind === "subarray" ? [8, 1, 2, 3, 7] : [1, 2, 3]);
+  const input = kind === "ArrayBuffer" ? original.buffer : kind === "subarray" ? original.subarray(1, 4) : original;
   const bodies = [];
   const result = await uploadAsset("http://uploads.invalid", {}, async (_, init) => {
     bodies.push([...new Uint8Array(await new Response(init.body).arrayBuffer())]);
     original.fill(9);
     return bodies.length === 1 ? Response.json({ denied: rateLimit }, { status: 429 }) : Response.json({ asset });
-  }, original.buffer);
+  }, input);
   assert.deepEqual(result, { ok: true, asset });
   assert.deepEqual(bodies, [[1, 2, 3], [1, 2, 3]]);
-  assert.deepEqual([...original], [9, 9, 9]);
+  assert.ok(original.every(byte => byte === 9));
 });
 
 test("repeated Retry-After: 6 consumes the cumulative ten-second wait budget", async t => {
