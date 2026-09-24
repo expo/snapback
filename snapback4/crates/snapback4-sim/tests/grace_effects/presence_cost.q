@@ -49,4 +49,4 @@ query online(p: principal):
   return connected[p]
 
 mutation rank(postId: id, score: int):
-  upsert rankings[postId] { postId, score }
+  upsert rankings[postId = postId] { postId, score }

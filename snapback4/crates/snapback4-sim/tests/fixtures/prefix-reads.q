@@ -26,27 +26,27 @@ table messages:
 
 fn total():
   n = 0
-  for m in members[viewer]:
+  for m in members[principal = viewer] by byPrincipalRoom:
     n = n + m.unread
   return n
 query unreadTotal():
   return total()
 query everywhere(q: text <=100, c: cursor ?):
   return merge messages matching q after c last 20 by byRoomWords:
-    [m.roomId] for m in members[viewer]
+    [m.roomId] for m in members[principal = viewer] by byPrincipalRoom
 query roster(roomId: rooms):
-  return members[roomId]
+  return members[roomId = roomId]
 query nested(roomId: rooms):
-  return rooms[roomId] { id, members: members[.id] }
+  return rooms[roomId] { id, members: members[roomId = .id] }
 mutation bump(roomId: rooms):
-  for m in members[roomId]:
+  for m in members[roomId = roomId]:
     update members[m] { unread: m.unread + 1 }
   return null
 query hasMessages(roomId: rooms):
-  return exists messages[roomId]
+  return exists messages[roomId = roomId] by byRoomTime
 query hasMatches(roomId: rooms, q: text <=100):
-  return exists (messages[roomId] matching q)
+  return exists (messages[roomId = roomId] by byRoomWords matching q)
 query grouped(q: text <=100, c: cursor ?):
-  return members[viewer] after c first 20 by byPrincipalRoom where exists (messages[.roomId] matching q) { roomId, hits: messages[.roomId] matching q last 3 by byRoomWords }
+  return members[principal = viewer] after c first 20 by byPrincipalRoom where exists (messages[roomId = .roomId] by byRoomWords matching q) { roomId, hits: messages[roomId = .roomId] matching q last 3 by byRoomWords }
 query exact(roomId: rooms):
   return exists members[roomId, viewer]

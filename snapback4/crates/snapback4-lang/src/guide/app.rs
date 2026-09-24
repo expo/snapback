@@ -19,7 +19,7 @@ table conversations:
   insert <- .creatorId = viewer
   update <- deny
   delete <- deny
-  after insert <- exists memberships[.id, .creatorId, 'admin']
+  after insert <- exists memberships[conversationId = .id, principal = .creatorId, role = 'admin']
   sync to memberships[.id]
 
 table memberships:
@@ -33,8 +33,8 @@ table memberships:
   cap 50 by conversationId
   immutable conversationId, principal, joinedAt
   read <- exists memberships[.conversationId, viewer]
-  insert <- exists memberships[.conversationId, viewer, 'admin']
-  delete <- .principal = viewer or exists memberships[.conversationId, viewer, 'admin']
+  insert <- exists memberships[conversationId = .conversationId, principal = viewer, role = 'admin']
+  delete <- .principal = viewer or exists memberships[conversationId = .conversationId, principal = viewer, role = 'admin']
   sync to memberships[.conversationId]
 
 table messages:

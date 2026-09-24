@@ -14,7 +14,7 @@ pub fn generated() -> BTreeMap<String, Sources> {
                     for payload in [false, true] {
                         for (form, expr) in [
                             ("and", "true and true"), ("or", "false or true"), ("coalesce", "maybe ?? true"),
-                            ("helper", "yes(true) and yes(false)"), ("read", "exists notes[0] or exists notes[1]"),
+                            ("helper", "yes(true) and yes(false)"), ("read", "exists notes[n = 0] or exists notes[n = 1]"),
                             ("new", "new != new and true"),
                         ] {
                             for kind in ["mutation", "query"] {

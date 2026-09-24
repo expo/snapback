@@ -3,7 +3,7 @@ use snapback4_lang::{Bound, Diagnostic, bind::residency};
 
 const REFERENCE: &str = "table posts:\n  body: text <=100\n  public 'posts'\n  insert <- allow\ntable events:\n  postId: posts\n  public 'feed events'\nfn deliver(event: events): event\nmutation publish():\n  post = insert posts {body: 'hello'}\n  return deliver(post)\n";
 const MEMBERSHIP: &str = "table conversations:\n  public 'test'\ntable members:\n  conversationId: conversations\n  principal: principal\n  unique byConversationPrincipal: conversationId, principal\n  read <- .principal = viewer\ntable reactions:\n  conversationId: conversations\n  messageId: id\n  by byMessage: messageId, id\n  by byConversationMessage: conversationId, messageId, id\n  read <- exists members[.conversationId, viewer]\nquery reactionsForMessage(conversationId: conversations, messageId: id):\n  return reactions[messageId] first 20 by byMessage\n";
-const PRESENCE: &str = "effect notify\ntable notes:\n  n: int\n  unique byN: n\n  public 'notes'\n  sync public\n  insert <- allow\nmutation send(p: principal):\n  insert notes {n: 1}\n  if not exists connected[p]:\n    emit notify {row: notes[1]}\n";
+const PRESENCE: &str = "effect notify\ntable notes:\n  n: int\n  unique byN: n\n  public 'notes'\n  sync public\n  insert <- allow\nmutation send(p: principal):\n  insert notes {n: 1}\n  if not exists connected[p]:\n    emit notify {row: notes[n = 1]}\n";
 
 fn compile(source: &str) -> Bound { snapback4_lang::compile(&[("schema.q".into(), source.into())]) }
 fn clean(source: &str) -> Bound {
@@ -70,12 +70,12 @@ fn presence_guidance_connects_the_existing_origin_to_the_consuming_read() {
     let blocked: Vec<_> = fact.sites.iter().filter(|site| site.kind == "presence").collect();
     assert_eq!(blocked.len(), 2, "keep the existing two causes");
     let read = blocked.iter().find(|site| site.reason.contains("a fallible evaluation")).unwrap();
-    assert_eq!(read.site, "schema.q:11:23 (notes[1])");
+    assert_eq!(read.site, "schema.q:11:23 (notes[n = 1])");
     assert!(read.reason.contains("connected[p]") && read.reason.contains("schema.q:10:17"));
     assert_eq!(fact.predicts.as_deref(), Some("never"));
-    assert!(residency::operation_lines("send", fact).contains("fallible evaluation (read at schema.q:10:17) (site schema.q:11:23 (notes[1]))"));
+    assert!(residency::operation_lines("send", fact).contains("fallible evaluation (read at schema.q:10:17) (site schema.q:11:23 (notes[n = 1]))"));
     assert_eq!(serde_json::to_value(read).unwrap()["site"], read.site);
-    let hoisted = PRESENCE.replace("  if not exists connected[p]:\n    emit notify {row: notes[1]}", "  row = notes[1]\n  if not exists connected[p]:\n    emit notify {row}");
+    let hoisted = PRESENCE.replace("  if not exists connected[p]:\n    emit notify {row: notes[n = 1]}", "  row = notes[n = 1]\n  if not exists connected[p]:\n    emit notify {row}");
     let previous = clean(&hoisted);
     let notes = residency::change_notes(&b, &previous.schema.operations);
     assert_eq!(notes.len(), 1, "one existing prediction-loss note");
@@ -92,6 +92,6 @@ fn same_table_row_helpers_and_explicit_author_choices_still_compile() {
     let b = clean(&corrected); assert!(!b.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"));
     // This author-selected rewrite changes when the read runs. It is not an
     // automatic repair: evaluating it unconditionally can introduce refusal.
-    let hoisted = PRESENCE.replace("  if not exists connected[p]:\n    emit notify {row: notes[1]}", "  row = notes[1]\n  if not exists connected[p]:\n    emit notify {row}");
+    let hoisted = PRESENCE.replace("  if not exists connected[p]:\n    emit notify {row: notes[n = 1]}", "  row = notes[n = 1]\n  if not exists connected[p]:\n    emit notify {row}");
     assert_eq!(clean(&hoisted).schema.operations["send"].predicts.as_deref(), Some("eligible"));
 }

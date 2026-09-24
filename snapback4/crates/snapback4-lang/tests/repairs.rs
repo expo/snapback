@@ -96,8 +96,6 @@ fn equality_recovery_preserves_an_independent_syntax_error() {
 #[test]
 fn reproduced_diagnostics() {
     let expected = [
-        (INDEX, "schema.q:7:10 — E_QUARRY_UNKNOWN: members has no index whose prefix takes 2 keys; its indexes are byId (id), byRoom (room, id)\n  rewrite: by byRoomPrincipal: room, principal, id — check --fix applies it\n  guide: indexes"),
-        (PROBE, "schema.q:8:11 — E_QUARRY_UNKNOWN: chats has no index with 2 columns matching this key\n  rewrite: by byKeyAdmin: key, admin — check --fix applies it\n  guide: indexes"),
         (ONCE, "schema.q:1:15 — E_QUARRY_SYNTAX: once is a column modifier, not an argument constraint; declare it on the owning table column\n  rewrite: photo: image <=10000000 ? — check --fix applies it\n  guide: language"),
         (SHAPE, "schema.q:5:41 — E_QUARRY_UNKNOWN: shape wildcard already includes field tombstone\n  rewrite: { * } — check --fix applies it\n  guide: shapes"),
         (PARENS, "schema.q:1:1 — E_QUARRY_SYNTAX: an operation with no arguments still needs parentheses\n  rewrite: query trending(): — check --fix applies it\n  guide: language"),

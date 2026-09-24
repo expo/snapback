@@ -39,7 +39,7 @@ query enumLabel(kind: enum('a', 'b')):
   return label(kind)
 
 query typed(c: cursor ?, handle: text 3..20 format handle):   -- arguments take the same types, plus `cursor ?`
-  return everything[handle]
+  return everything[handle = handle]
 ```
 
 `?` after a type makes it optional: null when absent, and an omitted

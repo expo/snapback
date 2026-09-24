@@ -32,7 +32,7 @@ table profiles:
 
 query inRoom(roomId: id, q: text <=100, c: cursor ?):
   require exists members[roomId, viewer] else NOT_MEMBER
-  return messages[roomId] matching q after c last 50 by byRoomWords
+  return messages[roomId = roomId] matching q after c last 50 by byRoomWords
 
 query people(q: text <=100, c: cursor ?):
   return profiles matching q after c first 20 by byNameWords
@@ -131,7 +131,7 @@ table memberships:
   by byPrincipalConversation: principal, conversationId, id
   cap 50 by conversationId
   read <- exists memberships[.conversationId, viewer]
-  insert <- exists memberships[.conversationId, viewer, 'admin'] or created conversations[.conversationId]
+  insert <- exists memberships[conversationId = .conversationId, principal = viewer, role = 'admin'] or created conversations[.conversationId]
   sync to memberships[.conversationId]
 
 table messages:
@@ -163,12 +163,12 @@ query inChat(conversationId: conversations, q: text <=100, c: cursor ?):
 
 -- everything, grouped by chat
 query searchGrouped(q: text <=100, c: cursor ?):
-  return memberships[viewer] after c first 20 by byPrincipalConversation where exists (messages[.conversationId] matching q) { conversationId, hits: messages[.conversationId] matching q last 3 by byConvWords }
+  return memberships[viewer] after c first 20 by byPrincipalConversation where exists (messages[conversationId = .conversationId] by byConvWords matching q) { conversationId, hits: messages[.conversationId] matching q last 3 by byConvWords }
 
 -- a globally newest-first screen while every chat opens in one read
 query searchNewest(q: text <=100, c: cursor ?):
   return merge messages matching q after c last 20 by byConvWords:
-    [m.conversationId] for m in memberships[viewer]
+    [m.conversationId] for m in memberships[principal = viewer] by byPrincipalConversation
 
 query people(q: text <=100, c: cursor ?):
   return profiles matching q after c first 20 by byNameWords

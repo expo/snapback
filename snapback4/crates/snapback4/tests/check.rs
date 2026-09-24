@@ -99,7 +99,7 @@ fn w10c_check_keeps_independent_errors_and_other_operations() {
 fn w9r1b_why_wide_merge_opens_the_notes_card() {
     let p = Project::new();
     let feeds = "table follows:\n  reader: principal\n  author: principal\n  unique byPair: reader, author\n  cap 1000 by reader\n  public 'follow graph'\n  online only\ntable entries:\n  actor: principal\n  at: time\n  by byActorTime: actor, at, id\n  public 'posts'\n  online only\nquery following(c: cursor ?):\n  return merge entries after c last 20 by byActorTime:\n    [viewer]\n    [f.author] for f in follows[viewer] first 1000 by byPair\n";
-    let search = format!("{}\nquery searchAll(q: text <=100, c: cursor ?):\n  return merge messages matching q after c last 20 by byRoomWords:\n    [m.roomId] for m in members[viewer] first 1000 by byPrincipalRoom\n", include_str!("../../snapback4-sim/tests/search_merge/schema.q"));
+    let search = format!("{}\nquery searchAll(q: text <=100, c: cursor ?):\n  return merge messages matching q after c last 20 by byRoomWords:\n    [m.roomId] for m in members[principal = viewer] first 1000 by byPrincipalRoom\n", include_str!("../../snapback4-sim/tests/search_merge/schema.q"));
     for (source, keyword) in [(feeds, "feeds"), (search.as_str(), "search")] {
         p.source(source);
         let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
@@ -285,7 +285,7 @@ fn w11_repeated_quarry_refusals_show_sections_and_their_repairs_check_clean() {
         ("native", "E_NATIVE", "", "mutation NAME(): native\n", "mutation NAME():\n  return 1\n"),
         ("types", "E_QUARRY_TYPE", "", "query NAME():\n  return 1 + true\n", "query NAME():\n  return 1 + 2\n"),
         ("bounds", "E_UNBOUND_LOOP", "table nodes:\n  parent: nodes ?\n  read <- allow\n", "query NAME(root: nodes):\n  return walk nodes[root] up .parent depth 100\n", "query NAME(root: nodes):\n  return walk nodes[root] up .parent depth 8\n"),
-        ("indexes", "E_SCHEMA_CONSTRAINT", "", "table NAME:\n  ownerId: principal\n  cap 50 by ownerId\n", "table NAME:\n  ownerId: principal\n  by byOwner: ownerId, id\n  cap 50 by ownerId\n"),
+        ("indexes", "E_SCHEMA_CONSTRAINT", "", "table NAME:\n  ownerId: principal\n  cap 50 by missing\n", "table NAME:\n  ownerId: principal\n  by byOwner: ownerId, id\n  cap 50 by ownerId\n"),
         ("jobs", "E_JOB_CURSOR_INDEX", "table tasks:\n  score: int\n  by byScore: score, id\n", "job NAME():\n  chunk t in tasks first 100 by byScore:\n    update tasks[t.id] { score: 1 }\n", "job NAME():\n  chunk t in tasks first 100 by byId:\n    update tasks[t.id] { score: 1 }\n"),
         ("maintains", "E_QUARRY_MAINTAIN", "table posts:\n  authorId: principal\n  at: time\n  active: bool\n  read <- allow\n", "maintain NAME: count posts where .at > now by authorId\n  read <- allow\n  online only\n", "maintain NAME: count posts where .active by authorId\n  read <- allow\n  online only\n"),
     ];
@@ -376,29 +376,15 @@ fn w9b_why_prints_a_codes_card_paragraph() {
 }
 
 #[test]
-fn w11_why_contextual_card_without_section_keeps_explicit_fallback_only() {
+fn w11_expiry_synthesizes_sweep_indexes_without_source_repairs() {
     let p = Project::new();
-    // All default cards are covered. This existing diagnostic overrides its
-    // default indexes card with expire, which has no paragraph for this code.
     let source = "table first:\n  at: time\n  expire at .at\ntable second:\n  at: time\n  expire at .at\n";
     p.source(source);
     let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
-    assert_eq!(bound.diagnostics.len(), 2);
-    assert!(bound.diagnostics.iter().all(|d| d.code == "E_SCHEMA_CONSTRAINT" && d.guide == "expire" && d.explanation_section().is_none()));
-    let output = p.run(&["why", "E_SCHEMA_CONSTRAINT"]);
-    assert!(output.status.success(), "{output:?}");
-    let text = String::from_utf8(output.stdout).unwrap();
-    println!("{} bytes\n{text}", text.len());
-    assert!(text.contains("No dedicated section for E_SCHEMA_CONSTRAINT; opening of guide expire:"), "{text}");
-    assert!(text.ends_with("Full card: snapback4 guide expire\n"));
-    assert!(text.len() <= 4096);
-    let output = p.run(&["check"]);
-    assert_eq!(output.status.code(), Some(1));
-    let text = String::from_utf8(output.stderr).unwrap();
-    assert_eq!(text.matches("guide: expire").count(), 2);
-    assert!(!text.contains("Full card:") && !text.contains("No dedicated section"), "{text}");
-    p.source(&source.replace("  expire at .at", "  by byAt: at\n  expire at .at"));
-    assert!(p.run(&["check"]).status.success());
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.schema.tables.values().all(|table| table.indexes.keys().any(|name| name.starts_with("$intent:"))));
+    assert!(p.run(&["check", "--fix"]).status.success());
+    assert_eq!(fs::read_to_string(p.0.join("snapback/schema.q")).unwrap(), source);
 }
 
 #[test]
@@ -410,7 +396,7 @@ fn w9b_why_operation_keeps_residency_and_cost_output() {
     println!("{text}");
     assert!(text.contains("query all()\n"));
     assert!(text.contains("all: runs: server"));
-    assert!(text.contains("scan messages by byId: online only (site schema.q:5:10 (messages[]))"), "{text}");
+    assert!(text.contains("scan messages by byId: online only; selected byId (); result: page; explicit by (site schema.q:5:10 (messages[]))"), "{text}");
     assert!(text.contains("scan messages.byId first 10 — rule decided by the prefix: no probes"));
     assert!(!text.contains("Full card:"));
 }
@@ -1336,8 +1322,8 @@ fn w13c_cost_reports_meter_domains_and_prefix_existence_as_scans() {
 fn w13c_check_fix_parenthesizes_an_inner_matching_read() {
     let p = Project::new();
     let source = include_str!("../../snapback4-sim/tests/fixtures/prefix-reads.q");
-    for spelling in ["messages[.roomId] matching q", "(messages[.roomId]) matching q"] {
-        p.source(&source.replace("(messages[.roomId] matching q)", spelling));
+    for spelling in ["messages[roomId = .roomId] by byRoomWords matching q", "(messages[roomId = .roomId] by byRoomWords) matching q"] {
+        p.source(&source.replace("(messages[roomId = .roomId] by byRoomWords matching q)", spelling));
         let refused = p.run(&["check", "--json"]);
         assert_eq!(parsed(&refused)["problems"][0]["code"], "E_QUARRY_MODIFIER_SCOPE");
         let repaired = p.run(&["check", "--fix"]);

@@ -185,7 +185,7 @@ fn over_budget<H: Host>(mut host: H) where H::Store: Images {
 
 fn boundary_ladder<H: Host>(mut host: H, reads: i64) where H::Store: Images {
     for membership in [false, true] {
-        let source = format!("{SOURCE}\nmutation ladder(postId: posts, work: int):\n  insert likes {{postId}}\n  for i in range(0, work):\n    ignored = posts[postId]\n  return null\n");
+        let source = format!("{SOURCE}\nmutation ladder(postId: posts, work: int):\n  insert likes {{postId}}\n  for i in range(0, work):\n    ignored = posts[id = postId]\n  return null\n");
         let (_, mut b) = compile(&source);
         if membership {
             b.schema.tables.get_mut("posts").unwrap().sync = backend(false, false).1.schema.tables["posts"].sync.clone();

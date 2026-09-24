@@ -102,7 +102,7 @@ fn extra(n: i64, lane: i64) -> (String, Value) {
 fn w13h_grouped_9000_walk_never_emits_an_empty_preview() {
     let source = include_str!("../../../../../benchmarks/runs/2026-09-17-snapback4-bounds-probes/grouped-search-9000/snapback/schema.q")
         .replace("  online only", "  sync")
-        .replace("count(messages[.roomId] matching q last 1 by byRoomWords) > 0", "exists (messages[.roomId] matching q)");
+        .replace("count(messages[roomId = .roomId] matching q last 1 by byRoomWords) > 0", "exists (messages[roomId = .roomId] matching q)");
     let mut rows = Vec::new();
     for g in 0..9000 {
         let room = format!("r{g:05}");

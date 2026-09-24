@@ -56,15 +56,15 @@ maintain trend: count likes by hour(.postAt), postAt, postKey
 
 -- One server-grouped cursor; complete contents of each chat on this fixture.
 query grouped(q: text <=100, c: cursor ?):
-  return members[viewer] after c first 20 by byPrincipalRoom { roomId, messages: messages[.roomId] matching q last 100 by byRoomWords { key, at } }
+  return members[principal = viewer] after c first 20 by byPrincipalRoom { roomId, messages: messages[roomId = .roomId] matching q last 100 by byRoomWords { key, at } }
 
 -- The card's two independent cursors, with grouping still performed in Quarry.
 query chats(batch: cursor ?):
-  return members[viewer] after batch first 20 by byPrincipalRoom
+  return members[principal = viewer] after batch first 20 by byPrincipalRoom
 
 query batches(q: text <=100, batch: cursor ?, c: cursor ?):
   page = merge messages matching q after c last 20 by byRoomWords:
-    [m.roomId] for m in members[viewer] after batch first 20 by byPrincipalRoom
+    [m.roomId] for m in members[principal = viewer] after batch first 20 by byPrincipalRoom
   return page { roomId, messages: [{ key: .key, at: .at }] }
 
 query following(c: cursor ?):
@@ -72,11 +72,11 @@ query following(c: cursor ?):
     [f.followedId] for f in follows[viewer] first 1000 by byPair
 
 query roster(roomId: id, c: cursor ?):
-  return members[roomId] after c first 20 by byRoomPrincipal { principal }
+  return members[roomId = roomId] after c first 20 by byRoomPrincipal { principal }
 
 query unread():
   total = 0
-  for m in members[viewer] first 1000 by byPrincipalRoom:
+  for m in members[principal = viewer] first 1000 by byPrincipalRoom:
     total = total + messageCounts[m.roomId] - m.readOrdinal
   return { total }
 
@@ -84,7 +84,7 @@ mutation post(key: text <=100, body: text <=100, at: time):
   return insert posts { key, body, at, authorId: viewer }
 
 mutation like(postKey: text <=100, liked: bool):
-  p = posts[postKey] ! else POST_NOT_FOUND
+  p = posts[key = postKey] ! else POST_NOT_FOUND
   if liked:
     insert likes { postKey, principal: viewer, postAt: p.at } if absent
   else if exists likes[postKey, viewer]:

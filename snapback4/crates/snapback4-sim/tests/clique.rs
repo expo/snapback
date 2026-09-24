@@ -830,7 +830,7 @@ table affinity:
 job rescore():
   chunk p in posts first 100 by byId:
     (ageHours, rem) = divmod(now - p.at, 3600000)
-    upsert ranked[p.id] { postId: p.id, score: postScore[p.id] * 10 - ageHours, at: p.at }
+    upsert ranked[postId = p.id] { postId: p.id, score: postScore[p.id] * 10 - ageHours, at: p.at }
 
 schedule rescoreEvery every 5m: rescore
 
@@ -841,16 +841,16 @@ mutation writePost(body: text <=6000):
   return insert posts { authorId: viewer, body, at: now }
 
 mutation vote(postId: posts, direction: int):
-  require exists posts[postId] else POST_NOT_FOUND
+  require exists posts[id = postId] else POST_NOT_FOUND
   require direction = -1 or direction = 0 or direction = 1 else INVALID_VOTE
   upsert votes[postId, viewer] { postId, principal: viewer, direction }
 
 mutation markSeen(postId: posts):
-  require exists posts[postId] else POST_NOT_FOUND
+  require exists posts[id = postId] else POST_NOT_FOUND
   return insert seen { readerId: viewer, postId, at: now } if absent
 
 mutation setAffinity(readerId: principal, postId: posts, score: int):
-  require exists posts[postId] else POST_NOT_FOUND
+  require exists posts[id = postId] else POST_NOT_FOUND
   upsert affinity[readerId, postId] { readerId, postId, score, at: now }
 "#;
 
@@ -1263,7 +1263,7 @@ fn ceremony_run_two_probes_one_row_with_or_without_the_second_index() {
 fn created_equalities_check_the_current_created_row_and_program_reads_stay_authorized() {
     let source = PROBE_EQUALITIES.replace("created chats[key = .chatKey] or exists chats[key = .chatKey, admin = viewer]", "created chats[key = .chatKey, admin = viewer]")
         .replace("  read <- allow\n  insert <- allow", "  read <- .admin = viewer\n  insert <- allow");
-    let source = format!("{source}\nmutation changed(chatKey: text 1..64):\n  insert chats {{ key: chatKey, admin: viewer }}\n  update chats[chatKey] {{ admin: 'dev:bob' }}\n  insert members {{ chatKey, principal: viewer }}\n");
+    let source = format!("{source}\nmutation changed(chatKey: text 1..64):\n  insert chats {{ key: chatKey, admin: viewer }}\n  update chats[key = chatKey] {{ admin: 'dev:bob' }}\n  insert members {{ chatKey, principal: viewer }}\n");
     let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();

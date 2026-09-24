@@ -262,7 +262,7 @@ maintain feed: timeline
   size authors 1008, edges 5921
 
 query following(c: cursor ?):
-  return feed[viewer] after c last 20 { *, post: posts[.postId], actor: profiles[.actorId], author: profiles[.authorId] }
+  return feed[viewer] after c last 20 { *, post: posts[.postId], actor: profiles[principal = .actorId], author: profiles[principal = .authorId] }
 
 query global(c: cursor ?):
   return events after c last 20 by byTime { *, post: posts[id = .postId], actor: profiles[principal = .actorId] }
@@ -281,7 +281,7 @@ mutation post(body: text <=500):
   insert events { postId: p.id, actorId: viewer, repost: false, at: now }
   return p
 mutation reply(postId: posts, body: text <=500):
-  require exists posts[postId] else FEED_APP_NOT_FOUND
+  require exists posts[id = postId] else FEED_APP_NOT_FOUND
   return insert replies { postId, authorId: viewer, body, at: now }
 mutation repost(postId: posts):
   r = insert reposts { actorId: viewer, postId, at: now } if absent
@@ -506,23 +506,23 @@ table affinity:                     -- the ranker's word, per reader
 job rescore():
   chunk p in posts first 100 by byId:
     (ageHours, rem) = divmod(now - p.at, 3600000)
-    upsert ranked[p.id] { postId: p.id, score: postScore[p.id] * 10 - ageHours, at: p.at }
+    upsert ranked[postId = p.id] { postId: p.id, score: postScore[p.id] * 10 - ageHours, at: p.at }
 schedule rescoreEvery every 5m: rescore
 
 query home(c: cursor ?):
   return ranked after c last 50 by byScore { *, post: posts[.postId], seen: exists seen[viewer, .postId], mine: votes[.postId, viewer], lift: affinity[viewer, .postId] }
 
 mutation vote(postId: posts, direction: int):
-  require exists posts[postId] else POST_NOT_FOUND
+  require exists posts[id = postId] else POST_NOT_FOUND
   require direction = -1 or direction = 0 or direction = 1 else INVALID_VOTE
   upsert votes[postId, viewer] { postId, principal: viewer, direction } -- predicts the first offline vote when the post is held
 
 mutation markSeen(postId: posts):
-  require exists posts[postId] else POST_NOT_FOUND
+  require exists posts[id = postId] else POST_NOT_FOUND
   return insert seen { readerId: viewer, postId, at: now } if absent
 
 mutation setAffinity(readerId: principal, postId: posts, score: int):
-  require exists posts[postId] else POST_NOT_FOUND
+  require exists posts[id = postId] else POST_NOT_FOUND
   upsert affinity[readerId, postId] { readerId, postId, score, at: now }
 ```
 
@@ -669,7 +669,7 @@ mutation create(body: text <=6000):
   return insert posts { authorId: viewer, body, at: now }
 
 mutation like(postId: posts):
-  require exists posts[postId] else POST_NOT_FOUND
+  require exists posts[id = postId] else POST_NOT_FOUND
   return insert likes { postId, principal: viewer } if absent
 
 mutation unlike(postId: posts):
@@ -681,7 +681,7 @@ query myLike(postId: posts):
 job scoreTrending():
   chunk p in posts first 100 by byId:
     if p.at > now - 86400000 and p.at <= now:
-      upsert ranked[p.id] { postId: p.id, score: likeCounts[p.id], at: p.at, expiresAt: p.at + 86400000 }
+      upsert ranked[postId = p.id] { postId: p.id, score: likeCounts[p.id], at: p.at, expiresAt: p.at + 86400000 }
 schedule trendingEvery every 1m: scoreTrending
 
 query trending(c: cursor ?):
@@ -782,7 +782,7 @@ mutation create(body: text <=6000):
   return insert posts { authorId: viewer, body, at: now }
 
 mutation setLike(postId: posts, liked: bool):
-  require exists posts[postId] else POST_NOT_FOUND
+  require exists posts[id = postId] else POST_NOT_FOUND
   if liked:
     insert likes { postId, principal: viewer, at: now, expiresAt: now + 86400000 } if absent
   else if exists likes[postId, viewer]:
@@ -887,11 +887,11 @@ table ranked:
   unique byPost: postId
   immutable postId
   public 'ranking'
-  insert <- exists likeCounts[postId = .postId, value = .score] or (.score = 0 and not exists likeCounts[.postId])
-  update (old, next) <- exists likeCounts[postId = next.postId, value = next.score] or (next.score = 0 and not exists likeCounts[next.postId])
+  insert <- exists likeCounts[postId = .postId, value = .score] or (.score = 0 and not exists likeCounts[postId = .postId])
+  update (old, next) <- exists likeCounts[postId = next.postId, value = next.score] or (next.score = 0 and not exists likeCounts[postId = next.postId])
 
 mutation refresh(postId: posts):
-  upsert ranked[postId] { postId, score: likeCounts[postId] }
+  upsert ranked[postId = postId] { postId, score: likeCounts[postId] }
 ```
 
 The zero case matters: a count group has no row without contributions. These
@@ -936,3 +936,7 @@ whose arguments are included. A native job can write tables outside this syntax
 census, so its presence makes the all-writers proof unknown and silent. The note does not infer meaning from column names,
 and its absence is not proof that a ranking cannot be forged. Sync and
 `online only` do not change write authority.
+
+E_VIEW_FEED_PENDING means a `view following: activity where ...` declaration
+has parsed but its feed binder is pending. Read `activity last 20 by .at`
+directly while integrating the feed implementation. See `guide feeds`.

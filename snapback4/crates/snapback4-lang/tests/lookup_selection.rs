@@ -18,7 +18,7 @@ query generic(k: id):
 query typed(k: replies):
   return replies[k]
 query parent(k: posts):
-  return replies[k]
+  return replies[postId = k] by byPost
 query explicit(k: replies):
   return replies[id = k]
 query nullable(k: replies ?):
@@ -48,7 +48,7 @@ fn paired_id_and_parent_lookups_keep_row_page_types_and_absence() {
         let column = if index == "byId" { "id" } else { "postId" };
         let form = if kind == "point" { "row or null" } else { "page" };
         assert!(fact.reason.contains(&format!("selected {index} ({column} = k); result: {form};")), "{fact:?}");
-        let reason = match name { "generic" => "only compatible full unique key", "explicit" | "nullable" => "named equality columns", "explicitBy" | "children" => "explicit by", _ => "single exact positional type match" };
+        let reason = match name { "generic" | "typed" => "only declared unique key of this arity", "explicit" | "nullable" => "named equality columns", "explicitBy" | "children" | "parent" => "explicit by", _ => unreachable!() };
         assert!(fact.reason.ends_with(reason), "{fact:?}");
         assert_eq!(serde_json::to_value(fact).unwrap()["reason"], fact.reason);
         assert_eq!(program.result.name(), if kind == "point" { "a replies row ?" } else { "a page of at most 10 replies rows" });
@@ -91,7 +91,7 @@ fn conflicting_compatible_indexes_require_an_explicit_choice() {
     let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert_eq!(b.diagnostics.len(), 1);
     let d = &b.diagnostics[0];
-    assert_eq!(d.code, "E_QUARRY_AMBIGUOUS");
+    assert_eq!(d.code, "E_QUARRY_POSITIONAL_SCAN");
     println!("{d}");
     bound(&source.replace("return votes[k]", "return votes[k] by byFirst"));
     bound(&source.replace("return votes[k]", "return votes[first = k]"));
@@ -99,12 +99,12 @@ fn conflicting_compatible_indexes_require_an_explicit_choice() {
 
 #[test]
 fn existence_keeps_its_lookup_and_implicit_maintained_group_is_not_authored_by() {
-    let b = bound(&format!("{SOURCE}\nmaintain totals: count replies by postId\n  read <- allow\n  online only\nquery total(k: posts):\n  return totals[k]\nquery totalExplicit(k: posts):\n  return totals[k] by byGroup\nquery totalExists(k: id):\n  return exists totals[id = k]\nquery parentExists(k: posts):\n  return exists replies[k]\n"));
+    let b = bound(&format!("{SOURCE}\nmaintain totals: count replies by postId\n  read <- allow\n  online only\nquery total(k: posts):\n  return totals[k]\nquery totalExplicit(k: posts):\n  return totals[k] by byGroup\nquery totalExists(k: id):\n  return exists totals[id = k]\nquery parentExists(k: posts):\n  return exists replies[postId = k] by byPost\n"));
     for (name,index,result,reason) in [
         ("total","byGroup","scalar","complete maintained group key"),
         ("totalExplicit","byGroup","scalar","explicit by"),
         ("totalExists","byId","exists","named equality columns"),
-        ("parentExists","byPost","exists","single exact positional type match"),
+        ("parentExists","byPost","exists","explicit by"),
     ] {
         let fact = &b.schema.operations[name].sites[0];
         assert_eq!(fact.index,index);

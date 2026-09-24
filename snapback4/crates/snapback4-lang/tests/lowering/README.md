@@ -87,3 +87,14 @@ program's baseline bytes, also present in the full golden. The focused
 regression is red on the unmodified lane base
 `56cdedba6a8ff343c8d297b246b7431824ef0241`: it emits two fewer guards and costs
 28/20 steps for `stop=false/true`, versus the baseline's 34/26.
+
+LLP 3000.013 positional-key migration (2026-09-24): the frozen 740 bundle
+identities remain fixed. Ambiguous positional keys now name their historical
+columns; non-unique scans explicitly name the historical declared index. Four
+`! else` refusal sites move right when named columns are inserted:
+`3057aa…:probe` 13:33 → 13:37, `a56271…:push` 124:30 → 124:42,
+`b9c841…:clique-relaxed.push` 124:30 → 124:42, and `eaabe4…:scalar`
+36:20 → 36:26. Their four digests are updated for exactly those `Require.site`
+strings. Comparing the old compiler on the original inputs against the new
+compiler on migrated inputs found no other IR difference for those bundles.
+The new optional merge fields serialize absent on every historical merge.

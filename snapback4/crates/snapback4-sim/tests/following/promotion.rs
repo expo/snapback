@@ -32,7 +32,7 @@ fn w11a_promotion_with_one_free_slot_continues_delivery() { scenario("reader00",
 
 #[test]
 fn w11r1c_later_newcomers_refuse_until_the_publicly_identifiable_blocker_frees_a_slot() {
-    let probe = "query slots(authorId: principal):\n  return feedFollows[authorId] first 1000 by byFollowed { followerId, slots: feedPullCounts[.followerId] }\n";
+    let probe = "query slots(authorId: principal):\n  return feedFollows[authorId] first 1000 by byFollowed { followerId, slots: feedPullCounts[readerId = .followerId] }\n";
     let bound = snapback4_lang::compile(&[
         ("feed.q".into(), snapback4_lang::recipe::following("feed", "feed").unwrap()),
         ("social.q".into(), case::app::app()), ("probe.q".into(), probe.into()),

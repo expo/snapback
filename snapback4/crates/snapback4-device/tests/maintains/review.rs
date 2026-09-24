@@ -251,11 +251,11 @@ maintain counts: count posts where .selected by owner, bucket(.at, 2m)
   read <- allow
   by byScore: value, id
 mutation save(slot: int, owner: principal, at: time, score: int, selected: bool):
-  upsert posts[slot] {owner, at, score, selected}
+  upsert posts[slot = slot] {owner, at, score, selected}
 mutation edit(slot: int, owner: principal, at: time, score: int, selected: bool):
-  update posts[slot] {owner, at, score, selected}
+  update posts[slot = slot] {owner, at, score, selected}
 mutation remove(slot: int):
-  delete posts[slot]
+  delete posts[slot = slot]
 query ranks(c: cursor ?):
   return totals after c last 100 by byScore
 query countsPage(c: cursor ?):

@@ -11,7 +11,7 @@ table rankings:
   update <- viewer = 'service:ranker'
 
 mutation rank(postId: id, score: int):
-  upsert rankings[postId] { postId, score }
+  upsert rankings[postId = postId] { postId, score }
 ```
 
 `snapback4 token --service ranker [--days 365] [--release <dir>]` prints,

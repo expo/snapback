@@ -56,14 +56,14 @@ table rankedPosts:
   online only
 fn rankPost(p: posts):
   if p.parentId = null and p.at > now - 86400000:
-    upsert rankedPosts[p.id] { authorId: p.authorId, score: likeCounts[p.id], at: p.at, expiresAt: p.at + 86400000 }
+    upsert rankedPosts[postId = p.id] { authorId: p.authorId, score: likeCounts[p.id], at: p.at, expiresAt: p.at + 86400000 }
   return null
 mutation createPost(postId: id):
   p = insert posts { id: postId, authorId: viewer, at: now }
   recordFact(p.id, viewer, viewer, 'post', now)
   rankPost(p)
 mutation like(postId: posts, state: bool):
-  p = posts[postId] ! else POST_NOT_FOUND
+  p = posts[id = postId] ! else POST_NOT_FOUND
   if state:
     l = insert likes { postId, principal: viewer } if absent
     if l != null:

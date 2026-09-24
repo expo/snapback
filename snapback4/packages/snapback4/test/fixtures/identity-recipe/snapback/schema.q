@@ -64,16 +64,16 @@ query identityWhoami():
   return viewer
 
 query identityOwnProfile():
-  return oidcTrustedProfiles[viewer]
+  return oidcTrustedProfiles[principal = viewer]
 
 query identityOwnProfileEligibility():
-  profile = oidcTrustedProfiles[viewer]
+  profile = oidcTrustedProfiles[principal = viewer]
   eligible = profile != null and profile.email != null and profile.emailVerified = true and profile.proofExpiresAt > now
   return { profile, eligible }
 
 query identityProfileFor(principal: principal):
   require viewer = 'service:worker' else OIDC_SERVICE_REQUIRED
-  return oidcTrustedProfiles[principal]
+  return oidcTrustedProfiles[principal = principal]
 
 mutation identityBegin(id: id, beginInvocation: text <=128, admittingPrincipal: principal, configFingerprint: text <=64, bindingHash: text <=64, state: text <=256, nonce: text <=256, pkceVerifier: text <=128, createdAt: time, expiresAt: time, completionInvocation: text <=128 ?, verifiedIssuer: text <=2048 format url ?, verifiedSubject: text <=1024 ?, email: text <=320 ?, emailVerified: bool ?):
   require viewer = 'service:worker' else OIDC_SERVICE_REQUIRED
@@ -85,26 +85,26 @@ mutation identityBegin(id: id, beginInvocation: text <=128, admittingPrincipal: 
 
 mutation identityClaim(id: oidcTransactions, completionInvocation: text <=128):
   require viewer = 'service:worker' else OIDC_SERVICE_REQUIRED
-  tx = oidcTransactions[id] ! else OIDC_TRANSACTION_EXPIRED
+  tx = oidcTransactions[id = id] ! else OIDC_TRANSACTION_EXPIRED
   if tx.completionInvocation != null:
     require tx.completionInvocation = completionInvocation else OIDC_TRANSACTION_CLAIMED
   else:
-    update oidcTransactions[tx.id] { completionInvocation }
+    update oidcTransactions[id = tx.id] { completionInvocation }
   return null
 
 mutation identityVerified(id: oidcTransactions, completionInvocation: text <=128, principal: principal, issuer: text <=2048 format url, subject: text <=1024, email: text <=320 ?, emailVerified: bool ?):
   require viewer = 'service:worker' else OIDC_SERVICE_REQUIRED
-  tx = oidcTransactions[id] ! else OIDC_TRANSACTION_EXPIRED
+  tx = oidcTransactions[id = id] ! else OIDC_TRANSACTION_EXPIRED
   require tx.completionInvocation = completionInvocation else OIDC_TRANSACTION_CLAIMED
   if tx.verifiedPrincipal != null:
     require tx.verifiedPrincipal = principal and tx.verifiedIssuer = issuer and tx.verifiedSubject = subject else OIDC_VERIFIED_MISMATCH
-  update oidcTransactions[tx.id] { verifiedPrincipal: principal, verifiedIssuer: issuer, verifiedSubject: subject, email, emailVerified }
-  profile = oidcTrustedProfiles[principal]
+  update oidcTransactions[id = tx.id] { verifiedPrincipal: principal, verifiedIssuer: issuer, verifiedSubject: subject, email, emailVerified }
+  profile = oidcTrustedProfiles[principal = principal]
   if profile != null:
     require profile.issuer = issuer and profile.subject = subject else OIDC_PROFILE_BINDING
   if profile = null or tx.loginOrder > profile.loginOrder:
     -- Five minutes from the managed begin stamp is the fixed recipe policy.
-    upsert oidcTrustedProfiles[principal] { issuer, subject, email, emailVerified, evidenceSource: 'login', sourceLogin: tx.id, proofStartedAt: tx.proofStartedAt, proofExpiresAt: tx.proofStartedAt + 300000, loginOrder: tx.loginOrder }
+    upsert oidcTrustedProfiles[principal = principal] { issuer, subject, email, emailVerified, evidenceSource: 'login', sourceLogin: tx.id, proofStartedAt: tx.proofStartedAt, proofExpiresAt: tx.proofStartedAt + 300000, loginOrder: tx.loginOrder }
   else if tx.loginOrder = profile.loginOrder:
     require profile.sourceLogin = tx.id and profile.proofStartedAt = tx.proofStartedAt and profile.proofExpiresAt = tx.proofStartedAt + 300000 and profile.email = email and profile.emailVerified = emailVerified else OIDC_PROFILE_REPLAY_MISMATCH
   return null

@@ -19,15 +19,15 @@ table counters:
   insert <- allow
   sync to .owner
 query one(key: text <=30):
-  return counters[key]
+  return counters[key = key]
 mutation edit(key: text <=30):
-  update counters[key] {amount: 0}
+  update counters[key = key] {amount: 0}
 mutation byId(target: counters):
-  update counters[target] {amount: 0}
+  update counters[id = target] {amount: 0}
 mutation put(key: text <=30):
-  upsert counters[key] {owner: 'alice', amount: 0}
+  upsert counters[key = key] {owner: 'alice', amount: 0}
 mutation putId(target: counters):
-  upsert counters[target] {key: 'lookup', owner: 'alice', amount: 0}
+  upsert counters[id = target] {key: 'lookup', owner: 'alice', amount: 0}
 "#;
 #[test]
 fn w1_a_device_queues_without_a_row_and_does_not_predict_not_found_or_insert() {

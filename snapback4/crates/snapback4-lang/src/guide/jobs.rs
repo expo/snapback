@@ -192,7 +192,7 @@ fn unreadIn(conversationId: conversations, reader: principal, readOrdinal: int, 
 
 query inbox(periodStart: time, periodEnd: time):
   rows = []
-  for m in members[viewer] first 1000 by byPrincipalConversation:
+  for m in members[principal = viewer] first 1000 by byPrincipalConversation:
     rows = rows + [{ conversationId: m.conversationId, unread: unreadIn(m.conversationId, viewer, m.readOrdinal, periodStart, periodEnd) }]
   return rows
 

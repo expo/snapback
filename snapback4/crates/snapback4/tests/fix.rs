@@ -38,7 +38,7 @@ fn review_check_fix_parenthesizes_the_inner_index_without_changing_other_bytes()
         ("exists (follows[viewer, .author]) by byReverse", "exists ((follows[viewer, .author]) by byReverse)"),
         ("exists ((follows[viewer, .author])) by byReverse", "exists (((follows[viewer, .author])) by byReverse)"),
     ] {
-        let source = format!("{schema}query page():\n  return posts['bob'] first 1 where {read} -- keep café\n").replace('\n', "\r\n");
+        let source = format!("{schema}query page():\n  return posts[author = 'bob'] by byReverse first 1 where {read} -- keep café\n").replace('\n', "\r\n");
         let expected = source.replace(read, fixed_read);
         check_fix(&[("schema.q", &source, &expected)], true);
     }
@@ -156,8 +156,8 @@ fn check_fix_repairs_equality_and_keeps_the_independent_error() {
 #[test]
 fn check_fix_applies_the_four_reproduced_repairs_byte_exact() {
     for (source, corrected) in [
-        (MISSING_INDEX, MISSING_INDEX.replace("  by byRoom: room, id\n", "  by byRoom: room, id\n  by byRoomPrincipal: room, principal, id\n")),
-        (MISSING_PROBE, MISSING_PROBE.replace("  by byKey: key, id\n", "  by byKey: key, id\n  by byKeyAdmin: key, admin\n")),
+        (MISSING_INDEX, MISSING_INDEX.into()),
+        (MISSING_PROBE, MISSING_PROBE.into()),
         (ARG_ONCE, ARG_ONCE.replace(" once", "")),
         (WILDCARD, WILDCARD.replace("*, tombstone", "*")),
         (EMPTY_ARGS, EMPTY_ARGS.replace("trending:", "trending():")),
@@ -203,14 +203,14 @@ fn double_equals_edit_rechecks_tokens_at_the_exact_site() {
 }
 
 #[test]
-fn missing_index_inserts_after_last_index_across_files_with_matching_indentation() {
+fn planned_indexes_leave_source_and_indentation_unchanged_across_files() {
     let (table, query) = MISSING_INDEX.split_once("query ").unwrap();
     let table = table.replace("  ", "    ").replace("    public", "    unique byOther: id\n    public").replace('\n', "\r\n");
-    let corrected = table.replace("    unique byOther: id\r\n", "    unique byOther: id\r\n    by byRoomPrincipal: room, principal, id\r\n");
+    let corrected = table.clone();
     let query = format!("query {query}");
     check_fix(&[("tables.q", &table, &corrected), ("queries.q", &query, &query)], true);
     let table = table.lines().filter(|line| !line.trim_start().starts_with("by ") && !line.trim_start().starts_with("unique ")).collect::<Vec<_>>().join("\n") + "\n";
-    let corrected = table.replace("    principal: principal\n", "    principal: principal\n    by byRoomPrincipal: room, principal, id\n");
+    let corrected = table.clone();
     check_fix(&[("tables.q", &table, &corrected), ("queries.q", &query, &query)], true);
 }
 
@@ -235,7 +235,6 @@ fn repair_variants_preserve_surrounding_source() {
 fn non_applicable_repairs_leave_source_and_exit_unchanged() {
     for source in [
         MISSING_INDEX.replace("room = room, principal = p", "room, p"),
-        MISSING_INDEX.replace("  by byRoom: room, id", "  by byRoomPrincipal: room, id"),
         "table photos:\n  movie: video <=10000000 once\n".into(),
         WILDCARD.replace("*, tombstone", "*, tombstone: false"),
         EMPTY_ARGS.replace("trending:", "trending x:"),
@@ -255,7 +254,7 @@ fn concurrent_fix(stage: &str, changed_file: &str) {
     std::fs::create_dir_all(root.join("snapback")).unwrap();
     let project = project::Project { root: root.clone() };
     let (table, query) = MISSING_INDEX.split_once("query ").unwrap();
-    let query = format!("query {query}");
+    let query = format!("query {query}").replace("  return members", "  same = 1 == 1\n  return members");
     for (name, source) in [("schema.q", ""), ("tables.q", table), ("queries.q", &query)] { std::fs::write(project.schema_dir().join(name), source).unwrap(); }
     let edited = if changed_file == "tables.q" { format!("{table}-- editor's table save\n") } else { "query edited():\n  return missingName\n".into() };
     let output = std::process::Command::new(std::env::current_exe().unwrap()).args(["--exact", "concurrent_fix_subprocess", "--nocapture"])
@@ -332,13 +331,12 @@ fn optional_chain_cli_repair_preserves_comments_and_a_second_check_is_clean() {
 }
 
 #[test]
-fn unresolved_positional_index_cli_repair_compiles_clean() {
+fn unresolved_positional_keys_require_an_author_choice() {
     let source = "table follows:\n  follower: principal\n  followed: principal\n  unique byPair: follower, followed\n  unique byFollowed: followed, follower\n  public 'follows'\nquery followed():\n  return exists follows[viewer, 'bob'] -- keep\n";
-    let expected = source.replace("follows[viewer, 'bob']", "follows[viewer, 'bob'] by byPair");
-    check_fix(&[("schema.q", source, &expected)], true);
-    let page = source.replace("query followed():\n  return exists follows[viewer, 'bob'] -- keep", "query followed(c: cursor ?):\n  return follows[(viewer)] first 2 where .follower = viewer after c -- keep");
-    let expected = page.replace("after c -- keep", "after c by byPair -- keep");
-    check_fix(&[("schema.q", &page, &expected)], true);
+    let output = check_fix(&[("schema.q", source, source)], false);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("E_QUARRY_POSITIONAL_SCAN"));
+    let named = source.replace("follows[viewer, 'bob']", "follows[follower = viewer, followed = 'bob'] by byPair");
+    check_fix(&[("schema.q", &named, &named)], true);
 }
 
 #[test]
