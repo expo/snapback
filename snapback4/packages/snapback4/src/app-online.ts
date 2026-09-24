@@ -14,6 +14,9 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   let active = true;
   const ids = new MutationIds();
   const emissions = new WriteHistory();
+  // I13: failed receipt persistence cannot turn a known outcome back into
+  // pending, even after the raw client's bounded history evicts that id.
+  const unpersisted = new Map<string, Terminal>();
   const listeners = new Set<(write: Terminal) => void>();
   let writes: Promise<unknown> = Promise.resolve();
   const read = journalReader(key, viewer, url, store, report);
@@ -33,24 +36,31 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     ids.finish(write.id);
     if (active && emissions.firstEmission(write.id)) for (const listener of listeners) listener(write);
   };
+  // @ref LLP 3000.007#17 — recovery confirms execution, never historical result values or details.
+  const receiptOf = (write: Terminal): Terminal => write.state === "sent"
+    ? { state: "sent", id: write.id, seq: write.seq, replayed: true }
+    : { state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: `write refused: ${write.why.code}` } };
+  const retain = (write: Terminal, error: unknown) => {
+    if (active) unpersisted.set(write.id, receiptOf(write));
+    notify(write);
+    report(error);
+  };
   const settle = async (write: Terminal) => {
     await change(journal => {
       if (!journal.pending.some(intent => intent.id === write.id)) return false;
       journal.pending = journal.pending.filter(intent => intent.id !== write.id);
       // Never persist historical read results or refusal details for disclosure on reopen.
-      const receipt: Terminal = write.state === "sent"
-        ? { state: "sent", id: write.id, seq: write.seq, replayed: true }
-        : { state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: `write refused: ${write.why.code}` } };
-      journal.receipts.push(receipt);
+      journal.receipts.push(receiptOf(write));
       journal.receipts = journal.receipts.slice(-WRITE_HISTORY_LIMIT);
       return true;
     });
     // Durable retirement belongs to the shared journal; notification and
     // reservation cleanup belong to every client that observed settlement.
+    unpersisted.delete(write.id);
     notify(write);
   };
   const stop = raw.onWrite(write => {
-    if (active && terminal(write)) void settle(write).catch(report);
+    if (active && terminal(write)) void settle(write).catch(error => retain(write, error));
   });
   const initial = await locked(key, read);
   for (const receipt of initial.receipts) ids.remember(receipt.id);
@@ -81,13 +91,19 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           try { await settle(result); }
           // Keep the durable intent for replay if receipt storage fails, but
           // never replace the server-confirmed outcome of this dispatched call.
-          catch (error) { report(error); }
+          catch (error) { retain(result, error); }
         }
         return terminal(result) ? result : { state: "pending", id };
       });
     },
     async write(id) {
       if (!active || raw.viewer() !== viewer) return undefined;
+      const retained = unpersisted.get(id);
+      if (retained) {
+        try { await settle(retained); }
+        catch (error) { retain(retained, error); }
+        return retained;
+      }
       const journal = await locked(key, read);
       if (!active || raw.viewer() !== viewer) return undefined;
       const receipt = journal.receipts.find(write => write.id === id);
@@ -96,7 +112,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       if (journal.pending.some(intent => intent.id === id)) {
         if (known && terminal(known)) {
           try { await settle(known); return known; }
-          catch (error) { report(error); }
+          catch (error) { retain(known, error); return known; }
         }
         return { state: "pending", id };
       }
@@ -107,7 +123,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
     async signOut() { pause(); await raw.signOut(); await writes.catch(report); },
     async logoutAll() { const result = await raw.logoutAll(); if (result.ok) pause(); return result; },
   };
-  function pause() { active = false; stop(); listeners.clear(); }
+  function pause() { active = false; stop(); listeners.clear(); unpersisted.clear(); }
   // Start in recorded order before a screen can submit a later intent. The
   // online client owns retransmission/backoff, including lost confirmations.
   let started = false;

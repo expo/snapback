@@ -49837,3 +49837,47 @@ package version. The random local server has empty replicated tables; explicit
 real-server/device tests cover private rows and native settlement, and action
 replies are wire fixtures. Existing total-storage-failure/process-loss limits
 remain. No push or publication.
+
+
+### 2026-09-24 — Lane E round 17: one known receipt across storage failure
+
+Online custody now notifies and returns known terminal outcomes when receipt
+persistence fails, including background settlement and write(id). Unpersisted
+receipt summaries remain in the live client independently of the lower client's
+bounded history. Lookup retries persistence without returning pending; successful
+persistence or retirement clears the memory entry. Durable intent remains for
+same-id restart replay. Summaries omit historical results and refusal details;
+account and read-disclosure fences are unchanged.
+
+I13 joins I1–I12: mutate, write(id) and onWrite agree on the known terminal state,
+id and sequence or refusal identity. The generator adds receipt-store outages,
+repair and retained-handle lookups. Both online and actual Wasm local tiers pass
+5,000 seeds each: 10,000 sequences / 284,454 commands, 43 fixed cases and the
+120-point failure sweep. Online coverage includes 3,750 failed receipt saves,
+1,250 lookups while the fault remains active, and 1,452 sent / 1,463 failed
+lookup audits. Device receipt persistence is not faulted by this new online
+journal fault. Six focused custody cases and two real-server restart cases cover
+both terminal states; Chromium proves a pending hook settles and remains settled
+on remount while saves still fail. All eight negative controls were detected.
+
+The wider local model found one additional defect at seed 3168: a peer could
+fence a provisional opener before it became owner, whose early cancellation
+then left auth restoring with no operation. Current provisional cancellation now
+uses existing cleanup/publication or restoration retry. The reduced regression
+passes with the original timing limits; extending simulated time did not fix it
+and that attempted harness change was removed.
+
+`scripts/test.sh`: **`== 0 failure(s) in 206 s`**, exit 0. All Rust checks,
+nine fixture tests and 1,235 client passes (10 skips), including both 5,000-seed
+runs (63.088 s online / 126.409 s local). No baseline/environmental exception.
+Focused receipt tests: 9/9. Chromium React rerun: 18/18. Development failures
+were the intentional pre-fix/negative-control failures, the new model regression,
+and an early browser assertion before asynchronous lookup; all resolved. One
+incorrect-working-directory suite launch failed before tests began, then was
+corrected. Ref-check: 504 LLPs, 9,239 references, zero errors/unchecked.
+
+README remains 296/300 lines; no source exceeds 1,500. No new API, language form,
+code, rule, meter, starter, shell policy or package version. Existing crash and
+complete-storage-failure limits remain. No push or publication. Full log:
+`~/sb4-intent/lane-e-r17-test.log`; file map, examples, coverage and qualifications:
+[round 17 report](./reports/20260924-lane-e-round17.md).

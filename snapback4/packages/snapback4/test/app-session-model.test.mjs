@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { execute, generate, minimize, operations } from "./helpers/app-session-model.mjs";
 
-for (const tier of ["online", "local"]) test(`${tier} session state machine preserves I1–I12 across 5,000 seeded three-runtime sequences`, { timeout: 240_000 }, async t => {
+for (const tier of ["online", "local"]) test(`${tier} session state machine preserves I1–I13 across 5,000 seeded three-runtime sequences`, { timeout: 240_000 }, async t => {
   const coverage = {}, count = Number(process.env.SNAPBACK4_SESSION_SEQUENCES ?? 5000);
   for (let seed = 1; seed <= count; seed++) {
     const sequence = generate(seed);
@@ -21,8 +21,30 @@ for (const tier of ["online", "local"]) test(`${tier} session state machine pres
   if (count >= 5000) for (const event of ["held.storage.set", "held./q/viewer", "held./m/write", "server.revoke", "wire.offline", "interleaving.storage.peer", "fault.rotationSave", "handle.captured", "handle.sessionNotification", "handle.viewerNotification", "handle.hidden.handleQuery", "handle.hidden.handleMutate", "handle.hidden.handleRefresh", "observation.data", "observation.notification", "observation.hidden", "server.externalSibling", "global.peerPersistedRotation", "global.peerHeldRotation", "global.rotatedBearer", "global.externalSiblingRevoked"]) assert.ok(coverage[event] > 0, `exercised ${event}`);
   if (count >= 5000) for (const event of ["write.outcome.sent", "write.outcome.failed", "write.outcomeAfterFence.sent", "write.outcomeAfterFence.failed", `open.${tier}`]) assert.ok(coverage[event] > 0, `exercised ${event}`);
   if (tier === "local" && count >= 5000) for (const path of ["/schema", "/sync"]) assert.ok(coverage[`wire.${path}`] > 0, `local client used ${path}`);
+  if (count >= 5000) {
+    for (const state of ["sent", "failed"]) for (const source of ["mutate", "write", "onWrite"])
+      assert.ok(coverage[`consistent.${source}.${state}`] > 0, `I13 ${source} ${state}`);
+    assert.ok(coverage["consistent.writeDuringReceiptFailure"] > 0, "looked up known outcomes during persistent failure");
+    if (tier === "online") assert.ok(coverage["fault.receiptSave"] > 0, "kept receipt saves failing");
+  }
   t.diagnostic(`tier=${tier} sequences=${count} seed=1..${count} coverage=${JSON.stringify(coverage)}`);
 });
+
+for (const tier of ["online", "local"]) for (const refuse of [false, true]) {
+  test(`I13 ${tier}: ${refuse ? "failed" : "sent"} stays known through receipt-store failure and repair`, () => execute([
+    { op: "guest", app: 0 }, { op: "receiptOffline", app: 0 },
+    { op: "handleMutate", app: 0, refuse }, { op: "handleWrite", app: 0 },
+    { op: "handleWrite", app: 0 }, { op: "receiptOnline", app: 0 }, { op: "handleWrite", app: 0 },
+  ], {}, tier));
+}
+
+test("model regression: a peer-fenced provisional local opener cannot leave auth restoring", () => execute([
+  { op: "signup", app: 0, account: 1 }, { op: "signup", app: 1, account: 1 },
+  { op: "release", app: 1 }, { op: "reopen", app: 1 },
+  { op: "holdStore", app: 2, hold: true, fault: { kind: "get", at: 8 } },
+  { op: "closeClient", app: 2 }, { op: "guest", app: 0, fault: { kind: "get", at: 11 } },
+  { op: "signup", app: 1, account: 1 }, { op: "release", app: 2, fault: { kind: "delete", at: 3 } },
+], {}, "local"));
 
 for (const tier of ["online", "local"]) for (const refuse of [false, true]) for (const ending of ["close", "logout"]) {
   test(`model regression: ${tier} delivered ${refuse ? "refusal" : "commit"} retains its id across ${ending}`, () => execute([

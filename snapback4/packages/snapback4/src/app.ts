@@ -260,6 +260,13 @@ export function createApp(options: AppOptions): App {
     // Logout invalidates this guard synchronously, ahead of any network work.
     const scope: Scope = { valid: true, epoch, session, issued: new Set([session.token]), aborter: new AbortController(), stop() {}, pause() {} };
     const retire = (token: string) => revokeRetired(token, { principal: session.principal, epoch: scope.epoch });
+    const cancelled = (): SignIn => {
+      // A peer can fence this provisional scope before it becomes owner.
+      // The still-current auth operation must finish cleanup/publication (or
+      // retry restoration), rather than return with its view left restoring.
+      if (!scope.valid && !closed && revision === expected) throw restoring ? new RestorationChanged() : new SessionEpochChanged();
+      return inactive();
+    };
     scopes.add(scope);
     let restoreToken = restoring ? session.token : undefined;
     let preparing = true, committing = false;
@@ -348,7 +355,7 @@ export function createApp(options: AppOptions): App {
     let raw: Client | undefined, startClient: (() => Promise<void>) | undefined;
     try {
       await keepSession(url, session, scopedStore);
-      if (!scope.valid || revision !== expected) return inactive();
+      if (!scope.valid || revision !== expected) return cancelled();
       if (options.device) {
         // Preserve all local tuning while retaining app-owned identity, even
         // when an untyped caller supplies lower-level sign-in options.
@@ -367,7 +374,7 @@ export function createApp(options: AppOptions): App {
       if (!scope.valid || closed || revision !== expected) {
         if (scope.valid && closed) await raw.close();
         else void raw.signOut().catch(() => {});
-        return inactive();
+        return cancelled();
       }
       let lastSession = raw.session() ?? session;
       const stopSession = raw.onSession(next => {
@@ -426,7 +433,7 @@ export function createApp(options: AppOptions): App {
         custody?.pause();
         if (scope.valid && closed) await baseClient.close();
         else void baseClient.signOut().catch(() => {});
-        return inactive();
+        return cancelled();
       }
       const own = Object.assign(scope, { client: baseClient, view: client, pause: () => { custody?.pause(); } });
       owner = own;

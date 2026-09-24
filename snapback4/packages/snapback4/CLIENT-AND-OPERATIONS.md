@@ -180,12 +180,22 @@ session lock:
   completion before closing the device. A delivered `sent` or nonretryable
   `failed` mutation keeps its id and receipt; a delivered action keeps its
   `done` or `failed` outcome. Reads retain their disclosure guards.
+- **I13 — one known outcome per id.** Within a live client, `mutate`, `write(id)`
+  and `onWrite` agree on a known terminal state, id and sequence or refusal code.
+  Failed receipt persistence reports the error and notifies subscribers; it
+  never changes a known terminal outcome back to pending. The online client
+  retains a receipt summary in memory until persistence succeeds or the client
+  is retired, independently of the lower client's bounded history. Lookup
+  retries persistence. Durable intent stays available for same-id replay after
+  restart. Receipt recovery still omits historical result values and refusal
+  details; a hidden account cannot look up retained receipts.
 
 The state-machine suite runs 5,000 seeded sequences on each of the online and
 local tiers. The local tier uses the production Rust/Wasm device, outbox and
 receipt storage; the server and session-store faults are modeled. It generates
 both accepted mutations and authoritative nonretryable refusals, including
-responses held across close or logout. Separate Wasm and native tests exercise
+responses held across close or logout. Persistent online receipt-save outages,
+lookups before and after repair, and completion notifications check I13. Separate Wasm and native tests exercise
 the real server and local device with held mutation, action and read responses.
 
 A single atomic `sessionStore.set` commits the session and its epoch together.

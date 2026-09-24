@@ -7,15 +7,23 @@ import { createApp } from "../../dist/app.js";
 import { sessionKey } from "../../dist/auth.js";
 import { modelBackend, modelDevice, modelPage, modelClock, modelReady } from "./app-model-device.mjs";
 
-export const operations = ["signup", "login", "guest", "refresh", "logout", "close", "reopen", "release", "query", "logoutEverywhere", "revoke", "reopenOffline", "holdStore", "closeClient", "capture", "handleQuery", "handleMutate", "handleRefresh", "observeHandle", "readObservation", "refreshFault", "revokeCurrent", "sibling", "retireOffline", "retireOnline"];
+const sessionOperations = ["signup", "login", "guest", "refresh", "logout", "close", "reopen", "release", "query", "logoutEverywhere", "revoke", "reopenOffline", "holdStore", "closeClient", "capture", "handleQuery", "handleMutate", "handleRefresh", "observeHandle", "readObservation", "refreshFault", "revokeCurrent", "sibling", "retireOffline", "retireOnline"];
+export const operations = [...sessionOperations, "receiptOffline", "receiptOnline", "handleWrite"];
 export function generate(seed, length = 24) {
   let x = seed >>> 0;
   const choose = n => { x ^= x << 13; x ^= x >>> 17; x ^= x << 5; return (x >>> 0) % n; };
-  return [{ op: "guest", app: 0 }, { op: "reopen", app: 1 }, ...Array.from({ length }, () => ({
-    op: operations[choose(operations.length)], app: choose(3), account: choose(2),
+  const receipts = seed % 4 === 0 ? [
+    { op: "receiptOffline", app: 1 },
+    { op: "handleMutate", app: 1, refuse: seed % 8 === 0, hold: seed % 12 === 0 },
+    { op: "release", app: 1 }, { op: "handleWrite", app: 1 },
+    { op: "receiptOnline", app: 1 }, { op: "handleWrite", app: 1 },
+  ] : [];
+  return [{ op: "guest", app: 0 }, { op: "reopen", app: 1 }, ...receipts, ...Array.from({ length }, () => ({
+    op: sessionOperations[choose(sessionOperations.length)], app: choose(3), account: choose(2),
     hold: choose(5) === 0, fault: choose(3) === 0 ? { kind: ["get", "set", "delete"][choose(3)], at: 1 + choose(12) } : null,
     holdDispatch: choose(7) === 0,
-  }))];
+  })).flatMap(command => command.op === "handleMutate"
+    ? [command, { op: "handleWrite", app: command.app, account: command.account }] : [command])];
 }
 let sequenceSerial = 0;
 export async function execute(commands, coverage = {}, tier = "online") {
@@ -45,7 +53,7 @@ export async function execute(commands, coverage = {}, tier = "online") {
     results.set(promise, result);
     return promise.then(value => { check(value, result.hidden); return value; });
   };
-  let holdStore = false;
+  let holdStore = false, receiptOffline = false;
   let runtimeSerial = 0;
   let serial = 0, active, fault, hits = 0;
   const record = () => { try { return JSON.parse(values.get(key) ?? "null"); } catch { return null; } };
@@ -88,6 +96,9 @@ export async function execute(commands, coverage = {}, tier = "online") {
     async set(k, value) {
       if (holdStore) { holdStore = false; count("held.storage.set"); await new Promise(resolve => holds.push({ resolve, storage: true, value, runtime: id })); }
       inject("set", k);
+      if (receiptOffline && k.endsWith(".writes") && JSON.parse(value).receipts.length) {
+        count("fault.receiptSave"); throw Error("receipt saves remain unavailable");
+      }
       if (k === key && rotationFaults.has(id) && parents.has(JSON.parse(value).token)) {
         rotationFaults.delete(id); count("fault.rotationSave"); throw Error("one rotation save failed");
       }
@@ -307,10 +318,25 @@ export async function execute(commands, coverage = {}, tier = "online") {
       if (entry.handle.hidden && entry.hadData && !entry.countedHidden) { entry.countedHidden = true; count("observation.hidden"); }
     }
   }
+  const outcomeKey = write => write?.state === "sent" ? JSON.stringify([write.id, write.state, write.seq])
+    : write?.state === "failed" ? JSON.stringify([write.id, write.state, write.why.code, write.why.family]) : undefined;
+  function checkOutcome(handle, id, write, source) {
+    const prior = handle.outcomes.get(id), authoritative = writeReceipts.get(id);
+    const known = outcomeKey(write);
+    if (prior) invariant("I13", known === prior, `${source} disagreed for known ${id}: ${JSON.stringify(write)}`);
+    if (known && authoritative) {
+      invariant("I13", known === outcomeKey(authoritative), `${source} contradicted the server's outcome for ${id}`);
+      handle.outcomes.set(id, known); count(`consistent.${source}.${write.state}`);
+      if (source === "mutate") invariant("I13", handle.notified.get(id) === known, `mutate returned ${id} without its onWrite notification`);
+      if (source === "onWrite") handle.notified.set(id, known);
+    }
+  }
   const capture = (app, slot) => {
-    const handle = { app, slot, client: app.client, principal: app.client.viewer(), hidden: false };
+    const handle = { app, slot, client: app.client, principal: app.client.viewer(), hidden: false,
+      writes: [], outcomes: new Map(), notified: new Map() };
     handles.push(handle); count("handle.captured");
     handle.stops = [
+      handle.client.onWrite(write => checkOutcome(handle, write.id, write, "onWrite")),
       handle.client.onSession(session => {
         checkHandles(); count("handle.sessionNotification");
         invariant("I8", !handle.hidden || session === null, "hidden handle published a session credential");
@@ -401,7 +427,7 @@ export async function execute(commands, coverage = {}, tier = "online") {
         if (principal) { external.add(issue(principal).token); count("server.externalSibling"); }
       }
       else if (op === "capture") capture(app, id);
-      else if (["handleQuery", "handleMutate", "handleRefresh", "observeHandle", "readObservation"].includes(op)) {
+      else if (["handleQuery", "handleMutate", "handleWrite", "handleRefresh", "observeHandle", "readObservation"].includes(op)) {
         const candidates = handles.filter(h => h.slot === id);
         const h = (command.account ? candidates.at(-1) : candidates[0]) ?? capture(app, id);
         if (op === "observeHandle") {
@@ -415,14 +441,25 @@ export async function execute(commands, coverage = {}, tier = "online") {
           if (op === "handleQuery") promise = completed(h, h.client.query({ kind: "query", name: "viewer" }, { hiddenHandle: hidden }), (result, hidden) => {
             invariant("I8", !hidden || !("data" in result), "hidden handle returned query data");
           });
+          if (op === "handleWrite") {
+            const id = h.writes.at(command.account ? -1 : 0) ?? [...h.outcomes.keys()].at(-1);
+            if (id) promise = completed(h, h.client.write(id), (result, ended) => {
+              if (!ended) {
+                checkOutcome(h, id, result, "write");
+                if (receiptOffline && h.outcomes.has(id)) count("consistent.writeDuringReceiptFailure");
+              }
+            });
+          }
           if (op === "handleMutate") {
             const id = String(++writeSerial).padStart(26, "0");
+            h.writes.push(id);
             promise = completed(h, h.client.mutate({ kind: "mutation", name: "write" }, { hiddenHandle: hidden, refuse: command.refuse ?? command.account === 1 }, { id }), (result, ended) => {
               invariant("I8", !hidden || !writeReceipts.has(id), "already-hidden handle dispatched a write");
               if (writeReceipts.has(id)) {
                 count("write.outcome"); count(`write.outcome.${writeReceipts.get(id).state}`);
                 if (ended) { count("write.outcomeAfterFence"); count(`write.outcomeAfterFence.${writeReceipts.get(id).state}`); }
                 invariant("I12", JSON.stringify(result) === JSON.stringify(writeReceipts.get(id)), `dispatched ${id} outcome replaced by ${JSON.stringify(result)}`);
+                if (!ended) checkOutcome(h, id, result, "mutate");
               }
             });
           }
@@ -435,6 +472,8 @@ export async function execute(commands, coverage = {}, tier = "online") {
         rotationFaults.add(identities[id]); promise = app.client.refreshSession();
       }
       else if (op === "release") { const held = holds.shift(); held?.resolve(); }
+      else if (op === "receiptOffline") receiptOffline = true;
+      else if (op === "receiptOnline") receiptOffline = false;
       else if (op === "retireOffline") retirementOffline.add(identities[id]);
       else if (op === "retireOnline") retirementOffline.delete(identities[id]);
       else if (op === "holdStore") holdStore = true;
@@ -467,7 +506,7 @@ export async function execute(commands, coverage = {}, tier = "online") {
       check();
       if (command.expectRevoked) invariant("I9", [...external].every(token => !live.has(token)), "late rotation did not globally revoke external siblings");
     }
-    fault = null; active = undefined; holdStore = false; offline.clear(); rotationFaults.clear(); retirementOffline.clear();
+    fault = null; active = undefined; holdStore = false; receiptOffline = false; offline.clear(); rotationFaults.clear(); retirementOffline.clear();
     while (holds.length) holds.shift().resolve();
     await settle(); await finish(Promise.all(tasks.map(t => t.promise)));
     // Fair recovery: storage/network work again and all responses arrive. Each
@@ -483,7 +522,7 @@ export async function execute(commands, coverage = {}, tier = "online") {
     invariant("retirement", !(record()?.snapback4Retired ?? []).some(token => !global.has(token)), "acknowledged tombstone entries remain");
     check();
   } finally {
-    fault = null; active = undefined; holdStore = false; offline.clear(); rotationFaults.clear(); retirementOffline.clear();
+    fault = null; active = undefined; holdStore = false; receiptOffline = false; offline.clear(); rotationFaults.clear(); retirementOffline.clear();
     while (holds.length) holds.shift().resolve();
     await settle();
     for (const entry of observations) entry.observed.close();
@@ -496,7 +535,7 @@ export async function execute(commands, coverage = {}, tier = "online") {
 // Deletion-minimal counterexample, replayed with the same deterministic wire
 // and fault indices. Keep the invariant identity while removing commands.
 export async function minimize(commands, failure, tier = "online") {
-  const identity = failure.message.match(/(?:I(?:1[012]|[1-9])|retirement):/)?.[0] ?? failure.message;
+  const identity = failure.message.match(/(?:I(?:1[0123]|[1-9])|retirement):/)?.[0] ?? failure.message;
   let minimal = commands;
   for (let i = 0; i < minimal.length;) {
     const candidate = minimal.filter((_, index) => index !== i);
