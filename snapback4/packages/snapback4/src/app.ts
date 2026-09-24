@@ -131,6 +131,7 @@ export function createApp(options: AppOptions): App {
   let operations: Promise<unknown> = Promise.resolve();
   let closed = false;
   let revision = 0;
+  let cancelSignIn: (() => void) | undefined;
   let recoveryAbort: AbortController | undefined;
   const publish = (state: AuthState, viewer: Principal | null, why?: Refusal) => {
     snapshot = { state, viewer, ...(why ? { why } : {}) };
@@ -170,10 +171,10 @@ export function createApp(options: AppOptions): App {
     }).catch(report);
   }
   async function open(session: Session, expected: number, epoch: string, restoring = false): Promise<SignIn> {
-    if (closed || revision !== expected) { if (!closed) void revokeSession(url, session.token, fetcher); return inactive(); }
+    if (closed || revision !== expected) { if (!closed || !restoring) void revokeSession(url, session.token, fetcher); return inactive(); }
     hide("restoring");
     await release();
-    if (closed || revision !== expected) { if (!closed) void revokeSession(url, session.token, fetcher); return inactive(); }
+    if (closed || revision !== expected) { if (!closed || !restoring) void revokeSession(url, session.token, fetcher); return inactive(); }
     // Every opener owns its persistence, including before it returns a Client.
     // Logout invalidates this guard synchronously, ahead of any network work.
     const scope: Scope = { valid: true, session, aborter: new AbortController(), stop() {}, pause() {} };
@@ -347,6 +348,8 @@ export function createApp(options: AppOptions): App {
   }
 
   const signIn = (work: () => Promise<SignIn>): Promise<SignIn> => {
+    cancelSignIn?.();
+    const cancelled = new Promise<null>(resolve => { cancelSignIn = () => resolve(null); });
     const expected = ++revision;
     recoveryAbort?.abort();
     return enqueue(async () => {
@@ -354,7 +357,18 @@ export function createApp(options: AppOptions): App {
       try {
         const epoch = await captureEpoch();
         if (closed || revision !== expected) return inactive();
-        const result = await work();
+        // Cancel only this wait. A committed login/guest response still owns
+        // a bearer, which must be read and revoked if this opener was retired.
+        const request = work();
+        const result = await Promise.race([request, cancelled]);
+        if (!result) {
+          void request.then(late => { if (late.ok) void revokeSession(url, late.session.token, fetcher); });
+          return inactive();
+        }
+        if (closed || revision !== expected) {
+          if (result.ok) void revokeSession(url, result.session.token, fetcher);
+          return inactive();
+        }
         if (!result.ok) {
           if (revision !== expected) return inactive();
           if (snapshot.state === "restoring") publish("signed-out", null, result.why);
@@ -379,6 +393,7 @@ export function createApp(options: AppOptions): App {
     login: (email, password) => signIn(() => login(url, email, password, fetcher)),
     guest: () => signIn(() => guest(url, fetcher)),
     logout() {
+      cancelSignIn?.();
       const expected = ++revision;
       recoveryAbort?.abort();
       hide("restoring");
@@ -442,6 +457,7 @@ export function createApp(options: AppOptions): App {
     get client() { return current; },
     mutate: (op, args, options) => current.mutate(op, args, options),
     close() {
+      cancelSignIn?.();
       closed = true; ++revision; recoveryAbort?.abort(); hide();
       return enqueue(async () => { await release(); await current.close(); listeners.clear(); });
     },

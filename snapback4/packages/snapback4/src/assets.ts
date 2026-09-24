@@ -56,11 +56,11 @@ function ownBlob(blob: Blob): () => void {
   };
 }
 
-export async function uploadAsset(base: string, headers: Record<string, string>, doFetch: typeof fetch, bytes: Bytes, signal?: AbortSignal): Promise<Uploaded> {
+export async function uploadAsset(base: string, headers: Record<string, string>, doFetch: typeof fetch, bytes: Bytes): Promise<Uploaded> {
   const { "content-type": _json, ...auth } = headers;
   const body = bytes instanceof Uint8Array ? new Blob([bytes as BlobPart]) : bytes;
   try {
-    const response = await doFetch(`${base}/assets`, { method: "POST", headers: { ...auth, "content-type": "application/octet-stream" }, body, ...(signal ? { signal } : {}) });
+    const response = await doFetch(`${base}/assets`, { method: "POST", headers: { ...auth, "content-type": "application/octet-stream" }, body });
     const json = (await response.json()) as { asset?: Asset; denied?: Refusal };
     if (json.asset) return { ok: true, asset: json.asset };
     return { ok: false, why: json.denied ?? { code: "E_STORE", family: "store", message: "the server answered without an asset", retryable: true } };

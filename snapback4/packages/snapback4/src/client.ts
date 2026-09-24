@@ -11,6 +11,7 @@ import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal
 import { logout, logoutAll as revokeAllSessions, refreshSession as rotateSession, type Session, type SignIn } from "./auth.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
+import { waitForCaller } from "./request-wait.ts";
 
 export interface ClientOptions {
   /** The server, e.g. `http://127.0.0.1:4400`. */
@@ -106,9 +107,6 @@ export function createClient(options: ClientOptions): Client {
   let link: Link = credentials ? "online" : "signed-out";
   let closed = false;
   const aborter = new AbortController();
-  // Ordinary close still owes custody of a committed refresh successor. Its
-  // request stops on credential loss or store refusal, not an ordinary close.
-  const refreshAborter = new AbortController();
   const requests = new Set<Promise<unknown>>();
   let closing: Promise<void> | undefined;
   let seq = 0;
@@ -145,9 +143,9 @@ export function createClient(options: ClientOptions): Client {
 
   let credentialRevision = 0;
   let refreshing: Promise<SignIn> | null = null;
-  let stopRefresh!: () => void;
+  let stopRefresh!: (why: Refusal) => void;
   const refreshStopped = new Promise<SignIn>(resolve => {
-    stopRefresh = () => resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to continue" } });
+    stopRefresh = why => resolve({ ok: false, why });
   });
   let refreshTimer: ReturnType<typeof setTimeout> | undefined;
   const refreshBeforeExpiry = 24 * 60 * 60 * 1000;
@@ -155,8 +153,7 @@ export function createClient(options: ClientOptions): Client {
   const endCredentials = () => {
     if (!credentials) return;
     session = null;
-    stopRefresh();
-    refreshAborter.abort();
+    stopRefresh(auth());
     credentialRevision += 1;
     if (refreshTimer) clearTimeout(refreshTimer);
     credentials = false;
@@ -211,7 +208,7 @@ export function createClient(options: ClientOptions): Client {
     if (retry) { clearTimeout(retry); retry = undefined; }
     if (refreshTimer) clearTimeout(refreshTimer);
     aborter.abort();
-    refreshAborter.abort();
+    stopRefresh(storeRefusal);
     for (const watch of watches.values()) { watch.reset({ denied: storeRefusal }); scheduleExpiry(watch, null); }
     // Retire every owner, including the request currently awaiting its body.
     // A late receipt must not settle it a second time or schedule another send.
@@ -265,15 +262,15 @@ export function createClient(options: ClientOptions): Client {
     if (!credentials || !token || options.persona) return Promise.resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
     const expectedPrincipal = viewer;
     credentialRevision += 1;
-    const rotation = rotateSession(base, token, doFetch, refreshAborter.signal);
+    const rotation = rotateSession(base, token, doFetch);
     let retired = false;
     const retire = (result: SignIn) => {
       if (!result.ok || retired) return;
       retired = true;
       void logout(base, result.session.token, doFetch);
     };
-    // A host may deliver a committed successor despite cancellation, even
-    // after refreshStopped released the public refresh promise.
+    // Never abort rotation: the server may already have consumed the old
+    // token. Keep reading so a cancelled caller's successor can be revoked.
     void rotation.then(result => { if (storeRefusal || !credentials) retire(result); });
     const work = (async (): Promise<SignIn> => {
       const refreshed = await Promise.race([rotation, refreshStopped]);
@@ -320,7 +317,7 @@ export function createClient(options: ClientOptions): Client {
   }
 
   function post(path: string, body: unknown) {
-    const request = sendPost(path, body);
+    const request = waitForCaller(sendPost(path, body), aborter.signal).then(result => result ?? { ok: false as const });
     requests.add(request);
     void request.finally(() => requests.delete(request)).catch(() => {});
     return request;
@@ -335,7 +332,7 @@ export function createClient(options: ClientOptions): Client {
     try { encoded = JSON.stringify(body); }
     catch { return { ok: true, json: { denied: { code: "E_INPUT", family: "input", message: "request arguments must be JSON-serializable" } } }; }
     try {
-      const response = await doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(options.meter && path.startsWith("/q/") ? { "x-snapback-meter": "1" } : {}) }, body: encoded, signal: aborter.signal });
+      const response = await doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(options.meter && path.startsWith("/q/") ? { "x-snapback-meter": "1" } : {}) }, body: encoded, ...(path.startsWith("/q/") ? { signal: aborter.signal } : {}) });
       const json = (await response.json()) as Record<string, unknown>;
       if (closed || storeRefusal) return { ok: false };
       observeStore(json, floor, path.startsWith("/m/"));
@@ -636,8 +633,8 @@ export function createClient(options: ClientOptions): Client {
       if (storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
       if (!credentials || link === "signed-out") return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to upload" } };
       const revision = credentialRevision;
-      const uploaded = await uploadAsset(base, { ...headers }, doFetch, bytes, aborter.signal);
-      if (storeRefusal || closed || !credentials) return { ok: false, why: storeRefusal ?? (closed ? ended() : auth()) };
+      const uploaded = await waitForCaller(uploadAsset(base, { ...headers }, doFetch, bytes), aborter.signal);
+      if (!uploaded || storeRefusal || closed || !credentials) return { ok: false, why: storeRefusal ?? (closed ? ended() : auth()) };
       if (!uploaded.ok && await obsoleteRefusal(uploaded.why, revision)) return client.upload(bytes);
       if (storeRefusal || closed || !credentials) return { ok: false, why: storeRefusal ?? (closed ? ended() : auth()) };
       if (!uploaded.ok && uploaded.why.code === "E_OFFLINE") setLink("offline");
@@ -695,8 +692,8 @@ export function createClient(options: ClientOptions): Client {
       const bearer = headers.authorization?.slice("Bearer ".length);
       if (!credentials || !bearer) return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions" } };
       const revision = credentialRevision;
-      const revoked = await revokeAllSessions(base, bearer, doFetch);
-      if (storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
+      const revoked = await waitForCaller(revokeAllSessions(base, bearer, doFetch), aborter.signal);
+      if (!revoked || storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
       if (revoked.ok) {
         endCredentials();
         await client.close();
@@ -713,7 +710,7 @@ export function createClient(options: ClientOptions): Client {
       // refreshCurrent owns revocation of any late, unkept successor.
       // Close immediately so outstanding work cannot reuse the credentials.
       const closing = client.close();
-      if (bearer) await logout(base, bearer, doFetch);
+      if (bearer) void logout(base, bearer, doFetch);
       await closing;
     },
     close() {
@@ -734,7 +731,7 @@ export function createClient(options: ClientOptions): Client {
         emitWrite(outcome);
       }
       writeListeners.clear();
-      closing = Promise.allSettled([flushing, refreshing, ...requests]).then(() => { refreshAborter.abort(); pending.length = 0; sessionListeners.clear(); });
+      closing = Promise.allSettled([flushing, refreshing, ...requests]).then(() => { pending.length = 0; sessionListeners.clear(); });
       return closing;
     },
   };

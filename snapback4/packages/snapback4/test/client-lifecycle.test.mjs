@@ -1177,25 +1177,29 @@ for (const tier of ["wasm", "native"]) {
   }
 }
 
-test("close aborts online posts and stops admission", { timeout: 10_000 }, async (t) => {
+test("close cancels online write callers without aborting committed delivery", { timeout: 10_000 }, async (t) => {
   const f = await fixture(t);
-  const entered = deferred();
-  let aborts = 0;
+  const entered = deferred(), release = deferred(); let consumed = false;
+  t.after(() => release.resolve());
   const online = await f.open("online", { fetch: async (input, init) => {
+    const response = await fetch(input, init);
     if (new URL(input).pathname.startsWith("/m/")) {
-      entered.resolve();
-      try { await held(deferred(), init.signal); }
-      finally { aborts++; }
+      assert.equal((await response.clone().json()).state, "sent");
+      assert.equal(init.signal, undefined, "a committed effect's body must remain readable");
+      entered.resolve(); await release.promise;
+      const read = response.json.bind(response);
+      response.json = async () => { const value = await read(); consumed = true; return value; };
     }
-    return fetch(input, init);
+    return response;
   } });
-  const write = online.mutate(send, { conversationId: "c1", body: "never sent" });
+  const write = online.mutate(send, { conversationId: "c1", body: "committed" });
   await entered.promise;
   await online.close();
-  assert.equal(aborts, 1);
-  assert.equal((await write).state, "failed");
+  assert.equal(consumed, false, "close stops waiting before delivery finishes");
+  assert.equal((await write).why.code, "E_CLOSED");
   assert.equal((await online.mutate(send, { conversationId: "c1", body: "closed" })).why.code, "E_CLOSED");
-  assert.equal((await f.server.query(thread, args)).data.length, 2);
+  release.resolve(); await until(() => consumed, "the late committed reply was not consumed");
+  assert.equal((await f.server.query(thread, args)).data.length, 3);
 });
 
 test("device process failures reject opening and pending calls instead of leaving close waiting", { timeout: 3000 }, async (t) => {
@@ -1353,6 +1357,9 @@ for (const scenario of [
     throw new Error(`unexpected request ${path}`);
   } });
   t.after(() => client.close());
+  // Measure fallback after the startup sync commits, so its authority reset
+  // cannot race this direct query and correctly trigger an extra refetch.
+  await client.sync();
   if (scenario.offline) { offline = true; await client.sync(); }
   const read = await client.query(query("read"), {});
   assert.equal(requests.length, scenario.requests, `the ${scenario.name} /q/ request log is ${JSON.stringify(requests)}`);

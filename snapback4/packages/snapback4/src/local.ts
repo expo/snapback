@@ -8,6 +8,7 @@
 // `snapback4 device` process for Node (`snapback4/native`) all fit.
 
 import { ReadObservation } from "./read-observation.ts";
+import { postForCaller, waitForCaller } from "./request-wait.ts";
 import { LocalReads, type LocalWatch as Watch } from "./local-reads.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
 import { changeFeed } from "./changes.ts";
@@ -605,9 +606,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     if (closed || sessionDead) return { ok: false };
     try {
       const request = requestCredentials();
-      const response = await doFetch(`${base}${path}`, { method: "POST", headers: request.headers, body: JSON.stringify(body), signal: aborter.signal });
-      const json = (await response.json()) as Record<string, unknown>;
-      if (closed) return { ok: false };
+      const reply = await postForCaller(doFetch, base, path, request.headers, body, aborter.signal);
+      if (!reply || closed) return { ok: false };
+      const { response, json } = reply;
       if (response.status >= 500) { setLink("offline"); return { ok: false }; }
       const denied = (json.denied ?? json.why) as Refusal | undefined;
       const obsoleteAuth = denied?.code === "E_AUTH" && (request.revision !== credentialRevision || rotating);
@@ -1339,7 +1340,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (unavailableWhy) return { ok: false as const, why: unavailableWhy };
       if (link !== "online") return { ok: false as const, why: { code: "E_OFFLINE", family: "link", message: "the server is unreachable; uploads wait for no link", retryable: true } };
       const request = requestCredentials();
-      const uploaded = await uploadAsset(base, request.headers, doFetch, bytes);
+      const uploaded = await waitForCaller(uploadAsset(base, request.headers, doFetch, bytes), aborter.signal);
+      const ended = unavailable();
+      if (!uploaded || ended) return { ok: false, why: ended! };
       if (uploaded.ok && !unavailable() && request.revision === credentialRevision) {
         // The device keeps only facts received from this uploader's server reply.
         await call({ op: "upload_facts", viewer: principal, asset: uploaded.asset });

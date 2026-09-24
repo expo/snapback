@@ -7,7 +7,7 @@ const gate = () => { let resolve; const promise = new Promise(r => { resolve = r
 const ready = (store_id, seq, data = ['private']) => ({ store_id, seq, data, complete: true, tables: ['secrets'] });
 const head = (store_id, seq) => ({ store_id, seq, generation: 1, tables: ['secrets'] });
 const until = async check => { for (let n = 0; n < 600; n++) { if (await check()) return; await delay(5); } assert.fail('store transition did not settle'); };
-const blocked = signal => new Promise((_, reject) => { if (signal.aborted) reject(Error('closed')); else signal.addEventListener('abort', () => reject(Error('closed')), { once: true }); });
+const blocked = signal => new Promise((_, reject) => { if (signal?.aborted) reject(Error('closed')); else signal?.addEventListener('abort', () => reject(Error('closed')), { once: true }); });
 
 for (const source of ['query', 'mutation', 'changes', 'probe']) for (const replacement of [true, false]) {
   test(`${source}: ${replacement ? 'replacement' : 'regression'} is terminal for all reads and writes`, async t => {

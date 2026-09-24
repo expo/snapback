@@ -51,8 +51,8 @@ test("ready list reads survive account restoration, new chat acquisition and pen
     if (offline || (holdSync && path === "/sync")) throw Error("controlled offline link");
     if (holdWrite && path === "/m/saveProfile") {
       await new Promise((_, reject) => {
-        if (init.signal.aborted) reject(Error("closed"));
-        else init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true });
+        if (init.signal?.aborted) reject(Error("closed"));
+        else init.signal?.addEventListener("abort", () => reject(Error("closed")), { once: true });
       });
     }
     return fetch(input, init);

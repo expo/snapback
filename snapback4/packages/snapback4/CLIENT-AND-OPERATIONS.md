@@ -467,6 +467,10 @@ retirement is saved; a failed save leaves the outcome `pending`, even during rep
 Terminal online clients expose `link() === "signed-out"` and refuse actions,
 uploads, asset reads and refreshes too; late asset handles are revoked, unkept
 refresh successors are revoked, and `assetSource` returns an empty source.
+Cancellation ends the caller's wait, never an effectful request: refresh,
+login, guest, mutations, actions and uploads still consume their replies;
+unkept bearers are revoked and cancelled uploads remain unplaced.
+Only queries, polls and asset fetches may abort their network requests.
 Retirement evicts unknown store-failure receipts before known sent receipts
 within the same receipt limit, so a retained sent id cannot execute on the replacement.
 Within a store, replayed mutation receipts never lower the read floor: their

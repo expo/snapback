@@ -14,8 +14,8 @@ export async function exercise({ url, createApp, memorySessionStore, deviceFacto
     requests.push(path);
     if (offline) throw Error("controlled offline link");
     if (holdWrite && path === "m/resetRead") await new Promise((_, reject) => {
-      if (init.signal.aborted) reject(Error("closed"));
-      else init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true });
+      if (init.signal?.aborted) reject(Error("closed"));
+      else init.signal?.addEventListener("abort", () => reject(Error("closed")), { once: true });
     });
     if (holdInbox && path === "q/inbox") await inboxGate;
     const response = await fetch(input, init);

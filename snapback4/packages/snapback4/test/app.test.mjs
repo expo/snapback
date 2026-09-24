@@ -622,3 +622,54 @@ test("near-expiry restoration retries a successor after automatic refresh is rej
   assert.deepEqual((await a.client.query(list, {})).data, []);
   assert.deepEqual((await b.client.query(list, {})).data, [], "retry must not revoke the winning session family");
 });
+
+for (const ending of ['sign-out', 'replacement']) test(`committed refresh body survives ${ending} and its unkept bearer is revoked`, async t => {
+  const { url } = await server(t), { createClient } = await import('../dist/client.js');
+  const session = (await (await fetch(url + '/auth/guest', { method: 'POST', body: '{}' })).json()).session;
+  let release, replace, rotated;
+  const body = new Promise(resolve => { release = resolve; }), change = new Promise(resolve => { replace = resolve; });
+  const logouts = [];
+  const client = createClient({ url, session, fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    if (path === '/auth/logout') logouts.push(new Headers(init.headers).get('authorization'));
+    if (path.startsWith('/q/') && JSON.parse(init.body).args.replace) {
+      await change; return Response.json({ data: [], store_id: 'replacement', seq: 1 });
+    }
+    const response = await fetch(input, init);
+    if (path === '/auth/refresh') { rotated = (await response.clone().json()).session; await body; }
+    return response; // Actual fetch body rejects if its signal was aborted.
+  } });
+  t.after(async () => { release(); replace(); await client.close(); });
+  await client.query(list, {});
+  const changing = ending === 'replacement' ? client.query(list, { replace: true }) : null;
+  const refreshing = client.refreshSession(); await until(() => rotated);
+  if (changing) { replace(); assert.equal((await changing).denied.code, 'E_STORE_REPLACED'); }
+  else await client.signOut();
+  assert.equal((await Promise.race([refreshing, delay(500).then(() => assert.fail('caller still waits for the refresh body'))])).ok, false);
+  release();
+  await until(async () => (await (await fetch(url + '/probe', { headers: { authorization: `Bearer ${rotated.token}` } })).json()).denied?.code === 'E_AUTH', 'unkept successor is revoked');
+  assert.ok(logouts.includes(`Bearer ${rotated.token}`));
+  if (ending === 'sign-out') assert.ok(logouts.includes(`Bearer ${session.token}`));
+});
+
+for (const kind of ['mutation', 'upload']) test(`local close cancels a ${kind} caller without aborting its committed response`, async t => {
+  const { url, dir } = await server(t); let release, entered = false, signal, consumed = false;
+  const gate = new Promise(resolve => { release = resolve; });
+  const app = createApp({ url, device: processDevice({ dir: join(dir, 'effect-device'), binary }), fetch: async (input, init) => {
+    const path = new URL(input).pathname;
+    const effect = kind === 'mutation' ? path === '/m/add' : path === '/assets';
+    const response = effect && kind === 'upload' ? Response.json({ asset: { id: 'unplaced', type: 'image/png', bytes: 1 } }) : await fetch(input, init);
+    if (effect) {
+      await response.clone().json(); signal = init.signal; entered = true; await gate;
+      const read = response.json.bind(response); response.json = async () => { const value = await read(); consumed = true; return value; };
+    }
+    return response;
+  } });
+  t.after(async () => { release(); await app.close(); });
+  await app.ready; await app.auth.guest(); const prior = app.client;
+  const outcome = kind === 'mutation' ? app.mutate(add, { body: 'committed' }) : prior.upload(new Uint8Array([1]));
+  await until(() => entered); assert.equal(signal, undefined);
+  await Promise.race([app.close(), delay(500).then(() => assert.fail('close waited for an effect body'))]);
+  if (kind === 'upload') assert.equal((await outcome).why?.code, 'E_CLOSED');
+  release(); await outcome; await until(() => consumed, 'the background reply was consumed');
+});

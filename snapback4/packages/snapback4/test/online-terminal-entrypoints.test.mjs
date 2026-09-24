@@ -25,7 +25,7 @@ for (const replacement of [true, false]) test(`terminal ${replacement ? 'replace
   assert.equal(requests, 2, 'no terminal entry point may contact the replacement');
 });
 
-for (const replacement of [true, false]) test(`in-flight assets and action are fenced and aborted on ${replacement ? 'replacement' : 'regression'}`, async t => {
+for (const replacement of [true, false]) test(`in-flight assets and action are fenced without aborting effects on ${replacement ? 'replacement' : 'regression'}`, async t => {
   const release = gate(), signals = [], revoked = [], closedBlobs = []; let queries = 0;
   const code = replacement ? 'E_STORE_REPLACED' : 'E_STORE_RESTORE';
   t.mock.method(URL, 'createObjectURL', () => 'blob:late-private');
@@ -33,7 +33,7 @@ for (const replacement of [true, false]) test(`in-flight assets and action are f
   const client = createClient({ url, session: session('old'), fetch: async (input, init) => {
     const path = new URL(input).pathname;
     if (path === '/q/page') return Response.json(++queries === 1 ? ready() : ready(replacement ? 'B' : 'A', 1));
-    signals.push(init.signal); await release.promise; // Intentionally deliver despite abort.
+    signals.push({ path, signal: init.signal }); await release.promise; // Intentionally deliver despite abort.
     if (path === '/assets') return Response.json({ asset: { id: 'late', type: 'image/png', bytes: 1 } });
     if (path.startsWith('/a/')) return Response.json({ state: 'done', id: JSON.parse(init.body).id, result: 'late-private' });
     const blob = new Blob(['private'], { type: 'image/png' }); blob.close = () => closedBlobs.push(true);
@@ -44,7 +44,9 @@ for (const replacement of [true, false]) test(`in-flight assets and action are f
   const upload = client.upload(new Uint8Array([1])), asset = client.asset('photo'), action = client.act(a, {});
   await until(() => signals.length === 3);
   assert.equal((await client.query(q, {})).denied.code, code);
-  assert.ok(signals.every(signal => signal?.aborted), 'assets and actions share client lifetime cancellation');
+  for (const { path, signal } of signals) assert.equal(signal?.aborted, path === '/assets/photo' ? true : undefined, 'only the asset fetch may abort');
+  assert.equal((await upload).why?.code, code, 'cancel the upload caller before its body arrives');
+  assert.equal((await action).denied?.code, code, 'cancel the action caller before its body arrives');
   release.resolve();
   assert.equal((await upload).why?.code, code);
   assert.equal((await asset).denied?.code, code);
@@ -72,7 +74,8 @@ for (const refusal of [false, true]) for (const authGap of [false, true])
     const refreshing = client.refreshSession(); await until(() => rotating);
     auth.resolve(); await delay(0); // E_AUTH's continuation now waits on refresh.
     change.resolve(); assert.equal((await changing).denied.code, 'E_STORE_REPLACED');
-    assert.equal(rotationSignal?.aborted, true);
+    assert.equal(rotationSignal, undefined, 'a rotation may already have committed; its body must remain readable');
+    assert.equal((await refreshing).why?.code, 'E_STORE_REPLACED', 'only the caller wait ends');
     assert.equal((await client.upload(new Uint8Array())).why?.code, 'E_STORE_REPLACED', 'a new call never waits for the retired refresh');
     assert.equal((await client.asset('photo')).denied?.code, 'E_STORE_REPLACED');
     rotation.resolve();
