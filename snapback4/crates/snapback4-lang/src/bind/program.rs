@@ -1003,7 +1003,7 @@ fn stable_chunk(catalog: &Catalog, site: &Site, scan: &Scan) -> Fallible<()> {
         columns
     });
     if !moving.is_empty() {
-        return Err(Diagnostic::new(site, "E_JOB_CURSOR_INDEX", format!("sweep over {}.{} orders by {}, which a write could change under the cursor; a sweep's index columns are id or immutable", scan.table, scan.index, moving.join(", ")), format!("for row in {}:  -- stable byId order; or declare immutable {} on table {}", scan.table, moving.join(", "), scan.table)).guide("jobs"));
+        return Err(Diagnostic::new(site, "E_JOB_CURSOR_INDEX", format!("sweep over {}.{} sweeps by {}, which a write could change under the cursor; a sweep's index columns are id or immutable", scan.table, scan.index, moving.join(", ")), format!("immutable {}  -- on table {}, or use `for row in {}:` for stable byId order", moving.join(", "), scan.table, scan.table)).guide("jobs"));
     }
     Ok(())
 }

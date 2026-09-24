@@ -941,10 +941,9 @@ impl Runner<'_> {
                         self.filter_depth -= 1;
                         self.page_depth = page_depth;
                         match prior { Some(value) => { self.env.insert("$filter".into(), value); }, None => { self.env.remove("$filter"); } }
-                        let matched = matched?.as_bool()?;
                         if metered_word { self.meter.heap(word_heap::text(&scan.site))?; }
                         self.meter.at(&scan.site);
-                        if self.read_capped() {
+                        if self.read_capped() && (matched.is_ok() || matches!(&matched, Err(RuntimeError::Bound { kind, .. }) if *kind != MeterKind::HeapBytes)) {
                             capped = true;
                             // The paved existence predicate has no verdict when its
                             // one-row search starves. Retry that membership; general
@@ -955,6 +954,7 @@ impl Runner<'_> {
                                     if matches!(args.as_slice(), [Expr::Scan(inner)] if inner.existence)));
                             break 'outer;
                         }
+                        let matched = matched?.as_bool()?;
                         if !matched { continue; }
                     }
                     if let Some((total, projection)) = &mut aggregate {

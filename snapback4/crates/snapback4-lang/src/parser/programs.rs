@@ -101,7 +101,7 @@ impl Parser {
         let server = kind == ProgramKind::Mutation && self.maybe("server");
         self.newline()?;
         let before_body = self.diagnostics.len();
-        let (prelude, body) = if kind == ProgramKind::Job { self.parse_chunks()? } else { (Vec::new(), self.parse_block()?) };
+        let (prelude, body) = if kind == ProgramKind::Job { self.parse_chunks(&args)? } else { (Vec::new(), self.parse_block()?) };
         if body.is_empty() {
             // @ref LLP 3000.007#20.19 — default `check` hides a recovery diagnostic only
             // when an earlier error in the same operation's own body already explains it.
@@ -115,10 +115,11 @@ impl Parser {
         Ok(ProgramDecl { held, predicts, server, kind, name, args, prelude, body, native: false, site: kind_token.site })
     }
 
-    pub(super) fn parse_chunks(&mut self) -> Fallible<(Vec<Stmt>, Vec<Stmt>)> {
+    pub(super) fn parse_chunks(&mut self, args: &[ArgDecl]) -> Fallible<(Vec<Stmt>, Vec<Stmt>)> {
         self.take_kind(Kind::Indent)?;
         let mut prelude = Vec::new();
         let mut chunks = Vec::new();
+        let mut locals: std::collections::BTreeSet<String> = args.iter().map(|arg| arg.name.clone()).collect();
         while !self.at_kind(Kind::Dedent) && !self.at_kind(Kind::Eof) {
             self.skip_newlines();
             if self.at_kind(Kind::Dedent) {
@@ -126,6 +127,15 @@ impl Parser {
             }
             if self.at("for") {
                 let sweep = self.parse_for()?;
+                let automatic = match &sweep {
+                    Stmt::For { domain: Expr::Read(_), .. } => true,
+                    Stmt::For { domain: Expr::Name { name, .. }, .. } => !locals.contains(name),
+                    _ => false,
+                };
+                if !automatic && chunks.is_empty() {
+                    prelude.push(sweep);
+                    continue;
+                }
                 if let Stmt::For { domain: Expr::Read(read), site, .. } = &sweep
                     && (read.range.is_some() || read.matching.is_some()) {
                     return Err(syntax_with(site, "an automatic sweep needs a plain table or prefix domain, without a page or matching clause", format!("for row in {}:  -- or use chunk row in {} first 64 by byId:", read.table, read.table)));
@@ -134,7 +144,9 @@ impl Parser {
                 continue;
             }
             if !self.at("chunk") && chunks.is_empty() {
-                prelude.push(self.parse_statement()?);
+                let statement = self.parse_statement()?;
+                if let Stmt::Bind { names, .. } = &statement { locals.extend(names.iter().cloned()); }
+                prelude.push(statement);
                 continue;
             }
             let site = self.take("chunk")?.site;

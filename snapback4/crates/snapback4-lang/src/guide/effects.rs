@@ -18,13 +18,6 @@ Device prediction discards emits and never claims keys. A key does not
 promise exactly-once provider delivery; the worker still uses provider
 idempotency for an ambiguous external outcome.
 
-```quarry
-effect onceNotify
-mutation remind(recipient: principal, periodEnd: time):
-  emit onceNotify { recipient, periodEnd } once [recipient, periodEnd]
-  return true
-```
-
 For a replay mode that must not emit notifications, run `snapback4 dev --replay`.
 New emits are counted as `suppressed` by `doctor`, with no queued payload:
 they are never delivered, including after restarting with or without `--replay`.
@@ -285,4 +278,12 @@ settlements are refused. For example, a worker finishing a push after
 `POST /effects/<id>/cancel` cannot mark that old effect sent. Inspect the
 provider using the effect's idempotency key before creating another effect.
 Cancellation stops further admitted work, but cannot undo a provider call
-already in flight."##;
+already in flight.
+
+```quarry
+effect onceNotify
+mutation remind(recipient: principal, periodEnd: time):
+  emit onceNotify { recipient, periodEnd } once [recipient, periodEnd]
+  return true
+```
+"##;

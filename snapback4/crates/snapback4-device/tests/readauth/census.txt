@@ -51,6 +51,7 @@ card/effects/1:send | eligible
 card/effects/1:send | messages/insert | {"Exists":{"table":"members","index":"byRoomPrincipal","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/effects/2:send | eligible
 card/effects/2:send | messages/insert | {"Exists":{"table":"memberships","index":"byConversationPrincipal","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/effects/3:remind | eligible
 card/expire/1:postStory | eligible
 card/expire/1:postStory | stories/insert | {"Eq":[{"Field":"authorId"},"Viewer"]} | read rule
 card/feeds/1:follow | never
