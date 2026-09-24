@@ -12,7 +12,7 @@ use snapback4_core::error::{Refusal, RuntimeError};
 use snapback4_core::ir::Program;
 use snapback4_core::meter::Ceilings;
 use snapback4_core::rows::{Bounds, Dir, Rows};
-use snapback4_core::schema::{Audience, Index, LeavePolicy, Schema, Table};
+use snapback4_core::schema::{Audience, Index, LeavePolicy, Schema, Table, timeline::check_version};
 use snapback4_core::value::Value;
 use snapback4_core::{Context, QueryOutcome, wire};
 use std::cell::RefCell;
@@ -371,9 +371,11 @@ impl<S: DeviceStore> Device<S> {
         let previous = kept.as_deref().map(|text| snapback4_core::json_codec::from_text::<Backend>(text)
             .map_err(|e| RuntimeError::decode(e, |e| RuntimeError::Store(format!("the kept backend does not parse: {e}")))))
             .transpose()?;
+        if let Some(previous) = &previous { check_version(&previous.schema)?; }
         let mut backend = if backend.is_none() || (initial && kept.is_some()) {
             previous.clone().ok_or_else(|| RuntimeError::Auth("this device has never synced: the server must be reachable once to open".into()))?
         } else { backend.unwrap() };
+        check_version(&backend.schema)?;
         backend.schema.prepare_contribution_indexes();
         let held = store.meta(GENERATION)?.and_then(|g| g.parse::<u64>().ok()).unwrap_or(0);
         let reset = held != 0 && held != backend.generation;
@@ -485,6 +487,7 @@ impl<S: DeviceStore> Device<S> {
     }
 
     pub fn adopt_captured(&mut self, mut backend: Backend, mut expected: BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
+        check_version(&backend.schema)?;
         backend.schema.prepare_contribution_indexes();
         let required = self.store.meta(BACKEND_REQUIRED)?;
         expected.entry(BACKEND_REQUIRED.into()).or_insert(required.clone());

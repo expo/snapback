@@ -24,7 +24,7 @@ pub(crate) fn check_import(schema: &crate::schema::Schema, table: &str) -> Resul
 #[cfg(feature = "sqlite")]
 pub(crate) fn check_activation(tx: &crate::store::Tx<'_>, schema: &crate::schema::Schema) -> Result<(), RuntimeError> {
     use rusqlite::OptionalExtension;
-    check_version(schema)?;
+    crate::schema::timeline::check_version(schema)?;
     let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
     let previous: crate::schema::Schema = previous.map(|s| crate::json_codec::from_text(&s).map_err(|e| RuntimeError::Store(e.to_string()))).transpose()?.unwrap_or_default();
     let populated = |table: &str| -> Result<bool, RuntimeError> {
@@ -52,12 +52,6 @@ pub(crate) fn check_activation(tx: &crate::store::Tx<'_>, schema: &crate::schema
 #[cfg(feature = "sqlite")]
 pub(crate) fn activate_profiles(_tx: &crate::store::Tx<'_>, _schema: &crate::schema::Schema, _previous: Option<&crate::schema::Schema>) -> Result<(), RuntimeError> { Ok(()) }
 
-pub(crate) fn check_version(schema: &crate::schema::Schema) -> Result<(), RuntimeError> {
-    if schema.timelines.iter().any(|t| t.version != 2) {
-        return Err(refusal("E_TIMELINE_REDEFINE", "this store contains a 0.3 timeline; use a fresh store in dev or preserve it with the matching 0.3 engine; timeline history is not migrated"));
-    }
-    Ok(())
-}
 
 /// Trusted row restores retain admission history too. Advance the restore
 /// commit beyond every imported token so a fresh store cannot reuse an epoch.

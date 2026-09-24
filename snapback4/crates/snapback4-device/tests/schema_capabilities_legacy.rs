@@ -1,20 +1,17 @@
 mod common;
 use serde_json::json;
-use snapback4_device::{call, device::{Backend, Device}, store::DeviceStore, memory::MemoryStore};
-use snapback4_core::{schema::Schema, error::RuntimeError};
+use snapback4_device::{device::{Backend, Device}, opening::Opening, store::{DeviceStore, DeviceTx}, memory::MemoryStore};
+use snapback4_core::{schema::Schema, error::RuntimeError, rows::Rows, Value, value::object};
 use std::{cell::Cell, collections::BTreeMap};
 
+// Genuine pre-capability-carrier bytes: absence of version defaults to v1.
 const LEGACY: &str = include_str!("../../snapback4-core/tests/fixtures/legacy-recorded-timeline-backend.json");
 
 struct Borrowed<'a, S>(&'a mut S, &'a Cell<usize>);
 impl<S: DeviceStore> DeviceStore for Borrowed<'_, S> {
     type Tx<'a> = S::Tx<'a> where Self: 'a;
-    fn install(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool) -> Result<(), RuntimeError> {
-        self.0.install(schema, metadata, reset)
-    }
-    fn install_checked(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
-        self.0.install_checked(schema, metadata, reset, expected)
-    }
+    fn install(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool) -> Result<(), RuntimeError> { self.0.install(schema, metadata, reset) }
+    fn install_checked(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> { self.0.install_checked(schema, metadata, reset, expected) }
     fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
         if key == "device:backend" { self.1.set(self.1.get() + 1); }
         self.0.meta(key)
@@ -23,70 +20,111 @@ impl<S: DeviceStore> DeviceStore for Borrowed<'_, S> {
     fn transaction(&mut self) -> Result<Self::Tx<'_>, RuntimeError> { self.0.transaction() }
 }
 
+fn legacy() -> Backend { serde_json::from_str(LEGACY).unwrap() }
+fn current() -> Backend {
+    let b = snapback4_lang::compile(&[("schema.q".into(), include_str!("../../snapback4-core/tests/fixtures/legacy-recorded-timeline.q").into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    Backend { generation: 2, schema: b.schema, programs: b.programs.into_iter().map(|p|p.program).collect() }
+}
+fn assert_refusal(error: RuntimeError) {
+    let expected = snapback4_core::schema::timeline::check_version(&legacy().schema).unwrap_err();
+    assert_eq!(error.code(), "E_TIMELINE_REDEFINE");
+    assert_eq!(error.to_string(), expected.to_string(), "same fence as server open");
+    assert!(error.to_string().contains("fresh store in dev"));
+}
+
+fn prepare<S: DeviceStore>(store: &mut S, backend: &Backend, wire: &str) {
+    // Restore old durable state at the store boundary, without opening it with
+    // the new device interpreter (which must now refuse these exact bytes).
+    store.install(&backend.schema, &BTreeMap::from([
+        ("device:backend".into(), wire.into()), ("device:generation".into(), backend.generation.to_string()),
+        ("device:watermark".into(), "7".into()),
+    ]), false).unwrap();
+    let tx = store.transaction().unwrap();
+    let post = object([("id", Value::Id("post".into())), ("authorId", Value::Id("dev:alice".into())), ("at", Value::Int(1000)), ("removed", Value::Bool(false))]);
+    tx.put("posts", &backend.schema.tables["posts"], &post, None).unwrap();
+    tx.outbox_insert(1, "pending", &json!({"id":"pending", "seq":1, "op":"like", "args":{"postId":"post"}, "new_ids":["like"]}).to_string()).unwrap();
+    tx.commit().unwrap();
+}
+fn state<S: DeviceStore>(store: &mut S) -> (Vec<(String, String)>, Option<Value>, Vec<String>) {
+    let tx = store.transaction().unwrap();
+    let state = (tx.meta_prefix("").unwrap(), tx.get("posts", "post").unwrap(), tx.outbox_entries().unwrap());
+    tx.commit().unwrap();
+    state
+}
 fn reopen<S: DeviceStore>(mut store: S, reload: impl Fn(S) -> S) {
-    let backend: Backend = serde_json::from_str(LEGACY).unwrap();
+    prepare(&mut store, &legacy(), LEGACY);
+    store = reload(store);
+    let before = state(&mut store);
     let reads = Cell::new(0);
-    for (seq, mode) in ["kept", "explicit", "initial"].into_iter().enumerate() {
-        let mut device = Device::open_store(Borrowed(&mut store, &reads), Some(backend.clone())).unwrap();
-        // Keep a row and a queued write across the opening so accepting a
-        // schema by silently resetting its replica cannot satisfy this test.
-        let reply = call::call(&mut device, json!({"op":"apply", "first":true, "page": {
-            "snapshot":true, "watermark":7, "more":false, "generation":1,
-            "events":[{"kind":"put", "table":"posts", "id":"post", "data":{
-                "id":"post", "authorId":"dev:alice", "at":1000, "removed":false
-            }}]
-        }}));
-        assert!(reply.get("ok").is_some(), "{reply}");
-        let reply = call::call(&mut device, json!({"op":"enqueue", "entry": {
-            "id":mode, "seq":seq + 1, "op":"like", "args":{"postId":"post"}, "new_ids":[format!("like-{mode}")]
-        }}));
-        assert!(reply.get("ok").is_some(), "{reply}");
-        // The bytes were emitted by e91f60c7f8, before Capabilities existed.
-        let queue = call::call(&mut device, json!({"op":"queued"}));
-        drop(device);
-        store.set_meta("device:backend", LEGACY).unwrap();
-        store = reload(store);
+    for opening in [Opening::Kept, Opening::Install(current()), Opening::Initial(current())] {
         reads.set(0);
-        let borrowed = Borrowed(&mut store, &reads);
-        let mut device = match mode {
-            "explicit" => Device::open_store(borrowed, Some(backend.clone())).unwrap(),
-            "initial" => {
-                let mut replacement = backend.clone(); replacement.generation = 2;
-                Device::open_store_initial(borrowed, replacement).unwrap()
-            }
-            _ => Device::open_store(borrowed, None).unwrap(),
+        let error = match opening.open(Borrowed(&mut store, &reads)) {
+            Err(error) => error, Ok(_) => panic!("v1 timeline store opened"),
         };
-        assert_eq!(reads.get(), 1, "{mode}: capability validation reuses the opening's backend read");
-        assert_eq!(device.state().unwrap(), (7, 1));
-        assert_eq!(call::call(&mut device, json!({"op":"queued"})), queue);
-        let rows = device.query("posts", "dev:alice", &json!({}), 2000).unwrap();
-        assert_eq!(rows.data.as_array().unwrap().len(), 1);
-        assert_eq!(rows.data.as_array().unwrap()[0].field("id").unwrap().as_str().unwrap(), "post");
-        let emitted = device.store().meta("device:backend").unwrap().unwrap();
-        assert!(!emitted.contains("Recorded"));
-        assert_eq!(emitted.matches("Capabilities").count(), 1);
-        let canonical: Backend = serde_json::from_str(&emitted).unwrap();
-        assert_eq!(canonical.schema.required_capabilities(), ["recorded-attribution".into(), "timeline".into()].into());
+        assert_refusal(error);
+        assert_eq!(reads.get(), 1, "reuse the captured backend read");
+        assert_eq!(state(&mut store), before, "refusal preserves metadata, rows and queued writes");
     }
 }
-
-#[test]
-fn legacy_recorded_and_timeline_reopens_memory() {
-    reopen(MemoryStore::new(), |store| {
-        let mut reopened = MemoryStore::new();
-        reopened.load(store.export()).unwrap();
-        reopened
-    });
+fn adoption<S: DeviceStore>(mut store: S) {
+    let backend = current();
+    prepare(&mut store, &backend, &serde_json::to_string(&backend).unwrap());
+    let reads = Cell::new(0);
+    drop(Device::open_store(Borrowed(&mut store, &reads), None).unwrap());
+    let before = state(&mut store);
+    {
+        let mut device = Device::open_store(Borrowed(&mut store, &reads), None).unwrap();
+        let before_backend = serde_json::to_value(device.backend()).unwrap();
+        let mut obsolete = legacy(); obsolete.generation = 3;
+        let error = device.adopt_captured(obsolete.clone(), BTreeMap::new()).unwrap_err();
+        assert_refusal(error);
+        assert_eq!(serde_json::to_value(device.backend()).unwrap(), before_backend);
+        assert_refusal(device.adopt(obsolete).unwrap_err());
+    }
+    assert_eq!(state(&mut store), before, "adoption refusal preserves all durable state");
 }
 
 #[test]
-fn legacy_recorded_and_timeline_reopens_sqlite() {
-    let host = common::Sqlite::new("legacy-f2-f3");
-    let path = host.path("device");
-    let backend: Backend = serde_json::from_str(LEGACY).unwrap();
-    drop(snapback4_device::native::Device::open(&path, Some(backend)).unwrap());
-    reopen(snapback4_core::store::Store::open(&path).unwrap(), |store| {
-        drop(store);
-        snapback4_core::store::Store::open(&path).unwrap()
+fn genuine_legacy_codec_remains_recognized_but_timeline_execution_is_fenced() {
+    let backend = legacy();
+    assert_eq!(backend.schema.timelines[0].version, 1);
+    assert_eq!(backend.schema.required_capabilities(), ["recorded-attribution".into(), "timeline".into()].into());
+    let encoded = serde_json::to_string(&backend).unwrap();
+    assert!(!encoded.contains("Recorded"));
+    assert_eq!(encoded.matches("Capabilities").count(), 1);
+    assert_eq!(serde_json::from_str::<Backend>(&encoded).unwrap().schema, backend.schema);
+    assert_refusal(snapback4_core::schema::timeline::check_version(&backend.schema).unwrap_err());
+}
+#[test]
+fn legacy_timeline_first_install_refuses_without_writes() {
+    let mut store = MemoryStore::new();
+    let reads = Cell::new(0);
+    for opening in [Opening::Install(legacy()), Opening::Initial(legacy())] {
+        let error = match opening.open(Borrowed(&mut store, &reads)) {
+            Err(error) => error, Ok(_) => panic!("v1 timeline installed"),
+        };
+        assert_refusal(error);
+        assert!(store.drain().is_empty());
+    }
+}
+#[test]
+fn legacy_timeline_reopen_refuses_memory() {
+    reopen(MemoryStore::new(), |store| {
+        let mut reopened = MemoryStore::new(); reopened.load(store.export()).unwrap(); reopened
     });
+}
+#[test]
+fn legacy_timeline_reopen_refuses_sqlite() {
+    let host = common::Sqlite::new("legacy-timeline-open"); let path = host.path("device");
+    drop(snapback4_device::native::Device::open(&path, Some(current())).unwrap());
+    reopen(snapback4_core::Store::open(&path).unwrap(), |store| { drop(store); snapback4_core::Store::open(&path).unwrap() });
+}
+#[test]
+fn legacy_timeline_adoption_refuses_memory() { adoption(MemoryStore::new()); }
+#[test]
+fn legacy_timeline_adoption_refuses_sqlite() {
+    let host = common::Sqlite::new("legacy-timeline-adopt"); let path = host.path("device");
+    drop(snapback4_device::native::Device::open(&path, Some(current())).unwrap());
+    adoption(snapback4_core::Store::open(&path).unwrap());
 }

@@ -137,6 +137,14 @@ fn history_window_epochs_and_pending_completeness() {
     run(&mut e,"follow","reader",&[("actor",id("a"))],1202);
     let second_epoch=e.store().rows("feedEdges").unwrap()[0].field("epoch").unwrap().clone();
     assert_ne!(first_epoch,second_epoch);
+    let first_page = ids(&mut e, "reader");
+    assert_eq!(first_page.len(), 20);
+    assert_eq!(first_page.iter().collect::<std::collections::BTreeSet<_>>().len(), 20);
+    let current = copies(&e).into_iter().filter(|r|r.field("epoch").unwrap() == &second_epoch).collect::<Vec<_>>();
+    assert_eq!(current.len(), 50, "only the new epoch's preview has been delivered");
+    for event in &first_page {
+        assert_eq!(current.iter().filter(|r|r.field("eventId").unwrap() == &id(event)).count(), 1);
+    }
     let before_cleanup = page_all(&mut e, "reader", false);
     assert_eq!(before_cleanup, (1050..1100).rev().map(|n|format!("p{n:04}")).collect::<Vec<_>>());
     assert_eq!(before_cleanup.iter().collect::<std::collections::BTreeSet<_>>().len(), before_cleanup.len());
@@ -351,4 +359,52 @@ fn trusted_restore_preserves_the_admission_order_floor() {
     assert!(new_epoch.as_str().unwrap() > old_epoch.as_str().unwrap());
     drain(&mut restored);
     assert_eq!(page_all(&mut restored, "reader", true).len(), 61);
+}
+
+#[test]
+fn followers_on_both_sides_of_a_saved_cursor_receive_identical_history() {
+    let mut e = engine();
+    for n in 0..256 { run(&mut e, "follow", &format!("m{n:04}"), &[("actor", id("a"))], 1); }
+    run(&mut e, "follow", "zz-original", &[("actor", id("a"))], 1);
+    post(&mut e, "a", "p0000", 2);
+    e.run_timeline_chunk(3).unwrap().unwrap();
+    let task = &e.store().rows("feedWork").unwrap()[0];
+    assert_eq!(task.field("status").unwrap().as_str().unwrap(), "pending");
+    assert_ne!(task.field("cursor").unwrap(), &Value::Null);
+    // Retire the first chunk's edges so this test need not deliver the newer
+    // 1,099 posts to 256 unrelated recipients. Keep the later eligible edge.
+    for n in 0..256 { run(&mut e, "unfollow", &format!("m{n:04}"), &[("actor", id("a"))], 4); }
+    for n in 1..1100 { post(&mut e, "a", &format!("p{n:04}"), n + 10); }
+    // These edges sort before and after the committed m0255 cursor. Their
+    // application ids and clocks are deliberately older-looking than the event.
+    for (reader, edge) in [("a-late", "000-old-looking"), ("z-late", "001-old-looking")] {
+        let out = e.mutate("follow", None, Context::new(reader, [("actor".into(), id("a"))].into()).at(-100).with_ids([edge.into()])).unwrap();
+        assert!(matches!(out.state, WriteState::Sent { .. }), "{out:?}");
+    }
+    drain(&mut e);
+    let expected = (100..1100).rev().map(|n|format!("p{n:04}")).collect::<Vec<_>>();
+    assert_eq!(page_all(&mut e, "a-late", true), expected);
+    assert_eq!(page_all(&mut e, "z-late", true), expected);
+    assert_eq!(page_all(&mut e, "zz-original", true).len(), 1100);
+    assert_eq!(e.timeline_work_counts().unwrap(), [("feed".into(), 0, 0)]);
+}
+
+#[test]
+fn a_full_chunk_of_skipped_edges_keeps_the_delivery_cursor_live() {
+    let mut e = engine();
+    for n in 0..256 { run(&mut e, "follow", &format!("m{n:04}"), &[("actor", id("a"))], 1); }
+    run(&mut e, "follow", "zz-original", &[("actor", id("a"))], 1);
+    post(&mut e, "a", "p", 2);
+    e.run_timeline_chunk(3).unwrap().unwrap();
+    let first = e.store().rows("feedWork").unwrap()[0].field("cursor").unwrap().clone();
+    for n in 0..256 { run(&mut e, "follow", &format!("n{n:04}"), &[("actor", id("a"))], -100); }
+    let skipped = e.run_timeline_chunk(4).unwrap().unwrap();
+    assert_eq!(skipped.rows_written, 1, "only the cursor changes");
+    let work = e.store().rows("feedWork").unwrap();
+    assert_eq!(work[0].field("status").unwrap().as_str().unwrap(), "pending");
+    assert_ne!(work[0].field("cursor").unwrap(), &first);
+    assert!(ids(&mut e, "zz-original").is_empty());
+    assert_eq!(e.run_timeline_chunk(5).unwrap().unwrap().rows_written, 2);
+    assert_eq!(ids(&mut e, "zz-original"), ["p"]);
+    assert_eq!(e.timeline_work_counts().unwrap(), [("feed".into(), 0, 0)]);
 }

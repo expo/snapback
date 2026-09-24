@@ -12,6 +12,16 @@ pub const HISTORY_WINDOW: usize = 1000;
 pub const READER_ACTOR_COPIES: usize = 1000;
 pub const EVENT_COPIES: usize = 1001;
 
+/// Server and device must fence the old owned shapes before opening or adoption.
+// @ref LLP 3000.013#4-following-without-caps — derived history is fenced, never silently migrated.
+pub fn check_version(schema: &super::Schema) -> Result<(), crate::RuntimeError> {
+    if schema.timelines.iter().any(|t| t.version != 2) {
+        return Err(crate::RuntimeError::Structural { code: "E_TIMELINE_REDEFINE", message:
+            "this store contains a 0.3 timeline; use a fresh store in dev or preserve it with the matching 0.3 engine; timeline history is not migrated".into() });
+    }
+    Ok(())
+}
+
 fn legacy_version() -> u32 { 1 }
 fn default_authors() -> u32 { 1000 }
 fn default_edges() -> u32 { 100000 }
