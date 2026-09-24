@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execute, generate, operations, round9Operations } from './helpers/online-client-model.mjs';
+import { execute, generate, operations, round9Operations, round10Operations } from './helpers/online-client-model.mjs';
 
 for (const [seed, tier, defect] of [[1615, 'client', 'round-9 direct-read schedule'], [142, 'app', 'a paused durable owner cannot report an unpersisted failure']])
   test(`model replay seed ${seed}: ${defect}`, () => execute(generate(seed, 32, round9Operations), tier));
@@ -11,9 +11,23 @@ for (const boundary of ['replacement', 'revocation']) test(`model scheduled repl
   { op: 'release', pick: 1 }, { op: 'release' },
 ], 'client'));
 
-test('expanded model replay seed 1615: a poll awaiting refresh stops at terminal refusal', () => execute(generate(1615), 'client'));
+test('expanded model replay seed 1615: a poll awaiting refresh stops at terminal refusal', () => execute(generate(1615, 32, round10Operations), 'client'));
 
-test('online clients preserve R1–R4 across 3,000 seeded interleavings', { timeout: 180_000 }, async t => {
+test('expanded model replay seed 16: overlapping callers keep paused durable intent pending', () => execute(generate(16), 'app'));
+
+test('R5 scheduled replay: a signed-out refresh still revokes its committed successor', () => execute([
+  { op: 'refresh' }, { op: 'signOut' }, { op: 'release' },
+], 'client'));
+test('R5 scheduled replay: terminal refusal still owns the unread refresh successor', () => execute([
+  { op: 'query' }, { op: 'release' }, { op: 'replace' }, { op: 'query' },
+  { op: 'refresh' }, { op: 'release' }, { op: 'release' },
+], 'client'));
+for (const op of ['login', 'guest']) for (const ending of ['signOut', 'close'])
+  test(`R5 scheduled replay: ${op} completes after ${ending} without orphaning its bearer`, () => execute([
+    { op }, { op: ending }, { op: 'release' },
+  ], 'app'));
+
+test('online clients preserve R1–R5 across 3,000 seeded interleavings', { timeout: 180_000 }, async t => {
   const coverage = {}, count = Number(process.env.SNAPBACK4_ONLINE_SEQUENCES ?? 3000);
   for (let seed = 1; seed <= count; seed++) {
     const tier = seed % 2 ? 'client' : 'app', sequence = generate(seed);
@@ -26,7 +40,7 @@ test('online clients preserve R1–R4 across 3,000 seeded interleavings', { time
   if (count >= 3000) for (const op of operations) assert.ok(coverage['op.' + op] > 0, `exercised ${op}`);
   if (count >= 3000) for (const key of ['held.storage', 'failed.storage', 'held.return', 'released.return', 'released.reordered', 'wire./probe', 'write.emitted',
     'terminal.E_STORE_REPLACED', 'terminal.E_STORE_RESTORE', 'ack.revocation', 'check.durable-terminal', 'query.refetch',
-    'wire./assets', 'wire./assets/photo', 'wire./a/charge', 'wire./auth/refresh', 'asset.released', 'refresh.aborted', 'refresh.retired'])
+    'wire./assets', 'wire./assets/photo', 'wire./a/charge', 'wire./auth/refresh', 'asset.released', 'refresh.committed', 'refresh.retired', 'body.aborted', 'check.bearer-custody', 'write.duplicate', 'wire./auth/guest'])
     assert.ok(coverage[key] > 0, `exercised ${key}`);
   t.diagnostic(`sequences=${count}, seeds=1..${count}, coverage=${JSON.stringify(coverage)}`);
 });

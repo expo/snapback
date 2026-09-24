@@ -9,7 +9,8 @@ import { keepSession } from '../../dist/auth.js';
 import { ReadObservation } from '../../dist/read-observation.js';
 
 export const round9Operations = ['query', 'observe', 'write', 'revoke', 'release', 'poll', 'replace', 'regress', 'unavailable', 'close', 'signOut', 'reopen', 'login', 'holdStorage', 'failStorage', 'tick'];
-export const operations = [...round9Operations, 'upload', 'asset', 'act', 'refresh'];
+export const round10Operations = [...round9Operations, 'upload', 'asset', 'act', 'refresh'];
+export const operations = [...round10Operations, 'guest', 'duplicate'];
 export function generate(seed, length = 32, vocabulary = operations) {
   let x = seed >>> 0;
   const choose = n => { x ^= x << 13; x ^= x >>> 17; x ^= x << 5; return (x >>> 0) % n; };
@@ -22,11 +23,11 @@ export async function execute(commands, tier, coverage = {}) {
   const url = 'https://online-model.invalid', values = new Map(), holds = [], tasks = [], owners = [], apps = [], watches = [];
   const sessions = new Map(), receipts = new Map(), admitted = new Set(), terminalWrites = new Set(), revoked = new Set(), mutations = new Map();
   const errors = [], trace = [], returnHolds = new Set(), roots = new Map();
-  const rotations = [];
+  const rotations = [], submissions = [], minted = new Set();
   const settlements = new WeakMap();
   const stopSettlements = promiseHooks.onSettled(promise => settlements.get(promise)?.());
   let store = 'A', head = 10, privateRow = true, unavailable = false, stores = 0, ticket = 0, serial = 0, writeId = 0;
-  let app, client, holdStorage = false, failStorage = false, draining = false, currentOwner, requests = 0;
+  let app, client, holdStorage = false, failStorage = false, draining = false, requests = 0;
   const count = key => { coverage[key] = (coverage[key] ?? 0) + 1; };
   const invariant = (id, ok, why) => { if (!ok) errors.push(`${id}: ${why}`); };
   const journal = () => [...values.entries()].filter(([key]) => key.endsWith('.writes')).map(([, value]) => JSON.parse(value));
@@ -126,32 +127,37 @@ export async function execute(commands, tier, coverage = {}) {
   }
   function issue() {
     const session = { principal: 'alice', token: `token-${++serial}`, kind: 'user', expiresAt: Date.now() + 30 * 86400_000 };
-    sessions.set(session.token, session); return session;
+    sessions.set(session.token, session); minted.add(session.token); return session;
   }
-  const fetcher = async (input, init = {}) => {
+  const fetcher = async (input, init = {}, origin) => {
     const path = new URL(input).pathname, args = typeof init.body === 'string' ? JSON.parse(init.body) : {}, token = new Headers(init.headers).get('authorization')?.slice(7);
     count('wire.' + path); requests++;
     if (path.startsWith('/auth/')) {
-      if (path === '/auth/login') return Response.json({ session: issue() });
+      // Login and guest mint before their response body is delivered.
       if (path === '/auth/logout') { sessions.delete(token); return Response.json({ ok: true }); }
-      if (path !== '/auth/refresh') throw Error('unexpected auth route ' + path);
+      if (!['/auth/refresh', '/auth/login', '/auth/guest'].includes(path)) throw Error('unexpected auth route ' + path);
     }
-    invariant('R2', !!init.signal, `${path} has no client lifetime signal`);
+    const effectful = path === '/assets' || path.startsWith('/m/') || path.startsWith('/a/') || path.startsWith('/auth/');
+    if (!effectful) invariant('R2', !!init.signal, `${path} has no client lifetime signal`);
     invariant('R2', !init.signal?.aborted, `sent ${path} with a retired lifetime`);
     // Query/mutation requests share the raw client's lifetime signal. Change
     // requests have their own watchdog; they remain explicitly scheduled.
-    let owner = roots.get(init.signal);
-    if (!owner && path !== '/changes') {
-      owner = currentOwner ?? (tier === 'app' ? ownerFor(app.client) : ownerFor(client));
-      roots.set(init.signal, owner);
+    let owner = init.signal ? roots.get(init.signal) : undefined;
+    if (!owner && !['/changes', '/probe', '/auth/login', '/auth/guest'].includes(path)) {
+      // Restored outbox sends can start before createApp publishes its new
+      // raw client. They belong to that opener, not the retired visible one.
+      const visible = origin?.app?.client ?? origin?.client ?? client;
+      if (!(effectful && origin?.app?.auth.state === 'restoring')) owner = ownerFor(visible);
+      if (init.signal && owner) roots.set(init.signal, owner);
     }
     if (owner) invariant('R2', !owner.terminal, `owner ${owner.id} sent ${path} after terminal refusal`);
     let body, rotation;
-    if (!sessions.has(token)) body = { denied: { code: 'E_AUTH', family: 'auth', message: 'sign in' } };
+    if (['/auth/login', '/auth/guest'].includes(path)) body = { session: issue() };
+    else if (!sessions.has(token)) body = { denied: { code: 'E_AUTH', family: 'auth', message: 'sign in' } };
     else if (path === '/auth/refresh') {
       sessions.delete(token); const next = issue(); body = { session: next };
       rotation = { owner, token: next.token }; rotations.push(rotation);
-      init.signal?.addEventListener('abort', () => count('refresh.aborted'), { once: true });
+      count('refresh.committed');
     }
     else if (path === '/probe') body = { ok: true, store_id: store, seq: head };
     else if (path === '/changes') body = { store_id: store, seq: head, generation: 1, tables: ['secrets'] };
@@ -180,7 +186,22 @@ export async function execute(commands, tier, coverage = {}) {
     } else throw Error('unexpected route ' + path);
     // Headers arrive now; bodies may finish out of order, even after abort.
     const delivered = async () => {
-      if (!draining || path === '/changes') await hold('body', { path, owner, body, signal: init.signal }, null);
+      if (!draining || path === '/changes') {
+        const pending = hold('body', { path, owner, body, signal: init.signal }, null);
+        // Match fetch: abort rejects an unread body, even if the effect has
+        // already committed. Aborting never rolls back the server's ledger.
+        await new Promise((resolve, reject) => {
+          const abort = () => {
+            count('body.aborted');
+            invariant('effect custody', !effectful, `${path} aborted after its server effect committed`);
+            reject(new DOMException('body aborted', 'AbortError'));
+          };
+          init.signal?.addEventListener('abort', abort, { once: true });
+          if (init.signal?.aborted) abort();
+          void pending.then(resolve).finally(() => init.signal?.removeEventListener('abort', abort));
+        });
+      }
+      if (effectful) invariant('effect custody', !init.signal?.aborted, `${path} lost its committed response body`);
       if (rotation) rotation.delivered = true;
     };
     return { ok: !body.denied, status: body.denied ? 401 : 200, body: null, headers: new Headers({ 'content-type': 'image/png' }),
@@ -198,12 +219,12 @@ export async function execute(commands, tier, coverage = {}) {
   };
   async function open() {
     if (tier === 'app') {
-      app = createApp({ url, sessionStore: storage, fetch: fetcher }); apps.push(app);
+      const origin = {}; app = createApp({ url, sessionStore: storage, fetch: (input, init) => fetcher(input, init, origin) }); origin.app = app; apps.push(app);
       track(app.ready, 'ready');
       app.auth.onChange(() => { ownerFor(app.client); });
       await microtasks(); client = app.client;
-    } else { client = createClient({ url, session: issue(), fetch: fetcher }); }
-    currentOwner = undefined; ownerFor(client);
+    } else { const origin = {}; client = createClient({ url, session: issue(), fetch: (input, init) => fetcher(input, init, origin) }); origin.client = client; }
+    ownerFor(client);
   }
   function check() { if (errors.length) assert.fail(errors[0] + '\ntrace=' + JSON.stringify(trace)); }
   function release(pick = 0, onlyPoll = false) {
@@ -216,7 +237,7 @@ export async function execute(commands, tier, coverage = {}) {
   async function command(step) {
     trace.push(step); count('op.' + step.op);
     if (tier === 'app') client = app.client;
-    const owner = ownerFor(client); currentOwner = owner;
+    const owner = ownerFor(client);
     const before = requests;
     switch (step.op) {
       case 'query': {
@@ -229,7 +250,14 @@ export async function execute(commands, tier, coverage = {}) {
       }
       case 'write': case 'revoke': {
         const id = String(++writeId).padStart(26, '0');
-        track(client.mutate({ kind: 'mutation', name: step.op === 'revoke' ? 'revoke' : 'charge' }, {}, { id }), step.op, owner, 'write'); break;
+        const op = { kind: 'mutation', name: step.op === 'revoke' ? 'revoke' : 'charge' };
+        submissions.push({ client, owner, id, op });
+        track(client.mutate(op, {}, { id }), step.op, owner, 'write'); break;
+      }
+      case 'duplicate': {
+        const entry = submissions.length ? submissions[(step.pick ?? 0) % submissions.length] : undefined;
+        if (entry) { count('write.duplicate'); track(entry.client.mutate(entry.op, {}, { id: entry.id }), 'duplicate', entry.owner, 'write'); }
+        break;
       }
       case 'upload': track(client.upload(new Uint8Array([1])), 'upload', owner, 'upload'); break;
       case 'asset': track(client.asset('photo'), 'asset', owner, 'asset'); break;
@@ -247,11 +275,12 @@ export async function execute(commands, tier, coverage = {}) {
         track(prior.then(open), 'reopen'); break;
       }
       case 'login': if (tier === 'app') track(app.auth.login('alice@example.com', 'password'), 'login'); break;
+      case 'guest': if (tier === 'app') track(app.auth.guest(), 'guest'); break;
       case 'holdStorage': holdStorage = true; break;
       case 'failStorage': failStorage = !failStorage; break;
       case 'tick': await advance(1000); break;
     }
-    await microtasks(); currentOwner = undefined;
+    await microtasks();
     invariant('R4', requests - before <= 64, `one ${step.op} step sent ${requests - before} requests`);
     check();
   }
@@ -283,6 +312,12 @@ export async function execute(commands, tier, coverage = {}) {
       track(app.close(), 'reopened-close');
     }
     for (let n = 0; n < 12; n++) { for (const h of holds.splice(0)) h.release(); await microtasks(); }
+    const kept = new Set(owners.map(owner => owner.client.session()?.token));
+    for (const [key, value] of values) if (key.endsWith('.session')) kept.add(JSON.parse(value).token);
+    for (const token of minted) {
+      count('check.bearer-custody');
+      invariant('R5', kept.has(token) || !sessions.has(token), `minted bearer ${token} was neither kept nor revoked`);
+    }
     check();
     assert.ok(tasks.every(task => !task.pending), 'R4: pending tasks after cleanup: ' + tasks.filter(t => t.pending).map(t => t.label));
   } finally {

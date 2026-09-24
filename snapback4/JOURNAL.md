@@ -50263,3 +50263,116 @@ No open round-10 reproduction remains; the unrelated intermittent worker
 shutdown test observation is recorded above. The model uses controlled HTTP/storage/
 timer adapters around real clients, not a browser or native-platform witness.
 No push or publication was performed.
+
+## 2026-09-24 — Lane J round 11: keep custody of committed network effects
+
+Supersedes round 10's refresh/upload cancellation policy. The server can commit
+old -> next before the refresh body is read; aborting that body converted the
+rotation into E_OFFLINE, so cleanup saw no successor and logout could revoke
+only old. The real-fetch/SQLite regression failed before this change: next
+remained live after sign-out. The other reproduction submitted one durable id
+twice before replacement; failed retirement left the first caller pending but
+the overlapping recovery returned E_WRITE_RECEIPT_EXPIRED. Both are fixed.
+
+Files and behavior (under packages/snapback4):
+
+- src/request-wait.ts separates cancelling a caller from cancelling transport,
+  and consumes local POST replies after the caller leaves. It extracts that
+  work to keep local.ts under the 1,500-line limit (1,498 lines).
+- src/client.ts never aborts mutation/action/upload/refresh requests. Public
+  waits end on terminal refusal/close; refresh waits end on sign-out or terminal
+  refusal, and the background rotation revokes an unkept successor exactly
+  once. Ordinary close still keeps its existing refresh custody for restoration.
+  Queries, probes, polls and asset GETs retain network cancellation. Late effect
+  replies cannot publish, adopt credentials or retry against the replacement.
+- src/auth.ts removes refresh's abort input and makes logout's existing deadline
+  cancel only its wait. Login/signup/guest already sent without an abort signal.
+  src/assets.ts removes upload's abort input; fetched assets remain cancellable.
+- src/app.ts cancels superseded login/signup/guest waits without blocking later
+  auth operations, consumes their background replies and revokes unkept bearers.
+  Closing an opener also revokes a newly minted bearer that was never kept.
+  Restoration of an already-kept session retains ordinary-close semantics.
+- src/app-online.ts checks terminal refusal before and after duplicate receipt
+  recovery, so every caller awaits retirement and reports pending on a failed
+  save. Paused custody is also pending, rather than proof of receipt expiry.
+- src/local.ts applies the same no-abort rule to effectful POSTs and cancels
+  upload callers without adopting late facts. This is the shared transport for
+  Node SQLite, web and native hosts. Local refresh and the web keepalive sender
+  already preserved their effectful requests. App schema/recovery cancellation
+  remains confined to read requests; no worker execution policy was changed.
+- CLIENT-AND-OPERATIONS.md documents the rule and unplaced cancelled uploads.
+
+Tests and model:
+
+- test/app.test.mjs adds the real SQLite server/real fetch unread-refresh-body
+  reproduction for sign-out and replacement, verifying next is revoked and
+  cancellation ends the public wait; it also covers local mutation/upload
+  close, background response consumption and absence of late upload adoption.
+- test/app-store-replacement.test.mjs submits a duplicate BEFORE replacement,
+  alongside the existing after-replacement retry, through blocked and failing
+  retirement saves. Neither caller may outrun persistence.
+- test/effectful-cancellation.test.mjs uses actual HTTP/fetch with committed
+  effects and held response bodies. Nine cases cover mutation/action/upload
+  across sign-out, replacement and close, plus login/guest across logout,
+  close and replacement; every minted bearer is kept or revoked.
+- test/online-terminal-entrypoints.test.mjs changes round 10's deliberately
+  superseded abort expectations: only the asset GET aborts, while effectful
+  public waits end before their bodies arrive. test/online-store-terminal.test.mjs,
+  test/page-ready.test.mjs and test/fixtures/page-observation.mjs allow held
+  effectful requests without an AbortSignal.
+- test/client-lifecycle.test.mjs now proves a mutation committed on the real
+  server finishes delivery after close cancels its caller; no new write is
+  admitted. Its fallback-count tests await startup sync so an authority reset
+  cannot legitimately force a second read in a test measuring fallback routing.
+- test/helpers/online-client-model.mjs and test/online-client-model.test.mjs add
+  held login/guest responses, duplicate ids, body cancellation that rejects the
+  unread body without rolling back its server effect, and R5. After fair drain,
+  every minted bearer is either retained by a client/session store or revoked.
+  Client/app instances own their HTTP adapters; restoration traffic is kept
+  separate from the retired visible client. Six explicit R5 schedules protect
+  successor/login/guest cleanup independently of random coverage.
+
+The model found another product defect at expanded seed 16: ordinary close or
+account transition pauses custody while overlapping callers recover an admitted
+id, producing the same false E_WRITE_RECEIPT_EXPIRED without store replacement.
+The recovery callback now returns pending for this paused owner. The named
+replay fails if that guard is removed. Reproduce with `node --test
+--test-name-pattern 'expanded model replay seed 16:'
+packages/snapback4/test/online-client-model.test.mjs`.
+
+Measurements and verification:
+
+- Frozen Bun install passed. Initial affected batch: 84 passed. Additional
+  app/effect/local/page batch: 59 passed; the updated lifecycle batch: 10 passed;
+  native-process and Chromium two-device inbox journeys: both passed.
+- 3,000 randomized sequences (seeds 1-3000, alternating raw online/createApp)
+  passed R1-R5; all 13 model tests passed. Full-suite model time: 48.00 s.
+  Coverage: 9,342 bearer-custody checks, 2,857 duplicate submissions, 795 durable
+  terminal checks, 333 acknowledged revocations, 1,351 committed refreshes,
+  9,692 cancelled read bodies, 5,026 reordered releases, and 25 terminal
+  successor retirements. These are scheduler counts, not throughput claims.
+- Seven deliberate generated-dist mutations were caught: refresh transport
+  abort, missing successor revocation, missing paused duplicate guard, missing
+  terminal duplicate guard, missing auth wait cancellation, missing late-login
+  revocation, and aborting effectful POSTs. R5 itself reports orphaned tokens
+  when successor or login cleanup is removed. Dist was restored before testing.
+- First full run: `== 1 failure(s) in 181 s` (client-tests step, five failures,
+  all ours as changed cancellation/timing expectations). The old `close aborts
+  online posts and stops admission` expected the forbidden mutation abort;
+  W13b `missing fact` and `presence` raced startup's authority reset and observed
+  two correct fallback requests; native and web inbox journeys treated the now
+  absent mutation signal as an offline error. The fixes above preserve the
+  assertions' intended boundaries; all five passed on targeted rerun.
+- Final scripts/test.sh: `== 0 failure(s) in 116 s`. Main client shard: 1,187
+  tests, 1,177 passed, 10 existing skips, zero failures/cancellations. No final
+  baseline or environmental failure. The baseline log's unrelated cargo-test
+  failure was read and not changed. Logs: /tmp/lane-j-r11-before.log,
+  /tmp/lane-j-r11-affected*.log, /tmp/lane-j-r11-mutant-*.log,
+  /tmp/lane-j-r11-full-suite.log and /tmp/lane-j-r11-full-suite-final.log.
+
+No open round-11 reproduction or design deviation remains. The added engineering
+choices are to preserve ordinary-close refresh custody, use the same cancellation
+rule in the local transport, and keep paused overlapping outcomes pending. No
+Quarry form, Read type, engine semantics, meter, receipt limit or package version
+changed. All modified source/test files remain below 1,500 lines. No push or
+publication was performed.
