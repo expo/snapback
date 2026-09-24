@@ -22,16 +22,17 @@ table @T@RemovedEvents:
 table @T@Feed:
   readerId: principal
   eventId: id
+  epoch: id ?
   actorId: principal
   authorId: principal
   postId: id
   repost: bool
   at: time
-  unique byReaderEvent: readerId, eventId
-  unique byReaderTime: readerId, at, eventId
-  by byReaderActor: readerId, actorId, id
+  unique byReaderEvent: readerId, eventId, epoch
+  unique byReaderTime: readerId, at, eventId, epoch
+  by byReaderActor: readerId, actorId, epoch, id
   by byEvent: eventId, id
-  immutable readerId, eventId, actorId, authorId, postId, repost, at
+  immutable readerId, eventId, epoch, actorId, authorId, postId, repost, at
   read <- .readerId = viewer
   sync
 
@@ -39,11 +40,16 @@ table @T@Work:
   kind: enum('delivery', 'backfill', 'cleanup', 'purge')
   actorId: principal
   readerId: principal ?
+  viewerId: principal
+  epoch: id ?
+  remaining: int
   eventId: id ?
   cursor: text <=4096 ?
   at: time
   status: enum('pending', 'parked')
   error: text <=4096 ?
   by byStatusTime: status, at, id
-  read <- deny
-  online only
+  by byReader: readerId
+  by byViewer: viewerId, id
+  read <- .viewerId = viewer
+  sync

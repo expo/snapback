@@ -8,6 +8,7 @@ pub const DELIVERY_CHUNK: u32 = 256;
 
 pub const PUSH_FOLLOWERS: usize = 50;
 pub const FOLLOW_BACKFILL: usize = 50;
+pub const HISTORY_WINDOW: usize = 1000;
 pub const READER_ACTOR_COPIES: usize = 1000;
 pub const EVENT_COPIES: usize = 1001;
 

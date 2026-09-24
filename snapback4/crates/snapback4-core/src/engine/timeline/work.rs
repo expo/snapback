@@ -5,10 +5,10 @@ use crate::{engine::Engine, Context, Ceilings, meter::{Meter, Cut, Metered}, par
 use crate::schema::timeline::DELIVERY_CHUNK;
 
 impl Runner<'_> {
-    fn timeline_follows(&mut self, t: &Timeline, reader: &Value, actor: &Value) -> Result<bool, RuntimeError> {
+    fn timeline_follows(&mut self, t: &Timeline, reader: &Value, actor: &Value, epoch: &Value) -> Result<bool, RuntimeError> {
         let index = self.schema.tables[&t.edges[0]].indexes.iter().find(|(_, i)| i.unique && i.is_plain() && i.columns() == t.edges[1..3])
             .map(|(n,_)| n.clone()).ok_or_else(|| refusal("E_TIMELINE_SHAPE", "missing unique follower/followed key; restore the timeline edge declaration"))?;
-        Ok(self.timeline_get(&t.edges[0], &index, vec![reader.clone(), actor.clone()])?.is_some())
+        Ok(self.timeline_get(&t.edges[0], &index, vec![reader.clone(), actor.clone()])?.is_some_and(|edge| edge.field("id").ok() == Some(epoch)))
     }
 
     fn timeline_work(&mut self, t: &Timeline, work: &Value) -> Result<(), RuntimeError> {
@@ -16,6 +16,9 @@ impl Runner<'_> {
         let actor = field(work, "actorId")?;
         let reader = field(work, "readerId")?;
         let event_id = field(work, "eventId")?;
+        let epoch = field(work, "epoch")?;
+        let remaining = field(work, "remaining")?.as_int()? as usize;
+        let mut finished = false;
         let cursor = match work.field("cursor")? {
             Value::Null => None,
             Value::String(hex) => Some(crate::value::decode_bytes_hex(hex).ok_or_else(|| refusal("E_TIMELINE_SHAPE", "invalid delivery cursor; restore the complete store"))?),
@@ -30,31 +33,36 @@ impl Runner<'_> {
                     visited = edges.len(); last = keys.last().cloned();
                     for edge in edges {
                         let follower = field(&edge, &t.edges[1])?;
-                        if follower != actor { self.timeline_copy(t, &event, follower.as_str()?)?; }
+                        if follower != actor { self.timeline_copy(t, &event, follower.as_str()?, field(&edge, "id")?)?; }
                     }
                 }
             }
             "backfill" => {
-                if self.timeline_follows(t, &reader, &actor)? {
-                    let (events, keys) = self.timeline_page(&t.table("Posts"), "byActorTime", vec![actor], DELIVERY_CHUNK, true, cursor.as_deref())?;
+                if self.timeline_follows(t, &reader, &actor, &epoch)? {
+                    let (events, keys) = self.timeline_page(&t.table("Posts"), "byActorTime", vec![actor], DELIVERY_CHUNK.min(remaining as u32), true, cursor.as_deref())?;
                     visited = events.len(); last = keys.last().cloned();
-                    for event in events { self.timeline_copy(t, &event, reader.as_str()?)?; }
+                    finished = visited == remaining;
+                    for event in events { self.timeline_copy(t, &event, reader.as_str()?, epoch.clone())?; }
                 }
             }
             "cleanup" => {
-                // A later refollow wins over an older cleanup, including when
-                // both occur between chunks. The live read predicate is decisive.
-                if reader != actor && !self.timeline_follows(t, &reader, &actor)? {
-                    let (copies, keys) = self.timeline_page(&t.table("Feed"), "byReaderActor", vec![reader, actor], DELIVERY_CHUNK, false, cursor.as_deref())?;
-                    visited = copies.len(); last = keys.last().cloned();
-                    for copy in copies { self.delete(&t.table("Feed"), &text(&copy, "id")?)?; }
-                }
+                // Only the retired edge's copies are deleted. A refollow has
+                // a fresh epoch, so even delayed cleanup cannot touch its rows.
+                let (copies, keys) = self.timeline_page(&t.table("Feed"), "byReaderActor", vec![reader, actor, epoch], DELIVERY_CHUNK, false, cursor.as_deref())?;
+                visited = copies.len(); last = keys.last().cloned();
+                for copy in copies { self.delete(&t.table("Feed"), &text(&copy, "id")?)?; }
             }
             "purge" => {
                 let (copies, keys) = self.timeline_page(&t.table("Feed"), "byEvent", vec![event_id.clone()], DELIVERY_CHUNK, false, cursor.as_deref())?;
                 visited = copies.len(); last = keys.last().cloned();
                 for copy in copies { self.delete(&t.table("Feed"), &text(&copy, "id")?)?; }
                 if visited < DELIVERY_CHUNK as usize {
+                    // Retire/cancel the event's delivery record before its public
+                    // tombstone. Backfills scan only the live event table.
+                    let delivery_id = crate::schema::timeline::owned_id(&t.name, "Work", &[Value::String("delivery".into()), actor, Value::Null, event_id.clone(), Value::Null]);
+                    if self.timeline_get(&t.table("Work"), "byId", vec![Value::Id(delivery_id.clone())])?.is_some() {
+                        self.delete(&t.table("Work"), &delivery_id)?;
+                    }
                     if let Some(tombstone) = self.timeline_get(&t.table("RemovedEvents"), "byEvent", vec![event_id])? {
                         self.delete(&t.table("RemovedEvents"), &text(&tombstone, "id")?)?;
                     }
@@ -62,11 +70,11 @@ impl Runner<'_> {
             }
             _ => return Err(refusal("E_TIMELINE_SHAPE", "unknown delivery work; restore the complete timeline store")),
         }
-        if visited < DELIVERY_CHUNK as usize {
+        if finished || visited < DELIVERY_CHUNK as usize {
             self.delete(&t.table("Work"), &text(work, "id")?)?;
         } else {
             let cursor = last.ok_or_else(|| refusal("E_TIMELINE_SHAPE", "delivery made no progress; restore the complete timeline store"))?;
-            self.update(&t.table("Work"), &field(work, "id")?, object([("cursor", Value::String(crate::value::encode_bytes_hex(&cursor)))]))?;
+            self.update(&t.table("Work"), &field(work, "id")?, object([("cursor", Value::String(crate::value::encode_bytes_hex(&cursor))), ("remaining", Value::Int(remaining.saturating_sub(visited) as i64))]))?;
         }
         Ok(())
     }

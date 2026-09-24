@@ -18,10 +18,11 @@ pub(super) struct Frame {
     pub words: bool,
     pub presence: bool,
     pub capped: bool,
+    pub pending: bool,
 }
 impl Frame {
     fn coverage(&self) -> Coverage {
-        let other = self.unknown || self.non_uniform || self.overflow || self.words || self.presence || self.capped;
+        let other = self.pending || self.unknown || self.non_uniform || self.overflow || self.words || self.presence || self.capped;
         // @ref LLP 3000.007#20.22.1 — presence is server knowledge: a component that waited on it is unknown, not merely incomplete.
         Coverage { complete: !other && !self.beyond, unknown: self.unknown || self.presence, retained: self.retained && !other }
     }

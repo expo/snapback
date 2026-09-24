@@ -33,7 +33,7 @@ pub(crate) fn check_activation(tx: &crate::store::Tx<'_>, schema: &crate::schema
     for old in &previous.timelines {
         if schema.timelines.iter().any(|new| old.same_declaration(new)) { continue; }
         for table in previous.tables.keys().filter(|name| old.owns(name) || old.event_tables().contains(&name.as_str())) {
-            if populated(table)? { return Err(refusal("E_TIMELINE_REDEFINE", "a populated timeline cannot be removed or redefined; the first scope sizes the timeline before data exists; preserve its declaration, or use a fresh store in dev")); }
+            if populated(table)? { return Err(refusal("E_TIMELINE_REDEFINE", "a populated timeline cannot be removed or redefined; preserve its declaration, or use a fresh store in dev")); }
         }
     }
     for new in &schema.timelines {
@@ -115,10 +115,12 @@ impl Runner<'_> {
                     if removed && !was_removed {
                         let event = self.timeline_get(&t.table("Posts"), "byActorPost", vec![field(old, &t.posts[1])?, field(old, "id")?, Value::Bool(false)])?;
                         if let Some(event) = event { self.timeline_remove(t, &event)?; }
-                        else if t.filter.as_ref().is_none_or(|p| p.matches(old)) {
+                        else {
                             if let Some(filter) = &t.filter { self.meter.step(filter.steps())?; }
-                            self.timeline_tombstone(t, field(old, "id")?, field(old, &t.posts[1])?)?;
-                            self.timeline_enqueue(t, "purge", field(old, &t.posts[1])?, Value::Null, field(old, "id")?, None)?;
+                            if t.filter.as_ref().is_none_or(|p| p.matches(old)) {
+                                self.timeline_tombstone(t, field(old, "id")?, field(old, &t.posts[1])?)?;
+                                self.timeline_enqueue(t, "purge", field(old, &t.posts[1])?, Value::Null, field(old, "id")?, Value::Null, 0, None)?;
+                            }
                         }
 
                     }
@@ -162,15 +164,16 @@ impl Runner<'_> {
 
     fn timeline_deliver(&mut self, t: &Timeline, event: &Value) -> Result<(), RuntimeError> {
         let actor = field(event, "actorId")?;
-        self.timeline_copy(t, event, actor.as_str()?)?;
-        self.timeline_enqueue(t, "delivery", actor, Value::Null, field(event, "id")?, None)
+        self.timeline_copy(t, event, actor.as_str()?, Value::Null)?;
+        self.timeline_enqueue(t, "delivery", actor, Value::Null, field(event, "id")?, Value::Null, 0, None)
     }
 
-    fn timeline_enqueue(&mut self, t: &Timeline, kind: &str, actor: Value, reader: Value, event: Value, cursor: Option<Vec<u8>>) -> Result<(), RuntimeError> {
+    fn timeline_enqueue(&mut self, t: &Timeline, kind: &str, actor: Value, reader: Value, event: Value, epoch: Value, remaining: usize, cursor: Option<Vec<u8>>) -> Result<(), RuntimeError> {
         if self.device { return Ok(()); }
-        let key = [Value::String(kind.into()), actor.clone(), reader.clone(), event.clone()];
+        let key = [Value::String(kind.into()), actor.clone(), reader.clone(), event.clone(), epoch.clone()];
         let id = Value::Id(crate::schema::timeline::owned_id(&t.name, "Work", &key));
-        let row = object([("id", id.clone()), ("kind", Value::String(kind.into())), ("actorId", actor), ("readerId", reader), ("eventId", event),
+        let viewer = if reader == Value::Null { actor.clone() } else { reader.clone() };
+        let row = object([("viewerId", viewer), ("epoch", epoch), ("remaining", Value::Int(remaining as i64)), ("id", id.clone()), ("kind", Value::String(kind.into())), ("actorId", actor), ("readerId", reader), ("eventId", event),
             ("cursor", cursor.map(|c| Value::String(crate::value::encode_bytes_hex(&c))).unwrap_or(Value::Null)),
             ("at", Value::Int(self.context.now.unwrap_or(0))), ("status", Value::String("pending".into())), ("error", Value::Null)]);
         self.meter.heap(row.heap_bytes())?;
@@ -179,13 +182,13 @@ impl Runner<'_> {
         self.upsert(&t.table("Work"), &id, row)
     }
 
-    fn timeline_copy(&mut self, t: &Timeline, event: &Value, reader: &str) -> Result<(), RuntimeError> {
+    fn timeline_copy(&mut self, t: &Timeline, event: &Value, reader: &str, epoch: Value) -> Result<(), RuntimeError> {
         self.timeline_require_live_id(t, &field(event, "id")?)?;
         // Only own/backfill copies run as a viewer. Foreign copies run as system.
-        let row = object([("readerId", Value::Id(reader.into())), ("eventId", field(event, "id")?),
+        let row = object([("readerId", Value::Id(reader.into())), ("eventId", field(event, "id")?), ("epoch", epoch.clone()),
             ("actorId", field(event, "actorId")?), ("authorId", field(event, "authorId")?),
             ("postId", field(event, "postId")?), ("repost", field(event, "repost")?), ("at", field(event, "at")?)]);
-        let key = [Value::Id(reader.into()), field(event, "id")?];
+        let key = [Value::Id(reader.into()), field(event, "id")?, epoch];
         self.timeline_insert(t, "Feed", &key, row)?;
         Ok(())
     }
@@ -204,7 +207,7 @@ impl Runner<'_> {
     fn timeline_remove(&mut self, t: &Timeline, event: &Value) -> Result<(), RuntimeError> {
         let id = text(event, "id")?;
         self.timeline_tombstone(t, Value::Id(id.clone()), field(event, "actorId")?)?;
-        self.timeline_enqueue(t, "purge", field(event, "actorId")?, Value::Null, Value::Id(id.clone()), None)?;
+        self.timeline_enqueue(t, "purge", field(event, "actorId")?, Value::Null, Value::Id(id.clone()), Value::Null, 0, None)?;
         self.delete(&t.table("Posts"), &id)
     }
 
@@ -216,8 +219,9 @@ impl Runner<'_> {
         // whole mutation. Evaluation errors still abort the prediction.
         if self.device && !self.evaluate_read_rule(&t.table(suffix), &row)? { return Ok(TimelineInsert::Skipped); }
         self.meter.heap(row.heap_bytes())?;
-        if suffix == "Feed" && !self.device { self.insert_if_absent(&t.table(suffix), row)?; }
-        else { self.insert(&t.table(suffix), row)?; }
+        if suffix == "Feed" && !self.device
+            && self.timeline_get(&t.table(suffix), "byReaderEvent", key.to_vec())?.is_some() { return Ok(TimelineInsert::Skipped); }
+        self.insert(&t.table(suffix), row)?;
         Ok(TimelineInsert::Written)
     }
 
@@ -257,6 +261,14 @@ impl Runner<'_> {
         }
         self.timeline_known()?;
         Ok((rows, keys))
+    }
+
+    pub(super) fn timeline_read_pending(&mut self, table: &str, index: &str, prefix: &[Value]) -> Result<(), RuntimeError> {
+        if self.meter.cut != crate::meter::Cut::Cap || index != "byReaderTime" || prefix.len() != 1 { return Ok(()); }
+        let Some(t) = self.schema.timelines.iter().find(|t| table == t.table("Feed")).cloned() else { return Ok(()); };
+        let pending = self.timeline_get(&t.table("Work"), "byReader", prefix.to_vec())?.is_some();
+        if pending { self.timeline_pending = true; self.components.note(|frame| frame.pending = true); }
+        Ok(())
     }
 
     fn timeline_known(&self) -> Result<(), RuntimeError> {

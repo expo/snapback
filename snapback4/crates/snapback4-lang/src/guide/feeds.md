@@ -17,12 +17,18 @@ a new repost requires a live original event.
 Posting commits the event, your own inbox copy, and a durable delivery record.
 Followers receive copies in background chunks of 256. A page can temporarily
 lack an event whose delivery is still pending. Following copies the newest 50
-live events immediately, then backfills all remaining history in chunks.
-Unfollow hides the actor on the very next read, before background cleanup.
-The read checks the public follow edge and removal tombstone for every candidate.
+live events immediately, then backfills the rest of an engine-chosen 1,000-event window in chunks.
+Older events remain readable on the author’s profile.
+Unfollow hides the actor on the very next read, before background cleanup. Up to 256 stale copies are deleted synchronously.
+The read checks the public follow edge and removal tombstone for every examined row. A meter cut on stale copies returns an incomplete
+page with a continuation.
 Removal writes the tombstone immediately; background work purges copies before
 retiring it. A crash resumes from the last committed cursor without duplicate
 copies. No author registration, size clause, promotion or shared lane is needed.
+Following pages cover delivered inbox contents: `complete` is false while
+that reader has pending backfill or cleanup. Per-event delivery does not change
+`complete`; followers normally receive copies within a second on an idle host.
+`snapback4 doctor` lists pending and parked work.
 The job meters bound each chunk. Devices predict their own event's own-inbox
 copy; follow and unfollow queue for the server without prediction.
 
@@ -84,6 +90,13 @@ mutation remove(postId: posts):
 query home(c: cursor ?):
   return feed[viewer] after c last 20
 ```
+
+E_TIMELINE_FILTER means the originals predicate uses a mutable or non-local
+input. Declare each selection column immutable and use `where .parentId = null
+and not .removed` on the events mapping.
+
+N_TIMELINE_COMPAT means an old `authors` or `size` clause is accepted but
+unused. Remove those clauses and keep events, reposts and edges.
 
 ### Cost
 

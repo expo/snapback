@@ -13,10 +13,10 @@ pub(crate) fn report(schema: &Schema, program: &ir::Program, lines: &mut Vec<Str
         }
         if affected.contains(t.edges[0].as_str()) {
             lines.push("      follow: 1 edge + at most 50 newest live event copies + 1 backfill record = at most 52 writes".into());
-            lines.push("      unfollow: 1 edge delete + 1 cleanup record = 2 writes; the next read excludes this actor".into());
+            lines.push("      unfollow: 1 edge delete + up to 256 stale copies + 1 cleanup record = at most 258 writes; the next read excludes this actor".into());
         }
         lines.push("      background: at most 256 followers/events/copies per chunk under job ceilings; cursor and rows commit together; no authored capacities".into());
-        lines.push("      reads: one private inbox lane, current public edge and tombstone point probes per candidate; foreign delivery may still be pending".into());
+        lines.push("      reads: one private inbox lane, current public edge and tombstone point probes per examined row; reader backfill/cleanup makes complete false; foreign delivery may still be pending".into());
         if let Some(bounds) = stream_bounds(schema,t) {
             for (op,bytes) in bounds { lines.push(format!("      {op}: derived stream <= {bytes} B (application rows excluded)")); }
         }
@@ -29,10 +29,12 @@ fn row_bounds(table: &Table, event: bool) -> Option<(usize, usize, usize, usize)
     for identity in ["x".repeat(135), format!("{}x", "\\".repeat(67))] {
         let mut fields = std::collections::BTreeMap::new();
         for (name, kind) in &table.columns {
-            let value = match kind {
+            let value = match kind.required() {
                 ColumnType::Id | ColumnType::Principal | ColumnType::Ref { .. } => Value::Id(identity.clone()),
                 ColumnType::Bool => Value::Bool(false),
                 ColumnType::Int | ColumnType::Time => Value::Int(I53_MIN),
+                ColumnType::Text { max } => Value::String("\\".repeat(*max as usize)),
+                ColumnType::Enum { variants: values } => Value::String(values.iter().max_by_key(|s| s.len())?.clone()),
                 _ => return None,
             };
             fields.insert(name.clone(), value);
@@ -66,11 +68,12 @@ pub(crate) fn stream_bounds(schema: &Schema, t: &snapback4_core::schema::timelin
     };
     let feed = event("Feed", false)?;
     let source = event("Posts", false)?;
+    let work = event("Work", false)?;
     Some(vec![
-        ("event insert", source + feed),
-        ("follow preview", t.backfill() * feed),
-        ("delivery chunk", 256 * feed),
-        ("removal", event("RemovedEvents", false)? + event("Posts", true)?),
-        ("purge chunk", 256 * event("Feed", true)? + event("RemovedEvents", true)?),
+        ("event insert", source + feed + work),
+        ("follow preview", t.backfill() * feed + work),
+        ("delivery chunk", 256 * feed + work),
+        ("removal", event("RemovedEvents", false)? + event("Posts", true)? + work),
+        ("purge chunk", 256 * event("Feed", true)? + event("RemovedEvents", true)? + 2 * event("Work", true)?),
     ])
 }

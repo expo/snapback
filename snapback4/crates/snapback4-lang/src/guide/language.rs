@@ -390,10 +390,11 @@ table timelineProfiles:
   insert <- .principal = viewer
   sync public
 table timelineCards:
+  parentId: timelineCards ?
   authorId: principal
   at: time
   removed: bool default false
-  immutable authorId, at
+  immutable authorId, parentId, at
   public 'cards'
   insert <- .authorId = viewer
   update <- .authorId = viewer
@@ -421,7 +422,7 @@ table timelineFollows:
   sync public
 
 maintain timeline: timeline
-  events timelineCards by authorId, at removed by removed
+  events timelineCards where .parentId = null and not .removed by authorId, at removed by removed
   reposts timelineReposts by actorId, postId, at
   edges timelineFollows by followerId, followedId
 

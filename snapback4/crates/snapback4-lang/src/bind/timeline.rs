@@ -16,9 +16,10 @@ pub fn expand(mut documents: Vec<Document>, diagnostics: &mut Vec<Diagnostic>) -
         for name in all { *names.entry(name.clone()).or_default() += 1; }
     }
     let mut accepted = BTreeSet::new();
-    for decl in declarations {
+    for decl in &declarations {
         let owned: BTreeSet<_> = snapback4_core::schema::timeline::OWNED_SUFFIXES.iter().map(|s| format!("{}{s}", decl.name)).collect();
-        if names.get(&decl.name) != Some(&1) || owned.iter().any(|n| names.contains_key(n)) {
+        let nested = declarations.iter().any(|other| other.name != decl.name && snapback4_core::schema::timeline::OWNED_SUFFIXES.iter().any(|s| format!("{}{s}", other.name) == decl.name));
+        if nested || names.get(&decl.name) != Some(&1) || owned.iter().any(|n| names.contains_key(n)) {
             diagnostics.push(refusal(&decl, "E_TIMELINE_SHAPE", "timeline or owned name collides", "choose a distinct timeline name and leave its Posts, Feed, RemovedEvents and Work names unused"));
             continue;
         }
@@ -27,7 +28,7 @@ pub fn expand(mut documents: Vec<Document>, diagnostics: &mut Vec<Diagnostic>) -
         if !errors.is_empty() { diagnostics.extend(errors); continue; }
         for name in owned { names.insert(name, 1); }
         documents.push(doc);
-        accepted.insert(decl.name);
+        accepted.insert(decl.name.clone());
     }
     for doc in &mut documents { doc.timelines.retain(|decl| accepted.contains(&decl.name)); }
     documents
@@ -95,7 +96,7 @@ pub fn admit(catalog: &Catalog, schema: &mut Schema, diagnostics: &mut Vec<Diagn
             let reposts = source(schema, decl, &decl.reposts[0], &decl.reposts[1], &[(&decl.reposts[1], ColumnType::Principal), (&decl.reposts[2], ColumnType::Ref { table: decl.posts[0].clone() }), (&decl.reposts[3], ColumnType::Time)])?;
             let edges = source(schema, decl, &decl.edges[0], &decl.edges[1], &[(&decl.edges[1], ColumnType::Principal), (&decl.edges[2], ColumnType::Principal)])?;
             for (t, pair) in [(reposts, &decl.reposts[1..3]), (edges, &decl.edges[1..3])] {
-                if t.rules.update != RuleExpr::Deny || !t.indexes.values().any(|i| i.unique && i.is_plain() && i.columns() == pair) {
+                if t.rules.update != RuleExpr::Deny || !owner(&t.rules.delete, &pair[0]) || !t.indexes.values().any(|i| i.unique && i.is_plain() && i.columns() == pair) {
                     return Err(refusal(decl, "E_TIMELINE_SHAPE", "edges and reposts need immutable attribution and a total unique pair", format!("unique byPair: {}\n  update <- deny", pair.join(", "))));
                 }
             }
@@ -120,7 +121,7 @@ pub fn write_site(schema: &Schema, table: &str, kind: &str, fact: &mut snapback4
     use snapback4_core::schema::{ResidencySite, SiteClass};
     for timeline in schema.timelines.iter().filter(|timeline| timeline.maps(table)) {
         for (input, index) in timeline.inputs(table, kind) {
-            let online = schema.tables[&input].sync.is_none();
+            let online = table == timeline.edges[0] || schema.tables[&input].sync.is_none();
             fact.sites.push(ResidencySite { site: format!("{kind} {table}: {input}/{index}"), table: input.clone(), index,
                 kind: "timeline transition".into(), class: if online { SiteClass::Server } else { SiteClass::Held },
                 reason: format!("timeline {} implicit input {input}: {}", timeline.name, if online { "server-owned background work" } else { "must be currently held to predict; retained-only coverage queues without rows" }),
@@ -137,18 +138,17 @@ pub fn read(timeline: &Timeline, read: &ReadExpr) -> Fallible<Expr> {
         return Err(Diagnostic::new(&read.site, "E_TIMELINE_READ", "a timeline reads one viewer, newest first by time then event id",
             format!("{}[viewer] after c last 20", timeline.name)).guide("feeds"));
     }
-    let source = format!("query q(c: cursor ?):\n  return merge {} after c last {} by byReaderTime where (.actorId = viewer or exists {}[{} = viewer, {} = .actorId]) and not exists {}[eventId = .eventId]:\n    [viewer]\n",
+    let source = format!("query q(c: cursor ?):\n  return {}[viewer] after c last {} by byReaderTime where (.actorId = viewer or exists {}[{} = viewer, {} = .actorId, id = .epoch]) and not exists {}[eventId = .eventId]\n",
         timeline.table("Feed"), range.take, timeline.edges[0], timeline.edges[1], timeline.edges[2], timeline.table("RemovedEvents"));
     let (doc, errors) = crate::parse_document("timeline.q", &source);
     let shape_error = || Diagnostic::new(&read.site, "E_TIMELINE_READ", "timeline read expansion has an invalid shape", format!("{}[viewer] after c last 20", timeline.name)).guide("feeds");
     if !errors.is_empty() { return Err(shape_error()); }
-    let Some(Stmt::Return { value: Expr::Merge(mut merge), .. }) = doc.programs.first().and_then(|p| p.body.first()).cloned() else { return Err(shape_error()); };
-    merge.cursor = range.cursor;
-    merge.site = read.site.clone();
-    let key = read.keys.first().ok_or_else(shape_error)?.value.clone();
-    merge.lanes.first_mut().ok_or_else(shape_error)?.prefix = vec![key.clone()];
+    let Some(Stmt::Return { value: Expr::Read(mut scan), .. }) = doc.programs.first().and_then(|p| p.body.first()).cloned() else { return Err(shape_error()); };
+    scan.range = Some(range);
+    scan.site = read.site.clone();
+    scan.keys = read.keys.clone();
     let fields = ["id", "postId", "actorId", "authorId", "repost", "at"].into_iter().map(|name| ShapeField::Field {
         name: name.into(), value: Expr::Member { base: Box::new(Expr::Focal { site: read.site.clone() }), name: if name == "id" { "eventId" } else { name }.into(), site: read.site.clone() }, site: read.site.clone(),
     }).collect();
-    Ok(Expr::Shape { base: Box::new(Expr::Merge(merge)), fields, site: read.site.clone() })
+    Ok(Expr::Shape { base: Box::new(Expr::Read(scan)), fields, site: read.site.clone() })
 }

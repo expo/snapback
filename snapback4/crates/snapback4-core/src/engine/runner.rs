@@ -107,6 +107,7 @@ pub struct Runner<'a> {
     /// The program's page had more rows than it returned and no cursor to
     /// continue on: the result is not `complete`, and the card says so.
     pub(crate) page_overflow: bool,
+    pub(crate) timeline_pending: bool,
     /// First scope whose word expansion exceeded 32; incomplete, without
     /// stopping later lanes or setting the query's meter cut.
     pub(crate) word_cut_at: Option<String>,
@@ -197,6 +198,7 @@ impl<'a> Runner<'a> {
             shape_cursors: BTreeMap::new(),
             non_uniform: false,
             page_overflow: false,
+            timeline_pending: false,
             word_cut_at: None,
             device: false,
             event_free: false,

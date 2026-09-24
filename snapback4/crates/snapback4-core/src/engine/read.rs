@@ -718,6 +718,7 @@ impl Runner<'_> {
             return self.scan_words(scan).map(|rows| (rows, Vec::new()));
         }
         let prefix = self.prefix_values(scan)?;
+        self.timeline_read_pending(&scan.table, &scan.index, &prefix)?;
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
         let index = table.index(&scan.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index)))?;
         // @ref LLP 3000.007#18.1 — generated word lanes share the search's merge cursor, not a direct cursor scoped to one word.
@@ -872,7 +873,7 @@ impl Runner<'_> {
                             // The paved existence predicate has no verdict when its
                             // one-row search starves. Retry that membership; general
                             // counting predicates keep their existing forward progress.
-                            filter_interrupted = matches!(&**filter, Expr::Binary { op: BinaryOp::Gt, left, right }
+                            filter_interrupted = self.schema.timelines.iter().any(|t| scan.table == t.table("Feed")) || matches!(&**filter, Expr::Binary { op: BinaryOp::Gt, left, right }
                                 if matches!(right.as_ref(), Expr::Literal(Value::Int(0)))
                                 && matches!(left.as_ref(), Expr::Builtin { builtin: Builtin::Count, args }
                                     if matches!(args.as_slice(), [Expr::Scan(inner)] if inner.existence)));

@@ -111,3 +111,66 @@ fn originals_filter_reposts_and_source_authority() {
         assert!(b.diagnostics.iter().any(|d|d.code=="E_TIMELINE_FILTER"),"{:?}",b.diagnostics);
     }
 }
+
+#[test]
+fn history_window_epochs_and_pending_completeness() {
+    let mut e=engine();
+    for n in 0..1100 { post(&mut e,"a",&format!("p{n:04}"),n+1); }
+    drain(&mut e);
+    run(&mut e,"follow","reader",&[("actor",id("a"))],1200);
+    let first_epoch=e.store().rows("follows").unwrap()[0].field("id").unwrap().clone();
+    assert!(!home(&mut e,"reader").complete,"backfill is pending");
+    drain(&mut e);
+    assert!(home(&mut e,"reader").complete);
+    let copies=|e:&Engine|e.store().rows("feedFeed").unwrap().into_iter().filter(|r|r.field("readerId").unwrap()==&id("reader")).collect::<Vec<_>>();
+    assert_eq!(copies(&e).len(),1000);
+    assert!(copies(&e).iter().all(|r|r.field("eventId").unwrap().as_str().unwrap()>="p0100"));
+    let unfollow=run(&mut e,"unfollow","reader",&[("actor",id("a"))],1201);
+    assert_eq!(unfollow.metered.rows_written,258);
+    assert_eq!(copies(&e).len(),744,"256 stale copies disappear synchronously");
+    let page=home(&mut e,"reader");assert!(page.data.as_array().unwrap().is_empty());assert!(!page.complete);
+    run(&mut e,"follow","reader",&[("actor",id("a"))],1202);
+    let second_epoch=e.store().rows("follows").unwrap()[0].field("id").unwrap().clone();
+    assert_ne!(first_epoch,second_epoch);
+    assert_eq!(ids(&mut e,"reader")[0],"p1099");
+    drain(&mut e);
+    let copies=copies(&e);assert_eq!(copies.len(),1000);
+    assert!(copies.iter().all(|r|r.field("epoch").unwrap()==&second_epoch));
+    assert!(home(&mut e,"reader").complete);
+    eprintln!("MEASURE history window=1000 preview=50 unfollow_writes={} stale_after_unfollow=744; refollow leaves 1000 copies in new epoch",unfollow.metered.rows_written);
+}
+
+#[test]
+fn stale_meter_cut_has_a_continuation_and_never_claims_complete() {
+    let mut e=engine();
+    for n in 0..600 { post(&mut e,"a",&format!("p{n:04}"),n+1); }
+    drain(&mut e);run(&mut e,"follow","reader",&[("actor",id("a"))],700);drain(&mut e);
+    run(&mut e,"unfollow","reader",&[("actor",id("a"))],701);
+    e.set_ceilings(snapback4_core::Ceilings{examined:101,..Default::default()});
+    let mut cursor=Value::Null;let mut pages=0;
+    loop {
+        let page=e.query("home",Context::new("reader",[("c".into(),cursor.clone())].into()).at(702)).unwrap();
+        assert!(!page.complete);assert!(page.data.as_array().unwrap().is_empty());
+        pages+=1;
+        let Some(next)=page.next else {break};
+        assert_ne!(cursor,Value::String(next.clone()),"continuation must advance through stale rows");
+        cursor=Value::String(next);assert!(pages<20);
+    }
+    assert!(pages>1);drain(&mut e);assert!(home(&mut e,"reader").complete);
+}
+
+#[test]
+fn overlapping_delivery_backfill_and_removal_never_duplicate_or_resurrect() {
+    let mut e=engine();
+    for n in 0..100 { post(&mut e,"a",&format!("p{n:03}"),n+1); }
+    // Event fan-out is still pending when follow copies its preview.
+    run(&mut e,"follow","reader",&[("actor",id("a"))],101);
+    run(&mut e,"remove","a",&[("postId",id("p099"))],102);
+    assert!(!ids(&mut e,"reader").contains(&"p099".to_string()));
+    drain(&mut e);
+    let copies=e.store().rows("feedFeed").unwrap();
+    assert_eq!(copies.len(),198);assert_eq!(e.timeline_work_counts().unwrap()[0].2,0);
+    assert!(copies.iter().all(|r|r.field("eventId").unwrap()!=&id("p099")));
+    assert!(e.store().rows("feedRemovedEvents").unwrap().is_empty());
+    assert!(e.run_timeline_chunk(999).unwrap().is_none());
+}
