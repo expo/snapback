@@ -67,9 +67,17 @@ for (const age of [0, 3000]) test(`useQuery expires 4.5 s typing rows aged ${age
     await page.evaluate(() => window.mount());
     await page.waitForFunction(() => ["online", "local"].every(tier => window.visibleAt[tier] != null));
     const deadline = expiresAt + 1000;
-    await page.waitForFunction(() => ["online", "local"].every(tier => window.expiredAt[tier] != null));
-    const result = await page.evaluate(() => ({ reads: window.reads, requests: window.requests, mountedAt: window.mountedAt,
-      visibleAt: window.visibleAt, expiredAt: window.expiredAt, evaluations: window.evaluations, rendered: document.getElementById("app").textContent }));
+    // Online invalidation publishes loading, so a later IPC read can sample a
+    // different render. Capture both ready expiry answers in the same browser
+    // turn; the first expiry timestamps still enforce the original deadline.
+    const snapshot = await page.waitForFunction(() => {
+      if (!["online", "local"].every(tier => window.expiredAt[tier] != null && window.reads[tier]?.data?.length === 0)) return false;
+      return { reads: { ...window.reads }, requests: { ...window.requests }, mountedAt: window.mountedAt,
+        visibleAt: { ...window.visibleAt }, expiredAt: { ...window.expiredAt }, evaluations: structuredClone(window.evaluations),
+        rendered: document.getElementById("app").textContent };
+    });
+    const result = await snapshot.jsonValue();
+    await snapshot.dispose();
     // Measure the React render, not when the runner receives a browser IPC reply.
     for (const tier of ["online", "local"]) {
       assert.ok(result.visibleAt[tier] < expiresAt, `${tier} renders the live row first`);
