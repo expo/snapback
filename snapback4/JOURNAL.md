@@ -49358,3 +49358,126 @@ passed, 10 skipped, zero failed. Logs: /tmp/lane-o-full-suite.log,
 /tmp/lane-o-acquisition-rerun.log. No new open product defect, new language
 syntax, authorization or meter change, package-version bump, push, publication
 or deployment. The supervisor owns review and integration.
+
+## 2026-09-24 — LLP 3000.013 Lane O, review round 1
+
+Closed the Astra and Grok review findings. assets.ts snapshots ArrayBuffer
+inputs into an immutable Blob before the first HTTP attempt, as it already
+did for Uint8Array. The upload-retry regression mutates the caller's buffer
+between attempts and verifies both bodies remain [1, 2, 3]. Repeated
+Retry-After: 6 responses make exactly two attempts and one 6,000 ms wait,
+then return the refusal unchanged. Removing `waited += delay` makes this
+regression fail (four attempts instead of two).
+
+client.ts and local.ts bind the upload's result as well as its retries to
+the captured credential revision. Closed clients return E_CLOSED; a changed
+session returns E_AUTH with a request to start the upload again. A late
+admission refusal is superseded by that lifetime refusal. An old success is
+not reported to the replacement session, and stale local receipts are not
+adopted. The local client also rechecks after awaiting receipt persistence
+and waits for an already-running refresh before starting a new upload.
+Engineering choice: an upload interrupted by rotation refuses without an
+automatic replay under the replacement bearer; unlike mutations it has no
+stable mutation id. This follows the review's requested refusal behavior.
+CLIENT-AND-OPERATIONS.md records the snapshot and session lifetime rules.
+
+upload-lifetime.test.mjs adds 23 tests over the online client and the real
+Wasm web device. They cover an upload started during refresh, late successes
+and 429 replies after sign-out, close, completed rotation and pending refresh,
+rotation/sign-out during retry backoff, and rotation while the device persists
+an upload receipt. Removing the revision equality from either canRetry
+callback separately makes its backoff test fail: it observes a second POST
+with the old bearer even though the result guard would discard that reply.
+The existing close-during-backoff test now checks E_CLOSED, not only the
+attempt count. Before the production fixes, 22 upload assertions failed;
+afterward all 39 upload/retry/lifetime tests pass.
+
+bind/mod.rs no longer chooses the alphabetically first reference column for
+N_NO_CURSOR. Its existing uncapped pinned-group remedy is unchanged. The
+reviewed branch keeps the previous continuation sentence for already-pinned
+pages; for an unpinned page it names an existing cap's actual columns and
+limit. Engineering choice when multiple caps exist: use the first declared
+nonempty cap; without one, give the point-key alternative without inventing
+a cap from a reference. cursor_advice.rs adds five regressions: a room page
+pinned under cap 100 by roomId, an unpinned room page with authorId sorting
+before roomId, attachments with assetId sorting before the capped messageId,
+a compound cap, and no cap. All five fail before the fix and pass after it.
+The 40 existing residency-note tests also pass. No language form or refusal
+code was added; existing cursor and narrowed-message examples still compile
+and run under the full suite.
+
+typing-expiry.test.mjs now ages the 4.5-second typing row for 1.6 seconds
+before mounting React, records live and expired render times in the browser,
+and requires expiry by the absolute row deadline plus 1 second. That bound
+precedes mount plus 4.5 seconds. Replacing either client's scheduleExpiry
+delay with a fixed 4,500 ms separately fails this test. The production
+expiry implementation was already correct and is unchanged. A targeted run
+observed expiry renders 5 ms late online and 1 ms late on the offline device;
+these are observations, not latency guarantees.
+
+First full-suite attempt: `== 2 failure(s) in 191 s` (cargo test; client
+tests), recorded in /tmp/lane-o-review-suite.log. The shared volume filled.
+All four Rust failures explicitly reported SQLite DiskFull (environmental):
+
+- snapback4-device device: search_global::forms::sqlite::cases::w13e_newest_measures_complete_page_and_opening_envelope
+- snapback4-device helper_pages: page_loss::generated_row_coverage_sqlite
+- snapback4-device repair_b: undeclared_is_kept_and_predicts_when_declared
+- snapback4-sim clique: following::removal::following_removal_foreign_tombstone_preserves_private_worlds
+
+The runner also could not write its completion status due to ENOSPC. Cargo's
+`cargo clean -p snapback4-lang`, in this lane only, reclaimed 14.9 GiB of
+rebuildable artifacts. Client failures in that same run:
+
+- Environmental/inherited: column-stream-recovery.test.mjs's "the largest
+  row-bounded source batch recovers oversized parent mirrors by snapshot"
+  saw watermark 15 instead of 16. It passed unchanged after freeing space,
+  on both SQLite and Wasm (watermark 16). The concurrent disk exhaustion is
+  established; the precise cause of that watermark mismatch is not proved.
+  Reproduction: `node --test packages/snapback4/test/column-stream-recovery.test.mjs`.
+- Mine: the first strengthened typing-expiry fixture checked the runner's
+  wall clock after the browser IPC reply. That conflated render time with
+  runner delay. It now checks timestamps captured during each React render,
+  retaining the same row deadline and the failing fixed-timer mutations.
+  Reproduction: `node --test packages/snapback4/test/typing-expiry.test.mjs`.
+
+The supplied baseline tail was checked before attribution. No unrelated
+acquisition, sync, authorization, disclosure, meter, schema, engine expiry,
+package version or publication changes were made. local.ts stays at 1,498
+lines. The raw/gzip Wasm budget and the initial init/template fixes are
+unchanged. No design deviation or unresolved review finding remains. The
+previous entry's intermittent W5c acquisition-fixture race remains outside
+this round; this round does not claim to repair it.
+
+Second full-suite attempt: `== 2 failure(s) in 212 s`, recorded in
+/tmp/lane-o-review-suite-final.log. Other concurrent builds consumed the
+reclaimed space before this run ended. All four Rust failures again explicitly
+reported SQLite DiskFull (environmental):
+
+- snapback4-sim maintains: hidden_filter_work_has_one_wire_and_meter_observation
+- snapback4-sim maintains: hidden_filter_work_delete_has_one_observation_per_target_outcome
+- snapback4-sim work_intent: scheduled_digest_for_busy_chat_and_one_hundred_memberships_retries_and_restarts
+- snapback4-device device: following::removal::following_removal_reaches_every_reader_before_purge_sqlite
+
+Two client tests also failed in that run (environmental/inherited, no uploads
+in either path): app.test.mjs's "shared logout fences a held online rotation
+across Bob's login" lost its HTTP socket, and sync-overflow.test.mjs's "wasm
+interrupted inline recovery retries after reopen, preserves delivered history
+and enforces the horizon" observed watermark 2 instead of 15. Exact causes of
+these client symptoms are not independently proved beyond the concurrent
+DiskFull failures. Reproduction command for both:
+`node --test --test-name-pattern="shared logout fences a held online rotation across Bob's login|wasm interrupted inline recovery retries" packages/snapback4/test/app.test.mjs packages/snapback4/test/sync-overflow.test.mjs`.
+The revised expiry fixture passed this run: online +4 ms, local +0 ms. After
+Rust testing finished, removed this lane's rebuildable incremental cache
+without deleting its compiled binaries, recovering approximately 16 GiB.
+No test or product changes were made to address the environmental failures.
+
+Both second-run client failures passed unchanged in the focused reproduction
+above (/tmp/lane-o-review-environment-rerun.log). Final full-suite result:
+`== 0 failure(s) in 170 s`, /tmp/lane-o-review-suite-third.log. Every suite
+step passed; 1,128 client tests passed with the existing 10 skips, plus nine
+CLI fixture tests. Final React expiry renders were +4 ms online and +0 ms on
+the offline web device, two online queries and zero local query fallbacks.
+All eight DiskFull Rust cases and all three environmental client failures
+from the earlier attempts passed in this run. No failures are left in the
+required run. git diff --check passes; the work stays on sb4-intent/o-dx,
+committed for supervisor review without pushing or publishing.

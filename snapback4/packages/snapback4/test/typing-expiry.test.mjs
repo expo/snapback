@@ -61,18 +61,29 @@ test("useQuery removes 4.5 s typing indicators on the online client and an offli
       { table: "typing", row: { id: "typing", conversationId: "room", principal: "dev:alice", expiresAt } },
     ]) }).then(r => r.json());
     assert.equal(seeded.seeded, 1, JSON.stringify(seeded));
+    // The lifetime starts before mount. A fixed 4.5-second mount timer must
+    // miss the deadline below; only the row's absolute expiry can satisfy it.
+    await page.waitForTimeout(1600);
     await page.evaluate(() => window.mount());
-    await page.waitForFunction(() => ["online", "local"].every(tier => window.reads[tier]?.data?.length === 1));
-    assert.ok(Date.now() < expiresAt, "both clients must render the live row first");
-    await page.waitForFunction(() => ["online", "local"].every(tier => window.reads[tier]?.data?.length === 0));
-    const result = await page.evaluate(() => ({ reads: window.reads, requests: window.requests, rendered: document.getElementById("app").textContent }));
+    await page.waitForFunction(() => ["online", "local"].every(tier => window.visibleAt[tier] != null));
+    const deadline = expiresAt + 1000;
+    await page.waitForFunction(() => ["online", "local"].every(tier => window.expiredAt[tier] != null));
+    const result = await page.evaluate(() => ({ reads: window.reads, requests: window.requests, mountedAt: window.mountedAt,
+      visibleAt: window.visibleAt, expiredAt: window.expiredAt, rendered: document.getElementById("app").textContent }));
+    // Measure the React render, not when the runner receives a browser IPC reply.
+    for (const tier of ["online", "local"]) {
+      assert.ok(result.visibleAt[tier] < expiresAt, `${tier} renders the live row first`);
+      assert.ok(result.expiredAt[tier] >= expiresAt && result.expiredAt[tier] <= deadline,
+        `${tier} must render expiry at the row's deadline: ${JSON.stringify(result)}`);
+    }
+    assert.ok(deadline < result.mountedAt + 4500, "a fixed mount delay cannot pass this fixture");
     assert.equal(result.reads.local.fresh, false, "expiry is evaluated while offline");
     assert.equal(result.reads.online.fresh, true);
     assert.ok(result.requests.queries >= 2, "the online timer must refetch without /changes");
     assert.equal(result.requests.localQueries, 0, "the web observation must run on the device");
     assert.equal(result.rendered, "online:0local:0", "useQuery must update both DOM subtrees");
     assert.deepEqual(errors, []);
-    t.diagnostic(`expiry ${expiresAt}; both React views empty ${Date.now() - expiresAt} ms after deadline; online queries ${result.requests.queries}`);
+    t.diagnostic(`expiry ${expiresAt}; React expiry lateness online=${result.expiredAt.online - expiresAt} ms local=${result.expiredAt.local - expiresAt} ms; online queries ${result.requests.queries}`);
     await page.evaluate(() => window.closeClients());
   } finally {
     await browser?.close(); await server?.close(); await dev?.close();
@@ -90,6 +101,8 @@ import { webDevice } from "snapback4/web";
 const op = { kind: "query", name: "media.typingNow" };
 let online, local, offline = false, root;
 window.reads = {};
+window.visibleAt = {};
+window.expiredAt = {};
 window.requests = { queries: 0, localQueries: 0 };
 const transport = tier => async (input, init) => {
   const path = new URL(input).pathname;
@@ -107,6 +120,8 @@ window.openClients = async url => {
 };
 function Probe({ tier }) {
   const read = useQuery(op, { conversationId: "room" });
+  if (read.data?.length === 1) window.visibleAt[tier] ??= Date.now();
+  if (window.visibleAt[tier] != null && read.data?.length === 0) window.expiredAt[tier] ??= Date.now();
   window.reads[tier] = read;
   return h("span", null, tier + ":" + (read.data?.length ?? "loading"));
 }
@@ -114,6 +129,7 @@ window.mount = async () => {
   await local.sync();
   offline = true;
   await local.sync();
+  window.mountedAt = Date.now();
   root = createRoot(document.getElementById("app"));
   root.render(h("div", null,
     h(SnapbackProvider, { client: online }, h(Probe, { tier: "online" })),
