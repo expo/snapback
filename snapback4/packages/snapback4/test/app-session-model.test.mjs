@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { execute, generate, minimize, operations } from "./helpers/app-session-model.mjs";
 
-test("session state machine preserves I1–I8 across 5,000 seeded three-runtime sequences", { timeout: 240_000 }, async t => {
+test("session state machine preserves I1–I9 across 5,000 seeded three-runtime sequences", { timeout: 240_000 }, async t => {
   const coverage = {}, count = Number(process.env.SNAPBACK4_SESSION_SEQUENCES ?? 5000);
   for (let seed = 1; seed <= count; seed++) {
     const sequence = generate(seed);
@@ -17,11 +17,28 @@ test("session state machine preserves I1–I8 across 5,000 seeded three-runtime 
     for (const kind of ["get", "set", "delete"]) assert.ok(coverage[`fault.${kind}`] > 0, `injected ${kind}`);
     for (const path of ["signup", "login", "guest", "refresh", "logout", "logout-all"]) assert.ok(coverage[`held./auth/${path}`] > 0, `held committed ${path} response`);
   }
-  if (count >= 5000) for (const event of ["held.storage.set", "held./q/viewer", "held./m/write", "server.revoke", "wire.offline", "interleaving.storage.peer", "fault.rotationSave", "handle.captured", "handle.sessionNotification", "handle.viewerNotification", "handle.hidden.handleQuery", "handle.hidden.handleMutate", "handle.hidden.handleRefresh", "observation.data", "observation.notification", "observation.hidden"]) assert.ok(coverage[event] > 0, `exercised ${event}`);
+  if (count >= 5000) for (const event of ["held.storage.set", "held./q/viewer", "held./m/write", "server.revoke", "wire.offline", "interleaving.storage.peer", "fault.rotationSave", "handle.captured", "handle.sessionNotification", "handle.viewerNotification", "handle.hidden.handleQuery", "handle.hidden.handleMutate", "handle.hidden.handleRefresh", "observation.data", "observation.notification", "observation.hidden", "server.externalSibling", "global.peerPersistedRotation", "global.peerHeldRotation", "global.rotatedBearer", "global.externalSiblingRevoked"]) assert.ok(coverage[event] > 0, `exercised ${event}`);
   t.diagnostic(`sequences=${count} seed=1..${count} coverage=${JSON.stringify(coverage)}`);
 });
 
 for (const [name, sequence] of [
+  ["a queued login cannot suppress the committed global logout's publication", [
+    { op: "guest", app: 0 }, { op: "holdStore", app: 0 }, { op: "logoutEverywhere", app: 0, hold: true },
+    { op: "login", app: 0 }, { op: "release", app: 0 },
+  ]],
+  ["a stale global retry does not recreate an acknowledged retirement", [
+    { op: "guest", app: 2 }, { op: "reopen", app: 1 },
+    { op: "logoutEverywhere", app: 2 }, { op: "logoutEverywhere", app: 1 },
+  ]],
+  ["global logout selects a peer's persisted successor", [
+    { op: "signup", app: 0 }, { op: "reopen", app: 1 }, { op: "sibling", app: 0 },
+    { op: "refresh", app: 0 }, { op: "logoutEverywhere", app: 1, expectOk: true, expectRevoked: true },
+  ]],
+  ["a late successor inherits a closed peer's global fence", [
+    { op: "signup", app: 0 }, { op: "reopen", app: 1 }, { op: "sibling", app: 0 },
+    { op: "refresh", app: 0, hold: true }, { op: "logoutEverywhere", app: 1, expectOk: false },
+    { op: "close", app: 1 }, { op: "release", app: 0, expectRevoked: true },
+  ]],
   ["offline reopening starts after close commits the owned rotation", [
     { op: "guest", app: 0 }, { op: "reopen", app: 1 }, { op: "refreshFault", app: 1 },
     { op: "reopenOffline", app: 1, fault: { kind: "get", at: 6 } },
@@ -29,7 +46,7 @@ for (const [name, sequence] of [
   ["refusal after a failed rotation save also excludes its consumed predecessor", [
     { op: "guest", app: 0 }, { op: "refreshFault", app: 0 }, { op: "revokeCurrent", app: 0 }, { op: "reopenOffline", app: 1 },
   ]],
-  ["failed global fencing revokes retained handles and observations", [
+  ["failed global fencing keeps retained handles and observations usable", [
     { op: "guest", app: 0 }, { op: "capture", app: 0 }, { op: "observeHandle", app: 0 },
     { op: "logoutEverywhere", app: 0, fault: { kind: "set", at: 1 } },
     { op: "handleQuery", app: 0 }, { op: "handleMutate", app: 0 }, { op: "handleRefresh", app: 0 }, { op: "readObservation", app: 0 },

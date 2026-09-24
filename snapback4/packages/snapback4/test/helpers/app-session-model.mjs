@@ -5,7 +5,7 @@ import { setImmediate as tick } from "node:timers/promises";
 import { createApp } from "../../dist/app.js";
 import { sessionKey } from "../../dist/auth.js";
 
-export const operations = ["signup", "login", "guest", "refresh", "logout", "close", "reopen", "release", "query", "logoutEverywhere", "revoke", "reopenOffline", "holdStore", "closeClient", "capture", "handleQuery", "handleMutate", "handleRefresh", "observeHandle", "readObservation", "refreshFault", "revokeCurrent"];
+export const operations = ["signup", "login", "guest", "refresh", "logout", "close", "reopen", "release", "query", "logoutEverywhere", "revoke", "reopenOffline", "holdStore", "closeClient", "capture", "handleQuery", "handleMutate", "handleRefresh", "observeHandle", "readObservation", "refreshFault", "revokeCurrent", "sibling"];
 export function generate(seed, length = 24) {
   let x = seed >>> 0;
   const choose = n => { x ^= x << 13; x ^= x >>> 17; x ^= x << 5; return (x >>> 0) % n; };
@@ -17,6 +17,7 @@ export function generate(seed, length = 24) {
 export async function execute(commands, coverage = {}) {
   const url = "https://session-model.invalid", key = sessionKey(url), values = new Map();
   const acknowledgedGlobal = new Set();
+  const external = new Set(), globalReceipts = [];
   const live = new Map(), minted = new Map(), parents = new Map(), accounts = new Set(), holds = [], tasks = [], apps = [];
   const errors = [], observed = new Map(), identities = [], publishedTokens = new Map(), privateRetries = new Map(), refusedAtOpen = new Map(), refused = new Set(), offline = new Set();
   const handles = [], observations = [], rotationFaults = new Set();
@@ -81,7 +82,13 @@ export async function execute(commands, coverage = {}) {
       invariant("I1", record()?.token !== token, `globally revoking stored ${token}`);
       if (!live.has(token)) return denied(token);
       const principal = live.get(token); let revoked = 0;
+      const covered = new Set([...live].filter(([, owner]) => owner === principal).map(([value]) => value));
       for (const [value, owner] of live) if (owner === principal) { live.delete(value); revoked++; }
+      // The server linearization point covers every existing session, including
+      // externally owned siblings and rotations whose response is still held.
+      globalReceipts.push({ principal, covered }); count("global.acknowledged");
+      if (parents.has(token)) count("global.rotatedBearer");
+      if ([...covered].some(value => external.has(value))) count("global.externalSiblingRevoked");
       if (active?.hold && active.app === slot) { count(`held.${path}`); await new Promise(resolve => holds.push({ id: slot, token, resolve })); }
       acknowledgedGlobal.add(token);
       return Response.json({ ok: true, revoked });
@@ -123,7 +130,7 @@ export async function execute(commands, coverage = {}) {
     const owner = active;
     if (owner?.hold && owner.app === slot) {
       count(`held.${path}`);
-      await new Promise(resolve => holds.push({ id: slot, token: session.token, resolve }));
+      await new Promise(resolve => holds.push({ id: slot, token: session.token, path, resolve }));
     }
     return Response.json({ session });
   };
@@ -138,6 +145,14 @@ export async function execute(commands, coverage = {}) {
       if (op === "logoutEverywhere") {
         if (!result.ok && before.token) privateRetries.set(id, before.token);
         else if (result.ok) privateRetries.delete(id);
+        if (result.ok && before.principal) {
+          count("global.publicAcknowledgement");
+          for (const token of live.keys()) {
+            let original = token; while (parents.has(original)) original = parents.get(original);
+            invariant("I9", !before.globalCovered.has(original) && !before.globalCovered.has(token), `acknowledged logoutEverywhere left ${token} live for ${before.principal}`);
+          }
+        }
+        if (before.expectOk !== undefined) invariant("I9", result.ok === before.expectOk, `global result was ${result.ok}, expected ${before.expectOk}`);
       }
       if (op === "close" || op === "closeClient" || op === "reopen" || op === "reopenOffline") privateRetries.delete(id);
     }, error => { task.result = { ok: false, error: String(error) }; }).finally(() => { task.pending = false; });
@@ -206,7 +221,12 @@ export async function execute(commands, coverage = {}) {
     if (errors.length) assert.fail(errors[0]);
     const journal = (() => { try { return JSON.parse(values.get(key + ".revocations") ?? "null") ?? {}; } catch { return {}; } })();
     const held = new Set([record()?.token, ...(journal.tokens ?? []), ...(journal.all ?? []),
-      ...(record()?.snapback4Retired ?? []), ...(record()?.snapback4LogoutAll ?? []), ...holds.map(h => h.token)]);
+      ...(record()?.snapback4Retired ?? []), ...(record()?.snapback4LogoutAll ?? []), ...holds.map(h => h.token), ...external]);
+    for (const receipt of globalReceipts) for (const token of live.keys()) {
+      let predecessor = token;
+      while (predecessor && !receipt.covered.has(predecessor)) predecessor = parents.get(predecessor);
+      invariant("I9", !predecessor, `globally revoked ${receipt.principal} retained ${token}`);
+    }
     for (const pending of holds) if (pending.storage) {
       // An unresolved store write remains owned by its live runtime, even if
       // the public auth action has already returned a cancellation refusal.
@@ -237,9 +257,20 @@ export async function execute(commands, coverage = {}) {
       if (holds.some(held => held.storage && held.runtime !== identities[command.app])) count("interleaving.storage.peer");
       active = command; fault = command.fault; hits = 0; count(`op.${command.op}`);
       const { app: id, op } = command, app = apps[id];
-      const before = { client: app?.client, token: app?.client.session()?.token, bytes: values.get(key), epoch: epoch(), concurrent: holds.length > 0 || tasks.some(t => t.pending) };
+      const principal = app?.client.viewer();
+      const before = { client: app?.client, token: app?.client.session()?.token, principal, expectOk: command.expectOk,
+        globalCovered: new Set([...minted].filter(([, value]) => value.principal === principal).map(([token]) => token)),
+        bytes: values.get(key), epoch: epoch(), concurrent: holds.length > 0 || tasks.some(t => t.pending) };
+      if (op === "logoutEverywhere" && principal) {
+        if (record()?.principal === principal && record().token !== before.token) count("global.peerPersistedRotation");
+        if (holds.some(value => value.path === "/auth/refresh" && value.id !== id && minted.get(value.token)?.principal === principal)) count("global.peerHeldRotation");
+      }
       let promise;
-      if (op === "capture") capture(app, id);
+      if (op === "sibling") {
+        const principal = record()?.principal;
+        if (principal) { external.add(issue(principal).token); count("server.externalSibling"); }
+      }
+      else if (op === "capture") capture(app, id);
       else if (["handleQuery", "handleMutate", "handleRefresh", "observeHandle", "readObservation"].includes(op)) {
         const candidates = handles.filter(h => h.slot === id);
         const h = (command.account ? candidates.at(-1) : candidates[0]) ?? capture(app, id);
@@ -294,6 +325,7 @@ export async function execute(commands, coverage = {}) {
         invariant("I5", epoch() === before.epoch || tombstone, `${op} failed but epoch ${before.epoch} -> ${epoch()}`);
       }
       check();
+      if (command.expectRevoked) invariant("I9", [...external].every(token => !live.has(token)), "late rotation did not globally revoke external siblings");
     }
     fault = null; active = undefined; holdStore = false; offline.clear(); rotationFaults.clear();
     while (holds.length) holds.shift().resolve();
@@ -303,7 +335,7 @@ export async function execute(commands, coverage = {}) {
     for (const app of apps) { await app.auth.logout(); await settle(); }
     for (const app of apps) await app.close();
     await open(0); await apps[0].auth.logout(); await settle(); check();
-    invariant("I3", live.size === 0, `live after recovery: ${[...live.keys()]}`);
+    invariant("I3", [...live.keys()].every(token => external.has(token)), `unowned live after recovery: ${[...live.keys()].filter(token => !external.has(token))}`);
     const journal = values.get(key + ".revocations");
     const global = new Set([...(journal ? JSON.parse(journal).all ?? [] : []), ...(record()?.snapback4LogoutAll ?? [])]);
     invariant("retirement", [...global].every(token => !acknowledgedGlobal.has(token)), "acknowledged global entries remain");
@@ -323,7 +355,7 @@ export async function execute(commands, coverage = {}) {
 // Deletion-minimal counterexample, replayed with the same deterministic wire
 // and fault indices. Keep the invariant identity while removing commands.
 export async function minimize(commands, failure) {
-  const identity = failure.message.match(/(?:I[1-8]|retirement):/)?.[0] ?? failure.message;
+  const identity = failure.message.match(/(?:I[1-9]|retirement):/)?.[0] ?? failure.message;
   let minimal = commands;
   for (let i = 0; i < minimal.length;) {
     const candidate = minimal.filter((_, index) => index !== i);

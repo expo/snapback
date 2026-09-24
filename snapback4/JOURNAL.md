@@ -49638,3 +49638,57 @@ public export, package version or starter changed. Previously documented total-
 storage-failure/process-loss and server-receipt limits remain; returned copies
 of data/credentials cannot be retroactively erased. No push or publication.
 File map, test claims, failures and limits: [round 12 report](./reports/20260924-lane-e-round12.md).
+
+## 2026-09-24 — LLP 3000.013 Lane E round 13: global logout across tabs
+
+Global logout now selects the intended principal's stored bearer under the
+session lock, including a peer's successor, or its own known unpersisted rotation
+over a consumed predecessor. Its atomic tombstone binds global retirement to a
+principal and generation; late responses from older scopes inherit logout-all
+custody, including across the requesting tab's close or another account's
+replacement. Completed generation watermarks prevent stale tabs from recreating
+acknowledged obligations or globally revoking later logins. They compact to one
+completed empty watermark per principal; pending obligations keep their retry
+credentials. Backend binding and stored-bearer comparison remain mandatory.
+
+Per round 13's explicit correction to round 12, a failed global tombstone write
+keeps the signed-in view and existing public client, with the failure on auth.why.
+A committed fence permanently hides captured clients and observations. Both
+online and local tests verify usable private data before that commit and denied
+queries, writes, refresh, assets, observations, sync and stale lifecycle methods
+after it. Ordinary logout behavior is unchanged.
+
+Added I9 and external sibling sessions to the three-runtime model. The final
+standalone affected run passed 117 tests in 53.350 seconds, including 5,000 seeded
+sequences (130,000 commands), 20 fixed regressions and 120 storage-fault sweeps.
+The 23 operations exercised 2,918 external sibling issuances, 176 acknowledgements
+that killed siblings, 103 persisted peer rotations and 20 held peer rotations at
+global logout, 208 global calls with rotated bearers and 877 server global
+acknowledgements. Fault coverage: 3,021 get, 347 set, 75 delete and 603 targeted
+single rotation-save failures; 2,938 held writes and 18,339 peer interleavings.
+Captured clients, observations, offline reopen and server-side refusal checks
+remain in I1–I9. I9 covers existing sessions at server revocation, not future
+deliberate password sign-ins.
+
+The model found two further defects, now fixed and retained as reduced cases:
+seed 104's stale second global logout recreated an acknowledged retirement;
+seed 1961's queued login suppressed signed-out publication after a held global
+commit. An existing failed-fence regression also caught an intermediate journal
+write blocking discarded-token revocation; that live-runtime custody path is
+preserved. These development failures were ours, not baseline/environmental
+exceptions. The old precommit signed-out assertion was intentionally updated.
+
+Six negative controls failed as expected, including the I9 model without late
+global promotion. Chromium's separate-page locking witness passed in 903 ms.
+Final full scripts/test.sh: **`== 0 failure(s) in 98 s`**, exit 0, all Rust groups,
+nine fixtures and 1,176 client passes (10 skips), including all 5,000 sequences.
+Full-suite failures: ours 0, baseline 0, environmental 0; none waived.
+Reference check: 504 LLPs, 9,237 refs, zero errors/unchecked; whitespace passes;
+README remains 296/300 lines. Source files stay below 1,500 lines.
+
+Updated the session reference and LLP section 6. No server protocol, engine
+authorization/disclosure rule, meter, public export, package version, starter,
+README or web-shell implementation changed. Previously documented complete
+storage failure plus process loss and lost server-receipt limitations remain.
+No push or publication. File map, reproductions, qualification and decisions:
+[round 13 report](./reports/20260924-lane-e-round13.md).

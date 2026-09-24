@@ -194,8 +194,9 @@ for (const action of ["logout", "logoutEverywhere"]) test(`${action} clears cred
   await assert.rejects(app.mutate(add, { body: "not sent" }), /outbox store/);
   failDelete = true;
   assert.equal((await app.auth[action]()).ok, false);
-  assert.equal(app.auth.state, "signed-out");
-  assert.equal(app.client.viewer(), null);
+  assert.equal(app.auth.state, action === "logoutEverywhere" ? "signed-in" : "signed-out");
+  assert.equal(app.client.viewer(), action === "logoutEverywhere" ? "alice" : null);
+  assert.equal(app.auth.why.code, "E_CLIENT");
   failDelete = false;
   assert.equal((await app.auth.logout()).ok, true);
   assert.equal(await restoreSession(url, memory), null);

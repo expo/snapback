@@ -149,6 +149,12 @@ session lock:
   replacement may restore the prior account through a new facade; it cannot
   reactivate any handle that was already hidden. This governs future access
   through handles, not copies of data or credentials already returned to code.
+- **I9 — global revocation.** A successful `logoutEverywhere()` acknowledges
+  removal of every session of its principal at the server's revocation point,
+  including other tabs, external sibling sessions and committed rotations whose
+  responses have not arrived. It never selects another principal's credential.
+  A deliberate new sign-in after that server operation creates a new session;
+  global logout is not a ban on future sign-ins.
 
 A single atomic `sessionStore.set` commits the session and its epoch together.
 Client opening is provisional: failed device initialization or persistence
@@ -157,14 +163,25 @@ retain their epoch; replacement of a live bearer increments it. Logout writes
 an epoch-bearing tombstone, including when quota prevents creating another key.
 The old separate epoch key remains readable for existing stores.
 
-`logoutEverywhere()` blocks new rotations and awaits an already-running rotation
-before selecting its bearer. Its logout tombstone keeps that bearer as a private
-global-revocation credential across restart until `/auth/logout-all` succeeds.
-The signed-out client cannot use it for reads, writes or ordinary logout.
-If the tombstone write fails, the runtime keeps private retry custody and reports
-the failure. Captured public clients and observations stay fenced even though
-the private raw credential is still available to `auth.logoutEverywhere()`.
-A successful retry or reopening drains the durable obligation.
+`logoutEverywhere()` blocks new rotations in its runtime and awaits one already
+running there. Under the session lock it selects the stored bearer for its
+principal, including a successor saved by another tab, or its own known newer
+rotation whose save failed. The atomic tombstone commits the bearer, principal
+and generation of the global revocation together. Only then does the app publish
+signed out and fence captured clients and observations. If that write fails,
+the signed-in view and its existing client remain usable and `auth.why` reports
+the failure (an independently superseded or refused account remains fenced).
+
+The tombstone privately owns retry credentials across restart until
+`/auth/logout-all` succeeds. A late successor from an older scope inherits the
+same principal's global obligation; ordinary retirement cannot consume it first.
+Replacement moves these obligations to the retirement journal. A global
+acknowledgement retires the related credentials and leaves a completed generation
+watermark, so another stale tab cannot recreate the obligation or globally revoke
+a later login. Completed empty watermarks compact to the newest per principal;
+pending obligations retain their retry credentials. A successful retry or
+reopening drains durable work. Signed-out clients cannot use these credentials
+for reads, writes or ordinary logout.
 
 Retirement records are backend-bound revocation credentials, never sessions to
 restore. Replay checks the current session under the same lock. Ordinary

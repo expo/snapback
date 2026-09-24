@@ -28,7 +28,7 @@ test("refusal tombstones an unpersisted rotation's consumed predecessor", { time
   assert.equal((await offline.ready).ok, true); assert.equal(offline.auth.state, "signed-out");
 });
 
-for (const tier of ["online", "local"]) test(`${tier}: failed global logout fences captured clients and observations while retaining private retry custody`, { timeout: 20_000 }, async t => {
+for (const tier of ["online", "local"]) test(`${tier}: global logout keeps the public view until its fence commits, then fences captured handles`, { timeout: 20_000 }, async t => {
   const { url, dir } = await server(t), memory = memorySessionStore(), key = sessionKey(url);
   let failFence = false; const dispatched = [];
   const app = createApp({ url, sessionStore: { ...memory, async set(k, value) {
@@ -43,8 +43,14 @@ for (const tier of ["online", "local"]) test(`${tier}: failed global logout fenc
   let notices = 0; watched.subscribe(() => { if (watched.getSnapshot().denied) notices++; });
   const sibling = (await (await fetch(url + "/auth/login", { method: "POST", body: JSON.stringify({ email: "handles@example.com", password: "password-a" }) })).json()).session;
   const before = await memory.get(key); failFence = true;
-  assert.equal((await app.auth.logoutEverywhere()).ok, false); assert.equal(app.auth.state, "signed-out");
+  assert.equal((await app.auth.logoutEverywhere()).ok, false); assert.equal(app.auth.state, "signed-in");
+  assert.equal(app.auth.why.code, "E_CLIENT"); assert.equal(app.client, old);
   assert.equal(await memory.get(key), before); assert.equal(await probe(url, token), undefined);
+  assert.equal(old.viewer(), app.auth.viewer); assert.equal(old.session().token, token);
+  assert.equal((await old.query(list, {})).data.length, 1);
+  assert.equal(watched.getSnapshot().data.length, 1); assert.equal(notices, 0);
+  failFence = false; assert.equal((await app.auth.logoutEverywhere()).ok, true);
+  assert.equal(app.auth.state, "signed-out");
   assert.equal(old.viewer(), null); assert.equal(old.session(), null); assert.equal(old.link(), "signed-out");
   assert.equal(watched.getSnapshot().denied?.code, "E_AUTH"); assert.ok(notices > 0, "held observation notifies its refused snapshot");
   const start = dispatched.length;
@@ -57,7 +63,6 @@ for (const tier of ["online", "local"]) test(`${tier}: failed global logout fenc
   await until(() => later.getSnapshot().denied?.code === "E_AUTH");
   assert.ok(!dispatched.slice(start).some(path => ["/q/list", "/m/add", "/auth/refresh", "/sync"].includes(path)), JSON.stringify(dispatched.slice(start)));
   await old.close(); await old.signOut(); assert.equal((await old.logoutAll()).ok, false);
-  failFence = false; assert.equal((await app.auth.logoutEverywhere()).ok, true);
   await until(async () => await probe(url, sibling.token) === "E_AUTH");
 });
 
