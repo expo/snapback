@@ -47704,3 +47704,31 @@ introduced or environmental failures. All 995 client tests pass, 10 skipped.
 Full log: `/tmp/lane-a-followup-full-suite.log`. Reference and whitespace checks
 pass; changed source files remain below 1,500 lines. The report records the
 file-by-file changes, forms, test proofs, lane boundary and open design stop.
+
+## 2026-09-24 — LLP 3000.013 Lane A, final table-order ruling
+
+Implemented the supervisor's ruling resolving the prior table-cursor design
+stop. Authored table orders truncate at the first id before view expansion and
+predicate/index planning. `t first 1 by .id, .at after c` now uses only byId
+and has identical executable IR, table/index schema, pages and opaque cursor
+tokens to `by .id`; both ascending and descending pages are verified. Keys
+before id remain effective. View orders retain keys after id because separate
+branches can carry the same source id. Original read spellings remain available
+for diagnostics and cost explanations.
+
+Added three regressions for table plan/page equality (plain, middle-id, pinned,
+value-lane and word reads), nested reads including view projection expressions,
+and union pages whose branch ids collide. The latter verifies later timestamps
+still order equal ids in both directions. The language card includes a compiled
+example; the reads card and LLP record the ruling. All 117 affected tests pass,
+including prior nullable/range and Memory/SQLite view regressions. No runtime,
+IR, uniqueness, schema-validation, authorization, admission or meter changes;
+no design deviation, push or publication.
+
+Exact full-suite result: `== 1 failure(s) in 142 s`, only the unchanged baseline
+schema_capabilities_legacy equality test. No introduced or environmental
+failures. All 995 client tests pass, 10 skipped; WASM remains 1,736,564 B raw /
+480,855 B gzip under the unchanged budget. Reference and whitespace checks pass;
+changed source files remain below 1,500 lines. Full log:
+`/tmp/lane-a-final-order-full-suite.log`; file-by-file report and reproductions:
+`reports/20260924-intent-lane-a-final-order.md`.

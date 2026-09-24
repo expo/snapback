@@ -12,6 +12,30 @@ pub(super) struct Requests {
     errors: Vec<Diagnostic>,
 }
 
+// @ref LLP 3000.013#2.1 — intrinsic id resolves every table-local tie.
+// Normalize authored table reads before view expansion: a view's shared order
+// must retain later keys because different branches can carry the same id.
+pub(super) fn table_order(catalog: &mut Catalog) {
+    let mut normalize = |value: &mut Expr| {
+        if let Expr::Read(read) | Expr::Exists { read, .. } = value
+            && catalog.tables.contains_key(&read.table)
+            && let Some(id) = read.order_keys.iter().position(|column| column == "id")
+            && id + 1 < read.order_keys.len() {
+            catalog.read_origins.entry(read.site.to_string()).or_insert_with(|| crate::print::read_expr(read));
+            read.order_keys.truncate(id + 1);
+        }
+    };
+    for doc in &mut catalog.documents {
+        walk::document(doc, &mut normalize);
+        for view in &mut doc.views {
+            for branch in &mut view.branches {
+                if let Some(predicate) = &mut branch.predicate { walk::expression(predicate, &mut normalize); }
+                walk::shape(&mut branch.fields, &mut normalize);
+            }
+        }
+    }
+}
+
 impl Requests {
     fn index(&mut self, table: &TableInfo, columns: Vec<String>, words: Option<(usize, Vec<String>)>, site: &Site, exact: bool) -> String {
         self.index_computed(table, columns, words, BTreeMap::new(), site, exact)

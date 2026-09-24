@@ -1,6 +1,11 @@
 //! Read answers, pages and continuation. Compiled by tests/guide.rs.
 pub const CARD: &str = r##"# Reads
 
+For a table, order keys after `id` are redundant and omitted: `by .id, .at`
+uses the same index and cursor as `by .id`. View orders retain later keys,
+because distinct branches may carry the same source id; branch identity
+breaks any remaining tie.
+
 Finite ranked windows enumerate inclusive UTC buckets:
 `bucket(lower) ..= bucket(upper)`. The exact endpoint comparisons still
 filter every row. A missing finite upper bound stays a metered residual scan;

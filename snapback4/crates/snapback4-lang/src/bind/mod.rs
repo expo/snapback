@@ -51,6 +51,7 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     let documents = timeline::expand(documents, &mut diagnostics);
     let personas: Vec<String> = documents.iter().flat_map(|d| d.personas.iter().cloned()).collect();
     let mut catalog = Catalog::build(documents, &mut diagnostics);
+    intent::table_order(&mut catalog);
     intent_views::expand(&mut catalog, &mut diagnostics);
     intent::plan(&mut catalog, &mut diagnostics);
     intent::pending(&catalog, &mut diagnostics);
