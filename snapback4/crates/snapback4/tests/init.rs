@@ -72,7 +72,7 @@ fn init_conflicts_name_the_key_and_leave_every_destination_untouched() {
         assert_eq!(fs::read_to_string(dir.0.join("package.json")).unwrap(), before);
         assert!(!dir.0.join("snapback").exists());
     }
-    for name in ["README.md", "src/client.ts", "metro.config.js", "snapback/schema.q", "snapback/generated/package.json"] {
+    for name in ["src/client.ts", "metro.config.js", "snapback/schema.q", "snapback/generated/package.json"] {
         let dir = Dir::new();
         let path = dir.0.join(name); fs::create_dir_all(path.parent().unwrap()).unwrap(); fs::write(&path, "kept").unwrap();
         fs::write(dir.0.join("package.json"), "{}").unwrap();
@@ -80,6 +80,65 @@ fn init_conflicts_name_the_key_and_leave_every_destination_untouched() {
         assert_eq!(fs::read_to_string(&path).unwrap(), "kept");
         assert_eq!(fs::read_to_string(dir.0.join("package.json")).unwrap(), "{}");
     }
+}
+
+#[cfg(unix)]
+#[test]
+fn init_preserves_unrelated_symlinks_and_readmes_in_every_starter() {
+    for flag in ["", "--online", "--expo", "--web"] {
+        let dir = Dir::new();
+        fs::write(dir.0.join("README.md"), "My project\n").unwrap();
+        std::os::unix::fs::symlink("/not-an-installed-instrument", dir.0.join("instrument")).unwrap();
+        let output = dir.run(flag);
+        assert!(output.status.success(), "{output:?}");
+        assert_eq!(fs::read_to_string(dir.0.join("README.md")).unwrap(), "My project\n");
+        assert_eq!(fs::read_link(dir.0.join("instrument")).unwrap(), PathBuf::from("/not-an-installed-instrument"));
+        assert!(dir.0.join("snapback/schema.q").is_file());
+        if !flag.is_empty() {
+            assert!(dir.0.join("README.snapback.md").is_file());
+            assert!(String::from_utf8_lossy(&output.stdout).contains("README.snapback.md"));
+        }
+    }
+}
+
+#[test]
+fn init_reports_all_conflicts_before_writing() {
+    let dir = Dir::new();
+    let package = r#"{"dependencies":{"snapback4":"different"},"scripts":{"start":"mine"},"main":"my-entry.js","devDependencies":[]}"#;
+    fs::write(dir.0.join("package.json"), package).unwrap();
+    for name in ["README.md", "README.snapback.md", "snapback/schema.q", "App.tsx"] {
+        let path = dir.0.join(name); fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, "kept").unwrap();
+    }
+    let output = dir.run("--expo");
+    assert_eq!(output.status.code(), Some(1));
+    let diagnostic = String::from_utf8_lossy(&output.stderr);
+    for conflict in ["E_INIT_CONFLICT", "dependencies.snapback4", "scripts.start", "conflict at main", "devDependencies must be an object", "snapback/schema.q", "App.tsx", "README.snapback.md", "rewrite:"] {
+        assert!(diagnostic.contains(conflict), "{diagnostic}");
+    }
+    assert_eq!(fs::read_to_string(dir.0.join("package.json")).unwrap(), package);
+    assert_eq!(fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap(), "kept");
+    assert!(!dir.0.join("app.json").exists());
+    assert!(!dir.0.join(".gitignore").exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn init_refuses_owned_symlinks_but_allows_an_unwritten_package_link() {
+    for name in ["package.json", ".gitignore", "snapback/schema.q"] {
+        let dir = Dir::new();
+        let target = dir.0.join("kept"); fs::write(&target, "{}\n").unwrap();
+        let path = dir.0.join(name); fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::os::unix::fs::symlink(&target, &path).unwrap();
+        let output = dir.run("--web");
+        assert_eq!(output.status.code(), Some(1), "{output:?}");
+        assert!(String::from_utf8_lossy(&output.stderr).contains(name));
+        assert_eq!(fs::read_to_string(&target).unwrap(), "{}\n");
+        assert_eq!(fs::read_link(path).unwrap(), target);
+    }
+    let dir = Dir::new();
+    std::os::unix::fs::symlink("absent", dir.0.join("package.json")).unwrap();
+    assert!(dir.run("").status.success(), "the schema-only starter does not write package.json");
 }
 
 #[cfg(unix)]

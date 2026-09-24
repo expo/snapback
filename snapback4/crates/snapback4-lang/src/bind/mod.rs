@@ -311,7 +311,13 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                     let by = format!(" by {}", pinned.join(", "));
                     format!("or declare `cap {limit}{by}` on table {table} if that is the intended group limit, then read `{table} where {}` without a page clause; other metered work can still cut the read", pinned.iter().map(|column| format!(".{column} = <value>")).collect::<Vec<_>>().join(" and "))
                 } else {
-                    "read the whole group with its where predicate and no page clause when its schema cap fits the examined ceiling; otherwise this page still needs continuation".into()
+                    let column = schema.tables[table].columns.iter().find(|(_, ty)| matches!(ty.required(), snapback4_core::schema::ColumnType::Ref { .. }))
+                        .map(|(name, _)| name.as_str()).unwrap_or("id");
+                    if column == "id" {
+                        format!("or use a narrower key: `{table}[id]` for one row; a group page still needs continuation unless its schema cap fits the page and examined ceiling")
+                    } else {
+                        format!("or use a narrower key: `{table} where .{column} = {column}` for the relevant {column}, without a page clause when a declared cap bounds that matching set; only declare `cap {take} by {column}` if that is the intended group limit, otherwise the narrowed page still needs continuation")
+                    }
                 };
                 notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on", bound.program.kind.word(), bound.program.name), format!("declare `c: cursor ?` in {} and append `after c` to this {table} page, keeping its current predicate, direction and column order; {cap}", bound.program.name)).guide("reads"));
             }
