@@ -49662,3 +49662,16 @@ pass (0.32 s). Initial clients: 1,098 tests, 1,086 passes, two failures, ten ski
 723 s. Every other harness step passed. All three failed tests are ours,
 corrected; no baseline or environmental failure occurred. The initial full
 harness has ended; starting the complete corrected qualification.
+
+The second full Rust inventory passed all 83 core, 40 device and 30 expiry
+tests, but found a pre-existing timing-sensitive clock assertion. The release
+grace/reconnect fixture recorded at=1790283291569 and nextAt=1790283326570,
+a 35,001 ms interval: presence sampled its clock after the mutation's at was
+captured. This effect-only release fixture has no insert/upsert and passed in
+the first full run unchanged. Classified environmental/timing exposure, absent
+from the recorded baseline failures. The two analogous grace assertions now
+bracket the later clock sample by completed admission, preserving the 35-second
+bound and positive deferral; no production timing or timeout changes. All three
+grace-push tests pass (0.06 s), retaining delivery, duplicate suppression, restart
+and reconnect checks. This additional fixture fix is required for qualification;
+the round 5 runtime design is unchanged. The second client run is still finishing.
