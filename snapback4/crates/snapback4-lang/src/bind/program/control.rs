@@ -188,7 +188,14 @@ impl Binder<'_> {
                         (true, false) => else_fields.clone(),
                         (true, true) => binding.fields.clone(),
                     };
-                    binding.declared = self.join(&then_bindings[&name].declared, &else_bindings[&name].declared, &joins::local(&name, site), &joins::local(&name, site))?;
+                    // Break/continue still carry declarations to the loop's
+                    // fixed point; return/refusal carry none to any later use.
+                    binding.declared = match (terminates(&then_out), terminates(&else_out)) {
+                        (false, false) => self.join(&then_bindings[&name].declared, &else_bindings[&name].declared, &joins::local(&name, site), &joins::local(&name, site))?,
+                        (false, true) => then_bindings[&name].declared.clone(),
+                        (true, false) => else_bindings[&name].declared.clone(),
+                        (true, true) => binding.declared.clone(),
+                    };
                     for origin in then_bindings[&name].origins.iter().chain(&else_bindings[&name].origins) {
                         if !binding.origins.iter().any(|(_, source)| *source == origin.1) { binding.origins.push(origin.clone()); }
                     }
@@ -585,6 +592,17 @@ pub(super) fn exits(statements: &[Stmt]) -> bool {
         Stmt::Return(_) | Stmt::Break | Stmt::Continue => true,
         Stmt::Require { condition: Expr::Literal(Value::Bool(false)), .. } => true,
         Stmt::If { then_body, else_body, .. } => exits(then_body) && exits(else_body),
+        _ => false,
+    })
+}
+
+/// Unlike a loop transfer, these paths leave the function entirely. Loop
+/// transfers must keep their declarations for the next iteration/loop exit.
+fn terminates(statements: &[Stmt]) -> bool {
+    statements.iter().any(|statement| match statement {
+        Stmt::Return(_) => true,
+        Stmt::Require { condition: Expr::Literal(Value::Bool(false)), .. } => true,
+        Stmt::If { then_body, else_body, .. } => terminates(then_body) && terminates(else_body),
         _ => false,
     })
 }

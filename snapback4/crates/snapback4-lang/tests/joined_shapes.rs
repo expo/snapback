@@ -27,7 +27,10 @@ fn refusal(source: &str) -> Diagnostic {
 fn engine(source: &str) -> Engine {
     let bound = checked(source);
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
-    engine.seed([("notes".into(), object([("id", Value::Id("note".into())), ("owner", Value::Id("alice".into())), ("title", Value::String("original".into()))]))]).unwrap();
+    engine.seed([
+        ("notes".into(), object([("id", Value::Id("note".into())), ("owner", Value::Id("alice".into())), ("title", Value::String("original".into()))])),
+        ("notes".into(), object([("id", Value::Id("other".into())), ("owner", Value::Id("bob".into())), ("title", Value::String("second".into()))])),
+    ]).unwrap();
     engine
 }
 
@@ -77,12 +80,13 @@ fn pair_rewrite(source: &str, diagnostic: &Diagnostic) -> String {
     lines.join("\n") + "\n"
 }
 
-fn same_as_direct(source: &str, list: bool) {
+fn same_as_direct(source: &str, right_when_ready: bool) {
     let mut engine = engine(source);
-    let direct = engine.query("direct", Context::new("alice", BTreeMap::from([("key".into(), Value::Id("note".into()))]))).unwrap().data;
     for ready in [true, false] {
+        let key = if ready == right_when_ready { "other" } else { "note" };
+        let expected = engine.query("direct", Context::new("alice", [("key".into(), Value::Id(key.into()))].into())).unwrap().data;
         let data = engine.query("run", context(ready)).unwrap().data;
-        let expected = if list { Value::Array(vec![direct.clone(), direct.clone()]) } else { direct.clone() };
+        assert_eq!(data.field("id").unwrap(), &Value::Id(key.into()), "ready={ready}\n{source}");
         assert_eq!(data, expected, "ready={ready}\n{source}");
     }
 }
@@ -92,7 +96,8 @@ fn every_differing_kind_is_refused_and_only_simple_row_joins_offer_rewrites() {
     for (left_kind, left) in KINDS {
         for (right_kind, right) in KINDS {
             if left_kind == right_kind { continue; }
-            let locals = format!("  record = notes[key] ! else NOT_FOUND\n  leftValue = {left}\n  rightValue = {right}\n");
+            let right = right.replace("record", "otherRecord");
+            let locals = format!("  record = notes[key] ! else NOT_FOUND\n  otherRecord = notes['other'] ! else NOT_FOUND\n  leftValue = {left}\n  rightValue = {right}\n");
             for form in ["conditional", "assignment", "helper", "list", "container"] {
                 let original = if form == "container" { "{ item: leftValue } if ready else { item: rightValue }" }
                     else { "leftValue if ready else rightValue" };
@@ -118,7 +123,7 @@ fn every_differing_kind_is_refused_and_only_simple_row_joins_offer_rewrites() {
                     assert!(error.rewrite.contains("ready"));
                     conditional_rewrite(&source, original, &error)
                 } else { pair_rewrite(&source, &error) };
-                same_as_direct(&rewritten, false);
+                same_as_direct(&rewritten, form == "assignment");
             }
         }
     }
@@ -300,7 +305,7 @@ fn simple_nullable_locals_and_row_reads_keep_nullability_and_laziness() {
             let original = format!("{left} if ready else shaped");
             let tail = if form == "conditional" { format!("  chosen = {original}\n") }
                 else { format!("  chosen = shaped\n  if ready:\n    chosen = {left}\n") };
-            let source = format!("{TABLE}query run(key: notes, ready: bool):\n  maybe = notes[key]\n  shaped = notes['note'] {{ * }}\n{tail}  return chosen\n");
+            let source = format!("{TABLE}query run(key: notes, ready: bool):\n  maybe = notes[key]\n  shaped = notes['other'] {{ * }}\n{tail}  return chosen\n");
             let error = refusal(&source);
             assert!(!error.rewrite.is_empty(), "{error:?}");
             let fixed = if form == "conditional" { conditional_rewrite(&source, &original, &error) } else { pair_rewrite(&source, &error) };
@@ -315,7 +320,10 @@ fn simple_nullable_locals_and_row_reads_keep_nullability_and_laziness() {
                     assert_eq!(answer.metered.examined, 2 + u64::from(ready && left == "notes[key]"), "read each selected operand once: {fixed}");
                     let data = answer.data;
                     if ready && key == "missing" { assert_eq!(data, Value::Null); }
-                    else { assert_eq!(data.field("title").unwrap(), &Value::String("original".into())); }
+                    else {
+                        assert_eq!(data.field("id").unwrap(), &Value::Id(if ready { "note" } else { "other" }.into()));
+                        assert_eq!(data.field("title").unwrap(), &Value::String(if ready { "original" } else { "second" }.into()));
+                    }
                 }
             } }
         }
@@ -372,5 +380,50 @@ fn reassignment_with_intervening_observations_only_explains_the_conflict() {
     ] {
         let source = format!("{TABLE}query run(key: notes):\n  record = notes[key] ! else NOT_FOUND\n  shaped = record {{ * }}\n  copied = {{ ...record }}\n  chosen = shaped\n{middle}  return chosen\n");
         explanation_only(&refusal(&source));
+    }
+}
+
+#[test]
+fn both_returning_branches_do_not_join_the_declared_type() {
+    let body = "  note = notes[key] ! else NOT_FOUND\n  s = null\n  if ready:\n    s = { ...note }\n    return 1\n  else:\n    s = note { * }\n    return 2\n";
+    for form in ["query", "helper", "loop"] {
+        let source = match form {
+            "helper" => format!("{TABLE}fn choose(key: notes, ready: bool):\n{body}  return 0\nquery run(key: notes, ready: bool):\n  return choose(key, ready)\n"),
+            "loop" => format!("{TABLE}query run(key: notes, ready: bool):\n  for n in [1]:\n{}\n  return 0\n", body.lines().map(|line| format!("  {line}")).collect::<Vec<_>>().join("\n")),
+            _ => format!("{TABLE}query run(key: notes, ready: bool):\n{body}"),
+        };
+        let mut engine = engine(&source);
+        for ready in [true, false] {
+            assert_eq!(engine.query("run", context(ready)).unwrap().data, Value::Int(if ready { 1 } else { 2 }));
+        }
+    }
+    // Still refuse incompatible declared types when both paths continue.
+    let continuing = body.replace("    return 1\n", "").replace("    return 2\n", "");
+    let source = format!("{TABLE}query run(key: notes, ready: bool):\n{continuing}  return 1\n");
+    refusal(&source);
+}
+
+#[test]
+fn only_the_continuing_branch_contributes_its_declared_type() {
+    for then_returns in [false, true] {
+        for survivor in ["note { * }", "{ ...note }"] {
+            let exited = if survivor.starts_with("note") { "{ ...note }" } else { "note { * }" };
+            let (then_value, else_value) = if then_returns { (exited, survivor) } else { (survivor, exited) };
+            let source = format!("{TABLE}query run(key: notes, ready: bool):\n  note = notes[key] ! else NOT_FOUND\n  s = null\n  if ready:\n    s = {then_value}\n{}  else:\n    s = {else_value}\n{}  s = {survivor}\n  return 2\n",
+                if then_returns { "    return 1\n" } else { "" }, if then_returns { "" } else { "    return 1\n" });
+            let mut engine = engine(&source);
+            for ready in [true, false] {
+                assert_eq!(engine.query("run", context(ready)).unwrap().data, Value::Int(if ready == then_returns { 1 } else { 2 }));
+            }
+        }
+    }
+}
+
+#[test]
+fn loop_transfers_keep_declared_types_for_later_uses() {
+    for transfer in ["break", "continue"] {
+        let source = format!("query run(ready: bool):\n  x = 1\n  for n in [1, 2]:\n    if ready:\n      x = null\n      {transfer}\n  return x + 1\n");
+        let bound = compile(&[("schema.q".into(), source)]);
+        assert!(bound.diagnostics.iter().any(|d| d.code == "E_QUARRY_TYPE"), "{transfer}: {:?}", bound.diagnostics);
     }
 }

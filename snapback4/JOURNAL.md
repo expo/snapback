@@ -50192,3 +50192,57 @@ Wasm remains 1,744,842 B raw / 484,967 B gzip under the unchanged 486,000 B
 budget. No unresolved round-10 problem. The conservative eligibility checks
 above are the engineering choices where the brief leaves proof scope open;
 there is no functional deviation. No push or publication.
+
+### 2026-09-24 — LLP 3000.013, Lane K round 11: exited branch declarations
+
+`crates/snapback4-lang/src/bind/program/control.rs` now excludes returning
+and unconditionally refusing branches from `Binding::declared`, using the
+same four-way choice as the flow type: join both survivors, keep the sole
+survivor, or keep the incoming declaration when neither survives. Thus an
+initially null local may hold a spread object on a branch returning 1 and
+a row shape on a branch returning 2 without a spurious shape-join refusal.
+There is no new syntax, diagnostic code, IR or wire representation.
+
+Necessary refinement to the requested exit mask: break/continue declarations
+must remain available to the existing loop fixed point. They leave the
+current block but can reach the next iteration or code after the loop.
+Dropping them incorrectly admitted arithmetic on an optionally null local.
+The new `terminates` predicate excludes those transfers while preserving
+the return/refusal mask, including nested conditionals. Authorization,
+disclosure, durability and meters are unchanged.
+
+`crates/snapback4-lang/tests/joined_shapes.rs` adds compile-and-execute cases
+for both branches returning (query, helper and loop), either single branch
+returning with either surviving row kind, and subsequent reassignment to the
+surviving kind. Continuing incompatible branches still refuse. A separate
+regression checks that break and continue retain nullable declarations for
+later arithmetic. Both original exit cases failed before the binder fix.
+
+The rewrite matrix and nullable/local/read repair tests now seed separate
+notes with different ids, owners and titles, select each arm, and assert
+that arm's own row. Replacing the conditional rewrite with an always-left
+operand failed on `ready=false` with id `note` instead of `other`; the
+injection was restored. Evidence: /tmp/lane-k-r11-before-fix.log and
+/tmp/lane-k-r11-arm-mutant.log.
+
+The initial full suite ended `== 1 failure(s) in 157 s` (cargo test):
+`frontend_regressions::loop_carried_types_include_continued_paths_and_reject_recursive_accumulation`
+and `lowering::baseline_golden_and_ownership_switch_shard_4` failed. Both were
+ours, caused by excluding continue declarations; both pass after the
+terminal/loop-transfer distinction. No golden or existing assertion was
+weakened. One development fixture also needed the helper grammar's trailing
+return; that test-only syntax error was corrected.
+
+Final targeted verification passed 40 frontend, 57 guide, 17 joined-shape
+and 16 natural-form tests, plus the affected lowering shard. Bun's frozen
+install checked 506 installs without changes. The reference audit passed
+505 LLP documents and 9,238 refs, with zero errors or unchecked references.
+Changed source files remain below 1,500 lines and git diff --check passes.
+
+The final full scripts/test.sh run finished `== 0 failure(s) in 148 s`.
+Client tests passed 1,054, skipped 10 and failed zero. No remaining own,
+baseline or environmental failure. Logs: /tmp/lane-k-r11-full-suite.log
+(initial), /tmp/lane-k-r11-full-suite-final.log (final),
+/tmp/lane-k-r11-targeted-final.log and /tmp/lane-k-r11-lowering.log.
+No unresolved round-11 problem. The loop-transfer distinction above is the
+only refinement to the brief; no push or publication.
