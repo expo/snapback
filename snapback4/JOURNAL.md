@@ -49278,3 +49278,43 @@ authorization or meter change. Package versions remain the inherited 0.4.0
 versions; this qualifies candidate code for 0.4.1, without a release bump,
 push, publication or deployment. See reports/20260924-intent-integration-r4.md
 for the file map, merge record, regression reproduction and evidence logs.
+
+## 2026-09-24 — Lane F: the feeds card teaches the builder path (0.4.1 candidate)
+
+Fetched origin and merged origin/main, fast-forwarding cleanly to ca6d975da
+with integrated 0.4.0 and Lane H's compact notes. Reordered the feeds card as
+Global union view, Following view, bounded Trending predicate and the plain
+Following contract. The contract states newest-first order, immediate own
+visibility, asynchronous follower delivery, 50 immediate backfill events and
+up to 1,000 total, next-read unfollow, pending-work completeness and immediate
+removal hiding. Engine details now live in a short How it works section. All
+older spellings, recipes, bridges, sizes and promotion advice live in one
+clearly headed final section.
+
+The card shrank from 571 to 292 lines, 3,904 to 1,798 whitespace words and
+26,499 to 12,251 UTF-8 bytes: 49% fewer lines and 54% fewer words/bytes. All
+four Quarry blocks compile without diagnostics or notes; removed the former
+feeds-block stream-note exception. A new structure test guards the teaching
+order and compatibility boundary. A new runtime test executes the published
+Following program through own visibility, immediate 50-event backfill,
+completion, delayed delivery, removal and unfollow. The older complete
+program is byte-for-byte equal to an existing legacy fixture; its Clique-size,
+Global atomicity and bridge expansion controls now use that unchanged fixture.
+Updated only deliberately changed prose expectations and the card source
+census entries. The current Trending oracle remains in place.
+
+Focused checks: guide 59 passed, readauth 81 passed, aggregate copies 64 passed
+and 4 ignored, feed bridge 12 passed. Frozen Bun install passed. Whitespace
+checks pass and changed Rust sources remain below 1,500 lines. README budget
+stays 292/300 lines; device artifact stays 1,744,842 B raw / 484,967 B gzip
+against the unchanged 486,000 B budget. Ran scripts/test.sh once after focused
+checks: `== 0 failure(s) in 406 s`. Client tests: 1,088 passed, 10 skipped.
+No introduced, baseline or environmental suite failure. One local new-test
+Debug formatting compile error was fixed before the passing guide run.
+
+No compiler, engine, authorization, disclosure, durability or meter change.
+No new form, package version bump, push, publication or deployment. No scope
+deviation or new open problem. The existing normally-within-a-second idle-host
+cadence is not a new wall-clock measurement or a backlog latency guarantee.
+Implementation commit: f920176cb. File map, examples, tests and evidence logs:
+reports/20260924-feeds-guide-041.md.
