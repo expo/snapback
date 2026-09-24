@@ -604,6 +604,65 @@ implementation, and reported at the first calibration. It becomes a
 ratchet only after that calibration shows the number tracks builder
 effort.
 
+## 7.1 The count at commission
+
+Measured 2026-09-24 by Lane A on baseline
+`5d6047841235ed1714b43999bf68575fc1e60cbd`, before any Snapback 5 runtime
+implementation. The [auditable report](../snapback5/reports/20260924-concept-count.md)
+records every entry, source location and input digest. The
+[tool guide](../snapback5/tools/README.md) describes preparation and extraction.
+
+| Arm | Surface entries | Runtime states | Default-check concepts | Total |
+| --- | ---: | ---: | ---: | ---: |
+| Snapback 4's documented surface | 161 | 13 | 14 | **188** |
+| Snapback 5, §3.1's enumerated surface | 48 | 13 | 7 | **68** |
+
+```sh
+node snapback5/tools/concept-count.mjs --arm snapback4
+node snapback5/tools/concept-count.mjs --arm snapback5
+```
+
+Both commands run `npx --no-install snapback4 check` through the local
+package shim on a byte-identical scratch copy of the committed
+`snapback4/crates/snapback4-sim/tests/fixtures/intent-clique.q`; both use
+the same generated API states. The generated API's SHA-256 is
+`448d303434425278b8bd70ca6b930dc6a30354c43be392b1e53af6fa643ddc9d`.
+
+**Ambiguities and the larger readings, fixed at commission.** The brief
+says five bullets, but §3.1 has six: all six, including Work, count.
+Each backtick span is one entry, whitespace folded and duplicates removed
+across bullets; `(old, next)` is one tuple form, while `first` and
+`last N by` are separate spans. The depth step and its trigger count
+separately, as do eviction and retention, and Snapback 4's `server` and
+`device` eligibility words. Distinct concepts count once per bucket, not
+per table or operation; a surface entry also charged as a check concept
+stays in both buckets. Snapback 4 includes documented optional server forms
+and older spellings that still compile, not only forms used by Clique.
+The extractor recognizes grammar forms in the language/keyword cards'
+Quarry examples and inline reference spans, excluding payload names,
+string contents, comments, JS fences and the diagnostic registry. Inline
+references count forms left implicit by examples, including default retain
+policy and the plain `else:` arm.
+
+**Source-layout deviation.** Today's `api.ts` imports `snapback4/contract`;
+it does not inline `Read`, `Write`, or auth definitions. To avoid counting
+them as zero, the tool reads `Read` and `Write` from that contract and
+`AuthState` from the first-party `app.ts`. Fresh and replayed `sent` are
+distinct union alternatives and both count: three Read variants, four
+Write variants, three auth states, `E_GENERATION`, and the generated
+`CANNOT_FOLLOW_SELF` and `NOT_FOUND` codes give 13. It does not add all
+potential compiler/runtime diagnostic codes.
+
+**Interpretation limit.** The commission specifies backtick spans as
+§3.1's entries, so its unenumerated prose about column types, control flow
+and builtins is not expanded. Snapback 4's guide spells out those forms.
+These are reproducible counts of the two requested documentary populations,
+not evidence that Snapback 5 eliminates 120 equivalent concepts. The
+shared-baseline additions are not yet in this Snapback 4 snapshot; §3.1
+already names them. Recount after integration and at calibration. The
+seven derived check concepts are proposed obligations, not implemented
+printouts. This measurement does not introduce a ratchet.
+
 ## 8. Relationship to Snapback 4
 
 - **A shared baseline, then two arms.** The additions of §3.3 (`through`
