@@ -93,9 +93,10 @@ for (const scenario of [
   { name: "same first store", extra: { firstStore: "A" }, replace: false, sent: true },
   { name: "replacement", extra: { firstStore: "A" }, replace: true, sent: false },
   { name: "return to first store after a replacement", extra: { firstStore: "A", changedStore: true }, replace: false, sent: false },
-]) test(`legacy intent without an identity: ${scenario.name}`, async t => {
+]) for (const dispatched of [undefined, false]) test(`intent without an identity: ${scenario.name}; dispatched=${dispatched}`, async t => {
   const f = await fixture(t), id = mintId();
-  await f.preload([{ owner: "alice", id, op: op.name, args: {} }], scenario.extra);
+  // dispatched=false is the crash after observe(firstStore), before before() binds the intent.
+  await f.preload([{ owner: "alice", id, op: op.name, args: {}, storeId: null, dispatched }], scenario.extra);
   if (scenario.replace) f.replace();
   const app = await f.open();
   const result = await until(async () => { const write = await app.client.write(id); return write?.state !== "pending" && write; });
