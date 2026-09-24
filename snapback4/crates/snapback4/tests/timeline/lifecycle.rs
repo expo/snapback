@@ -29,6 +29,7 @@ fn activation_refuses_each_populated_event_or_edge_table() {
         let mut e=bare();e.load([(table.into(),row)]).unwrap();
         let before=snapshot(&e); let generation=e.generation();
         let err=adopt(&mut e,bound(true)).unwrap_err();assert_eq!(err.code(),"E_TIMELINE_ACTIVATE");
+        assert!(err.to_string().contains(table)); assert!(err.to_string().contains("planned view"));
         assert_eq!(snapshot(&e),before);assert_eq!(e.generation(),generation);
     }
 }
@@ -116,10 +117,14 @@ fn durable_history_survives_adoption_reopen_and_trusted_restore() {
         }
         assert!(refusals.windows(2).all(|pair| pair[0] == pair[1]), "{table}: {refusals:?}");
     }
-    let mut changed=bound(true);changed.schema.timelines[0].posts[3]="otherFlag".into();
-    for b in [changed,compile(APP)] {
-        assert_eq!(adopt(&mut e,b).unwrap_err().code(),"E_TIMELINE_REDEFINE");assert_eq!(snapshot(&e),before);assert_eq!(e.generation(),generation+1);
-    }
+    let mut removed=with_ping();
+    removed.schema.timelines.clear();
+    for table in OWNED { removed.schema.tables.remove(table); }
+    removed.programs.clear();
+    adopt(&mut e,removed).unwrap();
+    for table in ["profiles", "posts", "reposts", "follows"] { assert_eq!(e.store().rows(table).unwrap(), before[table]); }
+    assert!(e.schema().timelines.is_empty());
+    assert_eq!(e.generation(),generation+2);
 }
 
 #[test]

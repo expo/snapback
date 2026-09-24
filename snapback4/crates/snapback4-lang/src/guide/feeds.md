@@ -174,10 +174,21 @@ uses immutable row-local fields except the one-way removal flag. Private
 sources, expiry, source horizons and hard deletion of original cards are refused;
 do not widen a private audience to fit this shape.
 
-Declare before source events or follows exist. Keep a populated declaration
-unchanged. Seed through application mutations or restore a complete trusted
-persistence image; importing source rows cannot reconstruct delivery history.
-In development, use a fresh store when changing the declaration.
+Declare before source events or follows exist; populated profiles are allowed.
+Removing a materialized view retires its owned rows, indexes and delivery work
+and resets or retires dependent aggregates in the same activation transaction.
+Sources and unrelated views survive. Dev needs no flag; deploy requires
+`--allow-destructive`, as for removing a maintained view.
+
+Redefining the predicate or sources cannot reconstruct the original event ids
+and edge-admission history. Remove the view and deploy, then add the new
+definition over empty event and edge tables. Use a planned view for retained
+populated sources. Unchanged adoption, trusted reopen and complete persistence
+restoration preserve ordinary delivery progress. Unfinished experimental
+reconstruction refuses to resume; remove its view to retire that work while
+keeping sources. The old 0.3 format needs its matching engine or a fresh dev store.
+Seed through application mutations or restore a complete trusted persistence
+image; importing mapped or owned rows cannot reconstruct delivery history.
 
 | Code | Meaning and next step |
 |---|---|
@@ -189,8 +200,8 @@ In development, use a fresh store when changing the declaration.
 | E_TIMELINE_READ | The read is not one viewer's newest-first page. Read `following last 20 by .at after c`, then shape the rows |
 | E_TIMELINE_OWNED | Derived rows belong to the engine. Write posts, reposts or follows |
 | E_TIMELINE_SERVER | The mutation needs server-only state. Queue it without predicted rows |
-| E_TIMELINE_ACTIVATE | Source events or follows already exist. Declare before adding them |
-| E_TIMELINE_REDEFINE | A populated declaration changed. Keep it unchanged |
+| E_TIMELINE_ACTIVATE | Source events or follows already exist, or an owned name holds application data. Declare before adding event or edge rows, use a planned view over retained sources, or rename the view to preserve application data |
+| E_TIMELINE_REDEFINE | A materialized declaration changed or experimental reconstruction remains. Original event identities and edge-admission history cannot be reconstructed. Remove the view and deploy, then add the new definition over empty event and edge tables, or use a planned view over retained sources; use the matching engine for a 0.3 store |
 | E_TIMELINE_IMPORT | Import cannot reconstruct delivery history. Use application mutations or a trusted complete restore |
 | FEED_POST_NOT_FOUND | A new repost needs a live original. Refresh the source |
 | FEED_EVENT_REMOVED | A removed event cannot be resurrected. Use a fresh event id |
@@ -212,8 +223,12 @@ whole parent image to each holder (`guide maintains`).
 ## How it works
 
 A post commits a durable delivery record with the source and own inbox copy.
-Delivery and cleanup run in metered chunks of 256; each cursor commits with its
-writes. A crash resumes from that cursor without duplicate copies. Follow uses
+Delivery and cleanup run in metered chunks of at most 256, yielding between rows
+after a short time slice; each cursor commits with its writes. Waiting requests
+get the engine before the next chunk, and delivery retains a turn under continuous
+request traffic. Disk transactions use WAL `synchronous=FULL`, so a published
+device watermark does not rely on a later request to make its commit durable.
+A crash resumes from the committed cursor without duplicate copies. Follow uses
 an edge epoch and a 1,000-event window. Transaction sequence and write ordinals
 separate backfill from later delivery, so delayed delivery cannot enlarge history
 or revive an old follow. Reads check the current edge epoch and removal tombstone

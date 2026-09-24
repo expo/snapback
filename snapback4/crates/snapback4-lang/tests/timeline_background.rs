@@ -32,8 +32,8 @@ fn constant_writer_cost_and_crash_resumption_to_900_followers() {
     assert!(ids(&mut e,"r0899").is_empty());
     let start=std::time::Instant::now();
     let first=e.run_timeline_chunk(3).unwrap().unwrap();
-    assert_eq!(first.rows_written,257);
-    assert_eq!(e.store().rows("feedFeed").unwrap().len(),257);
+    assert!((2..=257).contains(&first.rows_written));
+    assert_eq!(e.store().rows("feedFeed").unwrap().len(),first.rows_written as usize);
     drop(e); // Reopen only committed store state, including the delivery cursor.
     let mut e=Engine::open(Store::open(&path).unwrap()).unwrap();
     // Adopting an unrelated followed-leading index must not reinterpret the
@@ -41,14 +41,14 @@ fn constant_writer_cost_and_crash_resumption_to_900_followers() {
     let changed=SOURCE.replace("  unique byPair: followerId, followedId", "  unique byPair: followerId, followedId\n  by aOtherOrder: followedId, id");
     let b=snapback4_lang::compile(&[("schema.q".into(),changed)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
     e.adopt(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
-    let rest=drain(&mut e); assert_eq!(rest,3);
+    let rest=drain(&mut e); assert!(rest >= 3);
     assert_eq!(e.store().rows("feedFeed").unwrap().len(),901);
     assert_eq!(ids(&mut e,"r0899"),["large"]);
     let mut small=engine();
     for n in 0..5 { run(&mut small,"follow",&format!("r{n}"),&[("actor",id("a"))],1); }
     drain(&mut small); let small=post(&mut small,"a","small",2);
     assert_eq!(large.metered.rows_written,small.metered.rows_written);
-    eprintln!("MEASURE write followers=5:{} followers=900:{}; recovery chunks=4 copies=901 elapsed_ms={}",small.metered.rows_written,large.metered.rows_written,start.elapsed().as_millis());
+    eprintln!("MEASURE write followers=5:{} followers=900:{}; recovery chunks={} copies=901 elapsed_ms={}",small.metered.rows_written,large.metered.rows_written,rest + 1,start.elapsed().as_millis());
     assert_eq!(e.timeline_work_counts().unwrap(),[("feed".into(),0,0)]);
     drop(e); let _=std::fs::remove_file(&path);
 }
@@ -194,19 +194,19 @@ fn overlapping_delivery_backfill_and_removal_never_duplicate_or_resurrect() {
 fn last_purge_chunk_cancels_an_older_delivery_before_retiring_tombstone() {
     let mut e=engine();
     for n in 0..900 {run(&mut e,"follow",&format!("r{n:04}"),&[("actor",id("a"))],1);}
-    post(&mut e,"a","gone",100);e.run_timeline_chunk(100).unwrap();
+    post(&mut e,"a","gone",100);e.run_timeline_chunk_for(100, std::time::Duration::MAX).unwrap();
     assert_eq!(e.store().rows("feedFeed").unwrap().len(),257);
     // Rewind only this supplied test clock to make purge win the queue order.
     // Correctness cannot depend on the worker observing delivery first.
     run(&mut e,"remove","a",&[("postId",id("gone"))],2);
-    e.run_timeline_chunk(101).unwrap();
+    e.run_timeline_chunk_for(101, std::time::Duration::MAX).unwrap();
     assert_eq!(e.store().rows("feedFeed").unwrap().len(),1);
     assert_eq!(e.store().rows("feedRemovedEvents").unwrap().len(),1);
-    e.run_timeline_chunk(102).unwrap();
+    e.run_timeline_chunk_for(102, std::time::Duration::MAX).unwrap();
     assert!(e.store().rows("feedFeed").unwrap().is_empty());
     assert!(e.store().rows("feedRemovedEvents").unwrap().is_empty());
     assert!(e.store().rows("feedWork").unwrap().is_empty());
-    assert!(e.run_timeline_chunk(103).unwrap().is_none());
+    assert!(e.run_timeline_chunk_for(103, std::time::Duration::MAX).unwrap().is_none());
 }
 
 #[test]
@@ -310,7 +310,7 @@ fn delivery_charges_large_edge_payloads_before_materializing_them() {
         run(&mut e, "follow", &format!("r{n:04}"), &[("actor", id("a")), ("payload", Value::String("x".repeat(100000)))], 1);
     }
     post(&mut e, "a", "p", 2);
-    let chunk = e.run_timeline_chunk(3).unwrap().unwrap();
+    let chunk = e.run_timeline_chunk_for(3, std::time::Duration::MAX).unwrap().unwrap();
     assert_eq!(chunk.rows_written, 1, "only the refusal/park record commits");
     assert_eq!(e.store().rows("feedFeed").unwrap().len(), 1, "no unmetered recipient copies commit");
     assert_eq!(e.timeline_work_counts().unwrap(), [("feed".into(), 0, 1)]);
@@ -395,16 +395,16 @@ fn a_full_chunk_of_skipped_edges_keeps_the_delivery_cursor_live() {
     for n in 0..256 { run(&mut e, "follow", &format!("m{n:04}"), &[("actor", id("a"))], 1); }
     run(&mut e, "follow", "zz-original", &[("actor", id("a"))], 1);
     post(&mut e, "a", "p", 2);
-    e.run_timeline_chunk(3).unwrap().unwrap();
+    e.run_timeline_chunk_for(3, std::time::Duration::MAX).unwrap().unwrap();
     let first = e.store().rows("feedWork").unwrap()[0].field("cursor").unwrap().clone();
     for n in 0..256 { run(&mut e, "follow", &format!("n{n:04}"), &[("actor", id("a"))], -100); }
-    let skipped = e.run_timeline_chunk(4).unwrap().unwrap();
+    let skipped = e.run_timeline_chunk_for(4, std::time::Duration::MAX).unwrap().unwrap();
     assert_eq!(skipped.rows_written, 1, "only the cursor changes");
     let work = e.store().rows("feedWork").unwrap();
     assert_eq!(work[0].field("status").unwrap().as_str().unwrap(), "pending");
     assert_ne!(work[0].field("cursor").unwrap(), &first);
     assert!(ids(&mut e, "zz-original").is_empty());
-    assert_eq!(e.run_timeline_chunk(5).unwrap().unwrap().rows_written, 2);
+    assert_eq!(e.run_timeline_chunk_for(5, std::time::Duration::MAX).unwrap().unwrap().rows_written, 2);
     assert_eq!(ids(&mut e, "zz-original"), ["p"]);
     assert_eq!(e.timeline_work_counts().unwrap(), [("feed".into(), 0, 0)]);
 }

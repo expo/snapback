@@ -324,6 +324,7 @@ impl Engine {
         let generation = u64::try_from(generation).map_err(|_| RuntimeError::Store("negative stored generation".into()))?;
         let schema = serde_json::from_str(&schema).map_err(|e| RuntimeError::decode(e, |e| RuntimeError::Store(format!("invalid stored schema: {e}"))))?;
         crate::schema::timeline::check_version(&schema)?;
+        timeline::check_no_rebuilds(&tx, &schema)?;
         let programs = serde_json::from_str(&programs).map_err(|e| RuntimeError::Store(format!("invalid stored programs: {e}")))?;
         let dev_effects: bool = tx.conn().query_row("SELECT NOT EXISTS(SELECT 1 FROM _meta WHERE key = 'release')", [], |row| row.get(0))?;
         tx.rollback()?;
@@ -481,7 +482,6 @@ impl Engine {
             if !changed && !repair_live_sums { return Ok(()); }
             let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
             let previous: Option<Schema> = previous.map(|text| serde_json::from_str(&text).map_err(|e| RuntimeError::decode(e, RuntimeError::Store))).transpose()?;
-            timeline::activate_profiles(tx, schema, previous.as_ref())?;
             let rebuild: Vec<_> = schema.maintains.iter().filter(|m| {
                 (changed && previous.as_ref().is_none_or(|old| crate::successor::maintain_rebuild_needed(old, schema, m)))
                     || (repair_live_sums && matches!(m.kind, crate::schema::MaintainKind::Sum { .. }) && schema.table(&m.source).is_some_and(|source| source.expire.is_some()))
@@ -670,9 +670,13 @@ impl Engine {
     /// Make a bounded stale batch unclaimable. The returned file work owns
     /// no engine borrow and should run after releasing the host mutex.
     pub fn prepare_asset_sweep(&mut self, now: i64) -> Result<assets::AssetSweep, RuntimeError> {
+        self.prepare_asset_sweep_for(now, std::time::Duration::MAX)
+    }
+
+    pub fn prepare_asset_sweep_for(&mut self, now: i64, budget: std::time::Duration) -> Result<assets::AssetSweep, RuntimeError> {
         let directory = self.store.assets_dir().to_path_buf();
         let tx = self.store.transaction()?;
-        let stale = tx.stage_stale_assets(now)?;
+        let stale = tx.stage_stale_assets_for(now, budget)?;
         let sweep = assets::AssetSweep::new(&stale, &directory);
         tx.commit()?;
         Ok(sweep)
@@ -680,12 +684,27 @@ impl Engine {
 
     /// Forget a prepared batch after its files have been removed.
     pub fn finish_asset_sweep(&mut self, sweep: &assets::AssetSweep) -> Result<u64, RuntimeError> {
-            let tx = self.store.transaction()?;
+        self.finish_asset_sweep_slice(sweep, std::time::Duration::MAX)
+    }
+
+    /// Advance the prepared batch only after the forget transaction commits.
+    pub fn finish_asset_sweep_for(&mut self, sweep: &mut assets::AssetSweep, budget: std::time::Duration) -> Result<u64, RuntimeError> {
+        let removed = self.finish_asset_sweep_slice(sweep, budget)?;
+        sweep.forget_prefix(removed as usize);
+        Ok(removed)
+    }
+
+    fn finish_asset_sweep_slice(&mut self, sweep: &assets::AssetSweep, budget: std::time::Duration) -> Result<u64, RuntimeError> {
+        let started = std::time::Instant::now();
+        let tx = self.store.transaction()?;
+        let mut removed = 0;
         for id in sweep.ids() {
+            if removed > 0 && started.elapsed() >= budget { break; }
             tx.forget_asset(id)?;
+            removed += 1;
         }
         tx.commit()?;
-        Ok(sweep.len() as u64)
+        Ok(removed)
     }
 
     /// Delete the rows past their `expire` column. They were absent to
@@ -693,6 +712,12 @@ impl Engine {
     /// physical, so the log carries the deletion to each device holding
     /// them. At most `limit` rows go in one commit; the next pass continues.
     pub fn sweep_expired(&mut self, now: i64, limit: usize) -> Result<u64, RuntimeError> {
+        self.sweep_expired_for(now, limit, std::time::Duration::MAX)
+    }
+
+    /// Stop between row removals; a short sweep can still leave due rows.
+    pub fn sweep_expired_for(&mut self, now: i64, limit: usize, budget: std::time::Duration) -> Result<u64, RuntimeError> {
+        let started = std::time::Instant::now();
         let expiring: Vec<(String, String)> = self.schema.tables.iter().filter_map(|(name, table)| table.expiry_index().map(|(index, _)| (name.clone(), index.to_owned()))).collect();
         if expiring.is_empty() {
             return Ok(0);
@@ -711,6 +736,7 @@ impl Engine {
                 let rows = tx.scan(table_name, index, &[], &due, crate::store::Dir::Asc, batch)?;
                 let count = rows.len();
                 for (row, _) in rows {
+                    if removed > 0 && started.elapsed() >= budget { break 'tables; }
                     runner.remove(table_name, &row)?;
                     removed += 1;
                 }

@@ -49,7 +49,7 @@ impl Host {
         let generation = engine.generation();
         let shared = Arc::new(Shared {
             adoption: Mutex::new(adoption::Status::new(String::new())),
-            engine: Mutex::new(engine),
+            engine: super::engine_lock::FairMutex::new(engine),
             readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()),
             bound: Mutex::new(bound),
             generation: Mutex::new(generation),

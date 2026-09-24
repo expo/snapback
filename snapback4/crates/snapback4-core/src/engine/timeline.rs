@@ -5,6 +5,10 @@ use super::runner::Runner;
 mod online;
 #[cfg(feature = "sqlite")]
 mod work;
+#[cfg(feature = "sqlite")]
+mod activation;
+#[cfg(feature = "sqlite")]
+pub(crate) use activation::{check_activation, check_no_rebuilds};
 use crate::{RuntimeError, Value};
 use crate::{ir::{self, Expr, IndexKeyExpr, KeyProvenance, Read, Scan}, schema::timeline::Timeline, value::object};
 
@@ -19,39 +23,6 @@ pub(crate) fn check_import(schema: &crate::schema::Schema, table: &str) -> Resul
     }
     Ok(())
 }
-
-// @ref LLP 3000.007.003#33-f3-the-following-recipes-contract-as-a-declaration — activation is event-free, not a historical rebuild.
-#[cfg(feature = "sqlite")]
-pub(crate) fn check_activation(tx: &crate::store::Tx<'_>, schema: &crate::schema::Schema) -> Result<(), RuntimeError> {
-    use rusqlite::OptionalExtension;
-    crate::schema::timeline::check_version(schema)?;
-    let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
-    let previous: crate::schema::Schema = previous.map(|s| crate::json_codec::from_text(&s).map_err(|e| RuntimeError::Store(e.to_string()))).transpose()?.unwrap_or_default();
-    let populated = |table: &str| -> Result<bool, RuntimeError> {
-        Ok(tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM r JOIN _catalog c ON r.t = c.num WHERE c.name = ?1)", [table], |row| row.get(0))?)
-    };
-    for old in &previous.timelines {
-        if schema.timelines.iter().any(|new| old.same_declaration(new)) { continue; }
-        for table in previous.tables.keys().filter(|name| old.owns(name) || old.event_tables().contains(&name.as_str())) {
-            if populated(table)? { return Err(refusal("E_TIMELINE_REDEFINE", "a populated timeline cannot be removed or redefined; preserve its declaration, or use a fresh store in dev")); }
-        }
-    }
-    for new in &schema.timelines {
-        if previous.timelines.iter().any(|old| old.same_declaration(new)) { continue; }
-        for table in new.event_tables() {
-            if populated(table)? { return Err(refusal("E_TIMELINE_ACTIVATE", "declare the timeline before event and edge data exists; profiles may already exist; in dev use a fresh store")); }
-        }
-        for table in schema.tables.keys().filter(|name| new.owns(name)) {
-            if populated(table)? { return Err(refusal("E_TIMELINE_ACTIVATE", "timeline-owned names already contain data; declare the timeline before data exists; in dev use a fresh store")); }
-        }
-    }
-    Ok(())
-}
-
-/// V2 needs no author registration or activation writes.
-#[cfg(feature = "sqlite")]
-pub(crate) fn activate_profiles(_tx: &crate::store::Tx<'_>, _schema: &crate::schema::Schema, _previous: Option<&crate::schema::Schema>) -> Result<(), RuntimeError> { Ok(()) }
-
 
 /// Trusted row restores retain admission history too. Advance the restore
 /// commit beyond every imported token so a fresh store cannot reuse an epoch.
@@ -213,6 +184,11 @@ impl Runner<'_> {
 
     fn timeline_copy(&mut self, t: &Timeline, event: &Value, reader: &str, epoch: Value) -> Result<(), RuntimeError> {
         self.timeline_require_live_id(t, &field(event, "id")?)?;
+        self.timeline_copy_live(t, event, reader, epoch)
+    }
+
+    /// Caller checked this event's tombstone in the same transaction.
+    fn timeline_copy_live(&mut self, t: &Timeline, event: &Value, reader: &str, epoch: Value) -> Result<(), RuntimeError> {
         // Only own/backfill copies run as a viewer. Foreign copies run as system.
         let row = object([("readerId", Value::Id(reader.into())), ("eventId", field(event, "id")?), ("epoch", epoch.clone()),
             ("actorId", field(event, "actorId")?), ("authorId", field(event, "authorId")?),

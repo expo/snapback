@@ -14,7 +14,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, Write as _};
 use std::net::IpAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Condvar, Mutex, MutexGuard};
+use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 use tiny_http::{Header, Method, Request, Response, Server};
 
@@ -48,10 +48,14 @@ mod tests;
 #[path = "read_cost.rs"]
 pub(crate) mod read_cost;
 
+#[path = "serve_lock.rs"]
+mod engine_lock;
+use engine_lock::{FairMutex, Lockable};
+
 pub struct Shared {
     pub clock: Arc<Mutex<crate::dev_clock::Clock>>,
     maintenance: Mutex<()>,
-    pub engine: Mutex<Engine>,
+    pub engine: FairMutex<Engine>,
     adoption: Mutex<adoption::Status>,
     readers: Mutex<QueryReaders>,
     read_cuts: Mutex<read_cost::ReadCuts>,
@@ -126,15 +130,8 @@ impl QueryReaders {
 /// A panicking request must not turn one poisoned process mutex into a
 /// permanent server-wide panic loop. The guarded value is retained, the
 /// poison marker is cleared, and the next request can make progress.
-pub(crate) fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
-    match mutex.lock() {
-        Ok(guard) => guard,
-        Err(poisoned) => {
-            eprintln!("snapback4: recovered a mutex after a request panicked");
-            mutex.clear_poison();
-            poisoned.into_inner()
-        }
-    }
+pub(crate) fn lock<T: Lockable>(mutex: &T) -> T::Guard<'_> {
+    mutex.recover_lock()
 }
 
 #[derive(Debug, Default)]
@@ -299,7 +296,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     let generation: u64 = engine.generation();
     let adoption = Mutex::new(adoption::Status::new(engine.store().meta("store_id").map_err(|e| e.to_string())?.unwrap_or_default()));
     let shared = Arc::new(Shared {
-        adoption, clock, maintenance: Mutex::new(()), engine: Mutex::new(engine), readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), worker_revision: AtomicUsize::new(0), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
+        adoption, clock, maintenance: Mutex::new(()), engine: FairMutex::new(engine), readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), worker_revision: AtomicUsize::new(0), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
         route_verification: routes::Verification::default(),
         #[cfg(test)] auth_work: Mutex::new(None),
         #[cfg(test)] upload_work: Mutex::new(None),
@@ -427,17 +424,6 @@ fn service_of_locked(request: &Request, shared: &Shared, engine: &Engine) -> Res
     snapback4_core::identity::current_service(engine.store(), &token, snapback4_core::identity::ServiceSample {
         now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire),
     }).map_err(|e| e.refusal())?.ok_or_else(refused)
-}
-
-/// A commit outside a request: let every long poll see it.
-fn bump_seq(shared: &Shared) {
-    if let Ok(seq) = lock(&shared.engine).seq() {
-        let mut current = lock(&shared.seq);
-        if seq > *current {
-            *current = seq;
-            shared.committed.notify_all();
-        }
-    }
 }
 
 fn single_header<'a>(request: &'a Request, name: &str) -> Result<Option<&'a str>, ()> {
@@ -1140,7 +1126,7 @@ mod poison_tests {
         let clock = Arc::new(Mutex::new(crate::dev_clock::Clock::new(true, 0).unwrap()));
         let shared = Arc::new(Shared {
             adoption: Mutex::new(adoption::Status::new(String::new())),
-            engine: Mutex::new(engine),
+            engine: FairMutex::new(engine),
             readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()),
             bound: Mutex::new(Bound { view_types: Default::default(), server: false, schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics: Vec::new(), notes: Vec::new() }),
             generation: Mutex::new(1),

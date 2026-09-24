@@ -49835,3 +49835,527 @@ test stays with integration. No new open problem or scope deviation. The
 inherited full-history search N_NO_HORIZON exception remains unchanged.
 Full file map, sentence audit, test evidence and that exception's reproduction:
 reports/20260924-guide-review-r5.md. Logs: ~/sb4-intent/lane-f-r5-*.log.
+
+## 2026-09-24 — LLP 3000.013 Lane L: fair, time-sliced maintenance (0.4.1 candidate)
+
+Implemented on `sb4-intent/l-fair`, based on `ca6d975da`. The design and
+integration remain the supervisor's. No push, publication or version bump.
+The reproduction and implementation commits are `fd975c2ca`, `1885b1084`
+and `4acd891d7`.
+
+The reproduction uses the first compiled Quarry program in the feeds card:
+`view following: activity where .actor = viewer or exists follows[viewer,
+.actor]`, its `post`/`follow` mutations and `following last 20 by .at after c`
+read. It creates a durable SQLite store with two authors, 5 and 900 followers,
+then makes 20 sequential HTTP posts per author. This is a controlled feeds
+fixture, not the calibration's entire scale-store copy. Both binaries use
+Cargo's release profile on expo-build-1000, with the publication's
+`LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`; this is not a claim of
+production-profile qualification. The unmodified binary was retained before
+implementation and selected by `SNAPBACK4_BENCH_BIN`.
+
+| HTTP probe, 20 requests | Before p50 / p95 / max ms | After p50 / p95 / max ms |
+| --- | --- | --- |
+| Post, 5 followers | 2.863 / 7.033 / 8.146 | 1.705 / 1.935 / 5.531 |
+| Post, 900 followers | 283.110 / 407.585 / 428.508 | 2.302 / 5.246 / 7.039 |
+| Following, ordinary reader | 0.686 / 1.248 / 2.564 | 0.748 / 1.019 / 2.010 |
+| Following, celebrity follower | 0.969 / 1.293 / 1.327 | 0.681 / 0.973 / 1.003 |
+
+The final celebrity p95 is 2.711 times the ordinary p95 and below 50 ms.
+Every one of the 20 events reached every follower: 18,000 foreign copies,
+plus the author's 20 copies. The final burst drained in 6,275.562 ms from
+its first post, 6,222.366 ms after its last acknowledgment. The baseline
+burst took 6,080.636 ms, 930.559 ms after the last acknowledgment: requests
+formerly paid much of that delivery time. A separate sustained-load witness
+kept eight HTTP read streams active until all 901 copies of one event were
+present: delivery completed in 232.659 ms, the post acknowledged in 24.677 ms,
+and 901 reads completed (read p50 1.731 ms, p95 5.184 ms, max 24.549 ms).
+No background starvation was observed. Intermediate 2 ms copy-budget runs
+met the ratio twice but missed it once (7.219 / 2.268 = 3.183); the final
+copy budget is 1 ms. Timing tests are ignored in the ordinary suite and run
+explicitly with assertions for qualification, not silently counted as passes.
+
+Mechanism: `Shared.engine` is a FIFO ticket mutex retaining the server's
+poison recovery. A waiting request precedes a subsequent maintenance ticket;
+a queued maintenance ticket precedes later arrivals, so continuous requests
+cannot starve background work. All users of the shared engine participate,
+including delivery, jobs, expiry, action/effect leases and asset staging and
+forgetting. The maintenance loop no longer relies on `yield_now()`.
+Timeline chunks stop between rows at 256 visits or 1 ms of work. Jobs and
+expiry/lease/asset maintenance use 2 ms slices; action/effect sweeps also
+select at most 256 runs. Development clock drains continue until no expired
+rows or leases remain, rather than treating a short time-limited batch as
+exhaustion. Filesystem asset removal remains outside the engine lock, and a
+prepared batch advances only after its forget transaction commits.
+
+The timeline's cursor is the last processed key, never the last prefetched
+key. Delivery, backfill, cleanup and purge retain epochs, the one-producer
+admission order, the 1,000-event history window and atomic cursor/copy commits.
+Purge retires delivery before its tombstone only after actual exhaustion.
+Prefetch uses 32-row metered pages within the 256-visit ceiling; a delivery
+checks its single event's tombstone once per transaction, not per recipient.
+Every edge epoch and copy identity still goes through the existing checks.
+No resource ceiling, authorization rule, partition audience, SQLite cache,
+journal, synchronization or checkpoint policy changed.
+
+Profile: temporary inclusive `Instant` scopes (removed before committing)
+around engine/store functions measured an unmodified 256-copy chunk after
+20 celebrity posts. Total 68.230 ms (266.524 us/copy): copy body 27.947 ms,
+including insert 25.431 ms, row/index `put` 16.952 ms, constraints 3.106 ms
+and row-change bookkeeping 2.052 ms. Partition append cost 6.110 ms and
+SQLite commit 29.577 ms. Canonical JSON across the chunk cost 0.591 ms;
+partition audience accounting cost 0.430 ms. Inclusive scopes overlap and
+must not be added. The isolated runner never invokes `bump_seq`, excluding
+waiter notifications as a per-copy cause. Three 256-copy chunks plus the
+132-copy tail totaled 242.309 ms, 269.233 us/copy. The final count-only
+comparison totaled 254.359 ms, 282.621 us/copy (256-copy chunks 79.308,
+68.206 and 70.989 ms). On the empty fixture the original default worker took
+115.998 ms / 128.887 us per copy; final short slices took 163.989 ms /
+182.210 us per copy. Removed work is redundant tombstone probes and repeated
+large-page prefetch. **No per-copy wall-time improvement is claimed**:
+SQLite writes/commits dominate, and frequent commits trade throughput for
+request latency. A 1 ms cooperative copy slice can still take longer in its
+indivisible row or commit; this is not a hard real-time bound. A native job
+remains one fuel/meter-bounded invocation per chunk, and a Quarry iteration
+is still atomic. Preempting those would require a separate transaction or
+resumable-native design; this lane did not introduce one.
+
+New normal tests: FIFO ordering/background progress and poison recovery in
+`serve_lock.rs`; five tests in `maintenance_chunks.rs` force a zero time
+budget to prove delivery/purge cursor continuation and tombstone lifetime,
+backfill/cleanup isolation across refollow epochs, adaptive and explicit job
+continuation plus expiry draining, action/effect lease continuation, and
+asset reservation/forget prefixes. Zero time still visits one atomic item.
+Existing timeline recovery now accepts a variable number of chunks; tests
+specifically checking the 256-row boundary or heap refusal explicitly use
+a count-only time allowance, retaining their original assertions. The three
+ignored `maintenance_latency.rs` witnesses cover HTTP p50/p95, direct copy
+cost, and sustained HTTP progress. All 82 focused language/timeline/guide
+tests, 18 HTTP clock tests and seven new normal tests passed.
+
+Reproduce from `snapback4/` with the documented toolchain on PATH:
+
+```sh
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT SNAPBACK4_BENCH_ASSERT=1 cargo test -p snapback4 --release --test maintenance_latency -- --ignored --nocapture --test-threads=1
+SNAPBACK4_BENCH_PRELOAD=20 SNAPBACK4_BENCH_COUNT_ONLY=1 LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test -p snapback4 --release --test maintenance_latency following_chunk_cost -- --ignored --nocapture
+cargo test -p snapback4 --test maintenance_chunks
+```
+
+Qualification logs remain in `/tmp/lane-l-*.log` on this host. The full-suite
+result and failure classification follow below.
+
+Exact full-suite result: `== 0 failure(s) in 485 s` (exit 0), running
+`scripts/test.sh` once with `CARGO_BUILD_JOBS=12`,
+`SNAPBACK4_RUST_TEST_PROCESSES=8`, `RUST_TEST_THREADS=4` and the publication's
+SQLite C flag. This fresh worktree included the complete cold Rust test
+build. Client tests completed with no failures; Wasm measured 1,744,879 B raw /
+484,978 B gzip against the unchanged 486,000 B budget. No introduced,
+baseline or environmental failure occurred in this suite. The supplied older
+baseline log's `genuine_legacy_recorded_and_timeline_infers_both_and_emits_one_carrier`
+and `uniform_word_expansion::search_wasm_fixtures_match_compiled_programs_and_authorized_snapshots`
+failures did not recur; this lane did not modify their fixtures or claim to
+repair them. All changed source files are under 1,500 lines and
+`git diff --check` passes. No new Quarry spelling or refusal code was added.
+
+### 2026-09-24 — Lane L round 1: removing and redefining a materialized view
+
+Merged `origin/main` at `61aa042b0` (merge `1282aab3f`), then landed
+`1b872cbf5`: populated V2 Following views can be removed or redefined without
+replaying their application sources. No release or package was published.
+
+File-by-file implementation:
+
+- `engine/timeline/activation.rs` replaces the blanket population refusal:
+  retirement clears the old view's owned rows and indexes in the adoption
+  transaction, including pending delivery, epochs and tombstones. Existing
+  catalog numbers remain reserved, as with maintained-table removal. Reusing
+  a retired name cannot resurrect its data. An application table occupying a
+  new owned name still refuses with its name and a rename rewrite. A new or
+  changed view over populated sources queues one durable rebuild control row.
+- `engine/mod.rs` calls that activation hook with the adoption clock;
+  `engine/timeline.rs` delegates activation to the new module and lazily
+  reconstructs a single retained original when a concurrent repost needs it.
+- `engine/timeline/rebuild.rs` reconstructs current edges, original events and
+  independent reposts. It assigns retained events to the adoption admission
+  token and retained edges to the next ordinal of that token. Thus backfill
+  alone owns retained events and delivery alone owns later events, regardless
+  of event timestamps. Rebuilt repost identities derive from the retained
+  source row id; redefinition is a new derived generation, not identity
+  continuity with the retired repost event.
+- `engine/timeline/work.rs` runs those three phases through the existing
+  ruled, metered, 256-row/1-ms cooperative walk. Progress and copies share a
+  commit. Backfill and live delivery wait until source reconstruction finishes,
+  so neither can pass an uninitialized edge or incomplete event population.
+  The worker still takes the same FIFO server engine lock between chunks.
+- `engine/timeline/online.rs` queues a full history-window backfill for a follow
+  during reconstruction and tolerates an unfollow before its private epoch
+  has been reconstructed. Later refollows always get a fresh epoch.
+- `schema/timeline.rs` updates the governing reference for V2 declaration
+  history. `snapback4-lang/src/bind/timeline.q` adds only the private `rebuild`
+  work kind; no authored form, authority rule, meter or capability is widened.
+- `guide/feeds.md` documents removal and redefinition in one sentence each,
+  and corrects the lifecycle refusal text. `guide/codes.rs` narrows
+  `E_TIMELINE_REDEFINE` and updates the owned-name `E_TIMELINE_ACTIVATE` rewrite.
+- `tests/timeline_adoption.rs` adds eight tests, detailed below;
+  `tests/timeline/lifecycle.rs` changes the three tests whose old assertions
+  deliberately pinned the blanket populated-source/removal refusal.
+
+Deploy policy is unchanged: `successor::classify` treats removal of visible
+maintained tables as destructive, and `verbs/releases.rs` requires
+`--allow-destructive`. Following's owned tables follow exactly that rule.
+Both maintained and materialized predicate redefinitions deploy without the
+flag. Dev removal needs no flag. The CLI test exercises all four cases on
+populated stores.
+
+Eight new tests and their evidence:
+
+1. Real `dev --no-watch` startup adopts removal of a populated Following view;
+   all owned rows and indexes are absent, sources, a maintained count and a
+   second Following view remain byte-for-byte intact, and no delivery remains.
+2. A broadened originals predicate reconstructs 1,040 source rows. After a
+   restart nine zero-time chunks into reconstruction, every paginated result
+   for the author, three followers and an outsider equals a fresh store's new
+   definition. Each follower has exactly the newest 1,000 retained events.
+   A zero-time source chunk writes at most five rows, including its cursor.
+   Unchanged adoption does not restart completed work.
+3. Concurrent unfollow/refollow, a new follow, a backdated live event, removal
+   and a repost all succeed during reconstruction. A pre-existing follower
+   receives exactly 1,000 historical events plus the live event; a follow after
+   that event receives only its own 1,000-event window. Independent reposts
+   survive original removal, and (reader,event,epoch) copies are unique.
+4. Deploy removal and redefinition match maintained-view flag policy.
+5. Changing originals, reposts and edge sources together rebuilds Following
+   from the new sources, preserving both source populations and another view.
+6. An orphan repost parks only its rebuild with `E_TIMELINE_REDEFINE`, the
+   view/source/row and missing original named, and a concrete repair. The
+   source is untouched; no false event is delivered. The control row's seat
+   cannot be acquired by custom-session or service-session minting.
+7. Populated application tables occupying a generated owned name refuse
+   activation atomically, preserving their data and generation.
+8. A later adoption narrowing failure rolls back retirement and all pending
+   delivery. Successful removal cancels that delivery; re-adding the same name
+   rebuilds exactly one copy from sources.
+
+Engineering decisions where the brief was silent: reconstruction defers the
+normal immediate 50-event follow preview until the retained event population
+is available, using the same durable 1,000-event backfill instead; otherwise a
+partial preview could retain events outside the final window. A control record
+uses `service:$timeline-rebuild`: the service namespace is reserved from custom
+identities and `$` is rejected in declared/minted service names. Its existing
+private Work read/sync rule therefore grants no new audience. The 0.3 format
+fence remains; this round reconstructs V2, not old publication-mode history.
+
+Narrow non-rebuildable case: without a materialized view, insert a repost with
+`postId = 'missing-original'` (a typed reference does not prove existence),
+then add Following and run delivery. No retained card can supply its original
+author. The bounded worker parks with `E_TIMELINE_REDEFINE`; it does not invent
+attribution or stop unrelated views. Delete the named orphan through its
+owner's mutation, then rename the view to enqueue a new rebuild. This is the
+only new refusal case; standard meter/constraint refusals still park as before.
+
+Targeted qualification: 8 new adoption tests passed in 7.26 s; the expanded
+CLI policy check passed separately in 0.10 s. All 23 existing timeline tests
+and all 5 maintenance slice tests passed. No new language syntax was added;
+existing `view following: activity where .actor = viewer or exists
+follows[viewer, .actor]` now supports removal/redefinition and populated-source
+activation. Predicate example: replace `.parentId = null and not .removed`
+with `not .removed` in its activity originals branch. Source-change example:
+point Following at `alternateActivity` and `links` instead of `activity` and
+`follows`. Removal example: delete that declaration and read `activity` as a
+planned view. Deploy removal uses `snapback4 deploy release --allow-destructive`.
+
+Full qualification on this commit: `scripts/test.sh` exited 0 with the exact
+summary **`== 0 failure(s) in 227 s`**. Invocation used
+`CARGO_BUILD_JOBS=12 LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT
+SNAPBACK4_RUST_TEST_PROCESSES=8 RUST_TEST_THREADS=4`; the lane ran one full
+suite, using the existing warm build. Log: `/tmp/lane-l-r1-full.log`.
+The new adoption target passed all 8 tests in 7.28 s within that suite.
+Client tests: 1,054 passed, 0 failed, 10 skipped. Wasm remains 1,744,879 B raw /
+484,978 B gzip against the unchanged 486,000 B budget. Failures: none introduced,
+none baseline, none environmental. The supplied baseline log's Rust failures
+were reviewed and did not recur; their fixtures were not changed by this round.
+All changed source files remain below 1,500 lines; `git diff --check` passes.
+The three explicit round-0 performance benches remain ignored by the normal
+suite; their committed measurements above were not rerun or replaced in round 1.
+No source authorization, disclosure rule, meter ceiling, SQLite durability
+setting, publication, 0.3-format migration or new Quarry syntax was changed.
+
+## 2026-09-24 — LLP 3000.013 Lane L round 2: request margin and durable background commits
+
+Merged `origin/main` in `501b4b3f2`; implementation is `971d421ee`. No push or
+publication. The existing feeds-card `view following: activity where .actor =
+viewer or exists follows[viewer, .actor]` is the HTTP witness; no new syntax,
+diagnostic or guide-card change was needed in this round.
+
+The audit found `Store::open` already configured **NORMAL for every disk
+transaction**, including requests. Changing only background work to NORMAL
+therefore could not remove the measured cost. More importantly, copies and
+their cursor are not the entire durability contract. `run_timeline_chunk_for`
+commits the copies, cursor, sequence and partition-log events together;
+delivery/backfill still select one producer using admission order and edge
+epochs. Losing a complete NORMAL transaction rewinds all of those together,
+but a device may already have observed its sequence. Reproduction: follow,
+post, retain the last FULL image, deliver one chunk under NORMAL, sync that
+chunk to a device, recover the retained image, then sync from the device's
+new watermark. The device correctly refuses `E_STORE_RESTORE`; replay restores
+the server's copies exactly once but cannot undo that device halt.
+
+The proposed weaker background durability policy stops at that counterexample.
+`Store::open` now uses WAL **FULL for all disk writes**, including delivery,
+rebuild, backfill, cleanup, purge, expiry, jobs, leases and asset bookkeeping.
+No background kind received a durability exception. SQLite's
+[WAL documentation](https://www.sqlite.org/wal.html#performance_considerations)
+confirms NORMAL can lose committed transactions on power failure and FULL
+syncs the WAL at each commit. On this one writer/one WAL, a subsequent FULL
+commit would sync earlier WAL frames too, but that later barrier cannot
+protect a watermark published before it occurs. The new tests model retained
+WAL bytes, not SIGKILL or a claimed physical power-cut experiment.
+
+Chose scheduling instead of weaker commits or a checkpoint worker.
+`serve_lock.rs` defers maintenance until a 1 ms quiet interval, for at most
+5 ms, then takes its normal FIFO ticket. If requests already queue behind an
+active holder it joins immediately. Already waiting requests remain ahead;
+later arrivals cannot starve maintenance. `serve_maintenance.rs` uses 250 µs
+cooperative slices under contention and 2 ms otherwise, preserving count and
+meter bounds for delivery, jobs and sweeps. It publishes the sequence from
+the same guard; `serve.rs` loses the redundant second engine admission.
+Native logs and asset-file deletion happen outside the engine. Atomic rows
+and commit I/O can still extend a time slice. LLP 3000.013 §4 records these
+implementation choices. The core's standalone default delivery slice remains
+1 ms; the server and explicit throughput witness select the 2 ms idle budget.
+
+Final production binary SHA-256:
+`e081c001eb3d6137064e652a48c0ec436554fedd0941f0908c57587587d82ba2`.
+Built with `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`, Rust 1.97.0,
+the production profile and bundled SQLite 3.53.2 on expo-build-1000.
+Three consecutive final witness runs after the concurrent build burst:
+
+| Run | Ordinary post p50 / p95 ms | Celebrity post p50 / p95 ms | p95 ratio | All 20 celebrity posts delivered ms | Ordinary / celebrity reader p95 ms |
+|---|---|---|---|---|---|
+| 1 | 1.324 / 1.981 | 1.612 / 2.277 | 1.150× | 5605.881 | 1.357 / 0.848 |
+| 2 | 1.222 / 1.980 | 1.194 / 2.365 | 1.195× | 4820.488 | 0.959 / 0.707 |
+| 3 | 1.495 / 2.101 | 1.600 / 3.031 | 1.442× | 4890.673 | 0.965 / 0.891 |
+
+Every run asserted both the original 3× / 50 ms rule and the new 1.5× margin.
+Every one of the 20 events had all 900 follower copies plus its author's copy.
+Delivery took 4.82–5.61 s versus round 0's 6.28 s. Eight continuous HTTP read
+streams completed 4,079 requests while a post delivered all 901 copies in
+501.922 ms; post acknowledgement was 4.537 ms, reader p50/p95 0.871/1.698 ms.
+This remains slower delivery under continuous traffic than round 0's
+232.659 ms; the trade buys shorter request waits and FULL durability, while
+the required 20-post throughput improves. The final repeat had roughly
+19–24% CPU use near its end, with other lanes still active.
+
+Do not discard the earlier loaded results. The same final binary's first
+three runs overlapped other lanes' compilation: about 100 runnable processes,
+over 90% CPU use and up to 1.5 GB/s writes. They also passed the margin:
+
+| Loaded run | Ordinary post p50 / p95 ms | Celebrity post p50 / p95 ms | p95 ratio | All 20 celebrity posts delivered ms | Ordinary / celebrity reader p95 ms |
+|---|---|---|---|---|---|
+| 1 | 1.379 / 2.623 | 1.401 / 3.335 | 1.271× | 13670.559 | 2.860 / 5.942 |
+| 2 | 3.310 / 12.943 | 3.393 / 8.961 | 0.692× | 15354.136 | 5.201 / 4.897 |
+| 3 | 12.659 / 17.183 | 9.389 / 18.957 | 1.103× | 14953.188 | 0.945 / 0.814 |
+
+Loaded sustained delivery completed in 1137.105 ms with 2,941 intervening
+requests. Before the sustained-queue shortcut, the candidate's three ratios
+were 1.165×, 1.124× and 1.006×, with 4.35–4.64 s total delivery, but sustained
+delivery took 2231.064 ms. The shortcut reduced that to 467.182 ms in its
+first probe and 501.922 ms in final qualification. No failed performance run
+is omitted: all explicit HTTP runs passed their enabled assertions.
+
+The isolated, untraced 900-copy witness costs **113.307 µs/copy** on the empty
+fixture (101.976 ms total), versus round 0's 182.210 µs/copy with 1 ms chunks.
+After 20 preloaded celebrity posts it costs **286.998 µs/copy** (258.299 ms).
+`maintenance_latency/profile.rs` adds a reproducible STMT/PROFILE wall-clock
+timer around COMMIT, enabled only through the CLI's dev-dependency trace
+feature. After 20 preloaded posts, its first 256-copy chunk measured:
+
+| Synchronous | Auto-checkpoint pages | Whole chunk ms | COMMIT ms |
+|---|---|---|---|
+| NORMAL | 1000 | 68.425 | 9.581 |
+| NORMAL | disabled | 55.075 | 10.689 |
+| FULL | 1000 | 68.976 | 16.868 |
+| FULL | disabled | 62.530 | 18.029 |
+
+The old 29.577 ms commit did not reproduce in this probe. Disabling automatic
+checkpoints did not make COMMIT cheaper and moves checkpoint work outside the
+timed region; the production checkpoint policy stays unchanged. At 1 ms,
+NORMAL/1000 had commit p50/p95 0.451/0.620 ms and 306.729 µs/copy with tracing;
+FULL/1000 at 2 ms had commit p50/p95 1.369/1.821 ms and 300.895 µs/copy.
+FULL commits themselves are more expensive, not a claimed optimization.
+Wider idle chunks amortize bookkeeping and commit work; admission removes
+most of that work from a sequential request burst. A diagnostic strace of
+the preload plus count-only witness counted 1,081,210 pwrite64 calls,
+308,133 pread64 calls and 876 fsync calls: WAL/data-page writes also matter,
+so attributing the entire commit duration to an avoidable fsync is incorrect.
+
+Tests added: three FIFO-admission unit tests prove queued requests precede
+maintenance, a single continuous holder cannot defer its ticket forever, and
+maintenance does not reset the request-activity clock. Existing FIFO/poison
+tests remain. `background_durability.rs` proves a missing or torn WAL commit
+rolls back copies, cursor and log together; a completed FULL chunk survives
+without another request and preserves an observing device; recovery drains
+to one correct-epoch copy for every reader without a gap or duplicate. Its
+second test proves the NORMAL/observed-watermark counterexample above.
+The HTTP witness now accepts `SNAPBACK4_BENCH_MAX_RATIO=1.5`; the default hard
+3× assertion remains. The new commit-cost comparison joins the three existing
+explicit performance tests as ignored tests in the normal suite.
+
+Reproduce: build `cargo build --profile production -p snapback4` with the
+SQLite build flag above; run `cargo test --release -p snapback4 --test
+maintenance_latency following_http_latency -- --ignored --nocapture` three
+times with `SNAPBACK4_BENCH_BIN=$PWD/target/production/snapback4`,
+`SNAPBACK4_BENCH_ASSERT=1`, and `SNAPBACK4_BENCH_MAX_RATIO=1.5`. Select
+`following_commit_cost`, `following_chunk_cost` (optionally
+`SNAPBACK4_BENCH_PRELOAD=20`), or `following_delivery_under_sustained_requests`
+for the other witnesses. The power-loss counterexample is the ordinary
+`cargo test -p snapback4-device --test background_durability` target.
+
+`scripts/test.sh`: **`== 0 failure(s) in 384 s`**, exit 0, with
+`CARGO_BUILD_JOBS=12 LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT
+SNAPBACK4_RUST_TEST_PROCESSES=8 RUST_TEST_THREADS=4`. The CLI's 86 unit tests,
+both new durability tests, existing timeline/adoption/device tests and client
+suite all passed (client: 1054 passed, 10 skipped, 0 failed). Failures: none
+introduced, baseline or environmental; the supplied baseline's cargo failure
+did not recur. `ref-check --verbose`: 0 errors, 0 unchecked. All changed source
+files remain below 1,500 lines and `git diff --check` passes. No open blocker;
+absolute I/O/scheduling stalls remain outside the cooperative row budget, and
+the shared-host measurements above state that practical limit. No permission,
+disclosure rule, meter ceiling, history window, edge-epoch behavior or
+application form was changed. No NORMAL exception or checkpoint worker landed.
+
+## 2026-09-24 — LLP 3000.013 Lane L round 3: ship retirement, withdraw reconstruction
+
+Implementation: `39d0c6766`; deterministic admission tests: `a8bb10771`.
+This entry supersedes round 1's reconstruction claims above; those historical
+entries are retained unchanged. No push or publication.
+
+Chose the permitted refusal path. The engine has no separate sound builder
+for a newly added view over populated sources: round 1's new-view path and
+redefinition path used the same experimental reconstruction. A concrete
+identity counterexample is a repost: normal delivery uses the event id minted
+in its original mutation, while reconstruction hashed `RebuiltRepost` and the
+source id. The source row does not retain that minted event id. Equal-time
+ordering, saved event ids and a 1,000-event boundary can therefore differ.
+The reviewed growing-source and orphan cases could also stop delivery, and
+raw owned-row deletion left dependent counts stale. No historical builder
+is retained in the product execution path.
+
+Removal now deletes owned rows/indexes and dependent aggregate targets in the
+same activation transaction. Surviving aggregate declarations rebuild against
+the retired, empty source; retained names cannot preserve stale totals. Source
+rows and unrelated views stay intact, and a later adoption failure rolls all
+retirement back. Classification explicitly marks removal destructive even if
+all owned table names survive as ordinary tables. Dev needs no flag; deploy
+requires `--allow-destructive`, matching maintained-view removal. A failed
+predicate/source redefinition changes neither generation, sequence nor rows.
+Ordinary delivery continues after the refusal.
+
+`E_TIMELINE_REDEFINE` names the view and unrecoverable event identities and
+edge-admission history. Its rewrite is "remove the view and deploy, then add
+the new definition" with the necessary qualification: new materialization
+requires **empty event and edge tables**. Retained populated sources must use
+a planned view. `E_TIMELINE_ACTIVATE` restores this new-view boundary and
+names the populated table, including orphan repost inputs. Populated profiles
+remain supported. Unfinished experimental reconstruction is fenced on open
+and unchanged adoption; removal can still retire its control row and work.
+The existing 0.3 format refusal remains unchanged.
+
+File-by-file changes:
+
+- `core/src/engine/timeline/activation.rs`: atomic retirement, reconstruction
+  refusal, empty-source admission and unfinished-builder fence.
+- `core/src/successor.rs`: explicit destructive removal and invalidation of
+  aggregate targets over retired tables, including reused names.
+- `core/src/engine/mod.rs`: fence on open; remove builder activation.
+- `core/src/engine/timeline.rs`: remove builder module/export and lazy original
+  reconstruction from repost; export the fence.
+- `core/src/engine/timeline/online.rs`: remove reconstruction-specific follow
+  and unfollow exceptions.
+- `core/src/engine/timeline/work.rs`: remove reconstruction phases and their
+  exclusive scheduling priority; ordinary work uses its existing queue.
+- `core/src/engine/timeline/rebuild.rs`: deleted.
+- `core/src/schema/timeline.rs`: correct the declaration's design annotation.
+- `lang/src/bind/timeline.q`: remove the experimental `rebuild` work kind.
+- `lang/src/guide/feeds.md` and `lang/src/guide/codes.rs`: correct lifecycle and
+  the two existing diagnostic rewrites; no new code or syntax.
+- `snapback4/src/serve_lock.rs`: inject a zero-sized production clock and a
+  manual test clock into the admission policy; keep timing constants intact.
+- `snapback4/tests/timeline_adoption.rs`: nine removal/refusal/recovery tests.
+- `snapback4/tests/timeline/lifecycle.rs`: restore atomic refusal tests for
+  adding over populated sources, including disk reopen and catalog rollback.
+- `llp/3000.013-quarry-states-intent.rfc.md` §4: record retirement and the
+  precise historical-build limitation. `JOURNAL.md`: this append.
+
+Paths prefixed `core/` and `lang/` above mean the corresponding
+`snapback4/crates/snapback4-core/` and `snapback4/crates/snapback4-lang/`;
+`snapback4/src` and `snapback4/tests` mean the CLI crate beneath that same
+`crates/` directory.
+
+Supported examples remain `view following: activity where .actor = viewer or
+exists follows[viewer, .actor]` on initially empty sources, and removal of
+that declaration followed by `return activity last 20 by .at after c` for a
+planned read of retained sources. Production removal uses
+`snapback4 deploy release --allow-destructive`; dev uses ordinary startup.
+Changing the activity predicate from `.parentId = null and not .removed` to
+`not .removed` compiles but adoption refuses. Removing and re-adding that new
+definition over empty sources succeeds and includes both originals/replies.
+
+The nine adoption tests prove, respectively:
+
+1. Real dev removal retires rows/indexes and a dependent total, preserving
+   source rows, source totals and a second populated materialization.
+2. Real deploy requires the existing destructive flag for maintained and
+   materialized removal; the flag cannot bypass redefinition refusal.
+3. New owned-name collisions preserve application data and refuse by name.
+4. Pending delivery retires atomically; failed adoption rolls back; retained
+   sources remain readable through the planned query and cannot be re-added
+   as historical materialization.
+5. Predicate and source redefinitions refuse without changing rows, sequence
+   or generation; 100 interleaved posts then drain to 101 reader events and
+   a dependent count of 101.
+6. Retained aggregate and owned-table names reset to empty whether the
+   aggregate declaration survives or is removed; the next contribution is
+   one rather than two, and aggregate indexes are empty after retirement.
+7. Failed retirement restores a dependent count and its indexes; a subsequent
+   post produces the correct total of two.
+8. An unfinished experimental control row refuses open and unchanged adoption
+   but can be removed, preserving the planned read of its source post.
+9. Two-step replacement over empty sources delivers the new predicate.
+
+Targeted results: adoption 9/9 (0.25 s), timeline 23/23 (2.64 s), guide 57/57
+(0.62 s), lock unit tests 7/7. The manual clock asserts 4.999 ms still waits
+1 µs and 5 ms admits despite new request activity; an already queued request
+behind a holder admits maintenance immediately at time zero. A separate test
+asserts the 1 ms quiet deadline. Existing real FIFO ordering, sustained queue
+and poison recovery tests remain. Mutation checks on temporary source copies
+confirmed changing `MAX_DEFER` from 5 to 100 ms fails, and removing the
+immediate-admit shortcut fails. Those are intentional negative tests.
+One development test compile failed on a new fixture's `Value::Row(BTreeMap)`;
+adding `.into()` fixed it before the passing targeted runs. No failing product
+test was disabled. The two former positive historical-activation tests now
+assert refusal because that unsound feature is explicitly withdrawn.
+
+Full qualification: **`== 0 failure(s) in 258 s`**, exit 0, from one
+`scripts/test.sh` run with `CARGO_BUILD_JOBS=12
+LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT
+SNAPBACK4_RUST_TEST_PROCESSES=8 RUST_TEST_THREADS=4`.
+Log: `/tmp/lane-l-r3-full.log`. The CLI's 88 unit tests, all nine adoption
+tests, both background-durability tests, existing delivery/device coverage,
+and every client shard passed. Client skips remain 10; the four performance
+witnesses remain explicitly ignored. Wasm is 1,744,879 B raw / 484,975 B gzip,
+within the unchanged 486,000 B budget. Full-suite failures: none introduced,
+none baseline, none environmental. The supplied baseline's `cargo test`
+failure (`== 1 failure(s) in 276 s`) did not recur.
+
+Limits and work not done: historical redefinition and activation over populated
+event/edge tables are unsupported; reproduce by seeding any such table before
+adding the view, or editing an existing activity predicate. The diagnostics
+and supported planned-read rewrite above are the outcome, not a pending
+half-built feature. No fairness constants, authorization, disclosure, meter
+ceilings, history window, epoch rules or WAL FULL durability were changed.
+No performance witnesses were rerun in round 3; round 2's dated measurements
+remain the available performance evidence. No new language form needs a
+language-card block. All changed source files are below 1,500 lines and
+`git diff --check` passes. `ref-check --verbose`: 505 LLP docs, 9,237 refs,
+0 errors, 0 unchecked. Frozen Bun installation completed without changes.

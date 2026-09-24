@@ -22,7 +22,8 @@ impl Runner<'_> {
     pub(super) fn timeline_unfollow(&mut self, t: &Timeline, row: &Value) -> Result<(), RuntimeError> {
         let reader = field(row, &t.edges[1])?;
         let actor = field(row, &t.edges[2])?;
-        let edge = required(self.timeline_edge(t, &reader, &actor)?, "FEED_APP_NOT_FOUND")?;
+        let edge = self.timeline_edge(t, &reader, &actor)?;
+        let edge = required(edge, "FEED_APP_NOT_FOUND")?;
         let epoch = field(&edge, "epoch")?;
         self.delete(&t.table("Edges"), &text(&edge, "id")?)?;
         let (copies, keys) = self.timeline_page(&t.table("Feed"), "byReaderActor", vec![reader.clone(), actor.clone(), epoch.clone()], DELIVERY_CHUNK + 1, false, None)?;

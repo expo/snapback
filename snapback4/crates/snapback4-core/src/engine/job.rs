@@ -139,14 +139,16 @@ struct Chunk {
 
 /// The sweep's rows from the cursor, at most one page, none past the key
 /// captured when the sweep began; each bound and run through the body.
-fn sweep_chunk(runner: &mut Runner<'_>, scan: &Scan, cursor: Option<&[u8]>, upper: &[u8], binding: &str, body: &[Stmt], site: &str, adaptive: bool) -> Result<Chunk, RuntimeError> {
+fn sweep_chunk(runner: &mut Runner<'_>, scan: &Scan, cursor: Option<&[u8]>, upper: &[u8], binding: &str, body: &[Stmt], site: &str, adaptive: bool, started: std::time::Instant, budget: std::time::Duration) -> Result<Chunk, RuntimeError> {
     let take = scan.take.maximum() as usize;
     let mut page = scan.clone();
     page.opaque_cursor = false;
     page.after = cursor.map(|key| Box::new(Expr::Literal(Value::Array(crate::key::decode(key).unwrap_or_default().into_iter().skip(scan.prefix.len()).collect()))));
     let (rows, keys) = if adaptive { runner.job_page(&page)? } else { runner.scan_with_keys(&page)? };
     let mut chunk = Chunk { last_key: None, visited: 0, ended: false, finished: false };
+    let mut yielded = false;
     for (row, key) in rows.into_iter().zip(keys) {
+        if chunk.visited > 0 && started.elapsed() >= budget { yielded = true; break; }
         if key.as_slice() > upper {
             chunk.ended = true;
             break;
@@ -168,7 +170,7 @@ fn sweep_chunk(runner: &mut Runner<'_>, scan: &Scan, cursor: Option<&[u8]>, uppe
         }
         chunk.last_key = Some(key);
     }
-    if chunk.visited < take {
+    if !yielded && chunk.visited < take {
         chunk.ended = true;
     }
     if chunk.last_key.as_deref() == Some(upper) {
@@ -226,6 +228,13 @@ impl Engine {
     /// parks the job with the refusal; a job whose program changed since
     /// it was queued parks with `E_JOB_GENERATION`.
     pub fn run_job_chunk(&mut self, now: i64) -> Result<Option<JobRun>, RuntimeError> {
+        self.run_job_chunk_for(now, std::time::Duration::MAX)
+    }
+
+    /// Yield between complete Quarry iterations. A native call remains one
+    /// fuel- and meter-bounded atomic invocation, as does one Quarry iteration.
+    pub fn run_job_chunk_for(&mut self, now: i64, budget: std::time::Duration) -> Result<Option<JobRun>, RuntimeError> {
+        let started = std::time::Instant::now();
         let presence = self.presence.clone();
         let tx = self.store.transaction()?;
         let head = tx.conn().query_row(&format!("SELECT {COLUMNS} FROM _jobs WHERE state IN ('queued', 'running') ORDER BY created_at, id LIMIT 1"), [], read_head).optional()?;
@@ -305,7 +314,7 @@ impl Engine {
                     frozen_upper = upper.clone();
                 }
                 match upper {
-                    Some(upper) => sweep_chunk(runner, scan, head.cursor.as_deref(), &upper, binding, body, &site, adaptive).map(|chunk| (chunk, Some(upper))),
+                    Some(upper) => sweep_chunk(runner, scan, head.cursor.as_deref(), &upper, binding, body, &site, adaptive, started, budget).map(|chunk| (chunk, Some(upper))),
                     None => Ok((Chunk { last_key: None, visited: 0, ended: true, finished: false }, None)),
                 }
             })();
