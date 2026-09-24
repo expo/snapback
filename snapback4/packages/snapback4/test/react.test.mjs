@@ -221,7 +221,8 @@ const cases = {
       await act(async () => { await auth.signup("bob", "password"); });
       check(client !== alice && auth.viewer === "bob", "provider switched clients");
       check(host.textContent.endsWith(":empty"), "account-owned draft was reset");
-      equal(read.data, "Bearer bob", "query hook uses Bob");
+      for (let n = 0; n < 200 && read.data !== "Bearer bob"; n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
+      equal(read.data, "Bearer bob", "query hook uses Bob: " + JSON.stringify(read));
       await act(async () => { await write.run({ body: "bob write" }); });
       equal(seen.map(entry => entry[0]), ["Bearer alice", "Bearer bob"], "existing mutation hook follows the current client");
       await act(async () => { await auth.logout(); });

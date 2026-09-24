@@ -1,3 +1,4 @@
+import { deferStart, startDeferred } from "./client-start.ts";
 // The local-first tier (LLP 3000 §7, one implementation): the device is
 // the Rust module — the partition in its own store, the stream applied,
 // the outbox kept, queries and predictions answered — and this client is
@@ -7,6 +8,7 @@
 // web (`snapback4/web`), the Expo module (`snapback4-expo`) and the
 // `snapback4 device` process for Node (`snapback4/native`) all fit.
 
+import { BackendAuthError, loadBackend } from "./local-backend.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
 import { changeFeed } from "./changes.ts";
 import { syncTransport } from "./local-sync.ts";
@@ -148,11 +150,6 @@ function responsePageTooLarge(denied: Refusal): boolean {
     && denied.message.includes("smaller page");
 }
 
-class BackendAuthError extends Error {
-  constructor(readonly denied: Refusal) {
-    super(`${denied.code}: ${denied.message}`);
-  }
-}
 
 async function requireSyncProtocol(core: DeviceCore): Promise<void> {
   // A JavaScript update can run inside an older Expo development build.
@@ -188,7 +185,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       session = signedIn.session;
     }
     if (!session) throw new Error(`createLocalClient: no session for ${base}; pass one from guest(), login() or signup(), or say guest: true`);
-    if (session.kind !== "action" && session.expiresAt - Date.now() <= REFRESH_BEFORE_EXPIRY_MS) {
+    if (!startDeferred(options) && session.kind !== "action" && session.expiresAt - Date.now() <= REFRESH_BEFORE_EXPIRY_MS) {
       const refreshed = await rotateSession(base, session.token, doFetch);
       if (refreshed.ok) {
         if (refreshed.session.principal !== session.principal) {
@@ -1443,25 +1440,31 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   await queued();
   const keptWrites = (await call({ op: "meta", key: "write-history" })).ok as string | null;
   for (const write of keptWrites ? JSON.parse(keptWrites) as Write[] : []) mutationIds.remember(write.id);
-  if (link === "online") {
-    // Web stores have one owner. Native owners may share an outbox with an
-    // active sender, so their existing snapshot/receipt coordination runs first.
-    if (core.onSuspend) await replayOnOpen();
-    await syncOnce();
-  }
   seq = Number(((await call({ op: "state" })).ok as { watermark?: number } | undefined)?.watermark ?? 0);
-  if (core.onSuspend) {
-    const sendOnExit = exitTransport(doFetch, base, aborter.signal);
-    stopSuspend = core.onSuspend((entries, beginSend) => {
-      const request = requestCredentials();
-      // @ref LLP 3000.007#20.4 — document teardown may abort the ordinary request: only its same durable head may overlap the keepalive retry.
-      exitDone = sendOnExit(entries, request.headers, () => (ordinarySending === undefined || ordinarySending === entries[0]?.id) && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend());
-    });
-  }
-  stopOutbox = core.onOutbox?.(() => { void flush(); });
-  follow();
-  void flush();
-  scheduleRefresh();
+  const prepared = startDeferred(options);
+  const start = async () => {
+    if (closed) return;
+    if (prepared && session && session.kind !== "action" && session.expiresAt - Date.now() <= REFRESH_BEFORE_EXPIRY_MS) await refreshCurrent();
+    if (link === "online") {
+      // Web stores have one owner. Native owners may share an outbox with an
+      // active sender, so their existing snapshot/receipt coordination runs first.
+      if (core.onSuspend) await replayOnOpen();
+      await syncOnce();
+    }
+    if (core.onSuspend) {
+      const sendOnExit = exitTransport(doFetch, base, aborter.signal);
+      stopSuspend = core.onSuspend((entries, beginSend) => {
+        const request = requestCredentials();
+        // @ref LLP 3000.007#20.4 — document teardown may abort the ordinary request: only its same durable head may overlap the keepalive retry.
+        exitDone = sendOnExit(entries, request.headers, () => (ordinarySending === undefined || ordinarySending === entries[0]?.id) && !closed && !sessionDead && !rotating && credentialRevision === request.revision && beginSend());
+      });
+    }
+    stopOutbox = core.onOutbox?.(() => { void flush(); });
+    follow();
+    void flush();
+    scheduleRefresh();
+  };
+  if (!deferStart(options, start)) await start();
   return client;
   } catch (error) {
     stopSuspend?.();
@@ -1472,17 +1475,4 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     try { await media?.close(); await core.close(); } catch {}
     throw error;
   }
-}
-
-async function loadBackend(doFetch: typeof fetch, base: string, headers: Record<string, string>, signal?: AbortSignal): Promise<BackendJson> {
-  const response = await doFetch(`${base}/schema`, { headers, ...(signal ? { signal } : {}) });
-  let json: BackendJson & { denied?: Refusal };
-  try { json = (await response.json()) as BackendJson & { denied?: Refusal }; }
-  catch (error) {
-    if (response.status === 401) throw new BackendAuthError({ code: "E_AUTH", family: "auth", message: "the server refused this session" });
-    throw error;
-  }
-  if (json.denied || response.status === 401) throw new BackendAuthError(json.denied ?? { code: "E_AUTH", family: "auth", message: "the server refused this session" });
-  if (!response.ok) throw new Error(`schema: HTTP ${response.status}`);
-  return json;
 }

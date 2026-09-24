@@ -108,38 +108,49 @@ in the background.
 When another app replaces the stored session during restoration, opening restarts
 with that session. A stale restoration or rejected bearer cannot overwrite or
 delete the other app's stored successor.
-Logout advances a persisted session epoch under the same lock as credential removal.
-If the marker cannot be stored, logout overwrites the bearer with a smaller
-noncredential tombstone carrying that epoch, then retries the marker. The
-tombstone remains through restoration and counts as successful local logout
-even if the separate marker still cannot be written. A later sign-in must save
-the marker before replacing the tombstone. If neither fence can be stored,
-logout returns a storage error and sets `auth.why`; it leaves the saved bearer
-untouched and does not revoke it. Discarded login and refresh bearers are still
-revoked when they differ from the token left in storage. This runtime retains
-revocations deferred by the failed fence and drains them after a successful
-logout retry, including late responses received after that retry. Repair storage
-and retry logout; remote revocation remains best effort when the network fails.
-Sign-in that replaces a saved bearer first records its retirement and advances
-the session epoch under the same lock. A failed journal or epoch write leaves the
-old session bytes intact and refuses sign-in. Restoration and refresh keep their
-epoch; sign-in over a logout tombstone copies the tombstone's epoch. Thus an old
-tab cannot overwrite a new account after storage recovers from a failed fence.
+The app's session state machine maintains these invariants under the shared
+session lock:
 
-Before replacing that bearer, the app saves it and other deferred tokens in a
-backend-bound `.revocations` journal in `sessionStore`. A new runtime recovers
-the obligations even if the previous one stopped before receiving revocation
-acknowledgements. Replay skips the currently stored bearer, and removes an entry
-only after the server confirms logout or reports `E_AUTH` with HTTP 401. Transport
-failures and other refusals retain the entry for the next restoration, sign-in or
-successful logout. These are revocation credentials, never sessions to restore, and use
-the same explicit persistence and security posture as the saved session. While
-storage is completely unwritable, the existing bearer remains its own durable
-record; a replacement cannot erase it before the retirement journal is saved.
-Sign-in and refresh work started in an earlier epoch cannot save a late bearer;
-the app revokes that bearer and retires its client. Invalid or expired stored
-sessions are cleaned up only if their exact bytes still match the read, without
-remote revocation. A concurrent replacement restarts restoration.
+- **I1 — stored bearer protection.** A runtime never sends revocation for the
+  currently stored bearer. Explicit logout first commits a logout tombstone,
+  then revokes the displaced session in the background.
+- **I2 — failure atomicity.** Failed sign-in, guest, replacement, refresh or
+  logout preserves the session bytes and epoch. The sole logout intermediate
+  state is a tombstone; every reader recognizes it as signed out.
+- **I3 — retirement custody.** A server-minted bearer stays with its live
+  runtime, the stored session, or a durable revocation obligation. Displacement
+  is journaled before commit; revocations drain only after that commit. An
+  acknowledgement retires the journal entry, including after restart.
+- **I4 — principal isolation.** Once a runtime observes a changed epoch, it
+  stops its old client's reads and writes. It never adopts a different account
+  without opening that account's client and outbox.
+- **I5 — committed epochs.** An epoch advances with a committed replacement
+  or logout, never with a failed operation.
+
+A single atomic `sessionStore.set` commits the session and its epoch together.
+Client opening is provisional: failed device initialization or persistence
+cannot discard the previous guest's only bearer. Restoration and rotation
+retain their epoch; replacement of a live bearer increments it. Logout writes
+an epoch-bearing tombstone, including when quota prevents creating another key.
+The old separate epoch key remains readable for existing stores.
+
+Retirement records are backend-bound revocation credentials, never sessions to
+restore. Replay checks the current session under the same lock and removes an
+entry only after a logout acknowledgement or HTTP 401 E_AUTH. Transport failures
+and other refusals leave it available for retry on restoration, sign-in or
+logout. A failed comparison read keeps
+custody and cannot authorize revocation. Damaged records are preserved and
+reported through auth.why. Invalid-session garbage collection compares the exact
+bytes it read and never remotely revokes a token.
+
+These invariants assume an individual store write is atomic (a rejected write
+leaves that key unchanged), cooperating runtimes use the shared lock, and the
+store and network eventually recover. The server consumes a refresh token
+before returning its successor. If all persistence and revocation attempts fail
+and the process is forcibly killed, a newly minted, never-persisted successor
+cannot be recovered by this client protocol. Lost server responses have the same
+limit. Durable recovery of that case requires a server protocol that can recover
+an issuance by request ID; createApp cannot manufacture that guarantee.
 
 Local writes use the existing device outbox. Online `app.mutate` (also
 `app.client.mutate` and `useMutation` under `AppProvider`) records ID and arguments
@@ -159,9 +170,9 @@ bytes remain untouched; sign in again after upgrading. Local device outboxes and
 server data are unchanged.
 
 Browser Web Locks serialize journal updates and session replacement/deletion
-across tabs. A refused bearer clears only the same token still in storage; it
-cannot delete a successor saved by another tab. Explicit logout revokes any
-stored successor it clears. Custom stores shared across independent non-browser
+across tabs. A refused bearer stops that runtime without deleting stored
+credentials; it cannot delete a successor saved by another tab. Explicit logout
+commits a tombstone before revoking the stored bearer it displaces. Custom stores shared across independent non-browser
 processes need one active app writer because `SessionStore` has no atomic update
 primitive. Storage errors remain errors; they never authorize an unstored send. A failed
 startup keeps the client signed out. Logout retries failed credential deletion

@@ -8,7 +8,7 @@ import { storeKey, storeLock as locked } from "./app-storage.ts";
 import { journalReader, type Journal, type Terminal } from "./app-journal.ts";
 
 /** Private implementation; the returned client has the unchanged Client card. */
-export async function onlineCustody(raw: Client, url: string, store: SessionStore, report: (error: unknown) => void) {
+export async function onlineCustody(raw: Client, url: string, store: SessionStore, report: (error: unknown) => void, autoStart = true) {
   const viewer = raw.viewer()!;
   const key = storeKey("writes", url, viewer);
   let active = true;
@@ -108,8 +108,14 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   function pause() { active = false; stop(); listeners.clear(); }
   // Start in recorded order before a screen can submit a later intent. The
   // online client owns retransmission/backoff, including lost confirmations.
-  const recovery = Promise.all(initial.pending.filter(intent => intent.owner === raw.viewer()).map(intent =>
-    client.mutate({ kind: "mutation", name: intent.op }, intent.args, { id: intent.id })));
-  void recovery.catch(report);
-  return { client, pause };
+  let started = false;
+  function start() {
+    if (started || !active) return;
+    started = true;
+    const recovery = Promise.all(initial.pending.filter(intent => intent.owner === raw.viewer()).map(intent =>
+      client.mutate({ kind: "mutation", name: intent.op }, intent.args, { id: intent.id })));
+    void recovery.catch(report);
+  }
+  if (autoStart) start();
+  return { client, pause, start };
 }

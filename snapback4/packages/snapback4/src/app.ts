@@ -1,11 +1,13 @@
 // @ref LLP 3000.013#6 — one app owns identity, client lifetimes and pending-write custody.
 import { createClient } from "./client.ts";
+import { prepareClient } from "./client-start.ts";
 import { createLocalClient, type DeviceOpener, type LocalOptions } from "./local.ts";
-import { storeLock, logoutEpoch, StorageWarning } from "./app-storage.ts";
+import { storeLock, sessionEpoch, StorageWarning } from "./app-storage.ts";
 import { assetRetention, type AssetRetention } from "./local-assets.ts";
 import { onlineCustody } from "./app-online.ts";
+import { guardClient } from "./app-client.ts";
 import { sessionRevocations } from "./app-revocations.ts";
-import { signup, login, guest, keepSession, restoreSession, forgetSession, memorySessionStore, logout as revokeSession, sessionKey, type SessionStore } from "./auth.ts";
+import { signup, login, guest, keepSession, restoreSession, forgetSession, memorySessionStore, logout as revokeSession, logoutAll as revokeAllSessions, sessionKey, type SessionStore } from "./auth.ts";
 import type { Client, Principal, Refusal, Session, SessionRevocation, SignIn } from "./contract.ts";
 
 export type AuthState = "restoring" | "signed-out" | "signed-in";
@@ -51,7 +53,7 @@ function problem(error: unknown): Refusal {
 // must retry from storage without revoking the winning session's family.
 class RestorationChanged extends Error {}
 class SessionEpochChanged extends StorageWarning {
-  constructor() { super({ code: "E_AUTH", family: "auth", message: "this session was ended by another app's logout", site: "app.auth", rewrite: "await app.auth.login(email, password)" }); }
+  constructor() { super({ code: "E_AUTH", family: "auth", message: "the stored session changed in another app", site: "app.auth", rewrite: "await app.auth.login(email, password)" }); }
 }
 
 export function createApp(options: AppOptions): App {
@@ -63,7 +65,15 @@ export function createApp(options: AppOptions): App {
   }
   const url = options.url.replace(/\/$/, "");
   const fetcher = options.fetch ?? globalThis.fetch.bind(globalThis);
-  const storage = options.sessionStore ?? memorySessionStore();
+  const backing = options.sessionStore ?? memorySessionStore();
+  const storage: SessionStore = { set: (key, value) => backing.set(key, value), delete: key => backing.delete(key), async get(key) {
+    const bytes = await backing.get(key);
+    if (key === sessionKey(url)) {
+      const observed = sessionEpoch(bytes);
+      if (observed !== null && owner?.valid && BigInt(observed) > BigInt(owner.epoch)) fence(owner, new SessionEpochChanged());
+    }
+    return bytes;
+  } };
   if (!options.sessionStore && typeof window !== "undefined") console.info("snapback4: createApp keeps sessions in memory. To restore after a page restart, pass sessionStore: localStorageSessionStore() from snapback4/auth. Scripts on the page can read that persisted token.");
   let persistence: Promise<unknown> = Promise.resolve();
   const persist = <T>(work: () => Promise<T>) => {
@@ -71,41 +81,22 @@ export function createApp(options: AppOptions): App {
     persistence = result;
     return result;
   };
-  // This marker survives deletion of the bearer. Every owner keeps the epoch
-  // it started in, so a response delayed across another app's logout cannot
-  // restore that account or overwrite a subsequent sign-in.
+  // I1: every revocation compares the stored bearer. I2/I5: one record
+  // commits session + epoch, only after opening succeeds. I3: journal before
+  // displacement, drain after commit. I4: an observed epoch fences old work.
+  // See CLIENT-AND-OPERATIONS.md, session state-machine invariants.
   const epochKey = sessionKey(url) + ".epoch";
   const readEpoch = async () => {
     const marker = (await storage.get(epochKey)) ?? "0";
-    const tombstone = logoutEpoch(await storage.get(sessionKey(url))) ?? "0";
-    return BigInt(marker) > BigInt(tombstone) ? marker : tombstone;
+    const tombstone = sessionEpoch(await storage.get(sessionKey(url))) ?? "0";
+    const epoch = BigInt(marker) > BigInt(tombstone) ? marker : tombstone;
+    if (owner?.valid && BigInt(epoch) > BigInt(owner.epoch)) fence(owner, new SessionEpochChanged());
+    return epoch;
   };
   const captureEpoch = () => persist(() => storeLock(sessionKey(url), readEpoch));
   const revocations = sessionRevocations(url, storage, fetcher, work => persist(() => storeLock(sessionKey(url), work)));
   let logoutBarrier: Promise<void> = Promise.resolve();
-  const deferredRevocations = new Set<string>();
-  const mayRevoke = async (token: string, barrier?: Promise<void>): Promise<boolean> => {
-    try { await barrier; }
-    catch {
-      // A failed fence protects only the bearer still in storage. Late
-      // rotations and sign-ins that this app discards must still be revoked.
-      return persist(() => storeLock(sessionKey(url), async () => {
-        const saved = await storage.get(sessionKey(url));
-        let kept: unknown;
-        try { kept = saved ? JSON.parse(saved)?.token : undefined; } catch {}
-        if (kept === token) { deferredRevocations.add(token); return false; }
-        deferredRevocations.delete(token);
-        return true;
-      })).catch(() => { deferredRevocations.add(token); return false; });
-    }
-    deferredRevocations.delete(token);
-    return true;
-  };
-  const revokeRetired = (token: string) => {
-    void mayRevoke(token, logoutBarrier).then(allowed => {
-      if (allowed) return revokeSession(url, token, fetcher);
-    }).catch(() => {});
-  };
+  const revokeRetired = (token: string) => { void revocations.retire(token).catch(report); };
   // Replacement and deletion share one lock across tabs. A server refusal
   // only owns its rejected token, never a successor kept by another runtime.
   const removeSession = (expectedToken?: string, restoring = false) => persist(() => storeLock(sessionKey(url), async () => {
@@ -116,22 +107,14 @@ export function createApp(options: AppOptions): App {
       if (restoring) throw new RestorationChanged();
       return;
     }
-    let tombstone = false;
-    if (expectedToken === undefined) {
-      const epoch = (BigInt(await readEpoch()) + 1n).toString();
-      try { await storage.set(epochKey, epoch); }
-      catch {
-        // Never remove or revoke a bearer before its fence is durable. A
-        // shrinking overwrite can succeed even when the epoch key is full.
-        await storage.set(sessionKey(url), JSON.stringify({ snapback4Logout: epoch }));
-        tombstone = true;
-        // Freed quota may permit the marker now; keep the tombstone either way.
-        try { await storage.set(epochKey, epoch); } catch {}
-      }
-    }
-    if (!tombstone) await storage.delete(sessionKey(url));
-    // Explicit clearing may drop a successor this runtime never observed.
-    if (token) void revokeSession(url, token, fetcher);
+    if (expectedToken !== undefined) return; // A refusal is not an explicit logout.
+    const epoch = (BigInt(await readEpoch()) + 1n).toString();
+    // The tombstone is the single durable logout commit. It carries retirement
+    // custody too, so a quota failure cannot split the fence from the bearer.
+    const retired = revocations.embedded(text);
+    await storage.set(sessionKey(url), JSON.stringify({ snapback4Logout: epoch, snapback4Backend: url,
+      snapback4Retired: [...new Set([...retired, ...revocations.pending(), ...(token ? [token] : [])])] }));
+
   }));
   const sessionStore: SessionStore = {
     get: key => persist(() => storeLock(key, () => storage.get(key))),
@@ -151,7 +134,9 @@ export function createApp(options: AppOptions): App {
       // Compare the exact snapshot; a replacement makes restoration restart.
       delete: key => persist(() => storeLock(key, async () => {
         if (await storage.get(key) !== bytes) throw new RestorationChanged();
-        await storage.delete(key);
+        const keptEpoch = sessionEpoch(bytes);
+        if (keptEpoch !== null) await storage.set(key, JSON.stringify({ snapback4Logout: keptEpoch }));
+        else await storage.delete(key);
       })),
     };
     const session = await restoreSession(url, restoringStore);
@@ -160,7 +145,7 @@ export function createApp(options: AppOptions): App {
   let snapshot: AuthSnapshot = { state: "restoring", viewer: null };
   const listeners = new Set<() => void>();
   let current = createClient({ url, fetch: fetcher });
-  type Scope = { valid: boolean; session: Session; aborter: AbortController; client?: Client; logout?: Promise<void>; stop(): void; pause(): void };
+  type Scope = { valid: boolean; epoch: string; session: Session; issued: Set<string>; aborter: AbortController; client?: Client; view?: Client; save?: () => Promise<void>; logout?: Promise<void>; stop(): void; pause(): void };
   const scopes = new Set<Scope>();
   let owner: (Scope & { client: Client }) | undefined;
   let operations: Promise<unknown> = Promise.resolve();
@@ -168,7 +153,7 @@ export function createApp(options: AppOptions): App {
   let revision = 0;
   const publish = (state: AuthState, viewer: Principal | null, why?: Refusal) => {
     snapshot = { state, viewer, ...(why ? { why } : {}) };
-    for (const listener of listeners) listener();
+    for (const listener of listeners) { try { listener(); } catch (error) { console.error("snapback4 auth listener:", error); } }
   };
   const report = (error: unknown) => publish(snapshot.state, snapshot.viewer, problem(error));
   const drainRevocations = () => { void revocations.drain().catch(report); };
@@ -178,9 +163,9 @@ export function createApp(options: AppOptions): App {
     return result;
   };
   const inactive = (): SignIn => ({ ok: false, why: { code: "E_CLOSED", family: "client", message: "this app operation was superseded", site: "app.auth", rewrite: "await app.auth.login(email, password)" } });
-  const hide = (state: AuthState = "signed-out") => {
-    owner?.pause();
-    if (current !== owner?.client) void current.close();
+  const hide = (state: AuthState = "signed-out", pause = true) => {
+    if (pause) owner?.pause();
+    if (current !== owner?.view) void current.close();
     current = createClient({ url, fetch: fetcher });
     publish(state, null);
   };
@@ -190,12 +175,18 @@ export function createApp(options: AppOptions): App {
     if (!previous) return;
     previous.pause();
     try { await previous.client.close(); }
-    finally { previous.stop(); await persistence.catch(() => {}); previous.valid = false; scopes.delete(previous); }
+    finally {
+      if (previous.valid) try { await previous.save?.(); } catch (error) { report(error); }
+      const retired = previous.client.session()?.token;
+      previous.stop(); await persistence.catch(() => {}); previous.valid = false; scopes.delete(previous);
+      if (retired) previous.issued.add(retired);
+      for (const token of previous.issued) revokeRetired(token);
+    }
   }
   function fence(scope: Scope, error: SessionEpochChanged) {
     scope.valid = false; scope.pause(); scope.stop(); scope.aborter.abort();
     if (scope.client) void scope.client.signOut().catch(() => {});
-    if (owner !== scope) return;
+    if (owner !== scope || closed) return;
     const expected = revision;
     hide("restoring");
     void enqueue(async () => {
@@ -205,72 +196,60 @@ export function createApp(options: AppOptions): App {
     }).catch(report);
   }
   async function open(session: Session, expected: number, epoch: string, restoring = false): Promise<SignIn> {
-    if (closed || revision !== expected) { if (!closed) revokeRetired(session.token); return inactive(); }
-    hide("restoring");
-    await release();
-    if (closed || revision !== expected) { if (!closed) revokeRetired(session.token); return inactive(); }
+    if (closed || revision !== expected) { revokeRetired(session.token); return inactive(); }
+    const previous = owner;
+    hide("restoring", false);
+    // Keep the prior runtime's rotations and pending-write custody alive until
+    // commit. A failed replacement must not repair, revoke or detach it.
     // Every opener owns its persistence, including before it returns a Client.
     // Logout invalidates this guard synchronously, ahead of any network work.
-    const scope: Scope = { valid: true, session, aborter: new AbortController(), stop() {}, pause() {} };
+    const scope: Scope = { valid: true, epoch, session, issued: new Set([session.token]), aborter: new AbortController(), stop() {}, pause() {} };
     scopes.add(scope);
     let restoreToken = restoring ? session.token : undefined;
-    let signingIn = !restoring;
+    let preparing = true, committing = false;
     const scopedStore: SessionStore = {
       get: sessionStore.get,
       set: (key, value) => persist(() => storeLock(key, async () => {
-        let retiring: string[] = [];
-        if (key === sessionKey(url)) {
-          const next = JSON.parse(value) as Session;
-          if (scope.valid && await readEpoch() !== epoch) {
-            // The old token may already have been consumed by rotation, so
-            // logout could not revoke this successor before it arrived.
-            void revokeSession(url, next.token, scopedFetch);
-            const error = new SessionEpochChanged();
-            fence(scope, error);
-            throw restoreToken !== undefined ? new RestorationChanged() : error;
-          }
-          if (scope.valid && restoreToken !== undefined) {
-            const saved = await storage.get(key);
-            let token: unknown;
-            try { token = saved ? JSON.parse(saved)?.token : undefined; } catch {}
-            if (scope.valid && token !== restoreToken) {
-              // A constructor may have rotated before finding a different
-              // saved account. Revoke only its unkept replacement, never a
-              // stale ancestor of the session another app now owns.
-              if (next.token !== scope.session.token && next.token !== token) void revokeSession(url, next.token, scopedFetch);
-              throw new RestorationChanged();
-            }
-          }
-          scope.session = next;
-          const saved = await storage.get(key);
-          let displaced: unknown;
-          try { displaced = saved ? JSON.parse(saved)?.token : undefined; } catch {}
-          if (scope.valid && signingIn) {
-            retiring = [...deferredRevocations, ...(typeof displaced === "string" ? [displaced] : [])].filter(token => token !== next.token);
-            await revocations.stage(retiring);
-            if (typeof displaced === "string" && displaced !== next.token) {
-              const advanced = (BigInt(epoch) + 1n).toString();
-              await storage.set(epochKey, advanced);
-              epoch = advanced;
-            }
-          }
-          // A new sign-in may replace the tombstone only after its epoch has
-          // another durable home. Otherwise an old owner could see epoch 0.
-          if (scope.valid && logoutEpoch(saved) !== null) await storage.set(epochKey, epoch);
+        if (key !== sessionKey(url)) { await storage.set(key, value); return; }
+        const next = JSON.parse(value) as Session;
+        const saved = await storage.get(key);
+        let kept: Session | undefined;
+        try { kept = saved ? JSON.parse(saved) : undefined; } catch {}
+        if (!scope.valid || await readEpoch() !== epoch) {
+          revokeRetired(next.token);
+          const error = new SessionEpochChanged(); fence(scope, error);
+          throw restoreToken !== undefined ? new RestorationChanged() : error;
         }
-        if (scope.valid) {
-          await storage.set(key, value);
-          if (key === sessionKey(url) && signingIn) {
-            signingIn = false;
-            for (const token of retiring) deferredRevocations.delete(token);
-            drainRevocations();
-          }
+        if (restoreToken !== undefined && kept?.token !== restoreToken) {
+          if (next.token !== scope.session.token && next.token !== kept?.token) revokeRetired(next.token);
+          throw new RestorationChanged();
         }
-        else if (key === sessionKey(url)) void revokeSession(url, scope.session.token, scopedFetch);
-        if (key === sessionKey(url) && restoreToken !== undefined) restoreToken = scope.session.token;
+        // Constructors can write/rotate several times. These saves are private
+        // until their final successful opening; no durable account is displaced.
+        if (preparing && !committing) { scope.session = next; return; }
+        const replacing = preparing && !restoring;
+        if (!replacing && kept?.token && kept.token !== scope.session.token && kept?.token !== next.token) {
+          revokeRetired(next.token);
+          const error = new SessionEpochChanged(); fence(scope, error);
+          throw restoreToken !== undefined ? new RestorationChanged() : error;
+        }
+        if (replacing) await revocations.stage([...(kept?.token ? [kept.token] : []), ...revocations.pending()].filter(token => token !== next.token));
+        const nextEpoch = replacing && kept?.token && kept.token !== next.token ? (BigInt(epoch) + 1n).toString() : epoch;
+        // I2/I5: no separate epoch write and no fallible opening after this set.
+        if (kept?.token !== next.token || replacing) await storage.set(key, JSON.stringify({ ...next, snapback4Epoch: nextEpoch, snapback4Backend: url }));
+        epoch = nextEpoch; scope.epoch = nextEpoch; scope.session = next;
+        scope.issued.clear(); scope.issued.add(next.token);
+        if (restoreToken !== undefined) restoreToken = next.token;
       })),
       delete: key => scope.valid ? (key === sessionKey(url) ? removeSession(scope.session.token, restoreToken !== undefined) : sessionStore.delete(key)) : Promise.resolve(),
     };
+    async function authorized(): Promise<boolean> {
+      const startedEpoch = await captureEpoch();
+      if (!scope.valid || startedEpoch !== epoch) {
+        fence(scope, new SessionEpochChanged()); return false;
+      }
+      return true;
+    }
     const scopedFetch: typeof fetch = async (input, init) => {
       // Cancel backend acquisition before a local Client exists. Once open,
       // the client owns cancellation and late rotation revocation itself.
@@ -278,18 +257,26 @@ export function createApp(options: AppOptions): App {
       if (path === new URL(url + "/auth/logout").pathname) {
         const headers = new Headers(init?.headers ?? (typeof input === "string" || input instanceof URL ? undefined : input.headers));
         const token = headers.get("authorization")?.match(/^Bearer (.+)$/i)?.[1];
-        if (token && !await mayRevoke(token, scope.logout)) throw new Error("revocation deferred until the stored bearer can be removed");
+        await scope.logout?.catch(() => {});
+        if (token) await revocations.retire(token);
+        return Response.json({ ok: true });
       }
-      if (path === new URL(url + "/auth/refresh").pathname) {
-        const startedEpoch = await captureEpoch();
-        if (!scope.valid || startedEpoch !== epoch) {
-          const error = new SessionEpochChanged();
-          fence(scope, error);
-          return new Response(JSON.stringify({ denied: error.why }), { status: 401, headers: { "content-type": "application/json" } });
-        }
-      }
+      if (!await authorized()) return Response.json({ denied: new SessionEpochChanged().why }, { status: 401 });
+      if (init?.signal?.aborted) throw init.signal.reason ?? new Error("request was cancelled");
       if (!scope.valid && !path.startsWith("/auth/")) throw new Error("app opener was cancelled");
-      if (path !== "/schema") return fetcher(input, init);
+      if (path !== "/schema") {
+        const response = await fetcher(input, init);
+        if (path === new URL(url + "/auth/refresh").pathname) {
+          try {
+            const issued = (await response.clone().json() as { session?: Session }).session;
+            if (issued?.token) {
+              scope.issued.add(issued.token);
+              if (!scope.valid) revokeRetired(issued.token);
+            }
+          } catch { /* The lower-level client reports malformed replies. */ }
+        }
+        return response;
+      }
       const aborter = new AbortController();
       const abort = () => aborter.abort();
       const signals = [scope.aborter.signal, init?.signal].filter((signal): signal is AbortSignal => !!signal);
@@ -297,7 +284,7 @@ export function createApp(options: AppOptions): App {
       try { return await fetcher(input, { ...init, signal: aborter.signal }); }
       finally { for (const signal of signals) signal.removeEventListener("abort", abort); }
     };
-    let raw: Client | undefined;
+    let raw: Client | undefined, startClient: (() => Promise<void>) | undefined;
     try {
       await keepSession(url, session, scopedStore);
       if (!scope.valid || revision !== expected) return inactive();
@@ -305,9 +292,16 @@ export function createApp(options: AppOptions): App {
         // Preserve all local tuning while retaining app-owned identity, even
         // when an untyped caller supplies lower-level sign-in options.
         const { persona: _persona, guest: _guest, ...localOptions }: LocalOptions = { ...options, device: options.device };
-        raw = await createLocalClient({ ...localOptions, assets: assets!, url, session, sessionStore: scopedStore, fetch: scopedFetch });
-      } else raw = createClient({ url, session, fetch: scopedFetch });
+        const prepared = { ...localOptions, assets: assets!, url, session, sessionStore: scopedStore, fetch: scopedFetch };
+        const local = await prepareClient(prepared, () => createLocalClient(prepared));
+        raw = local.client; startClient = local.start;
+      } else {
+        const prepared = { url, session, fetch: scopedFetch };
+        const online = await prepareClient(prepared, () => createClient(prepared));
+        raw = online.client; startClient = online.start;
+      }
       scope.client = raw;
+      scope.save = async () => { const next = raw?.session(); if (next) await keepSession(url, next, scopedStore); };
       if (!scope.valid || closed || revision !== expected) {
         if (scope.valid && closed) await raw.close();
         else void raw.signOut().catch(() => {});
@@ -321,10 +315,10 @@ export function createApp(options: AppOptions): App {
           hide("restoring");
           void enqueue(async () => {
             if (owner !== scope) return;
-            await release();
-            await scope.logout;
-            await removeSession(rejected);
-            if (revision === rejectionRevision) publish("signed-out", null);
+            let warning: Refusal | undefined;
+            try { await release(); await scope.logout; await removeSession(rejected); }
+            catch (error) { warning = problem(error); }
+            if (revision === rejectionRevision) publish("signed-out", null, warning);
           }).catch(report);
         }
       });
@@ -332,44 +326,66 @@ export function createApp(options: AppOptions): App {
       const custody = options.device ? undefined : await onlineCustody(raw, url, storage, error => {
         warning = problem(error);
         if (scope.valid) report(error);
-      });
-      const client = custody?.client ?? raw;
+      }, false);
+      const baseClient = custody?.client ?? raw;
+      const client = guardClient(baseClient, authorized, () => scope.valid, () => new SessionEpochChanged().why);
+      // Public Client lifecycle calls have the same atomic identity boundary as
+      // app.auth. Internal retirement always uses baseClient, never these routes.
+      client.signOut = async () => { if (owner === scope) await auth.logout(); };
+      client.logoutAll = () => owner === scope ? auth.logoutEverywhere()
+        : Promise.resolve({ ok: false, why: new SessionEpochChanged().why });
       if (!scope.valid || closed || revision !== expected) {
         custody?.pause();
         if (scope.valid && closed) await client.close();
-        else void client.signOut().catch(() => {});
+        else void baseClient.signOut().catch(() => {});
         return inactive();
       }
-      const own = Object.assign(scope, { client, pause: () => { custody?.pause(); } });
+      const own = Object.assign(scope, { client: baseClient, view: client, pause: () => { custody?.pause(); } });
       owner = own;
       const next = raw.session();
       if (!next) { hide("restoring"); await release(); await removeSession(scope.session.token, restoreToken !== undefined); if (revision === expected) publish("signed-out", null); return inactive(); }
       // Local opening can rotate a near-expiry bearer before returning.
+      committing = true;
       await keepSession(url, next, scopedStore);
+      preparing = false;
+      if (previous) {
+        previous.valid = false; previous.pause(); previous.stop(); previous.aborter.abort();
+        void previous.client.signOut().catch(() => {}).finally(() => scopes.delete(previous));
+      }
       if (!scope.valid || closed || revision !== expected) {
-        if (!closed) void client.signOut().catch(() => {});
+        if (!closed) void baseClient.signOut().catch(() => {});
         await release();
-        return inactive();
+        drainRevocations();
+        return { ok: true, session: next }; // The durable commit already happened.
       }
       restoreToken = undefined;
       current = client;
       publish("signed-in", raw.viewer(), warning);
-      return { ok: true, session: next };
+      custody?.start();
+      // Preserve the documented local acquisition barrier. This is after the
+      // identity commit: a transport/startup error reports why, never rollback.
+      if (startClient) try { await startClient(); } catch (error) { if (scope.valid) report(error); }
+      drainRevocations();
+      return { ok: true, session: raw.session() ?? next };
     } catch (error) {
-      if (revision === expected) hide("restoring");
-      // An opener that reports failure must not leave a restorable bearer.
-      // Fence late saves first, then clear only this opener's saved token.
+      if (revision === expected) hide("restoring", false);
+      // Abort only the provisional owner. The previous durable session and
+      // epoch are unchanged; every issued successor remains in retirement custody.
       scope.valid = false; scope.pause(); scope.stop(); scope.aborter.abort();
       if (!(error instanceof RestorationChanged)) {
         void revokeSession(url, scope.session.token, scopedFetch);
         if (raw) void raw.signOut().catch(() => {});
         await scope.logout;
-        await removeSession(scope.session.token);
+        // Provisional failure never owns the previously stored account.
       }
       try { if (owner === scope) await release(); else await raw?.close(); } catch {}
+      if (previous?.valid && !closed && revision === expected) {
+        owner = previous; current = previous.view ?? previous.client;
+        publish("signed-in", previous.client.viewer(), problem(error));
+      }
       throw error;
     } finally {
-      if (owner !== scope) { scope.stop(); await persistence.catch(() => {}); scope.valid = false; scopes.delete(scope); }
+      if (owner !== scope) { scope.stop(); await persistence.catch(() => {}); scope.valid = false; scopes.delete(scope); if (preparing) for (const token of scope.issued) revokeRetired(token); }
     }
   }
 
@@ -419,7 +435,6 @@ export function createApp(options: AppOptions): App {
       }
       owner = undefined;
       const ending = logoutBarrier.then<AppResult>(() => {
-        for (const token of deferredRevocations) revokeRetired(token);
         drainRevocations();
         if (revision === expected) publish("signed-out", null);
         return { ok: true };
@@ -433,15 +448,30 @@ export function createApp(options: AppOptions): App {
     },
     logoutEverywhere() {
       return enqueue(async () => {
-        if (!owner) return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions", site: "app.auth.logoutEverywhere", rewrite: "await app.auth.login(email, password)" } };
+        const bearer = owner?.client.session()?.token;
+        if (!bearer) return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions", site: "app.auth.logoutEverywhere", rewrite: "await app.auth.login(email, password)" } };
+        ++revision; hide("restoring");
+        logoutBarrier = forgetSession(url, sessionStore);
+        const retiring = [...scopes];
+        for (const scope of retiring) {
+          scope.logout = logoutBarrier; scope.valid = false; scope.pause(); scope.stop(); scope.aborter.abort();
+        }
+        owner = undefined;
         try {
-          const result = await owner.client.logoutAll();
-          if (result.ok) { ++revision; hide("restoring"); await release(); await forgetSession(url, sessionStore); drainRevocations(); publish("signed-out", null); }
+          // I1/I2: a failed local commit must not remotely revoke a saved token.
+          await logoutBarrier;
+          const result = await revokeAllSessions(url, bearer, fetcher);
+          publish("signed-out", null, result.ok ? undefined : result.why);
           return result;
         } catch (error) {
-          if (!owner) publish("signed-out", null, problem(error));
-          else report(error);
+          publish("signed-out", null, problem(error));
           return { ok: false, why: problem(error) };
+        } finally {
+          for (const scope of retiring) {
+            if (scope.client) void scope.client.signOut().catch(() => {}).finally(() => scopes.delete(scope));
+            else revokeRetired(scope.session.token);
+          }
+          drainRevocations();
         }
       });
     },

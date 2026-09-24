@@ -49450,3 +49450,70 @@ No deviation from the round 9 scope or unresolved round 9 finding. Did not
 change the Client contract, Quarry forms, authorization/disclosure rules,
 meters, native APIs, assets, starters or package versions. Did not push or
 publish.
+
+## 2026-09-24 — LLP 3000.013 lane E round 10: atomic session ownership, checked against a model
+
+Replaced split epoch/bearer writes with one atomic session record containing
+both. Opening is provisional and retains the previous owner until commit;
+failed device initialization or persistence cannot revoke the previous guest.
+Automatic rotation, sync and outbox replay begin after commit. Local acquisition
+still completes before sign-in returns. Logout commits one backend-bound
+noncredential tombstone carrying the epoch and retirement obligations. Every
+revocation path compares the currently stored bearer. Retirement journals and
+tombstones discard entries only after remote acknowledgement. Observing a newer
+epoch fences the old principal's wire, device, cached-read and media access.
+The Client facade preserves typed refusals on storage errors, captured mutation
+arguments, and app-owned logout. Class store adapters preserve method receivers.
+Recorded I1–I5, commit boundaries and assumptions in the client reference and
+LLP 3000.013 section 6; extracted private startup coordination and backend
+loading without adding public exports or changing ordinary lower-level startup.
+
+Added a black-box model using three real createApp runtimes, one store and one
+mock server. Seeds 1–2,000 run 52,000 commands: signup, login, guest, refresh,
+logout, close, reopen, held-response release and query. It holds server-committed
+signup/login/guest/refresh/logout replies; injects numbered get/set/delete
+failures; checks I1–I5 at store/wire and quiescent boundaries; and prints a
+seed plus deletion-minimal counterexample on failure. The default run hit 2,386
+get, 289 set and 103 delete faults. A 120-sequence sweep covers positions 1–40
+for each failure kind after an unpersisted rotation. Four reduced discoveries
+run as fixed cases. Eleven focused cases cover rollback, peer fencing,
+retirement cleanup, deferred replay/startup, backend binding, Client lifecycle,
+class stores and typed refusals. Round 6–9 scenarios remain, with assertions
+updated for the atomic record and refusal cleanup preserving stored credentials.
+Negative controls fail when stored-bearer protection, atomic epoch commitment
+or journal cleanup is removed.
+
+Beyond the three review findings, the model found stored-token revocation after
+a failed read; a late guest token lost after close; an unpersisted successor
+lost on replacement; premature repair changing bytes during failed replacement;
+and a closed runtime returning to restoring. Fixed all five. One other failure
+was the oracle conflating a closed runtime with a reopened slot; fixed runtime
+identity tracking. Full counterexamples and file map are in the
+[round 10 report](./reports/20260924-lane-e-round10.md).
+
+Measured: 217 affected tests passed, then 92 auth/model/React tests passed after
+the final guard change. Both real Chromium witnesses pass (separate-tab session
+locking and shell/replica/account reload with both servers stopped). Build,
+typecheck, reference check and whitespace check pass. Final scripts/test.sh:
+**`== 0 failure(s) in 161 s`**, exit 0; 1,134 client passes, 10 skips and nine
+fixture passes. A preceding full run passed in 340 s. The first full run was
+`== 1 failure(s) in 146 s`: two failures in the client group, both ours and fixed
+(README acquisition timing and unintended public preparation exports). An
+intermediate affected run hit five environmental disk-full/I/O/ENOSPC/timeout
+failures in W8R1a dev/serve and online/native/web; removed only this lane's
+rebuildable incremental cache, then all passed. The React timing assertion was
+ours and received a bounded asynchronous wait. Revocation polling hit an
+aborted pooled socket; it now retries only UND_ERR_SOCKET within its original
+bound. No baseline failure was waived. README stays 296/300 lines; modified
+source files stay below 1,500. Wasm remains 1,744,842 raw / 484,967 gzip bytes.
+
+Stopped the impossible unconditional part of I3 rather than weakening it:
+server refresh consumes T and commits S, its response never arrives, persistence
+and revocation are unavailable, and the process is killed. The client never
+learned S and cannot reconstruct it or revoke it with consumed T. This needs a
+server issuance-recovery protocol, which this lane did not add. Modelled
+liveness assumes responses eventually arrive and storage/network recover while
+an owner survives, with lifecycle retries. Atomicity assumes each rejected set
+leaves its key unchanged and cooperating runtimes share the lock. No engine
+rules, meters, Quarry forms, asset policy, native ABI or package versions
+changed. Did not push or publish.
