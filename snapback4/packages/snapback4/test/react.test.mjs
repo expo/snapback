@@ -230,6 +230,49 @@ const cases = {
     } finally { await unmount(); await app.close(); }
   },
 
+  async "two online owners notify both pending-write hooks when the shared journal settles once"() {
+    const store = memorySessionStore(), owners = [], waits = [deferred(), deferred()], entered = [false, false];
+    const initial = { principal: "alice", token: "same-session", kind: "user", expiresAt: Date.now() + 7 * 86400000 };
+    await store.set("snapback4:https://shared.invalid:session", JSON.stringify(initial));
+    let a, b;
+    const calls = [0, 0], events = [[], []], id = "00000000000000000000000001";
+    function Pending({ index }) {
+      const write = usePendingWrite(mutation, id);
+      return h("p", { id: "owner-" + index }, write.last?.state ?? "unknown");
+    }
+    const until = async (check, message) => {
+      for (let n = 0; n < 200; n++) { if (check()) return; await new Promise(resolve => setTimeout(resolve, 10)); }
+      throw Error(message);
+    };
+    try {
+      for (let index = 0; index < 2; index++) {
+        const app = createApp({ url: "https://shared.invalid", sessionStore: store, fetch: async (url, init) => {
+          if (new URL(url).pathname !== "/m/write") throw Error("unexpected route " + url);
+          if (++calls[index] === 1) throw Error("initial request offline");
+          entered[index] = true;
+          await waits[index].promise;
+          return Response.json({ state: "sent", id, seq: 1, replayed: index === 1 });
+        } });
+        owners.push(app); await app.ready;
+        app.client.onWrite(write => events[index].push(write.state));
+      }
+      a = owners[0]; b = owners[1];
+      equal((await a.mutate(mutation, { body: "shared" }, { id })).state, "pending", "A queued");
+      equal((await b.mutate(mutation, { body: "shared" }, { id })).state, "pending", "B queued same ID");
+      await mount(h("div", null, ...owners.map((app, index) => h(AppProvider, { app, key: index }, h(Pending, { index })))));
+      for (let n = 0; n < 100 && ![...host.querySelectorAll("p")].every(p => p.textContent === "pending"); n++) await act(async () => { await new Promise(resolve => setTimeout(resolve, 10)); });
+      equal([...host.querySelectorAll("p")].map(p => p.textContent), ["pending", "pending"], "both hooks pending");
+      await until(() => entered.every(Boolean), "both retry requests held");
+      await act(async () => { waits[0].resolve(); await until(() => events[0].length === 1, "A terminal notification"); });
+      equal(host.querySelector("#owner-0").textContent, "sent", "A hook settled");
+      equal(host.querySelector("#owner-1").textContent, "pending", "B still waits for its confirmation");
+      await act(async () => { waits[1].resolve(); await until(() => events[1].length === 1, "B must notify even after A retired the entry"); });
+      equal(host.querySelector("#owner-1").textContent, "sent", "B hook settled without polling write(id)");
+      await act(async () => { await a.client.write(id); await b.client.write(id); });
+      equal(events, [["sent"], ["sent"]], "notifications deduplicate separately for each owner");
+    } finally { waits.forEach(wait => wait.resolve()); await unmount(); await Promise.all(owners.map(app => app.close())); }
+  },
+
   async "useQuery owns observations through Strict Mode, equivalent arguments and unmount"() {
     const client = controlled(args => ready(args)); let latest;
     function Probe({ value }) { latest = useQuery(query, { value }); return null; }

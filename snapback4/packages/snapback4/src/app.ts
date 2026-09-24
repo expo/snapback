@@ -2,7 +2,7 @@
 import { createClient } from "./client.ts";
 import { createLocalClient, type DeviceOpener } from "./local.ts";
 import { onlineCustody } from "./app-online.ts";
-import { signup, login, guest, keepSession, restoreSession, forgetSession, memorySessionStore, logout as revokeSession, type SessionStore } from "./auth.ts";
+import { signup, login, guest, keepSession, restoreSession, forgetSession, memorySessionStore, logout as revokeSession, sessionKey, type SessionStore } from "./auth.ts";
 import type { Client, Principal, Refusal, Session, SessionRevocation, SignIn } from "./contract.ts";
 
 export type AuthState = "restoring" | "signed-out" | "signed-in";
@@ -63,7 +63,9 @@ export function createApp(options: AppOptions): App {
   let snapshot: AuthSnapshot = { state: "restoring", viewer: null };
   const listeners = new Set<() => void>();
   let current = createClient({ url, fetch: fetcher });
-  let owner: { client: Client; stop(): void; pause(): void } | undefined;
+  type Scope = { valid: boolean; session: Session; aborter: AbortController; client?: Client; stop(): void; pause(): void };
+  const scopes = new Set<Scope>();
+  let owner: (Scope & { client: Client }) | undefined;
   let operations: Promise<unknown> = Promise.resolve();
   let closed = false;
   let revision = 0;
@@ -90,42 +92,80 @@ export function createApp(options: AppOptions): App {
     if (!previous) return;
     previous.pause();
     try { await previous.client.close(); }
-    finally { previous.stop(); await persistence.catch(() => {}); }
+    finally { previous.stop(); await persistence.catch(() => {}); previous.valid = false; scopes.delete(previous); }
   }
   async function open(session: Session, expected: number): Promise<SignIn> {
     if (closed || revision !== expected) { if (!closed) void revokeSession(url, session.token, fetcher); return inactive(); }
     hide("restoring");
     await release();
     if (closed || revision !== expected) { if (!closed) void revokeSession(url, session.token, fetcher); return inactive(); }
-    await keepSession(url, session, sessionStore);
-    const raw = options.device
-      ? await createLocalClient({ url, session, sessionStore, device: options.device, fetch: fetcher })
-      : createClient({ url, session, fetch: fetcher });
-    if (closed || revision !== expected) { await (closed ? raw.close() : raw.signOut()); return inactive(); }
+    // Every opener owns its persistence, including before it returns a Client.
+    // Logout invalidates this guard synchronously, ahead of any network work.
+    const scope: Scope = { valid: true, session, aborter: new AbortController(), stop() {}, pause() {} };
+    scopes.add(scope);
+    const scopedStore: SessionStore = {
+      get: sessionStore.get,
+      set: (key, value) => persist(async () => {
+        if (key === sessionKey(url)) scope.session = JSON.parse(value) as Session;
+        if (scope.valid) await storage.set(key, value);
+        else if (key === sessionKey(url)) void revokeSession(url, scope.session.token, fetcher);
+      }),
+      delete: key => persist(async () => { if (scope.valid) await storage.delete(key); }),
+    };
+    const scopedFetch: typeof fetch = async (input, init) => {
+      // Cancel backend acquisition before a local Client exists. Once open,
+      // the client owns cancellation and late rotation revocation itself.
+      const path = new URL(typeof input === "string" || input instanceof URL ? input : input.url).pathname;
+      if (!scope.valid && !path.startsWith("/auth/")) throw new Error("app opener was cancelled");
+      if (path !== "/schema") return fetcher(input, init);
+      const aborter = new AbortController();
+      const abort = () => aborter.abort();
+      const signals = [scope.aborter.signal, init?.signal].filter((signal): signal is AbortSignal => !!signal);
+      for (const signal of signals) { signal.addEventListener("abort", abort, { once: true }); if (signal.aborted) abort(); }
+      try { return await fetcher(input, { ...init, signal: aborter.signal }); }
+      finally { for (const signal of signals) signal.removeEventListener("abort", abort); }
+    };
+    let raw: Client | undefined;
     try {
-      const custody = options.device ? undefined : await onlineCustody(raw, url, storage, report);
-      const client = custody?.client ?? raw;
-      const own = { client, pause: () => { custody?.pause(); }, stop: () => {} };
-      owner = own;
-      own.stop = raw.onSession(next => {
-        if (owner !== own) return;
-        if (next) void keepSession(url, next, sessionStore).catch(report);
-        else {
+      await keepSession(url, session, scopedStore);
+      if (!scope.valid || revision !== expected) return inactive();
+      raw = options.device
+        ? await createLocalClient({ url, session, sessionStore: scopedStore, device: options.device, fetch: scopedFetch })
+        : createClient({ url, session, fetch: fetcher });
+      scope.client = raw;
+      if (!scope.valid || closed || revision !== expected) {
+        if (scope.valid && closed) await raw.close();
+        else void raw.signOut().catch(() => {});
+        return inactive();
+      }
+      scope.stop = raw.onSession(next => {
+        if (next) void keepSession(url, next, scopedStore).catch(report);
+        else if (scope.valid && owner === scope) {
           hide("restoring");
           void enqueue(async () => {
-            if (owner !== own) return;
+            if (owner !== scope) return;
             await release();
             await forgetSession(url, sessionStore);
-            publish("signed-out", null);
-          }).catch(error => publish("signed-out", null, problem(error)));
+            if (revision === expected) publish("signed-out", null);
+          }).catch(report);
         }
       });
+      const custody = options.device ? undefined : await onlineCustody(raw, url, storage, report);
+      const client = custody?.client ?? raw;
+      if (!scope.valid || closed || revision !== expected) {
+        custody?.pause();
+        if (scope.valid && closed) await client.close();
+        else void client.signOut().catch(() => {});
+        return inactive();
+      }
+      const own = Object.assign(scope, { client, pause: () => { custody?.pause(); } });
+      owner = own;
       const next = raw.session();
       if (!next) { hide(); await release(); await forgetSession(url, sessionStore); return inactive(); }
       // Local opening can rotate a near-expiry bearer before returning.
-      await keepSession(url, next, sessionStore);
-      if (closed || revision !== expected) {
-        if (!closed) await client.signOut();
+      await keepSession(url, next, scopedStore);
+      if (!scope.valid || closed || revision !== expected) {
+        if (!closed) void client.signOut().catch(() => {});
         await release();
         return inactive();
       }
@@ -133,13 +173,15 @@ export function createApp(options: AppOptions): App {
       publish("signed-in", raw.viewer());
       return { ok: true, session: next };
     } catch (error) {
-      hide();
-      // A failed journal read or session save never exposes the half-open
-      // authenticated client, and must release its transport/device lifetime.
-      try { if (owner) await release(); else await raw.close(); } catch {}
+      if (revision === expected) hide();
+      // Release a half-open client without exposing it to a screen.
+      try { if (owner === scope) await release(); else await raw?.close(); } catch {}
       throw error;
+    } finally {
+      if (owner !== scope) { scope.stop(); await persistence.catch(() => {}); scope.valid = false; scopes.delete(scope); }
     }
   }
+
   const signIn = (work: () => Promise<SignIn>): Promise<SignIn> => {
     const expected = ++revision;
     return enqueue(async () => {
@@ -147,11 +189,13 @@ export function createApp(options: AppOptions): App {
       try {
         const result = await work();
         if (!result.ok) {
+          if (revision !== expected) return inactive();
           if (snapshot.state === "restoring") publish("signed-out", null, result.why);
           return result;
         }
         return await open(result.session, expected);
       } catch (error) {
+        if (revision !== expected) return inactive();
         if (snapshot.state === "restoring") publish("signed-out", null, problem(error));
         else report(error);
         return { ok: false, why: problem(error) };
@@ -168,21 +212,26 @@ export function createApp(options: AppOptions): App {
     login: (email, password) => signIn(() => login(url, email, password, fetcher)),
     guest: () => signIn(() => guest(url, fetcher)),
     logout() {
-      ++revision;
+      const expected = ++revision;
       hide("restoring");
-      return enqueue(async () => {
-        const previous = owner;
-        // Credential clearing must remain retryable even if an earlier outbox
-        // save failed. Drain old work before the final session deletion.
-        let failure: unknown;
-        previous?.stop();
-        try { await previous?.client.signOut(); } catch (error) { failure = error; }
-        try { await release(); } catch (error) { failure ??= error; }
-        try { await forgetSession(url, sessionStore); } catch (error) { failure ??= error; }
-        if (failure) { publish("signed-out", null, problem(failure)); return { ok: false, why: problem(failure) }; }
-        publish("signed-out", null);
+      // Credential deletion is deliberately outside the auth/network queue.
+      // Constructors and retiring clients can no longer write this session.
+      for (const scope of scopes) {
+        scope.valid = false; scope.pause(); scope.stop(); scope.aborter.abort();
+        if (scope.client) void scope.client.signOut().catch(() => {}).finally(() => scopes.delete(scope));
+        else void revokeSession(url, scope.session.token, fetcher);
+      }
+      owner = undefined;
+      const ending = forgetSession(url, sessionStore).then<AppResult>(() => {
+        if (revision === expected) publish("signed-out", null);
         return { ok: true };
+      }).catch((error): AppResult => {
+        if (revision === expected) publish("signed-out", null, problem(error));
+        return { ok: false, why: problem(error) };
       });
+      // Later sign-ins wait for local deletion, never for remote revocation.
+      operations = Promise.allSettled([operations, ending]);
+      return ending;
     },
     logoutEverywhere() {
       return enqueue(async () => {
@@ -203,11 +252,17 @@ export function createApp(options: AppOptions): App {
     const expected = 0;
     try {
       const session = await restoreSession(url, sessionStore);
-      if (closed || revision !== expected) return { ok: true };
+      if (closed || revision !== expected) {
+        if (session && !closed) void revokeSession(url, session.token, fetcher);
+        return { ok: true };
+      }
       if (session) return await open(session, expected);
       publish("signed-out", null);
       return { ok: true };
-    } catch (error) { publish("signed-out", null, problem(error)); return { ok: false, why: problem(error) }; }
+    } catch (error) {
+      if (revision !== expected) return { ok: true };
+      publish("signed-out", null, problem(error)); return { ok: false, why: problem(error) };
+    }
   });
   return {
     auth, ready,

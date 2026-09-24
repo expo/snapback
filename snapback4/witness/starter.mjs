@@ -122,6 +122,8 @@ try {
   const seed = await fetch(`${api}/seed`, { method: "POST", body: JSON.stringify(rows) }).then(r => r.json());
   assert.equal(seed.seeded, 5);
   const first = join(temporary, "build-a"), second = join(temporary, "build-b");
+  writeFileSync(join(app, "src/shell-lazy.ts"), 'export const build = "A";\n');
+  writeFileSync(join(app, "src/main.tsx"), readFileSync(join(app, "src/main.tsx"), "utf8") + '\nObject.assign(window, { loadShellFixture: () => import("./shell-lazy").then(m => m.build) });\n');
   await buildApp(first);
   deployed = first;
   const types = { ".html": "text/html", ".js": "text/javascript", ".wasm": "application/wasm", ".css": "text/css" };
@@ -326,6 +328,7 @@ try {
   // A worker-only deployment has the same entry/assets cache identity. If
   // its install fails, it must not delete the still-active worker's cache.
   workerOnlyPatch = true; failInstallAsset = true;
+  const updateRequestStart = requests.length;
   await page.evaluate(async () => {
     const registration = await navigator.serviceWorker.getRegistration();
     await new Promise((resolve, reject) => {
@@ -338,7 +341,7 @@ try {
       }, { once: true });
       registration.update().catch(error => { clearTimeout(timer); reject(error); });
     });
-  });
+  }).catch(error => { console.log(JSON.stringify({ updateRequests: requests.slice(updateRequestStart), failInstallAsset, controller: old.controller })); throw error; });
   assert.equal(failInstallAsset, false, "worker-only update attempted the failed download");
   const oldCache = old.keys.find(k => k.startsWith("snapback4-shell:"));
   assert.ok((await page.evaluate(() => caches.keys())).includes(oldCache));
@@ -348,11 +351,18 @@ try {
   assert.equal(await page.evaluate(url => fetch(url).then(r => r.status), immutable), 200, "failed same-assets update preserves offline assets");
   await context.setOffline(false); workerOnlyPatch = false;
   writeFileSync(join(app, "index.html"), readFileSync(join(app, "index.html"), "utf8").replace("<title>Snapback 4 chat</title>", "<title>Snapback 4 chat updated</title>"));
-  // Change an immutable asset as well, so old-tab asset availability is real.
+  // Change an unused lazy module as well: an online navigation must keep A's
+  // HTML, so its first lazy import still succeeds offline while B waits.
+  writeFileSync(join(app, "src/shell-lazy.ts"), 'export const build = "B";\n');
   writeFileSync(join(app, "src/main.tsx"), readFileSync(join(app, "src/main.tsx"), "utf8") + '\ndocument.documentElement.dataset.shellVersion = "second";\n');
   await buildApp(second); deployed = second;
   await page.evaluate(() => navigator.serviceWorker.getRegistration().then(r => r.update()));
   await page.waitForFunction(async () => !!(await navigator.serviceWorker.getRegistration()).waiting);
+  await page.reload();
+  assert.equal(await page.title(), "Snapback 4 chat", "online navigation stays on the active build");
+  await context.setOffline(true);
+  assert.equal(await page.evaluate(() => window.loadShellFixture()), "A", "unused old-build lazy chunk loads offline");
+  await context.setOffline(false);
   assert.equal(await page.evaluate(url => fetch(url).then(r => r.status), immutable), 200, "old tab still loads its removed asset");
   assert.ok((await page.evaluate(() => caches.keys())).includes(old.keys.find(k => k.startsWith("snapback4-shell:"))));
   await page.close();
@@ -365,10 +375,11 @@ try {
   }, address);
   await page.goto(address);
   await until(async () => await page.title() === "Snapback 4 chat updated", "new worker activates after old tabs close");
+  assert.equal(await page.evaluate(() => window.loadShellFixture()), "B", "activated HTML and lazy chunk switch together");
   const currentKeys = await page.evaluate(() => caches.keys());
   assert.equal(currentKeys.filter(k => k.startsWith("snapback4-shell:")).length, 1);
   assert.ok(!currentKeys.includes(old.keys.find(k => k.startsWith("snapback4-shell:"))));
-  out.shell = { subpath: true, allowlistOnly: true, failedSameAssetsUpdateKeptCache: true, oldTabAssetKept: true, newBuildActivated: true };
+  out.shell = { subpath: true, allowlistOnly: true, failedSameAssetsUpdateKeptCache: true, oldTabAssetKept: true, newBuildActivated: true, navigationStayedOnActiveBuild: true, unusedLazyChunkOffline: true };
   console.log(JSON.stringify({ stage: "shell", ...out.shell }));
   assert.deepEqual(pageErrors, []);
   out.ok = true;

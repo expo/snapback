@@ -17,7 +17,7 @@ async function fixture(t, shape) {
 }
 function runtime(source, shared = new Map()) {
   const listeners = {}, requests = [];
-  let offline = false, fail;
+  let offline = false, fail, deployment = "A";
   const caches = {
     has: async key => shared.has(key), keys: async () => [...shared.keys()], delete: async key => shared.delete(key),
     async open(key) {
@@ -27,9 +27,9 @@ function runtime(source, shared = new Map()) {
     },
   };
   runInNewContext(source, { self: { location: { origin: "https://app.test" }, addEventListener: (name, fn) => { listeners[name] = fn; } }, URL, Request, Response, caches,
-    fetch: async request => { requests.push(request); if (offline || request.url.endsWith(fail ?? "\0")) throw Error("offline"); return { ok: true, type: "basic", url: request.url }; } });
+    fetch: async request => { requests.push(request); if (offline || request.url.endsWith(fail ?? "\0")) throw Error("offline"); return { ok: true, type: "basic", url: request.url, deployment }; } });
   return {
-    shared, requests,
+    shared, requests, deployment(value) { deployment = value; },
     offline(value) { offline = value; }, fail(value) { fail = value; },
     async event(name) { let work; listeners[name]({ waitUntil(promise) { work = promise; } }); await work; },
     fetch(path, { mode = "cors", method = "GET", authorization = false } = {}) {
@@ -94,4 +94,29 @@ test("web-shell CLI runs without a platform binary and rejects unsafe bases/syml
   for (const base of ["https://evil.test/", "//evil/", "/../", "/chat", "/a/./"]) await assert.rejects(webShell(dir, base));
   await symlink("index.html", join(dir, "leak.html"));
   await assert.rejects(webShell(dir), /symlink/);
+});
+
+
+test("active shell keeps its HTML and unused lazy chunk together while a new build waits", async t => {
+  const { dir } = await fixture(t, "vite");
+  await writeFile(join(dir, "assets/lazy-A.js"), "build A lazy module");
+  await webShell(dir, "/chat/");
+  const active = runtime(await readFile(join(dir, "snapback4-sw.js"), "utf8"));
+  await active.event("install");
+  await writeFile(join(dir, "index.html"), "<body>build B</body>");
+  await rm(join(dir, "assets/lazy-A.js"));
+  await writeFile(join(dir, "assets/lazy-B.js"), "build B lazy module");
+  await webShell(dir, "/chat/");
+  const waiting = runtime(await readFile(join(dir, "snapback4-sw.js"), "utf8"), active.shared);
+  active.deployment("B"); waiting.deployment("B");
+  await waiting.event("install");
+  const requests = active.requests.length;
+  assert.equal((await active.fetch("/chat/", { mode: "navigate" })).deployment, "A");
+  assert.equal(active.requests.length, requests, "navigation must not fetch waiting deployment HTML");
+  active.offline(true);
+  assert.equal((await active.fetch("/chat/assets/lazy-A.js")).deployment, "A");
+  await waiting.event("activate");
+  waiting.offline(true);
+  assert.equal((await waiting.fetch("/chat/", { mode: "navigate" })).deployment, "B");
+  assert.equal((await waiting.fetch("/chat/assets/lazy-B.js")).deployment, "B");
 });

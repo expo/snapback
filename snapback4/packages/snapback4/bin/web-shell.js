@@ -79,8 +79,9 @@ self.addEventListener("fetch", event => {
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);
     if (navigation) {
-      try { return await fetch(request); }
-      catch { return (await cache.match(url(address.pathname))) || (await cache.match(url(ENTRY))) || Response.error(); }
+      // HTML and lazy assets must belong to the active build, even online.
+      // A waiting worker switches both together after the old tabs close.
+      return (await cache.match(url(address.pathname))) || (await cache.match(url(ENTRY))) || Response.error();
     }
     return (await cache.match(url(address.pathname))) || fetch(request);
   })());

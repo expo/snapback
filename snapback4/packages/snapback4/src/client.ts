@@ -225,7 +225,8 @@ export function createClient(options: ClientOptions): Client {
     rotatingSession = rotation;
     const work = (async (): Promise<SignIn> => {
       const refreshed = await Promise.race([rotation, refreshStopped]);
-      if (closed) return { ok: false, why: ended() };
+      // An ordinary close still owns an in-flight rotation's replacement.
+      // Sign-out separately ends credentials and cancels adoption.
       if (!credentials) return { ok: false, why: auth() };
       credentialRevision += 1;
       if (!refreshed.ok) {
@@ -241,9 +242,11 @@ export function createClient(options: ClientOptions): Client {
       headers.authorization = `Bearer ${session.token}`;
       setViewer(session.principal as Principal);
       for (const listener of [...sessionListeners]) listener(session);
-      setLink("online");
-      for (const watch of watches.values()) void refresh(watch);
-      scheduleRefresh();
+      if (!closed) {
+        setLink("online");
+        for (const watch of watches.values()) void refresh(watch);
+        scheduleRefresh();
+      }
       return refreshed;
     })();
     refreshing = work;
@@ -623,14 +626,13 @@ export function createClient(options: ClientOptions): Client {
       watches.clear();
       linkListeners.clear();
       viewerListeners.clear();
-      sessionListeners.clear();
       for (const entry of pending) {
         const outcome = { state: "failed", id: entry.id, why: { ...ended(), message: `client closed before the outcome of write ${entry.id} was known` } } as const;
         entry.resolve(outcome);
         emitWrite(outcome);
       }
       writeListeners.clear();
-      closing = Promise.allSettled([flushing, refreshing, ...requests]).then(() => { pending.length = 0; });
+      closing = Promise.allSettled([flushing, refreshing, ...requests]).then(() => { pending.length = 0; sessionListeners.clear(); });
       return closing;
     },
   };

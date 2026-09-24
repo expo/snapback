@@ -26,7 +26,9 @@ its production app shell, account-bound saved route and write IDs. Default
 `VITE_SNAPBACK_URL=https://your-backend npm run build`; serve `dist/` over HTTPS.
 Routes use `#room=<id>`.
 
-The build ends with `snapback4 web-shell dist`. This command also works on
+The build ends with `snapback4 web-shell dist`. Navigations use the active
+worker's cached HTML even online, so its HTML and lazy assets stay together
+until a waiting build activates after the old tabs close. This command also works on
 `expo export -p web` output: it precaches every file in a content-hashed cache,
 registers `snapback4-sw.js` in every HTML file idempotently, and falls back to
 `index.html` for offline navigations. Pass `--base /chat/` when serving a subpath;
@@ -83,7 +85,11 @@ only; browsers explain that choice in the console. Web persistence is always
 explicit. `app.client` changes on restore, sign-in, logout and account switch;
 `AppProvider` supplies that client to all existing hooks and resets account-owned
 component state. `useAuth()` returns the current state, viewer, failure and actions.
-Call `app.close()` to stop a runtime while preserving its session for restart.
+Call `app.close()` to stop a runtime while preserving its session for restart;
+an in-flight rotation finishes and saves its replacement before close completes.
+`app.auth.logout()` fences restoration and session writes immediately, deletes
+local credentials without waiting for network requests, and revokes remotely
+in the background.
 
 Local writes use the existing device outbox. Online `app.mutate` (also
 `app.client.mutate` and `useMutation` under `AppProvider`) records ID and arguments

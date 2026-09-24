@@ -2,7 +2,7 @@
 import type { Client, Mutation, Write } from "./contract.ts";
 import type { SessionStore } from "./auth.ts";
 import { mintId } from "./client.ts";
-import { MutationIds, WRITE_HISTORY_LIMIT } from "./writes.ts";
+import { MutationIds, WriteHistory, WRITE_HISTORY_LIMIT } from "./writes.ts";
 
 type Intent = { id: string; op: string; args: unknown };
 type Terminal = Exclude<Write, { state: "pending" }>;
@@ -28,6 +28,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   const key = `snapback4:${encodeURIComponent(url)}:${encodeURIComponent(raw.viewer()!)}:writes`;
   let active = true;
   const ids = new MutationIds();
+  const emissions = new WriteHistory();
   const listeners = new Set<(write: Terminal) => void>();
   let writes: Promise<unknown> = Promise.resolve();
   const read = async (): Promise<Journal> => {
@@ -46,8 +47,12 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   };
   const terminal = (write: Write): write is Terminal => write.state !== "pending"
     && !(write.state === "failed" && ["E_CLOSED", "E_AUTH"].includes(write.why.code));
+  const notify = (write: Terminal) => {
+    ids.finish(write.id);
+    if (active && emissions.firstEmission(write.id)) for (const listener of listeners) listener(write);
+  };
   const settle = async (write: Terminal) => {
-    const found = await change(journal => {
+    await change(journal => {
       if (!journal.pending.some(intent => intent.id === write.id)) return false;
       journal.pending = journal.pending.filter(intent => intent.id !== write.id);
       // Never persist historical read results or refusal details for disclosure on reopen.
@@ -58,7 +63,9 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       journal.receipts = journal.receipts.slice(-WRITE_HISTORY_LIMIT);
       return true;
     });
-    if (found && active) for (const listener of listeners) listener(write);
+    // Durable retirement belongs to the shared journal; notification and
+    // reservation cleanup belong to every client that observed settlement.
+    notify(write);
   };
   const stop = raw.onWrite(write => {
     if (active && terminal(write)) void settle(write).catch(report);
@@ -100,7 +107,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       const journal = await locked(key, read);
       if (!active || !raw.viewer()) return undefined;
       const receipt = journal.receipts.find(write => write.id === id);
-      if (receipt) return receipt;
+      if (receipt) { notify(receipt); return receipt; }
       const known = await raw.write(id);
       if (journal.pending.some(intent => intent.id === id)) {
         if (known && terminal(known)) {

@@ -233,3 +233,62 @@ test("signed-out completion waits for durable credential deletion", async t => {
   finish(); await ending;
   assert.equal(app.auth.state, "signed-out");
 });
+
+for (const tier of ["online", "local"]) test(`logout ${tier} deletes the bearer while network work is held`, { timeout: 15_000 }, async t => {
+  const { url, dir } = await server(t), store = memorySessionStore();
+  const session = (await (await fetch(url + "/auth/guest", { method: "POST", body: "{}" })).json()).session;
+  await keepSession(url, session, store);
+  let releaseSchema, releaseLogout, schemaRequested = false, logoutRequested = false;
+  const schemaGate = new Promise(resolve => { releaseSchema = resolve; });
+  const logoutGate = new Promise(resolve => { releaseLogout = resolve; });
+  const app = createApp({ url, sessionStore: store,
+    ...(tier === "local" ? { device: processDevice({ dir: join(dir, "held-device"), binary }) } : {}),
+    fetch: async (input, init) => {
+      const path = new URL(input).pathname;
+      if (path === "/schema") { schemaRequested = true; await schemaGate; }
+      if (path === "/auth/logout") { logoutRequested = true; await logoutGate; }
+      return fetch(input, init);
+    },
+  });
+  t.after(async () => { releaseSchema(); releaseLogout(); await app.close(); });
+  if (tier === "local") await until(() => schemaRequested);
+  else await app.ready;
+  const ending = app.auth.logout();
+  await until(() => logoutRequested);
+  assert.equal((await Promise.race([ending, delay(500).then(() => ({ ok: false }))])).ok, true, "local logout is independent of both held requests");
+  assert.equal(await restoreSession(url, store), null);
+  assert.equal(app.auth.state, "signed-out");
+  const restarted = createApp({ url, sessionStore: store });
+  await restarted.ready; assert.equal(restarted.auth.state, "signed-out"); await restarted.close();
+  releaseSchema(); releaseLogout(); await app.ready;
+  assert.equal(await restoreSession(url, store), null, "late restoration cannot put the token back");
+  assert.equal(app.auth.state, "signed-out");
+  await until(async () => (await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${session.token}` } })).json()).denied?.code === "E_AUTH");
+});
+
+for (const tier of ["online", "local"]) test(`ordinary ${tier} app close keeps an in-flight rotation for the next runtime`, { timeout: 20_000 }, async t => {
+  const { url, dir } = await server(t), store = memorySessionStore();
+  let release, rotated;
+  const gate = new Promise(resolve => { release = resolve; });
+  const options = { url, sessionStore: store,
+    ...(tier === "local" ? { device: processDevice({ dir: join(dir, "rotating-device"), binary }) } : {}),
+  };
+  let app = createApp({ ...options, fetch: async (input, init) => {
+    const response = await fetch(input, init);
+    if (new URL(input).pathname === "/auth/refresh") { rotated = (await response.clone().json()).session; await gate; }
+    return response;
+  } });
+  t.after(async () => { release(); await app.close(); });
+  await app.ready; await app.auth.guest();
+  const original = app.client.session().token, refresh = app.client.refreshSession();
+  await until(() => rotated);
+  const closing = app.close();
+  await delay(0); release();
+  assert.equal((await refresh).ok, true); await closing;
+  assert.equal((await restoreSession(url, store)).token, rotated.token);
+  assert.notEqual(rotated.token, original);
+  assert.equal((await (await fetch(url + "/probe", { headers: { authorization: `Bearer ${original}` } })).json()).denied?.code, "E_AUTH");
+  app = createApp(options); assert.equal((await app.ready).ok, true);
+  assert.equal(app.auth.viewer, rotated.principal);
+  assert.deepEqual((await app.client.query(list, {})).data, []);
+});
