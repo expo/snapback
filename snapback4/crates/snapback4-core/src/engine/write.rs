@@ -34,6 +34,10 @@ impl Runner<'_> {
         self.refuse_engine_owned(table_name, Effect::Insert)?;
         self.refuse_recorded(table_name, &row)?;
         let row = self.with_defaults(table_name, row)?;
+        let table = self.schema.table(table_name).expect("defaults validated the table").clone();
+        // A collision can need read authority even when insertion is allowed.
+        // Reserve before primary/secondary lookups, including expired siblings.
+        self.reserve_write_rules(&table, &[Effect::Read, Effect::Insert])?;
         if !self.check_rule(table_name, Effect::Insert, None, &row)? {
             return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Insert });
         }
@@ -41,7 +45,6 @@ impl Runner<'_> {
         let row = self.birth_columns(table_name, row)?;
         let row = self.with_asset_facts(table_name, row, None, None)?;
         validate_row(self.schema, table_name, &row)?;
-        let table = self.schema.table(table_name).expect("validated").clone();
         if if_absent {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
                 let key = index_values(index, &row);
@@ -74,8 +77,8 @@ impl Runner<'_> {
             self.meter.charge(MeterKind::Examined, 1)?;
             self.remove(table_name, existing)?;
         }
-        // A same-id expired replacement preserves occupancy in each unchanged
-        // cap group, including on a device that actually holds its predecessor.
+        // The server's same-id expired replacement preserves occupancy in
+        // unchanged cap groups. A device cannot rely on an expired predecessor.
         self.check_constraints(table_name, predecessor.as_ref(), &row, Effect::Insert)?;
         let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.put(table_name, &table, &row, None))?;
         self.charge_source_indexes(&table, None, Some(&row), entries)?;
@@ -185,6 +188,7 @@ impl Runner<'_> {
     fn delete_attempt(&mut self, table_name: &str, id: &str) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Delete)?;
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?.clone();
+        self.reserve_write_rules(&table, &[Effect::Read, Effect::Delete])?;
         // @ref LLP 3000.007#20.9 — delete prepays hidden contribution work before fetching its old image, with the same attempt lifetime as update.
         self.reserve_maintains(table_name, &table)?;
         let Some(old) = self.fetch(table_name, id)? else {
@@ -395,12 +399,16 @@ impl Runner<'_> {
                         continue;
                     }
                     let group: Vec<Value> = by.iter().map(|field| new.field(field).cloned().unwrap_or(Value::Null)).collect();
-                    let moved = old.is_none_or(|old| by.iter().map(|field| old.field(field).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>() != group);
+                    // @ref LLP 3000.013#11.1 — an expired local predecessor may have been swept and its capacity refilled before sync arrives.
+                    let predecessor = old.filter(|row| !self.device || !self.expired(&table, row));
+                    let moved = predecessor.is_none_or(|old| by.iter().map(|field| old.field(field).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>() != group);
                     if !moved {
                         continue;
                     }
                     // A complete live snapshot omits unswept expired rows, so
                     // its physical count cannot establish room on the server.
+                    // A count at the last delivered watermark would also be
+                    // stale after a sweep whose sync has not arrived yet.
                     if self.device && table.expire.is_some() {
                         return Err(RuntimeError::Prediction(format!("{table_name}'s expiring cap needs the server's physical occupancy; queue this write until the server settles it")));
                     }

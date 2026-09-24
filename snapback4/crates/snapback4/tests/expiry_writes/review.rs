@@ -2,6 +2,35 @@ use super::*;
 use super::constraints::{args, row, source};
 
 #[test]
+fn readable_but_unwritable_targets_hide_expired_siblings_in_the_whole_reply() {
+    let source = format!("{}\nmutation patch(ordinal: int):\n  update messages[conversationId = 'chat', ordinal = ordinal] {{ at: 20 }}\n", source("  cap 200000"))
+        .replace("  ordinal: int", "  ordinal: int\n  reader: principal ?")
+        .replace("  expire at .expiresAt\n  public", "  expire at .expiresAt\n  read <- .reader = viewer").replace("  sync public", "  online only")
+        .replace("update <- allow", "update <- deny");
+    for name in ["patch", "put"] {
+        let mut previous = None;
+        for backlog in [0, 3_000] {
+            let mut e = engine(&source, 0);
+            let mut rows: Vec<_> = (0..backlog).map(|n| row(&e, &format!("old{n:05}"), 1, 1, json!(10))).collect();
+            let mut live = row(&e, "z-live", 1, 1, json!(null));
+            if let Value::Row(fields) = &mut live.1 { fields.insert("reader".into(), Value::Id("alice".into())); }
+            rows.push(live);
+            e.load(rows).unwrap();
+            let before = e.store().rows("messages").unwrap();
+            let read = e.query("message", Context::new("alice", BTreeMap::from([("conversationId".into(), Value::Id("chat".into())), ("ordinal".into(), Value::Int(1))])).at(100)).unwrap();
+            assert_eq!(read.data.field("id"), Ok(&Value::Id("z-live".into())), "positive read control");
+            let arguments = if name == "patch" { BTreeMap::from([("ordinal".into(), Value::Int(1))]) } else { args("z-live", 1, 20) };
+            let out = e.mutate(name, None, Context::new("alice", arguments).at(100)).unwrap();
+            assert!(matches!(&out.state, WriteState::Failed { why, .. } if why.code == "E_RULE"), "{out:?}");
+            assert_eq!(out.metered.examined, 0, "read authority does not permit charging hidden expiry work");
+            assert_eq!(e.store().rows("messages").unwrap(), before);
+            let whole = serde_json::to_value(out).unwrap();
+            if let Some(previous) = previous.replace(whole.clone()) { assert_eq!(whole, previous, "{name}"); }
+        }
+    }
+}
+
+#[test]
 fn denied_expiry_targets_have_identical_whole_replies_in_both_worlds() {
     let source = format!("{}\n{}", source("  cap 200000"), r#"
 mutation patch(messageId: id, ordinal: int, at: time, expiresAt: time ?):

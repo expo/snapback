@@ -115,6 +115,8 @@ Queries continue to charge authorization to their query meter.
 
 An expiring table's cap counts physical rows, including expired rows awaiting
 the server sweep. A complete live snapshot cannot establish that occupancy.
+A sweep can also free space before its deletion reaches the device; the last
+received occupancy would still say the cap is full.
 Writes that increase an expiring cap's occupancy queue without predicted rows
 and settle on the server. This includes inserts, missing upserts and moves
 into another capped group. Updates within the same group and deletes can still

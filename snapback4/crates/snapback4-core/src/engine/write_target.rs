@@ -26,17 +26,24 @@ impl Runner<'_> {
         result
     }
 
+    // @ref LLP 3000.013#11.1 — reserve authorization before target existence or expiry can select a different outcome.
+    pub(super) fn reserve_write_rules(&self, table: &Table, effects: &[Effect]) -> Result<(), RuntimeError> {
+        let probes = effects.iter().map(|effect| rule_probes(table.rules.for_effect(*effect))).fold(0_u64, u64::saturating_add);
+        if !self.meter.room(MeterKind::RuleProbes, probes) {
+            return Err(RuntimeError::Bound { kind: MeterKind::RuleProbes, actual: self.meter.used.rule_probes.saturating_add(probes), ceiling: self.meter.ceilings.rule_probes, site: self.meter.site().into() });
+        }
+        Ok(())
+    }
+
     // @ref LLP 3000.007#17 — reserve resolution's static worst case before the target lookup; no ceiling is changed.
     pub(super) fn reserve_target_resolution(&mut self, table_name: &str, table: &Table, patch: &Value, upsert: bool) -> Result<(), RuntimeError> {
-        let probes = rule_probes(&table.rules.read).saturating_mul(2).saturating_add(rule_probes(&table.rules.update))
-            .saturating_add(if upsert { rule_probes(&table.rules.insert).saturating_mul(2) } else { 0 });
+        self.reserve_write_rules(table, if upsert { &[Effect::Read, Effect::Read, Effect::Update, Effect::Insert, Effect::Insert] } else { &[Effect::Read, Effect::Read, Effect::Update] })?;
         // Covers the largest cloned row allowed by the schema, the caller's patch
         // (including ill-typed fields), and the miss arm's image/default materialization.
         // Retained maps/assets share their Arc; the merge charges only memory it copies.
         let heap = row_copy_ceiling(table).saturating_mul(2).saturating_add(patch.heap_bytes().saturating_mul(2));
-        for (kind, amount, used, ceiling) in [(MeterKind::RuleProbes, probes, self.meter.used.rule_probes, self.meter.ceilings.rule_probes),
-            (MeterKind::HeapBytes, heap, self.meter.used.heap_bytes, self.meter.ceilings.heap_bytes)] {
-            if !self.meter.room(kind, amount) { return Err(RuntimeError::Bound { kind, actual: used.saturating_add(amount), ceiling, site: self.meter.site().into() }); }
+        if !self.meter.room(MeterKind::HeapBytes, heap) {
+            return Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, actual: self.meter.used.heap_bytes.saturating_add(heap), ceiling: self.meter.ceilings.heap_bytes, site: self.meter.site().into() });
         }
         self.reserve_maintains(table_name, table)?;
         Ok(())
@@ -126,11 +133,14 @@ impl Runner<'_> {
             let table = runner.schema.table(&target.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", target.table)))?.clone();
             let index = table.index(&target.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", target.table, target.index)))?;
             if !index.unique || key.len() != index.columns().len() { return Err(RuntimeError::Input("a write target needs one complete unique key".into())); }
+            runner.reserve_write_rules(&table, &[Effect::Read, Effect::Delete])?;
             runner.reserve_maintains(&target.table, &table)?;
             runner.read_tables.insert(target.table.clone());
             let mut expired_work = 0;
             let old = runner.lookup_live_charged(&target.table, &target.index, index, &key, false, Some(&mut expired_work))?;
-            if runner.device && (table.sync.is_none() || old.is_none()) { return Err(runner.write_miss(&target.table, &target.index, &key)); }
+            if runner.device && (table.sync.is_none() || (old.is_none() && !runner.upsert_absence_proven(&target.table, &target.index, &key)?)) {
+                return Err(runner.write_miss(&target.table, &target.index, &key));
+            }
             let Some(old) = old else { return Err(runner.no_write_target()); };
             // Preserve alternate delete's existing read gate, without exposing
             // the private target or charging a hidden population through Get.

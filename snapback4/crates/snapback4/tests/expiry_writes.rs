@@ -74,6 +74,8 @@ fn nine_thousand_inserts_have_flat_examined_work_with_and_without_backlog() {
             let outcome = send(&mut e, n);
             assert!(matches!(outcome.state, WriteState::Sent { .. }),
                 "backlog={backlog}, insert={n}, first={:?}, last={:?}, outcome={outcome:?}", examined.first(), examined.last());
+            assert_eq!(outcome.metered.examined, 1,
+                "only the addressed conversation is examined: backlog={backlog}, insert={n}");
             assert!(outcome.metered.examined <= cert.bounds.rows_examined);
             assert!(outcome.metered.rows_written <= cert.bounds.writes);
             examined.push(outcome.metered.examined);
@@ -99,7 +101,10 @@ fn each_constraint_is_independent_of_unrelated_rows() {
             outcomes.push(result);
         }
     }
-    assert!(outcomes.iter().all(|r| matches!(r.state, WriteState::Sent { .. }) && r.metered.examined <= 4));
+    for result in outcomes {
+        assert!(matches!(result.state, WriteState::Sent { .. }), "{result:?}");
+        assert_eq!(result.metered.examined, 1, "{result:?}");
+    }
 }
 
 #[path = "expiry_writes/constraints.rs"]
@@ -110,6 +115,8 @@ mod stores;
 mod devices;
 #[path = "expiry_writes/review.rs"]
 mod review;
+#[path = "expiry_writes/authorization.rs"]
+mod authorization;
 
 #[test]
 fn cli_certifies_keyed_expiry_writes_with_the_actual_sweep_policy() {

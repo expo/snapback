@@ -54402,3 +54402,219 @@ client timing assertion above remains outside this change. Final evidence:
 /tmp/lane-k-r12-targeted-final.log and /tmp/lane-k-r12-flow-unit.log.
 Wasm remains 1,744,842 B raw / 484,967 B gzip under the unchanged 486,000 B
 budget. No push or publication.
+
+### 2026-09-24 — LLP 3000.013 Lane P, round 2: stale cap evidence and PostgreSQL execution
+
+Retained round 1's prediction deferral, as the review permits. Sending physical
+occupancy with an ordered snapshot or sync page would describe that delivered
+cut. It cannot distinguish cap 1 with an unswept expired row from the same
+server after an undelivered sweep: the device has identical rows, counts and
+clock, while one server refuses and the other accepts. This is the concrete
+reason to defer occupancy-increasing writes rather than claim matching local
+predictions in both schedules. No occupancy wire fields, author-visible form,
+refusal code or new durability state were added. Same-group updates and deletes
+keep the existing prediction behavior. Immediate secondary collision removal
+remains deferred under the round 1 decision.
+
+Added paired server worlds for inserts, insert-if-absent and both upsert
+addresses, whole-table and group caps, and snapshots before/after expiry, on
+both memory and SQLite devices. The complete snapshot evidence and queued
+entries match before settlement. A swept server accepts while an unswept one
+refuses; both devices persist no predicted row across reopen, then settle the
+server answer. The withheld deletion publishes before the insertion page.
+The 9,000-send regression now asserts examined == 1 on every send for both zero
+and 3,000 unrelated expired rows; the isolated unique/cap cases assert 1 too.
+All 22 expiry tests passed in 4.66 s.
+
+PostgreSQL Tx::cap_count already selects the maintained count by table and
+encoded key; the review's constant-zero description predates this lane's
+implementation. Found PostgreSQL 16.15 tools in another lane's temporary tool
+directory and started a separate socket-only cluster, with its own data and
+port. Added and ran two real PostgreSQL adapter tests: nonzero/absent counts,
+key separation, moves, savepoint and transaction rollback, reopen, legacy
+backfill, zero-count deletion, and unswept-expiry group/table cap enforcement.
+Both passed in 0.05 s; cap-only mutations examine exactly zero row images.
+The evaluation adapter has no sweep host, so its tests use the physical Rows
+deletion path. This is execution against PostgreSQL, not a SQL-string-only test.
+
+The first PostgreSQL run had one test-fixture failure: naming the source caps.q
+qualified the operation as caps.add, while the test called add. Changed the
+fixture filename to schema.q; both tests pass. This was mine, not baseline or
+environmental. The reference audit passed (505 LLP docs, 9,236 refs, zero errors
+or unchecked refs). The required full harness is running; its exact result and
+final report will be appended after completion. No push or publication.
+
+Final round 2 qualification: `scripts/test.sh` returned
+`== 0 failure(s) in 790 s`, exit 0, with CARGO_INCREMENTAL=0 and
+SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1. The full Rust inventory passed in 160 s,
+including 22 expiry tests, 57 guide tests and 25 disclosure reviews. Client
+inventory: 1,098 tests, 1,088 passes, 10 skips, zero failures (714 s). Every
+build, docs, release-guard, typecheck and fixture step passed. No introduced,
+baseline or environmental test failure remains. Wasm is unchanged at
+1,753,421 B raw / 487,644 B gzip (budget 488,000). The private PostgreSQL
+cluster was stopped after its two passing adapter tests. Implementation:
+e589c0866. Full report: reports/20260924-intent-lane-p-round2.md. Full log:
+~/sb4-intent/lane-p-round2-suite.log. No push or publication.
+
+### 2026-09-24 — LLP 3000.013 Lane P, round 3: reserve authority before target resolution
+
+The round 1 DeleteTarget retained alternate-key delete's read gate but omitted
+the old Get's read-probe reservation. With read <- exists grants[.id, viewer]
+and no probe allowance, an absent row returned NOT_FOUND while a hidden live
+row could reach E_BOUND. Added one shared, schema-derived authorization-room
+check before target resolution. Delete by id and alternate key reserve read
+plus delete; insert and insert-if-absent reserve read plus insert before any
+primary/secondary collision or expiry walk. Update/upsert, including raw
+compatibility IR, use the same helper with their unchanged worst-case probe
+amounts. Room checks do not charge twice. Existing authority gates remain:
+alternate-key delete needs read and delete; raw by-id delete keeps its previous
+delete-only gate. No source population is inspected to choose this reservation.
+
+Audited primary fetches, unique target lookups, if-absent, secondary constraints,
+upsert insert arms and expiry resolution. The existing column/maintain
+reservations use schema-only facts. Expiring targets are excluded from
+speculative prefetch; non-expiring prefetch is optional cache work that returns
+no refusal and changes no logical meter. Engine-owned cleanup and final-exists
+postconditions retain their distinct authority contracts. No new syntax,
+refusal code, lifecycle policy or runtime ceiling was added.
+
+Added paired complete-outcome/storage checks across 13 target paths, including
+raw Update, Upsert and by-id DeleteTarget IR. There are 78 executions at
+rule_probes 0 and 78 after a real 8,192-probe prelude under default ceilings,
+covering non-expiring tables, live rows with null expiry, expired ids and 9,000
+expired siblings. Another 26 executions prove the worst-case allowance includes
+a conjunction's second read probe even when the first would deny. A live
+unreadable alternate-key delete with delete allowed refuses without changing
+storage; granting read allows it. Removing the read gate made that new test
+fail with a successful deletion; the production gate was restored.
+
+Measured: all 26 expiry tests pass in 11.31 s; 9,000 sends still examine exactly
+one row each with either zero or 3,000 unrelated expired rows. All 35 existing
+write-authority tests and 25 disclosure reviews pass. The reference audit found
+505 LLP documents and 9,237 refs, zero errors or unchecked refs. Wasm measures
+1,753,894 B raw / 487,627 B gzip, versus round 2's 1,753,421 / 487,644 (+473 raw,
+-17 gzip); the 488,000 B ratchet stays unchanged. This is a whole-artifact delta.
+
+The first new-test run had my fixture error: positional id addresses were
+ambiguous beside a one-column unique key. Named id = 'target' addresses fixed
+all three compilation failures. The corrected pre-fix run then demonstrated
+the intended two reservation failures; the deliberate read-gate removal
+produced its expected failure too. No baseline failure is being repaired.
+The required full harness is running; its result will be appended after it
+finishes. No push or publication.
+
+The first full Rust inventory exposed three old-budget expectations: the
+50-member presence prediction pinned minimum rule_probes at 2 (now 3), and
+reading_probe_meter_memory/sqlite constructed their provisional rows with a
+zero-probe allowance. Updated these because the new required reservation
+applies to potential insert collisions too; actual execution charges and query
+budgets remain unchanged. The read fixtures now assert zero-budget prediction
+refuses, then construct with one available probe before their unchanged
+zero/one-probe query checks. All ten timing tests pass. Both fifty-member tests
+pass, including the previously ignored rule-probe boundary: server and device
+accept at 3 and refuse at 2 for held/graced presence. Enabled that scoped test
+and recorded its resolution in the existing issue; the separate six-byte heap
+issue remains open. These three full-suite failures were introduced expectation
+drift, not baseline or environmental defects. Runtime code did not change in
+this follow-up; no meter ceiling was raised.
+
+The first complete round 3 harness returned `== 1 failure(s) in 755 s`, exit 1:
+only cargo test, with the three corrected expectation failures above. Client
+inventory passed (1,098 tests, 1,088 passes, 10 skips, zero failures; 716 s).
+It used CARGO_INCREMENTAL=0 and SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1. After it
+completed, started the final full run with CARGO_INCREMENTAL=0 and default
+harness scheduling; the host load is below the serial-client threshold.
+Expectation updates are committed as 27a478595; runtime fix is 82ba4b277.
+
+The second complete harness returned `== 1 failure(s) in 227 s`, exit 1.
+Rust passed (158 s). Default parallel client scheduling timed out waiting
+30 seconds for the native 232-pending-ID transport acknowledgements. This is
+classified environmental/scheduling: that case passed in the first serial
+full run with identical runtime code, then independently in 3.46 s; all six
+maximum-pending-ID cases passed independently in 23.10 s. No timeout or client
+code was changed. Started another complete harness with serial client files,
+after the independent test and second harness had both finished.
+
+Final round 3 qualification: `== 0 failure(s) in 750 s`, exit 0, using
+CARGO_INCREMENTAL=0 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 scripts/test.sh.
+Rust passed in 133 s, including all 26 expiry regressions; clients passed in
+711 s (1,098 tests, 1,088 passes, 10 skips, zero failures). The native 232-ID
+transport case passed in 3.20 s and both neighboring boundary cases passed.
+All other harness steps passed, with no remaining introduced, baseline or
+environmental failures in this run. The exact logs and all earlier failure
+classifications are recorded in reports/20260924-intent-lane-p-round3.md.
+No round 3 requirement was deferred. The earlier expiring-cap prediction
+deferral, deferred secondary expiry cleanup and separate six-byte presence
+heap issue remain documented limits. No push, merge or publication.
+
+### 2026-09-24 — LLP 3000.013 Lane P, round 4: stale expiry capacity and delete absence
+
+Closed the two Grok round 2 runtime findings on top of round 3. The cap check
+now treats an expired predecessor as absent only on the device: its server
+slot may have been swept and refilled before sync. The server retains its real
+predecessor and still accepts an occupancy-neutral same-id replacement. The
+device queues both indistinguishable worlds, rolling back tentative cleanup.
+Alternate-key delete now returns local NOT_FOUND on a synced, proven absence;
+unknown/online-only absence queues. The authorization reservation still precedes
+lookup and the absence proof. No author rule or runtime ceiling changed.
+
+Added paired sweep/refill tests for four insert/upsert forms and two cap shapes
+on both devices (32 scenarios), including identical snapshots and queue entries,
+reopen, unchanged predecessor storage, settlement and ordered sync. Added local
+delete refusal/queue tests for complete, horizon-limited, online-only and
+unacquired coverage on both devices. A readable-but-unwritable live target now
+has complete update/upsert reply comparisons at zero and 3,000 hidden expired
+siblings, with a positive read control and unchanged storage. The prediction
+adapter's cap counters have direct memory/SQLite tests for expired physical
+rows, moves, deletes, savepoint rollback, prediction restoration and reset;
+memory also reopens. The existing neutral-write fixture now expects expired
+same-id replacements to queue while live updates/deletes keep predicting.
+
+Both reported device bugs were reproduced before the fixes. Deliberately
+returning zero from Predicting::cap_count failed both new adapter tests (0
+instead of 2). Moving the expiry charge after the successful read but before
+update authorization failed the new reply test (3,000 examinations instead of
+0). Both production sources were restored byte-for-byte after those experiments.
+Development also exposed four fixture mistakes of mine, all corrected: a
+missing mutable binding, an id/text rule comparison, a horizon without its
+ordering, and opening core SQLite without device side tables. No baseline
+failure is being repaired. Final qualification and measurements follow below.
+
+Targeted qualification: all 29 expiry tests pass in 13.27 s; both device counter
+unit tests pass. Every 9,000-send case still examines exactly one row, with zero
+or 3,000 unrelated expired rows. Reference audit: 505 LLP documents, 9,238 refs,
+zero errors or unchecked refs. Wasm is 1,754,043 B raw / 487,816 B gzip (+149 raw,
++189 gzip versus round 3, whole-artifact delta); budget stays 488,000 B. Started
+the complete harness with CARGO_INCREMENTAL=0 and serial client files, after
+restoring both deliberately mutated source files and completing targeted checks.
+
+The full Rust inventory passed in 130 s (36 device unit tests and 29 expiry
+tests included). The client inventory exposed an acquisition-fixture race:
+W5c process expected a pending write while its fixture still allowed a server
+response. Six isolated runs passed, but adding a controlled 200 ms pause before
+the pending assertion reproduced sent != pending. Classified environmental/
+timing exposure of a pre-existing fixture race; its schema has no expiry,
+caps or delete. Held delivery with the fixture's existing busy mode while
+arranging pending writes; the offline reopen and online recovery assertions
+are unchanged. Both device tiers pass the corrected test. This additional
+fixture correction is outside the review findings and needed for reliable
+qualification; no product behavior, assertion or timeout changed.
+
+The first complete round 4 harness returned `== 1 failure(s) in 766 s`, exit 1.
+Only the acquisition race above failed: sent != pending after offline reopen.
+Clients finished in 709 s (1,098 tests, 1,087 passes, one failure, 10 skips);
+all other steps passed. The corrected test also passes on both tiers with the
+same controlled 200 ms delay (20.71 s). Fixture correction is 1d1e6ed65; the
+expiry fixes are 18a992521. After the first full run completed, started another
+complete run with CARGO_INCREMENTAL=0 and serial client files.
+
+Final round 4 qualification: `== 0 failure(s) in 753 s`, exit 0, using
+CARGO_INCREMENTAL=0 SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1 scripts/test.sh.
+Rust passed in 128 s; clients passed in 722 s (1,098 tests, 1,088 passes,
+10 skips, zero failures). The corrected acquisition case and all native
+maximum-pending-ID cases passed. Every other harness step passed. No introduced,
+baseline or environmental failure remains in this run. Final reference audit:
+505 documents, 9,238 refs, zero errors or unchecked refs. Full evidence, every
+earlier failure and the additional fixture correction are recorded in
+reports/20260924-intent-lane-p-round4.md. No requested round 4 item was deferred;
+earlier cap-prediction and secondary-cleanup limits remain. No push or publication.

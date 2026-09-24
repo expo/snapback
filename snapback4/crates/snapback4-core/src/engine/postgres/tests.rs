@@ -1,6 +1,8 @@
 use super::*;
 use crate::{authority::{AuthorityTransaction, test_cases}, rows::{Rows, PrefetchRequest}, schema::Index, value::object};
 
+mod caps;
+
 #[test]
 fn maintained_columns_are_outside_postgres_evaluation() {
     let bound = snapback4_lang::compile(&[("schema.q".into(), include_str!("../../../../snapback4-lang/tests/fixtures/maintained-columns.q").into())]);
