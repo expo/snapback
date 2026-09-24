@@ -1,0 +1,145 @@
+Round 2 affected tests and measurements (all passing):
+   Compiling snapback4-core v0.3.1 (/home/ccheever/sb4-intent/lane-c/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.3.1 (/home/ccheever/sb4-intent/lane-c/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.3.1 (/home/ccheever/sb4-intent/lane-c/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 23.28s
+     Running tests/timeline_background.rs (target/debug/deps/timeline_background-a5d6cecb67e5ed3e)
+
+running 17 tests
+test authored_follower_index_name_cannot_replace_the_engine_index ... ok
+test admission_order_distinguishes_event_and_edge_inside_one_transaction ... ok
+test originals_filter_reposts_and_source_authority ... ok
+test equal_times_order_by_event_id_and_removal_fills_the_page ... ok
+test overlapping_delivery_backfill_and_removal_never_duplicate_or_resurrect ... ok
+test follow_preview_unfollow_removal_and_refollow_are_immediate ... ok
+test trusted_restore_preserves_the_admission_order_floor ... ok
+MEASURE read follows=5:61 follows=500:61
+test read_cost_is_independent_of_follow_count ... ok
+test a_full_chunk_of_skipped_edges_keeps_the_delivery_cursor_live ... ok
+test last_purge_chunk_cancels_an_older_delivery_before_retiring_tombstone ... ok
+MEASURE 256 x 100000-byte edges: chunk refused before allocation; E_BOUND: HeapBytes reached 16849849 against the ceiling 16777216 at timeline/follows/$timeline:feed:followers
+test delivery_charges_large_edge_payloads_before_materializing_them ... ok
+MEASURE write followers=5:4 followers=900:4; recovery chunks=4 copies=901 elapsed_ms=460
+test constant_writer_cost_and_crash_resumption_to_900_followers ... ok
+test stale_meter_cut_has_a_continuation_and_never_claims_complete ... ok
+test application_edge_id_reuse_cannot_reuse_an_engine_epoch ... ok
+MEASURE history window=1000 preview=50 unfollow_writes=259 stale_after_unfollow=744; refollow leaves 1000 copies in new epoch
+test history_window_epochs_and_pending_completeness ... ok
+test followers_on_both_sides_of_a_saved_cursor_receive_identical_history ... ok
+test late_follow_history_is_independent_of_delivery_drain_order ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.27s
+
+     Running tests/timeline_epoch_counterexample.rs (target/debug/deps/timeline_epoch_counterexample-637a1d39912f0e75)
+
+running 1 test
+REGRESSION pending_events_before_follow=1100 backfill_window=1000 reader_copies_after_drain=1000
+test late_follow_can_receive_only_the_history_window_from_pending_deliveries ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.12s
+
+   Compiling snapback4-device v0.3.1 (/home/ccheever/sb4-intent/lane-c/snapback4/crates/snapback4-device)
+    Finished `test` profile [optimized + debuginfo] target(s) in 10.88s
+     Running tests/schema_capabilities.rs (target/debug/deps/schema_capabilities-13ca613bcc8847b6)
+
+running 3 tests
+test explicit_backend_reopening_checks_kept_capabilities_memory ... ok
+test future_capability_refuses_initial_install_and_adoption_without_changes ... ok
+test explicit_backend_reopening_checks_kept_capabilities_sqlite ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/schema_capabilities_legacy.rs (target/debug/deps/schema_capabilities_legacy-6a788b9adb7a17f0)
+
+running 6 tests
+test genuine_legacy_codec_remains_recognized_but_timeline_execution_is_fenced ... ok
+test legacy_timeline_first_install_refuses_without_writes ... ok
+test legacy_timeline_reopen_refuses_memory ... ok
+test legacy_timeline_adoption_refuses_memory ... ok
+test legacy_timeline_adoption_refuses_sqlite ... ok
+test legacy_timeline_reopen_refuses_sqlite ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/timeline.rs (target/debug/deps/timeline-7ab23cd0996417fc)
+
+running 26 tests
+test declared_timeline_classification_memory ... ok
+test round2::retained_point_scan_memory ... ok
+test declared_timeline_replay_refusal_memory ... ok
+test declared_timeline_repost_replay_memory ... ok
+test round1::foreign_reads_memory ... ok
+test declared_timeline_lifecycle_memory ... ok
+test declared_timeline_many_follower_pages_memory ... ok
+test round2::retained_point_scan_sqlite ... ok
+test round2::absent_tombstone_memory ... ok
+test round1::retained_inputs_memory ... ok
+test round1::tombstone_refusal_memory ... ok
+test declared_timeline_replay_refusal_sqlite ... ok
+test declared_timeline_repost_replay_sqlite ... ok
+test round1::foreign_reads_sqlite ... ok
+test declared_timeline_many_follower_pages_sqlite ... ok
+test sized_timeline_registration_memory ... ok
+test declared_timeline_unheld_memory ... ok
+test round1::tombstone_refusal_sqlite ... ok
+test round1::retained_inputs_sqlite ... ok
+test declared_timeline_classification_sqlite ... ok
+test round2::absent_tombstone_sqlite ... ok
+test sized_timeline_registration_sqlite ... ok
+test declared_timeline_unheld_sqlite ... ok
+test declared_timeline_lifecycle_sqlite ... ok
+test pending_history_memory ... ok
+test pending_history_sqlite ... ok
+
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.61s
+
+   Compiling snapback4-core v0.3.1 (/home/ccheever/sb4-intent/lane-c/snapback4/crates/snapback4-core)
+warning: field `programs` is never read
+ --> crates/snapback4-core/tests/schema_capabilities_legacy.rs:9:34
+  |
+9 | struct Backend { schema: Schema, programs: Vec<Program> }
+  |        -------                   ^^^^^^^^
+  |        |
+  |        field in this struct
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-core` (test "schema_capabilities_legacy") generated 1 warning
+    Finished `test` profile [optimized + debuginfo] target(s) in 1.96s
+     Running tests/schema_capabilities_legacy.rs (target/debug/deps/schema_capabilities_legacy-9553a6ff8c8e5999)
+
+running 3 tests
+test legacy_inference_cannot_repair_a_modern_carrier ... ok
+test genuine_legacy_recorded_and_timeline_infers_both_and_emits_one_carrier ... ok
+test engine_refuses_legacy_recorded_and_timeline_store ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+
+Reference validation:
+ref-check: ok — 504 LLP docs, 9209 refs in 25444 files, 0 errors, 0 unchecked
+
+Required full suite: /home/ccheever/sb4-intent/lane-c-round2-test.log
+wasm 1708992 B raw, 473405 B gzip (budget 474000: ok)
+-- FAIL rust target: snapback4-device::device::uniform_word_expansion::search_wasm_fixtures_match_compiled_programs_and_authorized_snapshots (0.8 s)
+uniform_word_expansion::search_wasm_fixtures_match_compiled_programs_and_authorized_snapshots --- FAILED
+-- FAIL rust target: snapback4-device::readauth (9.0 s)
+census::authoring_census --- FAILED
+-- FAIL rust target: snapback4::check (11.8 s)
+w9b_why_operation_keeps_residency_and_cost_output --- FAILED
+== 1 failure(s) in 192 s
+   cargo test
+
+Classification: all three failing tests above occur in the supplied baseline; no introduced or environmental failures.
+Client summary:
+ℹ tests 1004
+ℹ suites 0
+ℹ pass 994
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 10
+ℹ todo 0
+ℹ duration_ms 158073.280983
+-- ok: client tests (158 s)
+== 1 failure(s) in 192 s
+   cargo test

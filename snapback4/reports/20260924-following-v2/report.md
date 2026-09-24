@@ -4,6 +4,10 @@
 blocker below, are resolved in [the round-1 report](review-round1.md). This original
 report preserves the initial implementation and measurements.
 
+**Review round 2 update:** [The round-2 report](review-round2.md) records the
+device-store fence, committed late-follow regression and additional cursor/epoch
+proofs. The STOP section below is historical; its saved probe now asserts 1,000.
+
 Branch: `sb4-intent/c-following`, base `6d9f3e001`. Local commits only; no push or publication.
 
 **Not ready to merge: the literal fan-out epoch requirement needs a supervisor decision.**
@@ -120,7 +124,7 @@ native refuses before creating a device store. Evidence is beside this report.
 Every removed or rewritten old test and its reason is listed in
 [`../20260924-following-v2-tests.md`](../20260924-following-v2-tests.md).
 
-## STOP: fan-out epoch / late-follow eligibility
+## Historical STOP: fan-out epoch / late-follow eligibility
 
 Addendum 2 requires every delivery task to carry the edge epoch that admitted it.
 The original brief requires exactly one durable delivery record per post and
@@ -141,17 +145,17 @@ ends with **1,100** copies. This differs from following after those initial
 fan-out tasks have drained (1,000 copies), and is why the epoch interpretation
 cannot be treated as a harmless wording difference.
 
-Reproduce from `snapback4/`:
+Run the committed regression from `snapback4/` (now expects 1,000):
 
 ```sh
-cp reports/20260924-following-v2/epoch-counterexample.rs.txt crates/snapback4-lang/tests/timeline_epoch_counterexample.rs
 cargo test -p snapback4-lang --test timeline_epoch_counterexample late_follow_can_receive -- --nocapture
-rm crates/snapback4-lang/tests/timeline_epoch_counterexample.rs
 ```
 
-The diagnostic probe deliberately asserts the observed 1,100; its passing result
-is **not** an acceptance pass. Its output is in `epoch-counterexample.log`.
-No eligibility redesign was made. Supervisor resolution is required before merge.
+The original diagnostic probe asserted the observed 1,100; its historical output
+remains in `epoch-counterexample.log`. The supervisor's round-1 one-producer rule
+resolved this blocker. Round 2 promotes the probe to a permanent test and updates
+`epoch-counterexample.rs.txt` to match it. No copying or removal of test files is
+needed to run it.
 
 ## Other deviations and deferred work
 

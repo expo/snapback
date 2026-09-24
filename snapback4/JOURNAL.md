@@ -47583,3 +47583,37 @@ No ceiling, source disclosure rule or device prediction boundary was relaxed.
 FeedView binding still waits for Lane A; no rebase, migration, push or publication.
 The prior epoch/window blocker is resolved by the supervisor's one-producer rule.
 File-by-file changes, tests and reproductions: [round-1 report](reports/20260924-following-v2/review-round1.md).
+
+
+## 2026-09-24 — LLP 3000.013 lane C review round 2: device fence and backlog proofs
+
+Shared the server's timeline version check with device open and adoption. Saved
+v1 timelines now refuse with `E_TIMELINE_REDEFINE` and fresh-store guidance before
+installation, even when a newer backend is supplied. Memory and SQLite tests
+preserve metadata, source rows and queued writes on every refused path; genuine
+legacy bytes remain decodable. Replaced two old tests that expected legacy
+execution with six compatibility/refusal tests.
+
+Confirmed round 1's engine admission order and one-producer rule cover both
+sides of a saved delivery cursor. Promoted the 1,100-pending-event counterexample
+to a committed regression expecting exactly the newest 1,000. Added proofs that
+late followers before and after a saved cursor converge identically and a full
+256-edge skipped chunk keeps scanning. The pre-cleanup refollow page now asserts
+20 distinct ids backed by new-epoch copies, alongside the existing complete
+50-event pagination proof. No delivery runtime redesign was needed.
+
+All 56 affected tests passed. Post writes remain 4/4 for five/900 followers;
+first-page examinations remain 61/61 for five/500 follows. The 900-follower
+crash/reopen run took 460 ms, four chunks and 901 copies. The wide-payload scan
+still refuses at the unchanged heap ceiling without committing copies or cursor
+progress. Wasm is 1,708,992 bytes raw / 473,405 gzip, below the unchanged 474,000
+budget. The reference check reports zero errors or unchecked refs.
+
+Required `scripts/test.sh`: `== 1 failure(s) in 192 s` (`cargo test`). Only the
+three supplied-baseline failures remain: search Wasm fixture snapshot, read-auth
+census and why-operation output. No introduced or environmental failures in this
+round. Client tests: 994 passed, zero failed, ten existing skips. FeedView binding
+still waits for Lane A's announced landing. No migration, disclosure change,
+meter increase, device prediction expansion, rebase, push or publication.
+Implementation: `e1ef352ea`. File-by-file changes, tests, failures and reproductions:
+[round-2 report](reports/20260924-following-v2/review-round2.md).
