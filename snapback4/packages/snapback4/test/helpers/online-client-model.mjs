@@ -6,6 +6,7 @@ import { promiseHooks } from 'node:v8';
 import { createClient } from '../../dist/client.js';
 import { createApp } from '../../dist/app.js';
 import { keepSession } from '../../dist/auth.js';
+import { storeKey } from '../../dist/app-storage.js';
 import { ReadObservation } from '../../dist/read-observation.js';
 
 export const round9Operations = ['query', 'observe', 'write', 'revoke', 'release', 'poll', 'replace', 'regress', 'unavailable', 'close', 'signOut', 'reopen', 'login', 'holdStorage', 'failStorage', 'tick'];
@@ -19,11 +20,11 @@ export function generate(seed, length = 32, vocabulary = operations) {
 }
 const microtasks = async () => { for (let i = 0; i < 100; i++) await Promise.resolve(); };
 
-export async function execute(commands, tier, coverage = {}) {
+export async function execute(commands, tier, coverage = {}, { journalSize = 0, unknownReceipts = 0 } = {}) {
   const url = 'https://online-model.invalid', values = new Map(), holds = [], tasks = [], owners = [], apps = [], watches = [];
   const sessions = new Map(), receipts = new Map(), admitted = new Set(), terminalWrites = new Set(), revoked = new Set(), mutations = new Map();
   const errors = [], trace = [], returnHolds = new Set(), roots = new Map();
-  const rotations = [], submissions = [], minted = new Set();
+  const rotations = [], submissions = [], minted = new Set(), retiredWrites = new Set();
   const settlements = new WeakMap();
   const stopSettlements = promiseHooks.onSettled(promise => settlements.get(promise)?.());
   let store = 'A', head = 10, privateRow = true, unavailable = false, stores = 0, ticket = 0, serial = 0, writeId = 0;
@@ -31,7 +32,7 @@ export async function execute(commands, tier, coverage = {}) {
   const count = key => { coverage[key] = (coverage[key] ?? 0) + 1; };
   const invariant = (id, ok, why) => { if (!ok) errors.push(`${id}: ${why}`); };
   const journal = () => [...values.entries()].filter(([key]) => key.endsWith('.writes')).map(([, value]) => JSON.parse(value));
-  const durable = id => journal().some(j => j.receipts.some(write => write.id === id)) && !journal().some(j => j.pending.some(write => write.id === id));
+  const durable = id => journal().some(j => j.retirementFull || j.retired?.includes(id) || j.receipts.some(write => write.id === id)) && !journal().some(j => j.pending.some(write => write.id === id));
   function hold(kind, detail, release) {
     count('held.' + kind);
     return new Promise(resolve => holds.push({ kind, ...detail, release: () => { release?.(); resolve(); } }));
@@ -44,6 +45,8 @@ export async function execute(commands, tier, coverage = {}) {
         const retiring = prior.pending.some(p => !next.pending.some(n => n.id === p.id));
         if (retiring && holdStorage && !draining) { holdStorage = false; await hold('storage', {}, null); }
         if (retiring && failStorage && !draining) { count('failed.storage'); throw Error('injected terminal persistence failure'); }
+        if (next.receipts.length === 256) count('journal.full');
+        if (next.retired?.length) count('journal.compact');
         values.set(key, value);
         for (const entry of next.pending) admitted.add(entry.id);
       } else values.set(key, value);
@@ -101,6 +104,7 @@ export async function execute(commands, tier, coverage = {}) {
       invariant('R3', durable(value.id), `terminal ${value.id} still has durable pending intent`);
     }
     if (admitted.has(value.id) || tier === 'client') terminalWrites.add(value.id);
+    if (admitted.has(value.id) && ['E_STORE_REPLACED', 'E_STORE_RESTORE'].includes(value.why?.code)) retiredWrites.add(value.id);
     if (value.state === 'sent') {
       const mutation = mutations.get(value.id);
       if (mutation?.revoke) { if (!revoked.has(mutation.store)) count('ack.revocation'); revoked.add(mutation.store); }
@@ -285,7 +289,19 @@ export async function execute(commands, tier, coverage = {}) {
     check();
   }
   try {
-    if (tier === 'app') await keepSession(url, issue(), storage);
+    if (tier === 'app') {
+      await keepSession(url, issue(), storage);
+      if (journalSize) {
+        count('journal.preloaded.' + journalSize);
+        const receipts = Array.from({ length: journalSize }, (_, n) => {
+          const id = String(100_000 + n).padStart(26, '0');
+          if (n < journalSize - unknownReceipts) return { state: 'sent', id, seq: 1, replayed: true };
+          retiredWrites.add(id); admitted.add(id); terminalWrites.add(id);
+          return { state: 'failed', id, why: { code: 'E_STORE_RESTORE', family: 'store', message: 'unknown prior outcome' } };
+        });
+        await storage.set(storeKey('writes', url, 'alice'), JSON.stringify({ owner: 'alice', backend: url, pending: [], receipts }));
+      }
+    }
     await open();
     for (const step of commands) await command(step);
     // Fair drain: release every held body, stop observers, allow persistence,
@@ -308,6 +324,11 @@ export async function execute(commands, tier, coverage = {}) {
     }
     if (tier === 'app') {
       await open();
+      for (let n = 0; n < 12; n++) { for (const h of holds.splice(0)) h.release(); await microtasks(); }
+      if (app.client.viewer()) for (const id of retiredWrites) {
+        count('write.retired-retry');
+        track(app.mutate({ kind: 'mutation', name: 'charge' }, {}, { id }), 'retired-retry', ownerFor(app.client), 'write');
+      }
       for (let n = 0; n < 12; n++) { for (const h of holds.splice(0)) h.release(); await microtasks(); }
       track(app.close(), 'reopened-close');
     }

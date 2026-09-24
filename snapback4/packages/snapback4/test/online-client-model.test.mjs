@@ -33,14 +33,20 @@ test('online clients preserve R1–R5 across 3,000 seeded interleavings', { time
     const tier = seed % 2 ? 'client' : 'app', sequence = generate(seed);
     // Query counters are per sequence; aggregate only coverage labels.
     const measured = {};
-    try { await execute(sequence, tier, measured); }
+    try { await execute(sequence, tier, measured, { journalSize: tier === 'app' ? (seed % 4 ? 255 : 256) : 0, unknownReceipts: seed % 8 ? 0 : 8 }); }
     catch (error) { assert.fail(`seed=${seed} tier=${tier}: ${error.message}\nsequence=${JSON.stringify(sequence)}`); }
     for (const [key, n] of Object.entries(measured)) if (!key.startsWith('query.requests.')) coverage[key] = (coverage[key] ?? 0) + n;
   }
   if (count >= 3000) for (const op of operations) assert.ok(coverage['op.' + op] > 0, `exercised ${op}`);
   if (count >= 3000) for (const key of ['held.storage', 'failed.storage', 'held.return', 'released.return', 'released.reordered', 'wire./probe', 'write.emitted',
     'terminal.E_STORE_REPLACED', 'terminal.E_STORE_RESTORE', 'ack.revocation', 'check.durable-terminal', 'query.refetch',
-    'wire./assets', 'wire./assets/photo', 'wire./a/charge', 'wire./auth/refresh', 'asset.released', 'refresh.committed', 'refresh.retired', 'body.aborted', 'check.bearer-custody', 'write.duplicate', 'wire./auth/guest'])
+    'wire./assets', 'wire./assets/photo', 'wire./a/charge', 'wire./auth/refresh', 'asset.released', 'refresh.committed', 'refresh.retired', 'body.aborted', 'check.bearer-custody', 'write.duplicate', 'wire./auth/guest', 'journal.preloaded.255', 'journal.preloaded.256', 'journal.full', 'journal.compact', 'write.retired-retry'])
     assert.ok(coverage[key] > 0, `exercised ${key}`);
   t.diagnostic(`sequences=${count}, seeds=1..${count}, coverage=${JSON.stringify(coverage)}`);
 });
+
+for (const unknownReceipts of [0, 8]) test(`full-journal model: replacement never replays retirement (${unknownReceipts} old failures)`, () => execute([
+  { op: 'query' }, { op: 'release' }, { op: 'write' },
+  { op: 'replace' }, { op: 'query' }, { op: 'release', pick: 1 },
+  { op: 'release' }, { op: 'release' },
+], 'app', {}, { journalSize: 256, unknownReceipts }));

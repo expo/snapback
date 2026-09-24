@@ -50376,3 +50376,100 @@ rule in the local transport, and keep paused overlapping outcomes pending. No
 Quarry form, Read type, engine semantics, meter, receipt limit or package version
 changed. All modified source/test files remain below 1,500 lines. No push or
 publication was performed.
+
+## 2026-09-24 — Lane J round 12: retirement survives receipt eviction
+
+The round-10 helper discarded unknown store-failure receipts before sent
+receipts, including failures just moved out of pending. With 256 sent receipts,
+a replacement could clear the pending charge and its only receipt in the same
+save. The reopened client then treated its id as new. The full-journal
+regression now retries the retired charge itself, not a retained sent id.
+
+Files and behavior:
+
+- packages/snapback4/src/app-journal.ts owns receipt retention. Newly retired
+  bodies are pinned; older unknown store outcomes compact to ids before the
+  oldest ordinary receipts leave the unchanged 256-body window. Bulk retirement
+  larger than that window also preserves every omitted failure id. Optional
+  journal fields preserve compatibility with existing journals.
+- packages/snapback4/src/app-online.ts uses that policy for settle and bulk
+  retirement, coalesces the raw client's per-write store refusals into one
+  queue retirement, and checks compact ids inside durable admission and receipt
+  recovery. Another already-open owner cannot miss retirement by relying on
+  its in-memory reservations.
+- Compact retirement ids have no safe time expiry. They remain for this
+  backend/account journal's lifetime, with a limit of 4,096 ids (about 116 KiB
+  of serialized id strings, sixteen receipt windows). If another id cannot fit,
+  the same atomic save sets a permanent retirementFull flag: new admissions
+  refuse E_WRITE_RECEIPT_EXPIRED instead of dropping replay protection. Existing
+  receipt bodies and admitted intents remain recoverable. Ordinary sent
+  receipts retain the existing bounded window and do not consume compact-id
+  capacity. Reconciliation and explicit journal replacement are required after
+  saturation; neither sign-out nor reopening clears this protection. This bound
+  is an engineering choice for rare unknown store outcomes, not a write-count
+  limit on ordinary successful operations.
+- packages/snapback4/src/client.ts also attempts best-effort logout of the
+  known old bearer when an unkept refresh rejects with a retryable transport
+  error: rejection does not prove rotation consumed it. No refreshAborter
+  remains. Rotation never receives the read/request AbortSignal, so neither
+  endCredentials nor stopForStore can abort it; a delivered successor is
+  revoked rather than adopted. An unread successor genuinely lost by transport
+  cannot be recovered by client code; old-bearer cleanup remains best effort,
+  not a stronger server revocation claim.
+- packages/snapback4/CLIENT-AND-OPERATIONS.md and the writes guide card document
+  compact ids, the cap, saturation, and the exception to reopening for receipt
+  recovery. No Quarry syntax, public Read type, engine semantics or meters change.
+
+Tests:
+
+- test/app-store-replacement.test.mjs now retries newly retired ids after a
+  journal with 256 sent receipts, and compacted old retirement ids with eight
+  old unknown outcomes. None posts to the replacement; retained sent receipts
+  still return their value-free confirmations.
+- New test/app-retirement.test.mjs covers both store-failure codes through
+  settle, 260 later successful settlements, reopening and another previously
+  open owner; a 300-intent bulk retirement; and saturation of all 4,096 compact
+  ids. Body eviction and the permanent admission fence are both reached.
+- test/online-terminal-entrypoints.test.mjs adds sign-out and replacement with
+  a refresh fetch that rejects on AbortSignal cancellation but must deliver
+  and logout next. Separate TypeError-rejecting refreshes require a new logout
+  attempt with old after the rejection. Round 11's real SQLite/real-fetch held
+  body tests also pass, including actual server rejection of the revoked next.
+- test/helpers/online-client-model.mjs and test/online-client-model.test.mjs add
+  full and nearly full journals, mixed historical store failures, compact ids
+  in the durability oracle, and explicit retry of retired ids on the reopened
+  client. The existing timer/transport checks remain; R1-R5
+  pass all 3,000 seeded sequences. Of those, 750 start with 255 receipts and
+  750 with 256 receipts (375 also contain eight old failures). The other 1,500
+  exercise raw online clients. Coverage: 1,350 retired-id retries, 388 compact
+  journal saves, 3,533 full-window saves, 3,271 durable-terminal checks and
+  9,342 bearer-custody checks. These are scheduler counts, not throughput.
+  The full-journal scheduled replay detects the reported lost-id defect under
+  the old helper; no additional product failure appeared in the seeded run.
+
+Verification:
+
+- Frozen Bun install, package build and typecheck passed. Four regressions
+  failed against the previous build (full/mixed journal and rejected refresh
+  at sign-out/replacement). After the fix, 88 affected tests passed; the
+  additional peer-admission assertions also passed. All 15 model tests passed;
+  the standalone 3,000-sequence run took 36.33 s.
+- Seven deliberate generated-dist mutations were caught: old retention by the
+  full-journal model, missing pin, missing compact-id persistence, missing
+  admission fence, missing saturation fence, skipped retryable-refresh logout,
+  and aborting refresh. Dist was restored before the full suite.
+- An intermediate affected run had one failure: raw per-write store events
+  retired each id separately, so only the last newly failed body remained
+  pinned. This was ours; coalescing those events into the single queue
+  retirement fixed it. The ids were already protected by compaction.
+- scripts/test.sh: `== 0 failure(s) in 145 s`. Main client shard: 1,197 tests,
+  1,187 passed, 10 existing skips, zero failures or cancellations. No baseline
+  or environmental failure in this run. The baseline log's unrelated cargo
+  failure was read and left alone. Full log: /tmp/lane-j-r12-full-suite.log;
+  focused/model/mutant logs use /tmp/lane-j-r12-*.log.
+
+No open round-12 finding remains. No design deviation beyond the requested
+choice of a compact-id bound; saturation refuses instead of weakening
+at-most-once protection. No package version or public contract type changed,
+all modified source/test files remain below 1,500 lines, and no push or
+publication was performed.
