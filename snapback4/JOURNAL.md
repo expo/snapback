@@ -49396,3 +49396,26 @@ Evidence and exact commands: reports/20260924-native-smoke/round1/. Earlier
 manifests remain historical. Unchanged native framework hashes match the
 initial round. No remaining failure in the supplied review scope, no version
 bump, no package publication, and no independent re-review verdict claimed.
+
+## 2026-09-24 — Lane N round 2: close remaining smoke regression gaps
+
+Added runner regressions for client acquisition disappearing during the render
+pause while device acquisition stays true (prime, offline and restart), and
+for restart watermark 9 regressing to 8 below barrier 9 after the pause. Both
+require failure receipts with no successful smoke receipt. Extended the fake
+simulator's crash-after-success modes to prime and offline, alongside restart;
+the driver must fail the crashed segment, leave later segments unrun and stop
+its backend without claiming deliberate termination of the vanished PID.
+
+Mutation checks rejected removing the final readiness assertion, removing the
+final barrier assertion, and restricting live-PID enforcement to restart. The
+last mutation failed both new prime/offline cases independently. Restored all
+production source before final verification; this round changes tests only.
+
+Affected checks passed with the pinned Node 24 toolchain and serial Cargo:
+`node --test packages/snapback4/test/native-smoke.test.mjs packages/snapback4/test/witness.test.mjs`
+(15 passed), and `cargo test -p snapback4 --test witness -- --test-threads=1`
+(24 passed in 62.92 s). Whitespace checks pass. No full-suite or native rerun
+was needed for these test-only additions; round 1's committed native manifests
+remain unchanged. No package publication. Delivery retains the previously
+recorded command-local Snapback 1 hook exception under the Snapback 4 fence.

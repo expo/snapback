@@ -71,7 +71,7 @@ elif a[0] == 'launch':
             # restart. It must not substitute for consuming the later barrier.
             with sqlite3.connect(root / '.snapback4/store.sqlite') as db:
                 db.execute("INSERT INTO _commits VALUES (?, 0, 'test-tail', 'system', 'witness', '[]', 0)", (watermark + 1,))
-        if mode == 'smoke-crash-after-done' and segment == 'restart':
+        if mode == 'smoke-crash-after-done-' + segment:
             (root / 'app-pid').unlink()
     elif config['segment'] == 'prime':
         emit('primed')

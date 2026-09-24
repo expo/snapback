@@ -107,6 +107,28 @@ test('receipts sample the state after the render pause and recheck offline count
     assert.equal(offline.lines[0].smoke.pass, false);
   }
 });
+test('losing client acquisition during the render pause emits a failure despite acquired device state', async () => {
+  for (const segment of ['prime', 'offline', 'restart']) {
+    const f = fixture(segment, { pause: client => { client.acquired = false; } });
+    await assert.rejects(f.run(), /acquisition changed before receipt/);
+    const receipt = f.lines.find(row => row.smoke).smoke;
+    assert.equal(receipt.pass, false);
+    assert.equal(receipt.acquired, true, 'device acquisition alone cannot stand in for the client');
+    assert.equal(f.client.acquired, false);
+    assert.ok(f.lines.at(-1).witness.step.endsWith(':failed'));
+    assert.ok(!f.lines.some(row => row.smoke?.pass === true));
+  }
+});
+test('a restart watermark regressing during the render pause emits a failure receipt', async () => {
+  const f = fixture('restart', { barrierSeq: 9, state: { watermark: 9 }, pause: (_, state) => { state.watermark = 8; } });
+  await assert.rejects(f.run(), /sync watermark is below the restart barrier/);
+  const receipt = f.lines.find(row => row.smoke).smoke;
+  assert.equal(receipt.pass, false);
+  assert.equal(receipt.watermark, 8, 'the final read captures the regression, still past prime');
+  assert.equal(receipt.barrierSeq, 9);
+  assert.equal(f.lines.at(-1).witness.step, 'done:failed');
+  assert.ok(!f.lines.some(row => row.smoke?.pass === true));
+});
 test('a replacement client supersedes an in-flight sample without a failure receipt', async () => {
   let f, detached = false;
   const replacement = fixture('prime');
