@@ -197,7 +197,7 @@ test("failed session persistence never exposes a half-open authenticated client"
   assert.equal((await app.auth.guest()).ok, true, "a repaired session store can sign in again");
 });
 
-test("logout still clears credentials after a journal failure, and credential deletion itself is retryable", async t => {
+for (const action of ["logout", "logoutEverywhere"]) test(`${action} clears credentials after journal failure, and credential deletion is retryable`, async t => {
   const memory = memorySessionStore(), url = "https://app.invalid";
   let failDelete = false;
   const app = createApp({ url, sessionStore: { ...memory,
@@ -210,9 +210,26 @@ test("logout still clears credentials after a journal failure, and credential de
   await app.ready; await app.auth.guest();
   await assert.rejects(app.mutate(add, { body: "not sent" }), /outbox store/);
   failDelete = true;
-  assert.equal((await app.auth.logout()).ok, false);
+  assert.equal((await app.auth[action]()).ok, false);
+  assert.equal(app.auth.state, "signed-out");
   assert.equal(app.client.viewer(), null);
   failDelete = false;
   assert.equal((await app.auth.logout()).ok, true);
   assert.equal(await restoreSession(url, memory), null);
+});
+
+test("signed-out completion waits for durable credential deletion", async t => {
+  const memory = memorySessionStore(); let finish;
+  const gate = new Promise(resolve => { finish = resolve; });
+  const app = createApp({ url: "https://app.invalid", sessionStore: { ...memory, async delete(key) { await gate; await memory.delete(key); } },
+    fetch: async input => new URL(input).pathname === "/auth/guest"
+      ? Response.json({ session: { principal: "alice", token: "secret", kind: "user", expiresAt: Date.now() + 7 * 86400000 } })
+      : Response.json({ ok: true }) });
+  t.after(async () => { finish(); await app.close(); });
+  await app.ready; await app.auth.guest();
+  const ending = app.auth.logout();
+  await delay(0);
+  assert.equal(app.auth.state, "restoring"); assert.equal(app.client.viewer(), null);
+  finish(); await ending;
+  assert.equal(app.auth.state, "signed-out");
 });

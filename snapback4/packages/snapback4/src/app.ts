@@ -39,7 +39,8 @@ export interface AppOptions {
 
 function problem(error: unknown): Refusal {
   const message = error instanceof Error ? error.message : String(error);
-  return { code: message.includes("E_AUTH:") ? "E_AUTH" : "E_CLIENT", family: "client", message,
+  const code = message.includes("E_AUTH:") ? "E_AUTH" : "E_CLIENT";
+  return { code, family: code === "E_AUTH" ? "auth" : "client", message,
     site: "app.auth", rewrite: "await app.auth.login(email, password)" };
 }
 
@@ -110,12 +111,13 @@ export function createApp(options: AppOptions): App {
         if (owner !== own) return;
         if (next) void keepSession(url, next, sessionStore).catch(report);
         else {
-          hide();
+          hide("restoring");
           void enqueue(async () => {
             if (owner !== own) return;
             await release();
             await forgetSession(url, sessionStore);
-          }).catch(report);
+            publish("signed-out", null);
+          }).catch(error => publish("signed-out", null, problem(error)));
         }
       });
       const next = raw.session();
@@ -167,7 +169,7 @@ export function createApp(options: AppOptions): App {
     guest: () => signIn(() => guest(url, fetcher)),
     logout() {
       ++revision;
-      hide();
+      hide("restoring");
       return enqueue(async () => {
         const previous = owner;
         // Credential clearing must remain retryable even if an earlier outbox
@@ -177,7 +179,8 @@ export function createApp(options: AppOptions): App {
         try { await previous?.client.signOut(); } catch (error) { failure = error; }
         try { await release(); } catch (error) { failure ??= error; }
         try { await forgetSession(url, sessionStore); } catch (error) { failure ??= error; }
-        if (failure) { report(failure); return { ok: false, why: problem(failure) }; }
+        if (failure) { publish("signed-out", null, problem(failure)); return { ok: false, why: problem(failure) }; }
+        publish("signed-out", null);
         return { ok: true };
       });
     },
@@ -186,9 +189,13 @@ export function createApp(options: AppOptions): App {
         if (!owner) return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions", site: "app.auth.logoutEverywhere", rewrite: "await app.auth.login(email, password)" } };
         try {
           const result = await owner.client.logoutAll();
-          if (result.ok) { ++revision; hide(); await release(); await forgetSession(url, sessionStore); }
+          if (result.ok) { ++revision; hide("restoring"); await release(); await forgetSession(url, sessionStore); publish("signed-out", null); }
           return result;
-        } catch (error) { report(error); return { ok: false, why: problem(error) }; }
+        } catch (error) {
+          if (!owner) publish("signed-out", null, problem(error));
+          else report(error);
+          return { ok: false, why: problem(error) };
+        }
       });
     },
   };

@@ -53,7 +53,7 @@ production offline-reopen journey; fixture residency remains
 ## 4. The client
 
 `createApp` is the ordinary entry point. Construct it once outside React render.
-Its auth starts `restoring`, then becomes `signed-out` or `signed-in` with `viewer`.
+Its auth is `restoring` while opening or clearing a session, then becomes `signed-out` or `signed-in` with `viewer`.
 `ready` resolves after restoration; `auth.onChange` observes it. Signup, login and
 guest return `SignIn`; refusals are `{ ok: false, why }`. Logout clears local
 credentials and attempts server revocation; `logoutEverywhere` revokes every

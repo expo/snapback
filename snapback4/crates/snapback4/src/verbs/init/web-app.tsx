@@ -13,7 +13,7 @@ function Account() {
   const [problem, setProblem] = useState("");
   if (auth.state === "restoring") return <p>Restoring your account…</p>;
   if (auth.state === "signed-in") return <SignedIn />;
-  return <section><h1>Signed out</h1><p>{problem || auth.why?.message}</p>
+  return <section><h1>{auth.why ? "Account needs attention" : "Signed out"}</h1><p>{problem || auth.why?.message}</p>
     <button onClick={() => { void auth.guest().then(result => { if (!result.ok) setProblem(result.why.message); }); }}>Continue as a guest</button>
   </section>;
 }
