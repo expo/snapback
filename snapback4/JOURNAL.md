@@ -48914,3 +48914,37 @@ No design deviation, new open problem, engine redesign, authorization or
 meter relaxation, baseline snapshot repair, publication or push. The complete
 file map, merge resolutions, forms and evidence logs are recorded in
 reports/20260924-intent-integration-r2.md.
+
+## 2026-09-24 — LLP 3000.013 Lane A, safe aggregate seek inference
+
+Fixed both final aggregate delta findings. Inference now uses required-argument
+facts for each program/helper and accepts only endpoints proved present and
+non-failing before the row predicate. Division, overflow-capable arithmetic,
+nullable operands, calls and unproved local/member expressions stay residual.
+An unsafe bound disqualifies its column even beside a safe sibling bound, so
+selecting the order cannot extract the unsafe endpoint past a short-circuit
+guard. Named intrinsic-id pins skip aggregate ordering and retain byId with
+the row filter, avoiding duplicate-id index components. Explicit order and
+existing admission are unchanged.
+
+Added five runtime tests for division/overflow guards, nullable narrowing,
+named-id plan equivalence, one-sided seek work and helper parameter proofs,
+plus a planner test for the one-sided fallback. A 100-row seed with a lower
+bound of 96 counts three rows, sums to 294 and proves existence, examining at
+most three rows. Deleting the fallback makes the new runtime test fail at its
+seek assertion; restored it before verification. All 123 affected tests pass.
+All five new runtime tests also pass in the isolated integration snapshot
+cf803ffcafcb4ce8e1e585fffe70be444679940f, with the named-id cap removed and Lane D's
+streaming binder. The live integration checkout was not modified.
+
+Exact full-suite result: `== 1 failure(s) in 144 s`, solely the unchanged
+baseline schema_capabilities_legacy equality test. No introduced or
+environmental failures. All 995 client tests pass, 10 skipped. WASM remains
+1,736,564 B raw / 480,855 B gzip under the unchanged budget. Reference and
+whitespace checks pass; changed source files stay below 1,500 lines. Full log:
+`/tmp/lane-a-aggregate-safety-full-suite.log`; file-by-file report and
+reproductions: `reports/20260924-intent-lane-a-aggregate-safety.md`.
+
+The proof is conservative rather than a new data-flow analysis. No design
+deviation, engine/IR change, authorization/disclosure or admission relaxation,
+meter increase, new diagnostic, push or publication.
