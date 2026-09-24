@@ -9,6 +9,85 @@ const head = (store_id, seq) => ({ store_id, seq, generation: 1, tables: ['secre
 const until = async check => { for (let n = 0; n < 300; n++) { if (check()) return; await delay(5); } assert.fail('online read did not settle'); };
 const blocked = signal => new Promise((_, reject) => { if (signal.aborted) reject(Error('closed')); else signal.addEventListener('abort', () => reject(Error('closed')), { once: true }); });
 
+test('same-head same-generation store replacement fences held query and observation replies', async t => {
+  const replacement = deferred(), directBody = deferred(), watchBody = deferred();
+  const reads = { direct: 0, watch: 0 }, values = []; let store = 'A', polls = 0;
+  const client = createClient({ url: 'http://store.test', persona: 'alice', fetch: async (url, init) => {
+    if (url.includes('/changes')) {
+      if (++polls === 1) return Response.json(head('A', 10));
+      if (polls === 2) return Response.json(await replacement.promise);
+      return blocked(init.signal);
+    }
+    if (url.includes('/m/')) return Response.json({ state: 'sent', id: JSON.parse(init.body).id, seq: 10 });
+    const name = JSON.parse(init.body).args.direct ? 'direct' : 'watch';
+    reads[name]++;
+    if (store === 'A' && name === 'direct') return Response.json(await directBody.promise);
+    if (store === 'A' && holdWatch) return Response.json(await watchBody.promise);
+    return Response.json(ready([store], 10));
+  } });
+  let holdWatch = false;
+  t.after(async () => { replacement.resolve(head('B', 10)); directBody.resolve(ready(['A'], 10)); watchBody.resolve(ready(['A'], 10)); await client.close(); });
+  const watch = client.observe(q, {}); watch.subscribe(() => values.push(watch.getSnapshot()));
+  await until(() => polls === 2 && watch.getSnapshot().data?.[0] === 'A');
+  const pending = client.query(q, { direct: true });
+  const before = reads.watch; holdWatch = true;
+  await client.mutate(m, {});
+  await until(() => reads.direct === 1 && reads.watch > before);
+  values.length = 0; store = 'B'; replacement.resolve(head('B', 10));
+  await until(() => polls === 3);
+  assert.deepEqual(watch.getSnapshot(), { loading: true });
+  directBody.resolve(ready(['A'], 10)); watchBody.resolve(ready(['A'], 10));
+  assert.deepEqual((await pending).data, ['B']);
+  await until(() => watch.getSnapshot().data?.[0] === 'B');
+  assert.ok(values.every(read => !read.data?.includes('A')), 'old-store data must never publish, including as fresh');
+  assert.equal(watch.getSnapshot().fresh, true);
+});
+
+for (const observation of [false, true]) test(`replayed mutation cannot lower the ${observation ? 'observation' : 'query'} floor`, async t => {
+  const stale = deferred(); let writes = 0, reads = 0;
+  const client = createClient({ url: 'http://store.test', persona: 'alice', fetch: async (url, init) => {
+    if (url.includes('/changes')) return blocked(init.signal);
+    if (url.includes('/m/')) return Response.json({ state: 'sent', id: JSON.parse(init.body).id, seq: ++writes === 1 ? 10 : 1, ...(writes === 2 ? { replayed: true } : {}) });
+    return Response.json(++reads === 1 ? await stale.promise : ready([], 10));
+  } });
+  t.after(async () => { stale.resolve(ready(['revoked'], 1)); await client.close(); });
+  await client.mutate(m, {});
+  const replay = await client.mutate(m, {}, { id: '00000000000000000000000001' });
+  assert.equal(replay.replayed, true); assert.equal(replay.seq, 1);
+  // Start after replay so no dirty rerun can hide the stale publication.
+  const watch = observation ? client.observe(q, {}) : null, values = [];
+  watch?.subscribe(() => values.push(watch.getSnapshot()));
+  const pending = observation ? null : client.query(q, {});
+  await until(() => reads === 1); stale.resolve(ready(['revoked'], 1));
+  if (observation) {
+    await until(() => watch.getSnapshot().data?.length === 0);
+    assert.ok(values.every(read => !read.data?.includes('revoked')));
+  } else assert.deepEqual((await pending).data, []);
+  assert.equal(reads, 2, 'the replay does not make sequence 1 acceptable again');
+});
+
+test('closing while a stale HTTP body is in flight prevents publication and refetch', async t => {
+  const body = deferred(), parsed = deferred(); let reads = 0, entered = false;
+  const client = createClient({ url: 'http://store.test', persona: 'alice', fetch: async (url, init) => {
+    if (url.includes('/changes')) return blocked(init.signal);
+    if (url.includes('/m/')) return Response.json({ state: 'sent', id: JSON.parse(init.body).id, seq: 2 });
+    reads++;
+    const response = Response.json(ready(['revoked'], 1)), json = response.json.bind(response);
+    response.json = async () => { entered = true; await body.promise; const value = await json(); parsed.resolve(); return value; };
+    return response;
+  } });
+  t.after(async () => { body.resolve(); await client.close(); });
+  await client.mutate(m, {});
+  const watch = client.observe(q, {}), values = [];
+  watch.subscribe(() => values.push(watch.getSnapshot()));
+  await until(() => entered); watch.close();
+  assert.deepEqual(watch.getSnapshot(), { loading: true });
+  body.resolve(); await parsed.promise; await delay(250);
+  assert.equal(reads, 1);
+  assert.deepEqual(watch.getSnapshot(), { loading: true });
+  assert.ok(values.every(read => !('data' in read)));
+});
+
 test('replacement store resets the floor and cursor and fences outstanding reads and write receipts', async t => {
   const replacement = deferred(), oldRead = deferred(), oldWrite = deferred();
   const polls = [], values = []; let store = 'A', directStarted = false, writeStarted = false;

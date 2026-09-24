@@ -49818,3 +49818,74 @@ client.query(privatePage, {}) refetches a stale unavailable answer, and
 client.observe(privatePage, {}) settles or stops within one bounded round.
 No open reproduction remains. No native simulator, package publication,
 version bump or push was performed. Changed source files stay below 1,500 lines.
+
+## 2026-09-24 — Lane J round 6: Grok's exact races and composed authority
+
+Audited round 5 against Grok's additional details. No production change was
+needed: verified replacement resets the floor/cursor and query epoch even at
+the same head and generation; mutation receipts advance the floor with max;
+close resets the last subscriber's watch and fetch checks its revision both
+after receiving the result and after retry backoff.
+
+The lower-head suggestion is scoped to verified replacement, preserving the
+round 5 E_STORE_RESTORE rule for a same-store head below its dispatch-time
+floor. Blindly lowering on any smaller head would weaken the write fence:
+acknowledge revoke at S=10, then deliver an older same-store change head at
+S=1 and a private query result at S=1. Lowering the floor would publish the
+revoked row as fresh. A head captured before the write is therefore ignored
+for lowering; a proven same-store regression refuses. Existing tests for both
+cases and replacement A/100 -> B/1 passed. This is the only qualification of
+Grok's proposed wording; the established authorization contract stays intact.
+
+packages/snapback4/test/online-store-order.test.mjs adds four tests:
+- Replace A/10 with B/10 at the same generation while both a direct query and
+  a watch response are held. Neither old-store answer may publish as fresh.
+- Replay an older mutation acknowledgement (S=1 after S=10), separately for
+  direct queries and observations. The older query answer must be refetched;
+  the replay must not lower the floor or reopen the revocation window.
+- Close the final subscriber while a stale S=1 HTTP body is still in flight
+  behind floor S=2, then release the body. Snapshot stays loading and there
+  is exactly one query request. The existing deterministic backoff reset test
+  separately covers cancellation after the yield.
+
+packages/snapback4/test/composed-authority.test.mjs adds four real-server
+tests: watch/query crossed with WASM/process SQLite devices. The fixture
+acquires two scopes, leaves a delivered-history scope, and composes its one
+retained row with two server-authorized private rows beyond a one-row device
+horizon. It holds the second device reply after HTTP settlement and server()'s
+authority check. A real membership revocation and sync then remove the private
+rows, without changing store identity or schema generation. Releasing the old
+device reply must publish no old server field, even transiently, while keeping
+the authorized retained history. A direct device query proves the revocation
+was applied before the held reply is released.
+
+The exact surviving mutation is now caught: deleting only the authority
+comparisons in runLocal and rerun, while keeping server()'s comparison intact,
+fails both composed watch tests with secrets-2 AND the server-only secrets-1
+in their publication traces. Five further mutation variants were caught:
+ignoring same-head store changes, omitting replacement's queryEpoch increment,
+letting a replay lower the floor, omitting close's reset, and omitting the
+cancellation check after retry backoff. No mutation survived; generated files
+were restored before the final validation.
+
+Validation: bun install --frozen-lockfile and package build completed; all 33
+affected tests passed. Initial fixture development had six failures, all ours:
+four Quarry parser failures from an inline order list consuming the next
+object field (fixed by naming each component before returning the object),
+and two replay cases using an invalid mutation id (fixed to a valid canonical
+id). The deliberate mutation failures above are regression evidence.
+
+scripts/test.sh passed on its first round-6 run:
+`== 0 failure(s) in 146 s`. Main client shard: 1,121 tests, 1,111 passed,
+10 existing skips, zero failures/cancellations. All other shards, Rust targets,
+guide checks, builds and typechecks passed. No baseline or environmental
+failure occurred in this full run. Logs: /tmp/lane-j-r6-affected-final.log,
+/tmp/lane-j-r6-mutations.log and /tmp/lane-j-r6-full-suite.log.
+
+Only these two test files and this journal changed. No new Quarry form, Read
+type, engine semantic or runtime policy was added. The fixture's existing
+forms compile and run: query mixed() returns independent history/private
+fields; mutation revoke(room) removes the viewer's membership. Both
+client.observe(mixed, {}) and client.query(mixed, {}) pass the new race.
+No open reproduction remains. No package publication, push or native simulator
+run was performed; both changed test files remain below 1,500 lines.
