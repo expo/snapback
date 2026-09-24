@@ -53,3 +53,10 @@ fn aggregate_range_choice_is_canonical_and_prefers_finite_windows() {
         assert_eq!(read(&catalog).order_keys, ["at", "id"]);
     }
 }
+
+#[test]
+fn aggregate_lone_range_uses_the_one_sided_fallback() {
+    let catalog = planned("", "count(messages where .at > s)");
+    assert_eq!(read(&catalog).order_keys, ["at", "id"]);
+    assert_eq!(read(&catalog).seeks.iter().map(|seek| (seek.column.as_str(), seek.op.as_str())).collect::<Vec<_>>(), [("at", ">")]);
+}

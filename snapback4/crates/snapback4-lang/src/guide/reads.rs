@@ -6,6 +6,10 @@ uses the same index and cursor as `by .id`. View orders retain later keys,
 because distinct branches may carry the same source id; branch identity
 breaks any remaining tie.
 
+Unpaged aggregates infer a range seek only when its endpoint is already
+present and cannot fail. Bounds requiring a short-circuit guard remain row
+filters. A named id pin keeps its single-row access path and filters.
+
 Finite ranked windows enumerate inclusive UTC buckets:
 `bucket(lower) ..= bucket(upper)`. The exact endpoint comparisons still
 filter every row. A missing finite upper bound stays a metered residual scan;
