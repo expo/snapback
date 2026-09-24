@@ -1,5 +1,7 @@
 //! Editorial regressions exercise rendered cards and the actual `why` selector.
 use snapback4_lang::guide::{KEYWORDS, card, explain_code};
+#[path = "refusal_actions.rs"]
+mod refusal_actions;
 
 fn normalize(text: &str) -> String { text.split_whitespace().collect::<Vec<_>>().join(" ") }
 
@@ -17,6 +19,24 @@ fn why_bound_defines_the_ceiling_and_withheld_count() {
         assert!(text.contains(fact), "why E_BOUND excerpt omits {fact}: {text}");
     }
     assert!(!text.contains("as above"));
+}
+
+#[test]
+fn why_rule_carries_the_target_visibility_contract() {
+    let text = excerpt(&explain_code("E_RULE").unwrap());
+    for fact in [
+        "For a collision with another hidden row, ordinary `insert` and `insert ... if absent` return E_RULE.",
+        "An update or upsert-patch returns E_RULE when its target was readable before the write, and NOT_FOUND when its target was unreadable.",
+        "For an unreadable target, rule denial, a failed update condition or a secondary unique clash returns NOT_FOUND without row, index, column or branch detail.",
+        "A missing point-write target or an incomplete upsert insert patch also returns NOT_FOUND.",
+        "A readable target permits E_CONFLICT with a read-rule `current`, named E_CONSTRAINT and E_INPUT details.",
+        "Reads hide rows instead of raising E_RULE.",
+        "use an admitted `upsert` to patch another principal's row",
+        "Do not infer absence from NOT_FOUND on a blind write.",
+    ] {
+        assert!(text.contains(fact), "E_RULE excerpt omits {fact}: {text}");
+    }
+    assert!(!text.contains("table below"), "the excerpt must stand alone");
 }
 
 #[test]
@@ -52,6 +72,9 @@ fn w11_every_registered_code_quotes_its_definition() {
     let pinned = DEFINITIONS.iter().map(|(code, _)| *code).collect::<BTreeSet<_>>();
     assert_eq!(registered, pinned, "review a defining fact for each registered code");
     assert_eq!(pinned.len(), DEFINITIONS.len(), "duplicate definition pin");
+    let actionable = refusal_actions::ACTIONS.iter().map(|(code, _)| *code).collect::<BTreeSet<_>>();
+    assert_eq!(registered, actionable, "review recovery and boundary facts for every code");
+    assert_eq!(actionable.len(), refusal_actions::ACTIONS.len(), "duplicate action pin");
     let mut missing = Vec::new();
     for &(code, fact) in DEFINITIONS {
         let why = explain_code(code).unwrap();
@@ -59,6 +82,13 @@ fn w11_every_registered_code_quotes_its_definition() {
             .explanation_section().unwrap();
         assert_eq!(why, inline, "{code}: CLI and repeated diagnostics must agree");
         if !excerpt(&why).contains(fact) { missing.push(format!("{code}: {fact}")); }
+    }
+    for &(code, facts) in refusal_actions::ACTIONS {
+        assert!(!facts.is_empty(), "{code}: no recovery facts");
+        let text = excerpt(&explain_code(code).unwrap());
+        for fact in facts {
+            if !text.contains(fact) { missing.push(format!("{code} action/boundary: {fact}")); }
+        }
     }
     assert!(missing.is_empty(), "first card paragraph lacks its defining fact:\n{}", missing.join("\n"));
 }
@@ -172,7 +202,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_ROUTE_RESULT", "Invalid responses refuse E_ROUTE_RESULT terminally, because external effects may already have happened."),
     ("E_ROUTE_UNKNOWN", "A changed route declaration refuses E_ROUTE_GENERATION; unavailable work or authority refuses E_ROUTE_UNKNOWN."),
     ("E_ROUTE_VERIFY", "Return `false` for an invalid signature: HTTP 403 with E_ROUTE_VERIFY, with no durable admission."),
-    ("E_RULE", "E_RULE means a write rule denied the viewer, or a unique key collided with a hidden row."),
+    ("E_RULE", "E_RULE reports a write-rule refusal or a hidden unique-key collision, subject to the target's readability."),
     ("E_RUN_BUSY", "E_RUN_BUSY means local `run` spent its 15-second contention deadline waiting for SQLite BUSY/LOCKED during store opening or schema adoption."),
     ("E_RUN_SOURCE_CHANGED", "E_RUN_SOURCE_CHANGED means `run` saw a source edit or could no longer read its source before admission."),
     ("E_SCHEDULE", "E_SCHEDULE means the clock cannot call the named target with its supplied authority and arguments."),

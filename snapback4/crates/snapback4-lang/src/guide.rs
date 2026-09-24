@@ -158,6 +158,7 @@ An observed server-run query re-runs after commits touching its tables.
 Offline it returns its last server answer, held in memory for this client's
 lifetime, with fresh: false and since. Without one it refuses E_OFFLINE
 (family link, retryable). It never answers an empty device page as server data.
+Show the read as unavailable and reconnect before refreshing the server query.
 
 ## Operations
 
@@ -187,7 +188,9 @@ Every check also summarizes all never-predicting mutations, blocked insert arms,
 and eligible mutations with horizon reads, naming their sites even when unchanged.
 A header such as
 `mutation post(body: text <=200) predicts:` asserts eligibility; a server
-site refuses E_NOT_PREDICTABLE at that header. See `guide prediction`.
+site refuses E_NOT_PREDICTABLE at that header. Inspect `snapback4 why <op>` and
+follow the named site rewrite to restore local execution, or keep the server
+dependency and handle queued writes and unavailable offline reads. See `guide prediction`.
 
 N_MAINTAIN_SYNCED names public inherited aggregates and group audiences
 with unbounded recipients or multiple values per group. It names mutations
@@ -342,7 +345,12 @@ preview. A Range request against a once asset is refused before consuming a
 view (E_ASSET_RANGE). Unsatisfiable ordinary ranges return HTTP 416. Every
 asset response is `private, no-store`, so a browser must reauthorize each
 viewer. At most two uploads run at once, and their disk writes happen outside
-the engine mutex. Uploads are online only; there is nothing to queue."##,
+the engine mutex. Uploads are online only; there is nothing to queue.
+Upload a supported kind within the column bound; downscale oversized uploads,
+resize images or shorten videos to fit the media limits. Upload the bytes again
+for a second home. Fetch a once asset without Range; a consumed view cannot be
+retried by that principal. For an unknown asset, use the intended viewer's live
+session and a readable home row; missing and hidden stay indistinguishable."##,
         "reads" => reads::CARD,
         "shapes" => shapes::CARD,        "writes" => writes::CARD,
         "programs" => programs::CARD,

@@ -174,6 +174,8 @@ retains low-level `runWorker` behavior. Generated output embeds the Rust-compute
 contract per exact effect name and full work declaration; TypeScript never
 recomputes it. E_EFFECT_GENERATION or a successful claim with a missing or
 mismatched contract stops that generated worker before handler or settlement.
+Run `snapback4 check` and restart the worker built for the current declaration;
+inspect durable steps and provider outcomes before creating replacement intent.
 
 A fenced claim may call `POST /effects/<id>/steps/<name>/begin` with
 `{ input, reconcile? }`, `/done` with `{ result }`, or `/park` with
@@ -183,7 +185,9 @@ refuses; uncertain work reconciles under its existing provider key or parks
 the parent effect. Oversized results park it with E_STEP_RESULT, while unknown
 provider outcome parks it with E_STEP_PARKED. Parked effects are not reclaimed
 or expired. Explicit policy-allowed cancellation may move one to failed with
-E_EFFECT_CANCELLED; it never resumes the effect.
+E_EFFECT_CANCELLED; it never resumes the effect. Cancellation cannot undo a
+provider call already in flight. Inspect the provider using the effect
+idempotency key before creating replacement intent.
 
 `POST /effects/<percent-encoded-id>/status` requires exactly one nonempty
 `x-snapback-effect-lease` and a current deployment-trusted service. A running

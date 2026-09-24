@@ -83,6 +83,7 @@ per mutation; a job's chunk may examine 16,384 rows and write 8,192. A
 query past a ceiling returns what it found with `complete: false`; a
 mutation aborts with E_BOUND naming the meter, the ceiling and the site
 (never the count: it would measure rows the viewer may not read).
+Read a smaller page, narrow its predicate, or move the sweep into a job.
 `snapback4 check --cost` prints each site's structural class;
 `snapback4 test` prints the numbers on your data and names query/persona reads
 past half any ceiling without a cut: at most ten lines and a count of the rest.

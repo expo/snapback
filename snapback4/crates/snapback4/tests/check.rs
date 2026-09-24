@@ -277,6 +277,26 @@ fn w11_why_every_registered_code_returns_its_dedicated_section() {
 }
 
 #[test]
+fn why_rule_distinguishes_readable_and_unreadable_collision_targets() {
+    let output = Project::new().run(&["why", "E_RULE"]);
+    assert!(output.status.success(), "{output:?}");
+    let text = String::from_utf8(output.stdout).unwrap();
+    let summary = text.split_once("\n\n").unwrap().0;
+    assert!(summary.contains("An unreadable update/upsert target instead returns NOT_FOUND"), "{summary}");
+    assert!(summary.contains("without row, index, column or branch detail"), "{summary}");
+    let section = text.split_once("\n\n").unwrap().1.split_whitespace().collect::<Vec<_>>().join(" ");
+    for fact in [
+        "ordinary `insert` and `insert ... if absent` return E_RULE",
+        "returns E_RULE when its target was readable before the write, and NOT_FOUND when its target was unreadable",
+        "NOT_FOUND without row, index, column or branch detail",
+        "Do not infer absence from NOT_FOUND on a blind write",
+    ] {
+        assert!(section.contains(fact), "{fact}: {section}");
+    }
+    assert!(!section.contains("table below"));
+}
+
+#[test]
 fn w11_repeated_quarry_refusals_show_sections_and_their_repairs_check_clean() {
     let p = Project::new();
     let cases = [

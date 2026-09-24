@@ -49,6 +49,7 @@ also narrows a bound row's field (`r.changedAt != null`), until the local is reb
 arithmetic: `time - time` is an int, `time + int` a time. Duration literals are integer milliseconds:
 `now + 30s`, `now - 1d`, `500ms`, `15m` and `7d`. `/` and `%` give
 the Euclidean quotient and remainder of ints or times; zero refuses `E_DIV_ZERO`.
+Check the divisor first: `require n != 0 else EMPTY`.
 An enum is accepted as `text <=N` only if every variant fits N characters
 and contains no control characters except tab, LF and CR,
 including when both types are optional. This is a static, total widening;

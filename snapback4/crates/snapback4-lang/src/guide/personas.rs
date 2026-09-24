@@ -64,7 +64,8 @@ Argon2 slots equal the host's available cores, capped at 16 and never below 2.
 Startup prints the slot count and the lifted counters once. `serve` and
 non-loopback peers keep two slots and the minute counters; full slots refuse
 with retryable E_RATE_LIMIT. Connection/worker caps remain. Unknown emails
-perform the same Argon2 verification work.
+perform the same Argon2 verification work. Retry after the minute counter or
+concurrent-slot pressure clears; do not retry in a tight loop.
 
 For a replay mode that must not emit notifications, run `snapback4 dev --replay`.
 Startup prints `replay on — new effects suppressed; schedules held`.

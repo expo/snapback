@@ -39,10 +39,18 @@ For update/upsert, "readable" means the read rule admits the old row in the
 pre-write state, before the patch or any of its effects. The engine resolves
 id and unique-key targets privately; the update rule judges old and next.
 
-E_RULE means a write rule denied the viewer, or a unique key collided with a
-hidden row. Reads hide rows instead of raising this refusal. Keep the rule and
-make the write satisfy it; use an admitted `upsert` to patch another
-principal's row. The table below describes refusals for hidden targets.
+E_RULE reports a write-rule refusal or a hidden unique-key collision, subject
+to the target's readability. For a collision with another hidden row, ordinary
+`insert` and `insert ... if absent` return E_RULE. An update or upsert-patch
+returns E_RULE when its target was readable before the write, and NOT_FOUND
+when its target was unreadable. For an unreadable target, rule denial, a failed
+update condition or a secondary unique clash returns NOT_FOUND without row,
+index, column or branch detail. A missing point-write target or an incomplete
+upsert insert patch also returns NOT_FOUND. A readable target permits E_CONFLICT
+with a read-rule `current`, named E_CONSTRAINT and E_INPUT details. Reads hide
+rows instead of raising E_RULE. Keep the rule and make the write satisfy it;
+use an admitted `upsert` to patch another principal's row. Do not infer absence
+from NOT_FOUND on a blind write.
 
 | Target before the write | Refusal details |
 | --- | --- |
@@ -64,7 +72,8 @@ probes and the largest merged image allowed by the schema and supplied patch;
 if it cannot fit, `E_BOUND` refuses equally for a hidden or absent target.
 A readable aggregate view over a hidden source is a declared read channel: its
 delta can disclose the old contribution. `N_MAINTAIN_DELTA` notes potentially
-wider update authority under a separately readable aggregate view.
+wider update authority under a separately readable aggregate view. Restrict its
+read audience or source write authority if that delta is private.
 
 Omitted asset columns keep their placement. An explicit asset id on a row you
 cannot read must be your own upload, even if it equals the retained id. A rule
