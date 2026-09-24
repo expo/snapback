@@ -607,7 +607,7 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
         name: maintain.name.clone(),
         columns,
         indexes,
-        rules: vec![maintain.read.clone()],
+        rules: maintain.read.iter().cloned().collect(),
         immutable: Vec::new(),
         caps: Vec::new(),
         final_exists: Vec::new(),

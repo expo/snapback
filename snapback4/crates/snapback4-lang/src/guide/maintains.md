@@ -9,6 +9,15 @@ byGroup orders the complete group
 tuple. Source caps can prove a distinct-group bound; no new target cap is
 enforced.
 
+Omit `read` to derive readability: a public/allow source gives `read <- allow`;
+otherwise every field in its read rule must survive as a bare group key, and
+that same rule protects the aggregate. Calendar keys and reference paths do
+not preserve rule fields. E_MAINTAIN_READ_RULE names missing fields; state an
+explicit `read <-` when the aggregate needs its own audience. An explicit
+rule always wins. Residency is unchanged: sync is inherited only when all
+source audience columns survive as bare keys, without the source horizon;
+otherwise the aggregate stays server-only. `online only` opts out.
+
 A predicate accepts scalar comparisons, and/or/not, boolean literals and bare
 required boolean columns. Equality permits null; ordering requires compatible
 non-optional scalars. It cannot read tables, viewer, now, helpers or arithmetic:
@@ -67,7 +76,6 @@ table reactions:
   online only
 
 maintain originalPostCounts: count posts where .parentId = null by authorId
-  read <- allow
   online only
 maintain dailyPosts: count posts where .parentId = null by authorId, day(.at)
   read <- allow
@@ -377,7 +385,7 @@ When the group is a row, put its aggregate on that row:
 ```quarry
 table posts:
   at: time
-  likeCount: count likes by postId
+  likeCount: count likes
   by byLikes: likeCount, at, id
   public
   insert <- allow
@@ -395,6 +403,11 @@ mutation like(postId: posts):
 query trending(c: cursor ?):
   return posts after c last 20 by byLikes { * }
 ```
+
+Omit `by` when exactly one source column references the parent, as above.
+This also works for `total: sum likes of .weight`. With no reference or several,
+E_MAINTAINED_COLUMN_REFERENCE lists the candidates: declare a reference if
+needed, then select it with `likeCount: count likes by postId`.
 
 The other form is `total: sum source of amount where .selected by parentId`.
 The predicate has the maintain grammar above. The one grouping column must
