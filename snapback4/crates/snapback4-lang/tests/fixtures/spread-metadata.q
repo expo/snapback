@@ -103,3 +103,20 @@ query spreadJoined(key: notes, flag: bool):
   p = notes[key] ! else NOT_FOUND
   s = { ...p } if flag else p { * }
   return { ...s } { title: 'override', * }
+query sameTableFlat(first: notes, middle: notes, last: notes):
+  p = notes[first] ! else NOT_FOUND
+  q = notes[middle] ! else NOT_FOUND
+  r = notes[last] ! else NOT_FOUND
+  return { ...p, ...q, ...r }
+query sameTableLeft(first: notes, middle: notes, last: notes):
+  p = notes[first] ! else NOT_FOUND
+  q = notes[middle] ! else NOT_FOUND
+  r = notes[last] ! else NOT_FOUND
+  s = { ...p, ...q }
+  return { ...s, ...r }
+query sameTableRight(first: notes, middle: notes, last: notes):
+  p = notes[first] ! else NOT_FOUND
+  q = notes[middle] ! else NOT_FOUND
+  r = notes[last] ! else NOT_FOUND
+  s = { ...q, ...r }
+  return { ...p, ...s }

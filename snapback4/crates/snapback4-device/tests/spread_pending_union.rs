@@ -10,6 +10,17 @@ const CONFIRMED: [&str; 3] = ["confirmed-first", "confirmed-tag", "confirmed-thi
 const PREDICTED_VALUES: [&str; 3] = ["pending first", "pending tag", "pending third"];
 
 fn inspect<S: BoundaryMetadata>(device: &mut Device<S>, predicted: &[String], pending_mask: u8) {
+    // Only the middle row can be pending, and the last same-table row
+    // replaces every one of its columns. Its metadata must still survive.
+    let args = json!({"first":CONFIRMED[0], "middle":predicted[0], "last":CONFIRMED[2]});
+    let mut expected = object([("id", id(CONFIRMED[2])), ("owner", id("alice")), ("title", Value::String("confirmed third".into()))]).as_object().unwrap().clone();
+    if pending_mask & 1 != 0 { expected.insert("pending".into(), Value::Bool(true)); }
+    for name in ["sameTableFlat", "sameTableLeft", "sameTableRight"] {
+        let answer = device.query(name, "alice", &args, 100).unwrap();
+        assert!(answer.complete);
+        assert_eq!(answer.metered.examined, 3);
+        assert_eq!(answer.data.as_object().unwrap(), &expected, "{name}, pending={pending_mask}");
+    }
     for selection in 0..8_u8 {
         let keys: Vec<_> = (0..3).map(|n| if selection & (1 << n) == 0 { CONFIRMED[n] } else { &predicted[n] }).collect();
         let args = json!({"first":keys[0], "tag":keys[1], "third":keys[2]});

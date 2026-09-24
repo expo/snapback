@@ -49874,3 +49874,76 @@ Wasm remains 1,744,842 B raw / 484,967 B gzip under the unchanged 486,000 B
 budget. Reference validation: 505 LLP documents, 9,238 references, zero
 errors and zero unchecked. Every changed Rust source is below 1,500 lines;
 git diff --check passes. No packages or generated publication files changed.
+
+## 2026-09-24 — LLP 3000.013 Lane K round 8: RowMixed is absorbing
+
+The round-7 marker could still fall through Ty::join to Unknown when joined
+with a raw Row or a scalar. Unknown is the join identity, so a following
+RowShape join then erased the wildcard conflict. types.rs now keeps RowMixed
+with optional field knowledge. Compatible object joins retain their fields;
+incompatible joins retain the conflict with no known fields. Audited the
+single join fallback to Unknown and its structural recursion: the fallback
+also retains a marker nested in an optional, list, collection or object when
+an incompatible join loses that container's structure. Optional joins,
+rebound allocations and reassignment keep the distinction.
+
+Engineering choice: represent lost field information as RowMixed(None), not
+as an invented object shape for a value that can be a scalar. emit.rs emits
+unknown for that result, while known mixed objects still expose their fields
+and pending?: boolean. bind/program.rs and bind/program/expr.rs enumerate or
+read only known mixed fields; bind/program/objects.rs accepts a mixed spread
+only while its fields remain known. Shaping either mixed variant still gets
+the existing E_QUARRY_SHAPE_JOIN and the two-arm rewrite. guide/shapes.rs
+states that further joins cannot restore shapeability, and qualifies plain
+field reads by retained field knowledge. No new syntax or diagnostic code.
+
+Extended tests/joined_shapes.rs with the exact reported sequence, both p and
+1 as the intermediate arm, both arm orders, conditional reassignment,
+aliases, optional values and incompatible containers. The added result-type
+test checks unknown emission without erasing the compiler marker, the shape
+refusal, and refusal to spread a scalar-containing opaque mixed value. The
+previous arm-specific execution, generated text bound, printed rewrite,
+lazy evaluation and nullable projection tests still pass.
+
+Added sameTableFlat, sameTableLeft and sameTableRight to the shared
+lang/tests/fixtures/spread-metadata.q. device/tests/spread_pending_union.rs
+now checks three notes where only the middle operand is pending and the last
+note overwrites every one of its columns. All three spellings preserve
+pending before confirmation, after reopen, and across settlement and another
+reopen, on memory and SQLite. Other pending outbox rows do not mark a result
+that does not spread them. The existing eight-combination and reversed-arm
+matrix remains in place. No pending implementation change was needed.
+
+Added core/tests/pending_metadata_heap.rs, exercising the device interpreter
+over memory and SQLite Rows with existing Shape IR. Its independent literal
+oracle is 40 object bytes + 80 entry bytes + 7 key bytes = 127 bytes for a
+pending-only object, 87 above an empty projection. It does not derive its
+expectation from Value::heap_bytes(). A 126-byte ceiling cuts inside the
+metadata base before evaluating any outer field (four steps, null data,
+incomplete, HeapBytes at metadata:1). At 127 bytes, evaluation advances to the
+five-byte outer text clone (five steps) before cutting. At the full 349-byte
+allowance, both projections complete with the expected metadata and field.
+No meter or runtime change was needed.
+
+Fault injections were all detected and restored: removing the absorbing
+fallback fails two join tests; dropping the middle of three spread bases
+fails the new sameTableFlat assertion on both stores; removing Shape's heap
+charge fails both new meter tests. Evidence: /tmp/lane-k-r8-join-mutant.log,
+/tmp/lane-k-r8-middle-mutant.log and /tmp/lane-k-r8-heap-mutant.log. These were
+intentional negative checks, not unresolved product failures.
+
+Restored targeted checks passed all 86 cases: 57 guide, 16 natural forms,
+seven joined shapes, four device spread lifecycle tests and two heap tests.
+Ran bun install --frozen-lockfile once (506 installs checked, no changes).
+The first and only full scripts/test.sh run finished with the exact summary
+`== 0 failure(s) in 203 s`. No own, baseline or environmental suite failure.
+Client tests passed 1,054, skipped 10 and failed zero. Wasm remains
+1,744,842 bytes raw / 484,967 bytes gzip under the unchanged 486,000-byte
+budget. Evidence: /tmp/lane-k-r8-targeted.log and
+/tmp/lane-k-r8-full-suite.log. Reference validation passed: 505 LLP documents,
+9,238 references, zero errors and zero unchecked. Changed source files are
+below 1,500 lines; git diff --check passes.
+
+No deviation or open round-8 problem. The earlier deliberately stopped
+extra-tested write targets remain outside this round. No IR, wire,
+authorization, disclosure, durability or meter change. No push or publication.

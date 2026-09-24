@@ -112,7 +112,7 @@ fn args_ts(args: &[(String, Ty)]) -> String {
 
 pub fn ty_ts(ty: &Ty) -> String {
     match ty {
-        Ty::Unknown | Ty::Json => "unknown".into(),
+        Ty::Unknown | Ty::Json | Ty::RowMixed(None) => "unknown".into(),
         Ty::Null => "null".into(),
         Ty::Bool => "boolean".into(),
         Ty::Int | Ty::Time | Ty::Decimal(_) | Ty::Money(..) => "number".into(),
@@ -126,7 +126,7 @@ pub fn ty_ts(ty: &Ty) -> String {
         Ty::WriteRow(table) => format!("WriteRows[{}]", string_literal(table)),
         Ty::Page(table, _) => format!("Rows[{}][]", string_literal(table)),
         Ty::Collection(item, _) => format!("{}[]", wrap(item)),
-        Ty::RowShape(fields) | Ty::RowObject(fields) | Ty::RowMixed(fields) => {
+        Ty::RowShape(fields) | Ty::RowObject(fields) | Ty::RowMixed(Some(fields)) => {
             let fields = fields.iter().map(|(name, ty)| format!("{}: {}", property(name), ty_ts(ty))).chain(["pending?: boolean".into()]).collect::<Vec<_>>();
             format!("{{ {} }}", fields.join("; "))
         }

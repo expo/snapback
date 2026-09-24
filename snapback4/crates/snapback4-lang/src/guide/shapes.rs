@@ -32,7 +32,9 @@ An object spread's wildcard follows field order; when shaping an existing row sh
 explicit computed fields win over its wildcard. Shape each arm before joining
 these two kinds of value. An inline conditional shape does this for you;
 E_QUARRY_SHAPE_JOIN refuses shaping an already-joined local, including after
-conditional reassignment. Plain field reads such as `s.title` remain valid.
+conditional reassignment or further joins. A later join cannot make that local
+shapeable again, even if it loses knowledge of the fields. Plain field reads
+such as `s.title` remain valid while both arms have known fields.
 
 ```quarry
 table listings:

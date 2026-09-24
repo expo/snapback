@@ -796,7 +796,7 @@ impl<'a> Binder<'a> {
                 fields.extend(info.columns.iter().map(|(name, scalar)| (name.clone(), Ty::from_scalar(scalar))));
                 Ok(fields)
             }
-            Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) | Ty::RowMixed(fields) => Ok(fields.into_iter().collect()),
+            Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) | Ty::RowMixed(Some(fields)) => Ok(fields.into_iter().collect()),
             other => Err(type_error(site, format!("* spreads a row or an object; got {}", other.name()), "shape a row")),
         }
     }

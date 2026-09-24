@@ -42,7 +42,8 @@ pub enum Ty {
     /// Object-spread fields with row metadata, but ordinary object wildcard order.
     RowObject(BTreeMap<String, Ty>),
     /// A join of object and row-shape wildcard rules; shape the arms before joining.
-    RowMixed(BTreeMap<String, Ty>),
+    /// `None` loses field knowledge after an incompatible join, never the rule conflict.
+    RowMixed(Option<BTreeMap<String, Ty>>),
 }
 
 impl Ty {
@@ -55,7 +56,7 @@ impl Ty {
             Ty::Object(fields) => Ty::Object(fields.into_iter().map(|(name, ty)| (name, ty.rebound())).collect()),
             Ty::RowShape(fields) => Ty::RowShape(fields.into_iter().map(|(name, ty)| (name, ty.rebound())).collect()),
             Ty::RowObject(fields) => Ty::RowObject(fields.into_iter().map(|(name, ty)| (name, ty.rebound())).collect()),
-            Ty::RowMixed(fields) => Ty::RowMixed(fields.into_iter().map(|(name, ty)| (name, ty.rebound())).collect()),
+            Ty::RowMixed(fields) => Ty::RowMixed(fields.map(|fields| fields.into_iter().map(|(name, ty)| (name, ty.rebound())).collect())),
             Ty::Optional(inner) => inner.rebound().optional(),
             other => other,
         }
@@ -138,6 +139,7 @@ impl Ty {
     pub fn name(&self) -> String {
         match self {
             Ty::Unknown => "an unknown value".into(),
+            Ty::RowMixed(None) => "a value with mixed wildcard rules and unknown fields".into(),
             Ty::Null => "null".into(),
             Ty::Bool => "bool".into(),
             Ty::Int => "int".into(),
@@ -160,7 +162,7 @@ impl Ty {
             Ty::WriteRow(table) => format!("a {table} write result"),
             Ty::Page(table, max) => format!("a page of at most {max} {table} rows"),
             Ty::Collection(item, max) => format!("at most {max} of {}", item.name()),
-            Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) | Ty::RowMixed(fields) => format!("{{ {} }}", fields.keys().cloned().collect::<Vec<_>>().join(", ")),
+            Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) | Ty::RowMixed(Some(fields)) => format!("{{ {} }}", fields.keys().cloned().collect::<Vec<_>>().join(", ")),
         }
     }
 
@@ -188,7 +190,8 @@ impl Ty {
                 let (b, bm) = b.sequence().unwrap();
                 a.assignable_to(&b) && am <= bm
             },
-            (Ty::Object(a) | Ty::RowShape(a) | Ty::RowObject(a) | Ty::RowMixed(a), Ty::Object(b) | Ty::RowShape(b) | Ty::RowObject(b) | Ty::RowMixed(b)) => a.len() == b.len() && a.iter().all(|(name, ty)| b.get(name).is_some_and(|target| ty.assignable_to(target))),
+            (Ty::Object(a) | Ty::RowShape(a) | Ty::RowObject(a) | Ty::RowMixed(Some(a)), Ty::Object(b) | Ty::RowShape(b) | Ty::RowObject(b) | Ty::RowMixed(Some(b))) => a.len() == b.len() && a.iter().all(|(name, ty)| b.get(name).is_some_and(|target| ty.assignable_to(target))),
+            (Ty::RowMixed(_), Ty::RowMixed(None)) | (Ty::RowMixed(None), Ty::RowMixed(_)) => true,
             (Ty::Enum(a), Ty::Enum(b)) => a.iter().all(|v| b.contains(v)),
             (Ty::Unknown, _) | (_, Ty::Unknown) | (_, Ty::Json) => true,
             _ => false,
@@ -225,7 +228,7 @@ impl Ty {
             (Ty::Optional(a), b) | (b, Ty::Optional(a)) => a.join(&b.required()).optional(),
             (Ty::Text(a), Ty::Text(b)) => Ty::Text(*a.max(b)),
             (Ty::Int, Ty::Time) | (Ty::Time, Ty::Int) => Ty::Int,
-            (Ty::Object(a) | Ty::RowShape(a) | Ty::RowObject(a) | Ty::RowMixed(a), Ty::Object(b) | Ty::RowShape(b) | Ty::RowObject(b) | Ty::RowMixed(b)) => {
+            (Ty::Object(a) | Ty::RowShape(a) | Ty::RowObject(a) | Ty::RowMixed(Some(a)), Ty::Object(b) | Ty::RowShape(b) | Ty::RowObject(b) | Ty::RowMixed(Some(b))) => {
                 let mut fields = BTreeMap::new();
                 for (name, ty) in a {
                     match b.get(name) {
@@ -242,7 +245,7 @@ impl Ty {
                     (Ty::RowMixed(_), _) | (_, Ty::RowMixed(_)) |
                     (Ty::RowShape(_), Ty::RowObject(_)) |
                     (Ty::RowObject(_), Ty::RowShape(_)));
-                if mixed { Ty::RowMixed(fields) }
+                if mixed { Ty::RowMixed(Some(fields)) }
                 else if matches!(self, Ty::RowShape(_)) || matches!(other, Ty::RowShape(_)) { Ty::RowShape(fields) }
                 else if matches!(self, Ty::RowObject(_)) || matches!(other, Ty::RowObject(_)) { Ty::RowObject(fields) }
                 else { Ty::Object(fields) }
@@ -255,7 +258,20 @@ impl Ty {
                 let (b, bm) = b.sequence().unwrap();
                 Ty::List(Box::new(a.join(&b)), am.max(bm))
             },
+            // Unknown is the join identity, so it cannot retain an unresolved
+            // wildcard conflict. Preserve that conflict even when incompatible
+            // arms erase the structure of a container holding the mixed value.
+            _ if self.contains_mixed() || other.contains_mixed() => Ty::RowMixed(None),
             _ => Ty::Unknown,
+        }
+    }
+
+    fn contains_mixed(&self) -> bool {
+        match self {
+            Ty::RowMixed(_) => true,
+            Ty::Optional(inner) | Ty::List(inner, _) | Ty::Collection(inner, _) => inner.contains_mixed(),
+            Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) => fields.values().any(Ty::contains_mixed),
+            _ => false,
         }
     }
 
