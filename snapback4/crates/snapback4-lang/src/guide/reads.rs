@@ -12,6 +12,10 @@ uses the same index and cursor as `by .id`. View orders retain later keys,
 because distinct branches may carry the same source id; branch identity
 breaks any remaining tie.
 
+Unpaged aggregates infer a range seek only when its endpoint is already
+present and cannot fail. Bounds requiring a short-circuit guard remain row
+filters. A named id pin keeps its single-row access path and filters.
+
 Finite ranked windows enumerate inclusive UTC buckets:
 `bucket(lower) ..= bucket(upper)`. The exact endpoint comparisons still
 filter every row. A missing finite upper bound stays a metered residual scan;
@@ -114,8 +118,8 @@ query readForms(roomId: rooms, messageId: messages, c: cursor ?):
   return { one, must, roster, member, admin }
 query newest(roomId: rooms, c: cursor ?):
   return messages where .roomId = roomId and .body != null last 20 by .at after c
-query recentTotal(roomId: rooms):
-  return count(messages where .roomId = roomId and .at >= now - 1d and .at <= now)
+query recentTotal(roomId: rooms, start: time, end: time):
+  return count(messages where .roomId = roomId and .at >= start and .at <= end)
 ```
 
 For an expiring table, return the deadline with each row:

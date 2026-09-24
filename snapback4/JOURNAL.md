@@ -48964,3 +48964,75 @@ All xcframework file hashes, tarball verification, command timings, native
 link evidence, app/CLI hashes, both manifests, receipts, logs and videos
 are under `reports/20260924-expo-0.4.0/`; `qualified.json` records
 `published: false`. The simulator is retained and shut down.
+
+
+## 2026-09-24 — LLP 3000.013 Lane A, safe aggregate seek inference
+
+Fixed both final aggregate delta findings. Inference now uses required-argument
+facts for each program/helper and accepts only endpoints proved present and
+non-failing before the row predicate. Division, overflow-capable arithmetic,
+nullable operands, calls and unproved local/member expressions stay residual.
+An unsafe bound disqualifies its column even beside a safe sibling bound, so
+selecting the order cannot extract the unsafe endpoint past a short-circuit
+guard. Named intrinsic-id pins skip aggregate ordering and retain byId with
+the row filter, avoiding duplicate-id index components. Explicit order and
+existing admission are unchanged.
+
+Added five runtime tests for division/overflow guards, nullable narrowing,
+named-id plan equivalence, one-sided seek work and helper parameter proofs,
+plus a planner test for the one-sided fallback. A 100-row seed with a lower
+bound of 96 counts three rows, sums to 294 and proves existence, examining at
+most three rows. Deleting the fallback makes the new runtime test fail at its
+seek assertion; restored it before verification. All 123 affected tests pass.
+All five new runtime tests also pass in the isolated integration snapshot
+cf803ffcafcb4ce8e1e585fffe70be444679940f, with the named-id cap removed and Lane D's
+streaming binder. The live integration checkout was not modified.
+
+Exact full-suite result: `== 1 failure(s) in 144 s`, solely the unchanged
+baseline schema_capabilities_legacy equality test. No introduced or
+environmental failures. All 995 client tests pass, 10 skipped. WASM remains
+1,736,564 B raw / 480,855 B gzip under the unchanged budget. Reference and
+whitespace checks pass; changed source files stay below 1,500 lines. Full log:
+`/tmp/lane-a-aggregate-safety-full-suite.log`; file-by-file report and
+reproductions: `reports/20260924-intent-lane-a-aggregate-safety.md`.
+
+The proof is conservative rather than a new data-flow analysis. No design
+deviation, engine/IR change, authorization/disclosure or admission relaxation,
+meter increase, new diagnostic, push or publication.
+
+
+## 2026-09-24 — LLP 3000.013 integration round 3: aggregate seek safety
+
+Merged Lane A `b67661952` with `--no-ff` as `925966117`. Conflicts were
+limited to the RFC revision header and journal; both histories survive.
+The compiler now requires present, non-failing aggregate seek endpoints,
+keeps guarded sibling bounds residual, and avoids inferred ordering after
+an intrinsic-id pin. Required argument facts stay scoped to their program
+or helper. The post-merge workspace build passed.
+
+The initial focused guide run exposed one integration documentation mismatch:
+`reads` card block 1, `recentTotal` with inline `now - 1d`, refused with
+E_QUARRY_BOUND after conservative inference left the arithmetic residual.
+Changed that example to required start/end time parameters; all 57 guide
+tests now pass. No compiler proof, admission or meter was loosened to keep
+an old example. All 74 focused tests pass: guide 57, aggregate safety five,
+followup five, planner unit four, and complete Clique target three.
+
+The full target still compiles without diagnostics and runs Following,
+streaming counts, the inferred time seek, restart and once suppression.
+The digest remains two chunks, K=64, zero retries, 312,580 B peak heap and
+823 B retained count heap. Core and device sources are unchanged. Rebuilt
+WASM is byte-identical before and after integration, including the final
+suite rebuild: SHA-256
+4d20f09fbb499d191d5710e3a9cf1ee66545b9277c321a7c5499e8cc2548d212.
+It remains 1,744,850 B raw / 485,005 B gzip, with the 486,000 B ratchet
+unchanged and 995 B headroom. The measurement is recorded in the budget reason.
+
+Exact full suite: `== 0 failure(s) in 273 s`. All 1,088 client tests passed,
+10 skipped. No full-suite integration, baseline or environmental failure;
+no intermittent client failure to rerun. Reference validation reports zero
+errors and zero unchecked references; whitespace checks and changed-source
+line budgets pass. No design deviation, new open problem, runtime change,
+authorization/disclosure relaxation, publication or push. Detailed file map,
+examples, the guide failure reproduction and logs are recorded in
+reports/20260924-intent-integration-r3.md.
