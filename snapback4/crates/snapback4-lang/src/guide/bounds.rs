@@ -88,8 +88,10 @@ not a complete sweep.
 Heap is a cumulative allocation and binding budget. Streaming aggregates
 release each transient row and its key scratch; one cursor allowance remains.
 Inner job domains decode one prepaid row at a time and retain each selected
-row under the heap meter before fetching another. Decode scratch is released;
-retained rows and buffers stay charged. Constructed values,
+row under the heap meter before fetching another. Once decoded, the row's
+retained allowance replaces its decode scratch. Retained rows, their vector
+and the live cursor stay charged; domains do not retain unused result keys.
+Constructed values,
 concatenation and other allocating builtins, local bindings, and owned
 copies count. Inspecting a held value's length or sum borrows it; row and
 map clones share their immutable image. A heap cut stops a query immediately

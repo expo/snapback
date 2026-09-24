@@ -47670,3 +47670,41 @@ source: 1,298 lines. No syntax, IR, admission, authorization, expiry, effects
 or runtime ceiling changes; no per-value provenance redesign, push or
 publication. Details and baseline reproductions:
 `reports/20260924-intent-work-r3.md`.
+
+## 2026-09-24 — LLP 3000.013 lane D, Grok delta review
+
+Inner job domains now release a selected row's decode/scratch allowance
+before charging its retained image and row-vector growth. They retain no
+unused result-key vector; the cursor reservation remains. Selection still
+precedes body execution, every row is prepaid before decoding, and retained
+rows, buffers and non-transient work remain charged. The bounds card records
+the handoff. Added three simulator tests for the exact three-large-row case,
+unused-key allowance near the examined ceiling, and uniform schema-capped
+count/sum under a meter cut. The existing binder upgrade needs no code change.
+
+Three rows with 2,000,000-character bodies now complete one chunk at K=64,
+zero retries, emitting count three, at 16,014,923 B peak under the unchanged
+16 MiB ceiling. Previously this parked at K=1 with 18,015,233 B including the
+refused charge. A 16,370-row inner domain falls from 5,565,503 B to 4,484,226 B
+peak by dropping unused keys. Moving the retained-row charge before scratch
+release now fails the large-row test. Deleting the uniform aggregate upgrade
+now fails with partial count three instead of null. Both temporary mutations
+were restored before final checks. The oversized-domain/malformed-suffix
+test still refuses before the bad decode and rolls back all effects and keys.
+
+90 affected tests pass: 28 intent/control/review, seven device component and
+55 guide tests. The original recipient-heavy 5,000-candidate / 4,900-hit /
+50-recipient control remains at 370,216 B; the ordinal/once fixture peaks at
+372,664 B. Scheduled scale still emits 50 digests across restart/rerun in 26
+chunks, final K=2, five retries, at 1,297,161 B peak including refused attempts.
+
+scripts/test.sh: `== 1 failure(s) in 164 s` (`cargo test`), solely the four
+baseline failures: legacy schema capability, word-expansion fixture,
+authoring census and CLI why text. The census difference is baseline-identical
+(12 actual-only / one expected-only). No new or environmental failures.
+WASM: 1,714,464 B raw / 475,764 B gzip, within the unchanged 476,000 B budget.
+Ref-check: 504 LLP docs, 9,212 refs, zero errors/unchecked. Largest changed
+source: 1,302 lines. No syntax, IR, diagnostic, admission, authorization,
+expiry, effect or runtime ceiling changes; no push or publication. Details,
+forms, mutation evidence and baseline reproductions:
+`reports/20260924-intent-work-r4.md`.
