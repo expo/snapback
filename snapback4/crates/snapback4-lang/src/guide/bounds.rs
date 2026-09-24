@@ -195,7 +195,13 @@ and page with `after c`, or add `cap 50 by conversationId` to the table if
 that is the intended group limit. An unscoped plain page can use `cap 50`.
 The cap refuses writes beyond its limit; a per-lane cap does not bound a merge.
 
-When the same code and card occur twice in one text `check`, its card excerpt
+Notes in a text `check` print their code, site, message and rewrite, followed
+by `snapback4 why <code>`. Long explanations are opt-in: `check --verbose`
+prints each note's explanation once per code and card, even for a single
+note; `why <code>` opens it on demand. Grouped notes show their one-line
+summary by default; `--verbose` and JSON retain every member and source site.
+
+When the same error code and card occur twice in one text `check`, its card excerpt
 prints once under the first occurrence, with the `guide:` pointer kept at
 every site. At most three excerpts print per check, each at most 4,096 UTF-8
 bytes including its full-card pointer and final newline (12,291 extra bytes

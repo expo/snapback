@@ -48985,3 +48985,57 @@ line budgets pass. No design deviation, new open problem, runtime change,
 authorization/disclosure relaxation, publication or push. Detailed file map,
 examples, the guide failure reproduction and logs are recorded in
 reports/20260924-intent-integration-r3.md.
+
+## 2026-09-24 — LLP 3000.013 Lane H: precise cost reasons and compact check notes
+
+Changed `check --cost` to recognize the relationship between a merge's
+inclusive calendar range, pinned calendar key and exact time predicates.
+Hour/day windows now name their bounded lanes and page, edge-bucket density,
+repeated skips and opening/refill lookahead. They retain `class: grows` and
+the existing conservative numeric allowances; exact endpoints no longer
+suggest pinning the time column. Other residual predicates and non-uniform
+read rules keep their growth warnings. Expiry scans, lookups and cap checks
+name expired rows not yet swept; scan rewrites are omitted, while keyed
+lookups retain the useful by-id alternative. The bounds card documents both.
+
+Default `check` notes retain the code, site, message, rewrite and card pointer,
+add `snapback4 why <code>`, and omit the long explanation. Grouped multiline
+notes show their one-line summary. `--verbose` keeps all member sites and
+explains each code/card once, including a singleton; `why` and JSON retain
+their detail. Error reporting keeps its existing behavior. Updated CLI help
+and the bounds card; no new Quarry syntax or refusal code was introduced.
+
+Added five scale tests covering hour/day/subhour recognition and conservative
+fallback, per-row authorization, history versus edge density and a meter cut,
+the expiry backlog counterexample, and cost text/JSON without empty rewrite
+labels. Added a CLI test for repeated N_NO_HORIZON notes across plain,
+verbose, why and JSON output. Updated the existing bucket, repeated-note and
+grouped-maintain expectations. All 97 affected tests pass. Measured window
+examined rows: 11 initially, still 11 after adding 1,000 rows outside the
+window, 211 after adding 200 rejected edge rows. Adding 8,200 more edge rows
+returns incomplete within the unchanged certificate allowance. Expiry reads
+examine 2,001 rows before one 2,000-row sweep and one afterward, returning no
+expired rows. The provided target-clique.q compiles after adding the brief's
+missing `.at <= now` to Trending, and prints the 25-lane/page-10 explanation;
+the integrated target's three engine tests also pass.
+
+One requested claim was stopped: expiry is not bounded to rows expired since
+the last sweep, nor to at most one second. The server checks maintenance on
+a one-second tick and deletes at most 2,000 rows per pass across tables. A
+burst of 2,001 expirations leaves an older row after that pass; outages,
+slow maintenance and failures can leave more. Reproduce with
+`cargo test -p snapback4 --test scale_windows_expiry expiry_backlog_can_outlive_one_tick_and_remains_meter_bounded -- --nocapture`.
+The wording states this limit instead of inventing an age or population
+guarantee. Runtime/sweep redesign was not attempted. Retaining the existing
+two JSON classes and meter allowances, recognizing only proved window shapes,
+and preserving grouped-note details in verbose/JSON are the implementation
+choices where the brief was silent.
+
+Ran `bun install --frozen-lockfile` and the complete `scripts/test.sh` once.
+Exact result: `== 0 failure(s) in 227 s`. All 57 guide tests pass; no introduced,
+baseline or environmental full-suite failure occurred. The four failures in
+the supplied baseline log did not recur. Wasm remains 1,744,850 B raw /
+485,005 B gzip under 486,000. Changed source files stay below 1,500 lines;
+whitespace checks pass. Logs: `/tmp/lane-h-affected-final.log`,
+`/tmp/lane-h-clique-cost.log`, `/tmp/lane-h-full-suite.log`.
+No authorization, disclosure, engine, meter, publication or push change.

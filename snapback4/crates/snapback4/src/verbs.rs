@@ -137,6 +137,22 @@ fn diagnostic_reports(diagnostics: &[snapback4_lang::Diagnostic], prefix: &str, 
     }).collect()
 }
 
+fn note_reports(notes: &[snapback4_lang::Diagnostic], verbose: bool) -> Vec<String> {
+    let mut explained = std::collections::BTreeSet::new();
+    notes.iter().map(|note| {
+        let mut compact = note.clone();
+        if !verbose && let Some((summary, _)) = compact.message.split_once('\n') {
+            compact.message = format!("{}.", summary.trim_end_matches(':'));
+        }
+        let mut report = format!("note: {compact}\n  why: snapback4 why {}\n", note.code);
+        if verbose && explained.insert((&note.code, &note.guide))
+            && let Some(explanation) = note.explanation() {
+            report.push_str(&format!("\n{explanation}\n"));
+        }
+        report
+    }).collect()
+}
+
 pub fn check(options: &Options) -> i32 {
     let project = project_or_exit();
     let started = Instant::now();
@@ -200,7 +216,7 @@ pub fn check(options: &Options) -> i32 {
     } else {
         println!("check: ok — {} tables ({synced} synced), {} operations, no problems{}, {:.1} ms{}", bound.schema.visible_tables().count(), bound.programs.len(), if bound.notes.is_empty() { String::new() } else { format!(", {} note{}", bound.notes.len(), if bound.notes.len() == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0, match &native { Some(b) => format!("; native: {} → {} ({} B, {} ms)", b.jobs.join(", "), b.path.display(), b.bytes, b.ms), None => String::new() });
         if details {
-            for report in diagnostic_reports(&bound.notes, "note: ", true) { println!("{report}"); }
+            for report in note_reports(&bound.notes, options.flags.contains_key("verbose")) { println!("{report}"); }
         }
     }
     if !options.json { println!("{scale_summary}"); }
