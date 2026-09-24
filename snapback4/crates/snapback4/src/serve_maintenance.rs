@@ -8,6 +8,8 @@ use tiny_http::Request;
 #[derive(Default, serde::Serialize)]
 struct Work { delivery_chunks: usize, expired: u64, schedules: usize, chunks: usize, parked: usize }
 
+const WORK_TIME: Duration = Duration::from_millis(2);
+
 fn phase<T: Default>(shared: &Shared, result: Result<T, RuntimeError>, drain: bool, name: &str) -> Result<T, RuntimeError> {
     match result {
         Err(error) if !drain => { super::adoption::background_failure(shared, name, &error); Ok(T::default()) }
@@ -20,11 +22,10 @@ fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
     let mut work = Work::default();
     work.delivery_chunks = delivery(shared, drain)?;
     loop {
-        let swept = phase(shared, lock(&shared.engine).sweep_expired(shared.now(), 2_000), drain, "the expiry sweep")?;
+        let swept = phase(shared, lock(&shared.engine).sweep_expired_for(shared.now(), 2_000, WORK_TIME), drain, "the expiry sweep")?;
         work.expired += swept;
         if swept > 0 { bump_seq(shared); }
-        if !drain || swept < 2_000 { break; }
-        std::thread::yield_now();
+        if !drain || swept == 0 { break; }
     }
     // @ref LLP 3000.007#20.2 — advancing a replay clock does not release its schedule hold.
     if !shared.hold_schedules {
@@ -34,7 +35,7 @@ fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
     }
     while drain || work.chunks < 500 {
         if crate::lifecycle::stopping() { break; }
-        let Some(run) = phase(shared, lock(&shared.engine).run_job_chunk(shared.now()), drain, "job")? else { break; };
+        let Some(run) = phase(shared, lock(&shared.engine).run_job_chunk_for(shared.now(), WORK_TIME), drain, "job")? else { break; };
         work.chunks += 1;
         bump_seq(shared);
         for line in lock(&shared.engine).take_native_logs() { eprintln!("snapback4: native {line}"); }
@@ -46,20 +47,24 @@ fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
             }
             _ => {}
         }
-        // The engine is available to requests between each bounded chunk.
-        std::thread::yield_now();
+        // FIFO engine admission hands waiting requests their turn before the
+        // next chunk; yield_now alone cannot make that promise for a mutex.
     }
     if drain || tick % 5 == 0 {
-        let actions = phase(shared, lock(&shared.engine).requeue_expired_actions(shared.now()), drain, "the action lease sweep")?;
-        let effects = phase(shared, lock(&shared.engine).requeue_expired_effects(shared.now()), drain, "the effect lease sweep")?;
-        if actions + effects > 0 { shared.committed.notify_all(); }
-        if effects > 0 { eprintln!("snapback4: {effects} effect lease{} expired; queued again", if effects == 1 { "" } else { "s" }); }
+        loop {
+            let actions = phase(shared, lock(&shared.engine).requeue_expired_actions_for(shared.now(), WORK_TIME), drain, "the action lease sweep")?;
+            let effects = phase(shared, lock(&shared.engine).requeue_expired_effects_for(shared.now(), WORK_TIME), drain, "the effect lease sweep")?;
+            if actions + effects > 0 { shared.committed.notify_all(); }
+            if effects > 0 { eprintln!("snapback4: {effects} effect lease{} expired; queued again", if effects == 1 { "" } else { "s" }); }
+            if !drain || actions + effects == 0 { break; }
+        }
     }
     if drain || tick % 60 == 0 {
         phase(shared, (|| {
-            let sweep = lock(&shared.engine).prepare_asset_sweep(shared.now())?;
+            let mut sweep = lock(&shared.engine).prepare_asset_sweep_for(shared.now(), WORK_TIME)?;
             sweep.remove_files()?;
-            lock(&shared.engine).finish_asset_sweep(&sweep)
+            while !sweep.is_empty() { lock(&shared.engine).finish_asset_sweep_for(&mut sweep, WORK_TIME)?; }
+            Ok(())
         })(), drain, "the asset sweep")?;
     }
     Ok(work)
@@ -72,7 +77,6 @@ fn delivery(shared: &Shared, drain: bool) -> Result<usize, RuntimeError> {
         if phase(shared, lock(&shared.engine).run_timeline_chunk(shared.now()), drain, "timeline delivery")?.is_none() { break; }
         chunks += 1;
         bump_seq(shared);
-        std::thread::yield_now();
     }
     Ok(chunks)
 }

@@ -423,6 +423,14 @@ impl Engine {
         Ok(changed)
     }
 
+    /// A bounded maintenance pass; settlement still checks the live lease.
+    pub fn requeue_expired_effects_for(&mut self, now: i64, budget: std::time::Duration) -> Result<u64, RuntimeError> {
+        let tx = self.store.transaction()?;
+        let changed = expire_batch(tx.conn(), now, 256, budget)?;
+        tx.commit()?;
+        Ok(changed)
+    }
+
     pub fn cancel_effect(&mut self, id: &str, now: i64) -> Result<EffectRun, RuntimeError> {
         let tx = self.store.transaction()?;
         let run = tx.conn().query_row(&format!("SELECT {COLUMNS} FROM _outbox WHERE id = ?1"), [id], read_run).optional()?.ok_or_else(|| RuntimeError::Structural { code: "E_EFFECT_UNKNOWN", message: "no effect with this id is available".into() })?;
@@ -465,12 +473,20 @@ impl Engine {
 }
 
 fn expire(conn: &rusqlite::Connection, now: i64) -> Result<u64, RuntimeError> {
-    let runs = conn.prepare(&format!("SELECT {COLUMNS} FROM _outbox WHERE state IN ('queued', 'running') AND (deadline <= ?1 OR (state = 'running' AND lease_until < ?1))"))?
-        .query_map([now], read_run)?.collect::<Result<Vec<_>, _>>()?;
+    expire_batch(conn, now, i64::MAX, std::time::Duration::MAX)
+}
+
+fn expire_batch(conn: &rusqlite::Connection, now: i64, limit: i64, budget: std::time::Duration) -> Result<u64, RuntimeError> {
+    let started = std::time::Instant::now();
+    let runs = conn.prepare(&format!("SELECT {COLUMNS} FROM _outbox WHERE state IN ('queued', 'running') AND (deadline <= ?1 OR (state = 'running' AND lease_until < ?1)) LIMIT ?2"))?
+        .query_map([now, limit], read_run)?.collect::<Result<Vec<_>, _>>()?;
+    let mut changed = 0;
     for run in &runs {
+        if changed > 0 && started.elapsed() >= budget { break; }
         expire_run(conn, run, now)?;
+        changed += 1;
     }
-    Ok(runs.len() as u64)
+    Ok(changed)
 }
 
 fn expire_strict(tx: &crate::store::Tx<'_>, schema: &Schema, now: i64) -> Result<u64, RuntimeError> {

@@ -98,6 +98,7 @@ impl AssetSweep {
     pub(crate) fn ids(&self) -> impl Iterator<Item = &str> {
         self.items.iter().map(|(id, _)| id.as_str())
     }
+    pub(crate) fn forget_prefix(&mut self, count: usize) { self.items.drain(..count); }
 
     pub fn remove_files(&self) -> Result<(), RuntimeError> {
         for (_, path) in &self.items {
@@ -524,14 +525,23 @@ impl Tx<'_> {
         /// Select a bounded sweep batch and close the claim race for old,
         /// unclaimed uploads before their files are removed outside the guard.
         pub fn stage_stale_assets(&self, now: i64) -> Result<Vec<Asset>, RuntimeError> {
-            let assets = stale(self.conn(), now)?;
+            self.stage_stale_assets_for(now, std::time::Duration::MAX)
+        }
+
+        pub fn stage_stale_assets_for(&self, now: i64, budget: std::time::Duration) -> Result<Vec<Asset>, RuntimeError> {
+            let started = std::time::Instant::now();
+            let mut assets = stale(self.conn(), now)?;
+            let mut staged = 0;
             for asset in &assets {
+                if staged > 0 && started.elapsed() >= budget { break; }
                 self.conn().execute("INSERT OR IGNORE INTO _asset_gc(asset) VALUES (?1)", [&asset.id])?;
                 self.conn().execute(
                     "UPDATE _assets SET released_at = COALESCE(released_at, ?2) WHERE id = ?1",
                     params![asset.id, now],
                 )?;
+                staged += 1;
             }
+            assets.truncate(staged);
             Ok(assets)
         }
 

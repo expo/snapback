@@ -18,7 +18,9 @@ repost event. Read `following last 20 by .at after c`. A shape such as
 `{ *, post: posts[.post] }` applies to those fields after inbox filtering.
 
 Posting commits the event, your own inbox copy, and a durable delivery record.
-Followers receive copies in background chunks of 256. A page can temporarily
+Followers receive copies in background chunks of at most 256, yielding between
+rows after a short time slice. Waiting requests get the engine before the next
+chunk; delivery also keeps a turn under continuous request traffic. A page can temporarily
 lack an event whose delivery is still pending. Following copies the newest 50
 live events immediately, then backfills the rest of an engine-chosen 1,000-event window in chunks.
 The engine assigns a fresh edge epoch on every follow, even if the application

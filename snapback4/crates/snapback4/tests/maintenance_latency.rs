@@ -41,8 +41,8 @@ impl Fixture {
         Host { child, address }
     }
     fn copies(&self, event: &str) -> usize {
-        let engine = self.engine();
-        engine.store().conn().query_row("SELECT count(*) FROM r JOIN _catalog c ON c.num = r.t WHERE c.name = 'followingFeed' AND json_extract(data, '$.Row.eventId.Id') = ?1", [event], |r| r.get::<_, i64>(0)).unwrap() as usize
+        let conn = rusqlite::Connection::open_with_flags(self.path.join(".snapback4/store.sqlite"), rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+        conn.query_row("SELECT count(*) FROM r JOIN _catalog c ON c.num = r.t WHERE c.name = 'followingFeed' AND json_extract(data, '$.Row.eventId.Id') = ?1", [event], |r| r.get::<_, i64>(0)).unwrap() as usize
     }
 }
 impl Drop for Fixture { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.path); } }
@@ -112,13 +112,20 @@ fn following_http_latency() {
 fn following_chunk_cost() {
     let fixture = Fixture::new("chunk");
     let mut engine = fixture.engine();
+    let preload = std::env::var("SNAPBACK4_BENCH_PRELOAD").ok().and_then(|n| n.parse::<usize>().ok()).unwrap_or(0);
+    for n in 0..preload {
+        let result = engine.mutate("post", None, Context::new("dev:big", [("postId".into(), Value::Id(format!("preload-{n}"))), ("parentId".into(), Value::Null)].into()).at(2)).unwrap();
+        assert!(matches!(result.state, WriteState::Sent { .. }));
+        while engine.run_timeline_chunk(3).unwrap().is_some() {}
+    }
+    println!("MEASURE preloaded_posts={preload}");
     let result = engine.mutate("post", None, Context::new("dev:big", [("postId".into(), Value::Id("profile".into())), ("parentId".into(), Value::Null)].into()).at(2)).unwrap();
     assert!(matches!(result.state, WriteState::Sent { .. }));
     let mut total = Duration::ZERO;
     let mut copies = 0;
     while let Some((meter, elapsed)) = {
         let start = Instant::now();
-        engine.run_timeline_chunk(3).unwrap().map(|m| (m, start.elapsed()))
+        engine.run_timeline_chunk_for(3, if std::env::var_os("SNAPBACK4_BENCH_COUNT_ONLY").is_some() { Duration::MAX } else { Duration::from_millis(1) }).unwrap().map(|m| (m, start.elapsed()))
     } {
         let delivered = meter.rows_written - 1;
         println!("MEASURE chunk copies={delivered} elapsed_ms={:.3} us_per_copy={:.3}", elapsed.as_secs_f64()*1000.0, elapsed.as_secs_f64()*1e6/delivered.max(1) as f64);
@@ -126,4 +133,46 @@ fn following_chunk_cost() {
     }
     assert_eq!(copies, 900);
     println!("MEASURE chunk_total copies={copies} elapsed_ms={:.3} us_per_copy={:.3}", total.as_secs_f64()*1000.0, total.as_secs_f64()*1e6/copies as f64);
+}
+
+#[test]
+#[ignore = "delivery progress under eight continuous HTTP request streams"]
+fn following_delivery_under_sustained_requests() {
+    use std::sync::{Arc, atomic::{AtomicBool, AtomicUsize, Ordering}};
+    let fixture = Fixture::new("sustained");
+    let host = fixture.start();
+    let stop = Arc::new(AtomicBool::new(false));
+    let requests = Arc::new(AtomicUsize::new(0));
+    let mut readers = Vec::new();
+    for _ in 0..8 {
+        let address = host.address.clone(); let stop = stop.clone(); let requests = requests.clone();
+        readers.push(std::thread::spawn(move || {
+            let mut latencies = Vec::new();
+            while !stop.load(Ordering::Relaxed) {
+                let start = Instant::now();
+                let page = request(&address, "big0", "/q/home", json!({"args":{"c":null}}));
+                assert!(page["data"].is_array(), "{page}");
+                latencies.push(start.elapsed().as_secs_f64()*1000.0);
+                requests.fetch_add(1, Ordering::Relaxed);
+            }
+            latencies
+        }));
+    }
+    let started = Instant::now();
+    let post = request(&host.address, "big", "/m/post", json!({"id":"sustained", "args":{"postId":"sustained","parentId":null}}));
+    let ack = started.elapsed();
+    // Stop readers before asserting so even a regression leaves no live threads.
+    let mut copies = fixture.copies("sustained");
+    while copies != 901 && started.elapsed() < Duration::from_secs(30) {
+        std::thread::sleep(Duration::from_millis(5));
+        copies = fixture.copies("sustained");
+    }
+    let delivered = started.elapsed();
+    stop.store(true, Ordering::Relaxed);
+    let latencies = readers.into_iter().flat_map(|r| r.join().unwrap()).collect::<Vec<_>>();
+    assert_eq!(post["state"], "sent", "{post}");
+    assert_eq!(copies, 901, "delivery must finish while requests continue");
+    assert!(requests.load(Ordering::Relaxed) > 8);
+    report("sustained home streams=8", &latencies);
+    println!("MEASURE sustained followers=900 copies={copies} post_ms={:.3} delivery_ms={:.3} requests={}", ack.as_secs_f64()*1000.0, delivered.as_secs_f64()*1000.0, requests.load(Ordering::Relaxed));
 }

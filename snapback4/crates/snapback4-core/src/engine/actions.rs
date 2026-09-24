@@ -138,9 +138,16 @@ fn finish(tx: &Tx<'_>, id: &str, state: &str, code: &str, error: &str, now: i64)
 }
 
 fn expire(tx: &Tx<'_>, now: i64) -> Result<u64, RuntimeError> {
-    let runs = tx.conn().prepare(&format!("SELECT {COLUMNS} FROM _requests WHERE state IN ('queued', 'running') AND (deadline <= ?1 OR (state = 'running' AND lease_until <= ?1))"))?
-        .query_map([now], read)?.collect::<Result<Vec<_>, _>>()?;
+    expire_batch(tx, now, i64::MAX, std::time::Duration::MAX)
+}
+
+fn expire_batch(tx: &Tx<'_>, now: i64, limit: i64, budget: std::time::Duration) -> Result<u64, RuntimeError> {
+    let started = std::time::Instant::now();
+    let runs = tx.conn().prepare(&format!("SELECT {COLUMNS} FROM _requests WHERE state IN ('queued', 'running') AND (deadline <= ?1 OR (state = 'running' AND lease_until <= ?1)) LIMIT ?2"))?
+        .query_map([now, limit], read)?.collect::<Result<Vec<_>, _>>()?;
+    let mut changed = 0;
     for run in &runs {
+        if changed > 0 && started.elapsed() >= budget { break; }
         if run.deadline.is_some_and(|deadline| deadline <= now) {
             finish(tx, &run.id, "failed", "E_ACTION_DEADLINE", "the action deadline passed", now)?;
         } else if run.attempt >= run.spec.work.policy.max_attempts {
@@ -149,8 +156,9 @@ fn expire(tx: &Tx<'_>, now: i64) -> Result<u64, RuntimeError> {
             if let Some(work) = tx.work_by_id(&run.id)? && let Some(digest) = work.session_digest { tx.invalidate_session(&digest)?; }
             tx.conn().execute("UPDATE _requests SET state = 'queued', error = 'the action lease expired', error_code = NULL, next_at = ?2, lease_until = NULL, claimed_by = NULL, session_digest = NULL WHERE id = ?1", params![run.id, now])?;
         }
+        changed += 1;
     }
-    Ok(runs.len() as u64)
+    Ok(changed)
 }
 
 /// Delegated credentials remain dependent on the admitted authority in flight,
@@ -373,6 +381,14 @@ impl Engine {
     pub fn requeue_expired_actions(&mut self, now: i64) -> Result<u64, RuntimeError> {
         let tx = self.store.transaction()?;
         let changed = expire(&tx, now)?;
+        tx.commit()?;
+        Ok(changed)
+    }
+
+    /// A bounded maintenance pass; claims retain their full expiry checks.
+    pub fn requeue_expired_actions_for(&mut self, now: i64, budget: std::time::Duration) -> Result<u64, RuntimeError> {
+        let tx = self.store.transaction()?;
+        let changed = expire_batch(&tx, now, 256, budget)?;
         tx.commit()?;
         Ok(changed)
     }

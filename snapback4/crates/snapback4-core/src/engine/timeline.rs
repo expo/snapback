@@ -213,6 +213,11 @@ impl Runner<'_> {
 
     fn timeline_copy(&mut self, t: &Timeline, event: &Value, reader: &str, epoch: Value) -> Result<(), RuntimeError> {
         self.timeline_require_live_id(t, &field(event, "id")?)?;
+        self.timeline_copy_live(t, event, reader, epoch)
+    }
+
+    /// Caller checked this event's tombstone in the same transaction.
+    fn timeline_copy_live(&mut self, t: &Timeline, event: &Value, reader: &str, epoch: Value) -> Result<(), RuntimeError> {
         // Only own/backfill copies run as a viewer. Foreign copies run as system.
         let row = object([("readerId", Value::Id(reader.into())), ("eventId", field(event, "id")?), ("epoch", epoch.clone()),
             ("actorId", field(event, "actorId")?), ("authorId", field(event, "authorId")?),

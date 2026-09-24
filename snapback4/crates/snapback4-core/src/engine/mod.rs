@@ -670,9 +670,13 @@ impl Engine {
     /// Make a bounded stale batch unclaimable. The returned file work owns
     /// no engine borrow and should run after releasing the host mutex.
     pub fn prepare_asset_sweep(&mut self, now: i64) -> Result<assets::AssetSweep, RuntimeError> {
+        self.prepare_asset_sweep_for(now, std::time::Duration::MAX)
+    }
+
+    pub fn prepare_asset_sweep_for(&mut self, now: i64, budget: std::time::Duration) -> Result<assets::AssetSweep, RuntimeError> {
         let directory = self.store.assets_dir().to_path_buf();
         let tx = self.store.transaction()?;
-        let stale = tx.stage_stale_assets(now)?;
+        let stale = tx.stage_stale_assets_for(now, budget)?;
         let sweep = assets::AssetSweep::new(&stale, &directory);
         tx.commit()?;
         Ok(sweep)
@@ -680,12 +684,27 @@ impl Engine {
 
     /// Forget a prepared batch after its files have been removed.
     pub fn finish_asset_sweep(&mut self, sweep: &assets::AssetSweep) -> Result<u64, RuntimeError> {
-            let tx = self.store.transaction()?;
+        self.finish_asset_sweep_slice(sweep, std::time::Duration::MAX)
+    }
+
+    /// Advance the prepared batch only after the forget transaction commits.
+    pub fn finish_asset_sweep_for(&mut self, sweep: &mut assets::AssetSweep, budget: std::time::Duration) -> Result<u64, RuntimeError> {
+        let removed = self.finish_asset_sweep_slice(sweep, budget)?;
+        sweep.forget_prefix(removed as usize);
+        Ok(removed)
+    }
+
+    fn finish_asset_sweep_slice(&mut self, sweep: &assets::AssetSweep, budget: std::time::Duration) -> Result<u64, RuntimeError> {
+        let started = std::time::Instant::now();
+        let tx = self.store.transaction()?;
+        let mut removed = 0;
         for id in sweep.ids() {
+            if removed > 0 && started.elapsed() >= budget { break; }
             tx.forget_asset(id)?;
+            removed += 1;
         }
         tx.commit()?;
-        Ok(sweep.len() as u64)
+        Ok(removed)
     }
 
     /// Delete the rows past their `expire` column. They were absent to
@@ -693,6 +712,12 @@ impl Engine {
     /// physical, so the log carries the deletion to each device holding
     /// them. At most `limit` rows go in one commit; the next pass continues.
     pub fn sweep_expired(&mut self, now: i64, limit: usize) -> Result<u64, RuntimeError> {
+        self.sweep_expired_for(now, limit, std::time::Duration::MAX)
+    }
+
+    /// Stop between row removals; a short sweep can still leave due rows.
+    pub fn sweep_expired_for(&mut self, now: i64, limit: usize, budget: std::time::Duration) -> Result<u64, RuntimeError> {
+        let started = std::time::Instant::now();
         let expiring: Vec<(String, String)> = self.schema.tables.iter().filter_map(|(name, table)| table.expiry_index().map(|(index, _)| (name.clone(), index.to_owned()))).collect();
         if expiring.is_empty() {
             return Ok(0);
@@ -711,6 +736,7 @@ impl Engine {
                 let rows = tx.scan(table_name, index, &[], &due, crate::store::Dir::Asc, batch)?;
                 let count = rows.len();
                 for (row, _) in rows {
+                    if removed > 0 && started.elapsed() >= budget { break 'tables; }
                     runner.remove(table_name, &row)?;
                     removed += 1;
                 }
