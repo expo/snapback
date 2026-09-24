@@ -48,6 +48,56 @@ names the index columns to pin, as N_NEVER_COMPLETE does. A seek still writes
 its explicit page bound. Descending reads keep `last N`.
 
 
+## The scale certificate
+
+Every successful `check` summarizes how many operations are constant and
+which grow with data. `check --cost` starts each operation with its verdict;
+`check --json --cost` puts the same certificates in `scale`, including
+`class`, `bounds`, `growth_sites` (site, reason and rewrite), and `per_write`.
+The existing cost details follow each verdict.
+
+`scale: constant — at most 21 rows examined, 0 probes, 0 lanes` means the
+work is independent of corpus size for the declared input bounds. A page
+includes its lookahead; shapes and loops multiply their nested reads.
+Argument bounds appear in JSON. `scale: grows with posts in the domain
+posts` means a larger domain can cost more, until a runtime meter cuts it.
+These two queries demonstrate the classes:
+
+```quarry
+table scalePosts:
+  body: text <=500
+  public
+  online only
+query scalePage(c: cursor ?):
+  return scalePosts after c first 20 by byId
+query scalePopulation():
+  n = 0
+  for p in scalePosts[]:
+    n = n + 1
+  return n
+```
+
+To make a growing read constant, pin its filter column in the indexed
+domain, add a maintained view for a total, or cap the domain when that cap
+is a product rule. A page size alone does not bound rows skipped by a
+residual filter, a per-row read rule or expiry. Search's word expansion
+and additional terms also depend on the data. Even a point lookup may
+grow when it passes expired siblings, or recomputes a maintained aggregate
+over expiring contributions. The certificate names these cases.
+
+Jobs say `scale: per chunk`; the number of chunks and rows written by the
+whole sweep can still grow with its domain. Maintained aggregates, recorded
+attribution and Following work appear as per-write costs in the verdict.
+Writes use their shared meter allowance, including implicit engine work.
+Native modules and external action handlers conservatively say `grows`:
+their bodies have no Quarry structure from which to prove independence.
+
+This is a structural certificate, not a latency or complete-result promise.
+Its row, probe and write bounds are admitted meter work; a refused charge
+can appear above the ceiling in a development trace. Steps, heap and output
+can still cut a constant operation. It does not price bytes or steps at
+check, change authorization, or replace measurements on your data.
+
 ## Refused loops and scans
 
 E_UNBOUND_LOOP means the compiler cannot establish an accepted loop domain
