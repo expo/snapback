@@ -505,6 +505,7 @@ fn outer_page_limit(body: &[snapback4_core::ir::Stmt], expected: &Expected, owne
         Stmt::WriteTarget { target, patch, condition, .. } => target.key.iter().any(|key| expression_page_limit(key, expected, owners)) || expression_page_limit(patch, expected, owners)
             || condition.as_ref().is_some_and(|c| outer_page_limit(&c.setup, expected, owners) || expression_page_limit(&c.value, expected, owners)),
         Stmt::Delete { key, .. } => expression_page_limit(key, expected, owners),
+        Stmt::DeleteTarget { target } => target.key.iter().any(|key| expression_page_limit(key, expected, owners)),
         Stmt::Break | Stmt::Continue => false,
     })
 }

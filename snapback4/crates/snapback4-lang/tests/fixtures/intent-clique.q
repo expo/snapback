@@ -1,5 +1,5 @@
--- Lane A acceptance subset: explicit aggregate foreign keys await Lane B;
--- aggregate views, Following and the digest job belong to lanes B, C and D.
+-- Abridged compiler acceptance fixture. The complete target, including
+-- Following and the digest job, runs in the simulator's intent_integration test.
 -- The acceptance target for LLP 3000.013: calibration #18's Clique backend,
 -- restated in the new forms. No `by` lines, no index names, no caps except
 -- product rules, no application-maintained derived tables.
@@ -74,6 +74,8 @@ table follows:
   delete <- .followerId = viewer
   sync public
 
+view followerCount: count follows by .followedId
+
 view activity:                     -- planned at read time: Global
   posts where .parentId = null and not .removed { post: .id, actor: .authorId, at, repost: false }
   reposts { post: .postId, actor: .actorId, at, repost: true }
@@ -93,6 +95,9 @@ query thread(postId: posts, c: cursor ?):
   return posts where .parentId = postId first 20 by .at after c postCard
 query people(q: text <=100, c: cursor ?):
   return profiles matching q last 20 by .createdAt after c
+query socialProfile(handle: text 3..20 format handle):
+  p = profiles[handle = handle] ! else NOT_FOUND
+  return { ...p, followers: followerCount[p.principal], following: exists follows[viewer, p.principal] }
 mutation createPost(postId: id, body: text <=500, parentId: posts ?):
   return insert posts { id: postId, authorId: viewer, parentId, body } if absent
 mutation setLike(postId: posts, set: bool):
@@ -116,7 +121,7 @@ table members:
   unique conversationId, principal
   cap 50 by conversationId          -- a product rule from the brief
   read <- exists members[.conversationId, viewer]
-  insert <- exists members[conversationId = .conversationId, principal = viewer, role = 'admin']
+  insert <- exists members[.conversationId, viewer, role = 'admin']
   sync to members[.conversationId]
 
 table messages:
@@ -138,4 +143,3 @@ query history(conversationId: id, c: cursor ?):
   return messages where .conversationId = conversationId last 50 by .ordinal after c
 query searchAll(q: text <=100, c: cursor ?):
   return messages matching q where exists members[.conversationId, viewer] and not .tombstone last 20 by .at after c
-

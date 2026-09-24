@@ -1,6 +1,9 @@
 //! The sync card. Quarry examples are compiled by tests/guide.rs.
 pub(super) const CARD: &str = r##"# Sync: the viewer's partition is the unit of sync
 
+Sync delivers each viewer's authorized rows to their device for live and offline reads.
+A table's sync declaration chooses its audience and acquisition horizon.
+
 ```quarry
 table notices:
   body: text <=500
@@ -132,6 +135,8 @@ head-read failure fails the request. The client adopts `/schema` only when that
 watermark is a finite, nonnegative integer at or above its retained image-head
 evidence (equal adopts); a lower head halts with `E_STORE_RESTORE`, and a missing
 or invalid head is a retryable failure that neither adopts nor clears the evidence.
+For a confirmed restore, stop the client and use a fresh device store and outbox
+for that restored backend; retry and adoption do not repair a regressed store identity.
 After adopting, it retries from the device's resulting position with its pending
 IDs intact. This refusal is never applied
 as a delivered page: its watermark is head evidence, not delivered progress, and
@@ -173,60 +178,6 @@ Downgrading a device below the store's version is unsupported.
 Backends without these forms keep their existing encoding and remain compatible
 with 0.2.33 devices.
 
-## A restored backend store
-
-A matching
-`store_id` with a lower head refuses `E_STORE_RESTORE`: the backend was
-restored or shrank. Sync halts and reads refuse, including after offline
-reopen; the watermark and outbox stay in place. Stop the client and use a
-fresh device store and outbox for that restored backend. Retry and backend
-adoption do not silently reacquire the same identity.
-A lower poll or probe head invalidates freshness and requests sync confirmation;
-only an authenticated sync reply at the captured acquisition persists a restore
-refusal. A notification alone cannot halt the client. Each native owner's
-interpreter and loaded module digest belong to its adopted store identity;
-another owner's replacement requires adoption and module reload before local
-reads or prediction resume.
-Orphan known receipts keep their source identity until ownership is resolved;
-foreign known receipts retire, and unknown writes transfer without predictions.
-First identification of a legacy acquired device discards retained left-group
-history even on the same database; already-left groups cannot be reacquired.
-Joining a group delivers its
-rows; leaving it delivers one scope tombstone, and `retain` says whether the
-device keeps what it was given (`delivered-history`) or drops it
-(`until-revoked`, the default). Retained rows survive a leave whatever the
-horizon; the horizon bounds what a device acquires, never what it keeps.
-The same boundary rule applies after leaving: a page within the acquired suffix
-is complete, crossing the floor is incomplete, and `whole` proves the group's
-end even on a horizoned table. A snapshot from a server without `acquisitions`
-leaves newly acquired groups unknown, so local pages fall back online.
-A read pinning the left group answers from those rows on the device online
-and offline, through a query without a membership `require`; the server
-cannot serve that retained history. Replacement snapshots keep left groups
-and replace held groups with their current acquisition. A device query returning
-independent fields of a record can compose when one component retains history
-and another needs the server. Each field may hold at most one read; the query
-must be cursor-free, not declared `held`, and have no reading `require`.
-A found point read of a delivered left row also composes; a missing point
-keeps ordinary coverage and fallback. `check --residency` names the proven
-components. The second local observation supplies every component that would
-stay local as its own query; the one server reply supplies those that need it.
-The composed read is `complete` only when the server answer and
-every locally kept component are complete; it reports `fresh: false` with `since`
-(the last sync's time captured before the server request, which the locally kept components are as of) and no continuation. Offline or after a failed request, the whole local
-answer stands.
-Composition is never entered while a predictable write is unobserved; the whole local answer stands until it settles.
-Every other shape keeps the separate-query recipe: keep a
-left-group read in its own query, since a mixed query without a component
-plan returns the whole server answer online when no predictable write is awaiting observation,
-and the whole device answer offline.
-An inherited aggregate stays until-revoked even when its source retains delivered-history; it has no target horizon.
-A table without `sync` is online-only. A maintained `view`
-grouped by the audience columns inherits sync and is delivered as a value row.
-`online only` on a table documents the absence of sync; on an aggregate view it opts
-out of inheritance. Both lines absent on a table still means online only.
-See `guide residency` for operation classes and cold acquisition measurements.
-
 `online only` optionally documents a table with no sync. On a maintained `view`,
 it opts out of inherited sync. `N_MAINTAIN_SYNCED` calls out public inherited
 aggregates and group audiences with unbounded recipients or multiple values per group,
@@ -234,6 +185,8 @@ grouped into one note retaining each view's source location.
 The note names mutations that would stop predicting if the view goes
 `online only`; `snapback4 test --residency` measures its cold rows. `check`
 prints the facts without pre-adoption counts: a new aggregate view has no stored rows yet.
+
+## Operations
 
 `check --residency --verbose` lists every table's residency, inferred and inherited
 audiences, and each operation's `runs: device | server` or
@@ -285,7 +238,72 @@ Use `--verbose` for all table counts, declared facts and notes; on `test` it
 also runs the query meters as before. The default acquisition report fits
 one screen even for hundreds of tables or personas. No count is extrapolated.
 
-## Refused sync declarations
+## Online store changes
+
+The online client permanently denies reads and fails queued and in-flight
+writes on an identity change (`E_STORE_REPLACED`) or a same-store sequence
+regression (`E_STORE_RESTORE`); those writes may have executed, and the client
+never retries their unknown outcomes.
+Close it and create a new client, reconciling old intents before submitting
+new writes; `createApp` automatically reopens its online client on
+`E_STORE_REPLACED` after retiring its pending intents, retaining a session the
+replacement backend accepts.
+
+## A restored backend store on a device
+
+On a local client, a matching
+`store_id` with a lower head refuses `E_STORE_RESTORE`: the backend was
+restored or shrank. Sync halts and reads refuse, including after offline
+reopen; the watermark and outbox stay in place. Stop the client and use a
+fresh device store and outbox for that restored backend. Retry and backend
+adoption do not silently reacquire the same identity.
+A lower poll or probe head invalidates freshness and requests sync confirmation;
+only an authenticated sync reply at the captured acquisition persists a restore
+refusal. A notification alone cannot halt the client. Each native owner's
+interpreter and loaded module digest belong to its adopted store identity;
+another owner's replacement requires adoption and module reload before local
+reads or prediction resume.
+Orphan known receipts keep their source identity until ownership is resolved;
+foreign known receipts retire, and unknown writes transfer without predictions.
+First identification of a legacy acquired device discards retained left-group
+history even on the same database; already-left groups cannot be reacquired.
+Joining a group delivers its
+rows; leaving it delivers one scope tombstone, and `retain` says whether the
+device keeps what it was given (`delivered-history`) or drops it
+(`until-revoked`, the default). Retained rows survive a leave whatever the
+horizon; the horizon bounds what a device acquires, never what it keeps.
+The same boundary rule applies after leaving: a page within the acquired suffix
+is complete, crossing the floor is incomplete, and `whole` proves the group's
+end even on a horizoned table. A snapshot from a server without `acquisitions`
+leaves newly acquired groups unknown, so local pages fall back online.
+A read pinning the left group answers from those rows on the device online
+and offline, through a query without a membership `require`; the server
+cannot serve that retained history. Replacement snapshots keep left groups
+and replace held groups with their current acquisition. A device query returning
+independent fields of a record can compose when one component retains history
+and another needs the server. Each field may hold at most one read; the query
+must be cursor-free, not declared `held`, and have no reading `require`.
+A found point read of a delivered left row also composes; a missing point
+keeps ordinary coverage and fallback. `check --residency` names the proven
+components. The second local observation supplies every component that would
+stay local as its own query; the one server reply supplies those that need it.
+The composed read is `complete` only when the server answer and
+every locally kept component are complete; it reports `fresh: false` with `since`
+(the last sync's time captured before the server request, which the locally kept components are as of) and no continuation. Offline or after a failed request, the whole local
+answer stands.
+Composition is never entered while a predictable write is unobserved; the whole local answer stands until it settles.
+Every other shape keeps the separate-query recipe: keep a
+left-group read in its own query, since a mixed query without a component
+plan returns the whole server answer online when no predictable write is awaiting observation,
+and the whole device answer offline.
+An inherited aggregate stays until-revoked even when its source retains delivered-history; it has no target horizon.
+A table without `sync` is online-only. A maintained `view`
+grouped by the audience columns inherits sync and is delivered as a value row.
+`online only` on a table documents the absence of sync; on an aggregate view it opts
+out of inheritance. Both lines absent on a table still means online only.
+See `guide residency` for operation classes and cold acquisition measurements.
+
+## Refusals
 
 E_QUARRY_RETAIN means a table repeats its retention declaration or uses
 an unknown policy. For example, `retain forever` is not a policy; choose

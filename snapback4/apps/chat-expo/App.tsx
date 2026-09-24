@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { SafeAreaView, StyleSheet, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import type { App as SnapbackApp } from "snapback4/app";
 import type { Client } from "snapback4/contract";
-import { SnapbackProvider, useLink } from "snapback4/react";
-import { openClient } from "./src/client";
+import { AppProvider, SnapbackProvider, useLink } from "snapback4/react";
+import { openApp, openClient, persona } from "./src/client";
 import { Inbox } from "./src/Inbox";
 import { Thread } from "./src/Thread";
 import { runWitness } from "./src/witness";
@@ -15,12 +16,13 @@ import { witness } from "snapback4-expo/witness";
 // apps/chat/snapback/schema.q; EXPO_PUBLIC_SNAPBACK_URL names it.
 
 export function App() {
+  const [app, setApp] = useState<SnapbackApp | null>(null);
   const [client, setClient] = useState<Client | null>(null);
   const [witnessConversation, setWitnessConversation] = useState<string | undefined>(undefined);
   const [witnessStatus, setWitnessStatus] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   useEffect(() => {
-    let live: Client | null = null;
+    let live: Client | SnapbackApp | null = null;
     let disposed = false;
     const close = () => { disposed = true; void live?.close(); };
     const proof = witness();
@@ -31,17 +33,17 @@ export function App() {
       }, setWitnessStatus).catch((e: Error) => { if (!disposed) setProblem(`witness: ${e.message}`); });
       return close;
     }
-    openClient().then((c) => {
+    (persona ? openClient() : openApp()).then((c) => {
       if (disposed) { void c.close(); return; }
       live = c;
-      setClient(c);
+      if ("auth" in c) setApp(c); else setClient(c);
     }, (e: Error) => { if (!disposed) setProblem(e.message); });
     return close;
   }, []);
   return <SafeAreaView style={styles.screen}>
     <StatusBar style="auto" />
     {witnessStatus ? <Text style={styles.note}>{witnessStatus}</Text> : null}
-    {problem ? <Text style={styles.alert}>{problem}</Text> : client ? <SnapbackProvider client={client}><Home initialConversationId={witnessConversation} /></SnapbackProvider> : <Text style={styles.note}>Opening your replica…</Text>}
+    {problem ? <Text style={styles.alert}>{problem}</Text> : app ? <AppProvider app={app}><Home /></AppProvider> : client ? <SnapbackProvider client={client}><Home initialConversationId={witnessConversation} /></SnapbackProvider> : <Text style={styles.note}>Opening your replica…</Text>}
   </SafeAreaView>;
 }
 

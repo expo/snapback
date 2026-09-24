@@ -459,7 +459,10 @@ impl Scan<'_> {
         for field in fields {
             if !self.budget.spend(1) { break; }
             let value = match &field.value { Some(expr) => self.expr(expr, env, focal), None => env.get(&field.name).cloned().unwrap_or_else(|| self.budget.scalar(UNKNOWN)) };
-            values.insert(field.name.clone(), value);
+            if field.spread {
+                if !self.budget.spend(value.nodes) { break; }
+                for name in value.fields.keys() { values.insert(name.clone(), value.field(name)); }
+            } else { values.insert(field.name.clone(), value); }
         }
         values
     }
@@ -694,6 +697,12 @@ impl Scan<'_> {
                 }
                 for field in fields {
                     let evidence = field.value.as_ref().map_or_else(|| field.name.clone(), evidence);
+                    if field.spread {
+                        // Conservative over overlaps: the merged value is what
+                        // reaches the write, including any later argument override.
+                        for (name, value) in &values { self.record(table, name, value, *op == WriteOp::Insert, &evidence, None); }
+                        continue;
+                    }
                     let maintain = match &field.value {
                         Some(Expr::Read(read)) if read.range.is_none() && self.catalog.maintains.contains_key(&read.table) => Some(read.table.clone()),
                         _ => None,
@@ -721,14 +730,14 @@ impl Scan<'_> {
     }
 }
 
-// The shared rewrite printer omits precedence parentheses. Preserve them for
-// nested arithmetic/conditional operands in this note's written-value evidence.
+// Notes omit the outermost binary parentheses. Nested binary evidence still
+// needs grouping; the shared printer already groups conditional/unary values.
 fn evidence(expr: &Expr) -> String {
     match expr {
         Expr::Binary { op, left, right, .. } => {
             let operand = |value: &Expr| {
                 let text = evidence(value);
-                if matches!(value, Expr::Binary { .. } | Expr::If { .. }) { format!("({text})") } else { text }
+                if matches!(value, Expr::Binary { .. }) { format!("({text})") } else { text }
             };
             format!("{} {op} {}", operand(left), operand(right))
         }

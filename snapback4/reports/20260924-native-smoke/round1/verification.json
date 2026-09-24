@@ -1,0 +1,70 @@
+{
+  "javascript": {
+    "tests": 66,
+    "passed": 66,
+    "failed": 0,
+    "skipped": 0
+  },
+  "rust": {
+    "driver": 22,
+    "smokeUnit": 2,
+    "guide": 57,
+    "commands": [
+      {
+        "command": [
+          "cargo",
+          "test",
+          "-p",
+          "snapback4",
+          "smoke",
+          "--bin",
+          "snapback4"
+        ],
+        "exitStatus": 0
+      },
+      {
+        "command": [
+          "cargo",
+          "test",
+          "-p",
+          "snapback4",
+          "--test",
+          "witness",
+          "--",
+          "--test-threads=1"
+        ],
+        "exitStatus": 0
+      },
+      {
+        "command": [
+          "cargo",
+          "test",
+          "-p",
+          "snapback4-lang",
+          "--test",
+          "guide"
+        ],
+        "exitStatus": 0
+      }
+    ]
+  },
+  "mutationChecks": {
+    "rejected": 8,
+    "survived": 0
+  },
+  "typechecks": [
+    "packages/snapback4",
+    "apps/chat-expo"
+  ],
+  "docsBudget": {
+    "readmeLines": 295,
+    "limit": 300
+  },
+  "references": {
+    "documents": 505,
+    "references": 9236,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "fullSuite": "Not rerun for round 1; prior full-suite result retained in ../verification.json."
+}

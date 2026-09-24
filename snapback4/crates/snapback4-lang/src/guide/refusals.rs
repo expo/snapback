@@ -1,6 +1,15 @@
 //! The refusals card. Quarry examples are compiled by tests/guide.rs.
 pub(super) const CARD: &str = r##"# Refusals
 
+A refusal explains why an operation could not complete and how to correct it.
+Application checks can supply their own codes for the client to handle.
+
+```quarry
+query checkedName(name: text <=80):
+  require name != '' else NAME_REQUIRED
+  return name
+```
+
 Every refusal is `{ code, family, message, detail?, site?, rewrite?, guide?, rule?,
 retryable? }`: `code` and `family` are stable, `rewrite` compiles, `guide`
 names a card, `rule` is the program's own code on a `require` or named unique refusal, and
@@ -8,18 +17,6 @@ names a card, `rule` is the program's own code on a `require` or named unique re
 input, schema, auth, rule (your `require` codes), constraint, bound, op,
 asset, action, route, prediction, generation, store; the client adds link (the server is
 unreachable) and client (the client itself refused, as after `close()`).
-`snapback4 why <CODE>` prints its explanation and the card paragraph naming
-the code, followed by the full-card command. Every registered code has a
-dedicated paragraph on its default card. A diagnostic may choose another
-card for its context; if that card lacks a section, explicit `why` labels
-its fallback to the card's opening. Output is at most 4,096 UTF-8
-bytes including the pointer and final newline; a shortened excerpt says so.
-When the same code and card occur twice in text `check` or a `dev` save refusal,
-a dedicated section prints once under the first occurrence; cards without
-one add no inline excerpt. Every site keeps its `guide:` pointer.
-At most three excerpts print in diagnostic order: 12,291 extra bytes including
-separating blank lines. A single occurrence stays compact; `check --json`
-keeps its structured diagnostics. `why` remains available on demand.
 Reads never raise a rule refusal: a
 hidden row is null, and a page omits it.
 
@@ -36,6 +33,21 @@ constraint's user-facing code and message. Render `message`; `detail` retains
 Omit the literal to use the default `the program refused with HANDLE_TAKEN`.
 Omit the hook to keep the existing `E_CONSTRAINT` message. The indexes card
 shows the declaration; code validation is the same as `require … else CODE`.
+
+## Operations
+
+`snapback4 why <CODE>` prints its explanation and the card paragraph naming
+the code, followed by the full-card command. Every registered code has a
+dedicated paragraph on its default card. A diagnostic may choose another
+card for its context; if that card lacks a section, explicit `why` labels
+its fallback to the card's opening. Output is at most 4,096 UTF-8
+bytes including the pointer and final newline; a shortened excerpt says so.
+When the same code and card occur twice in text `check` or a `dev` save refusal,
+a dedicated section prints once under the first occurrence; cards without
+one add no inline excerpt. Every site keeps its `guide:` pointer.
+At most three excerpts print in diagnostic order: 12,291 extra bytes including
+separating blank lines. A single occurrence stays compact; `check --json`
+keeps its structured diagnostics. `why` remains available on demand.
 
 `dev` keeps failed schema adoption visible in `doctor`, repeats its reason on the first failing job or sweep, and retries locked stores and generation failures without another save. `doctor` compares the live host generation with the store; `--no-watch` hosts need a restart after another process adopts.
 While that adoption failure is pending, identical background store and generation failures are suppressed. Changed reasons print at most twice per error code in each 60-second window; further changes count as suppressed too. Recovery or a changed adoption failure reports the suppressed count and resets it.
@@ -68,8 +80,10 @@ INT, TERM and HUP report immediately; with an application worker they clean
 it up and exit 128 + signal. Otherwise, and for fatal signals, the process
 terminates immediately with its OS signal status. SIGKILL,
 power loss and an unwritable stderr cannot report from inside the process.
+Inspect the verb, generation, reason and any panic stack before restarting;
+a normal requested stop needs no repair.
 
-## Client and backend refusals
+## Refusals
 
 E_CLIENT means a client exception prevented the expected write or asset
 outcome. For example, a custom client's `mutate` throwing instead of
@@ -116,5 +130,4 @@ adoption may prevent the first host from committing. Inspect the underlying
 message, release an unintended competing writer or repair disk access, then
 retry the same request when the cause clears. `dev` retries failed adoption
 and reports recovery in `doctor`. Keep an uncertain mutation's original ID
-so a successful commit with a lost reply is not repeated as new intent.
-"##;
+so a successful commit with a lost reply is not repeated as new intent."##;

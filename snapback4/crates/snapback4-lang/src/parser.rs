@@ -16,7 +16,7 @@ mod programs;
 mod actions;
 mod routes;
 
-fn precedence(op: &str) -> Option<u8> {
+pub(crate) fn precedence(op: &str) -> Option<u8> {
     Some(match op {
         "??" => 1,
         "or" => 2,
@@ -30,12 +30,14 @@ fn precedence(op: &str) -> Option<u8> {
 
 pub fn parse_document(file: &str, source: &str) -> (Document, Vec<Diagnostic>) {
     let (tokens, diagnostics) = lex(file, source);
-    let mut parser = Parser { tokens, position: 0, diagnostics, document: Document { file: file.to_owned(), ..Document::default() } };
+    let source = source.replace("\r\n", "\n").replace('\r', "\n").split('\n').map(str::to_owned).collect();
+    let mut parser = Parser { source, tokens, position: 0, diagnostics, document: Document { file: file.to_owned(), ..Document::default() } };
     parser.document();
     (parser.document, parser.diagnostics)
 }
 
 struct Parser {
+    source: Vec<String>,
     tokens: Vec<Token>,
     position: usize,
     diagnostics: Vec<Diagnostic>,
@@ -260,6 +262,23 @@ impl Parser {
                 Ok(())
             }
             _ => {
+                if self.peek_at(1).value == "<-" {
+                    let spelling = match token.value.as_str() {
+                        "select" | "view" => Some("read"),
+                        "create" => Some("insert"),
+                        "modify" | "edit" => Some("update"),
+                        "remove" => Some("delete"),
+                        "write" => Some("insert, update and delete"),
+                        _ => None,
+                    };
+                    if let Some(spelling) = spelling {
+                        let rewrite = if token.value == "write" {
+                            "write separate `insert <- predicate`, `update <- predicate` and `delete <- predicate` rules for the intended operations".to_owned()
+                        } else { format!("replace `{} <-` with `{spelling} <-`, keeping the predicate", token.value) };
+                        return Err(Diagnostic::new(&token.site, "E_QUARRY_RULE_SPELLING",
+                            format!("{} is not a table rule; Quarry spells this {spelling}", token.value), rewrite).guide("rules"));
+                    }
+                }
                 if self.peek_at(1).value != ":" {
                     return Err(crate::diag::unknown(&token.site, format!("unknown table declaration {}", token.value), "remove this unknown table declaration, or write `name: type` for a column"));
                 }
@@ -727,11 +746,15 @@ impl Parser {
                 "text" => {
                     let (min, max) = if self.maybe("<=") {
                         (None, self.number()?)
-                    } else {
+                    } else if self.at_kind(Kind::Number) {
                         let min = self.number()?;
                         self.take(".")?;
                         self.take(".")?;
                         (Some(min), self.number()?)
+                    } else {
+                        // The default is normalized here; every downstream
+                        // validator and resource calculation sees the same bound.
+                        (None, 10_000)
                     };
                     let mut format = None;
                     if self.maybe("format") {

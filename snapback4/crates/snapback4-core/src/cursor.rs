@@ -35,6 +35,15 @@ pub struct CursorPosition {
 pub struct CursorScope {
     pub generation: u64,
     pub prefix: Vec<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub variant: Option<crate::ir::VariantId>,
+}
+
+pub(crate) fn check_variant(position: &CursorPosition, expected: Option<crate::ir::VariantId>) -> Result<(), crate::error::RuntimeError> {
+    if position.scope.as_ref().and_then(|scope| scope.variant) != expected {
+        return Err(crate::error::RuntimeError::Structural { code: "E_CURSOR_INDEX", message: "cursor belongs to a different argument-presence or search variant; restart this read with a null cursor when filters change".into() });
+    }
+    Ok(())
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]

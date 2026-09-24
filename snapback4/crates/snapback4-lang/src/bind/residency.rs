@@ -30,7 +30,7 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
             rule_sites(schema, &table.rules.read, &format!("{} temporary audience", read.site), &mut fact.sites, &mut BTreeSet::new());
         }
         aggregate_source_site(schema, &read.table, &read.site, &mut fact.sites);
-        if read.index == "byReaderTime" {
+        if matches!(read.index.as_str(), "byReaderTime" | "byReaderPage") {
             if let Some(t) = schema.timelines.iter().find(|t| read.table == t.table("Feed")) {
                 fact.sites.push(site(schema, &read.site, &t.table("Work"), "byReader", "timeline pending work"));
             }
@@ -216,6 +216,7 @@ fn inspect(schema: &Schema, stmts: &[Stmt], codes: &mut BTreeSet<String>, sites:
                 if let Some(condition) = condition { inspect(schema, &condition.setup, codes, sites); expr(schema, &condition.value, codes, sites); }
             }
             Stmt::Delete { key, .. } => expr(schema, key, codes, sites),
+            Stmt::DeleteTarget { target } => expr(schema, &Expr::Get(target.clone()), codes, sites),
             _ => {}
         }
     }

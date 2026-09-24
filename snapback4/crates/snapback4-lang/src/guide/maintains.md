@@ -1,9 +1,7 @@
 # Views: plan, maintain or materialize
 
-A `view` names derived data. A filter or projection is planned when read.
-Branches form a union without a copied application table. An aggregate is
-maintained in the source write's transaction. Public Following is materialized
-per reader when its source and edge rules admit that disclosure (`guide feeds`).
+A `view` names derived data.
+It can plan a read, maintain an aggregate or materialize a feed for each reader.
 
 ```quarry
 table posts:
@@ -28,6 +26,11 @@ view postCount: count posts by .author
 query total(author: principal):
   return postCount[author]
 ```
+
+A filter or projection is planned when read.
+Branches form a union without a copied application table. An aggregate is
+maintained in the source write's transaction. Public Following is materialized
+per reader when its source and edge rules admit that disclosure (`guide feeds`).
 
 Each union branch runs under its own source's read rule before filtering or
 projection. Branches have compatible fields and types. Identity includes both
@@ -182,7 +185,8 @@ repair a recorded null.
 
 Recorded fields belong to the engine. Any payload naming one refuses with
 E_RECORDED_FIELD, including no-op updates, jobs, native jobs, seeds and fixture
-imports. Trusted persistence restores keep them. They travel on the sync wire
+imports. Trusted persistence restores keep them. Omit recorded fields from
+application payloads; write the ordinary source columns instead. They travel on the sync wire
 with the source's retention policy, but are absent from query rows, * shapes
 and generated row types; sql and why expose them for inspection.
 A predicted insert needs a live target covered by the device's current
@@ -337,7 +341,7 @@ paths, including nulls, stay unchanged. Do not backfill recorded engine fields
 or drop/re-add paths as an accidental history repair. An immutable incorrect
 reference needs an explicit data migration with an author-chosen identity policy.
 
-## Refused aggregate expressions
+## Refusals
 
 E_QUARRY_MAINTAIN means a predicate, grouping expression or read is outside
 the aggregate view forms. For example, `view recent: count posts where .at > now by .authorId`
@@ -446,6 +450,8 @@ overflow. The meter reserves the same schema-bounded ceiling for private
 aggregation and both mirror attempts whether the parent is present, absent,
 expired or differently valued. These are equal charged ceilings, not equal
 physical storage work.
+Restrict the parent audience or use a separate aggregate view when that
+disclosure is unwanted.
 
 A contributing commit streams the whole parent image to each parent
 partition, coalesced once per row. N_MAINTAINED_COLUMN_STREAM names that cost

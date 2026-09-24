@@ -1,12 +1,7 @@
 pub(super) const CARD: &str = r##"# App: a complete chat backend
 
-Comments start with `--`. Blocks indent with two spaces. A file holds
-directives, tables, views, shapes, helpers, queries, mutations, jobs
-and schedules, in any order. `snapback4 guide` prints the card index;
-`guide language` prints the core program, followed by a "With `use server`"
-section, and the idiom for each thing the language leaves out on purpose.
-
-The example's §4 (identity) and §5 (personas) refer to CLIENT-AND-OPERATIONS.md.
+This chat backend gives conversation members live messages and offline writes.
+Tables, membership rules and operations share one Quarry file.
 
 ```quarry
 use identity                       -- guests and password accounts (§4)
@@ -72,6 +67,14 @@ mutation edit(messageId: messages, body: text <=4000):
   return null
 ```
 
+Comments start with `--`. Blocks indent with two spaces. A file holds
+directives, tables, views, shapes, helpers, queries, mutations, jobs
+and schedules, in any order. `snapback4 guide` prints the card index;
+`guide language` prints the core program, followed by a "With `use server`"
+section, and the idiom for each thing the language leaves out on purpose.
+
+The example's §4 (identity) and §5 (personas) refer to CLIENT-AND-OPERATIONS.md.
+
 Offline `edit` predicts after the author leaves the conversation. Its new
 image is hidden because the membership read rule no longer holds; a server
 refusal restores the delivered retained image, which remains trusted.
@@ -83,5 +86,4 @@ One `use server` in any module (`schema.q` is usual) enables the whole
 project; repeating it is harmless. Actions, routes and schedules naming an
 action require it. Effects (including secrets, retry, backoff, deadline and
 cancellation), jobs, schedules naming a job and service seats need no directive.
-See `guide actions`, `guide routes` and `guide jobs`.
-"##;
+See `guide actions`, `guide routes` and `guide jobs`."##;

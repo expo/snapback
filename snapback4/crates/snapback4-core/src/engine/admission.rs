@@ -126,7 +126,7 @@ struct Flow<'a> {
 impl Flow<'_> {
     fn expr(&self, expr: &Expr) -> Origin {
         match expr {
-            Expr::Block { .. } => Origin::Unknown(Vec::new()),
+            Expr::Block { .. } => Origin::Unknown(crate::ir::expression_scans(expr).into_iter().cloned().collect()),
             Expr::Merge(merge) => {
                 Origin::Merge(merge.lanes.iter().map(|lane| lane.scan.clone()).collect())
             }
@@ -217,7 +217,13 @@ impl Flow<'_> {
                     let site = format!("for/{binding}");
                     let origin = self.domain(domain);
                     // @ref LLP 3000.007#5.7 — complete-population proof protects row fanout; a bounded read/emit list need not preserve a whole group.
-                    let read_emit_list = matches!(domain, LoopDomain::DerivedArray { .. } | LoopDomain::ArgList { .. }) && read_emit_only(body);
+                    let variants = origin.scans();
+                    let variant = variants.iter().find(|scan| scan.variant.is_some());
+                    if self.error.is_none() && let Some(scan) = variant {
+                        self.error = Some(fanout(Some(scan), &site, "argument-presence alternatives cannot supply a mutation population",
+                            &format!("iterate the complete capped group with `for row in {}:` and put the optional filter and work inside that loop; or move this pass to a job sweep", scan.table)));
+                    }
+                    let read_emit_list = variant.is_none() && matches!(domain, LoopDomain::DerivedArray { .. } | LoopDomain::ArgList { .. }) && super::read_only::statements::<true>(body);
                     if !read_emit_list { self.admit(&origin, &site); }
                     let before = self.env.clone();
                     // The head is the only local binding path we admit. A body write
@@ -437,50 +443,4 @@ fn uniform_rewrite(schema: &Schema, scan: &Scan) -> String {
         rewrite.push_str(&format!("; inside that loop use `{}[{keys}]` with an index leading on those columns; or read the page in a query", scan.table));
     }
     rewrite
-}
-
-// Check expressions too: an inlined helper may hide a write in a payload,
-// condition, binding or loop domain. Unknown future forms must be considered.
-fn read_emit_only(body: &[Stmt]) -> bool {
-    body.iter().all(|stmt| match stmt {
-        Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. }
-        | Stmt::Return(value) | Stmt::Require { condition: value, .. } => read_only_expr(value),
-        Stmt::Emit { payload, once, .. } => read_only_expr(payload) && once.as_ref().is_none_or(read_only_expr),
-        Stmt::Check { condition, current } => read_only_expr(condition) && current.key.iter().all(read_only_expr),
-        Stmt::If { condition, then_body, else_body } => read_only_expr(condition) && read_emit_only(then_body) && read_emit_only(else_body),
-        Stmt::For { domain, body, .. } => read_only_domain(domain) && read_emit_only(body),
-        Stmt::Break | Stmt::Continue => true,
-        Stmt::Insert { .. } | Stmt::InsertIfAbsent { .. } | Stmt::Update { .. } | Stmt::Upsert { .. } | Stmt::WriteTarget { .. } | Stmt::Delete { .. } => false,
-    })
-}
-
-fn read_only_domain(domain: &LoopDomain) -> bool {
-    match domain {
-        LoopDomain::Page(scan) => read_only_scan(scan),
-        LoopDomain::DerivedArray { value, .. } => read_only_expr(value),
-        LoopDomain::ExpressionRange { start, end_exclusive } => read_only_expr(start) && read_only_expr(end_exclusive),
-        LoopDomain::Recurse(recurse) => read_only_expr(&recurse.seed),
-        LoopDomain::LiteralRange { .. } | LoopDomain::ArgList { .. } => true,
-    }
-}
-
-fn read_only_scan(scan: &Scan) -> bool {
-    scan.prefix.iter().all(|key| match key { IndexKeyExpr::Scalar(value) | IndexKeyExpr::WordPrefix(value) => read_only_expr(value) })
-        && [&scan.filter, &scan.after, &scan.before].into_iter().flatten().all(|value| read_only_expr(value))
-        && scan.range.as_ref().is_none_or(|range| [&range.gt, &range.gte, &range.lt, &range.lte].into_iter().flatten().all(|value| read_only_expr(value)))
-}
-
-fn read_only_expr(value: &Expr) -> bool {
-    match value {
-        Expr::Block { body, value } => read_emit_only(body) && read_only_expr(value),
-        Expr::Array(values) | Expr::Builtin { args: values, .. } => values.iter().all(read_only_expr),
-        Expr::Object(fields) => fields.values().all(read_only_expr),
-        Expr::Shape { base, fields } => read_only_expr(base) && fields.values().all(read_only_expr),
-        Expr::Field { base, .. } | Expr::Unary { value: base, .. } => read_only_expr(base),
-        Expr::Binary { left, right, .. } => read_only_expr(left) && read_only_expr(right),
-        Expr::Get(read) | Expr::Exists(read) => read.key.iter().all(read_only_expr),
-        Expr::Scan(scan) => read_only_scan(scan),
-        Expr::Merge(merge) => merge.position.as_ref().and_then(|position| position.after.as_deref()).is_none_or(read_only_expr) && merge.lanes.iter().all(|lane| lane.guard.as_ref().is_none_or(read_only_expr) && lane.project.as_ref().is_none_or(read_only_expr) && lane.distinct.as_ref().is_none_or(read_only_expr) && read_emit_only(&lane.setup) && read_only_scan(&lane.scan) && lane.source.as_ref().is_none_or(|source| source.scan().is_none_or(read_only_scan) && source.expressions().into_iter().all(read_only_expr))),
-        Expr::Literal(_) | Expr::Variable(_) | Expr::Input(_) => true,
-    }
 }

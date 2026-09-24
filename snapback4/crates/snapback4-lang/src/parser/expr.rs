@@ -4,8 +4,31 @@
 
 use super::*;
 
+fn optional_filter_equalities(value: &Expr) -> Option<Vec<crate::diag::Site>> {
+    let Expr::Binary { op, left, right, .. } = value else { return None; };
+    if op != "or" { return None; }
+    for (guard, predicate) in [(left, right), (right, left)] {
+        let Expr::Binary { op, left, right, site } = guard.as_ref() else { continue; };
+        if op != "=" { continue; }
+        let name = match (left.as_ref(), right.as_ref()) {
+            (Expr::Name { name, .. }, Expr::Literal { value: Literal::Null, .. }) |
+            (Expr::Literal { value: Literal::Null, .. }, Expr::Name { name, .. }) => name,
+            _ => continue,
+        };
+        let Expr::Binary { op, left, right, site: predicate_site } = predicate.as_ref() else { continue; };
+        if !matches!(op.as_str(), "=" | "in" | "<" | "<=" | ">" | ">=") { continue; }
+        let column = |e: &Expr| matches!(e, Expr::Member { base, .. } if matches!(base.as_ref(), Expr::Focal { .. }));
+        if (column(left) && matches!(right.as_ref(), Expr::Name { name: value, .. } if value == name))
+            || (column(right) && matches!(left.as_ref(), Expr::Name { name: value, .. } if value == name)) {
+            return Some(vec![site.clone(), predicate_site.clone()]);
+        }
+    }
+    None
+}
+
 impl Parser {
     pub(super) fn expression(&mut self, minimum: u8, stops: &[&str]) -> Fallible<Expr> {
+        let start = self.position;
         let mut left = self.prefix(stops)?;
         loop {
             let token = self.peek().clone();
@@ -26,6 +49,11 @@ impl Parser {
             }
             let right = self.expression(precedence + u8::from(token.value != "??"), stops)?;
             left = Expr::Binary { op: token.value, left: Box::new(left), right: Box::new(right), site: token.site };
+            // Optional-filter guards admit the SQL/host-language equality
+            // spellings locally; unrelated guessed == retains its repair.
+            if let Some(sites) = optional_filter_equalities(&left) {
+                self.diagnostics.retain(|d| !(d.message == "equality is = in Quarry" && sites.contains(&d.site)));
+            }
         }
         if minimum == 0 && self.at("?") {
             let site = self.take("?")?.site;
@@ -47,24 +75,26 @@ impl Parser {
             let otherwise = self.expression(0, stops)?;
             left = Expr::If { then: Box::new(left), condition: Box::new(condition), otherwise: Box::new(otherwise), site };
         }
+        self.document.source.record(&left, &self.source, &self.tokens[start..self.position]);
         Ok(left)
     }
 
     pub(super) fn prefix(&mut self, stops: &[&str]) -> Fallible<Expr> {
+        let start = self.position;
         let token = self.peek().clone();
         if token.kind == Kind::Str {
             self.position += 1;
-            return self.postfix(Expr::Literal { value: Literal::Str(token.value), site: token.site }, stops);
+            return self.postfix(Expr::Literal { value: Literal::Str(token.value), site: token.site }, stops, start);
         }
         if token.value == "not" {
             self.position += 1;
             let value = self.expression(7, stops)?;
-            return self.postfix(Expr::Unary { op: "not".into(), value: Box::new(value), site: token.site }, stops);
+            return self.postfix(Expr::Unary { op: "not".into(), value: Box::new(value), site: token.site }, stops, start);
         }
         if token.value == "-" && !(self.peek_at(1).kind == Kind::Word && self.peek_at(2).value == "[") {
             self.position += 1;
             let value = self.expression(7, stops)?;
-            return self.postfix(Expr::Unary { op: "-".into(), value: Box::new(value), site: token.site }, stops);
+            return self.postfix(Expr::Unary { op: "-".into(), value: Box::new(value), site: token.site }, stops, start);
         }
         if token.value == "exists" || token.value == "created" {
             self.position += 1;
@@ -82,7 +112,7 @@ impl Parser {
                 let message = if token.value == "exists" { "exists takes a domain read; omit first, last and cursor clauses" } else { "created takes a plain indexed read; no where, first, last, after or seek" };
                 return Err(syntax_with(&read.site, message, format!("{} {}", token.value, print::read_expr(&plain))));
             }
-            return self.postfix(if token.value == "exists" { Expr::Exists { read, site: token.site } } else { Expr::Created { read, site: token.site } }, stops);
+            return self.postfix(if token.value == "exists" { Expr::Exists { read, site: token.site } } else { Expr::Created { read, site: token.site } }, stops, start);
         }
         if token.value == "walk" {
             return self.parse_walk();
@@ -167,7 +197,7 @@ impl Parser {
                 if stops.contains(&"<where>") && !(self.at("by") && self.peek_at(1).value == ".") && matches!(self.peek().value.as_str(), "by" | "matching") && let Expr::Read(read) = &mut value {
                     if (self.at("by") && read.index.is_some()) || (self.at("matching") && read.matching.is_some()) {
                         let scoped: Vec<_> = stops.iter().copied().filter(|stop| *stop != "<where>").collect();
-                        return self.postfix(value, &scoped);
+                        return self.postfix(value, &scoped, start);
                     }
                     // Parentheses around only the key do not settle the index's
                     // scope. Locate the whole group so --fix can wrap it intact.
@@ -181,12 +211,17 @@ impl Parser {
             }
             _ => return Err(syntax(&token.site, format!("expected expression, got {:?}", token.value))),
         };
-        self.postfix(value, stops)
+        self.postfix(value, stops, start)
     }
 
-    pub(super) fn postfix(&mut self, initial: Expr, stops: &[&str]) -> Fallible<Expr> {
+    pub(super) fn postfix(&mut self, initial: Expr, stops: &[&str], start: usize) -> Fallible<Expr> {
         let mut value = initial;
         loop {
+            // A grouped read keeps the table's site, but its consumed span
+            // starts at `(`. Carry that boundary through postfix re-entry.
+            if matches!(value, Expr::Read(_)) {
+                self.document.source.record(&value, &self.source, &self.tokens[start..self.position]);
+            }
             if self.is_stop(self.peek(), stops) {
                 // @ref LLP 3000.007#5.6 — a formerly inner index must not silently become the outer page's index.
                 if stops.contains(&"<where>") && !(self.at("by") && self.peek_at(1).value == ".") && matches!(self.peek().value.as_str(), "by" | "matching") && let Expr::Read(read) = &mut value {
@@ -503,13 +538,16 @@ impl Parser {
         let mut fields = Vec::new();
         while !self.at("}") {
             if self.at(".") && self.peek_at(1).value == "." && self.peek_at(2).value == "." {
-                let site = self.peek().site.clone();
-                let name = &self.peek_at(3).value;
-                return Err(syntax_with(&site, format!("expected an object field name, got spread ...{name}; objects list fields explicitly"), format!("replace ...{name} with field: {name}.field for each payload field")));
+                let site = self.take(".")?.site;
+                self.take(".")?;
+                self.take(".")?;
+                let value = Some(self.expression(0, &[",", "}"])?);
+                fields.push(ObjectField { spread: true, name: String::new(), value, site });
+            } else {
+                let name = self.word()?;
+                let value = if self.maybe(":") { Some(self.expression(0, &[",", "}"])?) } else { None };
+                fields.push(ObjectField { spread: false, name: name.value, value, site: name.site });
             }
-            let name = self.word()?;
-            let value = if self.maybe(":") { Some(self.expression(0, &[",", "}"])?) } else { None };
-            fields.push(ObjectField { name: name.value, value, site: name.site });
             if !self.maybe(",") {
                 break;
             }

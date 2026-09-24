@@ -10,8 +10,9 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createClient, mintId } from "../dist/client.js";
 import { createLocalClient } from "../dist/local.js";
+import { createApp } from "../dist/app.js";
 import { processDevice } from "../dist/native.js";
-import { guest, signup, login } from "../dist/auth.js";
+import { guest, signup, login, memorySessionStore } from "../dist/auth.js";
 import { mintSession } from "../dist/worker.js";
 import { memoryPersistence, webDevice } from "../dist/web.js";
 
@@ -275,7 +276,7 @@ for (const tier of ["online", "web", "native"]) {
     await until(async () => (await client.write(id))?.state === "sent");
     assert.equal(f.attempts.length, 2); assert.deepEqual(f.attempts[1], f.attempts[0]);
     const receipt = { state: "sent", id, seq: f.replies[0].seq, replayed: true };
-    assert.deepEqual(f.replies[1], receipt); assert.deepEqual(await client.write(id), receipt);
+    assert.deepEqual(f.replies[1], { ...receipt, store_id: f.replies[0].store_id, head: f.replies[0].seq }); assert.deepEqual(await client.write(id), receipt);
     assert.equal((await f.post("/q/receipts", { args: {} })).data.length, 1);
     // A new client recovers the original receipt by resending the same input.
     await client.close(); const reopened = await f.open();
@@ -414,7 +415,7 @@ for (const tier of ["online", "process-device"]) for (const queued of [false, tr
     assert.deepEqual(replies[0].result.n, 43);
     assert.equal(replies[0].replayed, undefined);
     const receipt = { state: "sent", id: initial.id, seq: replies[0].seq, replayed: true };
-    assert.deepEqual(replies[1], receipt, "the real HTTP server withholds historical values");
+    assert.deepEqual(replies[1], { ...receipt, store_id: replies[0].store_id, head: replies[0].seq }, "the real HTTP server withholds historical values");
     assert.equal(attempts.length, 2);
     assert.deepEqual(attempts[1], attempts[0], "retry preserves id, arguments and predicted ids");
     const rows = await f.post("/q/receipts", { args: {} });
@@ -481,6 +482,79 @@ function hook() {
     const check = spawnSync(process.execPath, [require.resolve("typescript/bin/tsc"), "--noEmit", "--strict", "--exactOptionalPropertyTypes", "--skipLibCheck", "--target", "ES2022", "--module", "ESNext", "--moduleResolution", "Bundler", "--jsx", "react-jsx", fixture], { cwd: packageRoot, encoding: "utf8" });
     assert.equal(check.status, 0, check.stdout + check.stderr);
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+for (const [keep, maxBytes] of [["viewed", png.length], ["viewed", png.length - 1], ["none", png.length]]) test(`createApp forwards asset retention (${keep}, ${maxBytes} bytes) through a real offline reopen`, { timeout: 20_000 }, async t => {
+  const f = await fixture(t), sessionStore = memorySessionStore();
+  let offline = false, assetRequests = 0;
+  const options = { url: f.url, device: f.device, sessionStore, assets: { keep, maxBytes }, fetch: (input, init) => {
+    if (new URL(input).pathname.startsWith("/assets/")) assetRequests++;
+    if (offline) throw Error("offline");
+    return fetch(input, init);
+  } };
+  let app = createApp(options); f.clients.push(app);
+  await app.ready; assert.equal((await app.auth.guest()).ok, true);
+  const viewer = app.auth.viewer;
+  const uploaded = await app.client.upload(png); assert.equal(uploaded.ok, true);
+  const placed = await app.mutate(mutation("attach"), { photo: { id: uploaded.asset.id }, until: null });
+  assert.equal(placed.state, "sent");
+  await app.client.sync(); assert.equal(app.client.acquired, true);
+  const viewed = await app.client.asset(uploaded.asset.id);
+  assert.ok("url" in viewed, JSON.stringify(viewed)); viewed.revoke();
+  await app.close(); offline = true;
+  app = createApp(options); f.clients.push(app);
+  assert.equal((await app.ready).ok, true);
+  assert.equal(app.auth.viewer, viewer); assert.equal(app.client.link(), "offline");
+  const requests = assetRequests;
+  const retained = await app.client.asset(uploaded.asset.id);
+  if (keep === "viewed" && maxBytes >= png.length) {
+    assert.ok("url" in retained, JSON.stringify(retained));
+    try { assert.deepEqual(Buffer.from(await (await fetch(retained.url)).arrayBuffer()), png); }
+    finally { retained.revoke(); }
+  } else assert.equal(retained.denied?.code, "E_OFFLINE", "the configured policy and byte limit still bound retention");
+  assert.equal(assetRequests, requests, "offline reads use retained bytes without an asset request");
+});
+
+test("createApp forwards local waitSeconds while retaining app-owned identity", { timeout: 15_000 }, async t => {
+  const f = await fixture(t), waits = [];
+  const options = { url: f.url, device: f.device, sessionStore: memorySessionStore(), waitSeconds: 30,
+    // Excess properties from an untyped caller must not bypass app.auth.
+    persona: "bob", guest: true, session: { principal: "dev:bob", token: "untrusted", kind: "user", expiresAt: Date.now() + 86400000 },
+    fetch: (input, init) => {
+      const url = new URL(input);
+      if (url.pathname === "/changes") waits.push(url.searchParams.get("wait"));
+      return fetch(input, init);
+    },
+  };
+  let app = createApp(options);
+  f.clients.push(app);
+  await app.ready; assert.equal(app.auth.state, "signed-out");
+  const signedIn = await app.auth.guest(); assert.equal(signedIn.ok, true);
+  assert.equal(app.client.viewer(), signedIn.session.principal);
+  const sent = await app.mutate(mutation("record"), { n: 1 }); assert.equal(sent.state, "sent");
+  await until(() => waits.length > 0);
+  assert.ok(waits.every(wait => wait === "30"), JSON.stringify(waits));
+  await app.close();
+  app = createApp(options); f.clients.push(app);
+  assert.equal((await app.ready).ok, true);
+  assert.equal(app.client.viewer(), signedIn.session.principal);
+  waits.length = 0;
+  assert.equal((await app.mutate(mutation("record"), { n: 2 })).state, "sent");
+  await until(() => waits.length > 0);
+  assert.ok(waits.every(wait => wait === "30"), JSON.stringify(waits));
+});
+
+test("online createApp ignores settings that apply only with a device", { timeout: 15_000 }, async t => {
+  const f = await fixture(t);
+  const app = createApp({ url: f.url, sessionStore: memorySessionStore(),
+    get assets() { throw Error("online must not read the local asset policy"); },
+    get waitSeconds() { throw Error("online must not read local polling configuration"); },
+  });
+  f.clients.push(app);
+  assert.equal((await app.ready).ok, true);
+  assert.equal((await app.auth.guest()).ok, true);
+  assert.equal((await app.mutate(mutation("record"), { n: 2 })).state, "sent");
+  assert.equal((await app.client.query({ kind: "query", name: "receipts" }, {})).data[0].n, 2);
 });
 
 test("ordinary media survives a process-device offline reopen; once never persists; home changes purge bytes", async t => {
@@ -606,6 +680,7 @@ for (const release of [false, true]) test(`W7r1 hidden versus absent non-uniform
      insert records {id: 'hidden', owner: 'somebody-else'}
    else:
      insert padding {id: 'padding'}
+   return null
  query scan():
    return records first 10 by byId
  `.replace(/^ /gm, "");
@@ -620,20 +695,24 @@ for (const release of [false, true]) test(`W7r1 hidden versus absent non-uniform
     assert.equal(write.state, "sent", JSON.stringify(write));
     const query = async meter => (await fetch(`${f.url}/q/scan`, { method: "POST", headers: { ...headers, ...(meter ? { "x-snapback-meter": "1" } : {}) }, body: '{"args":{}}' })).json();
     const opted = await query(true), plain = await query(false);
+    assert.match(write.store_id, /^[0-9a-f]{32}$/);
+    assert.equal(opted.store_id, write.store_id); assert.equal(plain.store_id, write.store_id);
     assert.deepEqual(plain.data, []); assert.equal(plain.complete, false);
     assert.equal(Object.hasOwn(plain, "meter"), !release);
     assert.equal(Object.hasOwn(opted, "meter"), !release);
     for (const key of ["metered", "capped_at", "cappedAt"]) { assert.equal(Object.hasOwn(opted, key), false); }
     observations.push({ opted, plain });
   }
-  const withoutMeter = ({ meter, ...rest }) => rest;
+  // Each fixture has its own random store identity; every answer above must
+  // identify its seed's store. Compare the remaining observable fields.
+  const withoutMeter = ({ meter, store_id, ...rest }) => rest;
   assert.deepEqual(withoutMeter(observations[0].plain), withoutMeter(observations[1].plain));
-  if (release) assert.deepEqual(observations[0].opted, observations[1].opted);
+  if (release) assert.deepEqual(withoutMeter(observations[0].opted), withoutMeter(observations[1].opted));
   else {
     const [absent, hidden] = observations.map(x => x.opted.meter);
     assert.ok(hidden.examined > absent.examined);
     assert.notDeepEqual(hidden, absent);
-    assert.deepEqual(observations.map(x => { const { meter, ...rest } = x.opted; return rest; }), observations.map(x => withoutMeter(x.plain)));
+    assert.deepEqual(observations.map(x => withoutMeter(x.opted)), observations.map(x => withoutMeter(x.plain)));
     t.diagnostic(`absent=${JSON.stringify(absent)} hidden=${JSON.stringify(hidden)}`);
   }
 });
@@ -695,9 +774,13 @@ query search():
     assert.equal(token.status, 0, token.stderr);
     const session = await mintSession(f.url, token.stdout.trim(), "member:viewer");
     const headers = { authorization: `Bearer ${session.token}`, "x-snapback-meter": "1" };
+    let identity;
     const seed = async (count, body) => {
       const response = await (await fetch(`${f.url}/m/seed`, { method: "POST", headers, body: JSON.stringify({ args: { hidden, count, body } }) })).json();
       assert.equal(response.state, "sent", JSON.stringify(response));
+      assert.match(response.store_id, /^[0-9a-f]{32}$/);
+      identity ??= response.store_id;
+      assert.equal(response.store_id, identity);
     };
     const observed = [];
     const read = async (name, reason) => {
@@ -706,7 +789,8 @@ query search():
       assert.equal(page.cut, null, JSON.stringify(page));
       if (release) assert.equal(Object.hasOwn(page, "meter"), false);
       else assert.equal(page.meter.cut, hidden ? reason : null);
-      const { meter, ...production } = page;
+      const { meter, store_id, ...production } = page;
+      assert.equal(store_id, identity); // Only the independently minted fixture identity differs.
       observed.push(production);
     };
     for (let n = 0; n < 32; n++) await seed(1, `cof${n}`);
@@ -720,13 +804,18 @@ query search():
   t.diagnostic("hidden words=32,33 hidden rows=8193 identical full-response pairs=3");
 });
 
-for (const tier of ["online", "native", "web"]) test(`W8R1a ${tier} remembered uniform continuation and nonuniform cuts survive disconnection`, { timeout: 30000 }, async t => {
-  const f = await fixture(t, false, cutSource.replace("  sync public", "  online only").replace("  sync to .owner", "  online only"));
+for (const tier of ["online", "native", "web"]) test(`W8R1a ${tier} server-run observations retain nothing during a replacing fetch`, { timeout: 30000 }, async t => {
+  const f = await fixture(t, false, cutSource.replace("  sync public", "  online only").replace("  sync to .owner", "  online only") + "\nmutation pulse(): server\n  return null\n");
   const seeds = Array.from({ length: 8233 }, (_, n) => ({ table: "entries", row: { id: `r${n}`, room: n < 8200 ? "normal" : "words", body: n < 8200 ? "coffee" : `cof${n}`, at: n } }));
   seeds.push(...Array.from({ length: 33 }, (_, n) => ({ table: "privateWords", row: { id: `p${n}`, owner: "dev:alice", body: `cof${n}`, at: n } })));
   for (let n = 0; n < seeds.length; n += 1000) await f.post("/seed", seeds.slice(n, n + 1000));
-  let offline = false;
-  const options = { url: f.url, persona: "alice", waitSeconds: 1, fetch: (...args) => offline ? Promise.reject(new Error("offline")) : fetch(...args) };
+  let offline = false, hold = false, release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const options = { url: f.url, persona: "alice", waitSeconds: 1, fetch: async (url, init) => {
+    if (offline) throw Error("offline");
+    if (hold && String(url).includes("/q/")) await Promise.race([gate, new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true }))]);
+    return fetch(url, init);
+  } };
   const client = tier === "online" ? createClient(options) : await createLocalClient({ ...options, device: tier === "native" ? f.device : f.web });
   f.clients.push(client);
   if (tier !== "online") await client.sync();
@@ -736,16 +825,15 @@ for (const tier of ["online", "native", "web"]) test(`W8R1a ${tier} remembered u
   const before = watches.map(({ watch }) => watch.getSnapshot());
   assert.ok(before[1].next, "the full uniform page continues past 32 words");
   assert.equal(before[2].next, null, "the nonuniform discovery cut has no continuation");
+  hold = true;
+  assert.equal((await client.mutate(mutation("pulse"), {})).state, "sent");
+  await until(() => watches.every(({ watch }) => watch.getSnapshot().loading));
+  hold = false; release();
+  await until(() => watches.every(({ watch }) => watch.getSnapshot().fresh));
   offline = true;
   if (tier === "online") await client.query({ kind: "query", name: "filtered" }, {});
   else await client.sync();
-  await until(() => watches.every(({ watch }) => watch.getSnapshot().fresh === false));
-  watches.forEach(({ watch, cut, complete }, n) => {
-    const after = watch.getSnapshot();
-    assert.equal(after.cut, cut); assert.equal(after.complete, complete);
-    assert.equal(after.next, before[n].next);
-    assert.deepEqual(after.data, before[n].data); assert.deepEqual(after.meter, before[n].meter);
-  });
+  await until(() => watches.every(({ watch }) => watch.getSnapshot().loading));
 });
 
 for (const tier of ["online", "native", "web"]) test(`W8a ${tier} uniform words continue while nonuniform words and meter cuts remain bounded`, { timeout: 30000 }, async t => {

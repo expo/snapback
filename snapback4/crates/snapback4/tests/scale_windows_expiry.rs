@@ -124,8 +124,22 @@ fn window_explanation_does_not_hide_nonuniform_authorization() {
     let source = SOURCE.replacen("  public", "  read <- .removed = false", 1);
     let b = compile(&source);
     let c = certificate(&b, "trending");
-    assert!(c.line().contains("two edge hours"));
+    // A keeps the ordinary scan when inferred lane prefixes cannot decide
+    // authorization. It must retain both the residual and read-rule warning.
+    assert!(!c.line().contains("two edge hours"), "{c:?}");
+    assert!(c.line().contains("posts skipped by `"), "{c:?}");
     assert!(c.line().contains("per-row read rule"));
+    assert_eq!(c.growth_sites.len(), 2);
+
+    // An authored calendar merge still proves edge-only time filtering; its
+    // separate read rule can reject rows in every bucket and must stay visible.
+    let source = source.replacen("  removed: bool", "  removed: bool\n  by byHour: hour(at), likeCount, at, id", 1)
+        .replacen("return posts where .at > now - 24h and .at <= now last 10 by .likeCount, .at after c",
+            "return merge posts after c last 10 by byHour where .at > now - 24h and .at <= now:\n    [h] for h in range(hour(now - 24h), hour(now) + 1)", 1);
+    let b = compile(&source);
+    let c = certificate(&b, "trending");
+    assert!(c.line().contains("two edge hours"), "{c:?}");
+    assert!(c.line().contains("per-row read rule"), "{c:?}");
     assert_eq!(c.growth_sites.len(), 2);
 }
 

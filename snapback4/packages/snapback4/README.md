@@ -81,6 +81,10 @@ Availability and handle saves use the server; your private profile is held local
 Replace `src/client.ts`. The app restores the session, opens the right client, and owns pending writes across restarts.
 Native sessions use SecureStore; browser persistence is explicit because page scripts can read localStorage. Expo Go
 uses the online client. Keep the starter's Metro config and wasm transformer.
+`assets` retains viewed media within its byte budget when a device is available; Expo Go's online tier ignores it.
+
+Prove the native runtime: `npx snapback4 witness ios --smoke --bundle-id ID --udid "$UDID" --artifacts artifacts/native-smoke` (no app code).
+Build/install Release first; `npx snapback4 guide witness` explains the three receipts and the deeper application runner.
 
 ```ts
 // src/client.ts
@@ -99,6 +103,7 @@ export const app = createApp({
   url: process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400",
   sessionStore: Platform.OS === "web" ? localStorageSessionStore() : sessionStore,
   device: Platform.OS === "web" ? webDevice() : nativeAvailable() ? nativeDevice : undefined,
+  assets: { keep: "viewed", maxBytes: 67108864 },
 });
 ```
 
@@ -111,8 +116,8 @@ picker's Blob to `upload`. Uploads require a connection; placement is a mutation
 ```tsx
 // App.tsx
 import { useState } from "react";
-import { Button, Text, TextInput, View } from "react-native";
-import { AppProvider, useAuth, useClient, useQuery, useMutation } from "snapback4/react";
+import { Button, Image, Text, TextInput, View } from "react-native";
+import { AppProvider, useAuth, useClient, useQuery, useMutation, useAsset } from "snapback4/react";
 import { app } from "./src/client";
 import { api } from "./snapback/generated/api";
 export function App() { return <AppProvider app={app}><Account /></AppProvider>; }
@@ -137,6 +142,7 @@ function Account() {
 function Profile() {
   const auth = useAuth(), client = useClient();
   const profile = useQuery(api.myProfile, {}), save = useMutation(api.saveProfile), place = useMutation(api.placeAvatar);
+  const avatar = useAsset("data" in profile ? profile.data?.avatar?.id : null);
   const [handle, setHandle] = useState(""), [uri, setUri] = useState(""), [problem, setProblem] = useState("");
   const busy = save.inFlight || save.last?.state === "pending" || place.inFlight || place.last?.state === "pending";
   const upload = async () => {
@@ -148,6 +154,7 @@ function Profile() {
   };
   return <View style={{ padding: 32, gap: 12 }}>
     <Text>{"denied" in profile ? profile.denied.message : "loading" in profile ? "Loading…" : profile.data ? `@${profile.data.handle}; avatar ${profile.data.avatar?.id ?? "not placed"}` : "Choose your handle"}</Text>
+    {avatar.status === "ready" && <Image source={{ uri: avatar.url }} style={{ width: 96, height: 96 }} />}
     <Text>{problem || (save.last?.state === "failed" ? save.last.why.message : save.last?.state)}</Text>
     <Text>{place.last?.state === "failed" ? place.last.why.message : place.last?.state}</Text>
     <TextInput placeholder="Handle" value={handle} onChangeText={setHandle} autoCapitalize="none" />
@@ -172,7 +179,7 @@ starter's `npm run build` ends with the same command. For an existing export, ru
 nonpersonalized. The worker never caches API responses or assets from the backend. A replacement waits for old tabs to
 close.
 
-Sign up, save a profile and avatar, reload, then open the acquired profile with the network off for a cold-offline
+Sign up, save a profile and view its avatar, reload, then open the acquired profile with the network off for a cold-offline
 start. Reconnect to settle pending writes. Browser eviction can remove offline availability; `client.acquired` states
 whether the replica is ready. Defer feeds, search, schedules and server handlers until those features are needed.
 
@@ -180,8 +187,10 @@ whether the replica is ready. Defer feeds, search, schedules and server handlers
 
 Edit `snapback/*.q`. `check` and `dev` generate `snapback/generated/api.ts`; never commit it. A table holds data. Rules
 authorize each row. Sync chooses what devices hold. A query states a predicate and order. A view derives data. A
-mutation commits atomically. A job sweeps; an effect records external work. An asset belongs to its row and follows that
-row's read rule.
+mutation commits atomically. A job sweeps; an effect records external work. An asset follows its row's read rule.
+`snapback4 check` ends with a scale line; `check --cost` gives each operation's certificate: **constant**
+(bounded work at any data size) or **grows with** a named site. A constant verdict is the structural proof
+for a degradation rule; timing a constant operation measures noise. Cite the verdicts in scale reports.
 
 ```quarry
 table notes:
@@ -269,9 +278,8 @@ query trending(c: cursor ?):
 ## Reference map: open only what the feature needs
 
 `snapback4 guide <card>` and `snapback4 why <code>` answer in the terminal. Bare `guide` prints a two-line index of
-cards and aliases; `guide language` prints the language card. Every refusal names a code, site and rewrite. Every Quarry
-example here and on the cards compiles in the suite; the language card's single program also runs. The chat example is
-optional.
+cards and aliases; `guide language` prints the language card. Every refusal names a code, site and rewrite.
+Every Quarry example compiles in the suite; the language card also runs. The chat example is optional.
 
 | Need | One reference lookup |
 |---|---|
@@ -284,7 +292,7 @@ optional.
 | Identity / media / expiry / seeds / clock | `guide personas` / `guide assets` / `guide expire` / `guide replay` / `guide clock` |
 | Background or network work (no directive) | `guide jobs` / `guide effects` (effect handlers) / `guide presence` / `guide native` / `guide services` (`mintSession`, `revokeSessions`) |
 | Limits / failures / adoption / simulator proof | `guide bounds` / `guide refusals` / `guide evolution` / `guide witness`; `why <code>` |
-| Full client, React and auth | [CLIENT-AND-OPERATIONS.md §4](./CLIENT-AND-OPERATIONS.md#4-the-client) |
+| Full client, auth / complete React list | [Client §4](./CLIENT-AND-OPERATIONS.md#4-the-client) / [React list](./CLIENT-AND-OPERATIONS.md#react) |
 | Development and wire | [§5](./CLIENT-AND-OPERATIONS.md#5-development) |
 | Release | [§6](./CLIENT-AND-OPERATIONS.md#6-release) |
 | Expo | [§7](./CLIENT-AND-OPERATIONS.md#7-expo) |

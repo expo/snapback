@@ -53,6 +53,14 @@ impl Step {
 /// Classify the difference between two schemas.
 pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
     let mut steps = Vec::new();
+    for old in &from.timelines {
+        if !to.timelines.iter().any(|new| new.name == old.name) {
+            // Retiring the declaration destroys its derived contents even if
+            // the candidate reuses all owned names as ordinary tables.
+            steps.push(Step { path: format!("timelines.{}", old.name), change: Change::Destructive,
+                message: format!("materialized view {} is removed; its owned rows and dependent aggregates are retired", old.name) });
+        }
+    }
     for (name, old) in from.visible_tables() {
         let path = format!("tables.{name}");
         let Some(new) = to.tables.get(name) else {
@@ -218,8 +226,26 @@ pub fn keeps_literal_default_images(from: &Schema, to: &Schema) -> bool {
 // @ref LLP 3000.007.001#3.11 — rebuild on resolved source dependency changes.
 pub(crate) fn maintain_rebuild_needed(from: &Schema, to: &Schema, maintain: &crate::schema::Maintain) -> bool {
     from.maintain_for(&maintain.target) != Some(maintain)
+        || retired_timeline_tables(from, to).contains(&maintain.target)
         || from.table(&maintain.source).and_then(|t| t.expire.as_ref()) != to.table(&maintain.source).and_then(|t| t.expire.as_ref())
         || maintain.dependencies().iter().any(|field| interpretation(from, &maintain.source, field) != interpretation(to, &maintain.source, field))
+}
+
+/// Retirement invalidates the derived targets even when their declarations
+/// and table names survive. Parent rows of maintained columns are not retired;
+/// the ordinary column activation pass mirrors their reset private totals.
+// @ref LLP 3000.013#4-following-without-caps — removing a view retires only its derived state.
+pub(crate) fn retired_timeline_tables(from: &Schema, to: &Schema) -> std::collections::BTreeSet<String> {
+    let mut retired: std::collections::BTreeSet<_> = from.timelines.iter()
+        .filter(|old| !to.timelines.iter().any(|new| old.same_declaration(new)))
+        .flat_map(|old| old.owned.iter().cloned()).collect();
+    loop {
+        let targets: Vec<_> = from.maintains.iter().filter(|m| retired.contains(&m.source))
+            .map(|m| m.target.clone()).collect();
+        let before = retired.len();
+        retired.extend(targets);
+        if retired.len() == before { return retired; }
+    }
 }
 
 pub(crate) fn interpretation<'a>(schema: &'a Schema, table: &str, field: &str) -> Option<(Option<&'a ColumnType>, Option<&'a ColumnDefault>, Option<&'a crate::schema::RecordedField>)> {

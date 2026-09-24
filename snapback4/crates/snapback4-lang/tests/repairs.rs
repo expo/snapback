@@ -97,7 +97,6 @@ fn equality_recovery_preserves_an_independent_syntax_error() {
 fn reproduced_diagnostics() {
     let expected = [
         (ONCE, "schema.q:1:15 — E_QUARRY_SYNTAX: once is a column modifier, not an argument constraint; declare it on the owning table column\n  rewrite: photo: image <=10000000 ? — check --fix applies it\n  guide: language"),
-        (SHAPE, "schema.q:5:41 — E_QUARRY_UNKNOWN: shape wildcard already includes field tombstone\n  rewrite: { * } — check --fix applies it\n  guide: shapes"),
         (PARENS, "schema.q:1:1 — E_QUARRY_SYNTAX: an operation with no arguments still needs parentheses\n  rewrite: query trending(): — check --fix applies it\n  guide: language"),
     ];
     for (source, expected) in expected {
@@ -215,4 +214,12 @@ fn trending_card_finds_winners_after_200_and_1000_candidates_without_hiding_its_
     assert_eq!(cut.data.as_array().unwrap().iter().map(|row| row.field("likes").unwrap().as_int().unwrap()).collect::<Vec<_>>(), [4, 3, 0, 0, 0, 0, 0, 0, 0, 0]);
     assert!(!ids(&cut.data).contains(&Value::Id("p08192".into())), "the true winner is outside this recipe's candidate bound");
     println!("adversarial trending: exact population=1500 ids={:?} examined={}; capped population=8193 missing winner=p08192 examined={} complete={}", ids(&page.data), page.metered.examined, cut.metered.examined, cut.complete);
+}
+
+#[test]
+fn wildcard_then_bare_column_is_an_explicit_replacement() {
+    let source = SHAPE.replace("history()", "history(c: cursor ?)").replace("by byId", "by byId after c");
+    let bound = compile(&[("schema.q".into(), source)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
 }

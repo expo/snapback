@@ -1,15 +1,20 @@
+import { ClosingResponses } from "./closing-responses.ts";
+import { deferStart, trackRotation } from "./client-start.ts";
 // The online tier (LLP 2000.000 §7.4): no store, no interpreter. Reads go
 // to the server and are `fresh` when it answered; an observed read re-runs
 // when a commit touches its tables; a write is sent with a client-minted id
 // and applies at most once, and waits as `pending` while the link is down.
 // Every word a screen reads is on the card (contract.ts).
 
+import { ReadObservation } from "./read-observation.ts";
 import { changeFeed } from "./changes.ts";
 import { MutationIds, WriteHistory } from "./writes.ts";
 import type { Client, Cursor, Link, MutateOptions, Mutation, Observed, Principal, Query, Read, ReadCut, ReadMeter, Refusal, Write } from "./contract.ts";
 import { logout, logoutAll as revokeAllSessions, refreshSession as rotateSession, type Session, type SignIn } from "./auth.ts";
 import { assetSource, fetchAsset, uploadAsset } from "./assets.ts";
 import { act } from "./actions.ts";
+import { waitForCaller } from "./request-wait.ts";
+import { trackDispatch, type DispatchState } from "./online-dispatch.ts";
 
 export interface ClientOptions {
   /** The server, e.g. `http://127.0.0.1:4400`. */
@@ -25,18 +30,15 @@ export interface ClientOptions {
   readonly fetch?: typeof fetch;
   /** How long a change poll waits at the server, in seconds. */
   readonly waitSeconds?: number;
+  /** Terminal store refusal; createApp uses this to reopen the online tier. */
+  readonly onStoreChange?: (why: Refusal) => void;
 }
 
-type ReadyRead<T> = Extract<Read<T>, { data: T }>;
-
-interface Watch {
+interface Watch extends ReadObservation<unknown> {
   op: Query<unknown, unknown>;
   args: unknown;
   key: string;
   tables: Set<string>;
-  snapshot: Read<unknown>;
-  lastServer: ReadyRead<unknown> | null;
-  lastServerAt: number;
   subscribers: Set<() => void>;
   inFlight: boolean;
   dirty: boolean;
@@ -110,7 +112,13 @@ export function createClient(options: ClientOptions): Client {
   const aborter = new AbortController();
   const requests = new Set<Promise<unknown>>();
   let closing: Promise<void> | undefined;
+  const closingResponses = new ClosingResponses();
   let seq = 0;
+  let minimumReadSeq = 0, queryEpoch = 0;
+  let storeIdentity: string | undefined;
+  const dispatch: DispatchState = {};
+  let probed = false;
+  let storeRefusal: Refusal | null = null;
   const linkListeners = new Set<(link: Link) => void>();
   const sessionListeners = new Set<(session: Session | null) => void>();
   const viewerListeners = new Set<(viewer: Principal | null) => void>();
@@ -141,10 +149,9 @@ export function createClient(options: ClientOptions): Client {
 
   let credentialRevision = 0;
   let refreshing: Promise<SignIn> | null = null;
-  let rotatingSession: Promise<SignIn> | null = null;
-  let stopRefresh!: () => void;
+  let stopRefresh!: (why: Refusal) => void;
   const refreshStopped = new Promise<SignIn>(resolve => {
-    stopRefresh = () => resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to continue" } });
+    stopRefresh = why => resolve({ ok: false, why });
   });
   let refreshTimer: ReturnType<typeof setTimeout> | undefined;
   const refreshBeforeExpiry = 24 * 60 * 60 * 1000;
@@ -152,7 +159,7 @@ export function createClient(options: ClientOptions): Client {
   const endCredentials = () => {
     if (!credentials) return;
     session = null;
-    stopRefresh();
+    stopRefresh(auth());
     credentialRevision += 1;
     if (refreshTimer) clearTimeout(refreshTimer);
     credentials = false;
@@ -164,7 +171,7 @@ export function createClient(options: ClientOptions): Client {
   };
 
   const setLink = (next: Link) => {
-    if (closed || (!credentials && next !== "signed-out")) return;
+    if (closed || storeRefusal || (!credentials && next !== "signed-out")) return;
     if (link === next) return;
     link = next;
     for (const listener of linkListeners) listener(next);
@@ -173,15 +180,12 @@ export function createClient(options: ClientOptions): Client {
       for (const watch of watches.values()) void refresh(watch);
     } else if (next === "signed-out") {
       failUnsentWrites(auth());
-      for (const watch of watches.values()) {
-        watch.lastServer = null;
-        watch.snapshot = { denied: auth() };
-        notify(watch);
-      }
+      for (const watch of watches.values()) watch.publish({ denied: auth() });
+      for (const watch of watches.values()) notify(watch);
     } else {
       for (const watch of watches.values()) {
-        if (watch.lastServer) {
-          watch.snapshot = { ...watch.lastServer, fresh: false, since: watch.lastServerAt };
+        if ("data" in watch.snapshot) {
+          watch.publish({ loading: true });
           notify(watch);
         }
       }
@@ -198,10 +202,54 @@ export function createClient(options: ClientOptions): Client {
   const auth = (): Refusal => ({ code: "E_AUTH", family: "auth", message: "sign in to continue" });
   const ended = (): Refusal => ({ code: "E_CLOSED", family: "client", message: "this client is closed" });
 
+  function stopForStore(code: "E_STORE_REPLACED" | "E_STORE_RESTORE") {
+    if (storeRefusal) return;
+    storeRefusal = { code, family: "store", site: "client", guide: "sync",
+      message: `${code === "E_STORE_REPLACED" ? "the backend store identity changed" : "the backend store sequence regressed"}; outstanding writes may have executed and their outcomes are unknown; this client will not retry them`,
+      rewrite: "close this client and create a new client for the current backend; reconcile outstanding writes before submitting new intent" };
+    queryEpoch++;
+    // Terminal connectivity is observable without discarding the session that
+    // createApp may validate on its replacement client.
+    link = "signed-out";
+    if (retry) { clearTimeout(retry); retry = undefined; }
+    if (refreshTimer) clearTimeout(refreshTimer);
+    aborter.abort();
+    stopRefresh(storeRefusal);
+    for (const watch of watches.values()) { watch.reset({ denied: storeRefusal }); scheduleExpiry(watch, null); }
+    // Retire every owner, including the request currently awaiting its body.
+    // A late receipt must not settle it a second time or schedule another send.
+    for (const entry of pending.splice(0)) {
+      const outcome = { state: "failed", id: entry.id, why: storeRefusal } as const;
+      entry.resolve(outcome);
+      emitWrite(outcome);
+    }
+    for (const watch of watches.values()) notify(watch);
+    for (const listener of linkListeners) listener(link);
+    options.onStoreChange?.(storeRefusal);
+  }
+
+  function observeStore(json: Record<string, unknown>, floorAtDispatch: number, receipt = false): void {
+    if (storeRefusal) return;
+    const why = (json.denied ?? json.why) as Refusal | undefined;
+    if (why?.code === "E_STORE_REPLACED" || why?.code === "E_STORE_RESTORE") { stopForStore(why.code); return; }
+    const id = json.store_id;
+    if (typeof id !== "string" || !id) return; // Older servers have no identity envelope.
+    if (storeIdentity !== undefined && id !== storeIdentity) { stopForStore("E_STORE_REPLACED"); return; }
+    storeIdentity = id;
+    if (dispatch.store !== id) { dispatch.store = id; dispatch.owner?.observe(id); }
+    // Replayed receipts name a historical commit; their head is the current
+    // store watermark. A buffered response may predate a later observed write,
+    // so restoration compares with the floor at dispatch, not at delivery.
+    const head = receipt && json.replayed === true ? json.head : json.head ?? json.seq;
+    if (typeof head !== "number" || !Number.isSafeInteger(head) || head < 0) return;
+    if (head < floorAtDispatch) { stopForStore("E_STORE_RESTORE"); return; }
+    minimumReadSeq = Math.max(minimumReadSeq, head);
+  }
+
   const scheduleRefresh = (retryAfter?: number) => {
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = undefined;
-    if (closed || !credentials || !session || session.kind === "action") return;
+    if (closed || storeRefusal || !credentials || !session || session.kind === "action") return;
     const untilDue = Math.max(0, session.expiresAt - Date.now() - refreshBeforeExpiry);
     const requested = retryAfter ?? (untilDue === 0 ? 60_000 : untilDue);
     const delay = Math.min(Math.max(1, requested), 2_147_000_000);
@@ -215,19 +263,30 @@ export function createClient(options: ClientOptions): Client {
 
   // @ref LLP 3000#7 — both client tiers keep short-lived sessions and rotate the bearer before expiry.
   function refreshCurrent(): Promise<SignIn> {
-    if (closed) return Promise.resolve({ ok: false, why: ended() });
+    if (closed || storeRefusal) return Promise.resolve({ ok: false, why: storeRefusal ?? ended() });
     if (refreshing) return refreshing;
     const token = headers.authorization?.slice("Bearer ".length);
     if (!credentials || !token || options.persona) return Promise.resolve({ ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in with a session to refresh it" } });
     const expectedPrincipal = viewer;
     credentialRevision += 1;
     const rotation = rotateSession(base, token, doFetch);
-    rotatingSession = rotation;
+    let retired = false;
+    const retire = (result: SignIn) => {
+      if (retired || (!result.ok && (credentials || !result.why.retryable))) return;
+      retired = true;
+      // Only sign-out owns old-bearer cleanup after a transport rejection.
+      // Store replacement keeps that bearer for createApp's recovery probe.
+      void logout(base, result.ok ? result.session.token : token, doFetch);
+    };
+    // Never abort rotation: the server may already have consumed the old
+    // token. Keep reading so a cancelled caller's successor can be revoked.
+    void rotation.then(result => { if (storeRefusal || !credentials) retire(result); });
     const work = (async (): Promise<SignIn> => {
       const refreshed = await Promise.race([rotation, refreshStopped]);
+      if (storeRefusal) { retire(refreshed); return { ok: false, why: storeRefusal }; }
       // An ordinary close still owns an in-flight rotation's replacement.
       // Sign-out separately ends credentials and cancels adoption.
-      if (!credentials) return { ok: false, why: auth() };
+      if (!credentials) { retire(refreshed); return { ok: false, why: auth() }; }
       credentialRevision += 1;
       if (!refreshed.ok) {
         if (refreshed.why.code === "E_AUTH") endCredentials();
@@ -235,6 +294,7 @@ export function createClient(options: ClientOptions): Client {
         return refreshed;
       }
       if (expectedPrincipal !== null && refreshed.session.principal !== expectedPrincipal) {
+        retire(refreshed);
         endCredentials();
         return { ok: false, why: { code: "E_AUTH", family: "auth", message: "a refreshed session changed principal" } };
       }
@@ -250,7 +310,7 @@ export function createClient(options: ClientOptions): Client {
       return refreshed;
     })();
     refreshing = work;
-    void work.finally(() => { if (refreshing === work) refreshing = null; if (rotatingSession === rotation) rotatingSession = null; }).catch(() => {});
+    void work.finally(() => { if (refreshing === work) refreshing = null; }).catch(() => {});
     return work;
   }
 
@@ -259,31 +319,64 @@ export function createClient(options: ClientOptions): Client {
   async function obsoleteRefusal(why: Refusal | undefined, revision: number): Promise<boolean> {
     if (why?.code !== "E_AUTH") return false;
     if (refreshing) await refreshing;
-    if (revision !== credentialRevision && credentials && !closed) return true;
+    if (storeRefusal || closed) return false;
+    if (revision !== credentialRevision && credentials && !closed && !storeRefusal) return true;
     if (!closed) endCredentials();
     return false;
   }
 
   function post(path: string, body: unknown) {
-    const request = sendPost(path, body);
+    let arrived = false;
+    const request = waitForCaller(sendPost(path, body, 0, known => { arrived = known; }), aborter.signal, () => arrived).then(result => {
+      // A terminal store change owns outstanding effect outcomes: preserve its
+      // explicit unknown-outcome refusal instead of an ordinary offline retry.
+      if (storeRefusal && path.startsWith("/a/")) return { ok: true as const, json: { denied: storeRefusal } };
+      return result ?? { ok: false as const };
+    });
     requests.add(request);
     void request.finally(() => requests.delete(request)).catch(() => {});
     return request;
   }
 
-  async function sendPost(path: string, body: unknown): Promise<{ ok: true; json: Record<string, unknown> } | { ok: false }> {
+  async function sendPost(path: string, body: unknown, attempt = 0, arrived = (_known: boolean) => {}): Promise<{ ok: true; json: Record<string, unknown> } | { ok: false }> {
     if (refreshing) await refreshing;
-    if (closed || !credentials) return { ok: false };
+    if (closed || !credentials || storeRefusal) return { ok: false };
     const revision = credentialRevision;
+    const floor = minimumReadSeq;
     let encoded: string;
+    if (path.startsWith("/m/") && dispatch.owner) {
+      // First dispatch after reopen must establish which store is at this URL.
+      // A supplied store_id also fences a replacement after the probe.
+      if (!storeIdentity && !probed) await probe();
+      if ((!storeIdentity && !probed) || closed || storeRefusal || !credentials) return { ok: false };
+      try {
+        const known = await dispatch.owner.before((body as { id: string }).id, storeIdentity);
+        if (known) return { ok: true, json: known as unknown as Record<string, unknown> };
+      } catch { return { ok: false }; }
+      if (closed || storeRefusal || !credentials) return { ok: false };
+    }
+    if ((path.startsWith("/m/") || path.startsWith("/a/")) && storeIdentity) body = { ...(body as object), store_id: storeIdentity };
     try { encoded = JSON.stringify(body); }
     catch { return { ok: true, json: { denied: { code: "E_INPUT", family: "input", message: "request arguments must be JSON-serializable" } } }; }
     try {
-      const response = await doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(options.meter && path.startsWith("/q/") ? { "x-snapback-meter": "1" } : {}) }, body: encoded, signal: aborter.signal });
+      const response = await doFetch(`${base}${path}`, { method: "POST", headers: { ...headers, ...(options.meter && path.startsWith("/q/") ? { "x-snapback-meter": "1" } : {}) }, body: encoded, ...(path.startsWith("/q/") ? { signal: aborter.signal } : {}) });
       const json = (await response.json()) as Record<string, unknown>;
+      // Late bodies are consumed without adoption. A parsed effect response
+      // already known at close still finishes its local settlement.
+      closingResponses.capture(path, body, json, response.status);
       if (closed) return { ok: false };
+      arrived(true);
+      if (storeRefusal) return { ok: false };
+      observeStore(json, floor, path.startsWith("/m/"));
+      if (storeRefusal) return { ok: false };
       if (response.status >= 500) { setLink("offline"); return { ok: false }; }
-      if (await obsoleteRefusal((json.denied ?? json.why) as Refusal | undefined, revision)) return sendPost(path, body);
+      if (await obsoleteRefusal((json.denied ?? json.why) as Refusal | undefined, revision)) {
+        arrived(false);
+        if (attempt === 3) return { ok: false };
+        await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt));
+        return sendPost(path, body, attempt + 1, arrived);
+      }
+      if (storeRefusal || (closed && !path.startsWith("/m/") && !path.startsWith("/a/"))) return { ok: false };
       if (credentials && typeof json.viewer === "string") setViewer(json.viewer as Principal);
       if (link !== "online" && credentials) setLink("online");
       return { ok: true, json };
@@ -293,20 +386,25 @@ export function createClient(options: ClientOptions): Client {
     }
   }
 
-  async function runQuery<A, R>(op: Query<A, R>, args: A): Promise<{ read: Read<R>; tables: string[]; seq: number; nextExpiry: number | null }> {
-    if (closed) return { read: { denied: ended() }, tables: [], seq, nextExpiry: null };
-    if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq, nextExpiry: null };
+  async function runQuery<A, R>(op: Query<A, R>, args: A): Promise<{ read: Read<R>; tables: string[]; seq: number; epoch: number; nextExpiry: number | null; transportOffline?: boolean }> {
+    const epoch = queryEpoch;
+    if (closed || storeRefusal) return { read: { denied: storeRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
+    if (!credentials || link === "signed-out") return { read: { denied: { code: "E_AUTH", family: "auth", message: "sign in to read" } }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
     const result = await post(`/q/${op.name}`, { args });
-    if (!credentials) return { read: { denied: auth() }, tables: [], seq, nextExpiry: null };
-    if (!result.ok) return { read: { denied: offline() }, tables: [], seq, nextExpiry: null };
+    if (storeRefusal || closed) return { read: { denied: storeRefusal ?? ended() }, tables: [], seq: minimumReadSeq, epoch: queryEpoch, nextExpiry: null };
+    if (!credentials) return { read: { denied: auth() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null };
+    if (!result.ok) return { read: { denied: offline() }, tables: [], seq: minimumReadSeq, epoch, nextExpiry: null, transportOffline: true };
     const json = result.json;
-    if (json.denied) return { read: { denied: json.denied as Refusal }, tables: (json.tables as string[] | undefined) ?? [], seq, nextExpiry: null };
+    if (json.denied) return { read: { denied: json.denied as Refusal }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry: null };
     const at = Number(json.seq ?? 0);
-    const next = (json.next as Cursor | null | undefined) ?? null;
     const nextExpiry = typeof json.nextExpiry === "number" && Number.isFinite(json.nextExpiry) ? json.nextExpiry : null;
+    if (json.loading || !("data" in json)) return { read: { loading: true }, tables: (json.tables as string[] | undefined) ?? [], seq: Number(json.seq ?? json.head ?? minimumReadSeq), epoch, nextExpiry };
+    const next = (json.next as Cursor | null | undefined) ?? null;
     const meter = json.meter ? { meter: json.meter as ReadMeter } : {};
-    return { read: { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next, ...meter }, tables: (json.tables as string[] | undefined) ?? [], seq: at, nextExpiry };
+    return { read: { data: json.data as R, complete: json.complete !== false, cut: (json.cut ?? null) as ReadCut, fresh: true, next, ...meter }, tables: (json.tables as string[] | undefined) ?? [], seq: at, epoch, nextExpiry };
   }
+
+  const currentRead = (result: { seq: number; epoch: number }) => result.epoch === queryEpoch && result.seq >= minimumReadSeq;
 
   function notify(watch: Watch) {
     for (const subscriber of watch.subscribers) subscriber();
@@ -325,37 +423,31 @@ export function createClient(options: ClientOptions): Client {
   }
 
   async function refresh(watch: Watch) {
-    if (closed) return;
+    if (closed || storeRefusal) { watch.reset({ denied: storeRefusal ?? ended() }); notify(watch); return; }
     if (watch.inFlight) {
       watch.dirty = true;
       return;
     }
     watch.inFlight = true;
+    let exhausted = false;
     try {
-      const { read, tables, nextExpiry } = await runQuery(watch.op, watch.args);
+      const result = await watch.fetch(() => runQuery(watch.op, watch.args), () => notify(watch), { accept: currentRead });
+      const { tables, nextExpiry, retryExhausted } = result;
+      exhausted = retryExhausted === true;
       if (closed || watches.get(watch.key) !== watch) return;
-      if (!credentials) {
-        watch.snapshot = { denied: auth() };
+      if (storeRefusal || !currentRead(result)) {
+        watch.reset(storeRefusal ? { denied: storeRefusal } : { loading: true });
+        scheduleExpiry(watch, null);
         notify(watch);
         return;
       }
       watch.tables = new Set(tables);
-      if ("data" in read) {
-        watch.lastServer = read;
-        watch.lastServerAt = Date.now();
-        watch.snapshot = read;
-      } else if ("denied" in read && read.denied.code === "E_OFFLINE" && watch.lastServer) {
-        watch.snapshot = { ...watch.lastServer, fresh: false, since: watch.lastServerAt };
-      } else {
-        watch.snapshot = read;
-      }
-      scheduleExpiry(watch, nextExpiry);
-      notify(watch);
+      scheduleExpiry(watch, exhausted ? null : nextExpiry);
     } finally {
       watch.inFlight = false;
       const dirty = watch.dirty;
       watch.dirty = false;
-      if (dirty && watches.get(watch.key) === watch) {
+      if (dirty && !closed && !storeRefusal && !exhausted && watches.get(watch.key) === watch) {
         void refresh(watch);
       }
     }
@@ -363,17 +455,34 @@ export function createClient(options: ClientOptions): Client {
 
   let polling = false;
   let generation: number | undefined;
-  async function probe() {
+  let probing: Promise<void> | undefined;
+  function probe(): Promise<void> {
+    if (probing) return probing;
+    const work = probeOnce();
+    probing = work;
+    void work.finally(() => { if (probing === work) probing = undefined; });
+    return work;
+  }
+  async function probeOnce(attempt = 0) {
     if (refreshing) await refreshing;
-    if (closed || !credentials) return;
+    if (closed || !credentials || storeRefusal) return;
     const revision = credentialRevision;
+    const floor = minimumReadSeq;
     try {
       const response = await doFetch(`${base}/probe`, { headers: { ...headers }, signal: aborter.signal });
       let json: Record<string, unknown> = {};
       try { json = (await response.json()) as Record<string, unknown>; } catch {}
-      if (closed) return;
-      if (await obsoleteRefusal(json.denied as Refusal | undefined, revision)) { await probe(); return; }
-      if (response.status === 200 && json.ok === true && credentials) setLink("online");
+      if (closed || storeRefusal) return;
+      observeStore(json, floor);
+      if (storeRefusal) return;
+      if (await obsoleteRefusal(json.denied as Refusal | undefined, revision)) {
+        if (attempt < 3) { await new Promise(resolve => setTimeout(resolve, 25 * 2 ** attempt)); await probeOnce(attempt + 1); }
+        return;
+      }
+      if (response.status === 200 && json.ok === true && credentials) {
+        probed = true;
+        setLink("online");
+      }
     } catch {}
   }
 
@@ -382,7 +491,7 @@ export function createClient(options: ClientOptions): Client {
   async function poll() {
     if (polling) return;
     polling = true;
-    while (!closed && watches.size > 0) {
+    while (!closed && !storeRefusal && watches.size > 0) {
       if (link !== "online") {
         await new Promise((r) => setTimeout(r, 1000));
         if (!closed && credentials && link === "offline") await probe();
@@ -390,24 +499,31 @@ export function createClient(options: ClientOptions): Client {
       }
       try {
         if (refreshing) await refreshing;
-        if (closed || !credentials) break;
+        if (closed || storeRefusal || !credentials) break;
         const revision = credentialRevision;
-        const { response, json } = await changes(seq, options.waitSeconds ?? 25, { ...headers });
-        if (closed) break;
+        const floor = minimumReadSeq;
+        const { response, json } = await changes(seq, options.waitSeconds ?? 25, { ...headers }, storeIdentity);
+        if (closed || storeRefusal) break;
+        observeStore(json as unknown as Record<string, unknown>, floor);
+        if (storeRefusal) break;
         if (await obsoleteRefusal(json.denied, revision)) continue;
-        if (!credentials) break;
+        if (closed || storeRefusal || !credentials) break;
         if (!response.ok || json.denied) throw new Error(`changes: HTTP ${response.status}`);
         const changedGeneration = generation !== undefined && json.generation !== undefined && generation !== json.generation;
         generation = json.generation;
+        minimumReadSeq = Math.max(minimumReadSeq, json.seq);
+        if (changedGeneration) queryEpoch++;
         if (json.seq > seq || changedGeneration) {
           seq = Math.max(seq, json.seq);
           const touched = new Set(json.tables);
+          if (changedGeneration) for (const watch of watches.values()) watch.reset({ loading: true });
           for (const watch of watches.values()) {
+            if (changedGeneration) notify(watch);
             if (changedGeneration || watch.tables.size === 0 || [...watch.tables].some((t) => touched.has(t))) void refresh(watch);
           }
         }
       } catch {
-        if (closed) break;
+        if (closed || storeRefusal) break;
         if (credentials) setLink("offline");
         await new Promise((r) => setTimeout(r, 1000));
       }
@@ -417,11 +533,13 @@ export function createClient(options: ClientOptions): Client {
 
   async function send(entry: (typeof pending)[number]): Promise<boolean> {
     const result = await post(`/m/${entry.op.name}`, { id: entry.id, args: entry.args });
+    if (storeRefusal) return true;
     if (!result.ok) return false;
     const json = result.json;
     if (((json.why ?? json.denied) as Refusal | undefined)?.retryable) return false;
     if (json.state === "sent") {
       const at = Number(json.seq ?? 0);
+      minimumReadSeq = Math.max(minimumReadSeq, at);
       const outcome = json.replayed === true
         ? { state: "sent", id: entry.id, seq: at, replayed: true } as const
         : { state: "sent", id: entry.id, seq: at, result: json.result } as const;
@@ -447,14 +565,14 @@ export function createClient(options: ClientOptions): Client {
     if (flushing) return flushing;
     if (retry) { clearTimeout(retry); retry = undefined; }
     const run = async () => {
-      while (!closed && pending.length > 0 && link !== "signed-out") {
+      while (!closed && !storeRefusal && pending.length > 0 && link !== "signed-out") {
         const entry = pending[0]!;
         sending = entry;
         let sent: boolean;
         try { sent = await send(entry); }
         finally { sending = null; }
         if (!sent) {
-          if (closed || !credentials) return;
+          if (closed || storeRefusal || !credentials) return;
           retry = setTimeout(() => { retry = undefined; void flush(); }, retryMs);
           (retry as { unref?: () => void }).unref?.();
           retryMs = Math.min(retryMs * 2, 5000);
@@ -472,16 +590,22 @@ export function createClient(options: ClientOptions): Client {
 
   const client: Client = {
     act(op, args, options) {
-      return act(op, args, options, options?.id ?? mintId(), post, () => closed ? ended() : !credentials || link === "signed-out" ? auth() : link !== "online" ? offline() : undefined);
+      return act(op, args, options, options?.id ?? mintId(), post, () => storeRefusal ?? (closed ? ended() : !credentials || link === "signed-out" ? auth() : link !== "online" ? offline() : undefined), async id => { if (closed) { await closing; return storeRefusal ? { ok: true, json: { denied: storeRefusal } } : closingResponses.take(id); } });
     },
     async query(op, args) {
-      return (await runQuery(op, args)).read;
+      const read = new ReadObservation<unknown>();
+      const result = await read.fetch(() => runQuery(op, args), () => {}, { accept: currentRead });
+      // A concurrent response or write can retire the accepted result before
+      // this continuation runs. Do not start an additional retry round here.
+      if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
+      if (!credentials) return { denied: auth() };
+      return currentRead(result) ? result.read : { loading: true };
     },
     observe<A, R>(op: Query<A, R>, args: A): Observed<R> {
       const key = `${op.name}:${JSON.stringify(args)}`;
       let watch = watches.get(key);
       if (!watch) {
-        watch = { op: op as Query<unknown, unknown>, args, key, tables: new Set(), snapshot: { loading: true }, lastServer: null, lastServerAt: 0, subscribers: new Set(), inFlight: false, dirty: false, expiryTimer: null };
+        watch = Object.assign(new ReadObservation<unknown>(), { op: op as Query<unknown, unknown>, args, key, tables: new Set<string>(), subscribers: new Set<() => void>(), inFlight: false, dirty: false, expiryTimer: null });
         watches.set(key, watch);
         void refresh(watch);
         void poll();
@@ -489,7 +613,7 @@ export function createClient(options: ClientOptions): Client {
       const own = watch;
       const mine = new Set<() => void>();
       return {
-        getSnapshot: () => own.snapshot as Read<R>,
+        getSnapshot: () => own.read(storeRefusal ?? (closed ? ended() : !credentials ? auth() : null)) as Read<R>,
         subscribe(notifyMe) {
           mine.add(notifyMe);
           own.subscribers.add(notifyMe);
@@ -509,7 +633,8 @@ export function createClient(options: ClientOptions): Client {
         close() {
           for (const s of mine) own.subscribers.delete(s);
           if (own.subscribers.size === 0) {
-            watches.delete(own.key);
+            if (watches.get(own.key) === own) watches.delete(own.key);
+            own.reset({ loading: true });
             if (own.expiryTimer) clearTimeout(own.expiryTimer);
             own.expiryTimer = null;
           }
@@ -518,8 +643,8 @@ export function createClient(options: ClientOptions): Client {
     },
     async mutate<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
       const id = options?.id === undefined ? mintId() : options.id;
-      if (closed || !credentials || link === "signed-out") {
-        const failed = { state: "failed" as const, id, why: closed ? ended() : { code: "E_AUTH", family: "auth", message: "sign in to write" } };
+      if (closed || !credentials || link === "signed-out" || storeRefusal) {
+        const failed = { state: "failed" as const, id, why: storeRefusal ?? (closed ? ended() : auth()) };
         return mutationIds.knows(id) ? failed : emitWrite(failed);
       }
       return mutationIds.run<R>(id, op.name, args, () => client.write(id), async (args, write) => {
@@ -530,31 +655,41 @@ export function createClient(options: ClientOptions): Client {
         history.remember(write);
         const attempt = flush();
         if (link !== "online") return write;
-        return Promise.race([settled, attempt.then((): Write => write)]) as Promise<Write<R>>;
+        const outcome = await Promise.race([settled, attempt.then((): Write => write)]) as Write<R>;
+        if (outcome.state === "pending" && closed) { await closing; return closingResponses.write(outcome); }
+        return outcome;
       });
     },
     async write(id) { const receipt = await history.read(id); return !closed && credentials ? receipt : undefined; },
     acquired: false,
     onAcquired: () => () => {},
     async upload(bytes) {
+      if (storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
       if (refreshing) await refreshing;
-      if (closed) return { ok: false, why: ended() };
+      if (storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
       if (!credentials || link === "signed-out") return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to upload" } };
-      const revision = credentialRevision;
-      const uploaded = await uploadAsset(base, { ...headers }, doFetch, bytes);
-      if (!uploaded.ok && await obsoleteRefusal(uploaded.why, revision)) return client.upload(bytes);
+      const requestHeaders = { ...headers };
+      const sameSession = () => !refreshing && requestHeaders.authorization === headers.authorization;
+      const uploaded = await waitForCaller(uploadAsset(base, requestHeaders, doFetch, bytes,
+        () => !storeRefusal && !closed && credentials && sameSession()), aborter.signal);
+      // Uploads have no mutation id: an obsolete success cannot be replayed or
+      // handed to another session. A stopped retry also returns this refusal.
+      if (!uploaded || storeRefusal || closed || !credentials) return { ok: false, why: storeRefusal ?? (closed ? ended() : auth()) };
+      if (!sameSession()) return { ok: false, why: { code: "E_AUTH", family: "auth", message: "the session changed during upload; start the upload again" } };
+      if (!uploaded.ok && uploaded.why.code === "E_AUTH") endCredentials();
       if (!uploaded.ok && uploaded.why.code === "E_OFFLINE") setLink("offline");
       return uploaded;
     },
     async asset(id) {
+      if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
       if (refreshing) await refreshing;
-      if (closed) return { denied: ended() };
+      if (storeRefusal || closed) return { denied: storeRefusal ?? ended() };
       if (!credentials) return { denied: auth() };
       const revision = credentialRevision;
-      const read = await fetchAsset(base, { ...headers }, doFetch, id);
-      if (closed || !credentials) {
+      const read = await fetchAsset(base, { ...headers }, doFetch, id, undefined, aborter.signal);
+      if (storeRefusal || closed || !credentials) {
         if ("url" in read) read.revoke();
-        return { denied: closed ? ended() : auth() };
+        return { denied: storeRefusal ?? (closed ? ended() : auth()) };
       }
       // A successful reply is just as credential-bound as a refusal. Do not
       // publish bytes fetched under a bearer that rotated while it was away.
@@ -563,9 +698,13 @@ export function createClient(options: ClientOptions): Client {
         return client.asset(id);
       }
       if ("denied" in read && await obsoleteRefusal(read.denied, revision)) return client.asset(id);
+      if (storeRefusal || closed || !credentials) {
+        if ("url" in read) read.revoke();
+        return { denied: storeRefusal ?? (closed ? ended() : auth()) };
+      }
       return read;
     },
-    assetSource: (id) => assetSource(base, headers, id),
+    assetSource: (id) => storeRefusal || closed ? { uri: "", headers: {} } : assetSource(base, headers, id),
     link: () => link,
     onLink(listener) {
       linkListeners.add(listener);
@@ -587,56 +726,66 @@ export function createClient(options: ClientOptions): Client {
     },
     refreshSession: refreshCurrent,
     async logoutAll() {
+      if (storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
       if (refreshing) await refreshing;
-      if (closed) return { ok: false, why: ended() };
+      if (storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
       const bearer = headers.authorization?.slice("Bearer ".length);
       if (!credentials || !bearer) return { ok: false, why: { code: "E_AUTH", family: "auth", message: "sign in to revoke sessions" } };
       const revision = credentialRevision;
-      const revoked = await revokeAllSessions(base, bearer, doFetch);
+      const revoked = await waitForCaller(revokeAllSessions(base, bearer, doFetch), aborter.signal);
+      if (!revoked || storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
       if (revoked.ok) {
         endCredentials();
         await client.close();
       } else {
         if (await obsoleteRefusal(revoked.why, revision)) return client.logoutAll();
+        if (storeRefusal || closed) return { ok: false, why: storeRefusal ?? ended() };
         if (!credentials) await client.close();
       }
       return revoked;
     },
     async signOut() {
       const bearer = headers.authorization?.slice("Bearer ".length);
-      const rotation = rotatingSession;
       endCredentials();
-      // A committed rotation may still deliver its successor. Revoke it without
-      // adopting it or letting a stalled response delay local sign-out.
-      if (rotation) void rotation.then(result => {
-        if (result.ok && result.session.token !== bearer) return logout(base, result.session.token, doFetch);
-      }).catch(() => {});
+      // refreshCurrent owns revocation of any late, unkept successor.
       // Close immediately so outstanding work cannot reuse the credentials.
       const closing = client.close();
-      if (bearer) await logout(base, bearer, doFetch);
+      if (bearer) void logout(base, bearer, doFetch);
       await closing;
     },
     close() {
       if (closing) return closing;
       closed = true;
+      closingResponses.begin();
       aborter.abort();
       if (retry) clearTimeout(retry);
       if (refreshTimer) clearTimeout(refreshTimer);
       for (const watch of watches.values()) if (watch.expiryTimer) clearTimeout(watch.expiryTimer);
+      for (const watch of watches.values()) watch.publish({ denied: storeRefusal ?? ended() });
+      for (const watch of watches.values()) notify(watch);
       watches.clear();
       linkListeners.clear();
       viewerListeners.clear();
       for (const entry of pending) {
-        const outcome = { state: "failed", id: entry.id, why: { ...ended(), message: `client closed before the outcome of write ${entry.id} was known` } } as const;
+        // The request already dispatched may have committed. Its send owns
+        // settlement; cancellation without a receipt leaves the id pending.
+        if (entry === sending) continue;
+        const outcome = { state: "pending", id: entry.id } as const;
         entry.resolve(outcome);
-        emitWrite(outcome);
+        history.remember(outcome);
       }
       writeListeners.clear();
-      closing = Promise.allSettled([flushing, refreshing, ...requests]).then(() => { pending.length = 0; sessionListeners.clear(); });
+      closing = Promise.allSettled([flushing, refreshing, ...requests]).then(() => { pending.length = 0; sessionListeners.clear(); closingResponses.finish(); });
       return closing;
     },
   };
-  if (session && session.kind !== "action" && session.expiresAt - Date.now() <= refreshBeforeExpiry) void refreshCurrent();
-  else scheduleRefresh();
+  trackDispatch(client, dispatch);
+  const start = () => {
+    if (closed) return;
+    if (session && session.kind !== "action" && session.expiresAt - Date.now() <= refreshBeforeExpiry) void refreshCurrent();
+    else scheduleRefresh();
+  };
+  trackRotation(client, () => refreshing);
+  if (!deferStart(options, start)) start();
   return client;
 }

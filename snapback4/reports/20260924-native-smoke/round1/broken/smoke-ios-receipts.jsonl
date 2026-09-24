@@ -1,0 +1,3 @@
+{"smoke":{"segment":"prime","pass":true,"startedAt":1790264570326,"endedAt":1790264570479,"durationMs":153,"origin":"http://127.0.0.1:4448","viewer":"guest:01M3A16TBRKV8F02EWM1SNHBTB","link":"online","acquired":true,"backendRequired":false,"generation":1,"rows":{"conversations":1,"memberships":1,"messageCounts":1,"messages":3,"profiles":1},"storeId":"2a7835a658a9b70460840477cc8b4ed8","watermark":2,"queries":[],"errors":[]},"witness":{"at":"2026-09-24T15:42:50.479Z","step":"primed:running"}}
+{"witness":{"at":"2026-09-24T15:42:50.479Z","step":"primed"}}
+{"smoke":{"segment":"offline","pass":false,"errors":[{"message":"Lane N deliberate offline start failure","fatal":true}]},"witness":{"at":"2026-09-24T15:42:53.025Z","step":"smoke:failed"}}

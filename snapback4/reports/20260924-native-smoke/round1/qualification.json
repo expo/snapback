@@ -1,0 +1,40 @@
+{
+  "baseCommit": "93e70f7c08e4338fce008716708645bddb1cd31e",
+  "branch": "sb4-native/n-smoke",
+  "host": "Charlies-MacBook-Air.local",
+  "cpu": "Apple M5",
+  "macOS": "27.0",
+  "xcode": "Xcode 27.0\nBuild version 27A266a",
+  "node": "v24.18.0",
+  "bun": "1.4.2",
+  "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "simulator": {
+    "udid": "92367552-2B65-40D8-9697-E0C33793F72C",
+    "name": "Snapback4 Lane N Round 1",
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-4",
+    "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro"
+  },
+  "nativePackageVersion": "0.4.0",
+  "nativeFrameworkSha256": {
+    "packages/snapback4-expo/ios/Snapback4Device.xcframework/Info.plist": "20038f99c8c5db5438234379bf35ce34dc2b9b148dc83452bcff362397d85d0d",
+    "packages/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a": "c41ab5c28a5f9bc2516783efa1cf2962189859f468b423cbe7258e59570a0eff",
+    "packages/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/snapback4.h": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab",
+    "packages/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "packages/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a": "2fdb812d4250d041734630e06ce8b373ab9df53b05278d72719fac4f5534c207",
+    "packages/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64/Headers/snapback4.h": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab",
+    "packages/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329"
+  },
+  "smokeAppRunner": "witness() returns null for --smoke; ordinary createApp/AppProvider path",
+  "negativeControl": "broken-build.patch applied only while building the deliberately broken Release; source restored afterward",
+  "round": 1,
+  "nativeFrameworkUnchanged": true,
+  "driverSha256": "82c84dc445dbbc0aa42c9f45a6bd55e5a014457cf2546bd4b4dea9b3abe7e008",
+  "sourceSha256": {
+    "packages/snapback4-expo/src/smoke.ts": "e38c1250b68e509cbc84eec20e1880c09ebc52c3f61e4812e24bb117dfa27575",
+    "packages/snapback4/src/app.ts": "b9e7017f4c69817cc96d36ce134c681c4d591d493da8acc7af6d0b8ae07db760",
+    "packages/snapback4/src/local.ts": "0eae1e5caef975ff4273c9bdf49b0df82ef351017616c5d7929ff77190eeb768",
+    "crates/snapback4/src/verbs/witness.rs": "f86d019e617b27bd82f9cfd44089dde20e5a093755b3fad0dbbf3798045c6ddc",
+    "crates/snapback4/src/verbs/witness/smoke.rs": "ecc3890e2bf3d69ee7be55065490b4320727558d650329c8d49886dd85ef80d2"
+  },
+  "simulatorDeletedAfterRuns": true
+}

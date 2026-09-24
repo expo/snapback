@@ -7,6 +7,20 @@ const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
 const SOURCE: &str = "use personas alice\ntable stories:\n  at: time\n  expiresAt: time ?\n  by byExpiry: expiresAt\n  expire at .expiresAt\n  public 'clock test'\n  insert <- allow\n  sync public\ntable counters:\n  n: int\n  at: time\n  public 'clock test'\n  insert <- allow\n  sync public\nmutation post():\n  return insert stories {at: now, expiresAt: now + 180000}\nmutation counter():\n  return insert counters {n: 0, at: now}\nquery stories():\n  return stories first 10 by byId\nquery counters():\n  return counters first 10 by byId\nquery time():\n  return now\njob tick():\n  chunk c in counters first 10 by byId:\n    update counters[c.id] {n: c.n + 1, at: now}\nschedule ticking every 2m: tick\n";
 
 struct Fixture(PathBuf);
+
+#[test]
+fn doctor_reports_the_exact_schedule_period_without_minute_truncation() {
+    for (period, shown) in [("90s", "90s"), ("90001ms", "90001ms"), ("120s", "2m")] {
+        let f = Fixture::new(&format!("period-{period}"));
+        fs::write(f.0.join("snapback/schema.q"), SOURCE.replace("every 2m:", &format!("every {period}:"))).unwrap();
+        let _host = f.start(&["dev", "--no-watch", "--hold-schedules"]);
+        let output = f.command(&["doctor"]);
+        let text = String::from_utf8_lossy(&output.stdout);
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+        assert!(text.contains(&format!("schedule  ticking every {shown} → tick")), "{text}");
+    }
+}
+
 impl Fixture {
     fn new(label: &str) -> Self {
         let path = std::env::temp_dir().join(format!("sb4-clock-{}-{label}", std::process::id()));
@@ -449,11 +463,14 @@ fn grace_push_is_deferred_until_clock_advance_then_delivered_once() {
     let auth = effect_token(&f, false);
     host.request("GET", "/changes?wait=0", json!(null));
     assert_eq!(host.post("/m/push", json!({"id":"push", "args":{}}))["state"], "sent");
+    let admitted_by = snapback4_core::now_ms();
     let queued = host.auth_request("GET", "/effects", json!(null), &auth);
     assert_eq!(queued["effects"].as_array().unwrap().len(), 1, "grace must defer the push, not lose it: {queued}");
     let effect = &queued["effects"][0];
     let delay = effect["nextAt"].as_i64().unwrap() - effect["at"].as_i64().unwrap();
-    assert!((1..=35_000).contains(&delay), "{effect}");
+    // Presence samples its clock after the mutation's `at` was captured.
+    // Admission completion brackets that sample without adding clock tolerance.
+    assert!(delay > 0 && effect["nextAt"].as_i64().unwrap() <= admitted_by + 35_000, "{effect}");
     assert_eq!(host.auth_request("POST", "/effects/claim", json!({}), &auth)["effects"], json!([]));
     let before = output_json(f.command(&["doctor", "--json"]));
     let lines = before["lines"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect::<Vec<_>>().join("\n");
@@ -526,9 +543,10 @@ fn grace_push_serve_keeps_deadline_and_reconnect_record_for_claim_after_restart(
     assert_eq!(host.auth_request("POST", &format!("/effects/{}/done", immediate["id"].as_str().unwrap()), json!({}), &auth)["ok"], true);
     host.auth_request("GET", "/changes?wait=0", json!(null), &auth);
     assert_eq!(host.auth_request("POST", "/m/push", json!({"id":"deferred", "args":{}}), &auth)["state"], "sent");
+    let admitted_by = snapback4_core::now_ms();
     let queued = host.auth_request("GET", "/effects?state=queued", json!(null), &auth)["effects"][0].clone();
     let deadline = queued["nextAt"].as_i64().unwrap();
-    assert!((1..=35_000).contains(&(deadline - queued["at"].as_i64().unwrap())), "{queued}");
+    assert!(deadline > queued["at"].as_i64().unwrap() && deadline <= admitted_by + 35_000, "{queued}");
     assert_eq!(host.auth_request("POST", "/effects/claim", json!({}), &auth)["effects"], json!([]));
     host.auth_request("GET", "/changes?wait=0", json!(null), &auth);
     drop(host);

@@ -1,6 +1,23 @@
 //! Read answers, pages and continuation. Compiled by tests/guide.rs.
 pub const CARD: &str = r##"# Reads
 
+Reads select authorized rows by id, predicate or search text.
+Add an order, page size and cursor to browse a population.
+
+```quarry
+query readForms(roomId: rooms, messageId: messages, c: cursor ?):
+  one = messages[messageId]
+  must = messages[messageId] ! else NOT_FOUND
+  roster = members where .roomId = roomId
+  member = exists members[roomId, viewer]
+  admin = exists members[roomId = roomId, principal = viewer, role = 'admin']
+  return { one, must, roster, member, admin }
+query newest(roomId: rooms, c: cursor ?):
+  return messages where .roomId = roomId and .body != null last 20 by .at after c
+query recentTotal(roomId: rooms, start: time, end: time):
+  return count(messages where .roomId = roomId and .at >= start and .at <= end)
+```
+
 State the rows, then the order and page. `messages where .roomId = roomId
 last 20 by .at after c` means the newest matching messages. The compiler
 chooses the index. `messages[messageId]` always reads one id. A full declared
@@ -25,13 +42,17 @@ changes can move rows across a saved position. Restart to see the new order.
 Value lanes deduplicate values; each lane keeps its source rule. Null never
 becomes an index pin. When a membership list includes null, one ordinary
 filtered lane reads the null-valued rows under the same rule.
+A keyed `exists` inside `where` probes one authorized row per candidate;
+when its discovery prefix cannot decide the other table's read rule, the
+planner retains those probes and the certificate names the skipped rows.
 A cut during discovery or while any lane head is unknown is incomplete and
 has no cursor. A full page never certifies a prefix of an unfinished lane list.
 
-E_QUARRY_POSITIONAL_SCAN means a positional key would scan a population.
-Use `posts where .authorId = owner last 20 by .at`; `posts[id = postId]` reads
-one id, and named keys such as `profiles[principal = viewer]` read unique keys.
-
+A full positional unique key can be followed by named tests on that row:
+`members[org, viewer, role = 'admin']`. The prefix must identify one declared
+unique key; inferred indexes never resolve positions. E_QUARRY_KEY_ORDER
+means a positional component followed a named one: move all positional
+components first, then write the named tests.
 
 Every ready `Read` carries `cut: 'meter' | 'words' | null` beside `complete`,
 on the server and either device store. An empty page with `cut: 'meter'`
@@ -44,10 +65,17 @@ Non-uniform server reads report `cut: null`: the reason is withheld, with `compl
 missing coverage or a page without continuation. For `complete: false` with
 `cut: null`, render "Results may be incomplete", even when empty; never "no matches".
 A complete empty page has `cut: null` and `complete: true`.
+Online observations retain nothing, discard responses older than observed commits in the same store, and permanently refuse on store replacement or regression.
+A local observation may keep its previous answer with `fresh: false` and `since`
+only during an unavailable device read's server fallback, ending at fetch
+settlement or any local commit, reset, adoption, generation, account change or close.
+A ready list read always carries an array; an absent point can still be null.
+`usePage` keeps earlier pages visible while a later page is unavailable.
 For ordinary device reads, online fallback asks the server only for a missing
 fact or unknown presence; a meter or word cut and a cursorless page stay local,
 as do held queries and retained left groups, and pending predictable writes
-still prevent fallback.
+still prevent fallback when the device has an answer. An unavailable ordinary
+device read asks the server while online even with pending writes.
 
 A read denied by a table's rule answers as an empty page, not a refusal,
 and a client cannot tell it apart from an empty readable page — by design,
@@ -55,39 +83,6 @@ so that a hidden row cannot be probed. For access UI, use a membership query
 the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
-
-Declare `query name(..) held:` for a device-only answer. `check` prints
-`runs: device (held; server refuses E_QUERY_HELD; no server fallback)`.
-`dev`, `serve` and `run` refuse it with E_QUERY_HELD and a guide search rewrite;
-the local clients answer from held rows, online or offline, without server
-fallback even at a horizon or cut. With horizon-free sources, `check` reports
-horizon-free source coverage. Answer completeness still depends on runtime
-authorization, limits and continuation; the marker does not acquire rows.
-An unscoped search through expiring memberships can remain non-uniform and
-incomplete below every limit. A `first 1` page without a cursor is incomplete
-when its range contains two held rows. Read `complete` on each answer; a held query with an
-online-only source or no read sites gets no source-coverage line.
-Sources include reads nested in expressions such as the search text after `matching`.
-For full server history beyond holdings, use the grouped or newest form on the search card.
-
-To inspect a real account's server work under loopback `dev`, use the online
-client `createClient({ url, session })` (or a bearer `token`); meters are available by default.
-Successful `query` and `observe` answers include `Read.meter`:
-`{ examined, indexEntries, probes, steps, heapBytes, outputBytes, rowsWritten, cut }`.
-`Read.meter.cut` keeps the precise reason even for a non-uniform server read;
-it is `meter`, `words` or null, with `meter` winning when both limits cut.
-These are the engine's counters for that answer, not latency or process memory;
-`probes` is rule_probes and `heapBytes` is charged heap work. A remembered
-offline watch keeps the counters of its last server answer. Local device reads
-have no meter; use the online client to inspect the server for the same account.
-`meter: true` and `x-snapback-meter: 1` on `POST /q/<op>` remain explicit forms.
-Loopback dev includes the field without either; `serve` ignores the header and never returns
-meters. The counters can reflect hidden work and are development-only.
-`snapback4 run <op> '<json args>' --as <principal id> --json` also prints
-the engine's `metered` counters against `.snapback4/store.sqlite`.
-A declared persona such as `alice` resolves to `dev:alice`; any other `--as`
-value is used verbatim (including `user:...`, `member:42` and `dev:alice`).
-The default is `dev:alice`. Jobs still run as the system.
 
 Named equalities covering a total unique key read one row and check any extra
 columns there: `t[key = x, col = y]` returns null on a mismatch, and
@@ -107,20 +102,6 @@ a page, empty when no visible row matches. A reference does not prove existence.
 `snapback4 why <operation>` shows each read's source site, selected index,
 column/key bindings, result form and selection reason; the same facts appear
 in `check --json` execution sites. These are binder facts, not measured work.
-
-```quarry
-query readForms(roomId: rooms, messageId: messages, c: cursor ?):
-  one = messages[messageId]
-  must = messages[messageId] ! else NOT_FOUND
-  roster = members where .roomId = roomId
-  member = exists members[roomId, viewer]
-  admin = exists members[roomId = roomId, principal = viewer, role = 'admin']
-  return { one, must, roster, member, admin }
-query newest(roomId: rooms, c: cursor ?):
-  return messages where .roomId = roomId and .body != null last 20 by .at after c
-query recentTotal(roomId: rooms, start: time, end: time):
-  return count(messages where .roomId = roomId and .at >= start and .at <= end)
-```
 
 For an expiring table, return the deadline with each row:
 
@@ -209,20 +190,77 @@ after the source rule. Parenthesize a nested read with its own modifiers:
 `exists (messages[roomId = .roomId] matching q)`. The named inner key binds
 the outer row's room; inside a predicate, `.` denotes that predicate's row.
 
-E_QUARRY_MODIFIER_SCOPE means a nested read's modifiers are ambiguous.
-Parenthesize the inner read, for example `exists (messages[roomId = .roomId]
-matching q)`, and put the outer page's `by .roomId after c` after its predicate.
+## Nullable predicates and enum lanes
 
-N_SEEK is advice for an older explicit-index read whose residual filter can
-seek. For a new read, write `messages where .roomId = roomId and .at >= start
-first 20 by .at after c`; the planner makes that comparison a seek.
+Inside `where`, an ordering comparison (`<`, `<=`, `>`, `>=`) with a nullable
+column of that row is false when the column is null. `.due < now` therefore
+selects overdue tasks without a guard or a default. On the first order key it
+is a seek when its endpoint is already present and cannot fail; a nullable
+upper-only seek starts exclusively above null. `= null`
+and `!= null` keep their ordinary meaning. Optional arguments and locals,
+and comparisons outside `where`, still need a presence guard.
+An endpoint behind a guard, such as `d != 0 and .due > 10 / d` or
+`x != null and .due < x` for optional `x`, stays in the residual predicate,
+even with `by .due`. The guard runs before that comparison. Present literals,
+`now`, required parameters and arithmetic proven not to overflow can seek.
+Parenthesized predicates also work before a named shape.
+
+For a required enum with at most eight variants, `.status != 'done'` opens
+the same pinned value lanes as `.status in ['todo', 'doing']`. A bound value
+can also select the excluded variant. Fallible expressions remain residual
+predicates so their guards still run first. Nullable enums retain a residual
+inequality, including null rows; larger enums also stay residual.
+Value lanes are chosen only when every lane's prefix decides the source read
+rule. Otherwise both `!=` and `in` remain residual filters on one scan, which
+can continue through visible rows with `next`; the non-uniform read still
+reports `complete: false`.
+
+```quarry
+table workTasks:
+  owner: principal
+  cap 100 by owner
+  due: time ?
+  status: enum('todo', 'doing', 'done')
+  assignee: principal ?
+  createdAt: time
+  read <- .owner = viewer
+  sync to .owner
+shape workTaskCard = { id, due }
+query overdueTasks(c: cursor ?):
+  return workTasks where .owner = viewer and .due < now first 50 by .due after c
+query overdueCards(c: cursor ?):
+  return workTasks[owner = viewer] first 50 by .due after c where (.due < now) workTaskCard
+query openTasks(c: cursor ?):
+  return workTasks where .owner = viewer and .status != 'done' first 50 by .createdAt after c
+query openTaskValues(c: cursor ?):
+  return workTasks where .owner = viewer and .status in ['todo', 'doing'] first 50 by .createdAt after c
+query board(status: enum('todo', 'doing', 'done') ?, assignee: principal ?, c: cursor ?):
+  return workTasks where .owner = viewer and (status = null or .status = status) and (assignee = null or .assignee = assignee) last 50 by .createdAt after c
+```
+
+Optional filters `(status = null or .status = status)` (also `==`, either order)
+choose an indexed plan for each presence combination; reset the cursor when
+filters change, and inspect each variant with `check --cost`.
+At most three optional inputs expand; N_OPTIONAL_FILTER_LIMIT names any extra
+residual filters, which can stay metered or move into separate queries.
+For mutation population loops and top-level job sweeps, put the optional
+condition inside an ordinary capped loop or stable sweep; a presence-selected
+read cannot supply that loop domain.
+
+`check --cost` displays the residual that still tests each visible candidate,
+including `in` when another predicate supplies the lanes. A predicate fully
+extracted into pins or lanes has no residual-skip clause. These explanations
+do not change read rules, meter bounds or completeness.
 
 ## Pages without a cursor
 
 A page a query returns without
 a cursor cannot be continued: an unfiltered page with more rows reads
 `complete: false` with no `next` (N_NO_CURSOR); declare `c: cursor ?` and
-page with `after c`, or declare `cap 50 by conversationId` on the table
+page with `after c`, or use a narrower key, such as
+`chatDeliveries where .messageId = messageId` without a page clause when a
+declared cap bounds that message's acknowledgements. A matching set can
+declare `cap 50 by conversationId` on the table
 then read the whole group: `t where .conversationId = conversationId`, if 50 is the intended group limit
 and no existing cap already bounds that group. Unscoped pages and pages
 whose existing cap exceeds their bound or the meter still need continuation.
@@ -248,9 +286,14 @@ explicit pagination for a returned page. `first N` remains an ordinary page;
 `count(messages where .roomId = roomId)` and `sum(orders where .owner =
 viewer, .amount)` stream their domains. They authorize and filter each row,
 then release it. They do not retain a page of bodies. A meter cut or unknown
-device coverage returns `data: null, complete: false`, never a partial total.
+device coverage leaves the client read `loading`, never a partial total.
 Use a maintained view for a total that should be updated with each write.
 `count(page)` still counts only that page.
+An unpaged aggregate keeps enum inequalities and membership predicates as
+residual filters on its streaming scan. It does not turn them into a bounded
+merge page: `count(tasks where .status != 'done')` and
+`sum(tasks where .status in ['todo', 'doing'], .n)` return either the whole
+authorized total or null on interruption. Scan admission remains unchanged.
 
 `exists messages where .roomId = roomId` stops at a visible match. It accepts
 predicates and seeks, but no page clause or cursor. A positive held witness
@@ -260,13 +303,14 @@ admission; rule probes keep exact-key semantics.
 
 Finite ranked windows use inclusive UTC buckets from the lower through the
 upper bound. Exact endpoints still filter rows. An `in` predicate over a list
-or a read's column opens one ruled scan per distinct non-null value. Unknown
+or a read's column opens one ruled scan per distinct non-null value; a null
+value adds one authorized null-filtered scan for a nullable column. Unknown
 or cut discovery cannot certify the page. Use `check --cost` to inspect these
 plans. Unknown widths print `lanes ≤ meter`; the author writes no lane list.
 
 A resumable read-meter cut after every required head is known can carry `next`
 after its last fully shaped emitted row, subject to final-answer eligibility.
-Heap exhaustion clears the whole page to `data: null` with no continuation,
+Heap exhaustion clears the whole page and leaves the client read `loading`, with no continuation,
 even during the drain. Step exhaustion aborts; output exhaustion can refuse.
 A uniform matching scan is always lazy. Opening and word-limit cuts cannot
 supply continuation. A terminal full page need not carry `next`. Following a
@@ -333,4 +377,53 @@ column, an alias, a helper result or a filtered/shaped list from a page.
 It need not preserve the whole group. If its body writes rows, including
 inside helpers or nested loops, the original `E_STRUCTURAL_FANOUT` check
 still applies. Every mutation page still needs a uniform plain prefix over
-a table without expiry; the meter and its ceilings are unchanged."##;
+a table without expiry; the meter and its ceilings are unchanged.
+
+## Operations
+
+To inspect a real account's server work under loopback `dev`, use the online
+client `createClient({ url, session })` (or a bearer `token`); meters are available by default.
+Successful `query` and `observe` answers include `Read.meter`:
+`{ examined, indexEntries, probes, steps, heapBytes, outputBytes, rowsWritten, cut }`.
+`Read.meter.cut` keeps the precise reason even for a non-uniform server read;
+it is `meter`, `words` or null, with `meter` winning when both limits cut.
+These are the engine's counters for that answer, not latency or process memory;
+`probes` is rule_probes and `heapBytes` is charged heap work. A local fallback
+keeps its previous answer’s counters only until the fetch settles. Local device reads
+have no meter; use the online client to inspect the server for the same account.
+`meter: true` and `x-snapback-meter: 1` on `POST /q/<op>` remain explicit forms.
+Loopback dev includes the field without either; `serve` ignores the header and never returns
+meters. The counters can reflect hidden work and are development-only.
+`snapback4 run <op> '<json args>' --as <principal id> --json` also prints
+the engine's `metered` counters against `.snapback4/store.sqlite`.
+A declared persona such as `alice` resolves to `dev:alice`; any other `--as`
+value is used verbatim (including `user:...`, `member:42` and `dev:alice`).
+The default is `dev:alice`. Jobs still run as the system.
+
+## Refusals
+
+Declare `query name(..) held:` for a device-only answer. `check` prints
+`runs: device (held; server refuses E_QUERY_HELD; no server fallback)`.
+`dev`, `serve` and `run` refuse it with E_QUERY_HELD and a guide search rewrite;
+the local clients answer from held rows, online or offline, without server
+fallback even at a horizon or cut. With horizon-free sources, `check` reports
+horizon-free source coverage. Answer completeness still depends on runtime
+authorization, limits and continuation; the marker does not acquire rows.
+An unscoped search through expiring memberships can remain non-uniform and
+incomplete below every limit. A `first 1` page without a cursor is incomplete
+when its range contains two held rows. Read `complete` on each answer; a held query with an
+online-only source or no read sites gets no source-coverage line.
+Sources include reads nested in expressions such as the search text after `matching`.
+For full server history beyond holdings, use the grouped or newest form on the search card.
+
+E_QUARRY_POSITIONAL_SCAN means a positional key would scan a population.
+Use `posts where .authorId = owner last 20 by .at`; `posts[id = postId]` reads
+one id, and named keys such as `profiles[principal = viewer]` read unique keys.
+
+E_QUARRY_MODIFIER_SCOPE means a nested read's modifiers are ambiguous.
+Parenthesize the inner read, for example `exists (messages[roomId = .roomId]
+matching q)`, and put the outer page's `by .roomId after c` after its predicate.
+
+N_SEEK is advice for an older explicit-index read whose residual filter can
+seek. For a new read, write `messages where .roomId = roomId and .at >= start
+first 20 by .at after c`; the planner makes that comparison a seek."##;

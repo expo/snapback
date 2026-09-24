@@ -13,6 +13,7 @@ mod dependencies;
 #[path = "scale/windows.rs"]
 mod windows;
 pub(crate) use display::summary;
+pub(crate) use display::expr as expression;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -27,6 +28,15 @@ pub(crate) struct Certificate {
     pub growth_sites: Vec<Growth>,
     pub per_write: Vec<String>,
     pub whole_job: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub variants: Vec<Variant>,
+}
+
+#[derive(Debug, Serialize)]
+pub(crate) struct Variant {
+    pub when: String,
+    pub class: Class,
+    pub indexes: BTreeSet<String>,
 }
 
 /// Bounds are conservative allowances, not predictions or a promise that a
@@ -43,22 +53,32 @@ pub(crate) struct Bounds {
 
 #[derive(Debug, PartialEq, Eq, Serialize)]
 pub(crate) struct Growth {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub when: Option<String>,
     pub site: String,
     pub reason: String,
     pub rewrite: String,
 }
 
 pub(crate) fn analyze(schema: &Schema, program: &Program) -> Certificate {
+    analyze_sources(schema, program, None)
+}
+
+pub(crate) fn analyze_bound(schema: &Schema, bound: &snapback4_lang::BoundProgram) -> Certificate {
+    analyze_sources(schema, &bound.program, Some(bound))
+}
+
+fn analyze_sources(schema: &Schema, program: &Program, source: Option<&snapback4_lang::BoundProgram>) -> Certificate {
     let ceilings = if program.kind == ProgramKind::Job { Ceilings::job() } else { Ceilings::default() };
     let mut a = Analysis {
-        schema, program,
+        schema, program, source,
         result: Certificate {
             operation: program.name.clone(), class: Class::Constant,
             per_chunk: program.kind == ProgramKind::Job,
             bounds: Bounds { lanes: Some(0), meters: ceilings, ..Bounds::default() },
-            growth_sites: Vec::new(), per_write: Vec::new(), whole_job: Vec::new(),
+            growth_sites: Vec::new(), per_write: Vec::new(), whole_job: Vec::new(), variants: Vec::new(),
         },
-        data: BTreeMap::new(), in_filter: false,
+        labels: BTreeMap::new(), data: BTreeMap::new(), in_filter: false, has_variants: snapback4_core::ir::scans(program).iter().any(|scan| scan.variant.is_some()), conditions: Vec::new(),
     };
     for (name, kind) in &program.args {
         a.data.insert(name.clone(), false);
@@ -85,8 +105,9 @@ pub(crate) fn analyze(schema: &Schema, program: &Program) -> Certificate {
         }
         if program.kind == ProgramKind::Job {
             for stmt in &program.body {
-                if let Stmt::For { domain: LoopDomain::Page(scan), .. } = stmt {
-                    a.result.whole_job.push(format!("rows visited/written by the sweep over `{}`", display::domain(schema, scan)));
+                if let Stmt::For { binding, domain: LoopDomain::Page(scan), .. } = stmt {
+                    let domain = source.and_then(|p| p.loop_source(binding)).map(str::to_owned).unwrap_or_else(|| a.scan_domain(scan));
+                    a.result.whole_job.push(format!("rows visited/written by the sweep over `{domain}`"));
                 }
             }
         }
@@ -98,19 +119,39 @@ pub(crate) fn analyze(schema: &Schema, program: &Program) -> Certificate {
 }
 
 struct Analysis<'a> {
+    source: Option<&'a snapback4_lang::BoundProgram>,
     schema: &'a Schema,
     program: &'a Program,
     result: Certificate,
     // A local's value may come from data even if obtaining it costs one read.
     // That distinction matters when it subsequently supplies a range bound.
     data: BTreeMap<String, bool>,
+    labels: BTreeMap<String, String>,
     in_filter: bool,
+    conditions: Vec<(String, bool)>,
+    has_variants: bool,
 }
 
 impl Analysis<'_> {
+    fn scan_domain(&self, scan: &Scan) -> String {
+        self.source.and_then(|p| p.domain_source(&scan.site)).map(str::to_owned).unwrap_or_else(|| display::domain(self.schema, scan))
+    }
+
     fn growth(&mut self, site: &str, reason: String, rewrite: &str) {
-        let growth = Growth { site: site.into(), reason, rewrite: rewrite.into() };
+        self.variant(Class::Grows, None);
+        let growth = Growth { when: display::conditions(&self.conditions), site: site.into(), reason, rewrite: rewrite.into() };
         if !self.result.growth_sites.contains(&growth) { self.result.growth_sites.push(growth); }
+    }
+
+    fn variant(&mut self, class: Class, index: Option<String>) {
+        let Some(when) = display::conditions(&self.conditions) else { return; };
+        let at = self.result.variants.iter().position(|v| v.when == when).unwrap_or_else(|| {
+            self.result.variants.push(Variant { when, class: Class::Constant, indexes: BTreeSet::new() });
+            self.result.variants.len() - 1
+        });
+        let variant = &mut self.result.variants[at];
+        if class == Class::Grows { variant.class = class; }
+        if let Some(index) = index { variant.indexes.insert(index); }
     }
 
     fn rows(&mut self, n: u64) { self.result.bounds.rows_examined = self.result.bounds.rows_examined.saturating_add(n); }
@@ -139,6 +180,9 @@ impl Analysis<'_> {
         for stmt in body {
             match stmt {
                 Stmt::Const { name, value } | Stmt::Let { name, value } | Stmt::Assign { name, value } => {
+                    if name.starts_with("$intentNeedle") {
+                        self.labels.insert(name.clone(), display::expr(value));
+                    }
                     let data = self.expr(value, times);
                     // Union assignments across branches and loop iterations;
                     // never clear a possible dependency on another path.
@@ -158,13 +202,18 @@ impl Analysis<'_> {
                 }
                 Stmt::If { condition, then_body, else_body } => {
                     self.expr(condition, times);
+                    let presence = display::presence(condition, &self.labels).filter(|_| self.has_variants);
+                    if let Some((name, present)) = &presence { self.conditions.push((name.clone(), *present)); }
                     self.body(then_body, times);
+                    if presence.is_some() { self.conditions.last_mut().unwrap().1 ^= true; }
                     self.body(else_body, times);
+                    if presence.is_some() { self.conditions.pop(); }
                 }
                 Stmt::Require { condition, .. } => { self.expr(condition, times); }
                 Stmt::Check { condition, current } => { self.expr(condition, times); self.point(current, times, true); }
                 Stmt::For { binding, domain, body } => {
-                    let (max, data) = self.domain(domain, times);
+                    let spelling = self.source.and_then(|p| p.loop_source(binding));
+                    let (max, data) = self.domain(domain, times, spelling);
                     self.data.insert(binding.clone(), data);
                     // Later iterations can carry a dependency backwards
                     // through assignments. Resolve it before pricing once.
@@ -182,8 +231,18 @@ impl Analysis<'_> {
                     self.expr(key, times); self.expr(row, times); self.write(table, "upsert", times);
                 }
                 Stmt::Delete { table, key } => { self.expr(key, times); self.write(table, "delete", times); }
+                Stmt::DeleteTarget { target } => {
+                    for key in &target.key { self.expr(key, times); }
+                    if self.schema.table(&target.table).is_some_and(|t| t.expire.is_some()) { self.expiry_write(&target.table, &target.index); }
+                    self.write(&target.table, "delete", times);
+                }
                 Stmt::WriteTarget { target, patch, upsert, condition, result } => {
-                    self.point(target, times, false);
+                    if self.schema.table(&target.table).is_some_and(|t| t.expire.is_some()) {
+                        // Write targets are complete unique keys. Their only
+                        // variable expiry work is the matching collision backlog.
+                        for key in &target.key { self.expr(key, times); }
+                        self.expiry_write(&target.table, &target.index);
+                    } else { self.point(target, times, false); }
                     self.expr(patch, times);
                     if let Some(c) = condition { self.body(&c.setup, times); self.expr(&c.value, times); }
                     self.write(&target.table, if *upsert { "upsert" } else { "update" }, times);
@@ -194,7 +253,7 @@ impl Analysis<'_> {
         }
     }
 
-    fn domain(&mut self, domain: &LoopDomain, times: u64) -> (u64, bool) {
+    fn domain(&mut self, domain: &LoopDomain, times: u64, spelling: Option<&str>) -> (u64, bool) {
         match domain {
             LoopDomain::Page(scan) => { self.scan(scan, times, false); (self.bound(&scan.take), true) }
             LoopDomain::LiteralRange { start, end_exclusive } => (end_exclusive.saturating_sub(*start).max(0) as u64, false),
@@ -202,7 +261,8 @@ impl Analysis<'_> {
                 let data = self.expr(start, times) | self.expr(end_exclusive, times);
                 let max = display::range_size(start, end_exclusive);
                 if max.is_none() && data {
-                    self.growth(&self.program.name, format!("iterations of range({}, {}) from stored data", display::expr(start), display::expr(end_exclusive)),
+                    let range = spelling.map(str::to_owned).unwrap_or_else(|| format!("range({}, {})", display::expr(start), display::expr(end_exclusive)));
+                    self.growth(&self.program.name, format!("iterations of {range} from stored data"),
                         "cap the domain or pass a bounded list argument");
                 }
                 // An input-only range is independent of corpus size; its
@@ -255,7 +315,8 @@ impl Analysis<'_> {
                         Some(LaneSource::Scan(scan)) => { self.scan(scan, times, false); self.bound(&scan.take) }
                         Some(LaneSource::List { value, max }) => { self.expr(value, times); u64::from(*max) }
                         Some(LaneSource::Range { start, end_exclusive, max }) => {
-                            self.domain(&LoopDomain::ExpressionRange { start: start.clone(), end_exclusive: end_exclusive.clone() }, times);
+                            let spelling = self.source.and_then(|p| p.loop_source(&lane.binding));
+                            self.domain(&LoopDomain::ExpressionRange { start: start.clone(), end_exclusive: end_exclusive.clone() }, times, spelling);
                             max.or_else(|| display::range_size(start, end_exclusive)).unwrap_or(self.result.bounds.meters.steps)
                         }
                     };
@@ -340,6 +401,7 @@ impl Analysis<'_> {
     }
 
     fn scan_with_window(&mut self, scan: &Scan, times: u64, merged: bool, window: Option<String>) {
+        if scan.variant.is_some() { self.variant(Class::Constant, Some(format!("{}.{}", scan.table, scan.index))); }
         for key in &scan.prefix { match key { IndexKeyExpr::Scalar(e) | IndexKeyExpr::WordPrefix(e) => { self.expr(e, times); } } }
         for e in [&scan.after, &scan.before].into_iter().flatten() { self.expr(e, times); }
         if let Some(r) = &scan.range { for e in [&r.gt, &r.gte, &r.lt, &r.lte].into_iter().flatten() { self.expr(e, times); } }
@@ -348,7 +410,7 @@ impl Analysis<'_> {
         let table = self.schema.table(&scan.table);
         let mut grows = false;
         if scan.take == Bound::Meter {
-            self.growth(&scan.site, format!("{} in the domain `{}`", scan.table, display::domain(self.schema, scan)),
+            self.growth(&scan.site, format!("{} in the domain `{}`", scan.table, self.scan_domain(scan)),
                 "cap the domain, page it, or add a maintained view for its aggregate");
             grows = true;
         }
@@ -357,7 +419,7 @@ impl Analysis<'_> {
             let rewrite = if window.is_some() { "" } else { "pin the filter column in the read, or add a view indexed by that predicate" };
             let reason = if let Some(window) = window { window } else if let Some(t) = timeline {
                 format!("Following `{}` entries skipped by retired follow epochs or removal tombstones before {} match", t.name, display::bound(&scan.take))
-            } else { format!("{} skipped by `{}` before {} match", scan.table, display::expr(filter), display::bound(&scan.take)) };
+            } else { format!("{} skipped by `{}` before {} match", scan.table, self.source.and_then(|source| source.filter_source(&scan.site)).map(str::to_owned).unwrap_or_else(|| display::expr(filter)), display::bound(&scan.take)) };
             self.growth(&scan.site, reason, rewrite);
             grows = true;
         }

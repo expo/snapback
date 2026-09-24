@@ -63,7 +63,7 @@ fn duplicate_target_never_changes_projection_or_system_read_privacy() {
         assert!(projection.maintains.iter().all(|m| m.target != target));
         assert!(!serde_json::to_string(&projection).unwrap().contains(&target));
         let read = Read { table: target.clone(), index: "byId".into(), key: vec![Expr::Literal(Value::Id(key.clone()))], site: "probe".into(), provenance: KeyProvenance::Computed };
-        let scan = Scan { table: target.clone(), index: "byId".into(), prefix: vec![], order: Order::Asc, take: Bound::Literal(1), site: "probe".into(), provenance: KeyProvenance::Computed, existence: false, after: None, before: None, range: None, filter: None, opaque_cursor: false, merge_site: None };
+        let scan = Scan { variant: None, table: target.clone(), index: "byId".into(), prefix: vec![], order: Order::Asc, take: Bound::Literal(1), site: "probe".into(), provenance: KeyProvenance::Computed, existence: false, after: None, before: None, range: None, filter: None, opaque_cursor: false, merge_site: None };
         let tx = engine.store_mut().transaction().unwrap();
         for expression in [Expr::Get(read.clone()), Expr::Exists(read), Expr::Scan(scan)] {
             let program = Program { name: "probe".into(), kind: ProgramKind::Query, args: BTreeMap::new(), read_time_granularity_ms: None, body: vec![Stmt::Return(expression)], native: false, returned_shapes: Default::default() };

@@ -1,23 +1,8 @@
 //! The complete, compiled and executed Quarry language card.
 pub const LANGUAGE: &str = r##"# Quarry — the language card
 
-One file, `snapback/schema.q`, holds tables, views, shapes, helpers,
-programs and schedules, in any order; more `.q` files beside it are modules
-(their operations are `<module>.<name>`) sharing one namespace. Schedules use that
-qualified job name too: `schedule repair every 1m: timeline.repair`; an unambiguous
-bare module job gets this rewrite from `check --fix`. Comments
-start with `--`. Blocks indent with two spaces. Everything the compiler
-accepts is below; the suite compiles every block and runs the core program.
-
-Time arithmetic uses durations: `now + 1m` is one minute from now,
-and `now - .at` is elapsed time; `day(now)`, `hour(now)` and `bucket(now, 2m)`
-produce UTC calendar ordinals. See `guide jobs` for scheduled work.
-
-`createRoom` below predicts: its room is readable through the membership
-inserted later in the same call. Reads authorize the current provisional
-image against all pending writes. `edit` of retained history after leaving
-the room also predicts, but the edited image is hidden until settlement.
-See `guide prediction`.
+Quarry defines your tables, access rules and backend operations.
+Queries and eligible mutations can run on devices that hold their inputs.
 
 ```quarry
 use identity                          -- guests and password accounts; `use identity guests` or `use identity password` admits one kind
@@ -47,8 +32,8 @@ table members:
   cap 100 by roomId                                    -- at most N rows per group; a product limit
   immutable roomId, principal                          -- columns no update may change
   read <- exists members[.roomId, viewer]
-  insert <- exists members[roomId = .roomId, principal = viewer, role = 'admin'] or created rooms[.roomId]   -- created: this mutation inserted the probed row
-  delete <- .principal = viewer or exists members[roomId = .roomId, principal = viewer, role = 'admin']
+  insert <- exists members[.roomId, viewer, role = 'admin'] or created rooms[.roomId]   -- created: this mutation inserted the probed row
+  delete <- .principal = viewer or exists members[.roomId, viewer, role = 'admin']
   sync to members[.roomId]
 
 table messages:
@@ -67,7 +52,7 @@ table messages:
   update <- .authorId = viewer
   delete <- .authorId = viewer
   retain delivered-history            -- a device keeps what it was given after it leaves the group; `until-revoked` (the default) drops it
-  expire at .expiresAt                -- a row past that time is absent everywhere at once, then swept; a null time never expires
+  expire at .expiresAt                -- absent to reads at its deadline; null never expires; caps count unswept rows
   sync last 500 by .at     -- the horizon: a device acquires the newest N per group; older rows are online-only
 
 table posts:
@@ -192,6 +177,17 @@ fn tally(n: int):
   for i in range(0, 1 + 1):
     total = total + n
   return total
+
+fn profileLabel(label: text): label
+query spreadProfile(h: text 3..20 format handle, extra: text):
+  p = profiles[handle = h] ! else NOT_FOUND
+  return { spread: { ...p, extra }, shaped: p { *, extra: extra }, replaced: p { *, handle: { value: .handle } }, label: profileLabel(extra) }
+query spreadObjects():
+  a = { label: 'first', value: 1 }
+  return { ...a, ...{ value: 2 }, label: 'last' }
+query spreadChoice(h: text 3..20 format handle, flag: bool):
+  p = profiles[handle = h] ! else NOT_FOUND
+  return ({ ...p } if flag else { ...(p { * }) }) { handle: 'override', * }  -- spread both arms so their wildcard rules agree
 
 query heldRoom(roomId: rooms) held:   -- device only: dev and serve refuse E_QUERY_HELD; no server fallback
   return rooms[roomId] card
@@ -414,11 +410,47 @@ query intentGlobal(c: cursor ?):
   return intentActivity last 20 by .at after c { id, actor, at, repost }
 query intentCount(owner: principal):
   return intentCounts[owner]
+table intentDeliveries:
+  messageId: intentPosts
+  principal: principal
+  cap 50 by messageId                 -- a product limit per message, not across all messages
+  public 'acknowledgements'
+  online only
+query intentDeliveriesPage(c: cursor ?):
+  return intentDeliveries first 50 by .id after c
+query intentDeliveriesFor(messageId: intentPosts):
+  return intentDeliveries where .messageId = messageId
 query intentSubject(subjectId: subjects):
   return subjects[subjectId]
 query intentDurations():
   return [500ms, 30s, 15m, 24h, 7d, bucket(now, 2m)]
+table intentIssues:
+  owner: principal
+  status: enum('todo', 'doing', 'done')
+  assignee: principal ?
+  at: time
+  read <- .owner = viewer
+query intentBoard(status: enum('todo', 'doing', 'done') ?, assignee: principal ?, c: cursor ?):
+  return intentIssues where .owner = viewer and (status = null or .status = status) and (assignee = null or .assignee = assignee) last 50 by .at after c
 ```
+
+One file, `snapback/schema.q`, holds tables, views, shapes, helpers,
+programs and schedules, in any order; more `.q` files beside it are modules
+(their operations are `<module>.<name>`) sharing one namespace. Schedules use that
+qualified job name too: `schedule repair every 1m: timeline.repair`; an unambiguous
+bare module job gets this rewrite from `check --fix`. Comments
+start with `--`. Blocks indent with two spaces. Everything the compiler
+accepts is below; the suite compiles every block and runs the core program.
+
+Time arithmetic uses durations: `now + 1m` is one minute from now,
+and `now - .at` is elapsed time; `day(now)`, `hour(now)` and `bucket(now, 2m)`
+produce UTC calendar ordinals. See `guide jobs` for scheduled work.
+
+`createRoom` above predicts: its room is readable through the membership
+inserted later in the same call. Reads authorize the current provisional
+image against all pending writes. `edit` of retained history after leaving
+the room also predicts, but the edited image is hidden until settlement.
+See `guide prediction`.
 
 Helpers expand at each call: a table-typed parameter keeps a row argument as a row (fields need no lookup), while a reference argument stays a reference.
 An enum fits `text <=N` when every variant has at most N characters and
@@ -433,6 +465,8 @@ make that scope explicit, or use `{ ...card }` explicitly for the page.
 Reads: `t[id]` reads one row; `t[a, b]` needs one declared unique pair.
 Named keys select columns explicitly. `t where predicate first 20 by .at
 after c` pages matching rows. `last` reverses the order; id breaks ties.
+Optional filters use `(status = null or .status = status)` to select a plan
+for absent or present inputs; an empty `matching q` needle browses in order.
 `count(t where predicate)` and `sum(t where predicate, .amount)` stream a
 domain. A cut total is unavailable, never a partial number. `exists` stops
 at a visible match; an unknown domain cannot establish absence.
@@ -475,12 +509,25 @@ use server
 -- Server handlers declare results, secrets and work settings (guide actions).
 action summarizeRoom(room: rooms) returns { summary: text <=4000, source: rooms, tags: [text <=30] <=8 ? } secrets [MODEL_API_KEY] retry 3 backoff 2s deadline 1h cancellation allow
 action scheduledSummary(periodStart: time, periodEnd: time) returns {} <- viewer = 'service:reporter'
-schedule summariesEveryDay every 1d at 08:00 as service:reporter: scheduledSummary
+schedule summariesEveryDay every 86400s at 08:00 as service:reporter: scheduledSummary
 route roomExport: post "/room-export" wait 5s -- signed-in caller; no Quarry body or client operation
 route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM_SIGNING_KEY] retry 8 backoff 2s deadline 1h cancellation allow wait 5s
 ```
 
-## Fixing a refused line
+## Starting in an existing directory
+
+E_INIT_CONFLICT means `init` found files or package entries it would
+overwrite, and wrote nothing. Rename the listed files or reconcile the
+named package.json entries, then rerun `snapback4 init --expo` (or `--web`).
+Unrelated files and symlinks can stay. An existing README.md stays intact;
+the starter writes its setup instructions to README.snapback.md instead.
+
+## Refusals
+
+For a present row, `{ ...p, extra }` and `p { *, extra: extra }` contribute
+the same columns and extra value. Shapes keep `*`; object fields and spreads
+can replace inherited fields with an explicit field and its type, as `handle`
+does above. Two explicit fields with the same name are refused.
 
 E_QUARRY_SYNTAX means the parser could not read the form at the reported
 file, line and column. For example, `query answer:` is missing its argument
@@ -519,10 +566,6 @@ The event-free generation barrier makes devices reacquire; a missing stored
 field reads 0 without an authored literal default. See `guide maintains`
 for disclosure and stream cost, and `guide feeds` for Trending.
 
-
-
-
-
 Cards: `snapback4 guide <keyword>` — app, types, indexes, maintains, rules, sync, residency, prediction, evolution, expire,
 assets, reads, shapes, writes, programs, jobs, native, feeds, search,
 effects, actions, routes, services, presence, bounds, refusals, personas, witness. `snapback4 why
@@ -559,8 +602,6 @@ The compiler selects or synthesizes indexes. A positional key must name one
 unambiguous declared unique key; named keys make the intended columns explicit.
 `search` declares searchable text, and unnamed `unique` declares a unique key.
 Duration literals are integer milliseconds in any expression.
-
-
 
 ## Materialized Following
 
@@ -704,6 +745,4 @@ mutation timelineRemove(postId: timelineCards):
 query timelineHome(c: cursor ?):
   return timeline[viewer] after c last 20 { *, post: timelineCards[.postId] }
 
-```
-
-"##;
+```"##;

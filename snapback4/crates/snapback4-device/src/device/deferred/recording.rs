@@ -23,6 +23,9 @@ impl<T: DeviceTx> Rows for Recording<'_, T> {
     fn lookup(&self, t: &str, n: &str, i: &Index, k: &[Value]) -> Result<Option<Value>, RuntimeError> { self.tx.lookup(t, n, i, k) }
     fn scan(&self, t: &str, i: &str, p: &[Value], b: &Bounds, d: Dir, l: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> { self.tx.scan(t, i, p, b, d, l) }
     fn scan_metered(&self, t: &str, i: &str, p: &[Value], b: &Bounds, d: Dir, l: usize, meter: &mut snapback4_core::meter::Meter) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> { self.tx.scan_metered(t, i, p, b, d, l, meter) }
+    fn cap_count(&self, table: &str, by: &[String], group: &[Value]) -> Result<u64, RuntimeError> {
+        self.tx.cap_count(table, by, group)
+    }
     fn count_prefix(&self, t: &str, i: &str, p: &[Value], l: u64) -> Result<u64, RuntimeError> { self.tx.count_prefix(t, i, p, l) }
     fn put(&self, name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> {
         let key = (name.into(), row.field("id")?.as_str()?.into());

@@ -26,17 +26,24 @@ impl Runner<'_> {
         result
     }
 
+    // @ref LLP 3000.013#11.1 — reserve authorization before target existence or expiry can select a different outcome.
+    pub(super) fn reserve_write_rules(&self, table: &Table, effects: &[Effect]) -> Result<(), RuntimeError> {
+        let probes = effects.iter().map(|effect| rule_probes(table.rules.for_effect(*effect))).fold(0_u64, u64::saturating_add);
+        if !self.meter.room(MeterKind::RuleProbes, probes) {
+            return Err(RuntimeError::Bound { kind: MeterKind::RuleProbes, actual: self.meter.used.rule_probes.saturating_add(probes), ceiling: self.meter.ceilings.rule_probes, site: self.meter.site().into() });
+        }
+        Ok(())
+    }
+
     // @ref LLP 3000.007#17 — reserve resolution's static worst case before the target lookup; no ceiling is changed.
     pub(super) fn reserve_target_resolution(&mut self, table_name: &str, table: &Table, patch: &Value, upsert: bool) -> Result<(), RuntimeError> {
-        let probes = rule_probes(&table.rules.read).saturating_mul(2).saturating_add(rule_probes(&table.rules.update))
-            .saturating_add(if upsert { rule_probes(&table.rules.insert).saturating_mul(2) } else { 0 });
+        self.reserve_write_rules(table, if upsert { &[Effect::Read, Effect::Read, Effect::Update, Effect::Insert, Effect::Insert] } else { &[Effect::Read, Effect::Read, Effect::Update] })?;
         // Covers the largest cloned row allowed by the schema, the caller's patch
         // (including ill-typed fields), and the miss arm's image/default materialization.
         // Retained maps/assets share their Arc; the merge charges only memory it copies.
         let heap = row_copy_ceiling(table).saturating_mul(2).saturating_add(patch.heap_bytes().saturating_mul(2));
-        for (kind, amount, used, ceiling) in [(MeterKind::RuleProbes, probes, self.meter.used.rule_probes, self.meter.ceilings.rule_probes),
-            (MeterKind::HeapBytes, heap, self.meter.used.heap_bytes, self.meter.ceilings.heap_bytes)] {
-            if !self.meter.room(kind, amount) { return Err(RuntimeError::Bound { kind, actual: used.saturating_add(amount), ceiling, site: self.meter.site().into() }); }
+        if !self.meter.room(MeterKind::HeapBytes, heap) {
+            return Err(RuntimeError::Bound { kind: MeterKind::HeapBytes, actual: self.meter.used.heap_bytes.saturating_add(heap), ceiling: self.meter.ceilings.heap_bytes, site: self.meter.site().into() });
         }
         self.reserve_maintains(table_name, table)?;
         Ok(())
@@ -119,6 +126,33 @@ impl Runner<'_> {
         self.target_attempt(&target.table, |runner| runner.resolve_write_target(target, patch, upsert, condition, valued))
     }
 
+    pub(super) fn delete_target(&mut self, target: &Read) -> Result<(), RuntimeError> {
+        self.target_attempt(&target.table, |runner| {
+            runner.refuse_engine_owned(&target.table, Effect::Delete)?;
+            let key = target.key.iter().map(|e| runner.expr(e)).collect::<Result<Vec<_>, _>>()?;
+            let table = runner.schema.table(&target.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", target.table)))?.clone();
+            let index = table.index(&target.index).ok_or_else(|| RuntimeError::Schema(format!("missing index {}.{}", target.table, target.index)))?;
+            if !index.unique || key.len() != index.columns().len() { return Err(RuntimeError::Input("a write target needs one complete unique key".into())); }
+            runner.reserve_write_rules(&table, &[Effect::Read, Effect::Delete])?;
+            runner.reserve_maintains(&target.table, &table)?;
+            runner.read_tables.insert(target.table.clone());
+            let mut expired_work = 0;
+            let old = runner.lookup_live_charged(&target.table, &target.index, index, &key, false, Some(&mut expired_work))?;
+            if runner.device && (table.sync.is_none() || (old.is_none() && !runner.upsert_absence_proven(&target.table, &target.index, &key)?)) {
+                return Err(runner.write_miss(&target.table, &target.index, &key));
+            }
+            let Some(old) = old else { return Err(runner.no_write_target()); };
+            // Preserve alternate delete's existing read gate, without exposing
+            // the private target or charging a hidden population through Get.
+            if !runner.check_rule(&target.table, Effect::Read, None, &old)? { return Err(runner.no_write_target()); }
+            if !runner.check_rule(&target.table, Effect::Delete, None, &old)? {
+                return Err(RuntimeError::Rule { table: target.table.clone(), effect: Effect::Delete });
+            }
+            runner.meter.charge(MeterKind::Examined, expired_work.saturating_add(1))?;
+            runner.delete_authorized(&target.table, old)
+        })
+    }
+
     fn resolve_write_target(&mut self, target: &Read, patch: &Expr, upsert: bool, condition: Option<&WriteCondition>, valued: bool) -> Result<Value, RuntimeError> {
         if upsert { self.refuse_upsert_owned(&target.table)?; }
         else { self.refuse_engine_owned(&target.table, Effect::Update)?; }
@@ -133,7 +167,8 @@ impl Runner<'_> {
         if patch.as_object()?.contains_key("id") { return Err(RuntimeError::Input(format!("{} update patch cannot change id", target.table))); }
         self.read_tables.insert(target.table.clone());
         self.reserve_target_resolution(&target.table, &definition, &patch, upsert)?;
-        let old = self.lookup_live(&target.table, &target.index, index, &key, false)?;
+        let mut expired_work = 0;
+        let old = self.lookup_live_charged(&target.table, &target.index, index, &key, false, Some(&mut expired_work))?;
         if self.device && (definition.sync.is_none() || (old.is_none() && (!upsert || !self.upsert_absence_proven(&target.table, &target.index, &key)?))) {
             return Err(self.write_miss(&target.table, &target.index, &key));
         }
@@ -145,6 +180,7 @@ impl Runner<'_> {
             let new = self.merge_patch(&old, &patch)?;
             // The old image is used only in this isolated condition scope, after update authority.
             self.authorize_update(&target.table, &old, &new, readable)?;
+            self.meter.charge(MeterKind::Examined, expired_work)?;
             if let Some(condition) = condition {
                 self.require_readable_condition(readable)?;
                 let passed = self.write_condition(condition, &old);
@@ -166,7 +202,7 @@ impl Runner<'_> {
             fields.insert("id".into(), id.clone());
             let row = Value::Row(fields.into());
             self.meter.heap(row.heap_bytes())?;
-            self.insert_upsert(&target.table, &target.index, row)?;
+            self.insert_upsert(&target.table, &target.index, row, expired_work)?;
             id
         };
         // Only an ordinary read of the final row can enter the author's program.
@@ -226,7 +262,7 @@ fn validate_condition(condition: &WriteCondition) -> Result<(), RuntimeError> {
 
 fn pure(stmts: &[Stmt]) -> bool {
     stmts.iter().all(|stmt| match stmt {
-        Stmt::Insert { .. } | Stmt::InsertIfAbsent { .. } | Stmt::Update { .. } | Stmt::Upsert { .. } | Stmt::WriteTarget { .. } | Stmt::Delete { .. } | Stmt::Emit { .. } => false,
+        Stmt::Insert { .. } | Stmt::InsertIfAbsent { .. } | Stmt::Update { .. } | Stmt::Upsert { .. } | Stmt::WriteTarget { .. } | Stmt::Delete { .. } | Stmt::DeleteTarget { .. } | Stmt::Emit { .. } => false,
         Stmt::If { condition, then_body, else_body } => pure_expr(condition) && pure(then_body) && pure(else_body),
         Stmt::For { body, domain, .. } => pure(body) && match domain {
             LoopDomain::DerivedArray { value, .. } => pure_expr(value),
@@ -270,7 +306,7 @@ fn pure_builtin(builtin: &Builtin) -> bool {
         Builtin::Divmod { .. } | Builtin::Sha256 | Builtin::Connected => false,
         Builtin::Calendar { .. } | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Join | Builtin::Group { .. }
         | Builtin::First | Builtin::Last | Builtin::At | Builtin::Min | Builtin::Max | Builtin::Sort { .. } | Builtin::MentionTokens
-        | Builtin::DeterministicShare | Builtin::Count | Builtin::Sum | Builtin::CountCapped => true,
+        | Builtin::SearchPresent | Builtin::DeterministicShare | Builtin::Count | Builtin::Sum | Builtin::CountCapped => true,
     }
 }
 

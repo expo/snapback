@@ -1,4 +1,4 @@
-//! Execute the fresh-builder card itself, not a parallel example.
+//! Execute current guide examples and preserve historical feed controls.
 use snapback4_core::{Context, Engine, Value, WriteState};
 use snapback4_lang::guide::{self, card, quarry};
 use std::{collections::BTreeSet, path::Path};
@@ -7,13 +7,175 @@ mod followups;
 
 fn id(s: &str) -> Value { Value::Id(s.into()) }
 fn text(s: &str) -> Value { Value::String(s.into()) }
+
+#[test]
+fn builder_path_precedes_internals_and_older_spellings() {
+    let card = card("feeds").unwrap();
+    let headings = card.lines().filter_map(|line| line.strip_prefix("## ")).collect::<Vec<_>>();
+    assert_eq!(headings, ["Global: a union view", "Following: a view for the reader", "Trending: a bounded predicate read", "Following contract", "Boundaries and refusals", "How it works", "Older spellings that still compile (do not use in new apps)"]);
+    let (current, older) = card.split_once("## Older spellings").unwrap();
+    for spelling in ["maintain ", "recipe", "bridge", "promotion", "size authors", "by by", "unique by"] {
+        assert!(!current.contains(spelling), "current path teaches {spelling}");
+    }
+    let builder = current.split_once("## How it works").unwrap().0;
+    for detail in ["edge epoch", "write ordinal", "Transaction sequence", "tombstone", "chunks of 256"] {
+        assert!(!builder.contains(detail), "builder path teaches {detail}");
+    }
+    assert!(older.contains("maintain oldFeed: timeline"));
+}
+
+fn following_pages(e: &mut Engine, viewer: &str) -> (Vec<Value>, bool) {
+    let mut cursor = Value::Null;
+    let mut rows = Vec::new();
+    let mut complete = true;
+    for _ in 0..100 {
+        let page = e.query("home", Context::new(viewer, [("c".into(), cursor)].into()).at(100_000)).unwrap();
+        assert!(page.cut.is_none(), "{page:?}");
+        complete &= page.complete;
+        rows.extend(page.data.as_array().unwrap().iter().cloned());
+        let Some(next) = page.next else { return (rows, complete) };
+        cursor = text(&next);
+    }
+    panic!("Following did not exhaust")
+}
+
+fn published_following() -> Engine {
+    let source = quarry(card("feeds").unwrap()).into_iter().find(|s| s.contains("view following:")).unwrap();
+    let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(b.diagnostics.is_empty() && b.notes.is_empty(), "{:?} {:?}", b.diagnostics, b.notes);
+    Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap()
+}
+
+#[test]
+fn published_following_matches_the_builder_contract() {
+    let mut e = published_following();
+    let mut clock = 0;
+    for n in 1..1005 {
+        // The last two originals tie on event time; event id must break the tie.
+        if n == 1004 { clock -= 1; }
+        write(&mut e, &mut clock, "post", "alice", &[("postId", id(&format!("p{n:04}"))), ("parentId", Value::Null)]);
+    }
+    // The smallest id is the newest event: id-only ordering must not pass.
+    write(&mut e, &mut clock, "post", "alice", &[("postId", id("p0000")), ("parentId", Value::Null)]);
+    write(&mut e, &mut clock, "post", "alice", &[("postId", id("reply")), ("parentId", id("p1004"))]);
+    let own = following_pages(&mut e, "alice").0;
+    assert_eq!(own.len(), 1005, "own originals appear immediately; replies do not");
+    assert_eq!(own[0].field("id").unwrap(), &id("p0000"), "event time precedes the id tiebreak");
+    assert!(own[0].field("at").unwrap().as_int().unwrap() > own[1].field("at").unwrap().as_int().unwrap());
+    for (row, n) in own.iter().zip(std::iter::once(0).chain((1..1005).rev())) {
+        assert_eq!(row.field("id").unwrap(), &id(&format!("p{n:04}")));
+        assert_eq!(row.field("post").unwrap(), row.field("id").unwrap());
+        assert_eq!(row.field("actor").unwrap(), &id("alice"));
+        assert_eq!(row.field("repost").unwrap(), &Value::Bool(false));
+    }
+    assert_eq!(own[1].field("at").unwrap(), own[2].field("at").unwrap());
+    write(&mut e, &mut clock, "follow", "bob", &[("actor", id("alice"))]);
+    let (immediate, complete) = following_pages(&mut e, "bob");
+    assert_eq!(immediate, own[..50], "follow installs the newest 50 immediately");
+    assert!(!complete, "the remaining backfill is pending");
+    while e.run_timeline_chunk(clock + 1).unwrap().is_some() {}
+    let (delivered, complete) = following_pages(&mut e, "bob");
+    assert!(complete);
+    assert_eq!(delivered.len(), 1000, "the history window stops at 1,000, not all older posts");
+    assert_eq!(delivered, own[..1000], "backfill preserves newest-first event order including ties");
+    for viewer in ["alice", "bob"] {
+        assert!(!following_pages(&mut e, viewer).0.iter().any(|row| row.field("post") == Ok(&id("reply"))), "{viewer}: replies stay out after delivery");
+    }
+    assert_eq!(e.store().rows("posts").unwrap().len(), 1006, "the window does not delete older posts or replies");
+    write(&mut e, &mut clock, "post", "alice", &[("postId", id("new")), ("parentId", Value::Null)]);
+    assert_eq!(following_pages(&mut e, "alice").0[0].field("id").unwrap(), &id("new"));
+    assert_eq!(following_pages(&mut e, "bob"), (delivered, true), "complete describes delivered contents, not pending event delivery");
+    while e.run_timeline_chunk(clock + 1).unwrap().is_some() {}
+    assert_eq!(following_pages(&mut e, "bob").0[0].field("id").unwrap(), &id("new"));
+    let refused = e.mutate("remove", None, Context::new("bob", [("postId".into(), id("new"))].into()).at(clock + 1)).unwrap();
+    assert!(matches!(refused.state, WriteState::Failed { ref why, .. } if why.code == "E_RULE"), "{refused:?}");
+    write(&mut e, &mut clock, "remove", "alice", &[("postId", id("new"))]);
+    assert!(!following_pages(&mut e, "bob").0.iter().any(|r| r.field("id") == Ok(&id("new"))), "removal hides before cleanup");
+    write(&mut e, &mut clock, "unfollow", "bob", &[("actor", id("alice"))]);
+    assert!(following_pages(&mut e, "bob").0.is_empty(), "unfollow hides on the next read");
+}
+
+#[test]
+fn published_following_unrepost_hides_the_delivered_event() {
+    let mut e = published_following();
+    let mut clock = 0;
+    write(&mut e, &mut clock, "post", "alice", &[("postId", id("original")), ("parentId", Value::Null)]);
+    write(&mut e, &mut clock, "follow", "bob", &[("actor", id("alice"))]);
+    write(&mut e, &mut clock, "repost", "alice", &[("postId", id("original"))]);
+    while e.run_timeline_chunk(clock + 1).unwrap().is_some() {}
+    let event_id = following_pages(&mut e, "alice").0[0].field("id").unwrap().clone();
+    assert_ne!(event_id, id("original"));
+    for viewer in ["alice", "bob"] {
+        let (rows, complete) = following_pages(&mut e, viewer);
+        assert!(complete);
+        assert_eq!(rows.len(), 2, "{viewer}: original and delivered repost");
+        assert_eq!(rows[0].field("id").unwrap(), &event_id);
+        assert_eq!(rows[0].field("post").unwrap(), &id("original"));
+        assert_eq!(rows[0].field("actor").unwrap(), &id("alice"));
+        assert_eq!(rows[0].field("repost").unwrap(), &Value::Bool(true));
+    }
+    write(&mut e, &mut clock, "unrepost", "alice", &[("postId", id("original"))]);
+    for viewer in ["alice", "bob"] {
+        let rows = following_pages(&mut e, viewer).0;
+        assert_eq!(rows.len(), 1, "{viewer}: unrepost hides before cleanup");
+        assert_eq!(rows[0].field("id").unwrap(), &id("original"));
+        assert_eq!(rows[0].field("repost").unwrap(), &Value::Bool(false));
+    }
+    while e.run_timeline_chunk(clock + 1).unwrap().is_some() {}
+    for viewer in ["alice", "bob"] {
+        let (rows, complete) = following_pages(&mut e, viewer);
+        assert!(complete);
+        assert_eq!(rows.len(), 1, "{viewer}: cleanup does not restore the repost");
+        assert_eq!(rows[0].field("id").unwrap(), &id("original"));
+    }
+}
+
+#[test]
+fn published_following_unrepost_uses_the_reposting_viewer() {
+    let mut e = published_following();
+    let mut clock = 0;
+    write(&mut e, &mut clock, "post", "alice", &[("postId", id("original")), ("parentId", Value::Null)]);
+    for viewer in ["bob", "carol"] {
+        write(&mut e, &mut clock, "follow", viewer, &[("actor", id("alice"))]);
+    }
+    write(&mut e, &mut clock, "follow", "carol", &[("actor", id("bob"))]);
+    write(&mut e, &mut clock, "repost", "bob", &[("postId", id("original"))]);
+    assert_eq!(following_pages(&mut e, "carol").0.len(), 1, "the repost is awaiting delivery");
+    while e.run_timeline_chunk(clock + 1).unwrap().is_some() {}
+    let event_id = following_pages(&mut e, "bob").0[0].field("id").unwrap().clone();
+    assert_ne!(event_id, id("original"));
+    for viewer in ["bob", "carol"] {
+        let (rows, complete) = following_pages(&mut e, viewer);
+        assert!(complete);
+        assert_eq!(rows.len(), 2, "{viewer}: Alice's original and Bob's delivered repost");
+        assert_eq!(rows[0].field("id").unwrap(), &event_id);
+        assert_eq!(rows[0].field("post").unwrap(), &id("original"));
+        assert_eq!(rows[0].field("actor").unwrap(), &id("bob"));
+        assert_eq!(rows[0].field("repost").unwrap(), &Value::Bool(true));
+    }
+    write(&mut e, &mut clock, "unrepost", "bob", &[("postId", id("original"))]);
+    for after_cleanup in [false, true] {
+        if after_cleanup { while e.run_timeline_chunk(clock + 1).unwrap().is_some() {} }
+        for viewer in ["alice", "bob", "carol"] {
+            let (rows, complete) = following_pages(&mut e, viewer);
+            if after_cleanup { assert!(complete); }
+            assert_eq!(rows.len(), 1, "{viewer}: Bob's unrepost hides his event; cleanup={after_cleanup}");
+            assert_eq!(rows[0].field("id").unwrap(), &id("original"));
+            assert_eq!(rows[0].field("actor").unwrap(), &id("alice"));
+            assert_eq!(rows[0].field("repost").unwrap(), &Value::Bool(false));
+        }
+    }
+    assert!(e.store().rows("reposts").unwrap().is_empty());
+    assert_eq!(e.store().rows("posts").unwrap().len(), 1, "the original source row survives");
+}
+
 pub(super) fn assert_stream_note(b: &snapback4_lang::Bound) {
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     assert_eq!(b.notes.len(), 1, "{:?}", b.notes);
     let note = &b.notes[0];
     assert_eq!((note.code.as_str(), note.guide.as_str()), ("N_MAINTAINED_COLUMN_STREAM", "maintains"));
     assert_eq!(note.message, "posts: each contributing commit logs and streams the whole parent image per destination partition, coalesced once per row; a 4,000-byte parent costs every holder about 4 KB per change");
-    assert!(card("feeds").unwrap().contains("`check` also prints `N_MAINTAINED_COLUMN_STREAM` for `posts`"));
+    assert!(card("feeds").unwrap().contains("N_MAINTAINED_COLUMN_STREAM warns that each contributing commit streams"));
 }
 fn write(e: &mut Engine, serial: &mut i64, op: &str, viewer: &str, args: &[(&str, Value)]) -> Value {
     *serial += 1;
@@ -53,8 +215,8 @@ fn pages(e: &mut Engine, viewer: &str) -> Vec<Value> {
 }
 
 #[test]
-fn complete_feeds_program_runs_at_clique_size() {
-    let source = quarry(card("feeds").unwrap()).remove(1);
+fn legacy_complete_feeds_program_runs_at_clique_size() {
+    let source = quarry(include_str!("../fixtures/legacy-feed-recipes.md")).remove(1);
     let (doc, errors) = snapback4_lang::parse_document("schema.q", &source);
     assert!(errors.is_empty());
     assert_eq!(doc.tables.len(), 7);
@@ -128,7 +290,7 @@ fn complete_feeds_program_runs_at_clique_size() {
     assert!(pages(&mut e, "u1007").is_empty());
 }
 
-fn without_existing_apps(text: &str) -> String {
+fn without_older_spellings(text: &str) -> String {
     let mut existing = false;
     let mut fence = None;
     text.lines().filter(|line| {
@@ -141,7 +303,7 @@ fn without_existing_apps(text: &str) -> String {
             let level = trimmed.chars().take_while(|c| *c == '#').count();
             if (1..=2).contains(&level) && trimmed.as_bytes().get(level) == Some(&b' ') {
                 let title = trimmed[level..].trim().trim_end_matches('#').trim_end();
-                existing = level == 2 && title == "Existing apps with an installed recipe";
+                existing = level == 2 && title == "Older spellings that still compile (do not use in new apps)";
             }
         }
         !existing
@@ -149,7 +311,7 @@ fn without_existing_apps(text: &str) -> String {
 }
 fn census(label: &str, source: &str) {
     // Only the feeds Markdown card owns the compatibility exemption; Rust literals do not.
-    let text = if source.starts_with("# Feeds:") { without_existing_apps(source) } else { source.to_owned() };
+    let text = if source.starts_with("# Feeds:") { without_older_spellings(source) } else { source.to_owned() };
     assert!(!text.contains("--recipe"), "{label}: retired installer");
     // Use the library's own declaration names, covering every helper and owned table.
     let (recipe, errors) = snapback4_lang::parse_document("feed.q", include_str!("../../src/recipe/following.q"));
@@ -221,17 +383,17 @@ fn retirement_census_rejects_installers_helpers_and_projection_examples() {
     for source in ["Run init --recipe feeds", "Call feedAppPublish(post)", "Call myAppFollow(author)",
         "```quarry\ntable feedAuthors :\n  principal: principal\n```",
         "```quarry\ntable posts:\n  eventId: id\n  readerId: principal\n```",
-        "const TEMPLATE: &str = r#\"\n## Existing apps with an installed recipe\nRun init --recipe feeds\n\"#;"] {
+        "const TEMPLATE: &str = r#\"\n## Older spellings that still compile (do not use in new apps)\nRun init --recipe feeds\n\"#;"] {
         assert!(std::panic::catch_unwind(|| census("negative fixture", source)).is_err(), "census missed {source}");
     }
 }
 
 #[test]
-fn existing_app_exemption_respects_headings_and_fenced_samples() {
-    let section = "  ## Existing apps with an installed recipe ##\nlegacy\n# New apps\nnew\n";
-    assert_eq!(without_existing_apps(section), "# New apps\nnew");
-    let sample = "```text\n## Existing apps with an installed recipe\n```\nnew";
-    assert_eq!(without_existing_apps(sample), sample);
+fn older_spelling_exemption_respects_headings_and_fenced_samples() {
+    let section = "  ## Older spellings that still compile (do not use in new apps) ##\nlegacy\n# New apps\nnew\n";
+    assert_eq!(without_older_spellings(section), "# New apps\nnew");
+    let sample = "```text\n## Older spellings that still compile (do not use in new apps)\n```\nnew";
+    assert_eq!(without_older_spellings(sample), sample);
 }
 
 #[test]

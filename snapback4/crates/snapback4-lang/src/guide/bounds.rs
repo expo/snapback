@@ -1,10 +1,80 @@
 //! The bounds card. Quarry examples are compiled by tests/guide.rs.
 pub(super) const CARD: &str = r##"# Bounds and the meter
 
+The meter limits the work each read, mutation and job transaction can do.
+Declare product limits; the engine chooses execution bounds within those ceilings.
+
+```quarry
+table scalePosts:
+  body: text <=500
+  public
+  online only
+query scalePage(c: cursor ?):
+  return scalePosts first 20 by .id after c
+query scalePopulation():
+  return count(scalePosts)
+```
+
 Write product limits: a page size, a text length, an asset size or a real
 per-group cap. Do not choose an index, a merge width or a job transaction
 size. Predicate reads and views choose their plans; top-level job `for`
 loops choose their chunks. Removing a written number never removes the meter.
+
+A query's `for row in t where .owner = viewer:` and a merge lane's source may omit `first N`
+when the read rule is uniformly decided by that prefix; they read ascending
+until the prefix ends or the meter cuts, and `check --cost` prints `rows ≤ meter`
+and `lanes ≤ meter` when no fitting schema cap supplies a static bound.
+A loop the meter cuts has no continuation; a total over a group that can outgrow one read is a maintained `view`.
+A returned or bound page instead needs a schema cap or an explicit page bound.
+Jobs may iterate uncapped domains under the chunk's meter. Top-level job
+`for` sweeps shrink their transaction size after a meter refusal. Mutation loops
+still need a schema-capped group that fits the examined ceiling. Direct
+`count(domain)`, `sum(domain, .column)` and `exists domain` stream under the
+meter without retaining the page. Schema-capped query `count` and `sum` with
+non-uniform read rules keep their bounded page execution and coverage contract.
+Mutations retain their uniform-read and
+plain-prefix admission rules; a cut aborts the transaction, never commits a
+partial total. A streaming query total with a meter cut or unknown device
+coverage leaves the client read `loading`, never a partial count or sum.
+Unknown earlier reads also make a streaming scalar unavailable, including
+inputs saved in locals or used as domain bounds; a fallback cannot establish
+coverage.
+
+## Allocation and completeness
+
+Heap is a cumulative allocation and binding budget. Streaming aggregates
+release each transient row and its key scratch; one cursor allowance remains.
+Inner job domains decode one prepaid row at a time and retain each selected
+row under the heap meter before fetching another. Once decoded, the row's
+retained allowance replaces its decode scratch. Retained rows, their vector
+and the live cursor stay charged; domains do not retain unused result keys.
+Constructed values,
+concatenation and other allocating builtins, local bindings, and owned
+copies count. Inspecting a held value's length or sum borrows it; row and
+map clones share their immutable image. A heap cut stops a query immediately
+with no available value or continuation, since an interrupted scalar or shape
+has no valid partial answer. The client read is `loading`; narrow the query or
+use a maintained view for a total. Its cut site remains internal;
+the meter is available only through dev's default read inspection (CLIENT-AND-OPERATIONS.md §4).
+An unfinished maintained lookup or live aggregate uses the same unavailable
+query result, preserving zero only for a completed missing-group lookup.
+A mutation rolls back; Operations below describes the refusal.
+A page whose read rule the prefix does not decide (the deciding fields include a
+column the scan does not pin) is never `complete`: the server cannot tell
+"no more" from "more you may not see". Pin the deciding columns in the predicate, or read the page on the device (`guide sync`), where the
+partition holds exactly what the viewer may read. `check` says so
+(`N_NEVER_COMPLETE`), as it notes a query page returned without a cursor
+(`N_NO_CURSOR`), a synced table whose groups can grow with no horizon
+(`N_NO_HORIZON`), and a merge past 50 lanes (`N_WIDE_MERGE`). A single-group
+page omits the cursor note when its bound covers the group cap and that cap
+fits the default 8,192-row examined ceiling. Larger caps still need a cursor;
+other metered work can also cut a read.
+For a page of 50 pinned by `conversationId`, either declare `c: cursor ?`
+and page with `after c`, or add `cap 50 by conversationId` to the table if
+that is the intended group limit. An unscoped plain page can use `cap 50`.
+The cap refuses writes beyond its limit; a per-lane cap does not bound a merge.
+
+## Operations
 
 Nothing is priced at check. As a program runs, the meter counts examined
 rows, index entries, rule probes, steps, heap bytes, output bytes and rows
@@ -14,6 +84,7 @@ per mutation; a job's chunk may examine 16,384 rows and write 8,192. A
 query past a ceiling returns what it found with `complete: false`; a
 mutation aborts with E_BOUND naming the meter, the ceiling and the site
 (never the count: it would measure rows the viewer may not read).
+Read a smaller page, narrow its predicate, or move the sweep into a job.
 `snapback4 check --cost` prints each site's structural class;
 `snapback4 test` prints the numbers on your data and names query/persona reads
 past half any ceiling without a cut: at most ten lines and a count of the rest.
@@ -31,40 +102,11 @@ filtered scan as `filter over ≤ examined ceiling`, its reads as `probe × exam
 and a seek as a prefix. Sorting or grouping a page only processes that page.
 `sha256(text)` charges the input's UTF-8 byte length plus one to steps before
 hashing, then 64 heap bytes for its fixed lowercase hexadecimal result. A step
-cut refuses a scalar query with E_BOUND; a cut on that result allocation returns
-`data: null`, `complete: false`, as other query heap cuts do. A mutation rolls
+cut refuses a scalar query with E_BOUND; a cut on that result allocation leaves
+the client read `loading`, as other query heap cuts do. A mutation rolls
 back on either cut.
 
-A query's `for row in t where .owner = viewer:` and a merge lane's source may omit `first N`
-when the read rule is uniformly decided by that prefix; they read ascending
-until the prefix ends or the meter cuts, and `check --cost` prints `rows ≤ meter`
-and `lanes ≤ meter` when no fitting schema cap supplies a static bound.
-A loop the meter cuts has no continuation; a total over a group that can outgrow one read is a maintained `view`.
-A returned or bound page instead needs a schema cap or an explicit page bound.
-Jobs may iterate uncapped domains under the chunk's meter. Top-level job
-`for` sweeps shrink their transaction size after a meter refusal. Mutation loops
-still need a schema-capped group that fits the examined ceiling. Direct
-`count(domain)`, `sum(domain, .column)` and `exists domain` stream under the
-meter without retaining the page. Schema-capped query `count` and `sum` with
-non-uniform read rules keep their bounded page execution and coverage contract.
-Mutations retain their uniform-read and
-plain-prefix admission rules; a cut aborts the transaction, never commits a
-partial total. A streaming query total with a meter cut or unknown device
-coverage returns `data: null`, `complete: false`, never a partial count or sum.
-Unknown earlier reads also make a streaming scalar unavailable, including
-inputs saved in locals or used as domain bounds; a fallback cannot establish
-coverage.
-
-E_QUARRY_BOUND means a boundless prefix is not valid in this position: no
-schema cap covers the group, its cap exceeds the examined ceiling, or a
-meter-bounded query prefix has a non-uniform read rule. Declare `cap N by cols`
-on the table if that is the intended group limit, then read `t where .group = group`, or
-page with `first N` and a cursor. For a non-uniform prefix, the rewrite also
-names the index columns to pin, as N_NEVER_COMPLETE does. A returned seek page still writes
-its page size. Descending reads keep `last N`.
-
-
-## The scale certificate
+### The scale certificate
 
 Every successful `check` summarizes how many operations are constant and
 which grow with data. `check --cost` starts each operation with its verdict;
@@ -72,6 +114,12 @@ which grow with data. `check --cost` starts each operation with its verdict;
 `class`, `bounds`, `growth_sites` (site, reason and rewrite), and `per_write`.
 A growth site's rewrite is empty when the shape needs no suggested change.
 The existing cost details follow each verdict.
+
+Filters and reads quote their authored text, including parentheses; generated
+expressions preserve precedence. Planner indexes appear by their columns,
+such as `index (org, at), chosen by the planner`. `--verbose` keeps canonical
+`$intent:` names; `check --json --cost` also retains them in `plans`, keyed
+by operation and read site.
 
 `scale: constant — at most 21 rows examined, 0 probes, 0 lanes` means the
 work is independent of corpus size for the declared input bounds. A page
@@ -83,18 +131,7 @@ by a point read can still make a later range grow with data, including when
 assignments carry that value across loop iterations.
 Argument bounds appear in JSON. `scale: grows with posts in the domain
 posts` means a larger domain can cost more, until a runtime meter cuts it.
-These two queries demonstrate the classes:
-
-```quarry
-table scalePosts:
-  body: text <=500
-  public
-  online only
-query scalePage(c: cursor ?):
-  return scalePosts first 20 by .id after c
-query scalePopulation():
-  return count(scalePosts)
-```
+The two queries above demonstrate the classes.
 
 To make a growing read constant, pin its filter column in the indexed
 domain, add a maintained view for a total, or cap the domain when that cap
@@ -139,7 +176,38 @@ they can exceed the runtime ceilings shown separately in JSON. Steps, heap
 and output can still cut a constant operation. It does not price bytes or steps at
 check, change authorization, or replace measurements on your data.
 
-## Refused loops and scans
+Notes in a text `check` print their code, site, message and rewrite, followed
+by `snapback4 why <code>`. Long explanations are opt-in: `check --verbose`
+prints each note's explanation once per code and card, even for a single
+note; `why <code>` opens it on demand. Grouped notes show their one-line
+summary by default; `--verbose` and JSON retain every member and source site.
+
+When the same error code and card occur twice in one text `check`, its card excerpt
+prints once under the first occurrence, with the `guide:` pointer kept at
+every site. At most three excerpts print per check, each at most 4,096 UTF-8
+bytes including its full-card pointer and final newline (12,291 extra bytes
+including separating blank lines). A single occurrence stays compact;
+`check --json` keeps its structured diagnostics. `why <code>` still opens
+the excerpt on demand. Every registered code has a dedicated paragraph on
+its default card; `why <code>` names the code and explains it there.
+For example, `E_QUARRY_SYNTAX` and `E_QUARRY_UNKNOWN` have mistake-and-repair
+sections on `guide language`; `E_QUARRY_PLACEMENT` and `E_EMIT_IN_QUERY`
+have theirs on `guide programs`. A diagnostic may point to another card
+for its context; if that card lacks a section for the code, `check` keeps
+the diagnostic and pointer without an excerpt. Explicit `why <code>`
+then labels its fallback to that card's opening.
+
+## Refusals
+
+E_QUARRY_BOUND means a boundless prefix is not valid in this position: no
+schema cap covers the group, its cap exceeds the examined ceiling, or a
+meter-bounded query prefix has a non-uniform read rule. Declare `cap N by cols`
+on the table if that is the intended group limit, then read `t where .group = group`, or
+page with `first N` and a cursor. For a non-uniform prefix, the rewrite also
+names the index columns to pin, as N_NEVER_COMPLETE does. A returned seek page still writes
+its page size. Descending reads keep `last N`.
+
+### Loops and scans
 
 E_UNBOUND_LOOP means the compiler cannot establish an accepted loop domain
 or walk depth. For example, `walk nodes[root] up .parent depth 100` exceeds
@@ -160,58 +228,4 @@ array of eleven items. Keep the producer and loop bound consistent; in
 Quarry, iterate a bounded list or an explicit `first 10` page and process
 remaining work through another page or a job chunk. Increasing a runtime
 meter ceiling is not the repair, and silently dropping required work is
-not a complete sweep.
-
-## Allocation, completeness and diagnostic context
-
-Heap is a cumulative allocation and binding budget. Streaming aggregates
-release each transient row and its key scratch; one cursor allowance remains.
-Inner job domains decode one prepaid row at a time and retain each selected
-row under the heap meter before fetching another. Once decoded, the row's
-retained allowance replaces its decode scratch. Retained rows, their vector
-and the live cursor stay charged; domains do not retain unused result keys.
-Constructed values,
-concatenation and other allocating builtins, local bindings, and owned
-copies count. Inspecting a held value's length or sum borrows it; row and
-map clones share their immutable image. A heap cut stops a query immediately
-with `data: null`, `complete: false`, and no continuation, since an interrupted
-scalar or shape has no valid partial answer. Its cut site remains internal;
-the meter is available only through dev's default read inspection (CLIENT-AND-OPERATIONS.md §4).
-An unfinished maintained lookup or live aggregate uses the same unavailable
-query result, preserving zero only for a completed missing-group lookup.
-A mutation rolls back with `E_BOUND` as above.
-A page whose read rule the prefix does not decide (the deciding fields include a
-column the scan does not pin) is never `complete`: the server cannot tell
-"no more" from "more you may not see". Pin the deciding columns in the predicate, or read the page on the device (`guide sync`), where the
-partition holds exactly what the viewer may read. `check` says so
-(`N_NEVER_COMPLETE`), as it notes a query page returned without a cursor
-(`N_NO_CURSOR`), a synced table whose groups can grow with no horizon
-(`N_NO_HORIZON`), and a merge past 50 lanes (`N_WIDE_MERGE`). A single-group
-page omits the cursor note when its bound covers the group cap and that cap
-fits the default 8,192-row examined ceiling. Larger caps still need a cursor;
-other metered work can also cut a read.
-For a page of 50 pinned by `conversationId`, either declare `c: cursor ?`
-and page with `after c`, or add `cap 50 by conversationId` to the table if
-that is the intended group limit. An unscoped plain page can use `cap 50`.
-The cap refuses writes beyond its limit; a per-lane cap does not bound a merge.
-
-Notes in a text `check` print their code, site, message and rewrite, followed
-by `snapback4 why <code>`. Long explanations are opt-in: `check --verbose`
-prints each note's explanation once per code and card, even for a single
-note; `why <code>` opens it on demand. Grouped notes show their one-line
-summary by default; `--verbose` and JSON retain every member and source site.
-
-When the same error code and card occur twice in one text `check`, its card excerpt
-prints once under the first occurrence, with the `guide:` pointer kept at
-every site. At most three excerpts print per check, each at most 4,096 UTF-8
-bytes including its full-card pointer and final newline (12,291 extra bytes
-including separating blank lines). A single occurrence stays compact;
-`check --json` keeps its structured diagnostics. `why <code>` still opens
-the excerpt on demand. Every registered code has a dedicated paragraph on
-its default card; `why <code>` names the code and explains it there.
-For example, `E_QUARRY_SYNTAX` and `E_QUARRY_UNKNOWN` have mistake-and-repair
-sections on `guide language`; `E_QUARRY_PLACEMENT` and `E_EMIT_IN_QUERY`
-have theirs on `guide programs`. A diagnostic may point to another card
-for its context; if that card lacks a section for the code, `check` keeps
-the diagnostic and pointer without an excerpt. Explicit `why <code>`
-then labels its fallback to that card's opening."##;
+not a complete sweep."##;

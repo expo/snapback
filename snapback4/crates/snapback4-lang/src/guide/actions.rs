@@ -1,10 +1,7 @@
 pub const CARD: &str = r##"# Actions: declared results and typed server handlers
 
-One `use server` in any module (`schema.q` is usual) enables the whole
-project; repeating it is harmless. Actions, routes and schedules naming an
-action require it. Effects (including secrets, retry, backoff, deadline and
-cancellation), jobs, schedules naming a job and service seats need no directive.
-E_SERVER_REQUIRED refuses each gated declaration; its rewrite is `use server`.
+Actions expose typed operations implemented by the application's TypeScript server handlers.
+Use them for work that calls external systems and reads or writes through Quarry operations.
 
 ```quarry
 use server
@@ -102,6 +99,8 @@ request terminally with `E_ACTION_AUTHORITY`: "the authority that admitted
 this action was revoked or has expired". No delegated session is minted.
 Service-session admissions have the same binding. Development personas and
 legacy requests without a recorded binding retain their existing behavior.
+Inspect recorded steps and provider outcomes before starting new intent under
+a new live session; a fresh sign-in does not revive the old admission.
 
 `POST /a/<name> { id, args }` under a live viewer session records the
 request durably, once per id, then waits up to 25 seconds. A settled reply
@@ -133,6 +132,8 @@ get `E_ACTION_LEASE`; user tokens get HTTP 401 `E_AUTH`. Results are JSON
 bounded by the unchanged 1 MiB output ceiling, and declared result fields are
 validated using the same scalar rules as arguments.
 
+## Operations
+
 `snapback4 dev` starts `snapback/server.ts` (or `.mts` or `.mjs`), falling back
 to `snapback/worker.ts` (or `.mts` or `.mjs`), with Node 24, `SNAPBACK_URL`
 and `SNAPBACK_SERVICE_TOKEN` for `service:worker`.
@@ -140,6 +141,8 @@ and `SNAPBACK_SERVICE_TOKEN` for `service:worker`.
 It restarts a crashed worker with backoff and stops it on dev exit.
 The child environment is constructed explicitly, with runtime variables and
 the declared secrets; a missing secret refuses startup with E_SECRET_MISSING.
+Supply the declared environment variable to the host before restarting; keep
+its value out of Quarry, generated files and logs.
 
 `snapback4 serve <release-dir> --worker <path>` supervises that Node 24 entry
 with the same restart backoff and shutdown. Its environment contains only
@@ -163,6 +166,14 @@ server entry's import graph strictly without running it. Node 24 requires
 extensions on relative TypeScript imports. Work and step records have no
 automatic retention expiry; their ids are never silently reusable. Parked
 work needs operator reconciliation; there is no resume command in this slice.
+
+## Refusals
+
+One `use server` in any module (`schema.q` is usual) enables the whole
+project; repeating it is harmless. Actions, routes and schedules naming an
+action require it. Effects (including secrets, retry, backoff, deadline and
+cancellation), jobs, schedules naming a job and service seats need no directive.
+E_SERVER_REQUIRED refuses each gated declaration; its rewrite is `use server`.
 
 ## Action results and lifecycle refusals
 
@@ -312,6 +323,4 @@ or run `snapback4 guide actions`.
 E_OIDC_BINDING, E_OIDC_CALLBACK, E_OIDC_CONFIG, E_OIDC_EXCHANGE,
 E_OIDC_HANDOFF, E_OIDC_MINT, E_OIDC_PROVIDER, E_OIDC_RECIPE,
 E_OIDC_REPLAY and E_OIDC_TRANSACTION
-are explained in the package’s SERVER.md, under Identity refusal reference.
-
-"##;
+are explained in the package’s SERVER.md, under Identity refusal reference."##;

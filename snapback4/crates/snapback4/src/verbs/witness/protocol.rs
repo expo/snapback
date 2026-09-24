@@ -103,7 +103,7 @@ pub fn sequence(rows: &[Value], expected: &[&str], final_file: bool) -> Result<(
     Ok(())
 }
 
-pub const OUTPUTS: &[&str] = &["run.json", "screen.mp4", "receipts.jsonl", "device.log", "video.log", "launch.log", "backend.log", "backend-stdout.log", "log-stderr.log"];
+pub const OUTPUTS: &[&str] = &["run.json", "screen.mp4", "receipts.jsonl", "device.log", "video.log", "launch.log", "backend.log", "backend-stdout.log", "log-stderr.log", "prime.png", "offline.png", "restart.png"];
 
 // The marker stays with success and failure artifacts. Creating it, rather
 // than checking for it, is the single winner operation across driver runs.

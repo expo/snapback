@@ -24,12 +24,20 @@ pub fn init(options: &Options) -> i32 {
     let expo = options.flags.contains_key("expo");
     let web = options.flags.contains_key("web");
     let mut files = if web { web::files() } else if expo { expo_files() } else if online { online_files() } else { vec![("snapback/schema.q", snapback4_lang::guide::TEMPLATE.to_owned())] };
+    let mut conflicts = Vec::new();
+    // A project's existing introduction is unrelated to the starter. Keep it
+    // and place our setup instructions beside it, still without overwriting.
+    if dir.join("README.md").symlink_metadata().is_ok() {
+        for (name, _) in &mut files {
+            if *name == "README.md" { *name = "README.snapback.md"; }
+        }
+    }
     // @ref LLP 3000.007#20.2 — installed packages can receive a starter; only conflicting required entries refuse.
     for (name, text) in &mut files {
         if *name == "package.json" && dir.join(*name).exists() {
             match merge_package(&dir.join(*name), text) {
                 Ok(merged) => *text = merged,
-                Err(error) => { eprintln!("init: {error}"); return 1; }
+                Err(error) => conflicts.push(error),
             }
         } else if *name == "package.json" && dir.is_dir() {
             match inherited_package_type(dir) {
@@ -39,7 +47,7 @@ pub fn init(options: &Options) -> i32 {
                     if let Some(kind) = kind { package["type"] = kind; }
                     *text = pretty(&package);
                 }
-                Err(error) => { eprintln!("init: {error}"); return 1; }
+                Err(error) => conflicts.push(error),
             }
         }
     }
@@ -53,21 +61,32 @@ pub fn init(options: &Options) -> i32 {
     files.push(("snapback/generated/package.json", GENERATED_PACKAGE.into()));
     // Check every destination before writing any starter file.
     for (name, _) in &files {
-        if let Err(error) = preflight_parents(&dir.join(name)) { eprintln!("init: {error}"); return 1; }
+        if let Err(error) = preflight_parents(&dir.join(name)) { conflicts.push(error); }
         let alternate = match *name { "metro.config.cjs" => Some("metro.config.js"), "babel.config.cjs" => Some("babel.config.js"), "metro.config.js" => Some("metro.config.cjs"), "babel.config.js" => Some("babel.config.cjs"), _ => None };
-        if let Some(alternate) = alternate.filter(|name| dir.join(name).exists()) {
-            eprintln!("{} already exists", dir.join(alternate).display());
-            return 1;
+        if let Some(alternate) = alternate.filter(|name| dir.join(name).symlink_metadata().is_ok()) {
+            conflicts.push(format!("{} already exists", dir.join(alternate).display()));
         }
         if *name != "package.json" {
             match dir.join(*name).symlink_metadata() {
-                Ok(_) => { eprintln!("{} already exists", dir.join(*name).display()); return 1; }
+                Ok(_) => conflicts.push(format!("{} already exists", dir.join(*name).display())),
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
-                Err(error) => { eprintln!("init: {}: {error}", dir.join(*name).display()); return 1; }
+                Err(error) => conflicts.push(format!("{}: {error}", dir.join(*name).display())),
             }
         }
     }
-    if let Err(error) = preflight_parents(&dir.join(".gitignore")) { eprintln!("init: {error}"); return 1; }
+    if let Err(error) = preflight_parents(&dir.join(".gitignore")) { conflicts.push(error); }
+    for name in ["package.json", ".gitignore"] {
+        if name == "package.json" && !files.iter().any(|(file, _)| *file == name) { continue; }
+        if dir.join(name).symlink_metadata().is_ok_and(|m| !m.is_file()) {
+            conflicts.push(format!("{} is not a regular file", dir.join(name).display()));
+        }
+    }
+    if !conflicts.is_empty() {
+        conflicts.sort(); conflicts.dedup();
+        eprintln!("E_INIT_CONFLICT: no files written\n  {}\n  rewrite: rename the listed files or reconcile the listed package.json entries, then rerun snapback4 init", conflicts.join("\n  "));
+        return 1;
+    }
+    let readme = files.iter().find(|(name, _)| name.starts_with("README.")).map(|(name, _)| *name);
     let mut created = Vec::new();
     let mut write = || -> std::io::Result<()> {
         for (name, text) in &files {
@@ -96,7 +115,7 @@ pub fn init(options: &Options) -> i32 {
         }
         return 2;
     }
-    println!("init: wrote {} files in {} — {} — next: `snapback4 check`, then `snapback4 dev`{}", files.len(), dir.display(), if expo { "Expo: native when available, online in Expo Go" } else if web { "Vite web: production offline shell" } else if online { "online-only" } else { "local-first" }, if expo || online || web { "; see README.md" } else { "" });
+    println!("init: wrote {} files in {} — {} — next: `snapback4 check`, then `snapback4 dev`{}", files.len(), dir.display(), if expo { "Expo: native when available, online in Expo Go" } else if web { "Vite web: production offline shell" } else if online { "online-only" } else { "local-first" }, readme.map(|name| format!("; see {name}")).unwrap_or_default());
     0
 }
 
@@ -157,23 +176,28 @@ fn merge_package(path: &Path, starter: &str) -> Result<String, String> {
     let mut existing: Value = serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
     let object = existing.as_object_mut().ok_or("package.json must be an object")?;
     let required: Value = serde_json::from_str(starter).unwrap();
+    let mut conflicts = Vec::new();
     for (key, value) in required.as_object().unwrap() {
         if matches!(key.as_str(), "dependencies" | "devDependencies" | "scripts") {
-            let group = object.entry(key.clone()).or_insert_with(|| json!({})).as_object_mut()
-                .ok_or_else(|| format!("package.json {key} must be an object"))?;
+            let Some(group) = object.entry(key.clone()).or_insert_with(|| json!({})).as_object_mut() else {
+                conflicts.push(format!("package.json {key} must be an object"));
+                continue;
+            };
             for (name, needed) in value.as_object().unwrap() {
                 match group.get(name) {
-                    Some(old) if old != needed => return Err(format!("package.json conflict at {key}.{name}: existing {old}, required {needed}")),
+                    Some(old) if old != needed => conflicts.push(format!("package.json conflict at {key}.{name}: existing {old}, required {needed}")),
                     Some(_) => {},
                     None => { group.insert(name.clone(), needed.clone()); }
                 }
             }
+        } else if key == "main" && object.get(key).is_some_and(|old| old != value) {
+            conflicts.push(format!("package.json conflict at {key}: existing {}, required {value}", object[key]));
         } else if key != "type" {
             // An absent type is itself the existing package's module policy.
             object.entry(key.clone()).or_insert_with(|| value.clone());
         }
     }
-    Ok(pretty(&existing))
+    if conflicts.is_empty() { Ok(pretty(&existing)) } else { Err(conflicts.join("\n  ")) }
 }
 
 // @ref LLP 3000.007#7 — no sync lines and createClient pave the online tier

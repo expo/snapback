@@ -31,7 +31,7 @@ pub fn schema() -> Schema {
 }
 
 pub fn scan(take: u32) -> Scan {
-    Scan { site: "messages.page".into(), table: "messages".into(), index: "byBucket".into(), prefix: vec![IndexKeyExpr::Scalar(int(0))], order: Order::Asc,
+    Scan { variant: None, site: "messages.page".into(), table: "messages".into(), index: "byBucket".into(), prefix: vec![IndexKeyExpr::Scalar(int(0))], order: Order::Asc,
         take: Bound::Literal(take), existence: false, after: None, before: None, range: None, filter: None, opaque_cursor: false, merge_site: None, provenance: KeyProvenance::Const }
 }
 

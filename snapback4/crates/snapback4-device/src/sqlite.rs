@@ -31,6 +31,7 @@ impl DeviceStore for Store {
     fn install_checked(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
         self.install_device_checked_with(schema, metadata, reset, expected, |tx| crate::device::reset_for_install(tx, metadata, reset))
     }
+    fn witness_count(&self, table: &str) -> Result<u64, RuntimeError> { self.count(table) }
     fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
         Store::meta(self, key)
     }
@@ -80,7 +81,7 @@ impl DeviceTx for Tx<'_> {
         Ok(())
     }
     fn clear_rows(&self) -> Result<(), RuntimeError> {
-        self.conn().execute_batch("DELETE FROM r; DELETE FROM i;")?;
+        self.conn().execute_batch("DELETE FROM r; DELETE FROM i; DELETE FROM _cap_counts;")?;
         Ok(())
     }
     fn outbox_insert(&self, seq: u64, id: &str, entry: &str) -> Result<(), RuntimeError> {

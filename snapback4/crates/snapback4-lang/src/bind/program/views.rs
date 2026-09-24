@@ -11,6 +11,7 @@ impl Binder<'_> {
         let mut lanes = Vec::new();
         let mut result: Option<BTreeMap<String, Ty>> = None;
         let mut first_site = None;
+        let mut field_sources: BTreeMap<String, Vec<(Ty, A)>> = BTreeMap::new();
         // Queries retain the view's shared cursor identity. A non-query with
         // one source is an ordinary admitted scan followed by a row shape;
         // representing it as a merge would reject safe capped mutations.
@@ -24,6 +25,9 @@ impl Binder<'_> {
                 let (source, ty) = self.lane_domain(domain, out)?;
                 (Some(source), self.declare(name, ty))
             } else { (None, String::new()) };
+            if let Some((_, domain)) = &lane.loop_ {
+                self.sources.insert(format!("for/{binding}"), (domain.site().clone(), self.catalog.source.expression(domain)));
+            }
             let distinct = lane.distinct.as_ref().map(|value| self.expr(value, out).map(|(value, _)| value)).transpose()?;
             let mut setup = setup::Body::default();
             // @ref LLP 3000.007#20.12 — as with authored merges, a lane-dependent
@@ -66,25 +70,33 @@ impl Binder<'_> {
                 self.pop_scope();
                 return Ok((ir::var(&target), Ty::Collection(Box::new(ty), max)));
             }
-            let fields = match ty { Ty::RowShape(fields) | Ty::Object(fields) => fields, _ => unreachable!("shape object") };
+            let fields = match ty { Ty::RowShape(fields) | Ty::RowObject(fields) | Ty::Object(fields) => fields, _ => unreachable!("shape object") };
             if let Some(prior) = &mut result {
                 if prior.keys().ne(fields.keys()) {
                     return Err(type_error(&lane.site, format!("view {} branch fields differ from branch at {}", merge.table, first_site.as_ref().unwrap()), "project the same named fields in every view branch").guide("reads"));
                 }
                 for (name, ty) in fields {
                     let old = &prior[&name];
+                    let current = projection_source(lane, &name);
+                    let origins = field_sources.get_mut(&name).unwrap();
+                    origins.push((ty.clone(), current));
+                    old.join(&ty).map_err(|error| self.join_error_many(error.at(&name), origins))?;
                     let joined = view_join(old, &ty).ok_or_else(|| type_error(&lane.site,
                         format!("view {} field {name}: {} conflicts with {} at {}", merge.table, ty.name(), old.name(), first_site.as_ref().unwrap()),
                         format!("project compatible values for {name} in every branch")).guide("reads"))?;
                     prior.insert(name, joined);
                 }
-            } else { first_site = Some(lane.site.clone()); result = Some(fields); }
+            } else {
+                first_site = Some(lane.site.clone());
+                field_sources = fields.keys().map(|name| (name.clone(), vec![(fields[name].clone(), projection_source(lane, name))])).collect();
+                result = Some(fields);
+            }
             let project = if projection_setup.is_empty() { project } else { Expr::Block { body: projection_setup.code, value: Box::new(project) } };
             self.pop_scope();
             self.push_value_lane(&mut lanes, lane, MergeLane { guard, distinct, branch: lane.branch.clone(), setup: setup.code, scan, source, binding, project: Some(project) }, position)?;
         }
         if result.is_none() && !lanes.is_empty() {
-            return Ok((Expr::Merge(Merge { position: None, view: None, order_keys: Vec::new(), site, lanes }), Ty::Page(merge.table.clone(), merge.take)));
+            return Ok((Expr::Merge(Merge { variant: self.variant(), position: None, view: None, order_keys: Vec::new(), site, lanes }), Ty::Page(merge.table.clone(), merge.take)));
         }
         let fields = match self.catalog.view_types.get(&merge.table) {
             Some(Ty::RowShape(fields)) => fields.clone(), _ => result.unwrap_or_default(),
@@ -101,7 +113,7 @@ impl Binder<'_> {
         suffix.push(snapback4_core::cursor::CursorColumn { name: "$branch".into(), kind: snapback4_core::schema::ColumnType::Text { max: 1024 } });
         let position = ir::ViewPosition { take: merge.take, order: if merge.order == ast::Order::Asc { Order::Asc } else { Order::Desc }, after: cursor.map(|(value, _)| Box::new(value)), suffix };
         self.view_types.insert(merge.table.clone(), Ty::RowShape(fields.clone()));
-        Ok((Expr::Merge(Merge { position: Some(position), view: Some(merge.table.clone()), order_keys: merge.view_order.clone(), site, lanes }), Ty::Collection(Box::new(Ty::RowShape(fields)), merge.take)))
+        Ok((Expr::Merge(Merge { variant: self.variant(), position: Some(position), view: Some(merge.table.clone()), order_keys: merge.view_order.clone(), site, lanes }), Ty::Collection(Box::new(Ty::RowShape(fields)), merge.take)))
     }
 
     // @ref LLP 3000.013#2.1 — nullable membership is an ordinary filtered lane,
@@ -150,7 +162,7 @@ fn view_join(a: &Ty, b: &Ty) -> Option<Ty> {
     let joined = if matches!(a, Ty::Id | Ty::Ref(_)) && matches!(b, Ty::Id | Ty::Ref(_)) { Ty::Id }
         else if a == Ty::Null { b }
         else if b == Ty::Null { a }
-        else if a.comparable(&b) { a.join(&b) }
+        else if a.comparable(&b) { a.join(&b).ok()? }
         else { return None; };
     Some(if optional { joined.optional() } else { joined })
 }
@@ -167,4 +179,11 @@ fn cursor_kind(ty: &Ty) -> Option<snapback4_core::schema::ColumnType> {
         Ty::Optional(inner) => C::Optional(Box::new(cursor_kind(inner)?)),
         _ => return None,
     })
+}
+
+fn projection_source(lane: &ast::MergeLane, name: &str) -> A {
+    lane.project.as_ref().and_then(|fields| fields.iter().find_map(|field| match field {
+        ShapeField::Field { name: field, value, .. } if field == name => Some(value.clone()),
+        _ => None,
+    })).unwrap_or_else(|| A::Member { base: Box::new(A::Focal { site: lane.site.clone() }), name: name.into(), site: lane.site.clone() })
 }

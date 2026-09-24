@@ -1,4 +1,4 @@
-//! Diagnostics: one envelope, located, with a rewrite the author can paste
+//! Diagnostics: one envelope, located, with a rewrite when a safe repair is known
 //! and the keyword card to read (LLP 2000.000 §5.1).
 
 use serde::{Deserialize, Serialize};
@@ -73,7 +73,9 @@ impl Diagnostic {
 impl fmt::Display for Diagnostic {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let discovery = if self.mechanical { " — check --fix applies it" } else { "" };
-        write!(f, "{} — {}: {}\n  rewrite: {}{discovery}\n  guide: {}", self.site, self.code, self.message, self.rewrite, self.guide)
+        write!(f, "{} — {}: {}", self.site, self.code, self.message)?;
+        if !self.rewrite.is_empty() { write!(f, "\n  rewrite: {}{discovery}", self.rewrite)?; }
+        write!(f, "\n  guide: {}", self.guide)
     }
 }
 
@@ -134,18 +136,22 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_QUARRY_SYNTAX" => "language",
         "E_QUARRY_UNSUPPORTED" => "language",
         "E_QUARRY_TYPE" => "types",
+        "E_QUARRY_SPREAD" | "E_QUARRY_DUPLICATE_FIELD" | "E_QUARRY_SHAPE_JOIN" => "shapes",
+        "E_QUARRY_WRITE_TESTS" => "writes",
+        "E_QUARRY_RULE_SPELLING" => "rules",
+        "E_QUARRY_JOB_SCHEDULE" => "jobs",
         "E_QUARRY_AMBIGUOUS" | "E_CURSOR_INDEX" | "E_CONSTRAINT" => "indexes",
         "E_QUARRY_PLACEMENT" | "E_INTERNAL" => "programs",
         "E_UNBOUND_LOOP" | "E_UNBOUND_SCAN" | "E_QUARRY_BOUND" => "bounds",
         "E_SYNC" | "E_SYNC_GENERATION" => "sync",
         "E_SCHEMA_CONSTRAINT" | "E_INDEX_KEY_BYTES" => "indexes",
         "E_EMIT_IN_QUERY" => "programs",
-        "E_QUARRY_MODIFIER_SCOPE" | "N_NO_CURSOR" | "N_SEEK" | "N_NEVER_COMPLETE" | "E_SHAPE_EXCEEDS_METER" => "reads",
+        "E_QUARRY_MODIFIER_SCOPE" | "N_NO_CURSOR" | "N_SEEK" | "N_NEVER_COMPLETE" | "E_SHAPE_EXCEEDS_METER" | "N_OPTIONAL_FILTER_LIMIT" => "reads",
         "N_WIDE_MERGE" | "E_HOST_UNICODE" => "search",
-        "E_QUARRY_POSITIONAL_SCAN" => "reads",
+        "E_QUARRY_POSITIONAL_SCAN" | "E_QUARRY_KEY_ORDER" => "reads",
         "E_VIEW_FEED_SHAPE" => "feeds",
         "N_SPARSE_FILTER" | "E_RECIPE_RETIRED" | "FEED_APP_NOT_FOUND" | "FEED_APP_OWNER" | "FEED_APP_EVENT" | "FEED_PULL_CAP" | "FEED_PROMOTION_PULL_CAP" | "FEED_PULL_COUNT_MISSING" | "FEED_EVENT_REMOVED" | "FEED_ORIGINAL_REQUIRED" | "FEED_NOT_AUTHOR" | "FEED_CANNOT_FOLLOW_SELF" | "FEED_AUTHOR_NOT_FOUND" | "FEED_POST_NOT_FOUND" => "feeds",
-        "N_NO_HORIZON" | "E_STORE_RESTORE" | "E_QUARRY_RETAIN" => "sync",
+        "N_NO_HORIZON" | "E_STORE_REPLACED" | "E_STORE_RESTORE" | "E_QUARRY_RETAIN" => "sync",
         "N_MAINTAIN_SYNCED" | "N_NOW_SERVER" | "N_NOT_PREDICTABLE" => "residency",
         "N_MAINTAIN_DELTA" | "E_RULE" => "rules",
         "E_NOT_PREDICTABLE" | "N_HORIZON_GUARD" | "E_PREDICT" => "prediction",
@@ -158,7 +164,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_STRUCTURAL_FANOUT" | "E_OP" | "E_OP_RESERVED" => "programs",
         "E_BOUND" | "E_FANOUT" => "bounds",
         "E_QUERY_HELD" => "search",
-        "DIGEST_CHAT_BOUND" | "E_CLOCK_DEV_ONLY" | "E_CLOCK_INPUT" | "E_SCHEDULE" | "E_JOB_CURSOR_INDEX" | "E_JOB_GENERATION" => "jobs",
+        "DIGEST_CHAT_BOUND" | "E_CLOCK_DEV_ONLY" | "E_CLOCK_INPUT" | "E_SCHEDULE" | "E_JOB_CURSOR_INDEX" | "E_JOB_GENERATION" | "E_JOB_SWEEP" => "jobs",
         "E_REPLAY_DEV_ONLY" | "E_SQL_READ_ONLY" | "E_SQL_INTERNAL" | "E_RATE_LIMIT" => "personas",
         "E_AUTH" => "services",
         "E_SERVER_REQUIRED" => "actions",

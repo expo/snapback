@@ -257,6 +257,9 @@ impl<T: DeviceTx> Rows for Predicting<'_, T> {
         }
         Ok(rows)
     }
+    fn cap_count(&self, table: &str, by: &[String], group: &[Value]) -> Result<u64, RuntimeError> {
+        self.tx.cap_count(table, by, group)
+    }
     fn count_prefix(&self, table: &str, index_name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> {
         self.tx.count_prefix(table, index_name, prefix, limit)
     }
@@ -1092,6 +1095,14 @@ mod publication_tests;
 
 #[cfg(test)]
 mod opening_tests;
+
+#[cfg(test)]
+mod cap_counts_tests;
+#[cfg(all(test, feature = "native"))]
+mod expired_births_tests;
+
+#[cfg(all(test, feature = "native"))]
+mod upsert_reservation_tests;
 
 #[cfg(all(test, feature = "native"))]
 mod publication_round5;

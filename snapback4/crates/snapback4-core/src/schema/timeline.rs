@@ -39,7 +39,7 @@ pub fn owned_id(timeline: &str, suffix: &str, key: &[Value]) -> String {
     crate::value::digest(&parts)
 }
 
-// @ref LLP 3000.007.003#33-f3-the-following-recipes-contract-as-a-declaration — history belongs to the declaration, never to a rebuild.
+// @ref LLP 3000.013#4-following-without-caps — a declaration owns event identity and edge-epoch history.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Timeline {
     pub name: String,

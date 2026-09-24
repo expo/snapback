@@ -203,3 +203,15 @@ fn adaptive_job_run_and_doctor_report_chunk_size_and_retries() {
     let text = String::from_utf8(doctor.stdout).unwrap();
     assert!(text.contains("chunk size 64, retries 0"), "{text}");
 }
+
+#[test]
+fn unavailable_cli_body_remains_incomplete_for_exit_zero_consumers() {
+    let p = Project::new();
+    p.source("query costly():\n  text = ''\n  for n in range(0, 10000):\n    text = text + 'an allocation that stays bounded by the heap meter'\n  return [text]\n");
+    let out = p.run(&["run", "costly", "--json"]);
+    assert!(out.status.success(), "{out:?}");
+    let reply: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
+    assert_eq!(reply["loading"], true);
+    assert!(reply.get("data").is_some_and(serde_json::Value::is_null));
+    assert_eq!(reply["complete"], false);
+}

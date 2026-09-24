@@ -133,7 +133,10 @@ impl DevWorker {
         };
         let token = session.token;
         self.child_expires_at = Some(session.expires_at);
-        if !self.explicit_env && self.starts == 0 && server_source(&self.project).is_none() {
+        // Witness artifacts must not contain the supervisor's bearer. The child
+        // still receives it through its environment and its output is redacted below.
+        if !self.explicit_env && self.starts == 0 && server_source(&self.project).is_none()
+            && std::env::var_os("SNAPBACK4_WITNESS_DRIVER").is_none() {
             println!("snapback4 dev worker: service:worker token (printed once): {token}");
         }
         let secrets = { environment::values(&lock(&self.shared.bound).schema) };

@@ -88,13 +88,16 @@ mod driver {
             fs::create_dir_all(dir.join("snapback")).unwrap();
             fs::write(dir.join("snapback/schema.q"), "use personas alice\ntable rows:\n  body: text <=40\n  public 'fixture'\nquery rows():\n  return rows first 10\n").unwrap();
             fs::write(dir.join("app/Info.plist"), r#"<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>dev.test</string><key>CFBundleVersion</key><string>1</string><key>CFBundleShortVersionString</key><string>1.0</string><key>CFBundleExecutable</key><string>TestApp</string></dict></plist>"#).unwrap();
+            fs::write(dir.join("app/TestApp"), "fake app for driver tests").unwrap();
+            fs::write(dir.join("app/main.jsbundle"), "fake bundle for driver tests").unwrap();
             fs::write(dir.join("xcrun"), include_str!("fixtures/witness-simctl.py")).unwrap();
             fs::set_permissions(dir.join("xcrun"), fs::Permissions::from_mode(0o755)).unwrap();
             Self(dir)
         }
         fn command(&self, mode: &str, port: u16, artifacts: &std::path::Path) -> Command {
             let mut command = Command::new(env!("CARGO_BIN_EXE_snapback4"));
-            command.args(["witness", "ios", "--bundle-id", "dev.test", "--segment", "offline", "--port", &port.to_string(), "--timeout", "5", "--prime"])
+            command.args(["witness", "ios", "--bundle-id", "dev.test", "--port", &port.to_string(), "--timeout", "5"])
+                .args(if mode.starts_with("smoke") { vec!["--smoke"] } else { vec!["--segment", "offline", "--prime"] })
                 .arg("--artifacts").arg(artifacts)
                 .args(if mode == "relaunch" { vec!["--relaunch"] } else { vec![] })
                 .current_dir(&self.0).env("PATH", format!("{}:{}", self.0.display(), std::env::var("PATH").unwrap_or_default()))
@@ -107,6 +110,67 @@ mod driver {
         fn port() -> u16 { std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap().local_addr().unwrap().port() }
     }
     impl Drop for Fixture { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
+    #[test]
+    fn smoke_runs_three_cold_launches_and_a_broken_offline_run_fails() {
+        for mode in ["smoke", "smoke-broken"] {
+            let fixture = Fixture::new();
+            let port = Fixture::port();
+            let output = fixture.run(mode, port);
+            assert_eq!(output.status.success(), mode == "smoke", "{}", String::from_utf8_lossy(&output.stderr));
+            let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/smoke-ios-run.json")).unwrap()).unwrap();
+            assert_eq!(manifest["segments"]["prime"]["status"], "passed");
+            if mode == "smoke" {
+                for segment in ["prime", "offline", "restart"] {
+                    assert_eq!(manifest["segments"][segment]["status"], "passed");
+                    assert!(manifest["artifacts"][format!("{segment}.png")]["bytes"].as_u64().unwrap() > 0);
+                }
+                assert!(manifest["segments"]["restart"]["receipt"]["watermark"].as_u64() > manifest["segments"]["prime"]["receipt"]["watermark"].as_u64());
+                assert_eq!(fs::read_to_string(fixture.0.join("launch-count")).unwrap(), "3");
+            } else {
+                assert_eq!(manifest["segments"]["offline"]["status"], "failed");
+                assert_eq!(manifest["segments"]["offline"]["receipt"]["errors"][0]["message"], "deliberate offline crash");
+                assert_eq!(manifest["segments"]["restart"]["status"], "not-run");
+            }
+            assert!(protocol::refused(port).unwrap());
+            assert!(!fixture.0.join("app-pid").exists());
+        }
+    }
+    fn smoke_rejects_failure_after_receipt(mode: &str, segment: &str, code: &str) {
+        let fixture = Fixture::new(); let port = Fixture::port(); let output = fixture.run(mode, port);
+        assert!(!output.status.success(), "{mode} incorrectly passed");
+        assert!(String::from_utf8_lossy(&output.stderr).contains(code), "{}", String::from_utf8_lossy(&output.stderr));
+        let manifest: Value = serde_json::from_slice(&fs::read(fixture.0.join("artifacts/smoke-ios-run.json")).unwrap()).unwrap();
+        assert_eq!(manifest["exitStatus"], 1);
+        assert_eq!(manifest["segments"][segment]["status"], "failed");
+        let receipt = &manifest["segments"][segment]["receipt"];
+        assert_eq!(receipt["pass"], true, "failure is in driver validation, after app success");
+        if segment == "restart" {
+            assert!(receipt["watermark"].as_u64() > manifest["segments"]["prime"]["receipt"]["watermark"].as_u64());
+        }
+        if mode.starts_with("smoke-crash-after-done-") {
+            let events = fs::read_to_string(fixture.0.join("process-events.jsonl")).unwrap();
+            let index = ["prime", "offline", "restart"].iter().position(|s| *s == segment).unwrap();
+            assert!(!events.contains(&format!("\"terminate\": {}", 7001 + index)), "crashed PID was not deliberately terminated");
+            for later in ["prime", "offline", "restart"].iter().skip(index + 1) {
+                assert_eq!(manifest["segments"][*later]["status"], "not-run");
+            }
+        }
+        assert!(protocol::refused(port).unwrap());
+        assert!(!fixture.0.join("app-pid").exists());
+    }
+    #[test]
+    fn smoke_rejects_unconsumed_barrier_and_native_crash_after_done() {
+        smoke_rejects_failure_after_receipt("smoke-stale-restart", "restart", "E_WITNESS_STEP");
+        smoke_rejects_failure_after_receipt("smoke-crash-after-done-restart", "restart", "E_WITNESS_APP");
+    }
+    #[test]
+    fn smoke_rejects_native_crash_after_prime() {
+        smoke_rejects_failure_after_receipt("smoke-crash-after-done-prime", "prime", "E_WITNESS_APP");
+    }
+    #[test]
+    fn smoke_rejects_native_crash_after_offline() {
+        smoke_rejects_failure_after_receipt("smoke-crash-after-done-offline", "offline", "E_WITNESS_APP");
+    }
     #[test]
     fn cli_missing_app_and_ambiguous_simulator_never_start_a_backend() {
         for (mode, code) in [("missing", "E_WITNESS_APP"), ("ambiguous", "E_WITNESS_SIMULATOR")] {

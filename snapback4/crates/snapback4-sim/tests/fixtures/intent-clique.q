@@ -103,6 +103,9 @@ query thread(postId: posts, c: cursor ?):
   return posts where .parentId = postId first 20 by .at after c postCard
 query people(q: text <=100, c: cursor ?):
   return profiles matching q last 20 by .createdAt after c
+query socialProfile(handle: text 3..20 format handle):
+  p = profiles[handle = handle] ! else NOT_FOUND
+  return { ...p, followers: followerCount[p.principal], following: exists follows[viewer, p.principal] }
 query insights():
   days = []
   for d in range(day(now) - 6, day(now) + 1):
@@ -132,7 +135,7 @@ table members:
   unique conversationId, principal
   cap 50 by conversationId          -- a product rule from the brief
   read <- exists members[.conversationId, viewer]
-  insert <- exists members[conversationId = .conversationId, principal = viewer, role = 'admin']
+  insert <- exists members[.conversationId, viewer, role = 'admin']
   sync to members[.conversationId]
 
 table messages:

@@ -120,6 +120,8 @@ pub enum Stmt {
     /// Target lookup and the old image stay inside the engine. Only a read-filtered result is bound.
     WriteTarget { target: Read, patch: Expr, upsert: bool, condition: Option<WriteCondition>, result: Option<String> },
     Delete { table: String, key: Expr },
+    /// Alternate-key delete resolves inside the engine before charging hidden expiry work.
+    DeleteTarget { target: Read },
     Emit { effect: String, payload: Expr, #[serde(default, skip_serializing_if = "Option::is_none")] once: Option<Expr> },
     Return(Expr),
     Break,
@@ -225,6 +227,7 @@ pub enum Builtin {
     Divmod { remainder_sink: String },
     Sort { keys: Vec<SortKey> },
     MentionTokens,
+    SearchPresent,
     DeterministicShare,
     Count,
     Sum,
@@ -237,7 +240,7 @@ pub enum Builtin {
 impl Builtin {
     pub fn arity(&self) -> usize {
         match self {
-            Self::Calendar { .. } | Self::Group { .. } | Self::First | Self::Last | Self::Len | Self::Lower | Self::Trim | Self::Sha256 | Self::Sort { .. } | Self::MentionTokens | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
+            Self::Calendar { .. } | Self::Group { .. } | Self::First | Self::Last | Self::Len | Self::Lower | Self::Trim | Self::Sha256 | Self::Sort { .. } | Self::MentionTokens | Self::SearchPresent | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
             Self::At | Self::Concat | Self::Join | Self::Min | Self::Max | Self::Divmod { .. } => 2,
             Self::Slice | Self::DeterministicShare => 3,
         }
@@ -277,6 +280,9 @@ impl IndexKeyExpr {
     }
 }
 
+/// Stable presence identity: fixed storage and lossless JSON on every host.
+pub type VariantId = [u32; 4];
+
 /// A bounded range over an index prefix.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Scan {
@@ -302,6 +308,8 @@ pub struct Scan {
     #[serde(default)]
     pub merge_site: Option<String>,
     pub provenance: KeyProvenance,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub variant: Option<crate::ir::VariantId>,
 }
 
 /// A union owns its projected cursor descriptor, including when no branch survives.
@@ -324,6 +332,8 @@ pub struct Merge {
     pub order_keys: Vec<String>,
     pub site: String,
     pub lanes: Vec<MergeLane>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub variant: Option<crate::ir::VariantId>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -520,6 +530,10 @@ fn stmts_read_sites(stmts: &[Stmt], out: &mut Vec<ReadSite>) {
                 if let Some(condition) = condition { stmts_read_sites(&condition.setup, out); expr_read_sites(&condition.value, out); }
             }
             Stmt::Delete { key, .. } => expr_read_sites(key, out),
+            Stmt::DeleteTarget { target } => {
+                out.push(ReadSite { site: target.site.clone(), table: target.table.clone(), index: target.index.clone(), kind: "write target", take: 1 });
+                for key in &target.key { expr_read_sites(key, out); }
+            }
             Stmt::Break | Stmt::Continue => {}
         }
     }
@@ -580,6 +594,12 @@ pub fn scans(program: &Program) -> Vec<&Scan> {
     read_structure(program).0
 }
 
+pub(crate) fn expression_scans(expr: &Expr) -> Vec<&Scan> {
+    let mut out = Vec::new();
+    expr_scans(expr, &mut out, &mut false);
+    out
+}
+
 pub(crate) fn read_structure(program: &Program) -> (Vec<&Scan>, bool) {
     let mut out = Vec::new();
     let mut has_merge = false;
@@ -627,6 +647,7 @@ fn stmts_scans<'a>(stmts: &'a [Stmt], out: &mut Vec<&'a Scan>, has_merge: &mut b
                 if let Some(condition) = condition { stmts_scans(&condition.setup, out, has_merge); expr_scans(&condition.value, out, has_merge); }
             }
             Stmt::Delete { key, .. } => expr_scans(key, out, has_merge),
+            Stmt::DeleteTarget { target } => for key in &target.key { expr_scans(key, out, has_merge); },
             Stmt::Break | Stmt::Continue => {}
         }
     }
@@ -696,6 +717,7 @@ fn stmts_write_tables(stmts: &[Stmt], out: &mut Vec<(String, &'static str)>) {
             Stmt::Upsert { table, .. } => out.push((table.clone(), "upsert")),
             Stmt::WriteTarget { target, upsert, .. } => out.push((target.table.clone(), if *upsert { "upsert" } else { "update" })),
             Stmt::Delete { table, .. } => out.push((table.clone(), "delete")),
+            Stmt::DeleteTarget { target } => out.push((target.table.clone(), "delete")),
             Stmt::If { then_body, else_body, .. } => {
                 stmts_write_tables(then_body, out);
                 stmts_write_tables(else_body, out);

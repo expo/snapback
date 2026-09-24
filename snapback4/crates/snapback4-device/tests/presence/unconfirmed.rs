@@ -2,7 +2,7 @@ use super::*;
 use snapback4_device::store::{DeviceStore, DeviceTx};
 use snapback4_core::{Ceilings, engine::local, rows::Rows};
 
-fn fifty<S: DeviceStore>(mut store: S, label: &str, boundary: bool, failures: &mut Vec<String>) {
+fn fifty<S: DeviceStore>(mut store: S, label: &str, boundary: bool) {
     let source = include_str!("../../../snapback4-sim/tests/grace_effects/presence_cost.q");
     let (_, backend) = compile(source);
     assert_eq!(backend.schema.operations["send"].predicts.as_deref(), Some("eligible"));
@@ -25,8 +25,9 @@ fn fifty<S: DeviceStore>(mut store: S, label: &str, boundary: bool, failures: &m
     let meter = w15a_prediction_meter(&mut store, &backend.schema, program, ctx.clone());
     println!("w15a fifty prediction {label}: {meter:?}");
     // The membership point read reserves its server-equivalent probe even
-    // when the device trusts its delivered image, in addition to insertion.
-    assert_eq!(meter.iter().map(|(_, n)| *n).collect::<Vec<_>>(), [52, 2, 2, 1367, 69843, 27, 1]);
+    // when the device trusts its delivered image. Insertion also needs room
+    // for its own rule and a potential collision's read rule: minimum 3.
+    assert_eq!(meter.iter().map(|(_, n)| *n).collect::<Vec<_>>(), [52, 2, 3, 1367, 69843, 27, 1]);
     let mut meters = Vec::new();
     for (state, live, deadline) in [("held", 1, 16_000), ("graced", 0, 36_000)] {
         let (mut engine, _) = compile(source);
@@ -42,18 +43,18 @@ fn fifty<S: DeviceStore>(mut store: S, label: &str, boundary: bool, failures: &m
                 let tx = store.transaction().unwrap();
                 let prediction = local::predict(&tx, &backend.schema, program, ctx.clone(), limits);
                 tx.rollback().unwrap();
-                assert!(prediction.is_ok(), "{label}/{ceiling}: {prediction:?}");
+                if ceiling == 3 { assert!(prediction.is_ok(), "{label}/{ceiling}: {prediction:?}"); }
+                else { assert!(matches!(&prediction, Err(snapback4_core::RuntimeError::Bound { kind: snapback4_core::error::MeterKind::RuleProbes, .. })), "{label}/{ceiling}: {prediction:?}"); }
                 let (mut engine, _) = compile(source);
                 engine.seed(seed.clone()).unwrap();
                 engine.set_presence(Some(std::sync::Arc::new(super::review::Poll(live, deadline))));
                 engine.set_ceilings(limits);
                 let sent = engine.mutate("send", None, ctx.clone()).unwrap();
-                println!("w15a5 probe boundary {label}/{state} ceiling={ceiling}: prediction=accepted server={:?}", sent.state);
+                println!("w15a5 probe boundary {label}/{state} ceiling={ceiling}: prediction={prediction:?} server={:?}", sent.state);
                 if ceiling == 3 { assert!(matches!(sent.state, WriteState::Sent { .. })); }
-                else if !matches!(sent.state, WriteState::Sent { .. }) {
+                else {
                     assert!(matches!(&sent.state, WriteState::Failed { why, .. } if why.code == "E_BOUND"));
                     assert!(engine.effects(None, 100).unwrap().is_empty());
-                    failures.push(format!("{label}/{state}: prediction accepts at rule_probes=2, server {:?}", sent.state));
                 }
             }
         }
@@ -63,15 +64,12 @@ fn fifty<S: DeviceStore>(mut store: S, label: &str, boundary: bool, failures: &m
 
 #[test]
 fn w15a_fifty_member_prediction_includes_read_authorization_on_both_stores() {
-    fifty(snapback4_core::Store::memory().unwrap(), "sqlite", false, &mut Vec::new());
-    fifty(snapback4_device::memory::MemoryStore::new(), "memory", false, &mut Vec::new());
+    fifty(snapback4_core::Store::memory().unwrap(), "sqlite", false);
+    fifty(snapback4_device::memory::MemoryStore::new(), "memory", false);
 }
 
 #[test]
-#[ignore = "pre-existing: issues/20260917-snapback4-presence-conjunction-server-charges-more-heap-than-prediction-reserves.md"]
 fn w15a5_fifty_member_server_fits_prediction_rule_probe_boundary_on_both_stores() {
-    let mut failures = Vec::new();
-    fifty(snapback4_core::Store::memory().unwrap(), "sqlite", true, &mut failures);
-    fifty(snapback4_device::memory::MemoryStore::new(), "memory", true, &mut failures);
-    assert!(failures.is_empty(), "{}", failures.join("\n"));
+    fifty(snapback4_core::Store::memory().unwrap(), "sqlite", true);
+    fifty(snapback4_device::memory::MemoryStore::new(), "memory", true);
 }

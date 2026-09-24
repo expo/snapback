@@ -12,12 +12,15 @@ mod actions;
 mod routes;
 mod server;
 mod key_bound;
+mod index_diagnostics;
+mod mixed_keys;
 mod aggregate_copies;
 mod time_indexes;
 mod timeline;
 mod feed_view;
 mod intent;
 mod intent_aggregates;
+mod intent_variants;
 mod intent_walk;
 mod intent_views;
 mod view_predicate;
@@ -54,7 +57,9 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     let personas: Vec<String> = documents.iter().flat_map(|d| d.personas.iter().cloned()).collect();
     let mut catalog = Catalog::build(documents, &mut diagnostics);
     catalog.feed_views = feeds;
+    mixed_keys::normalize(&mut catalog);
     intent::table_order(&mut catalog);
+    intent_variants::expand(&mut catalog);
     intent_views::expand(&mut catalog, &mut diagnostics);
     intent::plan(&mut catalog, &mut diagnostics);
     let mut schema = schema::bind_schema(&catalog, &mut diagnostics);
@@ -137,6 +142,10 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
         programs.retain(|bound| match snapback4_core::engine::admission::check_detail(&schema, &bound.program) {
             Ok(()) => true,
             Err(error) => {
+                if let Some(diagnostic) = bound.constraint_diagnostic(&schema, &error) {
+                    diagnostics.push(diagnostic);
+                    return false;
+                }
                 let source = bound.sources.get(&error.site).or_else(|| error.page_site.as_ref().and_then(|site| bound.sources.get(site)));
                 let site = source.map_or(&bound.site, |(site, _)| site);
                 let message = if error.site.starts_with("for/") && let Some((_, name)) = source { format!("loop over {name}: {}", error.message) } else { error.message };
@@ -168,6 +177,9 @@ pub fn bind(mut documents: Vec<Document>) -> Bound {
     notes.extend(residency::guard_notes(&schema, &programs));
     notes.extend(timeline::notes(&catalog, &schema));
     if diagnostics.is_empty() { notes.extend(aggregate_copies::notes(&catalog, &schema)); }
+    index_diagnostics::authored(&catalog, &mut diagnostics);
+    index_diagnostics::authored(&catalog, &mut notes);
+    for program in &mut programs { index_diagnostics::authored(&catalog, &mut program.notes); }
     Bound { view_types, server, schema, programs, personas, diagnostics, notes }
 }
 
@@ -310,8 +322,17 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                     let limit = take.min(snapback4_core::Ceilings::default().examined);
                     let by = format!(" by {}", pinned.join(", "));
                     format!("or declare `cap {limit}{by}` on table {table} if that is the intended group limit, then read `{table} where {}` without a page clause; other metered work can still cut the read", pinned.iter().map(|column| format!(".{column} = <value>")).collect::<Vec<_>>().join(" and "))
-                } else {
+                } else if !pinned.is_empty() {
                     "read the whole group with its where predicate and no page clause when its schema cap fits the examined ceiling; otherwise this page still needs continuation".into()
+                } else if let Some((columns, max)) = schema.tables[table].constraints.iter().find_map(|constraint| match constraint {
+                    snapback4_core::schema::Constraint::Cap { by, max } if !by.is_empty() => Some((by, max)),
+                    _ => None,
+                }) {
+                    let predicate = columns.iter().map(|column| format!(".{column} = {column}")).collect::<Vec<_>>().join(" and ");
+                    let by = columns.join(", ");
+                    format!("or use a narrower key: `{table} where {predicate}` uses the declared cap `cap {max} by {by}`; omit the page clause when that cap fits the examined ceiling, otherwise the narrowed page still needs continuation")
+                } else {
+                    format!("or use a narrower key: `{table}[id]` for one row; a group page still needs continuation unless its schema cap fits the page and examined ceiling")
                 };
                 notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor: when more rows exist the card reads `complete: false` and there is no `next` to continue on", bound.program.kind.word(), bound.program.name), format!("declare `c: cursor ?` in {} and append `after c` to this {table} page, keeping its current predicate, direction and column order; {cap}", bound.program.name)).guide("reads"));
             }
@@ -441,6 +462,10 @@ pub fn merges(stmts: &[snapback4_core::ir::Stmt]) -> Vec<&snapback4_core::ir::Me
     fn in_expr<'a>(expr: &'a Expr, out: &mut Vec<&'a snapback4_core::ir::Merge>) {
         match expr {
             Expr::Merge(merge) => out.push(merge),
+            Expr::Block { body, value } => {
+                in_stmts(body, out);
+                in_expr(value, out);
+            }
             Expr::Field { base, .. } => in_expr(base, out),
             Expr::Array(items) | Expr::Builtin { args: items, .. } => items.iter().for_each(|item| in_expr(item, out)),
             Expr::Object(fields) => fields.values().for_each(|item| in_expr(item, out)),

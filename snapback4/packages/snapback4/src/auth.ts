@@ -3,7 +3,7 @@
 // device's to keep (in memory, or wherever the app keeps secrets). A
 // deployed server refuses development personas, so this is the only door.
 
-import { storeKey } from "./app-storage.ts";
+import { storeKey, logoutEpoch } from "./app-storage.ts";
 import type { Refusal, Session, SignIn, SessionRevocation } from "./contract.ts";
 
 export type { Session, SignIn, SessionRevocation } from "./contract.ts";
@@ -41,7 +41,7 @@ export function login(url: string, email: string, password: string, doFetch: typ
 }
 
 /** Replace one live bearer token. The server invalidates `token` before it
- * returns the replacement, so callers must adopt the returned session. */
+ * returns the replacement, so callers must adopt or revoke the returned session. */
 export async function refreshSession(url: string, token: string, doFetch: typeof fetch = globalThis.fetch.bind(globalThis)): Promise<SignIn> {
   try {
     const response = await doFetch(`${url.replace(/\/$/, "")}/auth/refresh`, { method: "POST", headers: { authorization: `Bearer ${token}` } });
@@ -104,7 +104,7 @@ export const sessionKey = (url: string) => storeKey("session", url.replace(/\/$/
 export async function restoreSession(url: string, store: SessionStore = defaultSessionStore): Promise<Session | null> {
   const key = sessionKey(url);
   const raw = await store.get(key);
-  if (!raw) return null;
+  if (!raw || logoutEpoch(raw) !== null) return null;
   try {
     const session = JSON.parse(raw) as Session;
     if (isSession(session)) return session;
@@ -126,14 +126,13 @@ export async function forgetSession(url: string, store: SessionStore = defaultSe
 /** Best-effort server logout. A network failure or timeout cannot confirm
  * revocation; callers must clear their local credentials independently. */
 export async function logout(url: string, token: string, doFetch: typeof fetch = globalThis.fetch.bind(globalThis)): Promise<void> {
-  const aborter = new AbortController();
   let timer!: ReturnType<typeof setTimeout>;
   const deadline = new Promise<void>(resolve => {
-    timer = setTimeout(() => { aborter.abort(); resolve(); }, 5_000);
+    timer = setTimeout(resolve, 5_000);
     (timer as { unref?: () => void }).unref?.();
   });
   try {
-    await Promise.race([doFetch(`${url.replace(/\/$/, "")}/auth/logout`, { method: "POST", headers: { authorization: `Bearer ${token}` }, signal: aborter.signal }), deadline]);
+    await Promise.race([doFetch(`${url.replace(/\/$/, "")}/auth/logout`, { method: "POST", headers: { authorization: `Bearer ${token}` } }), deadline]);
   } catch {
     // Offline: the token expires on its own.
   } finally { clearTimeout(timer); }

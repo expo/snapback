@@ -128,6 +128,9 @@ pub fn card(keyword: &str) -> Option<&'static str> {
         "sync" => sync::CARD,
         "residency" => r##"# Residency: facts at check, coverage on each call
 
+Residency describes which data a device holds and which operations need the server.
+Coverage on each call determines whether the answer is complete.
+
 ```quarry
 table notices:
   body: text <=200
@@ -150,6 +153,14 @@ query countNotices(author: principal):
 mutation post(body: text <=200):
   insert notices { body, author: viewer, at: now }
 ```
+
+An observed server-run query re-runs after commits touching its tables.
+Offline it returns its last server answer, held in memory for this client's
+lifetime, with fresh: false and since. Without one it refuses E_OFFLINE
+(family link, retryable). It never answers an empty device page as server data.
+On E_OFFLINE, show the read as unavailable and reconnect before refreshing the server query.
+
+## Operations
 
 `check --residency --verbose` prints two tables of facts: each table's audience and
 horizon (inferred audiences say "from the read rule"; aggregate views name their
@@ -177,7 +188,9 @@ Every check also summarizes all never-predicting mutations, blocked insert arms,
 and eligible mutations with horizon reads, naming their sites even when unchanged.
 A header such as
 `mutation post(body: text <=200) predicts:` asserts eligibility; a server
-site refuses E_NOT_PREDICTABLE at that header. See `guide prediction`.
+site refuses E_NOT_PREDICTABLE at that header. Inspect `snapback4 why <op>` and
+follow the named site rewrite to restore local execution, or keep the server
+dependency and handle queued writes and unavailable offline reads. See `guide prediction`.
 
 N_MAINTAIN_SYNCED names public inherited aggregates and group audiences
 with unbounded recipients or multiple values per group. It names mutations
@@ -193,13 +206,11 @@ it never adopts current source for measurement. With no store it says not
 measured and names the fixture command. Add `--verbose` for every table,
 facts and notes (and on test, query meters and aggregate row counts).
 Measurements exclude transport framing, are not process RSS, and are not
-estimates for another fixture.
-
-An observed server-run query re-runs after commits touching its tables.
-Offline it returns its last server answer, held in memory for this client's
-lifetime, with fresh: false and since. Without one it refuses E_OFFLINE
-(family link, retryable). It never answers an empty device page as server data."##,
+estimates for another fixture."##,
         "expire" => r##"# Expire: a row's life ends at a time
+
+Expiry makes a row invisible when its declared deadline passes.
+The server then deletes it and syncs the deletion to devices holding it.
 
 ```quarry
 table stories:
@@ -243,13 +254,6 @@ Clear these timers with `timers.forEach(clearTimeout)` before replacing the
 answer or unmounting. This short-lived-row example uses the client's clock
 and timer scheduling; `null` never expires.
 
-In tests, use `snapback4 clock advance <dur>` or `POST /dev/clock/advance`; each example line advances the running dev once.
-
-```sh
-snapback4 clock advance 36s
-curl -X POST http://127.0.0.1:4400/dev/clock/advance -H 'Content-Type: application/json' -d '{"duration":"36s"}'
-```
-
 A row past the time in the column is absent — to every reader, on every
 host, before any rule — from that moment; the server's sweep deletes it
 within a second, and the deletion streams to each device holding it, so it
@@ -278,17 +282,20 @@ than physical upper bounds. Signed sums have no such upper bound.
 A partial device counts only held live
 sources and says `complete: false`. A meter cut returns the contribution
 examined so far, also incomplete. A zero sum keeps its group while sources
-remain, because one signed contribution can expire before another."##,
-        "assets" => r##"# Assets
+remain, because one signed contribution can expire before another.
 
-The local client keeps server upload facts for prediction: `{ id }` works
-offline after upload, including reads of duration and dimensions. Without
-those facts the write queues unpredicted and the server judges it.
-With `createLocalClient({ assets: { keep: "viewed", maxBytes: 67108864 }, ... })`,
-ordinary viewed images and videos survive offline reopen in device storage.
-`keep: "none"` (the default) retains no media. The byte bound evicts least
-recently used assets. Home-row deletion, clearing, expiry and partition leave
-purge the bytes; `once` is never stored. Online reads always revalidate.: upload, place, serve
+## Operations
+
+In tests, use `snapback4 clock advance <dur>` or `POST /dev/clock/advance`; each example line advances the running dev once.
+
+```sh
+snapback4 clock advance 36s
+curl -X POST http://127.0.0.1:4400/dev/clock/advance -H 'Content-Type: application/json' -d '{"duration":"36s"}'
+```"##,
+        "assets" => r##"# Assets: upload, place, serve
+
+Assets are uploaded images and videos attached to a row.
+That row's read rule controls who can fetch the bytes.
 
 ```quarry
 table clips:
@@ -308,6 +315,15 @@ mutation sendClip(clip: video <=50000000):
   require duration <= 60000 else TOO_LONG
   return insert clips { ownerId: viewer, clip, at: now }
 ```
+
+The local client keeps server upload facts for prediction: `{ id }` works
+offline after upload, including reads of duration and dimensions. Without
+those facts the write queues unpredicted and the server judges it.
+With `createLocalClient({ assets: { keep: "viewed", maxBytes: 67108864 }, ... })`,
+ordinary viewed images and videos survive offline reopen in device storage.
+`keep: "none"` (the default) retains no media. The byte bound evicts least
+recently used assets. Home-row deletion, clearing, expiry and partition leave
+purge the bytes; `once` is never stored. Online reads always revalidate.
 
 A client uploads the bytes first (`client.upload(file)` → `{ id, type,
 bytes, width, height, duration }`; the server sniffs JPEG, PNG, WebP and
@@ -329,7 +345,14 @@ preview. A Range request against a once asset is refused before consuming a
 view (E_ASSET_RANGE). Unsatisfiable ordinary ranges return HTTP 416. Every
 asset response is `private, no-store`, so a browser must reauthorize each
 viewer. At most two uploads run at once, and their disk writes happen outside
-the engine mutex. Uploads are online only; there is nothing to queue."##,
+the engine mutex. Uploads are online only; there is nothing to queue.
+Upload a supported kind within the column bound; downscale oversized uploads,
+resize images or shorten videos to fit the media limits. Upload the bytes again
+for a second home. Fetch a once asset without Range; a consumed view cannot be
+retried by that principal. For an unknown asset on download, use the intended
+viewer's live session; a placed asset also needs a live, readable home row.
+Missing and hidden stay indistinguishable. On placement, use your own upload and the id it returned;
+a readable home row does not grant upload ownership."##,
         "reads" => reads::CARD,
         "shapes" => shapes::CARD,        "writes" => writes::CARD,
         "programs" => programs::CARD,

@@ -170,6 +170,8 @@ impl WriteOp {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ObjectField {
+    /// Spread entries carry their operand in `value` and have no field name.
+    pub spread: bool,
     pub name: String,
     pub value: Option<Expr>,
     pub site: Site,
@@ -436,6 +438,7 @@ pub struct EffectDecl {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Document {
+    pub source: crate::source::SourceMap,
     pub file: String,
     pub identity: Option<(bool, bool)>,
     /// Project-wide opt-in, collected across documents like `use identity`.

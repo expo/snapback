@@ -34,7 +34,8 @@ fn mutate(engine: &mut Engine, name: &str, who: &str, values: &[(&str, Value)], 
 
 #[test]
 fn target_queries_and_nine_derived_views_run_together() {
-    let b = compiled(&format!("{SOURCE}\nmutation fixtureRepost(id: id, postId: posts):\n  return insert reposts {{ id, postId, actorId: viewer }}\n"));
+    let legacy = "\nquery peopleLegacy(q: text <=100, c: cursor ?):\n  if q = '':\n    return profiles last 20 by .createdAt after c\n  return profiles matching q last 20 by .createdAt after c\nquery profileLegacy(handle: text 3..20 format handle):\n  p = profiles[handle = handle] ! else NOT_FOUND\n  return p { *, followers: followerCount[.principal], following: exists follows[viewer, .principal] }\n";
+    let b = compiled(&format!("{SOURCE}{legacy}\nmutation fixtureRepost(id: id, postId: posts):\n  return insert reposts {{ id, postId, actorId: viewer }}\n"));
     for name in ["replyCount", "followerCount", "followingCount", "receivedLikes", "dailyLikes",
         "receivedReplies", "receivedReposts", "originalPosts", "dailyPosts"] {
         assert!(matches!(b.schema.tables[name].rules.read, snapback4_core::schema::RuleExpr::Allow), "{name}");
@@ -70,6 +71,16 @@ fn target_queries_and_nine_derived_views_run_together() {
     assert_eq!(page(&mut engine, "userPosts", &[("owner", text("alice")), ("c", Value::Null)]).len(), 1);
     assert_eq!(page(&mut engine, "thread", &[("postId", text("post")), ("c", Value::Null)])[0].field("id").unwrap(), &text("reply"));
     assert_eq!(page(&mut engine, "people", &[("q", Value::String("ali".into())), ("c", Value::Null)]).len(), 1);
+    for q in ["", "ali"] {
+        let inputs = [("q", Value::String(q.into())), ("c", Value::Null)];
+        assert_eq!(page(&mut engine, "people", &inputs), page(&mut engine, "peopleLegacy", &inputs));
+    }
+    let profile_args = args(&[("handle", Value::String("usera".into()))]);
+    let spread = engine.query("socialProfile", Context::new("bob", profile_args.clone())).unwrap();
+    let shaped = engine.query("profileLegacy", Context::new("bob", profile_args)).unwrap();
+    assert_eq!(spread.data, shaped.data);
+    assert_eq!(spread.data.field("followers").unwrap(), &Value::Int(1));
+    assert_eq!(spread.data.field("following").unwrap(), &Value::Bool(true));
     let insights = engine.query("insights", Context::new("alice", BTreeMap::new()).at(200_000)).unwrap();
     assert!(insights.complete);
     for field in ["posts", "likesReceived", "repliesReceived", "repostsReceived", "followers"] {

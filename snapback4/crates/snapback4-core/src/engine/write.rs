@@ -8,7 +8,6 @@ use crate::assets::{AssetKind, asset_id};
 use crate::error::{MeterKind, RuntimeError};
 use crate::partition;
 use crate::schema::{ColumnType, Constraint, Effect, Table, materialize_optional_fields};
-use crate::rows::{Bounds, Dir};
 use crate::rows::index_values;
 use crate::value::{Value, canonical_json};
 
@@ -28,13 +27,21 @@ impl Runner<'_> {
     }
 
     fn insert_mode(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
-        self.target_attempt(table_name, |runner|runner.insert_attempt(table_name, row, if_absent))
+        self.target_attempt(table_name, |runner| {
+            runner.refuse_engine_owned(table_name, Effect::Insert)?;
+            let table = runner.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
+            // @ref LLP 3000.013#11.1 — reserve once, before the target can select its write arm.
+            // Reserve before collision lookups. Upserts enter insert_attempt
+            // under their existing target-resolution reservation instead.
+            runner.reserve_write_rules(table, &[Effect::Read, Effect::Insert])?;
+            runner.insert_attempt(table_name, row, if_absent)
+        })
     }
 
     fn insert_attempt(&mut self, table_name: &str, row: Value, if_absent: bool) -> Result<bool, RuntimeError> {
-        self.refuse_engine_owned(table_name, Effect::Insert)?;
         self.refuse_recorded(table_name, &row)?;
         let row = self.with_defaults(table_name, row)?;
+        let table = self.schema.table(table_name).expect("defaults validated the table").clone();
         if !self.check_rule(table_name, Effect::Insert, None, &row)? {
             return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Insert });
         }
@@ -42,7 +49,6 @@ impl Runner<'_> {
         let row = self.birth_columns(table_name, row)?;
         let row = self.with_asset_facts(table_name, row, None, None)?;
         validate_row(self.schema, table_name, &row)?;
-        let table = self.schema.table(table_name).expect("validated").clone();
         if if_absent {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
                 let key = index_values(index, &row);
@@ -66,14 +72,18 @@ impl Runner<'_> {
             } else { "byId" };
             self.prove_upsert_insert(table_name, index, &row)?;
         }
-        if let Some(existing) = self.tx.get(table_name, &id)? {
-            if !self.expired(&table, &existing) {
-                self.visible_collision(table_name, &existing, Effect::Insert)?;
+        let predecessor = self.tx.get(table_name, &id)?;
+        if let Some(existing) = &predecessor {
+            if !self.expired(&table, existing) {
+                self.visible_collision(table_name, existing, Effect::Insert)?;
                 return Err(RuntimeError::Constraint(format!("{table_name} already has a row with id {id}")));
             }
-            self.remove(table_name, &existing)?;
+            self.meter.charge(MeterKind::Examined, 1)?;
+            self.remove(table_name, existing)?;
         }
-        self.check_constraints(table_name, None, &row, Effect::Insert)?;
+        // The server's same-id expired replacement preserves occupancy in
+        // unchanged cap groups. A device cannot rely on an expired predecessor.
+        self.check_constraints(table_name, predecessor.as_ref(), &row, Effect::Insert)?;
         let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.put(table_name, &table, &row, None))?;
         self.charge_source_indexes(&table, None, Some(&row), entries)?;
         self.row_changed(table_name, None, Some(&row), Origin::Source)?;
@@ -123,17 +133,18 @@ impl Runner<'_> {
                 self.replace(table_name, old, new, readable, &row)
             }
             None if self.device && !self.upsert_absence_proven(table_name, "byId", &[key.clone()])? => Err(self.write_miss(table_name, "byId", &[key.clone()])),
-            None => self.insert_upsert(table_name, "byId", row),
+            None => self.insert_upsert(table_name, "byId", row, 0),
         }
     }
 
-    pub(super) fn insert_upsert(&mut self, table_name: &str, addressed_index: &str, row: Value) -> Result<(), RuntimeError> {
+    pub(super) fn insert_upsert(&mut self, table_name: &str, addressed_index: &str, row: Value, expired_work: u64) -> Result<(), RuntimeError> {
         self.refuse_upsert_owned(table_name)?;
         // Defaults fill first, so a patch that leaves a defaulted column out is a complete row here.
         let row = self.with_defaults(table_name, row)?;
         if self.device { self.prove_upsert_insert(table_name, addressed_index, &row)?; }
         // @ref LLP 3000.007#17 — absent upserts decide insert authority before asset or constraint diagnostics.
         if !self.check_rule(table_name, Effect::Insert, None, &row)? { return Err(self.no_write_target()); }
+        self.meter.charge(MeterKind::Examined, expired_work)?;
         // An incomplete insert patch has the same word as a refused hidden target.
         if let Err(error) = validate_row(self.schema, table_name, &row) {
             return Err(if matches!(error, RuntimeError::Input(_)) { self.no_write_target() } else { error });
@@ -181,6 +192,7 @@ impl Runner<'_> {
     fn delete_attempt(&mut self, table_name: &str, id: &str) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Delete)?;
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?.clone();
+        self.reserve_write_rules(&table, &[Effect::Read, Effect::Delete])?;
         // @ref LLP 3000.007#20.9 — delete prepays hidden contribution work before fetching its old image, with the same attempt lifetime as update.
         self.reserve_maintains(table_name, &table)?;
         let Some(old) = self.fetch(table_name, id)? else {
@@ -189,6 +201,11 @@ impl Runner<'_> {
         if !self.check_rule(table_name, Effect::Delete, None, &old)? {
             return Err(RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Delete });
         }
+        self.delete_authorized(table_name, old)
+    }
+
+    pub(super) fn delete_authorized(&mut self, table_name: &str, old: Value) -> Result<(), RuntimeError> {
+        let table = self.schema.tables[table_name].clone();
         self.check_constraints(table_name, Some(&old), &old, Effect::Delete)?;
         let entries = self.maintain_scratch(self.contribution_heap(&table), |runner| runner.tx.delete(table_name, &table, &old))?;
         self.charge_source_indexes(&table, Some(&old), None, entries)?;
@@ -418,33 +435,33 @@ impl Runner<'_> {
                         continue;
                     }
                     let group: Vec<Value> = by.iter().map(|field| new.field(field).cloned().unwrap_or(Value::Null)).collect();
-                    let moved = old.is_none_or(|old| by.iter().map(|field| old.field(field).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>() != group);
+                    // @ref LLP 3000.013#11.1 — an expired local predecessor may have been swept and its capacity refilled before sync arrives.
+                    let predecessor = old.filter(|row| !self.device || !self.expired(&table, row));
+                    let moved = predecessor.is_none_or(|old| by.iter().map(|field| old.field(field).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>() != group);
                     if !moved {
                         continue;
                     }
+                    // A complete live snapshot omits unswept expired rows, so
+                    // its physical count cannot establish room on the server.
+                    // A count at the last delivered watermark would also be
+                    // stale after a sweep whose sync has not arrived yet.
+                    if self.device && table.expire.is_some() {
+                        return Err(RuntimeError::Prediction(format!("{table_name}'s expiring cap needs the server's physical occupancy; queue this write until the server settles it")));
+                    }
                     let index_name = table.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(by)).map(|(name, _)| name.clone()).ok_or_else(|| RuntimeError::Schema(format!("cap by {} has no leading index", by.join(", "))))?;
                     self.meter.charge(MeterKind::IndexEntries, 1)?;
+                    // @ref LLP 3000.013#11.1 — physical occupancy is conservative until sweep; never scan a cap group.
                     let count = if table.expire.is_none() {
                         self.tx.count_prefix(table_name, &index_name, &group, *max as u64 + 1)?
                     } else {
-                        let mut count = 0;
-                        let mut bounds = Bounds::default();
-                        loop {
-                            let rows = self.tx.scan(table_name, &index_name, &group, &bounds, Dir::Asc, 256)?;
-                            let fetched = rows.len();
-                            for (row, key) in rows {
-                                self.meter.charge(MeterKind::Examined, 1)?;
-                                bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
-                                if !self.expired(&table, &row) { count += 1; }
-                                if count >= *max as u64 { break; }
-                            }
-                            if count >= *max as u64 || fetched < 256 { break; }
-                        }
-                        count
+                        self.tx.cap_count(table_name, by, &group)?
                     };
                     if count >= *max as u64 {
                         // @ref LLP 3000.007#17 — cap diagnostics describe the schema, never retained group values.
-                        return Err(RuntimeError::Constraint(format!("{table_name} holds at most {max} rows per group by {}", by.join(", "))));
+                        let message = format!("{table_name} holds at most {max} rows per group by {}", by.join(", "));
+                        return Err(if table.expire.is_some() {
+                            RuntimeError::ExpiringCap { message, site: self.statement_site.clone() }
+                        } else { RuntimeError::Constraint(message) });
                     }
                 }
             }

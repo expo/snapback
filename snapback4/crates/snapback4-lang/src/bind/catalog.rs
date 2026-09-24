@@ -20,10 +20,21 @@ impl TableInfo {
     pub fn total_unique(&self, index: &IndexDecl) -> bool {
         index.unique && index.is_plain() && index.columns.iter().all(|column| column == "id" || self.columns.get(column).is_some_and(|ty| !ty.optional))
     }
+
+    // @ref LLP 3000.013#2.1 — a scan cursor carries declared components only;
+    // uniqueness with a nullable component cannot resolve ties between nulls.
+    pub fn total_cursor(&self, index: &IndexDecl) -> bool {
+        index.columns.iter().any(|column| column == "id") || index.unique && index.words.is_none()
+            && index.columns.iter().all(|column| match index.computed.get(column) {
+                Some(expr) => super::time_indexes::key(&self.decl.name, &self.columns, column, expr).is_ok(),
+                None => self.columns.get(column).is_some_and(|ty| !ty.optional),
+            })
+    }
 }
 
 #[derive(Default)]
 pub struct Catalog {
+    pub source: crate::source::SourceMap,
     pub feed_views: BTreeMap<String, super::feed_view::Plan>,
     pub read_origins: BTreeMap<String, String>,
     pub view_reads: BTreeMap<String, crate::ast::MergeExpr>,
@@ -171,7 +182,9 @@ impl Catalog {
                 Err(diagnostic) => diagnostics.push(diagnostic),
             }
         }
-        let mut catalog = Self { feed_views: BTreeMap::new(), read_origins: BTreeMap::new(), view_reads: BTreeMap::new(), view_types: BTreeMap::new(), documents, tables, maintains, shapes, functions, effects, synthesized: Default::default(), planner_notes: Vec::new() };
+        let mut source = crate::source::SourceMap::default();
+        for document in &documents { source.extend(&document.source); }
+        let mut catalog = Self { source, feed_views: BTreeMap::new(), read_origins: BTreeMap::new(), view_reads: BTreeMap::new(), view_types: BTreeMap::new(), documents, tables, maintains, shapes, functions, effects, synthesized: Default::default(), planner_notes: Vec::new() };
         for maintain in catalog.maintains.values().filter(|m| m.read.is_none()) {
             // A colliding ordinary table can exist even when target generation failed.
             if !catalog.tables.get(&maintain.name).is_some_and(|info| info.maintained.is_some()) { continue; }

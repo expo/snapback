@@ -14,6 +14,17 @@ fn bound(source: &str) -> Bound {
 fn classes(b: &Bound) -> BTreeMap<String, Class> {
     b.programs.iter().map(|p| (p.program.name.clone(), analyze(&b.schema, &p.program).class)).collect()
 }
+
+#[test]
+fn default_text_and_explicit_bound_have_identical_scale_certificates() {
+    let source = "table notes:\n  owner: principal\n  title: text\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  update <- .owner = viewer\nmutation add(title: text):\n  return insert notes { owner: viewer, title }\nmutation edit(key: notes, title: text):\n  return update notes[key] { title }\nquery page(c: cursor ?):\n  return notes where .owner = viewer first 10 after c\n";
+    let default = bound(source);
+    let explicit = bound(&source.replace(": text", ": text <=10000"));
+    for (a, b) in default.programs.iter().zip(&explicit.programs) {
+        assert_eq!(serde_json::to_value(analyze(&default.schema, &a.program)).unwrap(),
+            serde_json::to_value(analyze(&explicit.schema, &b.program)).unwrap());
+    }
+}
 fn pin(b: &Bound, constant: &[&str], grows: &[&str]) {
     let expected = constant.iter().map(|n| (n.to_string(), Class::Constant))
         .chain(grows.iter().map(|n| (n.to_string(), Class::Grows))).collect();
@@ -31,11 +42,18 @@ fn language_operation_classes() {
     assert_eq!(scans[0].index, "byId");
     assert!(scans[0].filter.is_none());
     assert_eq!(analyze(&b.schema, ids).bounds.rows_examined, 21);
+    // Calendar calls and arithmetic without an overflow proof stay residual:
+    // the scan's work can grow with the room even though its page is bounded.
+    for name in ["roomHour", "roomWindow"] {
+        let program = &b.programs.iter().find(|p| p.program.name == name).unwrap().program;
+        let scan = snapback4_core::ir::scans(program)[0];
+        assert!(scan.range.is_none() && scan.filter.is_some());
+    }
     // Expiring messages require live filtering and maintained recounts;
     // search expands words; meter domains discover uncapped membership lanes;
     // Following/Trending have residuals. Native bodies have no static proof.
-    pin(&b, &["ancestors", "anchoredKeys", "calendar", "checkin", "chips", "createRoom", "daily", "digestToday", "edit", "heldRoom", "helperRows", "join", "leave", "mentions", "mostLiked", "nightly", "online", "pagePass", "post", "react", "registerProfile", "room", "roomHour", "roomWindow", "sendBrief", "split", "intentCount", "intentDurations", "intentGlobal", "intentIds", "intentPage", "intentSubject", "today", "tokenDigest", "wholeRoster"],
-        &["digest", "everywhere", "groupedMessages", "hasMessages", "inbox", "memberTotal", "personalizeNative", "rescoreNative", "search", "thread", "intentDaily", "intentSearch"]);
+    pin(&b, &["ancestors", "anchoredKeys", "calendar", "checkin", "chips", "createRoom", "daily", "digestToday", "edit", "heldRoom", "helperRows", "join", "leave", "mentions", "mostLiked", "nightly", "online", "pagePass", "post", "react", "registerProfile", "room", "sendBrief", "split", "spreadProfile", "spreadObjects", "spreadChoice", "intentBoard", "intentCount", "intentDeliveriesFor", "intentDeliveriesPage", "intentDurations", "intentGlobal", "intentIds", "intentPage", "intentSubject", "today", "tokenDigest", "wholeRoster"],
+        &["digest", "everywhere", "groupedMessages", "hasMessages", "inbox", "memberTotal", "personalizeNative", "rescoreNative", "roomHour", "roomWindow", "search", "thread", "intentDaily", "intentSearch"]);
 }
 
 #[test]

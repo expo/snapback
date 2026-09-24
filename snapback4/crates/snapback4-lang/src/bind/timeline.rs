@@ -138,7 +138,9 @@ pub fn read(timeline: &Timeline, read: &ReadExpr) -> Fallible<Expr> {
         return Err(Diagnostic::new(&read.site, "E_TIMELINE_READ", "a timeline reads one viewer, newest first by time then event id",
             format!("{}[viewer] after c last 20", timeline.name)).guide("feeds"));
     }
-    let source = format!("query q(c: cursor ?):\n  return {}[viewer] after c last {} by byReaderTime where (.actorId = viewer or exists {}[readerId = viewer, actorId = .actorId, epoch = .epoch]) and not exists {}[eventId = .eventId]\n",
+    // @ref LLP 3000.013#2.1 — nullable epochs need a declared id tiebreak;
+    // keep the separate unique indexes as constraints, not page positions.
+    let source = format!("query q(c: cursor ?):\n  return {}[viewer] after c last {} by byReaderPage where (.actorId = viewer or exists {}[readerId = viewer, actorId = .actorId, epoch = .epoch]) and not exists {}[eventId = .eventId]\n",
         timeline.table("Feed"), range.take, timeline.table("Edges"), timeline.table("RemovedEvents"));
     let (doc, errors) = crate::parse_document("timeline.q", &source);
     let shape_error = || Diagnostic::new(&read.site, "E_TIMELINE_READ", "timeline read expansion has an invalid shape", format!("{}[viewer] after c last 20", timeline.name)).guide("feeds");

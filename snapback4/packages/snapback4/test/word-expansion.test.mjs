@@ -6,6 +6,17 @@ import { initSync, WebDevice } from '../src/wasm/snapback4_device.js';
 
 initSync({ module: readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url)) });
 const fixtures = JSON.parse(readFileSync(new URL('./fixtures/word-expansion.json', import.meta.url)));
+function wordsScan(program) {
+  const scans = [];
+  function visit(value) {
+    if (!value || typeof value !== 'object') return;
+    if (value.Scan?.prefix.some(key => 'WordPrefix' in key)) scans.push(value.Scan);
+    for (const child of Object.values(value)) visit(child);
+  }
+  visit(program);
+  assert.equal(scans.length, 1, 'the budget prelude copies the search alternative');
+  return scans[0];
+}
 function open(key) {
   const { backend, pages } = fixtures[key];
   const device = new WebDevice(JSON.stringify(backend), '[]');
@@ -69,7 +80,7 @@ for (const expired of [false, true]) test(`wasm ${expired ? 'expired sub-pair (i
 for (const phase of ['index', 'examined', 'heap']) test(`wasm ${phase} budget exhaustion is false/meter/no-next`, () => {
   const fixture = structuredClone(fixtures['45-0']);
   const program = fixture.backend.programs.find(p => p.name === 'search');
-  const scan = program.body[0].Return.Scan;
+  const scan = wordsScan(program);
   const constant = value => ({ Const: { name: 'budget', value } });
   if (phase === 'heap') {
     // Literal cloning and the binding each charge the body; args cost two
@@ -88,7 +99,10 @@ for (const phase of ['index', 'examined', 'heap']) test(`wasm ${phase} budget ex
     assert.equal(ok.complete, false);
     assert.equal(ok.cut, 'meter');
     assert.ok(!ok.next);
-    if (phase === 'heap') assert.equal(ok.data, null);
+    if (phase === 'heap') {
+      assert.equal(ok.loading, true);
+      assert.ok(!('data' in ok), 'an aborted page has no ready null placeholder');
+    }
     else assert.equal(ok.data.length, phase === 'examined' ? 10 : 0);
   } finally { device.free(); }
 });
@@ -98,7 +112,7 @@ test('wasm expired sub-pair (ii), meter boundary retains the existing time-hidde
   for (const key of ['expired-false', 'expired-true']) {
     const fixture = structuredClone(fixtures[key]);
     const program = fixture.backend.programs.find(p => p.name === 'search');
-    const scan = program.body[0].Return.Scan;
+    const scan = wordsScan(program);
     // A non-uniform empty search spends index entries without uniform descriptors;
     // the unchanged wasm boundary has no ceiling override. Leave 46 seeks.
     program.body.unshift({ For: { binding: 'i', domain: { LiteralRange: { start: 0, end_exclusive: 16_384 - 46 } }, body: [

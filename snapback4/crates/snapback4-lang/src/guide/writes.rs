@@ -1,6 +1,9 @@
 //! Writes and server-arrival ordering.
 pub(super) const CARD: &str = r##"# Writes
 
+Mutations insert, update and delete rows in one transaction.
+Rules and constraints apply before that transaction commits.
+
 ```quarry
 mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: text <=4000):
   a = insert messages { roomId, authorId: viewer, body, at: now }                   -- the row; the id is minted unless given (`id: new`, or one you hold)
@@ -47,6 +50,20 @@ used ids for its lifetime (ids only after the bounded input/receipt window);
 if a known id has lost its receipt and left the outbox, it refuses
 `E_WRITE_RECEIPT_EXPIRED` instead of admitting it again. Reopen to recover that
 outcome through the server. The server guarantee belongs to that backend store.
+An online `createApp` journal separately preserves ids retired after a store
+change, including sent ids displaced to make room for retirement receipts,
+so reopening cannot replay those writes on the replacement store:
+evicted bodies return `E_WRITE_RECEIPT_EXPIRED` without dispatch. It keeps up to
+4,096 compact retirement ids; saturation durably blocks new admissions until
+the application reconciles prior outcomes and explicitly replaces that journal,
+rather than forgetting ids automatically. Already-admitted intents remain
+recoverable as pending while their outcomes are unresolved.
+Online intent records its dispatch store before transmission. A failed receipt
+save preserves the known terminal outcome for mutate, lookup and notification;
+reopening may resend that intent only to the acknowledging store, whose replay
+record prevents double execution. Persisted terminal receipts are not reposted.
+A replacement retires old-store intent with an unknown-outcome refusal; an old
+unbound intent may replay only to the first store its journal has seen.
 For a caller-supplied id with no local outcome, a prediction or validation refusal
 queues the write without a row so the server can answer from its replay record.
 The journal preserves this replay eligibility through navigation. If the server
@@ -61,8 +78,8 @@ terminal `sent` or `failed`, and `last` is the Write. Keep its mutation id in
 view state; `usePendingWrite(op, savedId)` resumes observation after reload
 without submitting again. `client.write(id)` reads the kept outcome (undefined
 for an unknown id or an evicted id that has left the outbox); `onWrite` reports
-later terminal changes. The online client retains at most 256 terminal outcomes
-in memory. The local client reads the device's one atomic window of the last
+later terminal changes. The ordinary in-memory history retains at most 256 terminal outcomes.
+Failed receipt saves retain known summaries separately until persistence or close. The local client reads the device's one atomic window of the last
 256 server terminal receipts and its current outbox directly, so another native
 owner's settlement cannot leave a stale pending outcome. Reads and repeated
 flushes do not refresh the window. Queued terminal writes emit at most once
@@ -80,8 +97,13 @@ after 1, 2 and 4 seconds; later opens or sync signals can try again. Receipt
 lookups do not create the shared window before adoption. Storage clearing or eviction
 from both windows can make an id unknown. Recovered success carries `replayed: true`
 and no result; recovered failure keeps code/family and `write refused: CODE`.
-Refusals before durable admission, the online tier and mock remember outcomes
-for their client lifetime only, up to 256 terminal outcomes.
+Refusals before durable admission, the raw online tier and mock remember ordinary
+outcomes for their client lifetime only, up to 256 terminal outcomes.
+Close completes after local work without waiting for the network. A mutation or
+action keeps a response received before close completes; otherwise its caller
+receives pending with its id. Late responses are consumed and discarded.
+`createApp` and device mutation intent recover on reopen; raw online callers
+retain their retry id, and action callers collect the same server action id.
 
 `client.acquired` and `useAcquired()` report completed snapshot and catch-up
 for the current store, stay true offline, and reset with invalidated acquisition.
@@ -103,6 +125,20 @@ prove readability, and the device holds every row that can collide on a
 secondary unique index or count toward an affected cap. Defaults are part of
 that image. Otherwise it queues without a predicted row, including in a left
 group. See `guide prediction` for the conditions and a set-membership recipe.
+An expiring cap counts unswept physical rows, which live snapshots omit.
+Occupancy-increasing writes queue without predicted rows and settle on the
+server even after full acquisition; updates within a cap group can still predict.
+Replacing an expired same-id row also queues: the server may have swept it and
+refilled the cap before sync reaches the device. A held live row can still
+support an update within its cap group.
+
+NOT_FOUND means a point write has no target, or a write to an unreadable target
+was refused without disclosing its existence. It is also the conventional
+application code for `row ! else NOT_FOUND`. Check a readable target and retry;
+do not infer absence from a refused blind write.
+
+An alternate-key delete of a missing row refuses `NOT_FOUND` locally when the
+synced group proves absence; otherwise it queues for server resolution.
 
 For `after insert <- exists t[key]`, a local hit satisfies the postcondition.
 A local miss predicts `E_CONSTRAINT` only when the key proves readability
@@ -124,6 +160,21 @@ For update/upsert, "readable" means the read rule admits the old row in the
 pre-write state, before the patch or any of its effects. The engine resolves
 id and unique-key targets privately; the update rule judges old and next.
 
+E_INPUT means an argument or row value does not fit its declared type.
+Correct the named field or its declaration. A typed reference checks the id's
+shape; use `require exists t[id] else CODE` to require a visible target.
+
+E_CONFLICT means a conditional update found that the row changed.
+The refusal carries the current row only when its read rule admits the viewer.
+Read it and retry with a fresh edit.
+
+E_QUARRY_WRITE_TESTS means a write target includes tests beyond its unique
+key. For a readable row, write `require exists members[org, viewer, role =
+'admin'] else NOT_ADMIN`, then `update members[org, viewer] { role: 'member' }`.
+Choose the refusal code for your application. This explicit check refuses a
+hidden or missing row and grants no write authority; the compiler does not
+insert it automatically.
+
 | Target before the write | Refusal details |
 | --- | --- |
 | Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_CONSTRAINT`; `E_INPUT` |
@@ -142,6 +193,10 @@ immutable columns in a patch are ignored. A readable immutable mismatch still
 names the column. Before target lookup, the engine reserves room for the rule
 probes and the largest merged image allowed by the schema and supplied patch;
 if it cannot fit, `E_BOUND` refuses equally for a hidden or absent target.
+Delete targets and insert/if-absent collision lookups also reserve authorization
+before resolving a row, including expired rows. The allowance covers the read
+rule's worst case, including probes that could short-circuit; execution still
+charges the rule work once.
 
 
 The table names are the language card's. A final write is the implicit
@@ -214,6 +269,59 @@ its target exists: when a mutation needs a visible target, guard first —
 read that is false for an absent or hidden row; deleting a target neither
 deletes nor refuses the rows that reference it, so a lifecycle is the
 application's, in its mutations and rules.
+
+## A constraint across rows you cannot read
+
+An `exists` or `count` check sees only rows its viewer may read. It cannot
+prevent a clash with another guest's private booking. E_STRUCTURAL_FANOUT
+refuses a mutation domain whose read rule is not decided by its scope.
+Use one row per occupied night and let `unique` enforce the constraint for
+every writer. Insert the booking and its nights in the same mutation:
+
+```quarry
+table listings:
+  host: principal
+  public
+table bookings:
+  listing: listings
+  guest: principal
+  host: principal
+  firstDay: int
+  lastDay: int
+  read <- .guest = viewer or .host = viewer
+  insert <- .guest = viewer
+table nights:
+  listing: listings
+  day: int
+  booking: bookings
+  unique listing, day else TAKEN
+  public 'occupied dates and booking references are public; guest details stay private'
+  insert <- created bookings[id = .booking, listing = .listing, guest = viewer]
+
+mutation book(listing: listings, firstDay: int, lastDay: int):
+  require firstDay < lastDay else BAD_DATES
+  property = listings[listing] ! else NOT_FOUND
+  booking = insert bookings { listing, guest: viewer, host: property.host, firstDay, lastDay }
+  for day in range(firstDay, lastDay):
+    insert nights { listing, day, booking: booking.id }
+  return booking
+```
+
+`firstDay` and `lastDay` are calendar-day numbers in the app's chosen calendar;
+the last day is excluded. A second guest reserving an occupied night gets
+`TAKEN`, and the entire mutation rolls back, including any earlier free nights.
+The normal write and work meters bound the loop; exceeding them also rolls
+back the mutation. This example only books nights; cancellation must release
+its nights in the same transaction as cancelling the booking.
+
+The availability table is deliberately public: a named unique refusal applies
+only when the clashing row is readable. A hidden collision stays `E_RULE`,
+even with `else TAKEN`. Use this example only if occupied dates and booking
+references may be public. Private booking details keep their own read rule.
+If the product instead permits readable availability checks, an `exists` or
+`count` domain over that public availability table has a uniformly readable
+audience. Pinning a private guest merely narrows the check; it cannot enforce
+a constraint across all guests.
 
 ## Server-arrival order within a conversation
 

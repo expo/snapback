@@ -1,26 +1,39 @@
 //! Identity and developer inspection.
 pub(super) const CARD: &str = r##"# Personas
 
-For a replay mode that must not emit notifications, run `snapback4 dev --replay`.
-Startup prints `replay on — new effects suppressed; schedules held`.
-`doctor` reports the persisted dev replay and schedule policy, even after the host stops.
-New emits are counted as `suppressed` by `doctor`, with no queued payload:
-they are never delivered, including after restarting with or without `--replay`.
-Mutations and explicitly run jobs keep their writes, results and meters.
-Replay holds schedule admission; restart without it resumes at the next
-boundary, skipping held periods. Already queued jobs still run, with their
-new emits suppressed. Effects queued before replay keep their ordinary lifecycle.
+Personas let you act as named development users while testing rules and application flows.
+Deployed apps use authenticated sessions instead.
 
-`--hold-effects` only pauses worker claims: effects stay durable and become
-claimable after restarting without the flag. `--hold-schedules` only holds
-schedule admission, skipping held periods on restart. Use `--replay` when
-new effects must never be delivered; use the effect hold to keep them queued.
-The suppression policy stays on the dev store for local `run` invocations
-until the next host start; a restart without `--replay` restores normal
-emission for new writes and keeps the count. `serve` and release commands
-refuse `--replay` with E_REPLAY_DEV_ONLY; production always emits normally.
-With `--fresh`, the count dies with the in-memory store; `doctor` and local
-`run` inspect the separate on-disk store.
+```quarry
+use personas alice, bob
+use identity password
+
+query whoAmI():
+  return viewer
+```
+
+An email-and-password product declares `use identity password`; plain
+`use identity` also mints guest sessions. `use identity guests` admits only
+guests; without `use identity`, both methods are disabled.
+
+Ordinary guest and password sessions last seven days. `refreshSession`
+atomically exchanges a live token; `logoutAll` revokes every session for the
+principal. The client refreshes near expiry and uses an in-memory session
+store by default. Both online and local clients expose `session()`,
+`onSession`, `refreshSession()` and `logoutAll()`: rotation adopts the bearer
+before notification, and sign-out or a current-session refusal clears it.
+Local `signOut()` fences late refresh responses and completes only after
+persisted credentials are removed. Remote logout is best effort and does not
+gate that local boundary. An in-flight rotation may return its successor for
+logout, but cannot adopt or persist it after sign-out. Storage failure rejects sign-out for retry;
+`close()` alone preserves the session. Neither operation erases the outbox.
+Personas have no session; a bare-token online client has none until refresh
+returns one. Only the local client has `sync()`.
+`localStorageSessionStore()` is an explicit compatibility
+choice whose token can be read by same-origin script; native apps should pass
+their secure store.
+
+## Operations
 
 `use personas alice, bob` declares a development cast. `snapback4 run send
 '{..}' --as alice` (the default persona is alice) and the
@@ -51,28 +64,29 @@ Argon2 slots equal the host's available cores, capped at 16 and never below 2.
 Startup prints the slot count and the lifted counters once. `serve` and
 non-loopback peers keep two slots and the minute counters; full slots refuse
 with retryable E_RATE_LIMIT. Connection/worker caps remain. Unknown emails
-perform the same Argon2 verification work.
+perform the same Argon2 verification work. Retry after the minute counter or
+concurrent-slot pressure clears; do not retry in a tight loop.
 
-An email-and-password product declares `use identity password`; plain
-`use identity` also mints guest sessions. `use identity guests` admits only
-guests; without `use identity`, both methods are disabled.
+For a replay mode that must not emit notifications, run `snapback4 dev --replay`.
+Startup prints `replay on — new effects suppressed; schedules held`.
+`doctor` reports the persisted dev replay and schedule policy, even after the host stops.
+New emits are counted as `suppressed` by `doctor`, with no queued payload:
+they are never delivered, including after restarting with or without `--replay`.
+Mutations and explicitly run jobs keep their writes, results and meters.
+Replay holds schedule admission; restart without it resumes at the next
+boundary, skipping held periods. Already queued jobs still run, with their
+new emits suppressed. Effects queued before replay keep their ordinary lifecycle.
 
-Ordinary guest and password sessions last seven days. `refreshSession`
-atomically exchanges a live token; `logoutAll` revokes every session for the
-principal. The client refreshes near expiry and uses an in-memory session
-store by default. Both online and local clients expose `session()`,
-`onSession`, `refreshSession()` and `logoutAll()`: rotation adopts the bearer
-before notification, and sign-out or a current-session refusal clears it.
-Local `signOut()` fences late refresh responses and completes only after
-persisted credentials are removed. Remote logout is best effort and does not
-gate that local boundary. An in-flight rotation may return its successor for
-logout, but cannot adopt or persist it after sign-out. Storage failure rejects sign-out for retry;
-`close()` alone preserves the session. Neither operation erases the outbox.
-Personas have no session; a bare-token online client has none until refresh
-returns one. Only the local client has `sync()`.
-`localStorageSessionStore()` is an explicit compatibility
-choice whose token can be read by same-origin script; native apps should pass
-their secure store.
+`--hold-effects` only pauses worker claims: effects stay durable and become
+claimable after restarting without the flag. `--hold-schedules` only holds
+schedule admission, skipping held periods on restart. Use `--replay` when
+new effects must never be delivered; use the effect hold to keep them queued.
+The suppression policy stays on the dev store for local `run` invocations
+until the next host start; a restart without `--replay` restores normal
+emission for new writes and keeps the count. `serve` and release commands
+refuse `--replay` with E_REPLAY_DEV_ONLY; production always emits normally.
+With `--fresh`, the count dies with the in-memory store; `doctor` and local
+`run` inspect the separate on-disk store.
 
 `snapback4 sql "SELECT * FROM messages" [--limit N] [--json]` inspects
 the developer's own dev store; `--release dir` selects a deployment. It
@@ -82,7 +96,7 @@ refused. Views and `data` include absent required literal defaults; optional
 columns stay null. Device persistence exports retain raw storage images.
 The default limit is 200, with a notice when more rows exist.
 
-## Refused inspection SQL
+## Refusals
 
 E_SQL_READ_ONLY means inspection received something other than one
 read-only `SELECT` or `WITH ... SELECT`. For example,
@@ -96,5 +110,4 @@ For example, `SELECT * FROM r` or `SELECT * FROM sqlite_master` is not an
 application-table view. Use `snapback4 sql "SELECT * FROM messages"` for a
 declared messages table, or `snapback4 data messages`. These views expose
 the developer's store, including interpreted defaults, and are not an
-application authorization boundary. Use Quarry for application reads.
-"##;
+application authorization boundary. Use Quarry for application reads."##;

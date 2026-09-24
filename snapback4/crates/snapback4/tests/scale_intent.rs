@@ -147,3 +147,30 @@ fn once_key_predicates_are_planned_and_counted() {
     covered(&c, &outcome.metered);
     assert_eq!(engine.effects(None, 10).unwrap().len(), 1);
 }
+
+#[test]
+fn residual_membership_certificate_displays_the_predicate_not_its_initializer() {
+    let source = "table memberships:\n  orgId: principal\n  principal: principal\n  unique orgId, principal\n  public 'memberships'\ntable tasks:\n  orgId: principal\n  assignee: principal\n  status: enum('todo', 'doing', 'done')\n  createdAt: time\n  read <- .assignee = viewer\n  sync to .assignee\nquery page(c: cursor ?):\n  return tasks where .assignee = viewer and exists memberships[.orgId, viewer] and .status in ['todo', 'doing'] first 50 by .createdAt after c\n";
+    for (before, after, expected) in [
+        (".status in ['todo', 'doing']", ".status in ['todo', 'doing']", ".status in ['todo', 'doing']"),
+        (".status in ['todo', 'doing']", ".status in states", ".status in states"),
+    ] {
+        let source = source.replace(before, after).replace("page(c:", "page(states: [text <=10] <=3, c:");
+        let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
+        assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+        let program = &b.programs[0].program;
+        let c = analyze(&b.schema, program);
+        let text = c.line();
+        assert!(text.contains(expected), "{text}");
+        assert!(!text.contains("skipped by `false`") && !text.contains("$contains"), "{text}");
+        assert_eq!(c.class, Class::Grows, "the residual still contributes work");
+    }
+    // When the only predicate is extracted into pins/lanes, there is no
+    // residual clause to print. The certificate must remain constant.
+    let source = source.replace(" and exists memberships[.orgId, viewer]", "");
+    let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let c = analyze(&b.schema, &b.programs[0].program);
+    assert_eq!(c.class, Class::Constant);
+    assert!(!c.line().contains("skipped by"), "{}", c.line());
+}

@@ -1,5 +1,8 @@
 pub(super) const CARD: &str = r##"# Shapes
 
+Shapes choose the fields returned from a row or page.
+Name a shape to reuse the same result layout across reads.
+
 ```quarry
 shape brief = { id, body, author: .authorId }                        -- a named shape: bare columns, and `.` for the row
 
@@ -11,26 +14,69 @@ query shapeForms(roomId: rooms, messageId: messages, c: cursor ?):
   return { page, row, named, nested }
 ```
 
-The table and shape names are the language card's. A shape over a page is
+`{ ...p, extra: true }` copies a present row or object's known fields. Fields
+can replace inherited fields: `{ ...p, handle: { value: p.handle } }` and
+`p { *, handle: { value: .handle } }` return an object in place of the handle
+text. The replacing field determines the generated type. A row contributes
+the same columns and `pending?: boolean` as `p { *, extra: true }`.
+A spread result is `pending` if any row spread into it, directly or through a
+spread local, is pending, even when all of that row's fields are replaced.
+Later spreads replace earlier fields from left to right. `pending` cannot be supplied or overwritten
+in an object that spreads a row. This changes only the output;
+rules, ordering and cursors still use the original row.
+E_QUARRY_DUPLICATE_FIELD refuses two explicit fields with the same name, even
+with a spread between them. Rename or remove the second field; the rewrite
+names both locations. A bare column is an explicit field too.
+E_QUARRY_SPREAD refuses nullable operands and values without statically known
+fields. Establish the row first: `p = profiles[handle = h] ! else NOT_FOUND`,
+then `return { ...p, extra: true }`.
+
+An object spread's wildcard follows field order; when shaping an existing row shape,
+explicit computed fields win over its wildcard. E_QUARRY_SHAPE_JOIN refuses
+joining different row kinds, or a row-derived value and a non-row value,
+at the conditional, assignment, return or collection that combines them.
+Spread both row arms before joining, or build both arms with the same shape
+and kind. The rule also applies inside objects and collections, even when the
+result is only read by field. Identical kinds keep their existing behavior. Null adds absence to the same
+kind; it does not introduce a competing wildcard rule. Resetting a collector
+to `[]` keeps it empty, including inside a loop; a later append can establish
+its row kind again. A nonempty unknown value cannot join a row.
+
+Only simple conditionals or two-value reassignments of row locals or row
+reads get pasteable repairs, with nullability and lazy evaluation preserved.
+Reassignment edits require adjacent assignments (the second may be guarded),
+with no intervening use of the reassigned local.
+Coalescing, nested field conflicts, containers and helper returns instead
+name the conflicting kinds and field path and explain how to make them
+agree. These explanations do not suggest source edits.
+
+```quarry
+table listings:
+  title: text
+  city: text
+  public
+table bookings:
+  guest: principal
+  listing: listings
+  start: time
+  read <- .guest = viewer
+query myBookings(c: cursor ?):
+  return bookings where .guest = viewer last 20 by .start after c { *, listing: listings[.listing] { title, city } }
+query listingChoice(key: listings, flag: bool):
+  p = listings[key] ! else NOT_FOUND
+  return ({ ...p } if flag else { ...(p { * }) }) { title: 'override', * }
+```
+
+Here `listing` is the expanded object, or null for a missing or hidden listing.
+
+In the first example, table and shape names are the language card's. A shape over a page is
 a bounded loop; its fields are the row's columns by bare name, `*` for all
 of them, `...shape` for a named shape's fields, and `name: expr` with `.`
-as the row. A shape is the only projection: there is no `select`.
+as the row. There is no `select` spelling.
 A table-typed helper accepts that table's row or reference. A reference has no
 fields: read `messages[m] ! else NOT_FOUND` first, or select through the shape's
 implicit row parameter, `messages[m] { body: .body }`. Shapes are projections,
 not declared helper-argument types.
-A helper's early `return` inside a page's shape ends only that call; the page
-keeps its `next` cursor and completeness.
-A collector building a returned value makes the query incomplete if it exits
-with rows still unconsumed, even on a short final page.
-Each page needs its own returned owner when it has
-more rows: one field's cursor cannot cover a lost sibling or auxiliary page.
-A fully consumed, exhausted scan needs no cursor owner, even when its row count
-equals the bound and the query returns a scalar such as `count(rows)`.
-An auxiliary traversal of an intact returned page does not affect completeness,
-even if it breaks. Repeating a page read cannot clear earlier loss: only the
-final execution of an owned page site supplies `next`, and an earlier lost
-continuation still makes the query incomplete.
 A row-based shape keeps `pending?: boolean` from its base, including `*`, named
 spreads and subsequent shapes. It is this device's unconfirmed change, absent
 after confirmation; it is not a schema column or metadata on a containing record.

@@ -43,6 +43,7 @@ fn observe_query(rows: &dyn Rows, schema: &Schema, program: &Program, mut contex
     if !capped && runner.meter.capped_at.is_some() { runner.components.note(|frame| frame.capped = true); }
     charged?;
     let next = runner.outcome_next_cursor()?;    Ok(QueryOutcome {
+        unavailable: runner.query_unavailable,
         complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.page_position_lost() && !runner.timeline_pending && !runner.beyond_horizon && !runner.presence_unknown,
         cut: runner.read_cut(),
         capped_at: runner.meter.capped_at.clone(),
@@ -126,6 +127,7 @@ pub fn native_query(rows: &dyn Rows, schema: &Schema, module: &super::native::Mo
         let data = value?;
         runner.charge_output(&data)?;
         Ok(QueryOutcome {
+            unavailable: runner.query_unavailable,
             complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending && !runner.beyond_horizon,
             cut: runner.read_cut(),
             capped_at: runner.meter.capped_at.clone(),

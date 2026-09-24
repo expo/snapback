@@ -113,7 +113,7 @@ class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]> {
       // deduplication alone cannot recover rows an old boundary skipped.
       for (let i = 0; i < this.pages.length; i++) {
         const read = this.pages[i]!.observed.getSnapshot();
-        const next = isReady(read) ? read.next : null;
+        const next = isReady(read) && Array.isArray(read.data) ? read.next : null;
         if (!next || i + 1 >= this.requested || this.pages.slice(0, i + 1).some((p) => p.cursor === next)) {
           this.drop(i + 1);
           break;
@@ -150,12 +150,15 @@ class Pages<A extends { c?: Cursor | null }, R extends readonly unknown[]> {
       const read = page.observed.getSnapshot();
       last = read;
       if (!isReady(read)) break;
+      if (!Array.isArray(read.data)) { last = LOADING as Read<R>; break; }
       items.push(...(read.data as readonly R[number][]));
       complete &&= read.complete;
       if (read.cut === "meter" || (cut === null && read.cut === "words")) cut = read.cut;
       fresh &&= read.fresh;
-      if (read.since == null) knownSince = false;
-      else since = Math.min(since ?? read.since, read.since);
+      if (!read.fresh) {
+        if (read.since == null) knownSince = false;
+        else since = Math.min(since ?? read.since, read.since);
+      }
     }
     const hasMore = isReady(last) && last.next != null && !this.pages.some((p) => p.cursor === last.next);
     const read: Read<R> = isReady(last)

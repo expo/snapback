@@ -88,9 +88,11 @@ impl Binder<'_> {
             A::Array { items, .. } => {
                 let mut exprs = Vec::new();
                 let mut item_ty: Option<Ty> = None;
-                for (e, t) in self.strict_args(items, out)? {
+                let args = self.strict_args(items, out)?;
+                let origins: Vec<_> = args.iter().zip(items).map(|((_, ty), source)| (ty.clone(), source.clone())).collect();
+                for (e, t) in args {
                     item_ty = Some(match item_ty {
-                        Some(j) => j.join(&t),
+                        Some(j) => j.join(&t).map_err(|error| self.join_error_many(error.at("[]"), &origins))?,
                         None => t,
                     });
                     exprs.push(e);
@@ -114,38 +116,7 @@ impl Binder<'_> {
                 }
             }
             A::Binary { op, left, right, .. } => self.binary(op, left, right, site, out),
-            A::If { then, condition, otherwise, .. } => {
-                let (cond, cond_ty) = self.expr(condition, out)?;
-                if !cond_ty.is_bool() {
-                    return Err(type_error(condition.site(), format!("a conditional value needs a bool condition, got {}", cond_ty.name()), super::control::bool_condition_rewrite(&cond_ty, "x if ttl {} else y")));
-                }
-                // Each arm binds under its narrowing and runs only when taken.
-                let temp = self.temp("if");
-                let mut then_out = setup::Body::default();
-                self.push_scope();
-                self.narrow(condition, true);
-                let then_bound = self.expr(then, &mut then_out);
-                self.pop_scope();
-                let (then_expr, then_ty) = then_bound?;
-                let mut else_out = setup::Body::default();
-                self.push_scope();
-                self.narrow(condition, false);
-                let else_bound = self.expr(otherwise, &mut else_out);
-                self.pop_scope();
-                let (else_expr, else_ty) = else_bound?;
-                then_out.push(Stmt::Assign { name: temp.clone(), value: then_expr });
-                else_out.push(Stmt::Assign { name: temp.clone(), value: else_expr });
-                out.push(Stmt::Let { name: temp.clone(), value: Expr::Literal(Value::Null) });
-                out.push_if(cond, then_out, else_out);
-                let ty = if then_ty == Ty::Null {
-                    else_ty.optional()
-                } else if else_ty == Ty::Null {
-                    then_ty.optional()
-                } else {
-                    then_ty.join(&else_ty)
-                };
-                Ok((ir::var(&temp), ty))
-            }
+            A::If { then, condition, otherwise, .. } => self.conditional(then, condition, otherwise, out),
             A::Member { base, name, .. } => {
                 // Generated maintain keys are literal path-named columns. Resolve
                 // the full chain before ordinary member/reference traversal.
@@ -274,7 +245,7 @@ impl Binder<'_> {
                     }
                 }
             }
-            Ty::Object(fields) | Ty::RowShape(fields) => match fields.get(name) {
+            Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) => match fields.get(name) {
                 Some(field) => field.clone(),
                 None => return Err(unknown(site, format!("this object has no field {name}"), name_rewrite(name, fields.keys().map(String::as_str), None))),
             },
@@ -310,33 +281,6 @@ impl Binder<'_> {
         Ok((ir::field(base, name), result_ty))
     }
 
-    pub(super) fn object(&mut self, fields: &[ObjectField], out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
-        let mut exprs = Vec::<(String, Expr)>::new();
-        let mut types = BTreeMap::new();
-        let mut failed = None;
-        for field in fields {
-            let mut setup = setup::Body::default();
-            let value = match &field.value {
-                Some(value) => self.expr(value, &mut setup),
-                None => self.name(&field.name, &field.site),
-            };
-            let (e, t) = match value {
-                Ok(value) => value,
-                Err(error) => { self.record_error(error.clone()); failed.get_or_insert(error); continue; }
-            };
-            self.sequence_setup(exprs.iter_mut().map(|(_, e)| e), setup, out);
-            // Object IR stores fields by name. Minted ids still follow source
-            // field order when no child needs a statement-producing expansion.
-            let e = if allocates(&e) { self.snapshot(e, out) } else { e };
-            if types.contains_key(&field.name) {
-                return Err(unknown(&field.site, format!("duplicate field {}", field.name), "keep one"));
-            }
-            exprs.push((field.name.clone(), e));
-            types.insert(field.name.clone(), t);
-        }
-        match failed { Some(error) => Err(error), None => Ok((Expr::Object(exprs.into_iter().collect()), Ty::Object(types))) }
-    }
-
     pub(super) fn binary(&mut self, op: &str, left: &A, right: &A, site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         if op == "in" {
             let (value, ty) = self.expr(left, out)?;
@@ -361,7 +305,8 @@ impl Binder<'_> {
             let (r, rt) = if lt.required().is_identity() { self.expr_as_identity(right, &mut fallback, &lt.required())? } else { self.expr(right, &mut fallback)? };
             fallback.push(Stmt::Assign { name: tmp.clone(), value: r });
             out.push_if(Expr::Binary { op: BinaryOp::Eq, left: Box::new(ir::var(&tmp)), right: Box::new(Expr::Literal(Value::Null)) }, fallback, setup::Body::default());
-            let ty = if rt.is_optional() { lt.required().join(&rt) } else { lt.required().join(&rt).required() };
+            let joined = self.join(&lt.required(), &rt, left, right)?;
+            let ty = if rt.is_optional() { joined } else { joined.required() };
             return Ok((ir::var(&tmp), ty));
         }
         let (l, lt) = self.expr(left, out)?;
@@ -402,6 +347,11 @@ impl Binder<'_> {
             out.extend(right_setup);
             ir::var(&left_value)
         };
+        let focal_nullable = |value: &A, ty: &Ty| self.in_predicate && ty.is_optional()
+            && self.focal.as_ref().is_some_and(|(name, ty)| name == "$filter" && matches!(ty, Ty::Row(_)))
+            && super::super::intent::column(value).is_some();
+        let nullable_left = focal_nullable(left, &lt);
+        let nullable_right = focal_nullable(right, &rt);
         let ir_op = match op {
             "/" | "%" => {
                 if !matches!(lt, Ty::Int | Ty::Time) || !matches!(rt, Ty::Int | Ty::Time) {
@@ -423,7 +373,7 @@ impl Binder<'_> {
                 if op == "=" { BinaryOp::Eq } else { BinaryOp::Ne }
             }
             "<" | "<=" | ">" | ">=" => {
-                if lt.is_optional() || rt.is_optional() {
+                if (lt.is_optional() && !nullable_left) || (rt.is_optional() && !nullable_right) {
                     return Err(type_error(
                         site,
                         format!("{op} needs present operands; got {} and {}", lt.name(), rt.name()),
@@ -478,7 +428,20 @@ impl Binder<'_> {
             }
             other => return Err(unknown(site, format!("unknown operator {other}"), "use =, !=, <, <=, >, >=, +, -, *, and, or, ??")),
         };
-        Ok((Expr::Binary { op: ir_op, left: Box::new(l), right: Box::new(r) }, Ty::Bool))
+        let mut present = Vec::new();
+        if matches!(ir_op, BinaryOp::Lt | BinaryOp::Lte | BinaryOp::Gt | BinaryOp::Gte) {
+            if nullable_left { present.push(l.clone()); }
+            if nullable_right { present.push(r.clone()); }
+        }
+        let mut comparison = Expr::Binary { op: ir_op, left: Box::new(l), right: Box::new(r) };
+        // @ref LLP 3000.013#2.1 — predicate nulls do not enter ordering;
+        // the ordinary interpreter's total value ordering remains unchanged.
+        for value in present.into_iter().rev() {
+            comparison = Expr::Binary { op: BinaryOp::And,
+                left: Box::new(Expr::Binary { op: BinaryOp::Ne, left: Box::new(value), right: Box::new(ir::lit(Value::Null)) }),
+                right: Box::new(comparison) };
+        }
+        Ok((comparison, Ty::Bool))
     }
 
     /// An expression in an identity position: a text literal becomes an id.
@@ -503,6 +466,20 @@ impl Binder<'_> {
             Ok(())
         };
         match name {
+            super::super::intent_variants::PRESENT => {
+                let (value, _) = self.expr(&args[0], out)?;
+                Ok((Expr::Binary { op: BinaryOp::Ne, left: Box::new(value), right: Box::new(Expr::Literal(Value::Null)) }, Ty::Bool))
+            }
+            super::super::intent_variants::SEARCH => {
+                let (value, ty) = self.expr(&args[0], out)?;
+                if !matches!(ty, Ty::Text(_)) { return Err(type_error(site, "matching needs present text", "matching (q ?? '')")); }
+                let A::Name { name, .. } = &args[1] else { unreachable!("planned needle binding") };
+                let runtime = self.temp("intentNeedle");
+                self.declare(name, ty);
+                self.scopes.last_mut().unwrap().get_mut(name).unwrap().runtime = runtime.clone();
+                out.push(Stmt::Let { name: runtime.clone(), value });
+                Ok((Expr::Builtin { builtin: Builtin::SearchPresent, args: vec![ir::var(&runtime)] }, Ty::Bool))
+            }
             "day" | "hour" | "bucket" => {
                 let (millis, offset) = super::super::maintains::calendar(name, args, site)?;
                 let (value, ty) = self.expr(&args[0], out)?;
@@ -582,7 +559,9 @@ impl Binder<'_> {
                     if scan.take == Bound::Meter {
                         let saved = self.focal.replace(("$filter".into(), Ty::Row(read.table.clone())));
                         let mut setup = setup::Body::default();
+                        let predicate_context = std::mem::replace(&mut self.in_predicate, false);
                         let projected = self.expr(&args[1], &mut setup);
+                        self.in_predicate = predicate_context;
                         self.focal = saved;
                         let (projection, ty) = projected?;
                         if !ty.is_numeric() || !setup.is_empty() {
@@ -657,10 +636,11 @@ impl Binder<'_> {
             "min" | "max" => {
                 arity(2, &format!("{name}(a, b)"))?;
                 let [(a, at), (b, bt)]: [(Expr, Ty); 2] = self.strict_args(args, out)?.try_into().expect("checked arity");
+                let joined = self.join(&at, &bt, &args[0], &args[1])?;
                 if at.is_optional() || bt.is_optional() || !at.comparable(&bt) {
                     return Err(type_error(site, format!("{name} takes two present values of one type; got {} and {}", at.name(), bt.name()), "narrow the operands first"));
                 }
-                Ok((Expr::Builtin { builtin: if name == "min" { Builtin::Min } else { Builtin::Max }, args: vec![a, b] }, at.join(&bt)))
+                Ok((Expr::Builtin { builtin: if name == "min" { Builtin::Min } else { Builtin::Max }, args: vec![a, b] }, joined))
             }
             "tokens" => {
                 arity(1, "tokens(text)")?;

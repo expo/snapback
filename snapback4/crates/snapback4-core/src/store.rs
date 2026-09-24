@@ -16,6 +16,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 mod activation;
+mod caps;
 mod authority;
 mod successor;
 
@@ -110,7 +111,11 @@ impl Store {
         }
         let conn = Connection::open(&real)?;
         conn.busy_timeout(timeout)?;
-        conn.execute_batch("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = OFF;")?;
+        // @ref LLP 3000.013#4-following-without-caps — published watermarks must survive a power loss.
+        // Delivery publishes partition watermarks as well as replayable copies.
+        // Losing an acknowledged background commit could rewind a device's
+        // watermark, so requests and maintenance share the durable policy.
+        conn.execute_batch("PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL; PRAGMA foreign_keys = OFF;")?;
         // A release serves the shared store through a link; the assets sit
         // beside the file itself, so every release serves the same bytes.
         let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
@@ -160,6 +165,7 @@ impl Store {
             "CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
              CREATE TABLE IF NOT EXISTS _catalog (name TEXT PRIMARY KEY, num INTEGER NOT NULL UNIQUE);
              CREATE TABLE IF NOT EXISTS r (t INTEGER NOT NULL, id TEXT NOT NULL, data TEXT NOT NULL, PRIMARY KEY (t, id)) WITHOUT ROWID;
+             CREATE TABLE IF NOT EXISTS _cap_counts (t INTEGER NOT NULL, k BLOB NOT NULL, n INTEGER NOT NULL CHECK(n >= 0), PRIMARY KEY(t, k)) WITHOUT ROWID;
              CREATE TABLE IF NOT EXISTS i (ti INTEGER NOT NULL, k BLOB NOT NULL, id TEXT NOT NULL, PRIMARY KEY (ti, k)) WITHOUT ROWID;
              CREATE TABLE IF NOT EXISTS _commits (seq INTEGER PRIMARY KEY, at INTEGER NOT NULL, program TEXT NOT NULL, principal TEXT NOT NULL, kind TEXT NOT NULL, touched TEXT NOT NULL, writes INTEGER NOT NULL);
              CREATE TABLE IF NOT EXISTS _log (partition TEXT NOT NULL, seq INTEGER NOT NULL, ord INTEGER NOT NULL, t TEXT NOT NULL, kind TEXT NOT NULL, id TEXT NOT NULL, data TEXT, PRIMARY KEY (partition, seq, ord)) WITHOUT ROWID;
@@ -471,6 +477,7 @@ impl<'a> Tx<'a> {
                 entries += 1;
             }
         }
+        entries += self.update_cap_counts(table_name, table, old, Some(row))?;
         Ok(entries)
     }
 
@@ -486,6 +493,7 @@ impl<'a> Tx<'a> {
                 entries += 1;
             }
         }
+        entries += self.update_cap_counts(table_name, table, Some(old), None)?;
         Ok(entries)
     }
 
@@ -866,6 +874,9 @@ impl crate::rows::Rows for Tx<'_> {
             out.push((serde_json::from_str(data).map_err(|e| RuntimeError::Store(e.to_string()))?, key.to_vec()));
         }
         Ok(out)
+    }
+    fn cap_count(&self, table: &str, by: &[String], group: &[Value]) -> Result<u64, RuntimeError> {
+        self.physical_cap_count(table, by, group)
     }
     fn count_prefix(&self, table: &str, index_name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> {
         Tx::count_prefix(self, table, index_name, prefix, limit)

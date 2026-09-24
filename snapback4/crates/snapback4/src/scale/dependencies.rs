@@ -51,6 +51,7 @@ fn body(data: &mut Locals, statements: &[Stmt]) {
                 expr(data, key); expr(data, value);
             }
             Stmt::Delete { key, .. } => { expr(data, key); }
+            Stmt::DeleteTarget { target } => { read(data, target); }
             Stmt::WriteTarget { target, patch, condition, result, .. } => {
                 read(data, target); expr(data, patch);
                 if let Some(c) = condition { body(data, &c.setup); expr(data, &c.value); }

@@ -1,6 +1,9 @@
 //! Search card, compiled with every other keyword card by tests/guide.rs.
 pub const CARD: &str = concat!(r##"# Search: word prefixes, on the server and on the device
 
+Search finds rows whose words begin with the terms a user types.
+The same word-prefix rules apply on the server and on the device.
+
 ```quarry
 table members:
   roomId: id
@@ -33,20 +36,15 @@ query inRoom(roomId: id, q: text <=100, c: cursor ?):
   return messages[roomId = roomId] matching q after c last 50 by .at
 
 query people(q: text <=100, c: cursor ?):
-  return profiles matching q after c first 20 by .id
-
-query allPeople(c: cursor ?):
-  return profiles after c first 20 by .id
+  return profiles matching q after c first 20 by .handle
 ```
 
-`matching ''` matches nothing, including when the needle contains only whitespace or punctuation.
-Use `allPeople` while the search box is empty and `people` once the user types.
-This directory uses two queries and a client branch: `allPeople` pages the
-whole directory by id; `people` returns matches in that same order. Neither
-query sorts alphabetically by display name.
-Continue each query with its own `next`; do not sort only the first page
-and treat it as the whole directory. Reset the cursor when switching queries or changing the search text.
-Normalize whitespace-only input to `''` in the client if it should browse too.
+An empty needle, including whitespace or punctuation that folds to no terms,
+browses in the query's order under the same read rule.
+This directory uses one query, ordered by handle, with `next` to continue;
+reset the cursor when changing the search text.
+For a screen that wants nothing until typing, put `if q = '': return []`
+before the read.
 
 `search body, caption` declares the searchable columns. The planner supplies
 the words index: one entry per distinct word of the
@@ -55,8 +53,6 @@ named text columns, in that position, folded the same way everywhere
 or digit). The columns before it are the search's scope; the columns
 after it order the page and end in `id`, so a cursor continues it. A
 words index serves `matching` and nothing else, and cannot be unique.
-
-The web device folds through the browser's normalization, keeps Rust lowercase, and refuses to open with `E_HOST_UNICODE` when the browser's NFC disagrees with the contract's startup canaries.
 
 Indexed tokens and query terms are both truncated to 64 Unicode characters
 after folding (at most 256 UTF-8 bytes). Longer terms therefore search with
@@ -68,8 +64,7 @@ word it is a prefix of ("cof": coffee, coffers, cofounder — one seek each,
 bounded by the meter for a uniform scope; at most 32 words for an admitted
 non-uniform scope, whose page remains `complete: false` even below that bound), and those words
 merge as ordered lanes into one page — newest first with `last 20 by .at`. Every further term must be a prefix of some word of the row ("cof
-car" finds "COFFEE for Carol"). Mid-word text does not match; an empty
-search matches nothing, not everything; an expired row is gone at once;
+car" finds "COFFEE for Carol"). Mid-word text does not match; an expired row is gone at once;
 an edit re-tokenizes. A uniform scope (the rule decided by the room)
 costs one verdict per scope; with a total unique `(chatKey, principal)` key
 on t, `.principal = viewer or exists t[.chatKey, viewer]` is decided by the
@@ -81,7 +76,9 @@ it); use the grouped or newest form below, or read on the device.
 The newest form below merges the viewer's rooms by `at` and `id`, with
 one verdict per scope when its prefix decides the rule. Its uniform lane
 source runs under the examined meter: `check --cost` prints `lanes ≤ meter`;
-an explicit `first N` above 50 still emits N_WIDE_MERGE.
+an explicit `first N` above 50 still emits N_WIDE_MERGE. Use the grouped form,
+which pages memberships and includes each chat's hits, when opening all rooms
+cannot fit.
 A pinned conjunct such as `exists members[.roomId, viewer]` can deny a scope
 before word discovery even when another conjunct needs each row. Admitted
 non-uniform scopes keep per-row costs and remain incomplete; hidden rows
@@ -95,7 +92,9 @@ report `cut: null`: their reason is withheld, with `complete: false` still truth
 for `complete: false` with `cut: null`, even when empty; never "no matches".
 The precise reason remains in development-only `Read.meter.cut`; `serve` never
 returns that meter. If the server cannot answer the query, declare `query … held:`
-to answer from the device; the server refuses it with E_QUERY_HELD.
+to answer from the device; the server refuses it with E_QUERY_HELD. Call a held
+query through a local client over acquired partitions; it has no server fallback. Use the grouped
+membership read for a server answer.
 Uniform word expansion is bounded by the meter. A cut during discovery or
 opening returns `complete: false, cut: 'meter'` with no continuation.
 Heap exhaustion clears the page: `data: null`, `complete: false`,
@@ -110,7 +109,6 @@ Following that cursor does not clear the earlier page's incompleteness in `usePa
 past a device horizon is incomplete; a held group can fall back to the server.
 
 "##, include_str!("search_all.md"), r##"
-
 ## Membership search with an admin gate
 
 ```quarry
@@ -165,10 +163,7 @@ query searchNewest(q: text <=100, c: cursor ?):
   return messages matching q where exists memberships[.conversationId, viewer] last 20 by .at after c
 
 query people(q: text <=100, c: cursor ?):
-  return profiles matching q after c first 20 by .id
-
-query allPeople(c: cursor ?):
-  return profiles after c first 20 by .id
+  return profiles matching q after c first 20 by .handle
 ```
 
 This version gives conversations their own table and lets an admin add members.
@@ -180,4 +175,10 @@ source-coverage line; that line never promises answer completeness.
 For ordinary device reads, online fallback asks the server only for a missing
 fact or unknown presence; a meter or word cut and a cursorless page stay local,
 as do held queries and retained left groups, and pending predictable writes
-still prevent fallback."##);
+still prevent fallback.
+
+## Refusals
+
+The web device folds through the browser's normalization, keeps Rust lowercase, and refuses to open with `E_HOST_UNICODE` when the browser's NFC disagrees with the contract's startup canaries.
+Use a browser with standard `String.prototype.normalize`; do not substitute a
+different normalization or bypass the check."##);

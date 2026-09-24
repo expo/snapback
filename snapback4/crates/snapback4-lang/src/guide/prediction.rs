@@ -1,80 +1,8 @@
 //! The mutation's eligibility and the device's decision on a call.
 pub(super) const CARD: &str = r##"# Prediction: queued writes and local rows
 
-`pending` means the write has not settled; `sent` means the server committed it.
-A predicted row carries `pending: true`; a pending write may have no predicted row.
-Writes that do not predict show pending with `usePendingWrite(op)` from
-`snapback4/react`; pass a saved mutation id as its second argument to observe
-that write after reload. See `guide writes` for terminal receipts and acquisition.
-`client.acquired` and `useAcquired()` say whether snapshot and catch-up finished;
-unacquired writes without a row report `queued without a row: not acquired yet`.
-
-The web device trusts the backend compiler's structural admission; it does not
-repeat that analysis locally. It still validates arguments, rows, rules, coverage
-and runtime budgets. A hand-built or corrupted backend can therefore produce
-local query answers or predictions where a native device reports a structural refusal. The server
-rechecks every submitted mutation before committing it.
-
-Run `snapback4 check --residency --verbose` and `snapback4 why <op>` to see read sites:
-- `held`: the viewer's whole synced partition, or an inherited aggregate view.
-- `horizon`: a synced `last N` window; a held row can be read, but a miss
-  cannot prove absence beyond the horizon, so that call may queue without a row.
-- `server`: online-only data; a mutation reading it has `predicts: never`.
-
-`predicts: eligible` requires device-readable sites and synced writes;
-the call still needs its facts on this device and must fit the meter and rules.
-`mutation name(args) predicts:` asserts this eligibility: `check` refuses
-`E_NOT_PREDICTABLE` at the header if a server site makes it `never`, with
-the reason and rewrite. It does not promise prediction on every call.
-Every `check` summarizes mutations that never predict, insert arms that
-never predict, and eligible mutations whose reads can queue without a row
-past a horizon, even on an unchanged program. `why` qualifies the heading:
-`predicts: eligible except past the horizon at …`, naming each read and site.
-A loss of eligibility
-produces one `N_NOT_PREDICTABLE` note per mutation, listing distinct root
-causes with deduplicated sites and rewrites.
-Every mutation can queue on the local client; eligibility is not a promise
-that every call produces a predicted row. Native reads also need their module.
-Persisted writes without a valid integer prediction clock queue without rows;
-their write and row IDs survive for submission to the server. Direct device
-`predict` calls require an explicit integer `now`; `admit` and `enqueue` clear
-prediction eligibility and predicted rows when that clock is missing or invalid.
-
-Every device read authorizes a provisional row with its table's read rule for
-the device principal, against all pending predictions layered over delivered
-rows. This includes reads inside a predicting mutation, pages, counts, probes
-and watches. A definite denial hides the row without making the read unknown.
-Unknown authorization hides the row and makes the read incomplete; an exhausted
-read meter cuts the result without showing the row. Rule probes see raw combined
-state, with no recursive read checks: pending witnesses count as present;
-delivered witnesses and absences need current coverage. Retained-only witnesses
-and Left groups are unknown. A decisive disjunct can still authorize the row.
-Delivered rows keep their server authorization.
-
-During prediction, membership coverage, retention checks and provisional-row
-authorization share a separate device allowance with the ordinary operation's
-ceilings. Physical witness scans, including expired siblings and aggregate
-sources, charge examinations and allocations to that allowance and stop when
-it runs out. Exhausting it queues the mutation without predicted rows.
-The server's point-read rule-probe reservation still spends the mutation meter,
-including when synced rows are trusted; only additional device authorization
-work spends the separate allowance. A mutation-meter cut can refuse with `E_BOUND`.
-Queries continue to charge authorization to their query meter.
-
-An unreadable output does not prevent prediction. For example, a moderation
-report predicts but stays invisible to its writer until settlement removes or
-replaces the overlay. A later pending grant can make a row visible; a later
-pending revocation hides it immediately. A mutation may predict using a definitive denied input as absent.
-An unknown provisional input cannot establish that read and may queue without rows.
-
-The language card's `createRoom` predicts and its room is visible through the
-membership inserted later in that call. An edit of a message retained after
-leaving its conversation also predicts, but its new image is hidden; refusing
-the write restores the readable delivered history. `writeForms` keeps its
-readable outputs while hiding unreadable or unknown ones. Static eligibility
-and `predicts:` assertions are unchanged. The declared timeline still skips
-foreign engine-owned inbox copies before writing them. Ordinary recipe fan-out
-predicts all its copies and hides those whose `readerId` differs from the viewer.
+Prediction applies an eligible write to local rows while the server decides it.
+A write can still queue when the device cannot justify a prediction.
 
 ```quarry
 table drafts:
@@ -128,6 +56,88 @@ mutation falliblePost(body: text <=200, recipient: principal):
   emit notify { ratio: 1 / connected[recipient] } -- can divide by zero: never
   return null
 ```
+
+`pending` means the write has not settled; `sent` means the server committed it.
+A predicted row carries `pending: true`; a pending write may have no predicted row.
+Writes that do not predict show pending with `usePendingWrite(op)` from
+`snapback4/react`; pass a saved mutation id as its second argument to observe
+that write after reload. See `guide writes` for terminal receipts and acquisition.
+`client.acquired` and `useAcquired()` say whether snapshot and catch-up finished;
+unacquired writes without a row report `queued without a row: not acquired yet`.
+
+The web device trusts the backend compiler's structural admission; it does not
+repeat that analysis locally. It still validates arguments, rows, rules, coverage
+and runtime budgets. A hand-built or corrupted backend can therefore produce
+local query answers or predictions where a native device reports a structural refusal. The server
+rechecks every submitted mutation before committing it.
+
+`predicts: eligible` requires device-readable sites and synced writes;
+the call still needs its facts on this device and must fit the meter and rules.
+`mutation name(args) predicts:` asserts this eligibility: `check` refuses
+`E_NOT_PREDICTABLE` at the header if a server site makes it `never`, with
+the reason and rewrite. It does not promise prediction on every call. Remove
+the named server dependency to keep `predicts`, or remove that assertion and let the client queue
+without prediction.
+Every `check` summarizes mutations that never predict, insert arms that
+never predict, and eligible mutations whose reads can queue without a row
+past a horizon, even on an unchanged program. `why` qualifies the heading:
+`predicts: eligible except past the horizon at …`, naming each read and site.
+A loss of eligibility
+produces one `N_NOT_PREDICTABLE` note per mutation, listing distinct root
+causes with deduplicated sites and rewrites.
+Every mutation can queue on the local client; eligibility is not a promise
+that every call produces a predicted row. Native reads also need their module.
+Persisted writes without a valid integer prediction clock queue without rows;
+their write and row IDs survive for submission to the server. Direct device
+`predict` calls require an explicit integer `now`; `admit` and `enqueue` clear
+prediction eligibility and predicted rows when that clock is missing or invalid.
+
+Every device read authorizes a provisional row with its table's read rule for
+the device principal, against all pending predictions layered over delivered
+rows. This includes reads inside a predicting mutation, pages, counts, probes
+and watches. A definite denial hides the row without making the read unknown.
+Unknown authorization hides the row and makes the read incomplete; an exhausted
+read meter cuts the result without showing the row. Rule probes see raw combined
+state, with no recursive read checks: pending witnesses count as present;
+delivered witnesses and absences need current coverage. Retained-only witnesses
+and Left groups are unknown. A decisive disjunct can still authorize the row.
+Delivered rows keep their server authorization.
+
+During prediction, membership coverage, retention checks and provisional-row
+authorization share a separate device allowance with the ordinary operation's
+ceilings. Physical witness scans, including expired siblings and aggregate
+sources, charge examinations and allocations to that allowance and stop when
+it runs out. Exhausting it queues the mutation without predicted rows.
+The server's point-read rule-probe reservation still spends the mutation meter,
+including when synced rows are trusted; only additional device authorization
+work spends the separate allowance. A mutation-meter cut can refuse with `E_BOUND`.
+Queries continue to charge authorization to their query meter.
+
+An expiring table's cap counts physical rows, including expired rows awaiting
+the server sweep. A complete live snapshot cannot establish that occupancy.
+A sweep can also free space before its deletion reaches the device; the last
+received occupancy would still say the cap is full.
+Writes that increase an expiring cap's occupancy queue without predicted rows
+and settle on the server. This includes inserts, missing upserts and moves
+into another capped group. Updates within the same group and deletes can still
+predict under the ordinary rules. Acquiring again cannot prove space in this
+cap; observe the queued write's settlement (`guide writes`).
+
+
+An unreadable output does not prevent prediction. For example, a moderation
+report predicts but stays invisible to its writer until settlement removes or
+replaces the overlay. A later pending grant can make a row visible; a later
+pending revocation hides it immediately. A mutation may predict using a definitive denied input as absent.
+An unknown provisional input cannot establish that read and may queue without rows.
+
+The language card's `createRoom` predicts and its room is visible through the
+membership inserted later in that call. An edit of a message retained after
+leaving its conversation also predicts, but its new image is hidden; refusing
+the write restores the readable delivered history. `writeForms` keeps its
+readable outputs while hiding unreadable or unknown ones. Static eligibility
+and `predicts:` assertions are unchanged. The declared timeline still skips
+foreign engine-owned inbox copies before writing them. Ordinary recipe fan-out
+predicts all its copies and hides those whose `readerId` differs from the viewer.
 
 `why guardedPost` identifies the horizon read. The client-minted mutation id
 already dedupes a retry for that principal; reuse that write id when retrying.
@@ -238,7 +248,15 @@ mutation setLike(postId: id, liked: bool) predicts:
 ```
 
 
-## A call that cannot produce local rows
+## Operations
+
+Run `snapback4 check --residency --verbose` and `snapback4 why <op>` to see read sites:
+- `held`: the viewer's whole synced partition, or an inherited aggregate view.
+- `horizon`: a synced `last N` window; a held row can be read, but a miss
+  cannot prove absence beyond the horizon, so that call may queue without a row.
+- `server`: online-only data; a mutation reading it has `predicts: never`.
+
+## Refusals
 
 E_PREDICT means the device cannot establish this call's prediction from
 its held facts or submission IDs. For example, an `upsert` missing beyond
@@ -247,5 +265,4 @@ the write queued without predicted rows and lets the server judge it;
 observe its pending/failed/sent state instead of treating missing local
 rows as success. Inspect `snapback4 why <op>` and the named site. Acquire
 the required partition, or redesign the read to need held facts; never
-invent an empty row or mint different IDs on replay.
-"##;
+invent an empty row or mint different IDs on replay."##;

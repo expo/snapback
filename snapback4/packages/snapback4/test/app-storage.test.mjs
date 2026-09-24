@@ -52,6 +52,10 @@ function transport() {
     const path = new URL(input).pathname;
     if (path === "/auth/login") return Response.json({ session: session(JSON.parse(init.body).email) });
     if (path === "/auth/logout") return Response.json({ ok: true });
+    if (path === "/probe") {
+      if (offline) throw Error("offline");
+      return Response.json({ ok: true, store_id: "storage-test", seq: sent.length });
+    }
     if (path === "/m/write") {
       if (offline) throw Error("offline");
       const body = JSON.parse(init.body); sent.push({ ...body, token: init.headers.authorization });

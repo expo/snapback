@@ -50,7 +50,7 @@ fn w10r1_directory_card_pages_and_searches_on_both_stores() {
         engine.seed((0..25).map(|n| ("profiles".into(), object([
             ("id", id(&format!("p{n:02}"))), ("principal", id(&format!("person{n}"))),
             ("displayName", Value::String(if n == 24 { "Dave".into() } else { format!("Person {n}") })),
-            ("handle", Value::String(format!("person{n}"))),
+            ("handle", Value::String(format!("person{n:02}"))),
         ])))).unwrap();
         let mut device = host.open("directory", Some(backend)).unwrap();
         let pages = snapshot_pages(&mut engine, "alice", 10);
@@ -58,17 +58,17 @@ fn w10r1_directory_card_pages_and_searches_on_both_stores() {
         for (n, page) in pages.iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
         for needle in ["", "   ", "!!!"] {
             let page = query(&mut *device, "people", "alice", json!({"q":needle}), 1000);
-            assert!(rows(&page).is_empty(), "{label}: {page}");
+            assert_eq!(rows(&page).len(), 20, "{label}: {page}");
             assert_eq!(page["complete"], true);
-            assert!(page["next"].is_null());
+            assert!(page["next"].is_string());
         }
-        for op in ["allPeople", "people"] {
+        for needle in ["", "   ", "!!!", "person"] {
             let mut cursor = json!(null);
             let mut ids = Vec::new();
             let mut sizes = Vec::new();
             loop {
-                let args = if op == "people" { json!({"q":"person", "c":cursor}) } else { json!({"c":cursor}) };
-                let page = query(&mut *device, op, "alice", args, 1000);
+                let args = json!({"q":needle, "c":cursor});
+                let page = query(&mut *device, "people", "alice", args, 1000);
                 assert_eq!(page["complete"], true, "{label}: {page}");
                 sizes.push(rows(&page).len());
                 ids.extend(rows(&page).iter().map(|row| row["id"].as_str().unwrap().to_owned()));

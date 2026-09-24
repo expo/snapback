@@ -74,9 +74,10 @@ test("write authority: /m replay keeps only execution identity after hidden writ
   const first = await f.request("/m/put", "bob", input);
   assert.equal(first.state, "sent");
   assert.equal(first.result, null);
-  assert.deepEqual(Object.keys(first).sort(), ["id", "result", "seq", "state"]);
+  assert.deepEqual(Object.keys(first).sort(), ["head", "id", "result", "seq", "state", "store_id"]);
   const replay = await f.request("/m/put", "bob", input);
-  assert.deepEqual(replay, { state: "sent", id: "hidden", seq: first.seq, replayed: true });
+  assert.match(first.store_id, /^[0-9a-f]{32}$/);
+  assert.deepEqual(replay, { state: "sent", id: "hidden", seq: first.seq, replayed: true, store_id: first.store_id, head: first.seq });
   for (const [op, id] of [["put", "lost-result"], ["conditional", "lost-current"]]) {
     await f.seed();
     const original = await f.request(`/m/${op}`, "alice", { id, args: { key: "lookup" } }); // delivered to transport, dropped by app
@@ -122,7 +123,7 @@ test("write authority: check --cost prints the bounded uniform pass and its exam
   const f = await fixture(t);
   const checked = spawnSync(binary, ["check", "--cost"], { cwd: f.directory, encoding: "utf8" });
   assert.equal(checked.status, 0, checked.stderr);
-  assert.match(checked.stdout, /a pass over the first 10 rows of counters\[owner\] by byOwner; examined ceiling 8192/);
+  assert.match(checked.stdout, /a pass over the first 10 rows of counters where \.owner = owner by byOwner; examined ceiling 8192/);
 });
 
 test("write authority: a lost readable key-collision reply cannot recover its key after revocation", { timeout: 20000 }, async (t) => {

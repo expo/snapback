@@ -14,7 +14,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, Write as _};
 use std::net::IpAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Condvar, Mutex, MutexGuard};
+use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 use tiny_http::{Header, Method, Request, Response, Server};
 
@@ -48,10 +48,14 @@ mod tests;
 #[path = "read_cost.rs"]
 pub(crate) mod read_cost;
 
+#[path = "serve_lock.rs"]
+mod engine_lock;
+use engine_lock::{FairMutex, Lockable};
+
 pub struct Shared {
     pub clock: Arc<Mutex<crate::dev_clock::Clock>>,
     maintenance: Mutex<()>,
-    pub engine: Mutex<Engine>,
+    pub engine: FairMutex<Engine>,
     adoption: Mutex<adoption::Status>,
     readers: Mutex<QueryReaders>,
     read_cuts: Mutex<read_cost::ReadCuts>,
@@ -126,15 +130,8 @@ impl QueryReaders {
 /// A panicking request must not turn one poisoned process mutex into a
 /// permanent server-wide panic loop. The guarded value is retained, the
 /// poison marker is cleared, and the next request can make progress.
-pub(crate) fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
-    match mutex.lock() {
-        Ok(guard) => guard,
-        Err(poisoned) => {
-            eprintln!("snapback4: recovered a mutex after a request panicked");
-            mutex.clear_poison();
-            poisoned.into_inner()
-        }
-    }
+pub(crate) fn lock<T: Lockable>(mutex: &T) -> T::Guard<'_> {
+    mutex.recover_lock()
 }
 
 #[derive(Debug, Default)]
@@ -299,7 +296,7 @@ pub fn serve(project: Project, port: u16, mode: Mode, bind: &str) -> Result<(), 
     let generation: u64 = engine.generation();
     let adoption = Mutex::new(adoption::Status::new(engine.store().meta("store_id").map_err(|e| e.to_string())?.unwrap_or_default()));
     let shared = Arc::new(Shared {
-        adoption, clock, maintenance: Mutex::new(()), engine: Mutex::new(engine), readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), worker_revision: AtomicUsize::new(0), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
+        adoption, clock, maintenance: Mutex::new(()), engine: FairMutex::new(engine), readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()), bound: Mutex::new(bound), generation: Mutex::new(generation), worker_revision: AtomicUsize::new(0), committed: Condvar::new(), seq: Mutex::new(seq), personas: dev, hold_effects, hold_schedules, entropy: Mutex::new(snapback4_core::ids::seed()), presence, asset_transfers: AssetTransfers::default(), native: Mutex::new(installed), auth: crate::auth::Admission::default(), uploads: AtomicUsize::new(0),
         route_verification: routes::Verification::default(),
         #[cfg(test)] auth_work: Mutex::new(None),
         #[cfg(test)] upload_work: Mutex::new(None),
@@ -427,17 +424,6 @@ fn service_of_locked(request: &Request, shared: &Shared, engine: &Engine) -> Res
     snapback4_core::identity::current_service(engine.store(), &token, snapback4_core::identity::ServiceSample {
         now: shared.now(), supervisor_revision: shared.worker_revision.load(Ordering::Acquire),
     }).map_err(|e| e.refusal())?.ok_or_else(refused)
-}
-
-/// A commit outside a request: let every long poll see it.
-fn bump_seq(shared: &Shared) {
-    if let Ok(seq) = lock(&shared.engine).seq() {
-        let mut current = lock(&shared.seq);
-        if seq > *current {
-            *current = seq;
-            shared.committed.notify_all();
-        }
-    }
 }
 
 fn single_header<'a>(request: &'a Request, name: &str) -> Result<Option<&'a str>, ()> {
@@ -724,6 +710,32 @@ fn query_params(url: &str) -> BTreeMap<String, String> {
         .unwrap_or_default()
 }
 
+// Identity and head are a single snapshot from the owner of the evaluated
+// operation. Mutation replay's seq is historical; head is never that receipt.
+fn response_head(engine: &mut Engine) -> Result<(String, u64), Refusal> {
+    let tx = engine.store_mut().read_transaction()?;
+    let id: String = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'store_id'", [], |row| row.get(0)).map_err(snapback4_core::RuntimeError::from)?;
+    Ok((id, tx.next_seq()? - 1))
+}
+
+// @ref LLP 3000.013#6 — a replay belongs to its acknowledged store, even if
+// the endpoint changes between the client's probe and this transaction.
+fn intent_store(engine: &Engine, payload: &Json) -> Result<(), Refusal> {
+    let Some(expected) = payload.get("store_id").filter(|id| !id.is_null()) else { return Ok(()); };
+    let current = engine.store().meta("store_id")?;
+    if expected.as_str().is_some_and(|id| Some(id) == current.as_deref()) { return Ok(()); }
+    Err(Refusal::new("E_STORE_REPLACED", "store", "the intent belongs to another store; its original outcome is unknown")
+        .site("request.store_id").rewrite("reconcile this write with its original store before submitting new intent").guide("sync"))
+}
+
+fn operation_refusal(request: Request, shared: &Shared, status: u16, why: Refusal) {
+    let metadata = { response_head(&mut lock(&shared.engine)) };
+    match metadata {
+        Ok((store_id, head)) => respond(request, status, json!({ "denied": refusal_json(&why), "store_id": store_id, "head": head })),
+        Err(why) => respond(request, 503, json!({ "denied": refusal_json(&why) })),
+    }
+}
+
 // @ref LLP 3000.009#5.1 — a racing id conflict is a terminal input refusal, not a transport failure.
 fn mutation_error_status(refusal: &Refusal) -> u16 {
     if refusal.retryable { 503 } else if refusal.code == "E_ID_REUSED" { 200 } else { 500 }
@@ -784,7 +796,11 @@ fn handle(mut request: Request, shared: &Shared) {
     let _upload_permit = if method == Method::Post && path == "/assets" {
         match crate::assets::admit(shared) {
             Some(permit) => Some(permit),
-            None => return respond(request, 429, json!({ "denied": refusal_json(&Refusal::new("E_RATE_LIMIT", "auth", "too many concurrent uploads; retry shortly")) })),
+            None => {
+                let mut refusal = Refusal::new("E_RATE_LIMIT", "auth", "too many concurrent uploads; retry shortly");
+                refusal.retryable = true;
+                return respond(request, 429, json!({ "denied": refusal_json(&refusal) }));
+            }
         }
     } else { None };
     let mut bytes = Vec::new();
@@ -910,23 +926,28 @@ fn handle(mut request: Request, shared: &Shared) {
             let payload: Json = match serde_json::from_str(if body.is_empty() { "{}" } else { &body }) {
                 Ok(json) => json,
                 Err(error) => {
-                    respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", format!("the request body is not JSON: {error}"))) }));
+                    operation_refusal(request, shared, 400, Refusal::new("E_INPUT", "input", format!("the request body is not JSON: {error}")));
                     return;
                 }
             };
             let args_json = payload.get("args").cloned().unwrap_or(json!({}));
             if path.starts_with("/m/") && let Some(id) = payload.get("id").and_then(Json::as_str) {
-                let replay = lock(&shared.engine).replay_mutation(&principal, id, &op, &args_json);
+                let (replay, metadata) = {
+                    let mut engine = lock(&shared.engine);
+                    let replay = intent_store(&engine, &payload).and_then(|()| engine.replay_mutation(&principal, id, &op, &args_json).map_err(|error| error.refusal()));
+                    (replay, response_head(&mut engine))
+                };
+                let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond(request, 503, json!({ "denied": why })); return; } };
                 match replay {
-                    Ok(Some(outcome)) => { respond(request, 200, outcome.reply(Some(id))); return; }
-                    Err(error) => { let why = error.refusal(); respond(request, if why.retryable { 503 } else { 200 }, json!({ "state": "failed", "id": id, "why": why })); return; }
+                    Ok(Some(outcome)) => { let mut reply = outcome.reply(Some(id)); reply["store_id"] = json!(store_id); reply["head"] = json!(head); respond(request, 200, reply); return; }
+                    Err(why) => { respond(request, if why.retryable { 503 } else { 200 }, json!({ "state": "failed", "id": id, "why": why, "store_id": store_id, "head": head })); return; }
                     Ok(None) => {}
                 }
             }
             let signature = lock(&shared.bound).programs.iter().find(|p| p.program.name == op)
                 .map(|p| (p.program.kind, p.program.args.clone()));
             let Some((kind, arg_types)) = signature else {
-                respond(request, 404, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("unknown operation {op}")).guide("programs")) }));
+                operation_refusal(request, shared, 404, Refusal::new("E_OP", "op", format!("unknown operation {op}")).guide("programs"));
                 return;
             };
             let mut args = BTreeMap::new();
@@ -938,12 +959,12 @@ fn handle(mut request: Request, shared: &Shared) {
                                 args.insert(name.clone(), typed);
                             }
                             Err(why) => {
-                                respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", format!("argument {name}: {why}")).guide("types")) }));
+                                operation_refusal(request, shared, 400, Refusal::new("E_INPUT", "input", format!("argument {name}: {why}")).guide("types"));
                                 return;
                             }
                         },
                         None => {
-                            respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", format!("{op} takes no argument {name}")).guide("programs")) }));
+                            operation_refusal(request, shared, 400, Refusal::new("E_INPUT", "input", format!("{op} takes no argument {name}")).guide("programs"));
                             return;
                         }
                     }
@@ -953,23 +974,31 @@ fn handle(mut request: Request, shared: &Shared) {
             let mut context = Context::new(principal, args).at(shared.now());
             if path.starts_with("/q/") {
                 if kind != ProgramKind::Query {
-                    respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("{op} is a mutation; POST /m/{op}"))) }));
+                    operation_refusal(request, shared, 400, Refusal::new("E_OP", "op", format!("{op} is a mutation; POST /m/{op}")));
                     return;
                 }
                 let reader = {
                     let engine = lock(&shared.engine);
                     lock(&shared.readers).take(&engine)
                 };
-                let outcome = match reader {
+                let (outcome, metadata) = match reader {
                     Ok((epoch, mut reader)) => {
+                        // Take identity from the same reader that evaluates the query,
+                        // never from an engine that may have replaced it meanwhile.
+                        let metadata = response_head(&mut reader);
                         let outcome = reader.query(&op, context);
                         if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader); }
-                        outcome
+                        (outcome, metadata)
                     },
                     // `--fresh` deliberately uses an in-memory store, which
                     // has no second SQLite connection to detach.
-                    Err(_) => lock(&shared.engine).query(&op, context),
+                    Err(_) => {
+                        let mut engine = lock(&shared.engine);
+                        let metadata = response_head(&mut engine);
+                        (engine.query(&op, context), metadata)
+                    },
                 };
+                let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond(request, 503, json!({ "denied": why })); return; } };
                 match outcome {
                     Ok(outcome) => {
                         #[derive(serde::Serialize)]
@@ -981,6 +1010,7 @@ fn handle(mut request: Request, shared: &Shared) {
                             #[serde(rename = "nextExpiry")]
                             next_expiry: Option<i64>,
                             seq: u64,
+                            store_id: String,
                             tables: &'a [String],
                             viewer: &'a str,
                             #[serde(skip_serializing_if = "Option::is_none")]
@@ -993,24 +1023,35 @@ fn handle(mut request: Request, shared: &Shared) {
                             let cut = if outcome.capped_at.is_some() { Some("meter") } else if outcome.word_cut_at.is_some() { Some("words") } else { None };
                             json!({ "examined": m.examined, "indexEntries": m.index_entries, "probes": m.rule_probes, "steps": m.steps, "heapBytes": m.heap_bytes, "outputBytes": m.output_bytes, "rowsWritten": m.rows_written, "cut": cut })
                         });
-                        respond(request, 200, QueryReply { complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, tables: &outcome.tables, viewer: &viewer, meter });
+                        if outcome.unavailable {
+                            let mut reply = json!({ "loading": true, "data": null, "complete": false, "nextExpiry": outcome.next_expiry, "seq": outcome.seq, "store_id": store_id, "tables": outcome.tables, "viewer": viewer });
+                            if let Some(meter) = meter { reply["meter"] = meter; }
+                            respond(request, 200, reply);
+                        } else {
+                            respond(request, 200, QueryReply { complete: outcome.complete, cut: outcome.cut, data: wire::Plain(&outcome.data), next: &outcome.next, next_expiry: outcome.next_expiry, seq: outcome.seq, store_id, tables: &outcome.tables, viewer: &viewer, meter });
+                        }
                     }
-                    Err(refusal) => respond(request, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal) })),
+                    Err(refusal) => respond(request, if refusal.retryable { 503 } else { 200 }, json!({ "denied": refusal_json(&refusal), "store_id": store_id, "head": head })),
                 }
             } else {
                 if kind == ProgramKind::Query {
-                    respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("{op} is a query; POST /q/{op}"))) }));
+                    operation_refusal(request, shared, 400, Refusal::new("E_OP", "op", format!("{op} is a query; POST /q/{op}")));
                     return;
                 }
                 if kind == ProgramKind::Job {
-                    respond(request, 400, json!({ "denied": refusal_json(&Refusal::new("E_OP", "op", format!("{op} is a job: a schedule fires it, or `snapback4 run {op}` does; no caller can")).guide("jobs")) }));
+                    operation_refusal(request, shared, 400, Refusal::new("E_OP", "op", format!("{op} is a job: a schedule fires it, or `snapback4 run {op}` does; no caller can")).guide("jobs"));
                     return;
                 }
                 let id = payload.get("id").and_then(Json::as_str).map(str::to_owned);
                 if let Some(ids) = payload.get("newIds").and_then(Json::as_array) {
                     context = context.with_ids(ids.iter().filter_map(Json::as_str).map(str::to_owned));
                 }
-                let outcome = lock(&shared.engine).mutate(&op, id.as_deref(), context.with_wire_args(args_json));
+                let (outcome, metadata) = {
+                    let mut engine = lock(&shared.engine);
+                    let outcome = intent_store(&engine, &payload).and_then(|()| engine.mutate(&op, id.as_deref(), context.with_wire_args(args_json)).map_err(|error| error.refusal()));
+                    (outcome, response_head(&mut engine))
+                };
+                let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond(request, 503, json!({ "denied": why })); return; } };
                 match outcome {
                     Ok(outcome) => {
                         if let WriteState::Sent { seq, .. } = &outcome.state {
@@ -1018,10 +1059,12 @@ fn handle(mut request: Request, shared: &Shared) {
                             *current = (*current).max(*seq);
                             shared.committed.notify_all();
                         }
-                        let body = outcome.reply(id.as_deref());
+                        let mut body = outcome.reply(id.as_deref());
+                        body["store_id"] = json!(store_id);
+                        body["head"] = json!(head);
                         respond(request, 200, body);
                     }
-                    Err(error) => { let refusal = error.refusal(); respond(request, mutation_error_status(&refusal), json!({ "state": "failed", "id": id, "why": refusal_json(&refusal) })) }
+                    Err(refusal) => { respond(request, if refusal.code == "E_STORE_REPLACED" { 200 } else { mutation_error_status(&refusal) }, json!({ "state": "failed", "id": id, "why": refusal_json(&refusal), "store_id": store_id, "head": head })) }
                 }
             }
         }
@@ -1140,7 +1183,7 @@ mod poison_tests {
         let clock = Arc::new(Mutex::new(crate::dev_clock::Clock::new(true, 0).unwrap()));
         let shared = Arc::new(Shared {
             adoption: Mutex::new(adoption::Status::new(String::new())),
-            engine: Mutex::new(engine),
+            engine: FairMutex::new(engine),
             readers: Mutex::new(QueryReaders::default()), read_cuts: Mutex::new(read_cost::ReadCuts::default()),
             bound: Mutex::new(Bound { view_types: Default::default(), server: false, schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics: Vec::new(), notes: Vec::new() }),
             generation: Mutex::new(1),

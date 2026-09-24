@@ -69,6 +69,16 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
     };
     answer((|| -> Result<Json, RuntimeError> {
         Ok(match op.as_str() {
+            // @ref LLP 3000.011.005.000#2 — native smoke records counts, never row contents.
+            #[cfg(not(target_arch = "wasm32"))]
+            "witness_state" => {
+                let rows = device.schema().tables.iter().filter(|(_, table)| table.sync.is_some())
+                    .map(|(name, _)| device.store().witness_count(name).map(|count| (name.clone(), count)))
+                    .collect::<Result<std::collections::BTreeMap<_, _>, _>>()?;
+                let state = device.sync_state_read()?;
+                json!({ "rows": rows, "watermark": state.watermark, "generation": state.generation,
+                    "storeId": state.store_id, "acquired": state.acquired, "backendRequired": state.backend_required })
+            }
             "state" => {
                 let (watermark, generation) = device.state()?;
                 json!({ "watermark": watermark, "generation": generation, "native": device.native_digest() })
@@ -111,6 +121,10 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
                 match result {
                     Ok(outcome) => {
                         let mut reply = json!({ "data": snapback4_core::wire::to_json(&outcome.data), "complete": outcome.complete, "cut": encoded(&outcome.cut)?, "next": outcome.next, "nextExpiry": outcome.next_expiry, "tables": outcome.tables, "unknown": unknown, "retained": retained });
+                        if outcome.unavailable {
+                            reply.as_object_mut().expect("query reply").remove("data");
+                            reply["loading"] = Json::Bool(true);
+                        }
                         if !components.is_empty() { reply["components"] = encoded(&components)?; }
                         reply
                     },
@@ -120,6 +134,10 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
             "backend" => encoded(&device.backend())?,
             "upload_facts" => {
                 device.upload_facts(text(&request, "viewer")?, arg(&request, "asset")?)?;
+                Json::Null
+            }
+            "forget_upload_facts" => {
+                device.forget_upload_facts(text(&request, "viewer")?, text(&request, "id")?)?;
                 Json::Null
             }
             "asset_home" => device.asset_home(text(&request, "id")?, text(&request, "viewer")?, request.get("now").and_then(Json::as_i64).unwrap_or(0))?,

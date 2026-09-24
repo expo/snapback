@@ -11,6 +11,7 @@ use crate::store::{DeviceStore, DeviceTx};
 use serde::{Deserialize, Serialize};
 use snapback4_core::error::RuntimeError;
 use snapback4_core::key;
+use snapback4_core::rows::caps;
 use snapback4_core::rows::{Bounds, Dir, Rows, stored_index_keys, scan_range};
 use snapback4_core::schema::{Index, Schema, Table};
 use snapback4_core::value::Value;
@@ -179,6 +180,11 @@ impl MemoryStore {
         state.entries.clear();
         for ((table_name, id), row) in &state.rows {
             let Some(table) = schema.table(table_name) else { continue };
+            for (key, delta) in caps::deltas(table, None, Some(row)) {
+                let key = (caps::slot(table_name), key);
+                let count = caps::next(state.entries.get(&key).map(String::as_str), delta).expect("increased count");
+                state.entries.insert(key, count);
+            }
             for (index_name, index) in &table.indexes {
                 for key in stored_index_keys(table, index, row, id) {
                     state.entries.insert((format!("{table_name}.{index_name}"), key), id.clone());
@@ -199,6 +205,10 @@ fn project(row: &mut Value, table: &Table) -> bool {
 }
 
 impl DeviceStore for MemoryStore {
+    #[cfg(not(target_arch = "wasm32"))]
+    fn witness_count(&self, table: &str) -> Result<u64, RuntimeError> {
+        Ok(self.state.borrow().rows.range((table.to_owned(), String::new())..).take_while(|((t, _), _)| t == table).count() as u64)
+    }
     type Tx<'a> = MemoryTx<'a>;
 
     fn install_checked(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
@@ -290,6 +300,16 @@ pub struct MemoryTx<'a> {
 }
 
 impl MemoryTx<'_> {
+    fn update_cap_counts(&self, table_name: &str, table: &Table, old: Option<&Value>, new: Option<&Value>) -> u64 {
+        let changes = caps::deltas(table, old, new);
+        for (key, delta) in &changes {
+            let key = (caps::slot(table_name), key.clone());
+            let value = caps::next(self.store.state.borrow().entries.get(&key).map(String::as_str), *delta);
+            self.set_entry(key, value);
+        }
+        changes.len() as u64
+    }
+
     fn set_row(&self, key: (String, String), value: Option<Value>) {
         let mut state = self.store.state.borrow_mut();
         let old = match &value {
@@ -436,6 +456,9 @@ impl Rows for MemoryTx<'_> {
         match dir { Dir::Asc => { for entry in within.take(limit) { pick(entry)?; } }, Dir::Desc => { for entry in within.rev().take(limit) { pick(entry)?; } } }
         Ok(out)
     }
+    fn cap_count(&self, table: &str, by: &[String], group: &[Value]) -> Result<u64, RuntimeError> {
+        Ok(self.store.state.borrow().entries.get(&(caps::slot(table), caps::key(by, group))).map_or(0, |n| n.parse().expect("cap count")))
+    }
     fn count_prefix(&self, table: &str, index_name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> {
         let base = key::encode(prefix);
         Ok(self.range(table, index_name, &base, &key::upper_bound(&base), Dir::Asc, limit as usize).len() as u64)
@@ -455,6 +478,7 @@ impl Rows for MemoryTx<'_> {
                 written += 1;
             }
         }
+        written += self.update_cap_counts(table_name, table, old, Some(row));
         self.set_row((table_name.to_owned(), id), Some(row.clone()));
         Ok(written)
     }
@@ -467,6 +491,7 @@ impl Rows for MemoryTx<'_> {
                 removed += 1;
             }
         }
+        removed += self.update_cap_counts(table_name, table, Some(old), None);
         self.set_row((table_name.to_owned(), id), None);
         Ok(removed)
     }

@@ -14,7 +14,7 @@ pub fn scope(token: &str, schema: &Schema, program: &Program, viewer: &str, args
         IndexKeyExpr::Scalar(Expr::Variable(name)) => args.get(name).cloned(),
         _ => None,
     }).collect::<Option<Vec<_>>>()?;
-    position.scope = Some(CursorScope { generation: 1, prefix });
+    position.scope = Some(CursorScope { variant: None, generation: 1, prefix });
     encode_cursor(schema,&position).ok()
 }
 pub fn translate(value: &mut serde_json::Value, schema: &Schema, program: &Program, viewer: &str, args: &BTreeMap<String, Value>) {

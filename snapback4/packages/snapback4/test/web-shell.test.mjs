@@ -126,13 +126,15 @@ for (const base of ["/", "/chat/"]) test(`cached navigation resolves exported di
   await mkdir(join(dir, "about"));
   await writeFile(join(dir, "about/index.html"), "<body>About</body>");
   await writeFile(join(dir, "contact.html"), "<body>Contact</body>");
+  await mkdir(join(dir, "contact"));
+  await writeFile(join(dir, "contact/index.html"), "<body>Directory fallback</body>");
   await webShell(dir, base);
   const sw = runtime(await readFile(join(dir, "snapback4-sw.js"), "utf8"));
   await sw.event("install");
   const requests = sw.requests.length;
   for (const offline of [false, true]) {
     sw.offline(offline);
-    for (const [path, exported] of [["about/", "about/index.html"], ["about", "about/index.html"], ["contact", "contact.html"], ["contact?from=home", "contact.html"], ["contact.html", "contact.html"], ["unknown/route", "index.html"]]) {
+    for (const [path, exported] of [["about/", "about/index.html"], ["about", "about/index.html"], ["contact", "contact.html"], ["contact/", "contact.html"], ["contact/?from=home", "contact.html"], ["contact?from=home", "contact.html"], ["contact.html", "contact.html"], ["unknown/route", "index.html"]]) {
       assert.equal((await sw.fetch(base + path, { mode: "navigate" })).url, "https://app.test" + base + exported, `${path}, offline=${offline}`);
     }
   }

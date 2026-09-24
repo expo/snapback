@@ -11,7 +11,18 @@ export interface MediaStorage {
   remove(id: string): Promise<void>;
   uri?(id: string): string;
 }
-export interface AssetRetention { readonly keep: "viewed" | "none"; readonly maxBytes: number }
+export interface AssetRetention {
+  readonly keep: "viewed" | "none";
+  /** Nonnegative safe integer byte budget (zero retains no bytes). */
+  readonly maxBytes: number;
+}
+export function assetRetention(options?: AssetRetention): AssetRetention {
+  const { keep, maxBytes } = options ?? { keep: "none", maxBytes: 0 };
+  if (!["none", "viewed"].includes(keep) || !Number.isSafeInteger(maxBytes) || maxBytes < 0) {
+    throw new Error("assets needs keep: viewed | none and a nonnegative safe integer maxBytes");
+  }
+  return { keep, maxBytes };
+}
 interface Home { table: string; row: string; column: string; generation: number; expiresAt: number | null; type: string }
 interface Entry { id: string; home: Home; bytes: number; used: number }
 const identity = (home: Home) => JSON.stringify([home.table, home.row, home.column, home.generation]);

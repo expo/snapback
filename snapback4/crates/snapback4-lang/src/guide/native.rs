@@ -1,24 +1,14 @@
 //! The native card. Quarry examples are compiled by tests/guide.rs.
 pub(super) const CARD: &str = r##"# Native jobs and reads: the app's Rust, hosted as wasm, metered like a job
 
+Native jobs and queries run the application's Rust as metered WebAssembly.
+Use them for computations that need floats, vectors or Rust libraries.
+
 ```quarry
 job rescore(): native                    -- the body is snapback/native/, in Rust
 schedule rescoreEvery every 5m: rescore  -- fired like any job
 query personalize(first: int): native    -- a read: on the server as the viewer, on a device over its rows
 ```
-
-A job whose body is not Quarry but the app's own Rust (LLP 3000.005), for
-the scoring half of a feed and anything else that wants floats, vectors,
-real loops and a typed schema without putting them into Quarry.
-`snapback/native/` is a Cargo package the app owns — `crate-type =
-["cdylib"]`, its own `[workspace]`, a dependency on `snapback4-native` —
-and `snapback4 check` writes `snapback/generated/native.rs` (a constant
-per table, index and aggregate view; a `serde` struct per table), builds the
-package for `wasm32-unknown-unknown` into `snapback/generated/native.wasm`
-(cold about ten seconds, then a cargo no-op), and refuses if a declared
-job is not one the module implements. `dev` rebuilds on every save under
-`snapback/`; `deploy` ships the module with the release; `run <job>` runs
-it here; `doctor` says whether the module and the toolchain are in place.
 
 `module!` names its jobs and reads; check also verifies every declared read.
 
@@ -91,6 +81,8 @@ answers and logs also have byte bounds. A queued native job binds the exact wasm
 bytes: changing or removing the module parks it with E_JOB_GENERATION before
 another chunk can use its saved state. Legacy native runs without that binding
 also park; already committed chunks remain committed. Identical bytes resume.
+For a trap, fix the module and run `snapback4 check`; inspect the committed
+chunks before queueing a replacement job. The failed chunk rolled back.
 The module imports one host function and nothing else: no clock, no randomness,
 no network — `chunk.now` is the host's — so a native job runs under the simulator
 like any job. Quarry still declares
@@ -99,7 +91,19 @@ because a device predicts Quarry and the server replays it. Anything
 that needs the network stays outside and writes into a table the job
 reads. A query, not a mutation, can be native too (LLP 3000.005 §9).
 
-## Refused native modules
+## Operations
+
+`snapback/native/` is a Cargo package the app owns — `crate-type =
+["cdylib"]`, its own `[workspace]`, a dependency on `snapback4-native` —
+and `snapback4 check` writes `snapback/generated/native.rs` (a constant
+per table, index and aggregate view; a `serde` struct per table), builds the
+package for `wasm32-unknown-unknown` into `snapback/generated/native.wasm`
+(cold about ten seconds, then a cargo no-op), and refuses if a declared
+job is not one the module implements. `dev` rebuilds on every save under
+`snapback/`; `deploy` ships the module with the release; `run <job>` runs
+it here; `doctor` says whether the module and the toolchain are in place.
+
+## Refusals
 
 E_NATIVE means a native declaration or loaded module cannot perform the
 requested operation. For example, `mutation rescore(): native` is invalid:

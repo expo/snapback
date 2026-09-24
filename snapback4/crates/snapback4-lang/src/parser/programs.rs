@@ -8,7 +8,7 @@ use crate::diag::{Diagnostic, Fallible, syntax, syntax_with, unsupported};
 use crate::lexer::Kind;
 
 impl Parser {
-    /// `schedule name every <N>m|h|d [at HH:MM]: job`.
+    /// `schedule name every <duration> [at HH:MM]: job`, at least one minute.
     pub(super) fn parse_schedule(&mut self) -> Fallible<ScheduleDecl> {
         let site = self.take("schedule")?.site;
         let rewrite = "schedule digest every 1d at 08:00: sendDigests";
@@ -16,22 +16,16 @@ impl Parser {
         if !self.maybe("every") {
             return Err(syntax_with(&site, "a schedule fires every so often: schedule name every 2m: job", rewrite));
         }
-        let amount = self.number()?;
+        let amount = self.take_kind(Kind::Number)?;
         let unit = self.word()?;
-        let every_ms = u64::from(amount)
-            * match unit.value.as_str() {
-                "m" => 60_000,
-                "h" => 3_600_000,
-                "d" => 86_400_000,
-                // `s` and `ms` are real Quarry units elsewhere (work durations in
-                // `actions.rs`, route waits in `routes.rs`), so naming the valid set
-                // alone reads as "`s` is not a unit" and hides the actual constraint:
-                // a schedule has a one-minute floor, which the next branch enforces
-                // but a sub-minute unit returns before ever reaching.
-                _ => return Err(syntax_with(&unit.site, "a schedule period is a whole number and m, h or d, from 1m up; a schedule cannot fire more often than once a minute (`s` and `ms` are work and wait units, not schedule periods)", rewrite)),
-            };
+        let multiplier = super::views::duration_unit(&unit.value).ok_or_else(|| syntax_with(&unit.site,
+            "a schedule period is a whole number followed by ms, s, m, h or d", "every 2m"))?;
+        // Integer millisecond boundaries need no rounding to whole minutes.
+        // Retain the range of previously accepted m/h/d schedule periods.
+        let every_ms = amount.value.parse::<i64>().ok().and_then(|value| value.checked_mul(multiplier))
+            .ok_or_else(|| syntax_with(&amount.site, "schedule period exceeds the representable millisecond range", "every 1d"))? as u64;
         if every_ms < 60_000 {
-            return Err(syntax_with(&unit.site, "the shortest period is 1m", rewrite));
+            return Err(syntax_with(&amount.site, "a schedule fires at most once a minute", "every 1m"));
         }
         let mut offset_ms = 0;
         if self.maybe("at") {
@@ -79,6 +73,23 @@ impl Parser {
             _ => ProgramKind::Job,
         };
         let name = self.binding_name()?;
+        if kind == ProgramKind::Job && self.at("every") {
+            let mut period = String::new();
+            let mut end = 0;
+            while !matches!(self.peek().kind, Kind::Newline | Kind::Eof) {
+                let token = self.peek().clone();
+                if !period.is_empty() && token.site.col > end { period.push(' '); }
+                period.push_str(&token.value);
+                end = token.site.col + token.value.len() as u32;
+                self.position += 1;
+            }
+            let period = period.trim_end_matches(':').trim_end();
+            let module = std::path::Path::new(&kind_token.site.file).file_stem().and_then(|stem| stem.to_str()).unwrap_or("schema");
+            let target = if module == "schema" { name.clone() } else { format!("{module}.{name}") };
+            return Err(Diagnostic::new(&kind_token.site, "E_QUARRY_JOB_SCHEDULE",
+                format!("job {name} declares work; a separate schedule declares when it runs"),
+                format!("job {name}():  -- keep the existing indented body\nschedule {name}Every {period}: {target}")).guide("jobs"));
+        }
         if self.at(":") {
             return Err(syntax_with(&kind_token.site, "an operation with no arguments still needs parentheses", format!("{} {name}():", kind_token.value)).mechanical());
         }

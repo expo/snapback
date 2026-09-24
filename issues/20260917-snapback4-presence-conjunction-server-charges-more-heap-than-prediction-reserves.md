@@ -61,3 +61,15 @@ without checking that the work is really not done. The acceptance is the ignored
 turned on, a decision on whether rule probes are meant to be inside the "server ≤ prediction"
 promise at all, plus the same comparison for a three-principal conjunction, an aliased guard and
 a nested guard.
+
+## 2026-09-24 — rule-probe instance resolved by Lane P round 3
+
+LLP 3000.013 §11.1 now reserves read-rule room before insert collision lookup.
+The 50-member send therefore needs a minimum allowance of 3 rule probes on
+both device stores, matching the server's 3. Both accept at ceiling 3 and
+refuse at ceiling 2, for held and graced presence; refused writes emit no
+effects. The other six fields remain unchanged. The scoped regression
+`w15a5_fifty_member_server_fits_prediction_rule_probe_boundary_on_both_stores`
+is no longer ignored and passes on SQLite and memory. This resolves only the
+rule-probe instance above. The separate six-byte heap counterexample remains
+open; its tests and the overall ticket status are unchanged.

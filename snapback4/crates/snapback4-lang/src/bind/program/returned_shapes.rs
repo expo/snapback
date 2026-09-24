@@ -11,10 +11,11 @@ pub(super) fn marks(body: &[Stmt], program: &str, candidates: &[usize]) -> BTree
         let Stmt::Return(Expr::Variable(target)) = body.get(index + 1)? else { return None; };
         if !matches!(shape.last(), Some(Stmt::Push { target: pushed, .. }) if pushed == target) { return None; }
         let page = match domain {
-            LoopDomain::Page(scan) => &scan.site,
-            LoopDomain::DerivedArray { value: Expr::Merge(merge), .. } => &merge.site,
+            LoopDomain::Page(scan) => scan.site.clone(),
+            LoopDomain::DerivedArray { value: Expr::Merge(merge), .. } => merge.site.clone(),
+            LoopDomain::DerivedArray { value: value @ Expr::Block { .. }, .. } => snapback4_core::engine::expression_page_site(value)?,
             LoopDomain::DerivedArray { value: Expr::Variable(name), .. }
-                if census.definitions.get(name) == Some(&1) && census.uses.get(name) == Some(&1) => census.reads.get(name)?,
+                if census.definitions.get(name) == Some(&1) && census.uses.get(name) == Some(&1) => census.reads.get(name)?.clone(),
             _ => return None,
         };
         Some((format!("{program}:{}", index + 1), page.clone()))
@@ -40,6 +41,9 @@ impl Census {
                     match value {
                         Expr::Scan(scan) => { self.reads.insert(name.clone(), scan.site.clone()); }
                         Expr::Merge(merge) => { self.reads.insert(name.clone(), merge.site.clone()); }
+                        Expr::Block { .. } => {
+                            if let Some(site) = snapback4_core::engine::expression_page_site(value) { self.reads.insert(name.clone(), site); }
+                        }
                         _ => {}
                     }
                     self.expr(value);
@@ -71,6 +75,7 @@ impl Census {
                     if let Some(result) = result { self.define(result); }
                 }
                 Stmt::Delete { key, .. } => self.expr(key),
+                Stmt::DeleteTarget { target } => self.read(target),
                 Stmt::Break | Stmt::Continue => {}
             }
         }

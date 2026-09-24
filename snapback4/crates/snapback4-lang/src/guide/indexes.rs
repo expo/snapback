@@ -1,9 +1,8 @@
 //! Index choice and optional tuning. Examples compile in tests/guide.rs.
 pub(super) const CARD: &str = r##"# Indexes: chosen from the read
 
-State the predicate and order. `check` chooses an existing index or creates
-one. Rules, sync, caps and expiry also obtain their access indexes. A table
-needs no `by` declaration for these reads:
+Indexes let reads seek the rows that match a predicate in the requested order.
+The compiler chooses or creates them from your reads and declarations.
 
 ```quarry
 table tasks:
@@ -22,6 +21,10 @@ query open(c: cursor ?):
   return tasks where .ownerId = viewer and .done = false first 20 by .at after c
 ```
 
+State the predicate and order. `check` chooses an existing index or creates
+one. Rules, sync, caps and expiry also obtain their access indexes. A table
+needs no `by` declaration for these reads.
+
 `unique ownerId, projectId` is a product constraint: one row per pair.
 `tasks[id]` always means the row's id. A multi-value positional key needs
 exactly one declared unique key of that arity, in its declared order.
@@ -31,15 +34,21 @@ A visible unique collision uses the optional `else CODE 'message'` hook;
 a hidden collision keeps its ordinary authorization refusal. `if absent`
 returns null on a visible clash. Codes are UPPER_SNAKE and never start with E_.
 
-## See the plan, then tune it
+## Operations
 
 Run `snapback4 check --cost` for chosen and synthesized indexes and the reads
 that need them. `snapback4 why <operation>` shows each source site, selected
 index, key bindings and result form. These are structural facts; use the dev
 read meter to measure actual work (`guide reads`).
+The default output names planner indexes by their columns. `--verbose` and
+`--json` retain their canonical names; authored index names stay as written.
+Two-column labels keep a trailing `id`, as in `index (org, id)`; wider labels
+may omit the final `id` tiebreaker.
 
 Equality pins lead the index, then any time bucket, then the requested order.
 `id` breaks ties in the same direction. Identical index definitions are reused.
+A nullable unique key permits tied null rows, so its columns alone cannot
+carry a page cursor: the planner uses a separate ordering with `id`.
 Generated names are stable across declaration order. Adding a query can build
 an index on adoption, but cannot change another positional key's meaning.
 
@@ -88,11 +97,16 @@ allow up to four UTF-8 bytes per character. Table and index names together
 must fit 512 UTF-8 bytes. Deletes remain available; updates may retain or
 shorten existing oversized keys without growing their lengths or count.
 Both server stores and devices enforce new keys; search tokens have their own cap.
+For a generated index, the diagnostic names the read or declaration's source
+site and the column to bound. Change that column's type; no generated index
+declaration needs editing.
 
 E_CURSOR_INDEX concerns an older explicit index that lacks a total order.
 For new reads, use `tasks where .ownerId = viewer first 20 by .at after c`:
-the planner adds the id tiebreak. To retain an explicit index, append `id`
+the planner adds the id tiebreak. For a non-unique explicit index, append `id`
 to its definition or apply the diagnostic's mechanical `check --fix`.
+Keep nullable unique constraints unchanged; use the column-ordered read
+above to obtain a separate page index without weakening uniqueness.
 
 E_QUARRY_AMBIGUOUS means an older positional read matches several keys.
 Name the key columns for a point, or write `tasks where .ownerId = viewer
@@ -102,5 +116,4 @@ not choose between keys.
 E_SCHEMA_CONSTRAINT means the named declaration violates a schema constraint.
 Keep a product cap such as `cap 50 by conversationId` when it is a real rule;
 the compiler supplies its index. For an audience mismatch, match `sync` to
-the read rule rather than exposing private rows. Rerun `snapback4 check`.
-"##;
+the read rule rather than exposing private rows. Rerun `snapback4 check`."##;

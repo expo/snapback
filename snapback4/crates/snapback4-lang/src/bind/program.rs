@@ -13,9 +13,15 @@ use snapback4_core::value::Value;
 use std::collections::BTreeMap;
 
 mod control;
+mod flow;
+mod conditional;
+mod joins;
 mod returned_shapes;
 mod diagnostics;
+mod constraints;
 mod expr;
+mod objects;
+mod write_keys;
 mod reads;
 mod prefix;
 mod lanes;
@@ -26,6 +32,9 @@ pub(crate) mod setup;
 #[derive(Clone, Debug)]
 pub struct BoundProgram {
     pub view_types: BTreeMap<String, Ty>,
+    pub(crate) filters: BTreeMap<String, String>,
+    /// Source consumers for admission diagnostics only; absent from IR/wire.
+    pub(crate) constraint_domains: std::collections::BTreeSet<String>,
     pub(crate) sources: BTreeMap<String, (Site, String)>,
     pub(crate) selections: BTreeMap<String, String>,
     pub program: Program,
@@ -38,13 +47,19 @@ pub struct BoundProgram {
 }
 
 impl BoundProgram {
+    pub fn filter_source(&self, site: &str) -> Option<&str> { self.filters.get(site).map(String::as_str) }
+    pub fn domain_source(&self, site: &str) -> Option<&str> { self.sources.get(&format!("domain/{site}")).map(|(_, text)| text.as_str()) }
+    pub fn loop_source(&self, binding: &str) -> Option<&str> { self.sources.get(&format!("for/{binding}")).map(|(_, text)| text.as_str()) }
+    pub fn selections(&self) -> &BTreeMap<String, String> { &self.selections }
     /// The actual binder choice, shared by `why` and structural cost reports.
     pub fn selection(&self, site: &str) -> Option<&str> { self.selections.get(site).map(String::as_str) }
 }
 
 #[derive(Clone)]
 pub struct Binder<'a> {
+    filters: BTreeMap<String, String>,
     view_types: BTreeMap<String, Ty>,
+    constraint_domains: std::collections::BTreeSet<String>,
     sources: BTreeMap<String, (Site, String)>,
     selections: BTreeMap<String, String>,
     presence_sources: Vec<(Expr, Site, String)>,
@@ -55,9 +70,12 @@ pub struct Binder<'a> {
     caller_kind: ProgramKind,
     scopes: Vec<BTreeMap<String, Binding>>,
     focal: Option<(String, Ty)>,
+    /// Only direct scanned-row columns get false-on-null ordering in where.
+    in_predicate: bool,
+    variants: Vec<(String, bool)>,
     temps: u32,
     sites: u32,
-    returns: Vec<Ty>,
+    returns: Vec<(Ty, A)>,
     /// Depth of helper expansion, to bound recursion.
     depth: u32,
     /// Enclosing `for` and `chunk` bodies: where `break` may stand.
@@ -80,6 +98,8 @@ struct Binding {
     fields: BTreeMap<Vec<String>, Ty>,
     /// An invalid binding retains its original cause; its unknown type never escapes compilation.
     error: Option<Diagnostic>,
+    /// Original operands for a diagnostic rewrite, never type or runtime provenance.
+    origins: Vec<(Ty, A)>,
 }
 
 const MAX_EXPANSION_DEPTH: u32 = 8;
@@ -93,7 +113,7 @@ impl<'a> Binder<'a> {
     /// Differential-test control: lowering is identical with the side map disabled.
     #[doc(hidden)]
     pub fn bind_with_ownership(catalog: &'a Catalog, schema: &'a snapback4_core::schema::Schema, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>, record_ownership: bool) -> Option<BoundProgram> {
-        let mut binder = Binder { view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, notes: Vec::new(), errors: Vec::new() };
+        let mut binder = Binder { constraint_domains: Default::default(), filters: BTreeMap::new(), variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, in_prelude: false, record_ownership, notes: Vec::new(), errors: Vec::new() };
         let mut args = BTreeMap::new();
         let mut arg_types = Vec::new();
         for arg in &decl.args {
@@ -108,7 +128,7 @@ impl<'a> Binder<'a> {
                 return None;
             }
             let ty = Ty::from_scalar(&arg.type_);
-            binder.scopes[0].insert(arg.name.clone(), Binding { runtime: arg.name.clone(), ty: ty.clone(), declared: ty.clone(), parameter: true, revision: 0, fields: BTreeMap::new(), error: None });
+            binder.scopes[0].insert(arg.name.clone(), Binding { runtime: arg.name.clone(), ty: ty.clone(), declared: ty.clone(), parameter: true, revision: 0, fields: BTreeMap::new(), error: None, origins: Vec::new() });
             args.insert(arg.name.clone(), scalar_to_arg(&arg.type_));
             arg_types.push((arg.name.clone(), ty));
         }
@@ -120,7 +140,7 @@ impl<'a> Binder<'a> {
                 ProgramKind::Query => (ir::ProgramKind::Query, Ty::Json),
                 _ => (ir::ProgramKind::Job, Ty::Null),
             };
-            return Some(BoundProgram { view_types: binder.view_types, selections: binder.selections, sources: binder.sources, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
+            return Some(BoundProgram { constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() });
         }
         let mut body = setup::Body::default();
         let mut shape_candidates = Vec::new();
@@ -184,9 +204,12 @@ impl<'a> Binder<'a> {
         // that observable path in the generated result type; a return nested
         // in one branch or in a possibly-empty loop does not cover it.
         if !control::exits(&body) {
-            binder.returns.push(Ty::Null);
+            binder.returns.push((Ty::Null, A::Literal { value: Literal::Null, site: decl.site.clone() }));
         }
-        let result = binder.returns.iter().fold(None, |joined: Option<Ty>, ty| Some(match joined { Some(j) => j.join(ty), None => ty.clone() })).unwrap_or(Ty::Null);
+        let result = match binder.return_type() {
+            Ok(ty) => ty,
+            Err(error) => { diagnostics.push(error); return None; }
+        };
         let full_name = super::operation_name(module, &decl.name);
         let kind = match decl.kind {
             ProgramKind::Query => ir::ProgramKind::Query,
@@ -199,7 +222,7 @@ impl<'a> Binder<'a> {
         let presence = if kind == ir::ProgramKind::Mutation {
             Some(super::residency::presence_facts(&program, &ownership, &binder.presence_sources))
         } else { None };
-        Some(BoundProgram { view_types: binder.view_types, selections: binder.selections, sources: binder.sources, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
+        Some(BoundProgram { constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, program, presence, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone() })
     }
 
     fn site(&mut self) -> String {
@@ -222,7 +245,7 @@ impl<'a> Binder<'a> {
 
     fn declare(&mut self, name: &str, ty: Ty) -> String {
         let runtime = if name.starts_with('$') { name.to_owned() } else { self.temp(name) };
-        self.scopes.last_mut().expect("a scope").insert(name.to_owned(), Binding { runtime: runtime.clone(), declared: ty.clone(), ty, parameter: false, revision: 0, fields: BTreeMap::new(), error: None });
+        self.scopes.last_mut().expect("a scope").insert(name.to_owned(), Binding { runtime: runtime.clone(), declared: ty.clone(), ty, parameter: false, revision: 0, fields: BTreeMap::new(), error: None, origins: Vec::new() });
         runtime
     }
 
@@ -294,6 +317,7 @@ impl<'a> Binder<'a> {
         if range.take == 0 {
             return Err(type_error(&range.site, "a page holds at least one row", print::read_expr(&ReadExpr { range: Some(ast::RangeSpec { take: 50, ..range.clone() }), ..read.clone() })));
         }
+        let filter_text = read.filter.as_ref().map(|expr| self.catalog.source.expression(expr));
         let (read, filter) = self.scan_filter(read, &index)?;
         let read = &read;
         // Key expressions precede the seek bounds and cursor, including their setup.
@@ -305,9 +329,27 @@ impl<'a> Binder<'a> {
             if !matches!(t.required(), Ty::Cursor) {
                 return Err(type_error(cursor.site(), format!("after expects a cursor, got {}", t.name()), "declare c: cursor ? and pass after c"));
             }
-            let last = index.columns.last().map(String::as_str);
-            if last != Some("id") && !index.unique {
-                return Err(Diagnostic::new(&range.site, "E_CURSOR_INDEX", format!("index {}.{} cannot carry a cursor: it neither ends in id nor is unique", read.table, index.name), format!("by {}: {}, id", index.name, index.columns.join(", "))).guide("indexes").mechanical());
+            if !info.total_cursor(&index) {
+                let columns = index.columns.iter().map(|column| index.computed.get(column)
+                    .map(print::expression).unwrap_or_else(|| column.clone())).collect::<Vec<_>>().join(", ");
+                if index.unique {
+                    // Do not add id to the unique constraint: that would
+                    // weaken it. Plan a separate pageable index from the read.
+                    let mut planned = read.clone();
+                    let rewrite = if index.computed.is_empty() {
+                        planned.index = None;
+                        for (key, column) in planned.keys.iter_mut().zip(&index.columns) { key.column.get_or_insert_with(|| column.clone()); }
+                        planned.order_keys = index.columns.iter().skip(prefix.len()).cloned().collect();
+                        print::read_expr(&planned)
+                    } else {
+                        let mut name = format!("{}Page", index.name);
+                        while info.indexes.iter().any(|index| index.name == name) { name.push('_'); }
+                        planned.index = Some(name.clone());
+                        format!("add `by {name}: {columns}, id` to {}; read `{}`", read.table, print::read_expr(&planned))
+                    };
+                    return Err(Diagnostic::new(&range.site, "E_CURSOR_INDEX", format!("index {}.{} cannot carry a cursor: its nullable unique key allows tied null rows without an id tiebreak", read.table, index.name), rewrite).guide("indexes"));
+                }
+                return Err(Diagnostic::new(&range.site, "E_CURSOR_INDEX", format!("index {}.{} cannot carry a cursor: it has no declared id or total unique key", read.table, index.name), format!("by {}: {columns}, id", index.name)).guide("indexes").mechanical());
             }
             after = Some(Box::new(e));
         }
@@ -323,10 +365,18 @@ impl<'a> Binder<'a> {
             prefix.push(IndexKeyExpr::WordPrefix(e));
         }
         let scan_site = self.site();
+        let pins = read.keys.iter().enumerate().map(|(position, key)| {
+            let column = key.column.as_ref().unwrap_or(&index.columns[position]);
+            format!(".{column} = {}", self.catalog.source.operand(&key.value))
+        }).collect::<Vec<_>>().join(" and ");
+        let domain = if pins.is_empty() { read.table.clone() } else { format!("{} where {pins}", read.table) };
+        self.sources.insert(format!("domain/{scan_site}"), (read.site.clone(), domain));
+        if filter.is_some() && let Some(text) = filter_text { self.filters.insert(scan_site.clone(), text); }
         self.record_selection(&scan_site, read, &index, if position == prefix::Position::Exists { "exists" } else { "page" }, &selection);
         let spelling = if !read.order_keys.is_empty() { self.catalog.read_origins.get(&read.site.to_string()).cloned() } else { None };
         self.sources.insert(scan_site.clone(), (read.site.clone(), spelling.unwrap_or_else(|| print::read_expr(&ReadExpr { index: None, range: None, matching: None, filter: None, seeks: Vec::new(), ..read.clone() }))));
         let mut scan = Scan {
+            variant: self.variant(),
             site: scan_site,
             table: read.table.clone(),
             index: index.name,
@@ -345,6 +395,9 @@ impl<'a> Binder<'a> {
         if position == prefix::Position::Aggregate && snapback4_core::engine::rules::scan_visibility(self.schema, &scan).uniform {
             scan.take = Bound::Meter;
         }
+        if matches!(position, prefix::Position::Exists | prefix::Position::Aggregate) {
+            self.constraint_domains.insert(scan.site.clone());
+        }
         if self.caller_kind != ProgramKind::Job && (position != prefix::Position::Aggregate || self.caller_kind == ProgramKind::Query) { self.check_meter_prefix(read, &scan)?; }
         Ok((scan, range.take))
     }
@@ -353,6 +406,8 @@ impl<'a> Binder<'a> {
     /// key names, count and types. Point reads need a unique full key;
     /// ranges need a strict prefix.
     fn select_index(&mut self, info: &'a TableInfo, read: &ReadExpr, mode: ReadMode, out: &mut setup::Body) -> Fallible<(Vec<(Option<String>, Expr, Ty)>, ast::IndexDecl, String)> {
+        let normalized = super::mixed_keys::read(info, read, self.catalog)?;
+        let read = normalized.as_ref();
         super::validate_key_names(read)?;
         if !read.keys.is_empty() && read.keys.iter().all(|key| key.column.is_none()) {
             let declared = |index: &&ast::IndexDecl| !self.catalog.synthesized.contains(&(read.table.clone(), index.name.clone()));
@@ -363,7 +418,7 @@ impl<'a> Binder<'a> {
             if read.index.is_none() && mode == ReadMode::Range && read.order_keys.is_empty() && candidates.len() == 1 {
                 let scan = info.indexes.iter().filter(declared).find(|index| !index.unique && index.is_plain() && index.columns.len() > read.keys.len());
                 let columns = scan.map(|index| index.columns.as_slice()).unwrap_or(&candidates[0].columns);
-                let predicate = read.keys.iter().zip(columns).map(|(key, column)| format!(".{column} = {}", print::expression(&key.value))).collect::<Vec<_>>().join(" and ");
+                let predicate = read.keys.iter().zip(columns).map(|(key, column)| format!(".{column} = {}", self.catalog.source.operand(&key.value))).collect::<Vec<_>>().join(" and ");
                 return Err(Diagnostic::new(&read.site, "E_QUARRY_POSITIONAL_SCAN", "a positional key selects one declared unique row, not a scan prefix",
                     format!("{} where {predicate} first 20 by .id", read.table)).guide("reads"));
             }
@@ -465,7 +520,7 @@ impl<'a> Binder<'a> {
             1 => {
                 let index = candidates[0].clone();
                 if mode == ReadMode::Range && read.index.is_none() && !read.keys.is_empty() && !named {
-                    let predicate = read.keys.iter().zip(&index.columns).map(|(key, column)| format!(".{column} = {}", print::expression(&key.value))).collect::<Vec<_>>().join(" and ");
+                    let predicate = read.keys.iter().zip(&index.columns).map(|(key, column)| format!(".{column} = {}", self.catalog.source.operand(&key.value))).collect::<Vec<_>>().join(" and ");
                     let order = index.columns.iter().skip(read.keys.len()).map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ");
                     return Err(Diagnostic::new(&read.site, "E_QUARRY_POSITIONAL_SCAN", format!("{} would select non-unique prefix {}", print::read_expr(read), index.name), format!("{} where {predicate} first 50 by {order}", read.table)).guide("reads"));
                 }
@@ -629,15 +684,22 @@ impl<'a> Binder<'a> {
             scan.after = cursor_expr.clone().map(Box::new);
             scan.opaque_cursor = cursor_expr.is_some();
             scan.merge_site = Some(merge_site.clone());
+            if let Some((_, domain)) = &lane.loop_ {
+                self.sources.insert(format!("for/{binding}"), (domain.site().clone(), self.catalog.source.expression(domain)));
+            }
             lanes.push(MergeLane { guard: None, distinct: None, branch: None, project: None, setup: setup.code, scan, source, binding });
         }
-        Ok((Expr::Merge(Merge { position: None, view: None, order_keys: Vec::new(), site: merge_site, lanes }), Ty::Page(merge.table.clone(), merge.take)))
+        Ok((Expr::Merge(Merge { variant: self.variant(), position: None, view: None, order_keys: Vec::new(), site: merge_site, lanes }), Ty::Page(merge.table.clone(), merge.take)))
     }
 
     // ----- shapes -----
 
     fn shape(&mut self, base: &A, fields: &[ShapeField], site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         let (base_expr, base_ty) = self.expr(base, out)?;
+        self.shape_bound(base_expr, base_ty, fields, site, out)
+    }
+
+    fn shape_bound(&mut self, base_expr: Expr, base_ty: Ty, fields: &[ShapeField], site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         match base_ty.clone() {
             Ty::Page(table, max) => {
                 let list = self.temp("rows");
@@ -663,12 +725,12 @@ impl<'a> Binder<'a> {
                 out.push_for(item, LoopDomain::DerivedArray { value: base_expr, max, bound_source: "shape".into() }, body);
                 Ok((ir::var(&list), Ty::Collection(Box::new(object_ty), max)))
             }
-            Ty::Row(_) | Ty::WriteRow(_) | Ty::Object(_) | Ty::RowShape(_) => {
+            Ty::Row(_) | Ty::WriteRow(_) | Ty::Object(_) | Ty::RowShape(_) | Ty::RowObject(_) => {
                 let row = self.temp("row");
                 out.push(Stmt::Let { name: row.clone(), value: base_expr });
                 self.shape_object(&row, base_ty, fields, site, out)
             }
-            Ty::Optional(inner) if matches!(*inner, Ty::Row(_) | Ty::WriteRow(_) | Ty::Object(_) | Ty::RowShape(_)) => {
+            Ty::Optional(inner) if matches!(*inner, Ty::Row(_) | Ty::WriteRow(_) | Ty::Object(_) | Ty::RowShape(_) | Ty::RowObject(_)) => {
                 let row = self.temp("row");
                 out.push(Stmt::Let { name: row.clone(), value: base_expr });
                 let result = self.temp("shaped");
@@ -685,38 +747,38 @@ impl<'a> Binder<'a> {
 
     /// Build the object of a shape over a focal row variable.
     fn shape_object(&mut self, row_var: &str, row_ty: Ty, fields: &[ShapeField], site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        objects::explicit_fields(fields.iter().filter_map(|f| match f {
+            ShapeField::Bare { name, site } | ShapeField::Field { name, site, .. } => Some((name.as_str(), site)),
+            _ => None,
+        }))?;
         let prior = self.focal.replace((row_var.to_owned(), row_ty.clone()));
         self.push_scope();
         let result = (|| {
-            if fields.iter().any(|f| matches!(f, ShapeField::Spread { .. })) {
-                let carried = self.row_fields(&row_ty, site)?;
-                for (at, field) in fields.iter().enumerate() {
-                    if let ShapeField::Bare { name, site } = field {
-                        if carried.iter().any(|(column, _)| column == name) {
-                            let kept: Vec<_> = fields.iter().enumerate().filter(|(i, _)| *i != at).map(|(_, f)| f.clone()).collect();
-                            return Err(unknown(site, format!("shape wildcard already includes field {name}"), format!("{{ {} }}", print::shape_fields(&kept))).guide("shapes").mechanical());
-                        }
-                    }
-                }
-            }
             let mut exprs = Vec::<(String, Expr)>::new();
             let mut types = BTreeMap::new();
-            let mut add = |binder: &mut Self, name: String, e: Expr, t: Ty, site: &Site, setup: setup::Body, out: &mut setup::Body| -> Fallible<()> {
+            let mut add = |binder: &mut Self, name: String, e: Expr, t: Ty, setup: setup::Body, out: &mut setup::Body| {
+                if types.contains_key(&name) {
+                    // A replaced value still runs and pays its meter. Freeze
+                    // preceding fields before dropping one from the output,
+                    // including failures/reads with no setup statements.
+                    for (_, value) in &mut exprs {
+                        *value = binder.snapshot(std::mem::replace(value, Expr::Literal(Value::Null)), out);
+                    }
+                    exprs.retain(|(field, _)| field != &name);
+                }
                 binder.sequence_setup(exprs.iter_mut().map(|(_, e)| e), setup, out);
                 let e = if expr::allocates(&e) { binder.snapshot(e, out) } else { e };
-                if types.contains_key(&name) {
-                    return Err(unknown(site, format!("shape repeats field {name}"), "keep one"));
-                }
                 exprs.push((name.clone(), e));
                 types.insert(name, t);
-                Ok(())
             };
             for field in fields {
                 match field {
                     ShapeField::Spread { site } => {
                         for (name, ty) in self.row_fields(&row_ty, site)? {
+                            // Keep the existing re-shaping behavior: explicit
+                            // computed fields win over a RowShape's wildcard.
                             if matches!(row_ty, Ty::RowShape(_)) && fields.iter().any(|field| matches!(field, ShapeField::Field { name: explicit, .. } if explicit == &name)) { continue; }
-                            add(self, name.clone(), ir::field(ir::var(row_var), &name), ty, site, setup::Body::default(), out)?;
+                            add(self, name.clone(), ir::field(ir::var(row_var), &name), ty, setup::Body::default(), out);
                         }
                     }
                     ShapeField::NamedSpread { name, site } => {
@@ -725,29 +787,30 @@ impl<'a> Binder<'a> {
                         };
                         let mut setup = setup::Body::default();
                         let (nested, nested_ty) = self.shape_object(row_var, row_ty.clone(), &shape.fields, site, &mut setup)?;
-                        if let (Expr::Object(nested_fields) | Expr::Shape { fields: nested_fields, .. }, Ty::Object(nested_types) | Ty::RowShape(nested_types)) = (nested, nested_ty) {
+                        if let (Expr::Object(nested_fields) | Expr::Shape { fields: nested_fields, .. }, Ty::Object(nested_types) | Ty::RowShape(nested_types) | Ty::RowObject(nested_types)) = (nested, nested_ty) {
                             for (name, e) in nested_fields {
                                 let t = nested_types[&name].clone();
-                                add(self, name, e, t, site, std::mem::take(&mut setup), out)?;
+                                add(self, name, e, t, std::mem::take(&mut setup), out);
                             }
                         }
                     }
                     ShapeField::Bare { name, site } => {
                         let (e, t) = self.member(ir::var(row_var), row_ty.clone(), name, site)?;
-                        add(self, name.clone(), e, t, site, setup::Body::default(), out)?;
+                        add(self, name.clone(), e, t, setup::Body::default(), out);
                     }
-                    ShapeField::Field { name, value, site } => {
+                    ShapeField::Field { name, value, .. } => {
                         let mut setup = setup::Body::default();
                         let (e, t) = self.expr(value, &mut setup)?;
-                        add(self, name.clone(), e, t, site, setup, out)?;
+                        add(self, name.clone(), e, t, setup, out);
                     }
                 }
             }
             let _ = site;
             let fields = exprs.into_iter().collect();
-            if matches!(row_ty, Ty::Row(_) | Ty::WriteRow(_) | Ty::RowShape(_)) {
+            if matches!(row_ty, Ty::Row(_) | Ty::WriteRow(_) | Ty::RowShape(_) | Ty::RowObject(_)) {
                 if types.contains_key("pending") { return Err(type_error(site, "pending is the device's row metadata", "omit pending from the shape; it is preserved from the row")); }
-                Ok((Expr::Shape { base: Box::new(ir::var(row_var)), fields }, Ty::RowShape(types)))
+                let ty = if matches!(row_ty, Ty::RowObject(_)) { Ty::RowObject(types) } else { Ty::RowShape(types) };
+                Ok((Expr::Shape { base: Box::new(ir::var(row_var)), fields }, ty))
             } else { Ok((Expr::Object(fields), Ty::Object(types))) }
         })();
         self.pop_scope();
@@ -769,7 +832,7 @@ impl<'a> Binder<'a> {
                 fields.extend(info.columns.iter().map(|(name, scalar)| (name.clone(), Ty::from_scalar(scalar))));
                 Ok(fields)
             }
-            Ty::Object(fields) | Ty::RowShape(fields) => Ok(fields.into_iter().collect()),
+            Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) => Ok(fields.into_iter().collect()),
             other => Err(type_error(site, format!("* spreads a row or an object; got {}", other.name()), "shape a row")),
         }
     }
@@ -789,11 +852,6 @@ impl<'a> Binder<'a> {
         let info = self.table(table, site)?;
         if info.maintained.is_some() {
             return Err(unknown(site, format!("{table} is a maintained aggregate; write its source rows instead"), format!("{} {}", op.word(), info.maintained.as_ref().map(|m| m.source.clone()).unwrap_or_default())));
-        }
-        for field in fields {
-            if super::columns::fields(info).any(|name|name == field.name) {
-                return Err(super::columns::refusal(&field.site,format!("{table}.{} is engine-maintained; write its source rows instead",field.name)));
-            }
         }
         // Writes share table-level residency facts, but every source occurrence
         // (including an expanded helper) belongs in a changed-prediction note.
@@ -818,7 +876,7 @@ impl<'a> Binder<'a> {
                     return Err(unknown(site, "upsert cannot take a condition", "a condition belongs on update; an upsert inserts or patches"));
                 }
                 // @ref LLP 3000.007#8 — item 7: target resolution and conditional old images belong to the engine.
-                let key = self.write_key(info, keys, site, out)?;
+                let key = self.write_key(info, keys, site, out).map_err(|error| self.extra_write_test(info, expr, error))?;
                 let upsert = *op == WriteOp::Upsert;
                 if upsert && fields.iter().any(|f| f.name == "id") {
                     return Err(unknown(site, "upsert cannot spell id; the key names the row", "remove id from the patch; the key names the row"));
@@ -843,18 +901,14 @@ impl<'a> Binder<'a> {
                 Ok(result.map(|name| (ir::var(&name), self.write_result_type(info).optional())))
             }
             WriteOp::Delete => {
-                let key = self.write_key(info, keys, site, out)?;
-                let id_expr = if key.alternate {
-                    let current = self.temp("current");
+                let key = self.write_key(info, keys, site, out).map_err(|error| self.extra_write_test(info, expr, error))?;
+                if key.alternate {
                     let location = self.site();
                     self.sources.insert(location.clone(), (site.clone(), format!("delete {table}")));
-                    out.push(Stmt::Let { name: current.clone(), value: Expr::Get(Read { site: location, table: table.clone(), index: key.index.clone(), key: key.key.clone(), provenance: KeyProvenance::Shape }) });
-                    out.push(Stmt::Require { condition: Expr::Binary { op: BinaryOp::Ne, left: Box::new(ir::var(&current)), right: Box::new(Expr::Literal(Value::Null)) }, code: "NOT_FOUND".into(), site: Some(site.to_string()) });
-                    ir::field(ir::var(&current), "id")
+                    out.push(Stmt::DeleteTarget { target: Read { site: location, table: table.clone(), index: key.index, key: key.key, provenance: KeyProvenance::Shape } });
                 } else {
-                    key.key[0].clone()
-                };
-                out.push(Stmt::Delete { table: table.clone(), key: id_expr });
+                    out.push(Stmt::Delete { table: table.clone(), key: key.key[0].clone() });
+                }
                 Ok(valued.then(|| (Expr::Literal(Value::Null), Ty::Null)))
             }
         }
@@ -889,6 +943,17 @@ impl<'a> Binder<'a> {
     }
 
     fn write_row(&mut self, info: &'a TableInfo, fields: &[ObjectField], current: Option<&str>, site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        objects::explicit_fields(fields.iter().filter(|f| !f.spread).map(|f| (f.name.as_str(), &f.site)))?;
+        let expanded;
+        let fields = if fields.iter().any(|field| field.spread) {
+            expanded = self.expand_object_fields(fields, Some(info), out)?;
+            &expanded
+        } else { fields };
+        for field in fields {
+            if super::columns::fields(info).any(|name|name == field.name) {
+                return Err(super::columns::refusal(&field.site,format!("{}.{} is engine-maintained; write its source rows instead",info.decl.name,field.name)));
+            }
+        }
         match current {
             None => {
                 if fields.iter().any(|f| f.name == "id") {

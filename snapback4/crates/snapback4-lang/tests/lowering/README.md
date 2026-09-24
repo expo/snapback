@@ -98,3 +98,28 @@ columns; non-unique scans explicitly name the historical declared index. Four
 strings. Comparing the old compiler on the original inputs against the new
 compiler on migrated inputs found no other IR difference for those bundles.
 The new optional merge fields serialize absent on every historical merge.
+
+LLP 3000.013 Lane K shape replacement (2026-09-24): six frozen census
+programs now compile because a field following `*` replaces its inherited
+column (including a bare column selecting itself). Their new IR digests live
+in `intent-shape-overrides.sha256`; every historical digest and every census
+input stays unchanged. The ownership-on/off differential includes these six
+programs, with the same admission and execution/meter comparisons. Generate
+the current compiler's records with `generate.rs`, keep identities absent
+from the historical golden, clear `Program.returned_shapes` as `lowering.rs`
+does, and hash the serialized IR. The six sources are the small `messages`
+`history`/`repair-shape.history` projections, not previously accepted programs.
+
+LLP 3000.013 Lane P review closure (2026-09-24): alternate-key delete now
+lowers directly to `DeleteTarget`. The generated public `Get` previously
+charged expired siblings before read/delete authority and disclosed a hidden
+backlog through `E_BOUND`. The engine-private replacement retains both gates,
+accumulates work privately, and charges only after authority. Sixteen frozen
+program digests change (the alternate-key `leave` programs, `probe`, and
+`writeForms`); their source identities and the 3,219-program census stay fixed.
+The pre-fix binder reproduced all 3,219 existing hashes. Recursive comparison
+of the old and new JSON proved that each difference is exactly one
+`Let(Get)` / `Require NOT_FOUND` / `Delete` triple replaced by `DeleteTarget`
+with the identical table, index, key, provenance and lookup site; no other IR
+changed. Only those 16 digests were updated. Ownership-on/off IR, admission,
+results, all meters and refusal comparisons remain enforced without exclusions.

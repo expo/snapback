@@ -1,0 +1,87 @@
+{
+  "fullSuite": {
+    "command": "bash scripts/test.sh",
+    "exitStatus": 1,
+    "seconds": 1572,
+    "passedGates": [
+      "cargo build",
+      "wasm build",
+      "docs budget",
+      "release guard",
+      "package typecheck",
+      "package build",
+      "chat app check",
+      "cargo test",
+      "chat app typecheck",
+      "expo app typecheck",
+      "fixture wrapper tests"
+    ],
+    "failedGates": [
+      "client tests"
+    ],
+    "rust": {
+      "binaries": 140,
+      "executions": 857,
+      "passed": 2716,
+      "ignored": 13,
+      "doctests": "passed"
+    },
+    "client": {
+      "passed": 1032,
+      "failed": 48,
+      "skipped": 9,
+      "failures": {
+        "horizon-boundary.test.mjs": {
+          "count": 47,
+          "cause": "Shared fixture export waited on cold Cargo test compilation; 600-second build-lock timeout cached by the fixture promise."
+        },
+        "react.test.mjs": {
+          "count": 1,
+          "cause": "Browser fixture did not export openApp after the reference app migration; fixed in this branch."
+        }
+      }
+    }
+  },
+  "affected": {
+    "driver": {
+      "passed": 21
+    },
+    "appRunnerHelper": {
+      "passed": 45
+    },
+    "react": {
+      "passed": 17
+    },
+    "nativeSqliteSmoke": {
+      "passed": 1
+    },
+    "populatedStoreCommitBarrier": {
+      "passed": 1
+    },
+    "references": {
+      "documents": 505,
+      "references": 9236,
+      "errors": 0,
+      "unchecked": 0
+    },
+    "wasm": {
+      "rawBytes": 1745078,
+      "gzipBytes": 485463,
+      "gzipBudgetBytes": 486000
+    }
+  },
+  "native": {
+    "passManifest": "pass/smoke-ios-run.json",
+    "positiveExitStatus": 0,
+    "brokenManifest": "broken/smoke-ios-run.json",
+    "negativeExitStatus": 1
+  },
+  "fullSuiteFailureRerun": {
+    "command": "node --test --test-concurrency=1 packages/snapback4/test/horizon-boundary.test.mjs packages/snapback4/test/react.test.mjs",
+    "exitStatus": 0,
+    "passed": 99,
+    "failed": 0,
+    "skipped": 0,
+    "durationMs": 42705.219292
+  }
+}

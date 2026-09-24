@@ -5,6 +5,9 @@ export type { Witness } from "./witness-core";
 let instance: Witness | null | undefined;
 /** Null on ordinary launches and outside an iOS simulator driven by `snapback4 witness ios`. */
 export function witness(): Witness | null {
-  if (instance === undefined) instance = createWitness(requireOptionalNativeModule<WitnessContainer>("Snapback4"));
+  if (instance === undefined) {
+    const container = requireOptionalNativeModule<WitnessContainer>("Snapback4");
+    instance = container?.witnessLaunch && JSON.parse(container.witnessLaunch).smoke === true ? null : createWitness(container);
+  }
   return instance;
 }

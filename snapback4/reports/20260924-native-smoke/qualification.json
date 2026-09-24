@@ -1,0 +1,37 @@
+{
+  "baseCommit": "0ee488999e3f6a8d6ff5278786a6316e5686b1cf",
+  "branch": "sb4-native/n-smoke",
+  "host": "Charlies-MacBook-Air.local",
+  "cpu": "Apple M5",
+  "macOS": "27.0",
+  "xcode": "Xcode 27.0\nBuild version 27A266a",
+  "node": "v24.18.0",
+  "bun": "1.4.2",
+  "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "simulator": {
+    "dataPath": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/16A106F8-4197-413E-88E4-0E73CA2B6D77/data",
+    "dataPathSize": 2025873408,
+    "logPath": "/Users/ccheever/Library/Logs/CoreSimulator/16A106F8-4197-413E-88E4-0E73CA2B6D77",
+    "udid": "16A106F8-4197-413E-88E4-0E73CA2B6D77",
+    "lastUsedAt": "2026-09-24T14:11:15Z",
+    "isAvailable": true,
+    "logPathSize": 188416,
+    "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro",
+    "state": "Booted",
+    "name": "Snapback4 Lane N Smoke",
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-4"
+  },
+  "nativePackageVersion": "0.4.0",
+  "nativeFrameworkSha256": {
+    "packages/snapback4-expo/ios/Snapback4Device.xcframework/Info.plist": "20038f99c8c5db5438234379bf35ce34dc2b9b148dc83452bcff362397d85d0d",
+    "packages/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a": "c41ab5c28a5f9bc2516783efa1cf2962189859f468b423cbe7258e59570a0eff",
+    "packages/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/snapback4.h": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab",
+    "packages/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "packages/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a": "2fdb812d4250d041734630e06ce8b373ab9df53b05278d72719fac4f5534c207",
+    "packages/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64/Headers/snapback4.h": "5873cb92ec509aa199d52004da888f57545d1d0b148aad929649d89a17e9f5ab",
+    "packages/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329"
+  },
+  "smokeAppRunner": "witness() returns null for --smoke; ordinary createApp/AppProvider path",
+  "negativeControl": "broken-build.patch applied only while building the deliberately broken Release; source restored afterward",
+  "simulatorDeletedAfterRuns": true
+}

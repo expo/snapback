@@ -146,6 +146,45 @@ test("online session: current refusal clears the session; an obsolete refusal re
   assert.deepEqual(observed, [null]);
 });
 
+test("online query caps repeated obsolete-credential refetches", { timeout: 3000 }, async t => {
+  let reads = 0, rotations = 0;
+  const client = createClient({ url: "https://race.invalid", session: session("old"), fetch: async url => {
+    if (new URL(url).pathname === "/auth/refresh") return Response.json({ session: session(`next-${++rotations}`) });
+    reads++;
+    await client.refreshSession();
+    return denied();
+  } });
+  t.after(() => client.close());
+  const result = await client.query(query, {});
+  assert.equal(reads, 4);
+  assert.equal(result.denied.code, "E_OFFLINE");
+  assert.equal(client.session().token, "next-4", "obsolete refusals never end the replacement session");
+});
+
+test("online reconnect probe caps repeated obsolete-credential refetches", { timeout: 7000 }, async t => {
+  const disconnect = deferred();
+  let polls = 0, probes = 0, rotations = 0;
+  const client = createClient({ url: "https://race.invalid", session: session("old"), fetch: async (url, init) => {
+    const path = new URL(url).pathname;
+    if (path === "/auth/refresh") return Response.json({ session: session(`next-${++rotations}`) });
+    if (path === "/changes") {
+      if (++polls === 1) { await disconnect.promise; throw Error("disconnected"); }
+      return new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(init.signal.reason), { once: true }));
+    }
+    if (path === "/probe") { probes++; await client.refreshSession(); return denied(); }
+    return Response.json({ data: [], complete: true, seq: 0 });
+  } });
+  t.after(() => { disconnect.resolve(); return client.close(); });
+  const watch = client.observe(query, {});
+  for (let n = 0; n < 200 && !watch.getSnapshot().data; n++) await new Promise(resolve => setTimeout(resolve, 5));
+  assert.deepEqual(watch.getSnapshot().data, []);
+  disconnect.resolve();
+  for (let n = 0; n < 500 && probes < 4; n++) await new Promise(resolve => setTimeout(resolve, 10));
+  await new Promise(resolve => setTimeout(resolve, 300));
+  assert.equal(probes, 4);
+  assert.equal(client.session().token, "next-4");
+});
+
 test("online session: near-expiry rotates before a protected read; concurrent refreshes coalesce", async t => {
   const release = deferred();
   let refreshes = 0;

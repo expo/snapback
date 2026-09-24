@@ -4,8 +4,9 @@
 // online tier (`snapback4/client`) when it is not.
 import { requireOptionalNativeModule } from "expo-modules-core";
 import type { DeviceCore, DeviceOpener } from "snapback4/local";
+import type { WitnessContainer } from "./witness-core";
 
-interface Snapback4Native {
+interface Snapback4Native extends WitnessContainer {
   readonly documentDirectory: string;
   open(path: string, backend: string | null): Promise<number>;
   call(handle: number, request: string): Promise<string>;
@@ -19,6 +20,9 @@ interface Snapback4Native {
 const native = requireOptionalNativeModule<Snapback4Native>("Snapback4");
 // EXPO_PUBLIC_SNAPBACK_TRACE=1 logs every call's op, time and answer size.
 const trace = Boolean(process.env.EXPO_PUBLIC_SNAPBACK_TRACE);
+// Metro includes the runner but does not evaluate it on an ordinary launch.
+const smoke = native?.witnessLaunch && JSON.parse(native.witnessLaunch).smoke === true
+  ? (require("./smoke") as typeof import("./smoke")).createSmoke(native) : null;
 
 export function nativeAvailable(): boolean {
   return native !== null;
@@ -34,7 +38,8 @@ export const nativeDevice: DeviceOpener = {
   async open(name, backend): Promise<DeviceCore> {
     if (!native) throw new Error("snapback4-expo: the native module is not in this build (Expo Go loads no custom native code; make a development build)");
     const handle = await native.open(`${native.documentDirectory.replace(/\/$/, "")}/${name}.sqlite`, backend ? JSON.stringify(backend) : null);
-    return {
+    const core: DeviceCore = {
+      ...(smoke ? { onClient: (client, url) => smoke.attach(client, core, url) } : {}),
       media: {
         read: (id) => native.readAsset(handle, id),
         write: (id, hex) => native.writeAsset(handle, id, hex),
@@ -51,5 +56,6 @@ export const nativeDevice: DeviceOpener = {
         native.close(handle);
       },
     };
+    return core;
   },
 };

@@ -5,6 +5,7 @@ import { onlineCustody } from "../dist/app-online.js";
 import { memorySessionStore } from "../dist/auth.js";
 import { mintId } from "../dist/client.js";
 import { MutationIds, WRITE_HISTORY_LIMIT } from "../dist/writes.js";
+import { trackDispatch } from "../dist/online-dispatch.js";
 
 test("asynchronous settlement bounds online argument reservations, including another owner's retirement", async t => {
   const store = memorySessionStore(), instances = new Set(), emitted = [], callbacks = [];
@@ -15,6 +16,7 @@ test("asynchronous settlement bounds online argument reservations, including ano
     const raw = { viewer: () => "alice", onWrite(fn) { callback = fn; return () => {}; },
       mutate: async (op, args, { id }) => ({ state: "pending", id }), write: async () => undefined,
       close: async () => {}, signOut: async () => {} };
+    trackDispatch(raw, { store: "test-store" });
     callbacks.push(write => callback(write));
     return onlineCustody(raw, "https://bound.invalid", store, error => { throw error; });
   };
@@ -40,3 +42,54 @@ test("asynchronous settlement bounds online argument reservations, including ano
   }
   assert.equal(emitted.length, 600);
 });
+
+for (const state of ["sent", "failed"]) for (const source of ["mutate", "lookup", "background"]) {
+  test(`online custody keeps ${state} from ${source} consistent while receipt saves fail`, async t => {
+    const memory = memorySessionStore(), id = mintId(), notifications = [], errors = [];
+    const outcome = state === "sent" ? { state, id, seq: 3, result: { value: "current response" } }
+      : { state, id, why: { code: "E_INPUT", family: "input", message: "authoritative refusal", retryable: false } };
+    let fail = true, unreadable = false, callback, available, failures = 0, key;
+    const store = { ...memory, async get(k) {
+      if (unreadable && k.endsWith(".writes")) throw Error("journal read unavailable");
+      return memory.get(k);
+    }, async set(k, text) {
+      if (k.endsWith(".writes")) {
+        key = k;
+        if (fail && JSON.parse(text).receipts.length) { failures++; throw Error("receipt save unavailable"); }
+      }
+      await memory.set(k, text);
+    } };
+    const raw = { viewer: () => "alice", onWrite(fn) { callback = fn; return () => {}; },
+      mutate: async () => source === "mutate" ? outcome : { state: "pending", id },
+      write: async () => available, close: async () => {}, signOut: async () => {} };
+    trackDispatch(raw, { store: "test-store" });
+    const { client } = await onlineCustody(raw, "https://receipt.invalid", store, error => errors.push(error));
+    t.after(() => client.close()); client.onWrite(value => notifications.push(value));
+    const first = await client.mutate({ kind: "mutation", name: "write" }, { body: "one" }, { id });
+    if (source === "mutate") assert.deepEqual(first, outcome);
+    else {
+      assert.equal(first.state, "pending");
+      if (source === "lookup") { available = outcome; assert.deepEqual(await client.write(id), outcome); }
+      else {
+        callback(outcome);
+        for (let n = 0; n < 500 && !notifications.length; n++) await delay(1);
+      }
+    }
+    assert.deepEqual(notifications, [outcome], "a known outcome notifies even when its receipt cannot be saved");
+    const receipt = state === "sent" ? { state, id, seq: 3, replayed: true }
+      : { state, id, why: { code: "E_INPUT", family: "input", message: "write refused: E_INPUT" } };
+    available = undefined; // The lower client's bounded receipt history may evict this id.
+    const before = failures;
+    assert.deepEqual(await client.write(id), receipt);
+    assert.ok(failures > before, "lookup retried persistence while the fault was still active");
+    unreadable = true;
+    assert.deepEqual(await client.write(id), receipt, "memory keeps the known outcome even when the journal cannot be read");
+    assert.deepEqual(notifications, [outcome], "lookup must not emit a contradictory or duplicate completion");
+    assert.equal(JSON.parse(await memory.get(key)).pending[0].id, id, "failed saves preserve durable replay custody");
+    unreadable = false; fail = false;
+    assert.deepEqual(await client.write(id), receipt);
+    assert.equal(JSON.parse(await memory.get(key)).pending.length, 0, "repair permits durable retirement");
+    assert.equal((await client.write(id)).state, state); assert.ok(errors.length >= 3);
+    await client.close(); assert.equal(await client.write(id), undefined, "closing fences the retained outcome");
+  });
+}

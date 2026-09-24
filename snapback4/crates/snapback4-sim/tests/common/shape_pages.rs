@@ -361,7 +361,7 @@ fn w13h_raw_page_returned_beside_its_shape_keeps_its_own_position() {
 #[test]
 fn w13h_conditional_return_keeps_the_raw_position_for_both_arms() {
     for raw in [true, false] {
-        auxiliary_return("  if q = 'raw':\n    return page\n  else:\n    return ignored", raw);
+        auxiliary_return("  if q = 'raw':\n    return page { * }\n  else:\n    return ignored", raw);
     }
 }
 
@@ -420,8 +420,9 @@ fn conditional_value_return_observations(form: &str, raw: bool, owner: bool, unc
     }
 }
 
-const CONDITIONAL_RECORD: &str = "  selected = page if q = 'raw' else ignored\n  return { page: selected, shaped: ignored }";
-const CONDITIONAL_PAGE: &str = "  return page if q = 'raw' else ignored";
+// Explicitly shape the raw arm too: differing row kinds cannot join.
+const CONDITIONAL_RECORD: &str = "  selected = (page { id, preview: [] }) if q = 'raw' else ignored\n  return { page: selected, shaped: ignored }";
+const CONDITIONAL_PAGE: &str = "  return (page { id, preview: [] }) if q = 'raw' else ignored";
 
 #[test]
 fn w13h_conditional_value_record_raw_keeps_its_position() { conditional_value_return(CONDITIONAL_RECORD, true); }
@@ -438,7 +439,7 @@ fn w13h_conditional_value_shaped_keeps_its_rows() { conditional_value_return(CON
 #[test]
 fn w13h_conditional_value_record_field_keeps_its_page() {
     for raw in [true, false] {
-        conditional_value_return("  selected = { inner: page } if q = 'raw' else { inner: ignored }\n  return { page: selected.inner, shaped: ignored }", raw);
+        conditional_value_return("  selected = { inner: page { * } } if q = 'raw' else { inner: ignored }\n  return { page: selected.inner, shaped: ignored }", raw);
     }
 }
 
@@ -462,7 +463,7 @@ fn w13h_conditional_cursor_field_does_not_hide_the_page_owner() {
 #[test]
 fn w13h_conditional_value_without_exhaustion_keeps_next() {
     for raw in [true, false] {
-        let source = format!("{}query feed(c: cursor ?, q: text <=100):\n  page = msgs[0] after c first 1 by byLane\n  shaped = page {{ id }}\n  return page if q = 'raw' else shaped\n", table("msgs"));
+        let source = format!("{}query feed(c: cursor ?, q: text <=100):\n  page = msgs[0] after c first 1 by byLane\n  shaped = page {{ id }}\n  return (page {{ * }}) if q = 'raw' else shaped\n", table("msgs"));
         with_fixture(&source, vec![row("a", 0, 0, ""), row("b", 0, 1, "")], |q| {
             let mut context = ctx(None);
             context.args.insert("q".into(), Value::String(if raw { "raw" } else { "shaped" }.into()));
@@ -540,7 +541,7 @@ fn w13j_inherited_exhaustion_names_the_blocked_shape_and_prior_read() {
     } } }
 }
 
-const LOOP_SELECTED: &str = "  selected = page if q = 'raw' else ignored\n  for i in range(0, 1):\n    selected = page if q = 'raw' else ignored\n";
+const LOOP_SELECTED: &str = "  selected = (page { id, preview: [] }) if q = 'raw' else ignored\n  for i in range(0, 1):\n    selected = (page { id, preview: [] }) if q = 'raw' else ignored\n";
 
 #[test]
 fn w13h_loop_carried_record_keeps_owner_position_and_rows() {
@@ -565,7 +566,7 @@ fn w13h_loop_exits_keep_main_ownership_without_trimming() {
 #[test]
 fn w13h_multiple_backedges_keep_the_sibling_raw_position() {
     for raw in [true, false] {
-        conditional_value_return("  selected = ignored\n  previous = ignored\n  for i in range(0, 2):\n    selected = previous\n    previous = page if q = 'raw' else ignored\n  return { page: selected, shaped: ignored }", raw);
+        conditional_value_return("  selected = ignored\n  previous = ignored\n  for i in range(0, 2):\n    selected = previous\n    previous = (page { id, preview: [] }) if q = 'raw' else ignored\n  return { page: selected, shaped: ignored }", raw);
     }
 }
 
@@ -693,7 +694,7 @@ fn w13h_collector_wrapping_raw_page_keeps_main_position() {
 #[test]
 fn w13h_collector_wrapping_conditional_page_keeps_main_position() {
     for raw in [true, false] {
-        conditional_value_return_checked("  bag = []\n  for item in page:\n    payload = page if q = 'raw' else ignored\n    bag = bag + [payload]\n  return { mystery: bag, page: ignored, shaped: ignored }", raw, check_collector_payload);
+        conditional_value_return_checked("  bag = []\n  for item in page:\n    payload = (page { id, preview: [] }) if q = 'raw' else ignored\n    bag = bag + [payload]\n  return { mystery: bag, page: ignored, shaped: ignored }", raw, check_collector_payload);
     }
 }
 
@@ -758,33 +759,28 @@ fn w13h_record_or_null_keeps_its_value_without_an_owner() {
     for reverse in [false, true] { for assigned in [false, true] { record_join_return("null", reverse, assigned); } }
 }
 
+// Round 9 refuses these row-containing joins before continuation ownership
+// can be inferred. Same-kind and nullable continuation controls stay above.
 #[test]
-fn w13h_record_or_empty_keeps_its_value_without_an_owner() {
-    for reverse in [false, true] { for assigned in [false, true] { record_join_return("[]", reverse, assigned); } }
-}
-
-#[test]
-fn w13h_record_or_page_keeps_its_value_without_an_owner() {
-    for other in ["page", "ignored"] { for reverse in [false, true] { record_join_return(other, reverse, true); } }
-}
-
-#[test]
-fn w13h_record_or_cursor_keeps_its_value_without_an_owner() {
-    for reverse in [false, true] { record_join_return("c", reverse, true); }
-}
-
-#[test]
-fn w13h_structural_join_cannot_own_an_unknown_only_record_alternative() {
-    for raw in [true, false] {
-        let source = format!("{}query feed(c: cursor ?, q: text <=100):\n  page = msgs[0] after c first 1 by byLane\n  selected = {{ mystery: [page] }} if q = 'raw' else page\n  return selected\n", table("msgs"));
-        with_fixture(&source, vec![row("a", 0, 0, ""), row("b", 0, 1, "")], |q| {
-            let mut context = ctx(None);
-            context.args.insert("q".into(), Value::String(if raw { "raw" } else { "shaped" }.into()));
-            let answer = q("feed", context).unwrap();
-            assert!(!answer.complete && answer.next.is_none(), "an unowned alternative cannot borrow an owner from the other arm");
-        });
-        conditional_value_return("  selected = { mystery: [page] } if q = 'raw' else page\n  return { mystery: selected, page: ignored, shaped: ignored }", raw);
+fn w13h_incompatible_record_alternatives_are_refused_at_the_join() {
+    for other in ["[]", "page", "ignored", "c"] {
+        for reverse in [false, true] { for assigned in [false, true] {
+            let record = "{ page, shaped: ignored }";
+            let value = if reverse { format!("{other} if q != 'raw' else {record}") } else { format!("{record} if q = 'raw' else {other}") };
+            let tail = if assigned { format!("  selected = {value}\n  return selected") } else { format!("  return {value}") };
+            incompatible_return(&tail);
+        } }
     }
+    for tail in [
+        "  selected = { mystery: [page] } if q = 'raw' else page\n  return selected",
+        "  selected = { mystery: [page] } if q = 'raw' else page\n  return { mystery: selected, page: ignored, shaped: ignored }",
+    ] { incompatible_return(tail); }
+}
+
+fn incompatible_return(tail: &str) {
+    let source = format!("{}{}query feed(c: cursor ?, q: text <=100):\n  page = msgs[0] after c first 1 by byLane\n  ignored = page {{ id, preview: extra[1] first 2 by byLane }}\n{tail}\n", table("msgs"), table("extra"));
+    let result = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(result.diagnostics.iter().any(|d| d.code == "E_QUARRY_SHAPE_JOIN" && d.rewrite.is_empty() && d.message.contains("make both arms the same kind")), "{:?}", result.diagnostics);
 }
 
 #[test]

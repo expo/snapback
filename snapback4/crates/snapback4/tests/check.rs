@@ -10,6 +10,34 @@ const SOURCE: &str = "table messages:\n  body: text <=100\n  read <- allow\nquer
 const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
 
 #[test]
+fn natural_forms_diagnostics_are_authored_in_plain_verbose_and_json() {
+    let project = Project::new();
+    for (source, code, rewrite) in [
+        ("table notes:\n  title: text\n  public\nquery page(c: cursor ?):\n  return notes first 20 by .title after c\n", "E_INDEX_KEY_BYTES", "title: text <="),
+        ("table notes:\n  owner: principal\n  select <- .owner = viewer\n", "E_QUARRY_RULE_SPELLING", "read <-"),
+        ("job sweep every 1h:\n  return\n", "E_QUARRY_JOB_SCHEDULE", "schedule sweepEvery every 1h: sweep"),
+        ("table notes:\n  public\nquery one(key: notes):\n  p = notes[key]\n  return { ...p }\n", "E_QUARRY_SPREAD", "! else NOT_FOUND"),
+    ] {
+        project.source(source);
+        for flags in [vec!["check"], vec!["check", "--verbose"], vec!["check", "--json"]] {
+            let output = project.run(&flags);
+            assert_eq!(output.status.code(), Some(1));
+            let text = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+            assert!(text.contains(code) && text.contains(rewrite), "{flags:?}: {text}");
+            assert!(!text.contains("$intent:"), "{flags:?}: {text}");
+            if flags.contains(&"--json") {
+                let json = parsed(&output);
+                let diagnostic = json["problems"].as_array().unwrap().iter().find(|d| d["code"] == code).unwrap();
+                assert!(diagnostic["site"]["line"].as_u64().unwrap() > 0);
+            } else { assert!(text.contains("schema.q:"), "{text}"); }
+        }
+        let why = project.run(&["why", code]);
+        assert!(why.status.success());
+        assert!(String::from_utf8_lossy(&why.stdout).contains("Full card:"));
+    }
+}
+
+#[test]
 fn w10c_check_hides_only_the_redundant_operation_cascade() {
     let p = Project::new();
     p.source("query apiHistory():\n  return messages after null\n");
@@ -274,6 +302,31 @@ fn w11_why_every_registered_code_returns_its_dedicated_section() {
         largest = largest.max(text.len());
     }
     println!("W11 why CLI: codes={} fallback=0 maximum_bytes={largest}", snapback4_lang::guide::codes().len());
+}
+
+#[test]
+fn why_rule_distinguishes_readable_and_unreadable_collision_targets() {
+    let output = Project::new().run(&["why", "E_RULE"]);
+    assert!(output.status.success(), "{output:?}");
+    let text = String::from_utf8(output.stdout).unwrap();
+    let summary = text.split_once("\n\n").unwrap().0;
+    assert!(summary.contains("An unreadable update/upsert target instead returns NOT_FOUND"), "{summary}");
+    assert!(summary.contains("without row, index, column or branch detail"), "{summary}");
+    let section = text.split_once("\n\n").unwrap().1.split_whitespace().collect::<Vec<_>>().join(" ");
+    // Write-executing witnesses: snapback4-lang/tests/guide/rules.rs:
+    // insert_collision_visibility, update_rule_refusals, admitted_hidden_updates,
+    // update_collision_visibility and delete_rule_refusals.
+    for fact in [
+        "A unique clash with a hidden row returns E_RULE for either insert form.",
+        "For a readable secondary unique clash without a custom refusal, ordinary insert returns E_CONSTRAINT naming the index, while `insert ... if absent` succeeds with null.",
+        "If the update rule denies an update or upsert-patch, it returns E_RULE for a readable target and NOT_FOUND for an unreadable target.",
+        "A valid update or upsert-patch admitted by the update rule can change a hidden row; if the resulting row remains hidden, it returns null.",
+        "Without a custom unique refusal, an update or upsert-patch with a secondary unique clash returns NOT_FOUND if its target is unreadable, E_RULE if only the colliding row is unreadable, and E_CONSTRAINT naming the index if both are readable.",
+        "Delete returns NOT_FOUND for a missing id, and E_RULE if an existing row's delete rule refuses, whether that row is readable or hidden.",
+    ] {
+        assert!(section.contains(fact), "{fact}: {section}");
+    }
+    assert!(!section.contains("table below"));
 }
 
 #[test]
@@ -810,7 +863,7 @@ fn horizon_check_and_why_keep_the_same_advice_across_checks() {
     let first = p.run(&["check", "--json"]);
     assert!(first.status.success(), "{first:?}");
     let first = parsed(&first);
-    assert_eq!(first["notes"].as_array().unwrap().len(), 4);
+    assert_eq!(first["notes"].as_array().unwrap().len(), 5);
     let summary = first["predictionSummary"].as_str().unwrap();
     assert!(summary.contains("chat.send (messages[messageId] (chat.q:83:22))"), "{summary}");
     for _ in 0..3 {

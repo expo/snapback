@@ -6,13 +6,14 @@
 // machine.
 import * as SecureStore from "expo-secure-store";
 import { guest, keepSession, restoreSession } from "snapback4/auth";
+import { createApp, type App } from "snapback4/app";
 import { createClient } from "snapback4/client";
 import type { Client } from "snapback4/contract";
 import { createLocalClient, type LocalClient, type LocalOptions } from "snapback4/local";
 import { nativeAvailable, nativeDevice } from "snapback4-expo";
 
 export const url = process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400";
-const persona = process.env.EXPO_PUBLIC_SNAPBACK_PERSONA;
+export const persona = process.env.EXPO_PUBLIC_SNAPBACK_PERSONA;
 
 const sessionStore = {
   get: (key: string) => SecureStore.getItemAsync(key.replace(/[^A-Za-z0-9._-]/g, "_")),
@@ -47,4 +48,18 @@ export async function openClient(extra: Partial<LocalOptions> = {}): Promise<Dev
     await keepSession(url, session, sessionStore);
   }
   return createClient({ url, session, fetch: extra.fetch });
+}
+
+/** The ordinary application owns restoration, sign-in and client lifetime. */
+export async function openApp(): Promise<App> {
+  const app = createApp({ url, sessionStore, ...(tier === "native" ? { device: nativeDevice } : {}) });
+  try {
+    const restored = await app.ready;
+    if (!restored.ok) throw new Error(restored.why.message);
+    if (app.auth.state === "signed-out") {
+      const result = await app.auth.guest();
+      if (!result.ok) throw new Error(result.why.message);
+    }
+    return app;
+  } catch (error) { await app.close(); throw error; }
 }
