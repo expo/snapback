@@ -47633,3 +47633,40 @@ No admission, authorization, expiry, effect transaction, replay/prediction,
 syntax or IR changes; no runtime ceiling increase, push or publication.
 File-by-file details, executable forms, measurements, fault-injection results
 and baseline reproductions: `reports/20260924-intent-work-r2.md`.
+
+## 2026-09-24 — LLP 3000.013 lane D, Astra delta review
+
+Fixed the unknown-input regression in streaming scalars. Their coverage frame
+now inherits prior missing-fact, horizon, word-expansion and presence
+uncertainty, including binder-hoisted bounds and saved locals. It still keeps
+an outer page's non-uniformity separate. Without per-value coverage
+provenance, earlier unknown coverage is conservatively retained even if the
+reads might be independent, as the review requested. The bounds card states
+that a fallback does not establish coverage.
+
+Added three tests: all of count/sum/exists with an unknown hoisted prefix;
+all three with an unknown saved filter local; and a memory-store cursor
+reservation at a refusal boundary. The coverage tests also prove known
+absence returns zero/false and known inputs agree with server totals. With a
+5,000 B heap allowance, one 32-character-key row fits, but adding a
+256-character-key row refuses at 5,089 B charged, including the refused
+charge. Deleting just the retained-cursor heap charge makes this test fail
+with an incorrect complete count of two. Restored the charge before checks.
+
+87 affected tests pass: 25 intent/control/review, seven device components and
+55 guide tests. The recipient-heavy 5,000-candidate / 4,900-hit / 50-recipient
+control remains at 370,216 B peak under the unchanged 16 MiB job ceiling.
+The ordinal/once variant peaks at 372,756 B; scheduled scale still emits 50
+digests across restart/rerun in 26 chunks, final K=2 after five retries, at
+1,309,094 B peak including refused attempts.
+
+scripts/test.sh: `== 1 failure(s) in 184 s` (`cargo test`). All four failures
+are baseline: legacy schema capability, word-expansion fixture, authoring
+census and CLI why text. The census mismatch remains exactly the baseline's
+12 actual-only / one expected-only entries. No new or environmental failures.
+WASM: 1,714,421 B raw / 475,748 B gzip, within the unchanged 476,000 B budget.
+Ref-check: 504 LLP docs, 9,212 refs, zero errors/unchecked. Largest changed
+source: 1,298 lines. No syntax, IR, admission, authorization, expiry, effects
+or runtime ceiling changes; no per-value provenance redesign, push or
+publication. Details and baseline reproductions:
+`reports/20260924-intent-work-r3.md`.

@@ -46,6 +46,9 @@ Mutations retain their uniform-read and
 plain-prefix admission rules; a cut aborts the transaction, never commits a
 partial total. A streaming query total with a meter cut or unknown device
 coverage returns `data: null`, `complete: false`, never a partial count or sum.
+Unknown earlier reads also make a streaming scalar unavailable, including
+inputs saved in locals or used as domain bounds; a fallback cannot establish
+coverage.
 
 E_QUARRY_BOUND means a boundless prefix is not valid in this position: no
 schema cap covers the group, its cap exceeds the examined ceiling, or a

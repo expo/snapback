@@ -793,10 +793,19 @@ impl Runner<'_> {
 
     // @ref LLP 3000.013#5.1 — domain scalars consume the ordinary authorized scan one row at a time.
     pub(super) fn stream_aggregate(&mut self, scan: &Scan, projection: Option<&Expr>) -> Result<Value, RuntimeError> {
-        // Availability belongs to this scalar's reads. An enclosing page can
-        // already be incomplete while this domain is fully resolved. The
-        // ordinary query/component flags remain monotone throughout the scan.
-        let outer = self.components.scalar.replace(super::components::Frame::default());
+        // Prefixes may be hoisted, and filter/projection locals evaluated
+        // before this frame. Without input provenance, conservatively retain
+        // earlier unknown coverage. An enclosing page's non-uniformity alone
+        // does not make the scalar's inputs unknown; observe its own scans.
+        // Ordinary query/component flags remain monotone throughout the scan.
+        let inputs = super::components::Frame {
+            beyond: self.beyond_horizon,
+            unknown: self.missing_fact.is_some(),
+            words: self.word_cut_at.is_some(),
+            presence: self.presence_unknown,
+            ..Default::default()
+        };
+        let outer = self.components.scalar.replace(inputs);
         let result = self.stream_aggregate_scoped(scan, projection);
         let coverage = self.components.scalar.take().expect("scalar coverage scope");
         self.components.scalar = outer;
